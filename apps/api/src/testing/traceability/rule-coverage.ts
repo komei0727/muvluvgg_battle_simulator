@@ -1941,6 +1941,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-LNK-03-034",
       "UT-R-LNK-03-035",
       "UT-R-LNK-03-036",
+      "UT-R-LNK-03-037",
     ],
     kinds: ["POSITIVE", "NEGATIVE"],
   },

@@ -1691,6 +1691,25 @@ function validateEffectAction(
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
+  // PR #299再レビュー[P2]: `ConditionDefinition`はSkill/Memory側だけでなく
+  // `DurationDefinition`にも2か所ある（R-EFF-08の`expiration.conditions`と、
+  // EFF-005の`counterUpdates[].trigger.condition`）。どちらも同じ評価器
+  // （`trigger-condition-evaluator.ts`）で解決されるため、参照検証も同じ規則で
+  // 行わないと、存在しないIDを指す条件が常に偽のままロードを通ってしまう。
+  const duration = durationOf(effectAction);
+  if (duration !== undefined) {
+    validateConditionEffectActionReferences(
+      [
+        ...(duration.expiration?.conditions ?? []).flatMap(collectConditionEffectActionReferences),
+        ...(duration.counterUpdates ?? []).flatMap((counterUpdate) =>
+          collectConditionEffectActionReferences(counterUpdate.trigger.condition),
+        ),
+      ],
+      effectActions,
+      effectAction.effectActionDefinitionId,
+      violations,
+    );
+  }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {
     for (const referencedId of effectAction.payload.effectActionDefinitionIds ?? []) {
       if (!effectActions.has(referencedId)) {

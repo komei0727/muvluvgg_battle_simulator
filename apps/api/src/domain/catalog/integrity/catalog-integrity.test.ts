@@ -2581,6 +2581,93 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-R-LNK-03-037 (PR #299再レビュー[P2], NEGATIVE): rejects a dangling TARGET_HAS_EFFECT.effectActionDefinitionIds inside a DurationDefinition (expiration.conditions / counterUpdates[].trigger.condition)", () => {
+    const danglingQuery = {
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["DEBUFF"],
+      effectActionDefinitionIds: ["ACT_MISSING"],
+    } as const;
+    // `DurationDefinition`もSkill/Memoryの条件とまったく同じ`ConditionDefinition`を
+    // 2か所に持つ。どちらも走査しなければ、存在しないIDを指す条件が実行時に一切
+    // 一致しないまま（silent no-op）ロードを通ってしまう。
+    const durations = [
+      ["expiration.conditions", { expiration: { conditions: [danglingQuery] } }],
+      [
+        "counterUpdates[].trigger.condition",
+        {
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "EFF_TEST_COUNT",
+              scope: "APPLIED_EFFECT",
+              trigger: {
+                eventType: "TurnStarted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "SELF",
+                condition: danglingQuery,
+              },
+              amount: 1,
+            },
+          ],
+        },
+      ],
+    ] as const;
+
+    for (const [placement, durationExtra] of durations) {
+      const action = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DURATION_QUERY",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              timeLimit: { unit: "BATTLE", count: 1 },
+              dispellable: true,
+              ...durationExtra,
+            },
+          },
+          requiredCapabilities: [
+            "CAP_STAT_MOD",
+            "CAP_COMPLEX_EXPIRATION",
+            "CAP_TARGET_EFFECT_QUERY",
+          ],
+        },
+        "effectAction",
+      );
+      const defs = baseDefinitions();
+      const withDanglingDurationQuery: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DURATION_QUERY")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, action],
+        capabilities: [
+          capability("CAP_STAT_MOD"),
+          capability("CAP_COMPLEX_EXPIRATION"),
+          capability("CAP_TARGET_EFFECT_QUERY"),
+          capability("CAP_EFFECT_RUNTIME_COUNTER"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withDanglingDurationQuery);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "DANGLING_REFERENCE" && v.targetId === "ACT_DURATION_QUERY",
+          ),
+          `${placement} must report DANGLING_REFERENCE`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it("UT-R-LNK-03-036 (PR #299レビュー[P2], NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy inside a Memory trigger, whose evaluator has no owning BattleUnit", () => {
     const defs = baseDefinitions();
     const withMemoryGrantedBy: CatalogDefinitions = {

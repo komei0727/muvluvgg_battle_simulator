@@ -2045,7 +2045,13 @@ condition:
 - EffectSequence内の条件（`stepCondition`／`targetCondition`／BRANCHの`condition`）と`activationCondition`
 - **Memoryのtrigger条件**（`memory-trigger-matcher.ts`はR-MEM-04どおり`ownerSide`（陣営）だけを渡す。Memoryには「自身が付与した」に相当する付与者ユニットがそもそも存在しない）
 
-`effectActionDefinitionIds`が実在の`EffectActionDefinition`を指しているかは、条件を置けるすべての位置（Skillの`triggers[]`／`counterUpdates[].trigger`／`activationCondition`／EffectSequence内のstep条件、Memoryの`trigger`／EffectSequence）を走査して`DANGLING_REFERENCE`で検証する。`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`のpayload参照と同じ規則である — 存在しないIDを指す条件は実行時に一切一致しないsilent no-opになるためロード時に落とす。
+`effectActionDefinitionIds`が実在の`EffectActionDefinition`を指しているかは、`ConditionDefinition`を置けるすべての位置を走査して`DANGLING_REFERENCE`で検証する。
+
+- Skill: `triggers[]`／`counterUpdates[].trigger`／`activationCondition`／EffectSequence内のstep条件（BRANCH・RANDOM_BRANCH・REPEATの入れ子を含む）
+- Memory: `trigger`／EffectSequence内のstep条件
+- `DurationDefinition`: `expiration.conditions`（R-EFF-08）と`counterUpdates[].trigger.condition`（EFF-005）
+
+`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`のpayload参照と同じ規則である — 存在しないIDを指す条件は実行時に一切一致しないsilent no-opになるためロード時に落とす。
 
 分類の正本は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`の`effectCategoriesOf`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込む。`EffectApplied.payload.categories`・`EffectSnapshot.categories`も同じ値を運ぶため、独立Reducerで復元した状態でも同じ判定になる。
 
