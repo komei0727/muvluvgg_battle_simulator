@@ -15,7 +15,7 @@ import {
  * version) into the five `catalog/*.json` files plus `manifest.json`, so
  * `catalog/` stays a deterministically generated artifact rather than a
  * hand-edited one. Formatting goes through the repo's own Prettier config
- * (`.prettierrc`) so generated output passes `pnpm run format-check`
+ * (`.prettierrc`) so generated output passes `pnpm run format:check`
  * unchanged.
  */
 

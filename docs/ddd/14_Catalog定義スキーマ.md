@@ -113,7 +113,7 @@ pnpm --filter api run generate-catalog catalog-src catalog <catalogRevision>
 
 - 各 `catalog-src/units/*/{unit.json,skills.json,effects.json}` と `catalog-src/memories/*/{memory.json,effects.json}`、`catalog-src/capabilities.json` を読み込み、ディレクトリ名昇順でユニット/メモリを並べて集約する。
 - ユニットディレクトリ名が `unit.json` の `unitDefinitionId` と一致しない場合（メモリも同様）は生成せずエラーにする。
-- 出力はリポジトリの Prettier 設定（`.prettierrc`）で整形され、`pnpm run format-check` をそのまま通過する。
+- 出力はリポジトリの Prettier 設定（`.prettierrc`）で整形され、`pnpm run format:check` をそのまま通過する。
 - `manifest.json` の各ファイルhashは生成した内容から自動算出される。`catalogRevision` は明示指定必須（暗黙の日付生成はしない）。
 
 同じ入力（`catalog-src/` の内容と `catalogRevision`）から再生成しても出力は毎回バイト単位で同一になる（決定的）。

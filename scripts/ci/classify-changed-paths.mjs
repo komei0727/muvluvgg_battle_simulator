@@ -6,7 +6,9 @@
 // triggering — PR #118 review); its output feeds job-level `if:` guards on
 // the API/UI quality gates and the Cloud Run deploy job.
 
-const API_PATH_PREFIXES = ["apps/api/", "raw/", "deploy/", "scripts/cloud-run/"];
+// raw/ is intentionally absent: it is gitignored, so it can never appear
+// in a git diff (a prefix for it would be a dead condition).
+const API_PATH_PREFIXES = ["apps/api/", "deploy/", "scripts/cloud-run/"];
 const API_EXACT_PATHS = new Set(["Dockerfile", ".dockerignore", "scripts/container-smoke-test.sh"]);
 const UI_PATH_PREFIXES = ["apps/ui/"];
 
@@ -21,7 +23,14 @@ const SHARED_EXACT_PATHS = new Set([
   ".prettierrc",
   ".prettierignore",
 ]);
-const SHARED_PATH_PREFIXES = [".github/workflows/"];
+const SHARED_PATH_PREFIXES = [".github/workflows/", "scripts/ci/"];
+
+// Anything matching none of the lists above (docs/, .claude/,
+// scripts/run-quality-gates.sh, root markdown, ...) intentionally runs
+// neither gate: those paths cannot change what the API/UI jobs build or
+// test, and the always-on `changes` job already covers repo-wide
+// formatting (format:check) and this decision logic (ci:test) on every
+// run.
 
 function startsWithAny(path, prefixes) {
   return prefixes.some((prefix) => path.startsWith(prefix));

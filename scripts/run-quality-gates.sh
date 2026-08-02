@@ -22,14 +22,14 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 # changes job
-mise run format-check
+mise run format:check
 mise run ci:test
 
 # quality job (apps/api)
 mise run typecheck
 mise run lint
 mise run test:coverage
-mise run check-circular
+mise run check:circular
 
 # container job (apps/api, Docker required)
 mise run test:container
