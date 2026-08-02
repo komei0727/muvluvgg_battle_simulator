@@ -36,5 +36,24 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     setupFiles: [fileURLToPath(new URL("./src/test/setup.ts", import.meta.url))],
     css: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "html"],
+      // Vitest 4 measures only files loaded during the run by default;
+      // include untested source files too so the denominator is the whole app.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.{test,spec}.{ts,tsx}",
+        "src/test/**",
+        "src/main.tsx",
+        "src/vite-env.d.ts",
+      ],
+      // Floor matches the API-side gate (apps/api/vitest.config.ts). The
+      // measured baseline at introduction already exceeds it (lines 90% /
+      // functions 94% / branches 85% / statements 90%), so 80% starts as a
+      // regression guard; raise stepwise toward the baseline as the suite
+      // stabilizes, never lower to admit a regression (06_UIテスト戦略.md §10).
+      thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
+    },
   },
 });

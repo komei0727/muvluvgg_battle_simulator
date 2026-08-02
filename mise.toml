@@ -108,6 +108,10 @@ run = "pnpm --filter ui run lint"
 description = "Run apps/ui/ unit and component tests"
 run = "pnpm --filter ui run test"
 
+[tasks."ui:test:coverage"]
+description = "Run apps/ui/ unit and component tests with coverage report and threshold check (PR CI equivalent)"
+run = "pnpm --filter ui run test:coverage"
+
 [tasks."ui:build"]
 description = "Build the apps/ui/ workspace for production"
 run = "pnpm --filter ui run build"

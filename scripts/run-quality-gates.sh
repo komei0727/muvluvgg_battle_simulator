@@ -37,7 +37,7 @@ mise run test:container
 # ui job (apps/ui)
 mise run ui:typecheck
 mise run ui:lint
-mise run ui:test
+mise run ui:test:coverage
 mise run ui:build
 if [[ "$(uname -s)" == "Linux" ]]; then
   # Same as PR CI: install OS-level browser dependencies too (uses apt,
