@@ -27,8 +27,9 @@ import { runScenario } from "../../testing/scenario/run-scenario.js";
  * harness ベースの Battle シナリオ（`12_テスト戦略.md`「基準シナリオ」）。散在する既存の
  * `SCN-BTL-*` とは別に、`runScenario` + `CatalogBuilder` を実運用へ載せる集約先。
  * SCN-BTL-015〜017（シールド/サブユニット・リンク・継続ダメージ）は `DMG-011`
- * （Issue #186、M8完了監査）が該当ルールの実装完了を確認して追加した。ルール未実装の
- * SCN-BTL-018（状態異常）は該当ルール実装後に追加する。
+ * （Issue #186、M8完了監査）が該当ルールの実装完了を確認して追加した。SCN-BTL-018
+ * （状態異常）は R-STS-01〜04 完了済みのため実装可能であり、REL-003（Issue #200、M9）
+ * で追加する。
  */
 describe("battle scenarios (harness)", () => {
   it("SCN-BTL-022: a definition graph requiring an unimplemented Capability is rejected with UNSUPPORTED_RULE before the battle starts", () => {
