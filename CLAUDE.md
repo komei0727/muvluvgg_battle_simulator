@@ -35,16 +35,37 @@ pnpm install
 | `mise run build`            | TypeScript ビルド (`tsc -p tsconfig.json`)                                           |
 | `mise run check-circular`   | 循環依存検査 (`madge --circular ...`)                                                |
 | `mise run ci:test`          | CI変更判定ロジックのテスト (`scripts/ci/*.test.mjs`)                                 |
-| `mise run check`            | typecheck・lint・format-check・test・build・check-circular・ci:test 等をまとめて実行 |
+| `mise run ui:typecheck`     | apps/ui の TypeScript 型検査                                                         |
+| `mise run ui:lint`          | apps/ui の ESLint                                                                    |
+| `mise run ui:test`          | apps/ui の unit / component テスト (Vitest)                                          |
+| `mise run ui:build`         | apps/ui の production ビルド (Vite)                                                  |
+| `mise run ui:e2e`           | apps/ui の Playwright E2E スモーク（`@visual` 除外。どのOSでも実行可）               |
+| `mise run ui:e2e:visual`    | apps/ui の visual regression（`@visual` のみ。baseline は Linux 専用 → CI 実行前提） |
+| `mise run ui:e2e:live`      | デプロイ済み Pages / Cloud Run への live smoke（`LIVE_PAGES_URL` 等が必須）          |
+| `mise run ui:dev`           | apps/ui の Vite 開発サーバー起動（port 5173、API は `mise run dev` と併用）          |
+| `mise run check`            | api + ui の typecheck・lint・test・build 等をまとめる**軽量チェック**（下記参照）    |
 | `mise run dev`              | 開発サーバー起動 (install → `tsx watch src/main.ts`、`apps/api/`で実行)              |
 
-### PR 相当のローカル検証
+### 品質ゲートの正本: `scripts/run-quality-gates.sh`
+
+PR 相当のローカル検証の**正本は `scripts/run-quality-gates.sh` の1つだけ**。PR CI
+（`.github/workflows/pr.yml`）と同じチェックを同じ job 順で実行する。
 
 ```bash
 bash scripts/run-quality-gates.sh
-# 実行順: format-check → typecheck → lint → test:coverage → check-circular
-#         → ui:typecheck → ui:lint → ui:test → ui:build → ci:test
+# changes:   format-check → ci:test
+# quality:   typecheck → lint → test:coverage → check-circular
+# container: test:container（Docker 必須 — daemon 未起動なら冒頭で fail する）
+# ui:        ui:typecheck → ui:lint → ui:test → ui:build
+#            → playwright install chromium → ui:e2e
+#            → ui:e2e:visual（Linux のみ。baseline が Linux 専用のため他OSではskip）
 ```
+
+前提: Docker daemon が起動していること。Playwright Chromium はスクリプトが自動インストールする。
+
+`mise run check` は coverage・container・e2e を含まない**開発中の軽量チェック**であり、
+PR CI の再現ではない。`.claude/skills/muvluvgg-implement-issue/scripts/run-quality-gates.sh`
+は正本スクリプトへの委譲ラッパーで、ゲート定義は持たない。
 
 ### テスト区分
 
@@ -73,6 +94,13 @@ bash scripts/run-quality-gates.sh
 
 pnpm workspaceで `apps/api`（backend）・`apps/ui`（frontend）を独立したpackageとして持つ。ルート `package.json` はworkspace orchestrationと共通development tooling（Prettier）だけを持ち、各scriptは対応するpackageへ委譲する（`pnpm --filter api run ...` / `pnpm --filter ui run ...`）。
 
+workspace以外の主なディレクトリ:
+
+- `deploy/` — GCP デプロイ定義（`artifact-registry/` `cloud-build/` `cloud-run/`）
+- `raw/` — wiki 由来のユニット・メモリー原文マークダウン（`units/` `memories/`。Catalog 生成の入力）
+- `docs/` — DDD 設計書（`docs/ddd/`）・UI 設計書ほか
+- `scripts/` — 品質ゲート正本 (`run-quality-gates.sh`)・CI 変更判定 (`ci/`)・コンテナ smoke test
+
 ## レイヤー構成（`apps/api/src/`）
 
 ```
@@ -86,6 +114,35 @@ apps/api/src/
 ```
 
 レイヤー間の禁止依存は ESLint (`no-restricted-imports`) で強制されている。
+
+## 構成（`apps/ui/src/`）
+
+React + Vite。機能単位の features スライスで構成する。
+
+```
+apps/ui/src/
+  app/         # アプリのルート (BattleSimulatorApp / BattleSimulatorPage)
+  features/    # 機能スライス (catalog-selection / formation / simulation / details / summary)
+  components/  # 汎用UIコンポーネント (AppShell, Button, Dialog, Panel, Tabs など)
+  lib/         # 共有ユーティリティ (env, aptitude, build-info)
+  assets/      # ユニット・メモリー画像
+  styles/      # global.css / tokens.css (デザイントークン)
+  test/        # Vitest セットアップ
+```
+
+テストは対象と同じディレクトリに `*.test.ts(x)` を同居させる。E2E は `apps/ui/e2e/` に置く。
+
+## コメント規約
+
+コード・設計書のコメントには**制約・理由のみ**を書く。レビュー出典・PR番号・指摘レベルは書かない。
+
+```ts
+// 誤: PR #123再レビュー[P1]: null チェックを追加
+// 誤: レビュー指摘: 早期returnへ変更
+// 正: Catalog 未ロード時に呼ばれ得るため null を許容する
+```
+
+「どのレビューで指摘されたか」は git blame / PR 履歴が持つ情報であり、コメントに残さない。
 
 ## CI変更判定 (`.github/workflows/`)
 
