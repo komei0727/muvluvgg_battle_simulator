@@ -57,8 +57,8 @@ APIの実装と設計書が食い違う場合、UI側で黙って吸収せずAPI
 
 ## 現時点の前提
 
-- バックエンドはM4完了時点で、`POST /api/v1/battle-simulations` を同期実行する。
-- Unit・Memory一覧APIとAPIのCORSをM4.5で実装し、UI実装の前提とする。
-- APIはM4.5でGoogle Cloud Runの `asia-northeast1` へ配備し、scale-to-zeroを許容する。
+- バックエンドはM0〜M8が `main` へ統合済みであり、`POST /api/v1/battle-simulations` を同期実行する。次の実装対象はM9（[13\_実装計画.md](../ddd/13_実装計画.md)）である。
+- Unit・Memory一覧API（`GET /api/v1/battle-simulation-catalog`）とAPIのCORSはM4.5で実装済みであり、UIはこれを前提に動作している。
+- APIはGoogle Cloud Runの `asia-northeast1` で稼働し、scale-to-zeroを許容する。
 - UIは一覧APIの取得に成功するまで編成編集を開始させない。
 - 認証、結果保存、共有URL、複数回比較は初期スコープ外である。
