@@ -17,6 +17,8 @@ import type {
   ContinuousDamageKind,
   DamageModConditionDefinition,
   DamageThreshold,
+  ConfusionDefinition,
+  DamageToHealDefinition,
   ShieldDecayDefinition,
   StatusKind,
 } from "../../catalog/definitions/effect-action-payload.js";
@@ -36,6 +38,10 @@ export interface StatusEffectDetails {
   readonly appliesTo?: { readonly incomingActionKinds: readonly ActionKind[] };
   readonly damageAmplificationOnBreak?: number;
   readonly damageThreshold?: DamageThreshold;
+  /** R-CFS-02（DMG-009、Issue #193）: `status`が`CONFUSION`の場合だけ持つ。 */
+  readonly confusion?: ConfusionDefinition;
+  /** R-DTH-01（DMG-009、Issue #193）: `status`が`DAMAGE_TO_HEAL`の場合だけ持つ。 */
+  readonly damageToHeal?: DamageToHealDefinition;
 }
 
 /**

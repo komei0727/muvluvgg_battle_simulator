@@ -1256,5 +1256,46 @@
         "UT-CAT-IDX-097"
       ]
     }
+  },
+  {
+    "capabilityId": "CAP_CONFUSION",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "DMG-009",
+    "description": "混乱（R-CFS-01／R-CFS-02、DMG-009／Issue #193）。`APPLY_STATUS`の`status: CONFUSION`が付与する状態で、保持者が**AS**を使用する間だけ働く3つの効果を持つ。(1) R-CFS-01の対象振り替え: `skill-resolution-service.ts`が、そのEffectSequenceのうち`DAMAGE` EffectActionを適用する`ACTION` stepが対象に取るTargetBindingだけを選び、`TargetSelector.side`を反転（`ALLY`↔`ENEMY`）してからR-SKL-01 #1のbinding評価を行う（`fallback`も再帰的に反転する。`BRANCH`/`RANDOM_BRANCH`/`REPEAT`の内側のstepも走査する）。`side: ALL`（両陣営）は既に両陣営を覆っており「逆陣営」も自分自身になるためそのまま残す — `ALLY`へ倒すと全ユニット対象が味方だけへ狭まる（PR #300レビュー[P2]）。攻撃を伴わないbindingは反転しないため、バフ・回復は本来の陣営へ向かう。(2) R-CFS-02の混乱倍率: `damage-calculator.ts`が計算ダメージへ`1 - damageReductionRate`を掛ける。与ダメージ倍率（R-DMG-04）とは独立した専用の倍率であり、`DamageCalculated.confusionDamageMultiplier`が個別に公開する。(3) R-CFS-02の基礎ダメージ差し替え: 攻撃側の戦闘中攻撃力が防御側の**実効防御力以下**の場合、`max(0, 攻撃力 - 実効防御力)`の代わりに`攻撃力 × lowAttackBaseDamageRate`を基礎ダメージにする（基礎ダメージが差分から求まる`FormulaDefinition.kind: SKILL_POWER`だけが対象）。ASかどうかの判別は`DamageEventContext.skillType`（`effect-action-group-resolver.ts`がCatalogの`skillDefinitions`から解決して渡す）で行い、EX・PS・Memory・継続ダメージ・反射・リンク・サブユニット追加ダメージはいずれも対象外である。混乱は`戦闘システム.md`が列挙する定義済み状態異常ではないため`STATUS`カテゴリに属さず`DEBUFF`だけを持つ（R-CRT-03の会心不可と同じ扱い）。production定義は`ACT_OLGA_VETERAN_EX_CONFUSION`（`SKL_OLGA_VETERAN_EX`「鉄の女」、敵全体へ1行動）。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_OLGA_VETERAN_EX_CONFUSION"],
+      "testCaseIds": [
+        "IT-CAP-CONFUSION-PROD-001",
+        "IT-CAP-CONFUSION-PROD-002",
+        "IT-CAP-CONFUSION-PROD-003",
+        "UT-R-CFS-01-001",
+        "UT-R-CFS-01-003",
+        "UT-R-CFS-01-004",
+        "UT-R-CFS-01-007",
+        "UT-R-CFS-01-008",
+        "UT-R-CFS-02-001",
+        "UT-R-CFS-02-003",
+        "UT-R-CFS-02-101"
+      ]
+    }
+  },
+  {
+    "capabilityId": "CAP_DAMAGE_TO_HEAL",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "DMG-009",
+    "description": "幻惑（R-DTH-01、DMG-009／Issue #193）。`APPLY_STATUS`の`status: DAMAGE_TO_HEAL`が付与する状態で、保持者が行う`DAMAGE` EffectActionのヒットを回復へ変換する。`damage-application-service.ts`がR-DMG-05 #1〜#6（`UnitBeingAttacked`・命中判定・会心判定・防御介入・ダメージ計算と`DamageCalculated`）を通常どおり処理したうえで、#7の適用だけを差し替え、`DamageApplied`の代わりに`DamageConvertedToHeal`を発行して`floor(最終ダメージ × healRate)`を防御側のHPへ適用する。変換後の回復には回復量補正（R-HEAL-02）を適用せず回復リンク（R-HEAL-04）も発生させない — 本来のダメージ量からの変換であって回復Formulaの評価ではないためで、リンクダメージが属性・会心・ダメージ増減を再計算しないの（R-LNK-02第3項）と同じ規約である。最大HP超過分は破棄し、`healAmount`と`appliedHeal`の差として監査できる。ダメージを適用しないため`UnitDefeated`・リンク（R-LNK-*）・反射（R-INT-03）・凍結解除（R-STS-03）はいずれも起きず、直前DAMAGE結果（R-SKL-08）には0を記録する。一方、命中は確定しているためR-EFF-07のヒット消費（`OUTGOING_HIT`/`INCOMING_HIT`）は通常のヒットと同じく行う。混乱と違い使用スキルの種別を問わない（原文が「ダメージ効果を回復効果へと変換する」とだけ規定するため）。幻惑も定義済み状態異常ではないため`STATUS`カテゴリに属さず`DEBUFF`だけを持つ。production定義は`ACT_TATIANA_SAGE_AS1_DAZZLE`（`SKL_TATIANA_SAGE_AS1`「遅効の毒針」、攻撃力最大の敵単体へ1行動）。",
+    "verification": {
+      "productionDefinitionIds": ["ACT_TATIANA_SAGE_AS1_DAZZLE"],
+      "testCaseIds": [
+        "IT-CAP-DAMAGE-TO-HEAL-PROD-001",
+        "IT-CAP-DAMAGE-TO-HEAL-PROD-002",
+        "UT-R-DTH-01-001",
+        "UT-R-DTH-01-002",
+        "UT-R-DTH-01-003",
+        "UT-R-DTH-01-004"
+      ]
+    }
   }
 ]

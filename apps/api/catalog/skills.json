@@ -10895,13 +10895,13 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER" }]
+          "actions": [{ "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION" }]
         }
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_CONFUSION"],
     "metadata": { "displayName": "鉄の女", "tags": [] }
   },
   {
@@ -14839,6 +14839,7 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAZZLE" },
             { "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_MARK" },
             { "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DOT" }
           ]
@@ -14872,7 +14873,8 @@
       "CAP_CONTINUOUS_DAMAGE",
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
+      "CAP_TARGET_FILTER_ORDER",
+      "CAP_DAMAGE_TO_HEAL"
     ],
     "metadata": { "displayName": "遅効の毒針", "tags": [] }
   },

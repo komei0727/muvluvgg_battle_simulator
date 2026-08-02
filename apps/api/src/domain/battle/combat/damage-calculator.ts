@@ -28,6 +28,23 @@ export interface DamageCalculationInput {
   readonly incomingDamageMultiplier?: number;
   /** R-NUM-04: `skillPowerFormula`/`damageModifiers`を評価するための実行時文脈。 */
   readonly formulaContext: FormulaEvaluationContext;
+  /**
+   * R-CFS-02（DMG-009、Issue #193）: 攻撃側が混乱（`CONFUSION`）を保持したまま
+   * ASで攻撃する場合だけ、その混乱インスタンスの数値を渡す。未指定なら混乱倍率は
+   * 1、基礎ダメージの差し替えも行わない（＝従来どおりの計算）。「ASであること」の
+   * 判定は`damage-application-service.ts`が済ませてからここへ渡す — この関数は
+   * `AppliedEffect`もスキル種別も知らない純粋な数値計算に保つ
+   * （`outgoingDamageMultiplier`／`resolveDamageImmunity`と同じ責務分割）。
+   */
+  readonly confusion?: ConfusionDamageInput;
+}
+
+/** R-CFS-02: 混乱が基礎ダメージと計算ダメージへ与える2つの割合。 */
+export interface ConfusionDamageInput {
+  /** 混乱倍率は `1 - damageReductionRate` になる。 */
+  readonly damageReductionRate: number;
+  /** 攻撃力が実効防御力以下のとき、基礎ダメージへ使う攻撃力の割合。 */
+  readonly lowAttackBaseDamageRate: number;
 }
 
 /** `DamageCalculated`イベントでの監査に必要な計算過程を含む結果。 */
@@ -41,6 +58,8 @@ export interface DamageCalculationResult {
   /** R-DMG-04の被ダメージ倍率（R-DMG-03の`damageReductionIgnoreRate`適用済み）。 */
   readonly incomingDamageMultiplier: number;
   readonly actionDamageMultiplier: number;
+  /** R-CFS-02: 混乱倍率（混乱を保持しない攻撃では常に1）。 */
+  readonly confusionDamageMultiplier: number;
   /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */
   readonly preTruncationDamage: number;
   readonly finalDamage: number;
@@ -62,12 +81,20 @@ function resolveBaseDamageAndSkillPower(
   attackerAttack: number,
   effectiveDefense: number,
   context: FormulaEvaluationContext,
+  confusion: ConfusionDamageInput | undefined,
 ): { readonly baseDamage: number; readonly skillPower: number } {
   if (formula.kind === "SKILL_POWER") {
-    return {
-      baseDamage: Math.max(0, attackerAttack - effectiveDefense),
-      skillPower: formula.power,
-    };
+    // R-CFS-02「攻撃側の戦闘中攻撃力が防御側の実効防御力**以下**の場合、基礎
+    // ダメージ`max(0, 攻撃力 - 実効防御力)`の代わりに`攻撃力 ×
+    // lowAttackBaseDamageRate`を基礎ダメージとする」。比較も差し替えも実効防御力
+    // （R-DMG-03の`defenseIgnoreRate`適用後）を基準にする — R-DMG-01が基礎
+    // ダメージに使う「防御力」がまさにこの値であり、貫通で実効防御力が下がった
+    // 攻撃は差し替え条件からも外れるのが一貫するためである。
+    const substituted =
+      confusion !== undefined && attackerAttack <= effectiveDefense
+        ? attackerAttack * confusion.lowAttackBaseDamageRate
+        : Math.max(0, attackerAttack - effectiveDefense);
+    return { baseDamage: substituted, skillPower: formula.power };
   }
   return {
     baseDamage: evaluateFormula(formula, context, "skillPowerFormula"),
@@ -108,6 +135,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     input.attackerAttack,
     effectiveDefense,
     input.formulaContext,
+    input.confusion,
   );
   const attributeMultiplier = resolveAttributeMultiplier(
     input.attackerAttribute,
@@ -124,6 +152,11 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   // （`DamageCalculated`）が式と同じ並びで読めるようにこの順で書く）。
   const outgoingDamageMultiplier = input.outgoingDamageMultiplier ?? 1;
   const incomingDamageMultiplier = input.incomingDamageMultiplier ?? 1;
+  // R-CFS-02: 混乱倍率は与ダメージ倍率（R-DMG-04）とは独立した専用の倍率であり、
+  // `DamageCalculated`が個別に公開する。R-DMG-04の集計へ混ぜ込むと、`APPLY_DAMAGE_MOD`
+  // 由来ではない減少が与ダメージ補正のsnapshotに紛れて監査できなくなる。
+  const confusionDamageMultiplier =
+    input.confusion === undefined ? 1 : 1 - input.confusion.damageReductionRate;
   const preTruncationDamage =
     baseDamage *
     skillPower *
@@ -131,7 +164,8 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     input.criticalMultiplier *
     outgoingDamageMultiplier *
     incomingDamageMultiplier *
-    actionDamageMultiplier;
+    actionDamageMultiplier *
+    confusionDamageMultiplier;
 
   return {
     effectiveDefense,
@@ -140,6 +174,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     outgoingDamageMultiplier,
     incomingDamageMultiplier,
     actionDamageMultiplier,
+    confusionDamageMultiplier,
     preTruncationDamage,
     finalDamage: Math.max(1, Math.floor(preTruncationDamage)),
   };

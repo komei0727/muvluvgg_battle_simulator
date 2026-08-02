@@ -2078,6 +2078,53 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
 
+  // CFS/DTH: 混乱と幻惑（DMG-009、Issue #193）
+  {
+    ruleId: "R-CFS-01",
+    testCaseIds: [
+      "UT-R-CFS-01-001",
+      "UT-R-CFS-01-002",
+      "UT-R-CFS-01-003",
+      "UT-R-CFS-01-004",
+      "UT-R-CFS-01-005",
+      "UT-R-CFS-01-006",
+      "UT-R-CFS-01-007",
+      "UT-R-CFS-01-008",
+      "IT-CAP-CONFUSION-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
+  {
+    ruleId: "R-CFS-02",
+    testCaseIds: [
+      "UT-R-CFS-02-001",
+      "UT-R-CFS-02-002",
+      "UT-R-CFS-02-003",
+      "UT-R-CFS-02-004",
+      "UT-R-CFS-02-005",
+      "UT-R-CFS-02-006",
+      "UT-R-CFS-02-101",
+      "UT-R-CFS-02-102",
+      "UT-R-CFS-02-103",
+      "IT-CAP-CONFUSION-PROD-002",
+      "IT-CAP-CONFUSION-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+  {
+    ruleId: "R-DTH-01",
+    testCaseIds: [
+      "UT-R-DTH-01-001",
+      "UT-R-DTH-01-002",
+      "UT-R-DTH-01-003",
+      "UT-R-DTH-01-004",
+      "UT-R-EFF-02-028",
+      "IT-CAP-DAMAGE-TO-HEAL-PROD-001",
+      "IT-CAP-DAMAGE-TO-HEAL-PROD-002",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+
   // EFF: 効果
   {
     ruleId: "R-EFF-01",

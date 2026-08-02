@@ -66,6 +66,8 @@ export const EVENT_TYPE_CATEGORIES: Readonly<Record<string, EventCategory>> = {
   SubUnitDamaged: "FACT",
   HitPointReduced: "FACT",
   DamageApplied: "FACT",
+  /** R-DTH-01（DMG-009、Issue #193）: 幻惑がダメージを回復へ変換した（`DamageApplied`と排他）。 */
+  DamageConvertedToHeal: "FACT",
   LinkedDamageGenerated: "FACT",
   DamageRedirected: "FACT",
   ReflectedDamageGenerated: "FACT",

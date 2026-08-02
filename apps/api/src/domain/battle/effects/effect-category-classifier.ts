@@ -37,9 +37,17 @@ const STATUS_AILMENT_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>(STA
  * いるためである。
  *
  * 対になる`CRITICAL_GUARANTEE`は保持者の攻撃を強化するため既定どおり`BUFF`のままとする。
+ *
+ * DMG-009（Issue #193、R-CFS-01/R-DTH-01）: 混乱（`CONFUSION`）と幻惑
+ * （`DAMAGE_TO_HEAL`）も同じ扱いにする。どちらも保持者の攻撃を逆陣営へ振り替える／
+ * 回復へ変換する弱化効果であり、`戦闘システム.md`「3. 状態異常について」が列挙する
+ * 定義済み状態異常（気絶・炎上・毒・凍結・暗闇）には含まれないため、`STATUS`は
+ * 付けず`DEBUFF`だけとする。
  */
 const DEBUFF_STATUS_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>([
   "CRITICAL_PREVENTION",
+  "CONFUSION",
+  "DAMAGE_TO_HEAL",
 ]);
 
 /**

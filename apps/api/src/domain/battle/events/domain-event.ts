@@ -355,6 +355,13 @@ export interface BattleDomainEventPayloadMap {
     readonly incomingDamageMultiplier: number;
     /** R-DMG-01のAction内追加ダメージ倍率。 */
     readonly actionDamageMultiplier: number;
+    /**
+     * R-CFS-02（DMG-009、Issue #193）の混乱倍率（`1 - damageReductionRate`）。
+     * 混乱を保持しない攻撃、およびAS以外の攻撃では常に`1`。与ダメージ倍率とは
+     * 別枠で公開するのは、`APPLY_DAMAGE_MOD`由来ではない減少を与ダメージ補正の
+     * snapshotに紛れ込ませないためである。
+     */
+    readonly confusionDamageMultiplier: number;
     /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */
     readonly preTruncationDamage: number;
     readonly finalDamage: number;
@@ -575,6 +582,31 @@ export interface BattleDomainEventPayloadMap {
      * `false`ならリンク先でもシールド・サブユニットで受けずHPへ直接向かう。
      */
     readonly shieldApplicable: boolean;
+  };
+  /**
+   * `08_ドメインイベント.md`「ダメージイベント」DamageConvertedToHeal（DMG-009、
+   * Issue #193、R-DTH-01）: 幻惑（`APPLY_STATUS`の`DAMAGE_TO_HEAL`）を保持する
+   * 攻撃側のヒットが、ダメージの適用（R-DMG-05 #7）の代わりに回復を適用した時に
+   * 発行する`FACT`。`DamageApplied`とは排他であり、`DamageCalculated`を親に持つ。
+   *
+   * HP変化の`StateDelta`はこのイベントが持つ（`HealApplied`・`HitPointReduced`と
+   * 同じ規約 — 1つのHP変化を2つのイベントへ付けると独立Reducer復元が二重適用する）。
+   */
+  readonly DamageConvertedToHeal: {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+    readonly hitIndex: number;
+    /** 回復を受けた側（本来この攻撃のダメージを受けるはずだった防御側）。 */
+    readonly targetUnitId: BattleUnitId;
+    /** 変換元となった`DamageCalculated.finalDamage`。 */
+    readonly calculatedDamage: number;
+    /** `AppliedEffect.statusDetails.damageToHeal.healRate`。 */
+    readonly healRate: number;
+    /** `floor(calculatedDamage * healRate)`。最大HP上限を適用する前の量。 */
+    readonly healAmount: number;
+    /** 実際にHPが増えた量（`healAmount`との差が最大HP超過で破棄された分）。 */
+    readonly appliedHeal: number;
+    readonly hpBefore: number;
+    readonly hpAfter: number;
   };
   /**
    * `08_ドメインイベント.md`「ダメージイベント」LethalDamageSurvived（DMG-006、

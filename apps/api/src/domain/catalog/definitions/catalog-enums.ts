@@ -113,7 +113,9 @@ export type StatusKind =
   | "CRITICAL_GUARANTEE"
   | "CRITICAL_PREVENTION"
   | "GUARANTEED_HIT"
-  | "HIT_EVASION";
+  | "HIT_EVASION"
+  | "CONFUSION"
+  | "DAMAGE_TO_HEAL";
 
 export type TargetOrderKey =
   | "DEFAULT"

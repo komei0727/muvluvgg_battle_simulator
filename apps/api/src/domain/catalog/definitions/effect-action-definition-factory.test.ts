@@ -2333,4 +2333,130 @@ describe("EffectActionDefinition", () => {
       }
     });
   });
+
+  // --- DMG-009 (Issue #193) R-CFS-01/02, R-DTH-01: CONFUSION / DAMAGE_TO_HEAL ---
+
+  describe("APPLY_STATUS CONFUSION / DAMAGE_TO_HEAL", () => {
+    const confusionDuration = { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true };
+
+    it("UT-CAT-ACT-103: maps APPLY_STATUS CONFUSION with its damage rates", () => {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CONFUSION_1",
+          kind: "APPLY_STATUS",
+          payload: {
+            status: "CONFUSION",
+            duration: confusionDuration,
+            confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_STATUS");
+      if (result.kind === "APPLY_STATUS") {
+        expect(result.payload.status).toBe("CONFUSION");
+        expect(result.payload.confusion).toEqual({
+          damageReductionRate: 0.3,
+          lowAttackBaseDamageRate: 0.1,
+        });
+      }
+    });
+
+    it("UT-CAT-ACT-104: maps APPLY_STATUS DAMAGE_TO_HEAL with its heal rate", () => {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAZZLE_1",
+          kind: "APPLY_STATUS",
+          payload: {
+            status: "DAMAGE_TO_HEAL",
+            duration: confusionDuration,
+            damageToHeal: { healRate: 0.7 },
+          },
+          requiredCapabilities: [],
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_STATUS");
+      if (result.kind === "APPLY_STATUS") {
+        expect(result.payload.damageToHeal).toEqual({ healRate: 0.7 });
+      }
+    });
+
+    it("UT-CAT-ACT-105: requires the matching detail object for each status", () => {
+      for (const payload of [
+        { status: "CONFUSION", duration: confusionDuration },
+        { status: "DAMAGE_TO_HEAL", duration: confusionDuration },
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              effectActionDefinitionId: "ACT_CONFUSION_1",
+              kind: "APPLY_STATUS",
+              payload,
+              requiredCapabilities: [],
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+
+    it("UT-CAT-ACT-106: rejects confusion/damageToHeal declared on an unrelated status", () => {
+      for (const payload of [
+        {
+          status: "STUN",
+          duration: confusionDuration,
+          confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 },
+        },
+        { status: "STUN", duration: confusionDuration, damageToHeal: { healRate: 0.7 } },
+        {
+          status: "CONFUSION",
+          duration: confusionDuration,
+          confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 },
+          damageToHeal: { healRate: 0.7 },
+        },
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              effectActionDefinitionId: "ACT_CONFUSION_1",
+              kind: "APPLY_STATUS",
+              payload,
+              requiredCapabilities: [],
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+
+    it("UT-CAT-ACT-107: rejects out-of-range rates", () => {
+      for (const payload of [
+        {
+          status: "CONFUSION",
+          duration: confusionDuration,
+          confusion: { damageReductionRate: 1.5, lowAttackBaseDamageRate: 0.1 },
+        },
+        {
+          status: "CONFUSION",
+          duration: confusionDuration,
+          confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: -0.1 },
+        },
+        { status: "DAMAGE_TO_HEAL", duration: confusionDuration, damageToHeal: { healRate: -0.1 } },
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              effectActionDefinitionId: "ACT_CONFUSION_1",
+              kind: "APPLY_STATUS",
+              payload,
+              requiredCapabilities: [],
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+  });
 });

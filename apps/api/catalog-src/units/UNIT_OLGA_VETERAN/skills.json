@@ -27,7 +27,7 @@
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION_MARKER"
+              "effectActionDefinitionId": "ACT_OLGA_VETERAN_EX_CONFUSION"
             }
           ]
         }
@@ -38,7 +38,7 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
+    "requiredCapabilities": ["CAP_CONFUSION"],
     "metadata": {
       "displayName": "鉄の女",
       "tags": []
