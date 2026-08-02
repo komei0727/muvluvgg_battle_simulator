@@ -2255,6 +2255,7 @@ describe("EffectActionDefinition", () => {
           payload: {
             linkTo: { kind: "SELF" },
             linkRate: 0.5,
+            polarity: "BUFF",
             duration: { timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" } },
           },
         },
@@ -2279,6 +2280,7 @@ describe("EffectActionDefinition", () => {
           payload: {
             linkTo: { kind: "BINDING", targetBindingId: "TGT_FARTHEST" },
             linkRate: 0.35,
+            polarity: "DEBUFF",
             duration: { timeLimit: { unit: "TURN", count: 1, owner: "EFFECT_SOURCE" } },
           },
         },
@@ -2303,6 +2305,7 @@ describe("EffectActionDefinition", () => {
               payload: {
                 linkTo: { kind: "SELF" },
                 linkRate,
+                polarity: "BUFF",
                 duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
               },
             },

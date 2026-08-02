@@ -1476,10 +1476,12 @@ payload:
   linkTo:
     kind: SELF
   linkRate: 0.5
+  polarity: BUFF
   duration:
     timeLimit:
       unit: ACTION
       count: 2
+      owner: EFFECT_SOURCE
     dispellable: false
 ```
 
@@ -1487,7 +1489,12 @@ payload:
 | ---------- | ------------------ | -------------------------------------------- |
 | `linkTo`   | TargetReference    | 実装済みは `SELF`（付与者自身）と `BINDING`  |
 | `linkRate` | number             | `0`以上`1`以下。`1` が `R-LNK-02` の「同量」 |
+| `polarity` | enum               | `BUFF` / `DEBUFF`。省略不可                  |
 | `duration` | DurationDefinition | —                                            |
+
+`polarity` が必須なのは、ダメージリンクが**同じkindのまま両向きに使われる**唯一の防御介入だからである。`APPLY_TARGET_REDIRECT`／`APPLY_COVER`（常に `DEBUFF`）や `APPLY_REFLECT`（常に `BUFF`）と違い、`ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK` は保持者（榊千鶴自身）の被ダメージを敵へ送るため保持者を利し、`ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*` は敵2体へ付与して互いの被ダメージを増やす。`linkRate` は常に正のため `magnitude` の符号からは導けず、既定値を置くと向きを書き忘れた定義が黙って逆向きに分類され、`EFFECT_IMMUNITY` の拒否・`REMOVE_EFFECTS` の解除・`TARGET_HAS_EFFECT` の照会がすべて反対に働く（`APPLY_CONTINUOUS_DAMAGE.continuousDamageKind` と同じ「既定値を置かない」方針）。実データでは自陣・自身へ付与するリンクが `BUFF`、敵へ付与するリンクが `DEBUFF` になる。
+
+保持者と付与者が別のユニットになるリンクでは `timeLimit.owner` に注意する。既定は `EFFECT_TARGET`（保持者自身の行動で減る）であり、`ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK` のように味方全体へ付与しつつ付与者側の効果（2枚目のシールド）と同時に消滅させたい場合は、`owner: EFFECT_SOURCE` を明示して**親と同じ時計**へ揃える必要がある。省略すると素早い味方のリンクだけが親より先に失効する。
 
 `linkTo` は付与時点に解決して `AppliedEffect.damageLink.linkToUnitId` へ焼き込む（`APPLY_HEALING_LINK.transferTo` と同じ「付与時snapshot」規約 — ダメージ適用時点にはTargetBindingもトリガーcontextも残っていない）。したがって実装済みなのは付与時点に高々1体へ確定できる参照だけである。
 
@@ -2033,7 +2040,12 @@ condition:
 
 `MARKER`と`SPECIFIC_EFFECT`は`categories`に指定できない。`MarkerState`は`AppliedEffect`ではなく`TARGET_HAS_MARKER`が照会し、`SPECIFIC_EFFECT`は分類軸ではなく`effectActionDefinitionId`の直接一致だからである。その直接一致を表す正しい場所が`effectActionDefinitionIds`（`DMG-007`／Issue #187、`EFFECT_IMMUNITY`の同名fieldと同じ参照方式）で、`categories`とはANDで重ねる。
 
-`grantedBy: SELF`は「**自身が**付与したインスタンスだけ」に絞る（`AppliedEffect.sourceId`との一致）。production例は`SKL_DOROTHEA_PIONEER_PS2`の「自身がダメージリンクを付与した敵が倒された際に発動」で、定義IDの一致だけでは同名ユニットが両陣営に居る場合に他者が付与したリンクも拾ってしまうため必要になる。「自身」を知っているのは評価元ユニット（`context.owner`）を受け取るPS/Memoryのtrigger条件evaluatorだけであり、EffectSequence内の条件（`stepCondition`／`targetCondition`／BRANCHの`condition`）と`activationCondition`は評価元を持たないため、そこへ書くと黙って常に偽になる。したがって`GRANTED_BY_OUTSIDE_TRIGGER`としてCatalogロード時点で拒否する。
+`grantedBy: SELF`は「**自身が**付与したインスタンスだけ」に絞る（`AppliedEffect.sourceId`との一致）。production例は`SKL_DOROTHEA_PIONEER_PS2`の「自身がダメージリンクを付与した敵が倒された際に発動」で、定義IDの一致だけでは同名ユニットが両陣営に居る場合に他者が付与したリンクも拾ってしまうため必要になる。「自身」を知っているのは評価元の`BattleUnit`（`context.owner`）を受け取る**Skillの**trigger条件evaluatorだけである。次の位置は評価元ユニットを持たないため、そこへ書くと黙って常に偽になる。したがって`GRANTED_BY_OUTSIDE_TRIGGER`としてCatalogロード時点で拒否する。
+
+- EffectSequence内の条件（`stepCondition`／`targetCondition`／BRANCHの`condition`）と`activationCondition`
+- **Memoryのtrigger条件**（`memory-trigger-matcher.ts`はR-MEM-04どおり`ownerSide`（陣営）だけを渡す。Memoryには「自身が付与した」に相当する付与者ユニットがそもそも存在しない）
+
+`effectActionDefinitionIds`が実在の`EffectActionDefinition`を指しているかは、条件を置けるすべての位置（Skillの`triggers[]`／`counterUpdates[].trigger`／`activationCondition`／EffectSequence内のstep条件、Memoryの`trigger`／EffectSequence）を走査して`DANGLING_REFERENCE`で検証する。`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`のpayload参照と同じ規則である — 存在しないIDを指す条件は実行時に一切一致しないsilent no-opになるためロード時に落とす。
 
 分類の正本は`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`と同じ`effect-category-classifier.ts`の`effectCategoriesOf`ただ1つで、`grantEffect`が付与時点に`AppliedEffect.categories`（および`APPLY_STAT_MOD`の`statModStat`）へ焼き込む。`EffectApplied.payload.categories`・`EffectSnapshot.categories`も同じ値を運ぶため、独立Reducerで復元した状態でも同じ判定になる。
 

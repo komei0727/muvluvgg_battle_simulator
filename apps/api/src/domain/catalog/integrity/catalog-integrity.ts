@@ -912,8 +912,102 @@ function validateGrantedByScope(
     targetId: ownerId,
     rule: "GRANTED_BY_OUTSIDE_TRIGGER",
     message:
-      'TARGET_HAS_EFFECT.grantedBy is only evaluable inside a trigger condition (triggers[]/counterUpdates[].trigger), where the evaluating unit is known; an EffectSequence or activationCondition evaluator has no "self" to compare AppliedEffect.sourceId against and the condition would silently never match (DMG-007, Issue #187)',
+      'TARGET_HAS_EFFECT.grantedBy is only evaluable inside a Skill trigger condition (triggers[]/counterUpdates[].trigger), where the evaluating unit is known; an EffectSequence or activationCondition evaluator has no "self" to compare AppliedEffect.sourceId against and the condition would silently never match (DMG-007, Issue #187)',
   });
+}
+
+/**
+ * PR #299レビュー[P2]: Memoryのtrigger条件も`grantedBy`を評価できない。
+ * `memory-trigger-matcher.ts`が渡す評価contextはR-MEM-04どおり`ownerSide`（陣営）
+ * だけで、比較相手の`BattleUnit`（`owner`）を持たないため、実行時には常に
+ * `undefined`が渡り条件が必ず偽になる。Memoryには「自身が付与した」に相当する
+ * 付与者ユニットがそもそも存在しない（`MEMORY_REQUIRES_SOURCE_UNIT`と同じ性質の
+ * 制約）ため、Skillの`triggers[]`と違いMemory側は全面的に拒否する。
+ */
+function validateMemoryTriggerGrantedBy(
+  trigger: TriggerDefinition,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (!conditionUsesGrantedBy(trigger.condition)) {
+    return;
+  }
+  violations.push({
+    targetId: ownerId,
+    rule: "GRANTED_BY_OUTSIDE_TRIGGER",
+    message:
+      "TARGET_HAS_EFFECT.grantedBy cannot be used in a Memory trigger condition: Memory has no owning BattleUnit (R-MEM-04), so the evaluator receives only ownerSide and the AppliedEffect.sourceId comparison would silently never match (PR #299 review [P2], DMG-007 Issue #187)",
+  });
+}
+
+/**
+ * PR #299レビュー[P2]: `TARGET_HAS_EFFECT.effectActionDefinitionIds`が実在の
+ * `EffectActionDefinition`を指しているかを、条件を置けるすべての位置
+ * （Skillの`triggers[]`／`counterUpdates[].trigger`／`activationCondition`／
+ * EffectSequence内のstep条件、Memoryの`trigger`／EffectSequence）で検証する。
+ *
+ * `EFFECT_IMMUNITY`/`REMOVE_EFFECTS`のpayload参照は`validateEffectAction`が
+ * 既に`DANGLING_REFERENCE`にしていたが、条件木の中の参照はどこからも走査されて
+ * おらず、ID体系だけ正しい存在しないIDを含むCatalogがロードに成功していた。
+ * その条件は実行時に一切一致しないsilent no-opになるため、同じ規則で拒否する。
+ */
+function collectConditionEffectActionReferences(
+  condition: ConditionDefinition,
+): readonly EffectActionDefinitionId[] {
+  switch (condition.kind) {
+    case "TARGET_HAS_EFFECT":
+      return condition.effectActionDefinitionIds ?? [];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap(collectConditionEffectActionReferences);
+    case "NOT":
+      return collectConditionEffectActionReferences(condition.condition);
+    default:
+      return [];
+  }
+}
+
+function collectStepConditionEffectActionReferences(
+  steps: readonly EffectStepDefinition[],
+): readonly EffectActionDefinitionId[] {
+  return steps.flatMap((step) => {
+    switch (step.kind) {
+      case "ACTION":
+        return [
+          ...collectConditionEffectActionReferences(step.stepCondition),
+          ...collectConditionEffectActionReferences(step.targetCondition),
+        ];
+      case "BRANCH":
+        return [
+          ...collectConditionEffectActionReferences(step.condition),
+          ...collectStepConditionEffectActionReferences(step.thenSteps),
+          ...collectStepConditionEffectActionReferences(step.elseSteps),
+        ];
+      case "RANDOM_BRANCH":
+        return step.branches.flatMap((branch) =>
+          collectStepConditionEffectActionReferences(branch.steps),
+        );
+      case "REPEAT":
+        return collectStepConditionEffectActionReferences(step.steps);
+    }
+  });
+}
+
+function validateConditionEffectActionReferences(
+  references: readonly EffectActionDefinitionId[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const referencedId of references) {
+    if (!effectActions.has(referencedId)) {
+      violations.push({
+        targetId: ownerId,
+        rule: "DANGLING_REFERENCE",
+        message: `TARGET_HAS_EFFECT.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
+      });
+    }
+  }
 }
 
 function validateMixedStepTargetSetCondition(
@@ -1516,6 +1610,22 @@ function validateSkill(
       skill.skillDefinitionId,
       violations,
     );
+    validateConditionEffectActionReferences(
+      collectStepConditionEffectActionReferences(sequence.steps),
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
+  }
+  // PR #299レビュー[P2]: 条件を置ける残りの位置（`activationCondition`とtrigger群）も
+  // 同じ規則で走査する。
+  if (skill.activationCondition !== undefined) {
+    validateConditionEffectActionReferences(
+      collectConditionEffectActionReferences(skill.activationCondition),
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
   }
   validateActivationConditionReferences(skill, violations);
   const runtimeTriggers = [
@@ -1525,6 +1635,14 @@ function validateSkill(
       (sequence.counterUpdates ?? []).map((counterUpdate) => counterUpdate.trigger),
     ),
   ];
+  for (const trigger of runtimeTriggers) {
+    validateConditionEffectActionReferences(
+      collectConditionEffectActionReferences(trigger.condition),
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
+  }
   if (skill.counterUpdates.length > 0) {
     requireRuntimeCapability(
       skill.skillDefinitionId,
@@ -2604,6 +2722,16 @@ function validateMemory(
     validateGrantedByScope(
       triggeredEffect.effectSequence,
       undefined,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateMemoryTriggerGrantedBy(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
+    validateConditionEffectActionReferences(
+      [
+        ...collectConditionEffectActionReferences(triggeredEffect.trigger.condition),
+        ...collectStepConditionEffectActionReferences(triggeredEffect.effectSequence.steps),
+      ],
+      effectActions,
       memory.memoryDefinitionId,
       violations,
     );

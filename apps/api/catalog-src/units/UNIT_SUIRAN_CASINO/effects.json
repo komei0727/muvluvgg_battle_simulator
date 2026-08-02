@@ -111,11 +111,13 @@
         "dispellable": false,
         "timeLimit": {
           "unit": "ACTION",
-          "count": 2
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
         },
         "linkedEffectGroupId": "SUIRAN_CASINO_AS1_SHOWDOWN",
         "linkedEffectGroupRole": "CHILD"
-      }
+      },
+      "polarity": "BUFF"
     },
     "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": {

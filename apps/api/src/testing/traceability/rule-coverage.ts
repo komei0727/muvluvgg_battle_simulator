@@ -1911,6 +1911,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-LNK-01-011",
       "IT-CAP-DAMAGE-LINK-STATE-PROD-001",
       "IT-CAP-DAMAGE-LINK-STATE-PROD-002",
+      "IT-CAP-DAMAGE-LINK-STATE-PROD-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
@@ -1934,7 +1935,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-LNK-03",
-    testCaseIds: ["UT-R-LNK-03-010", "UT-R-LNK-03-020", "UT-R-LNK-03-034"],
+    testCaseIds: [
+      "UT-R-LNK-03-010",
+      "UT-R-LNK-03-020",
+      "UT-R-LNK-03-034",
+      "UT-R-LNK-03-035",
+      "UT-R-LNK-03-036",
+    ],
     kinds: ["POSITIVE", "NEGATIVE"],
   },
 

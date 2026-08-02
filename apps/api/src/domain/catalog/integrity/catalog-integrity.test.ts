@@ -1242,6 +1242,7 @@ function damageLinkAction(
       payload: {
         linkTo: overrides.linkTo ?? { kind: "SELF" },
         linkRate: overrides.linkRate ?? 0.5,
+        polarity: "BUFF",
         duration: {
           timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
           dispellable: false,
@@ -1310,6 +1311,79 @@ function deathSurvivalAction(
     },
     "effectAction",
   );
+}
+
+/**
+ * PR #299レビュー[P2]: `TARGET_HAS_EFFECT`を置ける4か所（PS trigger／
+ * `counterUpdates[].trigger`／`activationCondition`／ACTION stepの`targetCondition`）へ
+ * 同じ条件を差し込める最小のPS。
+ */
+function psSkillWithCondition(
+  id: string,
+  where: {
+    trigger?: ConditionDefinitionInput;
+    counterUpdateTrigger?: ConditionDefinitionInput;
+    activationCondition?: ConditionDefinitionInput;
+    targetCondition?: ConditionDefinitionInput;
+  },
+): SkillDefinition {
+  const trigger = {
+    eventType: "TurnStarted",
+    category: "FACT",
+    sourceSelector: "SELF",
+    targetSelector: "SELF",
+    ...(where.trigger !== undefined ? { condition: where.trigger } : {}),
+  };
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [trigger],
+    ...(where.activationCondition !== undefined
+      ? { activationCondition: where.activationCondition }
+      : {}),
+    ...(where.counterUpdateTrigger !== undefined
+      ? {
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: `${id}_COUNT`,
+              scope: "SKILL_RUNTIME",
+              trigger: {
+                eventType: "TurnStarted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "SELF",
+                condition: where.counterUpdateTrigger,
+              },
+              amount: 1,
+            },
+          ],
+        }
+      : {}),
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          ...(where.targetCondition !== undefined
+            ? { targetCondition: where.targetCondition }
+            : {}),
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities: [
+      "CAP_TARGET_EFFECT_QUERY",
+      ...(where.counterUpdateTrigger !== undefined ? ["CAP_SKILL_RUNTIME_COUNTER"] : []),
+      ...(where.activationCondition !== undefined ? ["CAP_PASSIVE_ACTIVATION_CONDITION"] : []),
+      ...(where.targetCondition !== undefined ? ["CAP_EFFECT_STEP_CONDITION_SCOPE"] : []),
+    ],
+    metadata: { displayName: id },
+  });
 }
 
 function baseDefinitions(): CatalogDefinitions {
@@ -2448,6 +2522,88 @@ describe("buildCatalogIndex", () => {
 
     try {
       buildCatalogIndex(withMisscopedGrantedBy);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "GRANTED_BY_OUTSIDE_TRIGGER")).toBe(true);
+    }
+  });
+
+  it("UT-R-LNK-03-035 (PR #299レビュー[P2], NEGATIVE): rejects a TARGET_HAS_EFFECT.effectActionDefinitionIds that references an undefined EffectActionDefinition, in every condition placement", () => {
+    const query = (id: string): ConditionDefinitionInput => ({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["DEBUFF"],
+      effectActionDefinitionIds: [id],
+    });
+    // trigger / counterUpdates[].trigger / activationCondition / step条件のいずれに
+    // 置いても、参照先が存在しなければ条件は常に偽になる（silent no-op）。
+    const placements: readonly (readonly [string, SkillDefinition])[] = [
+      ["trigger", psSkillWithCondition("SKL_PS_TRIGGER", { trigger: query("ACT_MISSING") })],
+      [
+        "counterUpdates[].trigger",
+        psSkillWithCondition("SKL_PS_COUNTER", { counterUpdateTrigger: query("ACT_MISSING") }),
+      ],
+      [
+        "activationCondition",
+        psSkillWithCondition("SKL_PS_ACTIVATION", { activationCondition: query("ACT_MISSING") }),
+      ],
+      [
+        "targetCondition",
+        psSkillWithCondition("SKL_PS_TARGET", { targetCondition: query("ACT_MISSING") }),
+      ],
+    ];
+
+    for (const [placement, skill] of placements) {
+      const defs = baseDefinitions();
+      const withDanglingQuery: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, skill],
+        units: [unit("UNIT_001", { passive: [skill.skillDefinitionId] })],
+        capabilities: [
+          capability("CAP_TARGET_EFFECT_QUERY"),
+          capability("CAP_SKILL_RUNTIME_COUNTER"),
+          capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+          capability("CAP_EFFECT_STEP_CONDITION_SCOPE"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withDanglingQuery);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some((v) => v.rule === "DANGLING_REFERENCE"),
+          `${placement} must report DANGLING_REFERENCE`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-LNK-03-036 (PR #299レビュー[P2], NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy inside a Memory trigger, whose evaluator has no owning BattleUnit", () => {
+    const defs = baseDefinitions();
+    const withMemoryGrantedBy: CatalogDefinitions = {
+      ...defs,
+      effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+      memories: [
+        memoryWithTrigger("MEM_GRANTED_BY", {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["DEBUFF"],
+          grantedBy: "SELF",
+        }),
+      ],
+      capabilities: [
+        capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+        capability("CAP_TARGET_EFFECT_QUERY"),
+        capability("CAP_STAT_MOD"),
+      ],
+    };
+
+    try {
+      buildCatalogIndex(withMemoryGrantedBy);
       expect.unreachable();
     } catch (error) {
       const err = error as CatalogIntegrityError;

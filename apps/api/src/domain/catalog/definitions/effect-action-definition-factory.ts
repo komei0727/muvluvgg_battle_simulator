@@ -95,6 +95,8 @@ const EFFECT_IMMUNITY_CATEGORIES = [
   "SUBUNIT",
   "SPECIFIC_EFFECT",
 ] as const;
+/** DMG-007（Issue #187、PR #299レビュー[P2]）: `APPLY_DAMAGE_LINK.polarity`。 */
+const DAMAGE_LINK_POLARITIES = ["BUFF", "DEBUFF"] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
 /** HEAL_DISTRIBUTE（M7-005、Issue #184）。`MODIFY_RESOURCE.operation: DISTRIBUTE`のHEAL版。 */
@@ -150,7 +152,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
-  APPLY_DAMAGE_LINK: ["linkTo", "linkRate", "duration"],
+  APPLY_DAMAGE_LINK: ["linkTo", "linkRate", "polarity", "duration"],
   APPLY_SUBUNIT: ["durability", "additionalDamage", "duration"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
@@ -1131,11 +1133,16 @@ function createPayload(
         payload["linkTo"] as TargetReferenceInput | undefined,
         `${path}.linkTo`,
       );
+      // PR #299レビュー[P2]: `polarity`も既定を持たない必須fieldである（同じkindが
+      // 味方向け・敵向けの両方で使われるため、符号からもkindからも導けない）。
+      const polarity = requireField(payload["polarity"] as string | undefined, `${path}.polarity`);
+      assertEnumValue(polarity, DAMAGE_LINK_POLARITIES, `${path}.polarity`);
       return {
         kind: "APPLY_DAMAGE_LINK",
         payload: {
           linkTo: createTargetReference(linkTo, `${path}.linkTo`, undefined),
           linkRate: requireRate(payload["linkRate"] as number | undefined, `${path}.linkRate`),
+          polarity,
           duration: createDurationField(payload, path),
         },
       };

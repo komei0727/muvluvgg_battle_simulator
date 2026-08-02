@@ -518,6 +518,25 @@ export interface ApplyCoverPayload {
 export interface ApplyDamageLinkPayload {
   readonly linkTo: TargetReference;
   /**
+   * PR #299レビュー[P2]: この効果が保持者にとってバフとデバフのどちらかを、Catalogが
+   * 明示する（省略不可）。`APPLY_TARGET_REDIRECT`/`APPLY_COVER`（常に`DEBUFF`）や
+   * `APPLY_REFLECT`（常に`BUFF`）と違い、ダメージリンクは**同じkindで両向きに使われる**
+   * ためである。
+   *
+   * - `ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`は保持者（榊千鶴自身）の被ダメージを敵へ
+   *   送る。保持者を利するため`BUFF`である
+   * - `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`は劉翠蘭が自陣へ付与し、味方の被ダメージを
+   *   自身の大きなシールドで受け止めるための味方向け効果であり`BUFF`である
+   * - `ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*`は敵2体へ付与し互いの被ダメージを増やす。
+   *   `戦闘システム.md`「2. デバフについて」の「相手を不利にする効果」そのもので`DEBUFF`である
+   *
+   * `magnitude`（`linkRate`）の符号から導けないのは、割合が常に正だからである
+   * （`APPLY_CONTINUOUS_DAMAGE`の`continuousDamageKind`と同じ「既定値を置かない」方針 —
+   * 既定を置くと、向きを書き忘れた定義が黙って逆向きに分類され、`EFFECT_IMMUNITY`の
+   * 拒否・`REMOVE_EFFECTS`の解除・`TARGET_HAS_EFFECT`の照会がすべて反対に働く）。
+   */
+  readonly polarity: "BUFF" | "DEBUFF";
+  /**
    * R-LNK-01/02: リンク先へ発生させる割合。`0`以上`1`以下（`1`が「同量」）。
    * R-LNK-02「対象数で分割しない」のとおり、保持者が複数のリンクを持つ場合も
    * 各リンクがこの割合をそれぞれ独立に適用する（件数で割らない）。

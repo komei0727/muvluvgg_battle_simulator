@@ -93,7 +93,8 @@
           "unit": "TURN",
           "count": 1
         }
-      }
+      },
+      "polarity": "BUFF"
     },
     "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": {

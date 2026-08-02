@@ -290,7 +290,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `SKL_DOROTHEA_PIONEER_PS2`'s trigger narrowed to the links it granted.
     // None of the 10 promoted units is involved, so their definitions are
     // unchanged and `selectable` stays at 69.
-    expect(catalog.catalogRevision).toBe("2026-08-02.8");
+    // `.9` is the same Issue's review fixes: `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`
+    // now declares `timeLimit.owner: EFFECT_SOURCE` so the ally-held link shares
+    // 劉翠蘭's clock with its parent shield ([P1]), and every `APPLY_DAMAGE_LINK`
+    // declares `polarity` because the same kind is used in both directions ([P2]).
+    // Capability metadata and the four DMG-007 rows only.
+    expect(catalog.catalogRevision).toBe("2026-08-02.9");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

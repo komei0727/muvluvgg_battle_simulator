@@ -860,7 +860,8 @@
     "payload": {
       "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_MAXHP" },
       "linkRate": 0.35,
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } },
+      "polarity": "BUFF"
     },
     "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": { "tags": [] }
@@ -1412,7 +1413,8 @@
     "payload": {
       "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
       "linkRate": 0.35,
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } },
+      "polarity": "DEBUFF"
     },
     "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": { "tags": [] }
@@ -1423,7 +1425,8 @@
     "payload": {
       "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
       "linkRate": 0.35,
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } },
+      "polarity": "DEBUFF"
     },
     "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": { "tags": [] }
@@ -8545,10 +8548,11 @@
       "linkRate": 0.5,
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "SUIRAN_CASINO_AS1_SHOWDOWN",
         "linkedEffectGroupRole": "CHILD"
-      }
+      },
+      "polarity": "BUFF"
     },
     "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": { "tags": [] }

@@ -19,11 +19,14 @@ import {
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import type { AppliedEffect } from "../../domain/battle/model/applied-effect.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import { decrementActionEffectDurations } from "../../domain/battle/model/applied-effect-duration.js";
+import { expireEffects } from "../../domain/battle/effects/duration-expiry-service.js";
 import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 
 /**
@@ -370,8 +373,9 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
       magnitude: 0.5,
     });
     expect(link.damageLink).toEqual({ linkToUnitId: suiran.battleUnitId, linkRate: 0.5 });
-    // R-EFF-02/03: リンクは保持者の被弾を波及させる不利な状態のためデバフに分類する。
-    expect([...link.categories]).toEqual(["DEBUFF"]);
+    // PR #299レビュー[P2]: 味方へ付与する自陣向けのリンクは`polarity: BUFF`であり、
+    // デバフ解除・デバフ無効の対象にならない。
+    expect([...link.categories]).toEqual(["BUFF"]);
     // raw原文「（解除不可）」。
     expect(link.duration.definition).toMatchObject({ dispellable: false });
 
@@ -431,6 +435,91 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
     expect(attacked.find((u) => u.battleUnitId === suiran.battleUnitId)!.currentHp).toBe(1000 - 25);
   });
 
+  it("IT-CAP-DAMAGE-LINK-STATE-PROD-003 (PR #299レビュー[P1]): the ally-held link and the granter-held parent shield share 劉翠蘭's clock, so a fast ally acting twice does not expire its link before the shield", () => {
+    const grantSkill = allyLinkGrantSkill("SKL_TEST_GRANT_DAMAGE_LINK", SUIRAN_LINK_ID);
+    const { definitions, recorder } = fixture([SUIRAN_UNIT_ID], [grantSkill]);
+    const suiran = ready(
+      createBattleUnit(
+        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
+        "ALLY",
+        LIMITS,
+      ),
+    );
+    const ally = ready(
+      createBattleUnit(
+        member("ally:front", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
+        "ALLY",
+        LIMITS,
+      ),
+    );
+
+    let units = useSkill(suiran, grantSkill, [suiran, ally], definitions, recorder, 1);
+    const linkOf = (all: readonly BattleUnit[]): AppliedEffect | undefined =>
+      all
+        .find((u) => u.battleUnitId === ally.battleUnitId)!
+        .appliedEffects.find((e) => e.effectActionDefinitionId === SUIRAN_LINK_ID);
+    expect(linkOf(units)?.duration.definition.timeLimit).toMatchObject({
+      unit: "ACTION",
+      count: 2,
+      // raw原文「2枚目の消滅と同時にダメージリンクも消滅する」: 親の2枚目シールドは
+      // 劉翠蘭が保持し既定の`EFFECT_TARGET`で減るため、味方が保持するリンクも
+      // 付与者（劉翠蘭）の時計に揃える。
+      owner: "EFFECT_SOURCE",
+    });
+    expect(linkOf(units)?.duration.timeLimitRemaining).toBe(2);
+
+    // 素早い味方が2回行動してもリンクは減らない（減算主体は劉翠蘭である）。
+    for (const sequence of [2, 3]) {
+      const decrement = decrementActionEffectDurations(
+        units,
+        ally.battleUnitId,
+        createActionId(`B_1:action:${sequence}`),
+      );
+      units = decrement.units;
+      expect(decrement.changes).toEqual([]);
+    }
+    expect(linkOf(units)?.duration.timeLimitRemaining).toBe(2);
+
+    // 劉翠蘭が2回行動して初めて、親シールドと同時に0へ落ちる。
+    let expiredInstanceIds: readonly string[] = [];
+    for (const sequence of [4, 5]) {
+      const currentActionId = createActionId(`B_1:action:${sequence}`);
+      const decrement = decrementActionEffectDurations(units, suiran.battleUnitId, currentActionId);
+      units = decrement.units;
+      const seeds = decrement.changes
+        .filter((change) => change.after === 0)
+        .map((change) => ({
+          battleUnitId: change.battleUnitId,
+          effectInstanceId: change.effectInstanceId,
+          reason: "TIME_LIMIT" as const,
+        }));
+      if (seeds.length > 0) {
+        const expiry = expireEffects(
+          {
+            recorder,
+            turnNumber: 1,
+            cycleNumber: 1,
+            actionId: currentActionId,
+            resolutionScopeId: recorder.nextResolutionScopeId(),
+            rootEventId: recorder.getEvents()[0]!.eventId,
+          },
+          units,
+          seeds,
+          definitions.effectActions,
+          recorder.getEvents()[recorder.getEvents().length - 1]!.eventId,
+        );
+        units = expiry.units;
+        expiredInstanceIds = seeds.map((seed) => seed.effectInstanceId);
+      }
+    }
+
+    // この合成ASは劉翠蘭自身にも（自己リンクとして）付与するため、2件が同時に失効する。
+    // 重要なのは「劉翠蘭の2行動目まで1件も失効しない」ことと、そこで味方側も一緒に
+    // 失効することである。
+    expect(expiredInstanceIds).toHaveLength(2);
+    expect(linkOf(units)).toBeUndefined();
+  });
+
   it("IT-CAP-DAMAGE-LINK-STATE-PROD-002 (R-LNK-01, linkTo BINDING): the real ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK burns the binding-selected enemy as its destination and sends 35% of the holder's own incoming damage there", () => {
     const grantSkill = selfLinkToBindingSkill("SKL_TEST_GRANT_LINK_BINDING", CHIZURU_LINK_ID);
     const attackSkill = frontRowAttackSkill();
@@ -480,6 +569,9 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
       linkToUnitId: frail.battleUnitId,
       linkRate: 0.35,
     });
+    // PR #299レビュー[P2]: 自身の被ダメージを敵へ送るこのリンクは保持者を利するため
+    // `polarity: BUFF`であり、デバフ無効に拒否されずデバフ解除でも消えない。
+    expect([...holder.appliedEffects[0]!.categories]).toEqual(["BUFF"]);
 
     const eventsBeforeAttack = recorder.getEvents().length;
     const attacked = useSkill(

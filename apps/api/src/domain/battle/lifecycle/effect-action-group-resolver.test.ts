@@ -5073,6 +5073,7 @@ describe("applyEffectActionGroups", () => {
       id: string,
       linkTo: Extract<EffectActionDefinition, { kind: "APPLY_DAMAGE_LINK" }>["payload"]["linkTo"],
       linkRate = 0.5,
+      polarity: "BUFF" | "DEBUFF" = "DEBUFF",
     ): EffectActionDefinition {
       return {
         kind: "APPLY_DAMAGE_LINK",
@@ -5082,6 +5083,7 @@ describe("applyEffectActionGroups", () => {
         payload: {
           linkTo,
           linkRate,
+          polarity,
           duration: {
             timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
             dispellable: false,
