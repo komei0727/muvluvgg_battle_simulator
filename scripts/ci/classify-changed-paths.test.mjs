@@ -17,9 +17,12 @@ test("API-only change runs the API gate and the UI gate (contract mirror check)"
   assert.deepEqual(result, { runApi: true, runUi: true });
 });
 
-test("Catalog raw source change runs the API gate", () => {
+// raw/ is gitignored (.gitignore), so it can never appear in a git diff —
+// classifying it would be a dead condition. If raw/ is ever un-ignored,
+// re-add it to API_PATH_PREFIXES together with this test's inverse.
+test("raw/ paths are unclassified (gitignored, never in a diff)", () => {
   const result = classifyChangedPaths(["raw/units/foo.md"]);
-  assert.deepEqual(result, { runApi: true, runUi: true });
+  assert.deepEqual(result, { runApi: false, runUi: false });
 });
 
 test("root Dockerfile change runs the API gate", () => {
@@ -67,6 +70,11 @@ test("shared root config change (mise.toml) runs both gates", () => {
   assert.deepEqual(result, { runApi: true, runUi: true });
 });
 
+test("CI decision-logic change (scripts/ci/) runs both gates", () => {
+  const result = classifyChangedPaths(["scripts/ci/classify-changed-paths.mjs"]);
+  assert.deepEqual(result, { runApi: true, runUi: true });
+});
+
 test("workflow file change runs both gates", () => {
   const result = classifyChangedPaths([".github/workflows/pr.yml"]);
   assert.deepEqual(result, { runApi: true, runUi: true });
@@ -89,6 +97,18 @@ test("mixed API and UI change runs both gates", () => {
 
 test("docs-only change runs neither gate", () => {
   const result = classifyChangedPaths(["docs/ui-design/01_UI要求・画面設計.md"]);
+  assert.deepEqual(result, { runApi: false, runUi: false });
+});
+
+// Intentionally unclassified: these paths cannot change what the API/UI
+// jobs build or test, and the always-on `changes` job already re-checks
+// formatting and this decision logic on every run.
+test("local-gate script, .claude/, and root markdown changes run neither gate", () => {
+  const result = classifyChangedPaths([
+    "scripts/run-quality-gates.sh",
+    ".claude/skills/muvluvgg-implement-issue/SKILL.md",
+    "CLAUDE.md",
+  ]);
   assert.deepEqual(result, { runApi: false, runUi: false });
 });
 

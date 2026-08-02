@@ -27,7 +27,7 @@ run = "pnpm --filter api run typecheck"
 [tasks.lint]
 run = "pnpm --filter api run lint"
 
-[tasks.format-check]
+[tasks."format:check"]
 run = "pnpm run format:check"
 
 [tasks.test]
@@ -52,9 +52,25 @@ run = "pnpm --filter api run test:load"
 [tasks.build]
 run = "pnpm --filter api run build"
 
-[tasks.check-circular]
+[tasks."check:circular"]
 description = "Detect circular dependencies between source files"
 run = "pnpm --filter api run check:circular"
+
+[tasks.validate-catalog]
+description = "Validate a Catalog directory against the runtime schema (args: <catalog-dir>, relative to apps/api/)"
+run = "pnpm --filter api run validate-catalog"
+
+[tasks.generate-catalog]
+description = "Regenerate catalog/ deterministically from catalog-src/ (args: <catalog-src-dir> <catalog-dir> <catalogRevision>, paths relative to apps/api/)"
+run = "pnpm --filter api run generate-catalog"
+
+[tasks.check-catalog-src]
+description = "Fail if catalog/ drifted from what regenerating from catalog-src/ would produce (args: <catalog-src-dir> <catalog-dir>, paths relative to apps/api/)"
+run = "pnpm --filter api run check-catalog-src"
+
+[tasks.render-cloud-run-manifest]
+description = "Render the Cloud Run Knative service manifest to stdout (env: MANIFEST_TEMPLATE_PATH, IMAGE, REVISION_NAME, PREVIOUS_REVISION_NAME, RUNTIME_SERVICE_ACCOUNT_EMAIL required)"
+run = "pnpm --filter api run render-cloud-run-manifest"
 
 [tasks."test:container"]
 description = "Build the production container image and run local Docker smoke tests (non-root, PORT/HOST, Catalog/Worker/OpenAPI, SIGTERM)"
@@ -69,10 +85,10 @@ description = "Fast local validation (api+ui typecheck/lint/test/build; no cover
 depends = [
   "typecheck",
   "lint",
-  "format-check",
+  "format:check",
   "test",
   "build",
-  "check-circular",
+  "check:circular",
   "ui:typecheck",
   "ui:lint",
   "ui:test",

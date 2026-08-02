@@ -20,31 +20,35 @@ pnpm install
 
 `mise.toml` に以下のタスクが定義されている。品質チェックはこれらを使うこと。
 
-| タスク                      | 説明                                                                                 |
-| --------------------------- | ------------------------------------------------------------------------------------ |
-| `mise run install`          | `pnpm install --frozen-lockfile`                                                     |
-| `mise run typecheck`        | TypeScript 型検査 (`tsc --noEmit`)                                                   |
-| `mise run lint`             | ESLint (`eslint . --max-warnings=0`)                                                 |
-| `mise run format-check`     | Prettier フォーマット確認                                                            |
-| `mise run test`             | Unit / Scenario / Contract テスト実行（integration・e2e・load を除く）               |
-| `mise run test:coverage`    | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                                  |
-| `mise run test:integration` | Worker・HTTP 統合テスト実行（`*.integration.test.ts`）                               |
-| `mise run test:e2e`         | End-to-End テスト実行（`*.e2e.test.ts`）                                             |
-| `mise run test:load`        | 負荷・耐久テスト実行（`*.load.test.ts`、タイムアウト 5 分）                          |
-| `mise run test:container`   | production containerをbuildし、local Docker smoke testを実行（Docker必須）           |
-| `mise run build`            | TypeScript ビルド (`tsc -p tsconfig.json`)                                           |
-| `mise run check-circular`   | 循環依存検査 (`madge --circular ...`)                                                |
-| `mise run ci:test`          | CI変更判定ロジックのテスト (`scripts/ci/*.test.mjs`)                                 |
-| `mise run ui:typecheck`     | apps/ui の TypeScript 型検査                                                         |
-| `mise run ui:lint`          | apps/ui の ESLint                                                                    |
-| `mise run ui:test`          | apps/ui の unit / component テスト (Vitest)                                          |
-| `mise run ui:build`         | apps/ui の production ビルド (Vite)                                                  |
-| `mise run ui:e2e`           | apps/ui の Playwright E2E スモーク（`@visual` 除外。どのOSでも実行可）               |
-| `mise run ui:e2e:visual`    | apps/ui の visual regression（`@visual` のみ。baseline は Linux 専用 → CI 実行前提） |
-| `mise run ui:e2e:live`      | デプロイ済み Pages / Cloud Run への live smoke（`LIVE_PAGES_URL` 等が必須）          |
-| `mise run ui:dev`           | apps/ui の Vite 開発サーバー起動（port 5173、API は `mise run dev` と併用）          |
-| `mise run check`            | api + ui の typecheck・lint・test・build 等をまとめる**軽量チェック**（下記参照）    |
-| `mise run dev`              | 開発サーバー起動 (install → `tsx watch src/main.ts`、`apps/api/`で実行)              |
+| タスク                               | 説明                                                                                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mise run install`                   | `pnpm install --frozen-lockfile`                                                                                                                                     |
+| `mise run typecheck`                 | TypeScript 型検査 (`tsc --noEmit`)                                                                                                                                   |
+| `mise run lint`                      | ESLint (`eslint . --max-warnings=0`)                                                                                                                                 |
+| `mise run format:check`              | Prettier フォーマット確認                                                                                                                                            |
+| `mise run test`                      | Unit / Scenario / Contract テスト実行（integration・e2e・load を除く）                                                                                               |
+| `mise run test:coverage`             | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                                                                                                                  |
+| `mise run test:integration`          | Worker・HTTP 統合テスト実行（`*.integration.test.ts`）                                                                                                               |
+| `mise run test:e2e`                  | End-to-End テスト実行（`*.e2e.test.ts`）                                                                                                                             |
+| `mise run test:load`                 | 負荷・耐久テスト実行（`*.load.test.ts`、タイムアウト 5 分）                                                                                                          |
+| `mise run test:container`            | production containerをbuildし、local Docker smoke testを実行（Docker必須）                                                                                           |
+| `mise run build`                     | TypeScript ビルド (`tsc -p tsconfig.json`)                                                                                                                           |
+| `mise run check:circular`            | 循環依存検査 (`madge --circular ...`)                                                                                                                                |
+| `mise run ci:test`                   | CI変更判定ロジックのテスト (`scripts/ci/*.test.mjs`)                                                                                                                 |
+| `mise run validate-catalog`          | Catalog ディレクトリのスキーマ検証（引数: `<catalog-dir>`。パスは `apps/api/` 相対）                                                                                 |
+| `mise run generate-catalog`          | `catalog-src/` から `catalog/` を決定的に再生成（引数: `<catalog-src-dir> <catalog-dir> <catalogRevision>`。パスは `apps/api/` 相対）                                |
+| `mise run check-catalog-src`         | `catalog/` が `catalog-src/` からの再生成結果と drift していないか検査（引数: `<catalog-src-dir> <catalog-dir>`。パスは `apps/api/` 相対）                           |
+| `mise run render-cloud-run-manifest` | Cloud Run Knative manifest を stdout へ描画（`MANIFEST_TEMPLATE_PATH` `IMAGE` `REVISION_NAME` `PREVIOUS_REVISION_NAME` `RUNTIME_SERVICE_ACCOUNT_EMAIL` の env 必須） |
+| `mise run ui:typecheck`              | apps/ui の TypeScript 型検査                                                                                                                                         |
+| `mise run ui:lint`                   | apps/ui の ESLint                                                                                                                                                    |
+| `mise run ui:test`                   | apps/ui の unit / component テスト (Vitest)                                                                                                                          |
+| `mise run ui:build`                  | apps/ui の production ビルド (Vite)                                                                                                                                  |
+| `mise run ui:e2e`                    | apps/ui の Playwright E2E スモーク（`@visual` 除外。どのOSでも実行可）                                                                                               |
+| `mise run ui:e2e:visual`             | apps/ui の visual regression（`@visual` のみ。baseline は Linux 専用 → CI 実行前提）                                                                                 |
+| `mise run ui:e2e:live`               | デプロイ済み Pages / Cloud Run への live smoke（`LIVE_PAGES_URL` 等が必須）                                                                                          |
+| `mise run ui:dev`                    | apps/ui の Vite 開発サーバー起動（port 5173、API は `mise run dev` と併用）                                                                                          |
+| `mise run check`                     | api + ui の typecheck・lint・test・build 等をまとめる**軽量チェック**（下記参照）                                                                                    |
+| `mise run dev`                       | 開発サーバー起動 (install → `tsx watch src/main.ts`、`apps/api/`で実行)                                                                                              |
 
 ### 品質ゲートの正本: `scripts/run-quality-gates.sh`
 
@@ -53,8 +57,8 @@ PR 相当のローカル検証の**正本は `scripts/run-quality-gates.sh` の1
 
 ```bash
 bash scripts/run-quality-gates.sh
-# changes:   format-check → ci:test
-# quality:   typecheck → lint → test:coverage → check-circular
+# changes:   format:check → ci:test
+# quality:   typecheck → lint → test:coverage → check:circular
 # container: test:container（Docker 必須 — daemon 未起動なら冒頭で fail する）
 # ui:        ui:typecheck → ui:lint → ui:test → ui:build
 #            → playwright install chromium → ui:e2e
