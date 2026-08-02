@@ -33,7 +33,7 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   // Cloud Run scale-to-zero cold start (min instances 0) plus Catalog/Worker
-  // warm-up can take well beyond the default 30s (運用手順.md「M4.5配備構成」).
+  // warm-up can take well beyond the default 30s (運用手順.md「Cloud Run配備構成（初期値／M9確定値）」).
   timeout: 120_000,
   expect: { timeout: 30_000 },
   use: {

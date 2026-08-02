@@ -26,7 +26,7 @@ test("runs a minimal live battle and shows a Catalog-revision-consistent, tracea
   await page.getByRole("button", { name: "戦闘を開始" }).click();
 
   // Cloud Run scale-to-zero cold start plus Worker warm-up can push first
-  // response well past typical UI timeouts (運用手順.md「M4.5配備構成」).
+  // response well past typical UI timeouts (運用手順.md「Cloud Run配備構成（初期値／M9確定値）」).
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible({ timeout: 90_000 });
 
   await expect(page.getByText(/^Request ID: /)).toBeVisible();
