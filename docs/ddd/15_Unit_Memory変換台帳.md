@@ -23,7 +23,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 `catalog-src/units/UNIT_CI_SMOKE_TEST/` は `raw/units/` のキャラクター変換ではない。追加時点では`capabilities.json`の30件中29件が`PLANNED`であり（Issue #166後の現在値は[`17_残作業対応表.md`](./17_残作業対応表.md)を正本とする）、実在キャラクターUnitは1件も`selectable`にならず、Cloud Run CI/CDのpost-deploy simulation smoke test（`docs/運用手順.md`「Cloud Run deploy」）が実行不能だった問題への対応として、未実装Capabilityを参照しない合成Unit（Active 1・EX 1・Passive 1、`metadata.tags: ["INTERNAL","SMOKE_TEST","TEMPORARY"]`）を追加した（PR #112レビュー、2026-07-15）。Issue #166では実装済み`CAP_SKILL_RUNTIME_COUNTER`のproduction lifecycle証跡として、通常のDAMAGE解決だけを行うPassiveを追加した。これによりdeploy smokeの選択可能性を維持したまま、`TurnStarted`から`PassiveActivated`、counter更新、StateDelta replayまでを実Catalog定義で検証する。
 
-この台帳の69件（`raw/units/`変換）・`catalog-src-inventory.test.ts`の69件アサーション（`IT-CAT-INV-001`のraw/変換キャラクター数）には含めない。`catalog-src/`のunit directory総数は70件になる。実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になり次第、このUnitを削除しCatalog revisionを再生成すること——削除条件・削除手順は`REL-002`（Issue #199）で追跡する。
+この台帳の69件（`raw/units/`変換）・`catalog-src-inventory.test.ts`の69件アサーション（`IT-CAT-INV-001`のraw/変換キャラクター数）には含めない。`catalog-src/`のunit directory総数は70件になる。削除の前提条件「実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になること」は、`DMG-006`（Issue #188）で実在Unit全69件が`selectable`になり成立済みである。残作業はこのUnitの削除とCatalog revision再生成のみで、削除手順は`REL-002`（Issue #199）が実施する。
 
 ## Unit 変換台帳
 
