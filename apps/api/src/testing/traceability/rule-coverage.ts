@@ -1345,7 +1345,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `MODIFY_RESOURCE`（`DISTRIBUTE`を含む）だけが自前の規約を持つ。委譲先が
   // すべて実装済みになった時点で初めて全条項が成立するため、完了責任は
   // `DMG-001`（Issue #195）から本監査へ引き継がれていた
-  // （`17_残作業対応表.md`「DMG-001」節の再割当表）。
+  // （`docs/ddd/archive/17_残作業対応表_完了履歴.md`「DMG-001」節の再割当表）。
   {
     ruleId: "R-ACTN-02",
     testCaseIds: [

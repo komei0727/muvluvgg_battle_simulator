@@ -10,7 +10,7 @@ Issue #161（CAT-001）の一環として、次の3点を確定する。
 
 機械可読な正本は [`18_Affiliation台帳.json`](./18_Affiliation台帳.json) とする。本書はその decision record（採番理由・出典引用）を保持し、`apps/api/src/testing/traceability/affiliation-registry.test.ts` が両者の整合と ID 形式を検証する。
 
-前提文書: [`14_Catalog定義スキーマ.md`](./14_Catalog定義スキーマ.md)「metadata」、[`15_Unit_Memory変換台帳.md`](./15_Unit_Memory変換台帳.md)「後続バッチへの申し送り」。
+前提文書: [`14_Catalog定義スキーマ.md`](./14_Catalog定義スキーマ.md)「metadata」、[`15_Unit_Memory変換台帳.md`](./15_Unit_Memory変換台帳.md)「後続バッチへの申し送り（履歴）」。
 
 ## affiliationId 採番方針
 
