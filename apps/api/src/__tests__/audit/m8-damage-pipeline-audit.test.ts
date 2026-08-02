@@ -112,6 +112,76 @@ function damageDetailsOf(event: BattleLogEvent): Record<string, number | undefin
   return event.details as Record<string, number | undefined>;
 }
 
+/**
+ * 1ヒットが辿りうる終端。`R-DMG-05` は9手順を並べるが、途中で終わる正当な経路が
+ * 2つある — MISS（#2で終わる）と幻惑による回復変換（`R-DTH-01` が #7 の適用段階
+ * だけを差し替え、`DamageApplied` の代わりに `DamageConvertedToHeal` を発行して
+ * 終わる）。それ以外のヒットは必ず適用まで到達する。
+ */
+type HitOutcome = "MISSED" | "CONVERTED_TO_HEAL" | "APPLIED";
+
+/** 終端ごとの必須部分列。ヒットのイベント列がこの順で全要素を含まなければ違反。 */
+const REQUIRED_SPINE: Readonly<Record<HitOutcome, readonly string[]>> = {
+  MISSED: ["UNIT_BEING_ATTACKED", "EVASION_ACTIVATED"],
+  CONVERTED_TO_HEAL: [
+    "UNIT_BEING_ATTACKED",
+    "HIT_CONFIRMED",
+    "CRITICAL_CHECK_RESOLVED",
+    "DAMAGE_WILL_BE_APPLIED",
+    "DAMAGE_CALCULATED",
+    "DAMAGE_CONVERTED_TO_HEAL",
+  ],
+  APPLIED: [
+    "UNIT_BEING_ATTACKED",
+    "HIT_CONFIRMED",
+    "CRITICAL_CHECK_RESOLVED",
+    "DAMAGE_WILL_BE_APPLIED",
+    "DAMAGE_CALCULATED",
+    "HIT_POINT_REDUCED",
+    "DAMAGE_APPLIED",
+  ],
+};
+
+/** 終端ごとに、そのヒットへ現れてはならないイベント。 */
+const FORBIDDEN_AFTER_OUTCOME: Readonly<Record<HitOutcome, readonly string[]>> = {
+  // MISSの場合、対象へのダメージと効果を適用しない（`R-HIT-01`）。
+  MISSED: [
+    "CRITICAL_CHECK_RESOLVED",
+    "DAMAGE_WILL_BE_APPLIED",
+    "DAMAGE_CALCULATED",
+    "HIT_POINT_REDUCED",
+    "DAMAGE_APPLIED",
+    "DAMAGE_CONVERTED_TO_HEAL",
+  ],
+  // `R-DTH-01`: ダメージを適用しないため`UnitDefeated`・リンク・反射は起きない。
+  CONVERTED_TO_HEAL: [
+    "HIT_POINT_REDUCED",
+    "DAMAGE_APPLIED",
+    "UNIT_DEFEATED",
+    "LINKED_DAMAGE_GENERATED",
+    "REFLECTED_DAMAGE_GENERATED",
+  ],
+  APPLIED: ["DAMAGE_CONVERTED_TO_HEAL"],
+};
+
+function classifyHit(types: readonly string[]): HitOutcome {
+  if (types.includes("EVASION_ACTIVATED")) {
+    return "MISSED";
+  }
+  return types.includes("DAMAGE_CONVERTED_TO_HEAL") ? "CONVERTED_TO_HEAL" : "APPLIED";
+}
+
+/** `required` が `types` の（順序を保った）部分列であるか。 */
+function containsInOrder(types: readonly string[], required: readonly string[]): boolean {
+  let cursor = 0;
+  for (const type of types) {
+    if (type === required[cursor]) {
+      cursor++;
+    }
+  }
+  return cursor === required.length;
+}
+
 const BATTLES = SELECTABLE_UNIT_IDS.map((unitDefinitionId) => ({
   unitDefinitionId,
   result: runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
@@ -121,14 +191,20 @@ const BATTLES = SELECTABLE_UNIT_IDS.map((unitDefinitionId) => ({
 }));
 
 describe("M8 damage pipeline audit (DMG-011)", () => {
-  it("IT-AUDIT-M8-001 (R-DMG-05): every hit in every production battle emits the 9 damage steps in order", () => {
-    const violations: string[] = [];
+  it("IT-AUDIT-M8-001 (R-DMG-05): every hit in every production battle emits the 9 damage steps in order, and each hit individually carries the steps its outcome requires", () => {
+    const orderViolations: string[] = [];
+    const spineViolations: string[] = [];
     let observedHits = 0;
     const observedStages = new Set<number>();
+    const observedOutcomes = new Map<HitOutcome, number>();
 
     for (const battle of BATTLES) {
       for (const hit of splitIntoHits(battle.unitDefinitionId, battle.result.events)) {
         observedHits++;
+        const types = hit.events.map((event) => event.type);
+
+        // (a) 段階の単調非減少。#9（リンク・反射）が開いた追加ダメージの適用は
+        //     同じ窓の中で#7以降をもう一度たどるため、そこからは適用段階を許す。
         let stage = 0;
         let sawAdditionalDamage = false;
         for (const event of hit.events) {
@@ -136,10 +212,8 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
           observedStages.add(next);
           const floor = sawAdditionalDamage ? APPLICATION_STAGE_FLOOR : stage;
           if (next < floor) {
-            violations.push(
-              `${battle.unitDefinitionId} seq=${event.sequence} ${event.type} (stage ${next}) followed stage ${stage}: ${hit.events
-                .map((e) => e.type)
-                .join(" -> ")}`,
+            orderViolations.push(
+              `${battle.unitDefinitionId} seq=${event.sequence} ${event.type} (stage ${next}) followed stage ${stage}: ${types.join(" -> ")}`,
             );
             break;
           }
@@ -148,15 +222,50 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
           }
           stage = next;
         }
+
+        // (b) ヒット単位の必須部分列。(a)だけでは「そのヒットで`DamageCalculated`や
+        //     `DamageApplied`が欠落しても、別のヒットが同じ段階を出していれば成功する」
+        //     ため、終端に応じた必須手順をヒットごとに要求する（PR #302レビュー[P2]）。
+        const outcome = classifyHit(types);
+        observedOutcomes.set(outcome, (observedOutcomes.get(outcome) ?? 0) + 1);
+        if (!containsInOrder(types, REQUIRED_SPINE[outcome])) {
+          spineViolations.push(
+            `${battle.unitDefinitionId} seq=${hit.events[0]!.sequence} ${outcome} hit misses ${JSON.stringify(REQUIRED_SPINE[outcome])}: ${types.join(" -> ")}`,
+          );
+          continue;
+        }
+        const forbidden = FORBIDDEN_AFTER_OUTCOME[outcome].filter((type) => types.includes(type));
+        if (forbidden.length > 0) {
+          spineViolations.push(
+            `${battle.unitDefinitionId} seq=${hit.events[0]!.sequence} ${outcome} hit also emitted ${JSON.stringify(forbidden)}: ${types.join(" -> ")}`,
+          );
+        }
       }
     }
 
-    expect(violations, `hits violating the R-DMG-05 order: ${JSON.stringify(violations)}`).toEqual(
-      [],
-    );
-    // 空振り防止: 9手順のすべてがproduction戦闘のどこかで実際に観測されていること。
+    expect(
+      orderViolations,
+      `hits violating the R-DMG-05 order: ${JSON.stringify(orderViolations)}`,
+    ).toEqual([]);
+    expect(
+      spineViolations,
+      `hits missing a step their outcome requires: ${JSON.stringify(spineViolations)}`,
+    ).toEqual([]);
+
+    // 空振り防止: 9手順のすべてと、3つの終端すべてがproduction戦闘で実際に
+    // 観測されていること。
     expect(observedHits).toBeGreaterThan(0);
     expect([...observedStages].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect([...observedOutcomes.keys()].sort()).toEqual(["APPLIED", "CONVERTED_TO_HEAL", "MISSED"]);
+
+    // 上の3終端が現行production Catalogのヒットを尽くしていることは、`classifyHit`が
+    // 全ヒットをいずれかへ分類する以上、必須部分列の検査と合わせて保証される。
+    // ここで意図的に許していないのは、`R-DMG-05`が持つもう一組の正当な途中終了
+    // — PS連鎖によるヒットの取り消し（`UT-R-DMG-05-004`／`008`／`009`）と、
+    // 吸収中に使用者が戦闘不能になる中断（`UT-R-SUB-02-016`）— である。
+    // どちらも現行のproduction定義では発生しないため、発生した時点で必須部分列の
+    // 検査が失敗する。その場合は上の`REQUIRED_SPINE`へ終端を足すのではなく、
+    // まず「production Catalogにその経路が現れた」ことを監査結果として扱う。
   });
 
   it("IT-AUDIT-M8-002 (08_ドメインイベント.md 不変条件#6): shield, sub unit, HP, and discarded damage always account for the calculated damage", () => {

@@ -652,86 +652,98 @@ describe("battle scenarios (harness)", () => {
       includeDefeated: false,
     });
 
-    it("SCN-BTL-015 (R-SHD-01〜03/R-SUB-01): one hit drains the matching typed shield, then the untyped shield, then the sub unit, and only the remainder reaches HP — while the non-matching typed shield is untouched", () => {
-      // 攻撃力100 - 防御力20 = 計算ダメージ80（会心PREVENTED・属性相性1・貫通なし）。
-      // 物理10 → 無属性10 → サブユニット10 → HP50 の順で振り分けられる。
-      // EN シールド10は物理ダメージの適用先ではないため残る（R-SHD-02「対応しない
-      // タイプありシールドへダメージを適用しない」）。
-      const catalog = new CatalogBuilder()
-        .withUnit(
-          unitDefinition("UNIT_ATK", {
-            baseStats: { maximumAp: 1, attack: 100 },
-            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SHIELD_THEN_HIT")],
+    // `12_テスト戦略.md`の`SCN-BTL-015`は重点確認を「物理／EN→無属性→サブユニット→HP」
+    // と定めているため、物理・ENの両経路を同じ編成で対称に確認する（PR #302レビュー[P2]）。
+    // どちらの向きでも、対応するタイプありシールドだけが消費され、対応しない側は
+    // 無傷で残らなければならない（`R-SHD-02`末尾）。
+    it.each([
+      { damageType: "PHYSICAL" as const, untouched: "EN" as const },
+      { damageType: "EN" as const, untouched: "PHYSICAL" as const },
+    ])(
+      "SCN-BTL-015 (R-SHD-01〜03/R-SUB-01, $damageType damage): one hit drains the matching typed shield, then the untyped shield, then the sub unit, and only the remainder reaches HP — while the $untouched shield is untouched",
+      ({ damageType, untouched }) => {
+        // 攻撃力100 - 防御力20 = 計算ダメージ80（会心PREVENTED・属性相性1・貫通なし）。
+        // 対応シールド10 → 無属性10 → サブユニット10 → HP50 の順で振り分けられる。
+        // 非対応のタイプありシールド10は適用先ではないため残る（R-SHD-02「対応しない
+        // タイプありシールドへダメージを適用しない」）。
+        const catalog = new CatalogBuilder()
+          .withUnit(
+            unitDefinition("UNIT_ATK", {
+              baseStats: { maximumAp: 1, attack: 100 },
+              activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SHIELD_THEN_HIT")],
+            }),
+            unitDefinition("UNIT_DEF", { baseStats: { maximumHp: 200, defense: 20 } }),
+          )
+          .withSkill(
+            stagedSkill(
+              "SKL_SHIELD_THEN_HIT",
+              [{ bindingId: "TGT_1", selector: ENEMY_ALL }],
+              [
+                {
+                  bindingId: "TGT_1",
+                  actionIds: [
+                    "ACT_SHIELD_PHYSICAL",
+                    "ACT_SHIELD_EN",
+                    "ACT_SHIELD_UNTYPED",
+                    "ACT_SUBUNIT",
+                  ],
+                },
+                { bindingId: "TGT_1", actionIds: ["ACT_HIT"] },
+              ],
+            ),
+          )
+          .withEffectAction(
+            typedShield("ACT_SHIELD_PHYSICAL", 10, "PHYSICAL"),
+            typedShield("ACT_SHIELD_EN", 10, "EN"),
+            untypedShield("ACT_SHIELD_UNTYPED", 10),
+            subUnit("ACT_SUBUNIT", 10),
+            damageEffectAction("ACT_HIT", 1, "PREVENTED", damageType),
+          )
+          .build();
+
+        const result = runScenario({
+          catalog,
+          command: battleCommand({
+            allyFormation: { slots: [formationSlot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
+            enemyFormation: { slots: [formationSlot("UNIT_DEF", 0)], memoryDefinitionIds: [] },
+            turnLimit: 1,
           }),
-          unitDefinition("UNIT_DEF", { baseStats: { maximumHp: 200, defense: 20 } }),
-        )
-        .withSkill(
-          stagedSkill(
-            "SKL_SHIELD_THEN_HIT",
-            [{ bindingId: "TGT_1", selector: ENEMY_ALL }],
-            [
-              {
-                bindingId: "TGT_1",
-                actionIds: [
-                  "ACT_SHIELD_PHYSICAL",
-                  "ACT_SHIELD_EN",
-                  "ACT_SHIELD_UNTYPED",
-                  "ACT_SUBUNIT",
-                ],
-              },
-              { bindingId: "TGT_1", actionIds: ["ACT_HIT"] },
-            ],
-          ),
-        )
-        .withEffectAction(
-          typedShield("ACT_SHIELD_PHYSICAL", 10, "PHYSICAL"),
-          typedShield("ACT_SHIELD_EN", 10, "EN"),
-          untypedShield("ACT_SHIELD_UNTYPED", 10),
-          subUnit("ACT_SUBUNIT", 10),
-          damageEffectAction("ACT_HIT", 1, "PREVENTED"),
-        )
-        .build();
+          randomValues: Array.from({ length: 20 }, () => 0.99),
+        });
 
-      const result = runScenario({
-        catalog,
-        command: battleCommand({
-          allyFormation: { slots: [formationSlot("UNIT_ATK", 0)], memoryDefinitionIds: [] },
-          enemyFormation: { slots: [formationSlot("UNIT_DEF", 0)], memoryDefinitionIds: [] },
-          turnLimit: 1,
-        }),
-        randomValues: Array.from({ length: 20 }, () => 0.99),
-      });
+        const applied = result.events.filter((event) => event.type === "DAMAGE_APPLIED");
+        expect(applied).toHaveLength(1);
+        expect(applied[0]!.details).toMatchObject({
+          calculatedDamage: 80,
+          typedShieldAbsorbed: 10,
+          untypedShieldAbsorbed: 10,
+          subUnitAbsorbed: 10,
+          hitPointDamage: 50,
+          discardedDamage: 0,
+        });
 
-      const applied = result.events.filter((event) => event.type === "DAMAGE_APPLIED");
-      expect(applied).toHaveLength(1);
-      expect(applied[0]!.details).toMatchObject({
-        calculatedDamage: 80,
-        typedShieldAbsorbed: 10,
-        untypedShieldAbsorbed: 10,
-        subUnitAbsorbed: 10,
-        hitPointDamage: 50,
-        discardedDamage: 0,
-      });
+        // R-SHD-02の適用順が吸収イベントの発行順としても観測できる。対応する
+        // タイプありシールドが先頭で、非対応の側は一度も現れない。
+        const absorptions = result.events
+          .filter((event) => event.type === "SHIELD_CONSUMED" || event.type === "SUB_UNIT_DAMAGED")
+          .map((event) => ({
+            type: event.type,
+            shieldType: (event.details as { shieldType?: string | null }).shieldType,
+          }));
+        expect(absorptions).toEqual([
+          { type: "SHIELD_CONSUMED", shieldType: damageType },
+          { type: "SHIELD_CONSUMED", shieldType: null },
+          { type: "SUB_UNIT_DAMAGED", shieldType: undefined },
+        ]);
+        expect(absorptions.map((absorption) => absorption.shieldType)).not.toContain(untouched);
 
-      // R-SHD-02の適用順が吸収イベントの発行順としても観測できる。
-      const absorptions = result.events
-        .filter((event) => event.type === "SHIELD_CONSUMED" || event.type === "SUB_UNIT_DAMAGED")
-        .map((event) => ({
-          type: event.type,
-          shieldType: (event.details as { shieldType?: string | null }).shieldType,
-        }));
-      expect(absorptions).toEqual([
-        { type: "SHIELD_CONSUMED", shieldType: "PHYSICAL" },
-        { type: "SHIELD_CONSUMED", shieldType: null },
-        { type: "SUB_UNIT_DAMAGED", shieldType: undefined },
-      ]);
-
-      const restored = reduceStateDeltas(
-        result.initialState,
-        result.stateTransitions.map((transition) => transition.stateDelta),
-      );
-      expect(restored).toEqual(result.finalState);
-    });
+        const restored = reduceStateDeltas(
+          result.initialState,
+          result.stateTransitions.map((transition) => transition.stateDelta),
+        );
+        expect(restored).toEqual(result.finalState);
+      },
+    );
 
     it("SCN-BTL-016 (R-LNK-01〜03): both link destinations take the same undivided amount, absorb it with their own shields, and generate no further link", () => {
       // リンク元（LEFT）への1ヒットが、CENTER と RIGHT の2つのリンク先へ
