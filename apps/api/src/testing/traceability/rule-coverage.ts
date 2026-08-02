@@ -1479,7 +1479,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HIT-05-006",
       "UT-R-HIT-05-007",
       "UT-R-HIT-05-008",
-      "UT-R-HIT-05-009",
+      // UT-R-HIT-05-009（「別Taskが持つstatus種別はresolverに拒否され続ける」境界）は
+      // DMG-003A（Issue #295）で除去した。最後の未配線だったCRITICAL_GUARANTEE/
+      // CRITICAL_PREVENTIONがR-CRT-03として配線され、resolverの許可リストが
+      // `StatusKind`の全値を網羅した時点で、この境界自体が存在しなくなったため。
       "IT-CAP-GUARANTEED-HIT-PROD-001",
       "IT-CAP-GUARANTEED-HIT-PROD-002",
     ],
@@ -1504,6 +1507,39 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ruleId: "R-CRT-02",
     testCaseIds: ["UT-R-CRT-02-001", "UT-R-CRT-02-002"],
     kinds: ["POSITIVE"],
+  },
+  // DMG-003A（Issue #295）で新設。R-CRT-03「会心保証・会心不可」は、使用者が持つ
+  // `CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`効果を攻撃側定義の`critical.mode`へ
+  // 畳み込んだ実効会心モード（`PREVENTED` > `GUARANTEED` > `NORMAL`）で会心判定を
+  // 行うことを規定する。どちらの効果も保持者自身の攻撃に働き、防御側の保持は
+  // 参照しない（`UT-R-CRT-03-015`/`IT-CAP-CRITICAL-CONTROL-PROD-004`がこの向きを
+  // 固定する）。会心不可が会心保証に勝つ順序は、サブユニット追加ダメージの
+  // `PREVENTED`固定（R-SUB-02）が使用者の会心保証で破られないことも同時に守る
+  // （`UT-R-CRT-03-007`）。
+  {
+    ruleId: "R-CRT-03",
+    testCaseIds: [
+      "UT-R-CRT-03-001",
+      "UT-R-CRT-03-002",
+      "UT-R-CRT-03-003",
+      "UT-R-CRT-03-004",
+      "UT-R-CRT-03-005",
+      "UT-R-CRT-03-006",
+      "UT-R-CRT-03-007",
+      "UT-R-CRT-03-008",
+      "UT-R-CRT-03-009",
+      "UT-R-CRT-03-010",
+      "UT-R-CRT-03-011",
+      "UT-R-CRT-03-012",
+      "UT-R-CRT-03-013",
+      "UT-R-CRT-03-014",
+      "UT-R-CRT-03-015",
+      "IT-CAP-CRITICAL-CONTROL-PROD-001",
+      "IT-CAP-CRITICAL-CONTROL-PROD-002",
+      "IT-CAP-CRITICAL-CONTROL-PROD-003",
+      "IT-CAP-CRITICAL-CONTROL-PROD-004",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
 
   // ATR: 属性

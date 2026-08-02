@@ -226,6 +226,20 @@ function guaranteedHitEffect(id: string, attackerId: string): AppliedEffect {
   return { ...evasionEffect(id, attackerId, {}), statusKind: "GUARANTEED_HIT" };
 }
 
+/**
+ * R-CRT-03（DMG-003A、Issue #295）: production定義
+ * （`ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE`／
+ * `ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION`）と同じ形の会心状態効果。
+ * どちらも保持者の攻撃側に働くため、保持者を`holderId`で明示する。
+ */
+function criticalStatusEffect(
+  id: string,
+  holderId: string,
+  statusKind: "CRITICAL_GUARANTEE" | "CRITICAL_PREVENTION",
+): AppliedEffect {
+  return { ...evasionEffect(id, holderId, {}), statusKind, statusDetails: {} };
+}
+
 function hit(targetId: string, hitIndex: number): ResolvedEffectApplication {
   return {
     targetBattleUnitId: createBattleUnitId(targetId),
@@ -1632,6 +1646,92 @@ describe("applyDamageAction", () => {
     expect(baseContext.recorder.getEvents().map((event) => event.eventType)).not.toContain(
       "EvasionActivated",
     );
+  });
+
+  it("UT-R-CRT-03-013 (R-CRT-03 #2, DMG-003A/Issue #295): an attacker holding CRITICAL_GUARANTEE crits a NORMAL-declared attack at 0% criticalRate, and CriticalCheckResolved reports the effective GUARANTEED mode", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, criticalRate: 0, criticalDamageBonus: 0.5 }),
+      appliedEffects: [criticalStatusEffect("eff-crit", "ATTACKER", "CRITICAL_GUARANTEE")],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    // GUARANTEED は RandomSource を消費しない（R-CRT-01 の NORMAL 判定なら1消費する）。
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("NORMAL"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    // 基礎20 × 会心倍率2.0（150% + 会心ダメージボーナス50%）。
+    expect(result.hits[0]!.damage).toBe(40);
+    random.assertFullyConsumed();
+    const criticalCheckResolved = context.recorder
+      .getEvents()
+      .find((event) => event.eventType === "CriticalCheckResolved");
+    expect(criticalCheckResolved!.payload).toMatchObject({ mode: "GUARANTEED", result: true });
+  });
+
+  it("UT-R-CRT-03-014 (R-CRT-03 #1, DMG-003A/Issue #295): an attacker holding CRITICAL_PREVENTION never crits, even when the definition itself declares GUARANTEED", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, criticalRate: 1, criticalDamageBonus: 0.5 }),
+      appliedEffects: [criticalStatusEffect("eff-crit", "ATTACKER", "CRITICAL_PREVENTION")],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("GUARANTEED"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    // 基礎20 × 会心倍率1.0（非会心）。
+    expect(result.hits[0]!.damage).toBe(20);
+    random.assertFullyConsumed();
+    const criticalCheckResolved = context.recorder
+      .getEvents()
+      .find((event) => event.eventType === "CriticalCheckResolved");
+    expect(criticalCheckResolved!.payload).toMatchObject({ mode: "PREVENTED", result: false });
+  });
+
+  it("UT-R-CRT-03-015 (R-CRT-03 direction, DMG-003A/Issue #295): CRITICAL_PREVENTION held by the *defender* does not stop the attacker's critical — both critical statuses work on their holder's own attacks", () => {
+    const attacker = unit("ATTACKER", "ALLY", {
+      attack: 30,
+      criticalRate: 1,
+      criticalDamageBonus: 0.5,
+    });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 }),
+      appliedEffects: [criticalStatusEffect("eff-crit", "TARGET", "CRITICAL_PREVENTION")],
+    };
+    // 宣言は NORMAL のままなので R-CRT-01 の実効会心率100%で判定する（1消費）。
+    const random = new SequenceRandomSource([0.999999]);
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("NORMAL"),
+      [attacker, target],
+      random,
+      context,
+    );
+
+    expect(result.hits[0]!.damage).toBe(40);
+    random.assertFullyConsumed();
+    const criticalCheckResolved = context.recorder
+      .getEvents()
+      .find((event) => event.eventType === "CriticalCheckResolved");
+    expect(criticalCheckResolved!.payload).toMatchObject({ mode: "NORMAL", result: true });
   });
 
   it("UT-R-HIT-04-010 (R-HIT-04, PR #275 レビュー[P1]): an evasion whose probability roll fails keeps its hit count — the landed hit must not consume it through the ordinary R-EFF-07 confirmed-hit rule", () => {

@@ -251,7 +251,16 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 実ライフサイクル検証（`IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001`〜`003`）を
     // 登録した。`UNIT_FLUTE_VAMPIRE`は`CAP_DEATH_SURVIVAL`（#188）で非selectableの
     // ままであり、昇格10 Unitの定義・selectable集合はどちらも変わらない。
-    expect(catalog.catalogRevision).toBe("2026-08-02.3");
+    // Bumped again by DMG-003A (Issue #295, R-CRT-03): `CAP_CRITICAL_CONTROL`
+    // flipped to `IMPLEMENTED` once `APPLY_STATUS`'s CRITICAL_GUARANTEE/
+    // CRITICAL_PREVENTION reached the real lifecycle (`resolveEffectiveCriticalMode`
+    // + the resolver allow list), and `CAP_STATUS_EFFECT_KIND`'s description /
+    // `verification.testCaseIds` dropped the retired UT-R-HIT-05-009 boundary.
+    // Capability metadata only — no Unit/Skill/EffectAction definition changed,
+    // so the 10 promoted units' `unitCount`/violation expectations are unchanged
+    // (5 other production units do become newly `selectable`: 55 → 60, tracked in
+    // `docs/ddd/17_残作業対応表.json`'s `m7Audit`).
+    expect(catalog.catalogRevision).toBe("2026-08-02.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

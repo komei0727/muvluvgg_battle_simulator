@@ -25,8 +25,8 @@
   },
   "current": {
     "rules": {
-      "total": 113,
-      "completed": 104,
+      "total": 114,
+      "completed": 105,
       "remaining": 9
     },
     "unitCatalog": {
@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 47,
-      "implemented": 40
+      "implemented": 41
     }
   },
   "tasks": [
@@ -586,7 +586,7 @@
     "auditIssue": 177,
     "selectability": {
       "productionUnits": 69,
-      "selectableProductionUnits": 55,
+      "selectableProductionUnits": 60,
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
@@ -597,14 +597,7 @@
         "capabilityId": "CAP_COVER_DAMAGE",
         "blockedUnits": 3,
         "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 0
-      },
-      {
-        "capabilityId": "CAP_CRITICAL_CONTROL",
-        "blockedUnits": 6,
-        "blockedMemories": 0,
-        "exclusivelyBlockedUnits": 5,
+        "exclusivelyBlockedUnits": 1,
         "exclusivelyBlockedMemories": 0
       },
       {

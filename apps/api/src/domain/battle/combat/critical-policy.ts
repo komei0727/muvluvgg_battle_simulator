@@ -5,6 +5,43 @@ import {
   resolveProbability,
   type Percentage,
 } from "../../shared/percentage.js";
+import type { BattleUnit } from "../model/battle-unit.js";
+
+/**
+ * R-CRT-03「会心保証・会心不可」（DMG-003A、Issue #295）: 使用者が保持する会心状態
+ * 効果（`APPLY_STATUS`の`status: "CRITICAL_GUARANTEE"`/`"CRITICAL_PREVENTION"`）を、
+ * そのDAMAGE定義が宣言する`critical.mode`へ畳み込んで実効会心モードを返す。
+ * 呼び出し側はこの実効値を`resolveCritical`と`CriticalCheckResolved`の両方へ渡す。
+ *
+ * どちらの効果も**保持者自身の攻撃**に働く（raw原文の「攻撃が必ず会心攻撃になる
+ * バフ」＝自身へ付与、「会心不可のデバフ」＝攻撃した敵へ付与し、その敵の攻撃を
+ * 会心させない）。R-HIT-05の`GUARANTEED_HIT`とまったく同じ「保持者の攻撃側に働く」
+ * 規約であり、防御側の保持は参照しない — この関数が防御側を引数に取らないことで
+ * 構造的に保証する。
+ *
+ * `PREVENTED`が`GUARANTEED`より強いのは、会心不可が会心の発生自体を禁じる制限で
+ * あり会心保証は発生を確定させる緩和にすぎないためである。この順序は同時に、会心の
+ * 項を持たないサブユニット追加ダメージ（R-SUB-02の`PREVENTED`固定）が使用者の会心
+ * 保証で会心し始めることも防ぐ。
+ */
+export function resolveEffectiveCriticalMode(
+  attacker: BattleUnit,
+  declaredMode: CriticalMode,
+): CriticalMode {
+  if (
+    declaredMode === "PREVENTED" ||
+    attacker.appliedEffects.some((effect) => effect.statusKind === "CRITICAL_PREVENTION")
+  ) {
+    return "PREVENTED";
+  }
+  if (
+    declaredMode === "GUARANTEED" ||
+    attacker.appliedEffects.some((effect) => effect.statusKind === "CRITICAL_GUARANTEE")
+  ) {
+    return "GUARANTEED";
+  }
+  return "NORMAL";
+}
 
 export interface CriticalResult {
   readonly isCritical: boolean;

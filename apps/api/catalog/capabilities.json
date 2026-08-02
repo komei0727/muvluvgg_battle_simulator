@@ -151,10 +151,31 @@
   {
     "capabilityId": "CAP_CRITICAL_CONTROL",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-003A",
-    "description": "会心保証・会心不可。`DamagePayload.critical.mode`の`GUARANTEED`/`PREVENTED`は`combat/critical-policy.ts`に実装済みだが、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`は`effect-action-group-resolver.ts`が明示的に拒否したままである。`DMG-003`（Issue #196）が完了責任を持っていたが、同Issueの3テーマ（`POST_DAMAGE_CRITICAL_BRANCH`/`POST_DAMAGE_SURVIVAL_BRANCH`/`TEMP_PIERCING_GRANT`）とは独立した機能のため`DMG-003A`（Issue #295）へ分離した。",
-    "verification": { "productionDefinitionIds": [], "testCaseIds": [] }
+    "description": "会心保証・会心不可。`DamagePayload.critical.mode`の`GUARANTEED`/`PREVENTED`は`combat/critical-policy.ts`に実装済みだったが、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`は`effect-action-group-resolver.ts`が明示的に拒否したままだった。`DMG-003`（Issue #196）が完了責任を持っていたが、同Issueの3テーマ（`POST_DAMAGE_CRITICAL_BRANCH`/`POST_DAMAGE_SURVIVAL_BRANCH`/`TEMP_PIERCING_GRANT`）とは独立した機能のため`DMG-003A`（Issue #295）へ分離した。DMG-003AはR-CRT-03「会心保証・会心不可」を新設し（宣言`critical.mode`と使用者が保持する会心状態効果から実効会心モードを`PREVENTED` > `GUARANTEED` > `NORMAL`の順で決める。どちらの状態効果も保持者自身の攻撃に働き、防御側の保持は参照しない — R-HIT-05の必中付与と同じ規約）、`critical-policy.ts`の`resolveEffectiveCriticalMode`と`damage-application-service.ts`の会心判定へ配線したうえで、2種をresolverの許可リストへ追加した。会心不可を会心保証より優先するのは、制限が緩和に勝つという一般則に加え、会心の項を持たないサブユニット追加ダメージ（R-SUB-02の`PREVENTED`固定）が使用者の会心保証で会心し始めるのを防ぐためでもある。この配線で`StatusKind`の全値がresolver対応済みになったため、許可リストは`Record<StatusKind, true>`で網羅をコンパイル時に固定する形へ変えた（新しいstatus種別を足したときに配線漏れへ気付ける）。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE",
+        "ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION",
+        "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION",
+        "ACT_SAYA_BUNNY_EX_DAMAGE_EXTRA",
+        "ACT_LUNA_HUNGRY_AS1_DAMAGE_CRIT",
+        "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT"
+      ],
+      "testCaseIds": [
+        "IT-CAP-CRITICAL-CONTROL-PROD-001",
+        "IT-CAP-CRITICAL-CONTROL-PROD-002",
+        "IT-CAP-CRITICAL-CONTROL-PROD-003",
+        "IT-CAP-CRITICAL-CONTROL-PROD-004",
+        "UT-R-CRT-03-010",
+        "UT-R-CRT-03-011",
+        "UT-R-CRT-03-012",
+        "UT-R-CRT-03-013",
+        "UT-R-CRT-03-014",
+        "UT-R-CRT-03-015"
+      ]
+    }
   },
   {
     "capabilityId": "CAP_DAMAGE_MOD",
@@ -834,7 +855,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-018",
-    "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。M7-004（Issue #183）はFREEZE（R-STS-03、`freeze-grant-service.ts`＋凍結解除時のダメージ増幅）・BLIND（R-STS-04/R-HIT-03、暗闇の定義順MISS判定）・EVASION（R-HIT-02、特別な回避効果）・DAMAGE_IMMUNITY（R-DMG-02、ダメージ無効効果）の許可リスト追加と実効処理を実装した。残るCRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASIONは対応するR-*ルール定義がdocs/ddd/07_戦闘ルール詳細.mdに存在しなかった。M7-018（Issue #272）はR-HIT-05「必中付与」を新設し（使用者が持つGUARANTEED_HIT効果が、攻撃側定義のaccuracy.modeに関わらずその使用者の攻撃を必中にする。回避効果もNヒット回避も発動させないが、暗闇＝R-HIT-03 #6には影響しない）、hit-policy.tsのresolveEffectiveAccuracyModeとdamage-application-service.tsの命中判定へ配線したうえで、GUARANTEED_HITをresolverの許可リストへ追加した。これでこのCapabilityを宣言するproduction 2行（UNIT_LAYLA_ENTREPRENEURのEX＝DAMAGE_IMMUNITY、PS1＝GUARANTEED_HIT）がどちらも解決できるためIMPLEMENTEDへ更新する。CRITICAL_GUARANTEE/CRITICAL_PREVENTIONは引き続きresolverが拒否し、宣言側もCAP_CRITICAL_CONTROL（DMG-003／Issue #196）がgateする（UT-R-HIT-05-009がこの境界を固定する）。HIT_EVASIONはCAP_HIT_COUNT_EVASION（同じM7-018）が担当する。",
+    "description": "APPLY_STATUSの`status`がSTEALTH以外（STUN/FREEZE/BLIND/EVASION/DAMAGE_IMMUNITY/CRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASION）の場合の実効処理（R-STS-01〜04等）。resolver（effect-action-group-resolver.ts）は現状`status`自体の許可リストでSTEALTH以外を無条件拒否しており（TGT-004フェーズ3再レビュー[P1]）、この拒否はCapability経由ではなくハードコードされている。M7-001B（Issue #243）はUNIT_LAYLA_ENTREPRENEURのEX/PS1がこのCapability未実装のまま`selectable`となり golden battle が失敗するのを防ぐため、この2行にだけ宣言した（既存の他ユニット行への遡及的な宣言はM7-004本体のスコープとする）。M7-004（Issue #183）はFREEZE（R-STS-03、`freeze-grant-service.ts`＋凍結解除時のダメージ増幅）・BLIND（R-STS-04/R-HIT-03、暗闇の定義順MISS判定）・EVASION（R-HIT-02、特別な回避効果）・DAMAGE_IMMUNITY（R-DMG-02、ダメージ無効効果）の許可リスト追加と実効処理を実装した。残るCRITICAL_GUARANTEE/CRITICAL_PREVENTION/GUARANTEED_HIT/HIT_EVASIONは対応するR-*ルール定義がdocs/ddd/07_戦闘ルール詳細.mdに存在しなかった。M7-018（Issue #272）はR-HIT-05「必中付与」を新設し（使用者が持つGUARANTEED_HIT効果が、攻撃側定義のaccuracy.modeに関わらずその使用者の攻撃を必中にする。回避効果もNヒット回避も発動させないが、暗闇＝R-HIT-03 #6には影響しない）、hit-policy.tsのresolveEffectiveAccuracyModeとdamage-application-service.tsの命中判定へ配線したうえで、GUARANTEED_HITをresolverの許可リストへ追加した。これでこのCapabilityを宣言するproduction 2行（UNIT_LAYLA_ENTREPRENEURのEX＝DAMAGE_IMMUNITY、PS1＝GUARANTEED_HIT）がどちらも解決できるためIMPLEMENTEDへ更新する。HIT_EVASIONはCAP_HIT_COUNT_EVASION（同じM7-018）が担当する。最後まで残っていたCRITICAL_GUARANTEE/CRITICAL_PREVENTIONはDMG-003A（Issue #295）がR-CRT-03として配線し、M7-018時点で「未対応status種別がresolverに拒否され続けること」を固定していたUT-R-HIT-05-009はその境界自体が無くなったため除去した（現在は許可リストがStatusKindの全値を網羅する）。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT",
@@ -845,8 +866,7 @@
         "IT-CAP-GUARANTEED-HIT-PROD-002",
         "UT-R-HIT-05-006",
         "UT-R-HIT-05-007",
-        "UT-R-HIT-05-008",
-        "UT-R-HIT-05-009"
+        "UT-R-HIT-05-008"
       ]
     }
   },
