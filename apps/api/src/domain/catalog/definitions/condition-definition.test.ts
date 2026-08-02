@@ -414,6 +414,8 @@ describe("ConditionDefinition", () => {
     expect(result).toEqual({
       kind: "TARGET_SET_COUNT",
       target: { kind: "BINDING", targetBindingId: "TGT_COLUMNS" },
+      // DMG-003（Issue #196）: `countOf`省略時はIssue #227時点の意味（生存数）。
+      countOf: "ALIVE",
       op: "GTE",
       value: 1,
     });
@@ -428,9 +430,44 @@ describe("ConditionDefinition", () => {
     expect(result).toEqual({
       kind: "TARGET_SET_COUNT",
       target: { kind: "TRIGGER_TARGET" },
+      countOf: "ALIVE",
       op: "LT",
       value: 1,
     });
+  });
+
+  it("UT-CAT-COND-036 (POST_DAMAGE_SURVIVAL_BRANCH, DMG-003/Issue #196): maps an explicit countOf DEFEATED and rejects an unknown value", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_SET_COUNT",
+        target: { kind: "LAST_ACTION_TARGETS" },
+        countOf: "DEFEATED",
+        op: "GTE",
+        value: 1,
+      },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "TARGET_SET_COUNT",
+      target: { kind: "LAST_ACTION_TARGETS" },
+      countOf: "DEFEATED",
+      op: "GTE",
+      value: 1,
+    });
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_SET_COUNT",
+          target: { kind: "LAST_ACTION_TARGETS" },
+          countOf: "SURVIVING",
+          op: "GTE",
+          value: 1,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-COND-033: rejects a negative value on TARGET_SET_COUNT", () => {

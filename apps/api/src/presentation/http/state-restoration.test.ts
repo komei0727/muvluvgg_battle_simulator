@@ -811,7 +811,13 @@ async function runCombinedConditionScenario(): Promise<BattleSimulationResponseB
         {
           kind: "ACTION",
           // step-wide gate（CAP_EFFECT_STEP_SET_CONDITION）: 両者生存していなければstep全体をskipする。
-          stepCondition: { kind: "TARGET_SET_COUNT", target: allTarget, op: "GTE", value: 2 },
+          stepCondition: {
+            kind: "TARGET_SET_COUNT",
+            target: allTarget,
+            countOf: "ALIVE",
+            op: "GTE",
+            value: 2,
+          },
           // per-target filter（CAP_EFFECT_STEP_CONDITION）: Markerを持つ対象だけへダメージを適用する。
           targetCondition: {
             kind: "TARGET_HAS_MARKER",

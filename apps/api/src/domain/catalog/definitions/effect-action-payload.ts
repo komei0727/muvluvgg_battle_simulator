@@ -262,6 +262,30 @@ export interface ApplyDamageModPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * `TEMP_PIERCING_GRANT`（DMG-003、Issue #196、R-DMG-03）: 保持者が**行う**攻撃へ
+ * 一時的に防御貫通を付与する継続効果。`DamagePayload.piercing`が「そのDAMAGE定義
+ * 自身が常に持つ静的な貫通率」であるのに対し、こちらは付与された保持者の後続の
+ * DAMAGE全部へ期間中だけ上乗せする（production例: `SKL_RAMI_NEWYEAR_PS1`
+ * 「大吉：相手の防御力を50%無視する」——おみくじの結果は、このスキルに**続く**
+ * 自身の攻撃に適用される）。
+ *
+ * 3つの率はいずれも省略時0で、`DamagePayload.piercing`と同じ意味を持つ
+ * （R-DMG-03）。全て0の定義は何も無視しない no-op のため、Catalog構築時点で
+ * 拒否する（silent partial implementationを作らない）。
+ *
+ * `APPLY_DAMAGE_MOD`と同じく`stacking.mode`は`STACKABLE`のみ — 合成は
+ * `combat/piercing-policy.ts`が「無視されずに残る割合の積」として行い、
+ * R-EFF-05の重複なし最強選択は使わない。
+ */
+export interface ApplyPiercingModPayload {
+  readonly defenseIgnoreRate: number;
+  readonly shieldIgnoreRate: number;
+  readonly damageReductionIgnoreRate: number;
+  readonly stacking: { readonly mode: "STACKABLE" };
+  readonly duration: DurationDefinition;
+}
+
 /** G-01 (Issue #44): the healing-amount counterpart of `APPLY_DAMAGE_MOD` (no `damageType` — healing isn't typed). */
 export interface ApplyHealingModPayload {
   readonly direction: DamageModDirection;

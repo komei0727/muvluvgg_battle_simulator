@@ -561,8 +561,15 @@ interface OneApplicationResult {
    * TIMINGイベント後の再検証で使用者が既に戦闘不能だった場合（このapplication
    * 自体は一度も開始されていない）は`undefined`— 「もし実行していたら」の
    * 結果を`LastResultState`へ書き戻さないための境界。
+   *
+   * `criticalHitCount`はこのapplication単体の件数で、step全体の合計は
+   * `resolveActionApplications`が積み上げる（`LastEffectActionResult.
+   * criticalHitCount`のスコープはstep全体、`POST_DAMAGE_CRITICAL_BRANCH`、
+   * DMG-003、Issue #196）。
    */
   readonly lastResult?: LastEffectActionResult;
+  /** このapplicationで実際に適用された会心ヒット数（DAMAGE以外は常に0）。 */
+  readonly criticalHitCount: number;
 }
 
 /**
@@ -631,12 +638,20 @@ function* resolveOneEffectActionApplication(
       resolvedCount: 0,
       interruptedCount: application.hits.length,
       interrupted: true,
+      criticalHitCount: 0,
     };
   }
 
   let resultKind: EffectActionResultKind;
   let resolvedCount: number;
   let interruptedCount: number;
+  /**
+   * `POST_DAMAGE_CRITICAL_BRANCH`（DMG-003、Issue #196）: このapplicationで実際に
+   * 適用された会心ヒット数。DAMAGE以外のEffectActionは会心判定を持たないため0の
+   * まま。R-SUB-02のサブユニット追加ヒットは`ApplyDamageActionResult.hits`に
+   * 含まれない（`damage-application-service.ts`）ため、ここでも数えない。
+   */
+  let criticalHitCount = 0;
   // PR #142レビュー[P2]: `EffectActionCompleted.parentEventId`は
   // `EffectActionStarting`固定ではなく、DAMAGE/COOLDOWN_MANIPULATIONが実際に
   // 記録した最後のイベント（`DamageApplied`/`UnitDefeated`/`CooldownCompleted`
@@ -845,6 +860,9 @@ function* resolveOneEffectActionApplication(
       damageResult.interrupted,
       damageResult.hits.some((hit) => hit.applied),
     );
+    // MISS・対象戦闘不能でスキップされたヒット（`applied === false`）は会心判定
+    // 自体を行っていないため数えない（DMG-003、Issue #196）。
+    criticalHitCount = damageResult.hits.filter((hit) => hit.applied && hit.isCritical).length;
   } else if (effectAction.kind === "COOLDOWN_MANIPULATION") {
     const cooldownResult = applyCooldownManipulationAction(
       application.hits,
@@ -2034,6 +2052,88 @@ function* resolveOneEffectActionApplication(
       : healResult.changed
         ? "APPLIED"
         : "SKIPPED";
+  } else if (effectAction.kind === "APPLY_PIERCING_MOD") {
+    // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003、Issue #196）: 保持者が行う後続の
+    // 攻撃へ一時的に防御貫通を上乗せする継続効果（R-ACTN-03）。3つの率は静的な
+    // Catalog値のため`formula`を持たず、`magnitude`は使わない（0のまま）——
+    // 1インスタンスが独立した3つの率を同時に持ちうるため、単一のスカラーへ
+    // 畳み込めないためである。実際の合成は`combat/piercing-policy.ts`が
+    // ヒットごとに行う（`APPLY_DAMAGE_MOD`と同じ責務分割）。
+    // CombatStatsには影響しないため再計算は不要。
+    const piercingState = {
+      defenseIgnoreRate: effectAction.payload.defenseIgnoreRate,
+      shieldIgnoreRate: effectAction.payload.shieldIgnoreRate,
+      damageReductionIgnoreRate: effectAction.payload.damageReductionIgnoreRate,
+    };
+    const blockingImmunity = findBlockingImmunity(
+      requireUnit(box.units, application.targetBattleUnitId),
+      { effectActionDefinitionId: application.effectActionDefinitionId, magnitude: 0 },
+      effectAction,
+    );
+    if (blockingImmunity !== undefined) {
+      const rejection = rejectEffectApplication(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          effectActionDefinitionId: application.effectActionDefinitionId,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          blockingEffect: blockingImmunity,
+        },
+        starting.eventId,
+      );
+      box.units = rejection.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = rejection.lastEventId;
+      resultKind = "REJECTED";
+    } else {
+      const grantResult = grantEffect(
+        {
+          recorder: context.recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+          skillUseId: context.skillUseId,
+          resolutionScopeId: context.actionScope,
+          rootEventId: context.rootEventId,
+        },
+        box.units,
+        {
+          definition: effectAction,
+          ...grantSourceOf(context),
+          targetId: application.targetBattleUnitId,
+          duplicate: true,
+          magnitude: 0,
+          piercing: piercingState,
+          durationDefinition: effectAction.payload.duration,
+        },
+        starting.eventId,
+      );
+      box.units = grantResult.units;
+      if (context.onFactEventForPassiveChain !== undefined) {
+        for (const event of context.recorder.getEvents().slice(innerEventsStart)) {
+          box.units = context.onFactEventForPassiveChain(event, box.units);
+        }
+      }
+      resolvedCount = application.hits.length;
+      interruptedCount = 0;
+      effectLastEventId = grantResult.lastEventId;
+      resultKind = "APPLIED";
+    }
   } else if (
     effectAction.kind === "APPLY_HEALING_MOD" ||
     effectAction.kind === "APPLY_DAMAGE_MOD" ||
@@ -2602,7 +2702,7 @@ function* resolveOneEffectActionApplication(
   } else {
     throw new DomainValidationError(
       "effectActionDefinitionId",
-      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
+      `EffectAction kind other than "DAMAGE"/"COOLDOWN_MANIPULATION"/"APPLY_STAT_MOD"/"APPLY_STATUS"/"APPLY_MARKER"/"REMOVE_MARKER"/"REMOVE_EFFECTS"/"EFFECT_IMMUNITY"/"APPLY_ATTACK_DAMAGE_BONUS"/"APPLY_RESOURCE_GAIN_MOD"/"MODIFY_RESOURCE_CAPACITY"/"MODIFY_RESOURCE"/"HEAL"/"APPLY_HEALING_MOD"/"APPLY_DAMAGE_MOD"/"APPLY_PIERCING_MOD"/"APPLY_CONTINUOUS_HEAL"/"APPLY_CONTINUOUS_DAMAGE"/"APPLY_HEALING_LINK"/"APPLY_SHIELD"/"APPLY_SUBUNIT" is not supported by this basic turn action resolver (M6/M7/M8 scope)`,
     );
   }
 
@@ -2637,11 +2737,14 @@ function* resolveOneEffectActionApplication(
     resolvedCount,
     interruptedCount,
     interrupted: resultKind === "INTERRUPTED",
+    criticalHitCount,
     lastResult: {
       resultKind,
       effectActionKind: effectAction.kind,
       effectActionDefinitionId: application.effectActionDefinitionId,
       targetUnitIds: [application.targetBattleUnitId],
+      // step全体の合計は`resolveActionApplications`が積み上げて上書きする。
+      criticalHitCount,
     },
   };
 }
@@ -2717,6 +2820,14 @@ function* resolveActionApplications(
   const seenActionTargetUnitIds = new Set<BattleUnitId>();
   const stepDamagedTargetUnitIds: BattleUnitId[] = [];
   const seenDamagedTargetUnitIds = new Set<BattleUnitId>();
+  /**
+   * `POST_DAMAGE_CRITICAL_BRANCH`（DMG-003、Issue #196）: このACTION step全体で
+   * 実際に適用された会心ヒットの累計。`LastEffectActionResult.criticalHitCount`は
+   * step全体スコープのため、application 1件ごとの値ではなくこの累計を書き戻す。
+   * 後続stepが`LAST_RESULT`を読むのはこのstepが終わった後だけなので、途中の
+   * 累計値が観測されることはない。
+   */
+  let stepCriticalHitCount = 0;
 
   const finalizeStepTargets = (): void => {
     lastResultState.lastActionTargetUnitIds = stepActionTargetUnitIds;
@@ -2824,8 +2935,10 @@ function* resolveActionApplications(
     lastEventId = applied.lastEventId;
     resolvedCount += applied.resolvedCount;
 
+    stepCriticalHitCount += applied.criticalHitCount;
+
     if (applied.lastResult !== undefined) {
-      lastResultState.current = applied.lastResult;
+      lastResultState.current = { ...applied.lastResult, criticalHitCount: stepCriticalHitCount };
       if (!seenActionTargetUnitIds.has(application.targetBattleUnitId)) {
         seenActionTargetUnitIds.add(application.targetBattleUnitId);
         stepActionTargetUnitIds.push(application.targetBattleUnitId);
@@ -2951,6 +3064,9 @@ function* resolveActionStepBody(
         effectActionKind: effectAction.kind,
         effectActionDefinitionId: last.effectActionDefinitionId,
         targetUnitIds: [],
+        // 対象0件のstepはヒットを1つも解決していないため会心も0件
+        // （`POST_DAMAGE_CRITICAL_BRANCH`、DMG-003、Issue #196）。
+        criticalHitCount: 0,
       };
     }
     lastResultState.lastActionTargetUnitIds = [];

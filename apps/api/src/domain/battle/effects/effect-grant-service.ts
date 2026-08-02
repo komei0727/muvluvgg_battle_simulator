@@ -6,6 +6,7 @@ import {
   type DamageModifierState,
   type EffectImmunityState,
   type HealingLinkState,
+  type PiercingModifierState,
   type ShieldState,
   type StatusEffectDetails,
   type SubUnitState,
@@ -71,6 +72,8 @@ export interface GrantEffectRequest {
   readonly healingLink?: HealingLinkState;
   /** DMG-002（Issue #192、R-DMG-04）: `APPLY_DAMAGE_MOD`由来の付与だけが持つ。 */
   readonly damageModifier?: DamageModifierState;
+  /** DMG-003（Issue #196、R-DMG-03）: `APPLY_PIERCING_MOD`由来の付与だけが持つ。 */
+  readonly piercing?: PiercingModifierState;
   /** DMG-004（Issue #194、R-SHD-01）: `APPLY_SHIELD`由来の付与だけが持つ。 */
   readonly shield?: ShieldState;
   /** DMG-005（Issue #190、R-SUB-01/02）: `APPLY_SUBUNIT`由来の付与だけが持つ。 */
@@ -254,6 +257,7 @@ export function grantEffect(
       : {}),
     ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
     ...(request.damageModifier !== undefined ? { damageModifier: request.damageModifier } : {}),
+    ...(request.piercing !== undefined ? { piercing: request.piercing } : {}),
     ...(request.shield !== undefined ? { shield: request.shield } : {}),
     ...(request.subUnit !== undefined ? { subUnit: request.subUnit } : {}),
     ...(request.continuousDamage !== undefined

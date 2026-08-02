@@ -22,6 +22,7 @@ function lastResultRecord(lastResult: LastEffectActionResult): Readonly<Record<s
     effectActionKind: lastResult.effectActionKind,
     effectActionDefinitionId: lastResult.effectActionDefinitionId,
     targetUnitIds: lastResult.targetUnitIds,
+    criticalHitCount: lastResult.criticalHitCount,
   };
 }
 
@@ -379,10 +380,14 @@ export function evaluateEffectStepCondition(
           'kind "TARGET_SET_COUNT" requires a TargetSetResolver (CAP_EFFECT_STEP_SET_CONDITION, only available when the caller can re-resolve a TargetReference against the latest Battle state)',
         );
       }
-      const aliveCount = resolveTargetSet(condition.target).filter(
-        (unit) => !isDefeated(unit),
+      // `POST_DAMAGE_SURVIVAL_BRANCH`（DMG-003、Issue #196）: `countOf`が集合の
+      // どちら側を数えるかを決める。`DEFEATED`は「この攻撃で敵を倒した場合」を
+      // `LAST_ACTION_TARGETS`（直前ACTION stepが実際に対象にしたunit集合、
+      // 戦闘不能になった対象も含む）と組み合わせて表現する。
+      const matchingCount = resolveTargetSet(condition.target).filter((unit) =>
+        condition.countOf === "DEFEATED" ? isDefeated(unit) : !isDefeated(unit),
       ).length;
-      return compareWithOperator(aliveCount, condition.op, condition.value);
+      return compareWithOperator(matchingCount, condition.op, condition.value);
     }
     case "EVENT_PAYLOAD": {
       if (triggerEventPayload === undefined) {

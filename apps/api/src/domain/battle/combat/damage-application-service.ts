@@ -2,6 +2,7 @@ import { activeStatusEffect, isDefeated, type BattleUnit } from "../model/battle
 import type { AppliedEffect } from "../model/applied-effect.js";
 import { calculateDamage } from "./damage-calculator.js";
 import { resolveCritical, type CriticalResult } from "./critical-policy.js";
+import { composePiercing } from "./piercing-policy.js";
 import {
   damageResultsFor,
   recordDamageResult,
@@ -1833,7 +1834,14 @@ export function* applyDamageActionSteps(
         damageType: damageAction.payload.damageType,
         accuracyMode: damageAction.payload.accuracy.mode,
         criticalMode: damageAction.payload.critical.mode,
-        piercing: damageAction.payload.piercing,
+        // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003、Issue #196）: この定義自身の
+        // 静的な貫通率へ、攻撃側が保持している`APPLY_PIERCING_MOD`の一時貫通を
+        // 合成する。ヒットごとに評価するのは、同じEffectActionの途中でPS連鎖が
+        // 新たな貫通を付与・解除しうるため（`composeDamageModifiers`と同じ粒度）。
+        // `NEXT_OUTGOING_ATTACK`で消費されたインスタンスは
+        // `finalizeConsumedEffectDurations`まで除去されないため、このヒットの
+        // 計算にはまだ有効なものとして参加する。
+        piercing: composePiercing(damageAction.payload.piercing, currentAttacker),
       },
       lastEventId,
     );

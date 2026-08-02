@@ -102,6 +102,41 @@
               "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DAMAGE"
             }
           ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ROW"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT"
+                }
+              ]
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_ROSIE_ARTIST_AS1_DMG_UP"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
@@ -110,7 +145,12 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
+    "requiredCapabilities": [
+      "CAP_TARGET_DERIVED_AREA",
+      "CAP_RESOLUTION_BRANCH_REPEAT",
+      "CAP_DAMAGE_MOD",
+      "CAP_EFFECT_STEP_CONDITION"
+    ],
     "metadata": {
       "displayName": "メタル・ワイドバレット",
       "tags": []
@@ -198,7 +238,10 @@
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_STATE",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ALL_ALLIES"
+              },
               "field": "UNIT_TYPE",
               "op": "EQ",
               "value": "PHYSICAL"
@@ -218,7 +261,10 @@
           },
           "targetCondition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
             "field": "UNIT_TYPE",
             "op": "EQ",
             "value": "PHYSICAL"

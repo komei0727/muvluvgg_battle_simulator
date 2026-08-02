@@ -1622,6 +1622,25 @@ function validateEffectAction(
       });
     }
   }
+  // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003／Issue #196）: 防御貫通を宣言する
+  // 定義は`CAP_PARTIAL_PIERCING`を自己申告する。`DAMAGE`の静的な
+  // `payload.piercing`（いずれかの率が非0）と、一時付与の`APPLY_PIERCING_MOD`
+  // （factoryが全率0を拒否済み）の両方が対象で、`MODIFY_RESOURCE_CAPACITY`/
+  // `CAP_RESOURCE_CAPACITY_MOD`と同じ「宣言漏れ自体を拒否する」パターンである。
+  const declaresPiercing =
+    effectAction.kind === "APPLY_PIERCING_MOD" ||
+    (effectAction.kind === "DAMAGE" &&
+      Object.values(effectAction.payload.piercing).some((rate) => rate !== 0));
+  if (
+    declaresPiercing &&
+    !effectAction.requiredCapabilities.some((id) => id === "CAP_PARTIAL_PIERCING")
+  ) {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "MISSING_REQUIRED_CAPABILITY",
+      message: `${effectAction.kind} that ignores defense/shield/damage-reduction must declare "CAP_PARTIAL_PIERCING" in requiredCapabilities`,
+    });
+  }
   // RES-003A（Issue #257、G-10）: `SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
   // （EffectSequence実行中の累計）は`formula-evaluator.ts`の`DamageResultRegistry`
   // へ`SkillUseId`（=1回のEffectSequence解決）単位で配線済みで、
@@ -1883,6 +1902,9 @@ function formulasOf(effectAction: EffectActionDefinition): readonly FormulaDefin
     case "APPLY_HEALING_LINK":
     case "APPLY_SUBUNIT":
     case "COOLDOWN_MANIPULATION":
+    case "APPLY_PIERCING_MOD":
+      // `APPLY_PIERCING_MOD`（DMG-003、Issue #196）の3率はFormulaではなく静的な
+      // Catalog値（R-DMG-03の[0, 1]）のため、Formula走査の対象を持たない。
       return [];
     default: {
       const exhaustive: never = effectAction;
@@ -1956,6 +1978,7 @@ function durationOf(effectAction: EffectActionDefinition): DurationDefinition | 
     case "APPLY_ATTACK_DAMAGE_BONUS":
     case "APPLY_RESOURCE_GAIN_MOD":
     case "APPLY_HEALING_LINK":
+    case "APPLY_PIERCING_MOD":
     case "APPLY_SUBUNIT":
       // `APPLY_SUBUNIT`は`SUBUNIT_DURATION`（DMG-005、Issue #190）でサブユニット自身も
       // 存続期間を持つ継続効果になった（`ApplySubunitPayload.duration`）。

@@ -279,7 +279,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   ALIVE_UNIT_COUNT: ["kind", "side", "excludeSelf", "op", "value"],
   POSITION_RELATION: ["kind", "target", "relation"],
   RESOLUTION_PHASE: ["kind", "phase", "negate"],
-  TARGET_SET_COUNT: ["kind", "target", "op", "value"],
+  TARGET_SET_COUNT: ["kind", "target", "countOf", "op", "value"],
   TARGET_HAS_EFFECT: ["kind", "target", "categories", "continuousDamageKinds", "statKinds"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
@@ -292,6 +292,13 @@ export type PositionRelation = (typeof POSITION_RELATIONS)[number];
 /** `14_Catalog定義スキーマ.md`「RESOLUTION_PHASE」（M6、Issue #144）。 */
 export const RESOLUTION_PHASES = ["BATTLE_START", "TURN_START", "TURN_END"] as const;
 export type ResolutionPhase = (typeof RESOLUTION_PHASES)[number];
+
+/**
+ * `14_Catalog定義スキーマ.md`「TARGET_SET_COUNT」（`POST_DAMAGE_SURVIVAL_BRANCH`、
+ * DMG-003、Issue #196）。集合の生存側・戦闘不能側のどちらを数えるか。
+ */
+export const TARGET_SET_COUNT_OF = ["ALIVE", "DEFEATED"] as const;
+export type TargetSetCountOf = (typeof TARGET_SET_COUNT_OF)[number];
 
 export interface MarkerCountCondition {
   readonly op: ComparisonOperator;
@@ -361,6 +368,15 @@ export type ConditionDefinition =
   | {
       readonly kind: "TARGET_SET_COUNT";
       readonly target: TargetReference;
+      /**
+       * `POST_DAMAGE_SURVIVAL_BRANCH`（DMG-003、Issue #196）: 集合のどちら側を
+       * 数えるか。省略時は`ALIVE`で、Issue #227時点からの既定の意味（生存数）を
+       * そのまま保つ。`DEFEATED`は補集合（戦闘不能の構成員数）を数え、
+       * 「この攻撃で敵を倒した場合」を`LAST_ACTION_TARGETS`と組み合わせて
+       * 表現するために存在する — 対象集合の大きさは実行時にしか分からないため、
+       * `ALIVE`側のしきい値（`生存数 < 集合の大きさ`）では表せない。
+       */
+      readonly countOf: TargetSetCountOf;
       readonly op: ComparisonOperator;
       readonly value: number;
     }
@@ -392,6 +408,7 @@ export interface ConditionDefinitionInput {
   readonly relation?: string;
   readonly phase?: string;
   readonly negate?: boolean;
+  readonly countOf?: string;
   readonly categories?: readonly string[];
   readonly continuousDamageKinds?: readonly string[];
   readonly statKinds?: readonly string[];
@@ -599,9 +616,17 @@ export function createConditionDefinition(
         throw new DomainValidationError(`${path}.value`, `must be a number, got ${typeof value}`);
       }
       assertInteger(value, `${path}.value`, { min: 0 });
+      // `POST_DAMAGE_SURVIVAL_BRANCH`（DMG-003、Issue #196）: 省略時は`ALIVE`
+      // （Issue #227時点の既定の意味）。
+      let countOf: TargetSetCountOf = "ALIVE";
+      if (input.countOf !== undefined) {
+        assertEnumValue(input.countOf, TARGET_SET_COUNT_OF, `${path}.countOf`);
+        countOf = input.countOf;
+      }
       return {
         kind: "TARGET_SET_COUNT",
         target: createTargetReference(target, `${path}.target`, scope),
+        countOf,
         op,
         value,
       };

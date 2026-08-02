@@ -277,5 +277,20 @@
     "metadata": {
       "tags": []
     }
+  },
+  {
+    "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.9
+      }
+    },
+    "requiredCapabilities": [],
+    "metadata": {
+      "tags": []
+    }
   }
 ]

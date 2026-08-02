@@ -90,6 +90,14 @@ export function effectCategoriesOf(
         : new Set<EffectImmunityCategory>(["DEBUFF"]);
     case "APPLY_DAMAGE_MOD":
       return new Set<EffectImmunityCategory>(["DAMAGE_MOD", polarity]);
+    case "APPLY_PIERCING_MOD":
+      // R-DMG-03（DMG-003、Issue #196）: 一時貫通は保持者が行う攻撃を強化する
+      // 効果であり常にバフである。`APPLY_CONTINUOUS_DAMAGE`と同じ理由で符号から
+      // 導く既定の分岐に任せない — この効果は`magnitude`を使わず0のままのため、
+      // 既定の分岐でも偶然`BUFF`にはなるが、それは意味ではなく初期値に依存した
+      // 一致でしかない。`DAMAGE_MOD`は付けない（与/被ダメージ倍率ではなく貫通率
+      // であり、「与ダメージ補正を解除する」`REMOVE_EFFECTS`の対象ではない）。
+      return new Set<EffectImmunityCategory>(["BUFF"]);
     case "APPLY_SHIELD":
       return new Set<EffectImmunityCategory>(["SHIELD"]);
     case "APPLY_SUBUNIT":

@@ -734,31 +734,32 @@ metadata:
 
 ### kind 一覧
 
-| kind                       | 概要                                   | 主なCapability                 |
-| -------------------------- | -------------------------------------- | ------------------------------ |
-| `DAMAGE`                   | HP/シールドへダメージ                  | なし / `CAP_PARTIAL_PIERCING`  |
-| `HEAL`                     | 即時回復                               | `CAP_HEAL`                     |
-| `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                | `CAP_CONTINUOUS_HEAL`          |
-| `APPLY_CONTINUOUS_DAMAGE`  | 行動/ターン時の継続ダメージ（DoT）     | `CAP_CONTINUOUS_DAMAGE`        |
-| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正 | `CAP_STAT_MOD`                 |
-| `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正              | `CAP_DAMAGE_MOD`               |
-| `APPLY_HEALING_MOD`        | 回復量増減                             | `CAP_HEAL`                     |
-| `APPLY_HEALING_LINK`       | 回復リンク（回復効果の転送）           | `CAP_HEALING_LINK`             |
-| `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                     | `CAP_RESOURCE_MUTATION`        |
-| `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                     | `CAP_RESOURCE_CAPACITY_MOD`    |
-| `APPLY_STATUS`             | 気絶、凍結、暗闇など                   | 状態により異なる               |
-| `APPLY_SHIELD`             | シールド付与                           | `CAP_SHIELD`                   |
-| `REMOVE_EFFECTS`           | 効果解除                               | `CAP_REMOVE_EFFECTS`           |
-| `EFFECT_IMMUNITY`          | 効果付与拒否                           | なし / `CAP_SPECIFIC_IMMUNITY` |
-| `APPLY_MARKER`             | 固有マーカー付与                       | `CAP_MARKER`                   |
-| `REMOVE_MARKER`            | 固有マーカー解除                       | `CAP_MARKER`                   |
-| `APPLY_DEATH_SURVIVAL`     | 致死耐え                               | `CAP_DEATH_SURVIVAL`           |
-| `APPLY_TARGET_REDIRECT`    | 攻撃引き寄せ                           | `CAP_TARGET_REDIRECT`          |
-| `APPLY_COVER`              | 肩代わり                               | `CAP_COVER_DAMAGE`             |
-| `APPLY_REFLECT`            | 反射                                   | `CAP_REFLECT_DAMAGE`           |
-| `APPLY_DAMAGE_LINK`        | 継続リンク状態                         | `CAP_DAMAGE_LINK_STATE`        |
-| `APPLY_SUBUNIT`            | サブユニット                           | なし                           |
-| `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット   | `CAP_COOLDOWN_MANIPULATION`    |
+| kind                       | 概要                                     | 主なCapability                 |
+| -------------------------- | ---------------------------------------- | ------------------------------ |
+| `DAMAGE`                   | HP/シールドへダメージ                    | なし / `CAP_PARTIAL_PIERCING`  |
+| `APPLY_PIERCING_MOD`       | 後続の自身の攻撃へ一時的に防御貫通を付与 | `CAP_PARTIAL_PIERCING`         |
+| `HEAL`                     | 即時回復                                 | `CAP_HEAL`                     |
+| `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                  | `CAP_CONTINUOUS_HEAL`          |
+| `APPLY_CONTINUOUS_DAMAGE`  | 行動/ターン時の継続ダメージ（DoT）       | `CAP_CONTINUOUS_DAMAGE`        |
+| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正   | `CAP_STAT_MOD`                 |
+| `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正                | `CAP_DAMAGE_MOD`               |
+| `APPLY_HEALING_MOD`        | 回復量増減                               | `CAP_HEAL`                     |
+| `APPLY_HEALING_LINK`       | 回復リンク（回復効果の転送）             | `CAP_HEALING_LINK`             |
+| `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                       | `CAP_RESOURCE_MUTATION`        |
+| `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                       | `CAP_RESOURCE_CAPACITY_MOD`    |
+| `APPLY_STATUS`             | 気絶、凍結、暗闇など                     | 状態により異なる               |
+| `APPLY_SHIELD`             | シールド付与                             | `CAP_SHIELD`                   |
+| `REMOVE_EFFECTS`           | 効果解除                                 | `CAP_REMOVE_EFFECTS`           |
+| `EFFECT_IMMUNITY`          | 効果付与拒否                             | なし / `CAP_SPECIFIC_IMMUNITY` |
+| `APPLY_MARKER`             | 固有マーカー付与                         | `CAP_MARKER`                   |
+| `REMOVE_MARKER`            | 固有マーカー解除                         | `CAP_MARKER`                   |
+| `APPLY_DEATH_SURVIVAL`     | 致死耐え                                 | `CAP_DEATH_SURVIVAL`           |
+| `APPLY_TARGET_REDIRECT`    | 攻撃引き寄せ                             | `CAP_TARGET_REDIRECT`          |
+| `APPLY_COVER`              | 肩代わり                                 | `CAP_COVER_DAMAGE`             |
+| `APPLY_REFLECT`            | 反射                                     | `CAP_REFLECT_DAMAGE`           |
+| `APPLY_DAMAGE_LINK`        | 継続リンク状態                           | `CAP_DAMAGE_LINK_STATE`        |
+| `APPLY_SUBUNIT`            | サブユニット                             | なし                           |
+| `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット     | `CAP_COOLDOWN_MANIPULATION`    |
 
 ---
 
@@ -1732,7 +1733,7 @@ condition:
 | `ALIVE_UNIT_COUNT`  | `side`, `excludeSelf`, `op`, `value`   | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
 | `POSITION_RELATION` | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
 | `RESOLUTION_PHASE`  | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
-| `TARGET_SET_COUNT`  | `target`, `op`, `value`                | 対象集合（`TargetReference`が解決する集合）の生存数しきい値判定（RES-004集合条件、Issue #227）     |
+| `TARGET_SET_COUNT`  | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
 
@@ -1744,6 +1745,23 @@ condition:
 - { kind: EVENT_PAYLOAD, field: categories, op: CONTAINS, value: STATUS }
 # 例: 「敵に気絶が付与された際に発動」（SKL_NADYA_SUCCESSOR_PS2）
 - { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
+```
+
+`TARGET_SET_COUNT`の`countOf`は集合の生存側・戦闘不能側のどちらを数えるかを選ぶ（`ALIVE`／`DEFEATED`、省略時`ALIVE` = Issue #227時点の既定の意味）。`DEFEATED`は`POST_DAMAGE_SURVIVAL_BRANCH`（`DMG-003`／Issue #196）が追加した——対象集合の大きさは実行時にしか分からないため、「この攻撃で敵を倒した場合」を`ALIVE`側のしきい値（`生存数 < 集合の大きさ`）では表せないためである。判定対象はスキル自身の対象binding（production例: `SKL_HIIRO_LONEWOLF_AS2`の`TGT_COLUMN`）とする — bindingはR-SKL-01により再評価されず同じunit集合を指し続け、状態だけが最新化されるため、DAMAGE後に撃破された構成員も数え漏らさない。
+
+`LAST_RESULT`の`field`は`resultKind`／`effectActionKind`／`effectActionDefinitionId`／`targetUnitIds`に加えて`criticalHitCount`（直前ACTION step全体で実際に適用された会心ヒット数、`POST_DAMAGE_CRITICAL_BRANCH`／`DMG-003`／Issue #196）を取れる。R-SKL-08を正本とする。
+
+```yaml
+# 例: 「この攻撃で会心攻撃が発生した場合」（SKL_FEE_BATH_AS2 ほか計6定義）
+- { kind: LAST_RESULT, field: criticalHitCount, op: GTE, value: 1 }
+# 例: 「この攻撃で敵を倒した場合」（SKL_HIIRO_LONEWOLF_AS2）
+- {
+    kind: TARGET_SET_COUNT,
+    target: { kind: BINDING, targetBindingId: TGT_COLUMN },
+    countOf: DEFEATED,
+    op: GTE,
+    value: 1,
+  }
 ```
 
 `RUNTIME_COUNTER`の`modulo`は`TURN_NUMBER`と同じ意味を持つ。省略時は`op`/`value`のみで判定する（従来どおり）。指定時は「更新後の`value`を`modulo`で割った余りが0」を追加条件とし、N回ごとの発動を表す（`RUNTIME_COUNTER_MODULO`、Issue #143）。
@@ -2273,7 +2291,7 @@ RES-004後続（Issue #227）で、`ConditionDefinition.kind: TARGET_SET_COUNT`�
 | `CAP_CONTINUOUS_HEAL`              | `M7-005`     | 継続回復                                                                                                                                                                                                                                                                                                                                                                                        |
 | `CAP_COOLDOWN_MANIPULATION`        | `M6-CD-001`  | 他スキルのクールタイム短縮・リセット                                                                                                                                                                                                                                                                                                                                                            |
 | `CAP_COVER_DAMAGE`                 | `DMG-006`    | 肩代わり                                                                                                                                                                                                                                                                                                                                                                                        |
-| `CAP_CRITICAL_CONTROL`             | `DMG-003`    | 会心保証・会心不可                                                                                                                                                                                                                                                                                                                                                                              |
+| `CAP_CRITICAL_CONTROL`             | `DMG-003A`   | 会心保証・会心不可。`critical.mode`の`GUARANTEED`/`PREVENTED`は実装済みで、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`だけが未配線。`DMG-003`（Issue #196）の3テーマとは独立した機能のため`DMG-003A`（Issue #295）へ分離した                                                                                                                                                     |
 | `CAP_DAMAGE_MOD`                   | `DMG-002`    | 与ダメージ・被ダメージ補正                                                                                                                                                                                                                                                                                                                                                                      |
 | `CAP_DEATH_SURVIVAL`               | `DMG-006`    | 致死耐え                                                                                                                                                                                                                                                                                                                                                                                        |
 | `CAP_EFFECT_RUNTIME_COUNTER`       | `EFF-005`    | AppliedEffectスコープのRuntimeCounter（実装済み、production定義が現れるまで`runtimeStatus: PLANNED`）                                                                                                                                                                                                                                                                                           |
@@ -2285,7 +2303,7 @@ RES-004後続（Issue #227）で、`ConditionDefinition.kind: TARGET_SET_COUNT`�
 | `CAP_MARKER`                       | `EFF-004`    | 固有マーカー                                                                                                                                                                                                                                                                                                                                                                                    |
 | `CAP_MARKER_STACK_FORMULA`         | `M7-015`     | Marker数を参照するFormula（`MARKER_COUNT_SCALE`）。`MARKER_COUNT_SCALE`を含むFormulaを持つ`EffectActionDefinition`は`requiredCapabilities`にこのCapabilityを含めること（Issue #269で必須化、`SUM`/`PRODUCT`/`MIN`/`MAX`/`CLAMP`の入れ子も対象）。Markerの付与・スタック・失効そのものは`CAP_MARKER`が担う                                                                                       |
 | `CAP_MEMORY_TRIGGERED_EFFECT`      | `M7-006`     | MemoryのTriggeredEffect発動engine                                                                                                                                                                                                                                                                                                                                                               |
-| `CAP_PARTIAL_PIERCING`             | `DMG-003`    | 部分防御/シールド無視                                                                                                                                                                                                                                                                                                                                                                           |
+| `CAP_PARTIAL_PIERCING`             | `DMG-003`    | 部分防御/シールド無視（R-DMG-03）。静的な`DamagePayload.piercing`は`DMG-002`／`DMG-004`が配線済みで、`DMG-003`（Issue #196）が`APPLY_PIERCING_MOD`（一時付与）を追加して完了させた。貫通を宣言する定義は`requiredCapabilities`にこのCapabilityを含めること（Issue #196で必須化）                                                                                                                |
 | `CAP_RANDOM_BRANCH`                | `RES-003`    | 確率分岐                                                                                                                                                                                                                                                                                                                                                                                        |
 | `CAP_REMOVE_EFFECTS`               | `M7-001`     | 効果解除                                                                                                                                                                                                                                                                                                                                                                                        |
 | `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / REPEATと直前結果                                                                                                                                                                                                                                                                                                                                                                       |

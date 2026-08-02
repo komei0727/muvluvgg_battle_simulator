@@ -233,6 +233,30 @@
         {
           "kind": "BRANCH",
           "condition": {
+            "kind": "LAST_RESULT",
+            "field": "criticalHitCount",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_RAVEL_MODEL_AS2_MARK_CRIT"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
             "kind": "TARGET_HAS_MARKER",
             "target": {
               "kind": "BINDING",

@@ -40,7 +40,7 @@
       "accuracy": { "mode": "GUARANTEED" },
       "piercing": { "defenseIgnoreRate": 1, "shieldIgnoreRate": 1, "damageReductionIgnoreRate": 1 }
     },
-    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA"],
+    "requiredCapabilities": ["CAP_MARKER", "CAP_FORMULA", "CAP_PARTIAL_PIERCING"],
     "metadata": { "tags": [] }
   },
   {

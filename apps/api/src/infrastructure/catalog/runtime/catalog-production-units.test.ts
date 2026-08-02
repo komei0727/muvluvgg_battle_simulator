@@ -251,7 +251,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 実ライフサイクル検証（`IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001`〜`003`）を
     // 登録した。`UNIT_FLUTE_VAMPIRE`は`CAP_DEATH_SURVIVAL`（#188）で非selectableの
     // ままであり、昇格10 Unitの定義・selectable集合はどちらも変わらない。
-    expect(catalog.catalogRevision).toBe("2026-08-02.2");
+    expect(catalog.catalogRevision).toBe("2026-08-02.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
