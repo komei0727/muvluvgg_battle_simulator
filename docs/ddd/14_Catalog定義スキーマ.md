@@ -1192,7 +1192,7 @@ payload:
 
 必中は `APPLY_STATUS` の `GUARANTEED_HIT` として表す（R-HIT-05）。保持者の攻撃を、攻撃側定義の `accuracy.mode` に関わらず必中として扱う。被効果側の絞り込み（`appliesTo`）やダメージ側のfield（`damageThreshold`/`damageAmplificationOnBreak`）は解釈しない — 指定された定義はCatalogロードではなくresolverが明示的に拒否する。
 
-会心保証・会心不可は `APPLY_STATUS` の `CRITICAL_GUARANTEE` / `CRITICAL_PREVENTION` として表す（R-CRT-03）。`GUARANTEED_HIT` と同じく**保持者の攻撃**に働き、攻撃側定義の `critical.mode` に関わらずその攻撃を会心確定／会心不可として扱う（防御側が保持していても、その対象へ向かう攻撃の会心は変わらない）。両方を保持する場合は会心不可が勝つ。被効果側の絞り込み（`appliesTo`）・ダメージ側のfield（`damageThreshold`/`damageAmplificationOnBreak`）・1未満の `probability` はいずれも解釈しないため、指定された定義はresolverが明示的に拒否する。
+会心保証・会心不可は `APPLY_STATUS` の `CRITICAL_GUARANTEE` / `CRITICAL_PREVENTION` として表す（R-CRT-03）。`GUARANTEED_HIT` と同じく**保持者の攻撃**に働き、攻撃側定義の `critical.mode` に関わらずその攻撃を会心確定／会心不可として扱う（防御側が保持していても、その対象へ向かう攻撃の会心は変わらない）。両方を保持する場合は会心不可が勝つ。解除カテゴリは会心保証が `BUFF`、会心不可が `DEBUFF`（定義済みの状態異常ではないため `STATUS` は付かない）。被効果側の絞り込み（`appliesTo`）・ダメージ側のfield（`damageThreshold`/`damageAmplificationOnBreak`）・1未満の `probability` はいずれも解釈しないため、指定された定義はresolverが明示的に拒否する。
 
 ```yaml
 kind: APPLY_STATUS

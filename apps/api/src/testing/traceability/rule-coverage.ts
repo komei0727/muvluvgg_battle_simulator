@@ -2090,6 +2090,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-023",
       "UT-R-EFF-02-024",
       "UT-R-EFF-02-025",
+      // DMG-003A（Issue #295、PR #297レビュー[P1]）: 会心不可（`CRITICAL_PREVENTION`）は
+      // 状態異常ではないが保持者を弱化するため`DEBUFF`へ分類する。対になる
+      // `CRITICAL_GUARANTEE`は`BUFF`のまま。
+      "UT-R-EFF-02-026",
+      "UT-R-EFF-02-027",
+      "IT-CAP-CRITICAL-CONTROL-PROD-005",
+      "IT-CAP-CRITICAL-CONTROL-PROD-006",
       "IT-REMOVE-EFFECTS-PROD-001",
       "IT-REMOVE-EFFECTS-PROD-002",
       "IT-REMOVE-EFFECTS-PROD-003",
@@ -2149,6 +2156,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-03-016",
       "UT-R-EFF-03-017",
       "UT-R-EFF-03-018",
+      // DMG-003A（Issue #295、PR #297レビュー[P1]）: 会心不可が`DEBUFF`免疫で
+      // 実際に付与拒否されることをproduction定義で固定する。
+      "IT-CAP-CRITICAL-CONTROL-PROD-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

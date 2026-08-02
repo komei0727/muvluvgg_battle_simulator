@@ -113,8 +113,13 @@ function testUnitDefinition(id: string): UnitDefinition {
   };
 }
 
-/** 実production EffectActionDefinitionだけを自己対象で解決する最小限の合成AS。 */
-function selfGrantSkill(skillId: string, effectActionId: string): SkillDefinition {
+/**
+ * 与えたEffectActionDefinitionを順に自己対象で解決する最小限の合成AS。1件なら
+ * 実production定義だけを解決し、複数件なら**同じ1行動の中で**続けて解決する
+ * （`timeLimit: ACTION(1)`の効果が行動境界で失効するのと、解除で消えるのとを
+ * 区別するため — PR #297 レビュー[P1]）。
+ */
+function selfStepsSkill(skillId: string, ...effectActionIds: readonly string[]): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId(skillId),
     skillType: "AS",
@@ -125,15 +130,13 @@ function selfGrantSkill(skillId: string, effectActionId: string): SkillDefinitio
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [],
-      steps: [
-        {
-          kind: "ACTION",
-          stepCondition: { kind: "TRUE" },
-          targetCondition: { kind: "TRUE" },
-          target: { kind: "SELF" },
-          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
-        },
-      ],
+      steps: effectActionIds.map((effectActionId) => ({
+        kind: "ACTION" as const,
+        stepCondition: { kind: "TRUE" as const },
+        targetCondition: { kind: "TRUE" as const },
+        target: { kind: "SELF" as const },
+        actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+      })),
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {
@@ -146,6 +149,45 @@ function selfGrantSkill(skillId: string, effectActionId: string): SkillDefinitio
     requiredCapabilities: [],
     metadata: { displayName: skillId, tags: [] },
   };
+}
+
+/**
+ * PR #297 レビュー[P1]: 会心不可のカテゴリ分類を実ライフサイクルで確かめるための、
+ * 自己対象の`REMOVE_EFFECTS`／`EFFECT_IMMUNITY`合成定義。
+ */
+function categoryAction(
+  id: string,
+  definition: Extract<EffectActionDefinition, { kind: "REMOVE_EFFECTS" | "EFFECT_IMMUNITY" }>,
+): EffectActionDefinition {
+  return { ...definition, effectActionDefinitionId: createEffectActionDefinitionId(id) };
+}
+
+function removeEffectsAction(id: string, category: "BUFF" | "DEBUFF"): EffectActionDefinition {
+  return categoryAction(id, {
+    kind: "REMOVE_EFFECTS",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: { categories: [category] },
+  });
+}
+
+function immunityAction(id: string, category: "BUFF" | "DEBUFF"): EffectActionDefinition {
+  return categoryAction(id, {
+    kind: "EFFECT_IMMUNITY",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    requiredCapabilities: [],
+    metadata: { tags: [] },
+    payload: {
+      categories: [category],
+      duration: {
+        timeLimit: { unit: "ACTION", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      maxBlocks: null,
+    },
+  });
 }
 
 function attackerSkill(): SkillDefinition {
@@ -219,12 +261,16 @@ function fixture(
   unitIds: readonly string[],
   skills: readonly SkillDefinition[],
   criticalMode: CriticalMode = "NORMAL",
+  extraEffectActions: readonly EffectActionDefinition[] = [],
 ): Fixture {
   const catalog = loadCatalogFromDirectory(CATALOG_DIR);
   const snapshot = catalog.loadSnapshot(unitIds as never[], []);
   const attack = singleHitAttack(criticalMode);
   const effectActions = new Map(snapshot.effectActions);
   effectActions.set(attack.effectActionDefinitionId, attack);
+  for (const definition of extraEffectActions) {
+    effectActions.set(definition.effectActionDefinitionId, definition);
+  }
   const skillDefinitions = new Map(snapshot.skills);
   for (const skill of skills) {
     skillDefinitions.set(skill.skillDefinitionId, skill);
@@ -267,7 +313,7 @@ function emptyStateFor(unit: ReturnType<typeof createBattleUnit>): BattleStateSn
 
 describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A, Issue #295, R-CRT-03)", () => {
   it("IT-CAP-CRITICAL-CONTROL-PROD-001 (R-ACTN-03/R-CRT-03, real lifecycle wiring): resolving the real ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE definition through resolveSkillUse grants a statusKind:CRITICAL_GUARANTEE AppliedEffect with the production-defined ACTION(2) time limit, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
-    const grantSkill = selfGrantSkill("SKL_TEST_GRANT_CRIT_GUARANTEE", CRIT_GUARANTEE_EFFECT_ID);
+    const grantSkill = selfStepsSkill("SKL_TEST_GRANT_CRIT_GUARANTEE", CRIT_GUARANTEE_EFFECT_ID);
     const { definitions, recorder } = fixture([MIKOTO_UNIT_ID], [grantSkill]);
     const mikoto = {
       ...createBattleUnit(
@@ -329,7 +375,7 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
   });
 
   it("IT-CAP-CRITICAL-CONTROL-PROD-002 (R-ACTN-03/R-CRT-03, real lifecycle wiring): resolving the real ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION definition through resolveSkillUse grants a statusKind:CRITICAL_PREVENTION AppliedEffect with the production-defined ACTION(1) time limit, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
-    const grantSkill = selfGrantSkill("SKL_TEST_GRANT_CRIT_PREVENTION", CRIT_PREVENTION_EFFECT_ID);
+    const grantSkill = selfStepsSkill("SKL_TEST_GRANT_CRIT_PREVENTION", CRIT_PREVENTION_EFFECT_ID);
     const { definitions, recorder } = fixture([TARISA_UNIT_ID], [grantSkill]);
     const tarisa = {
       ...createBattleUnit(
@@ -365,6 +411,9 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
       duplicate: true,
       magnitude: 0,
     });
+    // PR #297 レビュー[P1]: 会心不可は保持者を弱化するデバフであり、`STATUS`
+    // （定義済み状態異常）ではない。
+    expect([...prevention.categories]).toEqual(["DEBUFF"]);
     expect(prevention.duration.definition).toMatchObject({
       timeLimit: { unit: "ACTION", count: 1 },
       dispellable: true,
@@ -381,18 +430,153 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
       durationUnit: "ACTION",
       initialRemaining: 1,
     });
+    expect([...applied.payload.categories]).toEqual(["DEBUFF"]);
 
     const reduced = applyStateDelta(emptyStateFor(tarisa), applied.stateDelta!);
     expect(reduced.units[tarisa.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[tarisa.battleUnitId]!.effects![0]).toMatchObject({
       effectDefinitionId: CRIT_PREVENTION_EFFECT_ID,
       statusKind: "CRITICAL_PREVENTION",
+      categories: ["DEBUFF"],
       duration: { unit: "ACTION", remaining: 1 },
     });
   });
 
+  it("IT-CAP-CRITICAL-CONTROL-PROD-005 (R-EFF-02/R-EFF-03, PR #297 レビュー[P1]): the real production CRITICAL_PREVENTION is removed by a DEBUFF cleanse, survives a BUFF cleanse, and is blocked outright by a DEBUFF immunity", () => {
+    const debuffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_DEBUFF", "DEBUFF");
+    const buffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_BUFF", "BUFF");
+    const debuffImmunity = immunityAction("ACT_TEST_IMMUNITY_DEBUFF", "DEBUFF");
+
+    /** 1行動の中でstepを順に解決し、解決後のtarisaを返す。 */
+    function resolveSteps(skill: SkillDefinition): ReturnType<typeof createBattleUnit> {
+      const { definitions, recorder } = fixture([TARISA_UNIT_ID], [skill], "NORMAL", [
+        debuffCleanse,
+        buffCleanse,
+        debuffImmunity,
+      ]);
+      const tarisa = {
+        ...createBattleUnit(
+          member("ally:tarisa", TARISA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
+          "ALLY",
+          LIMITS,
+        ),
+        currentAp: LIMITS.maximumAp,
+      };
+      const result = resolveSkillUse(
+        tarisa,
+        skill,
+        "AS",
+        "AS",
+        [tarisa],
+        definitions,
+        new SequenceRandomSource([]),
+        recorder,
+        1,
+        0,
+        createActionId("B_1:action:1"),
+        recorder.nextResolutionScopeId(),
+      );
+      return result.units.find((u) => u.battleUnitId === tarisa.battleUnitId)!;
+    }
+
+    // デバフ解除で消える。
+    const afterDebuffCleanse = resolveSteps(
+      selfStepsSkill(
+        "SKL_TEST_PREVENTION_THEN_CLEANSE_DEBUFF",
+        CRIT_PREVENTION_EFFECT_ID,
+        "ACT_TEST_CLEANSE_DEBUFF",
+      ),
+    );
+    expect(afterDebuffCleanse.appliedEffects).toHaveLength(0);
+
+    // バフ解除では消えない（会心不可はバフではない）。
+    const afterBuffCleanse = resolveSteps(
+      selfStepsSkill(
+        "SKL_TEST_PREVENTION_THEN_CLEANSE_BUFF",
+        CRIT_PREVENTION_EFFECT_ID,
+        "ACT_TEST_CLEANSE_BUFF",
+      ),
+    );
+    expect(afterBuffCleanse.appliedEffects).toHaveLength(1);
+    expect(afterBuffCleanse.appliedEffects[0]).toMatchObject({
+      effectActionDefinitionId: CRIT_PREVENTION_EFFECT_ID,
+      statusKind: "CRITICAL_PREVENTION",
+    });
+
+    // デバフ免疫は付与そのものを阻止する（残るのは免疫効果だけ）。
+    const afterImmunity = resolveSteps(
+      selfStepsSkill(
+        "SKL_TEST_IMMUNITY_THEN_PREVENTION",
+        "ACT_TEST_IMMUNITY_DEBUFF",
+        CRIT_PREVENTION_EFFECT_ID,
+      ),
+    );
+    expect(
+      afterImmunity.appliedEffects.filter((effect) => effect.statusKind === "CRITICAL_PREVENTION"),
+    ).toHaveLength(0);
+    expect(afterImmunity.appliedEffects).toHaveLength(1);
+    expect(afterImmunity.appliedEffects[0]!.immunity).toMatchObject({ categories: ["DEBUFF"] });
+  });
+
+  it("IT-CAP-CRITICAL-CONTROL-PROD-006 (R-EFF-02, PR #297 レビュー[P1]): the real production CRITICAL_GUARANTEE stays a BUFF — a BUFF cleanse removes it and a DEBUFF cleanse does not", () => {
+    const debuffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_DEBUFF", "DEBUFF");
+    const buffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_BUFF", "BUFF");
+
+    function resolveSteps(skill: SkillDefinition): ReturnType<typeof createBattleUnit> {
+      const { definitions, recorder } = fixture([MIKOTO_UNIT_ID], [skill], "NORMAL", [
+        debuffCleanse,
+        buffCleanse,
+      ]);
+      const mikoto = {
+        ...createBattleUnit(
+          member("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
+          "ALLY",
+          LIMITS,
+        ),
+        currentAp: LIMITS.maximumAp,
+      };
+      const result = resolveSkillUse(
+        mikoto,
+        skill,
+        "AS",
+        "AS",
+        [mikoto],
+        definitions,
+        new SequenceRandomSource([]),
+        recorder,
+        1,
+        0,
+        createActionId("B_1:action:1"),
+        recorder.nextResolutionScopeId(),
+      );
+      return result.units.find((u) => u.battleUnitId === mikoto.battleUnitId)!;
+    }
+
+    expect(
+      resolveSteps(
+        selfStepsSkill(
+          "SKL_TEST_GUARANTEE_THEN_CLEANSE_BUFF",
+          CRIT_GUARANTEE_EFFECT_ID,
+          "ACT_TEST_CLEANSE_BUFF",
+        ),
+      ).appliedEffects,
+    ).toHaveLength(0);
+
+    const afterDebuffCleanse = resolveSteps(
+      selfStepsSkill(
+        "SKL_TEST_GUARANTEE_THEN_CLEANSE_DEBUFF",
+        CRIT_GUARANTEE_EFFECT_ID,
+        "ACT_TEST_CLEANSE_DEBUFF",
+      ),
+    );
+    expect(afterDebuffCleanse.appliedEffects).toHaveLength(1);
+    expect(afterDebuffCleanse.appliedEffects[0]).toMatchObject({
+      statusKind: "CRITICAL_GUARANTEE",
+    });
+  });
+
   it("IT-CAP-CRITICAL-CONTROL-PROD-003 (R-CRT-03 #2, CAP_CRITICAL_CONTROL): an attacker holding the real production CRITICAL_GUARANTEE buff crits a NORMAL-declared attack at 0% criticalRate, without consuming the RandomSource", () => {
-    const grantSkill = selfGrantSkill("SKL_TEST_GRANT_CRIT_GUARANTEE", CRIT_GUARANTEE_EFFECT_ID);
+    const grantSkill = selfStepsSkill("SKL_TEST_GRANT_CRIT_GUARANTEE", CRIT_GUARANTEE_EFFECT_ID);
     const attackSkill = attackerSkill();
     const { definitions, recorder } = fixture(
       [MIKOTO_UNIT_ID],
@@ -467,7 +651,7 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
   });
 
   it("IT-CAP-CRITICAL-CONTROL-PROD-004 (R-CRT-03 #1 / direction, CAP_CRITICAL_CONTROL): the real production CRITICAL_PREVENTION debuff stops the critical of the unit holding it, while the same debuff on the defender leaves the attacker's 100% critical untouched", () => {
-    const grantSkill = selfGrantSkill("SKL_TEST_GRANT_CRIT_PREVENTION", CRIT_PREVENTION_EFFECT_ID);
+    const grantSkill = selfStepsSkill("SKL_TEST_GRANT_CRIT_PREVENTION", CRIT_PREVENTION_EFFECT_ID);
     const attackSkill = attackerSkill();
 
     function attackDamage(preventionOn: "ATTACKER" | "DEFENDER"): number {

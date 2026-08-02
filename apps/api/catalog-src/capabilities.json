@@ -156,7 +156,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "DMG-003A",
-    "description": "会心保証・会心不可。`DamagePayload.critical.mode`の`GUARANTEED`/`PREVENTED`は`combat/critical-policy.ts`に実装済みだったが、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`は`effect-action-group-resolver.ts`が明示的に拒否したままだった。`DMG-003`（Issue #196）が完了責任を持っていたが、同Issueの3テーマ（`POST_DAMAGE_CRITICAL_BRANCH`/`POST_DAMAGE_SURVIVAL_BRANCH`/`TEMP_PIERCING_GRANT`）とは独立した機能のため`DMG-003A`（Issue #295）へ分離した。DMG-003AはR-CRT-03「会心保証・会心不可」を新設し（宣言`critical.mode`と使用者が保持する会心状態効果から実効会心モードを`PREVENTED` > `GUARANTEED` > `NORMAL`の順で決める。どちらの状態効果も保持者自身の攻撃に働き、防御側の保持は参照しない — R-HIT-05の必中付与と同じ規約）、`critical-policy.ts`の`resolveEffectiveCriticalMode`と`damage-application-service.ts`の会心判定へ配線したうえで、2種をresolverの許可リストへ追加した。会心不可を会心保証より優先するのは、制限が緩和に勝つという一般則に加え、会心の項を持たないサブユニット追加ダメージ（R-SUB-02の`PREVENTED`固定）が使用者の会心保証で会心し始めるのを防ぐためでもある。この配線で`StatusKind`の全値がresolver対応済みになったため、許可リストは`Record<StatusKind, true>`で網羅をコンパイル時に固定する形へ変えた（新しいstatus種別を足したときに配線漏れへ気付ける）。",
+    "description": "会心保証・会心不可。`DamagePayload.critical.mode`の`GUARANTEED`/`PREVENTED`は`combat/critical-policy.ts`に実装済みだったが、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`は`effect-action-group-resolver.ts`が明示的に拒否したままだった。`DMG-003`（Issue #196）が完了責任を持っていたが、同Issueの3テーマ（`POST_DAMAGE_CRITICAL_BRANCH`/`POST_DAMAGE_SURVIVAL_BRANCH`/`TEMP_PIERCING_GRANT`）とは独立した機能のため`DMG-003A`（Issue #295）へ分離した。DMG-003AはR-CRT-03「会心保証・会心不可」を新設し（宣言`critical.mode`と使用者が保持する会心状態効果から実効会心モードを`PREVENTED` > `GUARANTEED` > `NORMAL`の順で決める。どちらの状態効果も保持者自身の攻撃に働き、防御側の保持は参照しない — R-HIT-05の必中付与と同じ規約）、`critical-policy.ts`の`resolveEffectiveCriticalMode`と`damage-application-service.ts`の会心判定へ配線したうえで、2種をresolverの許可リストへ追加した。会心不可を会心保証より優先するのは、制限が緩和に勝つという一般則に加え、会心の項を持たないサブユニット追加ダメージ（R-SUB-02の`PREVENTED`固定）が使用者の会心保証で会心し始めるのを防ぐためでもある。この配線で`StatusKind`の全値がresolver対応済みになったため、許可リストは`Record<StatusKind, true>`で網羅をコンパイル時に固定する形へ変えた（新しいstatus種別を足したときに配線漏れへ気付ける）。PR #297レビュー[P1]: `CRITICAL_PREVENTION`は`effect-category-classifier.ts`で`DEBUFF`へ分類する（保持者を弱化する効果であり、raw原文も「会心不可のデバフ」と明示する）。`STATUS`は付けない — 戦闘システム.mdが列挙する定義済み状態異常（気絶・炎上・毒・凍結・暗闇）に含まれないため、状態異常解除・状態異常無効の対象にはならない。対になる`CRITICAL_GUARANTEE`は`BUFF`のままである。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE",
@@ -171,6 +171,8 @@
         "IT-CAP-CRITICAL-CONTROL-PROD-002",
         "IT-CAP-CRITICAL-CONTROL-PROD-003",
         "IT-CAP-CRITICAL-CONTROL-PROD-004",
+        "IT-CAP-CRITICAL-CONTROL-PROD-005",
+        "IT-CAP-CRITICAL-CONTROL-PROD-006",
         "UT-R-CRT-03-010",
         "UT-R-CRT-03-011",
         "UT-R-CRT-03-012",
