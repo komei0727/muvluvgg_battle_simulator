@@ -135,6 +135,17 @@ export function effectCategoriesOf(
       // `APPLY_CONTINUOUS_DAMAGE`と同じ理由で符号から導く既定の分岐に任せない
       // （どちらも`magnitude`に効果量としての意味を持たない）。
       return new Set<EffectImmunityCategory>(["DEBUFF"]);
+    case "APPLY_DAMAGE_LINK":
+      // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187、PR #299レビュー[P2]）:
+      // ダメージリンクは同じkindが**両向きに**使われる唯一の防御介入である。
+      // 保持者の被ダメージを敵へ送る`ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`は
+      // 保持者を利し、敵2体を相互リンクさせる`ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*`は
+      // 相手を不利にする。`magnitude`（`linkRate`）は常に正のため符号からは導けず、
+      // 一律`DEBUFF`にすると千鶴のリンクがデバフ無効で拒否され、解除・条件照会も
+      // 逆向きに働く。したがって向きはCatalogが`polarity`として明示し、ここは
+      // それをそのまま採る（`APPLY_CONTINUOUS_DAMAGE.continuousDamageKind`と同じ
+      // 「既定値を置かず定義に書かせる」方針）。
+      return new Set<EffectImmunityCategory>([definition.payload.polarity]);
     case "APPLY_REFLECT":
     case "APPLY_DEATH_SURVIVAL":
       // R-INT-01/03（DMG-006、Issue #188）: 反射・致死耐えは保持者自身を利する

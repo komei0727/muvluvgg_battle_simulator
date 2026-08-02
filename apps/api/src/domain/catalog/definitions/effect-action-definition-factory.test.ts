@@ -31,12 +31,12 @@ describe("EffectActionDefinition", () => {
     });
   });
 
-  it("UT-CAT-ACT-002: rejects an unsupported (undocumented-payload) kind such as APPLY_DAMAGE_LINK", () => {
+  it("UT-CAT-ACT-002: rejects a kind that is not in EFFECT_ACTION_KINDS", () => {
     expect(() =>
       createEffectActionDefinition(
         {
-          effectActionDefinitionId: "ACT_LINK_1",
-          kind: "APPLY_DAMAGE_LINK",
+          effectActionDefinitionId: "ACT_UNKNOWN_1",
+          kind: "APPLY_TIME_STOP",
           payload: {},
           requiredCapabilities: [],
         },
@@ -2236,6 +2236,101 @@ describe("EffectActionDefinition", () => {
           "effectAction",
         ),
       ).toThrow(DomainValidationError);
+    });
+  });
+
+  // --- DMG-007 (Issue #187, R-LNK-01〜03): APPLY_DAMAGE_LINK ---
+
+  describe("APPLY_DAMAGE_LINK (DMG-007, Issue #187, R-LNK-01〜03)", () => {
+    const base = {
+      effectActionDefinitionId: "ACT_DAMAGE_LINK_1",
+      kind: "APPLY_DAMAGE_LINK",
+      requiredCapabilities: ["CAP_DAMAGE_LINK_STATE"],
+    };
+
+    it("UT-CAT-ACT-099: maps APPLY_DAMAGE_LINK linking 50% of the holder's incoming damage to the granter (SKL_SUIRAN_CASINO_AS1)", () => {
+      const result = createEffectActionDefinition(
+        {
+          ...base,
+          payload: {
+            linkTo: { kind: "SELF" },
+            linkRate: 0.5,
+            polarity: "BUFF",
+            duration: { timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" } },
+          },
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_DAMAGE_LINK");
+      if (result.kind === "APPLY_DAMAGE_LINK") {
+        expect(result.payload.linkTo).toEqual({ kind: "SELF" });
+        expect(result.payload.linkRate).toBe(0.5);
+        expect(result.payload.duration.timeLimit).toEqual({
+          unit: "ACTION",
+          count: 2,
+          owner: "EFFECT_SOURCE",
+        });
+      }
+    });
+
+    it("UT-CAT-ACT-100: maps a BINDING linkTo so a mutual link can name the other side (SKL_DOROTHEA_PIONEER_PS1)", () => {
+      const result = createEffectActionDefinition(
+        {
+          ...base,
+          payload: {
+            linkTo: { kind: "BINDING", targetBindingId: "TGT_FARTHEST" },
+            linkRate: 0.35,
+            polarity: "DEBUFF",
+            duration: { timeLimit: { unit: "TURN", count: 1, owner: "EFFECT_SOURCE" } },
+          },
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_DAMAGE_LINK");
+      if (result.kind === "APPLY_DAMAGE_LINK") {
+        expect(result.payload.linkTo).toEqual({
+          kind: "BINDING",
+          targetBindingId: "TGT_FARTHEST",
+        });
+        expect(result.payload.linkRate).toBe(0.35);
+      }
+    });
+
+    it("UT-CAT-ACT-101: rejects a linkRate outside [0, 1]", () => {
+      for (const linkRate of [-0.1, 1.5]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              ...base,
+              payload: {
+                linkTo: { kind: "SELF" },
+                linkRate,
+                polarity: "BUFF",
+                duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
+              },
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+
+    it("UT-CAT-ACT-102: requires linkTo, linkRate and duration (no defaults)", () => {
+      for (const payload of [
+        {
+          linkRate: 0.5,
+          duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
+        },
+        {
+          linkTo: { kind: "SELF" },
+          duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
+        },
+        { linkTo: { kind: "SELF" }, linkRate: 0.5 },
+      ]) {
+        expect(() => createEffectActionDefinition({ ...base, payload }, "effectAction")).toThrow(
+          DomainValidationError,
+        );
+      }
     });
   });
 });

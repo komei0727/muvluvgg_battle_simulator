@@ -236,6 +236,20 @@ function sameReflectState(a: EffectSnapshot["reflect"], b: EffectSnapshot["refle
   );
 }
 
+/**
+ * R-LNK-01〜03（DMG-007、Issue #187）: リンクダメージ状態も`sameReflectState`と
+ * 同じ理由・同じ方針で構造比較する（プレーンな2値のため`JSON.stringify`は不要）。
+ */
+function sameDamageLinkState(
+  a: EffectSnapshot["damageLink"],
+  b: EffectSnapshot["damageLink"],
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return a.linkToUnitId === b.linkToUnitId && a.linkRate === b.linkRate;
+}
+
 function sameDeathSurvivalState(
   a: EffectSnapshot["deathSurvival"],
   b: EffectSnapshot["deathSurvival"],
@@ -330,6 +344,7 @@ export function sameEffectSnapshot(
     sameTargetRedirectState(a.targetRedirect, b.targetRedirect) &&
     sameCoverState(a.cover, b.cover) &&
     sameReflectState(a.reflect, b.reflect) &&
+    sameDamageLinkState(a.damageLink, b.damageLink) &&
     sameDeathSurvivalState(a.deathSurvival, b.deathSurvival) &&
     sameCategories(a.categories, b.categories) &&
     a.statModStat === b.statModStat &&

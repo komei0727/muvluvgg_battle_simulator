@@ -36,8 +36,10 @@ import {
   guardedDamage,
   selectCover,
   selectDeathSurvival,
+  selectDamageLinks,
   selectReflects,
   selectTargetRedirect,
+  type DamageLinkSelection,
   type ReflectSelection,
 } from "./defensive-intervention-policy.js";
 import { evaluateFormula } from "../skill/formula-evaluator.js";
@@ -1062,6 +1064,11 @@ type DefensiveInterventionResolution =
       readonly defenderUnitId: BattleUnitId;
       /** R-INT-02第2項の軽減率。肩代わりが成立していなければ0。 */
       readonly guardRate: number;
+      /**
+       * R-INT-01 #3: 元ダメージの適用**後**に発生させるリンク（R-LNK-01〜03、
+       * DMG-007／Issue #187）。R-INT-01の評価順どおり反射より前に発生させる。
+       */
+      readonly damageLinks: readonly DamageLinkSelection[];
       /** R-INT-01 #4: 元ダメージの適用**後**に発生させる反射（R-INT-03第1項）。 */
       readonly reflects: readonly ReflectSelection[];
       readonly lastEventId: DomainEventId;
@@ -1078,8 +1085,10 @@ type DefensiveInterventionResolution =
  * 2. `APPLY_COVER`（肩代わり）: `14_Catalog定義スキーマ.md`のとおり**redirect後の対象**に
  *    対して評価し、防御側を肩代わり者へ差し替える（R-INT-02第1項）。軽減率
  *    （`guardRate`）は呼び出し側がダメージ計算の最後に適用する
- * 3. `APPLY_DAMAGE_LINK`（継続リンク状態）: `DMG-007`（Issue #187、R-LNK-01〜03）の
- *    スコープ。この順序位置に介入を持たない
+ * 3. `APPLY_DAMAGE_LINK`（継続リンク状態、`DMG-007`／Issue #187、R-LNK-01〜03）:
+ *    成立判定だけをここで行い、実際のリンク先ダメージは元ダメージの適用後・反射より前に
+ *    発生させる（R-LNK-01「対象へ算出された最終ダメージをリンク元の量とする。シールド・
+ *    HPへの振り分け前の量を使用する」）
  * 4. `APPLY_REFLECT`（反射）: 成立判定だけをここで行い、実際の反射ダメージは元ダメージの
  *    適用後に発生させる（R-INT-03第1項「反射は元ダメージの確定後…に発生する」）
  * 5. `APPLY_DEATH_SURVIVAL`（致死耐え）: 「致死かどうか」はHPへ適用する量が確定して
@@ -1181,13 +1190,16 @@ function* resolveDefensiveInterventionsSteps(
     }
   }
 
-  // R-INT-01 #3（`APPLY_DAMAGE_LINK`）はDMG-007（Issue #187）のスコープ。
+  // R-INT-01 #3: リンクの成立判定（DMG-007、Issue #187）。最終的な防御側＝実際に
+  // ダメージを受ける側が保持する`APPLY_DAMAGE_LINK`を採る（R-LNK-01「対象へ算出された
+  // 最終ダメージをリンク元の量とする」のリンク元はこの防御側である）。
   // R-INT-01 #4: 反射の成立判定。最終的な防御側が保持する`APPLY_REFLECT`を採る。
   const defender = findUnit(working, defenderUnitId, "hits[].targetBattleUnitId");
   return {
     kind: "RESOLVED",
     defenderUnitId,
     guardRate,
+    damageLinks: selectDamageLinks(defender, working),
     reflects: selectReflects(defender),
     lastEventId,
   };
@@ -1439,12 +1451,31 @@ function* applyConfirmedDamageSteps(
      * 「攻撃」に当たらないためである。
      */
     readonly isReflectedDamage?: true;
+    /**
+     * R-LNK-03（DMG-007、Issue #187）: リンクダメージの適用。`DamageApplied`へ
+     * `isLinkedDamage: true`を載せ、`isReflectedDamage`とまったく同じ理由で
+     * R-EFF-07のヒット消費（`OUTGOING_HIT`/`INCOMING_HIT`）を行わない — リンクは
+     * 命中判定を持つヒットではなく、消費条件が数える「攻撃」に当たらない。
+     */
+    readonly isLinkedDamage?: true;
+    /**
+     * R-LNK-01第3項／R-LNK-02第5項: 元ダメージのシールド適用可否を引き継ぐ。
+     * `false`ならシールド・サブユニットへ一切振り分けずHPへ直接向かう（毒・炎上など
+     * もともとシールドで受けられないダメージのリンク先での扱い）。既定は`true`。
+     */
+    readonly shieldApplicable?: boolean;
   } = {},
 ): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
   const targetBeforeAbsorption = findUnit(working, targetUnitId, "hits[].targetBattleUnitId");
 
-  const hpDirectDamage = shieldBypassedDamage(finalDamage, profile.piercing.shieldIgnoreRate);
+  // R-LNK-02第5項: 元ダメージがシールド対象外なら、リンク先でもシールド対象外にする
+  // （全量がHPへ直接向かう。`continuous-damage-service.ts`が炎上・毒を吸収経路へ
+  // 渡さないのと同じ扱い）。
+  const hpDirectDamage =
+    options.shieldApplicable === false
+      ? finalDamage
+      : shieldBypassedDamage(finalDamage, profile.piercing.shieldIgnoreRate);
   const absorption = yield* absorbBeforeHitPointsSteps(
     context,
     working,
@@ -1595,6 +1626,7 @@ function* applyConfirmedDamageSteps(
       hpAfter,
       defeated: isDefeated(updatedTarget),
       ...(options.isReflectedDamage === true ? { isReflectedDamage: true as const } : {}),
+      ...(options.isLinkedDamage === true ? { isLinkedDamage: true as const } : {}),
     },
   });
 
@@ -1708,7 +1740,7 @@ function* applyConfirmedDamageSteps(
   // この一括消費の対象外で、`consumeEffectDurations`が常に除外する — Nヒット回避は
   // 自身が回避した被ヒットでだけ消費するため（PR #275レビュー[P1]）。
   // R-INT-03（DMG-006）: 反射ダメージは命中判定を持つヒットではないため消費しない。
-  if (options.isReflectedDamage !== true) {
+  if (options.isReflectedDamage !== true && options.isLinkedDamage !== true) {
     lastEventId = yield* consumeAndExpire(
       context,
       working,
@@ -1725,6 +1757,121 @@ function* applyConfirmedDamageSteps(
     );
   }
   return { kind: "APPLIED", lastEventId, damageAppliedEventId: damageApplied.eventId };
+}
+
+/**
+ * R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187）: 元ダメージの適用が完了した直後、
+ * 反射（R-INT-01 #4）より前に、リンク元（＝この攻撃で実際にダメージを受けた側）が
+ * 保持していたリンクを付与順に発生させる。
+ *
+ * - R-LNK-01「対象へ算出された最終ダメージをリンク元の量とする」「シールド・HPへの
+ *   振り分け前の量を使用する」: `sourceDamage`は`DamageApplied.calculatedDamage`
+ *   （＝`finalDamage`）そのものであり、実際にHPへ通った量でもシールド吸収後の残りでも
+ *   ない。したがってリンク元のシールドが全て吸収してHPが1も減らなくてもリンクは同量で
+ *   発生する
+ * - R-LNK-02「リンクされた全対象へ、リンク元と同量のダメージをそれぞれ発生させる」
+ *   「対象数で分割しない」: 各リンクが`linkRate`をそれぞれ独立に適用する（リンク件数で
+ *   割らない）。「同量」の量とは各リンク先が受ける量が等しいという意味であり、
+ *   production定義が持つ35%/50%の割合は`linkRate`が表す
+ * - R-LNK-02「リンク先では属性、会心、ダメージ増減効果を再計算しない」: 反射と同じく
+ *   `linkRate`を掛けた結果へR-DMG-02の切り捨てと最低1ダメージだけを適用する
+ * - R-LNK-02「リンク先ごとに対応するシールドとHPへ適用する」: 適用は
+ *   `applyConfirmedDamageSteps`が担うため、リンク先自身のシールド・サブユニット・
+ *   致死耐えがそのまま働く
+ * - R-LNK-01「元ダメージの物理／ENタイプと、シールド適用可否を引き継ぐ」／R-LNK-02
+ *   「元ダメージが毒・炎上などシールド対象外なら、リンク先でもシールド対象外とする」:
+ *   `damageType`と`shieldApplicable`を呼び出し側から受け取ってそのまま渡す
+ * - R-LNK-03「リンクダメージに`isLinkedDamage=true`を付ける」「そのダメージから新たな
+ *   リンクを発生させない」: 適用は`applyConfirmedDamageSteps`を直接呼び、介入解決
+ *   （`resolveDefensiveInterventionsSteps`）とこの関数自身をもう一度通らない。反射の
+ *   再反射防止とまったく同じ構造であり、相互リンク・循環リンクも常に1往復で停止する
+ *
+ * リンク元がこの元ダメージ（またはその連鎖）で戦闘不能になっていればリンクは発生させず、
+ * リンク先が戦闘不能な場合も同様である（R-ACTN-01 #2、`applyReflectedDamageSteps`と
+ * 同じ扱い）。
+ */
+function* applyLinkedDamageSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  linkedFromUnitId: BattleUnitId,
+  damageType: DamageType,
+  sourceDamage: number,
+  links: readonly DamageLinkSelection[],
+  sourceDamageEventId: DomainEventId,
+  parentEventId: DomainEventId,
+  shieldApplicable = true,
+): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
+  let lastEventId = parentEventId;
+  if (links.length === 0) {
+    return { kind: "APPLIED", lastEventId };
+  }
+  for (const link of links) {
+    const linkedFromUnit = working.get(linkedFromUnitId);
+    if (linkedFromUnit === undefined || isDefeated(linkedFromUnit)) {
+      break;
+    }
+    const destination = working.get(link.linkToUnitId);
+    if (destination === undefined || isDefeated(destination)) {
+      continue;
+    }
+    // R-DMG-02 #1/#3: 最終結果で切り捨て、1未満は1にする。
+    const linkedDamage = Math.max(1, Math.floor(sourceDamage * link.linkRate));
+    const generatedEventsStart = context.recorder.getEvents().length;
+    const generated = context.recorder.record({
+      eventType: "LinkedDamageGenerated",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: linkedFromUnitId,
+      targetUnitIds: [link.linkToUnitId],
+      payload: {
+        sourceDamageEventId,
+        effectInstanceId: link.effectInstanceId,
+        effectActionDefinitionId: link.effectActionDefinitionId,
+        linkedFromUnitId,
+        linkToUnitId: link.linkToUnitId,
+        sourceDamage,
+        linkRate: link.linkRate,
+        linkedDamage,
+        damageType,
+        shieldApplicable,
+      },
+    });
+    lastEventId = generated.eventId;
+    yield* notifyOrYieldNewEvents(context, working, generatedEventsStart);
+
+    // 連鎖がリンク先を倒していれば適用しない（R-ACTN-01 #2）。
+    const destinationBeforeApply = working.get(link.linkToUnitId);
+    if (destinationBeforeApply === undefined || isDefeated(destinationBeforeApply)) {
+      continue;
+    }
+    const application = yield* applyConfirmedDamageSteps(
+      context,
+      working,
+      linkedFromUnitId,
+      link.linkToUnitId,
+      {
+        effectActionDefinitionId: link.effectActionDefinitionId,
+        // リンクはヒット列を持たないため常に0（`isReflectedDamage`と同じ規約）。
+        hitIndex: 0,
+        damageType,
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      linkedDamage,
+      lastEventId,
+      { isLinkedDamage: true, shieldApplicable },
+    );
+    lastEventId = application.lastEventId;
+    if (application.kind === "INTERRUPT") {
+      return { kind: application.kind, lastEventId };
+    }
+  }
+  return { kind: "APPLIED", lastEventId };
 }
 
 /**
@@ -2148,6 +2295,23 @@ function* applyOneSubUnitAdditionalDamageSteps(
   let lastEventId = application.lastEventId;
   if (application.kind !== "APPLIED") {
     return { kind: application.kind, lastEventId };
+  }
+
+  // R-INT-01 #3／R-LNK-01〜03: 追加ヒットも確定後にリンクを発生させる（通常ヒットと同じ）。
+  // R-INT-01の評価順どおり反射（#4）より前である。
+  const linked = yield* applyLinkedDamageSteps(
+    context,
+    working,
+    target.battleUnitId,
+    profile.damageType,
+    finalDamage,
+    intervention.damageLinks,
+    application.damageAppliedEventId ?? lastEventId,
+    lastEventId,
+  );
+  lastEventId = linked.lastEventId;
+  if (linked.kind === "INTERRUPT") {
+    return { kind: "INTERRUPT", lastEventId };
   }
 
   // R-INT-01 #4／R-INT-03: 追加ヒットも確定後に反射を発生させる（通常ヒットと同じ）。
@@ -2626,6 +2790,20 @@ export function* applyDamageActionSteps(
       continue;
     }
 
+    // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187）: 元ダメージの確定後、反射より前に
+    // リンク先ダメージを発生させる（R-INT-01の評価順 #3 → #4）。
+    const linked = yield* applyLinkedDamageSteps(
+      context,
+      working,
+      targetBeforeDamage.battleUnitId,
+      damageAction.payload.damageType,
+      damageResult.finalDamage,
+      intervention.damageLinks,
+      application.damageAppliedEventId ?? lastEventId,
+      lastEventId,
+    );
+    lastEventId = linked.lastEventId;
+
     // R-INT-01 #4／R-INT-03（DMG-006、Issue #188）: 元ダメージの確定後に反射を発生させる。
     const reflected = yield* applyReflectedDamageSteps(
       context,
@@ -2651,9 +2829,9 @@ export function* applyDamageActionSteps(
       damage: damageResult.finalDamage,
     });
 
-    // 反射の適用（およびその連鎖）が使用者を戦闘不能にしていれば、残りのヒットを
+    // リンク・反射の適用（およびその連鎖）が使用者を戦闘不能にしていれば、残りのヒットを
     // 中断する（R-SKL-01）。このヒット自身は既に適用済みのため`outcomes`へは残す。
-    if (reflected.kind === "INTERRUPT") {
+    if (linked.kind === "INTERRUPT" || reflected.kind === "INTERRUPT") {
       interruptedCount = hits.length - (i + 1);
       interrupted = true;
       outcomes.push(...hits.slice(i + 1).map(skip));

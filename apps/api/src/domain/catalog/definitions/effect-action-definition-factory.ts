@@ -95,6 +95,8 @@ const EFFECT_IMMUNITY_CATEGORIES = [
   "SUBUNIT",
   "SPECIFIC_EFFECT",
 ] as const;
+/** DMG-007（Issue #187、PR #299レビュー[P2]）: `APPLY_DAMAGE_LINK.polarity`。 */
+const DAMAGE_LINK_POLARITIES = ["BUFF", "DEBUFF"] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
 /** HEAL_DISTRIBUTE（M7-005、Issue #184）。`MODIFY_RESOURCE.operation: DISTRIBUTE`のHEAL版。 */
@@ -150,6 +152,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
+  APPLY_DAMAGE_LINK: ["linkTo", "linkRate", "polarity", "duration"],
   APPLY_SUBUNIT: ["durability", "additionalDamage", "duration"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
@@ -1114,6 +1117,32 @@ function createPayload(
           formula: createFormulaField(payload, "formula", path),
           timing,
           allowRecursiveReflect,
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_DAMAGE_LINK": {
+      // R-LNK-01〜03（DMG-007、Issue #187）: リンク先も割合も既定を持たないため必須。
+      // `linkTo`のkindごとの実装範囲（`SELF`/`BINDING`）はCatalog整合性検証
+      // （`UNSUPPORTED_DAMAGE_LINK_TARGET`）が担う — Factoryは`APPLY_HEALING_LINK`と
+      // 同じく形式検証だけを行う。`EffectActionDefinition`は自分を使う
+      // EffectSequenceのTargetBinding集合を知らないため、`BINDING`が実在する
+      // bindingを指すかは`DAMAGE_LINK_UNBOUNDED_BINDING`（`catalog-integrity.ts`、
+      // `ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`と同じ扱い）がSkill側から検証する。
+      const linkTo = requireField(
+        payload["linkTo"] as TargetReferenceInput | undefined,
+        `${path}.linkTo`,
+      );
+      // PR #299レビュー[P2]: `polarity`も既定を持たない必須fieldである（同じkindが
+      // 味方向け・敵向けの両方で使われるため、符号からもkindからも導けない）。
+      const polarity = requireField(payload["polarity"] as string | undefined, `${path}.polarity`);
+      assertEnumValue(polarity, DAMAGE_LINK_POLARITIES, `${path}.polarity`);
+      return {
+        kind: "APPLY_DAMAGE_LINK",
+        payload: {
+          linkTo: createTargetReference(linkTo, `${path}.linkTo`, undefined),
+          linkRate: requireRate(payload["linkRate"] as number | undefined, `${path}.linkRate`),
+          polarity,
           duration: createDurationField(payload, path),
         },
       };

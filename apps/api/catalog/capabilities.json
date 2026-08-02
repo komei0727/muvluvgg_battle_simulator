@@ -606,6 +606,32 @@
     }
   },
   {
+    "capabilityId": "CAP_DAMAGE_LINK_STATE",
+    "schemaStatus": "SUPPORTED",
+    "runtimeStatus": "IMPLEMENTED",
+    "implementationTaskId": "DMG-007",
+    "description": "リンクダメージ（R-INT-01 #3／R-LNK-01〜03、DMG-007／Issue #187）。`14_Catalog定義スキーマ.md`は`APPLY_DAMAGE_LINK`のpayloadを「Cover/Reflect/DamageLinkの割り込み順が未確定」として定義しないまま残しており、`16_不完全変換対応予定方針.md`の`DAMAGE_LINK`（4行）は近似変換のままだった。DMG-006（Issue #188）がR-INT-01 #1〜#5の割り込み順を確定させたため、DMG-007がpayload定義・レジストリ登録・実装を同時に行い、同4行を近似なしへ更新した。`APPLY_DAMAGE_LINK`が付与する`AppliedEffect.damageLink`は**ダメージを受ける側**が保持し、`damage-application-service.ts`が元ダメージの`DamageApplied`の後・反射より前（R-INT-01の評価順 #3 → #4）に`LinkedDamageGenerated`を発行してからリンク先へ適用する。リンク量はR-LNK-01どおり「対象へ算出された最終ダメージ」（シールド・HPへの振り分け前）へ`linkRate`を掛け、R-DMG-02の切り捨てと最低1ダメージだけを適用する — 属性相性・会心・与被ダメージ補正は再計算しない（R-LNK-02第3項）。R-LNK-02第2項「対象数で分割しない」のとおり、保持者が複数のリンクを持つ場合も各リンクが独立に全量を発生させる。適用は`applyConfirmedDamageSteps`が担うためリンク先自身のシールド・サブユニット・致死耐えがそのまま働き（第4項）、元ダメージのダメージタイプとシールド適用可否を引き継ぐ（R-LNK-01第3項／R-LNK-02第5項）。リンクダメージの適用は介入解決を通らないため再リンクも起きず（R-LNK-03第2項。相互リンク・循環リンクは常に1往復で停止する）、`DamageApplied`は`isLinkedDamage: true`を持つ（第1項）。リンク元が元ダメージで戦闘不能になった場合とリンク先が戦闘不能な場合、および自己リンク（リンク先が保持者自身）は発生しない（R-ACTN-01 #2）。この効果は同じkindが両向きに使われる唯一の防御介入であるため、保持者にとってバフかデバフかはCatalogが`polarity`として明示する（省略不可。味方・自身へ付与する`ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`／`ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`は`BUFF`、敵2体を相互リンクさせる`ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*`は`DEBUFF`）。`linkTo`は付与時点に解決して`AppliedEffect.damageLink.linkToUnitId`へ焼き込むため、実装済みは`SELF`（付与者自身）と`BINDING`（同じEffectSequenceが解決済みの、高々1体へ解決するTargetBinding）だけであり、他のkindは`UNSUPPORTED_DEFENSIVE_INTERVENTION`、宣言のないbindingは`DAMAGE_LINK_UNBOUNDED_BINDING`としてCatalogロード時点で拒否する。production代表`ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`（`SKL_SUIRAN_CASINO_AS1`、味方全体が受けたダメージの50%を自身へ）を実ライフサイクル（`resolveSkillUse`→`EffectApplied`→`DamageApplied`→`LinkedDamageGenerated`→StateDelta→独立Reducer復元）まで検証する。",
+    "verification": {
+      "productionDefinitionIds": [
+        "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+        "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
+        "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST",
+        "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK"
+      ],
+      "testCaseIds": [
+        "IT-CAP-DAMAGE-LINK-STATE-PROD-001",
+        "IT-CAP-DAMAGE-LINK-STATE-PROD-002",
+        "IT-CAP-DAMAGE-LINK-STATE-PROD-003",
+        "UT-R-LNK-01-010",
+        "UT-R-LNK-02-010",
+        "UT-R-LNK-02-011",
+        "UT-R-LNK-02-012",
+        "UT-R-LNK-02-013",
+        "UT-R-LNK-03-010"
+      ]
+    }
+  },
+  {
     "capabilityId": "CAP_REFLECT_DAMAGE",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",

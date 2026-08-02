@@ -1223,6 +1223,38 @@ function coverAction(
   );
 }
 
+/**
+ * DMG-007（Issue #187、R-LNK-01〜03）: リンクダメージ状態の最小定義。既定は
+ * production `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK` と同じ`linkTo: SELF`・50%。
+ */
+function damageLinkAction(
+  id: string,
+  overrides: {
+    linkTo?: { kind: string; targetBindingId?: string };
+    linkRate?: number;
+    requiredCapabilities?: readonly string[];
+  } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DAMAGE_LINK",
+      payload: {
+        linkTo: overrides.linkTo ?? { kind: "SELF" },
+        linkRate: overrides.linkRate ?? 0.5,
+        polarity: "BUFF",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+          dispellable: false,
+          linkedEffectGroupId: null,
+        },
+      },
+      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_DAMAGE_LINK_STATE"],
+    },
+    "effectAction",
+  );
+}
+
 function reflectAction(
   id: string,
   overrides: {
@@ -1279,6 +1311,79 @@ function deathSurvivalAction(
     },
     "effectAction",
   );
+}
+
+/**
+ * PR #299レビュー[P2]: `TARGET_HAS_EFFECT`を置ける4か所（PS trigger／
+ * `counterUpdates[].trigger`／`activationCondition`／ACTION stepの`targetCondition`）へ
+ * 同じ条件を差し込める最小のPS。
+ */
+function psSkillWithCondition(
+  id: string,
+  where: {
+    trigger?: ConditionDefinitionInput;
+    counterUpdateTrigger?: ConditionDefinitionInput;
+    activationCondition?: ConditionDefinitionInput;
+    targetCondition?: ConditionDefinitionInput;
+  },
+): SkillDefinition {
+  const trigger = {
+    eventType: "TurnStarted",
+    category: "FACT",
+    sourceSelector: "SELF",
+    targetSelector: "SELF",
+    ...(where.trigger !== undefined ? { condition: where.trigger } : {}),
+  };
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    triggers: [trigger],
+    ...(where.activationCondition !== undefined
+      ? { activationCondition: where.activationCondition }
+      : {}),
+    ...(where.counterUpdateTrigger !== undefined
+      ? {
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: `${id}_COUNT`,
+              scope: "SKILL_RUNTIME",
+              trigger: {
+                eventType: "TurnStarted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "SELF",
+                condition: where.counterUpdateTrigger,
+              },
+              amount: 1,
+            },
+          ],
+        }
+      : {}),
+    resolution: {
+      kind: "IMMEDIATE",
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "SELF" },
+          ...(where.targetCondition !== undefined
+            ? { targetCondition: where.targetCondition }
+            : {}),
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {},
+    requiredCapabilities: [
+      "CAP_TARGET_EFFECT_QUERY",
+      ...(where.counterUpdateTrigger !== undefined ? ["CAP_SKILL_RUNTIME_COUNTER"] : []),
+      ...(where.activationCondition !== undefined ? ["CAP_PASSIVE_ACTIVATION_CONDITION"] : []),
+      ...(where.targetCondition !== undefined ? ["CAP_EFFECT_STEP_CONDITION_SCOPE"] : []),
+    ],
+    metadata: { displayName: id },
+  });
 }
 
 function baseDefinitions(): CatalogDefinitions {
@@ -2373,6 +2478,325 @@ describe("buildCatalogIndex", () => {
           ),
         ).toBe(true);
       }
+    }
+  });
+
+  it("UT-R-LNK-03-034 (DMG-007 Issue #187, NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy outside a trigger condition, where no evaluating unit exists", () => {
+    const defs = baseDefinitions();
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS2",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_PRIMARY",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+            targetCondition: {
+              kind: "TARGET_HAS_EFFECT",
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              categories: ["DEBUFF"],
+              grantedBy: "SELF",
+            },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE" }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      requiredCapabilities: [],
+      metadata: { displayName: "AS" },
+    });
+    const withMisscopedGrantedBy: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, skill],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+    };
+
+    try {
+      buildCatalogIndex(withMisscopedGrantedBy);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "GRANTED_BY_OUTSIDE_TRIGGER")).toBe(true);
+    }
+  });
+
+  it("UT-R-LNK-03-035 (PR #299レビュー[P2], NEGATIVE): rejects a TARGET_HAS_EFFECT.effectActionDefinitionIds that references an undefined EffectActionDefinition, in every condition placement", () => {
+    const query = (id: string): ConditionDefinitionInput => ({
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["DEBUFF"],
+      effectActionDefinitionIds: [id],
+    });
+    // trigger / counterUpdates[].trigger / activationCondition / step条件のいずれに
+    // 置いても、参照先が存在しなければ条件は常に偽になる（silent no-op）。
+    const placements: readonly (readonly [string, SkillDefinition])[] = [
+      ["trigger", psSkillWithCondition("SKL_PS_TRIGGER", { trigger: query("ACT_MISSING") })],
+      [
+        "counterUpdates[].trigger",
+        psSkillWithCondition("SKL_PS_COUNTER", { counterUpdateTrigger: query("ACT_MISSING") }),
+      ],
+      [
+        "activationCondition",
+        psSkillWithCondition("SKL_PS_ACTIVATION", { activationCondition: query("ACT_MISSING") }),
+      ],
+      [
+        "targetCondition",
+        psSkillWithCondition("SKL_PS_TARGET", { targetCondition: query("ACT_MISSING") }),
+      ],
+    ];
+
+    for (const [placement, skill] of placements) {
+      const defs = baseDefinitions();
+      const withDanglingQuery: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, skill],
+        units: [unit("UNIT_001", { passive: [skill.skillDefinitionId] })],
+        capabilities: [
+          capability("CAP_TARGET_EFFECT_QUERY"),
+          capability("CAP_SKILL_RUNTIME_COUNTER"),
+          capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+          capability("CAP_EFFECT_STEP_CONDITION_SCOPE"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withDanglingQuery);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some((v) => v.rule === "DANGLING_REFERENCE"),
+          `${placement} must report DANGLING_REFERENCE`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-LNK-03-037 (PR #299再レビュー[P2], NEGATIVE): rejects a dangling TARGET_HAS_EFFECT.effectActionDefinitionIds inside a DurationDefinition (expiration.conditions / counterUpdates[].trigger.condition)", () => {
+    const danglingQuery = {
+      kind: "TARGET_HAS_EFFECT",
+      target: { kind: "SELF" },
+      categories: ["DEBUFF"],
+      effectActionDefinitionIds: ["ACT_MISSING"],
+    } as const;
+    // `DurationDefinition`もSkill/Memoryの条件とまったく同じ`ConditionDefinition`を
+    // 2か所に持つ。どちらも走査しなければ、存在しないIDを指す条件が実行時に一切
+    // 一致しないまま（silent no-op）ロードを通ってしまう。
+    const durations = [
+      ["expiration.conditions", { expiration: { conditions: [danglingQuery] } }],
+      [
+        "counterUpdates[].trigger.condition",
+        {
+          counterUpdates: [
+            {
+              kind: "INCREMENT",
+              counter: "EFF_TEST_COUNT",
+              scope: "APPLIED_EFFECT",
+              trigger: {
+                eventType: "TurnStarted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "SELF",
+                condition: danglingQuery,
+              },
+              amount: 1,
+            },
+          ],
+        },
+      ],
+    ] as const;
+
+    for (const [placement, durationExtra] of durations) {
+      const action = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DURATION_QUERY",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              timeLimit: { unit: "BATTLE", count: 1 },
+              dispellable: true,
+              ...durationExtra,
+            },
+          },
+          requiredCapabilities: [
+            "CAP_STAT_MOD",
+            "CAP_COMPLEX_EXPIRATION",
+            "CAP_TARGET_EFFECT_QUERY",
+          ],
+        },
+        "effectAction",
+      );
+      const defs = baseDefinitions();
+      const withDanglingDurationQuery: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DURATION_QUERY")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, action],
+        capabilities: [
+          capability("CAP_STAT_MOD"),
+          capability("CAP_COMPLEX_EXPIRATION"),
+          capability("CAP_TARGET_EFFECT_QUERY"),
+          capability("CAP_EFFECT_RUNTIME_COUNTER"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withDanglingDurationQuery);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "DANGLING_REFERENCE" && v.targetId === "ACT_DURATION_QUERY",
+          ),
+          `${placement} must report DANGLING_REFERENCE`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-LNK-03-036 (PR #299レビュー[P2], NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy inside a Memory trigger, whose evaluator has no owning BattleUnit", () => {
+    const defs = baseDefinitions();
+    const withMemoryGrantedBy: CatalogDefinitions = {
+      ...defs,
+      effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+      memories: [
+        memoryWithTrigger("MEM_GRANTED_BY", {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["DEBUFF"],
+          grantedBy: "SELF",
+        }),
+      ],
+      capabilities: [
+        capability("CAP_MEMORY_TRIGGERED_EFFECT"),
+        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
+        capability("CAP_TARGET_EFFECT_QUERY"),
+        capability("CAP_STAT_MOD"),
+      ],
+    };
+
+    try {
+      buildCatalogIndex(withMemoryGrantedBy);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "GRANTED_BY_OUTSIDE_TRIGGER")).toBe(true);
+    }
+  });
+
+  it("UT-R-LNK-02-030 (DMG-007 Issue #187): accepts an APPLY_DAMAGE_LINK whose linkTo is SELF and whose binding reference is declared by the using skill", () => {
+    const defs = baseDefinitions();
+    const withLinks: CatalogDefinitions = {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        asSkill("SKL_AS2", "ACT_LINK_SELF"),
+        asSkill("SKL_AS3", "ACT_LINK_BINDING"),
+      ],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3"] })],
+      effectActions: [
+        ...defs.effectActions,
+        damageLinkAction("ACT_LINK_SELF"),
+        damageLinkAction("ACT_LINK_BINDING", {
+          // `asSkill`が宣言するbinding。
+          linkTo: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+        }),
+      ],
+      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+    };
+
+    const index = buildCatalogIndex(withLinks);
+
+    expect(index.effectActions.get("ACT_LINK_SELF" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_LINK_BINDING" as never)).toBeDefined();
+  });
+
+  it("UT-R-LNK-02-031 (DMG-007 Issue #187, NEGATIVE): rejects a linkTo kind the runtime cannot resolve at grant time", () => {
+    for (const linkTo of [{ kind: "TRIGGER_SOURCE" }, { kind: "LAST_DAMAGED_TARGETS" }]) {
+      const defs = baseDefinitions();
+      const withUnsupportedLink: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, damageLinkAction("ACT_LINK", { linkTo })],
+        capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+      };
+
+      try {
+        buildCatalogIndex(withUnsupportedLink);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) => v.rule === "UNSUPPORTED_DEFENSIVE_INTERVENTION" && v.targetId === "ACT_LINK",
+          ),
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("UT-R-LNK-02-032 (DMG-007 Issue #187, NEGATIVE): rejects an APPLY_DAMAGE_LINK that omits CAP_DAMAGE_LINK_STATE from requiredCapabilities", () => {
+    const defs = baseDefinitions();
+    const withMissingCapability: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        damageLinkAction("ACT_LINK", { requiredCapabilities: [] }),
+      ],
+      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+    };
+
+    try {
+      buildCatalogIndex(withMissingCapability);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_LINK",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-R-LNK-02-033 (DMG-007 Issue #187, NEGATIVE): rejects a BINDING linkTo that the using skill never declares (silent no-op at grant time)", () => {
+    const defs = baseDefinitions();
+    const withUnboundBinding: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [
+        ...defs.effectActions,
+        damageLinkAction("ACT_LINK", {
+          linkTo: { kind: "BINDING", targetBindingId: "TGT_NOT_DECLARED" },
+        }),
+      ],
+      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
+    };
+
+    try {
+      buildCatalogIndex(withUnboundBinding);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "DAMAGE_LINK_UNBOUNDED_BINDING")).toBe(true);
     }
   });
 

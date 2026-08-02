@@ -17,15 +17,16 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
  *
  * 1. `APPLY_TARGET_REDIRECT`（引き寄せ・挑発）
  * 2. `APPLY_COVER`（肩代わり）
- * 3. `APPLY_DAMAGE_LINK`（継続リンク状態） — `DMG-007`（Issue #187）のスコープ。
- *    このモジュールは対応する状態を持たない
+ * 3. `APPLY_DAMAGE_LINK`（継続リンク状態、`DMG-007`／Issue #187、R-LNK-01〜03）
  * 4. `APPLY_REFLECT`（反射）
  * 5. `APPLY_DEATH_SURVIVAL`（致死耐え）
  *
  * #1・#2はダメージ計算の**防御側そのもの**を変えるためこの時点で確定させ、
- * #4・#5は成立の判定だけをこの時点で行い（R-INT-01「`DamageWillBeApplied`後、
+ * #3・#4・#5は成立の判定だけをこの時点で行い（R-INT-01「`DamageWillBeApplied`後、
  * ダメージ確定前に…評価する」）、実際の作用はそれぞれ元ダメージの適用後
- * （R-INT-03「反射は元ダメージの確定後…に発生する」）とHP適用時に起きる。
+ * （R-LNK-01「対象へ算出された最終ダメージをリンク元の量とする」、R-INT-03
+ * 「反射は元ダメージの確定後…に発生する」。R-INT-01の評価順どおりリンクが先）と
+ * HP適用時に起きる。
  */
 
 /**
@@ -187,6 +188,55 @@ export function selectReflects(defender: BattleUnit): readonly ReflectSelection[
         ]
       : [],
   );
+}
+
+/** R-INT-01 #3／R-LNK-01〜03: 元ダメージの適用後にリンク先ダメージを発生させる1インスタンス。 */
+export interface DamageLinkSelection {
+  readonly effectInstanceId: EffectInstanceId;
+  readonly effectActionDefinitionId: EffectActionDefinitionId;
+  readonly linkToUnitId: BattleUnitId;
+  readonly linkRate: number;
+}
+
+/**
+ * R-INT-01 #3（DMG-007、Issue #187）: `damagedUnit`（この攻撃で実際にダメージを
+ * 受ける側＝リンク元）が保持する`APPLY_DAMAGE_LINK`のうち、実際にリンク先ダメージを
+ * 発生させられるものを付与順に返す。R-LNK-02は件数を制限せず「対象数で分割しない」と
+ * 定めるため、保持している数だけリンクが**それぞれ独立に**発生する
+ * （`selectReflects`が反射の件数を制限しないのと同じ）。
+ *
+ * 次のリンクは成立させない。
+ * - 自己リンク（リンク先が保持者自身）: R-LNK-02は「リンクされた**全対象へ**リンク元と
+ *   同量を発生させる」と定めており、リンク元自身へ二重に適用することは求めていない。
+ *   `allocateHealingLinkTransfers`が自己リンクを恒等として扱うのと同じ規約である
+ * - リンク先が盤面から引けない、または戦闘不能（R-ACTN-01 #2）
+ *
+ * R-LNK-03第2項「`isLinkedDamage=true`のダメージから新たなリンクを発生させない」の
+ * 再リンク防止は、リンクダメージの適用経路自体が介入解決を通らないことで満たす
+ * （`damage-application-service.ts`、反射の再反射防止とまったく同じ構造）。
+ */
+export function selectDamageLinks(
+  damagedUnit: BattleUnit,
+  units: ReadonlyMap<BattleUnitId, BattleUnit>,
+): readonly DamageLinkSelection[] {
+  return damagedUnit.appliedEffects.flatMap((effect) => {
+    const link = effect.damageLink;
+    if (link === undefined || link.linkToUnitId === damagedUnit.battleUnitId) {
+      return [];
+    }
+    const destination = units.get(link.linkToUnitId);
+    if (destination === undefined || isDefeated(destination)) {
+      return [];
+    }
+    return [
+      {
+        effectInstanceId: effect.effectInstanceId,
+        effectActionDefinitionId: effect.effectActionDefinitionId,
+        linkToUnitId: link.linkToUnitId,
+        linkRate: link.linkRate,
+      },
+    ];
+  });
 }
 
 /** R-INT-01 #5: 致死ダメージを耐える1インスタンス。 */

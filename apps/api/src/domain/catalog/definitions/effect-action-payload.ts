@@ -495,6 +495,56 @@ export interface ApplyCoverPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * DAMAGE_LINK（`DMG-007`、Issue #187、R-LNK-01〜03）: 保持者が**受けた**ダメージと
+ * 同量（`linkRate`の割合）のダメージを`linkTo`へ追加で発生させる継続効果。
+ * `APPLY_HEALING_LINK`とは方向（被ダメージ／回復）も配分規則も異なる別kindである
+ * — 回復リンクは保持者の回復量を転送先へ**移し替える**のに対し、ダメージリンクは
+ * 元ダメージをそのまま残したうえでリンク先へ**追加で発生**させる
+ * （`14_Catalog定義スキーマ.md`「`APPLY_HEALING_LINK`」）。
+ *
+ * `linkTo`は付与時点に解決して`AppliedEffect.damageLink.linkToUnitId`へ焼き込む
+ * （`APPLY_HEALING_LINK.transferTo`と同じ「付与時snapshot」規約 — ダメージ適用
+ * 時点にはTargetBindingもトリガーcontextも残っていない）。実装済みは次の2kindで、
+ * それ以外は`UNSUPPORTED_DAMAGE_LINK_TARGET`としてCatalogロード時点で拒否する。
+ *
+ * - `SELF`: 付与者自身（`SKL_SUIRAN_CASINO_AS1`「自身以外の味方が受けたダメージの
+ *   50%を自身に転送する」＝味方が保持し、リンク先は劉翠蘭自身）
+ * - `BINDING`: 同じEffectSequenceが解決したTargetBinding（`SKL_DOROTHEA_PIONEER_PS1`
+ *   「最も近い敵と最も遠い敵…対象同士が受けたダメージの35%を共有しあう」＝
+ *   互いを指す2件のリンク、`SKL_CHIZURU_DOMESTIC_PS1`「自身が受けたダメージの35%を
+ *   対象に送り込む」＝保持者が自身、リンク先が攻撃対象）
+ */
+export interface ApplyDamageLinkPayload {
+  readonly linkTo: TargetReference;
+  /**
+   * PR #299レビュー[P2]: この効果が保持者にとってバフとデバフのどちらかを、Catalogが
+   * 明示する（省略不可）。`APPLY_TARGET_REDIRECT`/`APPLY_COVER`（常に`DEBUFF`）や
+   * `APPLY_REFLECT`（常に`BUFF`）と違い、ダメージリンクは**同じkindで両向きに使われる**
+   * ためである。
+   *
+   * - `ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`は保持者（榊千鶴自身）の被ダメージを敵へ
+   *   送る。保持者を利するため`BUFF`である
+   * - `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`は劉翠蘭が自陣へ付与し、味方の被ダメージを
+   *   自身の大きなシールドで受け止めるための味方向け効果であり`BUFF`である
+   * - `ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*`は敵2体へ付与し互いの被ダメージを増やす。
+   *   `戦闘システム.md`「2. デバフについて」の「相手を不利にする効果」そのもので`DEBUFF`である
+   *
+   * `magnitude`（`linkRate`）の符号から導けないのは、割合が常に正だからである
+   * （`APPLY_CONTINUOUS_DAMAGE`の`continuousDamageKind`と同じ「既定値を置かない」方針 —
+   * 既定を置くと、向きを書き忘れた定義が黙って逆向きに分類され、`EFFECT_IMMUNITY`の
+   * 拒否・`REMOVE_EFFECTS`の解除・`TARGET_HAS_EFFECT`の照会がすべて反対に働く）。
+   */
+  readonly polarity: "BUFF" | "DEBUFF";
+  /**
+   * R-LNK-01/02: リンク先へ発生させる割合。`0`以上`1`以下（`1`が「同量」）。
+   * R-LNK-02「対象数で分割しない」のとおり、保持者が複数のリンクを持つ場合も
+   * 各リンクがこの割合をそれぞれ独立に適用する（件数で割らない）。
+   */
+  readonly linkRate: number;
+  readonly duration: DurationDefinition;
+}
+
 export interface ApplyReflectPayload {
   readonly reflectTo: TargetReference;
   readonly formula: FormulaDefinition;

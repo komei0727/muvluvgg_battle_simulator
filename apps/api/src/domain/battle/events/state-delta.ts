@@ -8,6 +8,7 @@ import type {
   EffectImmunityState,
   HealingLinkState,
   PiercingModifierState,
+  DamageLinkState,
   ReflectState,
   ShieldState,
   StatusEffectDetails,
@@ -155,6 +156,14 @@ export interface EffectSnapshot {
   readonly reflect?: ReflectState;
   readonly deathSurvival?: DeathSurvivalState;
   /**
+   * DMG-007（Issue #187、R-INT-01 #3／R-LNK-01〜03）: `APPLY_DAMAGE_LINK`由来の効果
+   * だけが持つ。リンク先は付与時点で解決したユニットIDで、`linkRate`はCatalog値を
+   * 焼き込んだものである。復元されないと独立Reducerで復元した状態のリンク解決
+   * （`defensive-intervention-policy.ts`の`selectDamageLinks`）が実戦闘と食い違う
+   * ため、防御介入系の4状態と同じ理由で同一性比較へ含める。
+   */
+  readonly damageLink?: DamageLinkState;
+  /**
    * M7-001E（Issue #248、R-EFF-02/03）: `effect-category-classifier.ts`が付与時点に
    * 確定した分類集合（`AppliedEffect.categories`と同じソート済み配列）。
    * `TARGET_HAS_EFFECT`条件の判定入力であるため、欠落・破損したまま復元されると
@@ -233,6 +242,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.targetRedirect !== undefined ? { targetRedirect: effect.targetRedirect } : {}),
     ...(effect.cover !== undefined ? { cover: effect.cover } : {}),
     ...(effect.reflect !== undefined ? { reflect: effect.reflect } : {}),
+    ...(effect.damageLink !== undefined ? { damageLink: effect.damageLink } : {}),
     ...(effect.deathSurvival !== undefined ? { deathSurvival: effect.deathSurvival } : {}),
     categories: effect.categories,
     ...(effect.statModStat !== undefined ? { statModStat: effect.statModStat } : {}),

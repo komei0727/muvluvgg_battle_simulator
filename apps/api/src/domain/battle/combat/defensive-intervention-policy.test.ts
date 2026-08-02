@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   guardedDamage,
   selectCover,
+  selectDamageLinks,
   selectDeathSurvival,
   selectReflects,
   selectTargetRedirect,
@@ -118,6 +119,18 @@ function reflectEffect(
       },
       allowRecursiveReflect: recursive,
     },
+  };
+}
+
+function damageLinkEffect(
+  id: string,
+  holderId: string,
+  linkToUnitId: string,
+  linkRate = 0.35,
+): AppliedEffect {
+  return {
+    ...baseEffect(id, holderId),
+    damageLink: { linkToUnitId: createBattleUnitId(linkToUnitId), linkRate },
   };
 }
 
@@ -314,6 +327,65 @@ describe("defensive intervention policy (DMG-006, R-INT-01〜03)", () => {
       };
 
       expect(selectReflects(defender)).toEqual([]);
+    });
+  });
+
+  describe("R-INT-01 #3 / R-LNK-01〜03 damage link", () => {
+    it("UT-R-LNK-02-001: returns every link the damaged unit holds in grant order (R-LNK-02 does not divide by count)", () => {
+      const holder = {
+        ...unit("HOLDER", "ALLY"),
+        appliedEffects: [
+          damageLinkEffect("E1", "HOLDER", "PEER_A"),
+          damageLinkEffect("E2", "HOLDER", "PEER_B", 0.5),
+        ],
+      };
+      const units = unitMap(holder, unit("PEER_A", "ALLY"), unit("PEER_B", "ALLY"));
+
+      expect(selectDamageLinks(holder, units)).toEqual([
+        {
+          effectInstanceId: createEffectInstanceId("E1"),
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_E1"),
+          linkToUnitId: createBattleUnitId("PEER_A"),
+          linkRate: 0.35,
+        },
+        {
+          effectInstanceId: createEffectInstanceId("E2"),
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_E2"),
+          linkToUnitId: createBattleUnitId("PEER_B"),
+          linkRate: 0.5,
+        },
+      ]);
+    });
+
+    it("UT-R-LNK-02-002: excludes a self-link (the holder is its own destination, which would double its own damage)", () => {
+      const holder = {
+        ...unit("HOLDER", "ALLY"),
+        appliedEffects: [damageLinkEffect("E1", "HOLDER", "HOLDER")],
+      };
+
+      expect(selectDamageLinks(holder, unitMap(holder))).toEqual([]);
+    });
+
+    it("UT-R-LNK-02-003: excludes a link whose destination is defeated or absent from the board (R-ACTN-01 #2)", () => {
+      const peer = unit("PEER", "ALLY");
+      const holder = {
+        ...unit("HOLDER", "ALLY"),
+        appliedEffects: [
+          damageLinkEffect("E1", "HOLDER", "PEER"),
+          damageLinkEffect("E2", "HOLDER", "GONE"),
+        ],
+      };
+
+      expect(selectDamageLinks(holder, unitMap(holder, defeated(peer)))).toEqual([]);
+    });
+
+    it("UT-R-LNK-02-004: returns nothing for a unit that holds no damage link at all", () => {
+      const holder = {
+        ...unit("HOLDER", "ALLY"),
+        appliedEffects: [reflectEffect("E1", "HOLDER", 0.75)],
+      };
+
+      expect(selectDamageLinks(holder, unitMap(holder))).toEqual([]);
     });
   });
 

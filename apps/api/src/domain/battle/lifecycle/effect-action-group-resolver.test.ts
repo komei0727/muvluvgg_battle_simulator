@@ -5069,6 +5069,120 @@ describe("applyEffectActionGroups", () => {
       ).toBe("APPLIED");
     });
 
+    function damageLinkAction(
+      id: string,
+      linkTo: Extract<EffectActionDefinition, { kind: "APPLY_DAMAGE_LINK" }>["payload"]["linkTo"],
+      linkRate = 0.5,
+      polarity: "BUFF" | "DEBUFF" = "DEBUFF",
+    ): EffectActionDefinition {
+      return {
+        kind: "APPLY_DAMAGE_LINK",
+        effectActionDefinitionId: createEffectActionDefinitionId(id),
+        requiredCapabilities: [],
+        metadata: { tags: [] },
+        payload: {
+          linkTo,
+          linkRate,
+          polarity,
+          duration: {
+            timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+            dispellable: false,
+            linkedEffectGroupId: null,
+          },
+        },
+      };
+    }
+
+    it("UT-R-LNK-01-001 (full stack, R-LNK-01): an APPLY_DAMAGE_LINK grants an AppliedEffect whose damageLink resolves linkTo: SELF to the granter at grant time", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const holder = unit("HOLDER", "ALLY");
+      const link = damageLinkAction("ACT_LINK", { kind: "SELF" });
+      const effectActions = new Map([[link.effectActionDefinitionId, link]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, holder.battleUnitId, link.effectActionDefinitionId)],
+        targetUnitIds: [holder.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, holder], context);
+
+      const updated = result.units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+      expect(updated.appliedEffects).toHaveLength(1);
+      expect(updated.appliedEffects[0]).toMatchObject({
+        effectActionDefinitionId: link.effectActionDefinitionId,
+        duplicate: true,
+        damageLink: { linkToUnitId: actor.battleUnitId, linkRate: 0.5 },
+      });
+      // R-EFF-02/03: リンクは保持者の被弾を波及させる不利な状態のため`DEBUFF`。
+      expect(updated.appliedEffects[0]!.categories).toContain("DEBUFF");
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "EffectActionCompleted")!.payload
+          .resultKind,
+      ).toBe("APPLIED");
+    });
+
+    it("UT-R-LNK-01-002 (full stack, R-LNK-01): a BINDING linkTo resolves to the unit that binding selected, so a mutual link can name the other side", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const nearest = unit("NEAREST", "ENEMY");
+      const farthest = unit("FARTHEST", "ENEMY");
+      const link = damageLinkAction(
+        "ACT_LINK",
+        { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_FARTHEST") },
+        0.35,
+      );
+      const effectActions = new Map([[link.effectActionDefinitionId, link]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, nearest.battleUnitId, link.effectActionDefinitionId)],
+        targetUnitIds: [nearest.battleUnitId],
+        resolvedBindings: new Map([
+          [createTargetBindingId("TGT_FARTHEST"), { units: [farthest], includeDefeated: false }],
+        ]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, nearest, farthest], context);
+
+      const updated = result.units.find((u) => u.battleUnitId === nearest.battleUnitId)!;
+      expect(updated.appliedEffects[0]).toMatchObject({
+        damageLink: { linkToUnitId: farthest.battleUnitId, linkRate: 0.35 },
+      });
+    });
+
+    it("UT-R-LNK-01-003 (full stack, R-LNK-01, NEGATIVE): a BINDING linkTo that resolved to no unit grants nothing and reports SKIPPED", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const holder = unit("HOLDER", "ENEMY");
+      const link = damageLinkAction("ACT_LINK", {
+        kind: "BINDING",
+        targetBindingId: createTargetBindingId("TGT_FARTHEST"),
+      });
+      const effectActions = new Map([[link.effectActionDefinitionId, link]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, holder.battleUnitId, link.effectActionDefinitionId)],
+        targetUnitIds: [holder.battleUnitId],
+        resolvedBindings: new Map([
+          [createTargetBindingId("TGT_FARTHEST"), { units: [], includeDefeated: false }],
+        ]),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor, holder], context);
+
+      expect(
+        result.units.find((u) => u.battleUnitId === holder.battleUnitId)!.appliedEffects,
+      ).toHaveLength(0);
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "EffectActionCompleted")!.payload
+          .resultKind,
+      ).toBe("SKIPPED");
+    });
+
     it("UT-R-HEAL-02-002 (full stack): the target's INCOMING healing modifiers scale the heal amount before truncation", () => {
       const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
       const mod = healingModAction("ACT_HEAL_UP", {

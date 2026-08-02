@@ -9,6 +9,7 @@ import {
   type EffectImmunityState,
   type HealingLinkState,
   type PiercingModifierState,
+  type DamageLinkState,
   type ReflectState,
   type ShieldState,
   type StatusEffectDetails,
@@ -90,6 +91,8 @@ export interface GrantEffectRequest {
   readonly cover?: CoverState;
   /** DMG-006（Issue #188、R-INT-01/03）: `APPLY_REFLECT`由来の付与だけが持つ。 */
   readonly reflect?: ReflectState;
+  /** DMG-007（Issue #187、R-INT-01 #3／R-LNK-01〜03）: `APPLY_DAMAGE_LINK`由来の付与だけが持つ。 */
+  readonly damageLink?: DamageLinkState;
   /** DMG-006（Issue #188、R-INT-01 #5）: `APPLY_DEATH_SURVIVAL`由来の付与だけが持つ。 */
   readonly deathSurvival?: DeathSurvivalState;
   readonly durationDefinition: DurationDefinition;
@@ -278,6 +281,7 @@ export function grantEffect(
     ...(request.targetRedirect !== undefined ? { targetRedirect: request.targetRedirect } : {}),
     ...(request.cover !== undefined ? { cover: request.cover } : {}),
     ...(request.reflect !== undefined ? { reflect: request.reflect } : {}),
+    ...(request.damageLink !== undefined ? { damageLink: request.damageLink } : {}),
     ...(request.deathSurvival !== undefined ? { deathSurvival: request.deathSurvival } : {}),
     categories,
     ...(request.definition.kind === "APPLY_STAT_MOD"

@@ -1848,7 +1848,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
 
   // INT: 防御介入
   // DMG-006（Issue #188）: 引き寄せ・肩代わり・反射・致死耐えを実ライフサイクルへ
-  // 配線した。R-INT-01 #3（`APPLY_DAMAGE_LINK`）はDMG-007（Issue #187）のスコープ。
+  // 配線した。R-INT-01 #3（`APPLY_DAMAGE_LINK`）はDMG-007（Issue #187）が
+  // R-LNK-01〜03とともに実装した。
   {
     ruleId: "R-INT-01",
     testCaseIds: [
@@ -1899,9 +1900,51 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // LNK: リンク
-  { ruleId: "R-LNK-01", testCaseIds: [], kinds: [] },
-  { ruleId: "R-LNK-02", testCaseIds: [], kinds: [] },
-  { ruleId: "R-LNK-03", testCaseIds: [], kinds: [] },
+  // DMG-007（Issue #187）: R-INT-01 #3のリンク状態を実ライフサイクルへ配線した。
+  {
+    ruleId: "R-LNK-01",
+    testCaseIds: [
+      "UT-R-LNK-01-001",
+      "UT-R-LNK-01-002",
+      "UT-R-LNK-01-003",
+      "UT-R-LNK-01-010",
+      "UT-R-LNK-01-011",
+      "IT-CAP-DAMAGE-LINK-STATE-PROD-001",
+      "IT-CAP-DAMAGE-LINK-STATE-PROD-002",
+      "IT-CAP-DAMAGE-LINK-STATE-PROD-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+  },
+  {
+    ruleId: "R-LNK-02",
+    testCaseIds: [
+      "UT-R-LNK-02-001",
+      "UT-R-LNK-02-002",
+      "UT-R-LNK-02-003",
+      "UT-R-LNK-02-004",
+      "UT-R-LNK-02-010",
+      "UT-R-LNK-02-011",
+      "UT-R-LNK-02-012",
+      "UT-R-LNK-02-013",
+      "UT-R-LNK-02-030",
+      "UT-R-LNK-02-031",
+      "UT-R-LNK-02-032",
+      "UT-R-LNK-02-033",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-LNK-03",
+    testCaseIds: [
+      "UT-R-LNK-03-010",
+      "UT-R-LNK-03-020",
+      "UT-R-LNK-03-034",
+      "UT-R-LNK-03-035",
+      "UT-R-LNK-03-036",
+      "UT-R-LNK-03-037",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE"],
+  },
 
   // DOT: 継続ダメージ
   // DMG-008（Issue #189）: 継続ダメージ・炎上・毒を実ライフサイクルへ配線した。

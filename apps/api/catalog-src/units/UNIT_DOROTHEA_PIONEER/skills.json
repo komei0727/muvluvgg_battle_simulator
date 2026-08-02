@@ -2,36 +2,62 @@
   {
     "skillDefinitionId": "SKL_DOROTHEA_PIONEER_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_TRIPLE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 3,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_TRIPLE" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_TRIPLE"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_MULTI" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_EXTRA" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_EX_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_MULTI"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_EXTRA"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_EX_DOWN"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "displayName": "ノーブル・プライド", "tags": [] }
+    "metadata": {
+      "displayName": "ノーブル・プライド",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_DOROTHEA_PIONEER_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -54,85 +80,154 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DEBUFF" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_MARKER" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DEBUFF"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_MARKER"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
     "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "リビューク・ジ・イグノーブル", "tags": [] }
+    "metadata": {
+      "displayName": "リビューク・ジ・イグノーブル",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_DOROTHEA_PIONEER_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BASE"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [],
-    "metadata": { "displayName": "エッジ・オブ・グレイス", "tags": [] }
+    "metadata": {
+      "displayName": "エッジ・オブ・グレイス",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_DOROTHEA_PIONEER_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 2 },
+    "cost": {
+      "resource": "PP",
+      "amount": 2
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_NEAREST",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST"]
+          }
         },
         {
           "targetBindingId": "TGT_FARTHEST",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["FARTHEST"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_NEAREST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_FARTHEST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
     "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
+      "CAP_DAMAGE_LINK_STATE",
       "CAP_SKILL_RUNTIME_COUNTER",
       "CAP_TARGET_FILTER_ORDER"
     ],
-    "metadata": { "displayName": "融和の象徴", "tags": [] },
+    "metadata": {
+      "displayName": "融和の象徴",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnStarted",
@@ -183,7 +278,10 @@
   {
     "skillDefinitionId": "SKL_DOROTHEA_PIONEER_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -200,20 +298,44 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SPEED_UP" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SPEED_UP"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_SHIELD_ALLIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SHIELD" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_SHIELD_ALLIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SHIELD"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "新時代の先駆け", "tags": [] },
+    "requiredCapabilities": [
+      "CAP_SHIELD",
+      "CAP_SKILL_RUNTIME_COUNTER",
+      "CAP_TARGET_EFFECT_QUERY",
+      "CAP_TARGET_FILTER_ORDER"
+    ],
+    "metadata": {
+      "displayName": "新時代の先駆け",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "UnitDefeated",
@@ -221,10 +343,27 @@
         "sourceSelector": "ENEMY",
         "targetSelector": "ENEMY",
         "condition": {
-          "kind": "RUNTIME_COUNTER",
-          "counter": "SKL_DOROTHEA_PIONEER_PS2_ACTIVATIONS",
-          "op": "LT",
-          "value": 1
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_DOROTHEA_PIONEER_PS2_ACTIVATIONS",
+              "op": "LT",
+              "value": 1
+            },
+            {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": {
+                "kind": "TRIGGER_TARGET"
+              },
+              "categories": ["DEBUFF"],
+              "effectActionDefinitionIds": [
+                "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
+                "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST"
+              ],
+              "grantedBy": "SELF"
+            }
+          ]
         }
       }
     ],

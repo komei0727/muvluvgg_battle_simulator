@@ -60,6 +60,8 @@ export const VIOLATION_RULES = [
   "UNSUPPORTED_CONTINUOUS_DAMAGE_TIMING",
   "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
   "UNSUPPORTED_DEFENSIVE_INTERVENTION",
+  "DAMAGE_LINK_UNBOUNDED_BINDING",
+  "GRANTED_BY_OUTSIDE_TRIGGER",
   "UNSUPPORTED_DYNAMIC_DURATION_REAPPLY",
   "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL",
   "MISSING_PRECEDING_RESULT",
@@ -808,6 +810,206 @@ function validateBranchTargetStateUnboundedReference(
   }
 }
 
+/**
+ * R-LNK-01/02（DMG-007、Issue #187）: `APPLY_DAMAGE_LINK.linkTo`が`BINDING`の場合、
+ * その`targetBindingId`は**この効果アクションを使うEffectSequence**が宣言していなければ
+ * ならない。`EffectActionDefinition`はSkillから独立した定義であり自分の使われ方を
+ * 知らないため、Factoryの`createTargetReference`にはbinding scopeを渡せない
+ * （`APPLY_REFLECT`等と同じ制約）。宣言のないbindingを指すリンクは付与時点で
+ * 解決先が引けず、`EffectApplied`は成功するのにリンクが一度も作用しない
+ * silent no-opになるため、`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`と同じ理由で
+ * ロード時に拒否する。
+ *
+ * 解決先は単一ユニット（`AppliedEffect.damageLink.linkToUnitId`）であるため、
+ * `selectorGuaranteesAtMostOneUnit`を満たすbindingだけを許す — 複数体へ解決する
+ * bindingを指すと「どの1体をリンク先にしたか」が定義から読めなくなる。
+ */
+function validateDamageLinkBindingReferences(
+  sequence: EffectSequence,
+  ownerId: string,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const bindingSelectors = new Map<string, TargetSelectorDefinition>(
+    sequence.targetBindings.map((binding) => [binding.targetBindingId, binding.selector]),
+  );
+  for (const ref of collectEffectActionReferences(sequence.steps)) {
+    const effectAction = effectActions.get(ref.effectActionDefinitionId);
+    if (effectAction?.kind !== "APPLY_DAMAGE_LINK") {
+      continue;
+    }
+    const linkTo = effectAction.payload.linkTo;
+    if (linkTo.kind !== "BINDING") {
+      continue;
+    }
+    if (!targetReferenceIsSingleUnit(linkTo, bindingSelectors)) {
+      violations.push({
+        targetId: ownerId,
+        rule: "DAMAGE_LINK_UNBOUNDED_BINDING",
+        message: `references APPLY_DAMAGE_LINK "${ref.effectActionDefinitionId}" whose linkTo BINDING "${linkTo.targetBindingId ?? ""}" is not a targetBinding of this EffectSequence that resolves to at most one unit (a damage link burns a single linkToUnitId at grant time, R-LNK-01/02, DMG-007)`,
+      });
+    }
+  }
+}
+
+/**
+ * DMG-007（Issue #187）: `TARGET_HAS_EFFECT.grantedBy: "SELF"`が指す「自身」は
+ * **その条件を評価しているユニット**であり、実行時にそれを持っているのはPS/Memoryの
+ * trigger条件evaluator（`trigger-condition-evaluator.ts`の`context.owner`）だけである。
+ * EffectSequence内の条件（`stepCondition`/`targetCondition`/BRANCHの`condition`）と
+ * `activationCondition`のevaluatorは評価元ユニットを受け取らないため、そこへ書くと
+ * 「一致しようのない条件」として黙って常に偽になる。`EFFECT_IMMUNITY.statusKinds`の
+ * 到達可能性検証と同じ理由でロード時に拒否する。
+ */
+function conditionUsesGrantedBy(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "TARGET_HAS_EFFECT":
+      return condition.grantedBy !== undefined;
+    case "AND":
+    case "OR":
+      return condition.conditions.some(conditionUsesGrantedBy);
+    case "NOT":
+      return conditionUsesGrantedBy(condition.condition);
+    default:
+      return false;
+  }
+}
+
+function stepsUseGrantedBy(steps: readonly EffectStepDefinition[]): boolean {
+  return steps.some((step) => {
+    switch (step.kind) {
+      case "ACTION":
+        return (
+          conditionUsesGrantedBy(step.stepCondition) || conditionUsesGrantedBy(step.targetCondition)
+        );
+      case "BRANCH":
+        return (
+          conditionUsesGrantedBy(step.condition) ||
+          stepsUseGrantedBy(step.thenSteps) ||
+          stepsUseGrantedBy(step.elseSteps)
+        );
+      case "RANDOM_BRANCH":
+        return step.branches.some((branch) => stepsUseGrantedBy(branch.steps));
+      case "REPEAT":
+        return stepsUseGrantedBy(step.steps);
+    }
+  });
+}
+
+function validateGrantedByScope(
+  sequence: EffectSequence,
+  activationCondition: ConditionDefinition | undefined,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (
+    !stepsUseGrantedBy(sequence.steps) &&
+    (activationCondition === undefined || !conditionUsesGrantedBy(activationCondition))
+  ) {
+    return;
+  }
+  violations.push({
+    targetId: ownerId,
+    rule: "GRANTED_BY_OUTSIDE_TRIGGER",
+    message:
+      'TARGET_HAS_EFFECT.grantedBy is only evaluable inside a Skill trigger condition (triggers[]/counterUpdates[].trigger), where the evaluating unit is known; an EffectSequence or activationCondition evaluator has no "self" to compare AppliedEffect.sourceId against and the condition would silently never match (DMG-007, Issue #187)',
+  });
+}
+
+/**
+ * PR #299レビュー[P2]: Memoryのtrigger条件も`grantedBy`を評価できない。
+ * `memory-trigger-matcher.ts`が渡す評価contextはR-MEM-04どおり`ownerSide`（陣営）
+ * だけで、比較相手の`BattleUnit`（`owner`）を持たないため、実行時には常に
+ * `undefined`が渡り条件が必ず偽になる。Memoryには「自身が付与した」に相当する
+ * 付与者ユニットがそもそも存在しない（`MEMORY_REQUIRES_SOURCE_UNIT`と同じ性質の
+ * 制約）ため、Skillの`triggers[]`と違いMemory側は全面的に拒否する。
+ */
+function validateMemoryTriggerGrantedBy(
+  trigger: TriggerDefinition,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (!conditionUsesGrantedBy(trigger.condition)) {
+    return;
+  }
+  violations.push({
+    targetId: ownerId,
+    rule: "GRANTED_BY_OUTSIDE_TRIGGER",
+    message:
+      "TARGET_HAS_EFFECT.grantedBy cannot be used in a Memory trigger condition: Memory has no owning BattleUnit (R-MEM-04), so the evaluator receives only ownerSide and the AppliedEffect.sourceId comparison would silently never match (PR #299 review [P2], DMG-007 Issue #187)",
+  });
+}
+
+/**
+ * PR #299レビュー[P2]: `TARGET_HAS_EFFECT.effectActionDefinitionIds`が実在の
+ * `EffectActionDefinition`を指しているかを、条件を置けるすべての位置
+ * （Skillの`triggers[]`／`counterUpdates[].trigger`／`activationCondition`／
+ * EffectSequence内のstep条件、Memoryの`trigger`／EffectSequence）で検証する。
+ *
+ * `EFFECT_IMMUNITY`/`REMOVE_EFFECTS`のpayload参照は`validateEffectAction`が
+ * 既に`DANGLING_REFERENCE`にしていたが、条件木の中の参照はどこからも走査されて
+ * おらず、ID体系だけ正しい存在しないIDを含むCatalogがロードに成功していた。
+ * その条件は実行時に一切一致しないsilent no-opになるため、同じ規則で拒否する。
+ */
+function collectConditionEffectActionReferences(
+  condition: ConditionDefinition,
+): readonly EffectActionDefinitionId[] {
+  switch (condition.kind) {
+    case "TARGET_HAS_EFFECT":
+      return condition.effectActionDefinitionIds ?? [];
+    case "AND":
+    case "OR":
+      return condition.conditions.flatMap(collectConditionEffectActionReferences);
+    case "NOT":
+      return collectConditionEffectActionReferences(condition.condition);
+    default:
+      return [];
+  }
+}
+
+function collectStepConditionEffectActionReferences(
+  steps: readonly EffectStepDefinition[],
+): readonly EffectActionDefinitionId[] {
+  return steps.flatMap((step) => {
+    switch (step.kind) {
+      case "ACTION":
+        return [
+          ...collectConditionEffectActionReferences(step.stepCondition),
+          ...collectConditionEffectActionReferences(step.targetCondition),
+        ];
+      case "BRANCH":
+        return [
+          ...collectConditionEffectActionReferences(step.condition),
+          ...collectStepConditionEffectActionReferences(step.thenSteps),
+          ...collectStepConditionEffectActionReferences(step.elseSteps),
+        ];
+      case "RANDOM_BRANCH":
+        return step.branches.flatMap((branch) =>
+          collectStepConditionEffectActionReferences(branch.steps),
+        );
+      case "REPEAT":
+        return collectStepConditionEffectActionReferences(step.steps);
+    }
+  });
+}
+
+function validateConditionEffectActionReferences(
+  references: readonly EffectActionDefinitionId[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const referencedId of references) {
+    if (!effectActions.has(referencedId)) {
+      violations.push({
+        targetId: ownerId,
+        rule: "DANGLING_REFERENCE",
+        message: `TARGET_HAS_EFFECT.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
+      });
+    }
+  }
+}
+
 function validateMixedStepTargetSetCondition(
   steps: readonly EffectStepDefinition[],
   ownerId: string,
@@ -1396,6 +1598,34 @@ function validateSkill(
     validateLastResultDataFlow(sequence.steps, skill.skillDefinitionId, violations);
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
     validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);
+    validateDamageLinkBindingReferences(
+      sequence,
+      skill.skillDefinitionId,
+      effectActions,
+      violations,
+    );
+    validateGrantedByScope(
+      sequence,
+      skill.activationCondition,
+      skill.skillDefinitionId,
+      violations,
+    );
+    validateConditionEffectActionReferences(
+      collectStepConditionEffectActionReferences(sequence.steps),
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
+  }
+  // PR #299レビュー[P2]: 条件を置ける残りの位置（`activationCondition`とtrigger群）も
+  // 同じ規則で走査する。
+  if (skill.activationCondition !== undefined) {
+    validateConditionEffectActionReferences(
+      collectConditionEffectActionReferences(skill.activationCondition),
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
   }
   validateActivationConditionReferences(skill, violations);
   const runtimeTriggers = [
@@ -1405,6 +1635,14 @@ function validateSkill(
       (sequence.counterUpdates ?? []).map((counterUpdate) => counterUpdate.trigger),
     ),
   ];
+  for (const trigger of runtimeTriggers) {
+    validateConditionEffectActionReferences(
+      collectConditionEffectActionReferences(trigger.condition),
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
+  }
   if (skill.counterUpdates.length > 0) {
     requireRuntimeCapability(
       skill.skillDefinitionId,
@@ -1453,6 +1691,25 @@ function validateEffectAction(
   capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
+  // PR #299再レビュー[P2]: `ConditionDefinition`はSkill/Memory側だけでなく
+  // `DurationDefinition`にも2か所ある（R-EFF-08の`expiration.conditions`と、
+  // EFF-005の`counterUpdates[].trigger.condition`）。どちらも同じ評価器
+  // （`trigger-condition-evaluator.ts`）で解決されるため、参照検証も同じ規則で
+  // 行わないと、存在しないIDを指す条件が常に偽のままロードを通ってしまう。
+  const duration = durationOf(effectAction);
+  if (duration !== undefined) {
+    validateConditionEffectActionReferences(
+      [
+        ...(duration.expiration?.conditions ?? []).flatMap(collectConditionEffectActionReferences),
+        ...(duration.counterUpdates ?? []).flatMap((counterUpdate) =>
+          collectConditionEffectActionReferences(counterUpdate.trigger.condition),
+        ),
+      ],
+      effectActions,
+      effectAction.effectActionDefinitionId,
+      violations,
+    );
+  }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {
     for (const referencedId of effectAction.payload.effectActionDefinitionIds ?? []) {
       if (!effectActions.has(referencedId)) {
@@ -1970,6 +2227,25 @@ function collectDefensiveInterventionViolations(
       }
       return;
     }
+    case "APPLY_DAMAGE_LINK": {
+      // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187）。`linkTo`は付与時点で
+      // `AppliedEffect.damageLink.linkToUnitId`（単一ユニット）へ焼き込むため、
+      // その時点で高々1体へ解決できる参照だけを実装する。`SELF`は付与者、
+      // `BINDING`は同じEffectSequenceが解決済みのTargetBindingであり、どちらも
+      // 付与時点に確定している。`TRIGGER_SOURCE`/`TRIGGER_TARGET`/`LAST_*`は
+      // 付与時点のcontextに残っていないか複数体になりうるため受け付けない
+      // （`APPLY_HEALING_LINK.transferTo`が`SELF`だけなのと同じ理由）。
+      requireCapability("CAP_DAMAGE_LINK_STATE");
+      if (
+        effectAction.payload.linkTo.kind !== "SELF" &&
+        effectAction.payload.linkTo.kind !== "BINDING"
+      ) {
+        unsupported(
+          `APPLY_DAMAGE_LINK only implements linkTo {kind: "SELF"} and {kind: "BINDING"} (R-LNK-01/02 resolve the destination at grant time, DMG-007), received {kind: "${effectAction.payload.linkTo.kind}"}`,
+        );
+      }
+      return;
+    }
     case "APPLY_DEATH_SURVIVAL": {
       requireCapability("CAP_DEATH_SURVIVAL");
       if (!effectAction.payload.trigger.lethalDamageOnly) {
@@ -2012,6 +2288,7 @@ function formulasOf(effectAction: EffectActionDefinition): readonly FormulaDefin
     case "APPLY_TARGET_REDIRECT":
     case "APPLY_COVER":
     case "APPLY_HEALING_LINK":
+    case "APPLY_DAMAGE_LINK":
     case "APPLY_SUBUNIT":
     case "COOLDOWN_MANIPULATION":
     case "APPLY_PIERCING_MOD":
@@ -2090,6 +2367,7 @@ function durationOf(effectAction: EffectActionDefinition): DurationDefinition | 
     case "APPLY_ATTACK_DAMAGE_BONUS":
     case "APPLY_RESOURCE_GAIN_MOD":
     case "APPLY_HEALING_LINK":
+    case "APPLY_DAMAGE_LINK":
     case "APPLY_PIERCING_MOD":
     case "APPLY_SUBUNIT":
       // `APPLY_SUBUNIT`は`SUBUNIT_DURATION`（DMG-005、Issue #190）でサブユニット自身も
@@ -2451,6 +2729,28 @@ function validateMemory(
     );
     validateBranchTargetStateUnboundedReference(
       triggeredEffect.effectSequence,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateDamageLinkBindingReferences(
+      triggeredEffect.effectSequence,
+      memory.memoryDefinitionId,
+      effectActions,
+      violations,
+    );
+    validateGrantedByScope(
+      triggeredEffect.effectSequence,
+      undefined,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateMemoryTriggerGrantedBy(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
+    validateConditionEffectActionReferences(
+      [
+        ...collectConditionEffectActionReferences(triggeredEffect.trigger.condition),
+        ...collectStepConditionEffectActionReferences(triggeredEffect.effectSequence.steps),
+      ],
+      effectActions,
       memory.memoryDefinitionId,
       violations,
     );

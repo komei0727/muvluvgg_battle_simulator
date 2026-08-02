@@ -4,18 +4,31 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": { "kind": "SKILL_POWER", "power": 0.3792 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.3792
+      },
       "hitCount": 3
     },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_DAMAGE_EXTRA",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.8532 } },
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.8532
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_EX_EX_DOWN",
@@ -23,18 +36,34 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "ADD",
-      "formula": { "kind": "CONSTANT", "value": -3 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -3
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
     "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.014 } },
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.014
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DEBUFF",
@@ -42,33 +71,62 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
     "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_DOROTHEA_PIONEER_GRACE",
-      "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.014 } },
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.014
+      }
+    },
     "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
@@ -76,25 +134,71 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.05 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
-    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_DMG_UP",
-    "kind": "APPLY_DAMAGE_MOD",
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
+    "kind": "APPLY_DAMAGE_LINK",
     "payload": {
-      "direction": "INCOMING",
-      "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.35 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "linkTo": {
+        "kind": "BINDING",
+        "targetBindingId": "TGT_FARTHEST"
+      },
+      "linkRate": 0.35,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "TURN",
+          "count": 1
+        }
+      },
+      "polarity": "DEBUFF"
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": {
+        "kind": "BINDING",
+        "targetBindingId": "TGT_NEAREST"
+      },
+      "linkRate": 0.35,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "TURN",
+          "count": 1
+        }
+      },
+      "polarity": "DEBUFF"
+    },
+    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SPEED_UP",
@@ -102,12 +206,25 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 100 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 100
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
     "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_PS2_SHIELD",
@@ -115,16 +232,24 @@
     "payload": {
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 0.25
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_TARGET" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_TARGET"
+        }
       }
     },
     "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]
