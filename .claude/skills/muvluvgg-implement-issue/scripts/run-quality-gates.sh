@@ -7,7 +7,7 @@ set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
-if [[ "$(node -p "require('./package.json').name")" != "muvluvgg-battle-simulator" ]]; then
+if [[ "$(mise exec -- node -p "require('./package.json').name")" != "muvluvgg-battle-simulator" ]]; then
   echo "error: run this script in the muvluvgg-battle-simulator repository" >&2
   exit 2
 fi
