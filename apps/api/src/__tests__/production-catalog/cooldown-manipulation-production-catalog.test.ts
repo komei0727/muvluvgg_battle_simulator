@@ -1,14 +1,17 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { applyCooldownManipulationAction } from "../../domain/battle/lifecycle/cooldown-manipulation-application-service.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { ResolvedEffectApplication } from "../../domain/battle/skill/skill-resolution-service.js";
 import { collectEffectActionReferences } from "../../domain/catalog/integrity/catalog-integrity.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * Issue #129 (COOLDOWN_MANIPULATION): exercises the REAL production
@@ -33,27 +36,21 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
-function actorFor(unitDefinitionId: string): ReturnType<typeof createBattleUnit> {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId("B_1:unit:1"),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position: { column: "LEFT", row: "FRONT" },
-    globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "FRONT" }),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, "ALLY", {
-    maximumAp: 4,
-    maximumPp: 4,
-    maximumExtraGauge: 10,
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
+function actorFor(unitDefinitionId: string): BattleUnit {
+  return testBattleUnit({
+    battleUnitId: "B_1:unit:1",
+    unitDefinitionId,
+    combatStats: COMBAT_STATS,
   });
 }
 
@@ -92,51 +89,42 @@ describe("production Catalog COOLDOWN_MANIPULATION (Issue #129)", () => {
   ])(
     "IT-COOLDOWN-MANIP-PROD-001: $sourceSkillId ($unitId) resets $targetSkillId's cooldown via the real $effectActionId payload",
     ({ unitId, sourceSkillId, effectActionId, targetSkillId }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
 
-      const sourceSkill = snapshot.skills.get(sourceSkillId as never);
+      const sourceSkill = skillFrom(snapshot, sourceSkillId);
       expect(sourceSkill).toBeDefined();
       const stepGroups =
-        sourceSkill!.resolution.kind === "CHARGE"
-          ? [sourceSkill!.resolution.steps, sourceSkill!.resolution.chargeRelease.steps]
-          : [sourceSkill!.resolution.steps];
+        sourceSkill.resolution.kind === "CHARGE"
+          ? [sourceSkill.resolution.steps, sourceSkill.resolution.chargeRelease.steps]
+          : [sourceSkill.resolution.steps];
       const referencedIds = stepGroups.flatMap((steps) =>
         collectEffectActionReferences(steps).map((ref) => ref.effectActionDefinitionId),
       );
       expect(referencedIds).toContain(effectActionId);
 
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("COOLDOWN_MANIPULATION");
-      if (effectAction?.kind !== "COOLDOWN_MANIPULATION") {
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("COOLDOWN_MANIPULATION");
+      if (effectAction.kind !== "COOLDOWN_MANIPULATION") {
         return;
       }
       expect(effectAction.payload.targetSkillDefinitionId).toBe(targetSkillId);
       expect(effectAction.payload.operation).toBe("RESET");
       expect(effectAction.requiredCapabilities).toContain("CAP_COOLDOWN_MANIPULATION");
 
-      const targetSkill = snapshot.skills.get(targetSkillId as never);
+      const targetSkill = skillFrom(snapshot, targetSkillId);
       expect(targetSkill).toBeDefined();
       const actor = actorFor(unitId);
-      const actorWithCooldown = {
+      const actorWithCooldown: BattleUnit = {
         ...actor,
         cooldowns: {
-          [targetSkillId]: {
-            unit: targetSkill!.cooldown.unit,
-            remaining: targetSkill!.cooldown.count,
+          [createSkillDefinitionId(targetSkillId)]: {
+            unit: targetSkill.cooldown.unit,
+            remaining: targetSkill.cooldown.count,
           },
         },
-      } as typeof actor;
+      };
 
-      const recorder = new EventRecorder(createBattleId("B_1"));
-      const seed = recorder.record({
-        eventType: "TurnStarted",
-        category: "FACT",
-        turnNumber: 1,
-        cycleNumber: 0,
-        resolutionScopeId: recorder.nextResolutionScopeId(),
-        payload: { turnNumber: 1 },
-      });
+      const { recorder, rootEventId } = seedRecorder("B_1");
       const resolvedApplication: ResolvedEffectApplication = {
         targetBattleUnitId: actorWithCooldown.battleUnitId,
         effectActionDefinitionId: effectAction.effectActionDefinitionId,
@@ -154,18 +142,18 @@ describe("production Catalog COOLDOWN_MANIPULATION (Issue #129)", () => {
           actionId: recorder.nextActionId(),
           skillUseId: recorder.nextSkillUseId(),
           resolutionScopeId: recorder.nextResolutionScopeId(),
-          rootEventId: seed.eventId,
-          parentEventId: seed.eventId,
+          rootEventId,
+          parentEventId: rootEventId,
           sourceUnitId: actorWithCooldown.battleUnitId,
         },
       );
 
-      expect(result.units[0]!.cooldowns[targetSkillId as never]?.remaining).toBe(0);
+      expect(result.units[0]!.cooldowns[createSkillDefinitionId(targetSkillId)]?.remaining).toBe(0);
       const reduced = recorder.getEvents().filter((e) => e.eventType === "CooldownReduced");
       expect(reduced).toHaveLength(1);
       expect(reduced[0]!.payload).toMatchObject({
         skillDefinitionId: targetSkillId,
-        before: targetSkill!.cooldown.count,
+        before: targetSkill.cooldown.count,
         after: 0,
       });
       expect(recorder.getEvents().filter((e) => e.eventType === "CooldownCompleted")).toHaveLength(

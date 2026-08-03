@@ -11,13 +11,14 @@ import {
   decrementActionEffectDurations,
   decrementTurnEffectDurations,
 } from "../../domain/battle/model/applied-effect-duration.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * EFF-003 (Issue #159): exercises the REAL production `catalog/` `APPLY_STAT_MOD`
@@ -35,41 +36,18 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
-function actorFor(unitDefinitionId: string, id: string): BattleUnit {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate("ALLY", position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, "ALLY", { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
-}
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
 
-function seedRecorder(): {
-  recorder: EventRecorder;
-  rootEventId: ReturnType<EventRecorder["record"]>["eventId"];
-} {
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
-  return { recorder, rootEventId: seed.eventId };
+function actorFor(unitDefinitionId: string, id: string): BattleUnit {
+  return testBattleUnit({ battleUnitId: id, unitDefinitionId, combatStats: COMBAT_STATS });
 }
 
 describe("production Catalog ACTION-unit duration decrement (EFF-003, R-EFF-04)", () => {
@@ -108,11 +86,10 @@ describe("production Catalog ACTION-unit duration decrement (EFF-003, R-EFF-04)"
   ])(
     "IT-CAP-COMPLEX-EXPIRATION-PROD-001: $effectActionId ($unitId, owner=$expectedOwner) decrements and expires via the real duration payload, reverting CombatStat",
     ({ unitId, effectActionId, expectedOwner, stat, grantToOther, decrementActorIsSource }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("APPLY_STAT_MOD");
-      if (effectAction?.kind !== "APPLY_STAT_MOD") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("APPLY_STAT_MOD");
+      if (effectAction.kind !== "APPLY_STAT_MOD") {
         return;
       }
       expect(effectAction.payload.duration.timeLimit?.unit).toBe("ACTION");
@@ -125,7 +102,7 @@ describe("production Catalog ACTION-unit duration decrement (EFF-003, R-EFF-04)"
       const source = actorFor(unitId, "source-1");
       const other = actorFor(unitId, "other-1");
       const holder = grantToOther ? other : source;
-      const { recorder, rootEventId } = seedRecorder();
+      const { recorder, rootEventId } = seedRecorder("B_1");
       const grantingActionId = createActionId("B_1:action:1");
 
       // R-EFF-05: the target holds the AppliedEffect regardless of owner.
@@ -227,11 +204,10 @@ describe("production Catalog TURN-unit duration decrement (EFF-003, R-EFF-06)", 
   ])(
     "IT-CAP-COMPLEX-EXPIRATION-PROD-002: $effectActionId ($unitId) decrements and expires via the real TURN duration payload",
     ({ unitId, effectActionId, stat }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("APPLY_STAT_MOD");
-      if (effectAction?.kind !== "APPLY_STAT_MOD") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("APPLY_STAT_MOD");
+      if (effectAction.kind !== "APPLY_STAT_MOD") {
         return;
       }
       expect(effectAction.payload.duration.timeLimit?.unit).toBe("TURN");
@@ -241,7 +217,7 @@ describe("production Catalog TURN-unit duration decrement (EFF-003, R-EFF-06)", 
       }
 
       const owner = actorFor(unitId, "owner-1");
-      const { recorder, rootEventId } = seedRecorder();
+      const { recorder, rootEventId } = seedRecorder("B_1");
 
       const grantResult = grantEffect(
         {
@@ -329,11 +305,10 @@ describe("production Catalog consumption (EFF-003, R-EFF-07)", () => {
   ])(
     "IT-CAP-COMPLEX-EXPIRATION-PROD-003: $effectActionId ($unitId) consumes and expires via the real NEXT_OUTGOING_ATTACK consumption payload",
     ({ unitId, effectActionId, stat }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("APPLY_STAT_MOD");
-      if (effectAction?.kind !== "APPLY_STAT_MOD") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("APPLY_STAT_MOD");
+      if (effectAction.kind !== "APPLY_STAT_MOD") {
         return;
       }
       expect(effectAction.payload.duration.consumption?.kind).toBe("NEXT_OUTGOING_ATTACK");
@@ -343,7 +318,7 @@ describe("production Catalog consumption (EFF-003, R-EFF-07)", () => {
       }
 
       const owner = actorFor(unitId, "owner-1");
-      const { recorder, rootEventId } = seedRecorder();
+      const { recorder, rootEventId } = seedRecorder("B_1");
 
       const grantResult = grantEffect(
         {
@@ -428,13 +403,12 @@ describe("production Catalog consumption (EFF-003, R-EFF-07)", () => {
 
 describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () => {
   it("IT-CAP-COMPLEX-EXPIRATION-PROD-004: UNIT_HARRIET_SAGE's HARRIET_CURSE_LINK cascades ACT_HARRIET_SAGE_AS1_DMGDOWN when ACT_HARRIET_SAGE_AS1_ATKDOWN expires, via the real linkedEffectGroupId payload", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_HARRIET_SAGE" as never], []);
-    const atkDown = snapshot.effectActions.get("ACT_HARRIET_SAGE_AS1_ATKDOWN" as never);
-    const dmgDown = snapshot.effectActions.get("ACT_HARRIET_SAGE_AS1_DMGDOWN" as never);
-    expect(atkDown?.kind).toBe("APPLY_STAT_MOD");
-    expect(dmgDown?.kind).toBe("APPLY_DAMAGE_MOD");
-    if (atkDown?.kind !== "APPLY_STAT_MOD" || dmgDown?.kind !== "APPLY_DAMAGE_MOD") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_HARRIET_SAGE"]);
+    const atkDown = effectActionFrom(snapshot, "ACT_HARRIET_SAGE_AS1_ATKDOWN");
+    const dmgDown = effectActionFrom(snapshot, "ACT_HARRIET_SAGE_AS1_DMGDOWN");
+    expect(atkDown.kind).toBe("APPLY_STAT_MOD");
+    expect(dmgDown.kind).toBe("APPLY_DAMAGE_MOD");
+    if (atkDown.kind !== "APPLY_STAT_MOD" || dmgDown.kind !== "APPLY_DAMAGE_MOD") {
       return;
     }
     expect(atkDown.requiredCapabilities).toContain("CAP_COMPLEX_EXPIRATION");
@@ -447,7 +421,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
     }
 
     const owner = actorFor("UNIT_HARRIET_SAGE", "owner-1");
-    const { recorder, rootEventId } = seedRecorder();
+    const { recorder, rootEventId } = seedRecorder("B_1");
     const context = {
       recorder,
       turnNumber: 1,
@@ -526,15 +500,12 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
   });
 
   it("IT-CAP-COMPLEX-EXPIRATION-PROD-005 (レビュー修正 PR #209): UNIT_HARRIET_SAGE's HARRIET_BARRIER cascades ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL when ACT_HARRIET_SAGE_AS2_IMMUNITY expires via its OWN consumption (INCOMING_HIT), proving cascade eligibility does not depend on the seed's expiration reason", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_HARRIET_SAGE" as never], []);
-    const immunity = snapshot.effectActions.get("ACT_HARRIET_SAGE_AS2_IMMUNITY" as never);
-    const continuousHeal = snapshot.effectActions.get(
-      "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL" as never,
-    );
-    expect(immunity?.kind).toBe("APPLY_STATUS");
-    expect(continuousHeal?.kind).toBe("APPLY_CONTINUOUS_HEAL");
-    if (immunity?.kind !== "APPLY_STATUS" || continuousHeal?.kind !== "APPLY_CONTINUOUS_HEAL") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_HARRIET_SAGE"]);
+    const immunity = effectActionFrom(snapshot, "ACT_HARRIET_SAGE_AS2_IMMUNITY");
+    const continuousHeal = effectActionFrom(snapshot, "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL");
+    expect(immunity.kind).toBe("APPLY_STATUS");
+    expect(continuousHeal.kind).toBe("APPLY_CONTINUOUS_HEAL");
+    if (immunity.kind !== "APPLY_STATUS" || continuousHeal.kind !== "APPLY_CONTINUOUS_HEAL") {
       return;
     }
     expect(immunity.payload.duration.consumption).toEqual({ kind: "INCOMING_HIT", maxCount: 2 });
@@ -542,7 +513,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
     expect(continuousHeal.payload.duration.linkedEffectGroupId).toBe("HARRIET_BARRIER");
 
     const owner = actorFor("UNIT_HARRIET_SAGE", "owner-1");
-    const { recorder, rootEventId } = seedRecorder();
+    const { recorder, rootEventId } = seedRecorder("B_1");
     const context = {
       recorder,
       turnNumber: 1,

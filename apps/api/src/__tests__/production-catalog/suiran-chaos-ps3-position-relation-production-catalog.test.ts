@@ -1,15 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { advanceBattle, createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -20,13 +16,18 @@ import type { EffectActionDefinition } from "../../domain/catalog/definitions/ef
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
 import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
 import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
 import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
 import { applyDamageAction } from "../../domain/battle/combat/damage-application-service.js";
+import {
+  definitionsWith,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * Issue #144 follow-up (docs/ddd/15_Unit_Memory変換台帳.md 該当行):
@@ -68,61 +69,14 @@ const ENEMY_ALL: TargetSelectorDefinition = {
   includeDefeated: false,
 };
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-}
+const COMBAT_STATS = { maximumHp: 100, attack: 50, defense: 10, affinityBonus: 0.25 };
 
-function testUnitDefinition(id: string, actionSpeed: number): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 10,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-      actionSpeed,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
+/** Suiranの前後に並べる相手役。行動順を決める actionSpeed だけ呼び出し側が変える。 */
+function standInUnitDefinition(id: string, actionSpeed: number): UnitDefinition {
+  return testUnitDefinition(id, {
+    baseStats: { ...COMBAT_STATS, actionSpeed },
     activeSkillDefinitionIds: [createSkillDefinitionId(ATTACKER_AS_ID)],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
+  });
 }
 
 function attackerSkill(): SkillDefinition {
@@ -193,21 +147,26 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
         [createEffectActionDefinitionId(ATTACKER_EFFECT_ID), attackerEffectAction()],
       ]),
       unitDefinitions: new Map([
-        [createUnitDefinitionId(ATTACKER_UNIT_ID), testUnitDefinition(ATTACKER_UNIT_ID, 20)],
-        [createUnitDefinitionId(ENEMY_UNIT_ID), testUnitDefinition(ENEMY_UNIT_ID, 5)],
+        [createUnitDefinitionId(ATTACKER_UNIT_ID), standInUnitDefinition(ATTACKER_UNIT_ID, 20)],
+        [createUnitDefinitionId(ENEMY_UNIT_ID), standInUnitDefinition(ENEMY_UNIT_ID, 5)],
       ]),
       skillDefinitions: new Map([[createSkillDefinitionId(ATTACKER_AS_ID), attackerSkill()]]),
     };
-    const attacker = createBattleUnit(
-      member("ally:attacker", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    );
-    const enemy = createBattleUnit(
-      member("enemy:1", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    );
+    const attacker = testBattleUnit({
+      battleUnitId: "ally:attacker",
+      unitDefinitionId: ATTACKER_UNIT_ID,
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const enemy = testBattleUnit({
+      battleUnitId: "enemy:1",
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
     const battle = startBattle(
       createBattle(
         createBattleId("B_1"),
@@ -236,26 +195,21 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     // (R-PS-01) together with Suiran's REAL, unmodified `UnitDefinition`/
     // `SkillDefinition` loaded from production `catalog/`, positioned so the
     // attacker is "in front of" Suiran (R-POS-02, POSITION_RELATION).
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
-    const suiranUnitDefinition = snapshot.units.get(SUIRAN_UNIT_ID as never);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
+    const suiranUnitDefinition = unitFrom(snapshot, SUIRAN_UNIT_ID);
     expect(suiranUnitDefinition).toBeDefined();
-    expect(suiranUnitDefinition!.passiveSkillDefinitionIds).toContain(SUIRAN_PS3_ID);
+    expect(suiranUnitDefinition.passiveSkillDefinitionIds).toContain(SUIRAN_PS3_ID);
 
-    const suiran = createBattleUnit(
-      member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
-      "ALLY",
-      LIMITS,
-    );
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(
-      createUnitDefinitionId(ATTACKER_UNIT_ID),
-      testUnitDefinition(ATTACKER_UNIT_ID, 20),
-    );
-    unitDefinitions.set(
-      createUnitDefinitionId(ENEMY_UNIT_ID),
-      testUnitDefinition(ENEMY_UNIT_ID, 5),
-    );
+    const suiran = testBattleUnit({
+      battleUnitId: "ally:suiran",
+      unitDefinitionId: SUIRAN_UNIT_ID,
+      position: { column: "LEFT", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const { unitDefinitions } = definitionsWith(snapshot, {
+      units: [standInUnitDefinition(ATTACKER_UNIT_ID, 20), standInUnitDefinition(ENEMY_UNIT_ID, 5)],
+    });
 
     const triggerEvent: TriggerCandidateEvent = {
       eventType: skillUseStarting!.eventType,
@@ -285,50 +239,40 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
   });
 
   it("IT-CAP-TRIGGER-CONTEXT-PROD-001 (RES-005, Issue #172): PassiveActivationRuntime fully activates SKL_SUIRAN_CHAOS_PS3 from a real SkillUseStarting event — TRIGGER_TARGET resolves to the real attacker's real enemy target (DAMAGE + speed-down), TRIGGER_SOURCE resolves to the real attacker (crit-up), using unmodified production Catalog definitions", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
 
     // `createBattleUnit` always starts PP at 0 (only `startBattle`'s
     // READY→RUNNING resource recovery grants any) — since this test drives
     // `PassiveActivationRuntime` directly rather than a full battle, Suiran
     // needs enough PP for PS3's cost (2) set explicitly, same as
     // `passive-activation-service.test.ts`'s own `unit()` helper does.
-    const suiran = {
-      ...createBattleUnit(
-        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentPp: LIMITS.maximumPp,
-    };
-    const attacker = createBattleUnit(
-      member("ally:attacker", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    );
-    const enemy = createBattleUnit(
-      member("enemy:1", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    );
+    const suiran = testBattleUnit({
+      battleUnitId: "ally:suiran",
+      unitDefinitionId: SUIRAN_UNIT_ID,
+      position: { column: "LEFT", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentPp: LIMITS.maximumPp },
+    });
+    const attacker = testBattleUnit({
+      battleUnitId: "ally:attacker",
+      unitDefinitionId: ATTACKER_UNIT_ID,
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const enemy = testBattleUnit({
+      battleUnitId: "enemy:1",
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
 
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(
-      createUnitDefinitionId(ATTACKER_UNIT_ID),
-      testUnitDefinition(ATTACKER_UNIT_ID, 20),
-    );
-    unitDefinitions.set(
-      createUnitDefinitionId(ENEMY_UNIT_ID),
-      testUnitDefinition(ENEMY_UNIT_ID, 5),
-    );
-
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
+    const definitions = definitionsWith(snapshot, {
+      units: [standInUnitDefinition(ATTACKER_UNIT_ID, 20), standInUnitDefinition(ENEMY_UNIT_ID, 5)],
+    });
 
     // Build the exact `SkillUseStarting` event `action-skill-use-resolver.ts`
     // emits for an AS use (same envelope proven for real by Step 1 of the
@@ -448,46 +392,37 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
   });
 
   it("IT-CAP-TRIGGER-CONTEXT-PROD-002 (RES-005/Issue #172, M7-004/Issue #183, CAP_HIT_COUNT_EVASION): SKL_SUIRAN_CHAOS_PS1 is detected and activates through the real UnitBeingAttacked event, and now genuinely grants an EVASION AppliedEffect to the TRIGGER_TARGET (the attacked ally), through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
 
-    const suiran = {
-      ...createBattleUnit(
-        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentPp: LIMITS.maximumPp,
-    };
+    const suiran = testBattleUnit({
+      battleUnitId: "ally:suiran",
+      unitDefinitionId: SUIRAN_UNIT_ID,
+      position: { column: "LEFT", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentPp: LIMITS.maximumPp },
+    });
     // PS1's trigger is `UnitBeingAttacked` with `sourceSelector: "ENEMY"`,
     // `targetSelector: "ALLY"`: an enemy attacks an ally positioned in front
     // of Suiran.
-    const attackedAlly = createBattleUnit(
-      member("ally:attacked", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    );
-    const enemyAttacker = createBattleUnit(
-      member("enemy:attacker", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    );
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(
-      createUnitDefinitionId(ATTACKER_UNIT_ID),
-      testUnitDefinition(ATTACKER_UNIT_ID, 20),
-    );
-    unitDefinitions.set(
-      createUnitDefinitionId(ENEMY_UNIT_ID),
-      testUnitDefinition(ENEMY_UNIT_ID, 5),
-    );
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
+    const attackedAlly = testBattleUnit({
+      battleUnitId: "ally:attacked",
+      unitDefinitionId: ATTACKER_UNIT_ID,
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const enemyAttacker = testBattleUnit({
+      battleUnitId: "enemy:attacker",
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const definitions = definitionsWith(snapshot, {
+      units: [standInUnitDefinition(ATTACKER_UNIT_ID, 20), standInUnitDefinition(ENEMY_UNIT_ID, 5)],
+    });
 
     const recorder = new EventRecorder(createBattleId("B_3"));
     const resolutionScopeId = recorder.nextResolutionScopeId();
@@ -575,17 +510,16 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
   });
 
   it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172; PR #220 review finding [P2]): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, and its ACT_SUIRAN_CHAOS_PS2_HEAL now resolves end-to-end (M7-005, Issue #184)", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
 
-    const suiran = {
-      ...createBattleUnit(
-        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentPp: LIMITS.maximumPp,
-    };
+    const suiran = testBattleUnit({
+      battleUnitId: "ally:suiran",
+      unitDefinitionId: SUIRAN_UNIT_ID,
+      position: { column: "LEFT", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentPp: LIMITS.maximumPp },
+    });
     // PS2's trigger is `HitPointReduced` with `sourceSelector: "ANY"`,
     // `targetSelector: "ALLY"` (PR #220 review [P2] re-review: the raw source
     // doesn't limit "自身の目の前に編成されている味方のHPが半分以下" to any
@@ -600,44 +534,36 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     // `woundedAlly.combatStats.maximumHp` is lowered so a single real hit
     // from `enemyAttacker` (attack 50 - defense 10 = 40 damage) crosses the
     // 50% threshold.
-    const woundedAlly = {
-      ...createBattleUnit(
-        member("ally:wounded", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      combatStats: {
-        maximumHp: 60,
-        attack: 50,
-        defense: 10,
-        criticalRate: 0,
-        actionSpeed: 10,
-        criticalDamageBonus: 0.5,
-        affinityBonus: 0.25,
+    const woundedAlly = testBattleUnit({
+      battleUnitId: "ally:wounded",
+      unitDefinitionId: ATTACKER_UNIT_ID,
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      // `baseCombatStats` は据え置いたまま実効HP上限だけ下げ、実攻撃1発でHP割合が
+      // 50%を割るようにする。
+      overrides: {
+        combatStats: {
+          ...COMBAT_STATS,
+          maximumHp: 60,
+          criticalRate: 0,
+          actionSpeed: 10,
+          criticalDamageBonus: 0.5,
+        },
+        currentHp: 60,
       },
-      currentHp: 60,
-    };
-    const enemyAttacker = createBattleUnit(
-      member("enemy:attacker", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    );
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(
-      createUnitDefinitionId(ATTACKER_UNIT_ID),
-      testUnitDefinition(ATTACKER_UNIT_ID, 20),
-    );
-    unitDefinitions.set(
-      createUnitDefinitionId(ENEMY_UNIT_ID),
-      testUnitDefinition(ENEMY_UNIT_ID, 5),
-    );
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
+    });
+    const enemyAttacker = testBattleUnit({
+      battleUnitId: "enemy:attacker",
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const definitions = definitionsWith(snapshot, {
+      units: [standInUnitDefinition(ATTACKER_UNIT_ID, 20), standInUnitDefinition(ENEMY_UNIT_ID, 5)],
+    });
 
     // Step 1: drive the REAL `applyDamageAction` (the actual production
     // Damage pipeline, not a hand-authored stand-in) so the `HitPointReduced`
@@ -739,57 +665,47 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
   });
 
   it("IT-CAP-TRIGGER-CONTEXT-PROD-004 (PR #220 review finding [P2] re-review): SKL_SUIRAN_CHAOS_PS2 also candidate-izes for a REAL HitPointReduced whose source is an ALLY, not just an enemy — sourceSelector: ANY must not silently exclude ally-caused/self-inflicted HP loss", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
 
-    const suiran = {
-      ...createBattleUnit(
-        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "LEFT", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentPp: LIMITS.maximumPp,
-    };
-    const woundedAlly = {
-      ...createBattleUnit(
-        member("ally:wounded", ATTACKER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      combatStats: {
-        maximumHp: 60,
-        attack: 50,
-        defense: 10,
-        criticalRate: 0,
-        actionSpeed: 10,
-        criticalDamageBonus: 0.5,
-        affinityBonus: 0.25,
+    const suiran = testBattleUnit({
+      battleUnitId: "ally:suiran",
+      unitDefinitionId: SUIRAN_UNIT_ID,
+      position: { column: "LEFT", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentPp: LIMITS.maximumPp },
+    });
+    const woundedAlly = testBattleUnit({
+      battleUnitId: "ally:wounded",
+      unitDefinitionId: ATTACKER_UNIT_ID,
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      // `baseCombatStats` は据え置いたまま実効HP上限だけ下げ、実攻撃1発でHP割合が
+      // 50%を割るようにする。
+      overrides: {
+        combatStats: {
+          ...COMBAT_STATS,
+          maximumHp: 60,
+          criticalRate: 0,
+          actionSpeed: 10,
+          criticalDamageBonus: 0.5,
+        },
+        currentHp: 60,
       },
-      currentHp: 60,
-    };
+    });
     // The attacker is an ALLY this time (e.g. a future self-damaging-cost or
     // friendly-fire mechanic) — same side as Suiran and the wounded target.
-    const allyAttacker = createBattleUnit(
-      member("ally:attacker", ENEMY_UNIT_ID, "ALLY", { column: "RIGHT", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    );
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(
-      createUnitDefinitionId(ATTACKER_UNIT_ID),
-      testUnitDefinition(ATTACKER_UNIT_ID, 20),
-    );
-    unitDefinitions.set(
-      createUnitDefinitionId(ENEMY_UNIT_ID),
-      testUnitDefinition(ENEMY_UNIT_ID, 5),
-    );
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
+    const allyAttacker = testBattleUnit({
+      battleUnitId: "ally:attacker",
+      unitDefinitionId: ENEMY_UNIT_ID,
+      position: { column: "RIGHT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const definitions = definitionsWith(snapshot, {
+      units: [standInUnitDefinition(ATTACKER_UNIT_ID, 20), standInUnitDefinition(ENEMY_UNIT_ID, 5)],
+    });
 
     const recorder = new EventRecorder(createBattleId("B_5"));
     const resolutionScopeId = recorder.nextResolutionScopeId();

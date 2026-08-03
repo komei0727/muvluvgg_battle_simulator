@@ -1,29 +1,26 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-005（Issue #184、R-HEAL-01〜03）: production Catalogの回復定義を実カタログ
@@ -48,63 +45,7 @@ const PS1_CONTINUOUS_HEAL_ID = "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-  overrides: { maximumHp?: number; attack?: number } = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: overrides.attack ?? 100,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = { maximumHp: 1000, attack: 100, defense: 0 };
 
 /** ONLY the real production effect action, applied to every ally (the AS3 binding shape). */
 function allAlliesSkill(effectActionId: string): SkillDefinition {
@@ -184,31 +125,10 @@ function selfTargetedSkill(effectActionId: string): SkillDefinition {
   };
 }
 
-function definitionsWith(
-  snapshot: ReturnType<ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]>,
-  skill: SkillDefinition,
-  extraUnitDefinitionIds: readonly string[],
-): BattleDefinitions {
-  const skillDefinitions = new Map(snapshot.skills);
-  skillDefinitions.set(skill.skillDefinitionId, skill);
-  const unitDefinitions = new Map(snapshot.units);
-  for (const id of extraUnitDefinitionIds) {
-    unitDefinitions.set(createUnitDefinitionId(id), testUnitDefinition(id));
-  }
-  return {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: new Map(snapshot.effectActions),
-    unitDefinitions,
-    skillDefinitions,
-  };
-}
-
 describe("production Catalog UNIT_LUCIE_COMPANION heal definitions (M7-005, Issue #184, R-HEAL-01〜03)", () => {
   it("IT-CAP-HEAL-PROD-001 (HEAL_DISTRIBUTE, real lifecycle wiring): the real ACT_LUCIE_COMPANION_AS3_HEAL splits one 威力65 total heal evenly across every ally instead of granting each ally the full amount", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([LUCIE_UNIT_ID as never], []);
-    const healDefinition = snapshot.effectActions.get(createEffectActionDefinitionId(AS3_HEAL_ID))!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [LUCIE_UNIT_ID]);
+    const healDefinition = effectActionFrom(snapshot, AS3_HEAL_ID);
     expect(healDefinition.kind).toBe("HEAL");
     // The approximation this Issue removes lived in the Catalog itself: the
     // ledger row recorded that the "distribute one total amount" wording was
@@ -219,23 +139,22 @@ describe("production Catalog UNIT_LUCIE_COMPANION heal definitions (M7-005, Issu
     });
 
     const otherAllyUnitId = "UNIT_TEST_HEAL_ALLY";
-    const lucie = {
-      ...createBattleUnit(
-        member("ally:lucie", LUCIE_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-      currentHp: 100,
-    };
-    const otherAlly = {
-      ...createBattleUnit(
-        member("ally:other", otherAllyUnitId, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentHp: 100,
-    };
+    const lucie = testBattleUnit({
+      battleUnitId: "ally:lucie",
+      unitDefinitionId: LUCIE_UNIT_ID,
+      position: { column: "CENTER", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp, currentHp: 100 },
+    });
+    const otherAlly = testBattleUnit({
+      battleUnitId: "ally:other",
+      unitDefinitionId: otherAllyUnitId,
+      position: { column: "LEFT", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentHp: 100 },
+    });
     const skill = allAlliesSkill(AS3_HEAL_ID);
     const recorder = new EventRecorder(createBattleId("B_1"));
 
@@ -245,7 +164,7 @@ describe("production Catalog UNIT_LUCIE_COMPANION heal definitions (M7-005, Issu
       "AS",
       "AS",
       [lucie, otherAlly],
-      definitionsWith(snapshot, skill, [otherAllyUnitId]),
+      definitionsWith(snapshot, { units: [otherAllyUnitId], skills: [skill] }),
       new SequenceRandomSource([]),
       recorder,
       1,
@@ -274,25 +193,21 @@ describe("production Catalog UNIT_LUCIE_COMPANION heal definitions (M7-005, Issu
   });
 
   it("IT-CAP-CONTINUOUS-HEAL-PROD-001 (R-HEAL-03, real lifecycle wiring): the real ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL grants an AppliedEffect carrying the production ACTION(2) duration without healing at grant time, and its EffectApplied StateDelta reconstructs the same effect through the independent Reducer", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([LUCIE_UNIT_ID as never], []);
-    const hotDefinition = snapshot.effectActions.get(
-      createEffectActionDefinitionId(PS1_CONTINUOUS_HEAL_ID),
-    )!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [LUCIE_UNIT_ID]);
+    const hotDefinition = effectActionFrom(snapshot, PS1_CONTINUOUS_HEAL_ID);
     expect(hotDefinition).toMatchObject({
       kind: "APPLY_CONTINUOUS_HEAL",
       payload: { timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" } },
     });
 
-    const lucie = {
-      ...createBattleUnit(
-        member("ally:lucie", LUCIE_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-      currentHp: 100,
-    };
+    const lucie = testBattleUnit({
+      battleUnitId: "ally:lucie",
+      unitDefinitionId: LUCIE_UNIT_ID,
+      position: { column: "CENTER", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp, currentHp: 100 },
+    });
     const skill = selfTargetedSkill(PS1_CONTINUOUS_HEAL_ID);
     const recorder = new EventRecorder(createBattleId("B_1"));
 
@@ -302,7 +217,7 @@ describe("production Catalog UNIT_LUCIE_COMPANION heal definitions (M7-005, Issu
       "AS",
       "AS",
       [lucie],
-      definitionsWith(snapshot, skill, []),
+      definitionsWith(snapshot, { skills: [skill] }),
       new SequenceRandomSource([]),
       recorder,
       1,
@@ -331,22 +246,7 @@ describe("production Catalog UNIT_LUCIE_COMPANION heal definitions (M7-005, Issu
       initialRemaining: 2,
     });
 
-    const emptyState: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [lucie.battleUnitId]: {
-          hp: lucie.currentHp,
-          ap: lucie.currentAp,
-          pp: lucie.currentPp,
-          extraGauge: lucie.currentExtraGauge,
-          maximumAp: lucie.maximumAp,
-          maximumPp: lucie.maximumPp,
-          maximumExtraGauge: lucie.maximumExtraGauge,
-          combatStats: lucie.combatStats,
-        },
-      },
-    };
+    const emptyState = initialSnapshotFor([lucie], { status: "READY" });
     const reduced = applyStateDelta(emptyState, applied.stateDelta!);
     expect(reduced.units[lucie.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[lucie.battleUnitId]!.effects![0]).toMatchObject({

@@ -2,12 +2,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { applyMarker } from "../../domain/battle/effects/marker-apply-service.js";
 import { removeMarkers } from "../../domain/battle/effects/marker-removal-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * EFF-004 (Issue #160): exercises REAL production `catalog/` `APPLY_MARKER`/
@@ -21,40 +22,22 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
 function actorFor(unitDefinitionId: string, battleUnitId: string): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position: { column: "LEFT", row: "FRONT" },
-    globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "FRONT" }),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, "ALLY", {
-    maximumAp: 4,
-    maximumPp: 4,
-    maximumExtraGauge: 10,
-  });
+  return testBattleUnit({ battleUnitId, unitDefinitionId, combatStats: COMBAT_STATS });
 }
 
 function newContext() {
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
+  const { recorder, rootEventId } = seedRecorder("B_1");
   return {
     recorder,
     context: {
@@ -62,7 +45,7 @@ function newContext() {
       turnNumber: 1,
       cycleNumber: 1,
       resolutionScopeId: recorder.nextResolutionScopeId(),
-      rootEventId: seed.eventId,
+      rootEventId,
     },
   };
 }
@@ -76,12 +59,11 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
   ])(
     "IT-MARKER-PROD-001: $effectActionId ($unitId) applies via the real payload's stack policy",
     ({ unitId, effectActionId }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
 
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("APPLY_MARKER");
-      if (effectAction?.kind !== "APPLY_MARKER") {
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("APPLY_MARKER");
+      if (effectAction.kind !== "APPLY_MARKER") {
         return;
       }
       expect(effectAction.requiredCapabilities).toContain("CAP_MARKER");
@@ -154,12 +136,11 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
   ])(
     "IT-MARKER-PROD-002: $applyEffectActionId ($unitId) grants a Marker the real payload can later REMOVE_MARKER",
     ({ unitId, applyEffectActionId, removeEffectActionId }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
 
-      const applyEffectAction = snapshot.effectActions.get(applyEffectActionId as never);
-      expect(applyEffectAction?.kind).toBe("APPLY_MARKER");
-      if (applyEffectAction?.kind !== "APPLY_MARKER") {
+      const applyEffectAction = effectActionFrom(snapshot, applyEffectActionId);
+      expect(applyEffectAction.kind).toBe("APPLY_MARKER");
+      if (applyEffectAction.kind !== "APPLY_MARKER") {
         return;
       }
 
@@ -184,9 +165,9 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
       if (removeEffectActionId === undefined) {
         return;
       }
-      const removeEffectAction = snapshot.effectActions.get(removeEffectActionId as never);
-      expect(removeEffectAction?.kind).toBe("REMOVE_MARKER");
-      if (removeEffectAction?.kind !== "REMOVE_MARKER") {
+      const removeEffectAction = effectActionFrom(snapshot, removeEffectActionId);
+      expect(removeEffectAction.kind).toBe("REMOVE_MARKER");
+      if (removeEffectAction.kind !== "REMOVE_MARKER") {
         return;
       }
       expect(removeEffectAction.payload.markerId).toBe(applyEffectAction.payload.markerId);

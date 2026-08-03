@@ -1,15 +1,19 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { buildInitialMarkerState } from "../../domain/battle/model/marker-state.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
+import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { Side } from "../../domain/shared/side.js";
 import { resolveBindingSelections } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * Issue #169 (TGT-002): `CAP_TARGET_FILTER_ORDER` — `TargetSelectorDefinition`
@@ -35,38 +39,31 @@ function unitAt(
   position: FormationPosition,
   overrides: Partial<BattleUnit> = {},
 ): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
     combatStats: {
-      maximumHp: 100,
       attack: 100,
       defense: 50,
       criticalRate: 0.1,
       actionSpeed: 100,
-      criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
     },
-  };
-  return {
-    ...createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 }),
-    ...overrides,
-  };
+    overrides,
+  });
 }
 
 describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () => {
   it("IT-CAP-TARGET-FILTER-ORDER-PROD-001: SKL_LYDIA_GENIUS_EX's real OR/POSITION_COLUMN filter with NEAREST/FRONT_ROW/LEFT_TO_RIGHT fallback order and POSITION_ROW filter", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_LYDIA_GENIUS"] as never[], []);
-    const skill = snapshot.skills.get("SKL_LYDIA_GENIUS_EX" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_LYDIA_GENIUS"]);
+    const skill = skillFrom(snapshot, "SKL_LYDIA_GENIUS_EX");
     expect(skill).toBeDefined();
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_BINDING_FALLBACK");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_BINDING_FALLBACK");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_COLUMNS", "TGT_BACK_ROW"]);
 
     const actor = unitAt("ACTOR", "UNIT_LYDIA_GENIUS", "ALLY", { column: "CENTER", row: "FRONT" });
@@ -96,11 +93,10 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
   });
 
   it("IT-CAP-TARGET-FILTER-ORDER-PROD-002: SKL_LYDIA_GENIUS_EX's TGT_COLUMNS falls back to NEAREST/FRONT_ROW/LEFT_TO_RIGHT when no column candidate exists", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_LYDIA_GENIUS"] as never[], []);
-    const skill = snapshot.skills.get("SKL_LYDIA_GENIUS_EX" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_LYDIA_GENIUS"]);
+    const skill = skillFrom(snapshot, "SKL_LYDIA_GENIUS_EX");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
 
     const actor = unitAt("ACTOR", "UNIT_LYDIA_GENIUS", "ALLY", { column: "CENTER", row: "FRONT" });
     const onlyCenter = unitAt("ONLY_CENTER", "UNIT_LYDIA_GENIUS", "ENEMY", {
@@ -115,17 +111,16 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
   });
 
   it("IT-CAP-TARGET-FILTER-ORDER-PROD-003: SKL_CLARA_SANTA_AS2's real MARKER_IN_AREA filter targets a column containing the tagged unit, not necessarily the tagged unit itself", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_CLARA_SANTA"] as never[], []);
-    const skill = snapshot.skills.get("SKL_CLARA_SANTA_AS2" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_CLARA_SANTA"]);
+    const skill = skillFrom(snapshot, "SKL_CLARA_SANTA_AS2");
     expect(skill).toBeDefined();
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_BASE", "TGT_COLUMN"]);
 
     const actor = unitAt("ACTOR", "UNIT_CLARA_SANTA", "ALLY", { column: "CENTER", row: "FRONT" });
-    const markerId = "MARKER_CLARA_SANTA_TAG" as never;
+    const markerId = createMarkerId("MARKER_CLARA_SANTA_TAG");
     const taggedBack = unitAt(
       "TAGGED_BACK",
       "UNIT_CLARA_SANTA",
@@ -178,19 +173,18 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
   });
 
   it("IT-CAP-TARGET-FILTER-ORDER-PROD-004: SKL_DOROTHEA_PIONEER_AS1's real MARKER_COUNT ASC order prioritizes the enemy with the fewest markers", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_DOROTHEA_PIONEER"] as never[], []);
-    const skill = snapshot.skills.get("SKL_DOROTHEA_PIONEER_AS1" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_DOROTHEA_PIONEER"]);
+    const skill = skillFrom(snapshot, "SKL_DOROTHEA_PIONEER_AS1");
     expect(skill).toBeDefined();
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
 
     const actor = unitAt("ACTOR", "UNIT_DOROTHEA_PIONEER", "ALLY", {
       column: "CENTER",
       row: "FRONT",
     });
-    const markerId = "MARKER_DOROTHEA_PIONEER_GRACE" as never;
+    const markerId = createMarkerId("MARKER_DOROTHEA_PIONEER_GRACE");
     const graced = unitAt(
       "GRACED",
       "UNIT_DOROTHEA_PIONEER",
@@ -229,13 +223,12 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
   });
 
   it("IT-CAP-TARGET-FILTER-ORDER-PROD-005: SKL_MIHIME_SNIPER_AS1's real EXCLUDE_RESOLVED_UNIT filter picks a second, different enemy for TGT_OTHER", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_MIHIME_SNIPER"] as never[], []);
-    const skill = snapshot.skills.get("SKL_MIHIME_SNIPER_AS1" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_MIHIME_SNIPER"]);
+    const skill = skillFrom(snapshot, "SKL_MIHIME_SNIPER_AS1");
     expect(skill).toBeDefined();
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_LOWEST", "TGT_OTHER"]);
 
     const actor = unitAt("ACTOR", "UNIT_MIHIME_SNIPER", "ALLY", { column: "CENTER", row: "FRONT" });
@@ -265,23 +258,22 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
   });
 
   it("IT-CAP-TARGET-FILTER-ORDER-PROD-006: SKL_SHIRANA_SORA_AS1's real UNIT_TYPE_PRIORITY+SELF_LOWEST_PRIORITY order prefers the ENERGY-type ally over self", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(
-      ["UNIT_SHIRANA_SORA", "UNIT_DOROTHEA_PIONEER"] as never[],
-      [],
-    );
-    const skill = snapshot.skills.get("SKL_SHIRANA_SORA_AS1" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), [
+      "UNIT_SHIRANA_SORA",
+      "UNIT_DOROTHEA_PIONEER",
+    ]);
+    const skill = skillFrom(snapshot, "SKL_SHIRANA_SORA_AS1");
     expect(skill).toBeDefined();
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
 
     const actor = unitAt("ACTOR", "UNIT_SHIRANA_SORA", "ALLY", { column: "CENTER", row: "FRONT" });
     const enAlly = unitAt("EN_ALLY", "UNIT_DOROTHEA_PIONEER", "ALLY", {
       column: "LEFT",
       row: "FRONT",
     });
-    expect(snapshot.units.get("UNIT_DOROTHEA_PIONEER" as never)?.unitType).toBe("ENERGY");
+    expect(unitFrom(snapshot, "UNIT_DOROTHEA_PIONEER").unitType).toBe("ENERGY");
 
     const selections = resolveBindingSelections(
       targetBindings,

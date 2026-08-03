@@ -1,13 +1,15 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import { createBattleUnitId } from "../../domain/shared/ids.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
 import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
 import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * Review fix [P1] (Issue #144 follow-up, PR #152): `TurnStarted`/`TurnCompleting`
@@ -33,38 +35,27 @@ const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const KARINA_UNIT_ID = "UNIT_KARINA_DOWNER";
 const KARINA_PS2_ID = "SKL_KARINA_DOWNER_PS2";
 
-function actorFor(
-  unitDefinitionId: string,
-  battleUnitId: string,
-): ReturnType<typeof createBattleUnit> {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate("ALLY", position),
+function actorFor(unitDefinitionId: string, battleUnitId: string): BattleUnit {
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
     combatStats: {
-      maximumHp: 100,
       attack: 100,
       defense: 50,
       criticalRate: 0.1,
       actionSpeed: 100,
-      criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
     },
-  };
-  return createBattleUnit(member, "ALLY", { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+  });
 }
 
 describe("production Catalog TurnStarted/TurnCompleting SELF/SELF triggers (review fix [P1], Issue #144 follow-up)", () => {
   it("IT-CAT-PROD-016: SKL_KARINA_DOWNER_PS2's real TurnCompleting SELF/SELF trigger candidates its owner given the exact event shape battle.ts emits (no sourceUnitId/targetUnitIds)", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([KARINA_UNIT_ID as never], []);
-    const karinaUnitDefinition = snapshot.units.get(KARINA_UNIT_ID as never);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [KARINA_UNIT_ID]);
+    const karinaUnitDefinition = unitFrom(snapshot, KARINA_UNIT_ID);
     expect(karinaUnitDefinition).toBeDefined();
-    expect(karinaUnitDefinition!.passiveSkillDefinitionIds).toContain(KARINA_PS2_ID);
-    const trigger = snapshot.skills.get(KARINA_PS2_ID as never)!.triggers[0];
+    expect(karinaUnitDefinition.passiveSkillDefinitionIds).toContain(KARINA_PS2_ID);
+    const trigger = skillFrom(snapshot, KARINA_PS2_ID).triggers[0];
     expect(trigger).toMatchObject({
       eventType: "TurnCompleting",
       sourceSelector: "SELF",

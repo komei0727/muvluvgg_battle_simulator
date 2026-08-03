@@ -3,19 +3,18 @@ import { describe, expect, it } from "vitest";
 import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
 import { composeDamageModifiers } from "../../domain/battle/combat/damage-modifier-policy.js";
 import { evaluateFormula } from "../../domain/battle/skill/formula-evaluator.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import type { MarkerState } from "../../domain/battle/model/marker-state.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { createHitPoint } from "../../domain/battle/model/resource-gauge.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
-import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { runProductionUnitBattle } from "../../testing/scenario/run-production-battle.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import type { Side } from "../../domain/shared/side.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+  testMarker,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-002（Issue #192、R-DMG-03／R-DMG-04）: 実 `catalog/` の
@@ -31,25 +30,18 @@ import type { Side } from "../../domain/shared/side.js";
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
 function unitFor(id: string, unitDefinitionId: string, side: Side): BattleUnit {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+  return testBattleUnit({ battleUnitId: id, unitDefinitionId, side, combatStats: COMBAT_STATS });
 }
 
 function withCurrentHp(unit: BattleUnit, currentHp: number): BattleUnit {
@@ -57,29 +49,7 @@ function withCurrentHp(unit: BattleUnit, currentHp: number): BattleUnit {
 }
 
 function withMarker(unit: BattleUnit, markerIdValue: string): BattleUnit {
-  const marker: MarkerState = {
-    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
-    markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
-    stackCount: 1,
-    stackMax: null,
-    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
-  };
-  return { ...unit, markerStates: [marker] };
-}
-
-function seededRecorder() {
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
-  return { recorder, seed };
+  return { ...unit, markerStates: [testMarker(unit, markerIdValue)] };
 }
 
 /**
@@ -93,15 +63,12 @@ function grantDamageModFromCatalog(
   holder: BattleUnit,
   others: readonly BattleUnit[],
 ) {
-  const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-    [unitDefinitionId as never],
-    [],
-  );
-  const definition = snapshot.effectActions.get(effectActionDefinitionId as never);
-  if (definition?.kind !== "APPLY_DAMAGE_MOD") {
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitDefinitionId]);
+  const definition = effectActionFrom(snapshot, effectActionDefinitionId);
+  if (definition.kind !== "APPLY_DAMAGE_MOD") {
     throw new Error(`production Catalog has no APPLY_DAMAGE_MOD "${effectActionDefinitionId}"`);
   }
-  const { recorder, seed } = seededRecorder();
+  const { recorder, seed } = seedRecorder("B_1");
   const units = [holder, ...others];
   const magnitude = evaluateFormula(definition.payload.formula, {
     skillSource: holder,

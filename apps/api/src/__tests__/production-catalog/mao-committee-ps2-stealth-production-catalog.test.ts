@@ -1,30 +1,28 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * TGT-004フェーズ3（Issue #167、R-TGT-08「ステルス」production Catalog統合）:
@@ -53,63 +51,7 @@ const MAO_UNIT_ID = "UNIT_MAO_COMMITTEE";
 const STEALTH_EFFECT_ID = "ACT_MAO_COMMITTEE_PS2_STEALTH";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
-
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = { maximumHp: 100, attack: 50, defense: 0 };
 
 /** A minimal synthetic AS skill wrapping ONLY the real production STEALTH effect action, self-targeted. */
 function grantStealthSkill(): SkillDefinition {
@@ -211,33 +153,20 @@ function attackEffectAction(id: string): EffectActionDefinition {
 
 describe("production Catalog ACT_MAO_COMMITTEE_PS2_STEALTH (TGT-004フェーズ3, Issue #167, R-TGT-08)", () => {
   it("IT-CAP-STEALTH-PROD-001 (R-ACTN-03, real lifecycle wiring): resolving the real production ACT_MAO_COMMITTEE_PS2_STEALTH definition through resolveSkillUse grants a statusKind:STEALTH AppliedEffect with the production-defined SKILL_USE(3) duration and linkedEffectGroupId, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([MAO_UNIT_ID as never], []);
-    const stealthDefinition = snapshot.effectActions.get(
-      createEffectActionDefinitionId(STEALTH_EFFECT_ID),
-    )!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [MAO_UNIT_ID]);
+    const stealthDefinition = effectActionFrom(snapshot, STEALTH_EFFECT_ID);
     expect(stealthDefinition.kind).toBe("APPLY_STATUS");
 
-    const maoUnitDefinitionId = MAO_UNIT_ID;
-    const mao = {
-      ...createBattleUnit(
-        member("ally:mao", maoUnitDefinitionId, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const mao = testBattleUnit({
+      battleUnitId: "ally:mao",
+      unitDefinitionId: MAO_UNIT_ID,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
     const skill = grantStealthSkill();
-    const effectActions = new Map(snapshot.effectActions);
-    const skillDefinitions = new Map(snapshot.skills);
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions: new Map(snapshot.units),
-      skillDefinitions,
-    };
+    const definitions = definitionsWith(snapshot, { skills: [skill] });
     const recorder = new EventRecorder(createBattleId("B_1"));
     const before = recorder.getEvents().length;
 
@@ -288,22 +217,7 @@ describe("production Catalog ACT_MAO_COMMITTEE_PS2_STEALTH (TGT-004フェーズ3
 
     // 独立Reducer復元: EffectApplied自身のstateDeltaだけからAppliedEffectを
     // 復元しても、実lifecycle経由で得た値と一致する（statusKindを含む）。
-    const emptyState: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [mao.battleUnitId]: {
-          hp: mao.currentHp,
-          ap: mao.currentAp,
-          pp: mao.currentPp,
-          extraGauge: mao.currentExtraGauge,
-          maximumAp: mao.maximumAp,
-          maximumPp: mao.maximumPp,
-          maximumExtraGauge: mao.maximumExtraGauge,
-          combatStats: mao.combatStats,
-        },
-      },
-    };
+    const emptyState = initialSnapshotFor([mao], { status: "READY" });
     const reduced = applyStateDelta(emptyState, applied.stateDelta!);
     expect(reduced.units[mao.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[mao.battleUnitId]!.effects![0]).toMatchObject({
@@ -314,56 +228,50 @@ describe("production Catalog ACT_MAO_COMMITTEE_PS2_STEALTH (TGT-004フェーズ3
   });
 
   it("IT-CAP-STEALTH-PROD-002 (R-TGT-08, Q-TGT-05): a unit holding the real production Stealth AppliedEffect is redirected away from as first-priority target, and the Stealth is consumed (EffectExpired/CONSUMPTION) on the real production instance", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([MAO_UNIT_ID as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [MAO_UNIT_ID]);
 
     const attackerUnitId = "UNIT_TEST_STEALTH_ATTACKER";
     const otherAllyUnitId = "UNIT_TEST_STEALTH_OTHER_ALLY";
     const attackDefinitionId = "ACT_TEST_STEALTH_ATTACK";
 
-    const mao = {
-      ...createBattleUnit(
-        member("ally:mao", MAO_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
-    const otherAlly = createBattleUnit(
-      member("ally:other", otherAllyUnitId, "ALLY", { column: "LEFT", row: "BACK" }),
-      "ALLY",
-      LIMITS,
-    );
-    const attacker = {
-      ...createBattleUnit(
-        member("enemy:attacker", attackerUnitId, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const mao = testBattleUnit({
+      battleUnitId: "ally:mao",
+      unitDefinitionId: MAO_UNIT_ID,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
+    const otherAlly = testBattleUnit({
+      battleUnitId: "ally:other",
+      unitDefinitionId: otherAllyUnitId,
+      position: { column: "LEFT", row: "BACK" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
+    const attacker = testBattleUnit({
+      battleUnitId: "enemy:attacker",
+      unitDefinitionId: attackerUnitId,
+      side: "ENEMY",
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
 
     const grantSkill = grantStealthSkill();
     const attack = attackEffectAction(attackDefinitionId);
     const attackSkill = attackerSkill(attackDefinitionId);
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(createUnitDefinitionId(attackerUnitId), testUnitDefinition(attackerUnitId));
-    unitDefinitions.set(
-      createUnitDefinitionId(otherAllyUnitId),
-      testUnitDefinition(otherAllyUnitId),
-    );
     const effectActions = new Map(snapshot.effectActions);
     effectActions.set(attack.effectActionDefinitionId, attack);
-    const skillDefinitions = new Map(snapshot.skills);
-    skillDefinitions.set(grantSkill.skillDefinitionId, grantSkill);
-    skillDefinitions.set(attackSkill.skillDefinitionId, attackSkill);
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
-    };
+    const definitions = definitionsWith(snapshot, {
+      units: [
+        testUnitDefinition(attackerUnitId, { baseStats: COMBAT_STATS }),
+        testUnitDefinition(otherAllyUnitId, { baseStats: COMBAT_STATS }),
+      ],
+      skills: [grantSkill, attackSkill],
+      overrides: { effectActions },
+    });
     const recorder = new EventRecorder(createBattleId("B_1"));
 
     const grantResult = resolveSkillUse(

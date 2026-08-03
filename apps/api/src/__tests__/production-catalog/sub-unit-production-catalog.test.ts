@@ -2,7 +2,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { runProductionUnitBattle } from "../../testing/scenario/run-production-battle.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  skillFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-005（Issue #190、R-SUB-01/R-SUB-02）: 実 `catalog/` の `APPLY_SUBUNIT` 定義を、
@@ -23,12 +27,9 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function subUnitDefinition(unitDefinitionId: string, effectActionDefinitionId: string) {
-  const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-    [unitDefinitionId as never],
-    [],
-  );
-  const definition = snapshot.effectActions.get(effectActionDefinitionId as never);
-  if (definition?.kind !== "APPLY_SUBUNIT") {
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitDefinitionId]);
+  const definition = effectActionFrom(snapshot, effectActionDefinitionId);
+  if (definition.kind !== "APPLY_SUBUNIT") {
     throw new Error(`production Catalog has no APPLY_SUBUNIT "${effectActionDefinitionId}"`);
   }
   return definition;
@@ -92,14 +93,11 @@ describe("production Catalog APPLY_SUBUNIT (CAP_SUBUNIT, DMG-005 Issue #190)", (
     });
     expect(definition.payload.duration.timeLimit).toEqual({ unit: "ACTION", count: 3 });
 
-    const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-      ["UNIT_SHIRANA_SORA" as never],
-      [],
-    );
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_SHIRANA_SORA"]);
     // 追加デバフはスキルのstepからは参照されないが、推移閉包へ含まれている。
-    const debuff = snapshot.effectActions.get("ACT_SHIRANA_SORA_AS1_SUBUNIT_SPEED_DOWN" as never);
-    expect(debuff?.kind).toBe("APPLY_STAT_MOD");
-    if (debuff?.kind === "APPLY_STAT_MOD") {
+    const debuff = effectActionFrom(snapshot, "ACT_SHIRANA_SORA_AS1_SUBUNIT_SPEED_DOWN");
+    expect(debuff.kind).toBe("APPLY_STAT_MOD");
+    if (debuff.kind === "APPLY_STAT_MOD") {
       expect(debuff.payload.stat).toBe("ACTION_SPEED");
       expect(debuff.payload.formula).toEqual({ kind: "CONSTANT", value: -20 });
       // raw原文「（重複可）」。
@@ -139,11 +137,8 @@ describe("production Catalog APPLY_SUBUNIT (CAP_SUBUNIT, DMG-005 Issue #190)", (
     expect(camrad1.payload.duration.dispellable).toBe(true);
 
     // 「3つ付与する」は同じEffectActionを3回参照するstepとして表す。
-    const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-      ["UNIT_OLGA_VETERAN" as never],
-      [],
-    );
-    const ps1 = snapshot.skills.get("SKL_OLGA_VETERAN_PS1" as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_OLGA_VETERAN"]);
+    const ps1 = skillFrom(snapshot, "SKL_OLGA_VETERAN_PS1");
     const subUnitReferences =
       ps1.resolution.kind === "CHARGE"
         ? []

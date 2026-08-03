@@ -6,12 +6,9 @@ import {
 } from "../../domain/battle/lifecycle/action-charge-resolver.js";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
@@ -21,7 +18,7 @@ import { reconfirmPassiveCandidate } from "../../domain/battle/triggering/reconf
 import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -32,7 +29,14 @@ import type { EffectActionDefinition } from "../../domain/catalog/definitions/ef
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）: 「チャージ中の回避・PS制限」を
@@ -81,29 +85,15 @@ const ATTACK_SKILL_ID = "SKL_TEST_CHARGE_ATTACKER";
 
 const LIMITS = { maximumAp: 3, maximumPp: 4, maximumExtraGauge: 100 };
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 200,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: 200,
+  attack: 50,
+  defense: 0,
+  criticalRate: 0,
+  actionSpeed: 10,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
 
 function actorFor(
   battleUnitId: string,
@@ -111,45 +101,27 @@ function actorFor(
   side: Side,
   position: FormationPosition,
 ): BattleUnit {
-  return {
-    ...createBattleUnit(member(battleUnitId, unitDefinitionId, side, position), side, LIMITS),
-    currentAp: LIMITS.maximumAp,
-    currentPp: LIMITS.maximumPp,
-  };
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
+    position,
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: { currentAp: LIMITS.maximumAp, currentPp: LIMITS.maximumPp },
+  });
 }
 
 /** PSを一切持たない補助ユニット定義（付与役・攻撃役）。 */
 function plainUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
+  return testUnitDefinition(id, {
     baseStats: {
-      maximumHp: 200,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
+      ...COMBAT_STATS,
       maximumAp: LIMITS.maximumAp,
       maximumPp: LIMITS.maximumPp,
     },
     extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
+  });
 }
 
 /**
@@ -281,75 +253,29 @@ interface Fixture {
  * 定義だけを足す。production定義（unit/skill/effectAction）は一切書き換えない。
  */
 function fixture(unitIds: readonly string[], grantEffectActionId?: string): Fixture {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(unitIds as never[], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, unitIds);
 
   const attack = twoHitAttack();
   const effectActions = new Map(snapshot.effectActions);
   effectActions.set(attack.effectActionDefinitionId, attack);
 
-  const skillDefinitions = new Map(snapshot.skills);
-  skillDefinitions.set(createSkillDefinitionId(ATTACK_SKILL_ID), attackerSkill());
-  if (grantEffectActionId !== undefined) {
-    skillDefinitions.set(
-      createSkillDefinitionId(GRANT_SKILL_ID),
-      allyGrantSkill(grantEffectActionId),
-    );
-  }
-
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(
-    createUnitDefinitionId(SUPPORT_UNIT_ID),
-    plainUnitDefinition(SUPPORT_UNIT_ID),
-  );
-  unitDefinitions.set(
-    createUnitDefinitionId(ATTACKER_UNIT_ID),
-    plainUnitDefinition(ATTACKER_UNIT_ID),
-  );
+  const definitions = definitionsWith(snapshot, {
+    units: [plainUnitDefinition(SUPPORT_UNIT_ID), plainUnitDefinition(ATTACKER_UNIT_ID)],
+    skills: [
+      attackerSkill(),
+      ...(grantEffectActionId === undefined ? [] : [allyGrantSkill(grantEffectActionId)]),
+    ],
+    overrides: { effectActions },
+  });
 
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
-    },
+    definitions,
     recorder: new EventRecorder(createBattleId("B_CHARGE")),
-    skillOf: (skillDefinitionId) => skillDefinitions.get(skillDefinitionId as never)!,
-    unitDefinitionOf: (unitDefinitionId) => unitDefinitions.get(unitDefinitionId as never)!,
+    skillOf: (skillDefinitionId) =>
+      definitions.skillDefinitions.get(createSkillDefinitionId(skillDefinitionId))!,
+    unitDefinitionOf: (unitDefinitionId) =>
+      definitions.unitDefinitions.get(createUnitDefinitionId(unitDefinitionId))!,
   };
-}
-
-function snapshotOf(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-        },
-      ]),
-    ),
-  };
-}
-
-function replay(initial: BattleStateSnapshot, recorder: EventRecorder): BattleStateSnapshot {
-  return reduceStateDeltas(
-    initial,
-    recorder
-      .getEvents()
-      .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
-  );
 }
 
 function unitIn(units: readonly BattleUnit[], target: BattleUnit): BattleUnit {
@@ -394,7 +320,7 @@ function runEvasionScenario(options: {
     column: "CENTER",
     row: "FRONT",
   });
-  const initialSnapshot = snapshotOf([charger, support, attacker]);
+  const initialSnapshot = initialSnapshotFor([charger, support, attacker]);
 
   let units: readonly BattleUnit[] = [charger, support, attacker];
   if (options.charging) {
@@ -488,7 +414,7 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
         startedActionId: "B_CHARGE:action:1",
       },
     });
-    const replayed = replay(result.initialSnapshot, result.recorder);
+    const replayed = reconstruct(result.initialSnapshot, result.recorder);
     expect(replayed.units[result.chargerBefore.battleUnitId]!.charge).toEqual({
       skillDefinitionId: MIRIAM_CHARGE_SKILL_ID,
       startedActionId: "B_CHARGE:action:1",
@@ -701,7 +627,7 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
       column: "CENTER",
       row: "FRONT",
     });
-    const initialSnapshot = snapshotOf([siena, enemy]);
+    const initialSnapshot = initialSnapshotFor([siena, enemy]);
 
     const charged = resolveChargeStart(
       siena,
@@ -744,7 +670,9 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
           e.stateDelta?.units?.[siena.battleUnitId]?.charge !== undefined,
       );
     expect(chargeClearing.map((e) => e.eventType)).toEqual(["ActionCompleting"]);
-    expect(replay(initialSnapshot, recorder).units[siena.battleUnitId]!.charge).toBeUndefined();
+    expect(
+      reconstruct(initialSnapshot, recorder).units[siena.battleUnitId]!.charge,
+    ).toBeUndefined();
 
     const turnStartedEvent: TriggerCandidateEvent = {
       eventType: "TurnStarted",

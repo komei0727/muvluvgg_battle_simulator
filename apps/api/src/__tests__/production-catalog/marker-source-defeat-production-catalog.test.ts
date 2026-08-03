@@ -5,17 +5,21 @@ import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import type { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
+import type { BattleUnitId } from "../../domain/shared/ids.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-020（Issue #279、`MARKER_REMOVAL_ON_SOURCE_DEATH`、R-EFF-10）: 実
@@ -39,13 +43,11 @@ const BASE_CRITICAL_RATE = 0.5;
 const LIMITS = { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 };
 
 function actorFor(unitDefinitionId: string, battleUnitId: string, side: Side): BattleUnit {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
+    position: { column: "LEFT", row: "FRONT" },
     combatStats: {
       maximumHp: 1000,
       attack: 100,
@@ -55,12 +57,12 @@ function actorFor(unitDefinitionId: string, battleUnitId: string, side: Side): B
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
     },
-  };
-  return createBattleUnit(member, side, LIMITS);
+    limits: LIMITS,
+  });
 }
 
 function loadAoiSnapshot() {
-  return loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot([AOI_UNIT_ID as never], []);
+  return loadProductionSnapshot(CATALOG_DIR, [AOI_UNIT_ID]);
 }
 
 interface Scene {
@@ -80,23 +82,15 @@ interface Scene {
  */
 function sceneWithKouyou(): Scene {
   const snapshot = loadAoiSnapshot();
-  const markerAction = snapshot.effectActions.get(AOI_MARKER_EFFECT_ID as never)!;
-  const critDownAction = snapshot.effectActions.get(AOI_CRIT_DOWN_EFFECT_ID as never)!;
+  const markerAction = effectActionFrom(snapshot, AOI_MARKER_EFFECT_ID);
+  const critDownAction = effectActionFrom(snapshot, AOI_CRIT_DOWN_EFFECT_ID);
   if (markerAction.kind !== "APPLY_MARKER" || critDownAction.kind !== "APPLY_STAT_MOD") {
     throw new Error("production Catalog no longer matches the shape this test assumes");
   }
 
   const granter = actorFor(AOI_UNIT_ID, "B_1:unit:1", "ALLY");
   const holder = actorFor(AOI_UNIT_ID, "B_1:unit:2", "ENEMY");
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
+  const { recorder, seed } = seedRecorder("B_1");
   const context = {
     recorder,
     turnNumber: 1,
@@ -153,35 +147,14 @@ function sceneWithKouyou(): Scene {
     units: unitsAfterGrant,
     granterId: granter.battleUnitId,
     holderId: holder.battleUnitId,
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: new Map(snapshot.effectActions),
-      unitDefinitions: new Map(snapshot.units),
-      skillDefinitions: new Map(snapshot.skills),
-    },
+    definitions: definitionsWith(snapshot),
     seedEventId: seed.eventId,
   };
 }
 
 /** 独立Reducerの復元結果と突き合わせる、1ユニット分の観測可能な状態。 */
 function snapshotOf(unit: BattleUnit): BattleStateSnapshot["units"][BattleUnitId] {
-  return {
-    hp: unit.currentHp,
-    ap: unit.currentAp,
-    pp: unit.currentPp,
-    extraGauge: unit.currentExtraGauge,
-    maximumAp: unit.maximumAp,
-    maximumPp: unit.maximumPp,
-    maximumExtraGauge: unit.maximumExtraGauge,
-    combatStats: unit.combatStats,
-    ...(unit.appliedEffects.length > 0
-      ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-      : {}),
-    ...(unit.markerStates.length > 0
-      ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-      : {}),
-  };
+  return initialSnapshotFor([unit], { include: ["effects", "markers"] }).units[unit.battleUnitId]!;
 }
 
 /** 付与者を戦闘不能にし、その`UnitDefeated`を実ライフサイクルへ流す。 */
@@ -218,7 +191,7 @@ function defeatGranter(scene: Scene): readonly BattleUnit[] {
 describe("production Catalog removeOnSourceDefeated (M7-020, Issue #279, R-EFF-10)", () => {
   it("IT-MARKER-SOURCE-DEFEAT-PROD-001: ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU declares removeOnSourceDefeated as the group's PARENT, and neither CHILD declares it", () => {
     const snapshot = loadAoiSnapshot();
-    const marker = snapshot.effectActions.get(AOI_MARKER_EFFECT_ID as never)!;
+    const marker = effectActionFrom(snapshot, AOI_MARKER_EFFECT_ID);
     expect(marker.kind).toBe("APPLY_MARKER");
     if (marker.kind !== "APPLY_MARKER") {
       return;
@@ -230,7 +203,7 @@ describe("production Catalog removeOnSourceDefeated (M7-020, Issue #279, R-EFF-1
     // 子はMarkerの解除に連動するだけで、自身が付与者戦闘不能を契機にしない
     // （`catalog-integrity.ts`が非APPLY_MARKERへの宣言を拒否する裏付け）。
     for (const childId of [AOI_CRIT_DOWN_EFFECT_ID, AOI_DOT_EFFECT_ID]) {
-      const child = snapshot.effectActions.get(childId as never)!;
+      const child = effectActionFrom(snapshot, childId);
       const duration =
         child.kind === "APPLY_STAT_MOD" || child.kind === "APPLY_CONTINUOUS_DAMAGE"
           ? child.payload.duration
@@ -277,13 +250,10 @@ describe("production Catalog removeOnSourceDefeated (M7-020, Issue #279, R-EFF-1
   it("IT-MARKER-SOURCE-DEFEAT-PROD-003 (independent Reducer restoration): applying only the removal StateDeltas to the pre-defeat snapshot leaves neither 「高揚」 nor its CHILD behind", () => {
     const scene = sceneWithKouyou();
     const eventsBefore = scene.recorder.getEvents().length;
-    const initial: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [scene.holderId]: snapshotOf(scene.units.find((u) => u.battleUnitId === scene.holderId)!),
-      },
-    };
+    const initial = initialSnapshotFor(
+      [scene.units.find((u) => u.battleUnitId === scene.holderId)!],
+      { status: "READY", include: ["effects", "markers"] },
+    );
     const units = defeatGranter(scene);
 
     const reduced = scene.recorder

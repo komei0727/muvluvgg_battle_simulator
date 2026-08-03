@@ -2,21 +2,22 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { removeEffects } from "../../domain/battle/effects/effect-removal-service.js";
 import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { createEffectActionDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { toEffectSnapshot } from "../../domain/battle/events/state-delta.js";
 import {
   effectKindKeyFromDefinitionId,
   type AppliedEffect,
 } from "../../domain/battle/model/applied-effect.js";
 import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
+import {
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-001 (Issue #181, R-EFF-02): exercises REAL production `catalog/`
@@ -30,36 +31,22 @@ import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
 function actorFor(unitDefinitionId: string, battleUnitId: string): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position: { column: "LEFT", row: "FRONT" },
-    globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "FRONT" }),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, "ALLY", { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+  return testBattleUnit({ battleUnitId, unitDefinitionId, combatStats: COMBAT_STATS });
 }
 
 function newContext() {
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
+  const { recorder, rootEventId } = seedRecorder("B_1");
   return {
     recorder,
     context: {
@@ -67,7 +54,7 @@ function newContext() {
       turnNumber: 1,
       cycleNumber: 1,
       resolutionScopeId: recorder.nextResolutionScopeId(),
-      rootEventId: seed.eventId,
+      rootEventId,
     },
   };
 }
@@ -147,11 +134,10 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
   ])(
     "IT-REMOVE-EFFECTS-PROD-001: $effectActionId ($unitId) removes only maxRemovals debuffs (REMOVE_EFFECTS_COUNT_LIMIT)",
     ({ unitId, effectActionId, limit }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("REMOVE_EFFECTS");
-      if (effectAction?.kind !== "REMOVE_EFFECTS") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("REMOVE_EFFECTS");
+      if (effectAction.kind !== "REMOVE_EFFECTS") {
         return;
       }
       expect(effectAction.payload.maxRemovals).toBe(limit);
@@ -160,7 +146,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       const owner = actorFor(unitId, "B_1:unit:1");
       const { context } = newContext();
       // Grant one extra debuff beyond the limit to prove the cap holds.
-      const debuffDefId = "ACT_TEST_DEBUFF" as EffectActionDefinition["effectActionDefinitionId"];
+      const debuffDefId = createEffectActionDefinitionId("ACT_TEST_DEBUFF");
       const seeded = withDebuffs(context, owner, debuffDefId, limit + 1);
       const debuffDef: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
@@ -210,11 +196,10 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
   ])(
     "IT-REMOVE-EFFECTS-PROD-004: $effectActionId ($unitId) removes only maxRemovals buffs (M7-001C, REMOVE_BUFF_CATEGORY)",
     ({ unitId, effectActionId, limit }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("REMOVE_EFFECTS");
-      if (effectAction?.kind !== "REMOVE_EFFECTS") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("REMOVE_EFFECTS");
+      if (effectAction.kind !== "REMOVE_EFFECTS") {
         return;
       }
       expect([...effectAction.payload.categories]).toEqual(["BUFF"]);
@@ -224,7 +209,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       const owner = actorFor(unitId, "B_1:unit:1");
       const { context } = newContext();
       // Grant one extra buff beyond the limit to prove the cap holds.
-      const buffDefId = "ACT_TEST_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
+      const buffDefId = createEffectActionDefinitionId("ACT_TEST_BUFF");
       const seeded = withEffects(context, owner, buffDefId, limit + 1, 0.1);
       const buffDef: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
@@ -266,11 +251,10 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
   ])(
     "IT-REMOVE-EFFECTS-PROD-005: $effectActionId ($unitId) clears all BUFFs, unbounded (M7-001C, REMOVE_BUFF_CATEGORY)",
     ({ unitId, effectActionId }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("REMOVE_EFFECTS");
-      if (effectAction?.kind !== "REMOVE_EFFECTS") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("REMOVE_EFFECTS");
+      if (effectAction.kind !== "REMOVE_EFFECTS") {
         return;
       }
       expect([...effectAction.payload.categories]).toEqual(["BUFF"]);
@@ -279,7 +263,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
 
       const owner = actorFor(unitId, "B_1:unit:1");
       const { context } = newContext();
-      const buffDefId = "ACT_TEST_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
+      const buffDefId = createEffectActionDefinitionId("ACT_TEST_BUFF");
       const seeded = withEffects(context, owner, buffDefId, 4, 0.1);
       const buffDef: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
@@ -311,19 +295,18 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
   );
 
   it("IT-REMOVE-EFFECTS-PROD-002: ACT_MAO_COMMITTEE_PS2_CLEANSE clears both BUFF and DEBUFF (REMOVE_BUFF_CATEGORY)", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_MAO_COMMITTEE" as never], []);
-    const cleanse = snapshot.effectActions.get("ACT_MAO_COMMITTEE_PS2_CLEANSE" as never);
-    expect(cleanse?.kind).toBe("REMOVE_EFFECTS");
-    if (cleanse?.kind !== "REMOVE_EFFECTS") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_MAO_COMMITTEE"]);
+    const cleanse = effectActionFrom(snapshot, "ACT_MAO_COMMITTEE_PS2_CLEANSE");
+    expect(cleanse.kind).toBe("REMOVE_EFFECTS");
+    if (cleanse.kind !== "REMOVE_EFFECTS") {
       return;
     }
     expect([...cleanse.payload.categories].sort()).toEqual(["BUFF", "DEBUFF"]);
 
     const owner = actorFor("UNIT_MAO_COMMITTEE", "B_1:unit:1");
     const { context } = newContext();
-    const buffDefId = "ACT_TEST_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
-    const debuffDefId = "ACT_TEST_DEBUFF" as EffectActionDefinition["effectActionDefinitionId"];
+    const buffDefId = createEffectActionDefinitionId("ACT_TEST_BUFF");
+    const debuffDefId = createEffectActionDefinitionId("ACT_TEST_DEBUFF");
     const statModDef = (
       id: EffectActionDefinition["effectActionDefinitionId"],
     ): EffectActionDefinition => ({
@@ -381,18 +364,17 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
   });
 
   it("IT-REMOVE-EFFECTS-PROD-003 (Issue #181 DoD, independent Reducer restoration): applying the EffectRemoved + CombatStatChanged StateDeltas to the initial snapshot reconstructs the final live state", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_MAO_COMMITTEE" as never], []);
-    const cleanse = snapshot.effectActions.get("ACT_MAO_COMMITTEE_PS2_CLEANSE" as never);
-    expect(cleanse?.kind).toBe("REMOVE_EFFECTS");
-    if (cleanse?.kind !== "REMOVE_EFFECTS") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_MAO_COMMITTEE"]);
+    const cleanse = effectActionFrom(snapshot, "ACT_MAO_COMMITTEE_PS2_CLEANSE");
+    expect(cleanse.kind).toBe("REMOVE_EFFECTS");
+    if (cleanse.kind !== "REMOVE_EFFECTS") {
       return;
     }
 
     // Owner already carries a +20 ATTACK buff whose contribution is reflected in
     // its live combatStats (100 base -> 120). Removing it must both drop the
     // effect and revert the stat; both are captured as StateDeltas.
-    const buffDefId = "ACT_TEST_ATK_BUFF" as EffectActionDefinition["effectActionDefinitionId"];
+    const buffDefId = createEffectActionDefinitionId("ACT_TEST_ATK_BUFF");
     const buffDef: EffectActionDefinition = {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: buffDefId,
@@ -425,31 +407,8 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       combatStats: { ...base.combatStats, attack: base.combatStats.attack + 20 },
     };
 
-    const snapshotOf = (units: readonly BattleUnit[]): BattleStateSnapshot => ({
-      status: "RUNNING",
-      currentTurn: 1,
-      units: Object.fromEntries(
-        units.map((unit) => [
-          unit.battleUnitId,
-          {
-            hp: unit.currentHp,
-            ap: unit.currentAp,
-            pp: unit.currentPp,
-            extraGauge: unit.currentExtraGauge,
-            maximumAp: unit.maximumAp,
-            maximumPp: unit.maximumPp,
-            maximumExtraGauge: unit.maximumExtraGauge,
-            combatStats: unit.combatStats,
-            ...(unit.appliedEffects.length > 0
-              ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-              : {}),
-          },
-        ]),
-      ),
-    });
-
     const { recorder, context } = newContext();
-    const initial = snapshotOf([owner]);
+    const initial = initialSnapshotFor([owner], { include: ["effects"] });
     const before = recorder.getEvents().length;
     const result = removeEffects(
       context,
@@ -467,7 +426,7 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta]));
     const reconstructed = reduceStateDeltas(initial, deltas);
 
-    expect(reconstructed).toEqual(snapshotOf(result.units));
+    expect(reconstructed).toEqual(initialSnapshotFor(result.units, { include: ["effects"] }));
     expect(reconstructed.units[owner.battleUnitId]?.effects).toBeUndefined();
     expect(reconstructed.units[owner.battleUnitId]?.combatStats.attack).toBe(
       base.combatStats.attack,

@@ -1,31 +1,33 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import { createHitPoint } from "../../domain/battle/model/resource-gauge.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  noMissNoCrit,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-009（Issue #193、R-CFS-01／R-CFS-02／R-DTH-01、`CAP_CONFUSION`／
@@ -58,63 +60,26 @@ const ATTACK_EFFECT_ID = "ACT_TEST_CONFUSION_ATTACK";
 const ATTACK_SKILL_ID = "SKL_TEST_CONFUSION_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
+// 攻撃力100・防御力0で「通常100ダメージ」を基準に混乱倍率・回復変換を観測する。
+const COMBAT_STATS = { maximumHp: 1000, attack: 100, defense: 0 };
 
-function member(
+/** AP・EXゲージを満タンにし、EX/ASをどちらも即時使用できる状態で組む。 */
+function readyUnit(
   battleUnitId: string,
   unitDefinitionId: string,
   side: Side,
   position: FormationPosition,
-  overrides: { attack?: number; defense?: number; maximumHp?: number } = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
+  combatStats: Partial<CombatStats> = {},
+): BattleUnit {
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: overrides.attack ?? 100,
-      defense: overrides.defense ?? 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
+    combatStats: { ...COMBAT_STATS, ...combatStats },
+    limits: LIMITS,
+    overrides: { currentAp: LIMITS.maximumAp, currentExtraGauge: LIMITS.maximumExtraGauge },
+  });
 }
 
 /**
@@ -193,62 +158,28 @@ interface Fixture {
 }
 
 function fixture(unitIds: readonly string[]): Fixture {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(unitIds as never[], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, unitIds);
   const attack = singleHitAttack();
-  const effectActions = new Map(snapshot.effectActions);
-  effectActions.set(attack.effectActionDefinitionId, attack);
-  const attackSkill = singleEnemyAttackSkill();
-  const skillDefinitions = new Map(snapshot.skills);
-  skillDefinitions.set(attackSkill.skillDefinitionId, attackSkill);
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(TEST_UNIT_ID), testUnitDefinition(TEST_UNIT_ID));
-  return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
+  const definitions = definitionsWith(snapshot, {
+    units: [testUnitDefinition(TEST_UNIT_ID, { baseStats: COMBAT_STATS })],
+    skills: [singleEnemyAttackSkill()],
+    overrides: {
+      effectActions: new Map([
+        ...snapshot.effectActions,
+        [attack.effectActionDefinitionId, attack],
+      ]),
     },
+  });
+  return {
+    definitions,
     recorder: new EventRecorder(createBattleId("B_1")),
     skill: (id) => {
-      const found = skillDefinitions.get(createSkillDefinitionId(id));
+      const found = definitions.skillDefinitions.get(createSkillDefinitionId(id));
       if (found === undefined) {
         throw new Error(`skill "${id}" is missing from the production Catalog snapshot`);
       }
       return found;
     },
-  };
-}
-
-function emptyStateFor(...units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "READY",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-        },
-      ]),
-    ),
-  };
-}
-
-function ready(unit: BattleUnit): BattleUnit {
-  return {
-    ...unit,
-    currentAp: LIMITS.maximumAp,
-    currentExtraGauge: LIMITS.maximumExtraGauge,
   };
 }
 
@@ -268,7 +199,7 @@ function useSkill(
     effectiveActionType,
     units,
     definitions,
-    new SequenceRandomSource(Array.from({ length: 64 }, () => 0.99)),
+    noMissNoCrit(),
     recorder,
     1,
     0,
@@ -280,27 +211,9 @@ function useSkill(
 describe("production Catalog confusion (DMG-009, Issue #193, R-CFS-01 / R-CFS-02)", () => {
   it("IT-CAP-CONFUSION-PROD-001: the real SKL_OLGA_VETERAN_EX applies CONFUSION to every enemy as a DEBUFF-only status, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const { definitions, recorder, skill } = fixture([OLGA_UNIT_ID]);
-    const olga = ready(
-      createBattleUnit(
-        member("ally:olga", OLGA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const enemyA = ready(
-      createBattleUnit(
-        member("enemy:a", TEST_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
-    const enemyB = ready(
-      createBattleUnit(
-        member("enemy:b", TEST_UNIT_ID, "ENEMY", { column: "RIGHT", row: "BACK" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const olga = readyUnit("ally:olga", OLGA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" });
+    const enemyA = readyUnit("enemy:a", TEST_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" });
+    const enemyB = readyUnit("enemy:b", TEST_UNIT_ID, "ENEMY", { column: "RIGHT", row: "BACK" });
 
     const after = useSkill(
       olga,
@@ -338,7 +251,10 @@ describe("production Catalog confusion (DMG-009, Issue #193, R-CFS-01 / R-CFS-02
           (e.payload as { targetUnitId: string }).targetUnitId === enemyA.battleUnitId,
       ) as Extract<BattleDomainEvent, { eventType: "EffectApplied" }>;
     expect(applied.payload).toMatchObject({ effectKind: "APPLY_STATUS" });
-    const reduced = applyStateDelta(emptyStateFor(enemyA), applied.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([enemyA], { status: "READY" }),
+      applied.stateDelta!,
+    );
     expect(reduced.units[enemyA.battleUnitId]!.effects![0]).toMatchObject({
       effectDefinitionId: OLGA_CONFUSION_ID,
       statusKind: "CONFUSION",
@@ -348,29 +264,17 @@ describe("production Catalog confusion (DMG-009, Issue #193, R-CFS-01 / R-CFS-02
 
   it("IT-CAP-CONFUSION-PROD-002 (R-CFS-01 / R-CFS-02, real lifecycle wiring): a unit confused by the real definition attacks its own side for 30% less", () => {
     const { definitions, recorder, skill } = fixture([OLGA_UNIT_ID]);
-    const olga = ready(
-      createBattleUnit(
-        member("ally:olga", OLGA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
+    const olga = readyUnit("ally:olga", OLGA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" });
     // 混乱する側（敵陣営）。攻撃力100・防御力0の合成ユニット同士なので、
     // 通常なら100ダメージ、混乱倍率0.7で70ダメージになる。
-    const confusedAttacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
-    const sameSideVictim = ready(
-      createBattleUnit(
-        member("enemy:victim", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const confusedAttacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const sameSideVictim = readyUnit("enemy:victim", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const confusedUnits = useSkill(
       olga,
@@ -419,35 +323,18 @@ describe("production Catalog confusion (DMG-009, Issue #193, R-CFS-01 / R-CFS-02
 
   it("IT-CAP-CONFUSION-PROD-003 (R-CFS-02): a confused attacker whose attack is at or below the effective defense falls back to attack x 10%", () => {
     const { definitions, recorder, skill } = fixture([OLGA_UNIT_ID]);
-    const olga = ready(
-      createBattleUnit(
-        member("ally:olga", OLGA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const confusedAttacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const olga = readyUnit("ally:olga", OLGA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" });
+    const confusedAttacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "LEFT",
+      row: "FRONT",
+    });
     // 防御力100 = 攻撃力100（境界: R-CFS-02は「以下」で差し替える）。
-    const toughVictim = ready(
-      createBattleUnit(
-        member(
-          "enemy:victim",
-          TEST_UNIT_ID,
-          "ENEMY",
-          { column: "CENTER", row: "FRONT" },
-          {
-            defense: 100,
-          },
-        ),
-        "ENEMY",
-        LIMITS,
-      ),
+    const toughVictim = readyUnit(
+      "enemy:victim",
+      TEST_UNIT_ID,
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      { defense: 100 },
     );
 
     const confusedUnits = useSkill(
@@ -491,20 +378,14 @@ describe("production Catalog confusion (DMG-009, Issue #193, R-CFS-01 / R-CFS-02
 describe("production Catalog damage-to-heal (DMG-009, Issue #193, R-DTH-01)", () => {
   it("IT-CAP-DAMAGE-TO-HEAL-PROD-001: the real SKL_TATIANA_SAGE_AS1 applies DAMAGE_TO_HEAL to its target, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const { definitions, recorder, skill } = fixture([TATIANA_UNIT_ID]);
-    const tatiana = ready(
-      createBattleUnit(
-        member("ally:tatiana", TATIANA_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const victim = ready(
-      createBattleUnit(
-        member("enemy:victim", TEST_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const tatiana = readyUnit("ally:tatiana", TATIANA_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const victim = readyUnit("enemy:victim", TEST_UNIT_ID, "ENEMY", {
+      column: "LEFT",
+      row: "FRONT",
+    });
 
     const after = useSkill(
       tatiana,
@@ -534,7 +415,10 @@ describe("production Catalog damage-to-heal (DMG-009, Issue #193, R-DTH-01)", ()
             TATIANA_DAZZLE_ID,
       ) as Extract<BattleDomainEvent, { eventType: "EffectApplied" }> | undefined;
     expect(applied).toBeDefined();
-    const reduced = applyStateDelta(emptyStateFor(victim), applied!.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([victim], { status: "READY" }),
+      applied!.stateDelta!,
+    );
     expect(
       reduced.units[victim.battleUnitId]!.effects!.find(
         (effect) => effect.effectDefinitionId === TATIANA_DAZZLE_ID,
@@ -547,20 +431,14 @@ describe("production Catalog damage-to-heal (DMG-009, Issue #193, R-DTH-01)", ()
 
   it("IT-CAP-DAMAGE-TO-HEAL-PROD-002 (R-DTH-01, real lifecycle wiring): a unit dazzled by the real definition heals its would-be victim instead of damaging it", () => {
     const { definitions, recorder, skill } = fixture([TATIANA_UNIT_ID]);
-    const tatiana = ready(
-      createBattleUnit(
-        member("ally:tatiana", TATIANA_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const dazzledAttacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const tatiana = readyUnit("ally:tatiana", TATIANA_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const dazzledAttacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "LEFT",
+      row: "FRONT",
+    });
 
     const afterGrant = useSkill(
       tatiana,
@@ -607,7 +485,10 @@ describe("production Catalog damage-to-heal (DMG-009, Issue #193, R-DTH-01)", ()
     expect(afterAttack.find((u) => u.battleUnitId === tatiana.battleUnitId)!.currentHp).toBe(170);
 
     // HP変化のStateDeltaはこのイベントだけが持ち、独立Reducerがそのまま復元できる。
-    const reduced = applyStateDelta(emptyStateFor(woundedTatiana), converted.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([woundedTatiana], { status: "READY" }),
+      converted.stateDelta!,
+    );
     expect(reduced.units[tatiana.battleUnitId]!.hp).toBe(170);
   });
 });

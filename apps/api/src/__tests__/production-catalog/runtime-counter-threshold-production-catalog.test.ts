@@ -1,21 +1,30 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId, type BattleUnitId } from "../../domain/shared/ids.js";
+import {
+  createEffectActionDefinitionId,
+  createRuntimeCounterId,
+  createSkillDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import { detectRuntimeCounterUpdates } from "../../domain/battle/triggering/runtime-counter-matcher.js";
 import { evaluateTriggerCondition } from "../../domain/battle/triggering/trigger-condition-evaluator.js";
 import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  skillFrom,
+  testBattleUnit,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * Issue #143 review re-fix [P1]: the 3 `CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`
@@ -32,35 +41,32 @@ import { SequenceRandomSource } from "../../testing/random/sequence-random-sourc
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
+const COMBAT_STATS = {
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
 function actorFor(
   unitDefinitionId: string,
   side: Side,
   battleUnitId: string,
   maximumHp: number,
-): ReturnType<typeof createBattleUnit> {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+): BattleUnit {
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
+    combatStats: { ...COMBAT_STATS, maximumHp },
+  });
 }
 
 function damageEvent(
-  sourceUnitId: ReturnType<typeof createBattleUnitId>,
-  targetUnitId: ReturnType<typeof createBattleUnitId>,
+  sourceUnitId: BattleUnitId,
+  targetUnitId: BattleUnitId,
   hitPointDamage: number,
 ): TriggerCandidateEvent {
   return {
@@ -73,7 +79,7 @@ function damageEvent(
 }
 
 function passiveActivatedEvent(
-  ownerUnitId: ReturnType<typeof createBattleUnitId>,
+  ownerUnitId: BattleUnitId,
   skillDefinitionId: string,
 ): TriggerCandidateEvent {
   return {
@@ -90,62 +96,23 @@ function lifecycleDefinitions(
   unitId: string,
   skillId: string,
 ): BattleDefinitions {
-  const unit = snapshot.units.get(unitId as never);
-  const skill = snapshot.skills.get(skillId as never);
-  expect(unit).toBeDefined();
-  expect(skill).toBeDefined();
-  return {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: snapshot.effectActions,
-    unitDefinitions: new Map([
-      [
-        unit!.unitDefinitionId,
-        {
-          ...unit!,
-          activeSkillDefinitionIds: [],
-          passiveSkillDefinitionIds: [skill!.skillDefinitionId],
-        },
-      ],
-    ]),
-    skillDefinitions: new Map([[skill!.skillDefinitionId, skill!]]),
-  };
-}
-
-function initialSnapshotFor(
-  units: readonly ReturnType<typeof createBattleUnit>[],
-): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-        },
+  const unit = unitFrom(snapshot, unitId);
+  const skill = skillFrom(snapshot, skillId);
+  return definitionsWith(snapshot, {
+    overrides: {
+      unitDefinitions: new Map([
+        [
+          unit.unitDefinitionId,
+          {
+            ...unit,
+            activeSkillDefinitionIds: [],
+            passiveSkillDefinitionIds: [skill.skillDefinitionId],
+          },
+        ],
       ]),
-    ),
-  };
-}
-
-function replayEventDeltas(
-  initial: BattleStateSnapshot,
-  recorder: EventRecorder,
-): BattleStateSnapshot {
-  return reduceStateDeltas(
-    initial,
-    recorder
-      .getEvents()
-      .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
-  );
+      skillDefinitions: new Map([[skill.skillDefinitionId, skill]]),
+    },
+  });
 }
 
 describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on valueChanged (Issue #143 review re-fix [P1])", () => {
@@ -158,17 +125,16 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
   ])(
     "IT-CAP-SKILL-RUNTIME-001: $skillId's ($unitId) real RuntimeCounterChanged trigger condition rejects a sub-threshold (carry-only) hit and accepts a threshold-crossing hit",
     ({ unitId, skillId, maxHpRatio }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const unitDefinition = snapshot.units.get(unitId as never);
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const unitDefinition = unitFrom(snapshot, unitId);
       expect(unitDefinition).toBeDefined();
-      const skill = snapshot.skills.get(skillId as never);
+      const skill = skillFrom(snapshot, skillId);
       expect(skill).toBeDefined();
-      expect(skill!.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
-      const trigger = skill!.triggers[0];
+      expect(skill.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
+      const trigger = skill.triggers[0];
       expect(trigger?.eventType).toBe("RuntimeCounterChanged");
 
-      const maximumHp = unitDefinition!.baseStats.maximumHp;
+      const maximumHp = unitDefinition.baseStats.maximumHp;
       const threshold = maximumHp * maxHpRatio;
       const owner = actorFor(unitId, "ALLY", "B_1:unit:1", maximumHp);
       const enemy = actorFor(unitId, "ENEMY", "B_1:unit:2", maximumHp);
@@ -195,7 +161,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
               valueChanged: subThreshold.changes[0]!.valueChanged,
             },
           },
-          { owner, skillDefinitionId: skill!.skillDefinitionId },
+          { owner, skillDefinitionId: skill.skillDefinitionId },
         ),
       ).toBe(false);
 
@@ -218,7 +184,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
               valueChanged: crossing.changes[0]!.valueChanged,
             },
           },
-          { owner, skillDefinitionId: skill!.skillDefinitionId },
+          { owner, skillDefinitionId: skill.skillDefinitionId },
         ),
       ).toBe(true);
     },
@@ -244,21 +210,20 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
   ])(
     "IT-CAP-SKILL-RUNTIME-002: %s %s increments only its own activation counter from the production PassiveActivated payload",
     (unitId, skillId) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const unitDefinition = snapshot.units.get(unitId as never);
-      const skill = snapshot.skills.get(skillId as never);
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const unitDefinition = unitFrom(snapshot, unitId);
+      const skill = skillFrom(snapshot, skillId);
       expect(unitDefinition).toBeDefined();
       expect(skill).toBeDefined();
-      expect(skill!.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
-      expect(skill!.counterUpdates).toHaveLength(1);
-      expect(skill!.counterUpdates[0]).toMatchObject({
+      expect(skill.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
+      expect(skill.counterUpdates).toHaveLength(1);
+      expect(skill.counterUpdates[0]).toMatchObject({
         kind: "INCREMENT",
         scope: "SKILL_RUNTIME",
         amount: 1,
       });
 
-      const owner = actorFor(unitId, "ALLY", "B_1:unit:1", unitDefinition!.baseStats.maximumHp);
+      const owner = actorFor(unitId, "ALLY", "B_1:unit:1", unitDefinition.baseStats.maximumHp);
       const unrelated = detectRuntimeCounterUpdates({
         event: passiveActivatedEvent(owner.battleUnitId, "SKL_OTHER"),
         units: [owner],
@@ -275,7 +240,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       });
       expect(activated.changes).toHaveLength(1);
       expect(activated.changes[0]).toMatchObject({
-        skillDefinitionId: skill!.skillDefinitionId,
+        skillDefinitionId: skill.skillDefinitionId,
         counter: `${skillId}_ACTIVATIONS`,
         before: 0,
         after: 1,
@@ -286,11 +251,10 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
 
   it("IT-CAP-SKILL-RUNTIME-003: an executable production PS traverses TurnStarted through PassiveActivated, RuntimeCounterChanged, StateDelta replay, and next-activation blocking", () => {
     const unitId = "UNIT_CI_SMOKE_TEST";
-    const skillId = "SKL_CI_SMOKE_TEST_PS1";
-    const counterId = `${skillId}_ACTIVATIONS`;
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
+    const skillId = createSkillDefinitionId("SKL_CI_SMOKE_TEST_PS1");
+    const counterId = createRuntimeCounterId(`${skillId}_ACTIVATIONS`);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
     const owner = {
       ...actorFor(unitId, "ALLY", "B_CAP_RUNTIME:unit:1", unitDefinition.baseStats.maximumHp),
       currentPp: 4,
@@ -355,7 +319,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       after: 1,
       valueChanged: true,
     });
-    expect(updatedOwner.skillCounters?.[skillId as never]?.[counterId as never]).toEqual({
+    expect(updatedOwner.skillCounters?.[skillId]?.[counterId]).toEqual({
       value: 1,
       carry: 0,
     });
@@ -363,7 +327,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
     expect(updatedOwner.currentExtraGauge).toBe(1);
     expect(updatedEnemy.currentHp).toBeLessThan(enemy.currentHp);
 
-    const reconstructed = replayEventDeltas(initial, recorder);
+    const reconstructed = reconstruct(initial, recorder);
     expect(reconstructed.units[owner.battleUnitId]).toMatchObject({
       pp: updatedOwner.currentPp,
       extraGauge: updatedOwner.currentExtraGauge,
@@ -403,11 +367,10 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
 
   it("IT-CAP-SKILL-RUNTIME-004: a production cumulative counter emits replayable carry and threshold-crossing StateDelta through PassiveActivationRuntime", () => {
     const unitId = "UNIT_MIKOTO_SURVIVOR";
-    const skillId = "SKL_MIKOTO_SURVIVOR_PS1";
-    const counterId = "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
+    const skillId = createSkillDefinitionId("SKL_MIKOTO_SURVIVOR_PS1");
+    const counterId = createRuntimeCounterId("SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO");
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
     const owner = {
       ...actorFor(unitId, "ALLY", "B_CAP_CUMULATIVE:unit:1", unitDefinition.baseStats.maximumHp),
       currentPp: 0,
@@ -427,7 +390,7 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
         sourceUnitId: owner.battleUnitId,
         targetUnitIds: [owner.battleUnitId],
         payload: {
-          effectActionDefinitionId: "ACT_CAP_RUNTIME_TEST" as never,
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_CAP_RUNTIME_TEST"),
           hitIndex: 1,
           targetUnitId: owner.battleUnitId,
           calculatedDamage: hitPointDamage,
@@ -483,12 +446,12 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       { counter: counterId, before: 0, after: 0, valueChanged: false },
       { counter: counterId, before: 0, after: 1, valueChanged: true },
     ]);
-    expect(finalUnits[0]?.skillCounters?.[skillId as never]?.[counterId as never]).toEqual({
+    expect(finalUnits[0]?.skillCounters?.[skillId]?.[counterId]).toEqual({
       value: 1,
       carry: 0,
     });
 
-    const reconstructed = replayEventDeltas(initial, recorder);
+    const reconstructed = reconstruct(initial, recorder);
     expect(reconstructed.units[owner.battleUnitId]).toMatchObject({
       hp: finalUnits[0]!.currentHp,
       skillCounters: { [skillId]: { [counterId]: 1 } },

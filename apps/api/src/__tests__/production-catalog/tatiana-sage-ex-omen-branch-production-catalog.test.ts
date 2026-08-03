@@ -2,30 +2,30 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { applyMarker } from "../../domain/battle/effects/marker-apply-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
+import type { BattleUnitId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import { createTargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  noMissNoCrit,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * RES-004-TATIANA-EX（Issue #225）: raw原文
@@ -62,67 +62,29 @@ const ENEMY_ATTACK_SKILL_ID = "SKL_TEST_TATIANA_ENEMY_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
-/** 会心・MISSのゆらぎを排して、補正倍率だけがダメージ差の原因になるようにする。 */
-function noMissNoCrit(): SequenceRandomSource {
-  return new SequenceRandomSource(new Array(256).fill(0.99));
-}
+const COMBAT_STATS = {
+  maximumHp: 5000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 5000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 5000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 100,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: undefined as never,
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const ENEMY_DEFINITION = testUnitDefinition(ENEMY_UNIT_ID, {
+  baseStats: {
+    maximumHp: COMBAT_STATS.maximumHp,
+    attack: COMBAT_STATS.attack,
+    defense: COMBAT_STATS.defense,
+    criticalDamageBonus: COMBAT_STATS.criticalDamageBonus,
+    actionSpeed: COMBAT_STATS.actionSpeed,
+    maximumAp: LIMITS.maximumAp,
+    maximumPp: LIMITS.maximumPp,
+  },
+  extraGaugeMaximum: LIMITS.maximumExtraGauge,
+  extraSkillDefinitionId: null,
+});
 
 /**
  * デバフ対象が「次の攻撃」として撃つための最小のAS。`ACT_TATIANA_SAGE_EX_DEBUFF`
@@ -193,33 +155,8 @@ function enemyAttackSkill(): SkillDefinition {
   };
 }
 
-function snapshotOf(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-          ...(unit.appliedEffects.length > 0
-            ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-            : {}),
-          ...(unit.markerStates.length > 0
-            ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-            : {}),
-        },
-      ]),
-    ),
-  };
-}
+const snapshotOf = (units: readonly BattleUnit[]) =>
+  initialSnapshotFor(units, { include: ["effects", "markers"] });
 
 const POSITIONS: readonly FormationPosition[] = [
   { column: "LEFT", row: "FRONT" },
@@ -234,57 +171,47 @@ const POSITIONS: readonly FormationPosition[] = [
  * 実`applyMarker`で重ねて作る — 前ターンまでに同じEXが積んだ状態そのものである。
  */
 function setup(omenStacks: readonly number[]) {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([TATIANA_UNIT_ID as never], []);
-  const skill = snapshot.skills.get(TATIANA_EX_ID as never)!;
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [TATIANA_UNIT_ID]);
+  const skill = skillFrom(snapshot, TATIANA_EX_ID);
 
-  const markAction = snapshot.effectActions.get(MARK_ACTION_ID as never)!;
+  const markAction = effectActionFrom(snapshot, MARK_ACTION_ID);
   if (markAction.kind !== "APPLY_MARKER") {
     throw new Error(`${MARK_ACTION_ID} must be APPLY_MARKER`);
   }
 
-  const tatiana: BattleUnit = {
-    ...createBattleUnit(
-      member("ally:tatiana", TATIANA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    ),
-    currentAp: LIMITS.maximumAp,
-    currentExtraGauge: LIMITS.maximumExtraGauge,
-  };
-  const enemies = omenStacks.map((_, index) => ({
-    ...createBattleUnit(
-      member(`enemy:${index}`, ENEMY_UNIT_ID, "ENEMY", POSITIONS[index]!),
-      "ENEMY",
-      LIMITS,
-    ),
-    currentAp: LIMITS.maximumAp,
-  }));
+  const tatiana = testBattleUnit({
+    battleUnitId: "ally:tatiana",
+    unitDefinitionId: TATIANA_UNIT_ID,
+    side: "ALLY",
+    position: { column: "CENTER", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: {
+      currentAp: LIMITS.maximumAp,
+      currentExtraGauge: LIMITS.maximumExtraGauge,
+    },
+  });
+  const enemies = omenStacks.map((_, index) =>
+    testBattleUnit({
+      battleUnitId: `enemy:${index}`,
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: POSITIONS[index]!,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    }),
+  );
 
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(ENEMY_UNIT_ID), testUnitDefinition(ENEMY_UNIT_ID));
   const effectActions = new Map(snapshot.effectActions);
   effectActions.set(createEffectActionDefinitionId(ENEMY_ATTACK_ACTION_ID), enemyAttackAction());
-  const skillDefinitions = new Map(snapshot.skills);
-  skillDefinitions.set(createSkillDefinitionId(ENEMY_ATTACK_SKILL_ID), enemyAttackSkill());
-  const definitions: BattleDefinitions = {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions,
-    unitDefinitions,
-    skillDefinitions,
-  };
-
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const resolutionScopeId = recorder.nextResolutionScopeId();
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId,
-    payload: { turnNumber: 1 },
+  const definitions = definitionsWith(snapshot, {
+    units: [ENEMY_DEFINITION],
+    skills: [enemyAttackSkill()],
+    overrides: { effectActions },
   });
+
+  const { recorder, seed, resolutionScopeId } = seedRecorder("B_1");
 
   let units: readonly BattleUnit[] = [tatiana, ...enemies];
   let lastEventId = seed.eventId;
@@ -360,7 +287,7 @@ function fireEx(setupResult: ReturnType<typeof setup>) {
     "EX",
     units,
     definitions,
-    noMissNoCrit(),
+    noMissNoCrit(256),
     recorder,
     1,
     1,
@@ -385,7 +312,7 @@ function fireEnemyAttack(
     "AS",
     units,
     definitions,
-    noMissNoCrit(),
+    noMissNoCrit(256),
     recorder,
     1,
     1,
@@ -574,10 +501,9 @@ describe("production Catalog SKL_TATIANA_SAGE_EX Omen threshold branch (RES-004-
   });
 
   it("IT-CAP-TATIANA-OMEN-PROD-005: the production definitions this branch relies on are still the unapproximated raw-text ones (damage power, -100% OUTGOING modifier, single Omen stack)", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([TATIANA_UNIT_ID as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [TATIANA_UNIT_ID]);
 
-    const damage = snapshot.effectActions.get(DAMAGE_ACTION_ID as never)!;
+    const damage = effectActionFrom(snapshot, DAMAGE_ACTION_ID);
     expect(damage.kind).toBe("DAMAGE");
     if (damage.kind !== "DAMAGE") {
       throw new Error("unreachable");
@@ -585,7 +511,7 @@ describe("production Catalog SKL_TATIANA_SAGE_EX Omen threshold branch (RES-004-
     expect(damage.payload.damageType).toBe("EN");
     expect(damage.payload.formula).toEqual({ kind: "SKILL_POWER", power: 1.696 });
 
-    const debuff = snapshot.effectActions.get(DEBUFF_ACTION_ID as never)!;
+    const debuff = effectActionFrom(snapshot, DEBUFF_ACTION_ID);
     expect(debuff.kind).toBe("APPLY_DAMAGE_MOD");
     if (debuff.kind !== "APPLY_DAMAGE_MOD") {
       throw new Error("unreachable");
@@ -600,7 +526,7 @@ describe("production Catalog SKL_TATIANA_SAGE_EX Omen threshold branch (RES-004-
     });
     expect([...debuff.requiredCapabilities]).toEqual(["CAP_DAMAGE_MOD"]);
 
-    const mark = snapshot.effectActions.get(MARK_ACTION_ID as never)!;
+    const mark = effectActionFrom(snapshot, MARK_ACTION_ID);
     expect(mark.kind).toBe("APPLY_MARKER");
     if (mark.kind !== "APPLY_MARKER") {
       throw new Error("unreachable");

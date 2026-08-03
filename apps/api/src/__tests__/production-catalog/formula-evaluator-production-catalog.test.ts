@@ -10,15 +10,21 @@ import {
 } from "../../domain/battle/skill/formula-evaluator.js";
 import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
 import { recalculateCombatStats } from "../../domain/battle/effects/combat-stat-recalculation-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
 import type { ResolvedEffectApplication } from "../../domain/battle/skill/skill-resolution-service.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * RES-001 (Issue #175, R-NUM-04): exercises the REAL production `catalog/`
@@ -42,6 +48,14 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
+/** このファイルの計算検証はHP1000・攻撃100・防御50を基準値に組み立てている。 */
+const BASE_COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  actionSpeed: 100,
+};
+
 function unitFor(
   id: string,
   unitDefinitionId: string,
@@ -52,24 +66,11 @@ function unitFor(
     readonly criticalRate?: number;
   } = {},
 ): BattleUnit {
-  const position = { column: "LEFT" as const, row: "FRONT" as const };
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate("ALLY", position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: overrides.attack ?? 100,
-      defense: overrides.defense ?? 50,
-      criticalRate: overrides.criticalRate ?? 0,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return createBattleUnit(member, "ALLY", { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+  return testBattleUnit({
+    battleUnitId: id,
+    unitDefinitionId,
+    combatStats: { ...BASE_COMBAT_STATS, ...overrides },
+  });
 }
 
 function enemyFor(
@@ -80,24 +81,12 @@ function enemyFor(
     readonly maximumHp?: number;
   } = {},
 ): BattleUnit {
-  const position = { column: "LEFT" as const, row: "FRONT" as const };
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId: createUnitDefinitionId("UNIT_ENEMY"),
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate("ENEMY", position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: overrides.attack ?? 100,
-      defense: overrides.defense ?? 50,
-      criticalRate: 0,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return createBattleUnit(member, "ENEMY", { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+  return testBattleUnit({
+    battleUnitId: id,
+    unitDefinitionId: "UNIT_ENEMY",
+    side: "ENEMY",
+    combatStats: { ...BASE_COMBAT_STATS, ...overrides },
+  });
 }
 
 function eventContext(): DamageEventContext {
@@ -130,25 +119,26 @@ function eventContext(): DamageEventContext {
     resolutionScopeId,
     rootEventId: actionStarted.eventId,
     parentEventId: actionStarted.eventId,
-    skillDefinitionId: recorder.nextSkillUseId() as never,
+    // `applyDamageAction`はskillDefinitionIdをイベントpayloadへ載せるだけで
+    // 定義解決には使わないため、この層のテストでは任意のIDでよい。
+    skillDefinitionId: createSkillDefinitionId("SKL_TEST"),
   };
 }
 
 function singleHit(targetId: string, effectActionDefinitionId: string): ResolvedEffectApplication {
   return {
     targetBattleUnitId: createBattleUnitId(targetId),
-    effectActionDefinitionId: effectActionDefinitionId as never,
+    effectActionDefinitionId: createEffectActionDefinitionId(effectActionDefinitionId),
     hitIndex: 1,
   };
 }
 
 describe("production Catalog DAMAGE with a non-SKILL_POWER formula (RES-001, R-NUM-04)", () => {
   it("IT-CAP-FORMULA-PROD-001: ACT_FLUTE_VAMPIRE_AS1_HP_COST (CURRENT_HP_RATIO) computes the target's current HP × 0.25 unaffected by the attacker's attack stat", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_FLUTE_VAMPIRE" as never], []);
-    const effectAction = snapshot.effectActions.get("ACT_FLUTE_VAMPIRE_AS1_HP_COST" as never);
-    expect(effectAction?.kind).toBe("DAMAGE");
-    if (effectAction?.kind !== "DAMAGE") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_FLUTE_VAMPIRE"]);
+    const effectAction = effectActionFrom(snapshot, "ACT_FLUTE_VAMPIRE_AS1_HP_COST");
+    expect(effectAction.kind).toBe("DAMAGE");
+    if (effectAction.kind !== "DAMAGE") {
       return;
     }
     expect(effectAction.requiredCapabilities).toContain("CAP_FORMULA");
@@ -178,11 +168,10 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
   ])(
     "IT-CAP-FORMULA-PROD-002: $effectActionId reflects the counter-user's own lastDamageReceived × $ratio",
     ({ unitId, effectActionId, ratio }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("DAMAGE");
-      if (effectAction?.kind !== "DAMAGE") {
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("DAMAGE");
+      if (effectAction.kind !== "DAMAGE") {
         return;
       }
       expect(effectAction.requiredCapabilities).toContain("CAP_FORMULA");
@@ -204,7 +193,7 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
       // establishing its lastDamageReceived in the shared registry.
       const triggeringDamageAction = {
         kind: "DAMAGE" as const,
-        effectActionDefinitionId: "ACT_TEST_TRIGGER" as never,
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEST_TRIGGER"),
         requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
@@ -252,11 +241,10 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
 
 describe("production Catalog DAMAGE with MIN composition (RES-001, R-NUM-04)", () => {
   it("IT-CAP-FORMULA-PROD-003: ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE (MIN of CURRENT_HP_RATIO and STAT_RATIO) picks whichever branch is smaller, matching the 14_Catalog定義スキーマ.md canonical example", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_AOI_ELEGANT" as never], []);
-    const effectAction = snapshot.effectActions.get("ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE" as never);
-    expect(effectAction?.kind).toBe("DAMAGE");
-    if (effectAction?.kind !== "DAMAGE") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_AOI_ELEGANT"]);
+    const effectAction = effectActionFrom(snapshot, "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE");
+    expect(effectAction.kind).toBe("DAMAGE");
+    if (effectAction.kind !== "DAMAGE") {
       return;
     }
     expect(effectAction.payload.formula).toEqual({
@@ -296,11 +284,10 @@ describe("production Catalog DAMAGE with MIN composition (RES-001, R-NUM-04)", (
 
 describe("production Catalog APPLY_STAT_MOD with ALIVE_UNIT_COUNT_SCALE (RES-001, R-NUM-04)", () => {
   it("IT-CAP-FORMULA-PROD-004: ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF scales with alive ally count, capped at 0.07 (perUnit 0.0175)", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_LAURA_MOUNTAIN" as never], []);
-    const effectAction = snapshot.effectActions.get("ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF" as never);
-    expect(effectAction?.kind).toBe("APPLY_STAT_MOD");
-    if (effectAction?.kind !== "APPLY_STAT_MOD") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_LAURA_MOUNTAIN"]);
+    const effectAction = effectActionFrom(snapshot, "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF");
+    expect(effectAction.kind).toBe("APPLY_STAT_MOD");
+    if (effectAction.kind !== "APPLY_STAT_MOD") {
       return;
     }
     expect(effectAction.requiredCapabilities).toContain("CAP_FORMULA");
@@ -336,15 +323,7 @@ describe("production Catalog APPLY_STAT_MOD with ALIVE_UNIT_COUNT_SCALE (RES-001
 
     // Full lifecycle: grantEffect + recalculateCombatStats applies the capped
     // magnitude as a RATIO ATTACK buff, mirroring stat-mod-production-catalog.test.ts.
-    const recorder = new EventRecorder(createBattleId("B_1"));
-    const seed = recorder.record({
-      eventType: "TurnStarted",
-      category: "FACT",
-      turnNumber: 1,
-      cycleNumber: 0,
-      resolutionScopeId: recorder.nextResolutionScopeId(),
-      payload: { turnNumber: 1 },
-    });
+    const { recorder, seed } = seedRecorder("B_1");
     const grantContext = {
       recorder,
       turnNumber: 1,

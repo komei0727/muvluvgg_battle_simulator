@@ -1,33 +1,36 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
+  createCapabilityId,
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { AppliedEffect } from "../../domain/battle/model/applied-effect.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import { decrementActionEffectDurations } from "../../domain/battle/model/applied-effect-duration.js";
 import { expireEffects } from "../../domain/battle/effects/duration-expiry-service.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-007（Issue #187、R-INT-01 #3／R-LNK-01〜03、`CAP_DAMAGE_LINK_STATE`）:
@@ -55,63 +58,26 @@ const CHIZURU_LINK_ID = "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK";
 const ATTACK_EFFECT_ID = "ACT_TEST_DAMAGE_LINK_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
+// 攻撃力50・防御力0で「素通し50ダメージ」を基準にリンク転送率を観測する。
+const COMBAT_STATS = { maximumHp: 1000, attack: 50, defense: 0 };
 
-function member(
+/** APを満タンにし、合成ASを即時使用できる状態で組む。 */
+function readyUnit(
   battleUnitId: string,
   unitDefinitionId: string,
   side: Side,
   position: FormationPosition,
-  overrides: { attack?: number; maximumHp?: number } = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
+  combatStats: Partial<CombatStats> = {},
+): BattleUnit {
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: overrides.attack ?? 50,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
+    combatStats: { ...COMBAT_STATS, ...combatStats },
+    limits: LIMITS,
+    overrides: { currentAp: LIMITS.maximumAp },
+  });
 }
 
 function baseSkill(skillId: string): SkillDefinition {
@@ -196,7 +162,7 @@ function selfLinkToBindingSkill(skillId: string, effectActionId: string): SkillD
         },
       ],
     },
-    requiredCapabilities: ["CAP_TARGET_FILTER_ORDER"] as never,
+    requiredCapabilities: [createCapabilityId("CAP_TARGET_FILTER_ORDER")],
   };
 }
 
@@ -225,7 +191,7 @@ function frontRowAttackSkill(): SkillDefinition {
         },
       ],
     },
-    requiredCapabilities: ["CAP_TARGET_FILTER_ORDER"] as never,
+    requiredCapabilities: [createCapabilityId("CAP_TARGET_FILTER_ORDER")],
   };
 }
 
@@ -254,53 +220,21 @@ interface Fixture {
 }
 
 function fixture(unitIds: readonly string[], skills: readonly SkillDefinition[]): Fixture {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(unitIds as never[], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, unitIds);
   const attack = singleHitAttack();
-  const effectActions = new Map(snapshot.effectActions);
-  effectActions.set(attack.effectActionDefinitionId, attack);
-  const skillDefinitions = new Map(snapshot.skills);
-  for (const skill of skills) {
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-  }
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(TEST_UNIT_ID), testUnitDefinition(TEST_UNIT_ID));
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
-    },
+    definitions: definitionsWith(snapshot, {
+      units: [testUnitDefinition(TEST_UNIT_ID, { baseStats: COMBAT_STATS })],
+      skills,
+      overrides: {
+        effectActions: new Map([
+          ...snapshot.effectActions,
+          [attack.effectActionDefinitionId, attack],
+        ]),
+      },
+    }),
     recorder: new EventRecorder(createBattleId("B_1")),
   };
-}
-
-function emptyStateFor(...units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "READY",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-        },
-      ]),
-    ),
-  };
-}
-
-function ready(unit: BattleUnit): BattleUnit {
-  return { ...unit, currentAp: LIMITS.maximumAp };
 }
 
 function useSkill(
@@ -332,27 +266,15 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
     const grantSkill = allyLinkGrantSkill("SKL_TEST_GRANT_DAMAGE_LINK", SUIRAN_LINK_ID);
     const attackSkill = frontRowAttackSkill();
     const { definitions, recorder } = fixture([SUIRAN_UNIT_ID], [grantSkill, attackSkill]);
-    const suiran = ready(
-      createBattleUnit(
-        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const ally = ready(
-      createBattleUnit(
-        member("ally:front", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const suiran = readyUnit("ally:suiran", SUIRAN_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const ally = readyUnit("ally:front", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" });
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = useSkill(
       suiran,
@@ -390,7 +312,10 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
           (e.payload as { targetUnitId: string }).targetUnitId === ally.battleUnitId,
       ) as Extract<BattleDomainEvent, { eventType: "EffectApplied" }>;
     expect(applied.payload).toMatchObject({ effectKind: "APPLY_DAMAGE_LINK" });
-    const reduced = applyStateDelta(emptyStateFor(ally, suiran), applied.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([ally, suiran], { status: "READY" }),
+      applied.stateDelta!,
+    );
     expect(reduced.units[ally.battleUnitId]!.effects![0]).toMatchObject({
       effectDefinitionId: SUIRAN_LINK_ID,
       damageLink: { linkToUnitId: suiran.battleUnitId, linkRate: 0.5 },
@@ -438,20 +363,11 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
   it("IT-CAP-DAMAGE-LINK-STATE-PROD-003 (PR #299レビュー[P1]): the ally-held link and the granter-held parent shield share 劉翠蘭's clock, so a fast ally acting twice does not expire its link before the shield", () => {
     const grantSkill = allyLinkGrantSkill("SKL_TEST_GRANT_DAMAGE_LINK", SUIRAN_LINK_ID);
     const { definitions, recorder } = fixture([SUIRAN_UNIT_ID], [grantSkill]);
-    const suiran = ready(
-      createBattleUnit(
-        member("ally:suiran", SUIRAN_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const ally = ready(
-      createBattleUnit(
-        member("ally:front", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
+    const suiran = readyUnit("ally:suiran", SUIRAN_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const ally = readyUnit("ally:front", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" });
 
     let units = useSkill(suiran, grantSkill, [suiran, ally], definitions, recorder, 1);
     const linkOf = (all: readonly BattleUnit[]): AppliedEffect | undefined =>
@@ -524,36 +440,22 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
     const grantSkill = selfLinkToBindingSkill("SKL_TEST_GRANT_LINK_BINDING", CHIZURU_LINK_ID);
     const attackSkill = frontRowAttackSkill();
     const { definitions, recorder } = fixture([CHIZURU_UNIT_ID], [grantSkill, attackSkill]);
-    const chizuru = ready(
-      createBattleUnit(
-        member("ally:chizuru", CHIZURU_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
+    const chizuru = readyUnit("ally:chizuru", CHIZURU_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
     // 最大HPが最も低い敵がリンク先になる。
-    const frail = ready(
-      createBattleUnit(
-        member(
-          "enemy:frail",
-          TEST_UNIT_ID,
-          "ENEMY",
-          { column: "LEFT", row: "BACK" },
-          {
-            maximumHp: 400,
-          },
-        ),
-        "ENEMY",
-        LIMITS,
-      ),
+    const frail = readyUnit(
+      "enemy:frail",
+      TEST_UNIT_ID,
+      "ENEMY",
+      { column: "LEFT", row: "BACK" },
+      { maximumHp: 400 },
     );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = useSkill(
       chizuru,

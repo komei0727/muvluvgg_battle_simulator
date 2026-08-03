@@ -1,30 +1,28 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-018（Issue #272、R-HIT-04「Nヒット回避」/R-HIT-05「必中付与」、
@@ -53,63 +51,7 @@ const ATTACKER_UNIT_ID = "UNIT_TEST_HIT_ATTACKER";
 const ATTACK_EFFECT_ID = "ACT_TEST_HIT_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
-
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = { maximumHp: 100, attack: 50, defense: 0 };
 
 /** 実production EffectActionDefinitionだけを自己対象で解決する最小限の合成AS。 */
 function selfGrantSkill(skillId: string, effectActionId: string): SkillDefinition {
@@ -214,28 +156,16 @@ interface Fixture {
 }
 
 function fixture(unitIds: readonly string[], skills: readonly SkillDefinition[]): Fixture {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(unitIds as never[], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, unitIds);
   const attack = twoHitAttack();
   const effectActions = new Map(snapshot.effectActions);
   effectActions.set(attack.effectActionDefinitionId, attack);
-  const skillDefinitions = new Map(snapshot.skills);
-  for (const skill of skills) {
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-  }
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(
-    createUnitDefinitionId(ATTACKER_UNIT_ID),
-    testUnitDefinition(ATTACKER_UNIT_ID),
-  );
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
-    },
+    definitions: definitionsWith(snapshot, {
+      units: [testUnitDefinition(ATTACKER_UNIT_ID, { baseStats: COMBAT_STATS })],
+      skills,
+      overrides: { effectActions },
+    }),
     recorder: new EventRecorder(createBattleId("B_1")),
   };
 }
@@ -244,14 +174,14 @@ describe("production Catalog HIT_EVASION / GUARANTEED_HIT (M7-018, Issue #272, R
   it("IT-CAP-HIT-EVASION-PROD-001 (R-ACTN-03/R-HIT-04, real lifecycle wiring): resolving the real ACT_FLUTE_VAMPIRE_PS2_EVASION definition through resolveSkillUse grants a statusKind:HIT_EVASION AppliedEffect with the production-defined ACTION(1) time limit and INCOMING_HIT(1) consumption, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const grantSkill = selfGrantSkill("SKL_TEST_GRANT_HIT_EVASION", HIT_EVASION_EFFECT_ID);
     const { definitions, recorder } = fixture([FLUTE_UNIT_ID], [grantSkill]);
-    const flute = {
-      ...createBattleUnit(
-        member("ally:flute", FLUTE_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const flute = testBattleUnit({
+      battleUnitId: "ally:flute",
+      unitDefinitionId: FLUTE_UNIT_ID,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
 
     const result = resolveSkillUse(
       flute,
@@ -296,22 +226,7 @@ describe("production Catalog HIT_EVASION / GUARANTEED_HIT (M7-018, Issue #272, R
       initialRemaining: 1,
     });
 
-    const emptyState: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [flute.battleUnitId]: {
-          hp: flute.currentHp,
-          ap: flute.currentAp,
-          pp: flute.currentPp,
-          extraGauge: flute.currentExtraGauge,
-          maximumAp: flute.maximumAp,
-          maximumPp: flute.maximumPp,
-          maximumExtraGauge: flute.maximumExtraGauge,
-          combatStats: flute.combatStats,
-        },
-      },
-    };
+    const emptyState = initialSnapshotFor([flute], { status: "READY" });
     const reduced = applyStateDelta(emptyState, applied.stateDelta!);
     expect(reduced.units[flute.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[flute.battleUnitId]!.effects![0]).toMatchObject({
@@ -326,22 +241,23 @@ describe("production Catalog HIT_EVASION / GUARANTEED_HIT (M7-018, Issue #272, R
     const grantSkill = selfGrantSkill("SKL_TEST_GRANT_HIT_EVASION", HIT_EVASION_EFFECT_ID);
     const attackSkill = attackerSkill();
     const { definitions, recorder } = fixture([FLUTE_UNIT_ID], [grantSkill, attackSkill]);
-    const flute = {
-      ...createBattleUnit(
-        member("ally:flute", FLUTE_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
-    const attacker = {
-      ...createBattleUnit(
-        member("enemy:attacker", ATTACKER_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const flute = testBattleUnit({
+      battleUnitId: "ally:flute",
+      unitDefinitionId: FLUTE_UNIT_ID,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
+    const attacker = testBattleUnit({
+      battleUnitId: "enemy:attacker",
+      unitDefinitionId: ATTACKER_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
 
     const granted = resolveSkillUse(
       flute,
@@ -414,14 +330,14 @@ describe("production Catalog HIT_EVASION / GUARANTEED_HIT (M7-018, Issue #272, R
   it("IT-CAP-GUARANTEED-HIT-PROD-001 (R-ACTN-03/R-HIT-05, real lifecycle wiring): resolving the real ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT definition through resolveSkillUse grants a statusKind:GUARANTEED_HIT AppliedEffect with the production-defined SKILL_USE(4) duration, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const grantSkill = selfGrantSkill("SKL_TEST_GRANT_GUARANTEED_HIT", GUARANTEED_HIT_EFFECT_ID);
     const { definitions, recorder } = fixture([LAYLA_UNIT_ID], [grantSkill]);
-    const layla = {
-      ...createBattleUnit(
-        member("ally:layla", LAYLA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const layla = testBattleUnit({
+      battleUnitId: "ally:layla",
+      unitDefinitionId: LAYLA_UNIT_ID,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
 
     const result = resolveSkillUse(
       layla,
@@ -463,22 +379,7 @@ describe("production Catalog HIT_EVASION / GUARANTEED_HIT (M7-018, Issue #272, R
       initialRemaining: 4,
     });
 
-    const emptyState: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [layla.battleUnitId]: {
-          hp: layla.currentHp,
-          ap: layla.currentAp,
-          pp: layla.currentPp,
-          extraGauge: layla.currentExtraGauge,
-          maximumAp: layla.maximumAp,
-          maximumPp: layla.maximumPp,
-          maximumExtraGauge: layla.maximumExtraGauge,
-          combatStats: layla.combatStats,
-        },
-      },
-    };
+    const emptyState = initialSnapshotFor([layla], { status: "READY" });
     const reduced = applyStateDelta(emptyState, applied.stateDelta!);
     expect(reduced.units[layla.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[layla.battleUnitId]!.effects![0]).toMatchObject({
@@ -499,22 +400,23 @@ describe("production Catalog HIT_EVASION / GUARANTEED_HIT (M7-018, Issue #272, R
       [LAYLA_UNIT_ID, FLUTE_UNIT_ID],
       [grantGuaranteed, grantEvasion, attackSkill],
     );
-    const layla = {
-      ...createBattleUnit(
-        member("ally:layla", LAYLA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
-    const flute = {
-      ...createBattleUnit(
-        member("enemy:flute", FLUTE_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const layla = testBattleUnit({
+      battleUnitId: "ally:layla",
+      unitDefinitionId: LAYLA_UNIT_ID,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
+    const flute = testBattleUnit({
+      battleUnitId: "enemy:flute",
+      unitDefinitionId: FLUTE_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    });
 
     const afterGuaranteed = resolveSkillUse(
       layla,

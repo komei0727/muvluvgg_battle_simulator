@@ -1,20 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import {
-  createSkillDefinitionId,
-  createUnitDefinitionId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
-import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import { createBattleId } from "../../domain/shared/ids.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { Side } from "../../domain/shared/side.js";
 import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
 import { grantStunStatus } from "../../domain/battle/effects/stun-grant-service.js";
@@ -22,8 +13,14 @@ import { grantFreezeStatus } from "../../domain/battle/effects/freeze-grant-serv
 import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
 import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
 import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）:
@@ -73,77 +70,26 @@ const CATALOG_UNIT_IDS = [
   "UNIT_MAO_COMMITTEE",
 ];
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: 100,
+  attack: 50,
+  defense: 10,
+  criticalRate: 0,
+  actionSpeed: 10,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
 
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 10,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
+/** snapshotに含まれない付与役・被付与役（PSを1つも持たないテストユニット）。 */
+const TEST_UNIT_DEFINITIONS = [TEST_ALLY_UNIT_ID, TEST_ENEMY_UNIT_ID].map((id) =>
+  testUnitDefinition(id, {
+    baseStats: { ...COMBAT_STATS, maximumAp: LIMITS.maximumAp, maximumPp: LIMITS.maximumPp },
     extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+  }),
+);
 
-function loadProductionSnapshot(): ReturnType<
-  ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]
-> {
-  return loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(CATALOG_UNIT_IDS as never[], []);
-}
-
-function unitDefinitionsWithTestUnits(
-  snapshot: ReturnType<typeof loadProductionSnapshot>,
-): Map<UnitDefinition["unitDefinitionId"], UnitDefinition> {
-  const unitDefinitions = new Map(snapshot.units);
-  for (const id of [TEST_ALLY_UNIT_ID, TEST_ENEMY_UNIT_ID]) {
-    unitDefinitions.set(createUnitDefinitionId(id), testUnitDefinition(id));
-  }
-  return unitDefinitions;
+function unitDefinitionsWithTestUnits(snapshot: BattleCatalogSnapshot) {
+  return definitionsWith(snapshot, { units: TEST_UNIT_DEFINITIONS }).unitDefinitions;
 }
 
 /**
@@ -152,7 +98,7 @@ function unitDefinitionsWithTestUnits(
  * （payloadを手書きしない — 分類payloadの生成そのものが検証対象のため）。
  */
 function emitEffectApplied(
-  snapshot: ReturnType<typeof loadProductionSnapshot>,
+  snapshot: BattleCatalogSnapshot,
   effectActionDefinitionId: string,
   source: BattleUnit,
   target: BattleUnit,
@@ -164,13 +110,7 @@ function emitEffectApplied(
   applied: BattleDomainEvent;
   units: readonly BattleUnit[];
 } {
-  const definition: EffectActionDefinition | undefined = snapshot.effectActions.get(
-    effectActionDefinitionId as never,
-  );
-  expect(
-    definition,
-    `${effectActionDefinitionId} must exist in the production Catalog`,
-  ).toBeDefined();
+  const definition = effectActionFrom(snapshot, effectActionDefinitionId);
   // `into`を渡すと、PS発動まで通すテストが使う本番同等のイベント連鎖
   // （`ActionStarted`配下）へそのまま記録する。省略時は候補検出だけを見る
   // ための独立したrecorderで発行する。
@@ -194,21 +134,21 @@ function emitEffectApplied(
     rootEventId: parent.rootEventId ?? parent.eventId,
   };
   const request = {
-    definition: definition!,
+    definition,
     sourceId: source.battleUnitId,
     targetId: target.battleUnitId,
     duplicate: true,
     magnitude,
-    ...(definition!.kind === "APPLY_STATUS" ? { statusKind: definition!.payload.status } : {}),
+    ...(definition.kind === "APPLY_STATUS" ? { statusKind: definition.payload.status } : {}),
     durationDefinition:
-      definition!.kind === "APPLY_STATUS" || definition!.kind === "APPLY_STAT_MOD"
-        ? definition!.payload.duration
+      definition.kind === "APPLY_STATUS" || definition.kind === "APPLY_STAT_MOD"
+        ? definition.payload.duration
         : { dispellable: true, linkedEffectGroupId: null },
   };
   const granted =
-    definition!.kind === "APPLY_STATUS" && definition!.payload.status === "STUN"
+    definition.kind === "APPLY_STATUS" && definition.payload.status === "STUN"
       ? grantStunStatus(context, units, request, parent.eventId)
-      : definition!.kind === "APPLY_STATUS" && definition!.payload.status === "FREEZE"
+      : definition.kind === "APPLY_STATUS" && definition.payload.status === "FREEZE"
         ? grantFreezeStatus(context, units, request, parent.eventId)
         : grantEffect(context, units, request, parent.eventId);
 
@@ -230,7 +170,7 @@ function emitEffectApplied(
 }
 
 function candidateSkillIds(
-  snapshot: ReturnType<typeof loadProductionSnapshot>,
+  snapshot: BattleCatalogSnapshot,
   event: TriggerCandidateEvent,
   units: readonly BattleUnit[],
 ): readonly string[] {
@@ -244,29 +184,33 @@ function candidateSkillIds(
 }
 
 function owner(unitDefinitionId: string, battleUnitId: string, side: Side): BattleUnit {
-  return {
-    ...createBattleUnit(
-      member(battleUnitId, unitDefinitionId, side, { column: "LEFT", row: "BACK" }),
-      side,
-      LIMITS,
-    ),
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
+    position: { column: "LEFT", row: "BACK" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
     // `createBattleUnit`はPP0で始まる（`startBattle`のREADY→RUNNING回復でのみ
     // 付与される）ため、PSコストを賄えるように明示的に満たす。
-    currentPp: LIMITS.maximumPp,
-  };
+    overrides: { currentPp: LIMITS.maximumPp },
+  });
 }
 
 function plain(unitDefinitionId: string, battleUnitId: string, side: Side): BattleUnit {
-  return createBattleUnit(
-    member(battleUnitId, unitDefinitionId, side, { column: "RIGHT", row: "FRONT" }),
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
     side,
-    LIMITS,
-  );
+    position: { column: "RIGHT", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+  });
 }
 
 describe("production Catalog EffectApplied classification payload (M7-011, Issue #265)", () => {
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-001: SKL_KEI_JACKKNIFE_PS2 fully activates from a REAL EffectApplied whose classification payload marks a DEBUFF, damaging exactly the debuffed enemy (TRIGGER_TARGET)", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const kei = owner("UNIT_KEI_JACKKNIFE", "ally:kei", "ALLY");
     const ally = plain(TEST_ALLY_UNIT_ID, "ally:helper", "ALLY");
     const enemy = plain(TEST_ENEMY_UNIT_ID, "enemy:1", "ENEMY");
@@ -306,13 +250,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
       categories: ["DEBUFF"],
     });
 
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions: unitDefinitionsWithTestUnits(snapshot),
-      skillDefinitions: snapshot.skills,
-    };
+    const definitions = definitionsWith(snapshot, { units: TEST_UNIT_DEFINITIONS });
     const runtime = new PassiveActivationRuntime(
       {
         definitions,
@@ -347,7 +285,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
   });
 
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-002: SKL_KEI_JACKKNIFE_PS2 is NOT a candidate for a REAL EffectApplied classified as BUFF — the pre-M7-011 approximation fired on any effect application", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const kei = owner("UNIT_KEI_JACKKNIFE", "ally:kei", "ALLY");
     const ally = plain(TEST_ALLY_UNIT_ID, "ally:helper", "ALLY");
     const enemy = plain(TEST_ENEMY_UNIT_ID, "enemy:1", "ENEMY");
@@ -365,7 +303,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
   });
 
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-003 (R-STS-01): SKL_KEI_JACKKNIFE_PS2 IS a candidate for a REAL status-ailment EffectApplied, because 状態異常はデバフの一種 — the classifier gives a STUN both STATUS and DEBUFF", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const kei = owner("UNIT_KEI_JACKKNIFE", "ally:kei", "ALLY");
     const ally = plain(TEST_ALLY_UNIT_ID, "ally:helper", "ALLY");
     const enemy = plain(TEST_ENEMY_UNIT_ID, "enemy:1", "ENEMY");
@@ -380,7 +318,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
   });
 
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-004 (R-STS-01境界): SKL_SIENA_DIVA_PS1 candidate-izes for a REAL status ailment but not for a beneficial APPLY_STATUS (STEALTH) — 「敵に状態異常が付与された際」は effectKind: APPLY_STATUS より狭い", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const siena = owner("UNIT_SIENA_DIVA", "ally:siena", "ALLY");
     const ally = plain(TEST_ALLY_UNIT_ID, "ally:helper", "ALLY");
     const enemy = plain(TEST_ENEMY_UNIT_ID, "enemy:1", "ENEMY");
@@ -402,7 +340,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
   });
 
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-005: SKL_NADYA_SUCCESSOR_PS2 (敵に気絶) and SKL_KATE_PALADIN_PS1 (敵に凍結) each candidate-ize only for their own statusKind", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const nadya = owner("UNIT_NADYA_SUCCESSOR", "ally:nadya", "ALLY");
     const kate = owner("UNIT_KATE_PALADIN", "ally:kate", "ALLY");
     const ally = plain(TEST_ALLY_UNIT_ID, "ally:helper", "ALLY");
@@ -423,7 +361,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
   });
 
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-006: SKL_NADYA_SUCCESSOR_PS1 candidate-izes for a status ailment applied to Nadya herself, but not for a plain DEBUFF (「自身に状態異常が付与された際」)", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const nadya = owner("UNIT_NADYA_SUCCESSOR", "ally:nadya", "ALLY");
     const enemy = plain(TEST_ENEMY_UNIT_ID, "enemy:1", "ENEMY");
 
@@ -446,7 +384,7 @@ describe("production Catalog EffectApplied classification payload (M7-011, Issue
   });
 
   it("IT-CAP-TRIGGER-PAYLOAD-PROD-007: SKL_URUU_TIMID_PS3・SKL_MEIYA_FATED_PS1（自身にデバフ）と SKL_LILY_SINGER_PS1（味方にデバフ）は、DEBUFF分類の付与だけを候補にする", () => {
-    const snapshot = loadProductionSnapshot();
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, CATALOG_UNIT_IDS);
     const uruu = owner("UNIT_URUU_TIMID", "ally:uruu", "ALLY");
     const meiya = owner("UNIT_MEIYA_FATED", "ally:meiya", "ALLY");
     const lily = owner("UNIT_LILY_SINGER", "ally:lily", "ALLY");

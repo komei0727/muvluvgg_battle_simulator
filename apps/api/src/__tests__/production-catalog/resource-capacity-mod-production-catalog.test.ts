@@ -2,31 +2,26 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
 import { applyDamageAction } from "../../domain/battle/combat/damage-application-service.js";
-import {
-  createBattleUnit,
-  recoverTurnResources,
-  type BattleUnit,
-} from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import { recoverTurnResources, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-002A（Issue #255、`CAP_RESOURCE_CAPACITY_MOD`／G-09）: production Catalogの
@@ -62,64 +57,15 @@ const FLUTE_BASE_MAX_AP = 4;
 const FLUTE_MAX_HP = 1000;
 const LIMITS = { maximumAp: FLUTE_BASE_MAX_AP, maximumPp: 4, maximumExtraGauge: 7 };
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-  combatStatOverrides: Partial<BattlePartyMember["combatStats"]> = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: FLUTE_MAX_HP,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      ...combatStatOverrides,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: FLUTE_MAX_HP,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: FLUTE_MAX_HP,
+  attack: 100,
+  defense: 0,
+  criticalRate: 0,
+  actionSpeed: 10,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
 
 /**
  * `HitPointReduced`をFlute自身を発生源として起こすためだけの最小DAMAGE定義。
@@ -144,40 +90,11 @@ function selfHitAction(power: number): Extract<EffectActionDefinition, { kind: "
   };
 }
 
-function snapshotOf(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-          ...(unit.appliedEffects.length > 0
-            ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-            : {}),
-          ...(unit.markerStates.length > 0
-            ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-            : {}),
-        },
-      ]),
-    ),
-  };
-}
-
 function setup() {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([FLUTE_UNIT_ID as never], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [FLUTE_UNIT_ID]);
 
   // 実Catalogの定義形をこのテストの前提として固定する（近似・差し替えなし）。
-  const maxApUp = snapshot.effectActions.get(createEffectActionDefinitionId(MAX_AP_UP_ID))!;
+  const maxApUp = effectActionFrom(snapshot, MAX_AP_UP_ID);
   expect(maxApUp).toMatchObject({
     kind: "MODIFY_RESOURCE_CAPACITY",
     payload: {
@@ -188,47 +105,38 @@ function setup() {
     },
     requiredCapabilities: ["CAP_RESOURCE_CAPACITY_MOD"],
   });
-  expect(snapshot.units.get(createUnitDefinitionId(FLUTE_UNIT_ID))!.baseStats.maximumAp).toBe(
-    FLUTE_BASE_MAX_AP,
-  );
+  expect(unitFrom(snapshot, FLUTE_UNIT_ID).baseStats.maximumAp).toBe(FLUTE_BASE_MAX_AP);
 
   const selfHit = selfHitAction(1);
-  const flute: BattleUnit = {
-    ...createBattleUnit(
-      member(
-        "ally:flute",
-        FLUTE_UNIT_ID,
-        "ALLY",
-        { column: "CENTER", row: "FRONT" },
-        {
-          attack: 950,
-        },
-      ),
-      "ALLY",
-      LIMITS,
-    ),
+  const flute = testBattleUnit({
+    battleUnitId: "ally:flute",
+    unitDefinitionId: FLUTE_UNIT_ID,
+    position: { column: "CENTER", row: "FRONT" },
+    combatStats: { ...COMBAT_STATS, attack: 950 },
+    limits: LIMITS,
     // PSコスト1PP分と、AP消費済み（上限が上がっても現在値は追随しないことを見るため）。
-    currentPp: LIMITS.maximumPp,
-    currentAp: 0,
-    currentHp: 1000,
-  };
-  const enemy = createBattleUnit(
-    member("enemy:1", PEER_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-    "ENEMY",
-    LIMITS,
-  );
+    overrides: { currentPp: LIMITS.maximumPp, currentAp: 0, currentHp: 1000 },
+  });
+  const enemy = testBattleUnit({
+    battleUnitId: "enemy:1",
+    unitDefinitionId: PEER_UNIT_ID,
+    side: "ENEMY",
+    position: { column: "CENTER", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+  });
 
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(PEER_UNIT_ID), testUnitDefinition(PEER_UNIT_ID));
   const effectActions = new Map(snapshot.effectActions);
   effectActions.set(selfHit.effectActionDefinitionId, selfHit);
-  const definitions: BattleDefinitions = {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions,
-    unitDefinitions,
-    skillDefinitions: snapshot.skills,
-  };
+  const definitions = definitionsWith(snapshot, {
+    units: [
+      testUnitDefinition(PEER_UNIT_ID, {
+        baseStats: { ...COMBAT_STATS, maximumAp: LIMITS.maximumAp, maximumPp: LIMITS.maximumPp },
+        extraGaugeMaximum: LIMITS.maximumExtraGauge,
+      }),
+    ],
+    overrides: { effectActions },
+  });
 
   const recorder = new EventRecorder(createBattleId("B_CAPACITY"));
   const resolutionScopeId = recorder.nextResolutionScopeId();
@@ -370,7 +278,7 @@ describe("production Catalog ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP (M7-002A, Issue #25
     const context = setup();
     const { hitPointReduced, units } = reduceOwnHitPoints(context);
     // 発動直前の実状態と、そこから先に記録されたStateDeltaだけを突き合わせる。
-    const initial = snapshotOf(units);
+    const initial = initialSnapshotFor(units, { include: ["effects", "markers"] });
     const before = context.recorder.getEvents().length;
 
     const activated = activatePassive(context, hitPointReduced, units);
