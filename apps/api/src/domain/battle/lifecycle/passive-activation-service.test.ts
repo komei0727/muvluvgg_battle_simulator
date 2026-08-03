@@ -313,7 +313,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(resourceChanged[0]!.payload).toMatchObject({ before: 3, after: 1, delta: -2 });
     expect(resourceChanged[1]!.payload).toMatchObject({ before: 0, after: 2, delta: 2 });
 
-    // レビュー指摘[P2]: PSも一つのSkillUseのため、この発動に属する全イベント
+    // PSも一つのSkillUseのため、この発動に属する全イベント
     // (リソース消費・Cooldown設定・PassiveActivated・PassiveResolved)は同じ
     // skillUseIdを共有し、かつTurnStarted(このPSの原因イベント、PSのSkillUse
     // ではない)にはskillUseIdが無いはずである。
@@ -364,7 +364,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("UT-R-PS-01-133 (Issue #144, TRIGGER_EXCLUSION_TIMING): PassiveActivationRuntimeContext.resolutionPhase reaches candidate detection AND reconfirmation, excluding a RESOLUTION_PHASE(negate: true)-gated PS only when the context's resolutionPhase matches", () => {
+  it("UT-R-PS-01-133 (TRIGGER_EXCLUSION_TIMING): PassiveActivationRuntimeContext.resolutionPhase reaches candidate detection AND reconfirmation, excluding a RESOLUTION_PHASE(negate: true)-gated PS only when the context's resolutionPhase matches", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 2 }),
@@ -409,7 +409,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
-  it('UT-R-PS-01-036 (review re-fix [P2], Issue #144 follow-up): PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see battle.test.ts, which correctly asserts this candidate can never actually activate through the real creation path)', () => {
+  it('UT-R-PS-01-036: PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see battle.test.ts, which correctly asserts this candidate can never actually activate through the real creation path)', () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
@@ -451,7 +451,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(recorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
-  it("UT-R-PS-01-053 (RES-004, Issue #171): PassiveActivationRuntimeContext.turnNumber reaches candidate detection AND reconfirmation for a TURN_NUMBER-gated PS", () => {
+  it("UT-R-PS-01-053 (RES-004): PassiveActivationRuntimeContext.turnNumber reaches candidate detection AND reconfirmation for a TURN_NUMBER-gated PS", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
@@ -484,7 +484,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
-  it("UT-R-PS-01-054 (RES-004, Issue #171): the current unit roster reaches candidate detection AND reconfirmation for an ALIVE_UNIT_COUNT-gated PS", () => {
+  it("UT-R-PS-01-054 (RES-004): the current unit roster reaches candidate detection AND reconfirmation for an ALIVE_UNIT_COUNT-gated PS", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const allyDefinitionId = createUnitDefinitionId("UNIT_ALLY");
     const skill: SkillDefinition = {
@@ -528,7 +528,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
-  it("UT-R-PS-04-012 (Issue #144 review fix [P2]): a POSITION_RELATION-gated PS whose event references a target absent from the roster is discarded deterministically at reconfirmation, not thrown", () => {
+  it("UT-R-PS-04-012 (review fix): a POSITION_RELATION-gated PS whose event references a target absent from the roster is discarded deterministically at reconfirmation, not thrown", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 2 }),
@@ -668,7 +668,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     ).toBe(false);
   });
 
-  it("PR #141 review [P1]: a PS triggered from a turn-boundary event (no actionId, e.g. TurnStarted) can still resolve real EffectSequence steps instead of throwing", () => {
+  it("a PS triggered from a turn-boundary event (no actionId, e.g. TurnStarted) can still resolve real EffectSequence steps instead of throwing", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
     const enemyBindingId = createTargetBindingId("TGT_ENEMY");
@@ -744,7 +744,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "DamageApplied")).toBe(true);
   });
 
-  it("PR #141 re-review [P1]: a PS triggered from a turn-boundary event with a positive ACTION-unit cooldown does not throw, and the cooldown decrements at the owner's next own action", () => {
+  it("a PS triggered from a turn-boundary event with a positive ACTION-unit cooldown does not throw, and the cooldown decrements at the owner's next own action", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_TURN_ACTION_CD", {
       ppCost: 1,
@@ -780,7 +780,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
     // No setActionId recorded (no action was in progress), so the owner's own
     // next action-completion decrements it regardless of that action's id.
-    // `establishesScope`（Issue #248）はその「設定scopeなし」を独立Reducerへ
+    // `establishesScope`はその「設定scopeなし」を独立Reducerへ
     // 明示するための印であり、これが無いと復元側は不在を「省略」と読み違えて
     // 直前の`setActionId`を残してしまう。
     expect(cooldownStarted.stateDelta).toEqual({
@@ -799,7 +799,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("UT-R-PS-04-016 (Issue #34 integration): a PS candidate without enough PP is silently skipped (no PassiveActivated), leaving resources untouched", () => {
+  it("UT-R-PS-04-016 (integration): a PS candidate without enough PP is silently skipped (no PassiveActivated), leaving resources untouched", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_PS", { ppCost: 5 });
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 1, maximumPp: 3 });
@@ -820,7 +820,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "PassiveActivated")).toBe(false);
   });
 
-  it("PR #142レビュー[P1]: when a PS's own EffectSequence has two EffectActions and the first triggers a child PS, the child resolves completely before the parent's second EffectAction starts (親A→子PS→親B)", () => {
+  it("when a PS's own EffectSequence has two EffectActions and the first triggers a child PS, the child resolves completely before the parent's second EffectAction starts (親A→子PS→親B)", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
     const actionA = damageEffectAction("ACT_A");
@@ -949,7 +949,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivatedEvents).toHaveLength(1);
   });
 
-  it("PR #142再レビュー[P1]: a child PS triggered by DamageApplied (the DAMAGE action's own internal event, not EffectActionCompleted) resolves before the parent's second EffectAction starts", () => {
+  it("a child PS triggered by DamageApplied (the DAMAGE action's own internal event, not EffectActionCompleted) resolves before the parent's second EffectAction starts", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
     const actionA = damageEffectAction("ACT_A");
@@ -982,7 +982,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // 子PS: `DamageApplied`（DAMAGE適用が内部で発行するイベントそのもの）に
     // 反応する。`EffectActionCompleted`ではなく、これより前に発行される内部
     // イベントを契機にしても、親のaction Bより前に解決されることを確認する
-    // （PR #142再レビュー[P1]の回帰: generator化でEFFECT_RESOLVEDが
+    // （回帰: generator化でEFFECT_RESOLVEDが
     // `EffectActionCompleted`だけになり、`DamageApplied`が候補検出へ渡らなく
     // なっていた）。
     const childSkill: SkillDefinition = {
@@ -1072,7 +1072,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivatedEvents).toHaveLength(1);
   });
 
-  it("レビュー再々指摘[P2]（Issue #183）: a PS's own DAMAGE action against a frozen target with a linked-group sibling resolves the cascade's EffectExpired (and a reacting child PS) before FreezeRemoved is recorded, not batched after the whole hit completes", () => {
+  it("a PS's own DAMAGE action against a frozen target with a linked-group sibling resolves the cascade's EffectExpired (and a reacting child PS) before FreezeRemoved is recorded, not batched after the whole hit completes", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_FREEZE");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_REACT");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_FROZEN");
@@ -1123,7 +1123,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // 子PS: linkedEffectGroupカスケードで失効するsiblingの`EffectExpired`に
     // 反応する。凍結解除カスケードが個別に`yield`されていれば、この
     // `PassiveActivated`は`FreezeRemoved`より前に記録されるはず — まとめて
-    // 最後に処理されるとこの順序が逆転する（レビュー再々指摘[P2]の回帰）。
+    // 最後に処理されるとこの順序が逆転する（回帰チェック）。
     const childSkill: SkillDefinition = {
       ...passiveSkillOf("SKL_CHILD_REACT_TO_EXPIRY"),
       triggers: [
@@ -1247,7 +1247,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(events.indexOf(childPassiveActivated!)).toBeLessThan(events.indexOf(freezeRemoved!));
   });
 
-  it("レビュー再々々指摘[P2]（Issue #183）: PS-own DAMAGE against a frozen target still notifies the pre-cascade FACT events (HitConfirmed) — they are not silently dropped once the freeze-removal cascade starts yielding", () => {
+  it("PS-own DAMAGE against a frozen target still notifies the pre-cascade FACT events (HitConfirmed) — they are not silently dropped once the freeze-removal cascade starts yielding", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_HITCONFIRMED");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_HITCONFIRMED");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_HITCONFIRMED");
@@ -1286,7 +1286,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // 済みの`HitConfirmed`に反応する。この時点はまだ凍結除去のyieldループが
     // 一度も回っていないため、`innerEventsStart`を不用意に進めてしまうと
     // このイベントが取りこぼされ、この子PSが一切発動しなくなる
-    // （レビュー再々々指摘[P2]の回帰）。
+    // （回帰チェック）。
     const childSkill: SkillDefinition = {
       ...passiveSkillOf("SKL_CHILD_HITCONFIRMED"),
       triggers: [
@@ -1370,7 +1370,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivated).toBeDefined();
   });
 
-  it("レビュー再々々指摘[P2]（Issue #183）: a child PS reacting to FreezeRemoved that defeats the target before this hit's own HP application does not cause a duplicate UnitDefeated", () => {
+  it("a child PS reacting to FreezeRemoved that defeats the target before this hit's own HP application does not cause a duplicate UnitDefeated", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_DEFEAT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_DEFEAT");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_DEFEAT");
@@ -1520,7 +1520,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(unitDefeatedEvents).toHaveLength(1);
   });
 
-  it("UT-R-DMG-05-006 (PR #283レビュー[P1], R-DMG-05 #4): inside a PS's OWN EffectSequence (no onFactEventForPassiveChain), a child PS reacting to DamageWillBeApplied that defeats the target cancels the parent's hit — the TIMING event's chain resolves before damage calculation, not after the hit completed", () => {
+  it("UT-R-DMG-05-006 (R-DMG-05 #4): inside a PS's OWN EffectSequence (no onFactEventForPassiveChain), a child PS reacting to DamageWillBeApplied that defeats the target cancels the parent's hit — the TIMING event's chain resolves before damage calculation, not after the hit completed", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_WBA");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_WBA");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_WBA");
@@ -1665,7 +1665,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(updatedEnemy.currentHp).toBe(0);
   });
 
-  it("PR #142再レビュー[P1]: a child PS triggered by CooldownReduced (a COOLDOWN_MANIPULATION action's own internal event) resolves before the parent's second EffectAction starts", () => {
+  it("a child PS triggered by CooldownReduced (a COOLDOWN_MANIPULATION action's own internal event) resolves before the parent's second EffectAction starts", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
     const targetSkillId = createSkillDefinitionId("SKL_ON_COOLDOWN");
@@ -1781,7 +1781,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
   });
 
-  it("UT-R-EFF-11-001 (RuntimeCounter, Issue #143): updates the counter and emits RuntimeCounterChanged before the causing event's own PS candidates are resolved, so a modulo-gated PS only activates once the counter reaches a multiple", () => {
+  it("UT-R-EFF-11-001 (RuntimeCounter): updates the counter and emits RuntimeCounterChanged before the causing event's own PS candidates are resolved, so a modulo-gated PS only activates once the counter reaches a multiple", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
     const skill: SkillDefinition = {
@@ -1906,7 +1906,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(runtimeCounterChanged2.sequence).toBeLessThan(passiveActivated.sequence);
   });
 
-  it("UT-R-PS-05-006 (Issue #143 fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
+  it("UT-R-PS-05-006 (fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CHAIN_OWNER");
     const skillA: SkillDefinition = {
       skillDefinitionId: createSkillDefinitionId("SKL_PS_A"),
@@ -1997,7 +1997,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     ]);
   });
 
-  it("UT-R-PS-05-004 (review fix [P1]: PassiveActivated re-entry must not clobber the activation guard): a PS whose own trigger reacts to its own PassiveActivated activates exactly once per resolution scope (R-PS-07), not twice", () => {
+  it("UT-R-PS-05-004 (review fix: PassiveActivated re-entry must not clobber the activation guard): a PS whose own trigger reacts to its own PassiveActivated activates exactly once per resolution scope (R-PS-07), not twice", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_SELF_REACT_OWNER");
     const skill: SkillDefinition = {
       skillDefinitionId: createSkillDefinitionId("SKL_PS_SELF_REACT"),
@@ -2056,7 +2056,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(passiveActivatedEvents).toHaveLength(1);
   });
 
-  it("UT-R-EFF-11-002 (review fix [P2]): finalizeResolutionScope discards a resetScope: RESOLUTION_SCOPE counter and emits RuntimeCounterReset once the candidate stack is empty", () => {
+  it("UT-R-EFF-11-002 (review fix): finalizeResolutionScope discards a resetScope: RESOLUTION_SCOPE counter and emits RuntimeCounterReset once the candidate stack is empty", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_OWNER");
     const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SCOPED");
     const skill: SkillDefinition = {
@@ -2126,7 +2126,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     const reset = recorder.getEvents().find((e) => e.eventType === "RuntimeCounterReset")!;
     expect(reset).toBeDefined();
     expect(reset.parentEventId).toBe(turnStarted.eventId);
-    // PRレビュー[P2]是正（Issue #180）: 呼び出し側が`recorder.getEvents()`の
+    // 呼び出し側が`recorder.getEvents()`の
     // 末尾を推測しなくても、この終了処理が発行した最後のイベントを明示的に
     // 得られる。
     expect(lastEventId).toBe(reset.eventId);
@@ -2137,7 +2137,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       skillDefinitionId: skill.skillDefinitionId,
       before: 1,
     });
-    // レビュー再レビュー[P1]: `after: 0`ではなく`undefined`（キー自体の削除）。
+    // `after: 0`ではなく`undefined`（キー自体の削除）。
     expect(reset.stateDelta).toEqual({
       units: {
         [owner.battleUnitId]: {
@@ -2148,7 +2148,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       },
     });
 
-    // レビュー再レビュー[P1]: `reset.stateDelta`だけから独立Reducerで復元した
+    // `reset.stateDelta`だけから独立Reducerで復元した
     // 状態が、実状態（`resetRuntimeCounter`がキーを削除した後の`ownerAfterFinalize`）
     // と同じ形（`{}`、`{ counter: 0 }`ではない）になること。
     const initialSnapshot: BattleStateSnapshot = {
@@ -2184,7 +2184,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(resetEventsAfter).toBe(resetEventsBefore);
   });
 
-  it("UT-R-EFF-11-027 (PRレビュー[P2]是正の再指摘、Issue #180・#251): finalizeResolutionScope returns the caller's own cursor unchanged when there is nothing to reset — the overwhelmingly common case, since most skills declare no resetScope: RESOLUTION_SCOPE counters — so callers can tell 'nothing happened' apart from 'something happened' instead of receiving a rootEventId that could wrongly roll back their own causal cursor", () => {
+  it("UT-R-EFF-11-027 (#251 是正): finalizeResolutionScope returns the caller's own cursor unchanged when there is nothing to reset — the overwhelmingly common case, since most skills declare no resetScope: RESOLUTION_SCOPE counters — so callers can tell 'nothing happened' apart from 'something happened' instead of receiving a rootEventId that could wrongly roll back their own causal cursor", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_NO_RESET_OWNER");
     const skill: SkillDefinition = {
       skillDefinitionId: createSkillDefinitionId("SKL_PS_NO_RESET"),
@@ -2232,7 +2232,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(lastEventId).toBe(turnStarted.eventId);
   });
 
-  it("UT-R-EFF-11-003 (review re-fix [P1]): a resetScope counter whose own counterUpdates re-triggers on the RuntimeCounterReset it causes makes finalizeResolutionScope throw a deterministic error instead of looping forever", () => {
+  it("UT-R-EFF-11-003 (review re-fix): a resetScope counter whose own counterUpdates re-triggers on the RuntimeCounterReset it causes makes finalizeResolutionScope throw a deterministic error instead of looping forever", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_LOOP_OWNER");
     const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SELF_REGEN");
     const skill: SkillDefinition = {
@@ -2311,7 +2311,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     );
   });
 
-  it("UT-R-EFF-11-004 (review re-re-fix [P1]): a hit that lands carry exactly on 0 (not via reset) still reconstructs to the same skillCounterCarry shape as the real state (key absent, not present with value 0) across sub-threshold -> exact-crossing -> resolution-scope reset", () => {
+  it("UT-R-EFF-11-004 (review re-re-fix): a hit that lands carry exactly on 0 (not via reset) still reconstructs to the same skillCounterCarry shape as the real state (key absent, not present with value 0) across sub-threshold -> exact-crossing -> resolution-scope reset", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CARRY_ZERO_OWNER");
     const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CARRY_ZERO");
     const skill: SkillDefinition = {
@@ -2400,7 +2400,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           hitIndex: 1,
           targetUnitId: owner.battleUnitId,
           calculatedDamage: damage,
-          // DMG-004（Issue #194、R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
+          // DMG-004（R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
           hpDirectDamage: 0,
           typedShieldAbsorbed: 0,
           untypedShieldAbsorbed: 0,
@@ -2431,7 +2431,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       },
     };
     let appliedEventCount = 0;
-    // レビュー再々々々レビュー[P1]: `?? {}`で個別フィールドを緩く比較するのでは
+    // `?? {}`で個別フィールドを緩く比較するのでは
     // なく、`captureBattleState`相当の完全なSnapshot同士を直接突き合わせる
     // ため、RuntimeCounterChanged/Reset以外（PP消費・EX増加等）も含め全ての
     // イベントのstateDeltaを順に適用し、実状態と同じ完全なunit射影を再構築する。
@@ -2469,7 +2469,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     // The real state's carry projection omits the `skillCounterCarry` field
     // entirely once no counter has nonzero carry — assert the key itself is
     // absent (not merely falsy/`{}`), matching `captureBattleState` exactly
-    // (レビュー再々々々レビュー[P1]: `?? {}` previously masked `{}` vs "no key").
+    // (`?? {}` previously masked `{}` vs "no key").
     expect(
       Object.prototype.hasOwnProperty.call(
         snapshot.units[owner.battleUnitId]!,
@@ -2514,7 +2514,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("review fix [P1]: PassiveResolved now reaches PS candidate detection, so another PS reacting to 'an ally's PS resolved' activates in the same resolution scope", () => {
+  it("review fix: PassiveResolved now reaches PS candidate detection, so another PS reacting to 'an ally's PS resolved' activates in the same resolution scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESOLVED_REACT_OWNER");
     const skillA = passiveSkillOf("SKL_PS_RESOLVED_A", { ppCost: 1 });
     const skillB: SkillDefinition = {
@@ -2584,7 +2584,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     ]);
   });
 
-  it("review fix [P1]: PassiveInterrupted now reaches PS candidate detection, so another unit's PS reacting to it activates", () => {
+  it("review fix: PassiveInterrupted now reaches PS candidate detection, so another unit's PS reacting to it activates", () => {
     const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_INTERRUPTED_OWNER");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE_INTERRUPT");
     const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE_INTERRUPT");
@@ -2718,7 +2718,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     ]);
   });
 
-  it("review fix [P2]: multiple RuntimeCounter updates caused by the same event are applied one at a time — a PS reacting to the first RuntimeCounterChanged cannot observe a second counter's not-yet-emitted value", () => {
+  it("review fix: multiple RuntimeCounter updates caused by the same event are applied one at a time — a PS reacting to the first RuntimeCounterChanged cannot observe a second counter's not-yet-emitted value", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_SEQUENTIAL_COUNTERS_OWNER");
     const counterA = createRuntimeCounterId("RUNTIME_COUNTER_SEQ_A");
     const counterB = createRuntimeCounterId("RUNTIME_COUNTER_SEQ_B");
@@ -2726,7 +2726,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       skillDefinitionId: createSkillDefinitionId("SKL_PS_SEQUENTIAL_COUNTERS"),
       skillType: "PS",
       cost: { resource: "PP", amount: 1 },
-      // レビュー指摘[P2]の再現条件: 修正前は`counterA`の変化に反応する候補解決の
+      // 修正前は`counterA`の変化に反応する候補解決の
       // 時点で`counterB`（後続counter）が既に更新済みだったため、この
       // RUNTIME_COUNTER条件（`counterB == 0`）が偽になり発動しなかった。
       activationCondition: { kind: "RUNTIME_COUNTER", counter: counterB, op: "EQ", value: 0 },
@@ -2811,7 +2811,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("review fix [P2]: a counterUpdates definition that re-triggers itself from the RuntimeCounterChanged it causes throws a deterministic ExecutionGuardExceededError instead of recursing forever", () => {
+  it("review fix: a counterUpdates definition that re-triggers itself from the RuntimeCounterChanged it causes throws a deterministic ExecutionGuardExceededError instead of recursing forever", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_COUNTER_SELF_REGEN_OWNER");
     const counterId = createRuntimeCounterId("RUNTIME_COUNTER_SELF_REGEN_ONFACTEVENT");
     const skill: SkillDefinition = {
@@ -2890,7 +2890,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     } catch (error) {
       caught = error;
     }
-    // レビュー指摘[P1]: 実行ガード超過は`DomainValidationError`
+    // 実行ガード超過は`DomainValidationError`
     // （`INVALID_COMMAND`/HTTP422へ変換される）ではなく、専用の
     // `ExecutionGuardExceededError`（`EXECUTION_LIMIT_EXCEEDED`/HTTP503）でなければ
     // ならない。
@@ -2898,12 +2898,12 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect((caught as Error).message).toMatch(/self-triggering recursion exceeded/);
   });
 
-  it("review re-fix [P2]: a PS chain reacting to the first RuntimeCounterChanged that mutates the still-pending second counter is not clobbered by a stale pre-computed value", () => {
+  it("review re-fix: a PS chain reacting to the first RuntimeCounterChanged that mutates the still-pending second counter is not clobbered by a stale pre-computed value", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_COUNTER_RACE_OWNER");
     const counterA = createRuntimeCounterId("RUNTIME_COUNTER_RACE_A");
     const counterB = createRuntimeCounterId("RUNTIME_COUNTER_RACE_B");
     const mutatorSkillId = createSkillDefinitionId("SKL_PS_COUNTER_RACE_MUTATOR");
-    // レビュー再指摘[P2]の再現: counterAとcounterBは同じ原因イベント
+    // counterAとcounterBは同じ原因イベント
     // (TurnStarted)で一括検出される対象だが、counterAのRuntimeCounterChanged
     // に反応するPS連鎖(mutatorSkill)が、まだ処理されていないcounterBを
     // "先に"別経路(自身のPassiveActivatedをtriggerとするcounterUpdates)で
@@ -3048,12 +3048,12 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("review re-re-fix [P2]: an originalSkill entry that matched the causing event before a PS chain ran is still applied afterward, even though the PS chain changed the counter its match condition depended on", () => {
+  it("review re-re-fix: an originalSkill entry that matched the causing event before a PS chain ran is still applied afterward, even though the PS chain changed the counter its match condition depended on", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_COUNTER_NO_VANISH_OWNER");
     const counterA = createRuntimeCounterId("RUNTIME_COUNTER_NO_VANISH_A");
     const counterE = createRuntimeCounterId("RUNTIME_COUNTER_NO_VANISH_E");
     const mutatorSkillId = createSkillDefinitionId("SKL_PS_COUNTER_NO_VANISH_MUTATOR");
-    // レビュー再々指摘[P2]の再現: counterEのマッチング条件(counterA==0)は、
+    // counterEのマッチング条件(counterA==0)は、
     // TurnStarted到着直後(counterAはまだ0)の時点では真であり一致が確定する。
     // その後mutatorSkillがcounterAの変化に反応して連鎖的にcounterAをさらに
     // 書き換えても、既に確定済みのcounterEの一致は取り消されてはならない
@@ -3199,7 +3199,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("R-EFF-08 (expiration.conditions, レビュー修正 PR #209)", () => {
+  describe("R-EFF-08 (expiration.conditions)", () => {
     const STAT_MOD_ID = createEffectActionDefinitionId("ACT_CURSE_ATK_DOWN");
 
     function statModDefinition(): EffectActionDefinition {
@@ -3238,7 +3238,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       };
     }
 
-    it("UT-R-EFF-08-008 (レビュー指摘[P2]、任意のFACT/TIMINGイベントに接続): expires a matching effect on a non-ActionCompleted event (TurnStarted), before that event's own PS candidates resolve", () => {
+    it("UT-R-EFF-08-008 (任意のFACT/TIMINGイベントに接続): expires a matching effect on a non-ActionCompleted event (TurnStarted), before that event's own PS candidates resolve", () => {
       const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
       const owner = unit("OWNER", "ALLY", { attack: 10, unitDefinitionId });
       const ownerWithEffect: BattleUnit = {
@@ -3357,7 +3357,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
     });
 
-    it("UT-R-EFF-08-011 (レビュー再指摘[P1]、PS連鎖内部イベント): expires an effect whose expiration.conditions matches a PassiveActivated event yielded from inside the PS chain itself (not routed through onFactEvent)", () => {
+    it("UT-R-EFF-08-011 (PS連鎖内部イベント): expires an effect whose expiration.conditions matches a PassiveActivated event yielded from inside the PS chain itself (not routed through onFactEvent)", () => {
       const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
       const skill = passiveSkillOf("SKL_PS", { ppCost: 0 });
       const owner = unit("OWNER", "ALLY", { attack: 10, unitDefinitionId });
@@ -3407,7 +3407,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-020/Issue #279)", () => {
+  describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-020)", () => {
     const CRIT_DOWN_ID = createEffectActionDefinitionId("ACT_KOUYOU_CRIT_DOWN");
     const KOUYOU_LINK = "KOUYOU_LINK";
 
@@ -3504,7 +3504,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     }
 
-    it("UT-R-EFF-10-030 (R-EFF-10/R-EFF-09 M7-020 Issue #279): a UnitDefeated for the granter removes the declaring Marker (reason SOURCE_DEFEATED) and cascades its CHILD AppliedEffect", () => {
+    it("UT-R-EFF-10-030 (R-EFF-10/R-EFF-09 M7-020): a UnitDefeated for the granter removes the declaring Marker (reason SOURCE_DEFEATED) and cascades its CHILD AppliedEffect", () => {
       const granter = unit("GRANTER", "ALLY", { currentHp: 0 });
       const holder = unit("HOLDER", "ENEMY", {
         attack: 10,
@@ -3553,7 +3553,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(eventTypes.indexOf("EffectExpired")).toBeLessThan(eventTypes.indexOf("MarkerRemoved"));
     });
 
-    it("UT-R-EFF-10-031 (R-EFF-10 M7-020 Issue #279): the removal resolves before the UnitDefeated event's own PS candidates (R-EFF-08と同じ評価タイミング)", () => {
+    it("UT-R-EFF-10-031 (R-EFF-10 M7-020): the removal resolves before the UnitDefeated event's own PS candidates (R-EFF-08と同じ評価タイミング)", () => {
       // PS所有者はMarker保持者自身（生存）にする — 付与者は戦闘不能になるため
       // 自身のPSは発動しない。
       const skill = passiveSkillOf("SKL_ON_DEFEAT", {
@@ -3599,7 +3599,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(passiveActivatedIndex).toBeGreaterThan(markerRemovedIndex);
     });
 
-    it("UT-R-EFF-10-032 (R-EFF-10 M7-020 Issue #279): a Marker granted by a still-standing unit survives another unit's defeat", () => {
+    it("UT-R-EFF-10-032 (R-EFF-10 M7-020): a Marker granted by a still-standing unit survives another unit's defeat", () => {
       const granterUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_GRANTER");
       const granter = unit("GRANTER", "ALLY", { unitDefinitionId: granterUnitDefinitionId });
       const other = unit("OTHER", "ALLY", { currentHp: 0 });
@@ -3636,7 +3636,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(false);
     });
 
-    it("UT-R-EFF-10-033 (R-EFF-10 M7-020 Issue #279, PS連鎖内部イベント): a UnitDefeated caused by a PS's own EffectSequence (chain-internal, never routed through onFactEvent) still removes the Marker the defeated unit had granted", () => {
+    it("UT-R-EFF-10-033 (R-EFF-10 M7-020 PS連鎖内部イベント): a UnitDefeated caused by a PS's own EffectSequence (chain-internal, never routed through onFactEvent) still removes the Marker the defeated unit had granted", () => {
       const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_ATTACKER");
       const victimUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_VICTIM");
       const attackDamage = damageEffectAction("ACT_KOUYOU_ATTACK_DAMAGE");
@@ -3726,7 +3726,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     });
 
-    it("UT-R-EFF-10-034 (R-EFF-09 逐次通知, PR #281 レビュー[P2]): inside the PS chain too, a PS triggered by the cascaded CHILD's EffectExpired still observes the parent Marker (it is removed only after that candidate resolves)", () => {
+    it("UT-R-EFF-10-034 (R-EFF-09 逐次通知): inside the PS chain too, a PS triggered by the cascaded CHILD's EffectExpired still observes the parent Marker (it is removed only after that candidate resolves)", () => {
       const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_ATTACKER");
       const victimUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_VICTIM");
       const attackDamage = damageEffectAction("ACT_KOUYOU_SEQ_ATTACK_DAMAGE");
@@ -3856,7 +3856,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("RuntimeCounter APPLIED_EFFECT scope (R-EFF-11, EFF-005/Issue #162)", () => {
+  describe("RuntimeCounter APPLIED_EFFECT scope (R-EFF-11, EFF-005)", () => {
     const holderUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_HOLDER");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_ENEMY");
     const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_HIT_COUNT");
@@ -3924,7 +3924,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           hitIndex: 1,
           targetUnitId: createBattleUnitId("HOLDER"),
           calculatedDamage: 10,
-          // DMG-004（Issue #194、R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
+          // DMG-004（R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
           hpDirectDamage: 0,
           typedShieldAbsorbed: 0,
           untypedShieldAbsorbed: 0,
@@ -3938,7 +3938,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     }
 
-    it("UT-R-EFF-11-014 (EFF-005 Issue #162): increments the effect instance's own counter, emits RuntimeCounterChanged with effectInstanceId (not skillDefinitionId), and does not throw", () => {
+    it("UT-R-EFF-11-014 (EFF-005): increments the effect instance's own counter, emits RuntimeCounterChanged with effectInstanceId (not skillDefinitionId), and does not throw", () => {
       const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
       const holder = { ...unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId }) };
       const holderWithEffect = { ...holder, appliedEffects: [curseEffect()] };
@@ -3965,7 +3965,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         [hitCounterId]: { value: 1, carry: 0 },
       });
 
-      // PR #211レビュー[P1]: この`hit1`は`onFactEvent`のトップレベル呼び出しと
+      // この`hit1`は`onFactEvent`のトップレベル呼び出しと
       // `resolvePassiveChain`が注入する`deps.applyEffectRuntimeCounterUpdates`の
       // 両方から`resolveEvent`経由で到達しうる — `processedEffectRuntimeCounterEventIds`
       // ガードにより二重加算されず、`RuntimeCounterChanged`はちょうど1件だけ
@@ -3989,7 +3989,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(runtimeCounterChanged.payload).not.toHaveProperty("skillDefinitionId");
     });
 
-    it("UT-R-EFF-11-015 (EFF-005 Issue #162): once the counter reaches the expiration.conditions threshold, the effect instance expires (R-EFF-08 evaluates the freshly updated counter)", () => {
+    it("UT-R-EFF-11-015 (EFF-005): once the counter reaches the expiration.conditions threshold, the effect instance expires (R-EFF-08 evaluates the freshly updated counter)", () => {
       const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
       const holder = unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId });
       const holderWithEffect = { ...holder, appliedEffects: [curseEffect()] };
@@ -4025,7 +4025,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(expiredIndex).toBeGreaterThan(secondRuntimeCounterChangedIndex);
     });
 
-    it("UT-R-EFF-11-016 (EFF-005 Issue #162): a RuntimeCounterChanged stateDelta.units[holder].effects[instanceId] before/after round-trips through the independent Reducer", () => {
+    it("UT-R-EFF-11-016 (EFF-005): a RuntimeCounterChanged stateDelta.units[holder].effects[instanceId] before/after round-trips through the independent Reducer", () => {
       const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
       const holder = unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId });
       const holderWithEffect = { ...holder, appliedEffects: [curseEffect()] };
@@ -4091,7 +4091,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     });
 
-    it("UT-R-EFF-11-017 (PR #211 review [P1]): a DamageApplied event caused by a PS's own EffectSequence (chain-internal, never reaches onFactEvent directly) still updates the target's AppliedEffect counter and its expiration.conditions", () => {
+    it("UT-R-EFF-11-017: a DamageApplied event caused by a PS's own EffectSequence (chain-internal, never reaches onFactEvent directly) still updates the target's AppliedEffect counter and its expiration.conditions", () => {
       const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_ATTACKER");
       const attackDamage = damageEffectAction("ACT_EFF_ATTACK_DAMAGE");
       const enemyBindingId = createTargetBindingId("TGT_ENEMY");
@@ -4168,7 +4168,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         after: 1,
       });
       expect(runtimeCounterChanged.parentEventId).toBe(damageApplied.eventId);
-      // PR #211レビュー[P2]: 原因イベント（PS自身のEffectSequenceが発行した
+      // 原因イベント（PS自身のEffectSequenceが発行した
       // DamageApplied）が持つskillUseIdをRuntimeCounterChangedへ引き継ぐこと —
       // 「同じSkillUse解決に属するイベントは同じskillUseIdを持つ」不変条件。
       expect(damageApplied.skillUseId).toBeDefined();
@@ -4180,7 +4180,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(expired).toBeDefined();
     });
 
-    it("UT-R-EFF-11-018 (PR #211 review [P1]): a DurationDefinition.counterUpdates that re-triggers itself from the RuntimeCounterChanged it causes, entirely inside the PS-chain-internal path (never reaching onFactEvent), throws a deterministic ExecutionGuardExceededError instead of recursing forever", () => {
+    it("UT-R-EFF-11-018: a DurationDefinition.counterUpdates that re-triggers itself from the RuntimeCounterChanged it causes, entirely inside the PS-chain-internal path (never reaching onFactEvent), throws a deterministic ExecutionGuardExceededError instead of recursing forever", () => {
       const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_EFF_SELF_REGEN_ATTACKER");
       const attackDamage = damageEffectAction("ACT_EFF_SELF_REGEN_ATTACK_DAMAGE");
       const enemyBindingId = createTargetBindingId("TGT_ENEMY_SELF_REGEN");
@@ -4316,7 +4316,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(caught).toBeInstanceOf(ExecutionGuardExceededError);
     });
 
-    it("UT-R-EFF-11-019 (PR #211 review [P1]): a second AppliedEffect counter that matches the same causing event is applied against state updated by the first counter's own candidate chain, not a stale pre-computed value", () => {
+    it("UT-R-EFF-11-019: a second AppliedEffect counter that matches the same causing event is applied against state updated by the first counter's own candidate chain, not a stale pre-computed value", () => {
       const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
       const counterA = createRuntimeCounterId("RUNTIME_COUNTER_EFF_RACE_A");
       const counterB = createRuntimeCounterId("RUNTIME_COUNTER_EFF_RACE_B");
@@ -4353,7 +4353,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         },
         appliedTurnNumber: 1,
       };
-      // レビュー再指摘[P1]の再現: `effectB`はDamageAppliedへ直接一致するcounterB
+      // `effectB`はDamageAppliedへ直接一致するcounterB
       // 更新（+1）に加えて、`effectA`のRuntimeCounterChanged（counterA）に反応して
       // "横から"counterBを大きく書き換える2件目のcounterUpdatesを持つ。修正前は
       // DamageApplied起点で一括計算したcounterBのbefore/after(0->1)を使っていた
@@ -4440,7 +4440,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("RuntimeCounter EFFECT_SEQUENCE scope (R-EFF-11, EFF-006/Issue #212)", () => {
+  describe("RuntimeCounter EFFECT_SEQUENCE scope (R-EFF-11, EFF-006)", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_SEQ_ACTOR");
     const hitCounterId = createRuntimeCounterId("RUNTIME_COUNTER_SEQ_HITS");
     const skillDefinitionId = createSkillDefinitionId("SKL_SEQ_AS");
@@ -4493,7 +4493,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     }
 
-    it("UT-R-EFF-11-020 (EFF-006 Issue #212): increments the active resolution's own counter, emits RuntimeCounterChanged with skillDefinitionId (SkillUseId lives on the envelope), and does not throw", () => {
+    it("UT-R-EFF-11-020 (EFF-006): increments the active resolution's own counter, emits RuntimeCounterChanged with skillDefinitionId (SkillUseId lives on the envelope), and does not throw", () => {
       const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId });
       const definitions = definitionsOf(
         new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId, [])]]),
@@ -4538,7 +4538,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     });
 
-    it("UT-R-EFF-11-021 (EFF-006 Issue #212): finalizeEffectSequenceResolution discards the counter, emits RuntimeCounterReset, and its stateDelta round-trips through the independent Reducer", () => {
+    it("UT-R-EFF-11-021 (EFF-006): finalizeEffectSequenceResolution discards the counter, emits RuntimeCounterReset, and its stateDelta round-trips through the independent Reducer", () => {
       const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId });
       const definitions = definitionsOf(
         new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId, [])]]),
@@ -4598,7 +4598,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(after.units[actor.battleUnitId]!.effectSequenceCounters).toBeUndefined();
     });
 
-    it("UT-R-EFF-11-022 (EFF-006 Issue #212): a counterUpdates entry that re-triggers off RuntimeCounterReset cannot regenerate the counter, because finalize deletes the active resolution before emitting Reset (single Reset event, no loop, no ExecutionGuardExceededError)", () => {
+    it("UT-R-EFF-11-022 (EFF-006): a counterUpdates entry that re-triggers off RuntimeCounterReset cannot regenerate the counter, because finalize deletes the active resolution before emitting Reset (single Reset event, no loop, no ExecutionGuardExceededError)", () => {
       const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId });
       const definitions = definitionsOf(
         new Map([[actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId, [])]]),
@@ -4653,7 +4653,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(resetEvents).toHaveLength(1);
     });
 
-    it("UT-R-EFF-11-023 (EFF-006 Issue #212): a PS's own EffectSequence counterUpdates increments once per EffectActionCompleted, and a second PS whose trigger is RuntimeCounterChanged (scope EFFECT_SEQUENCE) activates as a full PS candidate once the threshold is reached, entirely inside the PS-chain-internal path", () => {
+    it("UT-R-EFF-11-023 (EFF-006): a PS's own EffectSequence counterUpdates increments once per EffectActionCompleted, and a second PS whose trigger is RuntimeCounterChanged (scope EFFECT_SEQUENCE) activates as a full PS candidate once the threshold is reached, entirely inside the PS-chain-internal path", () => {
       const unitDefinitionId = createUnitDefinitionId("UNIT_SEQ_OWNER");
       const parentSkillId = createSkillDefinitionId("SKL_PS_SEQ_PARENT");
       const childSkillId = createSkillDefinitionId("SKL_PS_SEQ_CHILD");
@@ -4863,7 +4863,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("R-TGT-08 Stealth consumption inside a PS's own EffectSequence (TGT-004, Issue #167, PR #237再レビュー[P1])", () => {
+  describe("R-TGT-08 Stealth consumption inside a PS's own EffectSequence (TGT-004)", () => {
     it("UT-R-TGT-08-009: a Stealth AppliedEffect consumed by a PS's own targetBindings redirect (not the AS/EX callback path) still reaches the PS chain — a watcher PS triggered by the resulting EffectExpired(CONSUMPTION) fully resolves before the parent's own first EffectAction starts", () => {
       const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_STEALTH");
       const watcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_STEALTH");
@@ -4875,7 +4875,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       const parentSkill: SkillDefinition = {
         ...passiveSkillOf("SKL_PARENT_STEALTH"),
         // TurnStarted起動（actionIdなし）のためTURN単位cooldownにする
-        // （"PR #141 review [P1]"と同じ理由）。
+        // （行動外のトップレベルイベントはACTION単位cooldownを解決できないため）。
         cooldown: { unit: "TURN", count: 0 },
         resolution: {
           kind: "IMMEDIATE",
@@ -5023,7 +5023,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(parentActionStartingIndex).toBeGreaterThan(watcherActivatedIndex);
     });
 
-    it("UT-R-EFF-09-008 (R-EFF-09, PR #237再レビュー[P1]): a Stealth holder whose AppliedEffect is PARENT-role in a linkedEffectGroupId cascades its CHILD-role sibling first, and both resulting EffectExpired events reach the PS chain in order via the same PS-own-EffectSequence path", () => {
+    it("UT-R-EFF-09-008 (R-EFF-09): a Stealth holder whose AppliedEffect is PARENT-role in a linkedEffectGroupId cascades its CHILD-role sibling first, and both resulting EffectExpired events reach the PS chain in order via the same PS-own-EffectSequence path", () => {
       const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_STEALTH_LINK");
       const cascadeWatcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_CASCADE");
       const consumptionWatcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_CONSUMPTION");
@@ -5278,7 +5278,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("SKILL_USE duration decrement on a PS's own completion (TGT-004フェーズ3再レビュー[P1], Issue #167)", () => {
+  describe("SKILL_USE duration decrement on a PS's own completion (TGT-004フェーズ3)", () => {
     it("UT-R-EFF-01-052: a SKILL_USE(count:1) status granted by a PS's own EffectSequence is not decremented by that same PassiveResolved, but is decremented (and expires) by the owner's next completed PS activation — which itself grants a fresh, untouched instance", () => {
       const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_STEALTH_SKILLUSE");
       const grantAction = statusEffectAction("ACT_PS_GRANT_STEALTH", 1);
@@ -5433,7 +5433,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(updatedOwner.appliedEffects).toHaveLength(0);
     });
 
-    it("UT-R-EFF-01-056 (TGT-004フェーズ3再々レビュー[P1]、Issue #167、08_ドメインイベント.md イベント発行と処理の順序契約): a PS reacting to another PS's own PassiveResolved fully resolves before a PS reacting to the resulting EffectExpired, matching the events' own recorded (causal) order", () => {
+    it("UT-R-EFF-01-056 (TGT-004フェーズ3、08_ドメインイベント.md イベント発行と処理の順序契約): a PS reacting to another PS's own PassiveResolved fully resolves before a PS reacting to the resulting EffectExpired, matching the events' own recorded (causal) order", () => {
       const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_ORDER");
       const mainSkill: SkillDefinition = {
         ...passiveSkillOf("SKL_PS_MAIN_ORDER", { ppCost: 1 }),
@@ -5591,7 +5591,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  describe("lastEventId (Issue #251, レビュー再指摘[P2])", () => {
+  describe("lastEventId", () => {
     it("UT-R-PS-05-030: returns the target event's own id, not an unrelated later event the caller had already pre-recorded before this call, when this call itself triggers no new reaction", () => {
       const unitDefinitionId = createUnitDefinitionId("UNIT_LAST_EVENT_ID");
       const owner = unit("OWNER", "ALLY", { unitDefinitionId });
@@ -5631,9 +5631,9 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
   });
 });
 
-describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, Issue #247 M7-001D, PRレビュー[P2] re-review)", () => {
+describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, M7-001D)", () => {
   /**
-   * PRレビュー[P2]再指摘: UT-R-SKL-06-055は`evaluateEffectStepCondition`へ
+   * UT-R-SKL-06-055は`evaluateEffectStepCondition`へ
    * `triggerEventPayload`を直接渡しており、`buildEffectStepPerTargetFilter`
    * （`skill-resolution-service.ts`）→`evaluateEffectStepCondition`の実配線を
    * 経由していないため、この配線を削除しても成功してしまう。この
@@ -5728,7 +5728,7 @@ describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTIO
         hitIndex: 1,
         targetUnitId: enemyAlive.battleUnitId,
         calculatedDamage,
-        // DMG-004（Issue #194、R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
+        // DMG-004（R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
         hpDirectDamage: 0,
         typedShieldAbsorbed: 0,
         untypedShieldAbsorbed: 0,
@@ -5772,14 +5772,14 @@ describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTIO
 });
 
 /**
- * R-HEAL-04 #4/#6（`M7-005-HEAL-LINK`、Issue #229、PR #259再レビュー[P2]・
- * 再々レビュー[P2]）: PS自身のEffectSequence解決は`onFactEventForPassiveChain`を
+ * R-HEAL-04 #4/#6（`M7-005-HEAL-LINK`・
+ * PS自身のEffectSequence解決は`onFactEventForPassiveChain`を
  * 渡さず、`driveActivation`がgeneratorの`yield`境界ごとに子PS連鎖を解決する。
  * HEALが`HealApplied`と各`HealingTransferred`で`yield`しないと、HEAL EffectAction
  * 全体（転送を含む）を適用し終えてからまとめてyieldすることになり、`HealApplied`
  * 起点の子PSが転送後のHPを観測してしまう。この経路を実driverで通す回帰テスト。
  */
-describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6, Issue #229)", () => {
+describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () => {
   const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_HEAL_LINK");
   const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_HEAL_WATCHER");
   const plainUnitDefinitionId = createUnitDefinitionId("UNIT_HEAL_LINK_PLAIN");
