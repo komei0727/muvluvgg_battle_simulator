@@ -1,29 +1,29 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * `M7-005-HEAL-LINK`（Issue #229、R-HEAL-04）: `SKL_ELENA_MOODMAKER_AS1`
@@ -49,62 +49,7 @@ const AS1_HEALING_LINK_ID = "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK";
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const OTHER_UNIT_ID = "UNIT_TEST_HEAL_LINK_PEER";
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = { maximumHp: 1000, attack: 100, defense: 0 };
 
 const TRAITS: SkillDefinition["traits"] = {
   priorityAttack: false,
@@ -180,27 +125,8 @@ function selfHealSkill(): SkillDefinition {
   };
 }
 
-type Snapshot = ReturnType<ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]>;
-
-function definitionsWith(snapshot: Snapshot, extraSkills: readonly SkillDefinition[]) {
-  const skillDefinitions = new Map(snapshot.skills);
-  for (const skill of extraSkills) {
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-  }
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(OTHER_UNIT_ID), testUnitDefinition(OTHER_UNIT_ID));
-  const definitions: BattleDefinitions = {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: new Map(snapshot.effectActions),
-    unitDefinitions,
-    skillDefinitions,
-  };
-  return definitions;
-}
-
 interface Board {
-  readonly snapshot: Snapshot;
+  readonly snapshot: BattleCatalogSnapshot;
   readonly elena: BattleUnit;
   readonly woundedAlly: BattleUnit;
   readonly woundedEnemy: BattleUnit;
@@ -214,72 +140,48 @@ interface Board {
  * - 敵: 300/1000 と 900/1000（最もHP割合の低い敵は前者）
  */
 function board(): Board {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([ELENA_UNIT_ID as never], []);
-  const elena: BattleUnit = {
-    ...createBattleUnit(
-      member("ally:elena", ELENA_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-      "ALLY",
-      LIMITS,
-    ),
-    currentAp: LIMITS.maximumAp,
-    currentHp: 400,
-  };
-  const woundedAlly: BattleUnit = {
-    ...createBattleUnit(
-      member("ally:peer", OTHER_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    ),
-    currentHp: 100,
-  };
-  const woundedEnemy: BattleUnit = {
-    ...createBattleUnit(
-      member("enemy:wounded", OTHER_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    ),
-    currentHp: 300,
-  };
-  const healthyEnemy: BattleUnit = {
-    ...createBattleUnit(
-      member("enemy:healthy", OTHER_UNIT_ID, "ENEMY", { column: "RIGHT", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    ),
-    currentHp: 900,
-  };
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [ELENA_UNIT_ID]);
+  const elena = testBattleUnit({
+    battleUnitId: "ally:elena",
+    unitDefinitionId: ELENA_UNIT_ID,
+    position: { column: "CENTER", row: "BACK" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: { currentAp: LIMITS.maximumAp, currentHp: 400 },
+  });
+  const woundedAlly = testBattleUnit({
+    battleUnitId: "ally:peer",
+    unitDefinitionId: OTHER_UNIT_ID,
+    position: { column: "LEFT", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: { currentHp: 100 },
+  });
+  const woundedEnemy = testBattleUnit({
+    battleUnitId: "enemy:wounded",
+    unitDefinitionId: OTHER_UNIT_ID,
+    side: "ENEMY",
+    position: { column: "LEFT", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: { currentHp: 300 },
+  });
+  const healthyEnemy = testBattleUnit({
+    battleUnitId: "enemy:healthy",
+    unitDefinitionId: OTHER_UNIT_ID,
+    side: "ENEMY",
+    position: { column: "RIGHT", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: { currentHp: 900 },
+  });
   return { snapshot, elena, woundedAlly, woundedEnemy, healthyEnemy };
-}
-
-function unitStateFor(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "READY",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((u) => [
-        u.battleUnitId,
-        {
-          hp: u.currentHp,
-          ap: u.currentAp,
-          pp: u.currentPp,
-          extraGauge: u.currentExtraGauge,
-          maximumAp: u.maximumAp,
-          maximumPp: u.maximumPp,
-          maximumExtraGauge: u.maximumExtraGauge,
-          combatStats: u.combatStats,
-        },
-      ]),
-    ),
-  };
 }
 
 describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-LINK, Issue #229, R-HEAL-04)", () => {
   it("IT-CAP-HEALING-LINK-PROD-001 (real lifecycle wiring): the real SKL_ELENA_MOODMAKER_AS1 heals the lowest-HP ally and grants ACT_ELENA_MOODMAKER_AS1_HEALING_LINK to both the lowest-HP-ratio enemy and Elena herself, each resolving transferTo: SELF to Elena at grant time", () => {
     const { snapshot, elena, woundedAlly, woundedEnemy, healthyEnemy } = board();
-    const linkDefinition = snapshot.effectActions.get(
-      createEffectActionDefinitionId(AS1_HEALING_LINK_ID),
-    )!;
+    const linkDefinition = effectActionFrom(snapshot, AS1_HEALING_LINK_ID);
     // 変換台帳が記録していた近似（回復リンクの省略）が解消されたことをCatalog自身に対して確かめる。
     expect(linkDefinition).toMatchObject({
       kind: "APPLY_HEALING_LINK",
@@ -289,7 +191,7 @@ describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-L
         duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
       },
     });
-    const as1 = snapshot.skills.get(createSkillDefinitionId(AS1_SKILL_ID))!;
+    const as1 = skillFrom(snapshot, AS1_SKILL_ID);
     expect(as1.requiredCapabilities).toContain("CAP_HEALING_LINK");
 
     const units = [elena, woundedAlly, woundedEnemy, healthyEnemy];
@@ -301,7 +203,7 @@ describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-L
       "AS",
       "AS",
       units,
-      definitionsWith(snapshot, []),
+      definitionsWith(snapshot, { units: [OTHER_UNIT_ID] }),
       new SequenceRandomSource([]),
       recorder,
       1,
@@ -358,7 +260,7 @@ describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-L
     }
 
     // 独立Reducer: `EffectApplied`のStateDeltaだけから同じリンク（転送先・転送率を含む）を復元できる。
-    let restored = unitStateFor(units);
+    let restored = initialSnapshotFor(units, { status: "READY" });
     for (const grant of linkGrants) {
       restored = applyStateDelta(restored, grant.stateDelta!);
     }
@@ -376,8 +278,11 @@ describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-L
 
   it("IT-CAP-HEALING-LINK-PROD-002 (real lifecycle wiring): once the AS1 link is held by the enemy, healing that enemy transfers 100% to Elena — the enemy's HP does not move, HealingTransferred carries the causality and the HP StateDelta, and the independent Reducer restores the same HP", () => {
     const { snapshot, elena, woundedAlly, woundedEnemy, healthyEnemy } = board();
-    const definitions = definitionsWith(snapshot, [lowestEnemyHealSkill()]);
-    const as1 = snapshot.skills.get(createSkillDefinitionId(AS1_SKILL_ID))!;
+    const definitions = definitionsWith(snapshot, {
+      units: [OTHER_UNIT_ID],
+      skills: [lowestEnemyHealSkill()],
+    });
+    const as1 = skillFrom(snapshot, AS1_SKILL_ID);
     const recorder = new EventRecorder(createBattleId("B_1"));
 
     const granted = resolveSkillUse(
@@ -454,15 +359,21 @@ describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-L
     );
     expect(healed.units.find((u) => u.battleUnitId === elena.battleUnitId)!.currentHp).toBe(494);
 
-    const restored = applyStateDelta(unitStateFor(beforeTransfer), transferred.stateDelta!);
+    const restored = applyStateDelta(
+      initialSnapshotFor(beforeTransfer, { status: "READY" }),
+      transferred.stateDelta!,
+    );
     expect(restored.units[elena.battleUnitId]!.hp).toBe(494);
     expect(restored.units[woundedEnemy.battleUnitId]!.hp).toBe(300);
   });
 
   it("IT-CAP-HEALING-LINK-PROD-003 (BOUNDARY, real lifecycle wiring): the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
     const { snapshot, elena, woundedAlly, woundedEnemy, healthyEnemy } = board();
-    const definitions = definitionsWith(snapshot, [selfHealSkill()]);
-    const as1 = snapshot.skills.get(createSkillDefinitionId(AS1_SKILL_ID))!;
+    const definitions = definitionsWith(snapshot, {
+      units: [OTHER_UNIT_ID],
+      skills: [selfHealSkill()],
+    });
+    const as1 = skillFrom(snapshot, AS1_SKILL_ID);
     const recorder = new EventRecorder(createBattleId("B_1"));
 
     const granted = resolveSkillUse(

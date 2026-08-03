@@ -1,30 +1,33 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
+  createCapabilityId,
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-006（Issue #188、R-INT-01〜03、`CAP_TARGET_REDIRECT`／`CAP_COVER_DAMAGE`／
@@ -61,63 +64,26 @@ const KOTOHA_SURVIVAL_ID = "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL";
 const ATTACK_EFFECT_ID = "ACT_TEST_INTERVENTION_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
+// 攻撃力50・防御力0で「素通し50ダメージ」を基準に介入の軽減・反射率を観測する。
+const COMBAT_STATS = { maximumHp: 1000, attack: 50, defense: 0 };
 
-function member(
+/** APを満タンにし、合成ASを即時使用できる状態で組む。 */
+function readyUnit(
   battleUnitId: string,
   unitDefinitionId: string,
   side: Side,
   position: FormationPosition,
-  overrides: { attack?: number; maximumHp?: number } = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
+  combatStats: Partial<CombatStats> = {},
+): BattleUnit {
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: overrides.attack ?? 50,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
+    combatStats: { ...COMBAT_STATS, ...combatStats },
+    limits: LIMITS,
+    overrides: { currentAp: LIMITS.maximumAp },
+  });
 }
 
 /** 実production定義を自己対象で順に解決する最小限の合成AS（致死耐え・反射の付与先）。 */
@@ -209,7 +175,7 @@ function frontRowAttackSkill(): SkillDefinition {
         },
       ],
     },
-    requiredCapabilities: ["CAP_TARGET_FILTER_ORDER"] as never,
+    requiredCapabilities: [createCapabilityId("CAP_TARGET_FILTER_ORDER")],
   };
 }
 
@@ -238,50 +204,21 @@ interface Fixture {
 }
 
 function fixture(unitIds: readonly string[], skills: readonly SkillDefinition[]): Fixture {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(unitIds as never[], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, unitIds);
   const attack = singleHitAttack();
-  const effectActions = new Map(snapshot.effectActions);
-  effectActions.set(attack.effectActionDefinitionId, attack);
-  const skillDefinitions = new Map(snapshot.skills);
-  for (const skill of skills) {
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-  }
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(TEST_UNIT_ID), testUnitDefinition(TEST_UNIT_ID));
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
-    },
+    definitions: definitionsWith(snapshot, {
+      units: [testUnitDefinition(TEST_UNIT_ID, { baseStats: COMBAT_STATS })],
+      skills,
+      overrides: {
+        effectActions: new Map([
+          ...snapshot.effectActions,
+          [attack.effectActionDefinitionId, attack],
+        ]),
+      },
+    }),
     recorder: new EventRecorder(createBattleId("B_1")),
   };
-}
-
-function emptyStateFor(unit: BattleUnit): BattleStateSnapshot {
-  return {
-    status: "READY",
-    currentTurn: 1,
-    units: {
-      [unit.battleUnitId]: {
-        hp: unit.currentHp,
-        ap: unit.currentAp,
-        pp: unit.currentPp,
-        extraGauge: unit.currentExtraGauge,
-        maximumAp: unit.maximumAp,
-        maximumPp: unit.maximumPp,
-        maximumExtraGauge: unit.maximumExtraGauge,
-        combatStats: unit.combatStats,
-      },
-    },
-  };
-}
-
-function ready(unit: BattleUnit): BattleUnit {
-  return { ...unit, currentAp: LIMITS.maximumAp };
 }
 
 function useSkill(
@@ -312,20 +249,14 @@ describe("production Catalog defensive interventions (DMG-006, Issue #188, R-INT
   it("IT-CAP-TARGET-REDIRECT-PROD-001 (R-INT-01 #1, real lifecycle wiring): the real ACT_KARINA_DOWNER_PS1_REDIRECT grants an AppliedEffect whose redirect destination is the granting unit, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const grantSkill = enemyStepsSkill("SKL_TEST_GRANT_REDIRECT", KARINA_REDIRECT_ID);
     const { definitions, recorder } = fixture([KARINA_UNIT_ID], [grantSkill]);
-    const karina = ready(
-      createBattleUnit(
-        member("ally:karina", KARINA_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const karina = readyUnit("ally:karina", KARINA_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const units = useSkill(karina, grantSkill, [karina, attacker], definitions, recorder, 1);
 
@@ -360,7 +291,10 @@ describe("production Catalog defensive interventions (DMG-006, Issue #188, R-INT
       durationOwner: "BATTLE",
     });
 
-    const reduced = applyStateDelta(emptyStateFor(attacker), applied.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([attacker], { status: "READY" }),
+      applied.stateDelta!,
+    );
     expect(reduced.units[attacker.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[attacker.battleUnitId]!.effects![0]).toMatchObject({
       effectDefinitionId: KARINA_REDIRECT_ID,
@@ -372,27 +306,18 @@ describe("production Catalog defensive interventions (DMG-006, Issue #188, R-INT
     const grantSkill = enemyStepsSkill("SKL_TEST_GRANT_REDIRECT", KARINA_REDIRECT_ID);
     const attackSkill = frontRowAttackSkill();
     const { definitions, recorder } = fixture([KARINA_UNIT_ID], [grantSkill, attackSkill]);
-    const karina = ready(
-      createBattleUnit(
-        member("ally:karina", KARINA_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const victim = ready(
-      createBattleUnit(
-        member("ally:victim", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const karina = readyUnit("ally:karina", KARINA_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "BACK",
+    });
+    const victim = readyUnit("ally:victim", TEST_UNIT_ID, "ALLY", {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = useSkill(
       karina,
@@ -439,27 +364,15 @@ describe("production Catalog defensive interventions (DMG-006, Issue #188, R-INT
     );
     const attackSkill = frontRowAttackSkill();
     const { definitions, recorder } = fixture([EVIE_UNIT_ID], [grantSkill, attackSkill]);
-    const evie = ready(
-      createBattleUnit(
-        member("ally:evie", EVIE_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const victim = ready(
-      createBattleUnit(
-        member("ally:victim", TEST_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const evie = readyUnit("ally:evie", EVIE_UNIT_ID, "ALLY", { column: "CENTER", row: "BACK" });
+    const victim = readyUnit("ally:victim", TEST_UNIT_ID, "ALLY", {
+      column: "LEFT",
+      row: "FRONT",
+    });
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = useSkill(evie, grantSkill, [evie, victim, attacker], definitions, recorder, 1);
     const holder = granted.find((u) => u.battleUnitId === attacker.battleUnitId)!;
@@ -500,20 +413,11 @@ describe("production Catalog defensive interventions (DMG-006, Issue #188, R-INT
     const grantSkill = selfStepsSkill("SKL_TEST_GRANT_REFLECT", LUNA_REFLECT_ID);
     const attackSkill = frontRowAttackSkill();
     const { definitions, recorder } = fixture([LUNA_UNIT_ID], [grantSkill, attackSkill]);
-    const luna = ready(
-      createBattleUnit(
-        member("ally:luna", LUNA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-    );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const luna = readyUnit("ally:luna", LUNA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" });
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = useSkill(luna, grantSkill, [luna, attacker], definitions, recorder, 1);
     const holder = granted.find((u) => u.battleUnitId === luna.battleUnitId)!;
@@ -559,28 +463,17 @@ describe("production Catalog defensive interventions (DMG-006, Issue #188, R-INT
     const grantSkill = selfStepsSkill("SKL_TEST_GRANT_DEATH_SURVIVAL", KOTOHA_SURVIVAL_ID);
     const attackSkill = frontRowAttackSkill();
     const { definitions, recorder } = fixture([KOTOHA_UNIT_ID], [grantSkill, attackSkill]);
-    const kotoha = ready(
-      createBattleUnit(
-        member(
-          "ally:kotoha",
-          KOTOHA_UNIT_ID,
-          "ALLY",
-          { column: "CENTER", row: "FRONT" },
-          {
-            maximumHp: 40,
-          },
-        ),
-        "ALLY",
-        LIMITS,
-      ),
+    const kotoha = readyUnit(
+      "ally:kotoha",
+      KOTOHA_UNIT_ID,
+      "ALLY",
+      { column: "CENTER", row: "FRONT" },
+      { maximumHp: 40 },
     );
-    const attacker = ready(
-      createBattleUnit(
-        member("enemy:attacker", TEST_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-    );
+    const attacker = readyUnit("enemy:attacker", TEST_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = useSkill(kotoha, grantSkill, [kotoha, attacker], definitions, recorder, 1);
     const holder = granted.find((u) => u.battleUnitId === kotoha.battleUnitId)!;

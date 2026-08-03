@@ -1,23 +1,27 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-012（Issue #266、`STACK_LIMIT_ON_STAT_MOD`、R-EFF-05）:
@@ -51,26 +55,14 @@ const BASE_ATTACK = 100;
 /** 15回使い、うち14回だけが付与へ到達することを見る。 */
 const USE_COUNT = STACK_MAX + 1;
 const LIMITS = { maximumAp: USE_COUNT, maximumPp: 3, maximumExtraGauge: 100 };
-
-function member(): BattlePartyMember {
-  const position = { column: "CENTER", row: "FRONT" } as const;
-  return {
-    battleUnitId: createBattleUnitId("ally:tarisa"),
-    unitDefinitionId: TARISA_UNIT_ID as never,
-    attribute: "SMART",
-    position,
-    globalCoordinate: toGlobalCoordinate("ALLY", position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: BASE_ATTACK,
-      defense: 50,
-      criticalRate: 0.2,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: BASE_ATTACK,
+  defense: 50,
+  criticalRate: 0.2,
+  actionSpeed: 100,
+  affinityBonus: 0.25,
+};
 
 /** 実production定義1件だけを自身へ適用する最小限の合成AS skill。 */
 function grantAtkUpSkill(): SkillDefinition {
@@ -114,29 +106,25 @@ interface Harness {
   readonly recorder: EventRecorder;
   readonly tarisa: BattleUnit;
   readonly skill: SkillDefinition;
-  readonly snapshot: ReturnType<ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]>;
+  readonly snapshot: BattleCatalogSnapshot;
 }
 
 function harness(): Harness {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([TARISA_UNIT_ID as never], []);
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [TARISA_UNIT_ID]);
   const skill = grantAtkUpSkill();
-  const skillDefinitions = new Map(snapshot.skills);
-  skillDefinitions.set(skill.skillDefinitionId, skill);
 
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: new Map(snapshot.effectActions),
-      unitDefinitions: new Map(snapshot.units),
-      skillDefinitions,
-    },
+    definitions: definitionsWith(snapshot, { skills: [skill] }),
     recorder: new EventRecorder(createBattleId("B_1")),
-    tarisa: {
-      ...createBattleUnit(member(), "ALLY", LIMITS),
-      currentAp: LIMITS.maximumAp,
-    },
+    tarisa: testBattleUnit({
+      battleUnitId: "ally:tarisa",
+      unitDefinitionId: TARISA_UNIT_ID,
+      attribute: "SMART",
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    }),
     skill,
     snapshot,
   };
@@ -174,12 +162,8 @@ function atkUpsOf(units: readonly BattleUnit[], h: Harness) {
 describe("production Catalog ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP stack limit (M7-012, Issue #266, R-EFF-05)", () => {
   it("IT-CAP-STAT-MOD-STACK-LIMIT-PROD-001 (R-EFF-05): the production stat buff declares the same 14-instance limit as the 「負けん気」 Marker it mirrors", () => {
     const h = harness();
-    const atkUp = h.snapshot.effectActions.get(
-      createEffectActionDefinitionId(PS1_ATK_UP_EFFECT_ID),
-    )!;
-    const marker = h.snapshot.effectActions.get(
-      createEffectActionDefinitionId(PS1_MARKER_EFFECT_ID),
-    )!;
+    const atkUp = effectActionFrom(h.snapshot, PS1_ATK_UP_EFFECT_ID);
+    const marker = effectActionFrom(h.snapshot, PS1_MARKER_EFFECT_ID);
 
     expect(atkUp.kind).toBe("APPLY_STAT_MOD");
     expect(marker.kind).toBe("APPLY_MARKER");
@@ -239,29 +223,7 @@ describe("production Catalog ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP stack limit (M7-
       units = useSkill(h, units, i);
     }
 
-    const initial: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [h.tarisa.battleUnitId]: {
-          hp: h.tarisa.currentHp,
-          ap: h.tarisa.currentAp,
-          pp: h.tarisa.currentPp,
-          extraGauge: h.tarisa.currentExtraGauge,
-          maximumAp: h.tarisa.maximumAp,
-          maximumPp: h.tarisa.maximumPp,
-          maximumExtraGauge: h.tarisa.maximumExtraGauge,
-          combatStats: h.tarisa.combatStats,
-        },
-      },
-    };
-    const reduced = h.recorder
-      .getEvents()
-      .reduce(
-        (state, event) =>
-          event.stateDelta === undefined ? state : applyStateDelta(state, event.stateDelta),
-        initial,
-      );
+    const reduced = reconstruct(initialSnapshotFor([h.tarisa], { status: "READY" }), h.recorder);
 
     const restored = reduced.units[h.tarisa.battleUnitId]!;
     expect(restored.effects).toHaveLength(STACK_MAX);

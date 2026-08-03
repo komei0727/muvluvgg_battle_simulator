@@ -1,13 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import type { Side } from "../../domain/shared/side.js";
 import { resolveBindingSelections } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { loadProductionSnapshot, skillFrom, testBattleUnit } from "../../testing/fixtures/index.js";
 
 /**
  * Issue #170 (TGT-001): `CAP_TARGET_DERIVED_AREA` covers area/距離/隣接/列に
@@ -25,35 +23,30 @@ function catalogPath(): string {
 }
 
 function unitAt(battleUnitId: string, side: Side, position: FormationPosition): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: "UNIT_LUCIE_MAID" as never,
-    attribute: "AGGRESSIVE",
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId: "UNIT_LUCIE_MAID",
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
     combatStats: {
-      maximumHp: 100,
       attack: 100,
       defense: 50,
       criticalRate: 0.1,
       actionSpeed: 100,
-      criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
     },
-  };
-  return createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
+  });
 }
 
 describe("production Catalog CAP_TARGET_DERIVED_AREA (Issue #170/TGT-001)", () => {
   it("IT-CAP-TARGET-DERIVED-AREA-PROD-001: SKL_LUCIE_MAID_AS2's real BINDING_DERIVED+ADJACENT_ORTHOGONAL binding resolves the enemy adjacent to TGT_MAIN", () => {
-    const catalog = loadCatalogFromDirectory(catalogPath());
-    const snapshot = catalog.loadSnapshot(["UNIT_LUCIE_MAID"] as never[], []);
-    const skill = snapshot.skills.get("SKL_LUCIE_MAID_AS2" as never);
+    const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_LUCIE_MAID"]);
+    const skill = skillFrom(snapshot, "SKL_LUCIE_MAID_AS2");
     expect(skill).toBeDefined();
-    expect(skill!.requiredCapabilities).toContain("CAP_TARGET_DERIVED_AREA");
-    expect(skill!.resolution.kind).toBe("IMMEDIATE");
+    expect(skill.requiredCapabilities).toContain("CAP_TARGET_DERIVED_AREA");
+    expect(skill.resolution.kind).toBe("IMMEDIATE");
     const targetBindings =
-      skill!.resolution.kind === "IMMEDIATE" ? skill!.resolution.targetBindings : [];
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_MAIN", "TGT_ADJ"]);
 
     const actor = unitAt("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });

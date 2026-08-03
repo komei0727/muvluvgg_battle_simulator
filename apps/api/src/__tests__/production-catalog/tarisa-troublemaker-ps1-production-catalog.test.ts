@@ -3,28 +3,26 @@ import { describe, expect, it } from "vitest";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
 import { applyDamageAction } from "../../domain/battle/combat/damage-application-service.js";
 import { applyMarker } from "../../domain/battle/effects/marker-apply-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import type { ActionId } from "../../domain/shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-001D (Issue #247, CAP_TRIGGER_PAYLOAD_IN_RESOLUTION): exercises the REAL,
@@ -48,64 +46,29 @@ const ATTACK_EFFECT_ID = "ACT_TEST_TARISA_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-  overrides: Partial<BattlePartyMember["combatStats"]> = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-      ...overrides,
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
 
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-      actionSpeed: 100,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: undefined as never,
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const ENEMY_DEFINITION = testUnitDefinition(ENEMY_UNIT_ID, {
+  baseStats: {
+    maximumHp: COMBAT_STATS.maximumHp,
+    attack: COMBAT_STATS.attack,
+    defense: COMBAT_STATS.defense,
+    criticalDamageBonus: COMBAT_STATS.criticalDamageBonus,
+    affinityBonus: COMBAT_STATS.affinityBonus,
+    actionSpeed: COMBAT_STATS.actionSpeed,
+    maximumAp: LIMITS.maximumAp,
+    maximumPp: LIMITS.maximumPp,
+  },
+  extraGaugeMaximum: LIMITS.maximumExtraGauge,
+});
 
 /** Real DAMAGE effect action whose `calculatedDamage` is `attackerAttack - defenderDefense` (power 1, no crit/attribute noise). */
 function attackEffectAction(power: number): Extract<EffectActionDefinition, { kind: "DAMAGE" }> {
@@ -127,95 +90,49 @@ function attackEffectAction(power: number): Extract<EffectActionDefinition, { ki
   };
 }
 
-function snapshotOf(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-          ...(unit.appliedEffects.length > 0
-            ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-            : {}),
-          ...(unit.markerStates.length > 0
-            ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-            : {}),
-        },
-      ]),
-    ),
-  };
-}
+const snapshotOf = (units: readonly BattleUnit[]) =>
+  initialSnapshotFor(units, { include: ["effects", "markers"] });
 
 describe("production Catalog SKL_TARISA_TROUBLEMAKER_PS1 (M7-001D, Issue #247, CAP_TRIGGER_PAYLOAD_IN_RESOLUTION)", () => {
   function setup(defense: number) {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([TARISA_UNIT_ID as never], []);
-    const skill = snapshot.skills.get(TARISA_PS1_ID as never)!;
-    const markerAction = snapshot.effectActions.get("ACT_TARISA_TROUBLEMAKER_PS1_MARKER" as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [TARISA_UNIT_ID]);
+    const skill = skillFrom(snapshot, TARISA_PS1_ID);
+    const markerAction = effectActionFrom(snapshot, "ACT_TARISA_TROUBLEMAKER_PS1_MARKER");
     expect(markerAction.kind).toBe("APPLY_MARKER");
     if (markerAction.kind !== "APPLY_MARKER") {
       throw new Error("unreachable");
     }
-    const removeMarkerAction = snapshot.effectActions.get(
-      "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER" as never,
-    )!;
+    const removeMarkerAction = effectActionFrom(
+      snapshot,
+      "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER",
+    );
     expect(removeMarkerAction.kind).toBe("REMOVE_MARKER");
     if (removeMarkerAction.kind !== "REMOVE_MARKER") {
       throw new Error("unreachable");
     }
     expect(removeMarkerAction.payload).toEqual({ markerId: MARKER_ID, count: 3 });
 
-    const tarisa = {
-      ...createBattleUnit(
-        member(
-          "ally:tarisa",
-          TARISA_UNIT_ID,
-          "ALLY",
-          { column: "CENTER", row: "FRONT" },
-          {
-            attack: 15,
-          },
-        ),
-        "ALLY",
-        LIMITS,
-      ),
-      currentPp: LIMITS.maximumPp,
-    };
-    const enemy = createBattleUnit(
-      member("enemy:1", ENEMY_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }, { defense }),
-      "ENEMY",
-      LIMITS,
-    );
-
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(createUnitDefinitionId(ENEMY_UNIT_ID), testUnitDefinition(ENEMY_UNIT_ID));
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
-
-    const recorder = new EventRecorder(createBattleId("B_1"));
-    const resolutionScopeId = recorder.nextResolutionScopeId();
-    const seed = recorder.record({
-      eventType: "TurnStarted",
-      category: "FACT",
-      turnNumber: 1,
-      cycleNumber: 0,
-      resolutionScopeId,
-      payload: { turnNumber: 1 },
+    const tarisa = testBattleUnit({
+      battleUnitId: "ally:tarisa",
+      unitDefinitionId: TARISA_UNIT_ID,
+      side: "ALLY",
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: { ...COMBAT_STATS, attack: 15 },
+      limits: LIMITS,
+      overrides: { currentPp: LIMITS.maximumPp },
     });
+    const enemy = testBattleUnit({
+      battleUnitId: "enemy:1",
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: { ...COMBAT_STATS, defense },
+      limits: LIMITS,
+    });
+
+    const definitions = definitionsWith(snapshot, { units: [ENEMY_DEFINITION] });
+
+    const { recorder, seed, resolutionScopeId } = seedRecorder("B_1");
 
     // Seed 5 pre-existing "Fighting Spirit" stacks via the REAL production
     // APPLY_MARKER definition (as if Tarisa had already attacked 5 times this

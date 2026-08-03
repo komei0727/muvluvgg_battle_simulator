@@ -2,16 +2,15 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { selectAsCandidate } from "../../domain/battle/action/action-selection-policy.js";
 import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activation-condition-evaluator.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { MarkerState } from "../../domain/battle/model/marker-state.js";
-import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
-import { createBattleUnitId } from "../../domain/shared/ids.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+  testMarker,
+} from "../../testing/fixtures/index.js";
 
 /**
  * CAP_ACTION_ACTIVATION_CONDITION（Issue #180、M7-003）: AS/EXの`activationCondition`
@@ -43,44 +42,22 @@ function unitOf(
   position: FormationPosition,
   overrides: Partial<BattleUnit> = {},
 ): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
+  return testBattleUnit({
+    battleUnitId: id,
+    unitDefinitionId,
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 20,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return { ...createBattleUnit(member, side, LIMITS), ...overrides };
-}
-
-function markerOf(unit: BattleUnit, markerIdValue: string): MarkerState {
-  return {
-    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
-    markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
-    stackCount: 1,
-    stackMax: null,
-    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
-  };
+    limits: LIMITS,
+    overrides,
+  });
 }
 
 describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003)", () => {
   it("IT-CAP-ACTION-ACTIVATION-CONDITION-001: SKL_ELENA_MOODMAKER_AS1's real TARGET_SET_COUNT/TARGET_STATE AND activationCondition selects the skill only when a below-70%-HP ally, another living ally, and self HP>=40% all hold", () => {
     const unitId = "UNIT_ELENA_MOODMAKER";
     const skillId = "SKL_ELENA_MOODMAKER_AS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({
       kind: "AND",
@@ -170,9 +147,8 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
   it("IT-CAP-ACTION-ACTIVATION-CONDITION-002: SKL_LYDIA_GENIUS_AS1's real TARGET_SET_COUNT activationCondition selects the skill only when an enemy exists in the right or left column", () => {
     const unitId = "UNIT_LYDIA_GENIUS";
     const skillId = "SKL_LYDIA_GENIUS_AS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({
       kind: "TARGET_SET_COUNT",
@@ -224,9 +200,8 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
   it("IT-CAP-ACTION-ACTIVATION-CONDITION-003: SKL_LILY_HERO_AS1's real NOT(TARGET_STATE) activationCondition selects the skill unless her own HP ratio is below 20%", () => {
     const unitId = "UNIT_LILY_HERO";
     const skillId = "SKL_LILY_HERO_AS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
 
     // TGT_ADJACENT (BINDING_DERIVED, ADJACENT_ORTHOGONAL of TGT_BASE) needs a
@@ -290,9 +265,8 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
   it("IT-CAP-ACTION-ACTIVATION-CONDITION-004: SKL_MAO_COMMITTEE_AS1's real TARGET_STATE activationCondition selects the skill only when her own HP ratio is at least 60%", () => {
     const unitId = "UNIT_MAO_COMMITTEE";
     const skillId = "SKL_MAO_COMMITTEE_AS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
 
     const enemy = unitOf("ENEMY_1", "UNIT_TEST_ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
@@ -347,9 +321,8 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
   it("IT-CAP-ACTION-ACTIVATION-CONDITION-005: SKL_TATIANA_SAGE_AS2's real NOT(TARGET_HAS_MARKER) activationCondition selects the skill unless she currently holds MARKER_TATIANA_SAGE_PRUDENCE", () => {
     const unitId = "UNIT_TATIANA_SAGE";
     const skillId = "SKL_TATIANA_SAGE_AS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({
       kind: "NOT",
@@ -373,7 +346,7 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
 
     const markedActor = {
       ...actor,
-      markerStates: [markerOf(actor, "MARKER_TATIANA_SAGE_PRUDENCE")],
+      markerStates: [testMarker(actor, "MARKER_TATIANA_SAGE_PRUDENCE")],
     };
     expect(
       selectAsCandidate(

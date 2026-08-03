@@ -1,26 +1,23 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import {
-  createEffectActionDefinitionId,
-  createSkillDefinitionId,
-  createUnitDefinitionId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import { createBattleId } from "../../domain/shared/ids.js";
+import { createEffectActionDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-017（Issue #271、`CAP_RESOURCE_DISTRIBUTE`）: production Catalogの
@@ -45,62 +42,7 @@ const OTHER_UNIT_ID = "UNIT_TEST_DISTRIBUTE_PEER";
 const EX_COST = 8;
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = { maximumHp: 1000, attack: 100, defense: 0 };
 
 function battleUnit(
   id: string,
@@ -108,25 +50,14 @@ function battleUnit(
   side: Side,
   column: "LEFT" | "CENTER" | "RIGHT",
 ): BattleUnit {
-  return createBattleUnit(
-    member(id, unitDefinitionId, side, { column, row: "FRONT" }),
+  return testBattleUnit({
+    battleUnitId: id,
+    unitDefinitionId,
     side,
-    LIMITS,
-  );
-}
-
-function definitionsWith(
-  snapshot: ReturnType<ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]>,
-): BattleDefinitions {
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(OTHER_UNIT_ID), testUnitDefinition(OTHER_UNIT_ID));
-  return {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: new Map(snapshot.effectActions),
-    unitDefinitions,
-    skillDefinitions: new Map(snapshot.skills),
-  };
+    position: { column, row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+  });
 }
 
 /** Suiran（EXゲージ満タン）＋`allyCount`体の味方＋敵1体を並べ、実EXを解決する。 */
@@ -137,11 +68,10 @@ function resolveProductionEx(allyCount: number): {
   result: ReturnType<typeof resolveSkillUse>;
   distributeDefinitionId: ReturnType<typeof createEffectActionDefinitionId>;
 } {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([SUIRAN_UNIT_ID as never], []);
-  const skill = snapshot.skills.get(createSkillDefinitionId(EX_SKILL_ID))!;
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
+  const skill = skillFrom(snapshot, EX_SKILL_ID);
   const distributeDefinitionId = createEffectActionDefinitionId(EX_DISTRIBUTE_ID);
-  expect(snapshot.effectActions.get(distributeDefinitionId)).toMatchObject({
+  expect(effectActionFrom(snapshot, EX_DISTRIBUTE_ID)).toMatchObject({
     kind: "MODIFY_RESOURCE",
     payload: {
       resource: "EX_GAUGE",
@@ -167,7 +97,7 @@ function resolveProductionEx(allyCount: number): {
     "EX",
     "EX",
     [suiran, ...allies, enemy],
-    definitionsWith(snapshot),
+    definitionsWith(snapshot, { units: [OTHER_UNIT_ID] }),
     // 先頭のEN攻撃step（`ACT_SUIRAN_CHAOS_EX_DAMAGE`）の会心判定用。
     // criticalRateは0のため、どの値でも非会心に確定する。
     new SequenceRandomSource([0.99]),
@@ -215,25 +145,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS EX distribute definition (M7-017,
       });
     }
 
-    let state: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: Object.fromEntries(
-        [suiran, ...allies].map((unit) => [
-          unit.battleUnitId,
-          {
-            hp: unit.currentHp,
-            ap: unit.currentAp,
-            pp: unit.currentPp,
-            extraGauge: unit.currentExtraGauge,
-            maximumAp: unit.maximumAp,
-            maximumPp: unit.maximumPp,
-            maximumExtraGauge: unit.maximumExtraGauge,
-            combatStats: unit.combatStats,
-          },
-        ]),
-      ),
-    };
+    let state = initialSnapshotFor([suiran, ...allies], { status: "READY" });
     for (const event of distributed) {
       state = applyStateDelta(state, event.stateDelta!);
     }

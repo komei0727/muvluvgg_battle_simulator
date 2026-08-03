@@ -1,25 +1,21 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import {
-  applyEffectActionGroups,
-  type EffectActionGroupContext,
-} from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
 import { selectWeightedBranch } from "../../domain/battle/skill/random-branch-selection.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import type { Side } from "../../domain/shared/side.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import {
+  definitionsForSkill,
+  effectActionGroupContext,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * RES-003（Issue #173、`CAP_RANDOM_BRANCH`）: `RANDOM_BRANCH`の`WEIGHTED_ONE`が
@@ -44,118 +40,29 @@ const UNIT_ID = "UNIT_KATE_PALADIN";
 const SKILL_ID = "SKL_KATE_PALADIN_EX";
 const DAMAGE_ACTION_ID = "ACT_KATE_PALADIN_EX_DAMAGE5";
 
-function allyUnit(
-  id: string,
-  unitDefinitionId: UnitDefinitionId,
-  position: FormationPosition,
-): BattleUnit {
-  const side: Side = "ALLY";
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
+function allyUnit(id: string, unitDefinitionId: string, position: FormationPosition): BattleUnit {
+  return testBattleUnit({
+    battleUnitId: id,
     unitDefinitionId,
-    attribute: "AGGRESSIVE",
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 200,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
-}
-
-function enemyUnit(
-  id: string,
-  unitDefinitionId: UnitDefinitionId,
-  position: FormationPosition,
-): BattleUnit {
-  const side: Side = "ENEMY";
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 20,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 });
-}
-
-function initialSnapshotFor(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-        },
-      ]),
-    ),
-  };
-}
-
-function seedRecorder(): { recorder: EventRecorder; rootEventId: string } {
-  const recorder = new EventRecorder(createBattleId("B_CAP_RANDOM_BRANCH"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
+    combatStats: { maximumHp: 1000, attack: 200 },
   });
-  return { recorder, rootEventId: seed.eventId };
 }
 
-function contextFor(
-  actor: BattleUnit,
-  definitions: BattleDefinitions,
-  recorder: EventRecorder,
-  rootEventId: string,
-  random: SequenceRandomSource,
-): EffectActionGroupContext {
-  return {
-    definitions,
-    actorId: actor.battleUnitId,
-    random,
-    recorder,
-    turnNumber: 1,
-    cycleNumber: 0,
-    skillUseId: recorder.nextSkillUseId(),
-    actionScope: recorder.nextResolutionScopeId(),
-    rootEventId: rootEventId as never,
-    parentEventId: rootEventId as never,
-    skillDefinitionId: createSkillDefinitionId(SKILL_ID),
-  };
+function enemyUnit(id: string, unitDefinitionId: string, position: FormationPosition): BattleUnit {
+  return testBattleUnit({
+    battleUnitId: id,
+    unitDefinitionId,
+    side: "ENEMY",
+    position,
+    combatStats: { maximumHp: 1000 },
+  });
 }
 
 describe("production Catalog CAP_RANDOM_BRANCH (RES-003, Issue #173)", () => {
   it("IT-CAP-RANDOM-BRANCH-PROD-001: SKL_KATE_PALADIN_EX's real WEIGHTED_ONE RANDOM_BRANCH selects branch[0] HIT5 for a low roll and resolves the real ACT_KATE_PALADIN_EX_DAMAGE5 through the lifecycle (RandomBranchSelected + DamageApplied + StateDelta + independent Reducer restoration)", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([UNIT_ID as never], []);
-    const skill = snapshot.skills.get(SKILL_ID as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [UNIT_ID]);
+    const skill = skillFrom(snapshot, SKILL_ID);
     expect(skill.requiredCapabilities).toContain("CAP_RANDOM_BRANCH");
     const step = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [])[0];
     expect(step?.kind).toBe("RANDOM_BRANCH");
@@ -165,24 +72,25 @@ describe("production Catalog CAP_RANDOM_BRANCH (RES-003, Issue #173)", () => {
     expect(step.mode).toBe("WEIGHTED_ONE");
     expect(step.branches).toHaveLength(3);
 
-    const actor = allyUnit("kate", UNIT_ID as never, { column: "LEFT", row: "FRONT" });
-    const enemy = enemyUnit("enemy", "UNIT_TEST_ENEMY" as never, { column: "LEFT", row: "FRONT" });
+    const actor = allyUnit("kate", UNIT_ID, { column: "LEFT", row: "FRONT" });
+    const enemy = enemyUnit("enemy", "UNIT_TEST_ENEMY", { column: "LEFT", row: "FRONT" });
     const allUnits = [actor, enemy];
 
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions: new Map(),
-      skillDefinitions: new Map([[SKILL_ID as never, skill]]),
-    };
+    const definitions = definitionsForSkill(skill, snapshot.effectActions);
     const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
-    const { recorder, rootEventId } = seedRecorder();
+    const { recorder, rootEventId } = seedRecorder("B_CAP_RANDOM_BRANCH");
     // 先頭の乱数だけがbranch選択に使われる（roll = 0.1 * totalWeight(3) = 0.3 <
     // 累積weight[0]=1 → branch[0]）。残りはDAMAGE5の5ヒット命中/クリティカル判定用に
     // 0.99でno-miss/no-critへ固定する（criticalRate=0のためクリティカルも起きない）。
     const random = new SequenceRandomSource([0.1, ...new Array<number>(64).fill(0.99)]);
-    const context = contextFor(actor, definitions, recorder, rootEventId, random);
+    const context = effectActionGroupContext({
+      actor,
+      skillId: SKILL_ID,
+      definitions,
+      recorder,
+      rootEventId,
+      random,
+    });
     const result = applyEffectActionGroups(plan, allUnits, context);
 
     expect(result.outcome.status).toBe("COMPLETED");
@@ -213,20 +121,13 @@ describe("production Catalog CAP_RANDOM_BRANCH (RES-003, Issue #173)", () => {
     // 独立Reducer復元: 記録されたStateDeltaだけから初期状態を再構成し、resolverの
     // 到達したenemy HPと一致することを確認する（R-SKL-07 RANDOM_BRANCH選択枝の
     // 実効果がStateDelta経由でも同じ結果へ復元できる）。
-    const initial = initialSnapshotFor(allUnits);
-    const reconstructed = reduceStateDeltas(
-      initial,
-      recorder
-        .getEvents()
-        .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
-    );
+    const reconstructed = reconstruct(initialSnapshotFor(allUnits), recorder);
     expect(reconstructed.units[enemy.battleUnitId]?.hp).toBe(updatedEnemy.currentHp);
   });
 
   it("IT-CAP-RANDOM-BRANCH-PROD-002: SKL_KATE_PALADIN_EX's real branches array is selected in Catalog definition order by cumulative weight (R-SKL-07 乱数消費順), reaching all three of HIT5/FREEZE/HEAL", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([UNIT_ID as never], []);
-    const skill = snapshot.skills.get(SKILL_ID as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [UNIT_ID]);
+    const skill = skillFrom(snapshot, SKILL_ID);
     const step = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [])[0];
     if (step?.kind !== "RANDOM_BRANCH") {
       throw new Error("expected a RANDOM_BRANCH step");

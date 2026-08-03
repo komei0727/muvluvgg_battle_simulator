@@ -2,25 +2,22 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { applyMarker } from "../../domain/battle/effects/marker-apply-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
+import type { BattleUnitId } from "../../domain/shared/ids.js";
+import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
 import {
-  createMarkerId,
-  createUnitDefinitionId,
-  type MarkerId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  noMissNoCrit,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-015（Issue #269、`CAP_MARKER_STACK_FORMULA`）: Marker所持数を参照する
@@ -72,101 +69,36 @@ const FLUSH_MARKER_ID = "MARKER_FEE_BATH_FLUSH";
 const ENEMY_UNIT_ID = "UNIT_TEST_MARKER_SCALE_ENEMY";
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
-/** 会心・MISSのゆらぎを排して、Marker所持数だけがダメージ差の原因になるようにする。 */
-function noMissNoCrit(): SequenceRandomSource {
-  return new SequenceRandomSource(new Array(512).fill(0.99));
-}
+const COMBAT_STATS = {
+  maximumHp: 100000,
+  attack: 1000,
+  defense: 500,
+  criticalRate: 0,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0,
+};
 
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100000,
-      attack: 1000,
-      defense: 500,
-      criticalRate: 0,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100000,
-      attack: 1000,
-      defense: 500,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 100,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: undefined as never,
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const ENEMY_DEFINITION = testUnitDefinition(ENEMY_UNIT_ID, {
+  baseStats: {
+    maximumHp: COMBAT_STATS.maximumHp,
+    attack: COMBAT_STATS.attack,
+    defense: COMBAT_STATS.defense,
+    criticalDamageBonus: COMBAT_STATS.criticalDamageBonus,
+    actionSpeed: COMBAT_STATS.actionSpeed,
+    maximumAp: LIMITS.maximumAp,
+    maximumPp: LIMITS.maximumPp,
+  },
+  extraGaugeMaximum: LIMITS.maximumExtraGauge,
+});
 
 /**
- * `captureBattleState`と同じ射影のうち、この解決が実際に動かすfieldだけを組み立てる。
- * `SKL_CHIYURU_NEWYEAR_AS1`はクールタイム99ターンを持つため`cooldowns`まで含める
+ * この解決が実際に動かすfieldだけを射影する。`SKL_CHIYURU_NEWYEAR_AS1`は
+ * クールタイム99ターンを持つため`cooldowns`まで含める
  * （`reduceStateDeltas`側は`CooldownStarted`のStateDeltaでこれを復元する）。
  */
-function snapshotOf(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-          ...(Object.keys(unit.cooldowns).length > 0 ? { cooldowns: unit.cooldowns } : {}),
-          ...(unit.appliedEffects.length > 0
-            ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-            : {}),
-          ...(unit.markerStates.length > 0
-            ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-            : {}),
-        },
-      ]),
-    ),
-  };
-}
+const snapshotOf = (units: readonly BattleUnit[]) =>
+  initialSnapshotFor(units, { include: ["cooldowns", "effects", "markers"] });
 
 const ENEMY_POSITIONS: readonly FormationPosition[] = [
   { column: "LEFT", row: "FRONT" },
@@ -197,52 +129,39 @@ function setup(options: {
   readonly enemyCount: number;
   readonly preStacks?: readonly PreStack[];
 }) {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(options.unitDefinitionIds as never[], []);
-  const skill = snapshot.skills.get(options.skillDefinitionId as never)!;
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, options.unitDefinitionIds);
+  const skill = skillFrom(snapshot, options.skillDefinitionId);
 
-  const actor: BattleUnit = {
-    ...createBattleUnit(
-      member("ally:actor", options.actorUnitDefinitionId, "ALLY", {
-        column: "CENTER",
-        row: "FRONT",
-      }),
-      "ALLY",
-      LIMITS,
-    ),
-    currentAp: LIMITS.maximumAp,
-    currentExtraGauge: LIMITS.maximumExtraGauge,
-  };
-  const enemies = Array.from({ length: options.enemyCount }, (_, index) => ({
-    ...createBattleUnit(
-      member(`enemy:${index}`, ENEMY_UNIT_ID, "ENEMY", ENEMY_POSITIONS[index]!),
-      "ENEMY",
-      LIMITS,
-    ),
-    currentAp: LIMITS.maximumAp,
-    currentExtraGauge: LIMITS.maximumExtraGauge,
-  }));
-
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(createUnitDefinitionId(ENEMY_UNIT_ID), testUnitDefinition(ENEMY_UNIT_ID));
-  const definitions: BattleDefinitions = {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: new Map(snapshot.effectActions),
-    unitDefinitions,
-    skillDefinitions: new Map(snapshot.skills),
-  };
-
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const resolutionScopeId = recorder.nextResolutionScopeId();
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId,
-    payload: { turnNumber: 1 },
+  const actor = testBattleUnit({
+    battleUnitId: "ally:actor",
+    unitDefinitionId: options.actorUnitDefinitionId,
+    side: "ALLY",
+    position: { column: "CENTER", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: {
+      currentAp: LIMITS.maximumAp,
+      currentExtraGauge: LIMITS.maximumExtraGauge,
+    },
   });
+  const enemies = Array.from({ length: options.enemyCount }, (_, index) =>
+    testBattleUnit({
+      battleUnitId: `enemy:${index}`,
+      unitDefinitionId: ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: ENEMY_POSITIONS[index]!,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: {
+        currentAp: LIMITS.maximumAp,
+        currentExtraGauge: LIMITS.maximumExtraGauge,
+      },
+    }),
+  );
+
+  const definitions = definitionsWith(snapshot, { units: [ENEMY_DEFINITION] });
+
+  const { recorder, seed, resolutionScopeId } = seedRecorder("B_1");
 
   let units: readonly BattleUnit[] = [actor, ...enemies];
   let lastEventId = seed.eventId;
@@ -303,7 +222,7 @@ function stackCountOf(
 ): number {
   return (
     unitOf(units, battleUnitId).markerStates.find(
-      (marker) => marker.markerId === (markerId as MarkerId),
+      (marker) => marker.markerId === createMarkerId(markerId),
     )?.stackCount ?? 0
   );
 }
@@ -318,7 +237,7 @@ function fireSkill(setupResult: ReturnType<typeof setup>, skillType: "AS" | "EX"
     skillType,
     units,
     definitions,
-    noMissNoCrit(),
+    noMissNoCrit(512),
     recorder,
     1,
     1,
@@ -542,18 +461,18 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
   });
 
   it("IT-CAP-MARKER-STACK-PROD-006: the three production definitions are still the unapproximated raw-text ones and each declares CAP_MARKER_STACK_FORMULA", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(
-      [CHIYURU_UNIT_ID, KARINA_UNIT_ID, FEE_UNIT_ID] as never[],
-      [],
-    );
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [
+      CHIYURU_UNIT_ID,
+      KARINA_UNIT_ID,
+      FEE_UNIT_ID,
+    ]);
 
     // 自身の「お餅」1つにつき攻撃力+3%／防御力+6%、最大6つまで。
     for (const [id, perStack, max] of [
       [CHIYURU_ATK_UP_ID, 0.03, 0.18],
       [CHIYURU_DEF_UP_ID, 0.06, 0.36],
     ] as const) {
-      const statMod = snapshot.effectActions.get(id as never)!;
+      const statMod = effectActionFrom(snapshot, id);
       expect(statMod.kind).toBe("APPLY_STAT_MOD");
       if (statMod.kind !== "APPLY_STAT_MOD") {
         throw new Error("unreachable");
@@ -574,7 +493,7 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
       [KARINA_DAMAGE_ID, KEIBO_MARKER_ID, 0.15, 0.45],
       [FEE_DAMAGE_ID, FLUSH_MARKER_ID, 0.2, 1],
     ] as const) {
-      const damage = snapshot.effectActions.get(id as never)!;
+      const damage = effectActionFrom(snapshot, id);
       expect(damage.kind).toBe("DAMAGE");
       if (damage.kind !== "DAMAGE") {
         throw new Error("unreachable");
@@ -594,7 +513,7 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
     // Formulaが読むMarkerを積む側の実定義。Karina/Chiyuruは`stack.max`が
     // Formulaの`max`と同じ所持数（3個・6個）で揃っており、Feeだけが
     // `stack.max: null`（上限はFormula側だけが持つ）である。
-    const feeMarker = snapshot.effectActions.get(FEE_MARKER_ACTION_ID as never)!;
+    const feeMarker = effectActionFrom(snapshot, FEE_MARKER_ACTION_ID);
     expect(feeMarker.kind).toBe("APPLY_MARKER");
     if (feeMarker.kind !== "APPLY_MARKER") {
       throw new Error("unreachable");

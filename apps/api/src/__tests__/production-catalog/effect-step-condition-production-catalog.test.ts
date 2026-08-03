@@ -1,32 +1,30 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import {
-  applyEffectActionGroups,
-  type EffectActionGroupContext,
-} from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
 import {
   buildEffectStepPerTargetFilter,
   resolveActionStepApplications,
   resolveSkillOrder,
 } from "../../domain/battle/skill/skill-resolution-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { MarkerState } from "../../domain/battle/model/marker-state.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import {
-  createMarkerId,
-  createSkillDefinitionId,
+  createUnitDefinitionId,
+  type UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
-import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
-import type { Side } from "../../domain/shared/side.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import {
+  completedTargetIdsOf,
+  definitionsForSkill,
+  effectActionGroupContext,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+  testMarker,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * RES-004（Issue #171後半、`CAP_EFFECT_STEP_CONDITION`）: ACTION stepの
@@ -64,127 +62,12 @@ import { SequenceRandomSource } from "../../testing/random/sequence-random-sourc
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
-const NO_MISS_NO_CRIT = new SequenceRandomSource(new Array(64).fill(0.99));
 
-function enemyUnit(
-  id: string,
-  unitDefinitionId: UnitDefinitionId,
-  position: FormationPosition,
-  overrides: Partial<BattleUnit> = {},
-): BattleUnit {
-  const side: Side = "ENEMY";
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 20,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return {
-    ...createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 }),
-    ...overrides,
-  };
-}
+const enemyUnit = (id: string, unitDefinitionId: string, position: FormationPosition): BattleUnit =>
+  testBattleUnit({ battleUnitId: id, unitDefinitionId, side: "ENEMY", position });
 
-function allyUnit(
-  id: string,
-  unitDefinitionId: UnitDefinitionId,
-  position: FormationPosition,
-  overrides: Partial<BattleUnit> = {},
-): BattleUnit {
-  const side: Side = "ALLY";
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 20,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return {
-    ...createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 }),
-    ...overrides,
-  };
-}
-
-function markerOf(unit: BattleUnit, markerIdValue: string, stackCount = 1): MarkerState {
-  return {
-    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
-    markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
-    stackCount,
-    stackMax: null,
-    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
-  };
-}
-
-function contextFor(
-  actor: BattleUnit,
-  skillId: string,
-  definitions: BattleDefinitions,
-  recorder: EventRecorder,
-  rootEventId: string,
-): EffectActionGroupContext {
-  return {
-    definitions,
-    actorId: actor.battleUnitId,
-    random: NO_MISS_NO_CRIT,
-    recorder,
-    turnNumber: 1,
-    cycleNumber: 0,
-    skillUseId: recorder.nextSkillUseId(),
-    actionScope: recorder.nextResolutionScopeId(),
-    rootEventId: rootEventId as never,
-    parentEventId: rootEventId as never,
-    skillDefinitionId: createSkillDefinitionId(skillId),
-  };
-}
-
-function seedRecorder(): { recorder: EventRecorder; rootEventId: string } {
-  const recorder = new EventRecorder(createBattleId("B_CAP_EFFSTEP"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
-  return { recorder, rootEventId: seed.eventId };
-}
-
-function completedTargetsFor(
-  recorder: EventRecorder,
-  effectActionDefinitionId: string,
-): readonly string[] {
-  return recorder
-    .getEvents()
-    .filter(
-      (e) =>
-        e.eventType === "EffectActionCompleted" &&
-        (e.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
-          effectActionDefinitionId,
-    )
-    .flatMap((e) => (e.payload as { targetUnitIds: readonly string[] }).targetUnitIds);
-}
+const allyUnit = (id: string, unitDefinitionId: string, position: FormationPosition): BattleUnit =>
+  testBattleUnit({ battleUnitId: id, unitDefinitionId, side: "ALLY", position });
 
 /**
  * `APPLY_STATUS`/`MODIFY_RESOURCE`/`APPLY_HEALING_MOD`は「基本のturn action
@@ -251,9 +134,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
   it("IT-CAP-EFFSTEP-001: SKL_AOI_ELEGANT_EX's real TARGET_HAS_MARKER(MARKER_AOI_ELEGANT_UKIASHI) per-target condition only applies the ATK debuff to column members holding the marker", () => {
     const unitId = "UNIT_AOI_ELEGANT";
     const skillId = "SKL_AOI_ELEGANT_EX";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_EFFECT_STEP_CONDITION");
     const atkDownStep = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : []).find(
       (s) =>
@@ -264,37 +146,37 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       targetCondition: { kind: "TARGET_HAS_MARKER", markerId: "MARKER_AOI_ELEGANT_UKIASHI" },
     });
 
-    const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
-    const marked = enemyUnit("enemy-marked", "UNIT_TEST_ENEMY" as never, {
+    const actor = allyUnit(unitId, unitId, { column: "LEFT", row: "FRONT" });
+    const marked = enemyUnit("enemy-marked", "UNIT_TEST_ENEMY", {
       column: "LEFT",
       row: "FRONT",
     });
     const withMarker = {
       ...marked,
-      markerStates: [markerOf(marked, "MARKER_AOI_ELEGANT_UKIASHI")],
+      markerStates: [testMarker(marked, "MARKER_AOI_ELEGANT_UKIASHI")],
     };
-    const unmarked = enemyUnit("enemy-unmarked", "UNIT_TEST_ENEMY" as never, {
+    const unmarked = enemyUnit("enemy-unmarked", "UNIT_TEST_ENEMY", {
       column: "LEFT",
       row: "BACK",
     });
     const allUnits = [actor, withMarker, unmarked];
 
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions: new Map(),
-      skillDefinitions: new Map([[skillId as never, skill]]),
-    };
+    const definitions = definitionsForSkill(skill, snapshot.effectActions);
     const plan = resolveSkillOrder(skill, actor, allUnits, definitions.effectActions);
-    const { recorder, rootEventId } = seedRecorder();
-    const context = contextFor(actor, skillId, definitions, recorder, rootEventId);
+    const { recorder, rootEventId } = seedRecorder("B_CAP_EFFSTEP");
+    const context = effectActionGroupContext({
+      actor,
+      skillId,
+      definitions,
+      recorder,
+      rootEventId,
+    });
     applyEffectActionGroups(plan, allUnits, context);
 
-    expect(completedTargetsFor(recorder, "ACT_AOI_ELEGANT_EX_ATK_DOWN")).toEqual([
+    expect(completedTargetIdsOf(recorder, "ACT_AOI_ELEGANT_EX_ATK_DOWN")).toEqual([
       withMarker.battleUnitId,
     ]);
-    expect([...completedTargetsFor(recorder, "ACT_AOI_ELEGANT_EX_DAMAGE")].sort()).toEqual(
+    expect([...completedTargetIdsOf(recorder, "ACT_AOI_ELEGANT_EX_DAMAGE")].sort()).toEqual(
       [withMarker.battleUnitId, unmarked.battleUnitId].sort(),
     );
   });
@@ -302,10 +184,9 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
   it("IT-CAP-EFFSTEP-002: SKL_LUCIE_MAID_AS1's real TARGET_STATE(UNIT_TYPE IN {PHYSICAL, AGILE}) per-target condition only stuns column members of a matching unitType", () => {
     const unitId = "UNIT_LUCIE_MAID";
     const skillId = "SKL_LUCIE_MAID_AS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toEqual([
       "CAP_TARGET_DERIVED_AREA",
       "CAP_EFFECT_STEP_CONDITION",
@@ -324,8 +205,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       },
     });
 
-    const physicalUnitDefinitionId = "UNIT_TEST_PHYSICAL" as never;
-    const energyUnitDefinitionId = "UNIT_TEST_ENERGY" as never;
+    const physicalUnitDefinitionId = createUnitDefinitionId("UNIT_TEST_PHYSICAL");
+    const energyUnitDefinitionId = createUnitDefinitionId("UNIT_TEST_ENERGY");
     const unitDefinitions = new Map<UnitDefinitionId, UnitDefinition>([
       [
         physicalUnitDefinitionId,
@@ -337,7 +218,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       ],
     ]);
 
-    const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
+    const actor = allyUnit(unitId, unitId, { column: "LEFT", row: "FRONT" });
     const physical = enemyUnit("enemy-physical", physicalUnitDefinitionId, {
       column: "LEFT",
       row: "FRONT",
@@ -349,11 +230,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
     const allUnits = [actor, physical, energy];
 
     const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
+      ...definitionsForSkill(skill, snapshot.effectActions),
       unitDefinitions,
-      skillDefinitions: new Map([[skillId as never, skill]]),
     };
     // `ACT_LUCIE_MAID_AS1_STUN`（`APPLY_STATUS`）は基本のturn action resolverが
     // まだ実行できない（M6/M7/M8 scope、別Capability）ため、`applyEffectActionGroups`
@@ -389,10 +267,9 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
   it("IT-CAP-EFFSTEP-003: SKL_LUCIE_MAID_PS2's real TARGET_STATE(UNIT_TYPE IN {PHYSICAL, AGILE}) per-target condition only reduces PP for column members of a matching unitType", () => {
     const unitId = "UNIT_LUCIE_MAID";
     const skillId = "SKL_LUCIE_MAID_PS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_EFFECT_STEP_CONDITION");
     const ppDownStep = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : []).find(
       (s) =>
@@ -409,8 +286,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       },
     });
 
-    const agileUnitDefinitionId = "UNIT_TEST_AGILE" as never;
-    const energyUnitDefinitionId = "UNIT_TEST_ENERGY" as never;
+    const agileUnitDefinitionId = createUnitDefinitionId("UNIT_TEST_AGILE");
+    const energyUnitDefinitionId = createUnitDefinitionId("UNIT_TEST_ENERGY");
     const unitDefinitions = new Map<UnitDefinitionId, UnitDefinition>([
       [
         agileUnitDefinitionId,
@@ -422,7 +299,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       ],
     ]);
 
-    const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
+    const actor = allyUnit(unitId, unitId, { column: "LEFT", row: "FRONT" });
     const agile = enemyUnit("enemy-agile", agileUnitDefinitionId, { column: "LEFT", row: "FRONT" });
     const energy = enemyUnit("enemy-energy", energyUnitDefinitionId, {
       column: "LEFT",
@@ -431,11 +308,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
     const allUnits = [actor, agile, energy];
 
     const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
+      ...definitionsForSkill(skill, snapshot.effectActions),
       unitDefinitions,
-      skillDefinitions: new Map([[skillId as never, skill]]),
     };
     // `ACT_LUCIE_MAID_PS2_PP_DOWN`（`MODIFY_RESOURCE`）は`CAP_RESOURCE_MUTATION`
     // （M7-002、別Capability、PLANNEDのまま）が未実装で基本のturn action resolver
@@ -471,10 +345,9 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
   it("IT-CAP-EFFSTEP-004: SKL_ROSIE_ARTIST_PS2's real TARGET_STATE(UNIT_TYPE EQ PHYSICAL)/NOT(...) complementary per-target conditions give physical-type allies the doubled healing buff and everyone else the base buff", () => {
     const unitId = "UNIT_ROSIE_ARTIST";
     const skillId = "SKL_ROSIE_ARTIST_PS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toEqual(["CAP_HEAL", "CAP_EFFECT_STEP_CONDITION"]);
     const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
     expect(
@@ -499,8 +372,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       },
     });
 
-    const physicalUnitDefinitionId = "UNIT_TEST_PHYSICAL_ALLY" as never;
-    const energyUnitDefinitionId = "UNIT_TEST_ENERGY_ALLY" as never;
+    const physicalUnitDefinitionId = createUnitDefinitionId("UNIT_TEST_PHYSICAL_ALLY");
+    const energyUnitDefinitionId = createUnitDefinitionId("UNIT_TEST_ENERGY_ALLY");
     expect(unitDefinition.unitType).toBe("PHYSICAL");
     const unitDefinitions = new Map<UnitDefinitionId, UnitDefinition>([
       // UNIT_ROSIE_ARTIST自身もTGT_ALL_ALLIES（side: ALLY, count: ALL）に含まれる
@@ -517,7 +390,7 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       ],
     ]);
 
-    const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
+    const actor = allyUnit(unitId, unitId, { column: "LEFT", row: "FRONT" });
     const physicalAlly = allyUnit("ally-physical", physicalUnitDefinitionId, {
       column: "CENTER",
       row: "FRONT",
@@ -529,11 +402,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
     const allUnits = [actor, physicalAlly, energyAlly];
 
     const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
+      ...definitionsForSkill(skill, snapshot.effectActions),
       unitDefinitions,
-      skillDefinitions: new Map([[skillId as never, skill]]),
     };
     // `ACT_ROSIE_ARTIST_PS2_HEALING_UP`/`_PHYSICAL`（`APPLY_HEALING_MOD`）は
     // `CAP_HEAL`（M7-005、別Capability、PLANNEDのまま）が未実装で基本のturn action
@@ -569,9 +439,8 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
   it("IT-CAP-EFFSTEP-005: SKL_TATIANA_SAGE_EX's real TARGET_HAS_MARKER(MARKER_TATIANA_SAGE_OMEN GTE 2)/NOT(...) complementary per-target conditions apply the dealt-damage-nullify debuff to targets with 2+ Omen stacks and grant an Omen stack to the rest", () => {
     const unitId = "UNIT_TATIANA_SAGE";
     const skillId = "SKL_TATIANA_SAGE_EX";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toEqual(
       expect.arrayContaining(["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"]),
     );
@@ -606,44 +475,38 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後�
       },
     });
 
-    const actor = allyUnit(unitId, unitId as never, { column: "LEFT", row: "FRONT" });
-    const noOmen = enemyUnit("enemy-no-omen", "UNIT_TEST_ENEMY" as never, {
+    const actor = allyUnit(unitId, unitId, { column: "LEFT", row: "FRONT" });
+    const noOmen = enemyUnit("enemy-no-omen", "UNIT_TEST_ENEMY", {
       column: "LEFT",
       row: "FRONT",
     });
-    const belowThreshold = enemyUnit("enemy-below-threshold", "UNIT_TEST_ENEMY" as never, {
+    const belowThreshold = enemyUnit("enemy-below-threshold", "UNIT_TEST_ENEMY", {
       column: "LEFT",
       row: "BACK",
     });
-    const atThreshold = enemyUnit("enemy-at-threshold", "UNIT_TEST_ENEMY" as never, {
+    const atThreshold = enemyUnit("enemy-at-threshold", "UNIT_TEST_ENEMY", {
       column: "RIGHT",
       row: "FRONT",
     });
-    const aboveThreshold = enemyUnit("enemy-above-threshold", "UNIT_TEST_ENEMY" as never, {
+    const aboveThreshold = enemyUnit("enemy-above-threshold", "UNIT_TEST_ENEMY", {
       column: "RIGHT",
       row: "BACK",
     });
     const withBelow = {
       ...belowThreshold,
-      markerStates: [markerOf(belowThreshold, "MARKER_TATIANA_SAGE_OMEN", 1)],
+      markerStates: [testMarker(belowThreshold, "MARKER_TATIANA_SAGE_OMEN", { stackCount: 1 })],
     };
     const withAt = {
       ...atThreshold,
-      markerStates: [markerOf(atThreshold, "MARKER_TATIANA_SAGE_OMEN", 2)],
+      markerStates: [testMarker(atThreshold, "MARKER_TATIANA_SAGE_OMEN", { stackCount: 2 })],
     };
     const withAbove = {
       ...aboveThreshold,
-      markerStates: [markerOf(aboveThreshold, "MARKER_TATIANA_SAGE_OMEN", 3)],
+      markerStates: [testMarker(aboveThreshold, "MARKER_TATIANA_SAGE_OMEN", { stackCount: 3 })],
     };
     const allUnits = [actor, noOmen, withBelow, withAt, withAbove];
 
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions: new Map(),
-      skillDefinitions: new Map([[skillId as never, skill]]),
-    };
+    const definitions = definitionsForSkill(skill, snapshot.effectActions);
     // `ACT_TATIANA_SAGE_EX_DEBUFF`（`APPLY_DAMAGE_MOD`）は`CAP_DAMAGE_MOD`
     // （DMG-002/Issue #192、別Capability、PLANNEDのまま）が未実装で基本のturn
     // action resolverが実行できないため、`resolveSkillOrder`が返す

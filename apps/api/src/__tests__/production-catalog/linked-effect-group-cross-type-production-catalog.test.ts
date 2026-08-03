@@ -1,15 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId, type BattleUnitId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createMarkerId,
@@ -17,9 +14,16 @@ import {
   createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
-import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-013（Issue #267、`LINKED_EFFECT_GROUP_CROSS_TYPE`、R-EFF-09第1項）:
@@ -68,26 +72,14 @@ const AOI_GROUP_ID = "AOI_ELEGANT_AS1_KOUYOU_LINK";
 const BASE_ATTACK = 100;
 const BASE_CRITICAL_RATE = 0.5;
 const LIMITS = { maximumAp: 8, maximumPp: 3, maximumExtraGauge: 100 };
-
-function member(unitDefinitionId: string, battleUnitId: string): BattlePartyMember {
-  const position = { column: "CENTER", row: "FRONT" } as const;
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate("ALLY", position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: BASE_ATTACK,
-      defense: 50,
-      criticalRate: BASE_CRITICAL_RATE,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: BASE_ATTACK,
+  defense: 50,
+  criticalRate: BASE_CRITICAL_RATE,
+  actionSpeed: 100,
+  affinityBonus: 0.25,
+};
 
 /** 実production定義だけを順に自身へ適用する最小限の合成AS skill。 */
 function selfSkill(skillDefinitionId: string, effectActionIds: readonly string[]): SkillDefinition {
@@ -186,31 +178,24 @@ interface Harness {
   readonly definitions: BattleDefinitions;
   readonly recorder: EventRecorder;
   readonly actor: BattleUnit;
-  readonly snapshot: ReturnType<ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]>;
+  readonly snapshot: BattleCatalogSnapshot;
   readonly skills: ReadonlyMap<string, SkillDefinition>;
 }
 
 function harness(unitDefinitionId: string, synthetic: readonly SkillDefinition[]): Harness {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([unitDefinitionId as never], []);
-  const skillDefinitions = new Map(snapshot.skills);
-  for (const skill of synthetic) {
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-  }
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitDefinitionId]);
 
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: new Map(snapshot.effectActions),
-      unitDefinitions: new Map(snapshot.units),
-      skillDefinitions,
-    },
+    definitions: definitionsWith(snapshot, { skills: synthetic }),
     recorder: new EventRecorder(createBattleId("B_1")),
-    actor: {
-      ...createBattleUnit(member(unitDefinitionId, "ally:actor"), "ALLY", LIMITS),
-      currentAp: LIMITS.maximumAp,
-    },
+    actor: testBattleUnit({
+      battleUnitId: "ally:actor",
+      unitDefinitionId,
+      position: { column: "CENTER", row: "FRONT" },
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    }),
     snapshot,
     skills: new Map(synthetic.map((skill) => [String(skill.skillDefinitionId), skill])),
   };
@@ -243,42 +228,10 @@ function actorOf(h: Harness, units: readonly BattleUnit[]): BattleUnit {
   return units.find((u) => u.battleUnitId === h.actor.battleUnitId)!;
 }
 
-function initialSnapshot(actor: BattleUnit): BattleStateSnapshot {
-  return {
-    status: "READY",
-    currentTurn: 1,
-    units: {
-      [actor.battleUnitId]: {
-        hp: actor.currentHp,
-        ap: actor.currentAp,
-        pp: actor.currentPp,
-        extraGauge: actor.currentExtraGauge,
-        maximumAp: actor.maximumAp,
-        maximumPp: actor.maximumPp,
-        maximumExtraGauge: actor.maximumExtraGauge,
-        combatStats: actor.combatStats,
-      },
-    },
-  };
-}
-
 function liveSnapshot(actor: BattleUnit): BattleStateSnapshot["units"][BattleUnitId] {
-  return {
-    hp: actor.currentHp,
-    ap: actor.currentAp,
-    pp: actor.currentPp,
-    extraGauge: actor.currentExtraGauge,
-    maximumAp: actor.maximumAp,
-    maximumPp: actor.maximumPp,
-    maximumExtraGauge: actor.maximumExtraGauge,
-    combatStats: actor.combatStats,
-    ...(actor.appliedEffects.length > 0
-      ? { effects: actor.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }
-      : {}),
-    ...(actor.markerStates.length > 0
-      ? { markers: actor.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-      : {}),
-  };
+  return initialSnapshotFor([actor], { include: ["effects", "markers"] }).units[
+    actor.battleUnitId
+  ]!;
 }
 
 describe("production Catalog cross-type linkedEffectGroup cascade (M7-013, Issue #267, R-EFF-09)", () => {
@@ -286,7 +239,7 @@ describe("production Catalog cross-type linkedEffectGroup cascade (M7-013, Issue
     const tarisa = harness(TARISA_UNIT_ID, []);
     const aoi = harness(AOI_UNIT_ID, []);
     const durationOf = (h: Harness, id: string) => {
-      const definition = h.snapshot.effectActions.get(createEffectActionDefinitionId(id))!;
+      const definition = effectActionFrom(h.snapshot, id);
       expect(definition).toBeDefined();
       return (definition as { payload: { duration: unknown } }).payload.duration as {
         linkedEffectGroupId: string | null;
@@ -427,13 +380,7 @@ describe("production Catalog cross-type linkedEffectGroup cascade (M7-013, Issue
     units = useSkill(h, units, "SKL_TEST_TARISA_GRANT", 2);
     units = useSkill(h, units, "SKL_TEST_TARISA_CLEAR", 3);
 
-    const reduced = h.recorder
-      .getEvents()
-      .reduce(
-        (state, event) =>
-          event.stateDelta === undefined ? state : applyStateDelta(state, event.stateDelta),
-        initialSnapshot(h.actor),
-      );
+    const reduced = reconstruct(initialSnapshotFor([h.actor], { status: "READY" }), h.recorder);
 
     const restored = reduced.units[h.actor.battleUnitId]!;
     expect(restored.effects ?? []).toHaveLength(0);

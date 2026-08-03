@@ -1,24 +1,18 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
-  createEffectActionDefinitionId,
-  createSkillDefinitionId,
-  createUnitDefinitionId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+  definitionsWith,
+  effectActionFrom,
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * RES-003A（Issue #257、G-10）: `FormulaDefinition`の`sourceResult: SUM_DAMAGE_DEALT`
@@ -38,81 +32,7 @@ const EX_SKILL_ID = "SKL_FLUTE_VAMPIRE_EX";
 const SELF_HEAL_ID = "ACT_FLUTE_VAMPIRE_EX_SELF_HEAL";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
-
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-  overrides: { maximumHp?: number; attack?: number } = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 5000,
-      attack: overrides.attack ?? 100,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 5000,
-      attack: 100,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
-
-function definitionsWith(
-  snapshot: ReturnType<ReturnType<typeof loadCatalogFromDirectory>["loadSnapshot"]>,
-  extraUnitDefinitionIds: readonly string[],
-): BattleDefinitions {
-  const unitDefinitions = new Map(snapshot.units);
-  for (const id of extraUnitDefinitionIds) {
-    unitDefinitions.set(createUnitDefinitionId(id), testUnitDefinition(id));
-  }
-  return {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: new Map(snapshot.effectActions),
-    unitDefinitions,
-    skillDefinitions: new Map(snapshot.skills),
-  };
-}
+const COMBAT_STATS = { maximumHp: 5000, attack: 100, defense: 0 };
 
 const ENEMY_UNIT_ID = "UNIT_TEST_SUM_DAMAGE_ENEMY";
 
@@ -121,30 +41,34 @@ function runFluteEx(): {
   readonly heal: Extract<BattleDomainEvent, { eventType: "HealApplied" }>;
   readonly fluteHpAfter: number;
 } {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([FLUTE_UNIT_ID as never], []);
-  const skill = snapshot.skills.get(createSkillDefinitionId(EX_SKILL_ID))!;
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [FLUTE_UNIT_ID]);
+  const skill = skillFrom(snapshot, EX_SKILL_ID);
 
-  const flute = {
-    ...createBattleUnit(
-      member("ally:flute", FLUTE_UNIT_ID, "ALLY", { column: "LEFT", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    ),
-    currentExtraGauge: LIMITS.maximumExtraGauge,
-    currentHp: 100,
-  };
+  const flute = testBattleUnit({
+    battleUnitId: "ally:flute",
+    unitDefinitionId: FLUTE_UNIT_ID,
+    position: { column: "LEFT", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+    overrides: { currentExtraGauge: LIMITS.maximumExtraGauge, currentHp: 100 },
+  });
   // 同一列の敵2体（`TGT_COLUMN`が`SAME_COLUMN_AS_BASE`で解決する）。
-  const frontEnemy = createBattleUnit(
-    member("enemy:front", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "FRONT" }),
-    "ENEMY",
-    LIMITS,
-  );
-  const backEnemy = createBattleUnit(
-    member("enemy:back", ENEMY_UNIT_ID, "ENEMY", { column: "LEFT", row: "BACK" }),
-    "ENEMY",
-    LIMITS,
-  );
+  const frontEnemy = testBattleUnit({
+    battleUnitId: "enemy:front",
+    unitDefinitionId: ENEMY_UNIT_ID,
+    side: "ENEMY",
+    position: { column: "LEFT", row: "FRONT" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+  });
+  const backEnemy = testBattleUnit({
+    battleUnitId: "enemy:back",
+    unitDefinitionId: ENEMY_UNIT_ID,
+    side: "ENEMY",
+    position: { column: "LEFT", row: "BACK" },
+    combatStats: COMBAT_STATS,
+    limits: LIMITS,
+  });
   const recorder = new EventRecorder(createBattleId("B_1"));
 
   const result = resolveSkillUse(
@@ -153,7 +77,7 @@ function runFluteEx(): {
     "EX",
     "EX",
     [flute, frontEnemy, backEnemy],
-    definitionsWith(snapshot, [ENEMY_UNIT_ID]),
+    definitionsWith(snapshot, { units: [ENEMY_UNIT_ID] }),
     // 会心判定（`critical.mode: NORMAL`）の抽選分。criticalRateは0なので
     // どの値でも非会心に決まるが、消費自体は決定的に用意しておく。
     new SequenceRandomSource([0, 0, 0, 0, 0, 0]),
@@ -181,9 +105,8 @@ function runFluteEx(): {
 
 describe("production Catalog SUM_DAMAGE_DEALT (RES-003A, Issue #257, G-10)", () => {
   it("IT-CAP-SUM-DAMAGE-PROD-001: the real ACT_FLUTE_VAMPIRE_EX_SELF_HEAL declares DAMAGE_DEALT_RATIO(SUM_DAMAGE_DEALT, 0.6) and the capability that now covers it", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([FLUTE_UNIT_ID as never], []);
-    const heal = snapshot.effectActions.get(createEffectActionDefinitionId(SELF_HEAL_ID))!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [FLUTE_UNIT_ID]);
+    const heal = effectActionFrom(snapshot, SELF_HEAL_ID);
 
     expect(heal).toMatchObject({
       kind: "HEAL",

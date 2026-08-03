@@ -1,19 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import {
-  createEffectActionDefinitionId,
-  createMemoryDefinitionId,
-  createUnitDefinitionId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
-import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type {
   Attribute,
@@ -23,7 +14,6 @@ import type {
 import type { TargetFilterDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
 import {
   captureBattleState,
@@ -33,6 +23,13 @@ import {
   collectRequiredCapabilities,
   findUnimplementedCapabilities,
 } from "../../domain/catalog/capability/capability-availability.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  loadProductionSnapshot,
+  memoryFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-007（Issue #178）: `raw/memories/` の未変換Memoryのうち、所属条件を持たず
@@ -120,12 +117,9 @@ const ENEMY_MEMBER = {
 
 const UNIT_DEFINITION_IDS = [
   ...new Set([...ALLY_MEMBERS.map((m) => m.unitDefinitionId), ENEMY_MEMBER.unitDefinitionId]),
-].map((id) => createUnitDefinitionId(id));
+];
 
-const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-  UNIT_DEFINITION_IDS,
-  M7_007_MEMORY_IDS.map((id) => createMemoryDefinitionId(id)),
-);
+const snapshot = loadProductionSnapshot(CATALOG_DIR, UNIT_DEFINITION_IDS, M7_007_MEMORY_IDS);
 
 const BASE_ATTACK = 1000;
 const BASE_DEFENSE = 100;
@@ -140,12 +134,12 @@ function battleUnitOf(
   },
   side: Side,
 ): BattleUnit {
-  const partyMember: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(member.battleUnitId),
-    unitDefinitionId: createUnitDefinitionId(member.unitDefinitionId),
-    attribute: member.attribute,
+  return testBattleUnit({
+    battleUnitId: member.battleUnitId,
+    unitDefinitionId: member.unitDefinitionId,
+    side,
     position: member.position,
-    globalCoordinate: toGlobalCoordinate(side, member.position),
+    attribute: member.attribute,
     combatStats: {
       maximumHp: BASE_MAXIMUM_HP,
       attack: BASE_ATTACK,
@@ -155,33 +149,8 @@ function battleUnitOf(
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
     },
-  };
-  return createBattleUnit(partyMember, side, {
-    maximumAp: 3,
-    maximumPp: 3,
-    maximumExtraGauge: 100,
+    limits: { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 },
   });
-}
-
-function memoryOf(memoryDefinitionId: string): MemoryDefinition {
-  const memory = snapshot.memories.get(createMemoryDefinitionId(memoryDefinitionId));
-  if (memory === undefined) {
-    throw new Error(`production Catalog has no Memory "${memoryDefinitionId}"`);
-  }
-  return memory;
-}
-
-function definitionsWith(
-  memoriesBySide: Readonly<Record<Side, readonly MemoryDefinition[]>>,
-): BattleDefinitions {
-  return {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: snapshot.effectActions,
-    unitDefinitions: snapshot.units,
-    skillDefinitions: snapshot.skills,
-    memoriesBySide,
-  };
 }
 
 function createdBattleWith(allyMemoryDefinitionIds: readonly string[]) {
@@ -190,7 +159,14 @@ function createdBattleWith(allyMemoryDefinitionIds: readonly string[]) {
     ALLY_MEMBERS.map((member) => battleUnitOf(member, "ALLY")),
     [battleUnitOf(ENEMY_MEMBER, "ENEMY")],
     createTurnLimit(3),
-    definitionsWith({ ALLY: allyMemoryDefinitionIds.map(memoryOf), ENEMY: [] }),
+    definitionsWith(snapshot, {
+      overrides: {
+        memoriesBySide: {
+          ALLY: allyMemoryDefinitionIds.map((id) => memoryFrom(snapshot, id)),
+          ENEMY: [],
+        },
+      },
+    }),
   );
 }
 
@@ -421,7 +397,7 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
 
   it("IT-CAP-MEMORY-STATIC-PROD-006: MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER convert every raw filter and magnitude without approximation, and pass Capability preflight now that CAP_DAMAGE_MOD is implemented", () => {
     for (const expectation of DAMAGE_MOD_MEMORY_EXPECTATIONS) {
-      const memory = memoryOf(expectation.memoryDefinitionId);
+      const memory = memoryFrom(snapshot, expectation.memoryDefinitionId);
       expect(memory.metadata.displayName).toBe(expectation.displayName);
       expect(memory.triggeredEffects).toHaveLength(expectation.triggeredEffects.length);
 
@@ -457,14 +433,7 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
         ]);
 
         // 補正値: raw記載の倍率・固定値をそのまま`CONSTANT`へ写す（丸め・近似なし）。
-        const action = snapshot.effectActions.get(
-          createEffectActionDefinitionId(expected.effectActionDefinitionId),
-        );
-        if (action === undefined) {
-          throw new Error(
-            `production Catalog has no EffectAction "${expected.effectActionDefinitionId}"`,
-          );
-        }
+        const action = effectActionFrom(snapshot, expected.effectActionDefinitionId);
         if (expected.damageMod !== undefined) {
           if (action.kind !== "APPLY_DAMAGE_MOD") {
             throw new Error(`expected APPLY_DAMAGE_MOD, got "${action.kind}"`);

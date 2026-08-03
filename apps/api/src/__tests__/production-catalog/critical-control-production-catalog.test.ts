@@ -1,31 +1,33 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { CriticalMode } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-003A（Issue #295、R-CRT-03「会心保証・会心不可」、`CAP_CRITICAL_CONTROL`）:
@@ -54,63 +56,26 @@ const ATTACKER_UNIT_ID = "UNIT_TEST_CRIT_ATTACKER";
 const ATTACK_EFFECT_ID = "ACT_TEST_CRIT_ATTACK";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
+// 攻撃力50・防御力0で「非会心50／会心100ダメージ」を基準に会心制御を観測する。
+const COMBAT_STATS = { maximumHp: 1000, attack: 50, defense: 0 };
 
-function member(
+/** APを満タンにし、合成ASを即時使用できる状態で組む。 */
+function readyUnit(
   battleUnitId: string,
   unitDefinitionId: string,
   side: Side,
   position: FormationPosition,
-  overrides: { criticalRate?: number; maximumHp?: number } = {},
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
+  combatStats: Partial<CombatStats> = {},
+): BattleUnit {
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: overrides.maximumHp ?? 1000,
-      attack: 50,
-      defense: 0,
-      criticalRate: overrides.criticalRate ?? 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
+    combatStats: { ...COMBAT_STATS, ...combatStats },
+    limits: LIMITS,
+    overrides: { currentAp: LIMITS.maximumAp },
+  });
 }
 
 /**
@@ -263,51 +228,21 @@ function fixture(
   criticalMode: CriticalMode = "NORMAL",
   extraEffectActions: readonly EffectActionDefinition[] = [],
 ): Fixture {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot(unitIds as never[], []);
-  const attack = singleHitAttack(criticalMode);
-  const effectActions = new Map(snapshot.effectActions);
-  effectActions.set(attack.effectActionDefinitionId, attack);
-  for (const definition of extraEffectActions) {
-    effectActions.set(definition.effectActionDefinitionId, definition);
-  }
-  const skillDefinitions = new Map(snapshot.skills);
-  for (const skill of skills) {
-    skillDefinitions.set(skill.skillDefinitionId, skill);
-  }
-  const unitDefinitions = new Map(snapshot.units);
-  unitDefinitions.set(
-    createUnitDefinitionId(ATTACKER_UNIT_ID),
-    testUnitDefinition(ATTACKER_UNIT_ID),
-  );
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, unitIds);
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions,
-    },
-    recorder: new EventRecorder(createBattleId("B_1")),
-  };
-}
-
-function emptyStateFor(unit: ReturnType<typeof createBattleUnit>): BattleStateSnapshot {
-  return {
-    status: "READY",
-    currentTurn: 1,
-    units: {
-      [unit.battleUnitId]: {
-        hp: unit.currentHp,
-        ap: unit.currentAp,
-        pp: unit.currentPp,
-        extraGauge: unit.currentExtraGauge,
-        maximumAp: unit.maximumAp,
-        maximumPp: unit.maximumPp,
-        maximumExtraGauge: unit.maximumExtraGauge,
-        combatStats: unit.combatStats,
+    definitions: definitionsWith(snapshot, {
+      units: [testUnitDefinition(ATTACKER_UNIT_ID, { baseStats: COMBAT_STATS })],
+      skills,
+      overrides: {
+        effectActions: new Map([
+          ...snapshot.effectActions,
+          ...[singleHitAttack(criticalMode), ...extraEffectActions].map(
+            (definition) => [definition.effectActionDefinitionId, definition] as const,
+          ),
+        ]),
       },
-    },
+    }),
+    recorder: new EventRecorder(createBattleId("B_1")),
   };
 }
 
@@ -315,14 +250,10 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
   it("IT-CAP-CRITICAL-CONTROL-PROD-001 (R-ACTN-03/R-CRT-03, real lifecycle wiring): resolving the real ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE definition through resolveSkillUse grants a statusKind:CRITICAL_GUARANTEE AppliedEffect with the production-defined ACTION(2) time limit, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const grantSkill = selfStepsSkill("SKL_TEST_GRANT_CRIT_GUARANTEE", CRIT_GUARANTEE_EFFECT_ID);
     const { definitions, recorder } = fixture([MIKOTO_UNIT_ID], [grantSkill]);
-    const mikoto = {
-      ...createBattleUnit(
-        member("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const mikoto = readyUnit("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const result = resolveSkillUse(
       mikoto,
@@ -365,7 +296,10 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
       initialRemaining: 2,
     });
 
-    const reduced = applyStateDelta(emptyStateFor(mikoto), applied.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([mikoto], { status: "READY" }),
+      applied.stateDelta!,
+    );
     expect(reduced.units[mikoto.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[mikoto.battleUnitId]!.effects![0]).toMatchObject({
       effectDefinitionId: CRIT_GUARANTEE_EFFECT_ID,
@@ -377,14 +311,10 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
   it("IT-CAP-CRITICAL-CONTROL-PROD-002 (R-ACTN-03/R-CRT-03, real lifecycle wiring): resolving the real ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION definition through resolveSkillUse grants a statusKind:CRITICAL_PREVENTION AppliedEffect with the production-defined ACTION(1) time limit, matching Domain Event / StateDelta / independent-Reducer expectations", () => {
     const grantSkill = selfStepsSkill("SKL_TEST_GRANT_CRIT_PREVENTION", CRIT_PREVENTION_EFFECT_ID);
     const { definitions, recorder } = fixture([TARISA_UNIT_ID], [grantSkill]);
-    const tarisa = {
-      ...createBattleUnit(
-        member("ally:tarisa", TARISA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const tarisa = readyUnit("ally:tarisa", TARISA_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const result = resolveSkillUse(
       tarisa,
@@ -432,7 +362,10 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
     });
     expect([...applied.payload.categories]).toEqual(["DEBUFF"]);
 
-    const reduced = applyStateDelta(emptyStateFor(tarisa), applied.stateDelta!);
+    const reduced = applyStateDelta(
+      initialSnapshotFor([tarisa], { status: "READY" }),
+      applied.stateDelta!,
+    );
     expect(reduced.units[tarisa.battleUnitId]!.effects).toHaveLength(1);
     expect(reduced.units[tarisa.battleUnitId]!.effects![0]).toMatchObject({
       effectDefinitionId: CRIT_PREVENTION_EFFECT_ID,
@@ -448,20 +381,16 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
     const debuffImmunity = immunityAction("ACT_TEST_IMMUNITY_DEBUFF", "DEBUFF");
 
     /** 1行動の中でstepを順に解決し、解決後のtarisaを返す。 */
-    function resolveSteps(skill: SkillDefinition): ReturnType<typeof createBattleUnit> {
+    function resolveSteps(skill: SkillDefinition): BattleUnit {
       const { definitions, recorder } = fixture([TARISA_UNIT_ID], [skill], "NORMAL", [
         debuffCleanse,
         buffCleanse,
         debuffImmunity,
       ]);
-      const tarisa = {
-        ...createBattleUnit(
-          member("ally:tarisa", TARISA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-          "ALLY",
-          LIMITS,
-        ),
-        currentAp: LIMITS.maximumAp,
-      };
+      const tarisa = readyUnit("ally:tarisa", TARISA_UNIT_ID, "ALLY", {
+        column: "CENTER",
+        row: "FRONT",
+      });
       const result = resolveSkillUse(
         tarisa,
         skill,
@@ -522,19 +451,15 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
     const debuffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_DEBUFF", "DEBUFF");
     const buffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_BUFF", "BUFF");
 
-    function resolveSteps(skill: SkillDefinition): ReturnType<typeof createBattleUnit> {
+    function resolveSteps(skill: SkillDefinition): BattleUnit {
       const { definitions, recorder } = fixture([MIKOTO_UNIT_ID], [skill], "NORMAL", [
         debuffCleanse,
         buffCleanse,
       ]);
-      const mikoto = {
-        ...createBattleUnit(
-          member("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-          "ALLY",
-          LIMITS,
-        ),
-        currentAp: LIMITS.maximumAp,
-      };
+      const mikoto = readyUnit("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", {
+        column: "CENTER",
+        row: "FRONT",
+      });
       const result = resolveSkillUse(
         mikoto,
         skill,
@@ -583,22 +508,14 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
       [grantSkill, attackSkill],
       "NORMAL",
     );
-    const mikoto = {
-      ...createBattleUnit(
-        member("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
-    const enemy = {
-      ...createBattleUnit(
-        member("enemy:target", ATTACKER_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-        "ENEMY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    };
+    const mikoto = readyUnit("ally:mikoto", MIKOTO_UNIT_ID, "ALLY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
+    const enemy = readyUnit("enemy:target", ATTACKER_UNIT_ID, "ENEMY", {
+      column: "CENTER",
+      row: "FRONT",
+    });
 
     const granted = resolveSkillUse(
       mikoto,
@@ -661,30 +578,17 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
         "NORMAL",
       );
       // 攻撃側は会心率100%。会心不可を保持していなければ必ず会心する。
-      const attacker = {
-        ...createBattleUnit(
-          member(
-            "ally:tarisa",
-            TARISA_UNIT_ID,
-            "ALLY",
-            { column: "CENTER", row: "FRONT" },
-            {
-              criticalRate: 1,
-            },
-          ),
-          "ALLY",
-          LIMITS,
-        ),
-        currentAp: LIMITS.maximumAp,
-      };
-      const defender = {
-        ...createBattleUnit(
-          member("enemy:target", TARISA_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-          "ENEMY",
-          LIMITS,
-        ),
-        currentAp: LIMITS.maximumAp,
-      };
+      const attacker = readyUnit(
+        "ally:tarisa",
+        TARISA_UNIT_ID,
+        "ALLY",
+        { column: "CENTER", row: "FRONT" },
+        { criticalRate: 1 },
+      );
+      const defender = readyUnit("enemy:target", TARISA_UNIT_ID, "ENEMY", {
+        column: "CENTER",
+        row: "FRONT",
+      });
       const holder = preventionOn === "ATTACKER" ? attacker : defender;
 
       const granted = resolveSkillUse(

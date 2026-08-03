@@ -1,29 +1,29 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
-  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { applyStateDelta } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-014（Issue #268、`DYNAMIC_DURATION_ON_REAPPLY`）: `SKL_SIENA_DIVA_PS1`
@@ -51,63 +51,8 @@ const EX_STUN_EFFECT_ID = "ACT_SIENA_DIVA_EX_STUN";
 const TEST_ENEMY_UNIT_ID = "UNIT_TEST_REAPPLY_ENEMY";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
-
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100,
-      attack: 50,
-      defense: 0,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-      actionSpeed: 10,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = { attack: 50, defense: 0 };
+const POSITION = { column: "CENTER", row: "FRONT" } as const;
 
 /** 実production STUN定義1件だけを敵単体へ適用する最小限の合成AS skill。 */
 function grantStunSkill(skillId: string, effectActionId: string): SkillDefinition {
@@ -166,47 +111,38 @@ interface Harness {
 }
 
 function harness(): Harness {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-  const snapshot = catalog.loadSnapshot([SIENA_UNIT_ID as never], []);
-  const stunDefinition = snapshot.effectActions.get(
-    createEffectActionDefinitionId(PS1_STUN_EFFECT_ID),
-  )!;
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [SIENA_UNIT_ID]);
+  const stunDefinition = effectActionFrom(snapshot, PS1_STUN_EFFECT_ID);
   const skills = new Map<string, SkillDefinition>();
-  const skillDefinitions = new Map(snapshot.skills);
   for (const [skillId, effectActionId] of [
     ["SKL_TEST_GRANT_PS1_STUN", PS1_STUN_EFFECT_ID],
     ["SKL_TEST_GRANT_EX_STUN", EX_STUN_EFFECT_ID],
   ] as const) {
-    const skill = grantStunSkill(skillId, effectActionId);
-    skills.set(skillId, skill);
-    skillDefinitions.set(skill.skillDefinitionId, skill);
+    skills.set(skillId, grantStunSkill(skillId, effectActionId));
   }
-  const unitDefinitions = new Map(snapshot.units);
-  const enemyDefinition = testUnitDefinition(TEST_ENEMY_UNIT_ID);
-  unitDefinitions.set(enemyDefinition.unitDefinitionId, enemyDefinition);
 
   return {
-    definitions: {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: new Map(snapshot.effectActions),
-      unitDefinitions,
-      skillDefinitions,
-    },
+    definitions: definitionsWith(snapshot, {
+      units: [testUnitDefinition(TEST_ENEMY_UNIT_ID, { baseStats: COMBAT_STATS })],
+      skills: [...skills.values()],
+    }),
     recorder: new EventRecorder(createBattleId("B_1")),
-    siena: {
-      ...createBattleUnit(
-        member("ally:siena", SIENA_UNIT_ID, "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-    },
-    enemy: createBattleUnit(
-      member("enemy:1", TEST_ENEMY_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    ),
+    siena: testBattleUnit({
+      battleUnitId: "ally:siena",
+      unitDefinitionId: SIENA_UNIT_ID,
+      position: POSITION,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: { currentAp: LIMITS.maximumAp },
+    }),
+    enemy: testBattleUnit({
+      battleUnitId: "enemy:1",
+      unitDefinitionId: TEST_ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: POSITION,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    }),
     skills,
     stunDefinition,
   };
@@ -296,22 +232,7 @@ describe("production Catalog ACT_SIENA_DIVA_PS1_STUN dynamic duration on re-appl
     // 残り回数2を復元できる。`StunDurationChanged`の`before`は既存スナップ
     // ショットを持つため、`EffectApplied`を飛ばして適用するとReducerが
     // 「delta sequenceが欠落・重複している」として正しく拒否する。
-    const state: BattleStateSnapshot = {
-      status: "READY",
-      currentTurn: 1,
-      units: {
-        [h.enemy.battleUnitId]: {
-          hp: h.enemy.currentHp,
-          ap: h.enemy.currentAp,
-          pp: h.enemy.currentPp,
-          extraGauge: h.enemy.currentExtraGauge,
-          maximumAp: h.enemy.maximumAp,
-          maximumPp: h.enemy.maximumPp,
-          maximumExtraGauge: h.enemy.maximumExtraGauge,
-          combatStats: h.enemy.combatStats,
-        },
-      },
-    };
+    const state = initialSnapshotFor([h.enemy], { status: "READY" });
     const applied = h.recorder.getEvents().find((e) => e.eventType === "EffectApplied") as Extract<
       BattleDomainEvent,
       { eventType: "EffectApplied" }

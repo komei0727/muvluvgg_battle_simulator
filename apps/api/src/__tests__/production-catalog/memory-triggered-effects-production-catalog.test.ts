@@ -1,22 +1,20 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import {
-  createMemoryDefinitionId,
-  createUnitDefinitionId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
 import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  definitionsWith,
+  loadProductionSnapshot,
+  memoryFrom,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-006（Issue #179、R-MEM-01〜04）: 実際のproduction Catalog（未改変）の
@@ -26,25 +24,21 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
-const UNIT_DEFINITION_ID = createUnitDefinitionId("UNIT_HARRIET_SAGE");
+const UNIT_DEFINITION_ID = "UNIT_HARRIET_SAGE";
 const MEMORY_DEFINITION_IDS = [
   "MEM_HARD_WARMUP",
   "MEM_STRANGERS",
   "MEM_HEART_COLOR",
   "MEM_TIMID_REINDEER_EVE",
-].map((id) => createMemoryDefinitionId(id));
-const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-  [UNIT_DEFINITION_ID],
-  MEMORY_DEFINITION_IDS,
-);
+];
+const snapshot = loadProductionSnapshot(CATALOG_DIR, [UNIT_DEFINITION_ID], MEMORY_DEFINITION_IDS);
 
 function unitAt(battleUnitId: string, side: Side, position: FormationPosition): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
+  return testBattleUnit({
+    battleUnitId,
     unitDefinitionId: UNIT_DEFINITION_ID,
-    attribute: "AGGRESSIVE",
+    side,
     position,
-    globalCoordinate: toGlobalCoordinate(side, position),
     combatStats: {
       maximumHp: 1000,
       attack: 1000,
@@ -54,30 +48,12 @@ function unitAt(battleUnitId: string, side: Side, position: FormationPosition): 
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
     },
-  };
-  return createBattleUnit(member, side, { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 });
+    limits: { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 },
+  });
 }
 
-function memoryOf(memoryDefinitionId: string): MemoryDefinition {
-  const memory = snapshot.memories.get(createMemoryDefinitionId(memoryDefinitionId));
-  if (memory === undefined) {
-    throw new Error(`production Catalog has no Memory "${memoryDefinitionId}"`);
-  }
-  return memory;
-}
-
-function definitionsWith(
-  memoriesBySide: Readonly<Record<Side, readonly MemoryDefinition[]>>,
-): BattleDefinitions {
-  return {
-    activeSkillsByUnit: new Map(),
-    exSkillByUnit: new Map(),
-    effectActions: snapshot.effectActions,
-    unitDefinitions: snapshot.units,
-    skillDefinitions: snapshot.skills,
-    memoriesBySide,
-  };
-}
+const memoryOf = (memoryDefinitionId: string): MemoryDefinition =>
+  memoryFrom(snapshot, memoryDefinitionId);
 
 function startWith(memoriesBySide: Readonly<Record<Side, readonly MemoryDefinition[]>>) {
   const battle = createBattle(
@@ -91,7 +67,7 @@ function startWith(memoriesBySide: Readonly<Record<Side, readonly MemoryDefiniti
       unitAt("enemy:2", "ENEMY", { row: "BACK", column: "CENTER" }),
     ],
     createTurnLimit(3),
-    definitionsWith(memoriesBySide),
+    definitionsWith(snapshot, { overrides: { memoriesBySide } }),
   );
   const recorder = new EventRecorder(createBattleId("B_1"));
   return { battle: startBattle(battle, new SequenceRandomSource([]), recorder), recorder };

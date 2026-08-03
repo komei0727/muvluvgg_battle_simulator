@@ -2,12 +2,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
 import { recalculateCombatStats } from "../../domain/battle/effects/combat-stat-recalculation-service.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * EFF-002 (Issue #165): exercises the REAL production `catalog/`
@@ -24,27 +25,21 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
 function actorFor(unitDefinitionId: string): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId("B_1:unit:1"),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position: { column: "LEFT", row: "FRONT" },
-    globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "FRONT" }),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return createBattleUnit(member, "ALLY", {
-    maximumAp: 4,
-    maximumPp: 4,
-    maximumExtraGauge: 10,
+  return testBattleUnit({
+    battleUnitId: "B_1:unit:1",
+    unitDefinitionId,
+    combatStats: COMBAT_STATS,
   });
 }
 
@@ -58,12 +53,11 @@ describe("production Catalog APPLY_STAT_MOD (EFF-002, R-STA-02〜04/R-EFF-05)", 
   ])(
     "IT-STAT-MOD-PROD-001: $effectActionId ($unitId) recalculates CombatStat via the real payload",
     ({ unitId, effectActionId }) => {
-      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-      const snapshot = catalog.loadSnapshot([unitId as never], []);
+      const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
 
-      const effectAction = snapshot.effectActions.get(effectActionId as never);
-      expect(effectAction?.kind).toBe("APPLY_STAT_MOD");
-      if (effectAction?.kind !== "APPLY_STAT_MOD") {
+      const effectAction = effectActionFrom(snapshot, effectActionId);
+      expect(effectAction.kind).toBe("APPLY_STAT_MOD");
+      if (effectAction.kind !== "APPLY_STAT_MOD") {
         return;
       }
       expect(effectAction.requiredCapabilities).toContain("CAP_STAT_MOD");
@@ -73,22 +67,14 @@ describe("production Catalog APPLY_STAT_MOD (EFF-002, R-STA-02〜04/R-EFF-05)", 
       }
 
       const actor = actorFor(unitId);
-      const recorder = new EventRecorder(createBattleId("B_1"));
-      const seed = recorder.record({
-        eventType: "TurnStarted",
-        category: "FACT",
-        turnNumber: 1,
-        cycleNumber: 0,
-        resolutionScopeId: recorder.nextResolutionScopeId(),
-        payload: { turnNumber: 1 },
-      });
+      const { recorder, rootEventId } = seedRecorder("B_1");
 
       const grantContext = {
         recorder,
         turnNumber: 1,
         cycleNumber: 1,
         resolutionScopeId: recorder.nextResolutionScopeId(),
-        rootEventId: seed.eventId,
+        rootEventId,
       };
       const grantResult = grantEffect(
         grantContext,
@@ -101,7 +87,7 @@ describe("production Catalog APPLY_STAT_MOD (EFF-002, R-STA-02〜04/R-EFF-05)", 
           magnitude: effectAction.payload.formula.value,
           durationDefinition: effectAction.payload.duration,
         },
-        seed.eventId,
+        rootEventId,
       );
 
       const recalculation = recalculateCombatStats(

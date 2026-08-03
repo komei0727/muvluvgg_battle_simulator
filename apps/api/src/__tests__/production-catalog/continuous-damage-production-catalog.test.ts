@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { runProductionUnitBattle } from "../../testing/scenario/run-production-battle.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import { effectActionFrom, loadProductionSnapshot } from "../../testing/fixtures/index.js";
 
 /**
  * DMG-008（Issue #189、R-DOT-01〜04）: 実 `catalog/` の `APPLY_CONTINUOUS_DAMAGE`
@@ -26,12 +26,9 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function continuousDamageDefinition(unitDefinitionId: string, effectActionDefinitionId: string) {
-  const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-    [unitDefinitionId as never],
-    [],
-  );
-  const definition = snapshot.effectActions.get(effectActionDefinitionId as never);
-  if (definition?.kind !== "APPLY_CONTINUOUS_DAMAGE") {
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitDefinitionId]);
+  const definition = effectActionFrom(snapshot, effectActionDefinitionId);
+  if (definition.kind !== "APPLY_CONTINUOUS_DAMAGE") {
     throw new Error(
       `production Catalog has no APPLY_CONTINUOUS_DAMAGE "${effectActionDefinitionId}"`,
     );

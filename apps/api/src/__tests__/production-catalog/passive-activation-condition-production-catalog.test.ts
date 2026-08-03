@@ -1,25 +1,31 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { MarkerState } from "../../domain/battle/model/marker-state.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
 import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
 import { reconfirmPassiveCandidate } from "../../domain/battle/triggering/reconfirm-passive-candidate.js";
 import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigger-event.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { createMarkerId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { createMarkerInstanceId } from "../../domain/shared/event-ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
+import {
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+  type UnitDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import type { Side } from "../../domain/shared/side.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import {
+  definitionsWith,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  skillFrom,
+  testBattleUnit,
+  testMarker,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * RES-004（Issue #171、`CAP_PASSIVE_ACTIVATION_CONDITION`）: PSの
@@ -44,6 +50,15 @@ import { SequenceRandomSource } from "../../testing/random/sequence-random-sourc
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const PADDING_UNIT_DEFINITION_ID = "UNIT_TEST_PADDING";
 
+const COMBAT_STATS = {
+  attack: 100,
+  defense: 50,
+  criticalRate: 0.1,
+  actionSpeed: 100,
+  criticalDamageBonus: 0.5,
+  affinityBonus: 0.25,
+};
+
 function actorFor(
   unitDefinitionId: string,
   side: Side,
@@ -51,39 +66,13 @@ function actorFor(
   maximumHp: number,
   overrides: Partial<BattleUnit> = {},
 ): BattleUnit {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0.1,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-  return {
-    ...createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 }),
-    ...overrides,
-  };
-}
-
-function markerOf(unit: BattleUnit, markerIdValue: string): MarkerState {
-  return {
-    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
-    markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
-    stackCount: 1,
-    stackMax: null,
-    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
-  };
+  return testBattleUnit({
+    battleUnitId,
+    unitDefinitionId,
+    side,
+    combatStats: { ...COMBAT_STATS, maximumHp },
+    overrides,
+  });
 }
 
 /**
@@ -93,21 +82,21 @@ function markerOf(unit: BattleUnit, markerIdValue: string): MarkerState {
 function unitDefinitionsFor(
   unitDefinition: UnitDefinition,
   skillId: string,
-): Map<never, UnitDefinition> {
+): Map<UnitDefinitionId, UnitDefinition> {
   return new Map([
     [
-      unitDefinition.unitDefinitionId as never,
+      unitDefinition.unitDefinitionId,
       {
         ...unitDefinition,
         activeSkillDefinitionIds: [],
-        passiveSkillDefinitionIds: [skillId as never],
+        passiveSkillDefinitionIds: [createSkillDefinitionId(skillId)],
       },
     ],
     [
-      PADDING_UNIT_DEFINITION_ID as never,
+      createUnitDefinitionId(PADDING_UNIT_DEFINITION_ID),
       {
         ...unitDefinition,
-        unitDefinitionId: PADDING_UNIT_DEFINITION_ID as never,
+        unitDefinitionId: createUnitDefinitionId(PADDING_UNIT_DEFINITION_ID),
         activeSkillDefinitionIds: [],
         passiveSkillDefinitionIds: [],
       },
@@ -119,48 +108,13 @@ function paddingActor(side: Side, battleUnitId: string, maximumHp: number): Batt
   return actorFor(PADDING_UNIT_DEFINITION_ID, side, battleUnitId, maximumHp);
 }
 
-function initialSnapshotFor(units: readonly BattleUnit[]): BattleStateSnapshot {
-  return {
-    status: "RUNNING",
-    currentTurn: 1,
-    units: Object.fromEntries(
-      units.map((unit) => [
-        unit.battleUnitId,
-        {
-          hp: unit.currentHp,
-          ap: unit.currentAp,
-          pp: unit.currentPp,
-          extraGauge: unit.currentExtraGauge,
-          maximumAp: unit.maximumAp,
-          maximumPp: unit.maximumPp,
-          maximumExtraGauge: unit.maximumExtraGauge,
-          combatStats: unit.combatStats,
-        },
-      ]),
-    ),
-  };
-}
-
-function replayEventDeltas(
-  initial: BattleStateSnapshot,
-  recorder: EventRecorder,
-): BattleStateSnapshot {
-  return reduceStateDeltas(
-    initial,
-    recorder
-      .getEvents()
-      .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
-  );
-}
-
 describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #171)", () => {
   it("IT-CAP-PASSIVE-001: SKL_KOKORO_SPORTSDAY_PS1's real TARGET_HAS_MARKER(SELF) activationCondition is evaluated at candidate detection and reconfirmation", () => {
     const unitId = "UNIT_KOKORO_SPORTSDAY";
     const skillId = "SKL_KOKORO_SPORTSDAY_PS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_PASSIVE_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({ kind: "TARGET_HAS_MARKER" });
 
@@ -169,7 +123,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
     const ownerBase = actorFor(unitId, "ALLY", "B_1:unit:1", maximumHp, { currentPp: 4 });
     const withMarker = {
       ...ownerBase,
-      markerStates: [markerOf(ownerBase, "MARKER_KOKORO_SPORTSDAY_STOIC")],
+      markerStates: [testMarker(ownerBase, "MARKER_KOKORO_SPORTSDAY_STOIC")],
     };
     const withoutMarker = ownerBase;
     const event: TriggerCandidateEvent = {
@@ -180,7 +134,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       payload: { skillType: "AS" },
     };
     const unitDefinitions = unitDefinitionsFor(unitDefinition, skillId);
-    const skillDefinitions = new Map([[skillId as never, skill]]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
     const guard = createEmptyPassiveActivationGuard();
 
     const candidatesWithMarker = detectPassiveCandidates({
@@ -210,10 +164,9 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
   it("IT-CAP-PASSIVE-002: SKL_LAURA_MOUNTAIN_PS2's real ALIVE_UNIT_COUNT(ALLY, excludeSelf) activationCondition traverses TurnStarted through PassiveActivated, StateDelta replay, and next-activation blocking (only Capability CAP_PASSIVE_ACTIVATION_CONDITION is required, so the full lifecycle is exercised end-to-end)", () => {
     const unitId = "UNIT_LAURA_MOUNTAIN";
     const skillId = "SKL_LAURA_MOUNTAIN_PS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toEqual(["CAP_PASSIVE_ACTIVATION_CONDITION"]);
     expect(skill.activationCondition).toMatchObject({
       kind: "ALIVE_UNIT_COUNT",
@@ -223,13 +176,12 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
 
     const maximumHp = unitDefinition.baseStats.maximumHp;
     const owner = { ...actorFor(unitId, "ALLY", "B_CAP_PASSIVE:unit:1", maximumHp), currentPp: 4 };
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions: snapshot.effectActions,
-      unitDefinitions: unitDefinitionsFor(unitDefinition, skillId),
-      skillDefinitions: new Map([[skillId as never, skill]]),
-    };
+    const definitions = definitionsWith(snapshot, {
+      overrides: {
+        unitDefinitions: unitDefinitionsFor(unitDefinition, skillId),
+        skillDefinitions: new Map([[skill.skillDefinitionId, skill]]),
+      },
+    });
 
     // 母集団に自分しかいない（excludeSelf: true により生存ALLYが0）: 不発。
     const soloRecorder = new EventRecorder(createBattleId("B_CAP_PASSIVE_SOLO"));
@@ -291,7 +243,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
     });
     expect(updatedOwner.currentPp).toBe(3);
 
-    const reconstructed = replayEventDeltas(initial, recorder);
+    const reconstructed = reconstruct(initial, recorder);
     expect(reconstructed.units[owner.battleUnitId]).toMatchObject({ pp: updatedOwner.currentPp });
 
     // R-PS-07: 同じ解決スコープでは1回だけ（新しいスコープで再度発動する）。
@@ -323,10 +275,9 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
   it("IT-CAP-PASSIVE-003: SKL_LUCIE_MAID_PS2's real TURN_NUMBER(NEQ 1) activationCondition is evaluated at candidate detection and reconfirmation", () => {
     const unitId = "UNIT_LUCIE_MAID";
     const skillId = "SKL_LUCIE_MAID_PS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.activationCondition).toEqual({ kind: "TURN_NUMBER", op: "NEQ", value: 1 });
 
     const owner = actorFor(unitId, "ALLY", "B_1:unit:1", unitDefinition.baseStats.maximumHp, {
@@ -338,7 +289,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       payload: {},
     };
     const unitDefinitions = unitDefinitionsFor(unitDefinition, skillId);
-    const skillDefinitions = new Map([[skillId as never, skill]]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
     const guard = createEmptyPassiveActivationGuard();
 
     const onFirstTurn = detectPassiveCandidates({
@@ -389,10 +340,9 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
   it("IT-CAP-PASSIVE-004: SKL_MAO_COMMITTEE_PS2's real ALIVE_UNIT_COUNT(ALLY, excludeSelf) activationCondition is evaluated at candidate detection and reconfirmation", () => {
     const unitId = "UNIT_MAO_COMMITTEE";
     const skillId = "SKL_MAO_COMMITTEE_PS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.activationCondition).toMatchObject({
       kind: "ALIVE_UNIT_COUNT",
       side: "ALLY",
@@ -408,7 +358,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       payload: {},
     };
     const unitDefinitions = unitDefinitionsFor(unitDefinition, skillId);
-    const skillDefinitions = new Map([[skillId as never, skill]]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
     const guard = createEmptyPassiveActivationGuard();
 
     expect(
@@ -443,10 +393,9 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
   it("IT-CAP-PASSIVE-005: SKL_MERU_SIRIUS_PS2's real TURN_NUMBER(EQ 0, modulo 2) activationCondition is evaluated at candidate detection and reconfirmation", () => {
     const unitId = "UNIT_MERU_SIRIUS";
     const skillId = "SKL_MERU_SIRIUS_PS2";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.activationCondition).toEqual({
       kind: "TURN_NUMBER",
       op: "EQ",
@@ -463,7 +412,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       payload: {},
     };
     const unitDefinitions = unitDefinitionsFor(unitDefinition, skillId);
-    const skillDefinitions = new Map([[skillId as never, skill]]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
     const guard = createEmptyPassiveActivationGuard();
 
     expect(
@@ -503,10 +452,9 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
   it("IT-CAP-PASSIVE-006: SKL_RAMI_NEWYEAR_PS1's real TARGET_STATE(SELF, HP_RATIO, GT 0.5) activationCondition is evaluated at candidate detection and reconfirmation", () => {
     const unitId = "UNIT_RAMI_NEWYEAR";
     const skillId = "SKL_RAMI_NEWYEAR_PS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.activationCondition).toMatchObject({
       kind: "TARGET_STATE",
       field: "HP_RATIO",
@@ -527,7 +475,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       payload: { skillType: "AS" },
     };
     const unitDefinitions = unitDefinitionsFor(unitDefinition, skillId);
-    const skillDefinitions = new Map([[skillId as never, skill]]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
     const guard = createEmptyPassiveActivationGuard();
 
     const healthyCandidates = detectPassiveCandidates({
@@ -557,10 +505,9 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
   it("IT-CAP-PASSIVE-007: SKL_TATIANA_SAGE_PS1's real NOT(TARGET_HAS_MARKER(SELF)) activationCondition is evaluated at candidate detection and reconfirmation", () => {
     const unitId = "UNIT_TATIANA_SAGE";
     const skillId = "SKL_TATIANA_SAGE_PS1";
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot([unitId as never], []);
-    const unitDefinition = snapshot.units.get(unitId as never)!;
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const unitDefinition = unitFrom(snapshot, unitId);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.activationCondition).toMatchObject({
       kind: "NOT",
       condition: { kind: "TARGET_HAS_MARKER", markerId: "MARKER_TATIANA_SAGE_PRUDENCE" },
@@ -570,7 +517,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
     const owner = actorFor(unitId, "ALLY", "B_1:unit:1", maximumHp, { currentPp: 4 });
     const guarded = {
       ...owner,
-      markerStates: [markerOf(owner, "MARKER_TATIANA_SAGE_PRUDENCE")],
+      markerStates: [testMarker(owner, "MARKER_TATIANA_SAGE_PRUDENCE")],
     };
     const event: TriggerCandidateEvent = {
       eventType: "RuntimeCounterChanged",
@@ -579,7 +526,7 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
       payload: { counter: "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT", valueChanged: true },
     };
     const unitDefinitions = unitDefinitionsFor(unitDefinition, skillId);
-    const skillDefinitions = new Map([[skillId as never, skill]]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
     const guard = createEmptyPassiveActivationGuard();
 
     const withoutMarker = detectPassiveCandidates({

@@ -2,18 +2,18 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { runProductionUnitBattle } from "../../testing/scenario/run-production-battle.js";
 import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { grantEffect } from "../../domain/battle/effects/effect-grant-service.js";
 import { decayActionShields, shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
 import { evaluateFormula } from "../../domain/battle/skill/formula-evaluator.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { truncateFraction } from "../../domain/battle/model/resource-gauge.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import type { EffectInstanceId } from "../../domain/shared/event-ids.js";
-import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  testBattleUnit,
+} from "../../testing/fixtures/index.js";
 
 /**
  * DMG-004（Issue #194、R-SHD-01〜03）: 実 `catalog/` の `APPLY_SHIELD` 定義を、
@@ -33,13 +33,9 @@ import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 function shieldHolder(): BattleUnit {
-  const position = { column: "LEFT", row: "FRONT" } as const;
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId("ally:1"),
-    unitDefinitionId: createUnitDefinitionId("UNIT_SHIRANA_LUCKY"),
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate("ALLY", position),
+  return testBattleUnit({
+    battleUnitId: "ally:1",
+    unitDefinitionId: "UNIT_SHIRANA_LUCKY",
     combatStats: {
       maximumHp: 1000,
       attack: 100,
@@ -49,34 +45,13 @@ function shieldHolder(): BattleUnit {
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
     },
-  };
-  return createBattleUnit(member, "ALLY", {
-    maximumAp: 4,
-    maximumPp: 4,
-    maximumExtraGauge: 10,
   });
-}
-
-function seededRecorder() {
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: { turnNumber: 1 },
-  });
-  return { recorder, seed };
 }
 
 function shieldDefinition(unitDefinitionId: string, effectActionDefinitionId: string) {
-  const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-    [unitDefinitionId as never],
-    [],
-  );
-  const definition = snapshot.effectActions.get(effectActionDefinitionId as never);
-  if (definition?.kind !== "APPLY_SHIELD") {
+  const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitDefinitionId]);
+  const definition = effectActionFrom(snapshot, effectActionDefinitionId);
+  if (definition.kind !== "APPLY_SHIELD") {
     throw new Error(`production Catalog has no APPLY_SHIELD "${effectActionDefinitionId}"`);
   }
   return definition;
@@ -138,13 +113,10 @@ describe("production Catalog APPLY_SHIELD (CAP_SHIELD, DMG-004 Issue #194)", () 
     expect(definition.payload.duration.linkedEffectGroupId).toBe("LILY_SINGER_PS2_LINK");
     expect(definition.payload.duration.linkedEffectGroupRole).toBe("PARENT");
 
-    const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot(
-      ["UNIT_LILY_SINGER" as never],
-      [],
-    );
-    const atkUp = snapshot.effectActions.get("ACT_LILY_SINGER_PS2_ATK_UP" as never);
-    expect(atkUp?.kind).toBe("APPLY_STAT_MOD");
-    if (atkUp?.kind === "APPLY_STAT_MOD") {
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_LILY_SINGER"]);
+    const atkUp = effectActionFrom(snapshot, "ACT_LILY_SINGER_PS2_ATK_UP");
+    expect(atkUp.kind).toBe("APPLY_STAT_MOD");
+    if (atkUp.kind === "APPLY_STAT_MOD") {
       expect(atkUp.payload.duration.linkedEffectGroupId).toBe("LILY_SINGER_PS2_LINK");
       expect(atkUp.payload.duration.linkedEffectGroupRole).toBe("CHILD");
     }
@@ -185,12 +157,12 @@ describe("production Catalog APPLY_SHIELD (CAP_SHIELD, DMG-004 Issue #194)", () 
     expect(definition.payload.decay).toEqual({ unit: "ACTION", ratio: 0.25 });
     expect(definition.payload.duration.timeLimit).toBeUndefined();
 
-    // `UNIT_SHIRANA_LUCKY`は`CAP_CONTINUOUS_DAMAGE`（DOT-001）で引き続き非selectable
-    // なため実戦闘を通せない。代わりに実定義を実domain executor
-    // （`grantEffect` → `decayActionShields`）へ通し、4行動でちょうど枯渇することを
-    // 固定する。
+    // 漸減の各行動時点でのシールド量と`depletedEffectInstanceIds`という
+    // resolver内部の中間産物を検証するため、実戦闘（`runProductionUnitBattle`）
+    // ではなく実定義を実domain executor（`grantEffect` → `decayActionShields`）へ
+    // 直接通し、4行動でちょうど枯渇することを固定する。
     const holder = shieldHolder();
-    const { recorder, seed } = seededRecorder();
+    const { recorder, seed } = seedRecorder("B_1");
     const granted = grantEffect(
       {
         recorder,

@@ -5,25 +5,25 @@ import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-ac
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
 import { shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
 import { subUnitDurabilityTotal } from "../../domain/battle/combat/sub-unit-policy.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
-import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectActionDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { Side } from "../../domain/shared/side.js";
 import {
   effectKindKeyFromDefinitionId,
   SUBUNIT_PROVIDER_ATTACK_KEY,
   type AppliedEffect,
 } from "../../domain/battle/model/applied-effect.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  definitionsWith,
+  effectActionFrom,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  testBattleUnit,
+  testUnitDefinition,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-001A (Issue #242, `REMOVE_EFFECTS_CATEGORY_GAP`, R-EFF-02): drives the REAL,
@@ -43,63 +43,14 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
-
-function member(
-  battleUnitId: string,
-  unitDefinitionId: string,
-  side: Side,
-  position: FormationPosition,
-): BattlePartyMember {
-  return {
-    battleUnitId: createBattleUnitId(battleUnitId),
-    unitDefinitionId: unitDefinitionId as never,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0,
-      actionSpeed: 100,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-    },
-  };
-}
-
-function testUnitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 1000,
-      attack: 100,
-      defense: 50,
-      criticalRate: 0,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-      actionSpeed: 100,
-      maximumAp: LIMITS.maximumAp,
-      maximumPp: LIMITS.maximumPp,
-    },
-    extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: undefined as never,
-    requiredCapabilities: [],
-    metadata: {
-      displayName: id,
-      characterName: id,
-      characterId: `CHAR_${id}`,
-      affiliations: [],
-      tags: [],
-    },
-  };
-}
+const COMBAT_STATS = {
+  maximumHp: 1000,
+  attack: 100,
+  defense: 50,
+  actionSpeed: 100,
+  affinityBonus: 0.25,
+};
+const POSITION = { column: "CENTER", row: "FRONT" } as const;
 
 /**
  * `AppliedEffect` fixtures for the PRE-EXISTING shields/sub-units the production
@@ -118,7 +69,7 @@ function shieldDefinitionOf(
 ): EffectActionDefinition {
   return {
     kind: "APPLY_SHIELD",
-    effectActionDefinitionId: definitionId as EffectActionDefinition["effectActionDefinitionId"],
+    effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
     requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
@@ -136,7 +87,7 @@ function shieldEffect(
   remaining: number,
   shieldType: "PHYSICAL" | "EN" | null,
 ): AppliedEffect {
-  const id = definitionId as EffectActionDefinition["effectActionDefinitionId"];
+  const id = createEffectActionDefinitionId(definitionId);
   return {
     effectInstanceId: createEffectInstanceId(instanceId),
     effectActionDefinitionId: id,
@@ -158,7 +109,7 @@ function subUnitEffect(
   definitionId: string,
   durability: number,
 ): AppliedEffect {
-  const id = definitionId as EffectActionDefinition["effectActionDefinitionId"];
+  const id = createEffectActionDefinitionId(definitionId);
   return {
     effectInstanceId: createEffectInstanceId(instanceId),
     effectActionDefinitionId: id,
@@ -187,31 +138,16 @@ function subUnitEffect(
   };
 }
 
-function seedRecorder() {
-  const recorder = new EventRecorder(createBattleId("B_1"));
-  const resolutionScopeId = recorder.nextResolutionScopeId();
-  const seed = recorder.record({
-    eventType: "TurnStarted",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 0,
-    resolutionScopeId,
-    payload: { turnNumber: 1 },
-  });
-  return { recorder, resolutionScopeId, rootEventId: seed.eventId };
-}
-
 describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () => {
   const YUI_ENEMY_UNIT_ID = "UNIT_TEST_YUI_ENEMY";
 
   it("IT-REMOVE-EFFECTS-PROD-008: SKL_YUI_HEIR_EX strips every shield pool of the enemy target before its own damage lands, so the hit goes to HP with no shield absorption", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_YUI_HEIR" as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_YUI_HEIR"]);
 
     // raw原文「敵単体のシールドを全て解除し、……」: 件数上限なしのSHIELDカテゴリ解除。
-    const removal = snapshot.effectActions.get("ACT_YUI_HEIR_EX_REMOVE_SHIELD" as never);
-    expect(removal?.kind).toBe("REMOVE_EFFECTS");
-    if (removal?.kind !== "REMOVE_EFFECTS") {
+    const removal = effectActionFrom(snapshot, "ACT_YUI_HEIR_EX_REMOVE_SHIELD");
+    expect(removal.kind).toBe("REMOVE_EFFECTS");
+    if (removal.kind !== "REMOVE_EFFECTS") {
       return;
     }
     expect([...removal.payload.categories]).toEqual(["SHIELD"]);
@@ -219,7 +155,7 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
     expect([...removal.requiredCapabilities].sort()).toEqual(["CAP_REMOVE_EFFECTS", "CAP_SHIELD"]);
 
     // 「解除し、さらに……防御力を低下させて、威力243.8で攻撃する」の順序。
-    const skill = snapshot.skills.get("SKL_YUI_HEIR_EX" as never)!;
+    const skill = skillFrom(snapshot, "SKL_YUI_HEIR_EX");
     const actions =
       skill.resolution.kind === "IMMEDIATE"
         ? skill.resolution.steps.flatMap((step) =>
@@ -232,20 +168,25 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
       "ACT_YUI_HEIR_EX_DAMAGE",
     ]);
 
-    const yui = {
-      ...createBattleUnit(
-        member("ally:yui", "UNIT_YUI_HEIR", "ALLY", { column: "CENTER", row: "FRONT" }),
-        "ALLY",
-        LIMITS,
-      ),
-      currentAp: LIMITS.maximumAp,
-      currentExtraGauge: LIMITS.maximumExtraGauge,
-    };
-    const enemyBase = createBattleUnit(
-      member("enemy:1", YUI_ENEMY_UNIT_ID, "ENEMY", { column: "CENTER", row: "FRONT" }),
-      "ENEMY",
-      LIMITS,
-    );
+    const yui = testBattleUnit({
+      battleUnitId: "ally:yui",
+      unitDefinitionId: "UNIT_YUI_HEIR",
+      position: POSITION,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+      overrides: {
+        currentAp: LIMITS.maximumAp,
+        currentExtraGauge: LIMITS.maximumExtraGauge,
+      },
+    });
+    const enemyBase = testBattleUnit({
+      battleUnitId: "enemy:1",
+      unitDefinitionId: YUI_ENEMY_UNIT_ID,
+      side: "ENEMY",
+      position: POSITION,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
     // 物理攻撃（`ACT_YUI_HEIR_EX_DAMAGE`は`damageType: PHYSICAL`）に対して、
     // 解除されなければR-SHD-02の吸収順で必ず食われる2プールを積む。
     const enemy: BattleUnit = {
@@ -256,29 +197,24 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
       ],
     };
 
-    const unitDefinitions = new Map(snapshot.units);
-    unitDefinitions.set(
-      createUnitDefinitionId(YUI_ENEMY_UNIT_ID),
-      testUnitDefinition(YUI_ENEMY_UNIT_ID),
-    );
     const effectActions = new Map(snapshot.effectActions);
-    effectActions.set(
-      "ACT_TEST_PHYSICAL_SHIELD" as never,
+    for (const shieldDefinition of [
       shieldDefinitionOf("ACT_TEST_PHYSICAL_SHIELD", "PHYSICAL"),
-    );
-    effectActions.set(
-      "ACT_TEST_UNTYPED_SHIELD" as never,
       shieldDefinitionOf("ACT_TEST_UNTYPED_SHIELD", null),
-    );
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
+    ]) {
+      effectActions.set(shieldDefinition.effectActionDefinitionId, shieldDefinition);
+    }
+    const definitions = definitionsWith(snapshot, {
+      units: [
+        testUnitDefinition(YUI_ENEMY_UNIT_ID, {
+          baseStats: { ...COMBAT_STATS, maximumAp: LIMITS.maximumAp, maximumPp: LIMITS.maximumPp },
+          extraGaugeMaximum: LIMITS.maximumExtraGauge,
+        }),
+      ],
+      overrides: { effectActions },
+    });
 
-    const { recorder, resolutionScopeId } = seedRecorder();
+    const { recorder, resolutionScopeId } = seedRecorder("B_1");
     const result = resolveSkillUse(
       yui,
       skill,
@@ -315,14 +251,11 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
   });
 
   it("IT-REMOVE-EFFECTS-PROD-009: SKL_OLGA_VETERAN_PS1 strips Olga's own shields and sub-units before granting the three カムラッドⅡ of the same step", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
-    const snapshot = catalog.loadSnapshot(["UNIT_OLGA_VETERAN" as never], []);
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_OLGA_VETERAN"]);
 
-    const removal = snapshot.effectActions.get(
-      "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT" as never,
-    );
-    expect(removal?.kind).toBe("REMOVE_EFFECTS");
-    if (removal?.kind !== "REMOVE_EFFECTS") {
+    const removal = effectActionFrom(snapshot, "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT");
+    expect(removal.kind).toBe("REMOVE_EFFECTS");
+    if (removal.kind !== "REMOVE_EFFECTS") {
       return;
     }
     expect([...removal.payload.categories].sort()).toEqual(["SHIELD", "SUBUNIT"]);
@@ -333,7 +266,7 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
       "CAP_SUBUNIT",
     ]);
 
-    const skill = snapshot.skills.get("SKL_OLGA_VETERAN_PS1" as never)!;
+    const skill = skillFrom(snapshot, "SKL_OLGA_VETERAN_PS1");
     const actions =
       skill.resolution.kind === "IMMEDIATE"
         ? skill.resolution.steps.flatMap((step) =>
@@ -348,11 +281,13 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
       "ACT_OLGA_VETERAN_PS1_SUBUNIT",
     ]);
 
-    const olgaBase = createBattleUnit(
-      member("ally:olga", "UNIT_OLGA_VETERAN", "ALLY", { column: "CENTER", row: "FRONT" }),
-      "ALLY",
-      LIMITS,
-    );
+    const olgaBase = testBattleUnit({
+      battleUnitId: "ally:olga",
+      unitDefinitionId: "UNIT_OLGA_VETERAN",
+      position: POSITION,
+      combatStats: COMBAT_STATS,
+      limits: LIMITS,
+    });
     // 直前のPS2（カムラッドⅠ）とシールドが残っている状態から発動する。
     const olga: BattleUnit = {
       ...olgaBase,
@@ -364,21 +299,12 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
       ],
     };
 
-    const unitDefinitions = new Map(snapshot.units);
+    const olgaShieldDefinition = shieldDefinitionOf("ACT_TEST_OLGA_SHIELD", "EN");
     const effectActions = new Map(snapshot.effectActions);
-    effectActions.set(
-      "ACT_TEST_OLGA_SHIELD" as never,
-      shieldDefinitionOf("ACT_TEST_OLGA_SHIELD", "EN"),
-    );
-    const definitions: BattleDefinitions = {
-      activeSkillsByUnit: new Map(),
-      exSkillByUnit: new Map(),
-      effectActions,
-      unitDefinitions,
-      skillDefinitions: snapshot.skills,
-    };
+    effectActions.set(olgaShieldDefinition.effectActionDefinitionId, olgaShieldDefinition);
+    const definitions = definitionsWith(snapshot, { overrides: { effectActions } });
 
-    const { recorder, resolutionScopeId, rootEventId } = seedRecorder();
+    const { recorder, resolutionScopeId, rootEventId } = seedRecorder("B_1");
     const plan = resolveSkillOrder(skill, olga, [olga], effectActions);
     const result = applyEffectActionGroups(plan, [olga], {
       recorder,

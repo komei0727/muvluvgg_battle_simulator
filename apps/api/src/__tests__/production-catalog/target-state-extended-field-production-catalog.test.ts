@@ -2,14 +2,19 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
 import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
-import { createBattleUnit, type BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
-import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
-import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { createBattleUnitId } from "../../domain/shared/ids.js";
+import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import {
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import type { Side } from "../../domain/shared/side.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
-import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  loadProductionSnapshot,
+  skillFrom,
+  testBattleUnit,
+  unitFrom,
+} from "../../testing/fixtures/index.js";
 
 /**
  * M7-001E（Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）: `BattleUnit`だけからは
@@ -32,30 +37,11 @@ const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 function unitOf(
   id: string,
   side: Side,
-  unitDefinitionId: UnitDefinitionId,
+  unitDefinitionId: string,
   position: FormationPosition,
   overrides: Partial<BattleUnit> = {},
 ): BattleUnit {
-  const member: BattlePartyMember = {
-    battleUnitId: createBattleUnitId(id),
-    unitDefinitionId,
-    attribute: "AGGRESSIVE",
-    position,
-    globalCoordinate: toGlobalCoordinate(side, position),
-    combatStats: {
-      maximumHp: 100,
-      attack: 20,
-      defense: 10,
-      criticalRate: 0,
-      actionSpeed: 10,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0,
-    },
-  };
-  return {
-    ...createBattleUnit(member, side, { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 }),
-    ...overrides,
-  };
+  return testBattleUnit({ battleUnitId: id, unitDefinitionId, side, position, overrides });
 }
 
 describe("production Catalog TARGET_STATE extended fields (CAP_TARGET_STATE_EXTENDED_FIELD, M7-001E Issue #248)", () => {
@@ -63,20 +49,20 @@ describe("production Catalog TARGET_STATE extended fields (CAP_TARGET_STATE_EXTE
     const unitId = "UNIT_LUCIE_MAID";
     const skillId = "SKL_LUCIE_MAID_PS1";
     const attackerUnitId = "UNIT_TEST_ATTACKER";
-    const snapshot = loadCatalogFromDirectory(CATALOG_DIR).loadSnapshot([unitId as never], []);
-    const skill = snapshot.skills.get(skillId as never)!;
+    const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
+    const skill = skillFrom(snapshot, skillId);
     expect(skill.requiredCapabilities).toContain("CAP_TARGET_STATE_EXTENDED_FIELD");
     const trigger = skill.triggers[0]!;
     // 未改変の定義（TRIGGER_SOURCEのUNIT_TYPEが物理型または敏捷型）を評価対象にする。
     expect(trigger).toMatchObject({ eventType: "UnitBeingAttacked", sourceSelector: "ENEMY" });
     expect(JSON.stringify(trigger.condition)).toContain("UNIT_TYPE");
 
-    const owner = unitOf("owner", "ALLY", unitId as never, { column: "LEFT", row: "FRONT" });
-    const attacker = unitOf("attacker", "ENEMY", attackerUnitId as never, {
+    const owner = unitOf("owner", "ALLY", unitId, { column: "LEFT", row: "FRONT" });
+    const attacker = unitOf("attacker", "ENEMY", attackerUnitId, {
       column: "LEFT",
       row: "FRONT",
     });
-    const ownerDefinition = snapshot.units.get(unitId as never)!;
+    const ownerDefinition = unitFrom(snapshot, unitId);
     const detect = (attackerUnitType: "PHYSICAL" | "ENERGY" | "AGILE") =>
       detectPassiveCandidates({
         event: {
@@ -88,18 +74,24 @@ describe("production Catalog TARGET_STATE extended fields (CAP_TARGET_STATE_EXTE
         },
         units: [owner, attacker],
         unitDefinitions: new Map([
-          [unitId as never, { ...ownerDefinition, passiveSkillDefinitionIds: [skillId as never] }],
           [
-            attackerUnitId as never,
+            createUnitDefinitionId(unitId),
             {
               ...ownerDefinition,
-              unitDefinitionId: attackerUnitId,
+              passiveSkillDefinitionIds: [createSkillDefinitionId(skillId)],
+            },
+          ],
+          [
+            createUnitDefinitionId(attackerUnitId),
+            {
+              ...ownerDefinition,
+              unitDefinitionId: createUnitDefinitionId(attackerUnitId),
               unitType: attackerUnitType,
               passiveSkillDefinitionIds: [],
             },
           ],
-        ]) as never,
-        skillDefinitions: new Map([[skillId as never, skill]]),
+        ]),
+        skillDefinitions: new Map([[createSkillDefinitionId(skillId), skill]]),
         activationGuard: createEmptyPassiveActivationGuard(),
         turnNumber: 1,
       });
