@@ -30,6 +30,12 @@ import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
+/**
+ * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
+ * 命名の例外）。検証対象は単一モジュールではなく`buildServer`が`routes/`と`schemas/`
+ * から組み上げて公開する OpenAPI ドキュメント一枚であり、「全ルートと全ステータスに
+ * Schema がある」（同書）はルート横断でしか確認できない。
+ */
 function unitDefinition(id: string): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),

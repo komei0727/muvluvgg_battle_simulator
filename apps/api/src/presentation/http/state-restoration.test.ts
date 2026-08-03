@@ -41,6 +41,12 @@ import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
+/**
+ * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
+ * 命名の例外）。`10_API設計.md`「差分の適用」の「初期状態＋全差分＝最終状態」は
+ * Domain・Response Mapper・Schema を通した実 HTTP レスポンスに対してしか成立を
+ * 主張できないため、単一モジュールへ紐づけずレスポンス水準で固定する。
+ */
 function unitDefinition(id: string): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),

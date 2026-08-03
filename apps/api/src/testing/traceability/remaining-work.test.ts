@@ -7,6 +7,12 @@ import {
   collectTestCaseDefinitionsFromSource,
 } from "./test-case-definitions.js";
 
+/**
+ * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
+ * 命名の例外）。検証対象は src のモジュールではなく`docs/ddd/17_残作業対応表.json`と
+ * `15_Unit_Memory変換台帳.md`であり、台帳の件数・割当が Catalog 実データと
+ * Capability レジストリに一致し続けることを機械照合する。
+ */
 type Milestone = "M7" | "M8" | "M9";
 
 interface RemainingWorkManifest {
