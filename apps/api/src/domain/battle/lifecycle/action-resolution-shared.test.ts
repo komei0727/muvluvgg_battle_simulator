@@ -99,7 +99,7 @@ function contextOf(recorder: EventRecorder): ResourceChangeRecordContext {
 }
 
 describe("recordResourceChangeIfAny (R-ACT-04, M7-002 Issue #185)", () => {
-  it("UT-R-ACT-04-002: ResourceChanged carries baseDelta equal to delta when no RESOURCE_GAIN_MOD is involved (plain AP/PP consumption)", () => {
+  it("UT-R-ACT-04-015: ResourceChanged carries baseDelta equal to delta when no RESOURCE_GAIN_MOD is involved (plain AP/PP consumption)", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const context = contextOf(recorder);
     const actorId = createBattleUnitId("ACTOR");

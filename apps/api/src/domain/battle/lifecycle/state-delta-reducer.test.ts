@@ -432,7 +432,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-025 (review re-fix [P1], RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 (UT-STATE-REDUCER-024) which keeps it", () => {
+  it("UT-STATE-REDUCER-025 (review re-fix [P1], RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 which keeps it", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -500,7 +500,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-027 (review re-re-fix [P1]): skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters (UT-STATE-REDUCER-024) which keeps a landed-on-0 key", () => {
+  it("UT-STATE-REDUCER-027 (review re-re-fix [P1]): skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters which keeps a landed-on-0 key", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withCarry = applyStateDelta(initialState(), {
       units: {

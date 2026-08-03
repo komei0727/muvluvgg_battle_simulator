@@ -516,7 +516,7 @@ describe("ConditionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-COND-036: rejects a TARGET_SET_COUNT BINDING target outside the declared scope", () => {
+  it("UT-CAT-COND-048: rejects a TARGET_SET_COUNT BINDING target outside the declared scope", () => {
     expect(() =>
       createConditionDefinition(
         {

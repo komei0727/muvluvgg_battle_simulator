@@ -164,7 +164,7 @@ describe("resolveSkillOrder", () => {
     ]);
   });
 
-  it("UT-R-SKL-02-001: multiple targets resolve target-major, in TargetSelectionPolicy order", () => {
+  it("UT-R-SKL-02-005: multiple targets resolve target-major, in TargetSelectionPolicy order", () => {
     const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
     const near = unit("NEAR", "ENEMY", { column: "CENTER", row: "FRONT" });
     const far = unit("FAR", "ENEMY", { column: "LEFT", row: "BACK" });

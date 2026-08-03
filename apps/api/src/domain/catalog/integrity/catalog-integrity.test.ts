@@ -3117,7 +3117,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
   });
 
-  it("UT-CAT-IDX-072 (R-DMG-05 #4、DMG-001/Issue #195): treats DamageWillBeApplied as a runtime-owned trigger event, so a PS reacting to it must declare CAP_TRIGGER_CONTEXT", () => {
+  it("UT-CAT-IDX-103 (R-DMG-05 #4、DMG-001/Issue #195): treats DamageWillBeApplied as a runtime-owned trigger event, so a PS reacting to it must declare CAP_TRIGGER_CONTEXT", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({

@@ -462,7 +462,7 @@ describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234
     expect(updated.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
   });
 
-  it("UT-R-EFF-01-040 (owner=EFFECT_SOURCE, mirrors UT-R-EFF-04-007): decrements on the SOURCE's skill use even though the instance is held by the target", () => {
+  it("UT-R-EFF-01-040 (owner=EFFECT_SOURCE, mirrors the R-EFF-04 owner=EFFECT_SOURCE case): decrements on the SOURCE's skill use even though the instance is held by the target", () => {
     const source = unit("source-1");
     let target = unit("target-1");
     const grantingSkillUseId = createSkillUseId("B_1:skill-use:1");
@@ -513,7 +513,7 @@ describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234
     ]);
   });
 
-  it("UT-R-EFF-01-041 (owner=BATTLE, mirrors UT-R-EFF-04-008): decrements on ANY unit's skill use completion", () => {
+  it("UT-R-EFF-01-041 (owner=BATTLE, mirrors the R-EFF-04 owner=BATTLE case): decrements on ANY unit's skill use completion", () => {
     const source = unit("source-1");
     let target = unit("target-1");
     const other = unit("other-1");

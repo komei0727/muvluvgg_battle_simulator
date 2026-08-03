@@ -178,7 +178,7 @@ describe("removeMarkers", () => {
     });
   });
 
-  it("UT-R-EFF-10-009b (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes only `count` stacks and emits MarkerUpdated when a positive stack remains", () => {
+  it("UT-R-EFF-10-009B (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes only `count` stacks and emits MarkerUpdated when a positive stack remains", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -226,7 +226,7 @@ describe("removeMarkers", () => {
     expect(emitted[0]!.payload).toMatchObject({ stackBefore: 5, stackAfter: 2 });
   });
 
-  it("UT-R-EFF-10-009c (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes the instance (MarkerRemoved) when count meets or exceeds the stacks", () => {
+  it("UT-R-EFF-10-009C (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes the instance (MarkerRemoved) when count meets or exceeds the stacks", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -269,7 +269,7 @@ describe("removeMarkers", () => {
     ).toEqual(["MarkerRemoved"]);
   });
 
-  it("UT-R-EFF-10-009d: reduceMarkerStack is a no-op (changed=false) when the target does not hold the marker", () => {
+  it("UT-R-EFF-10-009D: reduceMarkerStack is a no-op (changed=false) when the target does not hold the marker", () => {
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const context = baseContext(recorder, rootEventId);

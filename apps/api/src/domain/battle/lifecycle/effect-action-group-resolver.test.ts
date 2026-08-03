@@ -706,7 +706,7 @@ describe("applyEffectActionGroups", () => {
     expect(completed.parentEventId).toBe(combatStatChanged.eventId);
   });
 
-  it("UT-R-EFF-01-022 (R-EFF-01, mirrors UT-R-SKL-06-011): onFactEventForPassiveChain is invoked for the EffectApplied event an APPLY_STAT_MOD grant records, not just DAMAGE/COOLDOWN_MANIPULATION's own hit-unit events", () => {
+  it("UT-R-EFF-01-022 (R-EFF-01, mirrors the R-SKL-06 FACT/TIMING case): onFactEventForPassiveChain is invoked for the EffectApplied event an APPLY_STAT_MOD grant records, not just DAMAGE/COOLDOWN_MANIPULATION's own hit-unit events", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const statMod = statModAction("ACT_ATK_UP");

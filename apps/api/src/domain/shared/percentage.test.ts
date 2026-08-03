@@ -20,7 +20,7 @@ describe("Percentage (R-NUM-01)", () => {
     expect(subtracted).toBeCloseTo(0.95, 10);
   });
 
-  it("UT-R-NUM-01-004 / UT-R-NUM-03-004: places no upper or lower bound on the raw stat value", () => {
+  it("UT-R-NUM-01-004 / UT-R-NUM-03-007: places no upper or lower bound on the raw stat value", () => {
     expect(createPercentage(-0.5)).toBe(-0.5);
     expect(createPercentage(3.0)).toBe(3.0);
   });

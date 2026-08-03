@@ -325,7 +325,7 @@ describe("startBattle", () => {
     expect(() => startBattle(running, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
   });
 
-  it("UT-BATTLE-017 (review fix [P2], Issue #144 follow-up): a BattleStarted-triggered PS with a non-zero PP cost never activates through the real BattleUnit creation path, because READY→RUNNING never recovers resources and createBattleUnit always starts currentPp at 0 — this is the only PP amount Q-BTL-05 allows (「コスト0のAS・PSは存在しない」), so BattleStarted-triggered PS activation is unreachable by today's decided contract; see passive-activation-service.test.ts's UT-R-PS-01-036 for a low-level (resource-unconstrained) proof that the resolutionPhase: \"BATTLE_START\" wiring itself is correct (docs/ddd/06_戦闘状態遷移.md)", () => {
+  it("UT-BATTLE-017 (review fix [P2], Issue #144 follow-up): a BattleStarted-triggered PS with a non-zero PP cost never activates through the real BattleUnit creation path, because READY→RUNNING never recovers resources and createBattleUnit always starts currentPp at 0 — this is the only PP amount Q-BTL-05 allows (「コスト0のAS・PSは存在しない」), so BattleStarted-triggered PS activation is unreachable by today's decided contract; see passive-activation-service.test.ts's proof of a low-level (resource-unconstrained) proof that the resolutionPhase: \"BATTLE_START\" wiring itself is correct (docs/ddd/06_戦闘状態遷移.md)", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_BATTLE_STARTED_COSTLY");
     const passiveSkill: SkillDefinition = {

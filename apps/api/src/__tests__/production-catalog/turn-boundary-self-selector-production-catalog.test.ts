@@ -58,7 +58,7 @@ function actorFor(
 }
 
 describe("production Catalog TurnStarted/TurnCompleting SELF/SELF triggers (review fix [P1], Issue #144 follow-up)", () => {
-  it("IT-CAT-PROD-013: SKL_KARINA_DOWNER_PS2's real TurnCompleting SELF/SELF trigger candidates its owner given the exact event shape battle.ts emits (no sourceUnitId/targetUnitIds)", () => {
+  it("IT-CAT-PROD-016: SKL_KARINA_DOWNER_PS2's real TurnCompleting SELF/SELF trigger candidates its owner given the exact event shape battle.ts emits (no sourceUnitId/targetUnitIds)", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const snapshot = catalog.loadSnapshot([KARINA_UNIT_ID as never], []);
     const karinaUnitDefinition = snapshot.units.get(KARINA_UNIT_ID as never);

@@ -130,7 +130,7 @@ const UNIT_DEF_A = createUnitDefinitionId("UNIT_A");
 const UNIT_DEF_B = createUnitDefinitionId("UNIT_B");
 
 describe("detectPassiveCandidates", () => {
-  it("UT-R-PS-01-020: matches candidates by eventType/category/selectors/condition without any per-eventType branching", () => {
+  it("UT-R-PS-01-120: matches candidates by eventType/category/selectors/condition without any per-eventType branching", () => {
     const skillTurn = passiveSkillOf("SKL_TURN", {
       eventType: "TurnStarted",
       category: "FACT",
@@ -190,7 +190,7 @@ describe("detectPassiveCandidates", () => {
     ]);
   });
 
-  it("UT-R-PS-01-021: EVENT_PAYLOAD condition lets a PS react specifically to a freeze status granted via EffectApplied", () => {
+  it("UT-R-PS-01-121: EVENT_PAYLOAD condition lets a PS react specifically to a freeze status granted via EffectApplied", () => {
     const freezeReactor = passiveSkillOf("SKL_FREEZE_REACT", {
       eventType: "EffectApplied",
       category: "FACT",
@@ -238,7 +238,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-R-PS-01-022: multiple PS on the same unit are ordered by Catalog definition order", () => {
+  it("UT-R-PS-01-122: multiple PS on the same unit are ordered by Catalog definition order", () => {
     const skillFirst = passiveSkillOf("SKL_FIRST", {
       eventType: "TurnStarted",
       category: "FACT",
@@ -282,7 +282,7 @@ describe("detectPassiveCandidates", () => {
     ]);
   });
 
-  it("UT-R-PS-01-023: a defeated owner's PS is never a candidate", () => {
+  it("UT-R-PS-01-123: a defeated owner's PS is never a candidate", () => {
     const skill = passiveSkillOf("SKL_A", {
       eventType: "TurnStarted",
       category: "FACT",
@@ -313,7 +313,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-R-PS-01-024: a charging owner's PS is excluded (チャージ中所有者のPS除外)", () => {
+  it("UT-R-PS-01-124: a charging owner's PS is excluded (チャージ中所有者のPS除外)", () => {
     const skill = passiveSkillOf("SKL_A", {
       eventType: "TurnStarted",
       category: "FACT",
@@ -350,7 +350,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-R-PS-01-025 / R-PS-07: a PS already recorded as activated in the current scope is excluded (発動済みPS集合)", () => {
+  it("UT-R-PS-01-125 / R-PS-07: a PS already recorded as activated in the current scope is excluded (発動済みPS集合)", () => {
     const skill = passiveSkillOf("SKL_A", {
       eventType: "TurnStarted",
       category: "FACT",
@@ -384,7 +384,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-R-PS-01-026 (regression): sourceSelector/targetSelector filter candidates across two units using only sourceUnitId, matching the shape production event-recorder.ts actually emits (sourceSide is never set)", () => {
+  it("UT-R-PS-01-126 (regression): sourceSelector/targetSelector filter candidates across two units using only sourceUnitId, matching the shape production event-recorder.ts actually emits (sourceSide is never set)", () => {
     const allySourceSkill = passiveSkillOf("SKL_ALLY_SOURCE", {
       eventType: "DamageApplied",
       category: "FACT",
@@ -416,7 +416,7 @@ describe("detectPassiveCandidates", () => {
     expect(candidates.map((c) => c.unit.battleUnitId)).toEqual([allyOwner.battleUnitId]);
   });
 
-  it("UT-R-PS-01-030: a PS whose Skill activationCondition is not met is excluded even though its trigger matches", () => {
+  it("UT-R-PS-01-130: a PS whose Skill activationCondition is not met is excluded even though its trigger matches", () => {
     const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
     const gatedSkill = passiveSkillOf(
       "SKL_GATED",
@@ -460,7 +460,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(1);
   });
 
-  it("UT-R-PS-01-027: a reference to a missing UnitDefinition or SkillDefinition throws a clear DomainValidationError", () => {
+  it("UT-R-PS-01-127: a reference to a missing UnitDefinition or SkillDefinition throws a clear DomainValidationError", () => {
     const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
     const event: TriggerCandidateEvent = {
       eventType: "TurnStarted",
@@ -478,7 +478,7 @@ describe("detectPassiveCandidates", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-R-PS-01-031 (Issue #144, TRIGGER_POSITION_RELATION): a POSITION_RELATION trigger condition only candidates when the target is directly in front of the owner", () => {
+  it("UT-R-PS-01-131 (Issue #144, TRIGGER_POSITION_RELATION): a POSITION_RELATION trigger condition only candidates when the target is directly in front of the owner", () => {
     const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "BACK" }, UNIT_DEF_A);
     const allyInFront = unit("IN_FRONT", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_B);
     const allyElsewhere = unit("ELSEWHERE", "ALLY", { column: "CENTER", row: "FRONT" }, UNIT_DEF_B);
@@ -535,7 +535,7 @@ describe("detectPassiveCandidates", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-R-PS-01-032 (Issue #144, TRIGGER_EXCLUSION_TIMING): a RESOLUTION_PHASE(negate: true) trigger condition excludes candidates only when the caller supplies the matching resolutionPhase", () => {
+  it("UT-R-PS-01-132 (Issue #144, TRIGGER_EXCLUSION_TIMING): a RESOLUTION_PHASE(negate: true) trigger condition excludes candidates only when the caller supplies the matching resolutionPhase", () => {
     const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
     const skill = passiveSkillOf("SKL_EXCLUDED_AT_TURN_START", {
       eventType: "EffectApplied",

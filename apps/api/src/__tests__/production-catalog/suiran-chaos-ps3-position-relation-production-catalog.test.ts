@@ -181,7 +181,7 @@ function attackerEffectAction(): Extract<EffectActionDefinition, { kind: "DAMAGE
 }
 
 describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER_POSITION_RELATION)", () => {
-  it("IT-CAT-PROD-012: is detected as a candidate through detectPassiveCandidates when the REAL SkillUseStarting event a battle actually emits fires from an ally positioned in front of Suiran", () => {
+  it("IT-CAT-PROD-015: is detected as a candidate through detectPassiveCandidates when the REAL SkillUseStarting event a battle actually emits fires from an ally positioned in front of Suiran", () => {
     // Step 1: run a real ally-vs-enemy battle (without Suiran) so
     // `action-skill-use-resolver.ts` emits a genuine `SkillUseStarting`
     // event, proving this Issue's `skillType` payload fix at its real
