@@ -89,8 +89,8 @@ import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 
 /**
- * `finalizeResolutionScope`の「破棄→発行→候補解決」反復に対する上限
- * （レビュー指摘[P1]、Issue #143）。counter更新は`PassiveActivationGuard`
+ * `finalizeResolutionScope`の「破棄→発行→候補解決」反復に対する上限。
+ * counter更新は`PassiveActivationGuard`
  * （R-PS-07）を経由しないため、`DEFAULT_PASSIVE_CHAIN_LIMITS`だけでは
  * 自己再生成する`resetScope`counterの無限ループを検出できない。対象12行は
  * いずれも`resetScope`を宣言しないため通常は1周も要さず、この上限に
@@ -100,7 +100,7 @@ const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
 
 /**
  * `onFactEvent`が自身の`RuntimeCounterChanged`を再帰的に候補解決へ回す深さの上限
- * （レビュー指摘[P2]、M6完了条件「実行ガードがPS深度とイベント数を監視する」
+ * （M6完了条件「実行ガードがPS深度とイベント数を監視する」
  * 13_実装計画.md参照）。`RuntimeCounterChanged`を自身の`counterUpdates.trigger`に
  * 持つCatalog定義は、更新→発行→候補解決の都度また同じcounterを更新しうるため、
  * この再帰は`PassiveChainLimits`（1解決スコープ単位のPS深度・効果解決数）にも
@@ -109,7 +109,7 @@ const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
  * `onFactEvent`の再帰（`SKILL_RUNTIME`スコープ・トップレベルの`AppliedEffect`
  * スコープ）専用のカウンタで、`resolveEvent`自身の再帰を守る
  * `PassiveChainLimits.maxEffectRuntimeCounterDepth`（PS連鎖内部の`AppliedEffect`
- * スコープ、PR #211レビュー[P1]）とは別の経路のため同じ値を流用する。
+ * スコープ）とは別の経路のため同じ値を流用する。
  */
 const MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH = 10;
 
@@ -137,7 +137,7 @@ export interface PassiveActivationRuntimeContext {
   readonly actionId?: ActionId;
   readonly limits?: PassiveChainLimits;
   /**
-   * `RESOLUTION_PHASE`（Issue #144、TRIGGER_EXCLUSION_TIMING）が参照する、この
+   * `RESOLUTION_PHASE`（TRIGGER_EXCLUSION_TIMING）が参照する、この
    * 解決スコープのroot事象が属するBattle/Turn phase。呼び出し側（`battle.ts`の
    * `TurnStarted`/`TurnCompleting`呼び出し等）が1解決スコープにつき1回だけ決める。
    * 行動中の解決スコープでは`undefined`（既定値、いずれの`phase`とも一致しない）。
@@ -188,7 +188,7 @@ export class PassiveActivationRuntime {
    */
   private expirationConditionDepth = 0;
   /**
-   * PR #211レビュー[P1]: `applyEffectRuntimeCounterUpdates`は`onFactEvent`の
+   * `applyEffectRuntimeCounterUpdates`は`onFactEvent`の
    * トップレベル呼び出し（`event`自身の状態変更を確定させ、原因となった
    * `RuntimeCounterChanged`を`onFactEvent`へ再帰させ`SkillRuntime`counter検出
    * 等を含む完全な扱いを与えるため）と、`resolvePassiveChain`へ注入する
@@ -204,13 +204,13 @@ export class PassiveActivationRuntime {
    * `resolvePassiveChain`側の`ChainState.effectRuntimeCounterDepth`
    * （`resolve-passive-chain.ts`）が、トップレベルの経路については
    * `onFactEvent`自身の`counterUpdateDepth`が、それぞれ独立に管理する
-   * （レビュー再指摘[P1]: このクラス側に単一のインスタンスフィールドを持たせると、
+   * （このクラス側に単一のインスタンスフィールドを持たせると、
    * `resolveChild`による再帰的候補解決を待たずに呼び出しごとへリセットされ、
    * 上限が機能しない）。
    */
   private readonly processedEffectRuntimeCounterEventIds = new Set<DomainEventId>();
   /**
-   * PR #211レビュー[P2]: `applyEffectRuntimeCounterUpdates`が発行する
+   * `applyEffectRuntimeCounterUpdates`が発行する
    * `RuntimeCounterChanged`へ、原因イベントが属するPSのSkillUseへ関連付けるための
    * `skillUseId`を伝播するための逆引きmap。`toTriggerEvent`（原因イベントを
    * `TriggerCandidateEvent`化するたび）に、元の`BattleDomainEvent.skillUseId`を
@@ -220,7 +220,7 @@ export class PassiveActivationRuntime {
    */
   private readonly skillUseIdOf = new Map<DomainEventId, SkillUseId>();
   /**
-   * EFF-006/Issue #212: `R-EFF-11`の`EffectSequence`スコープ。`EffectSequence`
+   * EFF-006: `R-EFF-11`の`EffectSequence`スコープ。`EffectSequence`
    * 自身は状態を持たないため、`applyEffectSequenceRuntimeCounterUpdates`が
    * `units`だけからcounterUpdates定義を再発見できない（`AppliedEffect`の
    * `units[].appliedEffects[]`、`SkillRuntime`の`SkillDefinition.counterUpdates`
@@ -241,7 +241,7 @@ export class PassiveActivationRuntime {
    */
   private readonly processedEffectSequenceRuntimeCounterEventIds = new Set<DomainEventId>();
   /**
-   * R-SKL-08（レビュー再指摘[P1]、PR #214）: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
+   * R-SKL-08: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
    * が参照する「同じ解決スコープ内の直前DAMAGE結果」。このクラス自体が
    * 「1解決スコープ（=1行動、または行動外トップレベルイベント）につき1つだけ
    * 生成される」契約（コンストラクタのコメント、R-PS-07と同じ境界）を持つため、
@@ -270,7 +270,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * EFF-006/Issue #212: 呼び出し側（`action-skill-use-resolver.ts`のAS/EX、
+   * EFF-006: 呼び出し側（`action-skill-use-resolver.ts`のAS/EX、
    * `action-charge-resolver.ts`のチャージ解放、この行動専用`activatePassiveCandidate`
    * のPS自身のEffectSequence）が、これから解決する1つのEffectSequenceが宣言する
    * `counterUpdates`（あれば）を登録する。`skillUseId`はその解決を一意に識別する
@@ -320,7 +320,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * PR #211レビュー[P2]: `event`（原因イベント）が属するPSのSkillUseへ
+   * `event`（原因イベント）が属するPSのSkillUseへ
    * `RuntimeCounterChanged`を関連付けるための`skillUseId`。原因イベント自身が
    * `skillUseId`を持たない場合（ターン開始・終了等の行動外トップレベル
    * イベント）は`undefined`。
@@ -344,14 +344,14 @@ export class PassiveActivationRuntime {
             : {}),
         }),
       getCurrentUnit: (battleUnitId) => requireUnit(this.units, battleUnitId),
-      // レビュー指摘[P2]: `getCurrentUnit`（`requireUnit`）は未知のBattleUnitIdに
+      // `getCurrentUnit`（`requireUnit`）は未知のBattleUnitIdに
       // 例外を送出するため、POSITION_RELATIONの対象不在を条件不成立として決定的に
-      // 扱うR-PS-01/Issue #144の契約には使えない。対象解決専用に、見つからない
+      // 扱うR-PS-01の契約には使えない。対象解決専用に、見つからない
       // 場合`undefined`を返す`findUnit`を分けて渡す。
       findUnit: (battleUnitId) => this.units.find((unit) => unit.battleUnitId === battleUnitId),
       activate: (candidate, event): PassiveActivation =>
         this.activatePassiveCandidate(candidate, event),
-      // R-MEM-01/02（M7-006、Issue #179）: 同じイベントのMemory候補。PS候補と同じ
+      // R-MEM-01/02（M7-006）: 同じイベントのMemory候補。PS候補と同じ
       // `resolvePassiveChain`のスタックへ乗せ、PS候補を使い切った後に解決させる。
       detectMemoryCandidates: (event) =>
         detectMemoryCandidates({
@@ -369,11 +369,11 @@ export class PassiveActivationRuntime {
         this.activateMemoryCandidate(candidate, event),
       limits: this.context.limits ?? DEFAULT_PASSIVE_CHAIN_LIMITS,
       turnNumber: this.context.turnNumber,
-      // RES-004（Issue #171）: `ALIVE_UNIT_COUNT`の再確認（R-PS-04）が候補検出時と
+      // RES-004: `ALIVE_UNIT_COUNT`の再確認（R-PS-04）が候補検出時と
       // 同じ生存数母集団を使うため、`findUnit`と同様に`this.units`を都度読み直す
       // 関数として渡す（PS連鎖の途中で`this.units`が変わりうるため固定配列は使えない）。
       getAllUnits: () => this.units,
-      // M7-001E（Issue #248）: `TARGET_STATE`の`UNIT_TYPE`/`ROLE`（`SKL_CHIYURU_MAZE_PS2`／
+      // M7-001E: `TARGET_STATE`の`UNIT_TYPE`/`ROLE`（`SKL_CHIYURU_MAZE_PS2`／
       // `SKL_LUCIE_MAID_PS1`のtrigger条件）を、再確認（R-PS-04）でも候補検出時と
       // 同じCatalog参照表で評価する。
       unitDefinitions: this.context.definitions.unitDefinitions,
@@ -381,11 +381,11 @@ export class PassiveActivationRuntime {
         ? { resolutionPhase: this.context.resolutionPhase }
         : {}),
       applyExpirationConditions: (event) => this.applyExpirationConditionsForChain(event),
-      // M7-020（Issue #279）: R-EFF-08と同じく「関連するドメインイベント発行後、
+      // M7-020: R-EFF-08と同じく「関連するドメインイベント発行後、
       // PS/Memory候補の抽出前」に評価する独立した機構。`resolveEvent`側では
       // `applyExpirationConditions`の直後に呼ばれる（トップレベルの`onFactEvent`と
-      // 同じ順序）。PR #281レビュー[P2]によりイベント配列を返す形ではなく
-      // `resolveChild`形をとる（R-EFF-09の逐次通知契約を満たすため）。
+      // 同じ順序）。イベント配列を返す形ではなく`resolveChild`形をとる
+      // （R-EFF-09の逐次通知契約を満たすため）。
       applyMarkerSourceDefeatRemovals: (event, resolveChild) =>
         this.applyMarkerSourceDefeatRemovalsForChain(event, resolveChild),
       applyEffectRuntimeCounterUpdates: (event, resolveChild) =>
@@ -400,14 +400,13 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * `08_ドメインイベント.md`「イベント発行と処理」#3（M6最小実装、Issue #143）:
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（M6最小実装）:
    * 原因イベントに起因する`RuntimeCounter`更新（`counterUpdates`、`SKILL_RUNTIME`
    * スコープ）を検出し、`RuntimeCounterChanged`を発行する。発行したイベントの
    * 候補解決は呼び出し側の責務とする（`state.guard`/stackを共有できるかどうかは
-   * 呼び出し元のコンテキストに依存するため、ここではguardに触れない —
-   * レビュー指摘[P1]参照）。
+   * 呼び出し元のコンテキストに依存するため、ここではguardに触れない）。
    *
-   * レビュー指摘[P2]、レビュー再指摘[P2]、レビュー再々指摘[P2]: 同一原因
+   * 同一原因
    * イベントで複数counterが変化する場合、「units反映→record→(呼び出し側の)
    * 候補解決」を1件ずつ行うため、このメソッドをgeneratorにし、1件`record`
    * するたびに`yield`して呼び出し側へ制御を返す。呼び出し側（`onFactEvent`の
@@ -465,7 +464,7 @@ export class PassiveActivationRuntime {
           before: change.before,
           after: change.after,
           carry: change.carry,
-          // レビュー再々レビュー[P1]: `value`が変化していない（carryのみの
+          // `value`が変化していない（carryのみの
           // 変化の）更新でもこのイベント自体は発行する（追跡性のため）ので、
           // 閾値到達時だけ発動すべきPSはこのフィールドで絞り込む契約とする。
           valueChanged: change.valueChanged,
@@ -473,7 +472,7 @@ export class PassiveActivationRuntime {
         stateDelta: {
           units: {
             [change.ownerUnitId]: {
-              // レビュー再々レビュー[P2]: `value`(公開値)が変化した場合だけ
+              // `value`(公開値)が変化した場合だけ
               // `skillCounters`を持つ。carryのみの変化では公開値のstateDeltaを
               // 持たせない（「変更した項目だけを持つ」契約、carryは
               // `skillCounterCarry`側に独立して持つ）。
@@ -490,7 +489,7 @@ export class PassiveActivationRuntime {
                 ? {
                     skillCounterCarry: {
                       [change.skillDefinitionId]: {
-                        // レビュー再々々レビュー[P1]: `captureBattleState`は
+                        // `captureBattleState`は
                         // carryが0のcounterをキーごと省略するため（`0`は
                         // デフォルト値扱い）、carryがちょうど0へ戻った場合も
                         // `after: 0`ではなく`undefined`（キー削除）にして
@@ -512,9 +511,9 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-005/Issue #162、
-   * PR #211レビュー[P1]で`onFactEvent`専用から`resolvePassiveChain`共通経路へ
-   * 拡張）: `SkillRuntime`スコープの`detectAndRecordRuntimeCounterChanges`の
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-005。`onFactEvent`専用から
+   * `resolvePassiveChain`共通経路へ拡張）: `SkillRuntime`スコープの
+   * `detectAndRecordRuntimeCounterChanges`の
    * `AppliedEffect`スコープ版。`event`に一致する各効果インスタンス自身の
    * `duration.definition.counterUpdates`を検出し、`RuntimeCounterChanged`
    * （`scope: APPLIED_EFFECT`、`effectInstanceId`）を発行する。
@@ -531,7 +530,7 @@ export class PassiveActivationRuntime {
    * で同じ`DomainEventId`の二重処理を防ぐ（R-EFF-08の自然な冪等性とは異なり、
    * counter加算は同じeventに対して毎回マッチしうるため明示的なガードが必要）。
    *
-   * レビュー再指摘[P1]: マッチした複数エントリを先にまとめて適用・記録してから
+   * マッチした複数エントリを先にまとめて適用・記録してから
    * まとめて返すと、最初の`RuntimeCounterChanged`が誘発した候補解決（PSが
    * 後続のAppliedEffectを解除・変更しうる）より前に、後続エントリの`before`/
    * `after`が確定してしまう。`SkillRuntime`側の`detectAndRecordRuntimeCounterChanges`
@@ -539,7 +538,7 @@ export class PassiveActivationRuntime {
    * トップレベルでは`onFactEvent`、PS連鎖内部では`resolveEvent`自身）を呼び、
    * その候補連鎖が完全に解決してから次のエントリを適用する。
    *
-   * レビュー再指摘[P2]: `event`（原因イベント）が持つ`skillUseId`
+   * `event`（原因イベント）が持つ`skillUseId`
    * （`skillUseIdOfCausingEvent`）を発行する`RuntimeCounterChanged`へそのまま
    * 継承する — 「同じSkillUse解決に属するイベントは同じ`skillUseId`を持つ」
    * （`08_ドメインイベント.md`）。原因イベントがトップレベル行動外イベント
@@ -647,7 +646,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-006/Issue #212）:
+   * `08_ドメインイベント.md`「イベント発行と処理」#3（EFF-006）:
    * `applyEffectRuntimeCounterUpdates`（`AppliedEffect`スコープ）の
    * `EffectSequence`スコープ版。`event`に一致する現在進行中の各EffectSequence
    * 解決（`this.activeEffectSequenceResolutions`）自身のcounterUpdatesを検出し、
@@ -750,7 +749,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * EFF-006/Issue #212: `EffectSequence`は状態を持たないため、1回の解決が
+   * EFF-006: `EffectSequence`は状態を持たないため、1回の解決が
    * 完了した時点で必ずそのcounterを破棄する（`SkillRuntime`の
    * `resetScope: "RESOLUTION_SCOPE"`と異なり、宣言による選択の余地がない）。
    * `this.activeEffectSequenceResolutions`からエントリ自体を先に削除してから
@@ -780,7 +779,7 @@ export class PassiveActivationRuntime {
         continue;
       }
       const carryBefore = currentCounters[counterId]?.carry ?? 0;
-      // レビュー指摘: `effectSequenceCounters`は`skillCounters`と異なり、この
+      // `effectSequenceCounters`は`skillCounters`と異なり、この
       // 解決が完了したら`skillUseId`エントリ自体も完全に消す（空の`{}`を
       // 残す既存の非対称な規約を流用しない — `captureBattleState`/
       // `applyTwoLevelCounterDeltas`（`pruneEmptyFirstLevelEntries`）が実状態と
@@ -839,7 +838,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * EFF-006/Issue #212: `finalizeEffectSequenceResolutionSteps`のトップレベル
+   * EFF-006: `finalizeEffectSequenceResolutionSteps`のトップレベル
    * 版。呼び出し側（AS/EX使用・チャージ解放）が、1つのEffectSequenceの解決
    * （`applyEffectActionGroups`の戻り）を受け取った直後に必ず1回呼ぶ。各
    * `RuntimeCounterReset`を`this.onFactEvent`へ再帰させ、その候補解決を
@@ -862,17 +861,17 @@ export class PassiveActivationRuntime {
    * guardスナップショット）を起こすため、既に別の`resolvePassiveChain`呼び出しが
    * 進行中の文脈（`activatePassiveCandidate`のgenerator本体など）から呼び出しては
    * ならない — 進行中の呼び出しが完了した際に`this.guard`を上書きし、この
-   * メソッド内で記録した発動をロストする（レビュー指摘[P1]、Issue #143）。
+   * メソッド内で記録した発動をロストする。
    * そのような文脈では代わりに`PassiveActivationStep`を`yield`し、進行中の
    * `driveActivation`が共有する`state`（guard/stack）へ正しく参加させること。
    *
-   * 戻り値は`ResolutionResult`（Issue #251）——`units`に加え、この呼び出し
+   * 戻り値は`ResolutionResult`——`units`に加え、この呼び出し
    * 自身が発行・解決した反応連鎖まで含めた実際の終端`DomainEventId`を
    * `lastEventId`として明示的に返す（`finalizeResolutionScope`と同じ`recorder`
    * 末尾読み取りパターン）。カーソルを必要としない大多数の呼び出し側は
    * `.units`だけを取り出せばよい。
    *
-   * レビュー指摘[P2]（Issue #251）: `recorder.getEvents()`の単純な末尾ではなく、
+   * `recorder.getEvents()`の単純な末尾ではなく、
    * この呼び出し自身が開始した時点からの差分だけを見る——呼び出し側が複数の
    * イベントを先に一括で`record`してから1件ずつ`onFactEvent`へ渡す経路
    * （`action-completion.ts`の期間/Marker更新など）では、対象`event`より後の
@@ -900,7 +899,7 @@ export class PassiveActivationRuntime {
       this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
     }
 
-    // EFF-005/Issue #162（PR #211レビュー[P1]）: `AppliedEffect`スコープの
+    // EFF-005: `AppliedEffect`スコープの
     // counter更新も、上の`SKILL_RUNTIME`スコープと同じくR-EFF-08
     // （`applyExpirationConditions`）より先に確定させる — 更新後の値をそのまま
     // `expiration.conditions`が読めるようにする（R-EFF-11の同じ規則）。
@@ -909,7 +908,7 @@ export class PassiveActivationRuntime {
     // applyEffectRuntimeCounterUpdates`が同じ`triggerEvent`を再度処理しようと
     // しても）安全にno-opになる。`resolveChild`はこの再帰的`onFactEvent`
     // 呼び出し自体であり、record 1件ごとにその候補連鎖を完全に解決してから
-    // 次のエントリへ進む（レビュー再指摘[P1]）。
+    // 次のエントリへ進む。
     this.applyEffectRuntimeCounterUpdates(triggerEvent, (recorded) => {
       if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
         throw new ExecutionGuardExceededError(
@@ -920,7 +919,7 @@ export class PassiveActivationRuntime {
       return undefined;
     });
 
-    // EFF-006/Issue #212: `EffectSequence`スコープも同じ理由・同じ順序
+    // EFF-006: `EffectSequence`スコープも同じ理由・同じ順序
     // （`applyExpirationConditions`より先）で確定させる。
     this.applyEffectSequenceRuntimeCounterUpdates(triggerEvent, (recorded) => {
       if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
@@ -932,7 +931,7 @@ export class PassiveActivationRuntime {
       return undefined;
     });
 
-    // レビュー指摘[P2]（PR #209）: R-EFF-08は「関連するドメインイベント発行後、
+    // R-EFF-08は「関連するドメインイベント発行後、
     // PS/Memory候補の抽出前に評価する」ことを要求する。`onFactEvent`はFACT/
     // TIMINGイベントの都度呼ばれる唯一の共通経路（`ActionCompleted`だけでなく
     // `DamageApplied`/`UnitDefeated`/`TurnCompleted`等すべて）のため、ここで
@@ -942,7 +941,7 @@ export class PassiveActivationRuntime {
     // 上限を共有する）。
     this.units = this.applyExpirationConditions(event, nextDepth);
 
-    // R-EFF-10（M7-020、Issue #279）: 付与者の戦闘不能によるMarker解除も、R-EFF-08と
+    // R-EFF-10（M7-020）: 付与者の戦闘不能によるMarker解除も、R-EFF-08と
     // 同じ「関連するドメインイベント発行後、PS/Memory候補の抽出前」で評価する。
     // R-EFF-08の後に置くのは、`expiration.conditions`を持つ`AppliedEffect`が
     // 同じ`UnitDefeated`を観測する既存の順序を変えないため（両者は独立した機構で、
@@ -950,7 +949,7 @@ export class PassiveActivationRuntime {
     // 後続側の評価前に`onFactEvent`へ再帰して完全に解決される）。
     this.units = this.applyMarkerSourceDefeatRemovals(event, nextDepth);
 
-    // レビュー再指摘[P2]（PR #209）: 上記はトップレベルの`event`しかカバーせず、
+    // 上記はトップレベルの`event`しかカバーせず、
     // PS連鎖の内部（`activatePassiveCandidate`が直接yieldする`PassiveActivated`・
     // `EffectActionStarting`等）は`onFactEvent`を経由しないため見落とされていた。
     // `resolvePassiveChain`（`resolve-passive-chain.ts`の`resolveEvent`）へ
@@ -998,7 +997,7 @@ export class PassiveActivationRuntime {
       effectInstanceId: match.effectInstanceId,
       reason: "EXPIRATION_CONDITION",
     }));
-    // PR #280レビュー[P1]: 通知は`expireEffects`が1インスタンスの失効ごとに行う
+    // 通知は`expireEffects`が1インスタンスの失効ごとに行う
     // （R-EFF-09カスケードで巻き込まれた子効果・子Markerを含む）。ここでまとめて
     // 通知すると、子の`EffectExpired`をtriggerにするPSが親の除去済み状態を見る。
     const expiry = expireEffects(
@@ -1021,7 +1020,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: `event`が
+   * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020）: `event`が
    * `UnitDefeated`のとき、`duration.removeOnSourceDefeated`を宣言し付与者が
    * その戦闘不能ユニットであるMarkerを即時に解除する（トップレベルの
    * `onFactEvent`専用、`applyExpirationConditions`と同じ形・同じ制約）。
@@ -1030,7 +1029,7 @@ export class PassiveActivationRuntime {
    * R-EFF-09のcross-typeカスケードが自動で巻き込む（`ACT_AOI_ELEGANT_AS1_KOUYOU_
    * CRIT_DOWN`／`..._DOT`）。`onFactEventForPassiveChain`を渡すことで、1インスタンス
    * の除去ごとに（カスケード分もseed分も）PS/Memoryの即時連鎖へ通知する
-   * （R-EFF-09、PR #280レビュー[P1]）。
+   * （R-EFF-09）。
    */
   private applyMarkerSourceDefeatRemovals(
     event: BattleDomainEvent,
@@ -1125,14 +1124,14 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * R-EFF-10（M7-020、Issue #279）: `applyMarkerSourceDefeatRemovals`の
+   * R-EFF-10（M7-020）: `applyMarkerSourceDefeatRemovals`の
    * PS連鎖内部版。`applyExpirationConditionsForChain`と同じ理由で必要になる —
    * PSのEffectSequenceが与えたダメージによる`UnitDefeated`は`onFactEvent`を
    * 経由しないため（`UT-R-EFF-11-017`と同じ経路）、トップレベル側の配線だけでは
    * 「PSがとどめを刺した付与者のMarkerが解除されない」取りこぼしになる
    * （`UT-R-EFF-10-033`が固定）。
    *
-   * PR #281レビュー[P2]: `applyExpirationConditionsForChain`のように「全メンバーを
+   * `applyExpirationConditionsForChain`のように「全メンバーを
    * 除去してからイベント配列を返す」形にはできない。Marker解除はR-EFF-09の
    * カスケードでlinked group全体を巻き込むため、その形では最初の子`EffectExpired`
    * をPS/Memoryへ渡す時点で親Markerが既に消えており、R-EFF-09「各インスタンスの
@@ -1196,8 +1195,8 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
-   * Issue #143）。呼び出し側（`resolveSkillUse`／charge解放／`advanceBattle`の
+   * `R-EFF-11`「解決スコープ終了時にリセットするcounter」。呼び出し側
+   * （`resolveSkillUse`／charge解放／`advanceBattle`の
    * `TurnStarted`処理など、このインスタンスが担当する1解決スコープを完全に終えた
    * 箇所）が、そのスコープ内の最後の`onFactEvent`呼び出し後に必ず1回呼び出す。
    * `resetScope: "RESOLUTION_SCOPE"`を宣言し現在値を持つcounterを破棄して
@@ -1207,7 +1206,7 @@ export class PassiveActivationRuntime {
    * 「破棄→発行→候補解決」を繰り返す。対象12行はいずれも`resetScope`を宣言
    * しないため、この処理は常に即座に`this.units`をそのまま返す。
    *
-   * レビュー指摘[P1]: `resetScope: RESOLUTION_SCOPE`のcounterが、自身の
+   * `resetScope: RESOLUTION_SCOPE`のcounterが、自身の
    * `RuntimeCounterReset`をtriggerとする`counterUpdates`を持つ場合
    * （破棄→発行→その候補解決で同じcounterが即座に再生成される）、このwhileは
    * 決して`targets`が空にならず同期的に無限ループする。counter更新はPS発動
@@ -1215,7 +1214,7 @@ export class PassiveActivationRuntime {
    * ループ自体を止めない。反復回数の上限を設け、超過時は黙って打ち切る代わりに
    * 決定的なエラーとして検出する。
    *
-   * Issue #251: 呼び出し側がこの解決スコープへ入る直前に保持していた因果
+   * 呼び出し側がこの解決スコープへ入る直前に保持していた因果
    * カーソル（`cursor`）を引数で受け取り、戻り値は`onFactEvent`と同じ
    * `ResolutionResult`（`units`と確定値の`lastEventId`）で統一する。
    * `recorder.getEvents()`の末尾を呼び出し側が推測する方式は採らない。
@@ -1230,7 +1229,7 @@ export class PassiveActivationRuntime {
    * 付随する効果適用まで含めた実際の終端イベント）をそのまま採用する。
    */
   finalizeResolutionScope(cursor: DomainEventId, units?: readonly BattleUnit[]): ResolutionResult {
-    // PR #280再レビュー[P1]: このruntimeは`onFactEvent`が渡された`units`だけを
+    // このruntimeは`onFactEvent`が渡された`units`だけを
     // 追跡する。イベントを伴わない純粋な状態変化（ターン単位期間の減算など）を
     // 呼び出し側が挟んだ場合、`this.units`はその分だけ古いため、スコープ終了時に
     // 最新の`units`を明示的に同期できるようにする（未指定なら従来どおり
@@ -1258,7 +1257,7 @@ export class PassiveActivationRuntime {
       for (const target of targets) {
         const owner = requireUnit(this.units, target.ownerUnitId);
         const counters = owner.skillCounters?.[target.skillDefinitionId] ?? {};
-        // レビュー再々レビュー[P2]: 破棄されるcarryもstateDeltaへ含めるため、
+        // 破棄されるcarryもstateDeltaへ含めるため、
         // `resetRuntimeCounter`が削除する前に読み取っておく。
         const carryBefore = counters[target.counter]?.carry ?? 0;
         const result = resetRuntimeCounter(counters, target.counter);
@@ -1294,13 +1293,13 @@ export class PassiveActivationRuntime {
               [target.ownerUnitId]: {
                 skillCounters: {
                   [target.skillDefinitionId]: {
-                    // レビュー指摘[P1]: `after: 0`ではなく`undefined`にして、
+                    // `after: 0`ではなく`undefined`にして、
                     // 独立Reducerがキー自体を削除できるようにする（実状態の
                     // `resetRuntimeCounter`と同じく、値0で残すのではなく削除）。
                     [target.counter]: { before: result.change.before, after: undefined },
                   },
                 },
-                // レビュー再々レビュー[P2]: carryが実際に非0だった場合だけ
+                // carryが実際に非0だった場合だけ
                 // `skillCounterCarry`を持つ（0のcarryは元々`captureBattleState`
                 // が省略するキーのため、削除する意味のある差分がない）。
                 ...(carryBefore !== 0
@@ -1371,7 +1370,7 @@ export class PassiveActivationRuntime {
     const sequence = candidate.triggeredEffect.effectSequence;
     if (sequence.counterUpdates !== undefined && sequence.counterUpdates.length > 0) {
       // `EFFECT_SEQUENCE`スコープのRuntimeCounterは保持者ユニット
-      // （`BattleUnit.effectSequenceCounters`、EFF-006/Issue #212）を前提とするため、
+      // （`BattleUnit.effectSequenceCounters`、EFF-006）を前提とするため、
       // 使用者を持たないMemoryからは扱えない。黙って無視せず明確に拒否する。
       throw new DomainValidationError(
         "memory.triggeredEffects.effectSequence.counterUpdates",
@@ -1379,7 +1378,7 @@ export class PassiveActivationRuntime {
       );
     }
 
-    // CAP_TRIGGER_CONTEXT（RES-005）/ CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247）:
+    // CAP_TRIGGER_CONTEXT（RES-005）/ CAP_TRIGGER_PAYLOAD_IN_RESOLUTION:
     // PS側と同じく、候補検出に使った原因イベントの発生源・対象・payloadを
     // そのまま解決へ渡す（`TRIGGER_SOURCE`/`TRIGGER_TARGET`はMemoryでも使える
     // ——`SELF`と異なり具体的な使用者を必要としないため）。
@@ -1505,7 +1504,7 @@ export class PassiveActivationRuntime {
     const skill = candidate.skillDefinition;
     const ownerId = candidate.unit.battleUnitId;
     const triggerEventId = this.eventIdOf(event);
-    // レビュー指摘[P2]: PSも一つのSkillUse（`08_ドメインイベント.md`「同じ
+    // PSも一つのSkillUse（`08_ドメインイベント.md`「同じ
     // SkillUseIdに属するイベントを関連づける。PSも一つのスキル使用として新しい
     // SkillUseIdを持つ」）。以前はEffectSequence解決直前(旧`skillUseId`採番位置)
     // でしか採番しておらず、それより前に発行するリソース・Cooldown・
@@ -1648,7 +1647,7 @@ export class PassiveActivationRuntime {
       },
     });
     lastEventId = passiveActivated.eventId;
-    // Issue #143修正 / レビュー指摘[P1]: `PassiveActivated`はこれまで直接record
+    // `PassiveActivated`はこれまで直接record
     // するだけで`onFactEvent`を経由しておらず、これに反応するPS（例:「パッシブ
     // スキルをN回使用するたびに発動」のRuntimeCounter更新）が検出されなかった。
     // ただし本メソッドは常に進行中の`resolvePassiveChain`（`driveActivation`）の
@@ -1674,17 +1673,17 @@ export class PassiveActivationRuntime {
     // 加えた変更を`plan`の解決から見落とす）。
     const ownerAfterChainedActivations = requireUnit(this.units, ownerId);
 
-    // CAP_TRIGGER_CONTEXT（RES-005、Issue #172）: このPSを発動させた原因
+    // CAP_TRIGGER_CONTEXT（RES-005）: このPSを発動させた原因
     // イベント（`event`、候補検出に使ったもの）の発生源・対象。
     // `TargetReference.kind: TRIGGER_SOURCE`/`TRIGGER_TARGET`はこれを参照する。
     // AS/EX使用や行動外トップレベルイベントには存在しないフィールドのため、
     // `event.sourceUnitId`/`targetUnitIds`が無ければ対応するフィールドを
-    // 持たないまま素通しする。PRレビュー指摘[P2]: ここでは`BattleUnit`へ解決
+    // 持たないまま素通しする。ここでは`BattleUnit`へ解決
     // せずIDのまま保持する — 先行するEffectActionや子PS連鎖が対象のHP・
     // combatStatsを変更した後も、実際に参照する各時点（`resolveReference`の
     // JIT解決、Formula評価、DAMAGE解決）で最新の`box.units`/`working`から
     // 都度引き直させるため。
-    // CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: この同じ原因
+    // CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（M7-001D）: この同じ原因
     // イベントの`payload`も、`resolution.steps`側の`EVENT_PAYLOAD`条件が
     // 参照できるよう素通しする（`triggers[].condition`が参照する
     // `EVENT_PAYLOAD`とは独立に、発動後の一部stepだけを条件付けられる）。
@@ -1703,14 +1702,14 @@ export class PassiveActivationRuntime {
       triggerContext,
       this.context.definitions.unitDefinitions,
     );
-    // Issue #34 (PR #141 review [P1]): ターン開始・終了など行動外の
+    // ターン開始・終了など行動外の
     // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を
     // 解決できる。`EffectActionGroupContext`以下は`actionId`を任意にして
     // 素通しする。`EffectSequence.steps`はCatalog検証で非空のため、
     // `resolveEffectSequencePlan`は常に呼び出し、step単位のイベントを発行する
     // （#73: R-SKL-06）。
     //
-    // PR #142レビュー[P1]: 以前は`applyEffectActionGroups`でplan全体を同期的に
+    // 以前は`applyEffectActionGroups`でplan全体を同期的に
     // 適用してから、記録された全イベントを一つの`EFFECT_RESOLVED`として
     // まとめてyieldしていた。そのため最初のEffectAction Aが子PSを誘発しても、
     // その子PSが解決される時点では後続EffectAction Bも適用済みになり
@@ -1736,7 +1735,7 @@ export class PassiveActivationRuntime {
       damageResults: this.damageResults,
       ...triggerContext,
     };
-    // EFF-006/Issue #212: このPS自身のEffectSequence解決を開始する前に登録する
+    // EFF-006: このPS自身のEffectSequence解決を開始する前に登録する
     // （`SkillUseStarting`相当のTIMINGはPSには無いため、`resolveEffectSequencePlan`
     // 自身が発行する最初のイベントから対象にできるようにする）。
     this.beginEffectSequenceResolution(
@@ -1777,7 +1776,7 @@ export class PassiveActivationRuntime {
     const effectResult = step.value;
     const outcome = effectResult.outcome;
 
-    // EFF-006/Issue #212: このPS自身のEffectSequence解決が完了した時点で、
+    // EFF-006: このPS自身のEffectSequence解決が完了した時点で、
     // そのcounterを直ちに破棄する（`resolveEffectSequencePlan`が中断で終わった
     // 場合も含め、必ず1回だけ呼ぶ）。PS連鎖内部（このgenerator自身が
     // `driveActivation`に駆動されている）から呼んでいるため、
@@ -1789,7 +1788,7 @@ export class PassiveActivationRuntime {
       lastEventId = recorded.eventId;
     }
 
-    // Issue #217設計方針B: `PassiveInterrupted`/`PassiveResolved`の選択は
+    // 設計方針B: `PassiveInterrupted`/`PassiveResolved`の選択は
     // `outcome.status`（実際に解決が最後まで進んだか、PS所有者戦闘不能で
     // 打ち切ったかという事実）だけから決める。`unresolvedEffectCount`の値
     // からは決して導出しない（`INTERRUPTED`かつ`unresolvedEffectCount: 0`も
@@ -1835,7 +1834,7 @@ export class PassiveActivationRuntime {
         },
       });
     }
-    // レビュー指摘[P1]: `PassiveActivated`と同じ理由（544行目付近）で、
+    // `PassiveActivated`と同じ理由（544行目付近）で、
     // `PassiveResolved`/`PassiveInterrupted`もPS発動契機にできる契約
     // （08_ドメインイベント.md「同じSkillUseIdに属するイベント」節、
     // 「味方のPS解決後」を条件とするPS等）を満たすため、TIMING_EVENTとして
@@ -1850,7 +1849,7 @@ export class PassiveActivationRuntime {
     for (const changed of terminalCounterChanges) {
       yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
     }
-    // TGT-004フェーズ3再々レビュー[P1]（Issue #167、08_ドメインイベント.md
+    // TGT-004フェーズ3（08_ドメインイベント.md
     // 「イベント発行と処理」の順序契約）: `RuntimeCounterChanged`以外の子イベント
     // （`SKILL_USE`単位期間減算）は、原因イベント（`terminalEvent`＝
     // `PassiveResolved`）自身のPS/Memory候補解決より後でなければならない。
@@ -1859,8 +1858,7 @@ export class PassiveActivationRuntime {
     // （`battleUnitId`+`effectInstanceId`のキーのみ）を決定する——
     // `PassiveResolved`に反応するPSがこのPS自身とは別の`skillUseId`で新たな
     // `SKILL_USE`期間効果を付与し得るため、連鎖解決後のunitsから対象を決定
-    // すると、そのPSが付与したばかりの効果まで誤って減算・即時失効させて
-    // しまう（PR #238再レビュー[P2]と同じ理由）。
+    // すると、そのPSが付与したばかりの効果まで誤って減算・即時失効させてしまう。
     const preTerminalChainUnits = this.units;
     yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
 
@@ -1873,7 +1871,7 @@ export class PassiveActivationRuntime {
         battleUnitId: change.battleUnitId,
         effectInstanceId: change.effectInstanceId,
       }));
-      // PR #238再々レビュー[P1]: 決定した対象は`reapplySkillUseDurationDecrement`
+      // 決定した対象は`reapplySkillUseDurationDecrement`
       // で連鎖解決後のunitsへ適用する——連鎖解決前のスナップショット値
       // （before/after）をそのまま使い回さず、連鎖解決後の現在値から都度
       // 再計算する。`terminalEvent`自身のPS連鎖（上でyield済み）の中で、
@@ -1881,9 +1879,8 @@ export class PassiveActivationRuntime {
       // かけている場合があるため（この親PSと子PSはどちらも同じownerの
       // 「1回のスキル使用完了」であり、互いに独立してR-EFF-04と同じ規約で
       // 減算する）——古いスナップショット値をそのまま設定すると、子PSが既に
-      // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう
-      // （PR #238再々レビュー[P1]）。対象インスタンスが連鎖解決中に既に
-      // 除去されていた場合は`reapplySkillUseDurationDecrement`が無視する。
+      // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう。対象インスタンスが
+      // 連鎖解決中に既に除去されていた場合は`reapplySkillUseDurationDecrement`が無視する。
       const skillUseDurationDecrement = reapplySkillUseDurationDecrement(
         this.units,
         skillUseDurationTargets,
