@@ -54,7 +54,7 @@ function memoryModifierAction(id: string): EffectActionDefinition {
 }
 
 /**
- * M7-006 レビュー[P2]（PR #260）: Memoryの`triggeredEffects`が「使用者BattleUnitを
+ * M7-006: Memoryの`triggeredEffects`が「使用者BattleUnitを
  * 必要とする」構成を宣言したケースを組み立てるためのfixture群。
  */
 function memoryWithTrigger(
@@ -248,7 +248,7 @@ function chargeSkill(id: string, requiredCapabilities: readonly string[]): Skill
           selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
         },
       ],
-      // M7-016（Issue #270 レビュー[P1]）: CHARGE開始側は効果を解決しないため
+      // M7-016（Issue #270）: CHARGE開始側は効果を解決しないため
       // `steps`は常に空でなければならない。
       steps: [],
       chargeRelease: {
@@ -1314,7 +1314,7 @@ function deathSurvivalAction(
 }
 
 /**
- * PR #299レビュー[P2]: `TARGET_HAS_EFFECT`を置ける4か所（PS trigger／
+ * `TARGET_HAS_EFFECT`を置ける4か所（PS trigger／
  * `counterUpdates[].trigger`／`activationCondition`／ACTION stepの`targetCondition`）へ
  * 同じ条件を差し込める最小のPS。
  */
@@ -1690,7 +1690,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-071 (M7-001, Issue #181, 再々レビュー[P2]): rejects a REMOVE_EFFECTS with the SHIELD category missing the required CAP_SHIELD declaration", () => {
+  it("UT-CAT-IDX-071 (M7-001, Issue #181): rejects a REMOVE_EFFECTS with the SHIELD category missing the required CAP_SHIELD declaration", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
@@ -1713,7 +1713,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-072 (M7-001, Issue #181, 再々レビュー[P2]): accepts a REMOVE_EFFECTS with the SHIELD category that declares both CAP_REMOVE_EFFECTS and CAP_SHIELD, even though CAP_SHIELD itself is PLANNED (Catalog build only checks declaration, not implementation status)", () => {
+  it("UT-CAT-IDX-072 (M7-001, Issue #181): accepts a REMOVE_EFFECTS with the SHIELD category that declares both CAP_REMOVE_EFFECTS and CAP_SHIELD, even though CAP_SHIELD itself is PLANNED (Catalog build only checks declaration, not implementation status)", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {
       ...defs,
@@ -1733,7 +1733,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_REMOVE_SHIELD" as never)).toBeDefined();
   });
 
-  it("UT-CAT-IDX-073 (M7-001, Issue #181, 再々レビュー[P2]): rejects a REMOVE_EFFECTS with the SUBUNIT category missing the required CAP_SUBUNIT declaration", () => {
+  it("UT-CAT-IDX-073 (M7-001, Issue #181): rejects a REMOVE_EFFECTS with the SUBUNIT category missing the required CAP_SUBUNIT declaration", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
@@ -1756,7 +1756,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-074 (M7-001, Issue #181, 再々レビュー[P2]): accepts a REMOVE_EFFECTS with the SUBUNIT category that declares both CAP_REMOVE_EFFECTS and CAP_SUBUNIT", () => {
+  it("UT-CAT-IDX-074 (M7-001, Issue #181): accepts a REMOVE_EFFECTS with the SUBUNIT category that declares both CAP_REMOVE_EFFECTS and CAP_SUBUNIT", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {
       ...defs,
@@ -1873,7 +1873,7 @@ describe("buildCatalogIndex", () => {
     expect(index.skills.get("SKL_CHARGE_1" as never)).toBeDefined();
   });
 
-  it("UT-CAT-IDX-075 (Issue #181, 再々々レビュー[P2]): rejects ANY REMOVE_EFFECTS missing CAP_REMOVE_EFFECTS, regardless of categories (e.g. STATUS, which needs no other capability)", () => {
+  it("UT-CAT-IDX-075 (Issue #181): rejects ANY REMOVE_EFFECTS missing CAP_REMOVE_EFFECTS, regardless of categories (e.g. STATUS, which needs no other capability)", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
@@ -2027,7 +2027,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-EFF-01-025 (PR #207レビュー[P1]): accepts an APPLY_STAT_MOD that declares the required CAP_STAT_MOD capability", () => {
+  it("UT-R-EFF-01-025: accepts an APPLY_STAT_MOD that declares the required CAP_STAT_MOD capability", () => {
     const defs = baseDefinitions();
     const withStatMod: CatalogDefinitions = {
       ...defs,
@@ -2042,7 +2042,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_STAT_MOD" as never)).toBeDefined();
   });
 
-  it("UT-R-EFF-01-026 (PR #207レビュー[P1]): rejects an APPLY_STAT_MOD missing the required CAP_STAT_MOD capability, so an incomplete resolver path can't be reached from custom Catalog data", () => {
+  it("UT-R-EFF-01-026: rejects an APPLY_STAT_MOD missing the required CAP_STAT_MOD capability, so an incomplete resolver path can't be reached from custom Catalog data", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
@@ -2065,7 +2065,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-ACTN-02-012 (PRレビュー[P2] PR #254): accepts a MODIFY_RESOURCE(operation: DISTRIBUTE) that declares the required CAP_RESOURCE_DISTRIBUTE capability", () => {
+  it("UT-R-ACTN-02-012: accepts a MODIFY_RESOURCE(operation: DISTRIBUTE) that declares the required CAP_RESOURCE_DISTRIBUTE capability", () => {
     const defs = baseDefinitions();
     const withDistribute: CatalogDefinitions = {
       ...defs,
@@ -2080,7 +2080,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_DISTRIBUTE" as never)).toBeDefined();
   });
 
-  it("UT-R-ACTN-02-013 (PRレビュー[P2] PR #254): rejects a MODIFY_RESOURCE(operation: DISTRIBUTE) missing the required CAP_RESOURCE_DISTRIBUTE capability, so the unsupported operation is caught at Catalog load time rather than only inside battle resolution", () => {
+  it("UT-R-ACTN-02-013: rejects a MODIFY_RESOURCE(operation: DISTRIBUTE) missing the required CAP_RESOURCE_DISTRIBUTE capability, so the unsupported operation is caught at Catalog load time rather than only inside battle resolution", () => {
     const defs = baseDefinitions();
     const withMissingCapability: CatalogDefinitions = {
       ...defs,
@@ -2372,7 +2372,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_SURVIVAL" as never)).toBeDefined();
   });
 
-  it("UT-R-INT-01-021 (DMG-006 Issue #188, PR #298レビュー[P2], NEGATIVE): rejects an APPLY_TARGET_REDIRECT/APPLY_COVER whose appliesTo.actionKinds reaches beyond DAMAGE, so a declaration that would never take effect is caught at Catalog load time", () => {
+  it("UT-R-INT-01-021 (DMG-006 Issue #188, NEGATIVE): rejects an APPLY_TARGET_REDIRECT/APPLY_COVER whose appliesTo.actionKinds reaches beyond DAMAGE, so a declaration that would never take effect is caught at Catalog load time", () => {
     const defs = baseDefinitions();
 
     /** `damage-application-service.ts`はDAMAGEでしか介入解決を呼ばないため、どちらもsilent no-opになる。 */
@@ -2529,7 +2529,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-LNK-03-035 (PR #299レビュー[P2], NEGATIVE): rejects a TARGET_HAS_EFFECT.effectActionDefinitionIds that references an undefined EffectActionDefinition, in every condition placement", () => {
+  it("UT-R-LNK-03-035 (NEGATIVE): rejects a TARGET_HAS_EFFECT.effectActionDefinitionIds that references an undefined EffectActionDefinition, in every condition placement", () => {
     const query = (id: string): ConditionDefinitionInput => ({
       kind: "TARGET_HAS_EFFECT",
       target: { kind: "SELF" },
@@ -2581,7 +2581,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-LNK-03-037 (PR #299再レビュー[P2], NEGATIVE): rejects a dangling TARGET_HAS_EFFECT.effectActionDefinitionIds inside a DurationDefinition (expiration.conditions / counterUpdates[].trigger.condition)", () => {
+  it("UT-R-LNK-03-037 (NEGATIVE): rejects a dangling TARGET_HAS_EFFECT.effectActionDefinitionIds inside a DurationDefinition (expiration.conditions / counterUpdates[].trigger.condition)", () => {
     const danglingQuery = {
       kind: "TARGET_HAS_EFFECT",
       target: { kind: "SELF" },
@@ -2668,7 +2668,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-LNK-03-036 (PR #299レビュー[P2], NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy inside a Memory trigger, whose evaluator has no owning BattleUnit", () => {
+  it("UT-R-LNK-03-036 (NEGATIVE): rejects TARGET_HAS_EFFECT.grantedBy inside a Memory trigger, whose evaluator has no owning BattleUnit", () => {
     const defs = baseDefinitions();
     const withMemoryGrantedBy: CatalogDefinitions = {
       ...defs,
@@ -2800,7 +2800,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-EFF-10-015 (R-EFF-10, PR #210レビュー[P2]): accepts an APPLY_MARKER with linkedEffectGroupId: null", () => {
+  it("UT-R-EFF-10-015 (R-EFF-10): accepts an APPLY_MARKER with linkedEffectGroupId: null", () => {
     const defs = baseDefinitions();
     const withMarker: CatalogDefinitions = {
       ...defs,
@@ -2815,7 +2815,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_MARKER" as never)).toBeDefined();
   });
 
-  it("UT-R-EFF-10-016 (R-EFF-10, PR #210再レビュー[P2]): accepts two APPLY_MARKER definitions sharing a linkedEffectGroupId (Marker-to-Marker cascade is implemented, linked-effect-group.ts)", () => {
+  it("UT-R-EFF-10-016 (R-EFF-10): accepts two APPLY_MARKER definitions sharing a linkedEffectGroupId (Marker-to-Marker cascade is implemented, linked-effect-group.ts)", () => {
     const defs = baseDefinitions();
     const withLinkedMarkers: CatalogDefinitions = {
       ...defs,
@@ -2863,7 +2863,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_STAT_MOD" as never)).toBeDefined();
   });
 
-  it("UT-R-EFF-10-018 (R-EFF-10, PR #210再レビュー[P2]): rejects an APPLY_MARKER with duration.consumption, duration.expiration, or a HIT/SKILL_USE timeLimit unit, since Marker consumption/special-expiration/per-hit-or-use decrement are not implemented (marker-duration.ts)", () => {
+  it("UT-R-EFF-10-018 (R-EFF-10): rejects an APPLY_MARKER with duration.consumption, duration.expiration, or a HIT/SKILL_USE timeLimit unit, since Marker consumption/special-expiration/per-hit-or-use decrement are not implemented (marker-duration.ts)", () => {
     const withConsumptionPatched = createEffectActionDefinition(
       {
         effectActionDefinitionId: "ACT_MARKER_CONSUMPTION",
@@ -3268,7 +3268,7 @@ describe("buildCatalogIndex", () => {
   });
 
   /**
-   * PRレビュー[P2]（Issue #227）: `TargetReference`の走査は従来ACTIONの
+   * Issue #227: `TargetReference`の走査は従来ACTIONの
    * `step.target`だけを見ており、`condition`（`TARGET_SET_COUNT`等）に埋め込まれた
    * `TargetReference`を見ていなかった。この2つのテストは、その走査が`condition`側
    * まで及ぶことを確認する。
@@ -3308,7 +3308,7 @@ describe("buildCatalogIndex", () => {
     });
   }
 
-  it("UT-CAT-IDX-057（PRレビュー[P2]、Issue #227）: rejects a TARGET_SET_COUNT condition referencing TRIGGER_TARGET without CAP_TRIGGER_CONTEXT", () => {
+  it("UT-CAT-IDX-057（Issue #227）: rejects a TARGET_SET_COUNT condition referencing TRIGGER_TARGET without CAP_TRIGGER_CONTEXT", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({
@@ -3348,7 +3348,7 @@ describe("buildCatalogIndex", () => {
     ).not.toThrow();
   });
 
-  it("UT-CAT-IDX-058（PRレビュー[P2]、Issue #227）: rejects a TARGET_SET_COUNT condition referencing LAST_ACTION_TARGETS with no preceding EffectAction result (MISSING_PRECEDING_RESULT)", () => {
+  it("UT-CAT-IDX-058（Issue #227）: rejects a TARGET_SET_COUNT condition referencing LAST_ACTION_TARGETS with no preceding EffectAction result (MISSING_PRECEDING_RESULT)", () => {
     const defs = baseDefinitions();
     const caps = [
       "CAP_EFFECT_STEP_CONDITION",
@@ -3394,7 +3394,7 @@ describe("buildCatalogIndex", () => {
   // 検証する。BRANCH自身のconditionは今も単一フィールドのままのため、
   // BRANCHについての同種の混在拒否はUT-CAT-IDX-062が引き続き検証する。
 
-  it("UT-CAT-IDX-062（PRレビュー[P2]再々々々指摘、Issue #227）: rejects the same mix inside a BRANCH's own condition, which also evaluates with no per-target context at runtime", () => {
+  it("UT-CAT-IDX-062（Issue #227）: rejects the same mix inside a BRANCH's own condition, which also evaluates with no per-target context at runtime", () => {
     const defs = baseDefinitions();
     const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
     const capabilities = [
@@ -3468,7 +3468,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
   });
 
-  describe("BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE（Issue #230 PRレビュー[P1]）: BRANCHのcondition内のTARGET_STATE/TARGET_HAS_MARKERは高々1体に解決される参照だけを許可する", () => {
+  describe("BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE（Issue #230）: BRANCHのcondition内のTARGET_STATE/TARGET_HAS_MARKERは高々1体に解決される参照だけを許可する", () => {
     const caps = [
       "CAP_EFFECT_STEP_CONDITION",
       "CAP_TRIGGER_CONTEXT",
@@ -3680,7 +3680,7 @@ describe("buildCatalogIndex", () => {
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
-    it("UT-CAT-IDX-069（PRレビュー[P2]再指摘）: rejects a BRANCH condition referencing a BINDING whose primary selector is count:1 but whose fallback can resolve to more than one unit", () => {
+    it("UT-CAT-IDX-069: rejects a BRANCH condition referencing a BINDING whose primary selector is count:1 but whose fallback can resolve to more than one unit", () => {
       const defs = baseDefinitions();
       const skill = branchConditionSkill(
         {
@@ -3704,7 +3704,7 @@ describe("buildCatalogIndex", () => {
     });
 
     /**
-     * PR #287レビュー[P2]（Issue #248）: AS/EXの`activationCondition`は
+     * Issue #248: AS/EXの`activationCondition`は
      * `evaluateActivationCondition`（`lifecycle/activation-condition-evaluator.ts`）が
      * 解決済みbindingを`TargetSetResolver`として渡して評価するため、BRANCHと
      * まったく同じ「高々1体」制約が実行時に効く。Catalogロード側にこの制約が
@@ -3764,7 +3764,7 @@ describe("buildCatalogIndex", () => {
       capability("CAP_CHARGE_RESTRICTION"),
     ];
 
-    it("UT-CAT-IDX-092 (PR #287レビュー[P2], Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
+    it("UT-CAT-IDX-092 (Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
       const defs = baseDefinitions();
       const skill = activationConditionSkill(
         {
@@ -3783,7 +3783,7 @@ describe("buildCatalogIndex", () => {
       ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
     });
 
-    it("UT-CAT-IDX-093 (PR #287レビュー[P2], Issue #248): applies the same rule to TARGET_STATE/TARGET_HAS_MARKER, which share the AS/EX activationCondition evaluation path", () => {
+    it("UT-CAT-IDX-093 (Issue #248): applies the same rule to TARGET_STATE/TARGET_HAS_MARKER, which share the AS/EX activationCondition evaluation path", () => {
       const defs = baseDefinitions();
       const multiSelector: TargetSelectorDefinitionInput = {
         kind: "SELECT",
@@ -3815,7 +3815,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-094 (PR #287レビュー[P2], Issue #248): accepts a count:1 BINDING on an AS activationCondition", () => {
+    it("UT-CAT-IDX-094 (Issue #248): accepts a count:1 BINDING on an AS activationCondition", () => {
       const defs = baseDefinitions();
       expect(() =>
         buildCatalogIndex({
@@ -3836,7 +3836,7 @@ describe("buildCatalogIndex", () => {
       ).not.toThrow();
     });
 
-    it("UT-CAT-IDX-095 (PR #287 再レビュー[P2], Issue #248): rejects an AS/EX activationCondition referencing a TargetReference kind that evaluateActivationCondition cannot resolve (only SELF/BINDING exist at action-selection time)", () => {
+    it("UT-CAT-IDX-095 (Issue #248): rejects an AS/EX activationCondition referencing a TargetReference kind that evaluateActivationCondition cannot resolve (only SELF/BINDING exist at action-selection time)", () => {
       const defs = baseDefinitions();
       const singleSelector: TargetSelectorDefinitionInput = {
         kind: "SELECT",
@@ -3867,7 +3867,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-096 (PR #287 再レビュー[P2], Issue #248): rejects a PS activationCondition referencing a BINDING, which evaluateTriggerCondition cannot resolve, while still accepting its own trigger-context kinds", () => {
+    it("UT-CAT-IDX-096 (Issue #248): rejects a PS activationCondition referencing a BINDING, which evaluateTriggerCondition cannot resolve, while still accepting its own trigger-context kinds", () => {
       const defs = baseDefinitions();
       const psCapabilities = [
         ...ACTIVATION_CAPABILITIES,
@@ -3919,7 +3919,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-097 (PR #287 再レビュー[P2], Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
+    it("UT-CAT-IDX-097 (Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
       const defs = baseDefinitions();
       const chargeSkill = (
         activationCondition: ConditionDefinitionInput,
@@ -3940,7 +3940,7 @@ describe("buildCatalogIndex", () => {
           resolution: {
             kind: "CHARGE",
             targetBindings: [{ targetBindingId: "TGT_START", selector: startSelector }],
-            // M7-016（Issue #270 レビュー[P1]）: 開始側`steps`は空。`targetBindings`は
+            // M7-016（Issue #270）: 開始側`steps`は空。`targetBindings`は
             // `activationCondition`のスコープとして引き続き意味を持つ。
             steps: [],
             chargeRelease: {
@@ -4016,7 +4016,7 @@ describe("buildCatalogIndex", () => {
       ).not.toThrow();
     });
 
-    it("UT-CAT-IDX-070（PRレビュー[P2]再指摘）: accepts a BRANCH condition referencing a BINDING whose fallback chain is entirely count:1 (every reachable path resolves to at most one unit)", () => {
+    it("UT-CAT-IDX-070: accepts a BRANCH condition referencing a BINDING whose fallback chain is entirely count:1 (every reachable path resolves to at most one unit)", () => {
       const defs = baseDefinitions();
       const skill = branchConditionSkill(
         {
@@ -4320,7 +4320,7 @@ describe("buildCatalogIndex", () => {
   });
 
   it.each([{ skillType: "AS" as const }, { skillType: "EX" as const }])(
-    "UT-CAT-IDX-080 (Issue #247 M7-001D, PRレビュー[P2]): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill even when CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are both declared — the triggering event's payload only exists during a PS activation",
+    "UT-CAT-IDX-080 (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill even when CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are both declared — the triggering event's payload only exists during a PS activation",
     ({ skillType }) => {
       const defs = baseDefinitions();
       expect(() =>
@@ -5017,7 +5017,7 @@ describe("buildCatalogIndex", () => {
       ),
     ).not.toThrow();
   });
-  it("UT-CAT-IDX-087 (PR #260再レビュー[P2]): accepts a Memory effect whose expiration.conditions reference SELF (the effect holder, not the Memory source)", () => {
+  it("UT-CAT-IDX-087: accepts a Memory effect whose expiration.conditions reference SELF (the effect holder, not the Memory source)", () => {
     const defs = baseDefinitions();
     // `DurationDefinition.expiration.conditions`の`SELF`は効果保持者を指す
     // （`effect-expiration-condition-service.ts`が保持者を`context.owner`として渡す）。
@@ -5062,7 +5062,7 @@ describe("buildCatalogIndex", () => {
     ).not.toThrow();
   });
 
-  it("UT-CAT-IDX-088 (PR #260再レビュー[P2], R-MEM-04): rejects a Memory EffectAction whose Formula reads a preceding DAMAGE result", () => {
+  it("UT-CAT-IDX-088 (R-MEM-04): rejects a Memory EffectAction whose Formula reads a preceding DAMAGE result", () => {
     const defs = baseDefinitions();
     // `LAST_DAMAGE_*`/`SUM_DAMAGE_*`は使用者ごとの直前DAMAGE結果であり、
     // 使用者を持たないMemoryの解決では`lastResults`自体が評価contextへ渡らない。
@@ -5104,7 +5104,7 @@ describe("buildCatalogIndex", () => {
       }),
     ).toThrowError(/references the source BattleUnit/);
   });
-  it("UT-CAT-IDX-089 (PR #260再レビュー[P2], R-MEM-04): rejects a Memory effect whose timeLimit.owner is the granting unit", () => {
+  it("UT-CAT-IDX-089 (R-MEM-04): rejects a Memory effect whose timeLimit.owner is the granting unit", () => {
     const defs = baseDefinitions();
     // `EFFECT_SOURCE`は「付与者の行動・ターン完了で減算する」意味であり、
     // 付与者を持たないMemoryでは減算契機を特定できない。
