@@ -160,6 +160,21 @@ function createEffectActionReference(
   };
 }
 
+/**
+ * 子step列を1段降下する唯一の経路。定義path（`<列のpath>[<index>]`）の組み立てが
+ * ここだけに集まるため、BRANCHの`thenSteps`/`elseSteps`・RANDOM_BRANCHの
+ * `branches[].steps`・REPEATの`steps`・EffectSequence直下の`steps`で表記がぶれない。
+ */
+function createEffectStepDefinitions(
+  inputs: readonly EffectStepDefinitionInput[],
+  path: string,
+  scope: TargetBindingScope,
+): readonly EffectStepDefinition[] {
+  return inputs.map((input, index) =>
+    createEffectStepDefinition(input, `${path}[${index}]`, scope),
+  );
+}
+
 export function createEffectStepDefinition(
   input: EffectStepDefinitionInput,
   path: string,
@@ -217,12 +232,8 @@ export function createEffectStepDefinition(
       return {
         kind: "BRANCH",
         condition: createConditionDefinition(input.condition, `${path}.condition`, scope),
-        thenSteps: thenSteps.map((s, i) =>
-          createEffectStepDefinition(s, `${path}.thenSteps[${i}]`, scope),
-        ),
-        elseSteps: elseSteps.map((s, i) =>
-          createEffectStepDefinition(s, `${path}.elseSteps[${i}]`, scope),
-        ),
+        thenSteps: createEffectStepDefinitions(thenSteps, `${path}.thenSteps`, scope),
+        elseSteps: createEffectStepDefinitions(elseSteps, `${path}.elseSteps`, scope),
       };
     }
     case "RANDOM_BRANCH": {
@@ -239,7 +250,7 @@ export function createEffectStepDefinition(
       const createdBranches = branches.map((b, i) =>
         createRandomBranch(b, mode, `${path}.branches[${i}]`, scope),
       );
-      // レビュー指摘[P2]（PR #218）: 個々のbranchの`weight: 0`はCatalog上有効
+      // 個々のbranchの`weight: 0`はCatalog上有効
       // （常に不成立の分岐として許容する）が、WEIGHTED_ONE全体で1つも
       // `weight > 0`のbranchがないと、`selectWeightedBranch`が選択できる
       // branchを持たない。この構成を戦闘実行まで持ち越さず、Catalog解析時点で
@@ -266,9 +277,7 @@ export function createEffectStepDefinition(
       return {
         kind: "REPEAT",
         count: input.count,
-        steps: (steps ?? []).map((s, i) =>
-          createEffectStepDefinition(s, `${path}.steps[${i}]`, scope),
-        ),
+        steps: createEffectStepDefinitions(steps ?? [], `${path}.steps`, scope),
       };
     }
   }
@@ -284,9 +293,7 @@ function createRandomBranch(
   // Branches may legitimately have no mechanical effect yet (`14_Catalog定義スキーマ.md` の
   // RANDOM_BRANCH例: 全枝が `steps: []`), so an empty array is valid here.
   assertArray(input.steps, `${path}.steps`);
-  const steps = input.steps.map((s, i) =>
-    createEffectStepDefinition(s, `${path}.steps[${i}]`, scope),
-  );
+  const steps = createEffectStepDefinitions(input.steps, `${path}.steps`, scope);
 
   const result: {
     label?: string;
@@ -366,7 +373,7 @@ const EFFECT_SEQUENCE_ALLOWED_KEYS = ["targetBindings", "steps", "counterUpdates
 
 export interface CreateEffectSequenceOptions {
   /**
-   * M7-016（Issue #270 レビュー[P1]）: `steps`が空のEffectSequenceを許可する。
+   * M7-016（Issue #270）: `steps`が空のEffectSequenceを許可する。
    * CHARGE開始側のトップレベルEffectSequenceだけが使う — `resolveChargeStart`は
    * 一つもstepを解決しないため、開始側は`targetBindings`（AS/EXの
    * `activationCondition`のスコープ、`catalog-integrity.ts`の
@@ -418,9 +425,7 @@ export function createEffectSequence(
   } else {
     assertNonEmptyArray(input.steps, `${path}.steps`);
   }
-  const steps = input.steps.map((s, i) =>
-    createEffectStepDefinition(s, `${path}.steps[${i}]`, scope),
-  );
+  const steps = createEffectStepDefinitions(input.steps, `${path}.steps`, scope);
 
   if (input.counterUpdates !== undefined) {
     assertArray(input.counterUpdates, `${path}.counterUpdates`);
@@ -433,7 +438,7 @@ export function createEffectSequence(
         `must be "EFFECT_SEQUENCE" when declared on an EffectSequence, got "${update.scope}"`,
       );
     }
-    // PR #213レビュー[P2]: `resetScope`はこの位置では意味を持たない（選択の
+    // `resetScope`はこの位置では意味を持たない（選択の
     // 余地がない） — `EffectSequence`は状態を持たないため、このcounterは常に
     // このEffectSequence自身の解決終了時に破棄される（宣言された
     // resolutionScope終了時ではない）。Catalogが`resetScope: RESOLUTION_SCOPE`を
