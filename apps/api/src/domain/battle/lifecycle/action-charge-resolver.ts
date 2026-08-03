@@ -1,6 +1,7 @@
 import {
   consumeAp,
   consumeExGaugeFully,
+  finalizeAction,
   requireUnit,
   type ActionResolutionResult,
 } from "./action-resolution-shared.js";
@@ -207,7 +208,7 @@ export function resolveChargeStart(
     parentEventId: cooldownResult.lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorId,
-    // レビュー再々々レビュー[P2]: このイベントには外部の対象がなく、チャージを
+    // このイベントには外部の対象がなく、チャージを
     // 開始した本人自身が観測対象であるため、`targetUnitIds`へ自分自身を含める
     // （`targetSelector: ALLY`等で「ALLYがチャージ開始した」を判定するPS、
     // 例: production Catalog Harriet PS2が候補化できるようにする）。
@@ -229,7 +230,7 @@ export function resolveChargeStart(
     },
   });
 
-  // レビュー再々々レビュー[P2]: チャージ開始も`ChargeStarted`（例: Harriet PS2
+  // チャージ開始も`ChargeStarted`（例: Harriet PS2
   // 「ALLYがチャージ開始した時」）と`ActionCompleting`/Cooldown更新/
   // `ActionCompleted`を発動タイミングとするPS/counter更新を持ちうるため、上で
   // 生成した`passiveRuntime`へ接続する。
@@ -252,14 +253,8 @@ export function resolveChargeStart(
     chargeStarted.eventId,
     working,
   );
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
-  return {
-    units: finalUnits,
-    actionScope,
-    rootEventId: actionStarted.eventId,
-    completedEventId: completion.completedEventId,
-  };
+  return finalizeAction(passiveRuntime, completion, actionScope, actionStarted.eventId);
 }
 
 /**
@@ -538,7 +533,7 @@ export function resolveChargeRelease(
       cycleNumber,
       actorId,
       effectActions: definitions.effectActions,
-      // レビュー再々レビュー[P2]: `ActionCompleting`/Cooldown更新/`ActionCompleted`
+      // `ActionCompleting`/Cooldown更新/`ActionCompleted`
       // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
       // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
       // 解決されるようにする。
@@ -562,18 +557,6 @@ export function resolveChargeRelease(
       },
     },
   );
-  // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
-  // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
-  // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
-  // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
-  // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
-  // `passiveRuntime`を同期済みのため、追加の同期は不要。
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
-  return {
-    units: finalUnits,
-    actionScope,
-    rootEventId: actionStarted.eventId,
-    completedEventId: completion.completedEventId,
-  };
+  return finalizeAction(passiveRuntime, completion, actionScope, actionStarted.eventId);
 }
