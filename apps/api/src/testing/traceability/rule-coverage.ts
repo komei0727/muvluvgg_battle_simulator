@@ -48,6 +48,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-NUM-03-004",
       "UT-R-NUM-03-005",
       "UT-R-NUM-03-006",
+      "UT-R-NUM-03-007",
     ],
     kinds: ["BOUNDARY", "PROPERTY"],
   },
@@ -424,7 +425,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 移した（重複記録なし）。消費→増加の順序、変化量0での発行省略を検証する。
   {
     ruleId: "R-ACT-04",
-    testCaseIds: ["UT-R-ACT-04-001", "UT-R-ACT-04-002", "UT-R-PS-05-003"],
+    testCaseIds: ["UT-R-ACT-04-001", "UT-R-ACT-04-002", "UT-R-ACT-04-015", "UT-R-PS-05-003"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
 
@@ -598,6 +599,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-01-002",
       "UT-R-SKL-01-003",
       "UT-R-SKL-01-004",
+      "UT-R-SKL-01-005",
       "UT-R-SKL-INT-001",
       "UT-R-SKL-INT-002",
       "UT-R-SKL-INT-003",
@@ -617,7 +619,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `EffectActionCompleted`）後の即時連鎖（`UT-R-SKL-06-011`）を追加した。
   {
     ruleId: "R-SKL-02",
-    testCaseIds: ["UT-R-SKL-02-001", "UT-R-SKL-06-011", "UT-R-HEAL-04-019"],
+    testCaseIds: ["UT-R-SKL-02-001", "UT-R-SKL-02-005", "UT-R-SKL-06-011", "UT-R-HEAL-04-019"],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
   {
@@ -1087,6 +1089,33 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-031",
       "UT-R-PS-01-032",
       "UT-R-PS-01-033",
+      // 110-133は010-033と同じトリガー照合の観点を、selector評価・matcher・
+      // PassiveActivationRuntimeの各層で検証する系列（010-033は
+      // trigger-condition-evaluator側）。
+      "UT-R-PS-01-110",
+      "UT-R-PS-01-111",
+      "UT-R-PS-01-112",
+      "UT-R-PS-01-113",
+      "UT-R-PS-01-114",
+      "UT-R-PS-01-115",
+      "UT-R-PS-01-116",
+      "UT-R-PS-01-117",
+      "UT-R-PS-01-118",
+      "UT-R-PS-01-119",
+      "UT-R-PS-01-120",
+      "UT-R-PS-01-121",
+      "UT-R-PS-01-122",
+      "UT-R-PS-01-123",
+      "UT-R-PS-01-124",
+      "UT-R-PS-01-125",
+      "UT-R-PS-01-126",
+      "UT-R-PS-01-127",
+      "UT-R-PS-01-128",
+      "UT-R-PS-01-129",
+      "UT-R-PS-01-130",
+      "UT-R-PS-01-131",
+      "UT-R-PS-01-132",
+      "UT-R-PS-01-133",
       "UT-R-PS-01-037",
       "UT-R-PS-01-038",
       "UT-R-PS-01-039",
@@ -1115,6 +1144,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-TRIGGER-PAYLOAD-PROD-006",
       "IT-CAP-TRIGGER-PAYLOAD-PROD-007",
       "IT-CAT-PROD-013",
+      "IT-CAT-PROD-016",
       "UT-R-PS-01-055",
       "UT-R-PS-01-056",
       "UT-R-PS-01-057",
@@ -1169,6 +1199,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-04-013",
       "UT-R-PS-04-014",
       "UT-R-PS-04-015",
+      "UT-R-PS-04-016",
+      "UT-R-PS-04-017",
+      "UT-R-PS-04-018",
       // M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）: 「所有者がチャージ中でない」
       // を実`catalog/`のPS（`SKL_SIENA_OFFSTAGE_PS1`）と実CHARGE定義
       // （`SKL_SIENA_OFFSTAGE_AS1`）で固定する。004は候補判定（R-PS-01）側の除外と
@@ -1186,7 +1219,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // として実装した。
   {
     ruleId: "R-PS-05",
-    testCaseIds: ["UT-R-PS-05-001", "UT-R-PS-05-002", "UT-R-PS-05-003"],
+    testCaseIds: [
+      "UT-R-PS-05-001",
+      "UT-R-PS-05-002",
+      "UT-R-PS-05-003",
+      "UT-R-PS-05-005",
+      "UT-R-PS-05-006",
+    ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
   // R-PS-06「新規候補の即時処理」: `resolvePassiveChain`（#21）は`activate`が
@@ -1216,7 +1255,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-PS-07",
-    testCaseIds: ["UT-R-PS-04-007", "UT-R-PS-06-007", "UT-R-PS-07-001"],
+    testCaseIds: ["UT-R-PS-04-007", "UT-R-PS-06-007", "UT-R-PS-07-001", "UT-R-PS-07-005"],
     kinds: ["POSITIVE", "NEGATIVE"],
   },
   // R-PS-08「先制攻撃」: 候補順序はUT-R-PS-08-001〜003（#19）で検証済み。同時発動制限

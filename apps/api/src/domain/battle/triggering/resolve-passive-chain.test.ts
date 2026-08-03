@@ -271,7 +271,7 @@ describe("resolvePassiveChain", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("UT-R-PS-07-001: the same BattleUnit + PS is not activated twice within one resolution scope, even if a naive detector re-surfaces it", () => {
+  it("UT-R-PS-07-005: the same BattleUnit + PS is not activated twice within one resolution scope, even if a naive detector re-surfaces it", () => {
     const unitA = unit("A");
     const unitB = unit("B");
     const skillA = skillOf("SKL_A");
@@ -511,7 +511,7 @@ describe("resolvePassiveChain", () => {
     );
   });
 
-  it("UT-R-PS-05-001: an interrupted activation is surfaced without aborting the rest of the chain", () => {
+  it("UT-R-PS-05-005: an interrupted activation is surfaced without aborting the rest of the chain", () => {
     const unitA = unit("A");
     const unitB = unit("B");
     const skillA = skillOf("SKL_A");
@@ -540,7 +540,7 @@ describe("resolvePassiveChain", () => {
     }
   });
 
-  it("UT-R-PS-04-009: parent re-verification discards a remaining parent candidate whose owner was defeated by a nested chain", () => {
+  it("UT-R-PS-04-017: parent re-verification discards a remaining parent candidate whose owner was defeated by a nested chain", () => {
     const unitA = unit("A");
     let unitD = unit("D");
     const skillA = skillOf("SKL_A");
@@ -627,7 +627,7 @@ describe("resolvePassiveChain", () => {
     }
   });
 
-  it("UT-R-PS-04-012 (Issue #144 review fix [P2]): reconfirmation uses a separate findUnit lookup for POSITION_RELATION, deterministically discarding a candidate whose target no longer resolves instead of throwing (getCurrentUnit is reserved for owner lookups and throws on unknown ids in production)", () => {
+  it("UT-R-PS-04-018 (Issue #144 review fix [P2]): reconfirmation uses a separate findUnit lookup for POSITION_RELATION, deterministically discarding a candidate whose target no longer resolves instead of throwing (getCurrentUnit is reserved for owner lookups and throws on unknown ids in production)", () => {
     const unitA = unit("A");
     const skillA: SkillDefinition = {
       ...skillOf("SKL_A"),

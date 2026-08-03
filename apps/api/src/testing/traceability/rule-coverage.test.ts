@@ -17,6 +17,12 @@ function extractRuleIdsFromSpec(): string[] {
     .filter((id): id is string => id !== undefined);
 }
 
+// 意図的に複数テストでの共有を許すID。`SCN-BTL-001`（1対1の基本戦闘）は
+// `12_テスト戦略.md`の基準シナリオ1件を、決定性・lethal経路・use-case
+// lifecycleの複数テストで分担して検証するため、1シナリオID＝複数実行テストを
+// 正当な形として許容する。
+const INTENTIONALLY_SHARED_TEST_CASE_IDS: ReadonlySet<string> = new Set(["SCN-BTL-001"]);
+
 describe("Rule coverage ledger", () => {
   it("UT-TRACEABILITY-001: ledger contains exactly 117 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
@@ -62,27 +68,42 @@ describe("Rule coverage ledger", () => {
     ).toEqual([]);
   });
 
-  it("UT-TRACEABILITY-005: every claimed testCaseId is backed by an executable test", () => {
+  it("UT-TRACEABILITY-005: every testCaseId maps to exactly one executable test", () => {
     // 台帳が列挙する正例IDが、リポジトリ内に実在する「実行対象の」テスト
     // （`it.skip`/`todo`/条件付き無効化・コメント内・文字列内を除く）に
-    // 最低1件対応することを機械照合する。IDのリネーム・削除で台帳が実体を
-    // 失う「見せかけのカバレッジ」を防ぐ。
+    // ちょうど1件対応することを機械照合する。IDのリネーム・削除で台帳が実体を
+    // 失う「見せかけのカバレッジ」と、同一IDを複数の別テストが使用する衝突
+    // （どのテストが証跡か特定できない曖昧なトレーサビリティ）の双方を防ぐ。
+    // 衝突検査は台帳掲載IDに限らず、収集された全IDへ適用する — 台帳外で
+    // 生まれた重複が、後から台帳・Capability検証へ持ち込まれるのを防ぐ。
     //
-    // 注: 同一IDを複数の別テストが使用する衝突（曖昧なトレーサビリティ）は
-    // 既存テスト群に約42件残っており、採番の一括修正は別フォローアップで扱う。
-    // ここでは phantom ID（実体ゼロ）の検出に集中し、≥1件を合格条件とする。
+    // `remaining-work.test.ts`の`IT-TRACE-003`重複はパーサ検証用のテンプレート
+    // リテラル内ソース（実行されないフィクスチャ）であり、そもそも収集され
+    // ないため許可リスト登録は不要（UT-PLAN-001-007がその挙動自体を検証する）。
     const definitions = collectTestCaseDefinitions(apiSrcPath);
-    const missing: string[] = [];
+    const violations: string[] = [];
     for (const coverage of RULE_COVERAGE) {
       for (const testCaseId of coverage.testCaseIds) {
-        if ((definitions.get(testCaseId) ?? []).length === 0) {
-          missing.push(`${coverage.ruleId} -> ${testCaseId}`);
+        const count = (definitions.get(testCaseId) ?? []).length;
+        const required = INTENTIONALLY_SHARED_TEST_CASE_IDS.has(testCaseId)
+          ? count >= 1
+          : count === 1;
+        if (!required) {
+          violations.push(`${coverage.ruleId} -> ${testCaseId} (${count} definitions)`);
         }
       }
     }
+    const ambiguous = [...definitions.entries()]
+      .filter(([id, defs]) => defs.length > 1 && !INTENTIONALLY_SHARED_TEST_CASE_IDS.has(id))
+      .map(([id, defs]) => `${id}: ${defs.map((d) => d.file.replace(apiSrcPath, "")).join(", ")}`)
+      .sort();
     expect(
-      missing,
-      `ledger testCaseIds with no executable test: ${JSON.stringify(missing)}`,
+      violations,
+      `ledger testCaseIds without exactly one executable test: ${JSON.stringify(violations)}`,
+    ).toEqual([]);
+    expect(
+      ambiguous,
+      `testCaseIds shared by multiple executable tests: ${JSON.stringify(ambiguous)}`,
     ).toEqual([]);
   }, 30000);
 });

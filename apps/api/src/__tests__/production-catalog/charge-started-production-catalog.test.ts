@@ -88,7 +88,7 @@ function noPassiveUnitDefinition(id: ReturnType<typeof createUnitDefinitionId>):
 }
 
 describe("production Catalog ChargeStarted targetUnitIds wiring (Issue #143 review re-fix [P2])", () => {
-  it("IT-CAT-PROD-011: Harriet Sage's real PS2 trigger (ChargeStarted, sourceSelector/targetSelector: ALLY) becomes a PS candidate when another ally starts a charge, but not when an enemy does", () => {
+  it("IT-CAT-PROD-014: Harriet Sage's real PS2 trigger (ChargeStarted, sourceSelector/targetSelector: ALLY) becomes a PS candidate when another ally starts a charge, but not when an enemy does", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const harrietDefId = createUnitDefinitionId("UNIT_HARRIET_SAGE");
     const snapshot = catalog.loadSnapshot([harrietDefId], []);

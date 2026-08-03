@@ -377,7 +377,7 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SKL-015b: rejects a non-boolean priorityAttack", () => {
+  it("UT-CAT-SKL-015B: rejects a non-boolean priorityAttack", () => {
     const input = minimalAsInput();
     expect(() =>
       createSkillDefinition({
@@ -387,7 +387,7 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SKL-015c: rejects a non-boolean accuracy.guaranteedHit", () => {
+  it("UT-CAT-SKL-015C: rejects a non-boolean accuracy.guaranteedHit", () => {
     const input = minimalAsInput();
     expect(() =>
       createSkillDefinition({
@@ -397,7 +397,7 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SKL-015d: rejects an exclusiveActivationGroupId that is neither a string nor null", () => {
+  it("UT-CAT-SKL-015D: rejects an exclusiveActivationGroupId that is neither a string nor null", () => {
     const input = minimalAsInput();
     expect(() =>
       createSkillDefinition({

@@ -34,11 +34,11 @@ describe("checkEffectsResolvedCount", () => {
 });
 
 describe("checkEffectRuntimeCounterDepth (PR #211 review [P1])", () => {
-  it("UT-GUARD-005: a depth at or below the limit is ok", () => {
+  it("UT-GUARD-010: a depth at or below the limit is ok", () => {
     expect(checkEffectRuntimeCounterDepth(3, LIMITS)).toEqual({ ok: true });
   });
 
-  it("UT-GUARD-006: a depth beyond the limit is a structured MAX_EFFECT_RUNTIME_COUNTER_DEPTH_EXCEEDED violation", () => {
+  it("UT-GUARD-011: a depth beyond the limit is a structured MAX_EFFECT_RUNTIME_COUNTER_DEPTH_EXCEEDED violation", () => {
     expect(checkEffectRuntimeCounterDepth(4, LIMITS)).toEqual({
       ok: false,
       reason: "MAX_EFFECT_RUNTIME_COUNTER_DEPTH_EXCEEDED",

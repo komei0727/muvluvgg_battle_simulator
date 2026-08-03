@@ -634,7 +634,7 @@ describe("assembleSimulationResult", () => {
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
   });
 
-  it("UT-R-EFF-01-013 (R-EFF-01): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's applied effects disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore effects, mirroring UT-RESULT-ASSEMBLER-011's cooldowns regression)", () => {
+  it("UT-R-EFF-01-013 (R-EFF-01): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's applied effects disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore effects, mirroring the cooldowns regression above)", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const effectInstanceId = createEffectInstanceId("battle-1:effect:1");
 
@@ -741,7 +741,7 @@ describe("assembleSimulationResult", () => {
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
   });
 
-  it("UT-R-EFF-10-013 (R-EFF-10, PR #210レビュー[P2] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerStates disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore markers, mirroring UT-R-EFF-01-013's effects regression)", () => {
+  it("UT-R-EFF-10-013 (R-EFF-10, PR #210レビュー[P2] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerStates disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore markers, mirroring the effects regression above)", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
     const markerId = createMarkerId("MARKER_TEST");

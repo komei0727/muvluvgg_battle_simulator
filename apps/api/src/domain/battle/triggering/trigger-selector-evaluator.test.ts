@@ -55,11 +55,11 @@ describe("evaluateSourceSelector", () => {
     };
   }
 
-  it("UT-R-PS-01-010: ANY matches regardless of source", () => {
+  it("UT-R-PS-01-110: ANY matches regardless of source", () => {
     expect(evaluateSourceSelector("ANY", owner, eventFromUnit(undefined), unitsById)).toBe(true);
   });
 
-  it("UT-R-PS-01-011: SELF matches only when the source is the owner itself", () => {
+  it("UT-R-PS-01-111: SELF matches only when the source is the owner itself", () => {
     expect(
       evaluateSourceSelector("SELF", owner, eventFromUnit(owner.battleUnitId), unitsById),
     ).toBe(true);
@@ -80,7 +80,7 @@ describe("evaluateSourceSelector", () => {
     expect(evaluateSourceSelector("ENEMY", owner, globalEvent, unitsById)).toBe(false);
   });
 
-  it("UT-R-PS-01-012 (regression): ALLY matches by resolving sourceUnitId's side, even though the event carries no sourceSide (matches production event-recorder.ts shape)", () => {
+  it("UT-R-PS-01-112 (regression): ALLY matches by resolving sourceUnitId's side, even though the event carries no sourceSide (matches production event-recorder.ts shape)", () => {
     expect(
       evaluateSourceSelector("ALLY", owner, eventFromUnit(allyOther.battleUnitId), unitsById),
     ).toBe(true);
@@ -89,7 +89,7 @@ describe("evaluateSourceSelector", () => {
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-013 (regression): ENEMY matches by resolving sourceUnitId's side, even though the event carries no sourceSide", () => {
+  it("UT-R-PS-01-113 (regression): ENEMY matches by resolving sourceUnitId's side, even though the event carries no sourceSide", () => {
     expect(
       evaluateSourceSelector("ENEMY", owner, eventFromUnit(enemyOther.battleUnitId), unitsById),
     ).toBe(true);
@@ -99,13 +99,13 @@ describe("evaluateSourceSelector", () => {
     expect(evaluateSourceSelector("ENEMY", owner, eventFromUnit(undefined), unitsById)).toBe(false);
   });
 
-  it("UT-R-PS-01-014: EFFECT_OWNER throws (M7 scope, requires AppliedEffect ownership)", () => {
+  it("UT-R-PS-01-114: EFFECT_OWNER throws (M7 scope, requires AppliedEffect ownership)", () => {
     expect(() =>
       evaluateSourceSelector("EFFECT_OWNER", owner, eventFromUnit(undefined), unitsById),
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-R-PS-01-028: falls back to event.sourceSide when the event has no sourceUnitId (e.g. Memory-origin events)", () => {
+  it("UT-R-PS-01-128: falls back to event.sourceSide when the event has no sourceUnitId (e.g. Memory-origin events)", () => {
     const memoryEvent: TriggerCandidateEvent = {
       eventType: "HealApplied",
       category: "FACT",
@@ -116,7 +116,7 @@ describe("evaluateSourceSelector", () => {
     expect(evaluateSourceSelector("ENEMY", owner, memoryEvent, unitsById)).toBe(false);
   });
 
-  it("UT-R-PS-01-029: falls back to event.sourceSide when sourceUnitId does not resolve in unitsById", () => {
+  it("UT-R-PS-01-129: falls back to event.sourceSide when sourceUnitId does not resolve in unitsById", () => {
     const event: TriggerCandidateEvent = {
       eventType: "DamageApplied",
       category: "FACT",
@@ -148,11 +148,11 @@ describe("evaluateTargetSelector", () => {
     return event;
   }
 
-  it("UT-R-PS-01-015: ANY matches even without targets", () => {
+  it("UT-R-PS-01-115: ANY matches even without targets", () => {
     expect(evaluateTargetSelector("ANY", owner, eventWithTargets(undefined), unitsById)).toBe(true);
   });
 
-  it("UT-R-PS-01-016: SELF matches when the owner itself is among the targets", () => {
+  it("UT-R-PS-01-116: SELF matches when the owner itself is among the targets", () => {
     expect(
       evaluateTargetSelector(
         "SELF",
@@ -180,7 +180,7 @@ describe("evaluateTargetSelector", () => {
     );
   });
 
-  it("UT-R-PS-01-017: ALLY matches when at least one target shares the owner side", () => {
+  it("UT-R-PS-01-117: ALLY matches when at least one target shares the owner side", () => {
     expect(
       evaluateTargetSelector(
         "ALLY",
@@ -194,7 +194,7 @@ describe("evaluateTargetSelector", () => {
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-018: ENEMY matches when at least one target is on the opposite side", () => {
+  it("UT-R-PS-01-118: ENEMY matches when at least one target is on the opposite side", () => {
     expect(
       evaluateTargetSelector("ENEMY", owner, eventWithTargets([enemy.battleUnitId]), unitsById),
     ).toBe(true);
@@ -203,7 +203,7 @@ describe("evaluateTargetSelector", () => {
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-019: a non-ANY selector never matches when there are no targets", () => {
+  it("UT-R-PS-01-119: a non-ANY selector never matches when there are no targets", () => {
     expect(evaluateTargetSelector("ALLY", owner, eventWithTargets(undefined), unitsById)).toBe(
       false,
     );

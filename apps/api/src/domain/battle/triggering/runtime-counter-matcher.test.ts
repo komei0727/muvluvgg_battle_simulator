@@ -504,7 +504,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-007: rejects a BATTLE-scoped counterUpdates entry as not yet supported (defense-in-depth; Catalog validation already rejects this scope before it can reach here, per UT-CAT-RCU-011)", () => {
+  it("UT-RCOUNTER-M-007: rejects a BATTLE-scoped counterUpdates entry as not yet supported (defense-in-depth; Catalog validation already rejects this scope before it can reach here)", () => {
     // `createRuntimeCounterUpdateDefinition` (Catalog layer) now rejects
     // BATTLE/BATTLE_UNIT scope outright, so a BATTLE-scoped entry can no
     // longer be constructed via `passiveSkillOf`. Build it directly to

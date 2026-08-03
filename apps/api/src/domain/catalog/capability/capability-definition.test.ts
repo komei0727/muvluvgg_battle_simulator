@@ -3,7 +3,7 @@ import { createCapabilityDefinition } from "./capability-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
 describe("CapabilityDefinition", () => {
-  it("UT-CAT-CAP-001: maps a PLANNED capability", () => {
+  it("UT-CAT-CAP-101: maps a PLANNED capability", () => {
     const result = createCapabilityDefinition({
       capabilityId: "CAP_HEAL",
       schemaStatus: "SUPPORTED",
@@ -22,7 +22,7 @@ describe("CapabilityDefinition", () => {
     });
   });
 
-  it("UT-CAT-CAP-002: rejects an unknown status", () => {
+  it("UT-CAT-CAP-102: rejects an unknown status", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",
@@ -35,7 +35,7 @@ describe("CapabilityDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-CAP-003: accepts a Q-* capability id", () => {
+  it("UT-CAT-CAP-103: accepts a Q-* capability id", () => {
     const result = createCapabilityDefinition({
       capabilityId: "Q-TGT-06",
       schemaStatus: "SUPPORTED",
@@ -47,7 +47,7 @@ describe("CapabilityDefinition", () => {
     expect(result.capabilityId).toBe("Q-TGT-06");
   });
 
-  it("UT-CAT-CAP-004: rejects malformed verification evidence", () => {
+  it("UT-CAT-CAP-104: rejects malformed verification evidence", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",
@@ -63,7 +63,7 @@ describe("CapabilityDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-CAP-005: requires production and test evidence before IMPLEMENTED", () => {
+  it("UT-CAT-CAP-105: requires production and test evidence before IMPLEMENTED", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",
@@ -76,7 +76,7 @@ describe("CapabilityDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-CAP-006: rejects empty task and verification identifiers", () => {
+  it("UT-CAT-CAP-106: rejects empty task and verification identifiers", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",
@@ -99,7 +99,7 @@ describe("CapabilityDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-CAP-007: rejects duplicate verification identifiers", () => {
+  it("UT-CAT-CAP-107: rejects duplicate verification identifiers", () => {
     expect(() =>
       createCapabilityDefinition({
         capabilityId: "CAP_HEAL",

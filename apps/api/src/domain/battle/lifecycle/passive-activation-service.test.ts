@@ -364,7 +364,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("UT-R-PS-01-033 (Issue #144, TRIGGER_EXCLUSION_TIMING): PassiveActivationRuntimeContext.resolutionPhase reaches candidate detection AND reconfirmation, excluding a RESOLUTION_PHASE(negate: true)-gated PS only when the context's resolutionPhase matches", () => {
+  it("UT-R-PS-01-133 (Issue #144, TRIGGER_EXCLUSION_TIMING): PassiveActivationRuntimeContext.resolutionPhase reaches candidate detection AND reconfirmation, excluding a RESOLUTION_PHASE(negate: true)-gated PS only when the context's resolutionPhase matches", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 2 }),
@@ -409,7 +409,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(includedRecorder.getEvents().map((e) => e.eventType)).toContain("PassiveActivated");
   });
 
-  it('UT-R-PS-01-036 (review re-fix [P2], Issue #144 follow-up): PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see UT-BATTLE-017 in battle.test.ts, which correctly asserts this candidate can never actually activate through the real creation path)', () => {
+  it('UT-R-PS-01-036 (review re-fix [P2], Issue #144 follow-up): PassiveActivationRuntimeContext.resolutionPhase: "BATTLE_START" reaches candidate detection AND reconfirmation, activating a RESOLUTION_PHASE("BATTLE_START", negate: false)-gated PS — the same mechanism already proven for "TURN_START"/"TURN_END", verified here independently of `startBattle`\'s real BattleUnit resource state (Q-BTL-05 forbids a 0-cost PS, and `createBattleUnit`/READY→RUNNING never grants PP before this point — see battle.test.ts, which correctly asserts this candidate can never actually activate through the real creation path)', () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill: SkillDefinition = {
       ...passiveSkillOf("SKL_PS", { ppCost: 1 }),
@@ -575,7 +575,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(recorder.getEvents().map((e) => e.eventType)).toEqual(["TurnStarted"]);
   });
 
-  it("UT-R-SKL-01-001: when the PS owner is defeated partway through its own EffectSequence, the remaining step is skipped and PassiveInterrupted is emitted instead of PassiveResolved", () => {
+  it("UT-R-SKL-01-005: when the PS owner is defeated partway through its own EffectSequence, the remaining step is skipped and PassiveInterrupted is emitted instead of PassiveResolved", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
     const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
@@ -799,7 +799,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("UT-R-PS-04-009 (Issue #34 integration): a PS candidate without enough PP is silently skipped (no PassiveActivated), leaving resources untouched", () => {
+  it("UT-R-PS-04-016 (Issue #34 integration): a PS candidate without enough PP is silently skipped (no PassiveActivated), leaving resources untouched", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_PS", { ppCost: 5 });
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 1, maximumPp: 3 });
@@ -1906,7 +1906,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(runtimeCounterChanged2.sequence).toBeLessThan(passiveActivated.sequence);
   });
 
-  it("UT-R-PS-05-003 (Issue #143 fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
+  it("UT-R-PS-05-006 (Issue #143 fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CHAIN_OWNER");
     const skillA: SkillDefinition = {
       skillDefinitionId: createSkillDefinitionId("SKL_PS_A"),
@@ -2607,7 +2607,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           },
         ],
         // 1段目で自爆し使用者(PS所有者)が戦闘不能になるため、2段目は未解決のまま
-        // 打ち切られる(UT-R-SKL-01-001と同じ設定)。1段しかないと打ち切られる
+        // 打ち切られる(UT-R-SKL-01-005と同じ設定)。1段しかないと打ち切られる
         // 残り効果が0件になり`PassiveInterrupted`ではなく`PassiveResolved`が
         // 発行されてしまう。
         steps: [
