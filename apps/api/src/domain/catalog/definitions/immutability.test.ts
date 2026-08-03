@@ -3,6 +3,12 @@ import { createCapabilityDefinition } from "../capability/capability-definition.
 import { createEffectActionDefinition } from "./effect-action-definition-factory.js";
 import { createUnitDefinition } from "./unit-definition.js";
 
+/**
+ * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
+ * 命名の例外）。凍結は個々の定義ファクトリではなく変換結果全体に課される不変条件のため、
+ * `<module>.test.ts` へ分散させると「どのファクトリが未凍結か」を全件で守れなくなる。
+ */
+
 describe("Converted Definitions are immutable", () => {
   it("UT-CAT-FREEZE-001: a UnitDefinition and its nested objects/arrays are frozen", () => {
     const unit = createUnitDefinition({

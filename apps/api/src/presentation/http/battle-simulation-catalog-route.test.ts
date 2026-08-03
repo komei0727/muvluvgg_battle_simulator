@@ -8,6 +8,11 @@ import {
 import type { BattleSimulationCatalogResponseBody } from "../../application/contracts/catalog.js";
 import type { BattleSimulationCatalogResult } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
 
+/**
+ * 検証対象は`routes/catalog-route.ts`だが、ETag/304・CORS・Request ID は
+ * `buildServer`が組み立てた実サーバーを通さないと観測できないため、routes 直下では
+ * なくここに置き、ファイル名は対象モジュールではなくルート path で示している。
+ */
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 
 /** No test in this file exercises `POST /api/v1/battle-simulations`. */

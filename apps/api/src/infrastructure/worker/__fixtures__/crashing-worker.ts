@@ -2,7 +2,7 @@ import type { SimulateBattleResult } from "../../../application/simulation/simul
 import type { WorkerSimulationResult, WorkerSimulationTask } from "../worker-contract.js";
 
 /**
- * `simulation-worker-pool-crash-circuit.integration.test.ts`専用のテスト用
+ * `simulation-worker-pool.crash-circuit.integration.test.ts`専用のテスト用
  * Piscina worker entry。実Catalog・実Battleを一切使わず、実行中タスクを
  * 抱えたWorker Threadの異常終了だけを決定的に再現する。
  *

@@ -1,3 +1,9 @@
+/**
+ * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
+ * 命名の例外）。`testing/fixtures/`の各ビルダーは単体では意味を持たず、共有ヘルパとして
+ * 呼び出し側が置く前提（決定的な既定値・ID のブランド化・上書きの合成）を満たし続けること
+ * が契約であるため、ディレクトリ全体の契約として1か所で固定する。
+ */
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { testBattleUnit, testPartyMember } from "./battle-actors.js";

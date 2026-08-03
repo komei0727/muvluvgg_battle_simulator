@@ -2,6 +2,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+/**
+ * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
+ * 命名の例外）。検証対象は src のモジュールではなく`docs/ddd/18_Affiliation台帳`
+ * （JSON と Markdown）そのものと、それが実 `catalog/` の Unit `metadata.affiliations`
+ * と一致し続けることであり、対応する実装ファイルが存在しない。
+ */
 interface AffiliationSourceMemory {
   readonly name: string;
   readonly sourceQuote: string;

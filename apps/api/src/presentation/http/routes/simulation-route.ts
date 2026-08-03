@@ -36,7 +36,7 @@ export interface SimulateBattleUseCasePort {
  * 分離している——Poolが稼働中のCatalogリビジョン不一致で致命的状態になった
  * 場合、`/health/ready`は失敗を報告すべきだが、個々のリクエストは従来どおり
  * `execute()`経由で`500 INVALID_DEFINITION`を返す契約を保つ必要があり
- * （`simulation-worker-pool-poisoning.integration.test.ts`）、この場合は
+ * （`simulation-worker-pool.poisoning.integration.test.ts`）、この場合は
  * ここでの一律拒否対象ではない。
  */
 export interface ShutdownGatePort {
