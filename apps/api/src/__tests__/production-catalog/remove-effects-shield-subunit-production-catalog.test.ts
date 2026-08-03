@@ -209,7 +209,6 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
         testUnitDefinition(YUI_ENEMY_UNIT_ID, {
           baseStats: { ...COMBAT_STATS, maximumAp: LIMITS.maximumAp, maximumPp: LIMITS.maximumPp },
           extraGaugeMaximum: LIMITS.maximumExtraGauge,
-          extraSkillDefinitionId: null,
         }),
       ],
       overrides: { effectActions },

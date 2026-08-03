@@ -68,7 +68,6 @@ const ENEMY_DEFINITION = testUnitDefinition(ENEMY_UNIT_ID, {
     maximumPp: LIMITS.maximumPp,
   },
   extraGaugeMaximum: LIMITS.maximumExtraGauge,
-  extraSkillDefinitionId: null,
 });
 
 /** Real DAMAGE effect action whose `calculatedDamage` is `attackerAttack - defenderDefense` (power 1, no crit/attribute noise). */

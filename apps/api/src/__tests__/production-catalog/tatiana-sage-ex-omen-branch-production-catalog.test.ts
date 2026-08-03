@@ -83,7 +83,6 @@ const ENEMY_DEFINITION = testUnitDefinition(ENEMY_UNIT_ID, {
     maximumPp: LIMITS.maximumPp,
   },
   extraGaugeMaximum: LIMITS.maximumExtraGauge,
-  extraSkillDefinitionId: null,
 });
 
 /**

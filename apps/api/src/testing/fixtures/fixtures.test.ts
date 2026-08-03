@@ -15,6 +15,7 @@ import {
 import { noMissNoCrit } from "./random.js";
 import { testUnitDefinition } from "./unit-definitions.js";
 import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
@@ -72,9 +73,12 @@ describe("testUnitDefinition", () => {
     expect(definition.metadata.displayName).toBe("UNIT_TEST_FIXTURE");
   });
 
-  it("UT-FIXTURE-017: extraSkillDefinitionId: null builds a unit without an EX skill reference", () => {
-    const definition = testUnitDefinition("UNIT_TEST_FIXTURE", { extraSkillDefinitionId: null });
-    expect(definition.extraSkillDefinitionId).toBeUndefined();
+  it("UT-FIXTURE-017: always emits the required extraSkillDefinitionId, overridable but never absent", () => {
+    expect(testUnitDefinition("UNIT_TEST_FIXTURE").extraSkillDefinitionId).toBeDefined();
+    const overridden = testUnitDefinition("UNIT_TEST_FIXTURE", {
+      extraSkillDefinitionId: createSkillDefinitionId("SKL_TEST_FIXTURE_EX"),
+    });
+    expect(String(overridden.extraSkillDefinitionId)).toBe("SKL_TEST_FIXTURE_EX");
   });
 });
 

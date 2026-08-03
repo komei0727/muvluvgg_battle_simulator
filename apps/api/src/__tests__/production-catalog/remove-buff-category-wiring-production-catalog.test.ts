@@ -51,7 +51,6 @@ function enemyDefinition(id: string): UnitDefinition {
   return testUnitDefinition(id, {
     baseStats: { ...COMBAT_STATS, maximumAp: LIMITS.maximumAp, maximumPp: LIMITS.maximumPp },
     extraGaugeMaximum: LIMITS.maximumExtraGauge,
-    extraSkillDefinitionId: null,
   });
 }
 
