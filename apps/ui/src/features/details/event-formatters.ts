@@ -10,15 +10,14 @@
 import { battleFlowEventFormatters } from "./battle-flow-event-formatters.js";
 import { damageEventFormatters } from "./damage-event-formatters.js";
 import { effectEventFormatters } from "./effect-event-formatters.js";
-import { buildRosterIndex, resolveDisplayName } from "./event-presentation.js";
+import {
+  buildRosterIndex,
+  mergeDisjointFormatters,
+  resolveDisplayName,
+} from "./event-presentation.js";
 import { resourceEventFormatters } from "./resource-event-formatters.js";
 import { skillEventFormatters } from "./skill-event-formatters.js";
-import type {
-  EventFormatter,
-  EventPresentation,
-  EventSeverity,
-  RosterIndex,
-} from "./event-presentation.js";
+import type { EventPresentation, EventSeverity, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../simulation/api-contract.js";
 
 // 共通の型・helperは`event-presentation.ts`が持つ（DMG-010／Issue #191で
@@ -27,18 +26,19 @@ import type { BattleLogEventResponse } from "../simulation/api-contract.js";
 export { buildRosterIndex, resolveDisplayName };
 export type { EventPresentation, EventSeverity, RosterIndex };
 
-// カテゴリ間でtypeは重複しない。重複させると後勝ちで黙って上書きされるため、
-// 新しいtypeはいずれか1つのカテゴリだけへ追加する。
-const eventFormatters: Readonly<Record<string, EventFormatter>> = {
-  ...battleFlowEventFormatters,
-  ...skillEventFormatters,
-  ...resourceEventFormatters,
+// 新しいtypeはいずれか1つのカテゴリだけへ追加する。カテゴリを増やすときも必ず
+// ここへ足す（`mergeDisjointFormatters`がtype重複を検出できるのは、合成元として
+// 渡されたregistryだけであるため）。
+const eventFormatters = mergeDisjointFormatters({
+  battleFlow: battleFlowEventFormatters,
+  skill: skillEventFormatters,
+  resource: resourceEventFormatters,
   // M7-009（Issue #182）: 効果・状態異常・回復（07_UI実装・拡張計画.md §11）。
-  ...effectEventFormatters,
+  effect: effectEventFormatters,
   // DMG-010（Issue #191）: M8 高度ダメージ（07_UI実装・拡張計画.md §12）。
   // `DAMAGE_APPLIED`もM8で内訳フィールドを得たため、そちらのregistryが持つ。
-  ...damageEventFormatters,
-};
+  damage: damageEventFormatters,
+});
 
 function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {
   const sourceUnitId = event["sourceUnitId"];
