@@ -388,9 +388,21 @@ type EventFormatter = (event: BattleLogEvent, roster: RosterIndex) => EventPrese
 
 英語のerror messageやID命名規則を解析して日本語化しない。
 
-### 12.1 M8 ダメージイベントの内訳（DMG-010、Issue #191）
+formatter本体はイベントカテゴリ別のファイルが持ち、それぞれ `Readonly<Record<string, EventFormatter>>` をexportする。
 
-M8ダメージのformatterは`damage-event-formatters.ts`が持ち、`event-formatters.ts`のregistryへ合成する。共通の型・helper（`EventPresentation`／`RosterIndex`／`resolveDisplayName`）は`event-presentation.ts`にあり、2ファイル間の循環importを避ける。
+| ファイル                          | 担当するイベント                                   |
+| --------------------------------- | -------------------------------------------------- |
+| `battle-flow-event-formatters.ts` | 戦闘・ターン・行動順・行動・戦闘不能・戦闘終了     |
+| `skill-event-formatters.ts`       | クールタイム・チャージ・パッシブ                   |
+| `resource-event-formatters.ts`    | リソース増減・EXゲージ                             |
+| `effect-event-formatters.ts`      | 回復・効果ライフサイクル・状態異常・命中判定（M7） |
+| `damage-event-formatters.ts`      | ダメージ内訳（M8、§12.1）                          |
+
+`event-formatters.ts` はこれらを合成して `formatEvent` を公開するだけを担う。共通の型・helper（`EventPresentation`／`RosterIndex`／`resolveDisplayName`）は`event-presentation.ts`にあり、formatter群の各ファイル間の循環importを避ける。
+
+カテゴリ間でtypeは重複させない。単純なspreadでは後勝ちで片方のformatterが黙って死に、そのイベントだけgeneric fallback相当の表示へ落ちるため、合成は `mergeDisjointFormatters`（`event-presentation.ts`）を通し、重複を検出したら衝突したtypeとカテゴリ名を挙げてthrowする。カテゴリを追加するときは必ずこの合成へ渡す（渡されないregistryは検出対象にならない）。
+
+### 12.1 M8 ダメージイベントの内訳（DMG-010、Issue #191）
 
 `DAMAGE_APPLIED`は`08_ドメインイベント.md`の不変条件#6を読み手が突き合わせられる形で並べる。
 

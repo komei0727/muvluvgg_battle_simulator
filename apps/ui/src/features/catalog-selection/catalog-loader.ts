@@ -54,71 +54,81 @@ export interface UseCatalogLoaderResult {
   readonly reload: () => void;
 }
 
+type ReadyCatalogLoadState = Extract<CatalogLoadState, { status: "ready" }>;
+
 export function useCatalogLoader(
   baseUrl: string,
   options: UseCatalogLoaderOptions = {},
 ): UseCatalogLoaderResult {
   const getCatalogImpl = options.getCatalogImpl ?? defaultGetCatalog;
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
-  const stateRef = useRef(state);
-  stateRef.current = state;
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestTokenRef = useRef(0);
 
-  const load = useCallback(() => {
-    abortControllerRef.current?.abort();
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const token = ++requestTokenRef.current;
-    const priorReady = stateRef.current.status === "ready" ? stateRef.current : undefined;
+  // 条件付き取得に使う直前のready snapshotは呼び出し側が引数で渡す。stateを
+  // `load`の依存に含めるとmount effectが毎回再実行され、レンダー中にrefへ
+  // stateを写すと並行レンダリング下で書き込みが破棄され得るため、どちらも取らない。
+  const load = useCallback(
+    (priorReady: ReadyCatalogLoadState | undefined) => {
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      const token = ++requestTokenRef.current;
 
-    dispatch({ type: "started" });
+      dispatch({ type: "started" });
 
-    void getCatalogImpl({
-      baseUrl,
-      signal: controller.signal,
-      ...(priorReady?.etag !== undefined ? { etag: priorReady.etag } : {}),
-    }).then((result) => {
-      if (requestTokenRef.current !== token) {
-        return;
-      }
+      void getCatalogImpl({
+        baseUrl,
+        signal: controller.signal,
+        ...(priorReady?.etag !== undefined ? { etag: priorReady.etag } : {}),
+      }).then((result) => {
+        if (requestTokenRef.current !== token) {
+          return;
+        }
 
-      if (!result.ok) {
-        dispatch({
-          type: "failed",
-          error: result.error,
-          ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
-        });
-        return;
-      }
-
-      if ("notModified" in result) {
-        if (priorReady !== undefined) {
+        if (!result.ok) {
           dispatch({
-            type: "succeeded",
-            response: priorReady.response,
-            etag: result.etag,
+            type: "failed",
+            error: result.error,
             ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
           });
+          return;
         }
-        return;
-      }
 
-      dispatch({
-        type: "succeeded",
-        response: result.response,
-        ...(result.etag !== undefined ? { etag: result.etag } : {}),
-        ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
+        if ("notModified" in result) {
+          if (priorReady !== undefined) {
+            dispatch({
+              type: "succeeded",
+              response: priorReady.response,
+              etag: result.etag,
+              ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
+            });
+          }
+          return;
+        }
+
+        dispatch({
+          type: "succeeded",
+          response: result.response,
+          ...(result.etag !== undefined ? { etag: result.etag } : {}),
+          ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
+        });
       });
-    });
-  }, [baseUrl, getCatalogImpl]);
+    },
+    [baseUrl, getCatalogImpl],
+  );
 
   useEffect(() => {
-    load();
+    // mount時はready snapshotが存在しないため無条件取得。
+    load(undefined);
     return () => {
       abortControllerRef.current?.abort();
     };
   }, [load]);
 
-  return { state, reload: load };
+  const reload = useCallback(() => {
+    load(state.status === "ready" ? state : undefined);
+  }, [load, state]);
+
+  return { state, reload };
 }
