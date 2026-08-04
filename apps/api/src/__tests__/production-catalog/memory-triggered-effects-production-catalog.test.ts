@@ -94,7 +94,7 @@ describe("production Catalog Memory triggeredEffects", () => {
     );
     expect(backCritDamage?.magnitude).toBeCloseTo(0.15, 6);
     // Memory由来の`AppliedEffect`は付与者ユニットを持たず、付与元の陣営を持つ。
-    expect(backCritDamage?.sourceId).toBeUndefined();
+    expect(backCritDamage?.sourceUnitId).toBeUndefined();
     expect(backCritDamage?.sourceSide).toBe("ENEMY");
     // 2件目（陣営全体の会心率+5%）は両方の敵ユニットへ、味方には一切適用されない。
     expect(battle.enemyUnits.every((unit) => unit.combatStats.criticalRate > 0.1)).toBe(true);

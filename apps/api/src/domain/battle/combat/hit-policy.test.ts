@@ -50,7 +50,7 @@ function unit(id: string): BattleUnit {
 
 function evasionEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   details: StatusEffectDetails = {},
 ): AppliedEffect {
   return {
@@ -58,8 +58,8 @@ function evasionEffect(
     effectActionDefinitionId: EVASION_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(EVASION_DEFINITION_ID),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "EVASION",
@@ -71,11 +71,11 @@ function evasionEffect(
 
 function hitEvasionEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   details: StatusEffectDetails = {},
 ): AppliedEffect {
   return {
-    ...evasionEffect(id, targetId, details),
+    ...evasionEffect(id, targetUnitId, details),
     effectActionDefinitionId: HIT_EVASION_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(HIT_EVASION_DEFINITION_ID),
     statusKind: "HIT_EVASION",
@@ -88,8 +88,8 @@ function guaranteedHitEffect(id: string, attackerId: string): AppliedEffect {
     effectActionDefinitionId: GUARANTEED_HIT_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(GUARANTEED_HIT_DEFINITION_ID),
     duplicate: true,
-    sourceId: createBattleUnitId(attackerId),
-    targetId: createBattleUnitId(attackerId),
+    sourceUnitId: createBattleUnitId(attackerId),
+    targetUnitId: createBattleUnitId(attackerId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "GUARANTEED_HIT",
@@ -108,8 +108,8 @@ function darknessEffect(
     effectActionDefinitionId: BLIND_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(BLIND_DEFINITION_ID),
     duplicate: true,
-    sourceId: createBattleUnitId(attackerId),
-    targetId: createBattleUnitId(attackerId),
+    sourceUnitId: createBattleUnitId(attackerId),
+    targetUnitId: createBattleUnitId(attackerId),
     magnitude: 0,
     categories: ["DEBUFF", "STATUS"],
     statusKind: "BLIND",

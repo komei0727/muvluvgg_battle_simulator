@@ -70,7 +70,7 @@ function resourceGainModAction(id: string, rate: number): EffectActionDefinition
 
 function resourceGainModEffect(
   id: string,
-  targetId: ReturnType<typeof createBattleUnitId>,
+  targetUnitId: ReturnType<typeof createBattleUnitId>,
   definitionId: ReturnType<typeof createEffectActionDefinitionId>,
   magnitude: number,
 ): AppliedEffect {
@@ -80,8 +80,8 @@ function resourceGainModEffect(
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     categories: ["BUFF"],
     duplicate: true,
-    sourceId: targetId,
-    targetId,
+    sourceUnitId: targetUnitId,
+    targetUnitId,
     magnitude,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
     appliedTurnNumber: 1,
@@ -109,11 +109,11 @@ describe("recordResourceChangeIfAny (R-ACT-04, M7-002 Issue #185)", () => {
   it("UT-R-ACT-04-015: ResourceChanged carries baseDelta equal to delta when no RESOURCE_GAIN_MOD is involved (plain AP/PP consumption)", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const context = contextOf(recorder);
-    const actorId = createBattleUnitId("ACTOR");
+    const actorUnitId = createBattleUnitId("ACTOR");
 
     const eventId = recordResourceChangeIfAny(
       context,
-      actorId,
+      actorUnitId,
       "AP",
       3,
       2,
@@ -132,11 +132,11 @@ describe("recordResourceChangeIfAny (R-ACT-04, M7-002 Issue #185)", () => {
   it("UT-R-ACT-04-005 (M7-002, Issue #185, HP_DIRECT_COST): a resource: HP change carries its StateDelta under the 'hp' key, not 'extraGauge'", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const context = contextOf(recorder);
-    const actorId = createBattleUnitId("ACTOR");
+    const actorUnitId = createBattleUnitId("ACTOR");
 
     const eventId = recordResourceChangeIfAny(
       context,
-      actorId,
+      actorUnitId,
       "HP",
       100,
       90,
@@ -150,18 +150,18 @@ describe("recordResourceChangeIfAny (R-ACT-04, M7-002 Issue #185)", () => {
       .getEvents()
       .find((e) => e.eventType === "ResourceChanged" && e.eventId === eventId)!;
     expect(event.stateDelta).toEqual({
-      units: { [actorId]: { hp: { before: 100, after: 90 } } },
+      units: { [actorUnitId]: { hp: { before: 100, after: 90 } } },
     });
   });
 
   it("UT-R-ACT-04-003: ResourceChanged's baseDelta can differ from delta (e.g. a RESOURCE_GAIN_MOD-boosted EX gain that still gets capacity-clamped)", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const context = contextOf(recorder);
-    const actorId = createBattleUnitId("ACTOR");
+    const actorUnitId = createBattleUnitId("ACTOR");
 
     const eventId = recordResourceChangeIfAny(
       context,
-      actorId,
+      actorUnitId,
       "EX_GAUGE",
       8,
       10,
@@ -182,11 +182,11 @@ describe("recordExtraGaugeOverflowDiscardedIfAny (R-ACT-03/04, M7-002 Issue #185
   it("UT-R-ACT-04-004: ExtraGaugeOverflowDiscarded carries baseDelta alongside requestedAmount/actualAmount/discardedAmount", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const context = contextOf(recorder);
-    const actorId = createBattleUnitId("ACTOR");
+    const actorUnitId = createBattleUnitId("ACTOR");
 
     const eventId = recordExtraGaugeOverflowDiscardedIfAny(
       context,
-      actorId,
+      actorUnitId,
       15,
       10,
       2,
@@ -210,10 +210,10 @@ describe("composeResourceGainRate (G-05, M7-002 Issue #185, APPLY_RESOURCE_GAIN_
   it("UT-R-ACT-04-006: sums the magnitude of every held APPLY_RESOURCE_GAIN_MOD instance matching the resource (stacking is STACKABLE-only)", () => {
     const buffDef = resourceGainModAction("ACT_EX_BUFF", 0.5);
     const secondBuffDef = resourceGainModAction("ACT_EX_BUFF_2", 0.2);
-    const targetId = createBattleUnitId("ACTOR");
+    const targetUnitId = createBattleUnitId("ACTOR");
     const target = unit("ACTOR", [
-      resourceGainModEffect("eff-1", targetId, buffDef.effectActionDefinitionId, 0.5),
-      resourceGainModEffect("eff-2", targetId, secondBuffDef.effectActionDefinitionId, 0.2),
+      resourceGainModEffect("eff-1", targetUnitId, buffDef.effectActionDefinitionId, 0.5),
+      resourceGainModEffect("eff-2", targetUnitId, secondBuffDef.effectActionDefinitionId, 0.2),
     ]);
     const effectActions = new Map([
       [buffDef.effectActionDefinitionId, buffDef],
@@ -238,10 +238,10 @@ describe("composeResourceGainRate (G-05, M7-002 Issue #185, APPLY_RESOURCE_GAIN_
       requiredCapabilities: [],
       metadata: { tags: [] },
     };
-    const targetId = createBattleUnitId("ACTOR");
+    const targetUnitId = createBattleUnitId("ACTOR");
     const target = unit("ACTOR", [
-      resourceGainModEffect("eff-1", targetId, exBuffDef.effectActionDefinitionId, 0.5),
-      resourceGainModEffect("eff-2", targetId, statModDef.effectActionDefinitionId, 0.9),
+      resourceGainModEffect("eff-1", targetUnitId, exBuffDef.effectActionDefinitionId, 0.5),
+      resourceGainModEffect("eff-2", targetUnitId, statModDef.effectActionDefinitionId, 0.9),
     ]);
     const effectActions = new Map([
       [exBuffDef.effectActionDefinitionId, exBuffDef],

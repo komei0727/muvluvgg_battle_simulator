@@ -279,8 +279,8 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetIds = resolveTargetReferenceIds(condition.target, owner, event);
-      return targetIds.some((id) => {
+      const targetUnitIds = resolveTargetReferenceIds(condition.target, owner, event);
+      return targetUnitIds.some((id) => {
         const target = getUnit(id);
         return (
           target !== undefined &&
@@ -301,8 +301,8 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetIds = resolveTargetReferenceIds(condition.target, owner, event);
-      return targetIds.some((id) => {
+      const targetUnitIds = resolveTargetReferenceIds(condition.target, owner, event);
+      return targetUnitIds.some((id) => {
         const target = getUnit(id);
         if (target === undefined) {
           return false;
@@ -335,8 +335,8 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetIds = resolveTargetReferenceIds(condition.target, owner, event);
-      return targetIds.some((id) => {
+      const targetUnitIds = resolveTargetReferenceIds(condition.target, owner, event);
+      return targetUnitIds.some((id) => {
         const target = getUnit(id);
         if (target === undefined) {
           return false;

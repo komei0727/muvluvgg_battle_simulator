@@ -32,14 +32,14 @@ export interface ApplyMarkerContext {
 }
 
 /**
- * 付与元（`sourceId` / `sourceSide`）は{@link MarkerSource}のexactly-one union で
+ * 付与元（`sourceUnitId` / `sourceSide`）は{@link MarkerSource}のexactly-one union で
  * 受け取る。R-MEM-04（M7-008、Issue #176）: Memory の `triggeredEffects` 由来の
  * 付与だけが具体的な付与者ユニットを持たず`sourceSide`（そのMemoryを指定した陣営）
  * を渡す。両方欠落・両方指定はコンパイル時に弾かれる。
  */
 export type ApplyMarkerRequest = MarkerSource & {
   readonly markerId: MarkerId;
-  readonly targetId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly stackPolicy: MarkerStackPolicy;
   readonly stackMax: number | null;
   readonly durationDefinition: DurationDefinition;
@@ -58,8 +58,8 @@ export interface ApplyMarkerResult {
 function sourceEnvelopeOf(
   request: ApplyMarkerRequest,
 ): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } {
-  return request.sourceId !== undefined
-    ? { sourceUnitId: request.sourceId }
+  return request.sourceUnitId !== undefined
+    ? { sourceUnitId: request.sourceUnitId }
     : { sourceSide: request.sourceSide };
 }
 
@@ -83,8 +83,8 @@ function actionTurnDurationOf(
  *   同じ「変化が無ければ発行しない」規約）。
  * - `REFRESH`: スタック数を維持し、Durationだけ新しい定義から再構築する。
  * - `REPLACE`: スタック数を1へ、Duration・stackMaxを新しい定義で丸ごと置き換える。
- * `sourceId`はMarkerを最後に触れた付与者を表す監査用の値であり、インスタンス
- * 識別（`markerId` + `targetId`）には使わない — 複数の付与元から同じMarkerが
+ * `sourceUnitId`はMarkerを最後に触れた付与者を表す監査用の値であり、インスタンス
+ * 識別（`markerId` + `targetUnitId`）には使わない — 複数の付与元から同じMarkerが
  * 付与されても対象ごとに単一の`MarkerState`へ積み上がる。
  */
 export function applyMarker(
@@ -93,7 +93,7 @@ export function applyMarker(
   request: ApplyMarkerRequest,
   parentEventId: DomainEventId,
 ): ApplyMarkerResult {
-  const target = requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetUnitId);
   const existing = target.markerStates.find((marker) => marker.markerId === request.markerId);
 
   if (existing === undefined) {
@@ -101,7 +101,7 @@ export function applyMarker(
       context.recorder.nextMarkerInstanceId(),
       request.markerId,
       request,
-      request.targetId,
+      request.targetUnitId,
       request.stackMax,
       request.durationDefinition,
       {
@@ -110,7 +110,7 @@ export function applyMarker(
       },
     );
     const nextUnits = units.map((unit) =>
-      unit.battleUnitId === request.targetId
+      unit.battleUnitId === request.targetUnitId
         ? { ...unit, markerStates: [...unit.markerStates, markerState] }
         : unit,
     );
@@ -126,12 +126,12 @@ export function applyMarker(
       parentEventId,
       rootEventId: context.rootEventId,
       ...sourceEnvelopeOf(request),
-      targetUnitIds: [request.targetId],
+      targetUnitIds: [request.targetUnitId],
       payload: {
         markerInstanceId: markerState.markerInstanceId,
         markerId: request.markerId,
         ...sourceEnvelopeOf(request),
-        targetUnitId: request.targetId,
+        targetUnitId: request.targetUnitId,
         stackCount: markerState.stackCount,
         stackMax: markerState.stackMax,
         linkedEffectGroupId: request.durationDefinition.linkedEffectGroupId,
@@ -157,7 +157,7 @@ export function applyMarker(
       },
       stateDelta: {
         units: {
-          [request.targetId]: {
+          [request.targetUnitId]: {
             markers: {
               [markerState.markerInstanceId]: {
                 before: undefined,
@@ -178,10 +178,10 @@ export function applyMarker(
   const stackBefore = existing.stackCount;
   const durationBefore = actionTurnDurationOf(existing);
 
-  // 「直近の付与者」は片方だけを持つため、`sourceId`/`sourceSide`は
+  // 「直近の付与者」は片方だけを持つため、`sourceUnitId`/`sourceSide`は
   // 上書きではなく両方を落としてから入れ替える。
   const {
-    sourceId: _previousSourceId,
+    sourceUnitId: _previousSourceId,
     sourceSide: _previousSourceSide,
     ...withoutSource
   } = existing;
@@ -216,7 +216,7 @@ export function applyMarker(
   }
 
   const nextUnits = units.map((unit) =>
-    unit.battleUnitId === request.targetId
+    unit.battleUnitId === request.targetUnitId
       ? {
           ...unit,
           markerStates: unit.markerStates.map((marker) =>
@@ -238,11 +238,11 @@ export function applyMarker(
     parentEventId,
     rootEventId: context.rootEventId,
     ...sourceEnvelopeOf(request),
-    targetUnitIds: [request.targetId],
+    targetUnitIds: [request.targetUnitId],
     payload: {
       markerInstanceId: nextMarker.markerInstanceId,
       markerId: request.markerId,
-      targetUnitId: request.targetId,
+      targetUnitId: request.targetUnitId,
       ...sourceEnvelopeOf(request),
       policy: request.stackPolicy,
       stackBefore,
@@ -254,7 +254,7 @@ export function applyMarker(
     },
     stateDelta: {
       units: {
-        [request.targetId]: {
+        [request.targetUnitId]: {
           markers: {
             [nextMarker.markerInstanceId]: {
               before: toMarkerSnapshot(existing),

@@ -61,8 +61,8 @@ function effectOn(
     effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(EFFECT_ACTION_DEFINITION_ID),
     duplicate: true,
-    sourceId: source.battleUnitId,
-    targetId: target.battleUnitId,
+    sourceUnitId: source.battleUnitId,
+    targetUnitId: target.battleUnitId,
     magnitude: 10,
     categories: ["BUFF"],
     duration: {
@@ -79,7 +79,7 @@ function withEffects(target: BattleUnit, effects: readonly AppliedEffect[]): Bat
 }
 
 describe("resolveTimeLimitOwnerUnitId", () => {
-  it("UT-R-EFF-04-001 (R-EFF-04): resolves EFFECT_TARGET to the effect's targetId", () => {
+  it("UT-R-EFF-04-001 (R-EFF-04): resolves EFFECT_TARGET to the effect's targetUnitId", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const effect = effectOn(target, source, {
@@ -91,7 +91,7 @@ describe("resolveTimeLimitOwnerUnitId", () => {
     expect(resolveTimeLimitOwnerUnitId(effect)).toBe(target.battleUnitId);
   });
 
-  it("UT-R-EFF-04-002 (R-EFF-04): resolves EFFECT_SOURCE to the effect's sourceId", () => {
+  it("UT-R-EFF-04-002 (R-EFF-04): resolves EFFECT_SOURCE to the effect's sourceUnitId", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const effect = effectOn(target, source, {

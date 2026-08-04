@@ -206,7 +206,7 @@ describe("Memory triggeredEffects activation (R-MEM-03/R-MEM-04)", () => {
     const battle = startBattle(battleWith(definitions), new SequenceRandomSource([]), recorder);
 
     const effect = battle.allyUnits[0]!.appliedEffects[0]!;
-    expect(effect.sourceId).toBeUndefined();
+    expect(effect.sourceUnitId).toBeUndefined();
     expect(effect.sourceSide).toBe("ALLY");
     const applied = recorder.getEvents().find((event) => event.eventType === "EffectApplied");
     expect(applied?.sourceUnitId).toBeUndefined();

@@ -1323,7 +1323,7 @@ export type DamageRedirectReason = "TARGET_REDIRECT" | "COVER";
  * `07_戦闘ルール詳細.md` R-EFF-10: `MarkerState`が除去された理由。`REMOVED`は
  * 明示的な`REMOVE_MARKER`によるスタック全解除（現行スキーマでは唯一の
  * スタック即時ゼロ化経路）。`SOURCE_DEFEATED`は`duration.removeOnSourceDefeated`
- * を宣言したMarkerの付与者（`MarkerState.sourceId`）が戦闘不能になったことによる
+ * を宣言したMarkerの付与者（`MarkerState.sourceUnitId`）が戦闘不能になったことによる
  * 解除（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）で、`MarkerState`
  * だけが持つ解除契機である（`AppliedEffect`は付与者の戦闘不能を見る失効機構を
  * 持たないため`EffectExpirationReason`には含めない）。残りは

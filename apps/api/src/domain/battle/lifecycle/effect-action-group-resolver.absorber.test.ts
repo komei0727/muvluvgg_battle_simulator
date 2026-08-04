@@ -63,7 +63,7 @@ describe("zero-amount shield sweep (DMG-004, Issue #194)", () => {
 
   /** `SKL_LILY_SINGER_PS2`と同じ「同一ACTION stepでPARENT→CHILDの順に付与する」形。 */
   function parentChildPlan(
-    targetId: BattleUnit["battleUnitId"],
+    targetUnitId: BattleUnit["battleUnitId"],
     parentId: EffectActionDefinition["effectActionDefinitionId"],
     childId: EffectActionDefinition["effectActionDefinitionId"],
   ): EffectSequencePlan {
@@ -79,14 +79,14 @@ describe("zero-amount shield sweep (DMG-004, Issue #194)", () => {
           satisfied: true,
           actions,
           applications: [parentId, childId].map((effectActionDefinitionId) => ({
-            targetBattleUnitId: targetId,
+            targetUnitId,
             effectActionDefinitionId,
             includeDefeated: false,
-            hits: [{ targetBattleUnitId: targetId, effectActionDefinitionId, hitIndex: 1 }],
+            hits: [{ targetUnitId, effectActionDefinitionId, hitIndex: 1 }],
           })),
         },
       ],
-      targetUnitIds: [targetId],
+      targetUnitIds: [targetUnitId],
       resolvedBindings: new Map(),
     };
   }
@@ -250,24 +250,24 @@ describe("zero-amount shield sweep on interruption (DMG-004)", () => {
           ],
           applications: [
             {
-              targetBattleUnitId: ally.battleUnitId,
+              targetUnitId: ally.battleUnitId,
               effectActionDefinitionId: zeroShield.effectActionDefinitionId,
               includeDefeated: false,
               hits: [
                 {
-                  targetBattleUnitId: ally.battleUnitId,
+                  targetUnitId: ally.battleUnitId,
                   effectActionDefinitionId: zeroShield.effectActionDefinitionId,
                   hitIndex: 1,
                 },
               ],
             },
             {
-              targetBattleUnitId: actor.battleUnitId,
+              targetUnitId: actor.battleUnitId,
               effectActionDefinitionId: selfDamage.effectActionDefinitionId,
               includeDefeated: false,
               hits: [
                 {
-                  targetBattleUnitId: actor.battleUnitId,
+                  targetUnitId: actor.battleUnitId,
                   effectActionDefinitionId: selfDamage.effectActionDefinitionId,
                   hitIndex: 1,
                 },

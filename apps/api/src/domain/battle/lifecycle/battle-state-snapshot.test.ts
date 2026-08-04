@@ -148,8 +148,8 @@ describe("captureBattleState", () => {
       effectActionDefinitionId: effectDefinitionId,
       kindKey: effectKindKeyFromDefinitionId(effectDefinitionId),
       duplicate: true,
-      sourceId: createBattleUnitId("ally-1"),
-      targetId: createBattleUnitId("ally-1"),
+      sourceUnitId: createBattleUnitId("ally-1"),
+      targetUnitId: createBattleUnitId("ally-1"),
       magnitude: 20,
       categories: ["BUFF"],
       duration: buildInitialDurationState(
@@ -174,7 +174,7 @@ describe("captureBattleState", () => {
       {
         effectInstanceId: appliedEffect.effectInstanceId,
         effectDefinitionId: effectDefinitionId,
-        sourceUnitId: appliedEffect.sourceId,
+        sourceUnitId: appliedEffect.sourceUnitId,
         kindKey: effectDefinitionId,
         duplicate: true,
         isEffective: true,

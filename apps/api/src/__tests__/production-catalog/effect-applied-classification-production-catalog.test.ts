@@ -135,8 +135,8 @@ function emitEffectApplied(
   };
   const request = {
     definition,
-    sourceId: source.battleUnitId,
-    targetId: target.battleUnitId,
+    sourceUnitId: source.battleUnitId,
+    targetUnitId: target.battleUnitId,
     duplicate: true,
     magnitude,
     ...(definition.kind === "APPLY_STATUS" ? { statusKind: definition.payload.status } : {}),

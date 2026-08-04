@@ -67,7 +67,7 @@ function statModDefinition(id: string): EffectActionDefinition {
 
 function freezeEffect(
   id: string,
-  targetId: ReturnType<typeof createBattleUnitId>,
+  targetUnitId: ReturnType<typeof createBattleUnitId>,
   duration: DurationDefinition = { dispellable: true, linkedEffectGroupId: null },
 ): AppliedEffect {
   return {
@@ -75,8 +75,8 @@ function freezeEffect(
     effectActionDefinitionId: FREEZE_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(FREEZE_DEFINITION_ID),
     duplicate: true,
-    sourceId: targetId,
-    targetId,
+    sourceUnitId: targetUnitId,
+    targetUnitId,
     magnitude: 0,
     categories: ["DEBUFF", "STATUS"],
     statusKind: "FREEZE",
@@ -87,7 +87,7 @@ function freezeEffect(
 
 function statModEffect(
   id: string,
-  targetId: ReturnType<typeof createBattleUnitId>,
+  targetUnitId: ReturnType<typeof createBattleUnitId>,
   definitionId: EffectActionDefinitionId,
   duration: DurationDefinition,
   magnitude = 0.2,
@@ -98,8 +98,8 @@ function statModEffect(
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     categories: ["BUFF"],
     duplicate: true,
-    sourceId: targetId,
-    targetId,
+    sourceUnitId: targetUnitId,
+    targetUnitId,
     magnitude,
     duration: { definition: duration },
     appliedTurnNumber: 1,
@@ -166,12 +166,12 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
 
   it("UT-R-STS-03-010 (R-EFF-09): cascades to a same-group sibling, emitting the child's EffectExpired (LINKED_GROUP_CASCADE) before the freeze's own FreezeRemoved", () => {
     const statMod = statModDefinition("ACT_LINK");
-    const targetId = createBattleUnitId("target-1");
-    const freeze = freezeEffect("freeze-1", targetId, {
+    const targetUnitId = createBattleUnitId("target-1");
+    const freeze = freezeEffect("freeze-1", targetUnitId, {
       dispellable: true,
       linkedEffectGroupId: "GROUP_A",
     });
-    const sibling = statModEffect("sibling-1", targetId, statMod.effectActionDefinitionId, {
+    const sibling = statModEffect("sibling-1", targetUnitId, statMod.effectActionDefinitionId, {
       dispellable: true,
       linkedEffectGroupId: "GROUP_A",
     });
@@ -219,12 +219,12 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
 
   it("UT-R-STS-03-015 (Issue #183): notifies onFactEventForPassiveChain immediately after each cascade step, before the next step (or the freeze's own FreezeRemoved) is recorded", () => {
     const statMod = statModDefinition("ACT_LINK");
-    const targetId = createBattleUnitId("target-1");
-    const freeze = freezeEffect("freeze-1", targetId, {
+    const targetUnitId = createBattleUnitId("target-1");
+    const freeze = freezeEffect("freeze-1", targetUnitId, {
       dispellable: true,
       linkedEffectGroupId: "GROUP_A",
     });
-    const sibling = statModEffect("sibling-1", targetId, statMod.effectActionDefinitionId, {
+    const sibling = statModEffect("sibling-1", targetUnitId, statMod.effectActionDefinitionId, {
       dispellable: true,
       linkedEffectGroupId: "GROUP_A",
     });
@@ -268,13 +268,18 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
 
   it("UT-R-STS-03-011: a CHILD-role freeze expiring alone does not cascade to a PARENT-role sibling (R-EFF-09 child-consumption exception)", () => {
     const statMod = statModDefinition("ACT_LINK");
-    const targetId = createBattleUnitId("target-1");
-    const parentSibling = statModEffect("sibling-1", targetId, statMod.effectActionDefinitionId, {
-      dispellable: true,
-      linkedEffectGroupId: "GROUP_A",
-      linkedEffectGroupRole: "PARENT",
-    });
-    const freeze = freezeEffect("freeze-1", targetId, {
+    const targetUnitId = createBattleUnitId("target-1");
+    const parentSibling = statModEffect(
+      "sibling-1",
+      targetUnitId,
+      statMod.effectActionDefinitionId,
+      {
+        dispellable: true,
+        linkedEffectGroupId: "GROUP_A",
+        linkedEffectGroupRole: "PARENT",
+      },
+    );
+    const freeze = freezeEffect("freeze-1", targetUnitId, {
       dispellable: true,
       linkedEffectGroupId: "GROUP_A",
       linkedEffectGroupRole: "CHILD",
@@ -300,8 +305,8 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
 
   it("UT-R-EFF-09-018 (R-EFF-09 cross-type, M7-013): a freeze removal cascades to the MarkerState sharing its linkedEffectGroupId, emitting MarkerRemoved before the freeze's own FreezeRemoved", () => {
     const statMod = statModDefinition("ACT_LINK");
-    const targetId = createBattleUnitId("target-1");
-    const freeze = freezeEffect("freeze-1", targetId, {
+    const targetUnitId = createBattleUnitId("target-1");
+    const freeze = freezeEffect("freeze-1", targetUnitId, {
       dispellable: true,
       linkedEffectGroupId: "GROUP_A",
       linkedEffectGroupRole: "PARENT",
@@ -309,8 +314,8 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
     const childMarker: MarkerState = {
       markerInstanceId: createMarkerInstanceId("marker-child"),
       markerId: createMarkerId("MARKER_CHILD"),
-      sourceId: targetId,
-      targetId,
+      sourceUnitId: targetUnitId,
+      targetUnitId,
       stackCount: 1,
       stackMax: null,
       duration: {

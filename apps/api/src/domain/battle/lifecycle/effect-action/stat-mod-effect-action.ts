@@ -46,7 +46,7 @@ export const resolveApplyStatMod: EffectActionHandler<"APPLY_STAT_MOD"> = (
   // （付与しない値を計算しても捨てるだけ）。
   if (
     isStackLimitReached(
-      requireUnit(box.units, application.targetBattleUnitId),
+      requireUnit(box.units, application.targetUnitId),
       effectAction.effectActionDefinitionId,
       effectAction.payload.stacking.max,
     )
@@ -77,7 +77,7 @@ export const resolveApplyStatMod: EffectActionHandler<"APPLY_STAT_MOD"> = (
     {
       definition: effectAction,
       ...grantSourceOf(context),
-      targetId: application.targetBattleUnitId,
+      targetUnitId: application.targetUnitId,
       duplicate: effectAction.payload.stacking.mode === "STACKABLE",
       magnitude,
       durationDefinition: effectAction.payload.duration,
@@ -91,7 +91,7 @@ export const resolveApplyStatMod: EffectActionHandler<"APPLY_STAT_MOD"> = (
       eventContextOf(context),
       beforeGrantUnits,
       box.units,
-      application.targetBattleUnitId,
+      application.targetUnitId,
       context.definitions.effectActions,
       grantResult.lastEventId,
       "EFFECT_APPLIED",

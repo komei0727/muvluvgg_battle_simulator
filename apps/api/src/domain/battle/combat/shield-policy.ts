@@ -287,7 +287,7 @@ function resolveDecayOwnerUnitId(effect: AppliedEffect): BattleUnitId | "BATTLE"
   if (owner === "BATTLE") {
     return "BATTLE";
   }
-  return owner === "EFFECT_SOURCE" ? (effect.sourceId ?? "BATTLE") : effect.targetId;
+  return owner === "EFFECT_SOURCE" ? (effect.sourceUnitId ?? "BATTLE") : effect.targetUnitId;
 }
 
 export interface ShieldDecayResult {

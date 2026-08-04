@@ -1362,7 +1362,7 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     ).toHaveLength(triggered.length);
     for (const unit of [...battle.allyUnits, ...battle.enemyUnits]) {
       for (const effect of unit.appliedEffects) {
-        expect(effect.sourceId).toBeUndefined();
+        expect(effect.sourceUnitId).toBeUndefined();
         expect(effect.sourceSide).toBe("ALLY");
       }
     }
@@ -1410,7 +1410,7 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     const marker = backCenter.markerStates[0]!;
     expect(marker.markerId).toBe(PICO_MARKER_ID);
     expect(marker.stackCount).toBe(1);
-    expect(marker.sourceId).toBeUndefined();
+    expect(marker.sourceUnitId).toBeUndefined();
     expect(marker.sourceSide).toBe("ALLY");
     // raw原文の「1行動の間」は攻撃力バフだけに掛かる修飾で、「三ツ星」自体には
     // 期間の指定がないため戦闘終了まで残る。

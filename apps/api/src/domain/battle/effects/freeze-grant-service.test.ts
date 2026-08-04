@@ -91,8 +91,8 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       [source, target],
       {
         definition: freezeDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "FREEZE",
@@ -130,8 +130,8 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       [source, target],
       {
         definition: freezeDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "FREEZE",
@@ -149,8 +149,8 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       first.units,
       {
         definition: freezeDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "FREEZE",
@@ -191,8 +191,8 @@ describe("grantFreezeStatus (R-STS-03)", () => {
       [source, chargedTarget],
       {
         definition: freezeDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: chargedTarget.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: chargedTarget.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "FREEZE",

@@ -19,7 +19,7 @@ export function resolveMarkerTimeLimitOwnerUnitId(marker: MarkerState): BattleUn
   // `catalog-integrity.ts`がMemoryの`timeLimit.owner: EFFECT_SOURCE`宣言自体を
   // 拒否するため通常ここへは到達しないが、`applied-effect-duration.ts`と同じく
   // 「減算契機を持たない」＝`BATTLE`扱いへ決定的にフォールバックする。
-  return owner === "EFFECT_SOURCE" ? (marker.sourceId ?? "BATTLE") : marker.targetId;
+  return owner === "EFFECT_SOURCE" ? (marker.sourceUnitId ?? "BATTLE") : marker.targetUnitId;
 }
 
 /** `applied-effect-duration.ts`の`EffectDurationChange`と同じ形の`MarkerState`版。 */

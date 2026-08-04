@@ -82,8 +82,8 @@ function grantBuff(
     units,
     {
       definition: buffDefinition,
-      sourceId: holder.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: holder.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       duplicate: true,
       magnitude: 0.1,
       durationDefinition: { dispellable: true, linkedEffectGroupId: null },
@@ -288,7 +288,7 @@ describe("production Catalog SKL_SENKA_CHRISTMAS_PS2 wiring (M7-001C, Issue #244
       senkaWithBuff,
       [
         {
-          targetBattleUnitId: attackedEnemyWithBuff.battleUnitId,
+          targetUnitId: attackedEnemyWithBuff.battleUnitId,
           effectActionDefinitionId: attack.effectActionDefinitionId,
           hitIndex: 1,
         },

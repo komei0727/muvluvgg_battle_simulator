@@ -379,10 +379,10 @@ export interface AppliedEffect {
    * 代わりに`sourceSide`（そのMemoryを指定した陣営）を持つ
    * （`10_API設計.md`の`EffectStateResponse.sourceUnitId?`も同じ理由で任意）。
    */
-  readonly sourceId?: BattleUnitId;
+  readonly sourceUnitId?: BattleUnitId;
   /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営（source side）。 */
   readonly sourceSide?: Side;
-  readonly targetId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   /** 効果量。符号付き（バフは正、デバフは負）。 */
   readonly magnitude: number;
   /**

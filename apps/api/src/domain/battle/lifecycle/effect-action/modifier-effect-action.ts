@@ -44,7 +44,7 @@ export const resolveContinuousModifier: EffectActionHandler<
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         ...(effectAction.kind === "APPLY_DAMAGE_MOD"
@@ -91,7 +91,7 @@ export const resolveApplyAttackDamageBonus: EffectActionHandler<"APPLY_ATTACK_DA
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         isAttackDamageBonus: true,
@@ -126,7 +126,7 @@ export const resolveApplyPiercingMod: EffectActionHandler<"APPLY_PIERCING_MOD"> 
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude: 0,
         piercing: {

@@ -48,7 +48,7 @@ function unit(id: string, maximumHp = 100): BattleUnit {
 
 function immunityEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   details: StatusEffectDetails = {},
 ): AppliedEffect {
   return {
@@ -56,8 +56,8 @@ function immunityEffect(
     effectActionDefinitionId: IMMUNITY_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(IMMUNITY_DEFINITION_ID),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "DAMAGE_IMMUNITY",

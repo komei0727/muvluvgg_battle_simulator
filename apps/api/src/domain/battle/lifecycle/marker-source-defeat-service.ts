@@ -16,7 +16,7 @@ export interface DefeatEventSource {
 /**
  * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: `UnitDefeated`
  * に対して、`duration.removeOnSourceDefeated`を宣言し、かつ付与者
- * （`MarkerState.sourceId`＝直近の付与者）が戦闘不能になったユニットである
+ * （`MarkerState.sourceUnitId`＝直近の付与者）が戦闘不能になったユニットである
  * `MarkerState`を除去対象として列挙する。`SKL_AOI_ELEGANT_AS1`（百花繚乱）の
  * raw原文「「高揚」は付与者が倒れると同時に解除される」を表す。
  *
@@ -28,7 +28,7 @@ export interface DefeatEventSource {
  * `passive-activation-service.ts`が持つ。
  *
  * R-MEM-04: Memoryの`triggeredEffects`由来の付与は具体的な付与者ユニットを持たず
- * `sourceId`が`undefined`（代わりに`sourceSide`を持つ）ため、この解除契機は
+ * `sourceUnitId`が`undefined`（代わりに`sourceSide`を持つ）ため、この解除契機は
  * 成立しない — 「陣営の誰かが倒れた」ではなく「付与した本人が倒れた」が原文の
  * 意味であり、代替の付与者を推測しない。
  */
@@ -48,7 +48,7 @@ export function findMarkersRemovedOnSourceDefeat(
     for (const marker of unit.markerStates) {
       if (
         marker.duration.definition.removeOnSourceDefeated === true &&
-        marker.sourceId === defeatedUnitId
+        marker.sourceUnitId === defeatedUnitId
       ) {
         seeds.push({
           battleUnitId: unit.battleUnitId,

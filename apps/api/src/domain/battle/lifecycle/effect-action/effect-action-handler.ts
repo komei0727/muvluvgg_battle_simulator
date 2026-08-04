@@ -217,7 +217,7 @@ export function grantFormulaScope(input: EffectActionApplicationInput): FormulaE
   return {
     ...(actor !== undefined ? { skillSource: actor } : {}),
     ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
-    target: requireUnit(box.units, application.targetBattleUnitId),
+    target: requireUnit(box.units, application.targetUnitId),
     allUnits: box.units,
     ...(actor !== undefined
       ? {
@@ -251,7 +251,7 @@ export function findImmunityBlock(
   statusKind?: StatusKind,
 ): AppliedEffect | undefined {
   return findBlockingImmunity(
-    requireUnit(input.box.units, input.application.targetBattleUnitId),
+    requireUnit(input.box.units, input.application.targetUnitId),
     {
       effectActionDefinitionId: input.application.effectActionDefinitionId,
       magnitude,
@@ -277,7 +277,7 @@ export function recordImmunityRejection(
     {
       effectActionDefinitionId: application.effectActionDefinitionId,
       ...grantSourceOf(context),
-      targetId: application.targetBattleUnitId,
+      targetUnitId: application.targetUnitId,
       blockingEffect,
       ...(statusKind !== undefined ? { statusKind } : {}),
     },

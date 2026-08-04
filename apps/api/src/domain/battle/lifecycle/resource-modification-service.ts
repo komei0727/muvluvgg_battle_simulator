@@ -137,11 +137,7 @@ export function applyModifyResourceAction(
   }
 
   for (const hit of hits) {
-    const target = findUnit(
-      Array.from(working.values()),
-      hit.targetBattleUnitId,
-      "hits[].targetBattleUnitId",
-    );
+    const target = findUnit(Array.from(working.values()), hit.targetUnitId, "hits[].targetUnitId");
     const resource = action.payload.resource;
     const before = currentValueOf(target, resource);
     const currentMax = maxValueOf(target, resource);

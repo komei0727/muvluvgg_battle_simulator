@@ -57,11 +57,11 @@ function actionCompletedTrigger(): RuntimeCounterUpdateDefinitionInput["trigger"
 }
 
 function resolutionWithCounterUpdates(
-  actorId: BattleUnit["battleUnitId"],
+  actorUnitId: BattleUnit["battleUnitId"],
   counterUpdates: readonly RuntimeCounterUpdateDefinitionInput[],
 ): ActiveEffectSequenceResolution {
   return {
-    actorId,
+    actorUnitId,
     skillDefinitionId: SKILL_DEFINITION_ID,
     counterUpdates: counterUpdates.map((c, i) =>
       createRuntimeCounterUpdateDefinition(c, `counterUpdates[${i}]`),
@@ -101,7 +101,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
     expect(matched).toEqual([
       {
         skillUseId: SKILL_USE_ID,
-        actorId: actor.battleUnitId,
+        actorUnitId: actor.battleUnitId,
         skillDefinitionId: SKILL_DEFINITION_ID,
         update: resolution.counterUpdates[0],
       },
@@ -209,7 +209,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
   it("UT-RCOUNTER-SEQ-006: throws when a resolution declares a non-EFFECT_SEQUENCE scope (defensive, Catalog validation should already reject this)", () => {
     const actor = unit("actor-1", "ALLY");
     const resolution: ActiveEffectSequenceResolution = {
-      actorId: actor.battleUnitId,
+      actorUnitId: actor.battleUnitId,
       skillDefinitionId: SKILL_DEFINITION_ID,
       counterUpdates: [
         createRuntimeCounterUpdateDefinition(
@@ -252,7 +252,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     const result = applyMatchedEffectSequenceRuntimeCounterUpdate(
       {
         skillUseId: SKILL_USE_ID,
-        actorId: actor.battleUnitId,
+        actorUnitId: actor.battleUnitId,
         skillDefinitionId: SKILL_DEFINITION_ID,
         update: resolution.counterUpdates[0]!,
       },
@@ -261,7 +261,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     );
 
     expect(result.change).toEqual({
-      actorId: actor.battleUnitId,
+      actorUnitId: actor.battleUnitId,
       skillUseId: SKILL_USE_ID,
       skillDefinitionId: SKILL_DEFINITION_ID,
       counter: HIT_COUNTER,
@@ -292,7 +292,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     const first = applyMatchedEffectSequenceRuntimeCounterUpdate(
       {
         skillUseId: SKILL_USE_ID,
-        actorId: actor.battleUnitId,
+        actorUnitId: actor.battleUnitId,
         skillDefinitionId: SKILL_DEFINITION_ID,
         update,
       },
@@ -302,7 +302,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     const second = applyMatchedEffectSequenceRuntimeCounterUpdate(
       {
         skillUseId: SKILL_USE_ID,
-        actorId: actor.battleUnitId,
+        actorUnitId: actor.battleUnitId,
         skillDefinitionId: SKILL_DEFINITION_ID,
         update,
       },
@@ -334,7 +334,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
       applyMatchedEffectSequenceRuntimeCounterUpdate(
         {
           skillUseId: SKILL_USE_ID,
-          actorId: actor.battleUnitId,
+          actorUnitId: actor.battleUnitId,
           skillDefinitionId: SKILL_DEFINITION_ID,
           update,
         },

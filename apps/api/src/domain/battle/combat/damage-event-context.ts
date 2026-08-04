@@ -18,7 +18,7 @@ import type { FormulaDefinition } from "../../catalog/definitions/formula-defini
 import type { BattleUnitId } from "../../shared/ids.js";
 
 export interface DamageHitOutcome {
-  readonly targetBattleUnitId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly hitIndex: number;
   /** false when the hit was skipped instead of applied (target already defeated, or MISS). */
   readonly applied: boolean;

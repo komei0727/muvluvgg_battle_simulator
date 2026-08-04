@@ -2080,7 +2080,7 @@ condition:
 
 `MARKER`と`SPECIFIC_EFFECT`は`categories`に指定できない。`MarkerState`は`AppliedEffect`ではなく`TARGET_HAS_MARKER`が照会し、`SPECIFIC_EFFECT`は分類軸ではなく`effectActionDefinitionId`の直接一致だからである。その直接一致を表す正しい場所が`effectActionDefinitionIds`（`DMG-007`／Issue #187、`EFFECT_IMMUNITY`の同名fieldと同じ参照方式）で、`categories`とはANDで重ねる。
 
-`grantedBy: SELF`は「**自身が**付与したインスタンスだけ」に絞る（`AppliedEffect.sourceId`との一致）。production例は`SKL_DOROTHEA_PIONEER_PS2`の「自身がダメージリンクを付与した敵が倒された際に発動」で、定義IDの一致だけでは同名ユニットが両陣営に居る場合に他者が付与したリンクも拾ってしまうため必要になる。「自身」を知っているのは評価元の`BattleUnit`（`context.owner`）を受け取る**Skillの**trigger条件evaluatorだけである。次の位置は評価元ユニットを持たないため、そこへ書くと黙って常に偽になる。したがって`GRANTED_BY_OUTSIDE_TRIGGER`としてCatalogロード時点で拒否する。
+`grantedBy: SELF`は「**自身が**付与したインスタンスだけ」に絞る（`AppliedEffect.sourceUnitId`との一致）。production例は`SKL_DOROTHEA_PIONEER_PS2`の「自身がダメージリンクを付与した敵が倒された際に発動」で、定義IDの一致だけでは同名ユニットが両陣営に居る場合に他者が付与したリンクも拾ってしまうため必要になる。「自身」を知っているのは評価元の`BattleUnit`（`context.owner`）を受け取る**Skillの**trigger条件evaluatorだけである。次の位置は評価元ユニットを持たないため、そこへ書くと黙って常に偽になる。したがって`GRANTED_BY_OUTSIDE_TRIGGER`としてCatalogロード時点で拒否する。
 
 - EffectSequence内の条件（`stepCondition`／`targetCondition`／BRANCHの`condition`）と`activationCondition`
 - **Memoryのtrigger条件**（`memory-trigger-matcher.ts`はR-MEM-04どおり`ownerSide`（陣営）だけを渡す。Memoryには「自身が付与した」に相当する付与者ユニットがそもそも存在しない）
@@ -2152,7 +2152,7 @@ duration:
 | `reapply`                | object      | —    | 再付与時の動的期間（R-EFF-12）。`timeLimit`必須                                                                   |
 | `removeOnSourceDefeated` | boolean     | —    | 付与者の戦闘不能で解除（R-EFF-10）。`APPLY_MARKER`専用。省略時は宣言なし扱い                                      |
 
-`removeOnSourceDefeated`（R-EFF-10、`MARKER_REMOVAL_ON_SOURCE_DEATH`、`M7-020`／Issue #279）: `true`を宣言したMarkerは、付与者（`MarkerState.sourceId` ＝直近の付与者）が戦闘不能になった時点でスタック数を問わず解除され、`MarkerRemoved`（`reason: SOURCE_DEFEATED`）を発行する。同じ`linkedEffectGroupId`を持つ子効果はR-EFF-09のカスケードで連動して失効する。production Catalogの例は`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`（「「高揚」は付与者が倒れると同時に解除される」）。
+`removeOnSourceDefeated`（R-EFF-10、`MARKER_REMOVAL_ON_SOURCE_DEATH`、`M7-020`／Issue #279）: `true`を宣言したMarkerは、付与者（`MarkerState.sourceUnitId` ＝直近の付与者）が戦闘不能になった時点でスタック数を問わず解除され、`MarkerRemoved`（`reason: SOURCE_DEFEATED`）を発行する。同じ`linkedEffectGroupId`を持つ子効果はR-EFF-09のカスケードで連動して失効する。production Catalogの例は`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`（「「高揚」は付与者が倒れると同時に解除される」）。
 
 `APPLY_MARKER`以外の`EffectActionDefinition`の`duration`へ宣言した場合はCatalogロード時点で拒否する（`UNSUPPORTED_SOURCE_DEFEATED_REMOVAL`）— `AppliedEffect`には付与者の戦闘不能を判定する失効機構が無く（`ConditionDefinition`にもユニットの戦闘不能を判定するkindが存在しない）、宣言しても「付与自体は成功するのに付与者が倒れても何も起きない」silent partial implementationになるため。`expiration.conditions`（R-EFF-08）ではなく専用フィールドにしたのは、Marker側のexpiration機構自体が未実装（`UNSUPPORTED_MARKER_DURATION`）であり、Condition表現を導入すると同機構ごと実装する必要があるためである。
 

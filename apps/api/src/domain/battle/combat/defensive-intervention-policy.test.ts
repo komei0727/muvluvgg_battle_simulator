@@ -64,7 +64,7 @@ function baseEffect(id: string, holderId: string): AppliedEffect {
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    targetId: createBattleUnitId(holderId),
+    targetUnitId: createBattleUnitId(holderId),
     magnitude: 0,
     categories: ["DEBUFF"],
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },

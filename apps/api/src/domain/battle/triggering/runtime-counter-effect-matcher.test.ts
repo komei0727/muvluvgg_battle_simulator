@@ -66,8 +66,8 @@ function effectWithCounterUpdates(
     effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(EFFECT_ACTION_DEFINITION_ID),
     duplicate: true,
-    sourceId: holder.battleUnitId,
-    targetId: holder.battleUnitId,
+    sourceUnitId: holder.battleUnitId,
+    targetUnitId: holder.battleUnitId,
     magnitude: 10,
     categories: ["BUFF"],
     duration: {

@@ -74,7 +74,7 @@ function heldEffect(
     effectActionDefinitionId,
     kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
     duplicate: true,
-    targetId: holder.battleUnitId,
+    targetUnitId: holder.battleUnitId,
     magnitude: categories.includes("DEBUFF") ? -0.2 : 0.2,
     categories,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },

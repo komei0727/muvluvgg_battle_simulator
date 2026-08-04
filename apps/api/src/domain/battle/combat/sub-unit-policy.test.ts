@@ -73,7 +73,7 @@ function subUnitEffect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    targetId: createBattleUnitId("ally:1"),
+    targetUnitId: createBattleUnitId("ally:1"),
     magnitude: durabilityMax,
     categories: ["SUBUNIT"],
     subUnit: {
@@ -95,7 +95,7 @@ function shieldEffect(amount: number): AppliedEffect {
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    targetId: createBattleUnitId("ally:1"),
+    targetUnitId: createBattleUnitId("ally:1"),
     magnitude: amount,
     categories: ["SHIELD"],
     shield: { shieldType: null, remaining: amount },

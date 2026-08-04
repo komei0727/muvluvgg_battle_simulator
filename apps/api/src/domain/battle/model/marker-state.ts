@@ -11,7 +11,7 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
  * （raw固有スタック、専用印、条件参照用状態）を汎用Markerとして表す。
  * `AppliedEffect`と異なり、同じ`markerId`を持つインスタンスは対象ごとに常に
  * 1つだけ存在する — 複数の付与元から同じMarkerが付与された場合もスタック数を
- * 1つの`MarkerState`へ積み上げる（`sourceId`は直近の付与者を表す監査用の値で、
+ * 1つの`MarkerState`へ積み上げる（`sourceUnitId`は直近の付与者を表す監査用の値で、
  * インスタンス識別には使わない）。`duration`は`AppliedEffect`と同じ
  * `EffectDurationState`を再利用する（`DurationDefinition`のtimeLimit/
  * consumption/expiration/linkedEffectGroupがMarkerにもそのまま適用される、
@@ -25,13 +25,13 @@ export interface MarkerState {
    * 直近の付与者の戦闘ユニットID。R-MEM-04（M7-008、Issue #176）: Memory の
    * `triggeredEffects` 由来の付与だけは具体的な付与者ユニットを持たないため
    * `undefined`になり、代わりに`sourceSide`（そのMemoryを指定した陣営）を持つ
-   * （`AppliedEffect.sourceId`/`10_API設計.md`の`MarkerStateResponse.sourceUnitId?`も
+   * （`AppliedEffect.sourceUnitId`/`10_API設計.md`の`MarkerStateResponse.sourceUnitId?`も
    * 同じ理由で任意）。
    */
-  readonly sourceId?: BattleUnitId;
+  readonly sourceUnitId?: BattleUnitId;
   /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営（source side）。 */
   readonly sourceSide?: Side;
-  readonly targetId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly stackCount: number;
   readonly stackMax: number | null;
   readonly duration: EffectDurationState;
@@ -43,11 +43,11 @@ export interface MarkerState {
  * 通り、前者は発生源を持たない`MarkerState`・イベントを、後者は`MarkerState`と
  * イベントenvelopeで観測結果が食い違う状態を生む。判別可能なunionにして、
  * exactly-oneをコンパイル時に保証する（`exactOptionalPropertyTypes: true`のため
- * `{}`も`{ sourceId, sourceSide }`もどちらのメンバーにも代入できない）。
+ * `{}`も`{ sourceUnitId, sourceSide }`もどちらのメンバーにも代入できない）。
  */
 export type MarkerSource =
-  | { readonly sourceId: BattleUnitId; readonly sourceSide?: undefined }
-  | { readonly sourceId?: undefined; readonly sourceSide: Side };
+  | { readonly sourceUnitId: BattleUnitId; readonly sourceSide?: undefined }
+  | { readonly sourceUnitId?: undefined; readonly sourceSide: Side };
 
 /**
  * `MarkerSource`（片方だけを持つunion）を、`exactOptionalPropertyTypes: true`の
@@ -55,9 +55,9 @@ export type MarkerSource =
  */
 export function markerSourceFields(
   source: MarkerSource,
-): { readonly sourceId: BattleUnitId } | { readonly sourceSide: Side } {
-  return source.sourceId !== undefined
-    ? { sourceId: source.sourceId }
+): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } {
+  return source.sourceUnitId !== undefined
+    ? { sourceUnitId: source.sourceUnitId }
     : { sourceSide: source.sourceSide };
 }
 
@@ -66,7 +66,7 @@ export function buildInitialMarkerState(
   markerInstanceId: MarkerInstanceId,
   markerId: MarkerId,
   source: MarkerSource,
-  targetId: BattleUnitId,
+  targetUnitId: BattleUnitId,
   stackMax: number | null,
   durationDefinition: DurationDefinition,
   context: { readonly actionId?: ActionId; readonly turnNumber: number },
@@ -75,7 +75,7 @@ export function buildInitialMarkerState(
     markerInstanceId,
     markerId,
     ...markerSourceFields(source),
-    targetId,
+    targetUnitId,
     stackCount: 1,
     stackMax,
     duration: buildInitialDurationState(durationDefinition, context),

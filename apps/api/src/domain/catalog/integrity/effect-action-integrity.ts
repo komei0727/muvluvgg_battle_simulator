@@ -400,7 +400,7 @@ export function validateEffectAction(
     );
   }
   // R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: 付与者の
-  // 戦闘不能による解除は`marker-source-defeat-service.ts`が`MarkerState.sourceId`
+  // 戦闘不能による解除は`marker-source-defeat-service.ts`が`MarkerState.sourceUnitId`
   // （直近の付与者）を見て判定する。`AppliedEffect`側には同じ判定を行う失効機構が
   // 無いため（`expiration.conditions`にもユニットの戦闘不能を判定するkindが
   // 存在しない）、`APPLY_MARKER`以外へ宣言すると「付与自体は成功するのに付与者が

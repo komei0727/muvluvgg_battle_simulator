@@ -29,7 +29,7 @@ export function effectActionGroupContext(
 ): EffectActionGroupContext {
   return {
     definitions: options.definitions,
-    actorId: options.actor.battleUnitId,
+    actorUnitId: options.actor.battleUnitId,
     random: options.random ?? noMissNoCrit(),
     recorder: options.recorder,
     turnNumber: 1,

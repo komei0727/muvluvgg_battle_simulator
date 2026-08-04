@@ -207,11 +207,11 @@ function* resolveOneEffectActionApplication(
     parentEventId,
     rootEventId: context.rootEventId,
     ...sourceEnvelopeOf(context),
-    targetUnitIds: [application.targetBattleUnitId],
+    targetUnitIds: [application.targetUnitId],
     payload: {
       effectActionDefinitionId: application.effectActionDefinitionId,
       kind: effectAction.kind,
-      targetUnitIds: [application.targetBattleUnitId],
+      targetUnitIds: [application.targetUnitId],
     },
   });
   yield { kind: "TIMING_EVENT", event: starting };
@@ -244,7 +244,7 @@ function* resolveOneEffectActionApplication(
   if (
     effectAction.kind !== "DAMAGE" &&
     !application.includeDefeated &&
-    isDefeated(requireUnit(box.units, application.targetBattleUnitId))
+    isDefeated(requireUnit(box.units, application.targetUnitId))
   ) {
     outcome = {
       resultKind: "SKIPPED",
@@ -277,11 +277,11 @@ function* resolveOneEffectActionApplication(
     parentEventId: outcome.lastEventId,
     rootEventId: context.rootEventId,
     ...sourceEnvelopeOf(context),
-    targetUnitIds: [application.targetBattleUnitId],
+    targetUnitIds: [application.targetUnitId],
     payload: {
       effectActionDefinitionId: application.effectActionDefinitionId,
       effectActionKind: effectAction.kind,
-      targetUnitIds: [application.targetBattleUnitId],
+      targetUnitIds: [application.targetUnitId],
       resultKind: outcome.resultKind,
     },
   });
@@ -297,7 +297,7 @@ function* resolveOneEffectActionApplication(
       resultKind: outcome.resultKind,
       effectActionKind: effectAction.kind,
       effectActionDefinitionId: application.effectActionDefinitionId,
-      targetUnitIds: [application.targetBattleUnitId],
+      targetUnitIds: [application.targetUnitId],
       // step全体の合計は`resolveActionApplications`が積み上げて上書きする。
       criticalHitCount: outcome.criticalHitCount,
     },
@@ -421,8 +421,8 @@ function* resolveActionApplications(
     let currentTargetId: BattleUnitId | undefined;
     let ordinals = new Map<EffectActionDefinitionId, number>();
     for (const application of applications) {
-      if (application.targetBattleUnitId !== currentTargetId) {
-        currentTargetId = application.targetBattleUnitId;
+      if (application.targetUnitId !== currentTargetId) {
+        currentTargetId = application.targetUnitId;
         ordinals = new Map();
       }
       const ordinal = ordinals.get(application.effectActionDefinitionId) ?? 0;
@@ -456,7 +456,7 @@ function* resolveActionApplications(
       (candidate, candidateIndex) =>
         shareGroupKeys[candidateIndex] === groupKey &&
         ((distributesToDefeatedTargets && candidate.includeDefeated) ||
-          !isDefeated(requireUnit(box.units, candidate.targetBattleUnitId))),
+          !isDefeated(requireUnit(box.units, candidate.targetUnitId))),
     ).length;
     // 呼び出し元は「今まさに適用しようとしている application」の解決直前にだけ
     // これを呼ぶため、その対象自身が数に含まれ`count >= 1`が成り立つ。0での
@@ -494,17 +494,17 @@ function* resolveActionApplications(
 
     if (applied.lastResult !== undefined) {
       lastResultState.current = { ...applied.lastResult, criticalHitCount: stepCriticalHitCount };
-      if (!seenActionTargetUnitIds.has(application.targetBattleUnitId)) {
-        seenActionTargetUnitIds.add(application.targetBattleUnitId);
-        stepActionTargetUnitIds.push(application.targetBattleUnitId);
+      if (!seenActionTargetUnitIds.has(application.targetUnitId)) {
+        seenActionTargetUnitIds.add(application.targetUnitId);
+        stepActionTargetUnitIds.push(application.targetUnitId);
       }
       if (
         applied.lastResult.resultKind === "APPLIED" &&
         applied.lastResult.effectActionKind === "DAMAGE" &&
-        !seenDamagedTargetUnitIds.has(application.targetBattleUnitId)
+        !seenDamagedTargetUnitIds.has(application.targetUnitId)
       ) {
-        seenDamagedTargetUnitIds.add(application.targetBattleUnitId);
-        stepDamagedTargetUnitIds.push(application.targetBattleUnitId);
+        seenDamagedTargetUnitIds.add(application.targetUnitId);
+        stepDamagedTargetUnitIds.push(application.targetUnitId);
       }
     }
 
@@ -1325,7 +1325,7 @@ export function* resolveEffectSequencePlan(
   let resolvedCount = 0;
 
   // R-HIT-03/R-STS-04（M7-004、Issue #183）: スキル使用ごとに1回、使用者
-  // （`context.actorId`、AS/EXの実行者・PSの所有者どちらも同じ`SkillUseId`単位）
+  // （`context.actorUnitId`、AS/EXの実行者・PSの所有者どちらも同じ`SkillUseId`単位）
   // に付与された暗闇を判定する。命中判定より前、対象選択・step解決より前で
   // 一括判定する — いずれか一つでもMISSになれば、このEffectSequence全体の
   // step解決を一切開始しない（「MISSの場合、対象へのダメージと効果を適用

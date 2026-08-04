@@ -177,7 +177,7 @@ function validateMemoryTriggerGrantedBy(
     targetId: ownerId,
     rule: "GRANTED_BY_OUTSIDE_TRIGGER",
     message:
-      "TARGET_HAS_EFFECT.grantedBy cannot be used in a Memory trigger condition: Memory has no owning BattleUnit (R-MEM-04), so the evaluator receives only ownerSide and the AppliedEffect.sourceId comparison would silently never match (DMG-007 Issue #187)",
+      "TARGET_HAS_EFFECT.grantedBy cannot be used in a Memory trigger condition: Memory has no owning BattleUnit (R-MEM-04), so the evaluator receives only ownerSide and the AppliedEffect.sourceUnitId comparison would silently never match (DMG-007 Issue #187)",
   });
 }
 

@@ -35,14 +35,14 @@ import type { EffectInstanceId } from "../../shared/event-ids.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
 
 export interface ResolvedEffectApplication {
-  readonly targetBattleUnitId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly effectActionDefinitionId: EffectActionDefinitionId;
   readonly hitIndex: number;
 }
 
 /** R-SKL-06 #4: 1つの対象へ1つのEffectActionを適用する単位（複数ヒットを含みうる、R-SKL-03）。 */
 export interface EffectActionApplication {
-  readonly targetBattleUnitId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly effectActionDefinitionId: EffectActionDefinitionId;
   readonly hits: readonly ResolvedEffectApplication[];
   /**
@@ -297,13 +297,13 @@ export function resolveActionStepApplications(
       const hits: ResolvedEffectApplication[] = [];
       for (let hitIndex = 1; hitIndex <= hitCount; hitIndex++) {
         hits.push({
-          targetBattleUnitId: target.battleUnitId,
+          targetUnitId: target.battleUnitId,
           effectActionDefinitionId: actionRef.effectActionDefinitionId,
           hitIndex,
         });
       }
       applications.push({
-        targetBattleUnitId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         effectActionDefinitionId: actionRef.effectActionDefinitionId,
         includeDefeated,
         hits,
@@ -630,7 +630,7 @@ function resolveEffectSequence(
       triggerContext,
     );
     for (const application of applications) {
-      addTargetUnitId(application.targetBattleUnitId);
+      addTargetUnitId(application.targetUnitId);
     }
     steps.push({
       planKind: "ACTION_PLAN",

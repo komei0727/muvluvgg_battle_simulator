@@ -219,12 +219,12 @@ function withClampedCurrentValue(
 export function recalculateResourceCapacities(
   context: ResourceCapacityRecalculateContext,
   units: readonly BattleUnit[],
-  targetId: BattleUnitId,
+  targetUnitId: BattleUnitId,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
   reason: ResourceCapacityChangeReason,
 ): RecalculateResourceCapacitiesResult {
-  const target = requireUnit(units, targetId);
+  const target = requireUnit(units, targetUnitId);
   const { changedCapacities, ...capacities } = computeResourceCapacities(target, effectActions);
   let updated: BattleUnit = changedCapacities.length > 0 ? { ...target, ...capacities } : target;
   let lastEventId = parentEventId;
@@ -240,10 +240,10 @@ export function recalculateResourceCapacities(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: targetId,
-      targetUnitIds: [targetId],
+      sourceUnitId: targetUnitId,
+      targetUnitIds: [targetUnitId],
       payload: {
-        battleUnitId: targetId,
+        battleUnitId: targetUnitId,
         resource: change.resource,
         before: change.before,
         after: change.after,
@@ -251,7 +251,7 @@ export function recalculateResourceCapacities(
       },
       stateDelta: {
         units: {
-          [targetId]: {
+          [targetUnitId]: {
             [GAUGE_CAPACITY_FIELD[change.resource].delta]: {
               before: change.before,
               after: change.after,
@@ -286,9 +286,9 @@ export function recalculateResourceCapacities(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: targetId,
+      sourceUnitId: targetUnitId,
       payload: {
-        battleUnitId: targetId,
+        battleUnitId: targetUnitId,
         resource,
         before,
         after: maximum,
@@ -300,7 +300,7 @@ export function recalculateResourceCapacities(
         causeEventId: lastEventId,
       },
       stateDelta: {
-        units: { [targetId]: { [RESOURCE_DELTA_FIELD[resource]]: { before, after: maximum } } },
+        units: { [targetUnitId]: { [RESOURCE_DELTA_FIELD[resource]]: { before, after: maximum } } },
       },
     });
     lastEventId = event.eventId;
@@ -317,16 +317,18 @@ export function recalculateResourceCapacities(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: targetId,
-      targetUnitIds: [targetId],
-      payload: { unitId: targetId, causeEventId: lastEventId },
+      sourceUnitId: targetUnitId,
+      targetUnitIds: [targetUnitId],
+      payload: { unitId: targetUnitId, causeEventId: lastEventId },
     });
     lastEventId = event.eventId;
   }
 
   return {
     units:
-      updated === target ? units : units.map((u) => (u.battleUnitId === targetId ? updated : u)),
+      updated === target
+        ? units
+        : units.map((u) => (u.battleUnitId === targetUnitId ? updated : u)),
     lastEventId,
   };
 }

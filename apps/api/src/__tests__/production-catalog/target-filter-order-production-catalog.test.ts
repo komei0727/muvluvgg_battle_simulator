@@ -131,7 +131,7 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
           buildInitialMarkerState(
             createMarkerInstanceId("mi-tag"),
             markerId,
-            { sourceId: createBattleUnitId("ACTOR") },
+            { sourceUnitId: createBattleUnitId("ACTOR") },
             createBattleUnitId("TAGGED_BACK"),
             null,
             {
@@ -196,7 +196,7 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
             ...buildInitialMarkerState(
               createMarkerInstanceId("mi-grace"),
               markerId,
-              { sourceId: createBattleUnitId("ACTOR") },
+              { sourceUnitId: createBattleUnitId("ACTOR") },
               createBattleUnitId("GRACED"),
               null,
               {

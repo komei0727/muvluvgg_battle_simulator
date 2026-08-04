@@ -103,7 +103,7 @@ function applicationsFor(
   if (matching.planKind === "ACTION_PLAN") {
     return matching.applications
       .filter((a) => a.effectActionDefinitionId === effectActionDefinitionId)
-      .map((a) => a.targetBattleUnitId);
+      .map((a) => a.targetUnitId);
   }
   if (matching.definition.kind !== "ACTION") {
     throw new Error(`DEFERRED step for "${effectActionDefinitionId}" is not an ACTION step`);
@@ -127,7 +127,7 @@ function applicationsFor(
     perTargetFilter,
   )
     .filter((a) => a.effectActionDefinitionId === effectActionDefinitionId)
-    .map((a) => a.targetBattleUnitId);
+    .map((a) => a.targetUnitId);
 }
 
 describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171後半)", () => {

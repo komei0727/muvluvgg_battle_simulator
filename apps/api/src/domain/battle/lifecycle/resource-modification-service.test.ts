@@ -86,7 +86,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -132,7 +132,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -167,7 +167,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -201,7 +201,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -236,7 +236,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -271,7 +271,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -306,7 +306,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -341,7 +341,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -376,7 +376,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     const result = applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },
@@ -411,7 +411,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
 
     const result = applyModifyResourceAction(
       [actor, ally].map((target, hitIndex) => ({
-        targetBattleUnitId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         effectActionDefinitionId: action.effectActionDefinitionId,
         hitIndex,
       })),
@@ -464,7 +464,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
 
     const result = applyModifyResourceAction(
       targets.map((target, hitIndex) => ({
-        targetBattleUnitId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         effectActionDefinitionId: action.effectActionDefinitionId,
         hitIndex,
       })),
@@ -505,7 +505,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
 
     const result = applyModifyResourceAction(
       [actor, full].map((target, hitIndex) => ({
-        targetBattleUnitId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         effectActionDefinitionId: action.effectActionDefinitionId,
         hitIndex,
       })),
@@ -551,7 +551,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
         applyModifyResourceAction(
           [
             {
-              targetBattleUnitId: actor.battleUnitId,
+              targetUnitId: actor.battleUnitId,
               effectActionDefinitionId: action.effectActionDefinitionId,
               hitIndex: 0,
             },
@@ -586,7 +586,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     applyModifyResourceAction(
       [
         {
-          targetBattleUnitId: actor.battleUnitId,
+          targetUnitId: actor.battleUnitId,
           effectActionDefinitionId: action.effectActionDefinitionId,
           hitIndex: 0,
         },

@@ -174,8 +174,8 @@ describe("production Catalog APPLY_SHIELD (CAP_SHIELD, DMG-004 Issue #194)", () 
       [holder],
       {
         definition,
-        sourceId: holder.battleUnitId,
-        targetId: holder.battleUnitId,
+        sourceUnitId: holder.battleUnitId,
+        targetUnitId: holder.battleUnitId,
         duplicate: true,
         magnitude: truncateFraction(
           evaluateFormula(definition.payload.formula, {

@@ -221,7 +221,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
   return {
     effectInstanceId: effect.effectInstanceId,
     effectDefinitionId: effect.effectActionDefinitionId,
-    ...(effect.sourceId !== undefined ? { sourceUnitId: effect.sourceId } : {}),
+    ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
     ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
     kindKey: effect.kindKey,
     duplicate: effect.duplicate,
@@ -299,7 +299,7 @@ export function toMarkerSnapshot(marker: MarkerState): MarkerSnapshot {
   return {
     markerInstanceId: marker.markerInstanceId,
     markerId: marker.markerId,
-    ...(marker.sourceId !== undefined ? { sourceUnitId: marker.sourceId } : {}),
+    ...(marker.sourceUnitId !== undefined ? { sourceUnitId: marker.sourceUnitId } : {}),
     ...(marker.sourceSide !== undefined ? { sourceSide: marker.sourceSide } : {}),
     stackCount: marker.stackCount,
     stackMax: marker.stackMax,

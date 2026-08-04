@@ -222,8 +222,8 @@ function setup(omenStacks: readonly number[]) {
         units,
         {
           markerId: markAction.payload.markerId,
-          sourceId: tatiana.battleUnitId,
-          targetId: enemy.battleUnitId,
+          sourceUnitId: tatiana.battleUnitId,
+          targetUnitId: enemy.battleUnitId,
           stackPolicy: markAction.payload.stack.policy,
           stackMax: markAction.payload.stack.max,
           durationDefinition: markAction.payload.duration,

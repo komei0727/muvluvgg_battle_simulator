@@ -93,7 +93,7 @@ function unit(
  * R-STS-01/02/03: a minimal STUN/FREEZE `AppliedEffect` fixture for
  * resolver-level tests. `holderId` must be the owning unit's own
  * `battleUnitId` (`timeLimit.owner` defaults to `EFFECT_TARGET`, resolved via
- * `targetId` — R-EFF-04's own-action-end decrement only fires when this
+ * `targetUnitId` — R-EFF-04's own-action-end decrement only fires when this
  * matches the acting unit).
  */
 function statusEffect(
@@ -108,8 +108,8 @@ function statusEffect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: holderId,
-    targetId: holderId,
+    sourceUnitId: holderId,
+    targetUnitId: holderId,
     magnitude: 0,
     categories: ["BUFF"],
     statusKind,
@@ -594,8 +594,8 @@ describe("resolveActionPhase", () => {
       effectActionDefinitionId: gainModDefId,
       kindKey: effectKindKeyFromDefinitionId(gainModDefId),
       duplicate: true,
-      sourceId: createBattleUnitId("ALLY_1"),
-      targetId: createBattleUnitId("ALLY_1"),
+      sourceUnitId: createBattleUnitId("ALLY_1"),
+      targetUnitId: createBattleUnitId("ALLY_1"),
       magnitude: 1.0,
       categories: ["BUFF"],
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -665,8 +665,8 @@ describe("resolveActionPhase", () => {
       effectActionDefinitionId: hotDefId,
       kindKey: effectKindKeyFromDefinitionId(hotDefId),
       duplicate: true,
-      sourceId: createBattleUnitId("ALLY_1"),
-      targetId: createBattleUnitId("ALLY_1"),
+      sourceUnitId: createBattleUnitId("ALLY_1"),
+      targetUnitId: createBattleUnitId("ALLY_1"),
       magnitude: 0,
       categories: ["BUFF"],
       duration: {
@@ -775,8 +775,8 @@ describe("resolveActionPhase", () => {
       effectActionDefinitionId: hotDefId,
       kindKey: effectKindKeyFromDefinitionId(hotDefId),
       duplicate: true,
-      sourceId: createBattleUnitId("ALLY_1"),
-      targetId: createBattleUnitId("ALLY_1"),
+      sourceUnitId: createBattleUnitId("ALLY_1"),
+      targetUnitId: createBattleUnitId("ALLY_1"),
       magnitude: 0,
       categories: ["BUFF"],
       duration: {
@@ -921,8 +921,8 @@ describe("resolveActionPhase", () => {
       effectActionDefinitionId: dotDefId,
       kindKey: effectKindKeyFromDefinitionId(dotDefId),
       duplicate: true,
-      sourceId: createBattleUnitId("ENEMY_1"),
-      targetId: createBattleUnitId("ALLY_1"),
+      sourceUnitId: createBattleUnitId("ENEMY_1"),
+      targetUnitId: createBattleUnitId("ALLY_1"),
       magnitude: 30,
       categories: ["DEBUFF"],
       continuousDamage: { continuousDamageKind: "FIXED", damageType: "PHYSICAL" },
@@ -1038,8 +1038,8 @@ describe("resolveActionPhase", () => {
       effectActionDefinitionId: hotDefId,
       kindKey: effectKindKeyFromDefinitionId(hotDefId),
       duplicate: true,
-      sourceId: createBattleUnitId("ALLY_1"),
-      targetId: createBattleUnitId("ALLY_1"),
+      sourceUnitId: createBattleUnitId("ALLY_1"),
+      targetUnitId: createBattleUnitId("ALLY_1"),
       magnitude: 0,
       categories: ["BUFF"],
       duration: {

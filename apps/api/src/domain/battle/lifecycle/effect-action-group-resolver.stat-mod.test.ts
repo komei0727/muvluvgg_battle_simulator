@@ -56,8 +56,8 @@ describe("applyEffectActionGroups", () => {
     expect(grantedTarget.appliedEffects).toHaveLength(1);
     expect(grantedTarget.appliedEffects[0]).toMatchObject({
       effectActionDefinitionId: statMod.effectActionDefinitionId,
-      sourceId: actor.battleUnitId,
-      targetId: enemy.battleUnitId,
+      sourceUnitId: actor.battleUnitId,
+      targetUnitId: enemy.battleUnitId,
       duplicate: true,
       magnitude: 20,
       appliedTurnNumber: 1,

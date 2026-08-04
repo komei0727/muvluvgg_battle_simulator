@@ -229,7 +229,7 @@ describe("effect action group context", () => {
       recorder,
       rootEventId,
     });
-    expect(context.actorId).toBe(actor.battleUnitId);
+    expect(context.actorUnitId).toBe(actor.battleUnitId);
     expect(context.rootEventId).toBe(rootEventId);
     expect(context.parentEventId).toBe(rootEventId);
     expect(context.turnNumber).toBe(1);
@@ -261,8 +261,8 @@ describe("testMarker", () => {
     });
     const marker = testMarker(unit, "MARKER_TEST_FIXTURE", { stackCount: 3 });
     expect(String(marker.markerId)).toBe("MARKER_TEST_FIXTURE");
-    expect(marker.sourceId).toBe(unit.battleUnitId);
-    expect(marker.targetId).toBe(unit.battleUnitId);
+    expect(marker.sourceUnitId).toBe(unit.battleUnitId);
+    expect(marker.targetUnitId).toBe(unit.battleUnitId);
     expect(marker.stackCount).toBe(3);
     expect(marker.stackMax).toBeNull();
   });

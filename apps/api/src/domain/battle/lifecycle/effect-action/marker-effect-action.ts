@@ -36,7 +36,7 @@ export const resolveApplyMarker: EffectActionHandler<"APPLY_MARKER"> = (
         // R-MEM-04（M7-008）: Memory由来の`APPLY_MARKER`は付与者ユニットを持たないため、
         // `AppliedEffect`と同じく`sourceSide`（そのMemoryを指定した陣営）を渡す。
         ...requireMarkerSource(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         stackPolicy: effectAction.payload.stack.policy,
         stackMax: effectAction.payload.stack.max,
         durationDefinition: effectAction.payload.duration,
@@ -74,7 +74,7 @@ export const resolveRemoveMarker: EffectActionHandler<"REMOVE_MARKER"> = (
 
   // 所持判定は先行イベントのPS連鎖を反映した`box.units`から取る — 上の通知で対象の
   // Markerが既に解除されていた場合、この解除はno-op（SKIPPED）になる。
-  const target = requireUnit(box.units, application.targetBattleUnitId);
+  const target = requireUnit(box.units, application.targetUnitId);
   const existingMarker = target.markerStates.find(
     (marker) => marker.markerId === effectAction.payload.markerId,
   );
@@ -89,7 +89,7 @@ export const resolveRemoveMarker: EffectActionHandler<"REMOVE_MARKER"> = (
     const reduction = reduceMarkerStack(
       removalContext,
       box.units,
-      application.targetBattleUnitId,
+      application.targetUnitId,
       effectAction.payload.markerId,
       effectAction.payload.count,
       context.definitions.effectActions,
@@ -105,7 +105,7 @@ export const resolveRemoveMarker: EffectActionHandler<"REMOVE_MARKER"> = (
       box.units,
       [
         {
-          battleUnitId: application.targetBattleUnitId,
+          battleUnitId: application.targetUnitId,
           markerInstanceId: existingMarker.markerInstanceId,
           reason: "REMOVED",
         },

@@ -116,8 +116,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: TURN_DURATION,
@@ -129,8 +129,8 @@ describe("grantEffect", () => {
     expect(updatedTarget.appliedEffects).toHaveLength(1);
     expect(updatedTarget.appliedEffects[0]).toMatchObject({
       effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 20,
       appliedTurnNumber: 1,
@@ -151,8 +151,8 @@ describe("grantEffect", () => {
     };
     const request = {
       definition: statModDefinition(),
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 20,
       durationDefinition: TURN_DURATION,
@@ -184,8 +184,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: TURN_DURATION,
@@ -232,8 +232,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 5,
         durationDefinition: TURN_DURATION,
@@ -247,7 +247,7 @@ describe("grantEffect", () => {
     expect(applied!.payload).toMatchObject({ snapshot: { sourceAttack: 10 } });
   });
 
-  it("UT-R-EFF-01-020 (defensive; preflight should already guarantee this): throws when targetId references an unknown BattleUnitId", () => {
+  it("UT-R-EFF-01-020 (defensive; preflight should already guarantee this): throws when targetUnitId references an unknown BattleUnitId", () => {
     const source = unit("source-1");
     const { recorder, rootEventId } = seedRecorder();
 
@@ -263,8 +263,8 @@ describe("grantEffect", () => {
         [source],
         {
           definition: statModDefinition(),
-          sourceId: source.battleUnitId,
-          targetId: createBattleUnitId("MISSING"),
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: createBattleUnitId("MISSING"),
           duplicate: true,
           magnitude: 20,
           durationDefinition: TURN_DURATION,
@@ -296,8 +296,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: durationWithOwnerAndExpiration,
@@ -328,8 +328,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: TURN_DURATION,
@@ -364,8 +364,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: durationWithConsumption,
@@ -398,8 +398,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statusDefinition("STEALTH"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STEALTH",
@@ -434,8 +434,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: TURN_DURATION,
@@ -476,8 +476,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statusDefinition("STEALTH"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STEALTH",
@@ -505,8 +505,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: -20,
         durationDefinition: TURN_DURATION,
@@ -537,8 +537,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 20,
         durationDefinition: TURN_DURATION,
@@ -569,8 +569,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statusDefinition("STUN"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STUN",
@@ -602,8 +602,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statusDefinition("STEALTH"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STEALTH",
@@ -635,8 +635,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statusDefinition("STUN"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STUN",
@@ -668,8 +668,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: -0.2,
         durationDefinition: TURN_DURATION,
@@ -697,8 +697,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statusDefinition("STEALTH"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STEALTH",
@@ -726,8 +726,8 @@ describe("grantEffect", () => {
       [source, target],
       {
         definition: statModDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: -0.2,
         durationDefinition: TURN_DURATION,
@@ -766,8 +766,8 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
         : createEffectActionDefinitionId(definitionId);
     return {
       definition: { ...statModDefinition(), effectActionDefinitionId: id },
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 0.2,
       durationDefinition: REAPPLYING_DURATION,
@@ -858,8 +858,8 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
         effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
         payload: { status, duration: REAPPLYING_DURATION },
       } as EffectActionDefinition,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 0,
       statusKind: status,
@@ -937,7 +937,7 @@ describe("isStackLimitReached (R-EFF-05 重複上限)", () => {
         effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
         kindKey: definitionId as never,
         duplicate: true,
-        targetId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         magnitude: 0.025,
         categories: ["BUFF"],
         duration: { definition: TURN_DURATION, timeLimitRemaining: 2 },

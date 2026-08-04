@@ -100,7 +100,7 @@ function effect(
     effectActionDefinitionId,
     kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
     duplicate: true,
-    targetId: createBattleUnitId("OWNER"),
+    targetUnitId: createBattleUnitId("OWNER"),
     magnitude,
     categories,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -112,8 +112,8 @@ function marker(unit: BattleUnit, markerIdValue: string, stackCount: number): Ma
   return {
     markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
     markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
+    sourceUnitId: unit.battleUnitId,
+    targetUnitId: unit.battleUnitId,
     stackCount,
     stackMax: null,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -856,12 +856,12 @@ describe("evaluateTriggerCondition", () => {
       };
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
       const linkFrom = (
-        sourceId: string | undefined,
+        sourceUnitId: string | undefined,
         definitionId = "ACT_LINK",
       ): AppliedEffect => ({
         ...effect("link", ["DEBUFF"]),
         effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
-        ...(sourceId === undefined ? {} : { sourceId: createBattleUnitId(sourceId) }),
+        ...(sourceUnitId === undefined ? {} : { sourceUnitId: createBattleUnitId(sourceUnitId) }),
         damageLink: { linkToUnitId: createBattleUnitId("PEER"), linkRate: 0.35 },
       });
       const check = (held: AppliedEffect): boolean => {

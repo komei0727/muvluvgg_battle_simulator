@@ -156,7 +156,7 @@ export function* resolveDefensiveInterventionsSteps(
   // 保持する`APPLY_DAMAGE_LINK`を採る（R-LNK-01「対象へ算出された最終ダメージをリンク元の
   // 量とする」のリンク元はこの防御側である）。
   // R-INT-01 #4: 反射の成立判定。最終的な防御側が保持する`APPLY_REFLECT`を採る。
-  const defender = findUnit(working, defenderUnitId, "hits[].targetBattleUnitId");
+  const defender = findUnit(working, defenderUnitId, "hits[].targetUnitId");
   return {
     kind: "RESOLVED",
     defenderUnitId,

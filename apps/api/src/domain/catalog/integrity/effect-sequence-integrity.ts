@@ -161,6 +161,6 @@ export function validateGrantedByScope(
     targetId: ownerId,
     rule: "GRANTED_BY_OUTSIDE_TRIGGER",
     message:
-      'TARGET_HAS_EFFECT.grantedBy is only evaluable inside a Skill trigger condition (triggers[]/counterUpdates[].trigger), where the evaluating unit is known; an EffectSequence or activationCondition evaluator has no "self" to compare AppliedEffect.sourceId against and the condition would silently never match (DMG-007, Issue #187)',
+      'TARGET_HAS_EFFECT.grantedBy is only evaluable inside a Skill trigger condition (triggers[]/counterUpdates[].trigger), where the evaluating unit is known; an EffectSequence or activationCondition evaluator has no "self" to compare AppliedEffect.sourceUnitId against and the condition would silently never match (DMG-007, Issue #187)',
   });
 }

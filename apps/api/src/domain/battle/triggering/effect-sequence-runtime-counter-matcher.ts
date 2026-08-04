@@ -17,13 +17,13 @@ import type { TriggerCandidateEvent } from "./trigger-event.js";
  * が「現在進行中の解決」を`SkillUseId`ごとに登録した一時レジストリを渡す。
  */
 export interface ActiveEffectSequenceResolution {
-  readonly actorId: BattleUnitId;
+  readonly actorUnitId: BattleUnitId;
   readonly skillDefinitionId: SkillDefinitionId;
   readonly counterUpdates: readonly RuntimeCounterUpdateDefinition[];
 }
 
 export interface EffectSequenceRuntimeCounterUpdateResult {
-  readonly actorId: BattleUnitId;
+  readonly actorUnitId: BattleUnitId;
   readonly skillUseId: SkillUseId;
   readonly skillDefinitionId: SkillDefinitionId;
   readonly counter: RuntimeCounterId;
@@ -37,7 +37,7 @@ export interface EffectSequenceRuntimeCounterUpdateResult {
 /** `matchEffectSequenceRuntimeCounterUpdates`が1件マッチしたとして報告する、更新前の組。 */
 export interface MatchedEffectSequenceRuntimeCounterUpdate {
   readonly skillUseId: SkillUseId;
-  readonly actorId: BattleUnitId;
+  readonly actorUnitId: BattleUnitId;
   readonly skillDefinitionId: SkillDefinitionId;
   readonly update: RuntimeCounterUpdateDefinition;
 }
@@ -60,7 +60,7 @@ export function matchEffectSequenceRuntimeCounterUpdates(
   const matched: MatchedEffectSequenceRuntimeCounterUpdate[] = [];
 
   for (const [skillUseId, resolution] of activeResolutions) {
-    const actor = unitsById.get(resolution.actorId);
+    const actor = unitsById.get(resolution.actorUnitId);
     if (actor === undefined || isDefeated(actor)) {
       continue;
     }
@@ -86,7 +86,7 @@ export function matchEffectSequenceRuntimeCounterUpdates(
       }
       matched.push({
         skillUseId,
-        actorId: resolution.actorId,
+        actorUnitId: resolution.actorUnitId,
         skillDefinitionId: resolution.skillDefinitionId,
         update,
       });
@@ -113,11 +113,11 @@ export function applyMatchedEffectSequenceRuntimeCounterUpdate(
   readonly units: readonly BattleUnit[];
   readonly change: EffectSequenceRuntimeCounterUpdateResult | undefined;
 } {
-  const actor = units.find((u) => u.battleUnitId === matched.actorId);
+  const actor = units.find((u) => u.battleUnitId === matched.actorUnitId);
   if (actor === undefined) {
     throw new DomainValidationError(
       "units",
-      `battleUnitId "${matched.actorId}" disappeared while applying EffectSequence counterUpdates`,
+      `battleUnitId "${matched.actorUnitId}" disappeared while applying EffectSequence counterUpdates`,
     );
   }
   const { skillUseId, update } = matched;
@@ -140,7 +140,7 @@ export function applyMatchedEffectSequenceRuntimeCounterUpdate(
   return {
     units: nextUnits,
     change: {
-      actorId: matched.actorId,
+      actorUnitId: matched.actorUnitId,
       skillUseId,
       skillDefinitionId: matched.skillDefinitionId,
       counter: update.counter,

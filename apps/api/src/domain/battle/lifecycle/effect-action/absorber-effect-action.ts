@@ -56,7 +56,7 @@ export const resolveApplyShield: EffectActionHandler<"APPLY_SHIELD"> = (
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         shield: {
@@ -110,7 +110,7 @@ export const resolveApplySubUnit: EffectActionHandler<"APPLY_SUBUNIT"> = (
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         subUnit: {

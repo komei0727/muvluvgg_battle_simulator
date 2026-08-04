@@ -66,8 +66,8 @@ function linkedEffect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: target.battleUnitId,
-    targetId: target.battleUnitId,
+    sourceUnitId: target.battleUnitId,
+    targetUnitId: target.battleUnitId,
     magnitude: 0.025,
     categories: ["BUFF"],
     duration: {
@@ -144,8 +144,8 @@ describe("removeMarkers", () => {
       [source, target],
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -194,8 +194,8 @@ describe("removeMarkers", () => {
         units,
         {
           markerId,
-          sourceId: source.battleUnitId,
-          targetId: target.battleUnitId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: target.battleUnitId,
           stackPolicy: "ADD",
           stackMax: null,
           durationDefinition: BATTLE_DURATION,
@@ -238,8 +238,8 @@ describe("removeMarkers", () => {
       [source, target],
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -308,8 +308,8 @@ describe("removeMarkers", () => {
       [source, target],
       {
         markerId: parentMarkerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: groupDuration("PARENT"),
@@ -321,8 +321,8 @@ describe("removeMarkers", () => {
       grantedParent.units,
       {
         markerId: childMarkerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: groupDuration("CHILD"),
@@ -372,8 +372,8 @@ describe("removeMarkers", () => {
       [source, target],
       {
         markerId: parentMarkerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: groupDuration("PARENT"),
@@ -385,8 +385,8 @@ describe("removeMarkers", () => {
       grantedParent.units,
       {
         markerId: childMarkerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: groupDuration("CHILD"),
@@ -430,8 +430,8 @@ describe("removeMarkers", () => {
       [source, { ...target, appliedEffects: childEffects }],
       {
         markerId: parentMarkerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: {
@@ -514,8 +514,8 @@ describe("removeMarkers", () => {
       [source, { ...target, appliedEffects: [parentEffect] }],
       {
         markerId: createMarkerId("MARKER_CHILD"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: {
@@ -579,8 +579,8 @@ describe("removeMarkers", () => {
       [source, { ...target, appliedEffects: [parentEffect, childEffect] }],
       {
         markerId: createMarkerId("MARKER_CHILD"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: {
@@ -596,8 +596,8 @@ describe("removeMarkers", () => {
       grantedChildMarker.units,
       {
         markerId: createMarkerId("MARKER_PARENT"),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: {
@@ -678,8 +678,8 @@ describe("removeMarkers", () => {
       [source, { ...target, appliedEffects: [childEffect] }],
       {
         markerId: parentMarkerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: {
@@ -738,8 +738,8 @@ describe("action-boundary Marker duration decrement + removal", () => {
       [source, target],
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: actionDuration,

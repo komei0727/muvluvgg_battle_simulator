@@ -118,8 +118,8 @@ describe("production Catalog ACTION-unit duration decrement (EFF-003, R-EFF-04)"
         [source, other],
         {
           definition: effectAction,
-          sourceId: source.battleUnitId,
-          targetId: holder.battleUnitId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: holder.battleUnitId,
           duplicate: true,
           magnitude: effectAction.payload.formula.value,
           durationDefinition: effectAction.payload.duration,
@@ -230,8 +230,8 @@ describe("production Catalog TURN-unit duration decrement (EFF-003, R-EFF-06)", 
         [owner],
         {
           definition: effectAction,
-          sourceId: owner.battleUnitId,
-          targetId: owner.battleUnitId,
+          sourceUnitId: owner.battleUnitId,
+          targetUnitId: owner.battleUnitId,
           duplicate: true,
           magnitude: effectAction.payload.formula.value,
           durationDefinition: effectAction.payload.duration,
@@ -331,8 +331,8 @@ describe("production Catalog consumption (EFF-003, R-EFF-07)", () => {
         [owner],
         {
           definition: effectAction,
-          sourceId: owner.battleUnitId,
-          targetId: owner.battleUnitId,
+          sourceUnitId: owner.battleUnitId,
+          targetUnitId: owner.battleUnitId,
           duplicate: true,
           magnitude: effectAction.payload.formula.value,
           durationDefinition: effectAction.payload.duration,
@@ -435,8 +435,8 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       [owner],
       {
         definition: atkDown,
-        sourceId: owner.battleUnitId,
-        targetId: owner.battleUnitId,
+        sourceUnitId: owner.battleUnitId,
+        targetUnitId: owner.battleUnitId,
         duplicate: true,
         magnitude: atkDown.payload.formula.value,
         durationDefinition: atkDown.payload.duration,
@@ -449,8 +449,8 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       units,
       {
         definition: dmgDown,
-        sourceId: owner.battleUnitId,
-        targetId: owner.battleUnitId,
+        sourceUnitId: owner.battleUnitId,
+        targetUnitId: owner.battleUnitId,
         duplicate: true,
         // APPLY_DAMAGE_MOD's own formula shape isn't relevant to this
         // duration/cascade proof; `grantEffect` only needs a numeric
@@ -527,8 +527,8 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       [owner],
       {
         definition: immunity,
-        sourceId: owner.battleUnitId,
-        targetId: owner.battleUnitId,
+        sourceUnitId: owner.battleUnitId,
+        targetUnitId: owner.battleUnitId,
         duplicate: true,
         magnitude: 0,
         durationDefinition: immunity.payload.duration,
@@ -541,8 +541,8 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
       units,
       {
         definition: continuousHeal,
-        sourceId: owner.battleUnitId,
-        targetId: owner.battleUnitId,
+        sourceUnitId: owner.battleUnitId,
+        targetUnitId: owner.battleUnitId,
         duplicate: true,
         magnitude: 0,
         durationDefinition: continuousHeal.payload.duration,

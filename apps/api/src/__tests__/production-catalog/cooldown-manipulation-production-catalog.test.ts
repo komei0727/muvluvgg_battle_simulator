@@ -126,7 +126,7 @@ describe("production Catalog COOLDOWN_MANIPULATION (Issue #129)", () => {
 
       const { recorder, rootEventId } = seedRecorder("B_1");
       const resolvedApplication: ResolvedEffectApplication = {
-        targetBattleUnitId: actorWithCooldown.battleUnitId,
+        targetUnitId: actorWithCooldown.battleUnitId,
         effectActionDefinitionId: effectAction.effectActionDefinitionId,
         hitIndex: 1,
       };

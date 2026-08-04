@@ -104,8 +104,8 @@ function sceneWithKouyou(): Scene {
     [granter, holder],
     {
       markerId: markerAction.payload.markerId,
-      sourceId: granter.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: granter.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       stackPolicy: markerAction.payload.stack.policy,
       stackMax: markerAction.payload.stack.max,
       durationDefinition: markerAction.payload.duration,
@@ -117,8 +117,8 @@ function sceneWithKouyou(): Scene {
     marked.units,
     {
       definition: critDownAction,
-      sourceId: granter.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: granter.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       duplicate: true,
       magnitude: -0.25,
       durationDefinition: critDownAction.payload.duration,

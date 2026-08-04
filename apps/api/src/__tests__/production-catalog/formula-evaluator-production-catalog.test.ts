@@ -125,9 +125,12 @@ function eventContext(): DamageEventContext {
   };
 }
 
-function singleHit(targetId: string, effectActionDefinitionId: string): ResolvedEffectApplication {
+function singleHit(
+  targetUnitId: string,
+  effectActionDefinitionId: string,
+): ResolvedEffectApplication {
   return {
-    targetBattleUnitId: createBattleUnitId(targetId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     effectActionDefinitionId: createEffectActionDefinitionId(effectActionDefinitionId),
     hitIndex: 1,
   };
@@ -336,8 +339,8 @@ describe("production Catalog APPLY_STAT_MOD with ALIVE_UNIT_COUNT_SCALE (RES-001
       fiveAllies,
       {
         definition: effectAction,
-        sourceId: laura.battleUnitId,
-        targetId: laura.battleUnitId,
+        sourceUnitId: laura.battleUnitId,
+        targetUnitId: laura.battleUnitId,
         duplicate: true,
         magnitude: magnitudeAtCap,
         durationDefinition: effectAction.payload.duration,

@@ -37,12 +37,12 @@ function matchesQuery(
   }
   // DMG-007（Issue #187）: `grantedBy: SELF`は「この条件を評価しているユニット自身が
   // 付与した」インスタンスだけに一致する。付与者を持たない付与（Memory由来など
-  // `sourceId`が無いもの）は自身が付与したとは言えないため一致しない。評価元が
+  // `sourceUnitId`が無いもの）は自身が付与したとは言えないため一致しない。評価元が
   // 渡されていない呼び出し経路も同じ理由で一致させない — 黙って全インスタンスへ
   // 広がるより、条件が成立しない方が安全側である。
   if (
     query.grantedBy === "SELF" &&
-    (evaluatorUnitId === undefined || effect.sourceId !== evaluatorUnitId)
+    (evaluatorUnitId === undefined || effect.sourceUnitId !== evaluatorUnitId)
   ) {
     return false;
   }

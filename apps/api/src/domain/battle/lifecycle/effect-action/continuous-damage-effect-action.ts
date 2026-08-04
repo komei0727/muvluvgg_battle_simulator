@@ -43,7 +43,7 @@ export const resolveApplyContinuousDamage: EffectActionHandler<"APPLY_CONTINUOUS
   // 3つ保持している対象への4つ目は`SKIPPED`になる）。
   if (
     effectAction.payload.continuousDamageKind === "BURN" &&
-    isBurnStackLimitReached(requireUnit(box.units, application.targetBattleUnitId))
+    isBurnStackLimitReached(requireUnit(box.units, application.targetUnitId))
   ) {
     return skippedOutcome(input);
   }
@@ -52,7 +52,7 @@ export const resolveApplyContinuousDamage: EffectActionHandler<"APPLY_CONTINUOUS
   const grantRequest = {
     definition: effectAction,
     ...grantSourceOf(context),
-    targetId: application.targetBattleUnitId,
+    targetUnitId: application.targetUnitId,
     duplicate: true,
     magnitude,
     continuousDamage: {

@@ -76,7 +76,7 @@ function statusDefinition(id: string): EffectActionDefinition {
 
 function effect(
   id: string,
-  targetId: ReturnType<typeof createBattleUnitId>,
+  targetUnitId: ReturnType<typeof createBattleUnitId>,
   definitionId: EffectActionDefinitionId,
   overrides: Partial<AppliedEffect> = {},
 ): AppliedEffect {
@@ -86,8 +86,8 @@ function effect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: targetId,
-    targetId,
+    sourceUnitId: targetUnitId,
+    targetUnitId,
     magnitude: 0.2,
     categories: ["BUFF"],
     duration: { definition },
@@ -347,8 +347,8 @@ describe("removeEffects (R-EFF-02)", () => {
     const childMarker: MarkerState = {
       markerInstanceId: createMarkerInstanceId("marker-child"),
       markerId: createMarkerId("MARKER_CHILD"),
-      sourceId: target.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: target.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackCount: 1,
       stackMax: null,
       duration: {

@@ -83,7 +83,7 @@ function matchesCriteria(
 }
 
 /**
- * R-EFF-02「解除」#1〜#5: `REMOVE_EFFECTS`の即時効果として、`targetId`が保持する
+ * R-EFF-02「解除」#1〜#5: `REMOVE_EFFECTS`の即時効果として、`targetUnitId`が保持する
  * `AppliedEffect`のうち`criteria`に一致するものを解除する。`duration-expiry-service.ts`
  * の`expireEffects`と同じ構造だが、失効（時間制限・消費）ではなく能動的な解除で
  * あるため`EffectRemoved`（`reason: REMOVED`）を発行する。R-EFF-02 #3の「解除数」は
@@ -96,12 +96,12 @@ function matchesCriteria(
 export function removeEffects(
   context: RemoveEffectsContext,
   units: readonly BattleUnit[],
-  targetId: BattleUnitId,
+  targetUnitId: BattleUnitId,
   criteria: EffectRemovalCriteria,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): RemoveEffectsResult {
-  const target = requireUnit(units, targetId);
+  const target = requireUnit(units, targetUnitId);
 
   // #1〜#3: 一致する効果を付与順で抽出し、maxRemovalsで解除数を制限する。
   // R-EFF-01/R-EFF-02: 明示的に解除不可（`dispellable: false`）と

@@ -23,6 +23,20 @@
 - 数値や配列を暗黙に補正せず、不正な入力は構造化エラーとして返す。
 - ログや状態履歴を途中で黙って切り捨てない。
 
+### ユニットIDフィールド名の対応（wire契約 ⇔ Domain内部名）
+
+戦闘中のユニットを指す3概念のフィールド名は、wire契約とDomain内部で**同一**であり読み替えは無い（REF-020／Issue #323）。同一概念に複数の名前を併存させると読み手に無用の区別を強いるため、内部名をwire名へ一本化した。
+
+| 概念                 | wire契約・Domain内部で共通の名前           | 型             |
+| -------------------- | ------------------------------------------ | -------------- |
+| 効果・ダメージの対象 | `targetUnitId`（複数形は `targetUnitIds`） | `BattleUnitId` |
+| 効果の付与元         | `sourceUnitId`                             | `BattleUnitId` |
+| 行動主体             | `actorUnitId`                              | `BattleUnitId` |
+
+廃止した内部名は `targetId` / `targetIds` / `targetBattleUnitId` / `sourceId` / `actorId` で、再導入は `UT-NAMING-001`〜`UT-NAMING-003`（`apps/api/src/__tests__/architecture/unit-id-naming.test.ts`）が機械的に禁止する。
+
+`CatalogIntegrityViolation.targetId`（`11_インフラストラクチャ設計.md` のCatalogロード失敗行）だけは同名だが**別概念**であり、`BattleUnitId` ではなくCatalog定義ID（`UNIT_*` 等）を指す。この用途はwireへ現れない。
+
 ## エンドポイント
 
 ### 戦闘をシミュレーションする

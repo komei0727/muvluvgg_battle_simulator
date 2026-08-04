@@ -43,7 +43,7 @@ export interface EffectActionGroupContext {
    * `requireActorUnit`が明確に拒否する（Catalog整合性検証／preflightが本来
    * ここへ到達させない）。
    */
-  readonly actorId?: BattleUnitId;
+  readonly actorUnitId?: BattleUnitId;
   /** R-MEM-04: Memory由来の解決だけが持つ発生源陣営（`08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、`sourceSide`を持つ」）。 */
   readonly sourceSide?: Side;
   readonly random: RandomSource;
@@ -172,14 +172,16 @@ export function eventContextOf(context: EffectActionGroupContext): EffectResolut
 
 /**
  * R-MEM-04: 使用者BattleUnitを持たないMemory由来の解決
- * （`context.actorId === undefined`）と、通常のSkill/PS解決の差を1か所へ閉じ込める
+ * （`context.actorUnitId === undefined`）と、通常のSkill/PS解決の差を1か所へ閉じ込める
  * ためのアクセサ群。
  */
 export function findActorUnit(
   context: EffectActionGroupContext,
   box: UnitsBox,
 ): BattleUnit | undefined {
-  return context.actorId === undefined ? undefined : requireUnit(box.units, context.actorId);
+  return context.actorUnitId === undefined
+    ? undefined
+    : requireUnit(box.units, context.actorUnitId);
 }
 
 /**
@@ -262,31 +264,31 @@ export function skillTypeOf(context: EffectActionGroupContext): SkillType | unde
 export function sourceEnvelopeOf(
   context: EffectActionGroupContext,
 ): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
-  if (context.actorId !== undefined) {
-    return { sourceUnitId: context.actorId };
+  if (context.actorUnitId !== undefined) {
+    return { sourceUnitId: context.actorUnitId };
   }
   return context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {};
 }
 
-/** `AppliedEffect`/`MarkerState`の付与元（`GrantEffectRequest.sourceId`/`sourceSide`）。 */
+/** `AppliedEffect`/`MarkerState`の付与元（`GrantEffectRequest.sourceUnitId`/`sourceSide`）。 */
 export function grantSourceOf(
   context: EffectActionGroupContext,
-): { readonly sourceId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
-  if (context.actorId !== undefined) {
-    return { sourceId: context.actorId };
+): { readonly sourceUnitId: BattleUnitId } | { readonly sourceSide: Side } | Record<string, never> {
+  if (context.actorUnitId !== undefined) {
+    return { sourceUnitId: context.actorUnitId };
   }
   return context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {};
 }
 
 /**
  * `MarkerState`はR-EFF-10「直近の付与者」を必ず1つ持つ（`MarkerSource`のexactly-one
- * union）。スキル解決は`actorId`を、Memory解決（R-MEM-04）は`sourceSide`を必ず持つ
+ * union）。スキル解決は`actorUnitId`を、Memory解決（R-MEM-04）は`sourceSide`を必ず持つ
  * ため実際には両方欠落しないが、`grantSourceOf`の型はそれを保証しない。付与元不明の
  * Markerを黙って作らないよう、この境界で明確に拒否する。
  */
 export function requireMarkerSource(context: EffectActionGroupContext): MarkerSource {
-  if (context.actorId !== undefined) {
-    return { sourceId: context.actorId };
+  if (context.actorUnitId !== undefined) {
+    return { sourceUnitId: context.actorUnitId };
   }
   if (context.sourceSide !== undefined) {
     return { sourceSide: context.sourceSide };

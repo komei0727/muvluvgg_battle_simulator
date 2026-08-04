@@ -53,12 +53,12 @@ export function resolveChargeStart(
   actionId: ActionId,
   actionScope: ResolutionScopeId,
 ): ActionResolutionResult {
-  const actorId = actor.battleUnitId;
+  const actorUnitId = actor.battleUnitId;
   let working =
     effectiveActionType === "EX"
-      ? consumeExGaugeFully(units, actorId)
-      : consumeAp(units, actorId, skill.cost.amount);
-  const actorAfterCost = requireUnit(working, actorId);
+      ? consumeExGaugeFully(units, actorUnitId)
+      : consumeAp(units, actorUnitId, skill.cost.amount);
+  const actorAfterCost = requireUnit(working, actorUnitId);
   const stateDeltaEntry =
     effectiveActionType === "EX"
       ? { extraGauge: { before: actor.currentExtraGauge, after: actorAfterCost.currentExtraGauge } }
@@ -71,9 +71,9 @@ export function resolveChargeStart(
     cycleNumber,
     actionId,
     resolutionScopeId: actionScope,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       reservedActionType,
       effectiveActionType,
       apBefore: actor.currentAp,
@@ -81,7 +81,7 @@ export function resolveChargeStart(
       exBefore: actor.currentExtraGauge,
       exAfter: actorAfterCost.currentExtraGauge,
     },
-    stateDelta: { units: { [actorId]: stateDeltaEntry } },
+    stateDelta: { units: { [actorUnitId]: stateDeltaEntry } },
   });
 
   // Issue #184: `PassiveActivationRuntime`の生成を
@@ -107,7 +107,7 @@ export function resolveChargeStart(
   // 自身の`ActionStarted`を契機とする継続回復を行動本体より前に発火させる。
   const continuousHeal = fireContinuousHealsOnActionStart(
     working,
-    actorId,
+    actorUnitId,
     {
       recorder,
       turnNumber,
@@ -156,7 +156,7 @@ export function resolveChargeStart(
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
     working,
-    actorId,
+    actorUnitId,
     recorder,
     {
       actionId,
@@ -164,7 +164,7 @@ export function resolveChargeStart(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (
         event: BattleDomainEvent,
@@ -184,19 +184,19 @@ export function resolveChargeStart(
   // R-SKL-05 #2: 元スキルへクールタイムを設定し、現在の行動IDを設定スコープとして記録する。
   const cooldownResult = recordCooldownStart(
     recorder,
-    { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
-    requireUnit(working, actorId).cooldowns,
+    { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorUnitId },
+    requireUnit(working, actorUnitId).cooldowns,
     skill,
     continuousHeal.lastEventId,
     actionStarted.eventId,
   );
 
   const chargingUnit: BattleUnit = {
-    ...requireUnit(working, actorId),
+    ...requireUnit(working, actorUnitId),
     cooldowns: cooldownResult.cooldowns,
     charge: { skill, startedActionId: actionId },
   };
-  working = working.map((u) => (u.battleUnitId === actorId ? chargingUnit : u));
+  working = working.map((u) => (u.battleUnitId === actorUnitId ? chargingUnit : u));
 
   const chargeStarted = recorder.record({
     eventType: "ChargeStarted",
@@ -207,20 +207,20 @@ export function resolveChargeStart(
     resolutionScopeId: actionScope,
     parentEventId: cooldownResult.lastEventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     // このイベントには外部の対象がなく、チャージを
     // 開始した本人自身が観測対象であるため、`targetUnitIds`へ自分自身を含める
     // （`targetSelector: ALLY`等で「ALLYがチャージ開始した」を判定するPS、
     // 例: production Catalog Harriet PS2が候補化できるようにする）。
-    targetUnitIds: [actorId],
+    targetUnitIds: [actorUnitId],
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       skillDefinitionId: skill.skillDefinitionId,
       startedActionId: actionId,
     },
     stateDelta: {
       units: {
-        [actorId]: {
+        [actorUnitId]: {
           charge: {
             before: undefined,
             after: { skillDefinitionId: skill.skillDefinitionId, startedActionId: actionId },
@@ -244,7 +244,7 @@ export function resolveChargeStart(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (event, unitsForChain) =>
         passiveRuntime.onFactEvent(event, unitsForChain).units,
@@ -275,7 +275,7 @@ export function resolveChargeRelease(
   actionId: ActionId,
   actionScope: ResolutionScopeId,
 ): ActionResolutionResult {
-  const actorId = actor.battleUnitId;
+  const actorUnitId = actor.battleUnitId;
   const charge = actor.charge;
   if (charge === undefined) {
     throw new DomainValidationError(
@@ -292,9 +292,9 @@ export function resolveChargeRelease(
     cycleNumber,
     actionId,
     resolutionScopeId: actionScope,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       reservedActionType,
       effectiveActionType: "CHARGE_RELEASE",
       apBefore: actor.currentAp,
@@ -329,7 +329,7 @@ export function resolveChargeRelease(
   // 発火させる。
   const continuousHeal = fireContinuousHealsOnActionStart(
     units,
-    actorId,
+    actorUnitId,
     {
       recorder,
       turnNumber,
@@ -378,7 +378,7 @@ export function resolveChargeRelease(
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
     working,
-    actorId,
+    actorUnitId,
     recorder,
     {
       actionId,
@@ -386,7 +386,7 @@ export function resolveChargeRelease(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (
         event: BattleDomainEvent,
@@ -407,7 +407,7 @@ export function resolveChargeRelease(
     skill,
     // 継続回復で使用者自身のHP・combatStatsが変わりうるため、対象選択はこの
     // 時点の最新状態から行う。
-    requireUnit(working, actorId),
+    requireUnit(working, actorUnitId),
     working,
     definitions.effectActions,
     definitions.unitDefinitions,
@@ -420,7 +420,7 @@ export function resolveChargeRelease(
   if (skill.resolution.kind === "CHARGE") {
     passiveRuntime.beginEffectSequenceResolution(
       skillUseId,
-      actorId,
+      actorUnitId,
       skill.skillDefinitionId,
       skill.resolution.chargeRelease.counterUpdates ?? [],
     );
@@ -435,7 +435,7 @@ export function resolveChargeRelease(
     resolutionScopeId: actionScope,
     parentEventId: continuousHeal.lastEventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     targetUnitIds,
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
@@ -462,10 +462,10 @@ export function resolveChargeRelease(
     resolutionScopeId: actionScope,
     parentEventId: targetsSelected.eventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     targetUnitIds,
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       skillDefinitionId: skill.skillDefinitionId,
       chargeStartActionId: charge.startedActionId,
       releaseActionId: actionId,
@@ -484,7 +484,7 @@ export function resolveChargeRelease(
 
   applyEffectActionGroups(plan, working, {
     definitions,
-    actorId,
+    actorUnitId,
     random,
     recorder,
     turnNumber,
@@ -516,7 +516,7 @@ export function resolveChargeRelease(
   // 後に発行される）へ持たせる。M6でPS解決が入った時に所有者のPSが
   // 「チャージ中ではない」と誤判定するのを防ぐ）。
   working = working.map((u) => {
-    if (u.battleUnitId !== actorId) {
+    if (u.battleUnitId !== actorUnitId) {
       return u;
     }
     const { charge: _charge, ...withoutCharge } = u;
@@ -531,7 +531,7 @@ export function resolveChargeRelease(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       // `ActionCompleting`/Cooldown更新/`ActionCompleted`
       // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
@@ -545,7 +545,7 @@ export function resolveChargeRelease(
     working,
     {
       units: {
-        [actorId]: {
+        [actorUnitId]: {
           charge: {
             before: {
               skillDefinitionId: skill.skillDefinitionId,
