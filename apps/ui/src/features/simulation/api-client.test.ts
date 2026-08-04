@@ -269,4 +269,26 @@ describe("getCatalog", () => {
       expect(result.status).toBe(304);
     }
   });
+
+  // ブラウザの組み込みfetchは`this`がwindow以外だとIllegal invocationで失敗する
+  // ため、既定のfetchを使う経路がメソッド呼び出しになっていないことを検査する。
+  it("calls the default global fetch without rebinding its receiver", async () => {
+    const globalFetch = vi.fn<typeof fetch>(function (this: unknown) {
+      if (this !== undefined && this !== globalThis) {
+        throw new TypeError("Illegal invocation");
+      }
+      return Promise.resolve(jsonResponse(200, validCatalogBody));
+    });
+    vi.stubGlobal("fetch", globalFetch);
+
+    const result = await getCatalog({
+      baseUrl: "https://api.example.com",
+      signal: new AbortController().signal,
+    });
+
+    expect(globalFetch).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
 });

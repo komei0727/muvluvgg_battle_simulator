@@ -259,6 +259,41 @@ describe("simulate", () => {
     }
   });
 
+  // The headers resolve as soon as fetch() settles, but the body may still be
+  // streaming. The 35s wait limit must keep covering response.json(), not just
+  // the initial fetch() call.
+  it("returns TIMEOUT when the wait limit elapses while the response body is still being read", async () => {
+    vi.useFakeTimers();
+    let capturedSignal: AbortSignal | undefined;
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedSignal = init?.signal ?? undefined;
+      const response = {
+        status: 200,
+        headers: new Headers(),
+        json: () =>
+          new Promise((_resolve, reject) => {
+            capturedSignal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      } as unknown as Response;
+      return Promise.resolve(response);
+    });
+
+    const resultPromise = simulate(validRequest, {
+      baseUrl: "https://api.example.com",
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock,
+    });
+    await vi.advanceTimersByTimeAsync(35_000);
+    const result = await resultPromise;
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("TIMEOUT");
+    }
+  }, 2_000);
+
   it("does not auto-retry on failure (fetch is called exactly once)", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(503, {

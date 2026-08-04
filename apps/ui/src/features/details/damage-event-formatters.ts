@@ -14,15 +14,12 @@
 // 列挙値は 03_API・データ連携設計.md §12 のとおり翻訳せずそのまま出す
 // （UI側で列挙値の部分集合を持つとDomainの分類と黙って乖離するため）。
 
-import { isRecord, resolveDisplayName } from "./event-presentation.js";
+import { resolveDisplayName } from "./event-presentation.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import { isRecord, numberOf } from "../../lib/unknown-narrowing.js";
 
 const NO_VALUE_PLACEHOLDER = "-";
-
-function numberOf(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
 
 /**
  * 0〜1の割合を百分率へ整形する。`0.3 * 100`のような二進浮動小数の誤差

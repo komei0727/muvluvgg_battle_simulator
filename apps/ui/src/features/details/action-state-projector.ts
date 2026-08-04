@@ -25,6 +25,7 @@ import type {
   BattleLogEventResponse,
   BattleSimulationResponse,
 } from "../simulation/api-contract.js";
+import { isRecord, numberOf } from "../../lib/unknown-narrowing.js";
 
 export interface ResourceValue {
   readonly current: number;
@@ -97,14 +98,6 @@ export interface UnitActionState {
   readonly subUnits: readonly UnitSubUnitState[];
   /** falseの場合、subUnitsが空でも「サブユニットなし」を意味しない。 */
   readonly subUnitsKnown: boolean;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function numberOf(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
 }
 
 function readResourceValue(resources: unknown, key: string): ResourceValue | undefined {

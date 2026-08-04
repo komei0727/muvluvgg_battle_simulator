@@ -5,6 +5,7 @@ import type {
   CatalogUnitSummary,
   UiApiError,
 } from "./api-contract.js";
+import { isRecord } from "../../lib/unknown-narrowing.js";
 
 // docs/ui-design/03_API・データ連携設計.md §8: 一覧レスポンスの検証.
 // 契約違反時は編成を有効にせず RESPONSE_CONTRACT_MISMATCH を返す。
@@ -12,10 +13,6 @@ import type {
 export type CatalogValidationResult =
   | { readonly ok: true; readonly response: BattleSimulationCatalogResponse }
   | { readonly ok: false; readonly error: UiApiError };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;

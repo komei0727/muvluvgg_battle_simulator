@@ -5,7 +5,8 @@
 // (UI-AC-011)。英語のerror messageやID命名規則を解析して日本語化しない。
 
 import { damageEventFormatters } from "./damage-event-formatters.js";
-import { buildRosterIndex, isRecord, resolveDisplayName } from "./event-presentation.js";
+import { buildRosterIndex, resolveDisplayName } from "./event-presentation.js";
+import { isRecord } from "../../lib/unknown-narrowing.js";
 import type {
   EventFormatter,
   EventPresentation,

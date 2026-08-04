@@ -28,7 +28,3 @@ export function buildRosterIndex(roster: readonly RosterEntry[]): RosterIndex {
 export function resolveDisplayName(roster: RosterIndex, battleUnitId: string): string {
   return roster.get(battleUnitId)?.displayName ?? battleUnitId;
 }
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}

@@ -9,6 +9,7 @@ import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
 } from "../simulation/api-contract.js";
+import { isRecord } from "../../lib/unknown-narrowing.js";
 
 export interface RosterEntry {
   readonly battleUnitId: string;
@@ -36,10 +37,6 @@ export interface SummaryProjection {
   readonly allyRows: readonly SummaryRow[];
   readonly enemyRows: readonly SummaryRow[];
   readonly hasProjectionWarning: boolean;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // API契約上hitPointDamageはintegerである(apps/api/src/presentation/http/

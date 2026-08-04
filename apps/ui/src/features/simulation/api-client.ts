@@ -1,4 +1,4 @@
-import type { CatalogApiResult, SimulationApiResult } from "./api-contract.js";
+import type { CatalogApiResult, SimulationApiResult, UiApiError } from "./api-contract.js";
 import {
   normalizeHttpErrorResponse,
   normalizeRequestException,
@@ -15,26 +15,6 @@ const SIMULATION_PATH = "/api/v1/battle-simulations";
 // docs/ui-design/03_API・データ連携設計.md §7: 「UIは35秒を既定のクライアント
 // 待機上限とし、API側が構造化504を返す余地を残す」。
 const SIMULATION_DEFAULT_TIMEOUT_MS = 35_000;
-
-export interface GetCatalogOptions {
-  readonly baseUrl: string;
-  readonly signal: AbortSignal;
-  readonly etag?: string;
-  readonly requestId?: string;
-  readonly timeoutMs?: number;
-  readonly fetchImpl?: typeof fetch;
-}
-
-function requestHeaders(options: GetCatalogOptions): Headers {
-  const headers = new Headers({ Accept: "application/json" });
-  if (options.requestId !== undefined) {
-    headers.set("X-Request-Id", options.requestId);
-  }
-  if (options.etag !== undefined) {
-    headers.set("If-None-Match", options.etag);
-  }
-  return headers;
-}
 
 function isAbortError(error: unknown): boolean {
   return (
@@ -57,15 +37,47 @@ async function parseJsonBody(response: Response): Promise<unknown> {
   }
 }
 
-export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApiResult> {
-  const fetchImpl = options.fetchImpl ?? fetch;
+interface JsonRequestSpec {
+  readonly url: string;
+  readonly method: string;
+  readonly headers: Headers;
+  // 省略時はfetchの既定cache modeを使う。docs/ui-design/03_API・データ連携設計.md
+  // §2.3 のとおり no-store は戦闘POST専用で、一覧GETはHTTP cache/ETagを使う。
+  readonly cache?: RequestCache;
+  readonly body?: string;
+  readonly signal: AbortSignal;
+  readonly timeoutMs: number;
+  readonly fetchImpl: typeof fetch;
+}
+
+interface JsonResponseContext {
+  readonly response: Response;
+  /** サーバがX-Request-Idを返した場合のみ`requestId`を持つ。結果へspreadする。 */
+  readonly requestIdField: { readonly requestId?: string };
+  /** JSON本文を読む。壊れたJSONはnull、中断された読み取りはthrowで伝わる。 */
+  readonly readBody: () => Promise<unknown>;
+  readonly retryAfterSeconds: number | undefined;
+}
+
+/** 待機上限・中断・requestId・ネットワーク例外の扱いは全エンドポイントで同一。 */
+interface RequestFailure {
+  readonly ok: false;
+  readonly error: UiApiError;
+}
+
+// 待機上限つきでJSONエンドポイントを1回だけ呼び、レスポンス解釈のみを
+// handleResponseへ委ねる。自動retryはしない(呼び出し側の責務)。
+async function requestJson<TResult>(
+  spec: JsonRequestSpec,
+  handleResponse: (context: JsonResponseContext) => Promise<TResult>,
+): Promise<TResult | RequestFailure> {
   const timeoutController = new AbortController();
   let timedOut = false;
   const timeoutId = setTimeout(() => {
     timedOut = true;
     timeoutController.abort();
-  }, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const combinedSignal = AbortSignal.any([options.signal, timeoutController.signal]);
+  }, spec.timeoutMs);
+  const combinedSignal = AbortSignal.any([spec.signal, timeoutController.signal]);
 
   // The timer and combined signal must stay live until the response body has
   // been fully read and validated: fetch() resolves as soon as headers
@@ -73,14 +85,15 @@ export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApi
   try {
     let response: Response;
     try {
-      response = await fetchImpl(`${options.baseUrl}${CATALOG_PATH}`, {
-        method: "GET",
-        headers: requestHeaders(options),
+      // `spec.fetchImpl(...)`と書くと`this`が`spec`になり、ブラウザの組み込み
+      // fetchが Illegal invocation で失敗する。必ず束縛のない呼び出しにする。
+      const { fetchImpl } = spec;
+      response = await fetchImpl(spec.url, {
+        method: spec.method,
+        headers: spec.headers,
         credentials: "omit",
-        // docs/ui-design/03_API・データ連携設計.md §2.3: 一覧GETはHTTP
-        // cache/ETagを利用する(no-storeは戦闘POST専用)。Catalog 200/304は
-        // Cache-Control: public, max-age=300を返すため、既定のcache modeで
-        // ブラウザキャッシュを再利用させる。
+        ...(spec.cache !== undefined ? { cache: spec.cache } : {}),
+        ...(spec.body !== undefined ? { body: spec.body } : {}),
         signal: combinedSignal,
       });
     } catch (error) {
@@ -88,66 +101,106 @@ export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApi
     }
 
     const requestIdHeader = response.headers.get("X-Request-Id");
-    const requestIdField = requestIdHeader !== null ? { requestId: requestIdHeader } : {};
-
-    if (response.status === 304) {
-      // 304 is only a valid response to a conditional GET; without an etag
-      // we sent, a 304 body is a server contract violation, not a cache hit.
-      if (options.etag === undefined) {
-        return {
-          ok: false,
-          status: 304,
-          ...requestIdField,
-          error: {
-            kind: "RESPONSE_CONTRACT_MISMATCH",
-            message: "Received 304 Not Modified without sending a conditional If-None-Match.",
-          },
-        };
-      }
-      const etag = response.headers.get("ETag") ?? options.etag;
-      return { ok: true, notModified: true, etag, ...requestIdField };
-    }
-
-    if (response.status === 200) {
-      let body: unknown;
-      try {
-        body = await parseJsonBody(response);
-      } catch (error) {
-        return { ok: false, error: normalizeRequestException(error, { timedOut }) };
-      }
-      const validation = validateCatalogResponse(body);
-      if (!validation.ok) {
-        return { ok: false, status: 200, ...requestIdField, error: validation.error };
-      }
-      const etagHeader = response.headers.get("ETag");
-      return {
-        ok: true,
-        response: validation.response,
-        ...requestIdField,
-        ...(etagHeader !== null ? { etag: etagHeader } : {}),
-      };
-    }
-
-    let body: unknown;
     try {
-      body = await parseJsonBody(response);
+      return await handleResponse({
+        response,
+        requestIdField: requestIdHeader !== null ? { requestId: requestIdHeader } : {},
+        readBody: () => parseJsonBody(response),
+        retryAfterSeconds: parseRetryAfterSeconds(response.headers.get("Retry-After")),
+      });
     } catch (error) {
+      // parseJsonBodyが再throwするのは中断された読み取りだけ。それ以外は
+      // handleResponse側の欠陥であり、リクエスト失敗へ握り潰してはならない。
+      if (!isAbortError(error)) {
+        throw error;
+      }
       return { ok: false, error: normalizeRequestException(error, { timedOut }) };
     }
-    const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("Retry-After"));
-    return {
-      ok: false,
-      status: response.status,
-      ...requestIdField,
-      error: normalizeHttpErrorResponse({
-        status: response.status,
-        body,
-        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-      }),
-    };
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+export interface GetCatalogOptions {
+  readonly baseUrl: string;
+  readonly signal: AbortSignal;
+  readonly etag?: string;
+  readonly requestId?: string;
+  readonly timeoutMs?: number;
+  readonly fetchImpl?: typeof fetch;
+}
+
+function requestHeaders(options: GetCatalogOptions): Headers {
+  const headers = new Headers({ Accept: "application/json" });
+  if (options.requestId !== undefined) {
+    headers.set("X-Request-Id", options.requestId);
+  }
+  if (options.etag !== undefined) {
+    headers.set("If-None-Match", options.etag);
+  }
+  return headers;
+}
+
+export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApiResult> {
+  return requestJson<CatalogApiResult>(
+    {
+      url: `${options.baseUrl}${CATALOG_PATH}`,
+      method: "GET",
+      headers: requestHeaders(options),
+      // docs/ui-design/03_API・データ連携設計.md §2.3: 一覧GETはHTTP
+      // cache/ETagを利用する(no-storeは戦闘POST専用)。Catalog 200/304は
+      // Cache-Control: public, max-age=300を返すため、cacheを指定せず
+      // 既定のcache modeでブラウザキャッシュを再利用させる。
+      signal: options.signal,
+      timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      fetchImpl: options.fetchImpl ?? fetch,
+    },
+    async ({ response, requestIdField, readBody, retryAfterSeconds }) => {
+      if (response.status === 304) {
+        // 304 is only a valid response to a conditional GET; without an etag
+        // we sent, a 304 body is a server contract violation, not a cache hit.
+        if (options.etag === undefined) {
+          return {
+            ok: false,
+            status: 304,
+            ...requestIdField,
+            error: {
+              kind: "RESPONSE_CONTRACT_MISMATCH",
+              message: "Received 304 Not Modified without sending a conditional If-None-Match.",
+            },
+          };
+        }
+        const etag = response.headers.get("ETag") ?? options.etag;
+        return { ok: true, notModified: true, etag, ...requestIdField };
+      }
+
+      if (response.status === 200) {
+        const validation = validateCatalogResponse(await readBody());
+        if (!validation.ok) {
+          return { ok: false, status: 200, ...requestIdField, error: validation.error };
+        }
+        const etagHeader = response.headers.get("ETag");
+        return {
+          ok: true,
+          response: validation.response,
+          ...requestIdField,
+          ...(etagHeader !== null ? { etag: etagHeader } : {}),
+        };
+      }
+
+      const body = await readBody();
+      return {
+        ok: false,
+        status: response.status,
+        ...requestIdField,
+        error: normalizeHttpErrorResponse({
+          status: response.status,
+          body,
+          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+        }),
+      };
+    },
+  );
 }
 
 export interface SimulateOptions {
@@ -173,61 +226,39 @@ export async function simulate(
   request: BattleSimulationRequest,
   options: SimulateOptions,
 ): Promise<SimulationApiResult> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutController = new AbortController();
-  let timedOut = false;
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    timeoutController.abort();
-  }, options.timeoutMs ?? SIMULATION_DEFAULT_TIMEOUT_MS);
-  const combinedSignal = AbortSignal.any([options.signal, timeoutController.signal]);
+  return requestJson<SimulationApiResult>(
+    {
+      url: `${options.baseUrl}${SIMULATION_PATH}`,
+      method: "POST",
+      headers: simulationRequestHeaders(options),
+      cache: "no-store",
+      body: JSON.stringify(request),
+      signal: options.signal,
+      timeoutMs: options.timeoutMs ?? SIMULATION_DEFAULT_TIMEOUT_MS,
+      fetchImpl: options.fetchImpl ?? fetch,
+    },
+    async ({ response, requestIdField, readBody, retryAfterSeconds }) => {
+      const body = await readBody();
 
-  try {
-    let response: Response;
-    try {
-      response = await fetchImpl(`${options.baseUrl}${SIMULATION_PATH}`, {
-        method: "POST",
-        headers: simulationRequestHeaders(options),
-        credentials: "omit",
-        cache: "no-store",
-        body: JSON.stringify(request),
-        signal: combinedSignal,
-      });
-    } catch (error) {
-      return { ok: false, error: normalizeRequestException(error, { timedOut }) };
-    }
-
-    const requestIdHeader = response.headers.get("X-Request-Id");
-    const requestIdField = requestIdHeader !== null ? { requestId: requestIdHeader } : {};
-
-    let body: unknown;
-    try {
-      body = await parseJsonBody(response);
-    } catch (error) {
-      return { ok: false, error: normalizeRequestException(error, { timedOut }) };
-    }
-
-    if (response.status === 200) {
-      const validation = validateSimulationResponse(body);
-      if (!validation.ok) {
-        return { ok: false, status: 200, ...requestIdField, error: validation.error };
+      if (response.status === 200) {
+        const validation = validateSimulationResponse(body);
+        if (!validation.ok) {
+          return { ok: false, status: 200, ...requestIdField, error: validation.error };
+        }
+        return { ok: true, response: validation.response, ...requestIdField };
       }
-      return { ok: true, response: validation.response, ...requestIdField };
-    }
 
-    const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("Retry-After"));
-    return {
-      ok: false,
-      status: response.status,
-      ...requestIdField,
-      error: normalizeHttpErrorResponse({
+      return {
+        ok: false,
         status: response.status,
-        body,
+        ...requestIdField,
+        error: normalizeHttpErrorResponse({
+          status: response.status,
+          body,
+          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+        }),
         ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-      }),
-      ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-    };
-  } finally {
-    clearTimeout(timeoutId);
-  }
+      };
+    },
+  );
 }
