@@ -42,3 +42,41 @@ jobs:
     uses: ./.github/workflows/reusable-ui.yml
     with:
       visual-regression: true
+
+  # The only check branch protection requires. A reusable-workflow call
+  # (`quality` / `ui`) that skips produces a check-run named after the caller
+  # job id alone — `quality`, never `quality / Quality Gate` — so requiring
+  # the per-workspace gates directly leaves a PR Pending forever whenever the
+  # change classification skips one of them. This job has no `if:` guard
+  # beyond always(), so its context is created on every run regardless of
+  # what was changed.
+  #
+  # Decision logic: scripts/ci/evaluate-quality-gate.mjs (tested by
+  # `mise run ci:test`). It fails the run when a gate the classification
+  # demanded did not succeed — a skipped required gate must not pass as
+  # green just because nothing failed.
+  gate:
+    name: Quality Gate Result
+    needs: [changes, quality, container, ui]
+    # always(): a skipped or failed upstream gate must still be evaluated
+    # here, not cascade-skip this job — a skipped aggregate would leave the
+    # required context unresolved, which is the failure this job prevents.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Evaluate quality gate results
+        shell: bash
+        env:
+          RUN_API: ${{ needs.changes.outputs.run_api }}
+          RUN_UI: ${{ needs.changes.outputs.run_ui }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          CONTAINER_RESULT: ${{ needs.container.result }}
+          UI_RESULT: ${{ needs.ui.result }}
+        run: |
+          mise exec -- node scripts/ci/evaluate-quality-gate.mjs \
+            | tee -a "$GITHUB_STEP_SUMMARY"
