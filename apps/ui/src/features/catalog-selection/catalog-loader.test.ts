@@ -99,6 +99,46 @@ describe("useCatalogLoader", () => {
     expect(secondCallOptions.etag).toBe('"etag-1"');
   });
 
+  it("does not send an etag on reload after a failed load", async () => {
+    // 直前がfailedならready snapshotは無効になっている。etagを送ると304で
+    // 「失敗前の応答」を復元してしまうため、条件付き取得は使わない。
+    const getCatalogImpl = vi.fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>();
+    getCatalogImpl.mockResolvedValueOnce({
+      ok: true,
+      response: catalogResponse("rev-1"),
+      etag: '"etag-1"',
+    });
+    getCatalogImpl.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      error: { kind: "CAPACITY", message: "Server busy." },
+    });
+    getCatalogImpl.mockResolvedValueOnce({ ok: true, response: catalogResponse("rev-2") });
+
+    const { result } = renderHook(() =>
+      useCatalogLoader("https://api.example.com", { getCatalogImpl }),
+    );
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("ready");
+    });
+
+    act(() => {
+      result.current.reload();
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+
+    act(() => {
+      result.current.reload();
+    });
+
+    await waitFor(() => {
+      expect(getCatalogImpl).toHaveBeenCalledTimes(3);
+    });
+    expect(getCatalogImpl.mock.calls[2]![0].etag).toBeUndefined();
+  });
+
   it("keeps the previous response on a 304 while updating etag and requestId", async () => {
     const firstResponse = catalogResponse("rev-1");
     const getCatalogImpl = vi.fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>();

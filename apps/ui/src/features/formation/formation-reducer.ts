@@ -1,6 +1,6 @@
 // Mirrors docs/ui-design/04_コンポーネント・状態管理設計.md §4-5, scoped to the
-// draft/selection-dialog slice owned by this issue (execution state is added
-// by a later issue).
+// draft/selection-dialog slice. Catalog load state and execution state are
+// separate slices (catalog-loader.ts / execution-reducer.ts).
 
 import { createInitialDraft, slotsForSide } from "./types.js";
 import type { BattleDraft, FormationSlotInput, LogLevel, Side } from "./types.js";

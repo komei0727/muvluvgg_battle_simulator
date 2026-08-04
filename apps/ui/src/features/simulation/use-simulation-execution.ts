@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { simulate as defaultSimulate } from "./api-client.js";
 import { createInitialExecutionState, executionReducer } from "./execution-reducer.js";
 import type { ExecutionState } from "./execution-reducer.js";
@@ -52,7 +52,7 @@ export function useSimulationExecution(
   options: UseSimulationExecutionOptions = {},
 ): UseSimulationExecutionResult {
   const simulateImpl = options.simulateImpl ?? defaultSimulate;
-  const [state, setState] = useState<ExecutionState>(createInitialExecutionState);
+  const [state, dispatch] = useReducer(executionReducer, undefined, createInitialExecutionState);
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentExecutionIdRef = useRef<string | null>(null);
 
@@ -65,18 +65,16 @@ export function useSimulationExecution(
       currentExecutionIdRef.current = executionId;
       const startedAt = Date.now();
 
-      setState((previous) =>
-        executionReducer(previous, {
-          type: "submissionStarted",
-          executionId,
-          request: input.request,
-          startedAt,
-          allyUnitSlotKeys: input.allyUnitSlotKeys,
-          enemyUnitSlotKeys: input.enemyUnitSlotKeys,
-          allyMemorySlotKeys: input.allyMemorySlotKeys,
-          enemyMemorySlotKeys: input.enemyMemorySlotKeys,
-        }),
-      );
+      dispatch({
+        type: "submissionStarted",
+        executionId,
+        request: input.request,
+        startedAt,
+        allyUnitSlotKeys: input.allyUnitSlotKeys,
+        enemyUnitSlotKeys: input.enemyUnitSlotKeys,
+        allyMemorySlotKeys: input.allyMemorySlotKeys,
+        enemyMemorySlotKeys: input.enemyMemorySlotKeys,
+      });
 
       const requestId = generateRequestId();
       void simulateImpl(input.request, {
@@ -86,31 +84,25 @@ export function useSimulationExecution(
         ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       }).then((result) => {
         if (result.ok) {
-          setState((previous) =>
-            executionReducer(previous, {
-              type: "submissionSucceeded",
-              executionId,
-              response: result.response,
-              completedAt: Date.now(),
-              ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
-            }),
-          );
+          dispatch({
+            type: "submissionSucceeded",
+            executionId,
+            response: result.response,
+            completedAt: Date.now(),
+            ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
+          });
           return;
         }
         if (result.error.kind === "CANCELLED") {
-          setState((previous) =>
-            executionReducer(previous, { type: "submissionCancelled", executionId }),
-          );
+          dispatch({ type: "submissionCancelled", executionId });
           return;
         }
-        setState((previous) =>
-          executionReducer(previous, {
-            type: "submissionFailed",
-            executionId,
-            error: result.error,
-            ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
-          }),
-        );
+        dispatch({
+          type: "submissionFailed",
+          executionId,
+          error: result.error,
+          ...(result.requestId !== undefined ? { requestId: result.requestId } : {}),
+        });
       });
     },
     [baseUrl, simulateImpl, options.timeoutMs],
@@ -125,9 +117,7 @@ export function useSimulationExecution(
     // later submissionSucceeded/Failed/Cancelled for this id a no-op.
     const executionId = currentExecutionIdRef.current;
     if (executionId !== null) {
-      setState((previous) =>
-        executionReducer(previous, { type: "submissionCancelled", executionId }),
-      );
+      dispatch({ type: "submissionCancelled", executionId });
     }
   }, []);
 

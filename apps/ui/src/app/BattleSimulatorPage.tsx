@@ -1,19 +1,14 @@
-import { useMemo, useReducer } from "react";
+import { useReducer } from "react";
 import { AppShell } from "../components/AppShell.js";
 import { Panel } from "../components/Panel.js";
-import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
-import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
 import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
 import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
-import { selectCanSubmit, validateDraft } from "../features/formation/draft-validation.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
 import {
   createInitialFormationState,
   formationReducer,
-  MAX_UNITS_PER_SIDE,
 } from "../features/formation/formation-reducer.js";
-import { buildBattleSimulationRequest } from "../features/formation/request-mapper.js";
 import { SubmitControls } from "../features/formation/SubmitControls.js";
 import { memorySlotsForSide, slotsForSide } from "../features/formation/types.js";
 import { ValidationSummary } from "../features/formation/ValidationSummary.js";
@@ -24,16 +19,12 @@ import {
   memoryImageMap,
   unitImageMap,
 } from "../features/catalog-selection/definition-image-map.js";
-import {
-  selectDisplayedSuccess,
-  selectIsCatalogRevisionMismatch,
-  selectIsResultDirty,
-} from "../features/simulation/execution-reducer.js";
 import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js";
 import type { UseSimulationExecutionOptions } from "../features/simulation/use-simulation-execution.js";
 import { useSimulationExecution } from "../features/simulation/use-simulation-execution.js";
-import { mapServerViolationsToUiViolations } from "../features/simulation/violation-mapper.js";
 import { BattleSummarySection } from "../features/summary/BattleSummarySection.js";
+import { SelectionDialogs } from "./SelectionDialogs.js";
+import { useBattleSimulatorViewModel } from "./use-battle-simulator-view-model.js";
 
 export interface BattleSimulatorPageProps {
   readonly apiBaseUrl: string;
@@ -61,36 +52,12 @@ export function BattleSimulatorPage({
     simulateImpl !== undefined ? { simulateImpl } : {},
   );
 
-  const violations = useMemo(
-    () => (catalog.status === "ready" ? validateDraft(state.draft, catalog.response) : []),
-    [catalog, state.draft],
-  );
-  const requestBuild = useMemo(() => buildBattleSimulationRequest(state.draft), [state.draft]);
-  const isSubmitting = execution.state.status === "submitting";
-  const canSubmit = catalog.status === "ready" && requestBuild.ok && selectCanSubmit(violations);
-
-  const displayedSuccess = selectDisplayedSuccess(execution.state);
-  const isDirty = requestBuild.ok
-    ? selectIsResultDirty(requestBuild.request, displayedSuccess?.request)
-    : displayedSuccess !== undefined;
-  const catalogRevisionMismatch = selectIsCatalogRevisionMismatch(
-    displayedSuccess,
-    catalog.status === "ready" ? catalog.response.catalogRevision : undefined,
-  );
-
-  const serverViolations =
-    execution.state.status === "failed" && execution.state.error.violations !== undefined
-      ? mapServerViolationsToUiViolations(
-          execution.state.error.violations,
-          execution.state.allyUnitSlotKeys,
-          execution.state.enemyUnitSlotKeys,
-          execution.state.allyMemorySlotKeys,
-          execution.state.enemyMemorySlotKeys,
-        )
-      : [];
-  const displayedViolations = [...violations, ...serverViolations];
-
-  const formationDisabled = catalog.status !== "ready" || isSubmitting;
+  const view = useBattleSimulatorViewModel({
+    catalog,
+    draft: state.draft,
+    execution: execution.state,
+  });
+  const { displayedSuccess, displayedViolations, requestBuild } = view;
 
   return (
     <AppShell {...(buildRevision !== undefined ? { buildRevision } : {})}>
@@ -115,7 +82,7 @@ export function BattleSimulatorPage({
                   memoryDefinitionIds={memorySlotsForSide(state.draft, "ally")}
                   catalog={catalog.response}
                   violations={displayedViolations}
-                  disabled={formationDisabled}
+                  disabled={view.formationDisabled}
                   imageMap={definitionImageMap}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
@@ -135,7 +102,7 @@ export function BattleSimulatorPage({
                   memoryDefinitionIds={memorySlotsForSide(state.draft, "enemy")}
                   catalog={catalog.response}
                   violations={displayedViolations}
-                  disabled={formationDisabled}
+                  disabled={view.formationDisabled}
                   imageMap={definitionImageMap}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
@@ -154,7 +121,7 @@ export function BattleSimulatorPage({
               turnLimit={state.draft.turnLimit}
               logLevel={state.draft.logLevel}
               endpoint={SIMULATION_ENDPOINT}
-              disabled={formationDisabled}
+              disabled={view.formationDisabled}
               violations={displayedViolations}
               onTurnLimitChange={(value) => {
                 dispatch({ type: "turnLimitChanged", value });
@@ -164,11 +131,11 @@ export function BattleSimulatorPage({
               }}
             />
 
-            <ValidationSummary violations={violations} />
+            <ValidationSummary violations={view.violations} />
 
             <SubmitControls
-              canSubmit={canSubmit}
-              isSubmitting={isSubmitting}
+              canSubmit={view.canSubmit}
+              isSubmitting={view.isSubmitting}
               onSubmit={() => {
                 if (requestBuild.ok) {
                   execution.submit({
@@ -188,12 +155,12 @@ export function BattleSimulatorPage({
 
       <SubmissionFeedback
         state={execution.state}
-        isDirty={isDirty}
-        catalogRevisionMismatch={catalogRevisionMismatch}
+        isDirty={view.isDirty}
+        catalogRevisionMismatch={view.catalogRevisionMismatch}
         onReloadCatalog={catalogLoader.reload}
       />
 
-      {displayedSuccess !== undefined && !catalogRevisionMismatch ? (
+      {displayedSuccess !== undefined && !view.catalogRevisionMismatch ? (
         <>
           <Panel step="02" title="戦闘サマリ" meta="OUTCOME / ROSTER">
             <BattleSummarySection
@@ -213,62 +180,16 @@ export function BattleSimulatorPage({
         </>
       ) : null}
 
-      {catalog.status === "ready" && state.selectionDialog.kind === "unit"
-        ? (() => {
-            const slotKey = state.selectionDialog.slotKey;
-            const slot = [...state.draft.allySlots, ...state.draft.enemySlots].find(
-              (s) => s.slotKey === slotKey,
-            );
-            if (slot === undefined) {
-              return null;
-            }
-            const atCapacity =
-              slotsForSide(state.draft, slot.side).filter((s) => s.unitDefinitionId !== undefined)
-                .length >= MAX_UNITS_PER_SIDE;
-            return (
-              <UnitSelectionDialog
-                units={catalog.response.units}
-                {...(slot.unitDefinitionId !== undefined
-                  ? { currentUnitDefinitionId: slot.unitDefinitionId }
-                  : {})}
-                atCapacity={atCapacity}
-                imageMap={unitImageMap}
-                onSelect={(unitDefinitionId) => {
-                  dispatch({ type: "unitSelected", slotKey, unitDefinitionId });
-                }}
-                onRemove={() => {
-                  dispatch({ type: "unitRemoved", slotKey });
-                }}
-                onClose={() => {
-                  dispatch({ type: "selectionClosed" });
-                }}
-              />
-            );
-          })()
-        : null}
-
-      {catalog.status === "ready" && state.selectionDialog.kind === "memory"
-        ? (() => {
-            const { side, index } = state.selectionDialog;
-            const currentMemoryDefinitionId = memorySlotsForSide(state.draft, side)[index];
-            return (
-              <MemorySelectionDialog
-                memories={catalog.response.memories}
-                {...(currentMemoryDefinitionId !== undefined ? { currentMemoryDefinitionId } : {})}
-                imageMap={memoryImageMap}
-                onSelect={(memoryDefinitionId) => {
-                  dispatch({ type: "memorySelected", side, index, memoryDefinitionId });
-                }}
-                onRemove={() => {
-                  dispatch({ type: "memoryRemoved", side, index });
-                }}
-                onClose={() => {
-                  dispatch({ type: "selectionClosed" });
-                }}
-              />
-            );
-          })()
-        : null}
+      {catalog.status === "ready" ? (
+        <SelectionDialogs
+          selectionDialog={state.selectionDialog}
+          draft={state.draft}
+          catalog={catalog.response}
+          unitImageMap={unitImageMap}
+          memoryImageMap={memoryImageMap}
+          dispatch={dispatch}
+        />
+      ) : null}
     </AppShell>
   );
 }
