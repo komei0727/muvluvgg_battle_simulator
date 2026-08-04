@@ -2,6 +2,7 @@ import {
   composeResourceGainRate,
   consumeAp,
   consumeExGaugeFully,
+  finalizeAction,
   increaseExGauge,
   recordExtraGaugeOverflowDiscardedIfAny,
   recordResourceChangeIfAny,
@@ -330,12 +331,6 @@ export function resolveWait(
     completionTriggerEventId,
     working,
   );
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
-  return {
-    units: finalUnits,
-    actionScope,
-    rootEventId: actionStarted.eventId,
-    completedEventId: completion.completedEventId,
-  };
+  return finalizeAction(passiveRuntime, completion, actionScope, actionStarted.eventId);
 }

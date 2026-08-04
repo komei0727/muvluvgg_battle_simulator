@@ -30,6 +30,35 @@ export interface ActionResolutionResult {
 
 export type ResolvableEffectiveActionType = "AS" | "EX" | "WAIT" | "CHARGE_RELEASE";
 
+/**
+ * `finalizeAction`が必要とする`PassiveActivationRuntime`の最小面。
+ * `passive-activation-service.ts`が当モジュールへ依存しているため、具象クラスを
+ * importすると循環依存になる。
+ */
+export interface ResolutionScopeFinalizer {
+  finalizeResolutionScope(completedEventId: DomainEventId): {
+    readonly units: readonly BattleUnit[];
+  };
+}
+
+/**
+ * 行動解決の共通エピローグ。`06_戦闘状態遷移.md`のCOMPLETING順序では
+ * `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
+ * `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
+ * `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
+ * `recordActionCompletion`の`onFactEventForPassiveChain`が内部の各イベントで
+ * `passiveRuntime`を同期済みのため、ここでの追加同期は不要。
+ */
+export function finalizeAction(
+  passiveRuntime: ResolutionScopeFinalizer,
+  completion: { readonly completedEventId: DomainEventId },
+  actionScope: ResolutionScopeId,
+  rootEventId: DomainEventId,
+): ActionResolutionResult {
+  const { units } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
+  return { units, actionScope, rootEventId, completedEventId: completion.completedEventId };
+}
+
 export function requireUnit(units: readonly BattleUnit[], id: BattleUnitId): BattleUnit {
   const unit = units.find((candidate) => candidate.battleUnitId === id);
   if (unit === undefined) {

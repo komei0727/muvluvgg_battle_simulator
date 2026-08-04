@@ -2,6 +2,7 @@ import {
   composeResourceGainRate,
   consumeAp,
   consumeExGaugeFully,
+  finalizeAction,
   increaseExGauge,
   recordExtraGaugeOverflowDiscardedIfAny,
   recordResourceChangeIfAny,
@@ -586,7 +587,7 @@ export function resolveSkillUse(
       cycleNumber,
       actorId,
       effectActions: definitions.effectActions,
-      // レビュー再々レビュー[P2]: `ActionCompleting`/Cooldown更新/`ActionCompleted`
+      // `ActionCompleting`/Cooldown更新/`ActionCompleted`
       // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする
       // counter更新・PS候補も（あれば）`finalizeResolutionScope`より前に
       // 解決されるようにする。
@@ -597,18 +598,6 @@ export function resolveSkillUse(
     skillUseCompleted.eventId,
     working,
   );
-  // レビュー指摘再レビュー[P2]: `06_戦闘状態遷移.md`のCOMPLETING順序では
-  // `ActionCompleted`とそのPS連鎖をすべて解決した後にスコープを終了するため、
-  // `finalizeResolutionScope`（`resetScope: "RESOLUTION_SCOPE"`のcounter破棄・
-  // `RuntimeCounterReset`発行）は`recordActionCompletion`より後で呼び出す。
-  // `onFactEventForPassiveChain`が`recordActionCompletion`内の各イベントで
-  // `passiveRuntime`を同期済みのため、追加の同期は不要。
-  const { units: finalUnits } = passiveRuntime.finalizeResolutionScope(completion.completedEventId);
 
-  return {
-    units: finalUnits,
-    actionScope,
-    rootEventId: actionStarted.eventId,
-    completedEventId: completion.completedEventId,
-  };
+  return finalizeAction(passiveRuntime, completion, actionScope, actionStarted.eventId);
 }

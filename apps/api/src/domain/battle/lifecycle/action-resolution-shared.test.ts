@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   composeResourceGainRate,
+  finalizeAction,
   increaseExGauge,
   recordExtraGaugeOverflowDiscardedIfAny,
   recordResourceChangeIfAny,
+  type ResolutionScopeFinalizer,
   type ResourceChangeRecordContext,
 } from "./action-resolution-shared.js";
 import { EventRecorder } from "../events/event-recorder.js";
@@ -16,7 +18,12 @@ import {
   createEffectActionDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import {
+  createDomainEventId,
+  createEffectInstanceId,
+  createResolutionScopeId,
+  type DomainEventId,
+} from "../../shared/event-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 
@@ -297,5 +304,53 @@ describe("increaseExGauge with a RESOURCE_GAIN_MOD rate (M7-002, Issue #185)", (
     expect(result.baseDelta).toBe(4);
     expect(result.requestedAmount).toBe(0);
     expect(result.discardedAmount).toBe(0);
+  });
+});
+
+describe("finalizeAction", () => {
+  function finalizerSpy(finalUnits: readonly BattleUnit[]): {
+    readonly finalizer: ResolutionScopeFinalizer;
+    readonly cursors: DomainEventId[];
+  } {
+    const cursors: DomainEventId[] = [];
+    return {
+      finalizer: {
+        finalizeResolutionScope(completedEventId) {
+          cursors.push(completedEventId);
+          return { units: finalUnits };
+        },
+      },
+      cursors,
+    };
+  }
+
+  it("ends the resolution scope from the completion event and returns the units it produced", () => {
+    const finalUnits = [unit("ACTOR")];
+    const { finalizer, cursors } = finalizerSpy(finalUnits);
+
+    const result = finalizeAction(
+      finalizer,
+      { completedEventId: createDomainEventId("B_1:event:9") },
+      createResolutionScopeId("B_1:scope:1"),
+      createDomainEventId("B_1:event:1"),
+    );
+
+    expect(cursors).toEqual([createDomainEventId("B_1:event:9")]);
+    expect(result.units).toBe(finalUnits);
+  });
+
+  it("reports the action's own scope, root event and completion event unchanged", () => {
+    const { finalizer } = finalizerSpy([unit("ACTOR")]);
+
+    const result = finalizeAction(
+      finalizer,
+      { completedEventId: createDomainEventId("B_1:event:9") },
+      createResolutionScopeId("B_1:scope:1"),
+      createDomainEventId("B_1:event:1"),
+    );
+
+    expect(result.actionScope).toBe(createResolutionScopeId("B_1:scope:1"));
+    expect(result.rootEventId).toBe(createDomainEventId("B_1:event:1"));
+    expect(result.completedEventId).toBe(createDomainEventId("B_1:event:9"));
   });
 });
