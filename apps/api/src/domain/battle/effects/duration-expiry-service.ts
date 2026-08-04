@@ -32,7 +32,7 @@ export interface ExpireEffectsContext {
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   /**
-   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 1インスタンスの除去ごと（カスケード分もseed分も）に、
    * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
    * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
    * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
@@ -226,9 +226,9 @@ export function* expireEffectsSteps(
     effectInstanceIds: seedIds,
     markerInstanceIds: NO_MARKER_INSTANCE_IDS,
   };
-  // レビュー再指摘[P2]（PR #209）: Catalogの`linkedEffectGroupId`は同グループ
-  // 所属を表すフラットな値で、それ単独では親子の役割を区別しない。以前は
-  // 失効理由（`CONSUMPTION`かどうか）から役割を推測していたが、実production
+  // Catalogの`linkedEffectGroupId`は同グループ所属を表すフラットな値で、それ
+  // 単独では親子の役割を区別しない。失効理由（`CONSUMPTION`かどうか）から役割を
+  // 推測することもできない — 実production
   // Catalog（`UNIT_HARRIET_SAGE`の`HARRIET_BARRIER`）では`ACT_HARRIET_SAGE_
   // AS2_IMMUNITY`自身が`consumption: INCOMING_HIT`を持ちながら、その失効は
   // 同グループの`ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL`へカスケードする必要が
@@ -245,7 +245,7 @@ export function* expireEffectsSteps(
   // `reason: LINKED_GROUP_CASCADE`）も巻き込む。
   const cascade = collectLinkedGroupCascade(units, seedInstances);
 
-  // PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
+  // カスケード分とseed分を単一の除去バッチとして扱い、
   // メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
   // ロールなし→`PARENT`）へ整列する。二段（cascade→seed）で処理すると、
   // 同一グループに複数`PARENT`がある定義で非seedの`PARENT`がseedの`CHILD`より

@@ -5,7 +5,7 @@ import type { WorkerSimulationResult, WorkerSimulationTask } from "../worker-con
  * `simulation-worker-pool.crash-circuit.integration.test.ts`専用のテスト用
  * Piscina worker entry。`crashing-worker.ts`と異なり、`requestId`によって
  * 「実行中タスクを抱えたままクラッシュする」か「クラッシュせず`ok:false`の
- * 業務エラーを正常応答として返す」かを切り替えられる——PRレビュー指摘:
+ * 業務エラーを正常応答として返す」かを切り替えられる。
  * `ok:false`はWorker基盤としては成功であり`recordSuccess()`でサーキットの
  * 記録をリセットすべき、という挙動を実Worker Threadで検証するために使う。
  *

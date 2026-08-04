@@ -168,7 +168,7 @@ export function fireContinuousHealsOnActionStart(
     }
     const healer = working.find((u) => u.battleUnitId === effect.sourceId) ?? currentOwner;
 
-    // R-HEAL-04（Issue #229、PRレビュー指摘[P2] PR #259）: 連鎖は`applyOneHeal`が
+    // R-HEAL-04（Issue #229）: 連鎖は`applyOneHeal`が
     // `HealApplied`／各`HealingTransferred`の発行直後にその場で解決する。ここで
     // まとめて連鎖させると`HealApplied`起点のPSが転送後のHPを観測してしまうため、
     // callbackはcontext経由で渡し、この関数は連鎖順に関与しない。
@@ -201,7 +201,7 @@ export function fireContinuousHealsOnActionStart(
 }
 
 /**
- * `06_戦闘状態遷移.md`「START_EVENT：行動開始時処理」#4（再レビュー[P2]、PR #256）:
+ * `06_戦闘状態遷移.md`「START_EVENT：行動開始時処理」#4:
  * 「行動者が戦闘不能になった場合は、本体スキルを実行せず`COMPLETING`へ進む」。
  * 同書のシナリオ#8「行動開始時の継続ダメージで行動者が戦闘不能になり、本体スキルを
  * 実行しない」がこの契約の代表例である。

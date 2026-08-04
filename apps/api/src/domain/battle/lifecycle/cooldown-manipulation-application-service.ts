@@ -18,7 +18,7 @@ export interface ApplyCooldownManipulationActionResult {
   /** R-SKL-09: 対象スキルがREADY(no-op)で`CooldownReduced`を発行しなかった場合は`false`。 */
   readonly changed: boolean;
   /**
-   * PR #142レビュー[P2]: 実際に記録された最後のイベントID（`CooldownReduced`、
+   * 実際に記録された最後のイベントID（`CooldownReduced`、
    * `after === 0`なら続く`CooldownCompleted`）。`changed`が`false`の場合は
    * `context.parentEventId`のまま変化しない。
    */

@@ -37,7 +37,7 @@ function rejectEffectOwner(
 }
 
 /**
- * レビュー指摘[P1]（Issue #144 follow-up）: `TurnStarted`/`TurnCompleting`の
+ * Issue #144 follow-up: `TurnStarted`/`TurnCompleting`の
  * ように特定のBattleUnitに帰属しないグローバルな行動外イベントは、
  * `event-recorder.ts`の発行元が`sourceUnitId`/`sourceSide`のどちらも設定
  * しない（`resolveSourceSide`が常に`undefined`を返す）。`PassiveResolved`の

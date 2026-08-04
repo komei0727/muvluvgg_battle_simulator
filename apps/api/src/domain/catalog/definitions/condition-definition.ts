@@ -133,7 +133,7 @@ export type TargetHasEffectCategory = (typeof TARGET_HAS_EFFECT_CATEGORIES)[numb
  * なった（`effect-category-classifier.ts`）ため、「状態異常のうち毒だけ」という
  * 照会は到達可能になった。
  *
- * PR #288レビュー[P2]: ただし判定はフィールド単位ではなく**値ごと**に行う。
+ * ただし判定はフィールド単位ではなく**値ごと**に行う。
  * `APPLY_CONTINUOUS_DAMAGE`が`STATUS`になるのは炎上・毒だけで、`FIXED`（固定継続
  * ダメージ）は名前付きの状態異常ではないため`DEBUFF`にしか分類されない（R-STS-01）。
  * 「`categories`が`STATUS`を含んでいればフィールドごと許可」にすると、実行時に

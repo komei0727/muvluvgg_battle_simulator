@@ -113,7 +113,7 @@ describe("shield-policy (R-SHD-01/02/03)", () => {
     expect(emptyPool.appliedEffects).toBe(unit.appliedEffects);
   });
 
-  it("UT-R-SHD-01-011 (PRレビュー[P1]): reports the whole pool total as before/after, including same-type instances this absorption did not touch", () => {
+  it("UT-R-SHD-01-011: reports the whole pool total as before/after, including same-type instances this absorption did not touch", () => {
     const first = shieldEffect(10, { shieldType: null });
     const second = shieldEffect(50, { shieldType: null });
     const unit = unitWithShields([first, second]);
@@ -228,7 +228,7 @@ describe("shield decay over time (SHIELD_DECAY_OVER_TIME, DMG-004)", () => {
     expect(shieldPoolsOf(result.units[0]!.appliedEffects).untyped).toBe(100);
   });
 
-  it("UT-R-SHD-01-012 (PRレビュー[P1]): reports the whole pool total per pool, including same-pool instances that do not decay", () => {
+  it("UT-R-SHD-01-012: reports the whole pool total per pool, including same-pool instances that do not decay", () => {
     const holder = unitWithShields([
       shieldEffect(100, { shieldType: null }),
       shieldEffect(40, { shieldType: null, decay }),
@@ -247,7 +247,7 @@ describe("shield decay over time (SHIELD_DECAY_OVER_TIME, DMG-004)", () => {
     expect(untyped.change).toMatchObject({ poolBefore: 140, poolAfter: 130, absorbed: 10 });
   });
 
-  it("UT-R-SHD-01-015 (PRレビュー再指摘[P1]): decaying one pool leaves the holder's other decaying pools untouched", () => {
+  it("UT-R-SHD-01-015: decaying one pool leaves the holder's other decaying pools untouched", () => {
     const holder = unitWithShields([
       shieldEffect(80, { shieldType: "EN", decay }),
       shieldEffect(40, { shieldType: null, decay }),

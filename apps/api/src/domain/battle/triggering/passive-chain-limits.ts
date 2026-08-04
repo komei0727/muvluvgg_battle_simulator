@@ -10,7 +10,7 @@ export interface PassiveChainLimits {
   readonly maxPassiveDepth: number;
   readonly maxEffectsPerScope: number;
   /**
-   * PR #211レビュー[P1]: `resolveEvent`（`resolve-passive-chain.ts`）が
+   * `resolveEvent`（`resolve-passive-chain.ts`）が
    * `deps.applyEffectRuntimeCounterUpdates`（R-EFF-11、`AppliedEffect`スコープ、
    * EFF-005/Issue #162）へ再帰する深さの上限。`RuntimeCounterChanged`を自身の
    * `counterUpdates.trigger`に持つ誤ったCatalog定義が、PS連鎖内部（`onFactEvent`

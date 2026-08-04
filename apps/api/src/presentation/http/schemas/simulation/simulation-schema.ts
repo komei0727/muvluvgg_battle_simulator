@@ -287,7 +287,7 @@ export const effectStateResponseSchema = {
     // M7-009（Issue #182）: `APPLY_STATUS`由来の効果だけが持つ状態の種別。
     // `effectKindKey`（現状は効果アクション定義ID）の命名規則を解析させずに、
     // 気絶・凍結・暗闇・隠密などを表示できるようにする任意プロパティ。状態異常か
-    // どうかは`category`が表す（PR #264レビュー[P1]: `statusKind`はSTEALTH等の
+    // どうかは`category`が表す（`statusKind`はSTEALTH等の
     // 有利な状態にも設定されるため、有無だけでは状態異常を判別できない）。
     statusKind: { type: "string", enum: STATUS_KIND_ENUM },
     stackMode: { type: "string", enum: ["STACKABLE", "NON_STACKING"] },
@@ -308,7 +308,7 @@ export const effectStateResponseSchema = {
 } as const;
 
 /**
- * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1])。
+ * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004)。
  * `EffectStateResponse`と異なり`category`/`stackMode`/`isEffective`/`value`を
  * 持たず、代わりに`stackCount`/`stackMax`を持つ（Markerは重複解決の対象外、
  * 対象ごとに常に1インスタンス）。
@@ -338,7 +338,7 @@ const markerStateResponseSchema = {
 /**
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
  * `unit`に応じてどちらか一方だけを必須にするXOR制約を`oneOf`で強制する
- * （両方欠落・両方存在は不正。M5レビュー3巡目[P2]）。`remaining`は残数がある
+ * （両方欠落・両方存在は不正）。`remaining`は残数がある
  * スキルだけを返す契約のため`minimum: 1`。
  */
 export const cooldownStateResponseSchema = {
@@ -495,8 +495,7 @@ const unitStateDeltaResponseSchema = {
     combatStatus: valueChangeStringSchema,
     hp: valueChangeNumberSchema,
     // R-STA-04: HP上限（`MAXIMUM_HP` CombatStat）の差分。公開レスポンスはHP上限を
-    // `combatStats`ではなく`hp.maximum`として持つため、差分も分けて運ぶ
-    // （PR #294レビュー[P1]）。
+    // `combatStats`ではなく`hp.maximum`として持つため、差分も分けて運ぶ。
     hpMaximum: valueChangeNumberSchema,
     resources: {
       type: "object",

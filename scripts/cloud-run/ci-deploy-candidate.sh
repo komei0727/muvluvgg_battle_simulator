@@ -35,7 +35,7 @@ fi
 echo "== resolve current production revision =="
 # `status.latestReadyRevisionName`は使わない——失敗して一度もpromoteされて
 # いないcandidateもReadyになり得るため、次回deployでそれへtraffic 100%を
-# 誤って固定してしまう（PRレビュー指摘 #112 P1-1）。`status.traffic`の
+# 誤って固定してしまう。`status.traffic`の
 # percent===100 revisionだけを正とする（`resolveCurrentRevisionName`）。
 PREVIOUS_REVISION_NAME="$(mise exec -- pnpm --filter api exec tsx \
   "$REPO_ROOT/apps/api/src/infrastructure/deploy/resolve-current-revision-cli.ts" \
@@ -46,8 +46,7 @@ PREVIOUS_REVISION_NAME="$(mise exec -- pnpm --filter api exec tsx \
 # 事前に作成済みの前提。describeの失敗（上記WARNING）やservice未作成を
 # 「初回deploy」として扱い、未smoke-testの新revisionへ即100% trafficを流す
 # ことは、Issue #106の安全条件「smoke test成功後にのみtrafficを確定する」に
-# 反するため、fail closedでここを停止する（PRレビュー指摘 #112、
-# 2026-07-15、5回目）。
+# 反するため、fail closedでここを停止する。
 if [ -z "$PREVIOUS_REVISION_NAME" ]; then
   echo "ERROR: 現在100% trafficを受けている既存revisionを特定できませんでした。" >&2
   echo "        service '$SERVICE' が未作成なら、先にscripts/cloud-run/03-deploy-service.sh" >&2
@@ -61,8 +60,7 @@ echo "PREVIOUS_REVISION_NAME=$PREVIOUS_REVISION_NAME"
 echo "== resolve current stable-previous tag (preserved across this deploy attempt) =="
 # `services replace`はspec.traffic全体をこのdeployの新しいdesired stateとして
 # 適用するため、既存のstable-previous tagをmanifestへ明示的に含めないと、
-# deploy attempt（成功・失敗いずれでも）ごとに失われてしまう
-# （PRレビュー指摘 #112 P1、2026-07-15再レビュー）。
+# deploy attempt（成功・失敗いずれでも）ごとに失われてしまう。
 STABLE_PREVIOUS_REVISION_NAME="$(TAG_NAME=stable-previous mise exec -- pnpm --filter api exec tsx \
   "$REPO_ROOT/apps/api/src/infrastructure/deploy/resolve-tagged-revision-cli.ts" \
   < "$CURRENT_SERVICE_JSON")"

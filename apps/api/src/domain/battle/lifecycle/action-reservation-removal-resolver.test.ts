@@ -135,7 +135,7 @@ function reservationOf(battleUnitId: BattleUnit["battleUnitId"]): ActionReservat
 }
 
 /**
- * Issue #251（レビュー指摘[P2]）: 除去自身のPS/Memory反応連鎖が「別予約を
+ * Issue #251: 除去自身のPS/Memory反応連鎖が「別予約を
  * 適格化する」ケース。動的な`APPLY_STATUS FREEZE`付与は`effect-action-group-resolver.ts`
  * が未対応（`STEALTH`/`STUN`のみ対応）なため、代わりにEFF-005/Issue #162の
  * `AppliedEffect`スコープ`counterUpdates`＋`expiration.conditions`（`RUNTIME_COUNTER`）
@@ -187,7 +187,7 @@ function frozenChargeHeldEffect(
 }
 
 describe("resolveReservationRemovals", () => {
-  it("UT-R-ORD-01-009 (Issue #251, レビュー指摘[P2]): a removal's own reaction chain can restore another reservation's eligibility before the next candidate is judged — a unit whose only eligibility source (a pending charge) is impeded by a pre-existing freeze that expires as a direct reaction to the removal is spared, not removed", () => {
+  it("UT-R-ORD-01-009 (Issue #251): a removal's own reaction chain can restore another reservation's eligibility before the next candidate is judged — a unit whose only eligibility source (a pending charge) is impeded by a pre-existing freeze that expires as a direct reaction to the removal is spared, not removed", () => {
     const counterId = createRuntimeCounterId("RUNTIME_COUNTER_FREEZE_EXPIRY");
     // B: no AP, no full EX, no charge — unconditionally ineligible from the
     // start, so it is the first (and only initially-decidable) removal target.

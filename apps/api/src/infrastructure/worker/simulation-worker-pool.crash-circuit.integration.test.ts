@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SimulationWorkerPool } from "./simulation-worker-pool.js";
 
 /**
- * PRレビュー指摘: `SimulationWorkerPool`はPoolの`error`イベントだけを
- * `WorkerErrorCircuitBreaker`へ接続していたが、Piscinaは実行中タスクを
- * 抱えたWorkerの異常終了を`error`イベントではなく`pool.run()`のrejectとして
- * 通知する（`worker-error-circuit-breaker.ts`のコメント、`crashing-worker.ts`
+ * `SimulationWorkerPool`がPoolの`error`イベントだけを
+ * `WorkerErrorCircuitBreaker`へ接続していると、実行中タスクを抱えたWorkerの
+ * 異常終了を取りこぼす——Piscinaはそれを`error`イベントではなく
+ * `pool.run()`のrejectとして通知する（`worker-error-circuit-breaker.ts`のコメント、`crashing-worker.ts`
  * 参照）。実Piscina Workerを繰り返しクラッシュさせ、`isHealthy`が実際に
  * `false`へ倒れることを検証する。あわせて、`ok:false`の業務エラー応答が
  * サーキットの記録を正しくリセットすることも`crashing-worker-with-recovery.ts`
- * で検証する（PRレビュー指摘: リセット位置の回帰を防ぐテスト）。
+ * で検証する（リセット位置の回帰を防ぐ）。
  */
 const FIXTURE_WORKER_URL = new URL("./__fixtures__/crashing-worker.ts", import.meta.url);
 const RECOVERABLE_FIXTURE_WORKER_URL = new URL(
@@ -62,7 +62,7 @@ describe("SimulationWorkerPool — consecutive in-flight Worker Thread crashes o
     expect(pool.isHealthy).toBe(false);
   }, 30_000);
 
-  it("INT-WORKER-CRASH-002 (PRレビュー指摘: ok:falseの業務エラーもWorker基盤としては成功なので、recordSuccess()の呼び出し位置がoutcome.okの内側だけへ後退していないことを固定する回帰テスト): a non-crashing ok:false response between two pairs of crashes resets the circuit breaker, so two crashes + a recovery + two more crashes never opens it", async () => {
+  it("INT-WORKER-CRASH-002 (ok:falseの業務エラーもWorker基盤としては成功なので、recordSuccess()の呼び出し位置がoutcome.okの内側だけへ後退していないことを固定する回帰テスト): a non-crashing ok:false response between two pairs of crashes resets the circuit breaker, so two crashes + a recovery + two more crashes never opens it", async () => {
     pool = await SimulationWorkerPool.create({
       catalogDir: "unused-by-fixture",
       catalogRevision: "unused-by-fixture",

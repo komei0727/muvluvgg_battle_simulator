@@ -35,7 +35,7 @@ export interface ApplyMarkerContext {
  * 付与元（`sourceId` / `sourceSide`）は{@link MarkerSource}のexactly-one union で
  * 受け取る。R-MEM-04（M7-008、Issue #176）: Memory の `triggeredEffects` 由来の
  * 付与だけが具体的な付与者ユニットを持たず`sourceSide`（そのMemoryを指定した陣営）
- * を渡す。両方欠落・両方指定はコンパイル時に弾かれる（PR #262レビュー[P2]）。
+ * を渡す。両方欠落・両方指定はコンパイル時に弾かれる。
  */
 export type ApplyMarkerRequest = MarkerSource & {
   readonly markerId: MarkerId;

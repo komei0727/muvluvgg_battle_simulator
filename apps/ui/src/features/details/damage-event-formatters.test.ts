@@ -608,7 +608,7 @@ describe("continuous damage events (R-DOT-01〜04, DMG-008)", () => {
     expect(presentation.severity).toBe("negative");
   });
 
-  // UI-UT-DMG-018B（PR #301 レビュー[P1]）: R-SUB-01第1項どおり`FIXED`継続ダメージは
+  // UI-UT-DMG-018B: R-SUB-01第1項どおり`FIXED`継続ダメージは
   // サブユニットへも吸収される。この項が内訳から落ちると`計算ダメージ100 → HPダメージ20`の
   // 差分80を説明できない。
   it("shows the sub unit absorption of a FIXED continuous damage so the breakdown still adds up", () => {

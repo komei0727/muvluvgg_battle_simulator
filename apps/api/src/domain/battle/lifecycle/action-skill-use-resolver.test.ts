@@ -439,7 +439,7 @@ describe("resolveSkillUse", () => {
     );
   });
 
-  it("UT-R-EFF-01-054 (TGT-004フェーズ3再レビュー[P2]、Issue #167): a PS triggered by this very SkillUseCompleted that grants a fresh SKILL_USE(count:1) status is not immediately decremented/expired by the outer AS's own SKILL_USE decrement pass (the PS's grant carries its own distinct skillUseId, granted after the outer decrement already ran)", () => {
+  it("UT-R-EFF-01-054 (TGT-004フェーズ3、Issue #167): a PS triggered by this very SkillUseCompleted that grants a fresh SKILL_USE(count:1) status is not immediately decremented/expired by the outer AS's own SKILL_USE decrement pass (the PS's grant carries its own distinct skillUseId, granted after the outer decrement already ran)", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_REACTIVE_PS");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_REACTIVE_PS");
     const hit = damageEffectAction("ACT_HIT_REACTIVE");
@@ -546,7 +546,7 @@ describe("resolveSkillUse", () => {
     ).toBe(false);
   });
 
-  it("UT-R-EFF-01-055 (TGT-004フェーズ3再々レビュー[P1]、Issue #167、08_ドメインイベント.md イベント発行と処理の順序契約): a PS reacting to SkillUseCompleted itself fully resolves before a PS reacting to the resulting EffectExpired, matching the events' own recorded (causal) order — not the reverse", () => {
+  it("UT-R-EFF-01-055 (TGT-004フェーズ3、Issue #167、08_ドメインイベント.md イベント発行と処理の順序契約): a PS reacting to SkillUseCompleted itself fully resolves before a PS reacting to the resulting EffectExpired, matching the events' own recorded (causal) order — not the reverse", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_ORDER");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_ORDER");
     const grantAction = statusEffectAction("ACT_GRANT_STEALTH_ORDER", 1);
@@ -716,7 +716,7 @@ describe("resolveSkillUse", () => {
     );
   });
 
-  it("UT-R-EFF-01-057 (TGT-004フェーズ3再々レビュー[P1]、Issue #167): a SKILL_USE(count:2) effect decremented once by a reactive PS's own completion (nested within the outer AS's SkillUseCompleted chain) and once by the outer AS's own completion correctly reaches 0 via 2 -> 1 -> 0, recording 2 distinct EffectDurationReduced events for that transition instead of the second one clobbering the first with a stale snapshot value", () => {
+  it("UT-R-EFF-01-057 (TGT-004フェーズ3、Issue #167): a SKILL_USE(count:2) effect decremented once by a reactive PS's own completion (nested within the outer AS's SkillUseCompleted chain) and once by the outer AS's own completion correctly reaches 0 via 2 -> 1 -> 0, recording 2 distinct EffectDurationReduced events for that transition instead of the second one clobbering the first with a stale snapshot value", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_DOUBLE_DECREMENT");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_DOUBLE_DECREMENT");
     const grantAction = statusEffectAction("ACT_GRANT_STEALTH_DOUBLE_DECREMENT", 2);
@@ -859,7 +859,7 @@ describe("resolveSkillUse", () => {
     );
   });
 
-  it("UT-R-EFF-01-058 (TGT-004フェーズ3再々々レビュー[P2]、Issue #167、08_ドメインイベント.md「現在処理中のイベントから直接発生したイベントを子とする」契約): the outer AS's own SKILL_USE decrement pass records its first EffectDurationReduced with parentEventId === skillUseCompleted.eventId, not the last event recorded by a PS chain that SkillUseCompleted happened to trigger in the meantime", () => {
+  it("UT-R-EFF-01-058 (TGT-004フェーズ3、Issue #167、08_ドメインイベント.md「現在処理中のイベントから直接発生したイベントを子とする」契約): the outer AS's own SKILL_USE decrement pass records its first EffectDurationReduced with parentEventId === skillUseCompleted.eventId, not the last event recorded by a PS chain that SkillUseCompleted happened to trigger in the meantime", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_DECREMENT_PARENT");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_DECREMENT_PARENT");
     const grantAction = statusEffectAction("ACT_GRANT_STEALTH_DECREMENT_PARENT", 2);

@@ -6,8 +6,7 @@ import type { TrafficTarget } from "./cloud-run-manifest.js";
  * `TAG_NAME`環境変数が指すtagのrevision名をstdoutへ書く（無ければ空文字）。
  * `scripts/cloud-run/ci-promote-traffic.sh`（`stable`の直前値を読み、
  * `stable-previous`へ回す）と`scripts/cloud-run/ci-rollback-traffic.sh`
- * （`stable-previous`をrollback先として読む）の両方から呼ばれる
- * （PRレビュー指摘 #112 P1、2026-07-15再レビュー）。
+ * （`stable-previous`をrollback先として読む）の両方から呼ばれる。
  */
 interface ServiceDescribeJson {
   readonly status?: { readonly traffic?: readonly TrafficTarget[] };

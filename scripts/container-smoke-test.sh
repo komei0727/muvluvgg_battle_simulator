@@ -126,7 +126,7 @@ wait_for_stop_ms() {
 start_log_watch() {
   local container="$1"
   local pattern="$2"
-  # レビュー指摘（timeout除去）を反映するにあたり、`( docker logs -f | grep
+  # timeoutを使わずに実装するにあたり、`( docker logs -f | grep
   # -q -m1 )`を本shellの子subshellとして直接pipeすると（`set -euo pipefail`
   # 環境下）matchが一切通知されない現象を実機で確認した——`bash -c "..."`で
   # 新しいbashへ切り出すと安定して動く。原因を厳密に切り分けるより、動作

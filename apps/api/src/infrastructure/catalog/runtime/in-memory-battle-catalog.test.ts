@@ -99,7 +99,7 @@ function chargeSkill(id: string): SkillDefinition {
     cost: { resource: "AP", amount: 1 },
     resolution: {
       kind: "CHARGE",
-      // M7-016（Issue #270 レビュー[P1]）: CHARGE開始側は`resolveChargeStart`が
+      // M7-016（Issue #270）: CHARGE開始側は`resolveChargeStart`が
       // 一つも解決しないため`steps`は常に空。EffectActionは`chargeRelease`だけが持つ。
       steps: [],
       chargeRelease: {
@@ -272,7 +272,7 @@ describe("InMemoryBattleCatalog.loadSnapshot", () => {
     );
   });
 
-  it("includes the chargeRelease step EffectActions for a charge Skill (M7-016, Issue #270 review [P1]: the CHARGE start side carries no steps, so chargeRelease is the only source)", () => {
+  it("includes the chargeRelease step EffectActions for a charge Skill (M7-016, Issue #270: the CHARGE start side carries no steps, so chargeRelease is the only source)", () => {
     const defs: CatalogDefinitions = {
       units: [unit("UNIT_001", { active: ["SKL_CHARGE"] })],
       skills: [chargeSkill("SKL_CHARGE"), exSkill("SKL_EX1", 7)],

@@ -487,8 +487,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-TGT-07-001", "UT-R-TGT-07-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
-  // TGT-004（Issue #167）: R-TGT-08「ステルス」。フェーズ1（AppliedEffect基盤、
-  // PR #236）・フェーズ2（対象選択リダイレクト・消費本体、PR #237、
+  // TGT-004（Issue #167）: R-TGT-08「ステルス」。フェーズ1（AppliedEffect基盤）・
+  // フェーズ2（対象選択リダイレクト・消費本体、
   // target-selection-policy.tsの`applyStealthRedirect`・
   // `EffectSequencePlan.stealthConsumptions`/`resolveEffectSequencePlan`の
   // `expireEffects`配線）に続き、フェーズ3でproduction Catalogの
@@ -663,7 +663,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: [
       // M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）: 実`catalog/`のCHARGE定義2件で
       // チャージ開始→保留中→解放の一巡を通し、`ChargeStarted`／`ActionCompleting`の
-      // StateDeltaと独立Reducer復元まで固定する。`006`はPRレビュー[P1]の是正で、
+      // StateDeltaと独立Reducer復元まで固定する。`006`は、
       // R-SKL-05が効果解決の手順を持たない（`resolveChargeStart`が開始側stepを
       // 一つも解決しない）ことと、Catalog側の開始側`steps`が空であることの一致を見る。
       "IT-CAP-CHARGE-RESTRICTION-PROD-001",
@@ -692,11 +692,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 自体はIssue #230で削除し、対応する`UT-R-SKL-06-013`〜015も除去した）と
   // production Catalog検証
   // （`IT-CAP-EFFSTEP-001`〜004）を追加した（他の条件kind・「集合条件」は
-  // 引き続き対象外）。PRレビュー[P1]（Issue #171）で、対象別条件を常に
+  // 引き続き対象外）。Issue #171で、対象別条件を常に
   // `DeferredStepPlan`へ回し（`isEagerActionStep`）、`EffectStepStarting`由来の
   // 連鎖が確定した後の最新`box.units`で再評価する経路（`resolveAfterTiming`）へ
   // 修正し、先行stepおよび同stepの連鎖によるMarker変更を正しく反映することを
-  // `UT-R-SKL-06-022`/`023`で検証した。続く再レビュー[P2]で、`EffectStepStarting`
+  // `UT-R-SKL-06-022`/`023`で検証した。さらに`EffectStepStarting`
   // 連鎖が使用者を戦闘不能にした場合は対象別条件の再評価自体を行わない
   // （`unresolvedEffectCount: 0`のまま`INTERRUPTED`）よう順序を修正し、
   // `UT-R-SKL-06-024`で検証した。RES-004集合条件（Issue #227、
@@ -706,11 +706,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-06-025`〜033）。対象別条件と同じ理由（先行stepやPS/Memory連鎖後の
   // 最新状態を反映する必要がある）で常に`DeferredStepPlan`へ回し、ACTION step
   // 自身の条件（対象別条件を伴わない場合を含む）とBRANCHの条件の両方から
-  // 使えることを`UT-R-SKL-06-034`〜038で検証した。PRレビュー[P1]再指摘で、
+  // 使えることを`UT-R-SKL-06-034`〜038で検証した。加えて、
   // 自身のtargetを参照しないTARGET_SET_COUNT単独の条件が、対象別条件と同じ
   // `resolveAfterTiming`経路（このstep自身の`EffectStepStarting`が誘発する
   // PS/Memory連鎖後に再評価する）を経由していなかった欠陥を修正し、
-  // `UT-R-SKL-06-039`で検証した。続く再レビュー[P2]再指摘・再々指摘で、対象別
+  // `UT-R-SKL-06-039`で検証した。さらに、対象別
   // 条件（TARGET_STATE/TARGET_HAS_MARKERが自身のtargetを参照する、対象ごとに
   // 真偽が変わる評価）と`TARGET_SET_COUNT`（step全体で1回だけ評価する評価）を
   // 同じconditionツリーにAND/OR/NOTで混在させた場合の実行時量化ロジック
@@ -757,7 +757,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // した）。`MIXED_STEP_TARGET_SET_CONDITION`はACTIONの対象から外れ、
   // `target`を持たず単一`condition`のままのBRANCHにだけ引き続き適用される。
   // 4つの組み合わせ（両条件true、gate false、filter全件false、filter一部
-  // true）を`UT-R-SKL-06-040`〜`043`で検証した。PRレビュー[P2]（Issue #230）:
+  // true）を`UT-R-SKL-06-040`〜`043`で検証した。Issue #230:
   // これらはすべてトップレベルACTIONだったため、同じcombined条件を持つACTIONが
   // BRANCH.thenSteps/REPEAT.steps/RANDOM_BRANCHのbranch.stepsそれぞれに
   // ネストされた場合も同じ経路（`resolveStepDefinitionList`経由の
@@ -765,8 +765,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 既存の対象別条件・
   // `TARGET_SET_COUNT`単体のテスト（`UT-R-SKL-06-016`〜`039`、
   // `IT-CAP-EFFSTEP-001`〜`005`）は`stepCondition`/`targetCondition`への
-  // 機械的な読み替えのみで、検証内容自体は変えていない。PRレビュー[P1]
-  // （Issue #230）: `resolveBranchStep`が常に`targetContext: undefined`で
+  // 機械的な読み替えのみで、検証内容自体は変えていない。
+  // Issue #230: `resolveBranchStep`が常に`targetContext: undefined`で
   // `evaluateEffectStepCondition`を呼ぶため、production Catalogに既に存在した
   // BRANCHの`TARGET_STATE`/`TARGET_HAS_MARKER`（`SELF`/`TRIGGER_SOURCE`/
   // count:1の`BINDING`など、高々1体にしか解決されない参照）が実行時に必ず
@@ -778,24 +778,24 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `SKL_HARRIET_SAGE_AS1`（`TGT_ADJ`という`BINDING_DERIVED`参照、0〜N体）は
   // 対応するBRANCHをACTIONの`targetCondition`（対象ごとの正しいfilter）へ
   // 書き換えた — 単に例外を避けるだけでなく、意図どおり対象ごとに判定する
-  // 挙動へ修正している。PRレビュー[P2]再指摘: `targetReferenceIsSingleUnit`が
+  // 挙動へ修正している。さらに`targetReferenceIsSingleUnit`が
   // `BINDING`の主selectorだけを見て`fallback`（`TargetSelectorDefinition`が
   // 任意に持てる、候補0件時の代替selector）を無視していたため、主selectorが
   // count:1でも`fallback`がcount:"ALL"等なら誤って通過してしまう欠陥を
   // `selectorGuaranteesAtMostOneUnit`（fallback連鎖を再帰的に検査）で修正し、
   // `UT-CAT-IDX-069`/`070`で検証した。
   // CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（M7-001D、Issue #247）: `stepCondition`/
-  // `targetCondition`/`BRANCH.condition`（Issueが明示する3スコープ全て、PRレビュー
-  // [P2]でtargetConditionを追加）からEVENT_PAYLOADを評価できるようにし、PS発動を
+  // `targetCondition`/`BRANCH.condition`（Issueが明示する3スコープ全て）から
+  // EVENT_PAYLOADを評価できるようにし、PS発動を
   // 引き起こしたトリガーイベント自身のpayloadを参照して、発動後の一部stepだけを
   // 条件付けられるようにした（`evaluateEffectStepCondition`のEVENT_PAYLOAD case、
   // `UT-R-SKL-06-052`〜`055`。`055`はtargetCondition scope、TARGET_STATEとのAND
   // 併用）。EVENT_PAYLOADを含むstepConditionはLAST_RESULT/TARGET_SET_COUNTと同じ
   // 理由でplanning時点では確定せずDeferredStepPlanへ回す（`isEagerActionStep`）。
   // 対応するCapability要求は`UT-CAT-IDX-078`/`079`で検証した。トリガーイベントを
-  // 持たないAS/EX active skillでの誤用（PRレビュー[P2]指摘: preflightを通過し
-  // 実行時に初めて例外になっていた）は`EVENT_PAYLOAD_REQUIRES_PS_SKILL`として
-  // Catalog構築時に拒否し、`UT-CAT-IDX-080`で検証した。PRレビュー[P2]再指摘:
+  // 持たないAS/EX active skillでの誤用（preflightを通過し
+  // 実行時に初めて例外になる）は`EVENT_PAYLOAD_REQUIRES_PS_SKILL`として
+  // Catalog構築時に拒否し、`UT-CAT-IDX-080`で検証した。加えて、
   // `UT-R-SKL-06-055`は`evaluateEffectStepCondition`へ`triggerEventPayload`を
   // 直接渡しており、`buildEffectStepPerTargetFilter`の実配線を検証できて
   // いなかったため、`PassiveActivationRuntime.onFactEvent`から実`DamageApplied`
@@ -822,14 +822,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `SKL_SHOUKA_SCHEMER_AS3`の「対象の攻撃力がデバフ」は`statKinds`で、
   // `SKL_CHIYURU_MAZE_AS1`/`SKL_NOEL_RUMBLE_AS1`の毒・炎上は`continuousDamageKinds`で
   // 絞り込む — どちらも無ければ「何らかのデバフ」への近似が残っていた。
-  // PR #287レビュー[P2]: 当初は「条件」と「NOT(条件)」を2つのACTION stepへ分けていたが、
-  // `targetCondition`は各stepのPS/Memory連鎖の後に再評価されるため、強化版の適用中に
-  // 条件が崩れると通常版まで走る欠陥があった（`IT-CAP-TARGET-EFFECT-QUERY-PROD-006`が
+  // 「条件」と「NOT(条件)」を2つのACTION stepへ分けると、`targetCondition`は各stepの
+  // PS/Memory連鎖の後に再評価されるため、強化版の適用中に条件が崩れると通常版まで
+  // 走ってしまう（`IT-CAP-TARGET-EFFECT-QUERY-PROD-006`が
   // 旧構造で実際に両方の実行を検出する）。分岐の選択は`BRANCH`で一度だけ確定させ、
   // BRANCHで参照できない`TRIGGER_TARGET`（`SKL_FLUTE_INFLUENCER_PS2`）は
   // 「基本回復は無条件、増加分だけ条件付き」の加算形にした。AS/EXの`activationCondition`も
   // BRANCHと同じ「高々1体」制約が実行時に効くため、`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`
-  // でCatalogロード時点から同じ制約を課す（`UT-CAT-IDX-092`〜`094`）。PR #287再レビュー[P2]:
+  // でCatalogロード時点から同じ制約を課す（`UT-CAT-IDX-092`〜`094`）。
   // 制約は対象数だけでは足りず、参照kind自体もskill typeごとに評価器の契約と一致させる
   // （AS/EXの`evaluateActivationCondition`は`SELF`/`BINDING`、PSの
   // `evaluateTriggerCondition`は`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`しか解決しない）。
@@ -932,8 +932,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // R-SKL-07: BRANCH/RANDOM_BRANCH/REPEATをIssue #217で実装した
   // （`resolveBranchStep`/`resolveRandomBranchStep`/`resolveRepeatStep`、
   // `effect-action-group-resolver.ts`）。`DeferredStepPlan`（`skill-resolution-service.ts`）
-  // がこれらのstepを生の定義のまま持ち越し、実行時にJITで解決する。PRレビュー
-  // [P1]（Issue #230）: BRANCHの`condition`が`SELF`等の高々1体にしか解決され
+  // がこれらのstepを生の定義のまま持ち越し、実行時にJITで解決する。
+  // Issue #230: BRANCHの`condition`が`SELF`等の高々1体にしか解決され
   // ない`TARGET_STATE`/`TARGET_HAS_MARKER`を含んでいても、`resolveBranchStep`が
   // 例外を投げず正しく分岐することを`UT-R-SKL-07-111`で検証した。
   // RES-003 production統合（Issue #173）: 実`catalog/`からロードした未改変の
@@ -1357,13 +1357,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // #2 対象戦闘不能でも生存対象には通常どおり適用される(誤検出がないことの境界)。
       "UT-R-ACTN-01-005",
       // #2 明示指定(TargetSelectorDefinition.includeDefeated: true)がある場合は戦闘不能対象にも適用される。
-      // DAMAGEもapplyDamageAction内部のヒット単位チェックで同じ明示指定を尊重する(PR #215再レビュー[P2])。
+      // DAMAGEもapplyDamageAction内部のヒット単位チェックで同じ明示指定を尊重する。
       "UT-R-ACTN-01-006",
       "UT-R-ACTN-01-008",
       "UT-R-ACTN-01-010",
       "UT-DAMAGE-APPLICATION-015",
       // #2/#5 明示指定下でも、既に戦闘不能だった対象への継続ヒットはUnitDefeatedを再発行しない
-      // (08_ドメインイベント.md「HPが0になった直後」、PR #215再々レビュー[P2])。
+      // (08_ドメインイベント.md「HPが0になった直後」)。
       "UT-DAMAGE-APPLICATION-016",
       // #3 Formula評価: payloadのFormulaDefinitionが実際に評価される。
       "UT-R-NUM-04-027",
@@ -1526,8 +1526,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `CAP_HIT_COUNT_EVASION`（Nヒット回避）が要求していたのはまさにこの部分で、
   // 判定側と合わせてここで完了する。消費契機はR-EFF-07に対して**逆**であり
   // （回避したMISSで消費し、命中確定では消費しない）、後者の除外が抜けると
-  // 確率回避の失敗や必中で残数を失う（PR #275レビュー[P1]、
-  // `UT-R-HIT-04-010`/`011`が両方向を固定する）。
+  // 確率回避の失敗や必中で残数を失う（`UT-R-HIT-04-010`/`011`が両方向を固定する）。
   {
     ruleId: "R-HIT-04",
     testCaseIds: [
@@ -1719,7 +1718,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-03-021",
       "UT-R-DMG-03-022",
       "UT-R-DMG-03-023",
-      // PR #296レビュー[P1]: 合成結果が`DamageWillBeApplied`のsnapshotだけで
+      // 合成結果が`DamageWillBeApplied`のsnapshotだけで
       // なく確定計算（`DamageCalculated`の`effectiveDefense`）まで届くことを
       // 直接固定する（合成関数そのものではなく配線の回帰テスト）。
       "UT-R-DMG-03-024",
@@ -2139,7 +2138,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-008",
       "UT-R-EFF-02-009",
       "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
-      // PR #288レビュー[P1]: 公開API（`EffectStateResponse.category`）も同じ分類元
+      // 公開API（`EffectStateResponse.category`）も同じ分類元
       // （`EffectSnapshot.categories`）を読む。継続ダメージは`magnitude`が正値のため、
       // 符号から導くと毒・炎上がAPI上だけ`BUFF`になりR-STS-01と矛盾していた。
       // API層の証跡は`simulate-battle-response-mapper.test.ts`の`API-RESP-012G`
@@ -2273,7 +2272,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-01-020",
       "UT-R-EFF-01-021",
       "UT-R-EFF-01-022",
-      // TGT-004フェーズ1（Issue #167、PR #236再レビュー[P2]）: SKILL_USE単位の
+      // TGT-004フェーズ1（Issue #167）: SKILL_USE単位の
       // grantedSkillUseId初期化・減算（applied-effect.ts/applied-effect-duration.ts）。
       "UT-R-EFF-01-035",
       "UT-R-EFF-01-036",
@@ -2343,7 +2342,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-023",
       "UT-R-EFF-02-024",
       "UT-R-EFF-02-025",
-      // DMG-003A（Issue #295、PR #297レビュー[P1]）: 会心不可（`CRITICAL_PREVENTION`）は
+      // DMG-003A（Issue #295）: 会心不可（`CRITICAL_PREVENTION`）は
       // 状態異常ではないが保持者を弱化するため`DEBUFF`へ分類する。対になる
       // `CRITICAL_GUARANTEE`は`BUFF`のまま。
       "UT-R-EFF-02-026",
@@ -2409,7 +2408,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-03-016",
       "UT-R-EFF-03-017",
       "UT-R-EFF-03-018",
-      // DMG-003A（Issue #295、PR #297レビュー[P1]）: 会心不可が`DEBUFF`免疫で
+      // DMG-003A（Issue #295）: 会心不可が`DEBUFF`免疫で
       // 実際に付与拒否されることをproduction定義で固定する。
       "IT-CAP-CRITICAL-CONTROL-PROD-005",
     ],
@@ -2449,7 +2448,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `APPLY_STAT_MOD.stacking.mode`が`STACKABLE`しか許可せず、
   // `effect-action-group-resolver.ts`も`duplicate: true`固定で付与していたため、
   // 実ライフサイクルからduplicate:falseの重複なし経路・最強選択・次点繰上げ・
-  // `EffectiveEffectChanged`のいずれにも到達できなかった（PR #208レビュー[P2]）。
+  // `EffectiveEffectChanged`のいずれにも到達できなかった。
   // M7-010（Issue #177、監査）が、完了責任を持っていたEFF-002（Issue #165）の
   // 所有者不在を検出し、同じギャップを持つ不完全変換テーマ
   // `STACK_LIMIT_ON_STAT_MOD`（1行）ごとM7-012（Issue #266）へ引き継いだ。
@@ -2587,7 +2586,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // production Catalogの2グループ（`TARISA_TROUBLEMAKER_PS1_LINK`／
   // `AOI_ELEGANT_AS1_KOUYOU_LINK`）を近似なしへ更新した。
   //
-  // PR #280レビュー[P1]/[P2]: カスケードの通知粒度と失効順を2点修正した。
+  // カスケードの通知粒度と失効順には2つの制約がある。
   // (1) 1インスタンスの除去ごとにPS/Memoryの即時連鎖へ通知する
   // （`notifyRemovalStep`。まとめて最後に通知すると、子の`EffectExpired`を
   // triggerにするPSがイベント順ではまだ存在する親Marker／親効果を除去済みとして
@@ -2599,7 +2598,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
   // `UT-R-EFF-09-019`が固定）。
   //
-  // PR #280再々レビュー[P1]/[P1]/[P2]: 通知粒度とロール順の適用範囲を3点広げた。
+  // 通知粒度とロール順の適用範囲は次の3点へ広がる。
   // (3) DAMAGE pipelineの消費失効（`DamageEventContext.consumeEffectDuration`／
   // `finalizeConsumedEffectDurations`）も凍結解除と同じステップ`yield`型の
   // generatorへ変え（`expireEffectsSteps`）、callbackがあればステップごとに
@@ -2614,10 +2613,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 適用した（同じグループの`PARENT`と`CHILD`が同時に0になり得る。
   // `UT-R-EFF-09-021`が固定）。
   //
-  // PR #280再々レビュー[P1]/[P1]/[P2]: さらに3点。
+  // さらに3点。
   // (6) `EffectConsumptionChanged`自身も1イベント=1stepとして`yield`する
   // （残回数が0にならない消費では失効stepが無く、PS/Memory連鎖へ一度も
-  // 渡らなかった。`UT-R-EFF-07-014`が固定）。再々々レビュー[P1]: state変更も
+  // 渡らなかった。`UT-R-EFF-07-014`が固定）。state変更も
   // step単位にした — 一括減算済みの`units`を起点にしていたため最初の観測者が
   // 未発行分の減算まで見え、かつ先行連鎖が後続対象を解除した場合に
   // 存在しない効果のsnapshot生成で実行時例外になり得た。対象の決定と適用を
@@ -2666,7 +2665,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-005",
       // M7-020（Issue #279）: 付与者戦闘不能によるMarker解除も、他の3経路と同じく
       // 単一の除去バッチとしてR-EFF-09のcross-typeカスケード・role順を通る。
-      // PR #281レビュー[P2]: PS連鎖内部経路でも「各インスタンスの失効イベントは
+      // PS連鎖内部経路でも「各インスタンスの失効イベントは
       // 次のインスタンスへ進む前にPS/Memoryの即時連鎖へ渡す」を満たす
       // （`removeMarkersSteps`＋`resolveChild`、`UT-R-EFF-10-034`が固定）。
       "UT-R-EFF-10-030",
@@ -2693,11 +2692,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 両方が使う）を受理できるようにした（拒否自体も撤去した）。
   // 一方、schema上は許容されるが未実装のMarker Duration機構（`consumption`、
   // `expiration`、`HIT`/`SKILL_USE`単位の`timeLimit`）も同じCatalog integrity
-  // パスで`UNSUPPORTED_MARKER_DURATION`として拒否する（PR #210再レビュー[P2]）。
+  // パスで`UNSUPPORTED_MARKER_DURATION`として拒否する。
   // API応答（`BattleUnitStateResponse.markers`/`UnitStateDeltaResponse.markers`、
   // `markers`はv1後方互換のため任意プロパティとして追加）と、独立Reducer復元の
   // 一致判定（`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へも
-  // Markerを反映した（PR #210レビュー[P1]/[P2]、再レビュー[P2]）。
+  // Markerを反映した。
   // M7-020（Issue #279、`MARKER_REMOVAL_ON_SOURCE_DEATH`）: 付与者
   // （`MarkerState.sourceId`）の戦闘不能を解除契機として宣言する
   // `DurationDefinition.removeOnSourceDefeated`（`APPLY_MARKER`専用）を追加した。

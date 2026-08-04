@@ -18,7 +18,7 @@ import {
 } from "../../testing/fixtures/index.js";
 
 /**
- * Issue #143 review re-fix [P2]: `ChargeStarted` previously carried no
+ * Issue #143: `ChargeStarted` previously carried no
  * `targetUnitIds`, so no `targetSelector` other than `ANY` could ever match
  * it — the production Harriet Sage PS2 (`sourceSelector: ALLY`,
  * `targetSelector: ALLY`) would never become a PS candidate even once
@@ -48,7 +48,7 @@ function noPassiveUnitDefinition(id: string): UnitDefinition {
   });
 }
 
-describe("production Catalog ChargeStarted targetUnitIds wiring (Issue #143 review re-fix [P2])", () => {
+describe("production Catalog ChargeStarted targetUnitIds wiring (Issue #143)", () => {
   it("IT-CAT-PROD-014: Harriet Sage's real PS2 trigger (ChargeStarted, sourceSelector/targetSelector: ALLY) becomes a PS candidate when another ally starts a charge, but not when an enemy does", () => {
     const harrietDefId = createUnitDefinitionId("UNIT_HARRIET_SAGE");
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [harrietDefId]);

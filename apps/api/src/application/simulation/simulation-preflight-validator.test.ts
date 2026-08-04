@@ -460,7 +460,7 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-PREFLIGHT-011 (PR #208再レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a Skill uses APPLY_STAT_MOD backed by a synthetic PLANNED capability (CAP_STAT_MOD is IMPLEMENTED in the real capabilities.json since EFF-003; this test fixture constructs its own PLANNED capability set to exercise the generic preflight rejection mechanism)", () => {
+  it("UT-PREFLIGHT-011: rejects with UNSUPPORTED_RULE before Battle generation when a Skill uses APPLY_STAT_MOD backed by a synthetic PLANNED capability (CAP_STAT_MOD is IMPLEMENTED in the real capabilities.json since EFF-003; this test fixture constructs its own PLANNED capability set to exercise the generic preflight rejection mechanism)", () => {
     const capabilityId = createCapabilityId("CAP_STAT_MOD");
     const cmd = command({
       allyFormation: {
@@ -525,7 +525,7 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-PREFLIGHT-012 (M7-001, Issue #181, 再々レビュー[P2]): rejects with UNSUPPORTED_RULE before Battle generation when a selected Skill uses REMOVE_EFFECTS with the SHIELD category while CAP_SHIELD is PLANNED (synthetic Catalog; production CAP_SHIELD is IMPLEMENTED since DMG-004) — proves such a gap is rejected per-selection, not by failing the whole Catalog load", () => {
+  it("UT-PREFLIGHT-012 (M7-001, Issue #181): rejects with UNSUPPORTED_RULE before Battle generation when a selected Skill uses REMOVE_EFFECTS with the SHIELD category while CAP_SHIELD is PLANNED (synthetic Catalog; production CAP_SHIELD is IMPLEMENTED since DMG-004) — proves such a gap is rejected per-selection, not by failing the whole Catalog load", () => {
     const capabilityId = createCapabilityId("CAP_SHIELD");
     const cmd = command({
       allyFormation: {

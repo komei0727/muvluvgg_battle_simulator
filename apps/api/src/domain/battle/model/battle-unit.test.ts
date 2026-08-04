@@ -80,7 +80,7 @@ describe("createBattleUnit", () => {
     // 33623 × 1.2 = 40347.6（編成補正で端数が生じたケース）。ゲージ最大値は
     // 整数でなければならない（`createHitPoint`→`assertInteger`）ため0方向へ
     // 切り捨てる一方、後続の R-STA-04 再計算の基準となる combatStats/baseCombatStats
-    // は全精度のまま保持する（PR #239 再レビュー[P2]）。
+    // は全精度のまま保持する。
     const fractional = { ...member().combatStats, maximumHp: 40347.6 };
     const unit = createBattleUnit(member({ combatStats: fractional }), "ALLY", LIMITS);
 

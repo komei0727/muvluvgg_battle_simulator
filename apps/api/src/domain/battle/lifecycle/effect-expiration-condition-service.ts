@@ -20,7 +20,7 @@ export interface ExpiringEffectInstance {
  * evaluator.ts`の`evaluateTriggerCondition`を再利用する（PS Trigger条件と
  * 同じ`ConditionDefinition`表現を共有するため）。
  *
- * レビュー指摘[P2]（PR #209）: 各`AppliedEffect`ごとに、その効果を保持する
+ * 各`AppliedEffect`ごとに、その効果を保持する
  * ユニット自身を`context.owner`として渡す — PS発動条件と異なり、R-EFF-08では
  * `owner`（`TARGET_STATE`の`SELF`が指す対象）が効果インスタンスごとに変わる
  * （固定のPS所有者という概念が無い）。`getUnit`も`units`全体から解決できる

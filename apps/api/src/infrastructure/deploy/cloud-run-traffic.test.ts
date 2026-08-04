@@ -1,5 +1,5 @@
 /**
- * PRレビュー指摘（#112 review 2026-07-15、2026-07-15再レビュー）への対応:
+ * revision選択の2つの制約を固定する:
  * - `status.latestReadyRevisionName`はsmokeに失敗しても未promoteのまま
  *   Readyになり得るため、「現在100% trafficを受けているrevision」の判定には
  *   使えない。`status.traffic`のpercent===100エントリだけを正とする。

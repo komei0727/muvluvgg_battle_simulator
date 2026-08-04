@@ -19,11 +19,11 @@ export interface ActionQueue {
  * 発動待ちのチャージ効果を持つユニットをキュー生成対象とする（`06_戦闘状態遷移.md`
  * 「キュー生成対象」）。気絶は付与時にチャージをキャンセルする（R-STS-02、
  * `stun-grant-service.ts`）ため、この関数へ到達する時点でチャージを持つ気絶
- * ユニットは存在しない——チャージを「阻害」し得るのは凍結だけ（Issue #180
- * PRレビュー[P1]）。凍結中のユニットはAP/EXだけでは適格でも、チャージ由来の
+ * ユニットは存在しない——チャージを「阻害」し得るのは凍結だけ（Issue #180）。
+ * 凍結中のユニットはAP/EXだけでは適格でも、チャージ由来の
  * 適格性は持たない（R-ACT-01 #2で待機するだけであり、チャージ発動の機会には
  * ならない）。`createActionQueue`（新規キュー生成）と`action-phase-resolver.ts`
- * （既存予約の実行直前の再検証、Issue #180 PRレビュー[P1]再指摘）の両方から
+ * （既存予約の実行直前の再検証、Issue #180）の両方から
  * 同じ判定を再利用できるようexportする。
  */
 export function isQueueEligible(unit: BattleUnit): boolean {

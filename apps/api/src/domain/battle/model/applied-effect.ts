@@ -281,8 +281,8 @@ export const CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY = "sourceAttack";
  * 導出できる粒度。この鍵はR-EFF-05の最強選択（`effective-effect-selector.ts`）と
  * 重複上限（`isStackLimitReached`）の両方が使う。
  *
- * この導出規則はplaceholderであり、確定した公開契約ではない
- * （PR #207レビュー[P2]）: 異なるスキル由来の同種効果（例: 2つの異なるASが
+ * この導出規則はplaceholderであり、確定した公開契約ではない —
+ * 異なるスキル由来の同種効果（例: 2つの異なるASが
  * 与える「攻撃力+10%」）を同じ`kindKey`へグループ化できないため、将来
  * R-STA-03の導出規則自体を差し替える可能性が高い。この値は`EffectApplied`
  * イベントの`details.kindKey`として`BattleLogEventResponse`経由で外部公開
@@ -313,7 +313,7 @@ export interface EffectDurationState {
   /** `definition.timeLimit.unit === "TURN"`の場合、付与されたターン番号（R-EFF-06の初回減算除外判定に使う）。 */
   readonly grantedTurnNumber?: number;
   /**
-   * TGT-004フェーズ1（Issue #167、PR #234再レビュー）: `definition.timeLimit.unit
+   * TGT-004フェーズ1（Issue #167）: `definition.timeLimit.unit
    * === "SKILL_USE"`の場合、付与時の`SkillUseId`。R-EFF-04/06の初回減算除外
    * （`grantedActionId`/`grantedTurnNumber`）と同じ規約 — 付与自身のスキル使用
    * では減算しない。
@@ -386,15 +386,15 @@ export interface AppliedEffect {
   /** 効果量。符号付き（バフは正、デバフは負）。 */
   readonly magnitude: number;
   /**
-   * TGT-004フェーズ1（Issue #167、PR #234/#236再レビュー）: `APPLY_STATUS`由来の
+   * TGT-004フェーズ1（Issue #167）: `APPLY_STATUS`由来の
    * `AppliedEffect`だけが持つ、R-ACTN-03の分類（`StatusKind`）。他のkind
    * （`APPLY_STAT_MOD`等）由来の`AppliedEffect`は`undefined`のまま。Q-EFF-10
    * 「重複あり・重複なしのどちらも、効果インスタンスと効果期間を個別に保持する。
    * 再付与によって既存インスタンスの期間を上書きしない」により、同じ対象・同じ
    * `statusKind`への再付与も他の`APPLY_STATUS`種別（R-STS-02〜04の気絶・凍結・
    * 暗闇はそれぞれ異なる再付与規則を持つ）と同様に常に新規インスタンスを追加する
-   * — Stealth固有の再付与規則（PR #234レビューで候補に挙がったREFRESH相当）は、
-   * 対応するQ項目が決定されるまで導入しない（PR #236再レビュー[P1]）。
+   * — Stealth固有の再付与規則（REFRESH相当）は、
+   * 対応するQ項目が決定されるまで導入しない。
    */
   readonly statusKind?: StatusKind;
   /** M7-004（Issue #183）: `statusKind`がEVASION/BLIND/FREEZE/DAMAGE_IMMUNITYの場合だけ持つ。 */

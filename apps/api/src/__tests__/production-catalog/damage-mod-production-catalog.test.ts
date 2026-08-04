@@ -242,7 +242,7 @@ describe("production Catalog APPLY_DAMAGE_MOD (DMG-002, R-DMG-03/R-DMG-04)", () 
     ).toBeCloseTo(0.6);
   });
 
-  it("IT-CAP-DAMAGE-MOD-PROD-005 (PR #284レビュー[P2]): a dynamically conditioned APPLY_DAMAGE_MOD survives independent Reducer restoration with its direction, damageType and condition intact", () => {
+  it("IT-CAP-DAMAGE-MOD-PROD-005: a dynamically conditioned APPLY_DAMAGE_MOD survives independent Reducer restoration with its direction, damageType and condition intact", () => {
     // `SKL_KEI_JACKKNIFE_PS1`はターン開始時に`ACT_KEI_JACKKNIFE_PS1_DMG_DOWN`
     // （`UNIT_STATE`条件付きの被ダメージ-30%）を自身へ付与する。
     const result = runProductionUnitBattle(CATALOG_DIR, "UNIT_KEI_JACKKNIFE", {

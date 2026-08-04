@@ -44,8 +44,7 @@ export function findRevisionNameByTag(
  * Cloud Runのstartup/liveness probe通過を意味するだけで、smoke test成功や
  * promote実績を保証しない。複数回連続でcandidateがsmokeに失敗すると、
  * 未promoteの失敗revisionがReadyのまま残り、`candidate` tagは常に最新の
- * 失敗revisionへ移るため、tagだけを見た除外も机上の空論になる
- * （PRレビュー指摘 #112 P1、2026-07-15 再レビュー）。
+ * 失敗revisionへ移るため、tagだけを見た除外も机上の空論になる。
  *
  * 代わりに、promote成功時にだけ更新される永続的な2つのtagで判定する。
  * - `stable`: 現在100% trafficを受けている、最後にpromoteされたrevision。

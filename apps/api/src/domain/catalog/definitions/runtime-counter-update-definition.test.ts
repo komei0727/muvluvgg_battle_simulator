@@ -186,7 +186,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-012 (review fix [P2]): maps an INCREMENT update definition with resetScope: RESOLUTION_SCOPE", () => {
+  it("UT-CAT-RCU-012: maps an INCREMENT update definition with resetScope: RESOLUTION_SCOPE", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -208,7 +208,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     });
   });
 
-  it("UT-CAT-RCU-013 (review fix [P2]): omitting resetScope means the counter persists for the whole battle (no resetScope key on the result)", () => {
+  it("UT-CAT-RCU-013: omitting resetScope means the counter persists for the whole battle (no resetScope key on the result)", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -222,7 +222,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     expect(result).not.toHaveProperty("resetScope");
   });
 
-  it("UT-CAT-RCU-014 (review fix [P2]): rejects an invalid resetScope value", () => {
+  it("UT-CAT-RCU-014: rejects an invalid resetScope value", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -239,7 +239,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
   });
 
   it.each(["BATTLE", "BATTLE_UNIT"])(
-    "UT-CAT-RCU-011 (review fix [P2], EFF-006 Issue #212): rejects scope %s at Catalog load time (only SKILL_RUNTIME/APPLIED_EFFECT/EFFECT_SEQUENCE are implemented; Catalog must not accept a scope the runtime rejects)",
+    "UT-CAT-RCU-011 (EFF-006 Issue #212): rejects scope %s at Catalog load time (only SKILL_RUNTIME/APPLIED_EFFECT/EFFECT_SEQUENCE are implemented; Catalog must not accept a scope the runtime rejects)",
     (scope) => {
       expect(() =>
         createRuntimeCounterUpdateDefinition(

@@ -183,7 +183,7 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
       kind: "SKILL_POWER",
       power: 0.55,
     });
-    // PR #287レビュー[P2]: 相補的な`targetCondition`を持つ2 stepにすると、先行stepの
+    // 相補的な`targetCondition`を持つ2 stepにすると、先行stepの
     // PS/Memory連鎖が対象の状態を変えた場合に通常版と強化版の両方が実行されうる。
     // raw原文どおり「基本回復は無条件、増加分だけが条件付き」の加算形にして、
     // 条件付きstepを1つだけにする（分岐の選択が二重評価されえない構造）。
@@ -407,7 +407,7 @@ describe("production Catalog TARGET_HAS_EFFECT (CAP_TARGET_EFFECT_QUERY, M7-001E
     ]);
   });
 
-  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-006 (PR #287レビュー[P2]): a PS chain that strips the queried effect mid-resolution cannot make both the boosted and the plain damage run — the branch is decided once", () => {
+  it("IT-CAP-TARGET-EFFECT-QUERY-PROD-006: a PS chain that strips the queried effect mid-resolution cannot make both the boosted and the plain damage run — the branch is decided once", () => {
     // 相補的な`targetCondition`を持つ2つのACTION stepにすると、それぞれのstepが
     // 自分の`EffectStepStarting`とそこから生じるPS/Memory連鎖の**後**に最新stateで
     // 評価されるため、強化版を適用した直後に連鎖が炎上を解除すると

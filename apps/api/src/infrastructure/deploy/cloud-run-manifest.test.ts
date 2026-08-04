@@ -99,7 +99,7 @@ describe("renderCloudRunManifest", () => {
 
 describe("buildCandidateTrafficTargets", () => {
   it("IT-INFRA-CICD-005: rejects bootstrap (no known previous revision) rather than granting the new revision 100% traffic immediately", () => {
-    // PRレビュー指摘 #112（2026-07-15、5回目）: CIは初回Cloud Run deployを
+    // CIは初回Cloud Run deployを
     // 行わない——最初のrevisionはscripts/cloud-run/03-deploy-service.shの
     // 一度限りの手動セットアップで事前に作成されている前提。`describe`の
     // 一時的失敗やservice未作成をbootstrapとして扱い、未smoke-testの
@@ -132,8 +132,7 @@ describe("buildCandidateTrafficTargets", () => {
   it("IT-INFRA-CICD-020: re-declares the stable-previous tag on its own revision so `services replace` does not drop it", () => {
     // `gcloud run services replace`はmanifestのspec.traffic全体を新しいdesired
     // stateとして適用するため、既存のstable-previous tagをmanifestへ含めないと
-    // deploy attempt（成功・失敗いずれでも）ごとに消えてしまう（PRレビュー指摘
-    // #112 P1、2026-07-15再レビューを踏まえた防御的実装）。
+    // deploy attempt（成功・失敗いずれでも）ごとに消えてしまう。
     const traffic = buildCandidateTrafficTargets({
       newRevisionName: "muvluvgg-battle-simulator-api-c",
       previousRevisionName: "muvluvgg-battle-simulator-api-current",

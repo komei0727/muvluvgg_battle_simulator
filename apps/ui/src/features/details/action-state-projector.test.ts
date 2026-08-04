@@ -343,7 +343,7 @@ describe("selectUnitActionStates", () => {
     );
   });
 
-  it("reads cooldowns/charge directly from finalState.units[] when it carries the M5+ shape (cooldowns is an array), ignoring events entirely (M5 review round 2 [P2] fix)", () => {
+  it("reads cooldowns/charge directly from finalState.units[] when it carries the M5+ shape (cooldowns is an array), ignoring events entirely", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -375,7 +375,7 @@ describe("selectUnitActionStates", () => {
     expect(states[1]?.charge).toBeUndefined();
   });
 
-  it("treats cooldownChargeKnown as true from finalState even at SUMMARY logLevel, since finalState is complete regardless of logLevel (the PR#131 SUMMARY 'unknown' problem no longer applies once finalState carries real cooldowns/charge)", () => {
+  it("treats cooldownChargeKnown as true from finalState even at SUMMARY logLevel, since finalState is complete regardless of logLevel (the SUMMARY 'unknown' problem no longer applies once finalState carries real cooldowns/charge)", () => {
     const response = responseWith({
       finalUnits: [{ battleUnitId: "ally:1", cooldowns: [] }],
       events: [],

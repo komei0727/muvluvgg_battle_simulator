@@ -466,7 +466,7 @@ describe("evaluateEffectStepCondition", () => {
     });
   });
 
-  describe("BRANCH step-wide TARGET_STATE/TARGET_HAS_MARKER via resolveTargetSet, no EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION_SCOPE, Issue #230 PRレビュー[P1])", () => {
+  describe("BRANCH step-wide TARGET_STATE/TARGET_HAS_MARKER via resolveTargetSet, no EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION_SCOPE, Issue #230)", () => {
     const physicalDefinitionId = createUnitDefinitionId("UNIT_PHYSICAL");
     const unitDefinitions = new Map<typeof physicalDefinitionId, UnitDefinition>([
       [
@@ -802,7 +802,7 @@ describe("evaluateEffectStepCondition", () => {
       ).toBe(true);
     });
 
-    it("UT-R-SKL-06-055 (PRレビュー[P2], Issue #249): evaluates inside a per-target EffectStepTargetContext too (targetCondition scope) — the same triggerEventPayload applies uniformly to every candidate, combined with a per-target TARGET_STATE via AND", () => {
+    it("UT-R-SKL-06-055 (Issue #249): evaluates inside a per-target EffectStepTargetContext too (targetCondition scope) — the same triggerEventPayload applies uniformly to every candidate, combined with a per-target TARGET_STATE via AND", () => {
       const enemyAlive = unit("ENEMY_A", "UNIT_A");
       const enemyDead = unit("ENEMY_B", "UNIT_B", { currentHp: 0 });
       const condition: ConditionDefinition = {

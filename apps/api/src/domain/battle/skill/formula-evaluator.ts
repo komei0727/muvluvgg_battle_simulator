@@ -176,7 +176,7 @@ export interface DamageResultRegistryEntry {
 }
 
 /**
- * R-SKL-08（レビュー再指摘[P1]、PR #214）: `LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`は
+ * R-SKL-08: `LAST_DAMAGE_DEALT`/`LAST_DAMAGE_RECEIVED`は
  * 「同じ解決スコープ内で直前に確定したDAMAGE結果」だけを参照する。`BattleUnit`の
  * 永続状態にすると別行動・別PS解決の古い値まで見えてしまうため、代わりに
  * 呼び出し側（`action-skill-use-resolver.ts`/`action-charge-resolver.ts`が
@@ -249,7 +249,7 @@ function accumulated(
  * 渡した場合は、G-10の累計（`SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`）へも
  * 同じ値を加算する。
  *
- * R-SKL-08（レビュー再々々指摘[P1]、PR #214）: MISS・対象不在などで効果が
+ * R-SKL-08: MISS・対象不在などで効果が
  * 適用されなかった場合も「同じ解決スコープ内で直前に確定した結果」であり、
  * 正規の直前結果として記録する契約 — R-NUM-04の「参照が存在しない場合は
  * Catalog検証またはpreflightで拒否する」はCatalog定義自体の誤り（存在し得ない

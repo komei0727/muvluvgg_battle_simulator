@@ -84,7 +84,7 @@ export function resolveChargeStart(
     stateDelta: { units: { [actorId]: stateDeltaEntry } },
   });
 
-  // PRレビュー指摘[P2]（PR #256、Issue #184）: `PassiveActivationRuntime`の生成を
+  // Issue #184: `PassiveActivationRuntime`の生成を
   // R-HEAL-03の継続回復発火より前へ移し、`HealApplied`もAS/EX経路と同じFACT
   // イベント連鎖へ流す。この時点の`working`はコスト消費を適用済みで、
   // `ChargeStarted`より前に状態を変えるのは継続回復とクールタイム設定だけの
@@ -151,7 +151,7 @@ export function resolveChargeStart(
   );
   working = continuousHeal.units;
 
-  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // START_EVENT #4（`06_戦闘状態遷移.md`）: 継続回復と
   // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
@@ -304,10 +304,10 @@ export function resolveChargeRelease(
     },
   });
 
-  // PR #142レビュー[P1]: AS/EX（`resolveSkillUse`）と同様、この行動専用の
+  // AS/EX（`resolveSkillUse`）と同様、この行動専用の
   // `PassiveActivationRuntime`を生成し、チャージ解放の効果解決から発行される
   // イベントからもPS即時連鎖を解決できるようにする（従来欠落していた）。
-  // PRレビュー指摘[P2]（PR #256、Issue #184）: 生成をR-HEAL-03の継続回復発火より
+  // Issue #184: 生成をR-HEAL-03の継続回復発火より
   // 前へ移し、`HealApplied`もAS/EX経路と同じFACTイベント連鎖へ流す。チャージ
   // 発動はコストを消費しないため、この時点の`units`は呼び出し時点のままである。
   const passiveRuntime = new PassiveActivationRuntime(
@@ -373,7 +373,7 @@ export function resolveChargeRelease(
   );
   let working = continuousHeal.units;
 
-  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // START_EVENT #4（`06_戦闘状態遷移.md`）: 継続回復と
   // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
@@ -474,7 +474,7 @@ export function resolveChargeRelease(
     // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後の
     // `ActionCompleting`が所有する（下記`closingStateDelta`）。
   });
-  // PR #213レビュー[P2]: `ChargeReleased`はEffectSequence解決開始のトリガーで
+  // `ChargeReleased`はEffectSequence解決開始のトリガーで
   // あり、`chargeRelease.counterUpdates`のtriggerにもなり得る
   // （`08_ドメインイベント.md`「ChargeReleased」）。`applyEffectActionGroups`
   // （実効果解決）より前に`passiveRuntime.onFactEvent`へ渡し、`beginEffectSequenceResolution`
@@ -497,7 +497,7 @@ export function resolveChargeRelease(
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, unitsForChain) =>
       passiveRuntime.onFactEvent(event, unitsForChain).units,
-    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `action-skill-use-resolver.ts`と
+    // R-SKL-08: `action-skill-use-resolver.ts`と
     // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
     // 自身のEffectSequenceにも使い回す。
     damageResults: passiveRuntime.damageResultsRegistry,
@@ -510,7 +510,7 @@ export function resolveChargeRelease(
   working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
-  // （とPS解決、M6）の後（M5レビュー2巡目[P2]: 内部の`working`だけでなく、公開
+  // （とPS解決、M6）の後（内部の`working`だけでなく、公開
   // される`stateTransitions`上でも効果解決後に観測される必要があるため、
   // 終了の状態差分自体を`ChargeReleased`ではなく`ActionCompleting`（効果解決の
   // 後に発行される）へ持たせる。M6でPS解決が入った時に所有者のPSが

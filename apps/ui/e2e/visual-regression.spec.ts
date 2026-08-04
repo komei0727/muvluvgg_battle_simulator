@@ -22,7 +22,7 @@ import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 // it via --grep. Without this split, a contributor running the default
 // command on macOS/Windows would always fail here for lacking a
 // -chromium-darwin.png/-chromium-win32.png baseline that was never meant to
-// exist (review: PR #124).
+// exist.
 
 test.beforeEach(async ({ page }) => {
   await mockCatalog(page, { status: 200, body: catalogFixture });

@@ -147,12 +147,12 @@ export class SimulationWorkerPool {
     // Worker Threadの異常（例: idle中のクラッシュ）を、プロセス全体を落とす
     // 未処理の`error`イベントにしない。Piscina自身が異常Workerを破棄し
     // 新しいWorkerを補充する。「/health/ready」「連続ワーカー障害による
-    // サーキット状態でない」（レビュー指摘）: 補充を繰り返しても収束しない
+    // サーキット状態でない」: 補充を繰り返しても収束しない
     // 連続異常は`workerErrorCircuitBreaker`経由で`isHealthy`へ反映する
     // （`execute`の正常応答パスがカウンターをリセットする）。実行中タスクを
     // 抱えたWorkerの異常はこの`error`イベントではなく`execute`側の
     // `pool.run()` rejectとして届くため、そちらでも同じ`recordError`を呼ぶ
-    // （PRレビュー指摘: idle中の異常しかここでは捕捉できない）。
+    // （idle中の異常しかここでは捕捉できない）。
     this.pool.on("error", (error: unknown) => {
       console.error("SimulationWorkerPool: unhandled Worker Thread error", error);
       this.workerErrorCircuitBreaker.recordError();
@@ -249,7 +249,7 @@ export class SimulationWorkerPool {
           { reason: "the simulation was cancelled before it completed" },
         ]);
       }
-      // PRレビュー指摘: Piscinaはidle中のWorker異常だけを`pool`の`error`
+      // Piscinaはidle中のWorker異常だけを`pool`の`error`
       // イベントで通知する（コンストラクタの`pool.on("error", ...)`参照）。
       // 実行中タスクを抱えたWorkerが異常終了した場合は、そのタスクの
       // `pool.run()`自体がこの`err`でreject される（`error`イベントは

@@ -130,7 +130,7 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     // 連鎖: 編成補正で端数が生じた maximumHp（33623 × 1.2 = 40347.6）を基準に、
     // さらに戦闘中 +20% MAXIMUM_HP 比率補正を重ねる（`ACT_KEI_JACKKNIFE_PS1_MAXHP_UP`
     // 相当）。正: trunc(33623 × 1.2 × 1.2) = trunc(48417.12) = 48417。
-    // 開始時に丸めると trunc(40347 × 1.2) = 48416 となり1ずれる（PR #239 再レビュー[P2]）。
+    // 開始時に丸めると trunc(40347 × 1.2) = 48416 となり1ずれる。
     // computeCombatStats は全精度（48417.12）を保持し、整数化はゲージ境界で行う。
     const def = statModDefinition("ACT_MAXHP_UP", "MAXIMUM_HP", "RATIO");
     const fractionalBase: CombatStats = { ...BASE_COMBAT_STATS, maximumHp: 40347.6 };
@@ -238,7 +238,7 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     expect(result.combatStats).toEqual(BASE_COMBAT_STATS);
   });
 
-  it("UT-R-STA-04-020 (boundary, PR #208レビュー[P2]): removing the only AppliedEffect on a stat resets it to baseCombatStats and reports the change, even though the unit's current combatStats still carries the stale corrected value", () => {
+  it("UT-R-STA-04-020 (boundary): removing the only AppliedEffect on a stat resets it to baseCombatStats and reports the change, even though the unit's current combatStats still carries the stale corrected value", () => {
     const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
     // Simulates the moment right after the effect that produced attack=120 has
     // been removed from appliedEffects (e.g. by a future expiration/removal

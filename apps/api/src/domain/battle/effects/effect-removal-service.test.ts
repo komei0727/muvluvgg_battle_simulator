@@ -254,7 +254,7 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(result.units[0]!.appliedEffects).toHaveLength(1);
   });
 
-  it("UT-R-EFF-02-015 (R-EFF-01, review [P1]): a dispellable:false BUFF is not directly removed", () => {
+  it("UT-R-EFF-02-015 (R-EFF-01): a dispellable:false BUFF is not directly removed", () => {
     const buffDef = statModDefinition("ACT_ATK_UP");
     const target = unit("target-1");
     const permanent = effect("effect-1", target.battleUnitId, buffDef.effectActionDefinitionId, {
@@ -278,7 +278,7 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(recorder.getEvents().filter((ev) => ev.eventType === "EffectRemoved")).toHaveLength(0);
   });
 
-  it("UT-R-EFF-02-016 (R-EFF-09, review [P2]): when a linked parent and child both match, the child is removed first (LINKED_GROUP_CASCADE) and the parent last (REMOVED)", () => {
+  it("UT-R-EFF-02-016 (R-EFF-09): when a linked parent and child both match, the child is removed first (LINKED_GROUP_CASCADE) and the parent last (REMOVED)", () => {
     const buffDef = statModDefinition("ACT_ATK_UP");
     const target = unit("target-1");
     // Granted parent-first (appliedEffects order [parent, child]); both are BUFFs

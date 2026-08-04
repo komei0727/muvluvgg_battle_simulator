@@ -113,7 +113,7 @@ describe("calculateDamage", () => {
     expect(calculateDamage(input({ attackerAttack: 20, defenderDefense: 20 })).finalDamage).toBe(1);
   });
 
-  it("UT-DAMAGE-CALCULATOR-003 (R-NUM-04, レビュー指摘[P1] PR #214): a skillPowerFormula kind other than SKILL_POWER bypasses attack/defense entirely — its evaluated result IS the base damage, not a multiplier on (attack - defense)", () => {
+  it("UT-DAMAGE-CALCULATOR-003 (R-NUM-04): a skillPowerFormula kind other than SKILL_POWER bypasses attack/defense entirely — its evaluated result IS the base damage, not a multiplier on (attack - defense)", () => {
     // Mirrors production `ACT_FLUTE_VAMPIRE_AS1_HP_COST`: CURRENT_HP_RATIO(TARGET, 0.25).
     const result = calculateDamage(
       input({

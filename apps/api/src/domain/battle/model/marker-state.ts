@@ -39,7 +39,7 @@ export interface MarkerState {
 
 /**
  * 付与元は「具体的なユニット」か「Memoryを指定した陣営」のどちらか**一方だけ**を持つ。
- * PR #262レビュー[P2]: 両方optionalなinterfaceでは「両方欠落」「両方指定」が型検査を
+ * 両方optionalなinterfaceでは「両方欠落」「両方指定」が型検査を
  * 通り、前者は発生源を持たない`MarkerState`・イベントを、後者は`MarkerState`と
  * イベントenvelopeで観測結果が食い違う状態を生む。判別可能なunionにして、
  * exactly-oneをコンパイル時に保証する（`exactOptionalPropertyTypes: true`のため

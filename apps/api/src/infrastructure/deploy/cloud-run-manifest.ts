@@ -45,7 +45,7 @@ export interface RenderCloudRunManifestOptions {
   // 専用runtime service account(project IAM roleなし)を明示する。
   // 未指定のまま`gcloud run services replace`すると、Cloud Runはproject既定の
   // Compute Engine SA(既定でroles/editorを持つ)をruntime identityとして使う。
-  // 本serviceはallUsersへ公開されているため、指定を必須にする(P1レビュー指摘)。
+  // 本serviceはallUsersへ公開されているため、指定を必須にする。
   serviceAccountName: string;
 }
 
@@ -85,15 +85,13 @@ export interface BuildCandidateTrafficTargetsOptions {
  * （最初のrevisionは`scripts/cloud-run/03-deploy-service.sh`の一度限りの
  * 手動セットアップで事前に作成済み）のため、`gcloud run services describe`
  * の一時的失敗やservice未作成をbootstrapと誤認し、未smoke-testの新revision
- * へtrafficを流すことは、Issue #106の安全条件に反する
- * （PRレビュー指摘 #112、2026-07-15、5回目）。
+ * へtrafficを流すことは、Issue #106の安全条件に反する。
  *
  * `previousRevisionName`には常に`STABLE_TAG`を、`stablePreviousRevisionName`
  * （既存revisionと異なる場合のみ）には常に`STABLE_PREVIOUS_TAG`を明示的に
  * 再宣言する。`gcloud run services replace`は`spec.traffic`をそのdeployの
  * 新しいdesired stateとして丸ごと適用するため、ここで明示しないtagはdeploy
- * attempt（成功・失敗いずれでも）ごとに失われ得る（PRレビュー指摘 #112 P1、
- * 2026-07-15再レビュー）。rotation自体（stable→stable-previousへ進める処理）は
+ * attempt（成功・失敗いずれでも）ごとに失われ得る。rotation自体（stable→stable-previousへ進める処理）は
  * `scripts/cloud-run/ci-promote-traffic.sh`がpromote成功時にだけ行う。
  */
 export function buildCandidateTrafficTargets(

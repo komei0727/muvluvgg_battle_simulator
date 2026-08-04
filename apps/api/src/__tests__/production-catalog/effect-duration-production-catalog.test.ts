@@ -499,7 +499,7 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
     });
   });
 
-  it("IT-CAP-COMPLEX-EXPIRATION-PROD-005 (レビュー修正 PR #209): UNIT_HARRIET_SAGE's HARRIET_BARRIER cascades ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL when ACT_HARRIET_SAGE_AS2_IMMUNITY expires via its OWN consumption (INCOMING_HIT), proving cascade eligibility does not depend on the seed's expiration reason", () => {
+  it("IT-CAP-COMPLEX-EXPIRATION-PROD-005: UNIT_HARRIET_SAGE's HARRIET_BARRIER cascades ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL when ACT_HARRIET_SAGE_AS2_IMMUNITY expires via its OWN consumption (INCOMING_HIT), proving cascade eligibility does not depend on the seed's expiration reason", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_HARRIET_SAGE"]);
     const immunity = effectActionFrom(snapshot, "ACT_HARRIET_SAGE_AS2_IMMUNITY");
     const continuousHeal = effectActionFrom(snapshot, "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL");

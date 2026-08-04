@@ -18,8 +18,8 @@ export const CORS_EXPOSED_HEADERS = ["X-Request-Id", "Retry-After", "ETag"];
 export const DEFAULT_CORS_ALLOWED_ORIGINS: readonly string[] = [];
 
 /**
- * PRレビュー指摘（#110 [P3]）: `10_API設計.md`「OpenAPIへの反映」「CORS preflightと
- * 公開header」がOpenAPI文書へ未反映だった。許可originのCatalog GET・戦闘POSTの
+ * `10_API設計.md`「OpenAPIへの反映」「CORS preflightと
+ * 公開header」をOpenAPI文書へ反映する。許可originのCatalog GET・戦闘POSTの
  * 全response（成功・エラー問わず、CORSの`onRequest`フックがrouting前に無条件で
  * 付与するため）が実際に持ちうる公開response headerを文書化する。
  */
@@ -46,7 +46,7 @@ export const CORS_PREFLIGHT_RESPONSE_HEADERS_DOC = {
 } as const;
 
 /**
- * PRレビュー指摘（#110 [P2再レビュー]）: preflight requestが実際に送る
+ * preflight requestが実際に送る
  * `Origin`・`Access-Control-Request-Method`・`Access-Control-Request-Headers`
  * をOpenAPIのheader parameterとして文書化する（`@fastify/swagger`は
  * `schema.headers`を`in: "header"`のparameterへ変換する）。
@@ -70,7 +70,7 @@ export const CORS_PREFLIGHT_REQUEST_HEADERS_SCHEMA = {
 } as const;
 
 /**
- * PRレビュー指摘（#110 [P2再々レビュー]）: `@fastify/cors`の`strictPreflight`
+ * `@fastify/cors`の`strictPreflight`
  * （既定true）は、許可originからの`OPTIONS`で`Origin`または
  * `Access-Control-Request-Method`が欠けている場合、この文書専用routeへ
  * 到達する前に自身の`onRequest`フック内で`400 Invalid Preflight Request`
@@ -90,8 +90,8 @@ export const CORS_PREFLIGHT_REQUIRED_HEADERS = ["origin", "access-control-reques
  * （204と異なり実際に固定文言のtext/plain本文を持つため、ここでは
  * `type: "null"`を使わず`content`を明示し、`@fastify/swagger`の既定
  * `application/json`自動生成をこちらの実際の内容で上書きする——
- * PRレビュー指摘（#110 [P2再々々レビュー]）: `type: "null"`のままだと
- * 実在するtext/plain本文まで「本文なし」と誤って公開してしまっていた）。
+ * `type: "null"`のままだと実在するtext/plain本文まで「本文なし」と
+ * 誤って公開してしまう）。
  */
 export const CORS_PREFLIGHT_INVALID_REQUEST_RESPONSE_DOC = {
   description:
@@ -125,7 +125,7 @@ export function withResponseHeadersDoc(
  * 設定する。許可originは`allowedOrigins`（`CORS_ALLOWED_ORIGINS`から構築済みの
  * 完全一致set）が持つ文字列のみ。
  *
- * PRレビュー指摘（#110 [P1]）: `origin`へ配列をそのまま渡すと、`@fastify/cors`は
+ * `origin`へ配列をそのまま渡すと、`@fastify/cors`は
  * origin不一致（未許可origin、`Origin`なし）でも`Access-Control-Expose-Headers`を
  * 無条件に付与し、preflightでは`Access-Control-Allow-Methods`・
  * `Access-Control-Allow-Headers`まで付与してしまう
@@ -153,7 +153,7 @@ export async function registerCors(
 }
 
 /**
- * PRレビュー指摘（#110 [P3]）: `10_API設計.md`「OpenAPIへの反映」「CORS
+ * `10_API設計.md`「OpenAPIへの反映」「CORS
  * preflightと公開header」に対応するため、Catalog GET・戦闘POSTそれぞれの
  * path向けにOPTIONS operationを文書化専用として登録する。実際のpreflight
  * 応答は`@fastify/cors`自身の`onRequest`フックがrouting前に完結させる
@@ -170,12 +170,12 @@ export function registerCorsPreflightDocRoutes(
       path,
       {
         schema: {
-          // PRレビュー指摘（#110 [P2再レビュー]）: preflight requestが実際に
+          // preflight requestが実際に
           // 送るheaderをOpenAPIへ文書化する。
           headers: CORS_PREFLIGHT_REQUEST_HEADERS_SCHEMA,
           response: {
             204: {
-              // PRレビュー指摘（#110 [P2再レビュー]）: `type`を指定しないと
+              // `type`を指定しないと
               // `@fastify/swagger`が本文なしの204へも`content.application/json`
               // を自動生成し、実際には存在しないbody/Content-Typeを公開して
               // しまう。`type: "null"`でbodyが無いことを明示し、content生成を

@@ -325,7 +325,7 @@ describe("startBattle", () => {
     expect(() => startBattle(running, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
   });
 
-  it("UT-BATTLE-017 (review fix [P2], Issue #144 follow-up): a BattleStarted-triggered PS with a non-zero PP cost never activates through the real BattleUnit creation path, because READY→RUNNING never recovers resources and createBattleUnit always starts currentPp at 0 — this is the only PP amount Q-BTL-05 allows (「コスト0のAS・PSは存在しない」), so BattleStarted-triggered PS activation is unreachable by today's decided contract; see passive-activation-service.test.ts's proof of a low-level (resource-unconstrained) proof that the resolutionPhase: \"BATTLE_START\" wiring itself is correct (docs/ddd/06_戦闘状態遷移.md)", () => {
+  it("UT-BATTLE-017 (Issue #144 follow-up): a BattleStarted-triggered PS with a non-zero PP cost never activates through the real BattleUnit creation path, because READY→RUNNING never recovers resources and createBattleUnit always starts currentPp at 0 — this is the only PP amount Q-BTL-05 allows (「コスト0のAS・PSは存在しない」), so BattleStarted-triggered PS activation is unreachable by today's decided contract; see passive-activation-service.test.ts's proof of a low-level (resource-unconstrained) proof that the resolutionPhase: \"BATTLE_START\" wiring itself is correct (docs/ddd/06_戦闘状態遷移.md)", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_BATTLE_STARTED_COSTLY");
     const passiveSkill: SkillDefinition = {
@@ -442,7 +442,7 @@ describe("advanceBattle", () => {
     expect(battle.status).toBe("RUNNING");
   });
 
-  it("PR #141 review [P1]: TURN_STARTING's AP/PP recovery is uniquely owned by per-resource ResourceChanged(TURN_RECOVERY) events, not by ResourcesRecovered directly", () => {
+  it("TURN_STARTING's AP/PP recovery is uniquely owned by per-resource ResourceChanged(TURN_RECOVERY) events, not by ResourcesRecovered directly", () => {
     const turnRecorder = recorder();
     const battle = advanceBattle(
       startBattle(readyBattle(5), NO_RANDOM(), recorder()),
@@ -726,7 +726,7 @@ describe("advanceBattle", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-BATTLE-014 (R-SKL-04 ターン単位 / regression PR#128 review [P1]): an actual AS use with a TURN-unit cooldown records the setting scope as `setTurnNumber` (not `setActionId`), so it is not decremented at the end of the same turn it was set", () => {
+  it("UT-BATTLE-014 (R-SKL-04 ターン単位 regression): an actual AS use with a TURN-unit cooldown records the setting scope as `setTurnNumber` (not `setActionId`), so it is not decremented at the end of the same turn it was set", () => {
     const skill = attackSkill("ACT_TURN_CD", { unit: "TURN", count: 2 });
     const definitions: BattleDefinitions = {
       activeSkillsByUnit: new Map([[createUnitDefinitionId("UNIT_001"), [skill]]]),
@@ -831,7 +831,7 @@ describe("advanceBattle", () => {
     expect(types.indexOf("CombatStatChanged")).toBeLessThan(types.indexOf("TurnCompleted"));
   });
 
-  it("UT-BATTLE-018 (06_戦闘状態遷移.md TURN_ENDING #8, PR #280 再々レビュー[P1]): resolves a PS that triggers on TurnCompleted before the turn-end resolution scope is finalized", () => {
+  it("UT-BATTLE-018 (06_戦闘状態遷移.md TURN_ENDING #8): resolves a PS that triggers on TurnCompleted before the turn-end resolution scope is finalized", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_COMPLETED");
     const passiveSkill: SkillDefinition = {
@@ -936,7 +936,7 @@ describe("advanceBattle", () => {
     expect(advanced.allyUnits[0]!.currentPp).toBe(2);
   });
 
-  it("UT-R-EFF-09-023 (R-EFF-09 cross-type / turn-end 通知, PR #280 再レビュー[P1]): a TURN-unit PARENT Marker expiring at turn end cascades to its CHILD AppliedEffect and both events resolve PS candidates in the same turn-end scope", () => {
+  it("UT-R-EFF-09-023 (R-EFF-09 cross-type / turn-end 通知): a TURN-unit PARENT Marker expiring at turn end cascades to its CHILD AppliedEffect and both events resolve PS candidates in the same turn-end scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_CASCADED_EXPIRY");
     const def = statModDefinition("ACT_TURN_CHILD_BUFF");
@@ -1206,7 +1206,7 @@ describe("advanceBattle", () => {
     expect(advanced.allyUnits[0]!.currentAp).toBe(0);
   });
 
-  it('UT-BATTLE-016 (Issue #144 follow-up, PR #150 remaining work): resolves a PS that triggers on TurnCompleting, passing resolutionPhase: "TURN_END" to the trigger condition, before the turn-unit cooldown decrement re-reads unit state (06_戦闘状態遷移.md TURN_ENDING #1-2)', () => {
+  it('UT-BATTLE-016 (Issue #144 follow-up): resolves a PS that triggers on TurnCompleting, passing resolutionPhase: "TURN_END" to the trigger condition, before the turn-unit cooldown decrement re-reads unit state (06_戦闘状態遷移.md TURN_ENDING #1-2)', () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_COMPLETING");
     const passiveSkill: SkillDefinition = {
@@ -1218,7 +1218,7 @@ describe("advanceBattle", () => {
         {
           eventType: "TurnCompleting",
           category: "TIMING",
-          // レビュー指摘[P1]: production Catalogの`TurnCompleting`trigger12件は
+          // production Catalogの`TurnCompleting`trigger12件は
           // すべて`SELF`/`SELF`（`08_ドメインイベント.md`の「自身がASを使う前」
           // 例と同じ著者慣習）。`TurnCompleting`はunit固有の`sourceUnitId`/
           // `targetUnitIds`を持たないグローバルイベントのため、`ANY`/`ANY`では

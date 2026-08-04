@@ -73,7 +73,7 @@ export function createBattle(
 
 /**
  * Battle集約の主要操作: start（06_戦闘状態遷移.md READY→RUNNING）。BattleStartedを
- * 発行し、対応するPSを解決する（Issue #144 follow-up、PR #150で保留した残作業:
+ * 発行し、対応するPSを解決する（Issue #144 follow-up:
  * `resolutionPhase: "BATTLE_START"`を渡し、`RESOLUTION_PHASE`条件を実際に評価
  * 可能にする）。READY→RUNNINGはTURN_STARTINGと異なりAP/PP回復を行わない。
  */
@@ -128,7 +128,7 @@ function allDefeated(units: readonly BattleUnit[]): boolean {
  * TURN_STARTING #2のAP/PP回復のうち、実際に値が変わったユニットだけを
  * `ResourcesRecovered`のpayloadへ含める。R-ACT-04によりstateDelta自体は
  * `ResourcesRecovered`が所有せず、`ResourceChanged`（reason: TURN_RECOVERY）が
- * リソースごとに個別に所有する（PR #141レビュー[P1]）。
+ * リソースごとに個別に所有する。
  */
 function buildResourceRecovery(
   before: readonly BattleUnit[],
@@ -281,7 +281,7 @@ export function advanceBattle(
   });
 
   // R-ACT-04: 回復で変化した各リソースを`ResourceChanged`(reason: TURN_RECOVERY)
-  // として個別に所有・観測できるようにする（PR #141レビュー[P1]）。
+  // として個別に所有・観測できるようにする。
   const recoveryResourceChangeContext = {
     recorder,
     turnNumber: nextTurnNumber,
@@ -334,7 +334,7 @@ export function advanceBattle(
     [...recoveredAllyUnits, ...recoveredEnemyUnits],
   );
   passiveRuntime.onFactEvent(turnStarted, [...recoveredAllyUnits, ...recoveredEnemyUnits]);
-  // レビュー指摘[P2]: このトップレベルイベント専用の解決スコープが終わるたびに、
+  // このトップレベルイベント専用の解決スコープが終わるたびに、
   // `resetScope: "RESOLUTION_SCOPE"`のcounterを破棄・`RuntimeCounterReset`発行する。
   const { units: afterPassives } = passiveRuntime.finalizeResolutionScope(turnStarted.eventId);
   const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
@@ -384,7 +384,7 @@ export function advanceBattle(
   });
 
   // `06_戦闘状態遷移.md` TURN_ENDING #1: `TurnCompleting`をイベントとして持つPSを
-  // 解決する（Issue #144 follow-up、PR #150で保留した残作業:
+  // 解決する（Issue #144 follow-up:
   // `resolutionPhase: "TURN_END"`を渡す）。行動外のため`actionId`は持たない。
   const turnEndPassiveRuntime = new PassiveActivationRuntime(
     {
@@ -404,7 +404,7 @@ export function advanceBattle(
     ...actionPhase.enemyUnits,
   ]).units;
 
-  // PR #280再レビュー[P1]: TURN_ENDINGで発生する期間イベント
+  // TURN_ENDINGで発生する期間イベント
   // （`CooldownReduced`／`EffectDurationReduced`／`EffectExpired`／`MarkerUpdated`／
   // `MarkerRemoved`）も、`08_ドメインイベント.md`「各イベントに対応するPS/Memory
   // 候補を直ちに解決する」に従い発生順に同じ`turnEndPassiveRuntime`へ通知する。
@@ -543,8 +543,8 @@ export function advanceBattle(
   }
 
   // `06_戦闘状態遷移.md` TURN_ENDING #8: `TurnCompleted`を発行し、対応するPSを
-  // 解決する。PR #280再々レビュー[P1]: 以前は発行するだけで`onFactEvent`へ
-  // 渡しておらず、`TurnCompleted`をtriggerにするPS/Memoryが発動しなかった
+  // 解決する。発行するだけで`onFactEvent`へ渡さないと、`TurnCompleted`を
+  // triggerにするPS/Memoryが発動しない
   // （「ターン終了PSによって敵が全滅した場合はターン上限敗北より先に勝利判定」の
   // 契約も満たせなかった）。減算だけでイベントを伴わない変化はruntimeへ届いて
   // いないため、`turnEndUnits`を明示的に渡す。

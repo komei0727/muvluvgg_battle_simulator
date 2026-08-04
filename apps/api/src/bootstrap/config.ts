@@ -3,9 +3,9 @@ import { resolveDocsEnabled } from "./docs-enabled.js";
 /**
  * `11_インフラストラクチャ設計.md`「設定管理」「文字列を検証済みの型付き
  * `ApplicationConfig`へ変換する」「必須値欠落、数値変換失敗、矛盾する期限は
- * 起動エラーにする」（レビュー指摘: `bootstrap/index.ts`が数値環境変数を
- * 素の`Number()`で変換していたため、`SIMULATION_TIMEOUT_MS=abc`が`NaN`へ、
- * `WORKER_MAX_QUEUE=Infinity`が無制限へ、それぞれ検証なしで通っていた）。
+ * 起動エラーにする」。数値環境変数を素の`Number()`で変換すると
+ * `SIMULATION_TIMEOUT_MS=abc`が`NaN`へ、`WORKER_MAX_QUEUE=Infinity`が
+ * 無制限へ、それぞれ検証なしで通ってしまう。
  *
  * M4で実際に起動へ配線されている数値設定（`PORT`・`SIMULATION_TIMEOUT_MS`・
  * `WORKER_MAX_QUEUE`・`SHUTDOWN_GRACE_MS`）だけを対象にする。文字列設定
@@ -48,8 +48,8 @@ interface PositiveIntegerSpec {
  * 理由を積んで既定値を返す——呼び出し側は`violations`が空でなければ
  * 返り値をすべて捨てて`ConfigError`を送出する。
  *
- * レビュー指摘: `Number("") === 0`のため、空文字列が暗黙に`0`として
- * 受理されていた。`raw.trim() === ""`を明示的に拒否する。また
+ * `Number("") === 0`のため、空文字列は暗黙に`0`として受理される。
+ * `raw.trim() === ""`を明示的に拒否する。また
  * `Number.isInteger`は`2 ** 53`超のような安全域外の値も真を返すため、
  * `Number.isSafeInteger`へ強化する。
  */
@@ -112,7 +112,7 @@ function parseCorsAllowedOrigins(raw: string | undefined, violations: string[]):
       continue;
     }
 
-    // PRレビュー指摘（#110 [P2]）: `file:///`のようなhostを持たないURLは例外を
+    // `file:///`のようなhostを持たないURLは例外を
     // 投げず、`url.origin`が不透明originを表す文字列`"null"`になる——これを
     // そのままallowlistへ入れると、sandboxed iframeやローカルファイルなど
     // 複数の異なるopaque originが送る`Origin: null`を一括で許可してしまう。
@@ -121,7 +121,7 @@ function parseCorsAllowedOrigins(raw: string | undefined, violations: string[]):
       continue;
     }
 
-    // PRレビュー指摘（#110 [P2]）: 個別にpath/query/fragment/userinfoを
+    // 個別にpath/query/fragment/userinfoを
     // チェックするだけでは末尾スラッシュ（`https://example.com/`）を見逃す
     // ——`URL`の`pathname`は末尾スラッシュを`"/"`として正当な値に含めてしまう
     // ため、path無し扱いになってしまっていた。`url.origin`は仕様上
@@ -167,7 +167,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     { envVar: "WORKER_MAX_QUEUE", defaultValue: 100, min: 0 },
     violations,
   );
-  // レビュー指摘: この値はPiscinaの`closeTimeout`（`node:timers/promises`の
+  // この値はPiscinaの`closeTimeout`（`node:timers/promises`の
   // `setTimeout`）へそのまま渡る。Node.jsのタイマーは32-bit符号付き整数
   // （最大`2_147_483_647`ms、約24.8日）を超えるとオーバーフローし、
   // 待機時間が実質1msへ縮む——巨大な値ほど「長く待つ」設定のつもりが

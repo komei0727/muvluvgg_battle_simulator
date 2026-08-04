@@ -753,7 +753,7 @@ describe("resolveActionPhase", () => {
     expect(restored.units[ally.battleUnitId]!.hp).toBe(50);
   });
 
-  it("UT-R-HEAL-03-005 (PRレビュー[P2] PR #256): the HealApplied a continuous heal emits during a WAIT reaches the PS chain, so a PS triggered by HealApplied activates on the wait path too — not only on the AS/EX path", () => {
+  it("UT-R-HEAL-03-005: the HealApplied a continuous heal emits during a WAIT reaches the PS chain, so a PS triggered by HealApplied activates on the wait path too — not only on the AS/EX path", () => {
     const hotDefId = createEffectActionDefinitionId("ACT_HOT");
     const hotDef: EffectActionDefinition = {
       effectActionDefinitionId: hotDefId,
@@ -1016,7 +1016,7 @@ describe("resolveActionPhase", () => {
     expect(restored.units[ally.battleUnitId]!.hp).toBe(50);
   });
 
-  it("UT-R-HEAL-03-006 (再レビュー[P2] PR #256, START_EVENT #4): when a PS chained off the start-of-action HealApplied defeats the actor, the action body is skipped and the action proceeds straight to COMPLETING", () => {
+  it("UT-R-HEAL-03-006 (START_EVENT #4): when a PS chained off the start-of-action HealApplied defeats the actor, the action body is skipped and the action proceeds straight to COMPLETING", () => {
     const hotDefId = createEffectActionDefinitionId("ACT_HOT");
     const hotDef: EffectActionDefinition = {
       effectActionDefinitionId: hotDefId,
@@ -1193,7 +1193,7 @@ describe("resolveActionPhase", () => {
     expect(result.result).toBeUndefined();
   });
 
-  it("UT-R-DMG-05-007 (PR #283再レビュー[P1], R-DMG-05 #2/#3): an AS DAMAGE's own HitConfirmed and CriticalCheckResolved reach the PS chain, so a PS triggered by them activates during the real AS path (production例: SKL_LAYLA_ENTREPRENEUR_PS2 / SKL_EVIE_KYONSHI_PS1 / SKL_SAYA_BUNNY_PS1)", () => {
+  it("UT-R-DMG-05-007 (R-DMG-05 #2/#3): an AS DAMAGE's own HitConfirmed and CriticalCheckResolved reach the PS chain, so a PS triggered by them activates during the real AS path (production例: SKL_LAYLA_ENTREPRENEUR_PS2 / SKL_EVIE_KYONSHI_PS1 / SKL_SAYA_BUNNY_PS1)", () => {
     const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_CRIT_ATTACKER");
     const observerUnitDefinitionId = createUnitDefinitionId("UNIT_CRIT_OBSERVER");
     const attackAction = damageEffectAction("ACT_CRIT_ATTACK", "GUARANTEED");
@@ -1362,7 +1362,7 @@ describe("resolveActionPhase", () => {
   });
 
   /**
-   * PR #283再々レビュー[P1]: `HitConfirmed`/`CriticalCheckResolved`の子連鎖が対象を
+   * `HitConfirmed`/`CriticalCheckResolved`の子連鎖が対象を
    * 倒した場合、親ヒットは「次の判定・イベントへ進む前に」終了しなければならない。
    * production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`はどちらも
    * `CriticalCheckResolved`起点でDAMAGEを行う。
@@ -1475,7 +1475,7 @@ describe("resolveActionPhase", () => {
     return { ctx, result, eventsOfParent };
   }
 
-  it("UT-R-DMG-05-008 (PR #283再々レビュー[P1], 08_ドメインイベント.md「TIMINGイベント後の再検証」): when the PS chained off an AS DAMAGE's CriticalCheckResolved defeats the target, the parent hit ends immediately — no DamageWillBeApplied is emitted for it (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
+  it("UT-R-DMG-05-008 (08_ドメインイベント.md「TIMINGイベント後の再検証」): when the PS chained off an AS DAMAGE's CriticalCheckResolved defeats the target, the parent hit ends immediately — no DamageWillBeApplied is emitted for it (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
     const { ctx, result, eventsOfParent } = lethalObserverChainSetup("CriticalCheckResolved");
 
     expect(eventsOfParent("CriticalCheckResolved")).toBe(1);
@@ -1491,7 +1491,7 @@ describe("resolveActionPhase", () => {
     expect(result.enemyUnits[0]!.currentHp).toBe(0);
   });
 
-  it("UT-R-DMG-05-009 (PR #283再々レビュー[P1], R-DMG-05 #2→#3): when the PS chained off an AS DAMAGE's HitConfirmed defeats the target, the parent hit ends before the critical check — no CriticalCheckResolved is emitted for it", () => {
+  it("UT-R-DMG-05-009 (R-DMG-05 #2→#3): when the PS chained off an AS DAMAGE's HitConfirmed defeats the target, the parent hit ends before the critical check — no CriticalCheckResolved is emitted for it", () => {
     const { ctx, result, eventsOfParent } = lethalObserverChainSetup("HitConfirmed");
 
     expect(eventsOfParent("HitConfirmed")).toBe(1);
@@ -1922,7 +1922,7 @@ describe("resolveActionPhase", () => {
     expect(expired.map((event) => event.payload.reason)).toEqual(["SUBUNIT_DEPLETED"]);
   });
 
-  it("UT-R-SHD-01-014 (PRレビュー[P2], R-SHD-01第3項): a shield whose granted amount truncates to zero expires immediately instead of lingering as a zero-remaining instance", () => {
+  it("UT-R-SHD-01-014 (R-SHD-01第3項): a shield whose granted amount truncates to zero expires immediately instead of lingering as a zero-remaining instance", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_SHIELDER");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_SHIELDER",
@@ -2014,7 +2014,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-005B (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it (PR #127 review [P2])", () => {
+  it("UT-ACTION-PHASE-005B (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_THEN_AS");
     // AP is 1 (not consumed by EX) and the EX gauge starts full: cycle 1 must
     // reserve EX (R-ORD-03), and only after the gauge drains does cycle 2's
@@ -2273,7 +2273,7 @@ describe("resolveActionPhase", () => {
       unit: "ACTION",
       initialRemaining: 2,
     });
-    // M5 review round 2 [P1] fix: the setting scope (setActionId, matching
+    // The setting scope (setActionId, matching
     // R-SKL-04's "same action" decrement rule) must ride along in the
     // stateDelta itself so `stateTransitions` alone (independent of any
     // logLevel-filtered `events[]`) can restore it.
@@ -2434,7 +2434,7 @@ describe("resolveActionPhase", () => {
     ]);
   });
 
-  it("UT-ACTION-PHASE-012B (06_戦闘状態遷移.md「チャージ効果発動」#1-4 / M5レビュー2巡目[P2] fix): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ActionCompleting that follows DamageApplied", () => {
+  it("UT-ACTION-PHASE-012B (06_戦闘状態遷移.md「チャージ効果発動」#1-4): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ActionCompleting that follows DamageApplied", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const skill = chargeSkill("ACT_CHARGE_HIT", 1);
     const ally = unit("ALLY_1", "ALLY", {
@@ -2657,7 +2657,7 @@ describe("resolveActionPhase", () => {
     expect(waited.payload).toMatchObject({ waitReason: "FROZEN" });
     expect(waited.sequence).toBeLessThan(released.sequence);
 
-    // PRレビュー[P2]: `ChargeHeldByFreeze`は`ActionWaited`の直接の子として、
+    // `ChargeHeldByFreeze`は`ActionWaited`の直接の子として、
     // 同じ行動の`ActionCompleting`より前（`PassiveActivationRuntime`の連鎖
     // 経路上）に記録される——完了後に切り離して記録するのではない。
     expect(held.parentEventId).toBe(waited.eventId);
@@ -2672,7 +2672,7 @@ describe("resolveActionPhase", () => {
     expect(held.sequence).toBeLessThan(actionCompletingForWait.sequence);
   });
 
-  it("UT-R-ACT-01-004B (PRレビュー[P2]): if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
+  it("UT-R-ACT-01-004B: if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
     // The frozen unit itself can't hold a reacting PS here (R-STS-03: a frozen
     // owner can't newly activate PS either, `OWNER_FROZEN` in
     // reconfirm-passive-candidate.ts) — a separate, unfrozen ally's PS reacts
@@ -2830,7 +2830,7 @@ describe("resolveActionPhase", () => {
     expect(events.some((e) => e.eventType === "ChargeCancelled")).toBe(true);
   });
 
-  it("UT-R-ORD-01-001 (R-ORD-01 '凍結などで阻害されていないチャージ効果が発動待ち', PRレビュー[P1]): a frozen unit with AP 0 and a non-full EX gauge is NOT queued despite a pending charge — freeze impedes the charge, so it doesn't count toward R-ORD-01 eligibility", () => {
+  it("UT-R-ORD-01-001 (R-ORD-01 '凍結などで阻害されていないチャージ効果が発動待ち'): a frozen unit with AP 0 and a non-full EX gauge is NOT queued despite a pending charge — freeze impedes the charge, so it doesn't count toward R-ORD-01 eligibility", () => {
     const chargedSkill = chargeSkill("ACT_HELD_HIT");
     const startedActionId = createActionId("B_TEST:action:1");
     const ally = {
@@ -2902,7 +2902,7 @@ describe("resolveActionPhase", () => {
     expect(result.allyUnits[0]!.charge).toBeUndefined();
   });
 
-  it("UT-R-ORD-01-003 (R-ORD-01, PRレビュー[P1]再指摘): a reservation queued via its charge alone is removed (INELIGIBLE) and never executes if a preceding same-cycle action cancels that charge (via STUN)", () => {
+  it("UT-R-ORD-01-003 (R-ORD-01): a reservation queued via its charge alone is removed (INELIGIBLE) and never executes if a preceding same-cycle action cancels that charge (via STUN)", () => {
     const stunActionIdString = "ACT_STUN_ALLY_ORD";
     const chargedSkill = chargeSkill("ACT_WOULD_BE_SKIPPED");
     const startedActionId = createActionId("B_TEST:action:1");
@@ -3009,7 +3009,7 @@ describe("resolveActionPhase", () => {
     expect(chargingResult.charge).toBeUndefined();
   });
 
-  it("UT-R-ORD-01-004 (PRレビュー[P2]再指摘): an ActionReservationRemoved(reason INELIGIBLE) is itself a real PS/Memory trigger — an ally's PS reacting to it activates, with triggerEventId pointing at that same removal event", () => {
+  it("UT-R-ORD-01-004: an ActionReservationRemoved(reason INELIGIBLE) is itself a real PS/Memory trigger — an ally's PS reacting to it activates, with triggerEventId pointing at that same removal event", () => {
     const stunActionIdString = "ACT_STUN_ALLY_ORD_2";
     const chargedSkill = chargeSkill("ACT_WOULD_BE_SKIPPED_2");
     const startedActionId = createActionId("B_TEST:action:1");
@@ -3175,7 +3175,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-R-ORD-01-005 (PRレビュー[P2]再々指摘): re-evaluates remaining reservations after each removal's own PS/Memory chain — a unit newly stunned by that reaction is also removed instead of executing on a stale precomputed list", () => {
+  it("UT-R-ORD-01-005: re-evaluates remaining reservations after each removal's own PS/Memory chain — a unit newly stunned by that reaction is also removed instead of executing on a stale precomputed list", () => {
     const startedActionIdB = createActionId("B_TEST:action:1");
     const startedActionIdD = createActionId("B_TEST:action:2");
     const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_5");
@@ -3405,7 +3405,7 @@ describe("resolveActionPhase", () => {
     const dRemovedIndex = events.indexOf(dRemovedEvent);
     expect(dRemovedEvent.parentEventId).toBe(events[dRemovedIndex - 1]!.eventId);
     expect(dRemovedEvent.parentEventId).not.toBe(bRemovedEvent.eventId);
-    // Issue #251 (レビュー指摘[P1]): 除去1件ごとに新しい`resolutionScopeId`と
+    // Issue #251: 除去1件ごとに新しい`resolutionScopeId`と
     // 独立した`PassiveActivationRuntime`を発行する——除去をまとめて1つの
     // スコープで処理すると、R-PS-07「1解決スコープ1回」により、同じPSがBの
     // 除去には反応できてもDの除去には（既にそのスコープで発動済みとして）
@@ -3622,7 +3622,7 @@ describe("resolveActionPhase", () => {
     expect(dResult.currentHp).toBe(0);
   });
 
-  it("UT-R-ORD-01-006 (PRレビュー[P2]再々々指摘): re-evaluates remaining reservations after finalizeResolutionScope's own RuntimeCounterReset chain, not just after each removal's immediate PS chain", () => {
+  it("UT-R-ORD-01-006: re-evaluates remaining reservations after finalizeResolutionScope's own RuntimeCounterReset chain, not just after each removal's immediate PS chain", () => {
     const startedActionIdB = createActionId("B_TEST:action:1");
     const startedActionIdD = createActionId("B_TEST:action:2");
     const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_6");
@@ -3879,7 +3879,7 @@ describe("resolveActionPhase", () => {
     for (const event of removedEvents) {
       expect(event.payload).toMatchObject({ reason: "INELIGIBLE" });
     }
-    // PRレビュー[P2]是正の再指摘（Issue #180）: Dの除去は、無関係な旧いBの
+    // Issue #180: Dの除去は、無関係な旧いBの
     // 除去イベントを親に持たない。また`RuntimeCounterReset`自身がPSを発動させ
     // （D自身へのSTUN付与とそれに伴う`ChargeCancelled`まで連鎖する）ため、
     // その連鎖より前の`RuntimeCounterReset`自身でもなく、連鎖まで含めた実際の
@@ -3916,7 +3916,7 @@ describe("resolveActionPhase", () => {
     expect(bRemovedEvent.rootEventId).toBe(dRemovedEvent.rootEventId);
   });
 
-  it("UT-R-ORD-04-002 (PRレビュー[P2]是正の再指摘、Issue #180): when a removal's own finalizeResolutionScope() has nothing to reset (the common case — no resetScope: RESOLUTION_SCOPE counters involved), the causal cursor for a later ActionQueueReordered in the same cycle is the removal event itself, not rolled back to an earlier root event", () => {
+  it("UT-R-ORD-04-002 (Issue #180): when a removal's own finalizeResolutionScope() has nothing to reset (the common case — no resetScope: RESOLUTION_SCOPE counters involved), the causal cursor for a later ActionQueueReordered in the same cycle is the removal event itself, not rolled back to an earlier root event", () => {
     const stunnerUnitDefinitionId = createUnitDefinitionId("UNIT_ALLY_STUNNER_ORD_04_002");
     const stunActionId = createEffectActionDefinitionId("ACT_STUN_ORD_04_002");
     const speedBuffActionId = createEffectActionDefinitionId("ACT_SPEED_BUFF_ORD_04_002");
@@ -4396,7 +4396,7 @@ describe("resolveActionPhase", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-ACTION-PHASE-018 (Issue #129 COOLDOWN_MANIPULATION, PR#130 review): an independent Reducer replaying CooldownReduced/CooldownCompleted StateDelta from an initial snapshot reconstructs the same final cooldowns as the live engine", () => {
+  it("UT-ACTION-PHASE-018 (Issue #129 COOLDOWN_MANIPULATION): an independent Reducer replaying CooldownReduced/CooldownCompleted StateDelta from an initial snapshot reconstructs the same final cooldowns as the live engine", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_RESTORE");
     const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_RESTORE");
     const skill = cooldownManipulationSkill("ACT_CD_RESTORE", 1);
@@ -4726,7 +4726,7 @@ describe("resolveActionPhase", () => {
     expect(passiveActivatedIndex).toBeGreaterThan(skillUseCompletedIndex);
   });
 
-  it("UT-R-SKL-02-003 (review re-fix [P2]): a WAIT action's own ActionWaited triggers the actor's own PS within the same resolution scope", () => {
+  it("UT-R-SKL-02-003: a WAIT action's own ActionWaited triggers the actor's own PS within the same resolution scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_WAITER_SELF_PS");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_OWN_WAIT");
 
@@ -4837,7 +4837,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-R-SKL-02-004 (review re-fix [P2]): a CHARGE skill's own ChargeStarted triggers an ally's PS within the same resolution scope (mirrors production Harriet PS2's sourceSelector/targetSelector: ALLY)", () => {
+  it("UT-R-SKL-02-004: a CHARGE skill's own ChargeStarted triggers an ally's PS within the same resolution scope (mirrors production Harriet PS2's sourceSelector/targetSelector: ALLY)", () => {
     const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER_PS_WIRING");
     const supporterUnitDefinitionId = createUnitDefinitionId("UNIT_SUPPORTER_PS_WIRING");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_ALLY_CHARGE_START");
@@ -4957,7 +4957,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("PR #141 review [P1]: when the actor is defeated by their own skill's first step, the second step is skipped and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
+  it("when the actor is defeated by their own skill's first step, the second step is skipped and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
     const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
@@ -5055,7 +5055,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("PR #141 re-review [P2]: when the actor is defeated only by their own skill's LAST step (nothing left unresolved), SkillUseCompleted is emitted, not SkillUseInterrupted", () => {
+  it("when the actor is defeated only by their own skill's LAST step (nothing left unresolved), SkillUseCompleted is emitted, not SkillUseInterrupted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT_LAST");
     const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
@@ -5143,7 +5143,7 @@ describe("resolveActionPhase", () => {
     expect(events.some((e) => e.eventType === "SkillUseInterrupted")).toBe(false);
   });
 
-  it("PR #141 re-review [P2] (2nd): when the actor is defeated by the last hit of a DAMAGE group, a subsequent COOLDOWN_MANIPULATION group must not apply, and the skill use is reported as interrupted", () => {
+  it("when the actor is defeated by the last hit of a DAMAGE group, a subsequent COOLDOWN_MANIPULATION group must not apply, and the skill use is reported as interrupted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_SELF_DESTRUCT_THEN_CD");
     const selfDamage = damageEffectAction("ACT_SELF_DAMAGE");
     const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_CD");

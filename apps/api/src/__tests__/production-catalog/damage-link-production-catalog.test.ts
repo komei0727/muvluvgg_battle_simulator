@@ -295,7 +295,7 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
       magnitude: 0.5,
     });
     expect(link.damageLink).toEqual({ linkToUnitId: suiran.battleUnitId, linkRate: 0.5 });
-    // PR #299レビュー[P2]: 味方へ付与する自陣向けのリンクは`polarity: BUFF`であり、
+    // 味方へ付与する自陣向けのリンクは`polarity: BUFF`であり、
     // デバフ解除・デバフ無効の対象にならない。
     expect([...link.categories]).toEqual(["BUFF"]);
     // raw原文「（解除不可）」。
@@ -360,7 +360,7 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
     expect(attacked.find((u) => u.battleUnitId === suiran.battleUnitId)!.currentHp).toBe(1000 - 25);
   });
 
-  it("IT-CAP-DAMAGE-LINK-STATE-PROD-003 (PR #299レビュー[P1]): the ally-held link and the granter-held parent shield share 劉翠蘭's clock, so a fast ally acting twice does not expire its link before the shield", () => {
+  it("IT-CAP-DAMAGE-LINK-STATE-PROD-003: the ally-held link and the granter-held parent shield share 劉翠蘭's clock, so a fast ally acting twice does not expire its link before the shield", () => {
     const grantSkill = allyLinkGrantSkill("SKL_TEST_GRANT_DAMAGE_LINK", SUIRAN_LINK_ID);
     const { definitions, recorder } = fixture([SUIRAN_UNIT_ID], [grantSkill]);
     const suiran = readyUnit("ally:suiran", SUIRAN_UNIT_ID, "ALLY", {
@@ -471,7 +471,7 @@ describe("production Catalog damage links (DMG-007, Issue #187, R-INT-01 #3 / R-
       linkToUnitId: frail.battleUnitId,
       linkRate: 0.35,
     });
-    // PR #299レビュー[P2]: 自身の被ダメージを敵へ送るこのリンクは保持者を利するため
+    // 自身の被ダメージを敵へ送るこのリンクは保持者を利するため
     // `polarity: BUFF`であり、デバフ無効に拒否されずデバフ解除でも消えない。
     expect([...holder.appliedEffects[0]!.categories]).toEqual(["BUFF"]);
 

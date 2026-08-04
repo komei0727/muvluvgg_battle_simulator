@@ -145,7 +145,7 @@ export const skillDefinitionSchema = {
         steps: { type: "array", items: looseObject },
         chargeRelease: looseObject,
       },
-      // M7-016（Issue #270 レビュー[P1]）: `steps`の要件はkindごとに逆になる。
+      // M7-016（Issue #270）: `steps`の要件はkindごとに逆になる。
       // IMMEDIATEは1件以上を要求し、CHARGEは開始側を必ず空にする —
       // `06_戦闘状態遷移.md`「チャージ開始」#1〜6が効果解決の手順を持たず、
       // `resolveChargeStart`も開始側stepを一つも解決しないため、宣言できてしまうと

@@ -159,7 +159,7 @@ function damageEffectAction(id: string): EffectActionDefinition {
   };
 }
 
-/** R-EFF-10 (EFF-004, PR #210レビュー supplementary note): `APPLY_MARKER`をACTION step経由で発行するEffectAction。 */
+/** R-EFF-10 (EFF-004): `APPLY_MARKER`をACTION step経由で発行するEffectAction。 */
 function markerEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "APPLY_MARKER",
@@ -175,7 +175,7 @@ function markerEffectAction(id: string): EffectActionDefinition {
 }
 
 /**
- * G-09（M7-002A・Issue #255、PR #294レビュー[P1]）: `resource: HP`の上限変更。
+ * G-09（M7-002A・Issue #255）: `resource: HP`の上限変更。
  * HPゲージの上限は`MAXIMUM_HP` CombatStatそのもののため、差分は
  * `stateDelta.combatStats.maximumHp`（公開レスポンスでは`hpMaximum`）として出る。
  * 自分自身へ`ADD +500`する形にして、`hp.maximum`だけが動くシナリオにする。
@@ -306,7 +306,7 @@ function applyCooldownsDelta(
 
 /**
  * `10_API設計.md`「UnitStateDeltaResponse.markers」(`EntityCollectionDelta`、
- * R-EFF-10、PR #210レビュー[P1])を`BattleUnitStateResponseBody.markers`へ
+ * R-EFF-10)を`BattleUnitStateResponseBody.markers`へ
  * 適用する。`applyCooldownsDelta`と同じ`added`/`updated`/`removed`規約だが、
  * IDが`skillDefinitionId`ではなく`markerInstanceId`（`EntityCollectionDeltaResponseBody`
  * の`id`/`before`/`after`は`unknown`型のため、Markerの形へ実行時にキャストする）。
@@ -335,9 +335,9 @@ function applyMarkersDelta(
 
 /**
  * `applyMarkersDelta`と同じ`EntityCollectionDelta`規約の`effects`版（R-EFF-01）。
- * PR #294レビュー[P1]の`MODIFY_RESOURCE_CAPACITY`シナリオが、この復元経路を通る
- * 最初のHTTPシナリオになった（従来のシナリオはMarkerとHP/リソースだけを動かして
- * いたため、`effects`差分が落ちていても復元一致検証を素通りしていた）。
+ * `MODIFY_RESOURCE_CAPACITY`シナリオが、この復元経路を通る最初のHTTPシナリオ
+ * である（MarkerとHP/リソースだけを動かすシナリオでは、`effects`差分が落ちて
+ * いても復元一致検証を素通りしてしまう）。
  */
 function applyEffectsDelta(
   current: readonly EffectStateResponseBody[] | undefined,
@@ -406,7 +406,7 @@ function applyResourceDelta(
 }
 
 /**
- * R-STA-04（PR #294レビュー[P1]）: `10_API設計.md`「UnitStateDeltaResponse.combatStats」を
+ * R-STA-04: `10_API設計.md`「UnitStateDeltaResponse.combatStats」を
  * `BattleUnitStateResponse.combatStats`へ適用する。`hp`/`resources`と同じ
  * 「`before`が現在値と一致すること」を要求し、キーごとに検証する。`maximumHp`は
  * このオブジェクトに現れない（`hpMaximum`が`hp.maximum`として運ぶ）。
@@ -464,7 +464,7 @@ function applyDelta(
         unitDelta.combatStatus !== undefined
           ? applyValueChange(unit.combatStatus, unitDelta.combatStatus, `${path}.combatStatus`)
           : unit.combatStatus,
-      // R-STA-04（PR #294レビュー[P1]）: HPは現在値（`hp`）と上限（`hpMaximum` —
+      // R-STA-04: HPは現在値（`hp`）と上限（`hpMaximum` —
       // Domain側では`MAXIMUM_HP` CombatStatの差分）を独立した`ValueChange`として
       // 受け取る。AP/PP/EXの`resources`/`resourceMaximums`と同じ規約。
       hp: applyResourceDelta(unit.hp, unitDelta.hp, unitDelta.hpMaximum, `${path}.hp`),
@@ -654,7 +654,7 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
 }
 
 /**
- * R-EFF-10 (EFF-004, PR #210レビュー supplementary note): 「実際のEffectSequence
+ * R-EFF-10 (EFF-004): 「実際のEffectSequence
  * → HTTP応答 → 独立Reducer復元を通すシナリオ」として、`APPLY_MARKER`を持つ
  * ACTION stepを実HTTPパイプライン（`SimulateBattleUseCase` → Response Mapper →
  * `stateTransitions`）経由で発行し、`finalState.units[].markers`と
@@ -736,7 +736,7 @@ async function runMarkerScenario(): Promise<BattleSimulationResponseBody> {
 }
 
 /**
- * PRレビュー[P2]（Issue #230）: `UT-R-SKL-06-040`〜`051`はDomain層（`resolveSkillOrder`/
+ * Issue #230: `UT-R-SKL-06-040`〜`051`はDomain層（`resolveSkillOrder`/
  * `applyEffectActionGroups`）だけを検証しており、ACTIONのcombined
  * `stepCondition`（step-wide gate）/`targetCondition`（per-target filter）が
  * 実HTTPパイプライン（`SimulateBattleUseCase` → Response Mapper →
@@ -913,7 +913,7 @@ async function runCombinedConditionScenario(): Promise<BattleSimulationResponseB
 }
 
 /**
- * Issue #143 review re-fix [P1]: 防御側の`CUMULATIVE_DAMAGE_THRESHOLD`
+ * Issue #143: 防御側の`CUMULATIVE_DAMAGE_THRESHOLD`
  * counterUpdates PSが実際に閾値を跨ぐ一撃を受け、`RuntimeCounterChanged`を
  * 発行するシナリオ。実HTTPレスポンスの`details.valueChanged`が公開
  * OpenAPI schema（`valueChanged`必須）を満たすことを検証するために使う。
@@ -1036,7 +1036,7 @@ async function runRuntimeCounterThresholdScenario(): Promise<BattleSimulationRes
 }
 
 /**
- * G-09（M7-002A・Issue #255、PR #294レビュー[P1]）: `MODIFY_RESOURCE_CAPACITY`
+ * G-09（M7-002A・Issue #255）: `MODIFY_RESOURCE_CAPACITY`
  * （`resource: HP`）を実HTTPパイプライン（`SimulateBattleUseCase` → Response Mapper →
  * `stateTransitions`）経由で解決し、`finalState.units[].hp.maximum`と
  * `stateTransitions[].delta.units[].hpMaximum`の両方を実際に埋めるシナリオ。
@@ -1170,8 +1170,7 @@ function chargeSkill(id: string, effectActionId: string): SkillDefinition {
  * (`EntityCollectionDelta`)とcharge(`ValueChange`)の両方を一度に検証できる。
  * charge解放行動自体がACTION単位クールタイムを1減らすため(R-SKL-04
  * COMPLETING)、finalStateには`remaining: 1`のcooldownが残る
- * （M5レビュー2巡目[P1]: これが`setAtTurnNumber`必須のままだと直列化に
- * 失敗しうるケース）。
+ * （`setAtTurnNumber`が必須のままだと直列化に失敗しうるケース）。
  */
 async function runChargeAndCooldownScenario(): Promise<BattleSimulationResponseBody> {
   const skillId = "SKL_CHARGE_CD";
@@ -1263,7 +1262,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
   });
 
-  it("API-STATE-RESTORE-007 (review re-fix [P1]): a real RuntimeCounterChanged event's details include valueChanged and pass the published OpenAPI schema", async () => {
+  it("API-STATE-RESTORE-007: a real RuntimeCounterChanged event's details include valueChanged and pass the published OpenAPI schema", async () => {
     const body = await runRuntimeCounterThresholdScenario();
 
     // Sanity: the hit actually crossed the threshold — otherwise this would
@@ -1278,7 +1277,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
   });
 
-  it("API-STATE-RESTORE-006 (M5 review round 2 [P1] fix): a ChargeStarted->ChargeReleased scenario serializes successfully (an ACTION-unit cooldown surviving into finalState previously violated the response schema's unconditional setAtTurnNumber requirement), and reconstructedFinalState built from stateTransitions alone (cooldowns/charge included) equals finalState", async () => {
+  it("API-STATE-RESTORE-006: a ChargeStarted->ChargeReleased scenario serializes successfully (an ACTION-unit cooldown surviving into finalState would otherwise violate the response schema's unconditional setAtTurnNumber requirement), and reconstructedFinalState built from stateTransitions alone (cooldowns/charge included) equals finalState", async () => {
     const body = await runChargeAndCooldownScenario();
 
     // Sanity: this scenario actually leaves an active ACTION-unit cooldown
@@ -1307,7 +1306,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
   });
 
-  it("API-STATE-RESTORE-008 (R-EFF-10, EFF-004, PR #210レビュー supplementary note fix): a real APPLY_MARKER EffectAction produces MarkerApplied through the full HTTP pipeline, finalState.units[].markers is populated (not the always-empty array from before the Response Mapper mapped snapshot.markers), and reconstructedFinalState built from stateTransitions alone (markers included) equals finalState", async () => {
+  it("API-STATE-RESTORE-008 (R-EFF-10, EFF-004): a real APPLY_MARKER EffectAction produces MarkerApplied through the full HTTP pipeline, finalState.units[].markers is populated (not the always-empty array from before the Response Mapper mapped snapshot.markers), and reconstructedFinalState built from stateTransitions alone (markers included) equals finalState", async () => {
     const body = await runMarkerScenario();
 
     // Sanity: this scenario actually grants a Marker — otherwise the
@@ -1333,7 +1332,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
   });
 
-  it("API-STATE-RESTORE-009 (Issue #230 RES-004-CONDITION-SCOPE, PRレビュー[P2]): an ACTION combining stepCondition (TARGET_SET_COUNT gate) with targetCondition (TARGET_HAS_MARKER filter) applies damage only to the marked enemy through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (HP + markers) equals finalState", async () => {
+  it("API-STATE-RESTORE-009 (Issue #230 RES-004-CONDITION-SCOPE): an ACTION combining stepCondition (TARGET_SET_COUNT gate) with targetCondition (TARGET_HAS_MARKER filter) applies damage only to the marked enemy through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (HP + markers) equals finalState", async () => {
     const body = await runCombinedConditionScenario();
 
     const markedEnemy = body.finalState.units.find(
@@ -1359,12 +1358,11 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(validateDoc(body), JSON.stringify(validateDoc.errors)).toBe(true);
   });
 
-  it("API-STATE-RESTORE-010 (G-09, M7-002A Issue #255, PR #294レビュー[P1]): a real MODIFY_RESOURCE_CAPACITY(resource: HP) raises hp.maximum through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (hpMaximum included) equals finalState", async () => {
+  it("API-STATE-RESTORE-010 (G-09, M7-002A Issue #255): a real MODIFY_RESOURCE_CAPACITY(resource: HP) raises hp.maximum through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (hpMaximum included) equals finalState", async () => {
     const body = await runHpCapacityScenario();
 
     // Sanity: この経路が本当にHP上限を動かしている — 動いていなければ、下の復元は
-    // 差分が1件も無いまま自明に成功してしまう（レビュー[P1]が指摘した欠落は、
-    // まさに「差分が出ないので気づけない」形だった）。
+    // 差分が1件も無いまま自明に成功してしまう。
     const actorFinal = body.finalState.units.find(
       (u) => u.unitDefinitionId === "UNIT_CAPACITY_ACTOR",
     );

@@ -41,7 +41,7 @@ export const STATUS_KINDS = [
 ] as const;
 
 /**
- * TGT-004フェーズ1（Issue #167、PR #234再レビュー）: `AppliedEffect.statusKind`
+ * TGT-004フェーズ1（Issue #167）: `AppliedEffect.statusKind`
  * （`domain/battle/model/applied-effect.ts`）が参照する公開型。`STATUS_KINDS`は
  * このファイル内のCatalog payload検証専用だったが、ドメイン層が同じ値集合を
  * 実行時状態の識別子として再利用するため、対応する型をここで公開する。
@@ -56,8 +56,8 @@ export type StatusKind = (typeof STATUS_KINDS)[number];
  * `BUFF`として扱われ、`STATUS`カテゴリには含まれない。`EFFECT_IMMUNITY.
  * statusKinds`（M7-001B、Issue #243、`EFFECT_IMMUNITY_STATUS_GRANULARITY`）が
  * `categories: ["STATUS"]`と組み合わせて指定できる値をこの部分集合へ制限する
- * （PR #245再レビュー[P2]: `STEALTH`等を指定すると、実行時の`STATUS`分類に
- * 一切一致せず免疫が黙って無効になっていた）。domain/catalogはdomain/battleへ
+ * （`STEALTH`等を指定すると、実行時の`STATUS`分類に一切一致せず免疫が黙って
+ * 無効になる）。domain/catalogはdomain/battleへ
  * 依存できないため、この値集合はここを正本とし、`effect-category-classifier.ts`
  * 側がここから再利用する。
  */
@@ -353,7 +353,7 @@ export interface ModifyResourceCapacityPayload {
  * `AppliedEffect.magnitude`へ保持する。`MODIFY_RESOURCE`の一回限りの加減算
  * には適用しない。
  *
- * PRレビュー指摘[P2]（Issue #185）: 合成経路（`composeResourceGainRate`／
+ * Issue #185: 合成経路（`composeResourceGainRate`／
  * `increaseExGauge`呼び出し側）はEXゲージ増加（R-ACT-03）だけを対象にし、
  * AP/PP/HPには獲得イベント自体が存在しないため合成先を持たない。共有の
  * `ResourceKind`（AP/PP/EX_GAUGE/HP）ではなく`EX_GAUGE`単一値に絞り、
@@ -548,7 +548,7 @@ export interface ApplyCoverPayload {
 export interface ApplyDamageLinkPayload {
   readonly linkTo: TargetReference;
   /**
-   * PR #299レビュー[P2]: この効果が保持者にとってバフとデバフのどちらかを、Catalogが
+   * この効果が保持者にとってバフとデバフのどちらかを、Catalogが
    * 明示する（省略不可）。`APPLY_TARGET_REDIRECT`/`APPLY_COVER`（常に`DEBUFF`）や
    * `APPLY_REFLECT`（常に`BUFF`）と違い、ダメージリンクは**同じkindで両向きに使われる**
    * ためである。

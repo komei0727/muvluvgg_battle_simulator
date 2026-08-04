@@ -256,7 +256,7 @@ export function resolveSkillUse(
   working = continuousHeal.units;
   lastEventId = continuousHeal.lastEventId;
 
-  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // START_EVENT #4（`06_戦闘状態遷移.md`）: 継続回復と
   // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
@@ -413,7 +413,7 @@ export function resolveSkillUse(
     parentEventId: skillUseStarted.eventId,
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units).units,
-    // R-SKL-08（レビュー再指摘[P1]、PR #214）: `passiveRuntime`はこの行動専用に
+    // R-SKL-08: `passiveRuntime`はこの行動専用に
     // 1つだけ生成されており（上のコメント参照）、その`damageResultsRegistry`を
     // このAS/EX自身のEffectSequenceにも使い回すことで、この行動内で発生した
     // DAMAGE結果をPS連鎖（カウンター等）からも同じ解決スコープ内として参照できる。
@@ -475,7 +475,7 @@ export function resolveSkillUse(
             targetUnitIds,
           },
         });
-  // TGT-004フェーズ3再々レビュー[P1]（Issue #167、08_ドメインイベント.md
+  // TGT-004フェーズ3（Issue #167、08_ドメインイベント.md
   // 「イベント発行と処理」の順序契約）: 原因イベント（`SkillUseCompleted`）
   // 自身のPS/Memory候補は、他の子イベントより先に直ちに解決しなければならない
   // （前倒しできる明示的な例外は`RuntimeCounterChanged`のみ）。そのため
@@ -486,8 +486,8 @@ export function resolveSkillUse(
   // 自身とは別の`skillUseId`で新たな`SKILL_USE`期間効果を付与し得るため、
   // 連鎖解決後のunitsから対象を決定すると、そのPSが付与したばかりの効果
   // （`grantedSkillUseId`がこの外側の`skillUseId`と一致しない）まで
-  // 「直前のAS/EX使用分」として誤って減算・即時失効させてしまう
-  // （PR #238再レビュー[P2]）。中断された（`SkillUseInterrupted`）スキル使用
+  // 「直前のAS/EX使用分」として誤って減算・即時失効させてしまう。
+  // 中断された（`SkillUseInterrupted`）スキル使用
   // はこの減算契機に含めない（`decrementSkillUseEffectDurations`が明示する
   // 仕様固定）。
   const preCompletionChainWorking = working;
@@ -502,7 +502,7 @@ export function resolveSkillUse(
       battleUnitId: change.battleUnitId,
       effectInstanceId: change.effectInstanceId,
     }));
-    // PR #238再々レビュー[P1]: 決定した対象は`reapplySkillUseDurationDecrement`
+    // 決定した対象は`reapplySkillUseDurationDecrement`
     // で連鎖解決後のunitsへ適用する——連鎖解決前のスナップショット値
     // （before/after）をそのまま使い回さず、連鎖解決後の現在値から
     // 都度再計算する。`SkillUseCompleted`自身のPS連鎖（上でdispatch済み）の
@@ -510,8 +510,8 @@ export function resolveSkillUse(
     // 減算をかけている場合があるため（このAS/EXとPSはどちらも同じownerの
     // 「1回のスキル使用完了」であり、互いに独立してR-EFF-04と同じ規約で
     // 減算する）——古いスナップショット値をそのまま設定すると、子PSが既に
-    // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう
-    // （PR #238再々レビュー[P1]）。対象インスタンスが連鎖解決中に既に
+    // 適用した減算を上書きし、2回分の減算のうち1回を消してしまう。
+    // 対象インスタンスが連鎖解決中に既に
     // 除去されていた場合は`reapplySkillUseDurationDecrement`が無視する。
     const skillUseDurationDecrement = reapplySkillUseDurationDecrement(
       working,
@@ -519,7 +519,7 @@ export function resolveSkillUse(
     );
     if (skillUseDurationDecrement.changes.length > 0) {
       working = skillUseDurationDecrement.units;
-      // PR #238再々々レビュー[P2]: 最初の`EffectDurationReduced`の親は、直前の
+      // 最初の`EffectDurationReduced`の親は、直前の
       // `skillUseCompleted`自身のPS連鎖解決で記録された最後のイベント（誘発
       // されたPSの`PassiveResolved`やその子イベント等）ではなく、この減算の
       // 直接の原因である`skillUseCompleted.eventId`自身にする——
@@ -553,7 +553,7 @@ export function resolveSkillUse(
           reason: "TIME_LIMIT",
         }));
       if (skillUseExpirySeeds.length > 0) {
-        // PR #280レビュー[P1]: 通知は`expireEffects`が1インスタンスの失効ごとに行う
+        // 通知は`expireEffects`が1インスタンスの失効ごとに行う
         // （R-EFF-09カスケードで巻き込まれた子効果・子Markerを含む）。
         const skillUseExpiry = expireEffects(
           {

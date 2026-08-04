@@ -121,7 +121,7 @@ describe("installShutdownSignalHandlers", () => {
     expect([...captured.keys()].sort()).toEqual(["SIGINT", "SIGTERM"]);
   });
 
-  it("GS-009 (レビュー指摘: bootstrapごとにプロセスシグナルハンドラーが残る): the returned disposer removes exactly the two listeners it installed, so calling bootstrap() repeatedly in one process (e.g. across integration tests) does not accumulate listeners", () => {
+  it("GS-009 (bootstrapごとにプロセスシグナルハンドラーが残る): the returned disposer removes exactly the two listeners it installed, so calling bootstrap() repeatedly in one process (e.g. across integration tests) does not accumulate listeners", () => {
     const captured = captureOnceHandlers();
     const removeListenerSpy = vi.spyOn(process, "removeListener");
 

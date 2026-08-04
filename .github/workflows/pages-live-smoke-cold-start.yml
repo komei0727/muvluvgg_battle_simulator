@@ -2,12 +2,12 @@ name: Deployed Pages Live Smoke Test (Cold Start)
 
 # `main.yml`の`pages-smoke`はdeploy直後に実行されるため、直前のCatalog／
 # simulation smoke testでCloud Run instanceが既にwarmであり、Issue #99の
-# 「scale-to-zero後のcold startを含むlive smoke testが成功する」を実証しない
-# （PRレビュー指摘 #125 P2）。Cloud Run(min instances 0)はtraffic途絶から
+# 「scale-to-zero後のcold startを含むlive smoke testが成功する」を実証しない。
+# Cloud Run(min instances 0)はtraffic途絶から
 # 十分な時間が経てばscale-to-zeroするため、mainへの通常のdeploy／push活動から
 # 独立した時刻に実行する——ただし、cron時刻はscale-to-zeroの可能性を高めるだけで、
-# 外部trafficや直前の手動操作でinstanceが既にwarmだった場合と結果から区別できない
-# （PRレビュー指摘 #125 再レビューP2）。そのため、live smoke test前後でCloud Run
+# 外部trafficや直前の手動操作でinstanceが既にwarmだった場合と結果から区別できない。
+# そのため、live smoke test前後でCloud Run
 # 側のstartup logを直接確認し、このtest requestが実際に新規instance起動を
 # 発生させたことを検証する。startup logが見つからなければcold startが起きて
 # いないと判断しjobを失敗させる——「時刻的にcold startのはず」ではなく
@@ -66,8 +66,7 @@ jobs:
       # 最初のattemptがtimeout等で失敗しても、instanceがwarmになった2回目の
       # attemptで成功してしまう——startup logはtest window内に残るため下の
       # 検証もpassし、job全体がgreenになるが、実際には「cold startを含む
-      # 最初のrequestの成功」を検証できていない（PRレビュー指摘 #125 4回目
-      # レビュー P1）。このjobでは最初のattempt自体の成否だけを見る。
+      # 最初のrequestの成功」を検証できていない。このjobでは最初のattempt自体の成否だけを見る。
       - name: Live smoke test against deployed Pages + Cloud Run API (expect cold start)
         run: mise run ui:e2e:live
         env:
@@ -85,8 +84,7 @@ jobs:
       # Cloud Loggingには取り込み遅延があるため、Playwright終了直後の1回だけの
       # 検索では、実際はcold startが成功していてもログがまだ検索可能になって
       # おらず誤ってjobを失敗させ得る。最大5分（20秒間隔×15回）poll/retryし、
-      # それでも見つからない場合だけ失敗とする（PRレビュー指摘 #125 3回目
-      # レビュー P2）。
+      # それでも見つからない場合だけ失敗とする。
       - name: Verify the live smoke test actually triggered a cold start
         env:
           START_TIME: ${{ steps.window.outputs.start_time }}

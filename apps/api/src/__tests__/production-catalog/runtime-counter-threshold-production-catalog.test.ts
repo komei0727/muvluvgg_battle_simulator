@@ -27,7 +27,7 @@ import {
 } from "../../testing/fixtures/index.js";
 
 /**
- * Issue #143 review re-fix [P1]: the 3 `CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`
+ * Issue #143: the 3 `CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`
  * PS (Chiyuru PS2 / Chizuru PS3 / Tatiana PS1) must activate only when a hit
  * actually crosses the max-HP-ratio threshold, not on every carry-only hit.
  * `RuntimeCounterChanged` now fires for both cases (for traceability — see
@@ -115,7 +115,7 @@ function lifecycleDefinitions(
   });
 }
 
-describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on valueChanged (Issue #143 review re-fix [P1])", () => {
+describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on valueChanged (Issue #143)", () => {
   it.each([
     { unitId: "UNIT_CHIYURU_NEWYEAR", skillId: "SKL_CHIYURU_NEWYEAR_PS2", maxHpRatio: 0.4 },
     { unitId: "UNIT_CHIZURU_DOMESTIC", skillId: "SKL_CHIZURU_DOMESTIC_PS3", maxHpRatio: 0.85 },

@@ -84,7 +84,7 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
   it("UT-R-STA-01-013: a fractional formation-adjusted maximumHp is kept at full precision (R-NUM-01/R-STA-01, no mid-way rounding) — the HP gauge max is integerized later, at the gauge boundary", () => {
     // maximumHp 33623 × (1 + 0.2) = 40347.6 は丸めず保持する。ここで丸めると
     // 後続の R-STA-04 再計算（比率補正）が丸め済みの基準に重なり二重丸めになる
-    // （PR #239 再レビュー[P2]）。整数化は `createBattleUnit`/`applyDamageAction`
+    // 整数化は `createBattleUnit`/`applyDamageAction`
     // のゲージ境界で行う。attack 17679 × 1.2 = 21214.8 も同様に全精度。
     const result = calculateStartingCombatStats({
       baseStats: { ...BASE_STATS, maximumHp: 33623, attack: 17679 },

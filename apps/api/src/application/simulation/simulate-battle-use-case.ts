@@ -268,7 +268,7 @@ export class SimulateBattleUseCase {
       if (error instanceof ExecutionGuardExceededError) {
         // 09_アプリケーション設計.md「実行保護」: イベント数・PS深度・効果数の
         // SimulationExecutionGuard上限超過はクライアント入力エラーではなく
-        // `EXECUTION_LIMIT_EXCEEDED`（HTTP 503）として返す（レビュー指摘[P1]）。
+        // `EXECUTION_LIMIT_EXCEEDED`（HTTP 503）として返す。
         throw new ApplicationError("EXECUTION_LIMIT_EXCEEDED", [{ reason: error.message }]);
       }
       if (error instanceof DomainValidationError) {

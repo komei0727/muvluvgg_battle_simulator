@@ -488,7 +488,7 @@ describe("continuous damage (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     expect(result.units.find((u) => u.battleUnitId === holder.battleUnitId)!.currentHp).toBe(0);
   });
 
-  // DMG-010 (PR #301 レビュー[P1]): `FIXED`継続ダメージはR-SUB-01第1項どおり
+  // DMG-010: `FIXED`継続ダメージはR-SUB-01第1項どおり
   // サブユニットへも吸収されるが、`ContinuousDamageApplied`がその量を公開して
   // いなかったため、`08_ドメインイベント.md`の保存則
   // `typedShieldAbsorbed + untypedShieldAbsorbed + subUnitAbsorbed

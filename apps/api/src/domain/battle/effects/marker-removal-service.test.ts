@@ -549,7 +549,7 @@ describe("removeMarkers", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "EffectExpired")).toBe(false);
   });
 
-  it("UT-R-EFF-09-019 (R-EFF-09 順序, PR #280 レビュー[P2]): every CHILD member is expired before every PARENT member, even when a cascaded group holds more than one PARENT", () => {
+  it("UT-R-EFF-09-019 (R-EFF-09 順序): every CHILD member is expired before every PARENT member, even when a cascaded group holds more than one PARENT", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -648,7 +648,7 @@ describe("removeMarkers", () => {
     ]);
   });
 
-  it("UT-R-EFF-09-020 (R-EFF-09 通知順序, PR #280 レビュー[P1]): each cascade step notifies onFactEventForPassiveChain before the next member is removed, so a watcher of a CHILD EffectExpired still observes the PARENT Marker", () => {
+  it("UT-R-EFF-09-020 (R-EFF-09 通知順序): each cascade step notifies onFactEventForPassiveChain before the next member is removed, so a watcher of a CHILD EffectExpired still observes the PARENT Marker", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();

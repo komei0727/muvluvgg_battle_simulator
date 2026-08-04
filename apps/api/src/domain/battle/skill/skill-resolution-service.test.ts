@@ -653,7 +653,7 @@ describe("resolveSkillOrder", () => {
     ]);
   });
 
-  it("UT-R-SKL-06-013/UT-R-ACTN-01-008 (R-ACTN-01 #2, PR #215 review finding [P2]): EffectActionApplication.includeDefeated carries the resolved TargetBinding's selector.includeDefeated, and a true selector keeps an already-defeated unit in the target pool", () => {
+  it("UT-R-SKL-06-013/UT-R-ACTN-01-008 (R-ACTN-01 #2): EffectActionApplication.includeDefeated carries the resolved TargetBinding's selector.includeDefeated, and a true selector keeps an already-defeated unit in the target pool", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
     const defeatedEnemy = unit(
       "ENEMY_DEFEATED",
@@ -1243,7 +1243,7 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
     ]);
   });
 
-  it("UT-R-CFS-01-007 (PR #300 レビュー[P2]): a `side: ALL` damage binding is left alone — R-CFS-01 inverts ALLY↔ENEMY only, and ALL already covers both camps", () => {
+  it("UT-R-CFS-01-007: a `side: ALL` damage binding is left alone — R-CFS-01 inverts ALLY↔ENEMY only, and ALL already covers both camps", () => {
     const actor = confusedActor();
     const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
@@ -1281,7 +1281,7 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
     ]);
   });
 
-  it("UT-R-CFS-01-008 (PR #300 レビュー[P2]): the recursive fallback inversion follows the same ALLY↔ENEMY-only rule", () => {
+  it("UT-R-CFS-01-008: the recursive fallback inversion follows the same ALLY↔ENEMY-only rule", () => {
     const actor = confusedActor();
     const ally = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });

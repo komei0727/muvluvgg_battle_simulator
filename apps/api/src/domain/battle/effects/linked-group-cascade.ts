@@ -40,7 +40,7 @@ export interface LinkedGroupCascadeContext {
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   /**
-   * PR #280レビュー[P1]: 1メンバーの除去（イベント記録＋CombatStat再計算）ごとに、
+   * 1メンバーの除去（イベント記録＋CombatStat再計算）ごとに、
    * 次のメンバーへ進む前にPS/Memoryの即時連鎖へ通知する
    * （`08_ドメインイベント.md`「各イベントに対応するPS/Memory候補を直ちに解決する」）。
    * まとめて最後に通知すると、子の`EffectExpired`をtriggerにするPSが、イベント順では
@@ -63,8 +63,8 @@ export interface LinkedGroupCascadeContext {
  * callbackを持たない経路（PS自身のEffectSequence解決が`passive-activation-service.ts`
  * から委譲される経路）は、`freeze-removal-service.ts`の`removeFreezeEffectSteps`と
  * 同じく`expireEffectsSteps`が`yield`するステップをdriverへ渡す設計であり、
- * そちらの粒度はdriver側が決める（PR #280再レビュー[P1]でダメージpipelineの
- * 消費失効フックもこのステップ型へ移行した）。
+ * そちらの粒度はdriver側が決める（ダメージpipelineの消費失効フックも同じ
+ * ステップ型を使う）。
  */
 export function notifyRemovalStep(
   context: LinkedGroupCascadeContext,
@@ -126,8 +126,8 @@ function cascadeOrderTier(role: LinkedEffectGroupRole | undefined): number {
 /**
  * 除去バッチの1メンバーと、そのメンバー固有の失効・解除理由。
  *
- * PR #280再々レビュー[P2]: カスケード分とseed分を別々のリストとして順に処理して
- * いたため、除去バッチ**全体**ではR-EFF-09の「子を先に、親を最後に」が崩れていた
+ * カスケード分とseed分を別々のリストとして順に処理すると、除去バッチ**全体**では
+ * R-EFF-09の「子を先に、親を最後に」が崩れる
  * （同一グループに複数`PARENT`がある合法な定義で、非seedの`PARENT`がカスケード分
  * として先に失効し、その後でseedの`CHILD`が失効し得た）。両者を単一のリストへ
  * まとめ、メンバーごとの`reason`/`cascaded`を保持したまま一度だけrole順へ整列する。
@@ -227,8 +227,8 @@ function memberOrderKey(units: readonly BattleUnit[]): (member: LinkedGroupMembe
  * 除去バッチ（カスケードで巻き込まれたメンバー＋呼び出し側が確定させたseed）を
  * 単一の失効順へ並べる。
  *
- * 第1キーは`linkedEffectGroupRole`（`CHILD`→ロールなし→`PARENT`）。PR #280
- * レビュー[P2]: スキーマは同一グループの複数`PARENT`を禁じていないため、ロールを
+ * 第1キーは`linkedEffectGroupRole`（`CHILD`→ロールなし→`PARENT`）。
+ * スキーマは同一グループの複数`PARENT`を禁じていないため、ロールを
  * 第1キーにすることでグループあたりのPARENT数をCatalog整合性検証で縛らずに
  * R-EFF-09の順序契約を満たす。第2キーはカスケード分か`seeds`か（カスケード分が
  * 先 — ロールを持たないレガシーグループではこれが唯一の親子情報）。第3キーは
@@ -299,8 +299,8 @@ export function cascadedOnlyRemovals(
  * （`marker-removal-service.ts`のseed経路と同じ扱い）。
  *
  * 各メンバーの除去を記録した直後に`yield`する generator — `freeze-removal-service.ts`
- * が要求する「1ステップごとにPS/Memoryの即時連鎖へ通知する」経路（PR #237
- * 再指摘[P2]）と、通知を伴わない他3経路の両方から同じ実装を再利用できるように
+ * が要求する「1ステップごとにPS/Memoryの即時連鎖へ通知する」経路と、
+ * 通知を伴わない他3経路の両方から同じ実装を再利用できるように
  * するため、通知方法を持たない。呼び出し側が各yieldの直後に
  * `.next(externallyMutatedUnits)`で外部変化を注入すれば、次のステップはその状態を
  * 前提に進む。yieldを必要としない呼び出し側は`removeCascadedMembers`を使う。

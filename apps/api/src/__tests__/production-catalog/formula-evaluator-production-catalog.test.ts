@@ -37,11 +37,11 @@ import {
  * application service directly, not the full generator-based
  * `applyEffectActionGroups`).
  *
- * Reviewer findings addressed here (PR #214 review):
- * - [P1] a DAMAGE formula kind other than SKILL_POWER must bypass
+ * Constraints fixed here:
+ * - a DAMAGE formula kind other than SKILL_POWER must bypass
  *   attack/defense entirely, not be multiplied by the attacker's attack
  *   stat (`ACT_FLUTE_VAMPIRE_AS1_HP_COST`).
- * - [P1] DAMAGE_RECEIVED_RATIO(LAST_DAMAGE_RECEIVED) must read the actor's
+ * - DAMAGE_RECEIVED_RATIO(LAST_DAMAGE_RECEIVED) must read the actor's
  *   own most recently received DAMAGE result from the real lifecycle
  *   (`ACT_AOI_GUARDIAN_PS2_COUNTER`, `ACT_STELLA_STATUE_PS2_COUNTER`).
  */

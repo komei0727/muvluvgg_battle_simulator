@@ -53,8 +53,7 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 # `.github/workflows/pages-live-smoke-cold-start.yml`が`gcloud logging read`で
 # Cloud Runの起動ログ("muvluvgg-battle-simulator started")を検索し、live smoke
 # testが実際に新規instance起動(cold start)を発生させたことを確認するために必要
-# （`logging.logEntries.list`）。`roles/run.developer`には含まれない
-# （PRレビュー指摘 #125 3回目レビュー P1）。
+# （`logging.logEntries.list`）。`roles/run.developer`には含まれない。
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
   --role="roles/logging.viewer" \
@@ -96,7 +95,7 @@ gcloud iam service-accounts add-iam-policy-binding "$BUILD_SERVICE_ACCOUNT_EMAIL
 # 持つ）をpublicly-invokable（allUsers）なcontainerのruntime identityにしない
 # ため、project IAM roleを一切付与しない専用SAを作る。apps/apiのruntimeコードは
 # Google Cloud APIを呼ばないため、この最小権限（ゼロroles）で十分
-# （P1レビュー指摘: 侵害時にProject Editor相当のcredentialを奪われる経路を断つ）。
+# （侵害時にProject Editor相当のcredentialを奪われる経路を断つ）。
 echo "== create dedicated Cloud Run runtime service account with zero project roles (idempotent) =="
 if gcloud iam service-accounts describe "$RUNTIME_SERVICE_ACCOUNT_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
   echo "service account already exists: $RUNTIME_SERVICE_ACCOUNT_EMAIL"
@@ -109,8 +108,8 @@ fi
 # `gcloud run services replace`でこのruntime SAをrevisionへ割り当てるには、
 # deploy用SAがそのruntime identityへ`iam.serviceAccounts.actAs`できる必要が
 # ある（`roles/run.developer`には含まれない）。project全体ではなく、この
-# runtime SAへ限定してActive付与する（PRレビュー指摘 #112 P1-4を踏襲、
-# 対象を既定Compute Engine SAから専用runtime SAへ変更）。
+# runtime SAへ限定してActive付与する（対象は既定Compute Engine SAではなく
+# 専用runtime SA）。
 echo "== grant Service Account User on the Cloud Run runtime identity ($RUNTIME_SERVICE_ACCOUNT_EMAIL) only =="
 gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SERVICE_ACCOUNT_EMAIL" \
   --project="$PROJECT_ID" \

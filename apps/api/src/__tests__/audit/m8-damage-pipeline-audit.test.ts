@@ -145,8 +145,7 @@ const REQUIRED_SPINE: Readonly<Record<HitOutcome, readonly string[]>> = {
 /**
  * 終端ごとに、そのヒットへ現れてよいpipelineイベント（allowlist）。
  *
- * PR #302再レビュー[P2]: 当初は「現れてはならないイベント」の列挙（blocklist）で
- * 書いていたが、列挙は必ず取りこぼす — 実際に`MISSED`が`ShieldConsumed`・
+ * 「現れてはならないイベント」の列挙（blocklist）では必ず取りこぼす — 実際に`MISSED`が`ShieldConsumed`・
  * `SubUnitDamaged`・`DamageRedirected`・`UnitDefeated`を、`CONVERTED_TO_HEAL`が
  * `ShieldConsumed`・`SubUnitDamaged`・`LethalDamageSurvived`を禁止できておらず、
  * 「回避したヒットがシールドだけ誤消費する」回帰が段階の単調性も必須部分列も
@@ -240,7 +239,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
 
         // (b) ヒット単位の必須部分列。(a)だけでは「そのヒットで`DamageCalculated`や
         //     `DamageApplied`が欠落しても、別のヒットが同じ段階を出していれば成功する」
-        //     ため、終端に応じた必須手順をヒットごとに要求する（PR #302レビュー[P2]）。
+        //     ため、終端に応じた必須手順をヒットごとに要求する。
         const outcome = classifyHit(types);
         observedOutcomes.set(outcome, (observedOutcomes.get(outcome) ?? 0) + 1);
         if (!containsInOrder(types, REQUIRED_SPINE[outcome])) {
@@ -251,7 +250,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         }
         // (c) 終端が許すイベントだけで構成されていること。必須部分列は「足りない」
         //     ことしか見ないため、終端の意味に反する余分なイベント（回避したヒットの
-        //     シールド誤消費など）は許可側の集合で弾く（PR #302再レビュー[P2]）。
+        //     シールド誤消費など）は許可側の集合で弾く。
         const disallowed = [...new Set(types)].filter(
           (type) => !ALLOWED_EVENT_TYPES[outcome].has(type),
         );

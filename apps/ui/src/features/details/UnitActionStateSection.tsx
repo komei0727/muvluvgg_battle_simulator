@@ -38,7 +38,7 @@ interface Row {
 // サマリ列を無制限に増やさない」「effectKindKeyの未知値を汎用表示する」。
 // `APPLY_STATUS`由来（`statusKind`を持つ）の効果はその種別を先頭へ出し、
 // バフ／デバフ／状態異常の分類はAPIの`category`をそのまま表示する
-// （PR #264レビュー[P1]: `statusKind`はSTEALTH等の有利な状態にも設定されるため、
+// （`statusKind`はSTEALTH等の有利な状態にも設定されるため、
 // 有無だけで状態異常と決めない。分類の正本はDomainの
 // `effect-category-classifier.ts`であり、UIはその結果を受け取るだけにする）。
 // `effectKindKey`は定義IDの命名規則を解析せずそのまま見せる。
@@ -121,7 +121,7 @@ function UnitActionStateGroup({
                 </p>
               ) : null}
               {/*
-                PR #301レビュー[P2]: シールドとサブユニットは別々の契約
+                シールドとサブユニットは別々の契約
                 （DMG-004 / DMG-005）で追加されたため、片方だけを持つレスポンスが
                 存在しうる。まとめて1つの不明メッセージにすると欠落側が黙って
                 消えるので、それぞれ独立に「不明」／「なし」／実値を出す。

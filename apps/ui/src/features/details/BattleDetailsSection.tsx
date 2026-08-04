@@ -22,7 +22,7 @@ export interface BattleDetailsSectionProps {
 
 type DetailsTab = "events" | "transitions" | "json" | "actionState" | "causalityTree";
 
-// PR #154レビュー[P1]: causalityTreeを"events"と"transitions"の間へ挿入すると、
+// causalityTreeを"events"と"transitions"の間へ挿入すると、
 // 既存e2e/keyboard.spec.tsが検証する「時系列イベント --ArrowRight--> 状態遷移」
 // のtab隣接関係が崩れる。既存tabの相対順序を変更せず、末尾に追加する。
 const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] = [

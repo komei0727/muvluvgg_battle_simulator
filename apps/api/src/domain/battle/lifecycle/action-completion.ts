@@ -47,7 +47,7 @@ export interface ActionCompletionContext {
   /** R-EFF-04: 行動単位効果の残り回数減算・失効・CombatStat再計算に使うEffectActionDefinitionの参照表。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   /**
-   * レビュー再々レビュー[P2]: `ActionCompleting`/`CooldownReduced`/
+   * `ActionCompleting`/`CooldownReduced`/
    * `CooldownCompleted`/`ActionCompleted`を、呼び出し元が保有する
    * `PassiveActivationRuntime`へ接続するためのフック（未指定ならPS解決を
    * 行わない）。`06_戦闘状態遷移.md`のCOMPLETING順序が要求する「`ActionCompleted`
@@ -210,7 +210,7 @@ export function recordActionCompletion(
         reason: "TIME_LIMIT",
       }));
     if (seeds.length > 0) {
-      // PR #280レビュー[P1]: 通知は`expireEffects`が1インスタンスの失効ごとに行う
+      // 通知は`expireEffects`が1インスタンスの失効ごとに行う
       // （カスケードで巻き込まれた子効果・子Markerを含む）。ここでまとめて
       // 通知すると、子の`EffectExpired`をtriggerにするPSが親の除去済み状態を見る。
       const expiry = expireEffects(
@@ -242,7 +242,7 @@ export function recordActionCompletion(
   // `reason: SHIELD_DEPLETED`として失効させる — R-EFF-09のlinkedEffectGroup
   // カスケードとCombatStat再計算をシールド固有の経路へ二重実装しないため。
   //
-  // PRレビュー[P1]: 保持者→プールの単位で「減少→`ShieldConsumed`→PS/Memory即時
+  // 保持者→プールの単位で「減少→`ShieldConsumed`→PS/Memory即時
   // 連鎖→枯渇分の失効」を完了させてから次へ進む。`decay.owner`が`BATTLE`/
   // `EFFECT_SOURCE`の場合は1回の行動完了で複数の保持者が同時に漸減しうるため、
   // まとめて変更してから通知すると、先頭の`ShieldConsumed`に反応するPSが
@@ -339,7 +339,7 @@ export function recordActionCompletion(
         reason: "TIME_LIMIT",
       }));
     if (markerSeeds.length > 0) {
-      // PR #280レビュー[P1]: `expireEffects`と同じ理由で、通知は`removeMarkers`が
+      // `expireEffects`と同じ理由で、通知は`removeMarkers`が
       // 1インスタンスの除去ごとに行う（cross-typeカスケードで巻き込まれた
       // `AppliedEffect`を含む）。
       const markerRemoval = removeMarkers(
@@ -376,7 +376,7 @@ export function recordActionCompletion(
     sourceUnitId: context.actorId,
     payload: { actorUnitId: context.actorId, effectiveActionType },
   });
-  // レビュー指摘[P2]（PR #209）: R-EFF-08（`expiration.conditions`）の評価は
+  // R-EFF-08（`expiration.conditions`）の評価は
   // `ActionCompleted`だけでなく`DamageApplied`/`UnitDefeated`等すべてのFACT/
   // TIMINGイベントに対して行う必要があるため、`PassiveActivationRuntime.
   // onFactEvent`（`notify`が`context.onFactEventForPassiveChain`経由で呼ぶ
@@ -393,7 +393,7 @@ interface CooldownStartContext {
   readonly cycleNumber: number;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly actorId: BattleUnitId;
-  /** レビュー指摘[P2]: 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
+  /** 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
   readonly skillUseId?: SkillUseId;
 }
 
@@ -407,11 +407,11 @@ interface CooldownStartResult {
  * 設定する。`skill.cooldown.count`が0のスキルはCOOLING状態へ遷移しないため
  * `CooldownStarted`を発行しない（`startCooldown`が既に判定済み）。設定scope
  * は`skill.cooldown.unit`により行動単位(`actionId`)またはターン単位
- * (`turnNumber`)を選ぶ（PR#128レビュー[P1]: 呼び出し側が`unit`を無視して常に
+ * (`turnNumber`)を選ぶ（呼び出し側が`unit`を無視して常に
  * `actionId`を渡すと、TURN単位クールタイムが設定ターン末に誤って減算される）。
  *
  * `unit: "ACTION"`でも`context.actionId`が無い場合（PS発動がターン開始・終了
- * など行動外のトップレベルイベントから起きた場合、PR #141再レビュー[P1]）は
+ * など行動外のトップレベルイベントから起きた場合）は
  * `scope`を`undefined`のまま`startCooldown`へ渡す。`count`が0ならそもそも
  * `scope`を使わないため問題にならず、`count`が正でも`setActionId`を持たない
  * エントリとして設定され、所有者の次の行動終了時（`decrementActionCooldowns`）
@@ -461,7 +461,7 @@ export function recordCooldownStart(
               before: result.before,
               after: skill.cooldown.count,
               // Issue #248で表面化した既存欠陥: `scope`が`undefined`（行動外の
-              // トップレベルイベントから発動したPS、PR #141）の場合、設定scopeの
+              // トップレベルイベントから発動したPS）の場合、設定scopeの
               // **不在**自体が既存エントリのscopeを消す意味を持つ。独立Reducerが
               // これを「省略」と読み違えないよう明示する。
               establishesScope: true,

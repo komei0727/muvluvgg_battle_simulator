@@ -7,8 +7,7 @@
 # にだけ更新される永続的な記録であり、rollback先の自動検出
 # （`ci-rollback-traffic.sh`）はこれを読む。「直近のReady revision」を rollback
 # 先候補にすると、複数回連続でcandidateがsmokeに失敗した際に未promoteの
-# 失敗revisionを再選択してしまうため使わない（PRレビュー指摘 #112 P1、
-# 2026-07-15再レビュー）。
+# 失敗revisionを再選択してしまうため使わない。
 set -euo pipefail
 
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
@@ -32,8 +31,7 @@ echo "== promote candidate revision to 100% traffic and rotate stable/stable-pre
 # --to-revisionsと--update-tagsを1回のupdate-traffic呼び出しにまとめる。
 # 2回の別呼び出しに分けると、traffic切替後にtag更新だけが失敗した場合、
 # 新revisionが既にproductionなのにstableが旧revisionを指したままになり、
-# 以後のrollback先／次回promoteの履歴判定を誤る
-# （PRレビュー指摘 #112 P2、2026-07-15再レビュー）。
+# 以後のrollback先／次回promoteの履歴判定を誤る。
 if [ -n "$CURRENT_STABLE_REVISION_NAME" ] && [ "$CURRENT_STABLE_REVISION_NAME" != "$REVISION_NAME" ]; then
   gcloud run services update-traffic "$SERVICE" \
     --region="$REGION" \

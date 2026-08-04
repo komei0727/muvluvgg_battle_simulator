@@ -20,7 +20,7 @@ if (!pagesUrl || !process.env["LIVE_API_BASE_URL"]) {
 // instance times out and Playwright's default CI retry re-runs the test
 // against the now-warm instance, the run reports success even though the
 // actual acceptance criterion — a cold-started instance serving the request —
-// was never met (PRレビュー指摘 #125 4回目レビュー P1). That workflow sets
+// was never met. That workflow sets
 // LIVE_SMOKE_RETRIES=0 to force the first attempt to be the only attempt.
 const retriesOverride = process.env["LIVE_SMOKE_RETRIES"];
 const retries = retriesOverride !== undefined ? Number(retriesOverride) : process.env["CI"] ? 1 : 0;

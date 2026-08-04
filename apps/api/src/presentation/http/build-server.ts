@@ -86,7 +86,7 @@ export interface BuildServerOptions {
  * `11_インフラストラクチャ設計.md`「ログ設計」の必須fieldは`timestamp`・
  * `message`だが、Pinoの既定キーはそれぞれ`time`・`msg`
  * （`docs/ddd/12_テスト戦略.md`「全ルートと全ステータスにSchemaがある」と同種の
- * 理由でレビュー指摘済み: 呼び出し側がキー名を個別に意識すると仕様との
+ * 理由: 呼び出し側がキー名を個別に意識すると仕様との
  * ズレを検出できない）。呼び出し側（`bootstrap/index.ts`が渡す実運用設定、
  * テストが渡す`stream`付き設定）に関わらず、ここ一箇所でキー名を強制する。
  */
@@ -168,7 +168,7 @@ export async function buildServer(
     // （実データがそのまま流れる出力を厳格化して壊さないよう、実行時
     // serializationは`battleSimulationResponseSchema`のまま変更しない）。
     transform: ({ schema, url, route }) => {
-      // PRレビュー指摘（#110 [P3]）: `registerCorsPreflightDocRoutes`が登録する
+      // `registerCorsPreflightDocRoutes`が登録する
       // 文書専用のOPTIONSルートへ、preflight向けのCORS response headerを
       // 差し込む。このurlは他分岐（Catalog GET・戦闘POST）とも重なるため、
       // methodで先に分岐する。
@@ -176,7 +176,7 @@ export async function buildServer(
         return {
           schema: {
             ...schema,
-            // PRレビュー指摘（#110 [P2再々レビュー]）: `Origin`・
+            // `Origin`・
             // `Access-Control-Request-Method`はdoc上だけ`required`にする
             // （理由は`CORS_PREFLIGHT_REQUIRED_HEADERS`のコメント参照）。
             ...(schema.headers !== undefined
@@ -194,7 +194,7 @@ export async function buildServer(
                       schema.response as Record<string, unknown>,
                       CORS_PREFLIGHT_RESPONSE_HEADERS_DOC,
                     ),
-                    // PRレビュー指摘（#110 [P2再々レビュー]）: 許可originが
+                    // 許可originが
                     // `Access-Control-Request-Method`なしで送った場合の実際の
                     // 応答（`@fastify/cors`が`addCorsHeaders`実行後・
                     // `addPreflightHeaders`実行前に返す）を文書化する
@@ -257,7 +257,7 @@ export async function buildServer(
     },
   });
 
-  // PR #207再レビュー[P1]: `ConditionDefinition`（`EffectApplied.details.expirationConditions`
+  // `ConditionDefinition`（`EffectApplied.details.expirationConditions`
   // が参照する、AND/OR/NOTで自己参照する唯一の再帰的Catalog schema）を
   // Fastifyの共有schemaとして登録する。`$id`/`$ref`をこのファイル内へ埋め込む
   // だけでは、`@fastify/swagger`のOpenAPI生成が`$ref`を`#/components/schemas/def-N`

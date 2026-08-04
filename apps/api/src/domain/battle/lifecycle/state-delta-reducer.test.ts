@@ -175,7 +175,7 @@ describe("applyStateDelta", () => {
     expect(() => applyStateDelta(alreadyCompleted, delta)).toThrow(DomainValidationError);
   });
 
-  it("UT-STATE-REDUCER-017 (R-SKL-05 / regression PR#128 review [P1]): a ChargeStarted->ChargeReleased StateDelta pair restores correctly even though `before`/`after` are structurally-equal but distinct ChargeState object instances (as real events produce, since each event builds its own payload object)", () => {
+  it("UT-STATE-REDUCER-017 (R-SKL-05 regression): a ChargeStarted->ChargeReleased StateDelta pair restores correctly even though `before`/`after` are structurally-equal but distinct ChargeState object instances (as real events produce, since each event builds its own payload object)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
     const startedActionId = createActionId("battle-1:action:1");
 
@@ -253,7 +253,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-019 (M5 review round 2 [P1] fix): a CooldownStarted->CooldownReduced delta pair restores unit/remaining/setActionId, carrying the ACTION-scope forward across a later delta that omits it", () => {
+  it("UT-STATE-REDUCER-019: a CooldownStarted->CooldownReduced delta pair restores unit/remaining/setActionId, carrying the ACTION-scope forward across a later delta that omits it", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_CD");
     const setActionId = createActionId("battle-1:action:1");
 
@@ -280,7 +280,7 @@ describe("applyStateDelta", () => {
   });
 
   it("UT-STATE-REDUCER-034 (Issue #248 で表面化した既存欠陥): a CooldownStarted that establishes a scope-less entry clears the previous setting scope instead of silently keeping the stale one", () => {
-    // R-SKL-04/PR #141: 行動外のトップレベルイベント（ターン開始・終了）から
+    // R-SKL-04: 行動外のトップレベルイベント（ターン開始・終了）から
     // 発動したPSのクールタイムは`setActionId`を持たないエントリとして設定し直される。
     // `establishesScope`が無いと、独立Reducerは`change.setActionId ?? existing`の
     // マージで古い`setActionId`を残し、`captureBattleState`の実状態と食い違って
@@ -322,7 +322,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-020 (M5 review round 2 [P1] fix): a TURN-unit CooldownStarted delta carries setTurnNumber (not setActionId)", () => {
+  it("UT-STATE-REDUCER-020: a TURN-unit CooldownStarted delta carries setTurnNumber (not setActionId)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_CD_TURN");
 
     const started = applyStateDelta(initialState(), {
@@ -432,7 +432,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-025 (review re-fix [P1], RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 which keeps it", () => {
+  it("UT-STATE-REDUCER-025 (RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 which keeps it", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -468,7 +468,7 @@ describe("applyStateDelta", () => {
     ).toBe(false);
   });
 
-  it("UT-STATE-REDUCER-026 (review re-fix [P1]): a counter re-created after being deleted validates its before against 0 again (the deletion is not distinguishable from never having existed)", () => {
+  it("UT-STATE-REDUCER-026: a counter re-created after being deleted validates its before against 0 again (the deletion is not distinguishable from never having existed)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -500,7 +500,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-027 (review re-re-fix [P1]): skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters which keeps a landed-on-0 key", () => {
+  it("UT-STATE-REDUCER-027: skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters which keeps a landed-on-0 key", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withCarry = applyStateDelta(initialState(), {
       units: {
@@ -528,7 +528,7 @@ describe("applyStateDelta", () => {
       },
     });
 
-    // レビュー再々々々レビュー[P1]: 剪定の結果、skillDefinitionIdエントリ
+    // 剪定の結果、skillDefinitionIdエントリ
     // だけでなく`skillCounterCarry`フィールド自体が完全に無くなる
     // （`{}`ではなく`undefined`、`captureBattleState`が非0のcarryを1件も
     // 持たないユニットへこのフィールド自体を書かないことと一致させる）。
@@ -538,7 +538,7 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_A]!.skillCounterCarry).toBeUndefined();
   });
 
-  it("UT-STATE-REDUCER-028 (review re-re-fix [P1]): skillCounterCarry does not prune a skillDefinitionId entry that still has a sibling counter with nonzero carry", () => {
+  it("UT-STATE-REDUCER-028: skillCounterCarry does not prune a skillDefinitionId entry that still has a sibling counter with nonzero carry", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withBoth = applyStateDelta(initialState(), {
       units: {
@@ -708,7 +708,7 @@ describe("applyStateDelta", () => {
   it("UT-STATE-REDUCER-032 (M7-006、Issue #179、R-MEM-04): rejects an effects delta whose before.sourceSide disagrees with the stored Memory-granted effect", () => {
     // Memory由来の効果は`sourceUnitId`を持たず`sourceSide`を持つ。`sourceSide`が
     // 比較対象から漏れていると、発生源が欠落・破損したStateDeltaでも復元一致
-    // 検証を通過してしまう（PR #260レビュー[P2]）。
+    // 検証を通過してしまう。
     const memoryGranted: EffectSnapshot = {
       effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
       effectDefinitionId: "ACT_MEM_ATTACK_UP",

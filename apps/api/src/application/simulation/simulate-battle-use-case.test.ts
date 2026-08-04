@@ -436,7 +436,7 @@ describe("SimulateBattleUseCase", () => {
     expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
   });
 
-  it("review fix [P1]: a RuntimeCounter execution-guard breach surfaces as EXECUTION_LIMIT_EXCEEDED (HTTP 503), not INVALID_COMMAND (HTTP 422)", () => {
+  it("a RuntimeCounter execution-guard breach surfaces as EXECUTION_LIMIT_EXCEEDED (HTTP 503), not INVALID_COMMAND (HTTP 422)", () => {
     const passiveSkillId = "SKL_PS_COUNTER_SELF_REGEN_E2E";
     const counterId = "RUNTIME_COUNTER_SELF_REGEN_E2E";
     const psUnit: UnitDefinition = {
@@ -446,8 +446,7 @@ describe("SimulateBattleUseCase", () => {
     // このユニットのcounterUpdatesは`TurnStarted`で初回発火し、以後は自身が
     // 発行する`RuntimeCounterChanged`を契機に再更新し続ける（悪意/誤りのある
     // Catalog定義）。PS自体のtriggersは空のため、活動履歴とは無関係に
-    // `onFactEvent`の再帰だけが無限に続く（レビュー指摘[P2]の再現、
-    // 実行ガードで検出されることの確認）。
+    // `onFactEvent`の再帰だけが無限に続く（実行ガードで検出されることの確認）。
     const passiveSkill: SkillDefinition = {
       skillDefinitionId: createSkillDefinitionId(passiveSkillId),
       skillType: "PS",
@@ -524,15 +523,15 @@ describe("SimulateBattleUseCase", () => {
     expect((caught as ApplicationError).code).toBe("EXECUTION_LIMIT_EXCEEDED");
   });
 
-  it("review re-fix [P1]: a legitimate 5v5, 99-turn, all-WAIT boundary battle (10_API設計.md's 'must comfortably handle a normal 99-turn battle' contract) completes without hitting EXECUTION_LIMIT_EXCEEDED", () => {
-    // レビュー再指摘[P1]: 旧`DEFAULT_MAX_TOTAL_EVENTS`(20,000)は、5対5・現行
+  it("a legitimate 5v5, 99-turn, all-WAIT boundary battle (10_API設計.md's 'must comfortably handle a normal 99-turn battle' contract) completes without hitting EXECUTION_LIMIT_EXCEEDED", () => {
+    // 旧`DEFAULT_MAX_TOTAL_EVENTS`(20,000)は、5対5・現行
     // ユニットの最大AP(4)で全員がWAITを選択する境界ケース(1ターン最大40行動、
     // 行動イベントだけで概算23,760件)を処理できなかった。この境界を実際に
     // `SimulateBattleUseCase`経由で走らせ、実行ガードに引っかからないことを
     // 確認する(`event-recorder.ts`のコメントに実測値の詳細を記載)。
     const waitUnit: UnitDefinition = {
       ...unitDefinition("UNIT_WAIT_ONLY"),
-      // レビュー指摘[P1]の実測前提(「現在のユニットの最大APは4」)を再現する。
+      // 実測前提(「現在のユニットの最大APは4」)を再現する。
       baseStats: { ...unitDefinition("UNIT_WAIT_ONLY").baseStats, maximumAp: 4 },
     };
     const units = new Map([[createUnitDefinitionId("UNIT_WAIT_ONLY"), waitUnit]]);

@@ -98,7 +98,7 @@ export type EffectiveActionType = "AS" | "EX" | "WAIT" | "CHARGE_RELEASE";
 
 /**
  * `06_戦闘状態遷移.md`「戦闘不能者の除去」/「R-ORD-01適格性の喪失」。`INELIGIBLE`
- * （Issue #180 PRレビュー[P1]再指摘）: キュー生成後、実行前に先行ユニットの行動
+ * （Issue #180）: キュー生成後、実行前に先行ユニットの行動
  * （気絶付与によるチャージキャンセル、凍結付与によるチャージ阻害など）で
  * R-ORD-01の全条件を失った予約を除去する。
  */
@@ -231,7 +231,7 @@ export interface BattleDomainEventPayloadMap {
    * `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
    * （命中判定・ダメージ計算より前）に、ヒットごとに発行する（`TIMING`）。
    * R-EFF-07: `NEXT_INCOMING_ATTACK`消費条件はこのイベントの発行時点で
-   * 消費する。EFF-003（Issue #159、レビュー修正 PR #209）が発行位置を
+   * 消費する。EFF-003（Issue #159）が発行位置を
    * 最小追加した — `TRIGGER_SOURCE`/`TRIGGER_TARGET`のPS対象解決自体は
    * RES-005（Issue #172）のスコープのまま。
    */
@@ -739,7 +739,7 @@ export interface BattleDomainEventPayloadMap {
     readonly untypedShieldAbsorbed: number;
     /**
      * R-SUB-01第1項「通常シールドをすべて適用した後にサブユニットがダメージを
-     * 受ける」の吸収量（DMG-010、Issue #191、PR #301レビュー[P1]）。`BURN`/`POISON`は
+     * 受ける」の吸収量（DMG-010、Issue #191）。`BURN`/`POISON`は
      * 第2項によりサブユニットでも受けないため常に0。
      *
      * この項が無いと、下の保存則がサブユニット吸収分だけ成立せず、クライアントは
@@ -778,10 +778,10 @@ export interface BattleDomainEventPayloadMap {
      * R-DOT-04「効果量は大きい方」の採用判断に使った、統合時点の対象HPで評価した
      * 1回あたり毒ダメージ（`min(現在HP × 効果率, 付与時攻撃力)`）。`magnitude*`は
      * 各インスタンスが自分の付与時点で評価した保存値であり評価時点が揃わないため、
-     * この2値が無いとログから採否の理由を再現できない（PRレビュー[P1]）。
+     * この2値が無いとログから採否の理由を再現できない。
      *
      * R-DOT-01の切り捨て・最低1ダメージを適用する**前**の値であり、整数とは限らず
-     * 1未満にもなりうる（再レビュー[P2]）— R-DOT-04が比較尺度とする「効果量」は
+     * 1未満にもなりうる — R-DOT-04が比較尺度とする「効果量」は
      * 丸め前の毒ダメージであり、丸めは発生時にR-DOT-01が最終結果へ適用する別規則
      * だからである。実際に与えるダメージは`ContinuousDamageApplied.calculatedDamage`。
      */
@@ -958,8 +958,7 @@ export interface BattleDomainEventPayloadMap {
    * 進んだか使用者戦闘不能で打ち切ったかという事実だけから決まり、
    * `unresolvedEffectCount`の値からは導出しない。`unresolvedEffectCount`は
    * 中断時点で実際に開いていたACTION適用一覧のうち未処理のまま残った
-   * 「効果単位」数の厳密値（レビュー指摘[P2]、PR #218 2度目の再レビュー:
-   * 計数単位は実装`countHits`と一致させ、DAMAGEは残りヒットごとに1、
+   * 「効果単位」数の厳密値（計数単位は実装`countHits`と一致させ、DAMAGEは残りヒットごとに1、
    * 非DAMAGEは残りapplication（対象1件×EffectAction1件、常にhits.length
    * === 1）ごとに1として数える）であり、まだ開始していないstep・branch・
    * iterationは常に0として扱う（静的な見積もりを行わないため、
@@ -985,7 +984,7 @@ export interface BattleDomainEventPayloadMap {
    * 直後・候補抽出より前に採番する例外的な子イベント（「複合処理と状態差分の
    * 所有」参照）。`carry`は`CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数
    * （`INCREMENT`では常に0）。`carry`のみが変化した更新でもこのイベント自体は
-   * 発行するため（追跡性のため、レビュー再々レビュー[P1]）、`valueChanged`
+   * 発行するため（追跡性のため）、`valueChanged`
    * （`before !== after`、閾値を実際に跨いだかどうか）をCatalog側の閾値到達PS
    * 向けの絞り込み条件として持つ。`skillDefinitionId`/`effectInstanceId`は
    * `scope`に応じて排他的に存在する — `SKILL_RUNTIME`は`skillDefinitionId`のみ、

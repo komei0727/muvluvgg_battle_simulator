@@ -129,7 +129,7 @@ function actionEffect(
 }
 
 describe("recordActionCompletion", () => {
-  it("UT-ACT-COMPLETION-001 (review re-fix [P2]): threads ActionCompleting/CooldownReduced/CooldownCompleted/ActionCompleted through the optional onFactEventForPassiveChain hook, in event order, and returns the hook's own final units (not just the internally batch-decremented ones)", () => {
+  it("UT-ACT-COMPLETION-001: threads ActionCompleting/CooldownReduced/CooldownCompleted/ActionCompleted through the optional onFactEventForPassiveChain hook, in event order, and returns the hook's own final units (not just the internally batch-decremented ones)", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const seed = recorder.record({
       eventType: "TurnStarted",
@@ -180,7 +180,7 @@ describe("recordActionCompletion", () => {
     expect(result.units[0]?.currentHp).toBe(initialActor.currentHp + notifiedEventTypes.length);
   });
 
-  it("UT-ACT-COMPLETION-002 (review re-fix [P2]): omitting onFactEventForPassiveChain behaves exactly as before (no hook calls, the batch-decremented units are returned as-is)", () => {
+  it("UT-ACT-COMPLETION-002: omitting onFactEventForPassiveChain behaves exactly as before (no hook calls, the batch-decremented units are returned as-is)", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const seed = recorder.record({
       eventType: "TurnStarted",
@@ -365,13 +365,13 @@ describe("recordActionCompletion", () => {
   });
 
   // R-EFF-08 (expiration.conditions) wiring moved to
-  // `PassiveActivationRuntime.onFactEvent` (レビュー指摘[P2]、PR #209) so it
+  // `PassiveActivationRuntime.onFactEvent` so it
   // applies to every FACT/TIMING event, not just `ActionCompleted` — see
   // `passive-activation-service.test.ts`'s `onFactEvent` describe block for
   // the equivalent coverage.
 });
 
-describe("shield decay ordering at COMPLETING (DMG-004, Issue #194, PRレビュー再指摘[P1])", () => {
+describe("shield decay ordering at COMPLETING (DMG-004, Issue #194)", () => {
   const DECAY = { unit: "ACTION" as const, ratio: 0.5 };
 
   function shieldOn(

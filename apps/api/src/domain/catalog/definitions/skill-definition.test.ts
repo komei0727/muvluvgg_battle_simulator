@@ -203,7 +203,7 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SKL-029 (M7-016, Issue #270 review [P1]): rejects steps declared on a CHARGE skill's own top-level (start) EffectSequence for the same reason as counterUpdates — resolveChargeStart never resolves them, so accepting them would silently drop the declared EffectActions", () => {
+  it("UT-CAT-SKL-029 (M7-016, Issue #270): rejects steps declared on a CHARGE skill's own top-level (start) EffectSequence for the same reason as counterUpdates — resolveChargeStart never resolves them, so accepting them would silently drop the declared EffectActions", () => {
     const input = minimalAsInput();
     expect(() =>
       createSkillDefinition({
@@ -233,7 +233,7 @@ describe("SkillDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SKL-030 (M7-016, Issue #270 review [P1]): keeps the CHARGE start-side targetBindings, which the AS/EX activationCondition is scoped to even though no start-side step resolves", () => {
+  it("UT-CAT-SKL-030 (M7-016, Issue #270): keeps the CHARGE start-side targetBindings, which the AS/EX activationCondition is scoped to even though no start-side step resolves", () => {
     const input = minimalAsInput();
     const result = createSkillDefinition({
       ...input,
@@ -263,7 +263,7 @@ describe("SkillDefinition", () => {
     expect(result.resolution.steps).toEqual([]);
   });
 
-  it("UT-CAT-SKL-028 (PR #213 review [P1]): rejects counterUpdates declared on a CHARGE skill's own top-level (start) EffectSequence, since it never resolves at runtime (only chargeRelease.counterUpdates is honored)", () => {
+  it("UT-CAT-SKL-028: rejects counterUpdates declared on a CHARGE skill's own top-level (start) EffectSequence, since it never resolves at runtime (only chargeRelease.counterUpdates is honored)", () => {
     const input = minimalAsInput();
     expect(() =>
       createSkillDefinition({

@@ -48,7 +48,7 @@ import {
  * 弾かれていたが、`DMG-002`（Issue #192）が同Capabilityを `IMPLEMENTED` にしたため
  * 編成可能になった。Memory由来Markerを持つ `MEM_ALWAYS_PICO_BESIDE_YOU` はDomain側は
  * 完走できるが、v1 API契約が付与元なしMarkerを表現できないため
- * `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263、PR #262レビュー[P1]）で
+ * `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）で
  * 引き続きpreflightが弾く。いずれもCatalog上の変換が近似なしであることと、
  * 残る1件だけが編成不可であることを固定する。
  */
@@ -438,7 +438,7 @@ interface MemoryExpectation {
   /**
    * Capability preflightがこのMemoryを編成不可として弾く原因のCapability。
    * `CAP_MEMORY_GRANTED_MARKER`はv1 API契約が付与元なしMarkerを表現できないこと
-   * （`REL-008`／Issue #263、PR #262レビュー[P1]）による。空配列なら編成可能
+   * （`REL-008`／Issue #263）による。空配列なら編成可能
    * （`CAP_DAMAGE_MOD`は`DMG-002`／Issue #192で`IMPLEMENTED`になった）。
    */
   readonly gatedBy: readonly string[];

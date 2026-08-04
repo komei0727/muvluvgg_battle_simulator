@@ -182,7 +182,7 @@ describe("defensive intervention policy (DMG-006, R-INT-01〜03)", () => {
       });
     });
 
-    // PR #298レビュー[P2]: production Catalogは`["DAMAGE"]`以外の`appliesTo.actionKinds`を
+    // production Catalogは`["DAMAGE"]`以外の`appliesTo.actionKinds`を
     // ロード時点で拒否する（`catalog-integrity.ts`の`UT-R-INT-01-021`）。ここで検証するのは
     // Catalogを経由しない合成定義に対する`appliesTo`の意味論そのものである。
     it("UT-R-INT-01-002: does not select a redirect whose appliesTo excludes this attack kind, and does select ANY", () => {

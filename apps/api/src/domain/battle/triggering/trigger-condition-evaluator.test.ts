@@ -601,7 +601,7 @@ describe("evaluateTriggerCondition", () => {
     });
   });
 
-  describe("TARGET_STATE (レビュー修正 PR #209、EFF-003: production Catalogの ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL が TARGET_STATE/SELF/IS_ALIVE を使用)", () => {
+  describe("TARGET_STATE (EFF-003: production Catalogの ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL が TARGET_STATE/SELF/IS_ALIVE を使用)", () => {
     it("UT-R-PS-01-028: IS_ALIVE/SELF matches the owner's own alive state", () => {
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
       const condition: ConditionDefinition = {
@@ -1015,7 +1015,7 @@ describe("evaluateTriggerCondition", () => {
       ).toBe(false);
     });
 
-    it("UT-R-PS-01-043b (review [P2]): an absent marker stays false even for countCondition operators that a stackCount of 0 would satisfy (EQ 0, LTE 1)", () => {
+    it("UT-R-PS-01-043b: an absent marker stays false even for countCondition operators that a stackCount of 0 would satisfy (EQ 0, LTE 1)", () => {
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
       const eqZero: ConditionDefinition = {
         kind: "TARGET_HAS_MARKER",

@@ -273,7 +273,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-012 (R-EFF-10, PR #210レビュー[P1] fix): maps real MarkerSnapshots from snapshot.markers into BattleUnitStateResponseBody.markers instead of always returning an empty array", () => {
+  it("API-RESP-012 (R-EFF-10): maps real MarkerSnapshots from snapshot.markers into BattleUnitStateResponseBody.markers instead of always returning an empty array", () => {
     const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
     const markerId = createMarkerId("MARKER_TEST");
     const base = baseResult();
@@ -363,7 +363,7 @@ describe("toBattleSimulationResponseBody", () => {
     ]);
   });
 
-  it("API-RESP-012E (PR #264レビュー[P1]): classifies an advantageous APPLY_STATUS (STEALTH etc., outside STATUS_AILMENT_KINDS) as BUFF while still publishing its statusKind, matching effectCategoriesOf", () => {
+  it("API-RESP-012E: classifies an advantageous APPLY_STATUS (STEALTH etc., outside STATUS_AILMENT_KINDS) as BUFF while still publishing its statusKind, matching effectCategoriesOf", () => {
     const base = baseResult();
     const withAdvantageousStatus = baseResult({
       finalState: {
@@ -410,7 +410,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.map((effect) => effect.statusKind)).toEqual(["STEALTH", "DAMAGE_IMMUNITY"]);
   });
 
-  it("API-RESP-012F (PR #264レビュー[P1]): classifies every STATUS_AILMENT_KINDS member as STATUS_ABNORMALITY", () => {
+  it("API-RESP-012F: classifies every STATUS_AILMENT_KINDS member as STATUS_ABNORMALITY", () => {
     const base = baseResult();
     const withAilments = baseResult({
       finalState: {
@@ -427,7 +427,7 @@ describe("toBattleSimulationResponseBody", () => {
               duplicate: false,
               isEffective: true,
               magnitude: 0,
-              // PR #288レビュー[P1]: `categories`は手書きせず、Domainの唯一の
+              // `categories`は手書きせず、Domainの唯一の
               // 分類元へ実際に通した値を載せる（以前は`["BUFF"]`という、この
               // statusKindではありえない値のままでも通っていた）。
               categories: [
@@ -492,7 +492,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 
-  it("API-RESP-012G (PR #288レビュー[P1]): classifies continuous damage from the Domain categories, so a positive-magnitude 毒/炎上 is STATUS_ABNORMALITY and 固定継続ダメージ is DEBUFF, not BUFF", () => {
+  it("API-RESP-012G: classifies continuous damage from the Domain categories, so a positive-magnitude 毒/炎上 is STATUS_ABNORMALITY and 固定継続ダメージ is DEBUFF, not BUFF", () => {
     // `APPLY_CONTINUOUS_DAMAGE`は`statusKind`を持たず`magnitude`（ダメージ量）が
     // 正値のため、符号だけで分類すると毒・炎上・固定継続ダメージがすべて`BUFF`に
     // なる。R-EFF-02/R-STS-01の分類（`AppliedEffect.categories`）を正本にする。
@@ -545,7 +545,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 
-  it("API-RESP-012B (PR #262レビュー[P1]): throws INTERNAL_INVARIANT_VIOLATION instead of silently omitting the required sourceUnitId when a Memory-granted (source-less) MarkerState reaches the v1 MarkerStateResponse mapper", () => {
+  it("API-RESP-012B: throws INTERNAL_INVARIANT_VIOLATION instead of silently omitting the required sourceUnitId when a Memory-granted (source-less) MarkerState reaches the v1 MarkerStateResponse mapper", () => {
     const base = baseResult();
     const withMemoryMarker = baseResult({
       finalState: {
@@ -578,7 +578,7 @@ describe("toBattleSimulationResponseBody", () => {
     );
   });
 
-  it("API-RESP-013 (R-EFF-10, PR #210レビュー[P1] fix): maps a StateTransition's markers delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined)", () => {
+  it("API-RESP-013 (R-EFF-10): maps a StateTransition's markers delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined)", () => {
     const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
     const markerId = createMarkerId("MARKER_TEST");
     const applied = {
@@ -942,7 +942,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-010B (M5 review round 3 [P2] fix): throws instead of silently producing an invalid CooldownStateResponse when a Domain cooldown's unit/setActionId/setTurnNumber XOR is violated (ACTION unit missing setActionId)", () => {
+  it("API-RESP-010B: throws instead of silently producing an invalid CooldownStateResponse when a Domain cooldown's unit/setActionId/setTurnNumber XOR is violated (ACTION unit missing setActionId)", () => {
     expect(() =>
       toBattleSimulationResponseBody(
         baseResult({
@@ -979,7 +979,7 @@ describe("toBattleSimulationResponseBody", () => {
     ).toThrow(/setActionId/);
   });
 
-  it("API-RESP-010C (M5 review round 4 [P3] fix): throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {
+  it("API-RESP-010C: throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {
     expect(() =>
       toBattleSimulationResponseBody(
         baseResult({
@@ -1088,7 +1088,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-010D (M5 review round 4 [P3] fix): CooldownStateResponseBody rejects a value with both setAtActionId and setAtTurnNumber at the type level, even through an intermediate variable (not just via excess-property-check on a literal)", () => {
+  it("API-RESP-010D: CooldownStateResponseBody rejects a value with both setAtActionId and setAtTurnNumber at the type level, even through an intermediate variable (not just via excess-property-check on a literal)", () => {
     const both = {
       skillDefinitionId: "SKL_1",
       unit: "ACTION" as const,

@@ -12,7 +12,7 @@ import {
 } from "../../testing/fixtures/index.js";
 
 /**
- * Review fix [P1] (Issue #144 follow-up, PR #152): `TurnStarted`/`TurnCompleting`
+ * Issue #144 follow-up: `TurnStarted`/`TurnCompleting`
  * carry neither `sourceUnitId` nor `targetUnitIds` (they are global,
  * unit-less lifecycle events — `battle.ts` never sets these fields when
  * recording them). production Catalog authors 39 PS triggers
@@ -49,7 +49,7 @@ function actorFor(unitDefinitionId: string, battleUnitId: string): BattleUnit {
   });
 }
 
-describe("production Catalog TurnStarted/TurnCompleting SELF/SELF triggers (review fix [P1], Issue #144 follow-up)", () => {
+describe("production Catalog TurnStarted/TurnCompleting SELF/SELF triggers (Issue #144 follow-up)", () => {
   it("IT-CAT-PROD-016: SKL_KARINA_DOWNER_PS2's real TurnCompleting SELF/SELF trigger candidates its owner given the exact event shape battle.ts emits (no sourceUnitId/targetUnitIds)", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [KARINA_UNIT_ID]);
     const karinaUnitDefinition = unitFrom(snapshot, KARINA_UNIT_ID);

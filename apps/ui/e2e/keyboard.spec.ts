@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 
 // Presses real Tab keystrokes — not locator.focus() — until `target` becomes
 // document.activeElement, proving the target is actually reachable in the
-// page's live tab order (review: PR #124 — locator.focus() can move focus
+// page's live tab order (locator.focus() can move focus
 // to an element regardless of whether a real keyboard user could Tab to it,
 // so it is not evidence of keyboard reachability). The exact number of
 // presses is not asserted/hardcoded: that would recouple this test to
@@ -74,7 +74,7 @@ test("reaches every step of unit selection through the details tabs via real Tab
   await expect(transitionsTab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel", { name: "状態遷移" })).toBeVisible();
 
-  // PR #154レビュー[P1]: 因果ツリーtabも他tabと同じくArrowだけで到達・選択
+  // 因果ツリーtabも他tabと同じくArrowだけで到達・選択
   // できることを実keystrokeで検証する(UI-NFR-001)。Home/Endで両端へ移動できる
   // ことも合わせて確認する。
   const causalityTreeTab = page.getByRole("tab", { name: "因果ツリー" });

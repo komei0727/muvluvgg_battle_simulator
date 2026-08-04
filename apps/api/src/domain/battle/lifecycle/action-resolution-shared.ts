@@ -180,7 +180,7 @@ export function increaseExGauge(
   resourceGainRate = 0,
 ): ExGaugeIncreaseApplication {
   const actor = requireUnit(units, actorId);
-  // PRレビュー指摘[P1]（PR #254）: RESOURCE_GAIN_MODはSTACKABLEで、`composeResourceGainRate`が
+  // RESOURCE_GAIN_MODはSTACKABLEで、`composeResourceGainRate`が
   // 保持中の全インスタンスを合算するため、負のrateが複数重なると合成後の`resourceGainRate`が
   // -100%を下回りうる（R-FRM-03で同一UnitDefinitionの複数編成が許容されるためproduction到達可能）。
   // このAPI自体は「EXゲージ増加」（R-ACT-03）であり、Modifierは増加量を0まで減衰させられるが、
@@ -216,7 +216,7 @@ export interface ResourceChangeRecordContext {
   readonly actionId?: ActionId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
-  /** レビュー指摘[P2]: 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
+  /** 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
   readonly skillUseId?: SkillUseId;
 }
 

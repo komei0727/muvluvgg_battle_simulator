@@ -72,7 +72,7 @@ export interface ChargeState {
  * 同種グループの最強1件だけが`true`になる。`duration`は
  * `AppliedEffect.duration.definition.timeLimit.unit`が`ACTION`/`TURN`/`SKILL_USE`
  * の場合だけ持つ（`10_API設計.md`の`EffectStateResponse.duration`が表現できる
- * 範囲。TGT-004フェーズ1、Issue #167、PR #234再レビューで`SKILL_USE`を追加した
+ * 範囲。TGT-004フェーズ1（Issue #167）で`SKILL_USE`を追加した
  * — `BATTLE`/`HIT`は引き続き対象外）。`consumptionRemaining`（EFF-003、
  * R-EFF-07）は`10_API設計.md`の`EffectStateResponse`が公開契約として持たない
  * 内部専用フィールド — `EffectConsumptionChanged`のstateDelta・独立Reducer
@@ -335,7 +335,7 @@ export interface UnitStateDelta {
    * （設定scope自体は変わらないため、独立Reducerは既存値を保持する）。
    *
    * `establishesScope`（Issue #248で表面化した既存欠陥）は「この差分がエントリ自体を
-   * 設定し直す（`CooldownStarted`）」ことを表す。R-SKL-04/PR #141のとおり、行動外の
+   * 設定し直す（`CooldownStarted`）」ことを表す。R-SKL-04のとおり、行動外の
    * トップレベルイベントから発動したPSは`unit: "ACTION"`でも設定scopeを持たない
    * エントリになるため、`setActionId`/`setTurnNumber`の**不在**そのものが意味を持つ。
    * この印が無いと独立Reducerは不在を「省略（既存値を保持）」と解釈するしかなく、
@@ -361,7 +361,7 @@ export interface UnitStateDelta {
    * 単独で所有する`stateDelta`）。値が変化しなかった更新（carryのみの変化）では
    * このキー自体を持たない（`skillCounterCarry`を参照）。
    *
-   * レビュー指摘[P1]: `after: undefined`は`RuntimeCounterReset`によるcounter
+   * `after: undefined`は`RuntimeCounterReset`によるcounter
    * キー自体の削除を表す（`0`という値ではなく、実状態の`resetRuntimeCounter`が
    * キーを`delete`することと対応させる — `after: 0`のままだと独立Reducerが
    * `{ counter: 0 }`を復元してしまい、実状態の`{}`と一致しなくなる）。
@@ -371,9 +371,8 @@ export interface UnitStateDelta {
   >;
   /**
    * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の差分
-   * （レビュー再々レビュー[P2]、Issue #143: `carry`はStateDeltaから除外されて
-   * いたため、次回の閾値判定に必要な内部状態がStateDelta単独から復元できな
-   * かった）。`skillCounters`と同じ2段キーだが独立に変化するため別フィールドと
+   * （Issue #143: `carry`をStateDeltaから除外すると、次回の閾値判定に必要な
+   * 内部状態がStateDelta単独から復元できない）。`skillCounters`と同じ2段キーだが独立に変化するため別フィールドと
    * する（`INCREMENT`は常に`carry`が0のままのためこのキーを持たない）。
    * `after: undefined`は`RuntimeCounterReset`によるキー削除を表す。
    */

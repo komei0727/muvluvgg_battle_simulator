@@ -140,7 +140,7 @@ describe("production Catalog CAP_PARTIAL_PIERCING — APPLY_PIERCING_MOD (DMG-00
       let allUnits: readonly BattleUnit[] = [actor, enemy];
       const { recorder, rootEventId } = seedRecorder(scope);
 
-      // PR #296レビュー[P1]: 対照は「PSを走らせたか」ではなく「一時貫与が
+      // 対照は「PSを走らせたか」ではなく「一時貫与が
       // 残っているか」だけで切り替える。同じPSは`ACT_RAMI_NEWYEAR_PS1_DMG_UP`
       // （与ダメージ+20%）も必ず付与するため、PS実行そのものを対照にすると
       // 貫通が一切効いていなくてもダメージ差が出てしまい、貫通の配線漏れを
@@ -203,9 +203,9 @@ describe("production Catalog CAP_PARTIAL_PIERCING — APPLY_PIERCING_MOD (DMG-00
         }),
       );
       const after = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
-      // PR #296レビュー[P1]: `DamageWillBeApplied`（snapshot）ではなく
-      // `DamageCalculated`（確定値）を見る。前者にしか合成率が現れず実計算が
-      // 静的値のままだった、というのが指摘された不具合の形である。
+      // `DamageWillBeApplied`（snapshot）ではなく`DamageCalculated`（確定値）を
+      // 見る。前者にしか合成率が現れず実計算が静的値のまま、という不具合は
+      // snapshot側だけを見ていると検出できない。
       const calculated = recorder
         .getEvents()
         .filter(

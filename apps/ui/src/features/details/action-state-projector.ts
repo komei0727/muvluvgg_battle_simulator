@@ -3,7 +3,7 @@
 // simulate-battle-response-mapper.ts の finalState.units[].cooldowns/charge
 // はM5実装後、Domainの実値を返す(cooldownsは残数>0のスキルだけの配列)。
 // `finalState`はlogLevelに関わらず常に完全（`captureBattleState`はlogLevelを
-// 見ない）なので、これを正本として読む(PR #131レビューで露呈したSUMMARYログの
+// 見ない）なので、これを正本として読む(SUMMARYログの
 // 「不明」表示問題は、finalStateを使う限りそもそも発生しない)。
 //
 // DMG-010（Issue #191、07_UI実装・拡張計画.md §12）でシールドプール
@@ -45,8 +45,8 @@ export interface UnitChargeState {
 /**
  * `10_API設計.md`「EffectStateResponse」のうち、ユニット状態の一覧表示が使う項目
  * （M7-009、Issue #182）。`statusKind`は`APPLY_STATUS`由来の効果だけが持ち、
- * 気絶等の状態異常だけでなくSTEALTH等の有利な状態にも設定される（PR #264
- * レビュー[P1]）。状態異常かどうかは`category`が正本であり、`statusKind`の有無や
+ * 気絶等の状態異常だけでなくSTEALTH等の有利な状態にも設定される。
+ * 状態異常かどうかは`category`が正本であり、`statusKind`の有無や
  * `effectKindKey`の命名からは判定しない。
  */
 export interface UnitEffectState {

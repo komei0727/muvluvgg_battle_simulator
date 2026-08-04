@@ -35,7 +35,7 @@ export interface ImmunityBlockCandidate {
  * factoryが強制する）、候補が状態異常（`isStatusAilment`、R-STS-01により
  * `STATUS`と`DEBUFF`の両方に分類される）であれば、一致したカテゴリが`STATUS`
  * 自身か`DEBUFF`かに関わらず`statusKinds`一覧で絞り込む — `DEBUFF`側の一致を
- * 経由した迂回を防ぐ（PR #245レビュー[P2]指摘）。候補が状態異常でない
+ * 経由した迂回を防ぐ。候補が状態異常でない
  * （通常のstat debuff等）場合は`DEBUFF`が無条件でブロックする（従来の粒度）。
  */
 function categoryBlocks(

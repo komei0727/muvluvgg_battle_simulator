@@ -33,7 +33,7 @@ describe("checkEffectsResolvedCount", () => {
   });
 });
 
-describe("checkEffectRuntimeCounterDepth (PR #211 review [P1])", () => {
+describe("checkEffectRuntimeCounterDepth", () => {
   it("UT-GUARD-010: a depth at or below the limit is ok", () => {
     expect(checkEffectRuntimeCounterDepth(3, LIMITS)).toEqual({ ok: true });
   });
