@@ -306,7 +306,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `.11`: R-CFS-01's inversion is `ALLY`↔`ENEMY`
     // only, so `CAP_CONFUSION`'s description now spells out that `side: ALL` is
     // left alone. Capability metadata only — no definition changed.
-    expect(catalog.catalogRevision).toBe("2026-08-02.11");
+    // `.12` (REF-021, Issue #324): review-provenance prefixes were stripped from
+    // `capabilities.json` descriptions to match CLAUDE.md's comment convention.
+    // Wording only — no definition, `runtimeStatus`, or `verification` changed,
+    // so every expectation in this file stays the same.
+    expect(catalog.catalogRevision).toBe("2026-08-02.12");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

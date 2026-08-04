@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "catalogRevision": "2026-08-02.11",
+  "catalogRevision": "2026-08-02.12",
   "files": {
     "units.json": "sha256:a15b6dbabc287b426a6f67984ff38250ca4227c1cfb39eebb10e9d267c75ee90",
     "skills.json": "sha256:931b3ba500d00c4887d7273269bd482a2360878a28597a0a79814feaf09f4a7c",
