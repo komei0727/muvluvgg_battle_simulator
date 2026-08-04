@@ -54,8 +54,8 @@ function marker(unit: BattleUnit, markerIdValue: string, stackCount: number): Ma
   return {
     markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
     markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
+    sourceUnitId: unit.battleUnitId,
+    targetUnitId: unit.battleUnitId,
     stackCount,
     stackMax: null,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },

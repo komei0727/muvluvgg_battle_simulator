@@ -83,7 +83,7 @@ export const resolveModifyResourceCapacity: EffectActionHandler<"MODIFY_RESOURCE
     {
       definition: effectAction,
       ...grantSourceOf(context),
-      targetId: application.targetBattleUnitId,
+      targetUnitId: application.targetUnitId,
       duplicate: true,
       magnitude,
       durationDefinition: effectAction.payload.duration,
@@ -97,7 +97,7 @@ export const resolveModifyResourceCapacity: EffectActionHandler<"MODIFY_RESOURCE
       eventContextOf(context),
       beforeGrantUnits,
       box.units,
-      application.targetBattleUnitId,
+      application.targetUnitId,
       context.definitions.effectActions,
       grantResult.lastEventId,
       "EFFECT_APPLIED",
@@ -129,7 +129,7 @@ export const resolveApplyResourceGainMod: EffectActionHandler<"APPLY_RESOURCE_GA
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         durationDefinition: effectAction.payload.duration,

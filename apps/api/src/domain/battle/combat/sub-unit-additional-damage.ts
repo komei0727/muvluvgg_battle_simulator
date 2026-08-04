@@ -87,7 +87,7 @@ export function* applySubUnitAdditionalDamageSteps(
   // 元のヒットが回避されていても対象からは外さない。既に戦闘不能な対象は下の
   // `isDefeated`判定が除く（R-ACTN-01 #2）。使用者の戦闘不能による中断
   // （`interrupted`）はこの関数の冒頭で既に打ち切っている。
-  const targetUnitIds = [...new Set(outcomes.map((outcome) => outcome.targetBattleUnitId))];
+  const targetUnitIds = [...new Set(outcomes.map((outcome) => outcome.targetUnitId))];
 
   // 追加ダメージのヒット番号は、この攻撃の追加ダメージ列の中で0から通し番号にする
   // （元のDAMAGE EffectActionのヒット番号とは別系列であり、`effectActionDefinitionId`
@@ -211,7 +211,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
     return { kind: intervention.kind, lastEventId: intervention.lastEventId };
   }
   const owner = findUnit(working, attackerUnitId, "attacker.battleUnitId");
-  const target = findUnit(working, intervention.defenderUnitId, "hits[].targetBattleUnitId");
+  const target = findUnit(working, intervention.defenderUnitId, "hits[].targetUnitId");
 
   const formulaContext = {
     skillSource: owner,

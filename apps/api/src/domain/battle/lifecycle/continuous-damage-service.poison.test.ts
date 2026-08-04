@@ -107,16 +107,16 @@ function poisonDefinition(
 
 function poisonRequest(
   definition: EffectActionDefinition,
-  targetId: string,
-  sourceId: string,
+  targetUnitId: string,
+  sourceUnitId: string,
   magnitude: number,
   sourceAttack: number,
   durationCount: number,
 ): GrantEffectRequest {
   return {
     definition,
-    sourceId: createBattleUnitId(sourceId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(sourceUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     duplicate: true,
     magnitude,
     continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },

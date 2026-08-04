@@ -49,7 +49,7 @@ export interface WaitEstablishedContext {
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   readonly parentEventId: DomainEventId;
-  readonly actorId: BattleUnitId;
+  readonly actorUnitId: BattleUnitId;
   readonly units: readonly BattleUnit[];
 }
 
@@ -77,19 +77,19 @@ export function resolveWait(
   actionScope: ResolutionScopeId,
   onWaitEstablished?: WaitEstablishedHook,
 ): ActionResolutionResult {
-  const actorId = actor.battleUnitId;
+  const actorUnitId = actor.battleUnitId;
   const consumedAmount = consumedResource === "AP" ? 1 : actor.currentExtraGauge;
   let working =
     consumedResource === "AP"
-      ? consumeAp(units, actorId, consumedAmount)
-      : consumeExGaugeFully(units, actorId);
-  const actorAfterCost = requireUnit(working, actorId);
+      ? consumeAp(units, actorUnitId, consumedAmount)
+      : consumeExGaugeFully(units, actorUnitId);
+  const actorAfterCost = requireUnit(working, actorUnitId);
 
   const exGain =
     consumedResource === "AP"
       ? increaseExGauge(
           working,
-          actorId,
+          actorUnitId,
           consumedAmount,
           composeResourceGainRate(actorAfterCost, "EX_GAUGE", definitions.effectActions),
         )
@@ -97,7 +97,7 @@ export function resolveWait(
   if (exGain !== undefined) {
     working = exGain.units;
   }
-  const actorAfterExGain = requireUnit(working, actorId);
+  const actorAfterExGain = requireUnit(working, actorUnitId);
 
   const actionStarted = recorder.record({
     eventType: "ActionStarted",
@@ -106,9 +106,9 @@ export function resolveWait(
     cycleNumber,
     actionId,
     resolutionScopeId: actionScope,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       reservedActionType,
       effectiveActionType: "WAIT",
       apBefore: actor.currentAp,
@@ -132,7 +132,7 @@ export function resolveWait(
     consumedResource === "AP"
       ? recordResourceChangeIfAny(
           resourceChangeContext,
-          actorId,
+          actorUnitId,
           "AP",
           actor.currentAp,
           actorAfterCost.currentAp,
@@ -143,7 +143,7 @@ export function resolveWait(
         )
       : recordResourceChangeIfAny(
           resourceChangeContext,
-          actorId,
+          actorUnitId,
           "EX_GAUGE",
           actor.currentExtraGauge,
           actorAfterCost.currentExtraGauge,
@@ -155,7 +155,7 @@ export function resolveWait(
   if (exGain !== undefined) {
     lastEventId = recordResourceChangeIfAny(
       resourceChangeContext,
-      actorId,
+      actorUnitId,
       "EX_GAUGE",
       exGain.before,
       exGain.after,
@@ -166,7 +166,7 @@ export function resolveWait(
     );
     lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
       resourceChangeContext,
-      actorId,
+      actorUnitId,
       exGain.baseDelta,
       exGain.requestedAmount,
       exGain.after - exGain.before,
@@ -200,7 +200,7 @@ export function resolveWait(
   // 継続回復を、行動本体（`ActionWaited`）より前に発火させる。
   const continuousHeal = fireContinuousHealsOnActionStart(
     working,
-    actorId,
+    actorUnitId,
     {
       ...resourceChangeContext,
       effectActions: definitions.effectActions,
@@ -248,7 +248,7 @@ export function resolveWait(
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
     working,
-    actorId,
+    actorUnitId,
     recorder,
     {
       actionId,
@@ -256,7 +256,7 @@ export function resolveWait(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (
         event: BattleDomainEvent,
@@ -282,9 +282,9 @@ export function resolveWait(
     resolutionScopeId: actionScope,
     parentEventId: lastEventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       waitReason,
       consumedResource,
       consumedAmount,
@@ -306,7 +306,7 @@ export function resolveWait(
     resolutionScopeId: actionScope,
     rootEventId: actionStarted.eventId,
     parentEventId: actionWaited.eventId,
-    actorId,
+    actorUnitId,
     units: working,
   });
   if (establishedEvent !== undefined) {
@@ -322,7 +322,7 @@ export function resolveWait(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (event, unitsForChain) =>
         passiveRuntime.onFactEvent(event, unitsForChain).units,

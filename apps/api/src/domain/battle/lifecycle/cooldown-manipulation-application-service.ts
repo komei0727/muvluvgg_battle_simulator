@@ -84,7 +84,7 @@ export function applyCooldownManipulationAction(
   }
 
   for (const hit of hits) {
-    const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
+    const target = findUnit(working, hit.targetUnitId, "hits[].targetUnitId");
     const result = manipulateCooldown(
       target.cooldowns,
       action.payload.targetSkillDefinitionId,

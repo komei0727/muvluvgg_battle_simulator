@@ -174,8 +174,8 @@ function setup(options: {
         units,
         {
           markerId: createMarkerId(preStack.markerId),
-          sourceId: actor.battleUnitId,
-          targetId: holderId,
+          sourceUnitId: actor.battleUnitId,
+          targetUnitId: holderId,
           stackPolicy: "ADD",
           stackMax: preStack.stackMax,
           durationDefinition: {
@@ -197,7 +197,7 @@ function setup(options: {
     recorder,
     resolutionScopeId,
     units,
-    actorId: actor.battleUnitId,
+    actorUnitId: actor.battleUnitId,
     enemyIds: enemies.map((enemy) => enemy.battleUnitId),
   };
 }
@@ -228,10 +228,10 @@ function stackCountOf(
 }
 
 function fireSkill(setupResult: ReturnType<typeof setup>, skillType: "AS" | "EX" = "AS") {
-  const { recorder, resolutionScopeId, units, definitions, skill, actorId } = setupResult;
+  const { recorder, resolutionScopeId, units, definitions, skill, actorUnitId } = setupResult;
   const eventsBefore = recorder.getEvents().length;
   const result = resolveSkillUse(
-    unitOf(units, actorId),
+    unitOf(units, actorUnitId),
     skill,
     skillType,
     skillType,
@@ -285,19 +285,25 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
         // `ACT_CHIYURU_NEWYEAR_EX_MOCHI`/`_PS1_MOCHI`の実stack上限（6）で積む。
         preStacks: [{ holder: "ACTOR", markerId: MOCHI_MARKER_ID, stacks: mochi, stackMax: 6 }],
       });
-      expect(stackCountOf(context.units, context.actorId, MOCHI_MARKER_ID)).toBe(mochi);
+      expect(stackCountOf(context.units, context.actorUnitId, MOCHI_MARKER_ID)).toBe(mochi);
 
       const units = fireSkill(context).result.units;
 
       // raw原文「付与されている「お餅」1つにつき、自身の攻撃力を3%、防御力を6%
       // 上昇させる（最大6つまで）」がそのまま`perStack`/`max`になっている。
-      expect(magnitudeOf(units, context.actorId, CHIYURU_ATK_UP_ID)).toBeCloseTo(attackRatio, 10);
-      expect(magnitudeOf(units, context.actorId, CHIYURU_DEF_UP_ID)).toBeCloseTo(defenseRatio, 10);
+      expect(magnitudeOf(units, context.actorUnitId, CHIYURU_ATK_UP_ID)).toBeCloseTo(
+        attackRatio,
+        10,
+      );
+      expect(magnitudeOf(units, context.actorUnitId, CHIYURU_DEF_UP_ID)).toBeCloseTo(
+        defenseRatio,
+        10,
+      );
 
       // 評価結果は`AppliedEffect.magnitude`に留まらず、実際のCombatStatへ届く。
       // R-NUM-02の整数化はダメージ側の責務であり、CombatStat自体は丸めないため
       // ここは近似比較にする（`500 × 1.36`は倍精度で679.9999999999999になる）。
-      const actor = unitOf(units, context.actorId);
+      const actor = unitOf(units, context.actorUnitId);
       expect(actor.combatStats.attack).toBeCloseTo(1000 * (1 + attackRatio), 10);
       expect(actor.combatStats.defense).toBeCloseTo(500 * (1 + defenseRatio), 10);
     },
@@ -341,8 +347,8 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
     );
 
     // 倍率の差は実際のHP減少差として現れる（同一解決・同一攻撃者・同一防御力）。
-    const dealt = (targetId: BattleUnitId): number =>
-      unitOf(context.units, targetId).currentHp - unitOf(result.units, targetId).currentHp;
+    const dealt = (targetUnitId: BattleUnitId): number =>
+      unitOf(context.units, targetUnitId).currentHp - unitOf(result.units, targetUnitId).currentHp;
     expect(dealt(twoStacks)).toBeGreaterThan(dealt(noMarker));
     expect(dealt(threeStacks)).toBeGreaterThan(dealt(twoStacks));
     expect(dealt(otherMarker)).toBe(dealt(noMarker));
@@ -449,12 +455,12 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
       emitted.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
     );
     expect(
-      restored.units[chiyuru.actorId]?.effects?.find(
+      restored.units[chiyuru.actorUnitId]?.effects?.find(
         (effect) => effect.effectDefinitionId === CHIYURU_ATK_UP_ID,
       )?.magnitude,
     ).toBeCloseTo(0.12, 10);
     expect(
-      restored.units[chiyuru.actorId]?.markers?.find(
+      restored.units[chiyuru.actorUnitId]?.markers?.find(
         (marker) => marker.markerId === MOCHI_MARKER_ID,
       )?.stackCount,
     ).toBe(4);

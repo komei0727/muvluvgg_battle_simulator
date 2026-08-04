@@ -108,7 +108,7 @@ function* rejectStatusApplication(
 
   const { consumeEffectDuration } = buildConsumeEffectDurationHooks(context);
   const consumptionGen = consumeEffectDuration(
-    application.targetBattleUnitId,
+    application.targetUnitId,
     "STATUS_BLOCKED",
     box.units,
     rejection.lastEventId,
@@ -149,7 +149,7 @@ function cancelChargeOnStun(
   lastEventId: DomainEventId,
 ): DomainEventId {
   const { context, box, application } = input;
-  const stunnedTarget = requireUnit(box.units, application.targetBattleUnitId);
+  const stunnedTarget = requireUnit(box.units, application.targetUnitId);
   if (stunnedTarget.charge === undefined) {
     return lastEventId;
   }
@@ -303,7 +303,7 @@ export const resolveApplyStatus: SteppedEffectActionHandler<"APPLY_STATUS"> = fu
   const grantRequest = {
     definition: effectAction,
     ...grantSourceOf(context),
-    targetId: application.targetBattleUnitId,
+    targetUnitId: application.targetUnitId,
     duplicate: true,
     magnitude: 0,
     statusKind: status,

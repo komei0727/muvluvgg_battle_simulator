@@ -57,7 +57,7 @@ function resolveConfusion(
 
 function skip(hit: ResolvedEffectApplication): DamageHitOutcome {
   return {
-    targetBattleUnitId: hit.targetBattleUnitId,
+    targetUnitId: hit.targetUnitId,
     hitIndex: hit.hitIndex,
     applied: false,
     isCritical: false,
@@ -138,7 +138,7 @@ export function* applyDamageActionSteps(
       break;
     }
 
-    const target = findUnit(working, hit.targetBattleUnitId, "hits[].targetBattleUnitId");
+    const target = findUnit(working, hit.targetUnitId, "hits[].targetUnitId");
 
     if (!(context.includeDefeated ?? false) && isDefeated(target)) {
       outcomes.push(skip(hit));
@@ -164,7 +164,7 @@ export function* applyDamageActionSteps(
       working,
       random,
       attacker.battleUnitId,
-      hit.targetBattleUnitId,
+      hit.targetUnitId,
       {
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
@@ -199,7 +199,7 @@ export function* applyDamageActionSteps(
       context,
       working,
       attacker.battleUnitId,
-      hit.targetBattleUnitId,
+      hit.targetUnitId,
       {
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
@@ -217,7 +217,7 @@ export function* applyDamageActionSteps(
       recordDamageResult(
         context.damageResults,
         attacker.battleUnitId,
-        hit.targetBattleUnitId,
+        hit.targetUnitId,
         0,
         context.skillUseId,
       );
@@ -230,7 +230,7 @@ export function* applyDamageActionSteps(
     // 介入の`DamageRedirected`連鎖が能力値を変え得るため、攻撃側も差し替え後の防御側も
     // 連鎖解決後の最新状態から取り直す（`observeHitSteps`の各再検証と同じ規約）。
     const attackerBeforeDamage = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
-    const targetBeforeDamage = findUnit(working, defenderUnitId, "hits[].targetBattleUnitId");
+    const targetBeforeDamage = findUnit(working, defenderUnitId, "hits[].targetUnitId");
 
     // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003）: このヒットで実際に使う貫通率を、
     // `DamageWillBeApplied`のsnapshotではなく再検証後の攻撃側（`attackerBeforeDamage`）
@@ -425,7 +425,7 @@ export function* applyDamageActionSteps(
       // R-INT-02第2項と同じく、後続stepやR-SUB-02の追加ダメージが参照する対象は
       // 引き寄せ・肩代わり後の防御側にする。ダメージは与えていないため`damage`は0。
       outcomes.push({
-        targetBattleUnitId: targetBeforeDamage.battleUnitId,
+        targetUnitId: targetBeforeDamage.battleUnitId,
         hitIndex: hit.hitIndex,
         applied: true,
         isCritical: critical.isCritical,
@@ -522,7 +522,7 @@ export function* applyDamageActionSteps(
     // 参照する」: 後続step・R-SUB-02の追加ダメージ対象・`lastResult.targetUnitIds`が
     // 参照する対象は、引き寄せ・肩代わり後の防御側にする。
     outcomes.push({
-      targetBattleUnitId: targetBeforeDamage.battleUnitId,
+      targetUnitId: targetBeforeDamage.battleUnitId,
       hitIndex: hit.hitIndex,
       applied: true,
       isCritical: critical.isCritical,

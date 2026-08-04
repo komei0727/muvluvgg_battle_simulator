@@ -429,12 +429,12 @@ describe("applyEffectActionGroups", () => {
             applications: [
               ...step.applications,
               {
-                targetBattleUnitId: ally.battleUnitId,
+                targetUnitId: ally.battleUnitId,
                 effectActionDefinitionId: heal.effectActionDefinitionId,
                 includeDefeated: false,
                 hits: [
                   {
-                    targetBattleUnitId: ally.battleUnitId,
+                    targetUnitId: ally.battleUnitId,
                     effectActionDefinitionId: heal.effectActionDefinitionId,
                     hitIndex: 1,
                   },
@@ -495,12 +495,12 @@ describe("applyEffectActionGroups", () => {
             applications: [
               ...step.applications,
               {
-                targetBattleUnitId: deadAlly.battleUnitId,
+                targetUnitId: deadAlly.battleUnitId,
                 effectActionDefinitionId: heal.effectActionDefinitionId,
                 includeDefeated: false,
                 hits: [
                   {
-                    targetBattleUnitId: deadAlly.battleUnitId,
+                    targetUnitId: deadAlly.battleUnitId,
                     effectActionDefinitionId: heal.effectActionDefinitionId,
                     hitIndex: 1,
                   },
@@ -559,14 +559,14 @@ describe("applyEffectActionGroups", () => {
             applications: [
               ...step.applications,
               {
-                targetBattleUnitId: deadAlly.battleUnitId,
+                targetUnitId: deadAlly.battleUnitId,
                 effectActionDefinitionId: heal.effectActionDefinitionId,
                 // The selector explicitly admits defeated units, but a HEAL
                 // still cannot heal them (no revival rule in R-HEAL-01).
                 includeDefeated: true,
                 hits: [
                   {
-                    targetBattleUnitId: deadAlly.battleUnitId,
+                    targetUnitId: deadAlly.battleUnitId,
                     effectActionDefinitionId: heal.effectActionDefinitionId,
                     hitIndex: 1,
                   },
@@ -625,12 +625,12 @@ describe("applyEffectActionGroups", () => {
             // `buildApplications`と同じ「対象ごとに`actions`を定義順で並べる」順序。
             applications: [actor, ally].flatMap((target) =>
               references.map((_, index) => ({
-                targetBattleUnitId: target.battleUnitId,
+                targetUnitId: target.battleUnitId,
                 effectActionDefinitionId: heal.effectActionDefinitionId,
                 includeDefeated: false,
                 hits: [
                   {
-                    targetBattleUnitId: target.battleUnitId,
+                    targetUnitId: target.battleUnitId,
                     effectActionDefinitionId: heal.effectActionDefinitionId,
                     hitIndex: index + 1,
                   },

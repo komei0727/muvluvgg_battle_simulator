@@ -54,8 +54,8 @@ describe("applyEffectActionGroups", () => {
     expect(grantedTarget.appliedEffects).toHaveLength(1);
     expect(grantedTarget.appliedEffects[0]).toMatchObject({
       effectActionDefinitionId: status.effectActionDefinitionId,
-      sourceId: actor.battleUnitId,
-      targetId: enemy.battleUnitId,
+      sourceUnitId: actor.battleUnitId,
+      targetUnitId: enemy.battleUnitId,
       duplicate: true,
       magnitude: 0,
       statusKind: "STEALTH",
@@ -679,8 +679,8 @@ describe("applyEffectActionGroups", () => {
           effectActionDefinitionId: stunDefId,
           kindKey: effectKindKeyFromDefinitionId(stunDefId),
           duplicate: true,
-          sourceId: createBattleUnitId("SOURCE"),
-          targetId: createBattleUnitId("ENEMY"),
+          sourceUnitId: createBattleUnitId("SOURCE"),
+          targetUnitId: createBattleUnitId("ENEMY"),
           magnitude: 0,
           categories: ["DEBUFF", "STATUS"],
           statusKind: "STUN",

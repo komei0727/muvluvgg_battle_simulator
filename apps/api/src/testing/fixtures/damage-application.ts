@@ -111,7 +111,7 @@ export function damageAction(
 
 export function immunityEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   details: StatusEffectDetails = {},
 ): AppliedEffect {
   return {
@@ -119,8 +119,8 @@ export function immunityEffect(
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_IMMUNITY"),
     kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_IMMUNITY")),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "DAMAGE_IMMUNITY",
@@ -143,8 +143,8 @@ export function attackDamageBonusEffect(
     ),
     categories: ["BUFF"],
     duplicate: true,
-    sourceId: createBattleUnitId(holderId),
-    targetId: createBattleUnitId(holderId),
+    sourceUnitId: createBattleUnitId(holderId),
+    targetUnitId: createBattleUnitId(holderId),
     magnitude,
     isAttackDamageBonus: true,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -154,7 +154,7 @@ export function attackDamageBonusEffect(
 
 export function freezeEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   details: StatusEffectDetails = {},
 ): AppliedEffect {
   return {
@@ -162,8 +162,8 @@ export function freezeEffect(
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
     kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_FREEZE")),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["DEBUFF", "STATUS"],
     statusKind: "FREEZE",
@@ -175,7 +175,7 @@ export function freezeEffect(
 
 export function evasionEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   details: StatusEffectDetails = {},
 ): AppliedEffect {
   return {
@@ -183,8 +183,8 @@ export function evasionEffect(
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_EVASION"),
     kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_EVASION")),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "EVASION",
@@ -201,12 +201,12 @@ export function evasionEffect(
  */
 export function hitCountEvasionEffect(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   statusKind: "EVASION" | "HIT_EVASION",
   consumptionRemaining: number,
 ): AppliedEffect {
   return {
-    ...evasionEffect(id, targetId, { probability: 1 }),
+    ...evasionEffect(id, targetUnitId, { probability: 1 }),
     statusKind,
     duration: {
       definition: {
@@ -250,9 +250,9 @@ export function criticalStatusEffect(
   return { ...evasionEffect(id, holderId, {}), statusKind, statusDetails: {} };
 }
 
-export function hit(targetId: string, hitIndex: number): ResolvedEffectApplication {
+export function hit(targetUnitId: string, hitIndex: number): ResolvedEffectApplication {
   return {
-    targetBattleUnitId: createBattleUnitId(targetId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
     hitIndex,
   };
@@ -322,8 +322,8 @@ export function consumptionEffect(
     effectActionDefinitionId: STAT_MOD_DEFINITION_ID,
     kindKey: effectKindKeyFromDefinitionId(STAT_MOD_DEFINITION_ID),
     duplicate: true,
-    sourceId: ownerId,
-    targetId: ownerId,
+    sourceUnitId: ownerId,
+    targetUnitId: ownerId,
     magnitude: 0.2,
     categories: ["BUFF"],
     duration: {

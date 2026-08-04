@@ -70,7 +70,7 @@ function marker(markerId: MarkerId, stackCount = 1): MarkerState {
     ...buildInitialMarkerState(
       createMarkerInstanceId(`mi-${markerId}`),
       markerId,
-      { sourceId: createBattleUnitId("SOURCE") },
+      { sourceUnitId: createBattleUnitId("SOURCE") },
       createBattleUnitId("TARGET"),
       null,
       { dispellable: true, linkedEffectGroupId: null, timeLimit: { unit: "BATTLE", count: 1 } },
@@ -85,15 +85,15 @@ function marker(markerId: MarkerId, stackCount = 1): MarkerState {
  * R-EFF-01の他フィールド（`duplicate`/`magnitude`等）はR-TGT-08の対象選択とは
  * 無関係な値で固定する。
  */
-function stealthEffect(targetId: string, instanceSuffix = targetId): AppliedEffect {
+function stealthEffect(targetUnitId: string, instanceSuffix = targetUnitId): AppliedEffect {
   const definitionId = createEffectActionDefinitionId("ACT_STEALTH_TEST");
   return {
     effectInstanceId: createEffectInstanceId(`ei-stealth-${instanceSuffix}`),
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "STEALTH",

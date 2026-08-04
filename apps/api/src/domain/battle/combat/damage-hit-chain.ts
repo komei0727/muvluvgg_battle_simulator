@@ -175,7 +175,7 @@ export function revalidateHit(
   if (isDefeated(attacker)) {
     return { kind: "INTERRUPT" };
   }
-  const target = findUnit(workingMap, targetUnitId, "hits[].targetBattleUnitId");
+  const target = findUnit(workingMap, targetUnitId, "hits[].targetUnitId");
   if (!(context.includeDefeated ?? false) && isDefeated(target)) {
     return { kind: "SKIP", attacker, target };
   }

@@ -20,8 +20,8 @@ export function testMarker(
   return {
     markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
     markerId: createMarkerId(markerIdValue),
-    sourceId: unit.battleUnitId,
-    targetId: unit.battleUnitId,
+    sourceUnitId: unit.battleUnitId,
+    targetUnitId: unit.battleUnitId,
     stackCount: overrides.stackCount ?? 1,
     stackMax: null,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },

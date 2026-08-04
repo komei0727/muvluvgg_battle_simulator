@@ -69,11 +69,11 @@ export function requireUnit(units: readonly BattleUnit[], id: BattleUnitId): Bat
 
 export function consumeAp(
   units: readonly BattleUnit[],
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   amount: number,
 ): readonly BattleUnit[] {
   return units.map((unit) =>
-    unit.battleUnitId === actorId
+    unit.battleUnitId === actorUnitId
       ? { ...unit, currentAp: createActionPoint(unit.currentAp - amount, unit.maximumAp) }
       : unit,
   );
@@ -82,10 +82,10 @@ export function consumeAp(
 /** R-ACT-03（EX行）: APは消費せず、EXゲージを全量消費する。 */
 export function consumeExGaugeFully(
   units: readonly BattleUnit[],
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
 ): readonly BattleUnit[] {
   return units.map((unit) =>
-    unit.battleUnitId === actorId
+    unit.battleUnitId === actorUnitId
       ? { ...unit, currentExtraGauge: createExtraGauge(0, unit.maximumExtraGauge) }
       : unit,
   );
@@ -94,11 +94,11 @@ export function consumeExGaugeFully(
 /** R-PS-05 #2: PSのPP消費（AS/EXの`consumeAp`と対称）。 */
 export function consumePp(
   units: readonly BattleUnit[],
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   amount: number,
 ): readonly BattleUnit[] {
   return units.map((unit) =>
-    unit.battleUnitId === actorId
+    unit.battleUnitId === actorUnitId
       ? { ...unit, currentPp: createPassivePoint(unit.currentPp - amount, unit.maximumPp) }
       : unit,
   );
@@ -175,11 +175,11 @@ export function composeHealingRate(
  */
 export function increaseExGauge(
   units: readonly BattleUnit[],
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   amount: number,
   resourceGainRate = 0,
 ): ExGaugeIncreaseApplication {
-  const actor = requireUnit(units, actorId);
+  const actor = requireUnit(units, actorUnitId);
   // RESOURCE_GAIN_MODはSTACKABLEで、`composeResourceGainRate`が
   // 保持中の全インスタンスを合算するため、負のrateが複数重なると合成後の`resourceGainRate`が
   // -100%を下回りうる（R-FRM-03で同一UnitDefinitionの複数編成が許容されるためproduction到達可能）。
@@ -199,7 +199,7 @@ export function increaseExGauge(
   const actualAmount = result.gauge - actor.currentExtraGauge;
   return {
     units: units.map((unit) =>
-      unit.battleUnitId === actorId ? { ...unit, currentExtraGauge: result.gauge } : unit,
+      unit.battleUnitId === actorUnitId ? { ...unit, currentExtraGauge: result.gauge } : unit,
     ),
     before: actor.currentExtraGauge,
     after: result.gauge,
@@ -231,7 +231,7 @@ export interface ResourceChangeRecordContext {
  */
 export function recordResourceChangeIfAny(
   context: ResourceChangeRecordContext,
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   resource: ResourceKind,
   before: number,
   after: number,
@@ -255,9 +255,9 @@ export function recordResourceChangeIfAny(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      battleUnitId: actorId,
+      battleUnitId: actorUnitId,
       resource,
       before,
       after,
@@ -266,7 +266,7 @@ export function recordResourceChangeIfAny(
       reason,
       causeEventId,
     },
-    stateDelta: { units: { [actorId]: { [field]: { before, after } } } },
+    stateDelta: { units: { [actorUnitId]: { [field]: { before, after } } } },
   });
   return event.eventId;
 }
@@ -279,7 +279,7 @@ export function recordResourceChangeIfAny(
  */
 export function recordExtraGaugeOverflowDiscardedIfAny(
   context: ResourceChangeRecordContext,
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   baseDelta: number,
   requestedAmount: number,
   actualAmount: number,
@@ -299,9 +299,9 @@ export function recordExtraGaugeOverflowDiscardedIfAny(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      battleUnitId: actorId,
+      battleUnitId: actorUnitId,
       baseDelta,
       requestedAmount,
       actualAmount,

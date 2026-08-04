@@ -187,13 +187,13 @@ export function recalculateCombatStats(
   context: RecalculateContext,
   beforeUnits: readonly BattleUnit[],
   units: readonly BattleUnit[],
-  targetId: BattleUnitId,
+  targetUnitId: BattleUnitId,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
   reason: CombatStatChangeReason,
 ): RecalculateCombatStatsResult {
-  const beforeTarget = requireUnit(beforeUnits, targetId);
-  const target = requireUnit(units, targetId);
+  const beforeTarget = requireUnit(beforeUnits, targetUnitId);
+  const target = requireUnit(units, targetUnitId);
   const newInstanceIds = new Set(
     target.appliedEffects
       .map((effect) => effect.effectInstanceId)
@@ -243,16 +243,16 @@ export function recalculateCombatStats(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: targetId,
-      targetUnitIds: [targetId],
+      sourceUnitId: targetUnitId,
+      targetUnitIds: [targetUnitId],
       payload: {
-        battleUnitId: targetId,
+        battleUnitId: targetUnitId,
         kindKey,
         ...(before !== undefined ? { before } : {}),
         ...(after !== undefined ? { after } : {}),
       },
       ...(Object.keys(effects).length > 0
-        ? { stateDelta: { units: { [targetId]: { effects } } } }
+        ? { stateDelta: { units: { [targetUnitId]: { effects } } } }
         : {}),
     });
     lastEventId = event.eventId;
@@ -261,7 +261,7 @@ export function recalculateCombatStats(
   const { combatStats, changedStats } = computeCombatStats(target, effectActions);
   let nextUnits =
     changedStats.length > 0
-      ? units.map((unit) => (unit.battleUnitId === targetId ? { ...unit, combatStats } : unit))
+      ? units.map((unit) => (unit.battleUnitId === targetUnitId ? { ...unit, combatStats } : unit))
       : units;
 
   for (const change of changedStats) {
@@ -276,10 +276,10 @@ export function recalculateCombatStats(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: lastEventId,
       rootEventId: context.rootEventId,
-      sourceUnitId: targetId,
-      targetUnitIds: [targetId],
+      sourceUnitId: targetUnitId,
+      targetUnitIds: [targetUnitId],
       payload: {
-        battleUnitId: targetId,
+        battleUnitId: targetUnitId,
         stat: change.stat,
         before: change.before,
         after: change.after,
@@ -287,7 +287,9 @@ export function recalculateCombatStats(
       },
       stateDelta: {
         units: {
-          [targetId]: { combatStats: { [field]: { before: change.before, after: change.after } } },
+          [targetUnitId]: {
+            combatStats: { [field]: { before: change.before, after: change.after } },
+          },
         },
       },
     });
@@ -303,7 +305,7 @@ export function recalculateCombatStats(
   const capacityResult = recalculateResourceCapacities(
     context,
     nextUnits,
-    targetId,
+    targetUnitId,
     effectActions,
     lastEventId,
     reason,

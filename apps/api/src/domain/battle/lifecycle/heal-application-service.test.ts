@@ -62,9 +62,9 @@ function healAction(
   };
 }
 
-function hit(targetId: string, actionId: string, hitIndex = 0): ResolvedEffectApplication {
+function hit(targetUnitId: string, actionId: string, hitIndex = 0): ResolvedEffectApplication {
   return {
-    targetBattleUnitId: createBattleUnitId(targetId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     effectActionDefinitionId: createEffectActionDefinitionId(actionId),
     hitIndex,
   };
@@ -296,8 +296,8 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
       effectActionDefinitionId: createEffectActionDefinitionId(id),
       kindKey: id as AppliedEffect["kindKey"],
       duplicate: true,
-      sourceId: createBattleUnitId(transferToUnitId),
-      targetId: createBattleUnitId(holderId),
+      sourceUnitId: createBattleUnitId(transferToUnitId),
+      targetUnitId: createBattleUnitId(holderId),
       magnitude: transferRate,
       categories: ["BUFF"],
       healingLink: { transferToUnitId: createBattleUnitId(transferToUnitId), transferRate },

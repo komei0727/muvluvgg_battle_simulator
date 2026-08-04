@@ -33,8 +33,8 @@ function interventionEffect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: createBattleUnitId(holderId),
-    targetId: createBattleUnitId(holderId),
+    sourceUnitId: createBattleUnitId(holderId),
+    targetUnitId: createBattleUnitId(holderId),
     magnitude: 0,
     categories: ["DEBUFF"],
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -91,11 +91,11 @@ function damageLinkHeldByDamaged(
 
 function deathSurvivalHeldByTarget(
   id: string,
-  targetId: string,
+  targetUnitId: string,
   consumptionRemaining: number,
   survivalHp = 1,
 ): AppliedEffect {
-  return interventionEffect(id, targetId, {
+  return interventionEffect(id, targetUnitId, {
     categories: ["BUFF"],
     deathSurvival: {
       survivalHp: { kind: "CONSTANT", value: survivalHp },
@@ -148,7 +148,7 @@ describe("defensive interventions in the damage pipeline (DMG-006 R-INT-01〜03)
     expect(order.indexOf("DamageRedirected")).toBeLessThan(order.indexOf("DamageCalculated"));
 
     // R-INT-02第2項: 後続効果が参照する対象も、最終的にダメージを受けた側になる。
-    expect(result.hits[0]!.targetBattleUnitId).toBe(taunter.battleUnitId);
+    expect(result.hits[0]!.targetUnitId).toBe(taunter.battleUnitId);
     const damagedTaunter = result.units.find((u) => u.battleUnitId === taunter.battleUnitId)!;
     const untouchedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(damagedTaunter.currentHp).toBe(100 - 20);

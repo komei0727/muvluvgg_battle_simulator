@@ -338,7 +338,7 @@ Issue #47先行バッチで変換した6 Memory（`MEM_HARD_WARMUP`、`MEM_STRAN
 
 `APPLY_DAMAGE_MOD`を含む9件（`MEM_SHAPING_FAMILY`／`MEM_TENT_COMMOTION`／`MEM_ELOPEMENT_FULL_THROTTLE`／`MEM_NAUGHTY_PENALTY_GAME`／`MEM_SOOTHING_SCENT`／`MEM_ENCOUNTER_WITH_GIRLS`／`MEM_NEW_YEAR_GREETING`／`MEM_CATS_AND_DOGS_BOND`／`MEM_BUSY_DAY_SLUMBER`）のCatalog定義自体も近似なしだが、`CAP_DAMAGE_MOD`が`runtimeStatus: PLANNED`（`DMG-002`／Issue #192）である間はCapability preflightが編成不可として弾く。M7-007の2件と同じ扱いで、`IT-CAP-MEMORY-DYNAMIC-PROD-008`がこの境界と全20件の変換内容（filter・発動タイミング・補正値・期間・消費条件）を1行ずつ固定する。
 
-本Issueで必要になった唯一のDomain拡張は、`MarkerState`の付与元である。`APPLY_MARKER`は`MarkerState.sourceId`を要求するため、`catalog-integrity.ts`がMemory由来の`APPLY_MARKER`を`MEMORY_REQUIRES_SOURCE_UNIT`として拒否していた。R-MEM-04（Memoryは使用者BattleUnitを持たず陣営を source side とする）に合わせ、`MarkerState`・`MarkerSnapshot`・`MarkerApplied`／`MarkerUpdated` payloadを`sourceId`／`sourceSide`のexactly-one unionへ揃えた（`UT-R-EFF-10-019`／`UT-R-EFF-10-020`／`IT-CAP-MEMORY-DYNAMIC-PROD-007`）。API公開（`MarkerStateResponse`）はv1契約を据え置いたため`REL-008`（Issue #263）が担当する。
+本Issueで必要になった唯一のDomain拡張は、`MarkerState`の付与元である。`APPLY_MARKER`は`MarkerState.sourceUnitId`を要求するため、`catalog-integrity.ts`がMemory由来の`APPLY_MARKER`を`MEMORY_REQUIRES_SOURCE_UNIT`として拒否していた。R-MEM-04（Memoryは使用者BattleUnitを持たず陣営を source side とする）に合わせ、`MarkerState`・`MarkerSnapshot`・`MarkerApplied`／`MarkerUpdated` payloadを`sourceUnitId`／`sourceSide`のexactly-one unionへ揃えた（`UT-R-EFF-10-019`／`UT-R-EFF-10-020`／`IT-CAP-MEMORY-DYNAMIC-PROD-007`）。API公開（`MarkerStateResponse`）はv1契約を据え置いたため`REL-008`（Issue #263）が担当する。
 
 変換上の判断:
 

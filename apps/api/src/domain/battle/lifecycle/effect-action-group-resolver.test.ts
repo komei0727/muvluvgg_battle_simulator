@@ -175,24 +175,24 @@ describe("applyEffectActionGroups", () => {
           ],
           applications: [
             {
-              targetBattleUnitId: actor.battleUnitId,
+              targetUnitId: actor.battleUnitId,
               effectActionDefinitionId: selfHit.effectActionDefinitionId,
               includeDefeated: false,
               hits: [
                 {
-                  targetBattleUnitId: actor.battleUnitId,
+                  targetUnitId: actor.battleUnitId,
                   effectActionDefinitionId: selfHit.effectActionDefinitionId,
                   hitIndex: 1,
                 },
               ],
             },
             {
-              targetBattleUnitId: enemy.battleUnitId,
+              targetUnitId: enemy.battleUnitId,
               effectActionDefinitionId: otherHit.effectActionDefinitionId,
               includeDefeated: false,
               hits: [
                 {
-                  targetBattleUnitId: enemy.battleUnitId,
+                  targetUnitId: enemy.battleUnitId,
                   effectActionDefinitionId: otherHit.effectActionDefinitionId,
                   hitIndex: 1,
                 },
@@ -370,8 +370,8 @@ describe("applyEffectActionGroups", () => {
           effectActionDefinitionId: blindDefId,
           kindKey: effectKindKeyFromDefinitionId(blindDefId),
           duplicate: true,
-          sourceId: createBattleUnitId("SOURCE"),
-          targetId: createBattleUnitId("ACTOR"),
+          sourceUnitId: createBattleUnitId("SOURCE"),
+          targetUnitId: createBattleUnitId("ACTOR"),
           magnitude: 0,
           categories: ["DEBUFF", "STATUS"],
           statusKind: "BLIND",
@@ -443,8 +443,8 @@ describe("applyEffectActionGroups", () => {
           effectActionDefinitionId: blindDefId,
           kindKey: effectKindKeyFromDefinitionId(blindDefId),
           duplicate: true,
-          sourceId: createBattleUnitId("SOURCE"),
-          targetId: createBattleUnitId("ACTOR"),
+          sourceUnitId: createBattleUnitId("SOURCE"),
+          targetUnitId: createBattleUnitId("ACTOR"),
           magnitude: 0,
           categories: ["DEBUFF", "STATUS"],
           statusKind: "BLIND",
@@ -582,9 +582,9 @@ describe("applyEffectActionGroups", () => {
       const effectActions = new Map([[apply.effectActionDefinitionId, apply]]);
       const { recorder, rootEventId } = seedRecorder();
       // R-EFF-10「直近の付与者」はexactly-one（`MarkerSource`）。実経路では
-      // スキル解決が`actorId`を、Memory解決（R-MEM-04）が`sourceSide`を必ず持つが、
+      // スキル解決が`actorUnitId`を、Memory解決（R-MEM-04）が`sourceSide`を必ず持つが、
       // 型だけでは両方欠落を防げないためこの境界で決定的に拒否する。
-      const { actorId: _actorId, ...withoutSource } = contextFor(
+      const { actorUnitId: _actorId, ...withoutSource } = contextFor(
         actor,
         effectActions,
         recorder,
@@ -618,8 +618,8 @@ describe("applyEffectActionGroups", () => {
         [actor, enemy],
         {
           markerId,
-          sourceId: actor.battleUnitId,
-          targetId: enemy.battleUnitId,
+          sourceUnitId: actor.battleUnitId,
+          targetUnitId: enemy.battleUnitId,
           stackPolicy: "ADD",
           stackMax: null,
           durationDefinition: { dispellable: true, linkedEffectGroupId: null },
@@ -811,8 +811,8 @@ describe("applyEffectActionGroups", () => {
         [actor, enemy],
         {
           markerId,
-          sourceId: actor.battleUnitId,
-          targetId: enemy.battleUnitId,
+          sourceUnitId: actor.battleUnitId,
+          targetUnitId: enemy.battleUnitId,
           stackPolicy: "ADD",
           stackMax: null,
           durationDefinition: { dispellable: true, linkedEffectGroupId: null },
@@ -1435,12 +1435,12 @@ describe("applyEffectActionGroups", () => {
             satisfied: true,
             actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
             applications: [enemy1, enemy2].map((target) => ({
-              targetBattleUnitId: target.battleUnitId,
+              targetUnitId: target.battleUnitId,
               effectActionDefinitionId: attack.effectActionDefinitionId,
               includeDefeated: false,
               hits: [
                 {
-                  targetBattleUnitId: target.battleUnitId,
+                  targetUnitId: target.battleUnitId,
                   effectActionDefinitionId: attack.effectActionDefinitionId,
                   hitIndex: 1,
                 },
@@ -1600,13 +1600,13 @@ describe("applyEffectActionGroups", () => {
   describe("Interruption invariants (Issue #217 design points B/D2/D3)", () => {
     function killActorOnEvent(
       eventType: BattleDomainEvent["eventType"],
-      actorId: BattleUnit["battleUnitId"],
+      actorUnitId: BattleUnit["battleUnitId"],
     ): NonNullable<EffectActionGroupContext["onFactEventForPassiveChain"]> {
       return (event, units) => {
         if (event.eventType !== eventType) {
           return units;
         }
-        return units.map((u) => (u.battleUnitId === actorId ? { ...u, currentHp: 0 } : u));
+        return units.map((u) => (u.battleUnitId === actorUnitId ? { ...u, currentHp: 0 } : u));
       };
     }
 
@@ -1845,11 +1845,11 @@ describe("applyEffectActionGroups", () => {
             actions: [{ effectActionDefinitionId: tripleSelfHit.effectActionDefinitionId }],
             applications: [
               {
-                targetBattleUnitId: actor.battleUnitId,
+                targetUnitId: actor.battleUnitId,
                 effectActionDefinitionId: tripleSelfHit.effectActionDefinitionId,
                 includeDefeated: false,
                 hits: [1, 2, 3].map((hitIndex) => ({
-                  targetBattleUnitId: actor.battleUnitId,
+                  targetUnitId: actor.battleUnitId,
                   effectActionDefinitionId: tripleSelfHit.effectActionDefinitionId,
                   hitIndex,
                 })),
@@ -1990,8 +1990,8 @@ describe("applyEffectActionGroups", () => {
                   {
                     markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
                     markerId,
-                    sourceId: actor.battleUnitId,
-                    targetId: u.battleUnitId,
+                    sourceUnitId: actor.battleUnitId,
+                    targetUnitId: u.battleUnitId,
                     stackCount: 1,
                     stackMax: null,
                     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -2025,8 +2025,8 @@ describe("applyEffectActionGroups", () => {
       const markerState = (owner: BattleUnit): MarkerState => ({
         markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
         markerId,
-        sourceId: actor.battleUnitId,
-        targetId: owner.battleUnitId,
+        sourceUnitId: actor.battleUnitId,
+        targetUnitId: owner.battleUnitId,
         stackCount: 1,
         stackMax: null,
         duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -3213,8 +3213,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       effectActionDefinitionId: stealthDefinitionId,
       kindKey: effectKindKeyFromDefinitionId(stealthDefinitionId),
       duplicate: true,
-      sourceId: createBattleUnitId("HOLDER"),
-      targetId: createBattleUnitId("HOLDER"),
+      sourceUnitId: createBattleUnitId("HOLDER"),
+      targetUnitId: createBattleUnitId("HOLDER"),
       magnitude: 0,
       categories: ["BUFF"],
       statusKind: "STEALTH",
@@ -3302,8 +3302,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       kindKey: effectKindKeyFromDefinitionId(definitionId),
       categories: ["BUFF"],
       duplicate: true,
-      sourceId: holder.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: holder.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       magnitude,
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 0,
@@ -3464,8 +3464,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       kindKey: effectKindKeyFromDefinitionId(definitionId),
       categories: ["SHIELD"],
       duplicate: true,
-      sourceId: holder.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: holder.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       magnitude: remaining,
       shield: { shieldType, remaining },
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -3485,8 +3485,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       kindKey: effectKindKeyFromDefinitionId(definitionId),
       categories: ["SUBUNIT"],
       duplicate: true,
-      sourceId: holder.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: holder.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       magnitude: durability,
       subUnit: {
         durability,
@@ -3653,8 +3653,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       effectActionDefinitionId: definitionId,
       kindKey: effectKindKeyFromDefinitionId(definitionId),
       duplicate: true,
-      sourceId: holder.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: holder.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       magnitude: 0,
       categories: ["BUFF"],
       immunity,
@@ -4014,8 +4014,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
           effectActionDefinitionId: consumptionDefId,
           kindKey: effectKindKeyFromDefinitionId(consumptionDefId),
           duplicate: true,
-          sourceId: createBattleUnitId("ENEMY"),
-          targetId: createBattleUnitId("ENEMY"),
+          sourceUnitId: createBattleUnitId("ENEMY"),
+          targetUnitId: createBattleUnitId("ENEMY"),
           magnitude: 0,
           categories: ["BUFF"],
           duration: {
@@ -4049,17 +4049,17 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
           actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
           applications: [
             {
-              targetBattleUnitId: enemy.battleUnitId,
+              targetUnitId: enemy.battleUnitId,
               effectActionDefinitionId: attack.effectActionDefinitionId,
               includeDefeated: false,
               hits: [
                 {
-                  targetBattleUnitId: enemy.battleUnitId,
+                  targetUnitId: enemy.battleUnitId,
                   effectActionDefinitionId: attack.effectActionDefinitionId,
                   hitIndex: 1,
                 },
                 {
-                  targetBattleUnitId: enemy.battleUnitId,
+                  targetUnitId: enemy.battleUnitId,
                   effectActionDefinitionId: attack.effectActionDefinitionId,
                   hitIndex: 2,
                 },
@@ -4101,8 +4101,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
       effectActionDefinitionId: consumptionDefId,
       kindKey: effectKindKeyFromDefinitionId(consumptionDefId),
       duplicate: true,
-      sourceId: createBattleUnitId("ENEMY"),
-      targetId: createBattleUnitId("ENEMY"),
+      sourceUnitId: createBattleUnitId("ENEMY"),
+      targetUnitId: createBattleUnitId("ENEMY"),
       magnitude: 0,
       categories: ["BUFF"],
       duration: {
@@ -4194,8 +4194,8 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
           effectActionDefinitionId: immunityDefId,
           kindKey: effectKindKeyFromDefinitionId(immunityDefId),
           duplicate: true,
-          sourceId: createBattleUnitId("ENEMY"),
-          targetId: createBattleUnitId("ENEMY"),
+          sourceUnitId: createBattleUnitId("ENEMY"),
+          targetUnitId: createBattleUnitId("ENEMY"),
           magnitude: 0,
           categories: ["BUFF"],
           immunity: { categories: ["STATUS"], maxBlocks: 1, blockedCount: 0 },

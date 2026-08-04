@@ -86,8 +86,8 @@ function grantDamageModFromCatalog(
     units,
     {
       definition,
-      sourceId: holder.battleUnitId,
-      targetId: holder.battleUnitId,
+      sourceUnitId: holder.battleUnitId,
+      targetUnitId: holder.battleUnitId,
       duplicate: true,
       magnitude,
       damageModifier: {

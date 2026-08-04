@@ -24,7 +24,7 @@ import {
  * `targetSelector: ALLY`) would never become a PS candidate even once
  * `resolveChargeStart` started routing `ChargeStarted` through
  * `PassiveActivationRuntime.onFactEvent`. `resolveChargeStart` now sets
- * `targetUnitIds: [actorId]` (the charging unit observes itself as the
+ * `targetUnitIds: [actorUnitId]` (the charging unit observes itself as the
  * event's subject), which this test verifies against the REAL, unmodified
  * production Catalog trigger.
  */

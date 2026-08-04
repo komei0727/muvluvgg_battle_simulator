@@ -29,7 +29,7 @@ export interface DecrementEffectDurationsResult {
 /**
  * `14_Catalog定義スキーマ.md`「DurationDefinition」`timeLimit.owner`を、実際に
  * 行動・ターンの完了契機と突き合わせられる具体的な戦闘ユニットIDへ解決する
- * （R-EFF-04/06）。`AppliedEffect`は常に対象(`targetId`)側の`appliedEffects`へ
+ * （R-EFF-04/06）。`AppliedEffect`は常に対象(`targetUnitId`)側の`appliedEffects`へ
  * 保持されるため（`effect-grant-service.ts`）、`EFFECT_SOURCE`のように保持者と
  * 別のユニットの行動を契機にする場合はこの解決が必須になる。`BATTLE`は
  * 特定ユニットに紐付かない（いずれのユニットの行動・ターン終了でも減算する）
@@ -46,7 +46,7 @@ export function resolveTimeLimitOwnerUnitId(effect: AppliedEffect): BattleUnitId
   // `owner: EFFECT_SOURCE`宣言自体を拒否するため通常ここへは到達しないが、
   // 万一到達しても減算契機を完全に失って永続化しないよう、`BATTLE`と同じ
   // 「いずれのユニットの完了契機でも減算する」扱いへ倒す。
-  return owner === "EFFECT_SOURCE" ? (effect.sourceId ?? "BATTLE") : effect.targetId;
+  return owner === "EFFECT_SOURCE" ? (effect.sourceUnitId ?? "BATTLE") : effect.targetUnitId;
 }
 
 function decrementDurations(
@@ -264,7 +264,7 @@ function isHitCountEvasionStatus(effect: AppliedEffect): boolean {
 /**
  * R-EFF-07「消費条件」: `ownerUnitId`が`kind`に該当する事象（次の攻撃・被ヒット等）
  * に到達したときに呼ぶ。`consumption`は`timeLimit`と異なり、常に効果を保持する
- * ユニット自身（`effect.targetId`、`AppliedEffect`は常に対象側の`appliedEffects`
+ * ユニット自身（`effect.targetUnitId`、`AppliedEffect`は常に対象側の`appliedEffects`
  * に保持される）を「効果owner」とする — `timeLimit.owner`のようなEFFECT_SOURCE/
  * BATTLEの切り替えは存在しない（`consumption`はDurationDefinition上で`timeLimit`
  * から独立したフィールドであり、`owner`を持たない）。`consumptionRemaining`が

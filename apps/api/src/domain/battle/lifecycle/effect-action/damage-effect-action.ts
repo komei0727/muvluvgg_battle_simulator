@@ -139,8 +139,8 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
       units,
       {
         effectActionDefinitionId: debuffEffectActionDefinitionId,
-        sourceId: ownerUnitId,
-        targetId: targetUnitId,
+        sourceUnitId: ownerUnitId,
+        targetUnitId,
         blockingEffect: blockingImmunity,
       },
       parentEventId,
@@ -156,8 +156,8 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
     units,
     {
       definition,
-      sourceId: ownerUnitId,
-      targetId: targetUnitId,
+      sourceUnitId: ownerUnitId,
+      targetUnitId,
       duplicate: definition.payload.stacking.mode === "STACKABLE",
       magnitude,
       durationDefinition: definition.payload.duration,
@@ -220,8 +220,7 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   // `applyDamageAction`がヒットを適用するため、resultKind算出上も「既に戦闘不能」として
   // 扱わない。
   const targetAlreadyDefeated =
-    !application.includeDefeated &&
-    isDefeated(requireUnit(box.units, application.targetBattleUnitId));
+    !application.includeDefeated && isDefeated(requireUnit(box.units, application.targetUnitId));
   const { consumeEffectDuration, finalizeConsumedEffectDurations } =
     buildConsumeEffectDurationHooks(context);
   const skillType = skillTypeOf(context);

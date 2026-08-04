@@ -195,12 +195,12 @@ describe("applyEffectActionGroups", () => {
         target: BattleUnit,
         hitIndex: number,
       ): (typeof step.applications)[number] => ({
-        targetBattleUnitId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         effectActionDefinitionId: action.effectActionDefinitionId,
         includeDefeated: target.battleUnitId === actor.battleUnitId ? false : includeDefeated,
         hits: [
           {
-            targetBattleUnitId: target.battleUnitId,
+            targetUnitId: target.battleUnitId,
             effectActionDefinitionId: action.effectActionDefinitionId,
             hitIndex,
           },
@@ -353,8 +353,8 @@ describe("applyEffectActionGroups", () => {
         effectActionDefinitionId: immunityDefinitionId,
         kindKey: effectKindKeyFromDefinitionId(immunityDefinitionId),
         duplicate: true,
-        sourceId: createBattleUnitId("ACTOR"),
-        targetId: createBattleUnitId("ACTOR"),
+        sourceUnitId: createBattleUnitId("ACTOR"),
+        targetUnitId: createBattleUnitId("ACTOR"),
         magnitude: 0,
         categories: ["BUFF"],
         immunity: { categories: ["BUFF"], maxBlocks: null, blockedCount: 0 },

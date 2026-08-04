@@ -78,11 +78,11 @@ function defeatedEvent(unitId: string) {
   };
 }
 
-/** `sourceId`／`durationDefinition`だけを差し替えて1件のMarkerを付与する。 */
+/** `sourceUnitId`／`durationDefinition`だけを差し替えて1件のMarkerを付与する。 */
 function grantMarker(options: {
-  readonly sourceId?: string;
+  readonly sourceUnitId?: string;
   readonly sourceSide?: "ALLY" | "ENEMY";
-  readonly targetId: string;
+  readonly targetUnitId: string;
   readonly durationDefinition: DurationDefinition;
   readonly units: readonly BattleUnit[];
   readonly recorder: EventRecorder;
@@ -94,10 +94,10 @@ function grantMarker(options: {
     options.units,
     {
       markerId: createMarkerId("MARKER_KOUYOU"),
-      ...(options.sourceId !== undefined
-        ? { sourceId: createBattleUnitId(options.sourceId) }
+      ...(options.sourceUnitId !== undefined
+        ? { sourceUnitId: createBattleUnitId(options.sourceUnitId) }
         : { sourceSide: options.sourceSide! }),
-      targetId: createBattleUnitId(options.targetId),
+      targetUnitId: createBattleUnitId(options.targetUnitId),
       stackPolicy: "ADD",
       stackMax: null,
       durationDefinition: options.durationDefinition,
@@ -113,8 +113,8 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
-      sourceId: "source-1",
-      targetId: "target-1",
+      sourceUnitId: "source-1",
+      targetUnitId: "target-1",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: [source, target],
       recorder,
@@ -137,8 +137,8 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
-      sourceId: "source-1",
-      targetId: "target-1",
+      sourceUnitId: "source-1",
+      targetUnitId: "target-1",
       durationDefinition: PLAIN_DURATION,
       units: [source, target],
       recorder,
@@ -154,8 +154,8 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const bystander = unit("bystander-1");
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
-      sourceId: "source-1",
-      targetId: "target-1",
+      sourceUnitId: "source-1",
+      targetUnitId: "target-1",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: [source, target, bystander],
       recorder,
@@ -172,8 +172,8 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
-      sourceId: "source-1",
-      targetId: "target-1",
+      sourceUnitId: "source-1",
+      targetUnitId: "target-1",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: [source, target],
       recorder,
@@ -193,7 +193,7 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
       sourceSide: "ALLY",
-      targetId: "target-1",
+      targetUnitId: "target-1",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: [target],
       recorder,
@@ -209,16 +209,16 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const second = unit("target-2");
     const { recorder, rootEventId } = seedRecorder();
     const firstGrant = grantMarker({
-      sourceId: "source-1",
-      targetId: "target-1",
+      sourceUnitId: "source-1",
+      targetUnitId: "target-1",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: [source, first, second],
       recorder,
       rootEventId,
     });
     const secondGrant = grantMarker({
-      sourceId: "source-1",
-      targetId: "target-2",
+      sourceUnitId: "source-1",
+      targetUnitId: "target-2",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: firstGrant.units,
       recorder,
@@ -243,8 +243,8 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     const self = unit("self-1");
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
-      sourceId: "self-1",
-      targetId: "self-1",
+      sourceUnitId: "self-1",
+      targetUnitId: "self-1",
       durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
       units: [self],
       recorder,

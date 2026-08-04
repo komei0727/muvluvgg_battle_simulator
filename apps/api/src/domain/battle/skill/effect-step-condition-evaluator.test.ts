@@ -81,7 +81,7 @@ function effect(
     effectActionDefinitionId,
     kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
     duplicate: true,
-    targetId: createBattleUnitId("t1"),
+    targetUnitId: createBattleUnitId("t1"),
     magnitude,
     categories,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
@@ -375,7 +375,7 @@ describe("evaluateEffectStepCondition", () => {
           buildInitialMarkerState(
             createMarkerInstanceId("mi-1"),
             markerId,
-            { sourceId: createBattleUnitId("actor") },
+            { sourceUnitId: createBattleUnitId("actor") },
             createBattleUnitId("t1"),
             null,
             {
@@ -411,7 +411,7 @@ describe("evaluateEffectStepCondition", () => {
             ...buildInitialMarkerState(
               createMarkerInstanceId("mi-1"),
               markerId,
-              { sourceId: createBattleUnitId("actor") },
+              { sourceUnitId: createBattleUnitId("actor") },
               createBattleUnitId("t1"),
               null,
               {
@@ -430,7 +430,7 @@ describe("evaluateEffectStepCondition", () => {
           buildInitialMarkerState(
             createMarkerInstanceId("mi-2"),
             markerId,
-            { sourceId: createBattleUnitId("actor") },
+            { sourceUnitId: createBattleUnitId("actor") },
             createBattleUnitId("t2"),
             null,
             {
@@ -538,7 +538,7 @@ describe("evaluateEffectStepCondition", () => {
             ...buildInitialMarkerState(
               createMarkerInstanceId("mi-1"),
               markerId,
-              { sourceId: createBattleUnitId("actor") },
+              { sourceUnitId: createBattleUnitId("actor") },
               createBattleUnitId("enemy"),
               null,
               {

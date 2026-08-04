@@ -115,9 +115,9 @@ export interface RejectEffectApplicationContext {
 export interface RejectEffectApplicationRequest {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
   /** R-MEM-04（Issue #179）: Memory由来の付与では`sourceSide`へ置き換わる（`GrantEffectRequest`と同じ規約）。 */
-  readonly sourceId?: BattleUnitId;
+  readonly sourceUnitId?: BattleUnitId;
   readonly sourceSide?: Side;
-  readonly targetId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly blockingEffect: AppliedEffect;
   /** TGT-004フェーズ3と同じ規約: 拒否対象が`APPLY_STATUS`由来の場合だけ持つ。 */
   readonly statusKind?: StatusKind;
@@ -141,13 +141,13 @@ export function rejectEffectApplication(
   request: RejectEffectApplicationRequest,
   parentEventId: DomainEventId,
 ): RejectEffectApplicationResult {
-  const target = requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetUnitId);
   const before = request.blockingEffect;
   const after = incrementImmunityBlockedCount(before);
   const isEffective = selectEffectiveInstances(target.appliedEffects).has(before.effectInstanceId);
 
   const nextUnits = units.map((unit) =>
-    unit.battleUnitId === request.targetId
+    unit.battleUnitId === request.targetUnitId
       ? {
           ...unit,
           appliedEffects: unit.appliedEffects.map((effect) =>
@@ -167,13 +167,13 @@ export function rejectEffectApplication(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-    targetUnitIds: [request.targetId],
+    targetUnitIds: [request.targetUnitId],
     payload: {
-      battleUnitId: request.targetId,
+      battleUnitId: request.targetUnitId,
       effectActionDefinitionId: request.effectActionDefinitionId,
-      ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+      ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
       ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
       blockingEffectInstanceId: before.effectInstanceId,
       reason: "IMMUNITY",
@@ -181,7 +181,7 @@ export function rejectEffectApplication(
     },
     stateDelta: {
       units: {
-        [request.targetId]: {
+        [request.targetUnitId]: {
           effects: {
             [before.effectInstanceId]: {
               before: toEffectSnapshot(before, isEffective),

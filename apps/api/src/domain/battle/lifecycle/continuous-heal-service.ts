@@ -140,7 +140,7 @@ export function fireContinuousHealsOnActionStart(
         effect,
         definition,
         currentOwner,
-        working.find((u) => u.battleUnitId === effect.sourceId),
+        working.find((u) => u.battleUnitId === effect.sourceUnitId),
         working,
         {
           recorder: context.recorder,
@@ -166,7 +166,7 @@ export function fireContinuousHealsOnActionStart(
     if (definition.kind !== "APPLY_CONTINUOUS_HEAL") {
       continue;
     }
-    const healer = working.find((u) => u.battleUnitId === effect.sourceId) ?? currentOwner;
+    const healer = working.find((u) => u.battleUnitId === effect.sourceUnitId) ?? currentOwner;
 
     // R-HEAL-04（Issue #229）: 連鎖は`applyOneHeal`が
     // `HealApplied`／各`HealingTransferred`の発行直後にその場で解決する。ここで
@@ -185,7 +185,7 @@ export function fireContinuousHealsOnActionStart(
         parentEventId: lastEventId,
         // R-MEM-04（Issue #179）: Memory由来の継続回復は付与者ユニットを持たない
         // ため、回復の発生源としては`healer`（保持者へフォールバック済み）を使う。
-        sourceUnitId: effect.sourceId ?? healer.battleUnitId,
+        sourceUnitId: effect.sourceUnitId ?? healer.battleUnitId,
         ...(onFactEvent !== undefined ? { onFactEventForPassiveChain: onFactEvent } : {}),
       },
       lastEventId,
@@ -218,7 +218,7 @@ export function fireContinuousHealsOnActionStart(
  */
 export function completeActionIfActorDefeatedAtStart(
   units: readonly BattleUnit[],
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   recorder: EventRecorder,
   completionContext: ActionCompletionContext,
   effectiveActionType: ResolvableEffectiveActionType,
@@ -227,7 +227,7 @@ export function completeActionIfActorDefeatedAtStart(
   rootEventId: DomainEventId,
   finalizeResolutionScope: (completedEventId: DomainEventId) => readonly BattleUnit[],
 ): ActionResolutionResult | undefined {
-  const actor = units.find((u) => u.battleUnitId === actorId);
+  const actor = units.find((u) => u.battleUnitId === actorUnitId);
   if (actor === undefined || !isDefeated(actor)) {
     return undefined;
   }

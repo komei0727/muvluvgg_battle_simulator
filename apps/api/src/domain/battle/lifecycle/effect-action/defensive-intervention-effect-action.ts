@@ -149,7 +149,7 @@ export const resolveDefensiveIntervention: EffectActionHandler<
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude: grant.magnitude,
         ...grant.state,

@@ -144,7 +144,7 @@ describe("applyDamageAction hit-level damage event order (DMG-001)", () => {
 
     expect(result.hits).toEqual([
       {
-        targetBattleUnitId: createBattleUnitId("TARGET"),
+        targetUnitId: createBattleUnitId("TARGET"),
         hitIndex: 1,
         applied: false,
         isCritical: false,

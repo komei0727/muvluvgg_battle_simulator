@@ -45,7 +45,7 @@ export function* applyDamageToHealConversionSteps(
   healRate: number,
   parentEventId: DomainEventId,
 ): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
-  const target = findUnit(working, targetUnitId, "hits[].targetBattleUnitId");
+  const target = findUnit(working, targetUnitId, "hits[].targetUnitId");
   const healAmount = Math.floor(calculatedDamage * healRate);
   const hpBefore = target.currentHp;
   // R-NUM-02: `combatStats.maximumHp`は全精度で保持されるため、HPゲージへ渡す境界で

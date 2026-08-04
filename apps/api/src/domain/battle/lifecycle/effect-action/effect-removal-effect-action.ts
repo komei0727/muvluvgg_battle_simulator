@@ -36,7 +36,7 @@ export const resolveRemoveEffects: EffectActionHandler<"REMOVE_EFFECTS"> = (
         : {}),
     },
     box.units,
-    application.targetBattleUnitId,
+    application.targetUnitId,
     {
       categories: effectAction.payload.categories,
       ...(effectAction.payload.effectActionDefinitionIds !== undefined

@@ -51,7 +51,7 @@ export const resolveApplyHealingLink: EffectActionHandler<"APPLY_HEALING_LINK"> 
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         healingLink: {
@@ -132,7 +132,7 @@ export const resolveApplyDamageLink: EffectActionHandler<"APPLY_DAMAGE_LINK"> = 
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude,
         damageLink: { linkToUnitId, linkRate: effectAction.payload.linkRate },

@@ -281,12 +281,12 @@ export class PassiveActivationRuntime {
    */
   beginEffectSequenceResolution(
     skillUseId: SkillUseId,
-    actorId: BattleUnitId,
+    actorUnitId: BattleUnitId,
     skillDefinitionId: SkillDefinitionId,
     counterUpdates: readonly RuntimeCounterUpdateDefinition[],
   ): void {
     this.activeEffectSequenceResolutions.set(skillUseId, {
-      actorId,
+      actorUnitId,
       skillDefinitionId,
       counterUpdates,
     });
@@ -700,9 +700,9 @@ export class PassiveActivationRuntime {
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: eventId,
         rootEventId: this.context.rootEventId,
-        sourceUnitId: change.actorId,
+        sourceUnitId: change.actorUnitId,
         payload: {
-          ownerUnitId: change.actorId,
+          ownerUnitId: change.actorUnitId,
           scope: "EFFECT_SEQUENCE",
           counter: change.counter,
           skillDefinitionId: change.skillDefinitionId,
@@ -713,7 +713,7 @@ export class PassiveActivationRuntime {
         },
         stateDelta: {
           units: {
-            [change.actorId]: {
+            [change.actorUnitId]: {
               ...(change.valueChanged
                 ? {
                     effectSequenceCounters: {
@@ -769,10 +769,10 @@ export class PassiveActivationRuntime {
     if (resolution === undefined) {
       return;
     }
-    const actor = requireUnit(this.units, resolution.actorId);
+    const actor = requireUnit(this.units, resolution.actorUnitId);
     const counters = actor.effectSequenceCounters?.[skillUseId] ?? {};
     for (const counterId of Object.keys(counters) as (keyof typeof counters)[]) {
-      const currentActor = requireUnit(this.units, resolution.actorId);
+      const currentActor = requireUnit(this.units, resolution.actorUnitId);
       const currentCounters = currentActor.effectSequenceCounters?.[skillUseId] ?? {};
       const result = resetRuntimeCounter(currentCounters, counterId);
       if (result === undefined) {
@@ -808,9 +808,9 @@ export class PassiveActivationRuntime {
         resolutionScopeId: this.context.resolutionScopeId,
         parentEventId: this.context.rootEventId,
         rootEventId: this.context.rootEventId,
-        sourceUnitId: resolution.actorId,
+        sourceUnitId: resolution.actorUnitId,
         payload: {
-          ownerUnitId: resolution.actorId,
+          ownerUnitId: resolution.actorUnitId,
           scope: "EFFECT_SEQUENCE",
           counter: counterId,
           skillDefinitionId: resolution.skillDefinitionId,
@@ -818,7 +818,7 @@ export class PassiveActivationRuntime {
         },
         stateDelta: {
           units: {
-            [resolution.actorId]: {
+            [resolution.actorUnitId]: {
               effectSequenceCounters: {
                 [skillUseId]: { [counterId]: { before: result.change.before, after: undefined } },
               },
@@ -1612,7 +1612,7 @@ export class PassiveActivationRuntime {
         turnNumber: this.context.turnNumber,
         cycleNumber: this.context.cycleNumber,
         resolutionScopeId: this.context.resolutionScopeId,
-        actorId: ownerId,
+        actorUnitId: ownerId,
       },
       ownerAfterResources.cooldowns,
       skill,
@@ -1721,7 +1721,7 @@ export class PassiveActivationRuntime {
     // なる。
     const groupContext: EffectActionGroupContext = {
       definitions: this.context.definitions,
-      actorId: ownerId,
+      actorUnitId: ownerId,
       random: this.context.random,
       recorder: this.context.recorder,
       turnNumber: this.context.turnNumber,

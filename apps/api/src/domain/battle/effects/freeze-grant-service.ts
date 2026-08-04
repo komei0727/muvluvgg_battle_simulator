@@ -29,7 +29,7 @@ export function grantFreezeStatus(
   request: GrantEffectRequest,
   parentEventId: DomainEventId,
 ): GrantFreezeResult {
-  const target = requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetUnitId);
   const existing = target.appliedEffects.find((effect) => effect.statusKind === "FREEZE");
 
   if (existing !== undefined) {

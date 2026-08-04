@@ -43,7 +43,7 @@ export interface ActionCompletionContext {
   readonly rootEventId: DomainEventId;
   readonly turnNumber: number;
   readonly cycleNumber: number;
-  readonly actorId: BattleUnitId;
+  readonly actorUnitId: BattleUnitId;
   /** R-EFF-04: 行動単位効果の残り回数減算・失効・CombatStat再計算に使うEffectActionDefinitionの参照表。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   /**
@@ -102,18 +102,18 @@ export function recordActionCompletion(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId: triggeringEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: context.actorId,
-    payload: { actorUnitId: context.actorId, effectiveActionType },
+    sourceUnitId: context.actorUnitId,
+    payload: { actorUnitId: context.actorUnitId, effectiveActionType },
     ...(closingStateDelta !== undefined ? { stateDelta: closingStateDelta } : {}),
   });
   notify(actionCompleting);
 
-  const actor = requireUnit(working, context.actorId);
+  const actor = requireUnit(working, context.actorUnitId);
   const decrement = decrementActionCooldowns(actor.cooldowns, context.actionId);
   let lastEventId = actionCompleting.eventId;
   if (decrement.changes.length > 0) {
     working = working.map((u) =>
-      u.battleUnitId === context.actorId ? { ...u, cooldowns: decrement.cooldowns } : u,
+      u.battleUnitId === context.actorUnitId ? { ...u, cooldowns: decrement.cooldowns } : u,
     );
     for (const change of decrement.changes) {
       const reduced = recorder.record({
@@ -125,9 +125,9 @@ export function recordActionCompletion(
         resolutionScopeId: context.resolutionScopeId,
         parentEventId: lastEventId,
         rootEventId: context.rootEventId,
-        sourceUnitId: context.actorId,
+        sourceUnitId: context.actorUnitId,
         payload: {
-          actorUnitId: context.actorId,
+          actorUnitId: context.actorUnitId,
           skillDefinitionId: change.skillDefinitionId,
           unit: change.unit,
           before: change.before,
@@ -135,7 +135,7 @@ export function recordActionCompletion(
         },
         stateDelta: {
           units: {
-            [context.actorId]: {
+            [context.actorUnitId]: {
               cooldowns: {
                 [change.skillDefinitionId]: {
                   unit: change.unit,
@@ -159,9 +159,9 @@ export function recordActionCompletion(
           resolutionScopeId: context.resolutionScopeId,
           parentEventId: lastEventId,
           rootEventId: context.rootEventId,
-          sourceUnitId: context.actorId,
+          sourceUnitId: context.actorUnitId,
           payload: {
-            actorUnitId: context.actorId,
+            actorUnitId: context.actorUnitId,
             skillDefinitionId: change.skillDefinitionId,
             unit: change.unit,
           },
@@ -175,11 +175,11 @@ export function recordActionCompletion(
   // `06_戦闘状態遷移.md` COMPLETING #6-8 / R-EFF-04: クールタイム減算後、行動単位
   // 効果の残り回数を減らし、0になったインスタンスを即時に失効させる。
   // `timeLimit.owner`が`EFFECT_SOURCE`/`BATTLE`の場合、保持ユニット
-  // （`effect.targetId`）が行動者と異なることがあるため、全ユニットを対象に
+  // （`effect.targetUnitId`）が行動者と異なることがあるため、全ユニットを対象に
   // 走査する（`decrementActionEffectDurations`自身がowner解決を行う）。
   const durationDecrement = decrementActionEffectDurations(
     working,
-    context.actorId,
+    context.actorUnitId,
     context.actionId,
   );
   if (durationDecrement.changes.length > 0) {
@@ -247,11 +247,11 @@ export function recordActionCompletion(
   // `EFFECT_SOURCE`の場合は1回の行動完了で複数の保持者が同時に漸減しうるため、
   // まとめて変更してから通知すると、先頭の`ShieldConsumed`に反応するPSが
   // 他の保持者まで変更済みの状態を観測してしまう。
-  for (const holderId of shieldDecayHolders(working, context.actorId)) {
+  for (const holderId of shieldDecayHolders(working, context.actorUnitId)) {
     // プールの並びは保持者ごとに先に確定させ、実際の減少量だけをそのつど最新の
     // `working`から求める（`shieldDecayPools`のコメント参照）。
-    for (const shieldType of shieldDecayPools(working, context.actorId, holderId)) {
-      const decay = decayActionShields(working, context.actorId, holderId, shieldType);
+    for (const shieldType of shieldDecayPools(working, context.actorUnitId, holderId)) {
+      const decay = decayActionShields(working, context.actorUnitId, holderId, shieldType);
       if (decay.change === undefined) {
         continue;
       }
@@ -308,7 +308,7 @@ export function recordActionCompletion(
   // （`decrementActionMarkerDurations`自身がowner解決を行う）。
   const markerDurationDecrement = decrementActionMarkerDurations(
     working,
-    context.actorId,
+    context.actorUnitId,
     context.actionId,
   );
   if (markerDurationDecrement.changes.length > 0) {
@@ -373,8 +373,8 @@ export function recordActionCompletion(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId: lastEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: context.actorId,
-    payload: { actorUnitId: context.actorId, effectiveActionType },
+    sourceUnitId: context.actorUnitId,
+    payload: { actorUnitId: context.actorUnitId, effectiveActionType },
   });
   // R-EFF-08（`expiration.conditions`）の評価は
   // `ActionCompleted`だけでなく`DamageApplied`/`UnitDefeated`等すべてのFACT/
@@ -392,7 +392,7 @@ interface CooldownStartContext {
   readonly turnNumber: number;
   readonly cycleNumber: number;
   readonly resolutionScopeId: ResolutionScopeId;
-  readonly actorId: BattleUnitId;
+  readonly actorUnitId: BattleUnitId;
   /** 同じSkillUseに属するイベントは同じSkillUseIdを持つ契約（PSも1つのSkillUse）。呼び出し側が採番済みの場合だけ渡す。 */
   readonly skillUseId?: SkillUseId;
 }
@@ -445,16 +445,16 @@ export function recordCooldownStart(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId,
-    sourceUnitId: context.actorId,
+    sourceUnitId: context.actorUnitId,
     payload: {
-      actorUnitId: context.actorId,
+      actorUnitId: context.actorUnitId,
       skillDefinitionId: skill.skillDefinitionId,
       unit: skill.cooldown.unit,
       initialRemaining: skill.cooldown.count,
     },
     stateDelta: {
       units: {
-        [context.actorId]: {
+        [context.actorUnitId]: {
           cooldowns: {
             [skill.skillDefinitionId]: {
               unit: skill.cooldown.unit,

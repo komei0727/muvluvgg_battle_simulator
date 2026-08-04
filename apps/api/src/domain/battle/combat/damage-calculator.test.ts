@@ -247,8 +247,8 @@ describe("calculateDamage", () => {
         {
           markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
           markerId: createMarkerId("MARKER_MOCHI"),
-          sourceId: createBattleUnitId("U_ATTACKER"),
-          targetId: createBattleUnitId("U_ATTACKER"),
+          sourceUnitId: createBattleUnitId("U_ATTACKER"),
+          targetUnitId: createBattleUnitId("U_ATTACKER"),
           stackCount: 3,
           stackMax: null,
           duration: { definition: { dispellable: true, linkedEffectGroupId: null } },

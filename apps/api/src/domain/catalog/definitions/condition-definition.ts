@@ -411,7 +411,7 @@ export type ConditionDefinition =
       readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
       /**
        * DMG-007（Issue #187）: 指定時、一致対象を「この条件を評価しているユニット自身が
-       * 付与した」インスタンスへ絞る（`AppliedEffect.sourceId`との一致）。実装済みは
+       * 付与した」インスタンスへ絞る（`AppliedEffect.sourceUnitId`との一致）。実装済みは
        * `SELF`だけで、`SKL_DOROTHEA_PIONEER_PS2`の「**自身が**付与したダメージリンク」を
        * 定義IDだけに頼らず表すために存在する（同名ユニットが両陣営に居る場合、定義IDの
        * 一致だけでは他者が付与したリンクも拾ってしまう）。

@@ -92,8 +92,8 @@ describe("grantStunStatus (R-STS-02)", () => {
       [source, target],
       {
         definition: stunDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STUN",
@@ -126,8 +126,8 @@ describe("grantStunStatus (R-STS-02)", () => {
     };
     const request = (durationCount: number) => ({
       definition: stunDefinition(),
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 0,
       statusKind: "STUN" as const,
@@ -175,8 +175,8 @@ describe("grantStunStatus (R-STS-02)", () => {
     };
     const request = (durationCount: number) => ({
       definition: stunDefinition(),
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 0,
       statusKind: "STUN" as const,
@@ -241,8 +241,8 @@ describe("grantStunStatus with a dynamic duration on re-apply (R-EFF-12)", () =>
   function reapplyingRequest(source: BattleUnit, target: BattleUnit) {
     return {
       definition: reapplyingStunDefinition(),
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       duplicate: true,
       magnitude: 0,
       statusKind: "STUN" as const,
@@ -295,8 +295,8 @@ describe("grantStunStatus with a dynamic duration on re-apply (R-EFF-12)", () =>
       [source, target],
       {
         definition: stunDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STUN" as const,
@@ -330,8 +330,8 @@ describe("grantStunStatus with a dynamic duration on re-apply (R-EFF-12)", () =>
       [source, target],
       {
         definition: stunDefinition(),
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         duplicate: true,
         magnitude: 0,
         statusKind: "STUN" as const,

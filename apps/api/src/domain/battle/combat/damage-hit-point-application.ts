@@ -69,7 +69,7 @@ export function* applyConfirmedDamageSteps(
   } = {},
 ): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
-  const targetBeforeAbsorption = findUnit(working, targetUnitId, "hits[].targetBattleUnitId");
+  const targetBeforeAbsorption = findUnit(working, targetUnitId, "hits[].targetUnitId");
 
   // R-LNK-02第5項: 元ダメージがシールド対象外なら、リンク先でもシールド対象外にする
   // （全量がHPへ直接向かう。`continuous-damage-service.ts`が炎上・毒を吸収経路へ

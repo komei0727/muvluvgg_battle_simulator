@@ -70,7 +70,7 @@ function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
  * がそのrootEventIdを共有する。
  */
 function resolveOneAction(
-  actorId: BattleUnitId,
+  actorUnitId: BattleUnitId,
   reservedActionType: ReservedActionKind,
   units: readonly BattleUnit[],
   definitions: BattleDefinitions,
@@ -79,7 +79,7 @@ function resolveOneAction(
   turnNumber: number,
   cycleNumber: number,
 ): ActionResolutionResult {
-  const actor = requireUnit(units, actorId);
+  const actor = requireUnit(units, actorUnitId);
   const actionId = recorder.nextActionId();
   const actionScope = recorder.nextResolutionScopeId();
 
@@ -124,7 +124,7 @@ function resolveOneAction(
       actionId,
       actionScope,
       (context) => {
-        const currentActor = requireUnit(context.units, context.actorId);
+        const currentActor = requireUnit(context.units, context.actorUnitId);
         const freezeEffect = activeStatusEffect(currentActor, "FREEZE");
         if (currentActor.charge === undefined || freezeEffect === undefined) {
           return undefined;
@@ -138,10 +138,10 @@ function resolveOneAction(
           resolutionScopeId: context.resolutionScopeId,
           parentEventId: context.parentEventId,
           rootEventId: context.rootEventId,
-          sourceUnitId: context.actorId,
-          targetUnitIds: [context.actorId],
+          sourceUnitId: context.actorUnitId,
+          targetUnitIds: [context.actorUnitId],
           payload: {
-            actorUnitId: context.actorId,
+            actorUnitId: context.actorUnitId,
             skillDefinitionId: currentActor.charge.skill.skillDefinitionId,
             startedActionId: currentActor.charge.startedActionId,
             freezeEffectInstanceId: freezeEffect.effectInstanceId,

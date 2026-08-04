@@ -35,7 +35,7 @@ export const resolveEffectImmunity: EffectActionHandler<"EFFECT_IMMUNITY"> = (
       {
         definition: effectAction,
         ...grantSourceOf(context),
-        targetId: application.targetBattleUnitId,
+        targetUnitId: application.targetUnitId,
         duplicate: true,
         magnitude: 0,
         durationDefinition: effectAction.payload.duration,

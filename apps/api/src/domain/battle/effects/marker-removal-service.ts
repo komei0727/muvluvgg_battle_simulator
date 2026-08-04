@@ -76,8 +76,8 @@ export function emitMarkerDurationChangedEvents(
       payload: {
         markerInstanceId: change.markerInstanceId,
         markerId: marker.markerId,
-        targetUnitId: marker.targetId,
-        ...(marker.sourceId !== undefined ? { sourceUnitId: marker.sourceId } : {}),
+        targetUnitId: marker.targetUnitId,
+        ...(marker.sourceUnitId !== undefined ? { sourceUnitId: marker.sourceUnitId } : {}),
         ...(marker.sourceSide !== undefined ? { sourceSide: marker.sourceSide } : {}),
         stackBefore: marker.stackCount,
         stackAfter: marker.stackCount,
@@ -236,13 +236,13 @@ export interface ReduceMarkerStackResult {
 export function reduceMarkerStack(
   context: RemoveMarkersContext,
   units: readonly BattleUnit[],
-  targetId: BattleUnitId,
+  targetUnitId: BattleUnitId,
   markerId: MarkerId,
   count: number,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ReduceMarkerStackResult {
-  const target = requireUnit(units, targetId);
+  const target = requireUnit(units, targetUnitId);
   const existing = target.markerStates.find((marker) => marker.markerId === markerId);
   if (existing === undefined) {
     return { units, lastEventId: parentEventId, changed: false };
@@ -253,7 +253,13 @@ export function reduceMarkerStack(
     const result = removeMarkers(
       context,
       units,
-      [{ battleUnitId: targetId, markerInstanceId: existing.markerInstanceId, reason: "REMOVED" }],
+      [
+        {
+          battleUnitId: targetUnitId,
+          markerInstanceId: existing.markerInstanceId,
+          reason: "REMOVED",
+        },
+      ],
       effectActions,
       parentEventId,
     );
@@ -263,7 +269,7 @@ export function reduceMarkerStack(
   const stackReductionEventsStart = context.recorder.getEvents().length;
   const nextMarker = { ...existing, stackCount: stackAfter };
   const nextUnits = units.map((unit) =>
-    unit.battleUnitId === targetId
+    unit.battleUnitId === targetUnitId
       ? {
           ...unit,
           markerStates: unit.markerStates.map((marker) =>
@@ -282,13 +288,13 @@ export function reduceMarkerStack(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: targetId,
-    targetUnitIds: [targetId],
+    sourceUnitId: targetUnitId,
+    targetUnitIds: [targetUnitId],
     payload: {
       markerInstanceId: existing.markerInstanceId,
       markerId: existing.markerId,
-      targetUnitId: targetId,
-      ...(existing.sourceId !== undefined ? { sourceUnitId: existing.sourceId } : {}),
+      targetUnitId,
+      ...(existing.sourceUnitId !== undefined ? { sourceUnitId: existing.sourceUnitId } : {}),
       ...(existing.sourceSide !== undefined ? { sourceSide: existing.sourceSide } : {}),
       stackBefore: existing.stackCount,
       stackAfter,
@@ -296,7 +302,7 @@ export function reduceMarkerStack(
     },
     stateDelta: {
       units: {
-        [targetId]: {
+        [targetUnitId]: {
           markers: {
             [existing.markerInstanceId]: {
               before: toMarkerSnapshot(existing),

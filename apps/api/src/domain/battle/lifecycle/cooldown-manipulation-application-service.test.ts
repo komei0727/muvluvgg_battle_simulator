@@ -95,7 +95,7 @@ describe("applyCooldownManipulationAction", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = baseContext(recorder, rootEventId);
     const hit: ResolvedEffectApplication = {
-      targetBattleUnitId: target.battleUnitId,
+      targetUnitId: target.battleUnitId,
       effectActionDefinitionId: action.effectActionDefinitionId,
       hitIndex: 1,
     };
@@ -117,7 +117,7 @@ describe("applyCooldownManipulationAction", () => {
     const { recorder, rootEventId } = seedRecorder();
     const context = baseContext(recorder, rootEventId);
     const hit: ResolvedEffectApplication = {
-      targetBattleUnitId: readyTarget.battleUnitId,
+      targetUnitId: readyTarget.battleUnitId,
       effectActionDefinitionId: action.effectActionDefinitionId,
       hitIndex: 1,
     };
@@ -140,7 +140,7 @@ describe("applyCooldownManipulationAction", () => {
       return units;
     });
     const hit: ResolvedEffectApplication = {
-      targetBattleUnitId: target.battleUnitId,
+      targetUnitId: target.battleUnitId,
       effectActionDefinitionId: action.effectActionDefinitionId,
       hitIndex: 1,
     };

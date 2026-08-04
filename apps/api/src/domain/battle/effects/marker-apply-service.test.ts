@@ -75,8 +75,8 @@ describe("applyMarker", () => {
       [source, target],
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -100,8 +100,8 @@ describe("applyMarker", () => {
     const context = baseContext(recorder, rootEventId);
     const request = {
       markerId,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackPolicy: "ADD" as const,
       stackMax: null,
       durationDefinition: BATTLE_DURATION,
@@ -124,8 +124,8 @@ describe("applyMarker", () => {
     const context = baseContext(recorder, rootEventId);
     const request = {
       markerId,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackPolicy: "ADD" as const,
       stackMax: 3,
       durationDefinition: BATTLE_DURATION,
@@ -154,8 +154,8 @@ describe("applyMarker", () => {
       [source, target],
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -169,8 +169,8 @@ describe("applyMarker", () => {
       first.units,
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "KEEP_EXISTING",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -194,8 +194,8 @@ describe("applyMarker", () => {
       [source, target],
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "KEEP_EXISTING",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -219,8 +219,8 @@ describe("applyMarker", () => {
     };
     const addRequest = {
       markerId,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackPolicy: "ADD" as const,
       stackMax: null,
       durationDefinition: actionDuration,
@@ -253,8 +253,8 @@ describe("applyMarker", () => {
     };
     const addRequest = {
       markerId,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackPolicy: "ADD" as const,
       stackMax: null,
       durationDefinition: actionDuration,
@@ -273,8 +273,8 @@ describe("applyMarker", () => {
       grown.units,
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "REPLACE",
         stackMax: 5,
         durationDefinition: replacedDuration,
@@ -294,8 +294,8 @@ describe("applyMarker", () => {
     const context = baseContext(recorder, rootEventId);
     const request = {
       markerId,
-      sourceId: source.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackPolicy: "ADD" as const,
       stackMax: 1,
       durationDefinition: BATTLE_DURATION,
@@ -318,7 +318,7 @@ describe("applyMarker", () => {
       {
         markerId,
         sourceSide: "ALLY",
-        targetId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -326,7 +326,7 @@ describe("applyMarker", () => {
       rootEventId,
     );
 
-    expect(result.markerState.sourceId).toBeUndefined();
+    expect(result.markerState.sourceUnitId).toBeUndefined();
     expect(result.markerState.sourceSide).toBe("ALLY");
     const applied = recorder.getEvents()[1]!;
     expect(applied.eventType).toBe("MarkerApplied");
@@ -355,7 +355,7 @@ describe("applyMarker", () => {
       {
         markerId,
         sourceSide: "ALLY",
-        targetId: target.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -367,8 +367,8 @@ describe("applyMarker", () => {
       fromMemory.units,
       {
         markerId,
-        sourceId: source.battleUnitId,
-        targetId: target.battleUnitId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
         stackPolicy: "ADD",
         stackMax: null,
         durationDefinition: BATTLE_DURATION,
@@ -376,10 +376,10 @@ describe("applyMarker", () => {
       fromMemory.lastEventId,
     );
 
-    // `sourceId`/`sourceSide`は「直近の付与者」を表す監査用の値であり、後から
+    // `sourceUnitId`/`sourceSide`は「直近の付与者」を表す監査用の値であり、後から
     // 実ユニットが積み増したら、その時点の付与元へ入れ替わる（片方だけを持つ）。
     expect(fromUnit.markerState.stackCount).toBe(2);
-    expect(fromUnit.markerState.sourceId).toBe(source.battleUnitId);
+    expect(fromUnit.markerState.sourceUnitId).toBe(source.battleUnitId);
     expect(fromUnit.markerState.sourceSide).toBeUndefined();
   });
 });

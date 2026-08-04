@@ -140,8 +140,8 @@ function turnEffect(
     effectActionDefinitionId,
     kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
     duplicate: true,
-    sourceId: ownerUnit.battleUnitId,
-    targetId: ownerUnit.battleUnitId,
+    sourceUnitId: ownerUnit.battleUnitId,
+    targetUnitId: ownerUnit.battleUnitId,
     magnitude: 0.2,
     categories: ["BUFF"],
     duration: {
@@ -1019,8 +1019,8 @@ describe("advanceBattle", () => {
     const parentMarker: MarkerState = {
       markerInstanceId: createMarkerInstanceId("marker-parent"),
       markerId: createMarkerId("MARKER_PARENT"),
-      sourceId: ally.battleUnitId,
-      targetId: ally.battleUnitId,
+      sourceUnitId: ally.battleUnitId,
+      targetUnitId: ally.battleUnitId,
       stackCount: 1,
       stackMax: null,
       duration: {

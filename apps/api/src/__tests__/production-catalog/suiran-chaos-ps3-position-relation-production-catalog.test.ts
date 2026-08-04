@@ -500,8 +500,8 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     expect(updatedAlly.appliedEffects).toHaveLength(1);
     expect(updatedAlly.appliedEffects[0]).toMatchObject({
       statusKind: "EVASION",
-      sourceId: suiran.battleUnitId,
-      targetId: attackedAlly.battleUnitId,
+      sourceUnitId: suiran.battleUnitId,
+      targetUnitId: attackedAlly.battleUnitId,
       statusDetails: {
         probability: 1,
         appliesTo: { incomingActionKinds: ["DAMAGE"] },
@@ -593,7 +593,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       enemyAttacker,
       [
         {
-          targetBattleUnitId: woundedAlly.battleUnitId,
+          targetUnitId: woundedAlly.battleUnitId,
           effectActionDefinitionId: attackEffectAction.effectActionDefinitionId,
           hitIndex: 1,
         },
@@ -731,7 +731,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       allyAttacker,
       [
         {
-          targetBattleUnitId: woundedAlly.battleUnitId,
+          targetUnitId: woundedAlly.battleUnitId,
           effectActionDefinitionId: attackEffectAction.effectActionDefinitionId,
           hitIndex: 1,
         },

@@ -166,7 +166,7 @@ function reduceOwnHitPoints(context: ReturnType<typeof setup>): {
     flute,
     [
       {
-        targetBattleUnitId: flute.battleUnitId,
+        targetUnitId: flute.battleUnitId,
         effectActionDefinitionId: selfHit.effectActionDefinitionId,
         hitIndex: 1,
       },

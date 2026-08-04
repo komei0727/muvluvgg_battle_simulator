@@ -96,19 +96,19 @@ export function resolveSkillUse(
   actionId: ActionId,
   actionScope: ResolutionScopeId,
 ): ActionResolutionResult {
-  const actorId = actor.battleUnitId;
+  const actorUnitId = actor.battleUnitId;
   // R-ACT-03: ASは消費APと同量、EXは増加なし。
   let working =
     effectiveActionType === "EX"
-      ? consumeExGaugeFully(units, actorId)
-      : consumeAp(units, actorId, skill.cost.amount);
-  const actorAfterCost = requireUnit(working, actorId);
+      ? consumeExGaugeFully(units, actorUnitId)
+      : consumeAp(units, actorUnitId, skill.cost.amount);
+  const actorAfterCost = requireUnit(working, actorUnitId);
 
   const exGain =
     effectiveActionType === "AS"
       ? increaseExGauge(
           working,
-          actorId,
+          actorUnitId,
           skill.cost.amount,
           composeResourceGainRate(actorAfterCost, "EX_GAUGE", definitions.effectActions),
         )
@@ -116,7 +116,7 @@ export function resolveSkillUse(
   if (exGain !== undefined) {
     working = exGain.units;
   }
-  const actorAfterExGain = requireUnit(working, actorId);
+  const actorAfterExGain = requireUnit(working, actorUnitId);
 
   const actionStarted = recorder.record({
     eventType: "ActionStarted",
@@ -125,9 +125,9 @@ export function resolveSkillUse(
     cycleNumber,
     actionId,
     resolutionScopeId: actionScope,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     payload: {
-      actorUnitId: actorId,
+      actorUnitId,
       reservedActionType,
       effectiveActionType,
       apBefore: actor.currentAp,
@@ -166,7 +166,7 @@ export function resolveSkillUse(
     effectiveActionType === "EX"
       ? recordResourceChangeIfAny(
           resourceChangeContext,
-          actorId,
+          actorUnitId,
           "EX_GAUGE",
           actor.currentExtraGauge,
           actorAfterCost.currentExtraGauge,
@@ -177,7 +177,7 @@ export function resolveSkillUse(
         )
       : recordResourceChangeIfAny(
           resourceChangeContext,
-          actorId,
+          actorUnitId,
           "AP",
           actor.currentAp,
           actorAfterCost.currentAp,
@@ -189,7 +189,7 @@ export function resolveSkillUse(
   if (exGain !== undefined) {
     lastEventId = recordResourceChangeIfAny(
       resourceChangeContext,
-      actorId,
+      actorUnitId,
       "EX_GAUGE",
       exGain.before,
       exGain.after,
@@ -200,7 +200,7 @@ export function resolveSkillUse(
     );
     lastEventId = recordExtraGaugeOverflowDiscardedIfAny(
       resourceChangeContext,
-      actorId,
+      actorUnitId,
       exGain.baseDelta,
       exGain.requestedAmount,
       exGain.after - exGain.before,
@@ -213,7 +213,7 @@ export function resolveSkillUse(
   // 継続回復を、スキル本体の解決（対象選択・EffectSequence）より前に発火させる。
   const continuousHeal = fireContinuousHealsOnActionStart(
     working,
-    actorId,
+    actorUnitId,
     {
       ...resourceChangeContext,
       effectActions: definitions.effectActions,
@@ -261,7 +261,7 @@ export function resolveSkillUse(
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
     working,
-    actorId,
+    actorUnitId,
     recorder,
     {
       actionId,
@@ -269,7 +269,7 @@ export function resolveSkillUse(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       onFactEventForPassiveChain: (
         event: BattleDomainEvent,
@@ -290,7 +290,7 @@ export function resolveSkillUse(
   // （`plan`）とその監査再解決（`TargetsSelected.bindings`）はどちらもこの時点の
   // 最新状態から行う — 両者が同じ`BattleUnit`を見ないと、イベントpayloadが実際に
   // 解決された対象と食い違いうる。
-  const actorBeforeTargeting = requireUnit(working, actorId);
+  const actorBeforeTargeting = requireUnit(working, actorUnitId);
   const plan = resolveSkillOrder(
     skill,
     actorBeforeTargeting,
@@ -308,7 +308,7 @@ export function resolveSkillUse(
   // ようにする）。
   passiveRuntime.beginEffectSequenceResolution(
     skillUseId,
-    actorId,
+    actorUnitId,
     skill.skillDefinitionId,
     skill.resolution.counterUpdates ?? [],
   );
@@ -322,7 +322,7 @@ export function resolveSkillUse(
     resolutionScopeId: actionScope,
     parentEventId: lastEventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     targetUnitIds,
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
@@ -349,12 +349,12 @@ export function resolveSkillUse(
     resolutionScopeId: actionScope,
     parentEventId: targetsSelected.eventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     targetUnitIds,
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
       skillType: skill.skillType,
-      actorUnitId: actorId,
+      actorUnitId,
       targetUnitIds,
       costResource: skill.cost.resource,
       costAmount: skill.cost.amount,
@@ -367,17 +367,17 @@ export function resolveSkillUse(
   // Issue #143: `SkillUseStarting`のPS解決（あれば）で`working`が変化しうる
   // ため、クールタイムはその後の最新状態（`actorBeforeCooldown`）へ重ねる
   // （`actorAfterExGain`という古いスナップショットへ戻して上書きしない）。
-  const actorBeforeCooldown = requireUnit(working, actorId);
+  const actorBeforeCooldown = requireUnit(working, actorUnitId);
   const cooldownResult = recordCooldownStart(
     recorder,
-    { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorId },
+    { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorUnitId },
     actorBeforeCooldown.cooldowns,
     skill,
     skillUseStarting.eventId,
     actionStarted.eventId,
   );
   const actorWithCooldown = { ...actorBeforeCooldown, cooldowns: cooldownResult.cooldowns };
-  working = working.map((u) => (u.battleUnitId === actorId ? actorWithCooldown : u));
+  working = working.map((u) => (u.battleUnitId === actorUnitId ? actorWithCooldown : u));
 
   const skillUseStarted = recorder.record({
     eventType: "SkillUseStarted",
@@ -389,7 +389,7 @@ export function resolveSkillUse(
     resolutionScopeId: actionScope,
     parentEventId: cooldownResult.lastEventId,
     rootEventId: actionStarted.eventId,
-    sourceUnitId: actorId,
+    sourceUnitId: actorUnitId,
     targetUnitIds,
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
@@ -401,7 +401,7 @@ export function resolveSkillUse(
 
   const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
-    actorId,
+    actorUnitId,
     random,
     recorder,
     turnNumber,
@@ -445,10 +445,10 @@ export function resolveSkillUse(
           resolutionScopeId: actionScope,
           parentEventId: skillUseStarted.eventId,
           rootEventId: actionStarted.eventId,
-          sourceUnitId: actorId,
+          sourceUnitId: actorUnitId,
           targetUnitIds,
           payload: {
-            actorUnitId: actorId,
+            actorUnitId,
             skillDefinitionId: skill.skillDefinitionId,
             reason: effectResult.outcome.reason,
             resolvedEffectCount: effectResult.outcome.resolvedEffectCount,
@@ -465,7 +465,7 @@ export function resolveSkillUse(
           resolutionScopeId: actionScope,
           parentEventId: skillUseStarted.eventId,
           rootEventId: actionStarted.eventId,
-          sourceUnitId: actorId,
+          sourceUnitId: actorUnitId,
           targetUnitIds,
           payload: {
             skillDefinitionId: skill.skillDefinitionId,
@@ -496,7 +496,7 @@ export function resolveSkillUse(
   if (skillUseCompleted.eventType === "SkillUseCompleted") {
     const skillUseDurationTargets = decrementSkillUseEffectDurations(
       preCompletionChainWorking,
-      actorId,
+      actorUnitId,
       skillUseId,
     ).changes.map((change) => ({
       battleUnitId: change.battleUnitId,
@@ -585,7 +585,7 @@ export function resolveSkillUse(
       rootEventId: actionStarted.eventId,
       turnNumber,
       cycleNumber,
-      actorId,
+      actorUnitId,
       effectActions: definitions.effectActions,
       // `ActionCompleting`/Cooldown更新/`ActionCompleted`
       // 自身もこの行動専用の`passiveRuntime`へ接続し、それらを契機とする

@@ -70,7 +70,7 @@ function statModDefinition(id: string): EffectActionDefinition {
 
 function effect(
   id: string,
-  targetId: ReturnType<typeof createBattleUnitId>,
+  targetUnitId: ReturnType<typeof createBattleUnitId>,
   definitionId: EffectActionDefinitionId,
   overrides: Partial<AppliedEffect> = {},
 ): AppliedEffect {
@@ -80,8 +80,8 @@ function effect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: targetId,
-    targetId,
+    sourceUnitId: targetUnitId,
+    targetUnitId,
     magnitude: 0.2,
     categories: ["BUFF"],
     duration: { definition },
@@ -362,8 +362,8 @@ describe("expireEffects", () => {
     const childMarker: MarkerState = {
       markerInstanceId: createMarkerInstanceId("marker-child"),
       markerId: createMarkerId("MARKER_CHILD"),
-      sourceId: target.battleUnitId,
-      targetId: target.battleUnitId,
+      sourceUnitId: target.battleUnitId,
+      targetUnitId: target.battleUnitId,
       stackCount: 2,
       stackMax: null,
       duration: {
@@ -772,12 +772,12 @@ describe("expireEffects: R-EFF-05 次点繰上げ (M7-012, Issue #266)", () => {
   }
 
   it("UT-R-EFF-05-021 (real lifecycle wiring): expiring the current winner promotes the surviving runner-up, emitting EffectiveEffectChanged before CombatStatChanged", () => {
-    const targetId = createBattleUnitId("target-1");
-    const strongest = effect("E_STRONG", targetId, NON_STACKABLE_DEFINITION_ID, {
+    const targetUnitId = createBattleUnitId("target-1");
+    const strongest = effect("E_STRONG", targetUnitId, NON_STACKABLE_DEFINITION_ID, {
       duplicate: false,
       magnitude: 0.5,
     });
-    const runnerUp = effect("E_RUNNER_UP", targetId, NON_STACKABLE_DEFINITION_ID, {
+    const runnerUp = effect("E_RUNNER_UP", targetUnitId, NON_STACKABLE_DEFINITION_ID, {
       duplicate: false,
       magnitude: 0.2,
     });
@@ -793,7 +793,7 @@ describe("expireEffects: R-EFF-05 次点繰上げ (M7-012, Issue #266)", () => {
       [target],
       [
         {
-          battleUnitId: targetId,
+          battleUnitId: targetUnitId,
           effectInstanceId: strongest.effectInstanceId,
           reason: "TIME_LIMIT",
         },
@@ -802,7 +802,7 @@ describe("expireEffects: R-EFF-05 次点繰上げ (M7-012, Issue #266)", () => {
       rootEventId,
     );
 
-    const after = result.units.find((u) => u.battleUnitId === targetId)!;
+    const after = result.units.find((u) => u.battleUnitId === targetUnitId)!;
     expect(after.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
       runnerUp.effectInstanceId,
     ]);
@@ -825,7 +825,7 @@ describe("expireEffects: R-EFF-05 次点繰上げ (M7-012, Issue #266)", () => {
       { eventType: "EffectiveEffectChanged" }
     >;
     expect(changed.payload).toEqual({
-      battleUnitId: targetId,
+      battleUnitId: targetUnitId,
       kindKey: NON_STACKABLE_DEFINITION_ID,
       before: strongest.effectInstanceId,
       after: runnerUp.effectInstanceId,

@@ -51,8 +51,8 @@ function statusEffectOf(statusKind: "STUN" | "FREEZE", holderId: BattleUnitId): 
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: holderId,
-    targetId: holderId,
+    sourceUnitId: holderId,
+    targetUnitId: holderId,
     magnitude: 0,
     categories: ["BUFF"],
     statusKind,
@@ -260,11 +260,11 @@ describe("reconfirmPassiveCandidate", () => {
       ],
     };
     const candidate = candidateOf(unit, skill);
-    const targetId = createBattleUnitId("ALLY_IN_FRONT");
+    const targetUnitId = createBattleUnitId("ALLY_IN_FRONT");
     const event: TriggerCandidateEvent = {
       eventType: "TurnStarted",
       category: "FACT",
-      targetUnitIds: [targetId],
+      targetUnitIds: [targetUnitId],
       payload: {},
     };
     const aliveTarget = {
@@ -272,7 +272,7 @@ describe("reconfirmPassiveCandidate", () => {
         position: { column: "LEFT", row: "FRONT" },
         globalCoordinate: toGlobalCoordinate("ALLY", { column: "LEFT", row: "FRONT" }),
       }),
-      battleUnitId: targetId,
+      battleUnitId: targetUnitId,
     };
     const defeatedTarget = { ...aliveTarget, currentHp: 0 };
 
@@ -282,7 +282,7 @@ describe("reconfirmPassiveCandidate", () => {
         unit,
         event,
         createEmptyPassiveActivationGuard(),
-        (id) => (id === targetId ? aliveTarget : undefined),
+        (id) => (id === targetUnitId ? aliveTarget : undefined),
       ),
     ).toEqual({ ok: true });
     expect(
@@ -291,7 +291,7 @@ describe("reconfirmPassiveCandidate", () => {
         unit,
         event,
         createEmptyPassiveActivationGuard(),
-        (id) => (id === targetId ? defeatedTarget : undefined),
+        (id) => (id === targetUnitId ? defeatedTarget : undefined),
       ),
     ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
   });

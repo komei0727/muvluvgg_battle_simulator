@@ -50,7 +50,7 @@ describe("applyDamageAction", () => {
 
     expect(result.hits).toEqual([
       {
-        targetBattleUnitId: createBattleUnitId("TARGET"),
+        targetUnitId: createBattleUnitId("TARGET"),
         hitIndex: 1,
         applied: true,
         isCritical: false,
@@ -271,7 +271,7 @@ describe("applyDamageAction", () => {
 
     expect(result.hits[0]!.applied).toBe(true);
     expect(result.hits[1]).toEqual({
-      targetBattleUnitId: createBattleUnitId("TARGET"),
+      targetUnitId: createBattleUnitId("TARGET"),
       hitIndex: 1,
       applied: false,
       isCritical: false,
@@ -556,8 +556,8 @@ describe("applyDamageAction", () => {
     const childMarker: MarkerState = {
       markerInstanceId: createMarkerInstanceId("marker-child"),
       markerId: createMarkerId("MARKER_CHILD"),
-      sourceId: parentId,
-      targetId: parentId,
+      sourceUnitId: parentId,
+      targetUnitId: parentId,
       stackCount: 1,
       stackMax: null,
       duration: {
@@ -852,7 +852,7 @@ describe("applyDamageAction", () => {
       defenderAfterFirstHit,
       [
         {
-          targetBattleUnitId: attacker.battleUnitId,
+          targetUnitId: attacker.battleUnitId,
           effectActionDefinitionId: counterAction.effectActionDefinitionId,
           hitIndex: 1,
         },
@@ -950,7 +950,7 @@ describe("applyDamageAction", () => {
         defenderAfterFirstHit,
         [
           {
-            targetBattleUnitId: attacker.battleUnitId,
+            targetUnitId: attacker.battleUnitId,
             effectActionDefinitionId: counterAction.effectActionDefinitionId,
             hitIndex: 1,
           },
@@ -1061,7 +1061,7 @@ describe("applyDamageAction", () => {
 
     expect(result.hits).toEqual([
       {
-        targetBattleUnitId: createBattleUnitId("TARGET"),
+        targetUnitId: createBattleUnitId("TARGET"),
         hitIndex: 1,
         applied: false,
         isCritical: false,

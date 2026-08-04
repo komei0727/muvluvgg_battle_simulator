@@ -58,7 +58,7 @@ function shieldEffect(
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    targetId: createBattleUnitId("ally:1"),
+    targetUnitId: createBattleUnitId("ally:1"),
     magnitude: amount,
     categories: ["SHIELD"],
     shield: {

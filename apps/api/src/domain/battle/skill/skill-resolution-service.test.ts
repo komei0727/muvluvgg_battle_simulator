@@ -60,15 +60,15 @@ function unit(
 }
 
 /** TGT-004フェーズ2（Issue #167）: `statusKind: "STEALTH"`を持つ`AppliedEffect`。 */
-function stealthEffect(targetId: string): AppliedEffect {
+function stealthEffect(targetUnitId: string): AppliedEffect {
   const definitionId = createEffectActionDefinitionId("ACT_STEALTH_TEST");
   return {
-    effectInstanceId: createEffectInstanceId(`ei-stealth-${targetId}`),
+    effectInstanceId: createEffectInstanceId(`ei-stealth-${targetUnitId}`),
     effectActionDefinitionId: definitionId,
     kindKey: effectKindKeyFromDefinitionId(definitionId),
     duplicate: true,
-    sourceId: createBattleUnitId(targetId),
-    targetId: createBattleUnitId(targetId),
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
     magnitude: 0,
     categories: ["BUFF"],
     statusKind: "STEALTH",
@@ -157,7 +157,7 @@ describe("resolveSkillOrder", () => {
 
     expect(plan).toEqual([
       {
-        targetBattleUnitId: createBattleUnitId("ENEMY_1"),
+        targetUnitId: createBattleUnitId("ENEMY_1"),
         effectActionDefinitionId: attack.effectActionDefinitionId,
         hitIndex: 1,
       },
@@ -192,7 +192,7 @@ describe("resolveSkillOrder", () => {
       resolveSkillOrder(skill, actor, [actor, far, near], effectActions),
     );
 
-    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([
+    expect(plan.map((entry) => entry.targetUnitId)).toEqual([
       createBattleUnitId("NEAR"),
       createBattleUnitId("FAR"),
     ]);
@@ -226,9 +226,7 @@ describe("resolveSkillOrder", () => {
     );
 
     expect(plan.map((entry) => entry.hitIndex)).toEqual([1, 2, 3]);
-    expect(plan.every((entry) => entry.targetBattleUnitId === createBattleUnitId("ENEMY_1"))).toBe(
-      true,
-    );
+    expect(plan.every((entry) => entry.targetUnitId === createBattleUnitId("ENEMY_1"))).toBe(true);
   });
 
   it("UT-R-SKL-01-002: multiple actions on one target resolve in definition order, hits nested within each action", () => {
@@ -480,7 +478,7 @@ describe("resolveSkillOrder", () => {
 
     expect(plan).toEqual([
       {
-        targetBattleUnitId: createBattleUnitId("ACTOR"),
+        targetUnitId: createBattleUnitId("ACTOR"),
         effectActionDefinitionId: heal.effectActionDefinitionId,
         hitIndex: 1,
       },
@@ -637,12 +635,12 @@ describe("resolveSkillOrder", () => {
         actions: [{ effectActionDefinitionId: resolved.effectActionDefinitionId }],
         applications: [
           {
-            targetBattleUnitId: enemy.battleUnitId,
+            targetUnitId: enemy.battleUnitId,
             effectActionDefinitionId: resolved.effectActionDefinitionId,
             includeDefeated: false,
             hits: [
               {
-                targetBattleUnitId: enemy.battleUnitId,
+                targetUnitId: enemy.battleUnitId,
                 effectActionDefinitionId: resolved.effectActionDefinitionId,
                 hitIndex: 1,
               },
@@ -687,12 +685,12 @@ describe("resolveSkillOrder", () => {
 
     expect((plan.steps[0] as ActionStepPlan).applications).toEqual([
       {
-        targetBattleUnitId: defeatedEnemy.battleUnitId,
+        targetUnitId: defeatedEnemy.battleUnitId,
         effectActionDefinitionId: attack.effectActionDefinitionId,
         includeDefeated: true,
         hits: [
           {
-            targetBattleUnitId: defeatedEnemy.battleUnitId,
+            targetUnitId: defeatedEnemy.battleUnitId,
             effectActionDefinitionId: attack.effectActionDefinitionId,
             hitIndex: 1,
           },
@@ -765,7 +763,7 @@ describe("resolveSkillOrder", () => {
 
       expect(flattenEffectSequencePlan(plan)).toEqual([
         {
-          targetBattleUnitId: triggerTarget.battleUnitId,
+          targetUnitId: triggerTarget.battleUnitId,
           effectActionDefinitionId: attack.effectActionDefinitionId,
           hitIndex: 1,
         },
@@ -797,7 +795,7 @@ describe("resolveSkillOrder", () => {
 
       expect(flattenEffectSequencePlan(plan)).toEqual([
         {
-          targetBattleUnitId: triggerSource.battleUnitId,
+          targetUnitId: triggerSource.battleUnitId,
           effectActionDefinitionId: attack.effectActionDefinitionId,
           hitIndex: 1,
         },
@@ -863,7 +861,7 @@ describe("resolveChargeReleaseOrder", () => {
 
     expect(plan).toEqual([
       {
-        targetBattleUnitId: enemy.battleUnitId,
+        targetUnitId: enemy.battleUnitId,
         effectActionDefinitionId: hit.effectActionDefinitionId,
         hitIndex: 1,
       },
@@ -985,15 +983,15 @@ describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Iss
 
 describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issue #193)", () => {
   /** 混乱（`APPLY_STATUS` の `CONFUSION`）を保持する`AppliedEffect`。 */
-  function confusionEffect(targetId: string): AppliedEffect {
+  function confusionEffect(targetUnitId: string): AppliedEffect {
     const definitionId = createEffectActionDefinitionId("ACT_CONFUSION_TEST");
     return {
-      effectInstanceId: createEffectInstanceId(`ei-confusion-${targetId}`),
+      effectInstanceId: createEffectInstanceId(`ei-confusion-${targetUnitId}`),
       effectActionDefinitionId: definitionId,
       kindKey: effectKindKeyFromDefinitionId(definitionId),
       duplicate: true,
-      sourceId: createBattleUnitId("SOURCE"),
-      targetId: createBattleUnitId(targetId),
+      sourceUnitId: createBattleUnitId("SOURCE"),
+      targetUnitId: createBattleUnitId(targetUnitId),
       magnitude: 0,
       categories: ["DEBUFF"],
       statusKind: "CONFUSION",
@@ -1053,7 +1051,7 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
       resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions),
     );
 
-    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([
+    expect(plan.map((entry) => entry.targetUnitId)).toEqual([
       createBattleUnitId("ACTOR"),
       createBattleUnitId("ALLY_1"),
     ]);
@@ -1085,7 +1083,7 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
       resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions),
     );
 
-    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
+    expect(plan.map((entry) => entry.targetUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
   });
 
   it("UT-R-CFS-01-003: an EX skill is never redirected — R-CFS-01 limits the inversion to AS", () => {
@@ -1117,7 +1115,7 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
       resolveSkillOrder(skill, actor, [actor, ally, enemy], effectActions),
     );
 
-    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
+    expect(plan.map((entry) => entry.targetUnitId)).toEqual([createBattleUnitId("ENEMY_1")]);
   });
 
   it("UT-R-CFS-01-004: a binding that no DAMAGE action targets keeps its declared side", () => {
@@ -1237,7 +1235,7 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
       resolveChargeReleaseOrder(skill, actor, [actor, ally, enemy], effectActions),
     );
 
-    expect(plan.map((entry) => entry.targetBattleUnitId)).toEqual([
+    expect(plan.map((entry) => entry.targetUnitId)).toEqual([
       createBattleUnitId("ACTOR"),
       createBattleUnitId("ALLY_1"),
     ]);

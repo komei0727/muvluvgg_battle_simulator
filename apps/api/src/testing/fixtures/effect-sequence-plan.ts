@@ -209,7 +209,7 @@ export function contextFor(
 ): EffectActionGroupContext {
   return {
     definitions: { ...EMPTY_DEFINITIONS, effectActions },
-    actorId: actor.battleUnitId,
+    actorUnitId: actor.battleUnitId,
     random: NO_RANDOM,
     recorder,
     turnNumber: 1,
@@ -239,7 +239,7 @@ export function seedRecorder(): { recorder: EventRecorder; rootEventId: string }
 export function singleActionStep(
   stepIndex: number,
   satisfied: boolean,
-  targetBattleUnitId: BattleUnit["battleUnitId"],
+  targetUnitId: BattleUnit["battleUnitId"],
   effectActionDefinitionId: EffectActionDefinition["effectActionDefinitionId"],
   includeDefeated = false,
 ): EffectSequencePlan["steps"][number] {
@@ -253,10 +253,10 @@ export function singleActionStep(
     applications: satisfied
       ? [
           {
-            targetBattleUnitId,
+            targetUnitId,
             effectActionDefinitionId,
             includeDefeated,
-            hits: [{ targetBattleUnitId, effectActionDefinitionId, hitIndex: 1 }],
+            hits: [{ targetUnitId, effectActionDefinitionId, hitIndex: 1 }],
           },
         ]
       : [],

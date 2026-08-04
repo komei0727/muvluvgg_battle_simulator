@@ -460,7 +460,7 @@ export function applyOneContinuousDamage(
     parentEventId: lastEventId,
     rootEventId: context.rootEventId,
     // R-MEM-04: Memory由来の付与は付与者ユニットを持たず`sourceSide`を持つ。
-    ...(effect.sourceId !== undefined ? { sourceUnitId: effect.sourceId } : {}),
+    ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
     ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
     targetUnitIds: [holder.battleUnitId],
     payload: {
@@ -500,7 +500,7 @@ export function applyOneContinuousDamage(
       resolutionScopeId: context.resolutionScopeId,
       parentEventId: applied.eventId,
       rootEventId: context.rootEventId,
-      ...(effect.sourceId !== undefined ? { sourceUnitId: effect.sourceId } : {}),
+      ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
       ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
       targetUnitIds: [holder.battleUnitId],
       payload: { unitId: holder.battleUnitId, causeEventId: applied.eventId },
@@ -526,7 +526,7 @@ interface PoisonMagnitudeCandidate {
   readonly magnitude: number;
   /** R-DOT-01の付与時攻撃力＝R-DOT-04の上限ダメージ。 */
   readonly snapshotAttack: number;
-  readonly sourceId?: BattleUnitId;
+  readonly sourceUnitId?: BattleUnitId;
   readonly sourceSide?: Side;
 }
 
@@ -569,7 +569,7 @@ export function grantPoisonContinuousDamage(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): GrantPoisonResult {
-  const target = requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetUnitId);
   const existing = target.appliedEffects.find(
     (effect) => effect.continuousDamage?.continuousDamageKind === "POISON",
   );
@@ -595,7 +595,7 @@ export function grantPoisonContinuousDamage(
     formula: existingDefinition.payload.formula,
     magnitude: existing.magnitude,
     snapshotAttack: snapshotAttackOf(existing),
-    ...(existing.sourceId !== undefined ? { sourceId: existing.sourceId } : {}),
+    ...(existing.sourceUnitId !== undefined ? { sourceUnitId: existing.sourceUnitId } : {}),
     ...(existing.sourceSide !== undefined ? { sourceSide: existing.sourceSide } : {}),
   };
   const incomingCandidate: PoisonMagnitudeCandidate = {
@@ -606,7 +606,7 @@ export function grantPoisonContinuousDamage(
         : existingDefinition.payload.formula,
     magnitude: request.magnitude,
     snapshotAttack: request.snapshot?.[CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY] ?? 0,
-    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
   };
 
@@ -616,7 +616,7 @@ export function grantPoisonContinuousDamage(
       candidate.formula,
       candidate.snapshotAttack,
       target,
-      units.find((unit) => unit.battleUnitId === candidate.sourceId),
+      units.find((unit) => unit.battleUnitId === candidate.sourceUnitId),
       candidate.sourceSide,
       units,
     );
@@ -642,13 +642,13 @@ export function grantPoisonContinuousDamage(
   const adoptedTick = takeIncomingMagnitude ? incomingTick : existingTick;
   // 効果量側の採用元は、割合を決める効果定義と付与者・付与時攻撃力を一組で運ぶ。
   // 付与者はどちらか一方だけを持つ（R-MEM-04）ため、差し替える場合は
-  // `sourceId`/`sourceSide`の両方を採用元のものへ入れ替える。
-  const { sourceId: _sourceId, sourceSide: _sourceSide, ...existingWithoutSource } = existing;
+  // `sourceUnitId`/`sourceSide`の両方を採用元のものへ入れ替える。
+  const { sourceUnitId: _sourceId, sourceSide: _sourceSide, ...existingWithoutSource } = existing;
   const nextEffect: AppliedEffect = {
     ...existingWithoutSource,
     effectActionDefinitionId: adopted.effectActionDefinitionId,
     kindKey: effectKindKeyFromDefinitionId(adopted.effectActionDefinitionId),
-    ...(adopted.sourceId !== undefined ? { sourceId: adopted.sourceId } : {}),
+    ...(adopted.sourceUnitId !== undefined ? { sourceUnitId: adopted.sourceUnitId } : {}),
     ...(adopted.sourceSide !== undefined ? { sourceSide: adopted.sourceSide } : {}),
     // 保存する`magnitude`も統合時点で評価し直した割合ダメージへ揃える。これにより
     // `AppliedEffect.magnitude`は常に「直近の付与／統合時点で評価した割合ダメージ」を
@@ -669,7 +669,7 @@ export function grantPoisonContinuousDamage(
   };
 
   const nextUnits = units.map((unit) =>
-    unit.battleUnitId === request.targetId
+    unit.battleUnitId === request.targetUnitId
       ? {
           ...unit,
           appliedEffects: unit.appliedEffects.map((effect) =>
@@ -689,12 +689,12 @@ export function grantPoisonContinuousDamage(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-    targetUnitIds: [request.targetId],
+    targetUnitIds: [request.targetUnitId],
     payload: {
       effectInstanceId: existing.effectInstanceId,
-      battleUnitId: request.targetId,
+      battleUnitId: request.targetUnitId,
       effectActionDefinitionId: nextEffect.effectActionDefinitionId,
       reason: "POISON_REAPPLY",
       magnitudeBefore: existing.magnitude,
@@ -711,7 +711,7 @@ export function grantPoisonContinuousDamage(
     },
     stateDelta: {
       units: {
-        [request.targetId]: {
+        [request.targetUnitId]: {
           effects: {
             [existing.effectInstanceId]: {
               before: toEffectSnapshot(existing, true),

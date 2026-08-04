@@ -143,11 +143,11 @@ export function* applyHealActionSteps(
       interrupted = true;
       break;
     }
-    const target = working.get(hit.targetBattleUnitId);
+    const target = working.get(hit.targetUnitId);
     if (target === undefined) {
       throw new DomainValidationError(
-        "hits[].targetBattleUnitId",
-        `references an unknown BattleUnitId: "${hit.targetBattleUnitId}"`,
+        "hits[].targetUnitId",
+        `references an unknown BattleUnitId: "${hit.targetUnitId}"`,
       );
     }
     resolvedCount += 1;

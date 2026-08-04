@@ -37,7 +37,11 @@ export const VIOLATION_RULES = [
 export type CatalogIntegrityRule = (typeof VIOLATION_RULES)[number];
 
 export interface CatalogIntegrityViolation {
-  /** The definition ID this violation is diagnosed against (`14_Catalog定義スキーマ.md` の ID体系). */
+  /**
+   * The definition ID this violation is diagnosed against (`14_Catalog定義スキーマ.md` の ID体系).
+   * Catalog定義ID（`UNIT_*`／`SKL_*`／`MEM_*` 等）であって `BattleUnitId` ではない —
+   * 戦闘中の対象ユニットを指す名前は `targetUnitId` に統一されており、本フィールドとは別概念。
+   */
   readonly targetId: string;
   readonly rule: CatalogIntegrityRule;
   readonly message: string;

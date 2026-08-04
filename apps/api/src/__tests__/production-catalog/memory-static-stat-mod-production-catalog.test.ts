@@ -371,7 +371,7 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
       recorder.getEvents().filter((event) => event.eventType === "MemoryResolved"),
     ).toHaveLength(8);
     for (const effect of allyBy(battle, "ally:en_support").appliedEffects) {
-      expect(effect.sourceId).toBeUndefined();
+      expect(effect.sourceUnitId).toBeUndefined();
       expect(effect.sourceSide).toBe("ALLY");
     }
 

@@ -77,8 +77,8 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
         [source, target],
         {
           markerId: effectAction.payload.markerId,
-          sourceId: source.battleUnitId,
-          targetId: target.battleUnitId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: target.battleUnitId,
           stackPolicy: effectAction.payload.stack.policy,
           stackMax: effectAction.payload.stack.max,
           durationDefinition: effectAction.payload.duration,
@@ -93,8 +93,8 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
         first.units,
         {
           markerId: effectAction.payload.markerId,
-          sourceId: source.battleUnitId,
-          targetId: target.battleUnitId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: target.battleUnitId,
           stackPolicy: effectAction.payload.stack.policy,
           stackMax: effectAction.payload.stack.max,
           durationDefinition: effectAction.payload.duration,
@@ -153,8 +153,8 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
         [source, target],
         {
           markerId: applyEffectAction.payload.markerId,
-          sourceId: source.battleUnitId,
-          targetId: target.battleUnitId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: target.battleUnitId,
           stackPolicy: applyEffectAction.payload.stack.policy,
           stackMax: applyEffectAction.payload.stack.max,
           durationDefinition: applyEffectAction.payload.duration,

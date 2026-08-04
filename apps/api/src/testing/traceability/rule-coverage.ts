@@ -2698,7 +2698,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 一致判定（`simulation-result-assembler.ts`の`unitSnapshotsEqual`）へも
   // Markerを反映した。
   // M7-020（Issue #279、`MARKER_REMOVAL_ON_SOURCE_DEATH`）: 付与者
-  // （`MarkerState.sourceId`）の戦闘不能を解除契機として宣言する
+  // （`MarkerState.sourceUnitId`）の戦闘不能を解除契機として宣言する
   // `DurationDefinition.removeOnSourceDefeated`（`APPLY_MARKER`専用）を追加した。
   // 抽出は`lifecycle/marker-source-defeat-service.ts`、実ライフサイクル配線は
   // `passive-activation-service.ts`のトップレベル（`applyMarkerSourceDefeatRemovals`）

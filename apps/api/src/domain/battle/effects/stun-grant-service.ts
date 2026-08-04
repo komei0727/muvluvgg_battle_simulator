@@ -31,7 +31,7 @@ export function grantStunStatus(
   request: GrantEffectRequest,
   parentEventId: DomainEventId,
 ): GrantStunResult {
-  const target = requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetUnitId);
   const existing = target.appliedEffects.find((effect) => effect.statusKind === "STUN");
 
   if (existing === undefined) {
@@ -52,7 +52,7 @@ export function grantStunStatus(
 
   const nextEffect: AppliedEffect = {
     ...existing,
-    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
     duration: buildInitialDurationState(durationDefinition, {
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
@@ -61,7 +61,7 @@ export function grantStunStatus(
     }),
   };
   const nextUnits = units.map((unit) =>
-    unit.battleUnitId === request.targetId
+    unit.battleUnitId === request.targetUnitId
       ? {
           ...unit,
           appliedEffects: unit.appliedEffects.map((effect) =>
@@ -81,19 +81,19 @@ export function grantStunStatus(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId,
     rootEventId: context.rootEventId,
-    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-    targetUnitIds: [request.targetId],
+    targetUnitIds: [request.targetUnitId],
     payload: {
       effectInstanceId: existing.effectInstanceId,
-      battleUnitId: request.targetId,
+      battleUnitId: request.targetUnitId,
       remainingBefore: existingRemaining,
       remainingAfter: newRemaining,
       reason: "REGRANT_EXTENDED",
     },
     stateDelta: {
       units: {
-        [request.targetId]: {
+        [request.targetUnitId]: {
           effects: {
             [existing.effectInstanceId]: {
               before: toEffectSnapshot(existing, true),

@@ -57,12 +57,12 @@ export interface GrantEffectRequest {
   /**
    * 付与者。R-MEM-04（Issue #179）: Memory の `triggeredEffects` 由来の付与だけは
    * 具体的な付与者ユニットを持たないため`undefined`を渡し、代わりに`sourceSide`
-   * を渡す（`AppliedEffect.sourceId`/`EffectApplied`も同じ規約）。
+   * を渡す（`AppliedEffect.sourceUnitId`/`EffectApplied`も同じ規約）。
    */
-  readonly sourceId?: BattleUnitId;
+  readonly sourceUnitId?: BattleUnitId;
   /** R-MEM-04: Memory由来の付与だけが持つ、付与元の陣営。 */
   readonly sourceSide?: Side;
-  readonly targetId: BattleUnitId;
+  readonly targetUnitId: BattleUnitId;
   readonly duplicate: boolean;
   readonly magnitude: number;
   /** TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ。 */
@@ -232,7 +232,7 @@ export function grantEffect(
   request: GrantEffectRequest,
   parentEventId: DomainEventId,
 ): GrantEffectResult {
-  const target = requireUnit(units, request.targetId);
+  const target = requireUnit(units, request.targetUnitId);
   const effectActionDefinitionId = request.definition.effectActionDefinitionId;
   const kindKey = effectKindKeyFromDefinitionId(effectActionDefinitionId);
   // R-EFF-12（M7-014、Issue #268）: 以降はCatalog上の`durationDefinition`ではなく
@@ -260,9 +260,9 @@ export function grantEffect(
     effectActionDefinitionId,
     kindKey,
     duplicate: request.duplicate,
-    ...(request.sourceId !== undefined ? { sourceId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-    targetId: request.targetId,
+    targetUnitId: request.targetUnitId,
     magnitude: request.magnitude,
     ...(request.statusKind !== undefined ? { statusKind: request.statusKind } : {}),
     ...(request.statusDetails !== undefined ? { statusDetails: request.statusDetails } : {}),
@@ -308,7 +308,7 @@ export function grantEffect(
   );
 
   const nextUnits = units.map((unit) =>
-    unit.battleUnitId === request.targetId
+    unit.battleUnitId === request.targetUnitId
       ? { ...unit, appliedEffects: [...unit.appliedEffects, newEffect] }
       : unit,
   );
@@ -326,15 +326,15 @@ export function grantEffect(
     // `08_ドメインイベント.md`「Memoryイベントは`sourceUnitId`を持たず、
     // `sourceSide`を持つ」: Memory由来の付与（R-MEM-04）は発生源ユニットを
     // 持たないため、envelopeもpayloadも`sourceSide`へ置き換える。
-    ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+    ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
     ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-    targetUnitIds: [request.targetId],
+    targetUnitIds: [request.targetUnitId],
     payload: {
       effectInstanceId: newEffect.effectInstanceId,
       effectActionDefinitionId,
-      ...(request.sourceId !== undefined ? { sourceUnitId: request.sourceId } : {}),
+      ...(request.sourceUnitId !== undefined ? { sourceUnitId: request.sourceUnitId } : {}),
       ...(request.sourceSide !== undefined ? { sourceSide: request.sourceSide } : {}),
-      targetUnitId: request.targetId,
+      targetUnitId: request.targetUnitId,
       duplicate: request.duplicate,
       kindKey,
       // M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）:
@@ -380,7 +380,7 @@ export function grantEffect(
     },
     stateDelta: {
       units: {
-        [request.targetId]: {
+        [request.targetUnitId]: {
           effects: {
             [newEffect.effectInstanceId]: {
               before: undefined,

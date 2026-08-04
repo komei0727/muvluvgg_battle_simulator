@@ -146,8 +146,8 @@ describe("production Catalog SKL_TARISA_TROUBLEMAKER_PS1 (M7-001D, Issue #247, C
         units,
         {
           markerId: markerAction.payload.markerId,
-          sourceId: tarisa.battleUnitId,
-          targetId: tarisa.battleUnitId,
+          sourceUnitId: tarisa.battleUnitId,
+          targetUnitId: tarisa.battleUnitId,
           stackPolicy: markerAction.payload.stack.policy,
           stackMax: markerAction.payload.stack.max,
           durationDefinition: markerAction.payload.duration,
@@ -203,7 +203,7 @@ describe("production Catalog SKL_TARISA_TROUBLEMAKER_PS1 (M7-001D, Issue #247, C
       tarisa,
       [
         {
-          targetBattleUnitId: enemy.battleUnitId,
+          targetUnitId: enemy.battleUnitId,
           effectActionDefinitionId: attack.effectActionDefinitionId,
           hitIndex: 1,
         },
