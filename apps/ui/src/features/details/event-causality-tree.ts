@@ -11,15 +11,12 @@
 // 方針）。
 
 import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import { numberOf } from "../../lib/unknown-narrowing.js";
 
 export interface CausalityTreeNode {
   readonly event: BattleLogEventResponse;
   readonly sequence: number;
   readonly children: readonly CausalityTreeNode[];
-}
-
-function numberOf(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
 }
 
 interface MutableNode {

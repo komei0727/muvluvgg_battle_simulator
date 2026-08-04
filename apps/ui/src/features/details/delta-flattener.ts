@@ -13,13 +13,11 @@
 // JSON so a future entity type stays visible instead of silently collapsing to
 // a count.
 
+import { isRecord } from "../../lib/unknown-narrowing.js";
+
 export interface DeltaLine {
   readonly path: string;
   readonly text: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isValueChange(

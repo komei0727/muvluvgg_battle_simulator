@@ -1,9 +1,10 @@
 import { useId, useMemo, useState } from "react";
-import { DefinitionImage } from "../../components/DefinitionImage.js";
 import { Dialog } from "../../components/Dialog.js";
 import type { CatalogUnitSummary } from "../simulation/api-contract.js";
 import { filterUnits } from "./catalog-filter.js";
 import type { UnitFilter } from "./catalog-filter.js";
+import { SelectionDialogList } from "./SelectionDialogList.js";
+import type { SelectionDialogItem } from "./SelectionDialogList.js";
 import styles from "./SelectionDialog.module.css";
 
 export interface UnitSelectionDialogProps {
@@ -42,6 +43,22 @@ export function UnitSelectionDialog({
   const filtered = useMemo(() => filterUnits(units, filter), [units, filter]);
 
   const isEmptySlotAtCapacity = atCapacity && currentUnitDefinitionId === undefined;
+
+  const items = useMemo<readonly SelectionDialogItem[]>(
+    () =>
+      filtered.map((unit) => {
+        const isCurrent = unit.unitDefinitionId === currentUnitDefinitionId;
+        return {
+          definitionId: unit.unitDefinitionId,
+          displayName: unit.displayName,
+          selectable: unit.selectable,
+          disabled: !unit.selectable || (isEmptySlotAtCapacity && !isCurrent),
+          unavailableCapabilities: unit.unavailableCapabilities,
+          tags: [unit.attribute, unit.role, unit.positionAptitudes.join("/")],
+        };
+      }),
+    [filtered, currentUnitDefinitionId, isEmptySlotAtCapacity],
+  );
 
   return (
     <Dialog titleId={titleId} title="ユニットを選択" onClose={onClose}>
@@ -99,52 +116,16 @@ export function UnitSelectionDialog({
         </p>
       ) : null}
 
-      {currentUnitDefinitionId !== undefined ? (
-        <button type="button" className={styles["removeButton"]} onClick={onRemove}>
-          この枠を空にする
-        </button>
-      ) : null}
-
-      <ul className={styles["list"]}>
-        {filtered.map((unit) => {
-          const isCurrent = unit.unitDefinitionId === currentUnitDefinitionId;
-          const disabled = !unit.selectable || (isEmptySlotAtCapacity && !isCurrent);
-          return (
-            <li key={unit.unitDefinitionId} className={styles["item"]}>
-              <DefinitionImage
-                definitionId={unit.unitDefinitionId}
-                displayName={unit.displayName}
-                kind="unit"
-                {...(imageMap !== undefined ? { imageMap } : {})}
-              />
-              <div className={styles["itemBody"]}>
-                <p className={styles["itemName"]}>{unit.displayName}</p>
-                <p className={styles["itemId"]}>{unit.unitDefinitionId}</p>
-                <div className={styles["itemTags"]}>
-                  <span className={styles["tag"]}>{unit.attribute}</span>
-                  <span className={styles["tag"]}>{unit.role}</span>
-                  <span className={styles["tag"]}>{unit.positionAptitudes.join("/")}</span>
-                </div>
-                {!unit.selectable ? (
-                  <p className={styles["unavailable"]}>
-                    未対応: {unit.unavailableCapabilities.join(", ")}
-                  </p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onSelect(unit.unitDefinitionId);
-                }}
-                disabled={disabled}
-                aria-label={isCurrent ? `${unit.displayName}選択中` : `${unit.displayName}を選択`}
-              >
-                {isCurrent ? "選択中" : "選択"}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <SelectionDialogList
+        items={items}
+        kind="unit"
+        {...(currentUnitDefinitionId !== undefined
+          ? { currentDefinitionId: currentUnitDefinitionId }
+          : {})}
+        {...(imageMap !== undefined ? { imageMap } : {})}
+        onSelect={onSelect}
+        onRemove={onRemove}
+      />
     </Dialog>
   );
 }

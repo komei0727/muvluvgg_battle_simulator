@@ -3,6 +3,7 @@ import { Button } from "../../components/Button.js";
 import { formatEvent, resolveDisplayName } from "./event-formatters.js";
 import type { RosterIndex } from "./event-formatters.js";
 import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import { numberOf, stringOf } from "../../lib/unknown-narrowing.js";
 import styles from "./EventTimeline.module.css";
 
 export interface EventTimelineProps {
@@ -14,14 +15,6 @@ export interface EventTimelineProps {
 const INITIAL_VISIBLE_COUNT = 50;
 const LOAD_MORE_STEP = 50;
 const NO_VALUE_PLACEHOLDER = "-";
-
-function numberOf(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function stringOf(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
 
 // docs/ui-design/01_UI要求・画面設計.md §8.1: source/targetsは共通envelope
 // から常に独立して表示する。formatterのsummary文言がunitに触れないevent

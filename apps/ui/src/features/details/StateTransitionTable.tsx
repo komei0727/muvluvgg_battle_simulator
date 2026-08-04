@@ -2,15 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/Button.js";
 import { flattenDelta } from "./delta-flattener.js";
 import type { StateTransitionResponse } from "../simulation/api-contract.js";
+import { isRecord } from "../../lib/unknown-narrowing.js";
 import styles from "./StateTransitionTable.module.css";
 
 export interface StateTransitionTableProps {
   readonly transitions: readonly StateTransitionResponse[];
   readonly highlightedIndex?: number;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function targetOf(delta: unknown): string {
