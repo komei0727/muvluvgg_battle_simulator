@@ -119,7 +119,7 @@ function selfSkill(skillDefinitionId: string, effectActionIds: readonly string[]
 }
 
 /**
- * PR #280レビュー[P1]: カスケードで巻き込まれた子`AppliedEffect`の`EffectExpired`を
+ * カスケードで巻き込まれた子`AppliedEffect`の`EffectExpired`を
  * triggerにし、その時点で親Markerを所持しているかを`activationCondition`
  * （`TARGET_HAS_MARKER`）で判定するPS。カスケードの通知がステップ単位でなく
  * バッチだと、このPSは親Markerが既に除去された状態を観測して発動しない。
@@ -388,7 +388,7 @@ describe("production Catalog cross-type linkedEffectGroup cascade (M7-013, Issue
     expect(restored).toEqual(liveSnapshot(actorOf(h, units)));
   });
 
-  it("IT-LINKED-GROUP-CROSS-TYPE-PROD-005 (R-EFF-09 通知順序, PR #280 レビュー[P1]): a PS triggered by a cascaded child's EffectExpired still observes the parent 「負けん気」 Marker and activates", () => {
+  it("IT-LINKED-GROUP-CROSS-TYPE-PROD-005 (R-EFF-09 通知順序): a PS triggered by a cascaded child's EffectExpired still observes the parent 「負けん気」 Marker and activates", () => {
     const grant = selfSkill("SKL_TEST_TARISA_GRANT", [
       TARISA_MARKER_EFFECT_ID,
       TARISA_ATK_UP_EFFECT_ID,

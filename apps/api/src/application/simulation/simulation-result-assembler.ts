@@ -104,9 +104,8 @@ function effectsEqual(
 
 /**
  * R-EFF-10: `effectsEqual`と同じ「付与順どおりの比較」を`MarkerState`へ適用する
- * （PR #210レビュー[P2]: `unitSnapshotsEqual`がMarkerを比較していなかったため、
- * Marker deltaの欠落・誤更新があっても独立Reducer復元の不一致として検出
- * できなかった）。
+ * （`unitSnapshotsEqual`がMarkerを比較しないと、Marker deltaの欠落・誤更新が
+ * あっても独立Reducer復元の不一致として検出できない）。
  */
 function markersEqual(
   a: readonly MarkerSnapshot[] | undefined,

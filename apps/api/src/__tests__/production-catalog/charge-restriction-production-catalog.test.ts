@@ -695,7 +695,7 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
     ).toEqual({ ok: true });
   });
 
-  it("IT-CAP-CHARGE-RESTRICTION-PROD-006 (M7-016, Issue #270 review [P1]): both real CHARGE definitions carry an empty start-side steps array, so nothing a charge start would silently drop is declared, and a real charge start applies no MarkerState at all", () => {
+  it("IT-CAP-CHARGE-RESTRICTION-PROD-006 (M7-016, Issue #270): both real CHARGE definitions carry an empty start-side steps array, so nothing a charge start would silently drop is declared, and a real charge start applies no MarkerState at all", () => {
     for (const [unitId, skillId] of [
       [MIRIAM_UNIT_ID, MIRIAM_CHARGE_SKILL_ID],
       [SIENA_UNIT_ID, SIENA_CHARGE_SKILL_ID],

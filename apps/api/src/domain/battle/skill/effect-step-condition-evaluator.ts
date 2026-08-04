@@ -272,7 +272,7 @@ export function evaluateEffectStepCondition(
           matchesTargetState(unit, condition, targetContext.unitDefinitions),
         );
       }
-      // BRANCH（Issue #230 レビュー[P1]）: BRANCHの`condition`は対象ごとの
+      // BRANCH（Issue #230）: BRANCHの`condition`は対象ごとの
       // 評価コンテキストを持たないが、参照する`TargetReference`が高々1体にしか
       // 解決されないことをCatalog preflight（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`）
       // が保証する場合に限り、`resolveTargetSet`で解決した0〜1体へ直接評価する
@@ -316,8 +316,8 @@ export function evaluateEffectStepCondition(
           );
         });
       }
-      // TARGET_STATEの分岐と同じ理由・同じ形（BRANCH step-wide scope、Issue #230
-      // レビュー[P1]）: 高々1体にしか解決されないことをpreflightが保証する場合に
+      // TARGET_STATEの分岐と同じ理由・同じ形（BRANCH step-wide scope、
+      // Issue #230）: 高々1体にしか解決されないことをpreflightが保証する場合に
       // 限り、直接その1体を評価する。
       if (resolveTargetSet !== undefined) {
         const candidates = resolveTargetSet(condition.target);

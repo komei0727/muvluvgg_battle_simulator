@@ -59,8 +59,8 @@ function toPercentagePoints(ratio: number): number {
  * Domainの`CooldownState`はこのXORをコンパイル時には強制しない（`unit`と
  * `setActionId`/`setTurnNumber`が独立したoptionalフィールドのため）ので、ここで
  * 実行時に検証する。反対側のscopeフィールドが同時に存在する場合も、黙って
- * 捨てて正常化するのではなく例外にする（M5レビュー4巡目[P3]: Domain不変条件が
- * 破れているサインを握りつぶさない）。
+ * 捨てて正常化するのではなく例外にする（Domain不変条件が破れているサインを
+ * 握りつぶさない）。
  */
 function toCooldownStateResponseBody(
   skillDefinitionId: string,
@@ -136,7 +136,7 @@ function toChargeStateResponseBody(
  * （R-EFF-02/03の解除・免疫判定の正本）が付与時点に確定し、`EffectApplied`・
  * `BattleUnitSnapshot`・独立Reducerが同じ値を運ぶ——だけを読む。
  *
- * PR #288レビュー[P1]（RES-004-STATUS-CONDITION、Issue #224）: 以前は
+ * RES-004-STATUS-CONDITION（Issue #224）: 以前は
  * `statusKind`の有無で分岐し、持たない効果を`magnitude`の符号で分類していた。
  * `APPLY_CONTINUOUS_DAMAGE`は`statusKind`を持たず`magnitude`（ダメージ量）が
  * 正値のため、毒・炎上・固定継続ダメージがすべて公開API上だけ`BUFF`になり、
@@ -144,7 +144,7 @@ function toChargeStateResponseBody(
  * 符号から導き直すのをやめ、分類元を1つに保つ。
  *
  * `STEALTH`/`EVASION`/`DAMAGE_IMMUNITY`等の対象自身に有利な`APPLY_STATUS`が
- * `BUFF`になること（PR #264レビュー[P1]）は`categories`側が`["BUFF"]`を返すため
+ * `BUFF`になることは`categories`側が`["BUFF"]`を返すため
  * 変わらない。`SHIELD`/`SUBUNIT`のように極性を持たない分類も、デバフでない以上
  * 従来どおり`BUFF`へ落ちる。
  */
@@ -200,11 +200,11 @@ function toSubUnitStateResponseBody(effect: EffectSnapshot): SubUnitStateRespons
 }
 
 /**
- * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004、PR #210レビュー[P1]):
+ * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004):
  * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
  * 監査用の値）。
  *
- * PR #262レビュー[P1]: R-MEM-04（M7-008、Issue #176）のMemory由来Markerは付与者
+ * R-MEM-04（M7-008、Issue #176）のMemory由来Markerは付与者
  * ユニットを持たない（`MarkerSnapshot.sourceUnitId`が`undefined`）が、v1契約は
  * `sourceUnitId`を必須のまま据え置く（既存必須プロパティの削除は
  * `10_API設計.md`「バージョニング」の破壊的変更に当たる）。そうしたMarkerを生む
@@ -410,7 +410,7 @@ function toChargeValueChangeResponseBody(
 
 /**
  * `10_API設計.md`「UnitStateDeltaResponse.markers」(`EntityCollectionDelta`、
- * R-EFF-10、PR #210レビュー[P1]): `state-delta.ts`の`UnitStateDelta.markers`
+ * R-EFF-10): `state-delta.ts`の`UnitStateDelta.markers`
  * （`MarkerInstanceId`をキーとする`ValueChange<MarkerSnapshot | undefined>`）を、
  * `toCooldownEntityCollectionDeltaResponseBody`と同じ`added`/`updated`/`removed`
  * 変換へ写す。`before: undefined`は新規付与（`MarkerApplied`）、
@@ -445,7 +445,7 @@ function toMarkerEntityCollectionDeltaResponseBody(
 
 /**
  * `10_API設計.md`「UnitStateDeltaResponse.effects」(`EntityCollectionDelta`、
- * R-EFF-01、PRレビュー[P1] fix、Issue #243): `state-delta.ts`の`UnitStateDelta.
+ * R-EFF-01、Issue #243): `state-delta.ts`の`UnitStateDelta.
  * effects`（`EffectInstanceId`をキーとする`ValueChange<EffectSnapshot | undefined>`）
  * を、`toMarkerEntityCollectionDeltaResponseBody`と同じ`added`/`updated`/`removed`
  * 変換へ写す。`markers`と同じくcooldownsのような数値sentinelを使わず、
@@ -500,8 +500,7 @@ const PERCENTAGE_POINT_COMBAT_STATS: ReadonlySet<string> = new Set([
  * `combatStats`ではなく`hp.maximum`（`CombatStatsResponse`は`maximumHp`を持たない）
  * のため、`hpMaximum`として分けて運ぶ。
  *
- * PR #294レビュー[P1]: この変換自体が欠けており、`combatStats`差分は公開
- * レスポンスへ一切現れていなかった。`APPLY_STAT_MOD(MAXIMUM_HP)`や
+ * この変換が欠けると、`combatStats`差分は公開レスポンスへ一切現れない。`APPLY_STAT_MOD(MAXIMUM_HP)`や
  * `MODIFY_RESOURCE_CAPACITY(resource: HP)`（G-09／M7-002A・Issue #255）でHP上限が
  * 動くシナリオでは、`initialState` + `stateTransitions`から`hp.maximum`を復元できず
  * `10_API設計.md`「差分の適用」の`reconstructedFinalState === finalState`契約を

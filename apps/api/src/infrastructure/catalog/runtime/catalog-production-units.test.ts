@@ -25,7 +25,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003`). Issue #160 (EFF-004):
     // `CAP_MARKER` flipped to IMPLEMENTED once MarkerState stack policies and
     // ACTION/TURN duration expiration (R-EFF-10) wired the real lifecycle
-    // (`IT-MARKER-PROD-001〜002`). RES-001 (Issue #175, PR #214 re-review):
+    // (`IT-MARKER-PROD-001〜002`). RES-001 (Issue #175):
     // `CAP_FORMULA` flipped to IMPLEMENTED once the general FormulaEvaluator
     // wired the real lifecycle (`IT-CAP-FORMULA-PROD-001〜004`). Issue #217:
     // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` corrected from a misused
@@ -50,12 +50,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // TARGET_HAS_MARKER) are evaluated per-target, always deferred to JIT
     // resolution time (`isEagerActionStep`) so a self-referencing condition sees
     // the state left by earlier steps and by this step's own `EffectStepStarting`
-    // chain, not a stale pre-sequence/pre-timing-event snapshot (PR #223 review
-    // finding [P1]; `effect-step-condition-evaluator.ts`'s `EffectStepTargetContext`,
+    // chain, not a stale pre-sequence/pre-timing-event snapshot
+    // (`effect-step-condition-evaluator.ts`'s `EffectStepTargetContext`,
     // `skill-resolution-service.ts`'s `buildEffectStepPerTargetFilter`), wiring
     // the real lifecycle for `SKL_AOI_ELEGANT_EX`/`SKL_LUCIE_MAID_AS1`/
     // `SKL_LUCIE_MAID_PS2`/`SKL_ROSIE_ARTIST_PS2` (`IT-CAP-EFFSTEP-001〜004`).
-    // PR #223 review finding [P2]: this capability's completion boundary is
+    // This capability's completion boundary is
     // narrowed to exclude "集合条件" (set-threshold) — no ConditionKind exists
     // for it yet, so it isn't part of what `IMPLEMENTED` claims here. It becomes
     // its own Capability entry once a concrete schema-supported design exists.
@@ -65,7 +65,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // production Skill uses it yet (`SKL_LYDIA_GENIUS_AS1`/`SKL_ELENA_MOODMAKER_AS1`
     // need it in their AS `activationCondition`, `CAP_ACTION_ACTIVATION_CONDITION`
     // scope, handed off to #180/M7-003), so it stays `runtimeStatus: PLANNED`.
-    // PR #228 review: mixing TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER
+    // Mixing TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER
     // that references an ACTION step's own target is now rejected outright
     // (`MIXED_STEP_TARGET_SET_CONDITION`) rather than runtime-quantified, since no
     // single-boolean reduction satisfied both the per-target and set-wide contracts.
@@ -149,7 +149,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // owner Issues (M7-002A / M7-015〜M7-019) and three descriptions corrected.
     // No `runtimeStatus` flipped and no Unit/Skill/EffectAction definition
     // changed, so `unitCount`/violation/`selectable` expectations are unchanged.
-    // Bumped again by the same PR's review fix [P2]: three of those descriptions
+    // Bumped again for description wording: three of those descriptions
     // claimed the Capability was the *exclusive* blocker of some Units; measured
     // against the real Catalog none of the three is, so the wording was corrected.
     // Descriptions only — still no definition or `runtimeStatus` change.
@@ -237,7 +237,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by M7-015 (Issue #269): `CAP_MARKER_STACK_FORMULA`を
     // `IMPLEMENTED`へ更新し、`verification`へ`MARKER_COUNT_SCALE`の実ライフ
     // サイクル検証（`IT-CAP-MARKER-STACK-PROD-001`〜`006`）を登録した。
-    // `.11`はPR #292レビュー[P2]で、同Capabilityの説明のselectable記述を
+    // `.11`は同Capabilityの説明のselectable記述を
     // 監査時点の値から本PR後の実測（`UNIT_CHIYURU_NEWYEAR`・`UNIT_FEE_BATH`が
     // selectable）へ訂正した分。Unit・Skill・Effectの定義自体は変えていない
     // ため期待値は据え置き。
@@ -260,7 +260,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // so the 10 promoted units' `unitCount`/violation expectations are unchanged
     // (5 other production units do become newly `selectable`: 55 → 60, tracked in
     // `docs/ddd/17_残作業対応表.json`'s `m7Audit`).
-    // `.5` is the same PR's review fix [P1]: `CRITICAL_PREVENTION` is classified
+    // `.5`: `CRITICAL_PREVENTION` is classified
     // as `DEBUFF` (not `BUFF`) by `effect-category-classifier.ts`, recorded in
     // `CAP_CRITICAL_CONTROL`'s description plus two more `verification.testCaseIds`.
     // Capability metadata only — no definition changed.
@@ -273,7 +273,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // units' definitions are unchanged, but every remaining production unit
     // becomes `selectable` (60 → 69, tracked in `docs/ddd/17_残作業対応表.json`'s
     // `m7Audit`).
-    // `.7` is the same PR's review fix [P2]: `appliesTo.actionKinds` beyond
+    // `.7`: `appliesTo.actionKinds` beyond
     // `["DAMAGE"]` is rejected at Catalog load time
     // (`UNSUPPORTED_DEFENSIVE_INTERVENTION`) because `R-INT-01` only evaluates
     // defensive interventions after `DamageWillBeApplied`, recorded in
@@ -290,10 +290,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `SKL_DOROTHEA_PIONEER_PS2`'s trigger narrowed to the links it granted.
     // None of the 10 promoted units is involved, so their definitions are
     // unchanged and `selectable` stays at 69.
-    // `.9` is the same Issue's review fixes: `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`
+    // `.9`: `ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK`
     // now declares `timeLimit.owner: EFFECT_SOURCE` so the ally-held link shares
-    // 劉翠蘭's clock with its parent shield ([P1]), and every `APPLY_DAMAGE_LINK`
-    // declares `polarity` because the same kind is used in both directions ([P2]).
+    // 劉翠蘭's clock with its parent shield, and every `APPLY_DAMAGE_LINK`
+    // declares `polarity` because the same kind is used in both directions.
     // Capability metadata and the four DMG-007 rows only.
     // `.10` is DMG-009 (Issue #193, R-CFS-01/R-CFS-02/R-DTH-01): `APPLY_STATUS`
     // gained the `CONFUSION` and `DAMAGE_TO_HEAL` statuses, plus `CAP_CONFUSION`
@@ -303,9 +303,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `ACT_TATIANA_SAGE_AS1_DAZZLE`, converting the last two
     // `CONFUSION_OR_DAMAGE_TO_HEAL` ledger rows without approximation. Neither
     // unit is one of the 10 promoted units, so `selectable` stays at 69.
-    // `.11` is the same Issue's review fix: R-CFS-01's inversion is `ALLY`↔`ENEMY`
+    // `.11`: R-CFS-01's inversion is `ALLY`↔`ENEMY`
     // only, so `CAP_CONFUSION`'s description now spells out that `side: ALL` is
-    // left alone ([P2]). Capability metadata only — no definition changed.
+    // left alone. Capability metadata only — no definition changed.
     expect(catalog.catalogRevision).toBe("2026-08-02.11");
   });
 
@@ -513,7 +513,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       const trigger = skill?.triggers[0];
       expect(trigger?.eventType).toBe("RuntimeCounterChanged");
       expect(trigger?.sourceSelector).toBe("SELF");
-      // レビュー再々レビュー[P1]: carryのみの変化でも`RuntimeCounterChanged`が
+      // carryのみの変化でも`RuntimeCounterChanged`が
       // 発行されるようになったため、閾値到達時（`valueChanged: true`）だけに
       // 絞り込む条件をANDで持つ（さもないと閾値未到達の被弾ごとに誤発動する）。
       expect(trigger?.condition).toEqual({
@@ -613,7 +613,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `raw/units/`の凍結解除ダメージ増幅フレーバーテキスト（例:
     // 「その際の被ダメージが150%増加する」）は加算率であり、
     // `damage-application-service.ts`は`1 + damageAmplificationOnBreak`を実効
-    // 倍率として計算する（レビュー再指摘[P1], Issue #183）。
+    // 倍率として計算する（Issue #183）。
     {
       unitId: "UNIT_KATE_PALADIN",
       effectActionId: "ACT_KATE_PALADIN_EX_FREEZE",
@@ -645,7 +645,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expectedMultiplier: 2.0,
     },
   ])(
-    "IT-CAT-PROD-012 (レビュー再指摘[P1], Issue #183): $effectActionId's damageAmplificationOnBreak ($expectedRate) is an additive rate producing an effective $expectedMultiplier x multiplier, matching the raw flavor text ($unitId)",
+    "IT-CAT-PROD-012 (Issue #183): $effectActionId's damageAmplificationOnBreak ($expectedRate) is an additive rate producing an effective $expectedMultiplier x multiplier, matching the raw flavor text ($unitId)",
     ({ unitId, effectActionId, expectedRate, expectedMultiplier }) => {
       const catalog = loadCatalogFromDirectory(catalogPath());
       const snapshot = catalog.loadSnapshot([unitId] as never[], []);

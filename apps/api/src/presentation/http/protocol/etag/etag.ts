@@ -1,5 +1,5 @@
 /**
- * レビュー指摘: `14_Catalog定義スキーマ.md`のmanifest schemaは`catalogRevision`へ
+ * `14_Catalog定義スキーマ.md`のmanifest schemaは`catalogRevision`へ
  * `minLength: 1`しか強制しないため、改行・引用符・バックスラッシュを含む値も
  * 有効なCatalogとして通り得る。生のまま`ETag`ヘッダーへ埋め込むと、RFC 9110
  * §8.8.3の`opaque-tag = DQUOTE *etagc DQUOTE`（`etagc`は`"`・`\`・制御文字を
@@ -36,14 +36,13 @@ export function toOpaqueEntityTag(catalogRevision: string): string {
 /**
  * `10_API設計.md`「`If-None-Match`が現在のETagと一致する場合は本文なしの304を
  * 返す」。RFC 9110 §13.1.2: `If-None-Match`は弱い比較(weak comparison)を使う
- * ——`W/`接頭辞の有無を無視し、opaque-tagの値だけを比較する（レビュー指摘: 現在
- * 強いETagしか発行しなくても、クライアントが`W/`付きで送ってくる場合を拒否
- * すべきではない）。
+ * ——`W/`接頭辞の有無を無視し、opaque-tagの値だけを比較する（現在は強いETagしか
+ * 発行しなくても、クライアントが`W/`付きで送ってくる場合を拒否すべきではない）。
  *
  * ヘッダーは`#entity-tag`（カンマ区切りリスト）で、`entity-tag`は
  * `[ "W/" ] DQUOTE *etagc DQUOTE`。`etagc`は`"`を含まないが、生カンマは含み
  * 得るため、単純な`split(",")`はopaque-tag内部のカンマを誤って分割し、正当な
- * ETagを見逃す（レビュー指摘）。ここでは引用符で囲まれた区間だけを正規表現で
+ * ETagを見逃す。ここでは引用符で囲まれた区間だけを正規表現で
  * 取り出し、カンマの位置に関わらず各`entity-tag`のopaque-tagを正しく分離する。
  */
 function parseIfNoneMatchOpaqueTags(header: string): readonly string[] {

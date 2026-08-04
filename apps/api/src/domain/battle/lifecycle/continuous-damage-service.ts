@@ -137,7 +137,7 @@ export interface ContinuousDamageAmount {
    * 上限ダメージ)`）— 切り捨てと最低1ダメージはR-DOT-01が「各継続ダメージの
    * 最終結果」へ適用する別の共通規則であり、効果量の定義には入らない。
    * したがって再付与の統合判定（`grantPoisonContinuousDamage`）はこの値で比較する
-   * （PR #286再レビュー[P2]: `calculatedDamage`で比べると、最低1へ丸められる
+   * （`calculatedDamage`で比べると、最低1へ丸められる
    * 小さな値どうしが同値に潰れて大小関係が失われる）。
    */
   readonly preTruncationDamage: number;
@@ -157,7 +157,7 @@ export interface ContinuousDamageAmount {
  * （`grantPoisonContinuousDamage` の「効果量は大きい方」）が同じ実装を共有する。
  * 統合判定は候補ごとに`formula`と`snapshotAttack`が違うだけで、`holder`（＝現在HP）は
  * 共通であるため、この関数を同じ`holder`で2回呼べば同じ土俵の比較になる
- * （PRレビュー[P1]: 保存済みの`magnitude`同士を比べると、各インスタンスが自分の
+ * （保存済みの`magnitude`同士を比べると、各インスタンスが自分の
  * 付与時点のHPで評価した値を比べることになり、R-DOT-04の大小関係が逆転しうる）。
  */
 export function calculatePoisonTickDamage(
@@ -539,7 +539,7 @@ interface PoisonMagnitudeCandidate {
  * 気絶と違い比較軸が2つあるため、期間と効果量をそれぞれ独立に採用し、両方とも
  * 既存側が勝った場合だけ変化なし（イベントを発行しない）とする。
  *
- * PRレビュー[P1]: 「効果量」の比較は、両候補を**この統合時点の対象HP**で評価し直した
+ * 「効果量」の比較は、両候補を**この統合時点の対象HP**で評価し直した
  * 1回あたり毒ダメージ（`calculatePoisonTickDamage`＝`min(現在HP × 効果率, 付与時攻撃力)`）
  * で行う。保存済みの`AppliedEffect.magnitude`同士を比べると、各インスタンスが自分の
  * 付与時点のHPで評価した値を比べることになり、大小関係が逆転しうる — 例えばHP 1000で
@@ -622,8 +622,8 @@ export function grantPoisonContinuousDamage(
     );
   const existingTick = tickOf(existingCandidate);
   const incomingTick = tickOf(incomingCandidate);
-  // R-DOT-04の「効果量」＝上限適用後・切り捨て前の毒ダメージで比較する
-  // （PR #286再レビュー[P2]）。`calculatedDamage`（R-DOT-01の切り捨て・最低1適用後）で
+  // R-DOT-04の「効果量」＝上限適用後・切り捨て前の毒ダメージで比較する。
+  // `calculatedDamage`（R-DOT-01の切り捨て・最低1適用後）で
   // 比べると、例えば現在HP 9での10%毒(0.9)と20%毒(1.8)がどちらも1へ丸められて同値に
   // なり、本来採用すべき20%毒が採られない。HPが回復した後の発生量に差が出る。
   const takeIncomingMagnitude = incomingTick.preTruncationDamage > existingTick.preTruncationDamage;

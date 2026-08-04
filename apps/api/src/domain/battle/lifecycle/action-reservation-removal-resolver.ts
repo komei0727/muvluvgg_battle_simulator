@@ -50,7 +50,7 @@ export interface ReservationRemovalResult extends ResolutionResult {
  * 除去を1つのスコープへまとめると、同じPSが2件目以降の除去には
  * （既にそのスコープで発動済みとして）反応できなくなる。除去1件＝1解決スコープ
  * とすることで、各`ActionReservationRemoved`が独立したトップレベルイベントとして
- * 同じPSからも毎回反応を受けられる（レビュー指摘[P1]、Issue #251）。
+ * 同じPSからも毎回反応を受けられる（Issue #251）。
  *
  * `rootEventId`は除去群を引き起こした行動（呼び出し側が渡す`context.rootEventId`）
  * を維持し、監査上の因果は「この行動が引き起こした」まま保つ——`resolutionScopeId`

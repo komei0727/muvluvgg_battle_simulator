@@ -192,7 +192,7 @@ export function selectIsResultDirty(
 // catalogRevisionがundefined(catalog.status !== "ready"、つまり再読込中・
 // 再読込失敗後を含む)の場合もmismatch扱いにする——一度不一致を検出した後、
 // 再読込がpending/failedの間だけ判定がfalseへ戻ると、確認が取れていない
-// 古い結果が一時的に再表示されてしまう(PRレビュー指摘)。
+// 古い結果が一時的に再表示されてしまう。
 export function selectIsCatalogRevisionMismatch(
   displayedSuccess: SuccessfulExecutionSnapshot | undefined,
   catalogRevision: string | undefined,

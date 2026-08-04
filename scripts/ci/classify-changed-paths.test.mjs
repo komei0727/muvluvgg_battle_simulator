@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { classifyChangedPaths } from "./classify-changed-paths.mjs";
 
-// PR #118 review: required checks must show success/skipped at the job
+// Required checks must show success/skipped at the job
 // level rather than the workflow never triggering, so this decision logic
 // is a pure function the `changes` job's `if:` conditions read from — it
 // must be independently testable from the git-diff plumbing around it.

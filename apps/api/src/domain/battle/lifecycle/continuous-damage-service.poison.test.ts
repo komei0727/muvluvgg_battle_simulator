@@ -57,7 +57,7 @@ function unitWithPoison(target: BattleUnit, currentHp: number): BattleUnit {
 
 /**
  * R-DOT-04の統合は既存インスタンスの毒効果率をCatalogから引く必要がある
- * （PRレビュー[P1]: 両候補を統合時点の同じ現在HPで評価するため）。
+ * （両候補を統合時点の同じ現在HPで評価するため）。
  */
 function effectActionsOf(
   ...definitions: readonly EffectActionDefinition[]
@@ -288,7 +288,7 @@ describe("grantPoisonContinuousDamage (R-DOT-04, DMG-008 Issue #189)", () => {
     expect(merged.snapshot?.[CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY]).toBe(500);
   });
 
-  it("UT-R-DOT-04-009 (regression, PRレビュー[P1]): both candidates are compared at the re-application's current HP, so a 20% poison applied after the target lost HP still displaces a 10% poison granted at full HP", () => {
+  it("UT-R-DOT-04-009 (regression): both candidates are compared at the re-application's current HP, so a 20% poison applied after the target lost HP still displaces a 10% poison granted at full HP", () => {
     const { recorder, rootEventId } = seedRecorder();
     // production Catalogに実在する組み合わせ（10%毒と20%毒）。上限は両者とも
     // 十分に高く、判断を分けるのは割合ダメージだけになるようにする。
@@ -336,7 +336,7 @@ describe("grantPoisonContinuousDamage (R-DOT-04, DMG-008 Issue #189)", () => {
     });
   });
 
-  it("UT-R-DOT-04-010 (regression, PRレビュー[P1]): the same comparison keeps the stronger existing poison when the target's HP change does not overturn it", () => {
+  it("UT-R-DOT-04-010 (regression): the same comparison keeps the stronger existing poison when the target's HP change does not overturn it", () => {
     const { recorder, rootEventId } = seedRecorder();
     const twentyPercent = poisonDefinition("ACT_POISON_A", 0.2, 2);
     const tenPercent = poisonDefinition("ACT_POISON_B", 0.1, 2);
@@ -366,7 +366,7 @@ describe("grantPoisonContinuousDamage (R-DOT-04, DMG-008 Issue #189)", () => {
     expect(recorder.getEvents()).toHaveLength(eventsBefore);
   });
 
-  it("UT-R-DOT-04-011 (boundary, PR #286再レビュー[P2]): the magnitude comparison happens before R-DOT-01 rounding, so a 20% poison still displaces a 10% poison when both would deal the minimum 1 damage", () => {
+  it("UT-R-DOT-04-011 (boundary): the magnitude comparison happens before R-DOT-01 rounding, so a 20% poison still displaces a 10% poison when both would deal the minimum 1 damage", () => {
     const { recorder, rootEventId } = seedRecorder();
     const tenPercent = poisonDefinition("ACT_POISON_A", 0.1, 2);
     const twentyPercent = poisonDefinition("ACT_POISON_B", 0.2, 2);

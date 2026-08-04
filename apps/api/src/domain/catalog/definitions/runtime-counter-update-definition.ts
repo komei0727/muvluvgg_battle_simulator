@@ -28,8 +28,8 @@ export type RuntimeCounterScope = (typeof RUNTIME_COUNTER_SCOPES)[number];
  * M6/M7が実際に実装するスコープ（Issue #143、EFF-005/Issue #162、EFF-006/Issue #212）。
  * `BATTLE`/`BATTLE_UNIT`は`RuntimeCounterScope`の語彙としては存在するが、
  * `runtime-counter-matcher.ts`の評価器が未実装のため、Catalogロード時点で
- * この2つを拒否する（レビュー指摘[P2]: Catalogが受理した定義が実行時に無条件で
- * 例外化する契約は避ける）。対象12行はいずれも`SKILL_RUNTIME`スコープで表現
+ * この2つを拒否する（Catalogが受理した定義が実行時に無条件で例外化する契約は
+ * 避ける）。対象12行はいずれも`SKILL_RUNTIME`スコープで表現
  * できるため、この制限は対象外の不完全変換を生まない。
  * `APPLIED_EFFECT`はEFF-005（Issue #162）で`DurationDefinition.counterUpdates`
  * 経由の更新と`expiration.conditions`からの参照を実装したため受理する。
@@ -48,8 +48,7 @@ const RUNTIME_COUNTER_UPDATE_KINDS = ["INCREMENT", "CUMULATIVE_DAMAGE_THRESHOLD"
 export type RuntimeCounterUpdateKind = (typeof RUNTIME_COUNTER_UPDATE_KINDS)[number];
 
 /**
- * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
- * Issue #143）。省略時はcounterが戦闘終了まで持続する（対象12行はすべてこちら）。
+ * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（Issue #143）。省略時はcounterが戦闘終了まで持続する（対象12行はすべてこちら）。
  * `RESOLUTION_SCOPE`を指定すると、そのcounterを保持するSkillRuntimeの所有者が
  * 属する1解決スコープ（1行動、またはターン開始・終了などの行動外トップレベル
  * イベント）が終了するたびに破棄し、`RuntimeCounterReset`を発行する。

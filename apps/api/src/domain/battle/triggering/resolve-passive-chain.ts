@@ -114,8 +114,7 @@ export type GetCurrentBattleUnit = (battleUnitId: BattleUnitId) => BattleUnit;
  * `GetCurrentBattleUnit`（`getCurrentUnit`、本番実装は`requireUnit`）は未知の
  * `BattleUnitId`に対して例外を送出する契約だが、R-PS-01/Issue #144は「対象不在」を
  * 条件不成立として決定的に候補破棄する契約（`evaluateTriggerCondition`の
- * `POSITION_RELATION`分岐参照）のため、両者を混用してはならない
- * （レビュー指摘[P2]）。
+ * `POSITION_RELATION`分岐参照）のため、両者を混用してはならない。
  */
 export type FindBattleUnit = (battleUnitId: BattleUnitId) => BattleUnit | undefined;
 export type ActivatePassiveCandidate = (
@@ -176,7 +175,7 @@ export interface PassiveChainDependencies {
    */
   readonly unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   /**
-   * レビュー再指摘[P2]（PR #209）: R-EFF-08（`expiration.conditions`）は
+   * R-EFF-08（`expiration.conditions`）は
    * 「関連するドメインイベント発行後、PS/Memory候補抽出前に評価する」契約
    * のため、トップレベルの`event`だけでなく、PS連鎖の内部で発行される
    * `TIMING_EVENT`/`EFFECT_RESOLVED`の各イベント（`PassiveActivated`・
@@ -198,7 +197,7 @@ export interface PassiveChainDependencies {
    * EffectSequenceが与えたダメージによる`UnitDefeated`は`onFactEvent`を経由
    * しないため。
    *
-   * PR #281レビュー[P2]: `applyExpirationConditions`のようにイベント配列を
+   * `applyExpirationConditions`のようにイベント配列を
    * まとめて返す形にはできない。Marker解除はR-EFF-09のカスケードで
    * linked group全体（子`AppliedEffect`→親`MarkerState`）を巻き込むため、
    * 全メンバーを除去してから配列を返すと、最初の子`EffectExpired`をPS/Memoryへ
@@ -216,7 +215,7 @@ export interface PassiveChainDependencies {
     resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
   ) => PassiveChainLimitViolationReason | undefined;
   /**
-   * PR #211レビュー[P1]: `R-EFF-11`（`AppliedEffect`スコープ、EFF-005/Issue #162）の
+   * `R-EFF-11`（`AppliedEffect`スコープ、EFF-005/Issue #162）の
    * `counterUpdates`更新も、`applyExpirationConditions`と同じ理由で
    * トップレベルの`event`だけでなくPS連鎖内部の各イベント（PS自身がyieldする
    * `PassiveActivated`・`EffectActionStarting`、PS効果由来の`DamageApplied`等、
@@ -224,7 +223,7 @@ export interface PassiveChainDependencies {
    * 一致する`AppliedEffect`スコープの`counterUpdates`を検出し、マッチした
    * 各エントリを1件ずつ更新・記録するたびに`resolveChild`（＝`resolveEvent`
    * 自身への再帰）を呼び出し、その`RuntimeCounterChanged`の候補連鎖を完全に
-   * 解決してから次のエントリを適用する（レビュー再指摘[P1]: 複数の
+   * 解決してから次のエントリを適用する（複数の
    * `AppliedEffect`が同じイベントへ一致する場合、最初の`RuntimeCounterChanged`が
    * 誘発したPSが後続effectを解除・変更しうるため、全件を先にバッチ更新して
    * から返すと後続の`before`/`after`が候補解決前の古い状態になってしまう —
@@ -293,7 +292,7 @@ interface ChainState {
    * push/popし、観測可能な状態として保つ。 */
   stack: PassiveResolutionStack;
   /**
-   * PR #211レビュー[P1]: `deps.applyEffectRuntimeCounterUpdates`から
+   * `deps.applyEffectRuntimeCounterUpdates`から
    * `resolveChild`（`resolveEvent`自身への再帰）が呼ばれている間、増加させたまま
    * 保つ深さカウンタ。呼び出しが返った直後（`resolveChild`による再帰的候補解決を
    * 待たずに）減算すると、`RuntimeCounterChanged`を自身の`counterUpdates.trigger`
@@ -310,7 +309,7 @@ interface ChainState {
  * `event`の候補グループを検出し、スタック先頭へ積んで完全に解決してからpopする。
  * PS深度Guardはpush直後、候補処理を始める前に確認する。
  *
- * PR #211レビュー[P1]: `deps.applyEffectRuntimeCounterUpdates`（R-EFF-11、
+ * `deps.applyEffectRuntimeCounterUpdates`（R-EFF-11、
  * `AppliedEffect`スコープ）を`deps.applyExpirationConditions`（R-EFF-08）より
  * 先に呼ぶ — counter更新は特殊失効条件評価・候補抽出より前に確定させる
  * （R-EFF-11「原因イベントの状態変更確定後、PS/Memory候補抽出前にcounter
@@ -320,7 +319,7 @@ interface ChainState {
  * `EffectSequence`スコープ）も同じ理由・同じ順序（`applyExpirationConditions`
  * より先）で呼ぶ。
  *
- * レビュー再指摘[P2]（PR #209）: 候補検出の直前に`deps.applyExpirationConditions`
+ * 候補検出の直前に`deps.applyExpirationConditions`
  * （R-EFF-08）を呼び、`event`に対して成立した特殊失効条件を先に処理する。
  * 新たに発行された各イベントは、`event`自身の候補解決より前に、この
  * `resolveEvent`自身へ再帰させて完全に解決する（自身の`expiration.conditions`
@@ -334,7 +333,7 @@ function resolveEvent(
   deps: PassiveChainDependencies,
 ): PassiveChainLimitViolationReason | undefined {
   if (deps.applyEffectRuntimeCounterUpdates !== undefined) {
-    // PR #211レビュー[P1]: 深さは`resolveChild`が実際に呼ばれた分だけ増減する
+    // 深さは`resolveChild`が実際に呼ばれた分だけ増減する
     // （`deps.applyEffectRuntimeCounterUpdates`がマッチなしで`undefined`を返す
     // 呼び出しではカウントしない）。ここを`resolveEvent`呼び出しそのものに
     // 巻き付けると、AppliedEffect counterと無関係な通常のPS連鎖の深さも誤って
@@ -392,7 +391,7 @@ function resolveEvent(
   }
 
   // M7-020（Issue #279）: R-EFF-10の付与者戦闘不能によるMarker解除。R-EFF-08の
-  // 後に呼ぶ（トップレベルの`onFactEvent`と同じ順序）。PR #281レビュー[P2]:
+  // 後に呼ぶ（トップレベルの`onFactEvent`と同じ順序）。
   // 除去は1メンバーずつ`resolveChild`で候補連鎖を完全に解決してから次へ進む
   // （`deps.applyMarkerSourceDefeatRemovals`のコメント参照）。
   if (deps.applyMarkerSourceDefeatRemovals !== undefined) {

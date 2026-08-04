@@ -95,7 +95,7 @@ export function computeCombatStats(
     byStat.set(definition.payload.stat, bucket);
   }
 
-  // PR #208レビュー[P2]: 効果を持つstatだけを`unit.combatStats`からの差分更新に
+  // 効果を持つstatだけを`unit.combatStats`からの差分更新に
   // すると、あるstatの最後の効果が失効・解除されて`byStat`にエントリが
   // 無くなった時、そのstatだけ補正後の値が残ってしまう。常に全statを
   // `baseCombatStats`から再導出することで、効果が0件のstatも正しく基準値へ
@@ -110,8 +110,8 @@ export function computeCombatStats(
     // 全精度で保持する。基準は `baseCombatStats`（未丸めの編成補正値）であり、
     // ここで MAXIMUM_HP の比率補正を丸めた値へ重ねると二重丸め誤差になる
     // （例: 編成補正で 40347.6 → さらに +20% は 48417.12 = trunc 48417 が正、
-    // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる。PR #239
-    // 再レビュー[P2]）。ゲージ最大値としての整数化はゲージへ渡す境界で行う。
+    // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる）。
+    // ゲージ最大値としての整数化はゲージへ渡す境界で行う。
     const corrected = calculateCombatStat({
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,

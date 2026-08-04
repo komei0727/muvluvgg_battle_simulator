@@ -230,7 +230,7 @@ describe("expireEffects", () => {
     });
   });
 
-  it("UT-R-EFF-09-006 (R-EFF-09 レビュー再修正 PR #209/HARRIET_BARRIER): a PARENT-role member expiring via CONSUMPTION cascades to its CHILD-role sibling — role comes from linkedEffectGroupRole, not the expiration reason", () => {
+  it("UT-R-EFF-09-006 (R-EFF-09 / HARRIET_BARRIER): a PARENT-role member expiring via CONSUMPTION cascades to its CHILD-role sibling — role comes from linkedEffectGroupRole, not the expiration reason", () => {
     const def = statModDefinition("ACT_LINK");
     const target = unit("target-1");
     const immunity = effect("immunity", target.battleUnitId, def.effectActionDefinitionId, {
@@ -290,7 +290,7 @@ describe("expireEffects", () => {
     });
   });
 
-  it("UT-R-EFF-09-007 (R-EFF-09 再レビュー[P2]: 子消費例外): a CHILD-role member expiring alone does NOT cascade to its PARENT sibling — the parent is preserved", () => {
+  it("UT-R-EFF-09-007 (R-EFF-09 子消費例外): a CHILD-role member expiring alone does NOT cascade to its PARENT sibling — the parent is preserved", () => {
     const def = statModDefinition("ACT_LINK");
     const target = unit("target-1");
     const immunity = effect("immunity", target.battleUnitId, def.effectActionDefinitionId, {
@@ -424,7 +424,7 @@ describe("expireEffects", () => {
     });
   });
 
-  it("UT-R-EFF-09-021 (R-EFF-09 順序, PR #280 再レビュー[P2]): when a CHILD and its PARENT both become seeds in the same batch, the CHILD expires first regardless of the input order", () => {
+  it("UT-R-EFF-09-021 (R-EFF-09 順序): when a CHILD and its PARENT both become seeds in the same batch, the CHILD expires first regardless of the input order", () => {
     const def = statModDefinition("ACT_LINK");
     const target = unit("target-1");
     // 同じグループのPARENTとCHILDが同一ターンで同時に0になり、`units`/`changes`上は
@@ -488,7 +488,7 @@ describe("expireEffects", () => {
     });
   });
 
-  it("UT-R-EFF-09-024 (R-EFF-09 順序, PR #280 再々レビュー[P2]): a non-seed PARENT pulled in by the cascade still expires after every CHILD, seed or not", () => {
+  it("UT-R-EFF-09-024 (R-EFF-09 順序): a non-seed PARENT pulled in by the cascade still expires after every CHILD, seed or not", () => {
     const def = statModDefinition("ACT_LINK");
     const target = unit("target-1");
     const group = (role: "PARENT" | "CHILD") => ({

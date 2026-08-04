@@ -68,7 +68,7 @@ describe("evaluateSourceSelector", () => {
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-034 (review fix [P1], Issue #144 follow-up): SELF matches every owner for a globally-scoped event with neither sourceUnitId nor sourceSide (e.g. TurnStarted/TurnCompleting), and ALLY/ENEMY still never match it", () => {
+  it("UT-R-PS-01-034 (Issue #144 follow-up): SELF matches every owner for a globally-scoped event with neither sourceUnitId nor sourceSide (e.g. TurnStarted/TurnCompleting), and ALLY/ENEMY still never match it", () => {
     const globalEvent: TriggerCandidateEvent = {
       eventType: "TurnCompleting",
       category: "TIMING",
@@ -166,7 +166,7 @@ describe("evaluateTargetSelector", () => {
     ).toBe(false);
   });
 
-  it("UT-R-PS-01-035 (review fix [P1], Issue #144 follow-up): SELF matches every owner for an event with no targetUnitIds at all (e.g. TurnCompleting/PassiveResolved), and ALLY/ENEMY still never match it", () => {
+  it("UT-R-PS-01-035 (Issue #144 follow-up): SELF matches every owner for an event with no targetUnitIds at all (e.g. TurnCompleting/PassiveResolved), and ALLY/ENEMY still never match it", () => {
     expect(evaluateTargetSelector("SELF", owner, eventWithTargets(undefined), unitsById)).toBe(
       true,
     );

@@ -372,7 +372,7 @@ describe("decrementActionEffectDurations", () => {
   });
 });
 
-describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167, PR #234再レビュー)", () => {
+describe("decrementSkillUseEffectDurations (TGT-004 Phase 1, Issue #167)", () => {
   it("UT-R-EFF-01-037: does not decrement on the same skill use the effect was granted in", () => {
     const source = unit("source-1");
     let target = unit("target-1");
@@ -834,7 +834,7 @@ describe("consumeEffectDurations", () => {
   });
 });
 
-describe("reapplySkillUseDurationDecrement (TGT-004フェーズ3再々レビュー[P1], Issue #167)", () => {
+describe("reapplySkillUseDurationDecrement (TGT-004フェーズ3, Issue #167)", () => {
   it("UT-R-EFF-04-018: decrements by 1 from the CURRENT value on a units array that has since gained an unrelated new AppliedEffect (e.g. from a child PS chain), without touching the new instance", () => {
     const source = unit("source-1");
     let target = unit("target-1");
@@ -935,7 +935,7 @@ describe("reapplySkillUseDurationDecrement (TGT-004フェーズ3再々レビュ�
     expect(result.changes).toHaveLength(0);
   });
 
-  it("UT-R-EFF-04-021 (PR #238再々レビュー[P1]の核心): recomputes before/after from the CURRENT value rather than reusing a stale snapshot value, so a target already decremented once (2 -> 1) by an independent completion earlier in the chain correctly becomes 1 -> 0 instead of being clobbered back to a stale after:1", () => {
+  it("UT-R-EFF-04-021: recomputes before/after from the CURRENT value rather than reusing a stale snapshot value, so a target already decremented once (2 -> 1) by an independent completion earlier in the chain correctly becomes 1 -> 0 instead of being clobbered back to a stale after:1", () => {
     const source = unit("source-1");
     let target = unit("target-1");
     const existing = effectOn(

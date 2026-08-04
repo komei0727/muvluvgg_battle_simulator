@@ -328,7 +328,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(100);
   });
 
-  it("UT-R-ACTN-02-011 (PRレビュー[P2] PR #254): an author-supplied bounds range that is empty after intersection with [0, currentMax] (e.g. bounds: {min: 0, max: -1}) still clamps to a valid value instead of throwing", () => {
+  it("UT-R-ACTN-02-011: an author-supplied bounds range that is empty after intersection with [0, currentMax] (e.g. bounds: {min: 0, max: -1}) still clamps to a valid value instead of throwing", () => {
     const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
     const action = modifyResourceAction("ACT_HP_COST_EMPTY_BOUNDS", {
       resource: "HP",
@@ -363,7 +363,7 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(0);
   });
 
-  it("UT-R-ACTN-02-014 (PRレビュー[P2] PR #254、3rd round): an author-supplied bounds.min exceeding currentMax (e.g. bounds: {min: 999, max: CURRENT_MAX} on a 100-max HP) still clamps to currentMax instead of throwing", () => {
+  it("UT-R-ACTN-02-014: an author-supplied bounds.min exceeding currentMax (e.g. bounds: {min: 999, max: CURRENT_MAX} on a 100-max HP) still clamps to currentMax instead of throwing", () => {
     const actor = unit("ACTOR", "ALLY", { currentHp: 10, maximumHp: 100 });
     const action = modifyResourceAction("ACT_HP_MIN_OVERSHOOT", {
       resource: "HP",

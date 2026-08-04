@@ -47,7 +47,7 @@ describe("FormationEditor", () => {
     expect(screen.getAllByRole("button", { name: /メモリー\d+を追加/ })).toHaveLength(6);
   });
 
-  // Review (PR #119): FRONT/REAR was only distinguishable via each slot's
+  // FRONT/REAR was only distinguishable via each slot's
   // accessible name, not visually. docs/ui-design/01_UI要求・画面設計.md §5.1
   // requires a visible "FRONT / 前衛" / "REAR / 後衛" row heading.
   it("shows a visible FRONT/REAR row heading, not just accessible names", () => {

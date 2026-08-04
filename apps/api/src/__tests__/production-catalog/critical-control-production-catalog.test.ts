@@ -82,7 +82,7 @@ function readyUnit(
  * 与えたEffectActionDefinitionを順に自己対象で解決する最小限の合成AS。1件なら
  * 実production定義だけを解決し、複数件なら**同じ1行動の中で**続けて解決する
  * （`timeLimit: ACTION(1)`の効果が行動境界で失効するのと、解除で消えるのとを
- * 区別するため — PR #297 レビュー[P1]）。
+ * 区別するため）。
  */
 function selfStepsSkill(skillId: string, ...effectActionIds: readonly string[]): SkillDefinition {
   return {
@@ -117,7 +117,7 @@ function selfStepsSkill(skillId: string, ...effectActionIds: readonly string[]):
 }
 
 /**
- * PR #297 レビュー[P1]: 会心不可のカテゴリ分類を実ライフサイクルで確かめるための、
+ * 会心不可のカテゴリ分類を実ライフサイクルで確かめるための、
  * 自己対象の`REMOVE_EFFECTS`／`EFFECT_IMMUNITY`合成定義。
  */
 function categoryAction(
@@ -341,7 +341,7 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
       duplicate: true,
       magnitude: 0,
     });
-    // PR #297 レビュー[P1]: 会心不可は保持者を弱化するデバフであり、`STATUS`
+    // 会心不可は保持者を弱化するデバフであり、`STATUS`
     // （定義済み状態異常）ではない。
     expect([...prevention.categories]).toEqual(["DEBUFF"]);
     expect(prevention.duration.definition).toMatchObject({
@@ -375,7 +375,7 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
     });
   });
 
-  it("IT-CAP-CRITICAL-CONTROL-PROD-005 (R-EFF-02/R-EFF-03, PR #297 レビュー[P1]): the real production CRITICAL_PREVENTION is removed by a DEBUFF cleanse, survives a BUFF cleanse, and is blocked outright by a DEBUFF immunity", () => {
+  it("IT-CAP-CRITICAL-CONTROL-PROD-005 (R-EFF-02/R-EFF-03): the real production CRITICAL_PREVENTION is removed by a DEBUFF cleanse, survives a BUFF cleanse, and is blocked outright by a DEBUFF immunity", () => {
     const debuffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_DEBUFF", "DEBUFF");
     const buffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_BUFF", "BUFF");
     const debuffImmunity = immunityAction("ACT_TEST_IMMUNITY_DEBUFF", "DEBUFF");
@@ -447,7 +447,7 @@ describe("production Catalog CRITICAL_GUARANTEE / CRITICAL_PREVENTION (DMG-003A,
     expect(afterImmunity.appliedEffects[0]!.immunity).toMatchObject({ categories: ["DEBUFF"] });
   });
 
-  it("IT-CAP-CRITICAL-CONTROL-PROD-006 (R-EFF-02, PR #297 レビュー[P1]): the real production CRITICAL_GUARANTEE stays a BUFF — a BUFF cleanse removes it and a DEBUFF cleanse does not", () => {
+  it("IT-CAP-CRITICAL-CONTROL-PROD-006 (R-EFF-02): the real production CRITICAL_GUARANTEE stays a BUFF — a BUFF cleanse removes it and a DEBUFF cleanse does not", () => {
     const debuffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_DEBUFF", "DEBUFF");
     const buffCleanse = removeEffectsAction("ACT_TEST_CLEANSE_BUFF", "BUFF");
 

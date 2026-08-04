@@ -106,9 +106,9 @@ function parseIncompleteConversionThemes(): Map<string, number> {
     const columns = line.split("|");
     const milestone = stripCode(columns[5] ?? "");
     const theme = stripCode(columns[6] ?? "");
-    // M7-010（Issue #177）レビュー[P1]: 当初はM7/M8だけを読み、`M9`の
+    // M7-010（Issue #177）: M7/M8だけを読むと、`M9`の
     // `UNREACHABLE_BRANCH_BY_RAW_DATA`（`UNIT_SUIRAN_CASINO`、1行）が
-    // 割当検証からも件数からも黙って外れていた。`対応予定`に現れる
+    // 割当検証からも件数からも黙って外れる。`対応予定`に現れる
     // マイルストーンはすべて読み、割当先Taskの存在をCIで要求する。
     if (milestone !== "M7" && milestone !== "M8" && milestone !== "M9") {
       continue;
@@ -301,7 +301,7 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(manifest.current.capabilities.implemented).toBeGreaterThanOrEqual(
       manifest.baseline.capabilities.implemented,
     );
-    // PRレビュー指摘: このテストは`collectTestCaseDefinitions`でリポジトリ内の
+    // このテストは`collectTestCaseDefinitions`でリポジトリ内の
     // 全`.test.ts`ファイルへTypeScript Compiler APIを個別実行するため、テスト数の
     // 増加とともに実行時間が伸び、CI（GitHub Actionsのランナーはローカンより低速）
     // ではデフォルトの5000msタイムアウトを超えて失敗した。ロジックの不具合では

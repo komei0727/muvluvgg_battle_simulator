@@ -162,7 +162,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText("クールタイムなし")).toBeInTheDocument();
   });
 
-  // PR #131 review: SUMMARYレベルではCOOLDOWN_*/CHARGE_*イベントが公開ログから
+  // SUMMARYレベルではCOOLDOWN_*/CHARGE_*イベントが公開ログから
   // 除外されるため、実際は残っていても「クールタイムなし」と断定してはいけない。
   it("shows an unknown state instead of asserting no cooldown when logLevel is SUMMARY", () => {
     const response = responseWith({
@@ -249,7 +249,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/次点/)).toBeInTheDocument();
   });
 
-  it("labels an advantageous APPLY_STATUS by the API's BUFF category rather than as a status abnormality (UI-CT-021, PR #264レビュー[P1])", () => {
+  it("labels an advantageous APPLY_STATUS by the API's BUFF category rather than as a status abnormality (UI-CT-021)", () => {
     const response = responseWith({
       units: [
         {
@@ -371,7 +371,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText("サブユニットなし")).toBeInTheDocument();
   });
 
-  // PR #301 レビュー[P2]: DMG-004後・DMG-005前のように片方だけを持つレスポンスでは、
+  // DMG-004後・DMG-005前のように片方だけを持つレスポンスでは、
   // 欠落側が何も描画されず「不明」とも読めなくなっていた。個別に不明表示する。
   it("says only the missing side is unknown when a response carries shields but not subUnits (UI-CT-025)", () => {
     const response = responseWith({

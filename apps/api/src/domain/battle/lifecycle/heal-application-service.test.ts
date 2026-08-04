@@ -614,7 +614,7 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
   });
 
   /**
-   * PRレビュー指摘[P2]（PR #259）: `HealApplied`／各`HealingTransferred`のPS/Memory
+   * `HealApplied`／各`HealingTransferred`のPS/Memory
    * 連鎖は、それぞれの発行直後・次の転送を適用する前に解決しなければならない。
    * 以下は連鎖callbackが観測したイベント順とその時点のHPを固定する。
    */

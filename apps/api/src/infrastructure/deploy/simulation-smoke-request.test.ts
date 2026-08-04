@@ -1,7 +1,7 @@
 /**
- * PRレビュー指摘（#112 review 2026-07-15、P1-3）: CI deployのsmoke testは
- * `SMOKE_SIMULATION_BODY_FILE`未設定のため最小simulationを常にskipしていた。
- * 有効なsimulation requestを構築できない場合はdeployを失敗させる必要があるため、
+ * CI deployのsmoke testは`SMOKE_SIMULATION_BODY_FILE`が未設定だと最小simulationを
+ * 黙ってskipしてしまう。有効なsimulation requestを構築できない場合はdeployを
+ * 失敗させる必要があるため、
  * Catalog GETのresponseから選択可能なUnitを見つけてrequestを組み立てる、
  * 失敗時は例外を投げる純粋関数として実装する。
  */

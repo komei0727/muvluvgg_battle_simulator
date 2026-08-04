@@ -221,7 +221,7 @@ function chargeReleaseSkillWithCounterUpdates(effectActionId: string): SkillDefi
   };
 }
 
-/** Same as `chargeReleaseSkillWithCounterUpdates` but the counterUpdates trigger is `ChargeReleased` itself (PR #213 review [P2]), not an event emitted during effect resolution. */
+/** Same as `chargeReleaseSkillWithCounterUpdates` but the counterUpdates trigger is `ChargeReleased` itself, not an event emitted during effect resolution. */
 function chargeReleaseSkillWithChargeReleasedCounterUpdates(
   effectActionId: string,
 ): SkillDefinition {
@@ -328,7 +328,7 @@ function definitionsOf(
 }
 
 describe("resolveChargeRelease", () => {
-  it("PR #142レビュー[P1]: a PS triggered by the charge release's own DamageApplied activates (PassiveActivationRuntime was previously never wired for charge release)", () => {
+  it("a PS triggered by the charge release's own DamageApplied activates (PassiveActivationRuntime was previously never wired for charge release)", () => {
     const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const psOwnerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
@@ -456,7 +456,7 @@ describe("resolveChargeRelease", () => {
     expect(chargerAfter.effectSequenceCounters).toBeUndefined();
   });
 
-  it("UT-R-EFF-11-026 (PR #213 review [P2]): a chargeRelease counterUpdates trigger on ChargeReleased itself increments, because ChargeReleased is routed through the active EffectSequence resolution before effect resolution begins", () => {
+  it("UT-R-EFF-11-026: a chargeRelease counterUpdates trigger on ChargeReleased itself increments, because ChargeReleased is routed through the active EffectSequence resolution before effect resolution begins", () => {
     const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
     const hit = damageEffectAction("ACT_CHARGE_HIT");

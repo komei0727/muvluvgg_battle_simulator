@@ -214,7 +214,7 @@ describe("Catalog v2 DTO JSON Schema", () => {
     expect(valid).toBe(false);
   });
 
-  it("UT-INFRA-SCHEMA-012 (M7-016, Issue #270 review [P1]): rejects a CHARGE SkillDefinition DTO that declares start-side steps, which resolveChargeStart never resolves", () => {
+  it("UT-INFRA-SCHEMA-012 (M7-016, Issue #270): rejects a CHARGE SkillDefinition DTO that declares start-side steps, which resolveChargeStart never resolves", () => {
     const valid = validateSkillDefinitionDto({
       skillDefinitionId: "SKL_001_AS1",
       skillType: "AS",
@@ -232,7 +232,7 @@ describe("Catalog v2 DTO JSON Schema", () => {
     expect(valid).toBe(false);
   });
 
-  it("UT-INFRA-SCHEMA-013 (M7-016, Issue #270 review [P1]): accepts a CHARGE SkillDefinition DTO whose start side carries an empty steps array, while IMMEDIATE still requires at least one step", () => {
+  it("UT-INFRA-SCHEMA-013 (M7-016, Issue #270): accepts a CHARGE SkillDefinition DTO whose start side carries an empty steps array, while IMMEDIATE still requires at least one step", () => {
     expect(
       validateSkillDefinitionDto({
         skillDefinitionId: "SKL_001_AS1",

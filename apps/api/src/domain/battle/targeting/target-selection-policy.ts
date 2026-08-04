@@ -32,7 +32,7 @@ const EMPTY_RESOLVED_BINDINGS: ResolvedTargetBindings = new Map();
  * `BINDING_DERIVED.base`が参照する`TRIGGER_SOURCE`/`TRIGGER_TARGET`の解決先。
  * 呼び出し側（`passive-activation-service.ts`）が候補検出に使った
  * `TriggerCandidateEvent`の`sourceUnitId`/`targetUnitIds`をそのまま渡す
- * （PRレビュー指摘[P2]: `BattleUnit`をここで解決・保持すると、先行する
+ * （`BattleUnit`をここで解決・保持すると、先行する
  * EffectActionや子PS連鎖が対象のHP・combatStatsを変更した後でも古いスナップ
  * ショットを読み続けてしまう。IDだけを保持し、実際に`BattleUnit`が必要な
  * 各呼び出し元が、その時点の最新`allUnits`/`box.units`/`working`から都度
@@ -264,7 +264,7 @@ function matchesFilter(
       return !excluded.some((unit) => unit.battleUnitId === candidate.battleUnitId);
     }
     case "MARKER_IN_AREA": {
-      // PR #233レビュー[P1]: 戦闘不能者にもmarkerStatesは残るため、明示的な
+      // 戦闘不能者にもmarkerStatesは残るため、明示的な
       // includeDefeated指定がない限り、所在判定の対象からも除外する
       // （候補自身の戦闘不能除外はR-TGT-01 #2/R-TGT-09 #2で既に済んでいる）。
       const areaPool = applyArea(filter.area, candidate, ctx.allUnits).filter(
@@ -657,7 +657,7 @@ interface ResolveTargetsCoreResult {
 const EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS: ReadonlySet<EffectInstanceId> = new Set();
 
 /**
- * PR #237再々レビュー[P1]: `filters`（`POSITION_SLOT`、`AND`で組み合わされた
+ * `filters`（`POSITION_SLOT`、`AND`で組み合わされた
  * 場合も含む）が候補集合を定義上最大1体へ限定するかどうか。`POSITION_SLOT`は
  * row+columnの組で一意なスロットを指すため、選択対象が単一の陣営
  * （`side: "ALLY"`/`"ENEMY"`）に絞られている限り、そのスロットに存在しうる
@@ -682,7 +682,7 @@ function filterStructurallyLimitsToSingleCandidate(filter: TargetFilterDefinitio
 }
 
 /**
- * PR #237再々レビュー[P1]: `area`が候補集合を定義上最大1体へ限定するかどうか。
+ * `area`が候補集合を定義上最大1体へ限定するかどうか。
  * `DIRECTLY_AHEAD_OF_BASE`/`BEHIND_BASE`は`applyArea`内部で`u.side === base.side`
  * かつ単一の(x, y)座標に絞り込むため、`selector.side`の値に関わらず常に最大1体
  * （その座標を占有できるユニットは高々1体）。他のarea kindは複数座標に及びうる
@@ -693,7 +693,7 @@ function areaStructurallyLimitsToSingleCandidate(area: AreaDefinition): boolean 
 }
 
 /**
- * PR #237再レビュー[P1]・再々レビュー[P1]: R-TGT-08 #6（自身を対象とする自身の
+ * R-TGT-08 #6（自身を対象とする自身の
  * スキル）と#7（イベント／条件によって対象範囲が構造的に1体へ限定されている
  * 場合）が指す「構造的に1体」のselector。`kind`が`SELF`/`TRIGGER_SOURCE`/
  * `TRIGGER_TARGET`の場合は候補集合が使用者自身またはtrigger eventが渡した
@@ -730,7 +730,7 @@ function isStructurallySingleCandidateSelector(selector: TargetSelectorDefinitio
  * 第一優先対象（先頭）がStealth状態（`APPLY_STATUS`由来の`AppliedEffect`、
  * `statusKind === "STEALTH"`、R-ACTN-03）を持つ場合に限りそれを候補順の末尾へ
  * 移動する（非先頭のStealth所持者は順序を変更しない、#5）。TGT-004フェーズ2
- * （Issue #167、PR #236以降の再レビューを受け、フェーズ1でMarkerState経由の
+ * （Issue #167。フェーズ1でMarkerState経由の
  * 予約IDアプローチから`AppliedEffect.statusKind`ベースへ設計変更——`APPLY_STATUS`は
  * `MarkerState`ではなく`AppliedEffect`として保持するR-ACTN-03に合わせた）。#6/#7
  * は`isStructurallySingleCandidateSelector`が真になるselectorで、かつ候補が1件
@@ -913,7 +913,7 @@ export function resolveTargets(
  * 変更しない。AS選択時のフィージビリティ判定（`hasResolvableTargets`）や
  * `TargetsSelected`イベントpayload用の監査再解決（`resolveBindingSelections`）は
  * 消費を確定させてはならないため、引き続き`resolveTargets`を使う。
- * `alreadyConsumedStealthEffectInstanceIds`（PR #234レビュー[P2]、フェーズ2で
+ * `alreadyConsumedStealthEffectInstanceIds`（フェーズ2で
  * `EffectInstanceId`ベースへ移行）: 呼び出し元（`resolveEffectSequence`）が
  * 同じ`EffectSequence`内で先行する`targetBindings`から検出済みの消費を渡す
  * ことで、複数のbindingが同じStealth所持者を第一優先対象に選ぶ場合でも

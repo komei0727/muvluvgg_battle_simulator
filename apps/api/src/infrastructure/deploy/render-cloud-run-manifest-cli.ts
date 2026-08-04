@@ -15,14 +15,13 @@ import {
  * `PREVIOUS_REVISION_NAME`は必須——CIは初回Cloud Run deployを行わない前提
  * （最初のrevisionは`scripts/cloud-run/03-deploy-service.sh`の一度限りの
  * 手動セットアップで事前に作成済み）のため、現在100% trafficを受けている
- * revisionを特定できない状態でこのCLIを呼ぶこと自体を早期に拒否する
- * （PRレビュー指摘 #112、2026-07-15、5回目）。
+ * revisionを特定できない状態でこのCLIを呼ぶこと自体を早期に拒否する。
  *
  * `RUNTIME_SERVICE_ACCOUNT_EMAIL`も必須——未指定のまま`renderCloudRunManifest`
  * を呼ぶと、`spec.template.spec.serviceAccountName`が空になりCloud Runは
  * project既定のCompute Engine SA（既定でroles/editor）をruntime identityに
  * 使ってしまう。本serviceはallUsersへ公開されているため、専用の最小権限
- * runtime SAを明示するfail-fastな契約にする（P1レビュー指摘）。
+ * runtime SAを明示するfail-fastな契約にする。
  */
 function requireEnv(name: string): string {
   const value = process.env[name];

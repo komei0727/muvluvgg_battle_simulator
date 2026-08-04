@@ -33,7 +33,7 @@ export interface RemoveMarkersContext {
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   /**
-   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 1インスタンスの除去ごと（カスケード分もseed分も）に、
    * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
    * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
    * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
@@ -160,7 +160,7 @@ export function removeMarkers(
 }
 
 /**
- * PR #280再々レビュー[P2]: カスケード分とseed分を単一の除去バッチとして扱い、
+ * カスケード分とseed分を単一の除去バッチとして扱い、
  * メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順（`CHILD`→
  * ロールなし→`PARENT`）へ整列する（`duration-expiry-service.ts`と同じ形）。
  */
@@ -190,7 +190,7 @@ function orderMarkerRemovalBatch(
  * `removeMarkers`と同じ除去バッチを、1メンバーの除去ごとに`yield`する
  * generatorとして返す。
  *
- * PR #281レビュー[P2]（M7-020、Issue #279）: `onFactEventForPassiveChain`を
+ * M7-020（Issue #279）: `onFactEventForPassiveChain`を
  * 使えない呼び出し側（進行中の`resolvePassiveChain`の内側 — 新しい
  * `resolvePassiveChain`を起こすとguard/stackを上書きしてしまう）が、
  * R-EFF-09の「各インスタンスの失効イベントは次のインスタンスへ進む前に
@@ -307,7 +307,7 @@ export function reduceMarkerStack(
       },
     },
   });
-  // PR #280レビュー[P1]: `removeMarkers`経路と同じ粒度で、スタック減算だけの
+  // `removeMarkers`経路と同じ粒度で、スタック減算だけの
   // `MarkerUpdated`もその場でPS/Memory連鎖へ通知する（呼び出し側が
   // 「除去は内部で通知済み」を前提にイベント列を切り詰めるため、
   // ここで通知しないとこの1件が連鎖から落ちる）。

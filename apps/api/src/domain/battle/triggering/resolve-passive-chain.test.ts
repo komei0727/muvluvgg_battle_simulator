@@ -627,7 +627,7 @@ describe("resolvePassiveChain", () => {
     }
   });
 
-  it("UT-R-PS-04-018 (Issue #144 review fix [P2]): reconfirmation uses a separate findUnit lookup for POSITION_RELATION, deterministically discarding a candidate whose target no longer resolves instead of throwing (getCurrentUnit is reserved for owner lookups and throws on unknown ids in production)", () => {
+  it("UT-R-PS-04-018 (Issue #144): reconfirmation uses a separate findUnit lookup for POSITION_RELATION, deterministically discarding a candidate whose target no longer resolves instead of throwing (getCurrentUnit is reserved for owner lookups and throws on unknown ids in production)", () => {
     const unitA = unit("A");
     const skillA: SkillDefinition = {
       ...skillOf("SKL_A"),

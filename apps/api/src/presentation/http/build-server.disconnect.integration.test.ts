@@ -18,12 +18,12 @@ import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generat
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 
 /**
- * レビュー指摘（PR #86, [P1]/[P2]）:
+ * クライアント切断検出の2つの制約:
  *
- * - [P1] `onRequest`で`request.raw`（`IncomingMessage`）の`close`を監視すると、
+ * - `onRequest`で`request.raw`（`IncomingMessage`）の`close`を監視すると、
  *   切断していない通常のリクエストでもリクエスト本文を読み終えた時点で
  *   ほぼ即座に`close`が発火し、`cancellationController`が誤って中断される。
- * - [P2] 実際のクライアント切断で`AbortSignal`が発火した場合、エラーハンドラーが
+ * - 実際のクライアント切断で`AbortSignal`が発火した場合、エラーハンドラーが
  *   既に破棄済みの接続へ無条件に`reply.send()`（内部的に`reply.raw.end()`）を
  *   呼ぼうとしてはならない（`11_インフラストラクチャ設計.md`「クライアント切断時
  *   は応答送信を試みない」）。
@@ -189,7 +189,7 @@ async function listenOnEphemeralPort(
   useCase: SimulateBattleUseCasePort,
 ): Promise<ListeningServer & { spyOnReplyEnd: () => { calls: number } }> {
   const app = await buildServer(useCase);
-  // `reply.raw.end`（`http.ServerResponse#end`）へのspy。[P2]「クライアント切断時
+  // `reply.raw.end`（`http.ServerResponse#end`）へのspy。「クライアント切断時
   // は応答送信を試みない」の検証には、クライアントが既に居ないため応答の
   // 到達をHTTP経由で観測できない — サーバー側が実際に書き込みを試みたか
   // どうかを直接見るしかない。`buildServer`が内部で登録する`onRequest`
@@ -225,7 +225,7 @@ describe("buildServer — real TCP disconnect detection (not app.inject())", () 
     close = undefined;
   });
 
-  it("INT-HTTP-DISCONNECT-001 (regression for PR #86 review [P1]): a normal client that stays connected through a slow (150ms) handler still receives 200, not a spurious EXECUTION_CANCELLED", async () => {
+  it("INT-HTTP-DISCONNECT-001: a normal client that stays connected through a slow (150ms) handler still receives 200, not a spurious EXECUTION_CANCELLED", async () => {
     let capturedSignal: AbortSignal | undefined;
     const server = await listenOnEphemeralPort(
       buildDelayedUseCase(150, (context) => {
@@ -277,7 +277,7 @@ describe("buildServer — real TCP disconnect detection (not app.inject())", () 
     expect(capturedSignal?.aborted).toBe(true);
   });
 
-  it("INT-HTTP-DISCONNECT-003 (11_インフラストラクチャ設計.md「クライアント切断時は応答送信を試みない」, PR #86 review [P2]): does not attempt to write a response once the client has actually disconnected", async () => {
+  it("INT-HTTP-DISCONNECT-003 (11_インフラストラクチャ設計.md「クライアント切断時は応答送信を試みない」): does not attempt to write a response once the client has actually disconnected", async () => {
     let resolveStarted: () => void;
     const started = new Promise<void>((resolve) => {
       resolveStarted = resolve;

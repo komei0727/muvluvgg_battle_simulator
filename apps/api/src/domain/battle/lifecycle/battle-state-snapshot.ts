@@ -52,7 +52,7 @@ export interface BattleUnitSnapshot {
   >;
   /**
    * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の射影
-   * （レビュー再々レビュー[P2]、Issue #143）。`carry`が0の（＝一度も繰り越しが
+   * （Issue #143）。`carry`が0の（＝一度も繰り越しが
    * 発生していない、または`INCREMENT`の）counterはキー自体を持たない
    * （`skillCounters`と違い0はデフォルト値として省略する）。
    */

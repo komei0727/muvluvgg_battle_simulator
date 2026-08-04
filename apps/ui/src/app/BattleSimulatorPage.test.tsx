@@ -302,7 +302,7 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     expect(screen.getAllByText(/battle-01J/).length).toBeGreaterThan(0);
   });
 
-  it("shows a failed execution instead of a fabricated success when the response fails contract validation (review: PR #123 finalState/roster contract mismatch)", async () => {
+  it("shows a failed execution instead of a fabricated success when the response fails contract validation (finalState/roster contract mismatch)", async () => {
     // validateSimulationResponse (response-validator.ts) rejects a 200 body
     // whose finalState is missing a battleUnitId present in initialState
     // before the reducer ever reaches "succeeded" (simulation-response-

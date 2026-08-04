@@ -42,7 +42,7 @@ export function resolveTimeLimitOwnerUnitId(effect: AppliedEffect): BattleUnitId
   }
   // R-MEM-04（Issue #179）: Memory由来の効果は付与者ユニットを持たないため、
   // `EFFECT_SOURCE`を突き合わせる相手が存在しない。Catalog整合性検証
-  // （`MEMORY_REQUIRES_SOURCE_UNIT`、PR #260再レビュー[P2]）がMemoryからの
+  // （`MEMORY_REQUIRES_SOURCE_UNIT`）がMemoryからの
   // `owner: EFFECT_SOURCE`宣言自体を拒否するため通常ここへは到達しないが、
   // 万一到達しても減算契機を完全に失って永続化しないよう、`BATTLE`と同じ
   // 「いずれのユニットの完了契機でも減算する」扱いへ倒す。
@@ -112,15 +112,14 @@ export function decrementActionEffectDurations(
 }
 
 /**
- * TGT-004フェーズ1（Issue #167、PR #234再レビュー）「SKILL_USE単位期間の減算」:
+ * TGT-004フェーズ1（Issue #167）「SKILL_USE単位期間の減算」:
  * `actingUnitId`が1回のスキル使用（AS/EX、`SkillUseCompleted`）を完了したときに
  * 呼ぶ。R-EFF-04（ACTION単位）と同じ規約 — `timeLimit.owner`が解決する具体的な
  * ユニットが`actingUnitId`と一致する（`BATTLE`はどのユニットのスキル使用でも
  * 一致する）スキル使用単位効果のうち、今回完了した使用中に付与されたもの
  * （`grantedSkillUseId === currentSkillUseId`）を除く各インスタンスの残り回数を
  * 1減らす。中断された（`SkillUseInterrupted`）スキル使用はこの関数の呼び出し
- * 契機に含めない（呼び出し側が`SkillUseCompleted`だけを境界にする、PR #234
- * レビュー[P1]で明示された仕様固定）。0になったインスタンスもこの関数自身は
+ * 契機に含めない（呼び出し側が`SkillUseCompleted`だけを境界にする）。0になったインスタンスもこの関数自身は
  * 除去しない — 失効処理は呼び出し側の責務。
  */
 export function decrementSkillUseEffectDurations(
@@ -146,7 +145,7 @@ export interface SkillUseDurationDecrementTarget {
 }
 
 /**
- * TGT-004フェーズ3再々レビュー[P1]（Issue #167）: `decrementSkillUseEffectDurations`
+ * TGT-004フェーズ3（Issue #167）: `decrementSkillUseEffectDurations`
  * が連鎖解決前のunitsスナップショットから決定した対象（`battleUnitId`+
  * `effectInstanceId`のキーだけ）を、連鎖解決後のunitsへ実際に1減算として適用
  * する。`08_ドメインイベント.md`「イベント発行と処理」の順序契約（原因イベント
@@ -154,14 +153,13 @@ export interface SkillUseDurationDecrementTarget {
  * 満たすため、`SkillUseCompleted`/`PassiveResolved`自身のPS連鎖解決を終えて
  * から期間減算を行う必要がある。しかしその連鎖解決前のunitsスナップショットから
  * 対象を決定しないと、連鎖中に新たに付与された別の`SkillUseId`を持つ
- * `SKILL_USE`効果まで「直前の使用分」として誤って減算・即時失効させてしまう
- * （PR #238再レビュー[P2]）。そのため呼び出し側は「連鎖解決前のunitsで対象
- * （キーのみ）を決定→連鎖解決後のunitsへこの関数で実際に減算」という2段階に
- * 分ける。
+ * `SKILL_USE`効果まで「直前の使用分」として誤って減算・即時失効させてしまう。
+ * そのため呼び出し側は「連鎖解決前のunitsで対象（キーのみ）を決定→連鎖解決後の
+ * unitsへこの関数で実際に減算」という2段階に分ける。
  *
  * 減算量（before/after）は連鎖解決前のスナップショット値を使い回さず、この
- * 関数へ渡された`units`（連鎖解決後の現在値）から都度再計算する
- * （PR #238再々レビュー[P1]）: 同じownerに属する独立した「1回のスキル使用
+ * 関数へ渡された`units`（連鎖解決後の現在値）から都度再計算する — 同じowner
+ * に属する独立した「1回のスキル使用
  * 完了」（この完了イベント自身の連鎖の中で反応した子PS自身の完了など）が、
  * 連鎖解決中に同じインスタンスを既に1減算している場合があるため——古い
  * スナップショット値をそのまま設定すると、子PSが既に適用した減算を上書きし、
@@ -249,7 +247,7 @@ export interface ConsumeEffectDurationsResult {
 }
 
 /**
- * R-HIT-04（M7-018、Issue #272。PR #275レビュー[P1]）: 回避効果（`EVASION`/
+ * R-HIT-04（M7-018、Issue #272）: 回避効果（`EVASION`/
  * `HIT_EVASION`）の`INCOMING_HIT`消費は、R-EFF-07の一般規則（命中がMISSでなく
  * 確定した時点）ではなく「自身が回避を成立させた被ヒット」でだけ起きる。
  * つまり同じkindでありながら消費契機が逆で、確率判定に失敗した回避や、

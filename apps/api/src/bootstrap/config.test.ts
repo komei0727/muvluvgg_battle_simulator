@@ -37,11 +37,11 @@ describe("loadConfig", () => {
     expect(config.shutdownGraceMs).toBe(5_000);
   });
 
-  it("CFG-003 (レビュー指摘: SIMULATION_TIMEOUT_MS=abc -> Number() -> NaN -> deadline calculations silently disabled): throws ConfigError instead of producing NaN when SIMULATION_TIMEOUT_MS is not numeric", () => {
+  it("CFG-003 (SIMULATION_TIMEOUT_MS=abc -> Number() -> NaN -> deadline calculations silently disabled): throws ConfigError instead of producing NaN when SIMULATION_TIMEOUT_MS is not numeric", () => {
     expect(() => loadConfig(envWith({ SIMULATION_TIMEOUT_MS: "abc" }))).toThrow(ConfigError);
   });
 
-  it("CFG-004 (レビュー指摘: WORKER_MAX_QUEUE=Infinity -> Number() -> Infinity -> bounded queue要件に反して無制限になる): throws ConfigError instead of accepting a non-finite WORKER_MAX_QUEUE", () => {
+  it("CFG-004 (WORKER_MAX_QUEUE=Infinity -> Number() -> Infinity -> bounded queue要件に反して無制限になる): throws ConfigError instead of accepting a non-finite WORKER_MAX_QUEUE", () => {
     expect(() => loadConfig(envWith({ WORKER_MAX_QUEUE: "Infinity" }))).toThrow(ConfigError);
   });
 
@@ -77,15 +77,15 @@ describe("loadConfig", () => {
     }
   });
 
-  it('CFG-011 (PRレビュー指摘: Number("") === 0のため空文字列のWORKER_MAX_QUEUEが暗黙に0として受理されていた): throws ConfigError for an empty-string WORKER_MAX_QUEUE instead of silently defaulting to 0', () => {
+  it('CFG-011 (Number("") === 0のため空文字列のWORKER_MAX_QUEUEは暗黙に0として受理される): throws ConfigError for an empty-string WORKER_MAX_QUEUE instead of silently defaulting to 0', () => {
     expect(() => loadConfig(envWith({ WORKER_MAX_QUEUE: "" }))).toThrow(ConfigError);
   });
 
-  it("CFG-012 (PRレビュー指摘: 同上): throws ConfigError for a whitespace-only SHUTDOWN_GRACE_MS", () => {
+  it("CFG-012 (同上): throws ConfigError for a whitespace-only SHUTDOWN_GRACE_MS", () => {
     expect(() => loadConfig(envWith({ SHUTDOWN_GRACE_MS: "   " }))).toThrow(ConfigError);
   });
 
-  it("CFG-013 (PRレビュー指摘: SHUTDOWN_GRACE_MS=2147483648はNode.jsタイマーの32-bit符号付き整数上限を超え、Piscinaのclose待機が実質1msへオーバーフローする): throws ConfigError when SHUTDOWN_GRACE_MS exceeds the 32-bit timer limit", () => {
+  it("CFG-013 (SHUTDOWN_GRACE_MS=2147483648はNode.jsタイマーの32-bit符号付き整数上限を超え、Piscinaのclose待機が実質1msへオーバーフローする): throws ConfigError when SHUTDOWN_GRACE_MS exceeds the 32-bit timer limit", () => {
     expect(() => loadConfig(envWith({ SHUTDOWN_GRACE_MS: "2147483648" }))).toThrow(ConfigError);
   });
 
@@ -162,17 +162,17 @@ describe("loadConfig", () => {
     ).toThrow(ConfigError);
   });
 
-  it('CFG-026 (PRレビュー指摘[P2]): throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (file:///), which would otherwise become the opaque origin "null"', () => {
+  it('CFG-026: throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (file:///), which would otherwise become the opaque origin "null"', () => {
     expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "file:///" }))).toThrow(ConfigError);
   });
 
-  it("CFG-027 (PRレビュー指摘[P2]): throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (mailto:)", () => {
+  it("CFG-027: throws ConfigError for a hostless CORS_ALLOWED_ORIGINS entry (mailto:)", () => {
     expect(() => loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "mailto:test@example.com" }))).toThrow(
       ConfigError,
     );
   });
 
-  it("CFG-028 (PRレビュー指摘[P2]): throws ConfigError for a CORS_ALLOWED_ORIGINS entry with a trailing slash, which is not an exact scheme+host origin", () => {
+  it("CFG-028: throws ConfigError for a CORS_ALLOWED_ORIGINS entry with a trailing slash, which is not an exact scheme+host origin", () => {
     expect(() =>
       loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io/" })),
     ).toThrow(ConfigError);

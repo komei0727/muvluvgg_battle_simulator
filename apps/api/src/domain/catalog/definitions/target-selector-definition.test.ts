@@ -486,7 +486,7 @@ describe("TargetSelectorDefinition", () => {
     expect(result.order).toEqual(["HIGHEST_MAX_HP", "FASTEST"]);
   });
 
-  it("UT-CAT-TSEL-037: rejects EXCLUDE_RESOLVED_UNIT referencing an unsupported kind (PR #233 review [P2])", () => {
+  it("UT-CAT-TSEL-037: rejects EXCLUDE_RESOLVED_UNIT referencing an unsupported kind", () => {
     for (const kind of [
       "TRIGGER_SOURCE",
       "TRIGGER_TARGET",
@@ -502,7 +502,7 @@ describe("TargetSelectorDefinition", () => {
     }
   });
 
-  it("UT-CAT-TSEL-038: rejects a MARKER_IN_AREA area kind that applyArea does not implement (PR #233 review [P2])", () => {
+  it("UT-CAT-TSEL-038: rejects a MARKER_IN_AREA area kind that applyArea does not implement", () => {
     for (const area of [
       { kind: "SINGLE" },
       { kind: "ALL" },
@@ -535,7 +535,7 @@ describe("TargetSelectorDefinition", () => {
     }
   });
 
-  it("UT-CAT-TSEL-040: rejects IN/CONTAINS for HP_RATIO and HAS_MARKER.countCondition (PR #233 review [P2])", () => {
+  it("UT-CAT-TSEL-040: rejects IN/CONTAINS for HP_RATIO and HAS_MARKER.countCondition", () => {
     expect(() =>
       createTargetFilterDefinition({ kind: "HP_RATIO", op: "IN", value: 0.5 }, "filter"),
     ).toThrow(DomainValidationError);

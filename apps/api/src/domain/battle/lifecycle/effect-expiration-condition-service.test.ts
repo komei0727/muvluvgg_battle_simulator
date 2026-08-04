@@ -162,7 +162,7 @@ describe("findEffectsMatchingExpirationCondition", () => {
     ]);
   });
 
-  it("UT-R-EFF-08-006 (レビュー修正 PR #209、production Catalog ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL): TARGET_STATE/SELF/IS_ALIVE resolves SELF to the effect's own holder unit (not a PS owner) and does not throw", () => {
+  it("UT-R-EFF-08-006 (production Catalog ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL): TARGET_STATE/SELF/IS_ALIVE resolves SELF to the effect's own holder unit (not a PS owner) and does not throw", () => {
     const alive = unit("target-1");
     const targetStateCondition: ConditionDefinition = {
       kind: "TARGET_STATE",

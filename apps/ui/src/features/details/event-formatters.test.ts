@@ -550,13 +550,13 @@ describe("formatEvent", () => {
     expect(presentation.summary).toContain("エー");
     expect(presentation.summary).toContain("ビー");
     expect(presentation.summary).toContain("15");
-    // 転送先の最大HP超過で破棄された5を黙って落とさない (PR #264レビュー[P2])。
+    // 転送先の最大HP超過で破棄された5を黙って落とさない。
     expect(presentation.summary).toContain("5");
     expect(presentation.summary).toContain("破棄");
     expect(presentation.severity).toBe("positive");
   });
 
-  it("reports a fully discarded HEALING_TRANSFERRED as discarded rather than as a 0 heal (PR #264レビュー[P2], R-HEAL-04)", () => {
+  it("reports a fully discarded HEALING_TRANSFERRED as discarded rather than as a 0 heal (R-HEAL-04)", () => {
     const rosterIndex = buildRosterIndex(roster);
     const presentation = formatEvent(
       event({
@@ -642,7 +642,7 @@ describe("formatEvent", () => {
     expect(presentation.summary).toContain("STUN");
   });
 
-  it("does not classify an advantageous APPLY_STATUS as a status abnormality or a negative event (PR #264レビュー[P1])", () => {
+  it("does not classify an advantageous APPLY_STATUS as a status abnormality or a negative event", () => {
     const rosterIndex = buildRosterIndex(roster);
     const presentation = formatEvent(
       event({
@@ -669,7 +669,7 @@ describe("formatEvent", () => {
     expect(presentation.severity).not.toBe("negative");
   });
 
-  it("does not call a rejected advantageous APPLY_STATUS a status abnormality either (PR #264レビュー[P1])", () => {
+  it("does not call a rejected advantageous APPLY_STATUS a status abnormality either", () => {
     const rosterIndex = buildRosterIndex(roster);
     const presentation = formatEvent(
       event({

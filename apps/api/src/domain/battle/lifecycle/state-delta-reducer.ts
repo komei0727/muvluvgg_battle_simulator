@@ -27,7 +27,7 @@ function assertBeforeMatches<T>(path: string, current: T, change: ValueChange<T>
  * `charge`は毎回新しいオブジェクトとして構築される複合値（`ChargeStarted.after`
  * と`ChargeReleased.before`は同じ内容でも別インスタンス）のため、`assertBeforeMatches`
  * の参照同一性（`!==`）比較では正常な開始→発動イベント列でも誤って不一致と
- * 判定してしまう（PR#128レビュー[P1]）。フィールド単位の構造比較で判定する。
+ * 判定してしまう。フィールド単位の構造比較で判定する。
  */
 export function sameChargeState(a: ChargeState | undefined, b: ChargeState | undefined): boolean {
   if (a === undefined || b === undefined) {
@@ -318,8 +318,7 @@ export function sameEffectSnapshot(
     a.sourceUnitId === b.sourceUnitId &&
     // R-MEM-04（M7-006、Issue #179）: Memory由来の効果は`sourceUnitId`を持たず
     // `sourceSide`を持つ。両方を比較しないと、Memory由来効果のStateDeltaから
-    // 発生源が欠落・破損しても独立Reducerの復元一致検証を通過してしまう
-    // （PR #260レビュー[P2]）。
+    // 発生源が欠落・破損しても独立Reducerの復元一致検証を通過してしまう。
     a.sourceSide === b.sourceSide &&
     a.kindKey === b.kindKey &&
     a.duplicate === b.duplicate &&
@@ -513,7 +512,7 @@ function applyUnitDelta(
     unit.skillCounters,
     delta.skillCounters,
   );
-  // レビュー再々々レビュー[P1]: `skillCounterCarry`は`captureBattleState`が
+  // `skillCounterCarry`は`captureBattleState`が
   // carry===0のskillDefinitionIdキーごと省略する（`skillCounters`と違い0を
   // デフォルト値として扱う）ため、Reducer側もdelta適用後に空になった
   // skillDefinitionIdエントリを剪定し、実状態と同じ形へ揃える。
@@ -570,13 +569,13 @@ function applyUnitDelta(
 /**
  * `R-EFF-11`（`SkillRuntime`スコープ、Issue #143）: `SkillDefinitionId`→
  * `RuntimeCounterId`の2段キーで運ばれる`skillCounters`（`value`）／
- * `skillCounterCarry`（`carry`、レビュー再々レビュー[P2]）の両方に使う共通
+ * `skillCounterCarry`（`carry`）の両方に使う共通
  * 差分適用。`EffectSequence`スコープ（EFF-006、Issue #212）の
  * `effectSequenceCounters`／`effectSequenceCounterCarry`も、1段目のキーが
  * `SkillDefinitionId`ではなく`SkillUseId`であるだけで同じ形のため、1段目キーの
  * 型を`K`として汎用化して再利用する。
  *
- * レビュー指摘[P1]: `change.after === undefined`は`RuntimeCounterReset`による
+ * `change.after === undefined`は`RuntimeCounterReset`による
  * キー自体の削除を表すため、`0`を書き込むのではなく`updated`からキーを
  * `delete`する（実状態の`resetRuntimeCounter`と同じ規約）。
  */
@@ -622,7 +621,7 @@ function applyTwoLevelCounterDeltas<K extends string>(
       next[firstLevelKey] = updated;
     }
   }
-  // レビュー再々々々レビュー[P1]: `skillCounterCarry`（`pruneEmptyFirstLevelEntries`）は、
+  // `skillCounterCarry`（`pruneEmptyFirstLevelEntries`）は、
   // 剪定の結果すべての1段目キーエントリが消えた場合、`{}`ではなく
   // `undefined`を返す。`captureBattleState`は非0のcarryが1件も無ければ
   // `skillCounterCarry`フィールド自体を省略するため、呼び出し元
@@ -662,7 +661,7 @@ function applyCooldownDeltas(
     assertBeforeMatches(`${path}[${skillDefinitionId}]`, existing?.remaining ?? 0, change);
     // `establishesScope`（`CooldownStarted`）はエントリ自体を設定し直すため、
     // 差分が持つscopeがそのまま正本になる — 不在は「省略」ではなく「設定scopeなし」
-    // （行動外のトップレベルイベントから発動したPS、R-SKL-04/PR #141）を意味する。
+    // （行動外のトップレベルイベントから発動したPS、R-SKL-04）を意味する。
     // それ以外（`CooldownReduced`等の残数変更）は設定scopeを変えないため既存値を保つ。
     const setActionId =
       change.establishesScope === true

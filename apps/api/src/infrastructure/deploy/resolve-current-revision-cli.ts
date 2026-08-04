@@ -5,7 +5,7 @@ import type { TrafficTarget } from "./cloud-run-manifest.js";
  * `gcloud run services describe --format=json`のstdout（JSON）をstdinから読み、
  * `status.traffic`のpercent===100 revisionをstdoutへ書く（bootstrap時は空行）。
  * `scripts/cloud-run/ci-deploy-candidate.sh`から呼ばれる
- * （PRレビュー指摘 #112 P1-1: `status.latestReadyRevisionName`は未promoteの
+ * （`status.latestReadyRevisionName`は未promoteの
  * 失敗candidateもReadyになり得るため使わない）。
  */
 interface ServiceDescribeJson {

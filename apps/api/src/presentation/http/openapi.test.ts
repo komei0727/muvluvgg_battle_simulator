@@ -166,7 +166,7 @@ describe("OpenAPI document", () => {
     );
   });
 
-  it("UT-R-EFF-01-030 (PR #207再レビュー[P1]): every $ref in the real app.swagger() document resolves to an existing local JSON pointer (ConditionDefinition's AND/OR/NOT self-reference must not become a dangling #/components/schemas/def-N)", () => {
+  it("UT-R-EFF-01-030: every $ref in the real app.swagger() document resolves to an existing local JSON pointer (ConditionDefinition's AND/OR/NOT self-reference must not become a dangling #/components/schemas/def-N)", () => {
     function resolvePointer(document: unknown, pointer: string): unknown {
       if (!pointer.startsWith("#/")) {
         throw new Error(`only local JSON pointers are supported, got "${pointer}"`);
@@ -240,7 +240,7 @@ describe("OpenAPI document", () => {
     );
   });
 
-  it("API-OPENAPI-007 (PRレビュー指摘[P3]、10_API設計.md「OpenAPIへの反映」「CORS preflightと公開header」): documents an OPTIONS preflight operation for both CORS-enabled routes", () => {
+  it("API-OPENAPI-007 (10_API設計.md「OpenAPIへの反映」「CORS preflightと公開header」): documents an OPTIONS preflight operation for both CORS-enabled routes", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
         Record<
@@ -260,7 +260,7 @@ describe("OpenAPI document", () => {
     expect(document.paths?.["/api/v1/battle-simulation-catalog"]?.options).toBeDefined();
   });
 
-  it("API-OPENAPI-008 (PRレビュー指摘[P3]、10_API設計.md「CORS」「公開response headerはX-Request-Id、Retry-After、ETag」): documents Access-Control-Allow-Origin and Access-Control-Expose-Headers on the successful responses of both CORS-enabled routes", () => {
+  it("API-OPENAPI-008 (10_API設計.md「CORS」「公開response headerはX-Request-Id、Retry-After、ETag」): documents Access-Control-Allow-Origin and Access-Control-Expose-Headers on the successful responses of both CORS-enabled routes", () => {
     interface HeaderDoc {
       readonly schema?: { readonly type?: string };
     }
@@ -297,7 +297,7 @@ describe("OpenAPI document", () => {
     expect(battleHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
   });
 
-  it("API-OPENAPI-009 (PRレビュー指摘[P2再レビュー]): documents the preflight request headers (Origin, Access-Control-Request-Method, Access-Control-Request-Headers) as header parameters on the OPTIONS operation, with Origin and Access-Control-Request-Method marked required", () => {
+  it("API-OPENAPI-009: documents the preflight request headers (Origin, Access-Control-Request-Method, Access-Control-Request-Headers) as header parameters on the OPTIONS operation, with Origin and Access-Control-Request-Method marked required", () => {
     interface ParameterDoc {
       readonly name?: string;
       readonly in?: string;
@@ -327,7 +327,7 @@ describe("OpenAPI document", () => {
     expect(headerParams.get("access-control-request-headers")?.required).toBe(false);
   });
 
-  it("API-OPENAPI-010 (PRレビュー指摘[P2再レビュー]): the OPTIONS 204 response documents no body/content, matching the actual empty preflight response", () => {
+  it("API-OPENAPI-010: the OPTIONS 204 response documents no body/content, matching the actual empty preflight response", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
         Record<
@@ -348,7 +348,7 @@ describe("OpenAPI document", () => {
     expect(response204?.content).toBeUndefined();
   });
 
-  it("API-OPENAPI-011 (PRレビュー指摘[P2再々レビュー]): documents the 400 Invalid Preflight Request response that @fastify/cors returns for an allowed origin missing Access-Control-Request-Method", () => {
+  it("API-OPENAPI-011: documents the 400 Invalid Preflight Request response that @fastify/cors returns for an allowed origin missing Access-Control-Request-Method", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
         Record<
@@ -372,7 +372,7 @@ describe("OpenAPI document", () => {
     ).toBeDefined();
   });
 
-  it('API-OPENAPI-012 (PRレビュー指摘[P2再々々レビュー]): the OPTIONS 400 response documents its actual text/plain body ("Invalid Preflight Request"), not a JSON content type', () => {
+  it('API-OPENAPI-012: the OPTIONS 400 response documents its actual text/plain body ("Invalid Preflight Request"), not a JSON content type', () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
         Record<
@@ -571,7 +571,7 @@ describe("OpenAPI document", () => {
     expect(validate(matched), JSON.stringify(validate.errors)).toBe(true);
   });
 
-  it("UT-R-EFF-01-029 (08_ドメインイベント.md EffectApplied payload; PR #207レビュー[P2]): validates EffectApplied.details.expirationConditions as a real (recursive) ConditionDefinition union, not an arbitrary object", () => {
+  it("UT-R-EFF-01-029 (08_ドメインイベント.md EffectApplied payload): validates EffectApplied.details.expirationConditions as a real (recursive) ConditionDefinition union, not an arbitrary object", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -638,7 +638,7 @@ describe("OpenAPI document", () => {
     expect(validate(invalidCondition)).toBe(false);
   });
 
-  it("UT-R-EFF-01-031 (references.ts createTargetReference; PR #207再レビュー[P2]): rejects a BINDING TargetReference missing targetBindingId and a non-BINDING TargetReference that sets it, matching the domain constraint exactly", () => {
+  it("UT-R-EFF-01-031 (references.ts createTargetReference): rejects a BINDING TargetReference missing targetBindingId and a non-BINDING TargetReference that sets it, matching the domain constraint exactly", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -693,7 +693,7 @@ describe("OpenAPI document", () => {
     expect(validate(withTarget({ kind: "SELF", targetBindingId: "TGT_1" }))).toBe(false);
   });
 
-  it("UT-R-EFF-01-032 (condition-definition.ts TARGET_STATE_FIELD_TYPES; PR #207再レビュー[P2]): rejects a TARGET_STATE value whose type doesn't match its field's Domain-mandated type", () => {
+  it("UT-R-EFF-01-032 (condition-definition.ts TARGET_STATE_FIELD_TYPES): rejects a TARGET_STATE value whose type doesn't match its field's Domain-mandated type", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -752,7 +752,7 @@ describe("OpenAPI document", () => {
     expect(validate(withCondition("ATTRIBUTE", 1))).toBe(false);
   });
 
-  it("UT-R-EFF-01-033 (condition-definition.ts RUNTIME_COUNTER modulo assertInteger({min:1}); PR #207再レビュー[P2]): rejects a RUNTIME_COUNTER modulo that is 0 or non-integer", () => {
+  it("UT-R-EFF-01-033 (condition-definition.ts RUNTIME_COUNTER modulo assertInteger({min:1})): rejects a RUNTIME_COUNTER modulo that is 0 or non-integer", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -799,7 +799,7 @@ describe("OpenAPI document", () => {
     expect(validate(withModulo(1.5))).toBe(false);
   });
 
-  it("UT-R-EFF-01-034 (condition-definition.ts TURN_NUMBER modulo assertInteger({min:1}); RES-004, Issue #171, PR #222再レビュー[P2]): rejects a TURN_NUMBER modulo that is 0 or non-integer", () => {
+  it("UT-R-EFF-01-034 (condition-definition.ts TURN_NUMBER modulo assertInteger({min:1}); RES-004, Issue #171): rejects a TURN_NUMBER modulo that is 0 or non-integer", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -845,7 +845,7 @@ describe("OpenAPI document", () => {
     expect(validate(withModulo(1.5))).toBe(false);
   });
 
-  it("API-OPENAPI-008 (PR #289レビュー[P1], DMG-005/Issue #190): DAMAGE_APPLIED keeps subUnitAbsorbed optional so a strict v1 decoder built before DMG-005 still validates", () => {
+  it("API-OPENAPI-008 (DMG-005/Issue #190): DAMAGE_APPLIED keeps subUnitAbsorbed optional so a strict v1 decoder built before DMG-005 still validates", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -886,7 +886,7 @@ describe("OpenAPI document", () => {
     ).toBe(true);
   });
 
-  it("API-OPENAPI-005 (regression: M5 review [P1] found COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
+  it("API-OPENAPI-005 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // A mapped type over `BattleDomainEventType` forces a compile error (missing
     // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event
     // type, so this list can't silently drift from the domain the way
@@ -987,7 +987,7 @@ describe("OpenAPI document", () => {
     expect(declaredTypes).toEqual(expectedTypes);
   });
 
-  it("API-OPENAPI-006 (M5 review round 3 [P2] fix): cooldownStateResponseSchema enforces the ACTION/TURN setting-scope XOR (10_API設計.md CooldownStateResponse) — accepts exactly one matching scope field, rejects both missing, both present, or a mismatched scope field", () => {
+  it("API-OPENAPI-006: cooldownStateResponseSchema enforces the ACTION/TURN setting-scope XOR (10_API設計.md CooldownStateResponse) — accepts exactly one matching scope field, rejects both missing, both present, or a mismatched scope field", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(cooldownStateResponseSchema);
 
@@ -1021,7 +1021,7 @@ describe("OpenAPI document", () => {
     ).toBe(false);
   });
 
-  it("API-OPENAPI-007 (PR #211 review [P2] fix): runtimeCounterChangedDetailsSchema enforces the SKILL_RUNTIME/APPLIED_EFFECT scope XOR — accepts exactly one matching id field, rejects both missing, both present, or a mismatched scope field", () => {
+  it("API-OPENAPI-007: runtimeCounterChangedDetailsSchema enforces the SKILL_RUNTIME/APPLIED_EFFECT scope XOR — accepts exactly one matching id field, rejects both missing, both present, or a mismatched scope field", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(runtimeCounterChangedDetailsSchema);
 
@@ -1064,7 +1064,7 @@ describe("OpenAPI document", () => {
     expect(validate({ ...skillRuntimeBase, effectInstanceId: "battle-1:effect:1" })).toBe(false);
   });
 
-  it("API-OPENAPI-013 (TGT-004 Phase 1, Issue #167, PR #236再レビュー[P1]): effectStateResponseSchema/effectDurationReducedDetailsSchema accept duration.unit: SKILL_USE, matching the Domain EffectSnapshot/EffectDurationReduced types widened for SKILL_USE decrement", () => {
+  it("API-OPENAPI-013 (TGT-004 Phase 1, Issue #167): effectStateResponseSchema/effectDurationReducedDetailsSchema accept duration.unit: SKILL_USE, matching the Domain EffectSnapshot/EffectDurationReduced types widened for SKILL_USE decrement", () => {
     const ajv = new Ajv({ strict: false });
     const validateEffectState = ajv.compile(effectStateResponseSchema);
     const validateDurationReduced = ajv.compile(effectDurationReducedDetailsSchema);

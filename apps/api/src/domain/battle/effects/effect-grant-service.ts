@@ -112,9 +112,9 @@ export interface GrantEffectResult {
  * 長い方を一つだけ残す」）と`grantFreezeStatus`のFREEZE（R-STS-03「再付与時に
  * 期間延長や増幅率加算を行わない」）の2つ。
  *
- * PR #277レビュー[P2]: 当初は`request.statusKind`の有無だけで判定しており、
- * 集約を持たない`APPLY_STATUS`（STEALTH/EVASION/BLIND/DAMAGE_IMMUNITY/
- * HIT_EVASION/GUARANTEED_HIT）まで状態種別で同一視していた。これらは
+ * `request.statusKind`の有無だけで判定すると、集約を持たない`APPLY_STATUS`
+ * （STEALTH/EVASION/BLIND/DAMAGE_IMMUNITY/HIT_EVASION/GUARANTEED_HIT）まで
+ * 状態種別で同一視してしまう。これらは
  * `grantEffect`が常に新規インスタンスを追加する（R-EFF-01）ため、別の効果定義
  * による同種ステータスが残っているだけで差し替えが誤発動してしまう。特にR-STS-04
  * の暗闇は「複数の暗闇を付与順に独立して処理する」と規定されており、状態種別

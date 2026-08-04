@@ -139,7 +139,7 @@ describe("ConditionDefinition", () => {
     expect(result).toEqual({ kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: 3 });
   });
 
-  it("UT-CAT-COND-028 (review [P2]): rejects a zero modulo on TURN_NUMBER", () => {
+  it("UT-CAT-COND-028: rejects a zero modulo on TURN_NUMBER", () => {
     expect(() =>
       createConditionDefinition(
         { kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: 0 },
@@ -149,7 +149,7 @@ describe("ConditionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-COND-029 (review [P2]): rejects a negative modulo on TURN_NUMBER", () => {
+  it("UT-CAT-COND-029: rejects a negative modulo on TURN_NUMBER", () => {
     expect(() =>
       createConditionDefinition(
         { kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: -2 },
@@ -159,7 +159,7 @@ describe("ConditionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-COND-030 (review [P2]): rejects a non-integer modulo on TURN_NUMBER", () => {
+  it("UT-CAT-COND-030: rejects a non-integer modulo on TURN_NUMBER", () => {
     expect(() =>
       createConditionDefinition(
         { kind: "TURN_NUMBER", op: "EQ", value: 0, modulo: 1.5 },
@@ -711,7 +711,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     });
   });
 
-  it("UT-CAT-COND-045 (PR #288レビュー[P2]): rejects a continuousDamageKind that the queried categories can never reach, value by value", () => {
+  it("UT-CAT-COND-045: rejects a continuousDamageKind that the queried categories can never reach, value by value", () => {
     // `STATUS`が到達元になるのは炎上・毒だけで、`FIXED`（固定継続ダメージ）は
     // `DEBUFF`にしか分類されない（R-STS-01「状態異常として定義された効果」）。
     // フィールド単位で「`STATUS`があればOK」にすると、実行時に一切一致しない

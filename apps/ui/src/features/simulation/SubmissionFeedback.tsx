@@ -7,7 +7,7 @@ import styles from "./SubmissionFeedback.module.css";
 export interface SubmissionFeedbackProps {
   readonly state: ExecutionState;
   readonly isDirty: boolean;
-  // Issue #96 P1レビュー指摘: 表示中の成功snapshotが、現在保持しているCatalog
+  // 表示中の成功snapshotが、現在保持しているCatalog
   // とは異なるrevisionで実行された結果であることを示す(selectIsCatalogRevisionMismatch)。
   readonly catalogRevisionMismatch?: boolean;
   readonly onReloadCatalog: () => void;

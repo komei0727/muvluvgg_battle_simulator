@@ -35,7 +35,7 @@ import {
  * `catalog/`から実際にロードした未改変の`resolution.steps`を対象に、条件を満たす
  * 対象だけが条件付きactionsを受け取ることを検証する。
  *
- * PRレビュー[P1]（Issue #171）: この種のconditionは`isEagerActionStep`
+ * Issue #171: この種のconditionは`isEagerActionStep`
  * （`skill-resolution-service.ts`）により常に`DeferredStepPlan`へ回り、実行が
  * その位置まで進んだ時点で（先行stepの副作用を反映した`box.units`を使って）
  * JIT評価される — `resolveSkillOrder`が返す`EffectSequencePlan`の時点では
@@ -55,7 +55,7 @@ import {
  *
  * capability検証は「EffectStepの対象別条件」というこのcapability自身の境界
  * （`docs/ddd/14_Catalog定義スキーマ.md`のCAP_EFFECT_STEP_CONDITION行 —
- * PRレビュー[P2]で「集合条件」をこの境界から明示的に除外した）に留める。
+ * 「集合条件」はこの境界から明示的に除外されている）に留める。
  * `SKL_CHIYURU_MAZE_EX`/`SKL_TATIANA_SAGE_EX`/`SKL_LYDIA_GENIUS_AS1`など残る
  * AOE_PER_TARGET_CONDITION行は別の未設計スコープ（`HAS_STATUS`の状態異常追跡、
  * 集合条件用ConditionKindなど）にも依存するため、この検証範囲には含めない。
@@ -74,7 +74,7 @@ const allyUnit = (id: string, unitDefinitionId: string, position: FormationPosit
  * resolver」（`effect-action-group-resolver.ts`の`resolveOneEffectActionApplication`）
  * がまだ実行できない（それぞれ別Capability、M6/M7/M8 scope）ため、これらを
  * actionsに持つstepを`applyEffectActionGroups`まで進めない。対象別条件を持つ
- * ACTIONは常に`DeferredStepPlan`（`isEagerActionStep`、PRレビュー[P1]）のため、
+ * ACTIONは常に`DeferredStepPlan`（`isEagerActionStep`）のため、
  * `resolveSkillOrder`が解決した`resolvedBindings`と、そのstepの生の定義を使って
  * `buildEffectStepPerTargetFilter`/`resolveActionStepApplications`を直接呼び出し
  * （`resolveRawStep`が実行時に呼ぶのと同じ関数）、対象ごとのフィルタ結果だけを

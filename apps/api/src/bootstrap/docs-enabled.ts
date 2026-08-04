@@ -7,7 +7,7 @@
  * それらはPR Quality Gate（`mise run test:coverage`）の対象外
  * （`*.integration.test.ts`は`vitest.config.ts`が除外）のため、
  * NODE_ENV→docsEnabledの判定だけをここへ分離し、通常のテストスイートで
- * 直接検証できるようにする（レビュー指摘）。
+ * 直接検証できるようにする。
  */
 export function resolveDocsEnabled(nodeEnv: string | undefined): boolean {
   return nodeEnv !== "production";

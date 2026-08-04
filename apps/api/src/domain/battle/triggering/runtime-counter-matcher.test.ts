@@ -361,7 +361,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-006 (review re-fix [P2]): still reports a change when the accumulated damage stays below the threshold, because the internal carry changed even though the public value did not (before === after but carry moved from 0 to 10)", () => {
+  it("UT-RCOUNTER-M-006: still reports a change when the accumulated damage stays below the threshold, because the internal carry changed even though the public value did not (before === after but carry moved from 0 to 10)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -404,7 +404,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-006b (review re-fix [P2]): reports no change at all when neither the value nor the carry moved (trigger did not match / 0 damage)", () => {
+  it("UT-RCOUNTER-M-006b: reports no change at all when neither the value nor the carry moved (trigger did not match / 0 damage)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -464,7 +464,7 @@ describe("detectRuntimeCounterUpdates", () => {
       unitDefinitions,
       skillDefinitions,
     });
-    // レビュー再レビュー[P2]: valueは変わらない(0->0)がcarryが0->30へ変化した
+    // valueは変わらない(0->0)がcarryが0->30へ変化した
     // ため、この更新自体もchangeとして報告される。
     expect(first.changes).toEqual([
       {
@@ -546,7 +546,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-RCOUNTER-M-012 (review re-re-fix [P2]): multiple counterUpdates definitions matching the same event and targeting the same counter are all applied, in array order, not collapsed into one", () => {
+  it("UT-RCOUNTER-M-012: multiple counterUpdates definitions matching the same event and targeting the same counter are all applied, in array order, not collapsed into one", () => {
     const skill = passiveSkillOf("SKL_PS_DUP_COUNTER", [
       {
         kind: "INCREMENT",
@@ -595,7 +595,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toEqual({ value: 3, carry: 0 });
   });
 
-  it("UT-RCOUNTER-M-013 (review re-re-fix [P2]): the matched set is fixed from the state passed in, not re-evaluated after an earlier entry's own effect — a later entry that only becomes newly-true is not retroactively added", () => {
+  it("UT-RCOUNTER-M-013: the matched set is fixed from the state passed in, not re-evaluated after an earlier entry's own effect — a later entry that only becomes newly-true is not retroactively added", () => {
     const skill = passiveSkillOf("SKL_PS_NO_RETRO_MATCH", [
       {
         kind: "INCREMENT",
@@ -657,7 +657,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toBeUndefined();
   });
 
-  it("UT-RCOUNTER-M-014 (review re-re-fix [P2]): an entry that matched against the state passed in is still applied even though an earlier entry in the same batch already changed the state its condition read", () => {
+  it("UT-RCOUNTER-M-014: an entry that matched against the state passed in is still applied even though an earlier entry in the same batch already changed the state its condition read", () => {
     const skill = passiveSkillOf("SKL_PS_NO_VANISH_MATCH", [
       {
         kind: "INCREMENT",
@@ -717,7 +717,7 @@ describe("detectRuntimeCounterUpdates", () => {
   });
 });
 
-describe("collectResolutionScopeResets (review fix [P2])", () => {
+describe("collectResolutionScopeResets", () => {
   it("UT-RCOUNTER-M-009: finds a counter declared with resetScope: RESOLUTION_SCOPE that currently holds a value", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {

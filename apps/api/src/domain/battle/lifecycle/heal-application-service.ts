@@ -45,7 +45,7 @@ export interface ApplyHealActionResult {
   /** いずれかのhitで実際にHPが増えた（`HealApplied`が非0のStateDeltaを持った）場合`true`。 */
   readonly changed: boolean;
   /**
-   * R-SKL-02（PR #259再々レビュー[P2]）: 使用者がPS/Memory連鎖で戦闘不能になったため
+   * R-SKL-02: 使用者がPS/Memory連鎖で戦闘不能になったため
    * **一切適用しなかった**hit数。`applyDamageActionSteps`の同名フィールドと同じ意味で、
    * `resolveActionApplications`が同じEffectStepの残りの対象・後続stepを止める際の
    * 未解決数になる。
@@ -100,7 +100,7 @@ export function evaluateHealFormula(
  * R-HEAL-01は蘇生規則を持たない — 蘇生は`APPLY_DEATH_SURVIVAL`/DMG-006の
  * スコープ）。この場合は`HealApplied`自体を発行せず、hitは解決済みとして数える。
  *
- * PR #259再レビュー[P2]（Issue #229、R-HEAL-04 #4/#6）: `HealApplied`と各
+ * Issue #229（R-HEAL-04 #4/#6）: `HealApplied`と各
  * `HealingTransferred`の直後にPS/Memory連鎖を解決するため、`applyDamageActionSteps`
  * と同じgenerator形をとる。`context.onFactEventForPassiveChain`がある経路
  * （AS/EX・チャージ発動・継続回復）はその場で同期的に連鎖を解決するため何も
@@ -134,7 +134,7 @@ export function* applyHealActionSteps(
 
   for (let index = 0; index < hits.length; index++) {
     const hit = hits[index]!;
-    // R-SKL-02（PR #259再々レビュー[P2]）: 使用者が直前の対象の連鎖で戦闘不能に
+    // R-SKL-02: 使用者が直前の対象の連鎖で戦闘不能に
     // なった場合、残りの対象へ効果を適用しない（`applyDamageActionSteps`が
     // ヒットごとに行う再検証と同じ）。解決済みの効果は巻き戻さない（R-SKL-01）。
     const currentActor = working.get(actor.battleUnitId);
@@ -235,7 +235,7 @@ export interface OneHealInput {
    */
   readonly distributionShareCount?: number;
   /**
-   * R-SKL-01（PR #259再々レビュー[P2]）: 各連鎖境界から再開した直後にこのユニットの
+   * R-SKL-01: 各連鎖境界から再開した直後にこのユニットの
    * 生存を再検証し、戦闘不能なら未解決の転送を中断する（`interrupted: true`）。
    * スキル使用の一部として解決される即時回復（`applyHealActionSteps`）が使用者を
    * 指定する。継続回復（`continuous-heal-service.ts`）はスキル使用ではなく
@@ -252,7 +252,7 @@ export interface OneHealResult {
   /** 対象・転送先のいずれかで実際にHPが増えた場合`true`。 */
   readonly changed: boolean;
   /**
-   * R-SKL-01（PR #259再々レビュー[P2]）: `interruptWhenDefeatedUnitId`が連鎖の
+   * R-SKL-01: `interruptWhenDefeatedUnitId`が連鎖の
    * 途中で戦闘不能になり、未解決の転送を中断した場合`true`。発行済みの
    * `HealApplied`／`HealingTransferred`は巻き戻さない。
    */
@@ -260,7 +260,7 @@ export interface OneHealResult {
 }
 
 /**
- * R-HEAL-04 #4/#6の連鎖境界（PR #259再レビュー[P2]）。`applyDamageActionSteps`の
+ * R-HEAL-04 #4/#6の連鎖境界。`applyDamageActionSteps`の
  * カスケードstepと同じく、この時点の`units`を駆動側へ渡して子PS連鎖を解決させ、
  * その結果を`next(units)`で受け取ってから次へ進む。
  */
@@ -339,7 +339,7 @@ function allocateHealingLinkTransfers(
  * スコープ。`HEAL`は`includeDefeated`が明示された選択で、継続回復は保持者が
  * 発火時点で戦闘不能な場合にこの経路へ到達しうる）。
  *
- * PRレビュー指摘[P2]（PR #259、Issue #229）: PS/Memory連鎖はこの関数**自身**が、
+ * Issue #229: PS/Memory連鎖はこの関数**自身**が、
  * `HealApplied`と各`HealingTransferred`の発行直後に解決する。呼び出し側が戻り値を
  * 受け取った後にまとめて連鎖させる形だと、(1)`HealApplied`に反応するPSが転送後の
  * HPを観測し、(2)その連鎖で転送先が戦闘不能になっても転送前に前提を再検証できず、
@@ -469,7 +469,7 @@ export function* applyOneHealSteps(
   let interrupted = false;
 
   /**
-   * R-SKL-01（PR #259再々レビュー[P2]・再々々レビュー[P2]）: 使用者が戦闘不能なら、
+   * R-SKL-01: 使用者が戦闘不能なら、
    * **まだ適用していない転送が残っている場合に限り**中断する — R-SKL-01が中断を
    * 求めるのは「未解決効果」であり、この適用に未解決分が無ければ中断ではない。
    * 各iterationの先頭で1回だけ判定することで、次の2つを同時に満たす。
@@ -490,9 +490,9 @@ export function* applyOneHealSteps(
     return user === undefined || isDefeated(user);
   };
 
-  // R-HEAL-04 #3の直後（＝転送の適用より前）にPS/Memory連鎖を解決する
-  // （PRレビュー指摘[P2]、PR #259）。`HealApplied`に反応するPSは転送前のHPを観測し、
-  // 続く各転送はこの連鎖後の最新stateに対して前提を再検証してから適用される。
+  // R-HEAL-04 #3の直後（＝転送の適用より前）にPS/Memory連鎖を解決する。
+  // `HealApplied`に反応するPSは転送前のHPを観測し、続く各転送はこの連鎖後の
+  // 最新stateに対して前提を再検証してから適用される。
   nextUnits = yield* chainFactEvent(context, healApplied, nextUnits);
 
   // R-HEAL-04 #4/#5: 各転送先へ転送量をそのまま適用する。回復量Formulaと
@@ -580,7 +580,6 @@ export function* applyOneHealSteps(
 
 /**
  * 1つのFACTイベントについてPS/Memory即時連鎖を解決し、連鎖後の最新stateを返す
- * （PRレビュー指摘[P2]・再レビュー[P2]、PR #259）。
  *
  * - callbackがある経路（AS/EX・チャージ発動・継続回復）はその場で同期的に解決する。
  * - callbackが無い経路（PS自身のEffectSequence解決）は`yield`して駆動側へ委ね、

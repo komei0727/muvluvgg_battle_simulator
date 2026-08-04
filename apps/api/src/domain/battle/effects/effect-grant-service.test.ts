@@ -342,7 +342,7 @@ describe("grantEffect", () => {
     expect(applied!.payload).not.toHaveProperty("expirationConditions");
   });
 
-  it("UT-R-EFF-01-028 (08_ドメインイベント.md EffectApplied payload: 初期回数、残り回数; PR #207レビュー[P2]): carries the instance's own remainingCount/consumptionRemaining, not just the definition's static initialRemaining/consumptionMaxCount", () => {
+  it("UT-R-EFF-01-028 (08_ドメインイベント.md EffectApplied payload: 初期回数、残り回数): carries the instance's own remainingCount/consumptionRemaining, not just the definition's static initialRemaining/consumptionMaxCount", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -838,7 +838,7 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
   });
 
   /**
-   * PR #277レビュー[P2]: `statusKind`一致は「再付与時に状態種別単位で1インスタンス
+   * `statusKind`一致は「再付与時に状態種別単位で1インスタンス
    * へ集約する状態異常」（`grantStunStatus`のSTUN／`grantFreezeStatus`のFREEZE）
    * だけの規則である。それ以外の`APPLY_STATUS`は`grantEffect`が常に新規インスタンス
    * を追加する（R-EFF-01）ため、状態種別で同一視すると別定義の同種ステータスが

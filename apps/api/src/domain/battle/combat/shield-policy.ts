@@ -41,9 +41,9 @@ export interface ShieldInstanceChange {
  *
  * `poolBefore`/`poolAfter`は、この減少で変化しなかった同タイプのインスタンスも
  * 含めたプール合計である（R-SHD-01「同じタイプのシールド付与値を加算する」）。
- * PRレビュー[P1]: 当初は変化したインスタンスの合計だけを載せていたため、同タイプの
- * シールドが `10 + 50` あり5だけ吸収した場合に `before: 10 / after: 5` という
- * 「プールの前後値」ではない値を公開していた。
+ * 変化したインスタンスの合計だけを載せると、同タイプのシールドが `10 + 50` あり
+ * 5だけ吸収した場合に `before: 10 / after: 5` という「プールの前後値」ではない
+ * 値を公開してしまう。
  */
 export interface ShieldPoolChange {
   readonly battleUnitId: BattleUnitId;
@@ -119,8 +119,8 @@ function poolTotalOf(
  * 呼び出し側（`damage-application-service.ts`）が順に駆動する。プール1つを単位に
  * したのは、`08_ドメインイベント.md`が要求する「各FACTイベントに対応するPS/Memory
  * 候補を直ちに解決する」を満たすため — プールごとに `減少 → ShieldConsumed →
- * 連鎖解決 → 枯渇分の失効` を完了してから次のプールへ進む必要がある
- * （PRレビュー[P1]）。まとめて吸収してから通知すると、タイプありプールの
+ * 連鎖解決 → 枯渇分の失効` を完了してから次のプールへ進む必要がある。
+ * まとめて吸収してから通知すると、タイプありプールの
  * `ShieldConsumed`に反応するPSが、まだ未処理のはずのタイプなしプールとHPまで
  * 変更済みの状態を観測してしまう。
  *
@@ -216,8 +216,7 @@ export interface ShieldConsumedHitContext {
 /**
  * `08_ドメインイベント.md`「ShieldConsumed payload」: 減少した**1プール**につき
  * 1件発行する。呼び出し側は、このイベントを発行した直後にPS/Memoryの即時連鎖を
- * 解決し、枯渇したインスタンスを失効させてから次のプール・次の適用先へ進む
- * （PRレビュー[P1]）。
+ * 解決し、枯渇したインスタンスを失効させてから次のプール・次の適用先へ進む。
  *
  * `holder`は変化を適用した**後**の状態を渡す（`emitEffectDurationReducedEvents`と
  * 同じ規約）。`before`スナップショットは`shield.remaining`だけを変化前の値へ
@@ -310,7 +309,7 @@ export interface ShieldDecayResult {
  * R-NUM-02の一般規約どおり切り捨てるが、`ratio > 0`なら最低1は減らす — 切り捨てで
  * 0になると漸減が永久に進まず、`decay`の宣言が無意味になるため。
  *
- * PRレビュー再指摘[P1]: 保持者ではなく**保持者×プール**を1回の単位にする。
+ * 保持者ではなく**保持者×プール**を1回の単位にする。
  * 保持者の全プールをまとめて減らしてから順にイベントを発行すると、最初の
  * `ShieldConsumed`の時点で後続プールも既に漸減済みになり、`08_ドメインイベント.md`
  * の「保持者→プールの単位で、減少→通知→失効を完了してから次へ進む」契約を
@@ -336,7 +335,7 @@ export function decayActionShields(
     return { units };
   }
   // プール合計（`ShieldConsumed.before`）は、漸減しないインスタンスも含めた
-  // 変化前の総量である（PRレビュー[P1]）。
+  // 変化前の総量である。
   const poolBefore = poolTotalOf(holder.appliedEffects, shieldType);
   const instances: ShieldInstanceChange[] = [];
   const depleted: EffectInstanceId[] = [];

@@ -15,15 +15,15 @@ import type { AppliedEffect } from "../model/applied-effect.js";
  * `APPLY_STATUS`のうち、解除・無効判定で`STATUS`カテゴリの対象になる本来の
  * 状態異常（気絶・凍結・暗闇）。それ以外の`APPLY_STATUS`（STEALTH・EVASION・
  * DAMAGE_IMMUNITY等）は対象自身にとって有利なため、`BUFF`として扱う。
- * `effect-action-payload.ts`の`STATUS_AILMENT_KINDS`を正本とする（PR #245
- * 再レビュー[P2]: `EFFECT_IMMUNITY.statusKinds`のCatalog factory検証も同じ
+ * `effect-action-payload.ts`の`STATUS_AILMENT_KINDS`を正本とする
+ * （`EFFECT_IMMUNITY.statusKinds`のCatalog factory検証も同じ
  * 値集合で絞り込む必要があり、domain/catalogはdomain/battleへ依存できない
  * ため、catalog側を正本にしてここが再利用する）。
  */
 const STATUS_AILMENT_KIND_SET: ReadonlySet<StatusKind> = new Set<StatusKind>(STATUS_AILMENT_KINDS);
 
 /**
- * R-CRT-03（DMG-003A、Issue #295、PR #297レビュー[P1]）: `APPLY_STATUS`のうち、
+ * R-CRT-03（DMG-003A、Issue #295）: `APPLY_STATUS`のうち、
  * 定義済みの状態異常ではないが**保持者を弱化する**ためデバフに分類するもの。
  * 会心不可は保持者自身の攻撃が会心しなくなる効果であり、`戦闘システム.md`
  * 「2. デバフについて」の「相手を不利にする効果」そのものである。production定義
@@ -144,7 +144,7 @@ export function effectCategoriesOf(
       // （どちらも`magnitude`に効果量としての意味を持たない）。
       return new Set<EffectImmunityCategory>(["DEBUFF"]);
     case "APPLY_DAMAGE_LINK":
-      // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187、PR #299レビュー[P2]）:
+      // R-INT-01 #3／R-LNK-01〜03（DMG-007、Issue #187）:
       // ダメージリンクは同じkindが**両向きに**使われる唯一の防御介入である。
       // 保持者の被ダメージを敵へ送る`ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK`は
       // 保持者を利し、敵2体を相互リンクさせる`ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*`は

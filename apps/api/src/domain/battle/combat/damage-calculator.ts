@@ -66,8 +66,8 @@ export interface DamageCalculationResult {
 }
 
 /**
- * R-DMG-01: 基礎ダメージ(攻撃力-防御力)へ乗算できるのは`SKILL_POWER`だけ
- * （レビュー指摘[P1]、PR #214）。それ以外のFormula種別（`CURRENT_HP_RATIO`
+ * R-DMG-01: 基礎ダメージ(攻撃力-防御力)へ乗算できるのは`SKILL_POWER`だけ。
+ * それ以外のFormula種別（`CURRENT_HP_RATIO`
  * 等）はスキル威力の倍率ではなく、評価結果そのものが基礎ダメージとなる —
  * 攻撃力・防御力を経由しない。実Catalogの`ACT_FLUTE_VAMPIRE_AS1_HP_COST`
  * （対象の現在HP×0.25を直接ダメージ量とする定義）を攻撃側の攻撃力でさらに

@@ -31,7 +31,7 @@ export interface CooldownChange {
  *
  * `scope`が`undefined`なのは、PS発動がターン開始・終了など行動外のトップ
  * レベルイベントから起き、`unit: "ACTION"`に対応する`actionId`が存在しない
- * 場合（PR #141再レビュー[P1]）。`setActionId`/`setTurnNumber`を両方とも
+ * 場合。`setActionId`/`setTurnNumber`を両方とも
  * 持たないエントリになり、`decrementActionCooldowns`は「どの行動でも設定
  * scopeに一致しない」として扱うため、所有者の次の行動終了時に正しく1減らせる。
  */

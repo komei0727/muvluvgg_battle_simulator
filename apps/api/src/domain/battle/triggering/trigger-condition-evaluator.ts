@@ -147,7 +147,7 @@ function matchesPositionRelation(
 }
 
 /**
- * `TARGET_STATE.field`（EFF-003レビュー修正 PR #209）を1つの値へ解決する。
+ * `TARGET_STATE.field`（EFF-003）を1つの値へ解決する。
  * `UNIT_TYPE`/`ROLE`はCatalogの`UnitDefinition`参照が必要なため、呼び出し側が
  * `context.unitDefinitions`で渡した参照表を引く（M7-001E、Issue #248）。
  * `HAS_STATUS`だけは対象が複数の状態を同時に保持しうる存在量化であり単一値へ
@@ -224,7 +224,7 @@ function matchesTargetState(
  * R-PS-01「発生源、対象、陣営、スキル種別などをConditionDefinitionで評価する」の
  * うち、`08_ドメインイベント.md`「EVENT_PAYLOAD」、`RUNTIME_COUNTER`（M6最小実装、
  * Issue #143）、`POSITION_RELATION`／`RESOLUTION_PHASE`（M6、Issue #144）、
- * `TARGET_STATE`（EFF-003レビュー修正 PR #209、`BattleUnit`から直接導出できる
+ * `TARGET_STATE`（EFF-003、`BattleUnit`から直接導出できる
  * フィールドのみ）に対応する評価器。R-EFF-08（`expiration.conditions`）も同じ
  * 評価器を再利用する — `context.owner`は`AppliedEffect`のholderユニットを渡す
  * （PS発動条件と異なり、R-EFF-08では効果インスタンスごとにholderが変わる）。

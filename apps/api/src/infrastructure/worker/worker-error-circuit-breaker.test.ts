@@ -56,7 +56,7 @@ describe("WorkerErrorCircuitBreaker", () => {
     expect(breaker.isOpen()).toBe(true);
   });
 
-  it("CIRCUIT-007 (PRレビュー指摘: 時刻を持たないと散発的な障害が無期限に蓄積し、長期間隔の異常でも『連続』と誤認する): errors that fall outside the time window do not count toward the threshold, even without an intervening success", () => {
+  it("CIRCUIT-007 (時刻を持たないと散発的な障害が無期限に蓄積し、長期間隔の異常でも『連続』と誤認する): errors that fall outside the time window do not count toward the threshold, even without an intervening success", () => {
     const clock = new ManualClock();
     const breaker = new WorkerErrorCircuitBreaker(clock, 3, 60_000);
 
@@ -84,7 +84,7 @@ describe("WorkerErrorCircuitBreaker", () => {
     expect(breaker.isOpen()).toBe(false);
   });
 
-  it("CIRCUIT-009 (PRレビュー指摘: pruneExpiredの境界がコメント『windowMs以内』と食い違っていた): an error recorded exactly windowMs ago is still counted as within the window (inclusive boundary)", () => {
+  it("CIRCUIT-009 (pruneExpiredの境界をコメント『windowMs以内』と一致させる): an error recorded exactly windowMs ago is still counted as within the window (inclusive boundary)", () => {
     const clock = new ManualClock();
     const breaker = new WorkerErrorCircuitBreaker(clock, 2, 60_000);
 

@@ -24,7 +24,7 @@ import {
 } from "../../testing/fixtures/index.js";
 
 /**
- * M7-001C (Issue #244) re-review [P2]: `remove-effects-production-catalog.
+ * M7-001C (Issue #244): `remove-effects-production-catalog.
  * test.ts`'s `IT-REMOVE-EFFECTS-PROD-004/005` exercise `removeEffects` (the
  * executor) directly against a hand-picked `battleUnitId`, so they never
  * prove the production `SkillDefinition`'s own target selection/binding is

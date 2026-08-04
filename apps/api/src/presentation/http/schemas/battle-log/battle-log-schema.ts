@@ -249,7 +249,7 @@ const CONDITION_KIND_ENUM = [
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
   "ALIVE_UNIT_COUNT",
-  // Issue #230 PRレビュー[P2]: `stepCondition`（ACTIONの
+  // Issue #230: `stepCondition`（ACTIONの
   // CAP_EFFECT_STEP_SET_CONDITION、Issue #227）としてEffectStepStarting/
   // EffectStepSkippedの`conditionKind`に実際に現れうる。従来は
   // `runtimeStatus: PLANNED`（production定義なし）だったため、この
@@ -662,7 +662,7 @@ const damageAppliedDetailsSchema = {
     /*
      * DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
      *
-     * PRレビュー[P1]（#289）: `required`へは入れない。`10_API設計.md`「バージョニング」が
+     * `required`へは入れない。`10_API設計.md`「バージョニング」が
      * 後方互換な追加として認めるのは**任意プロパティの追加**だけであり、`schemaVersion`が
      * 1のまま既存イベントのdetailsへ必須項目を足すと、`additionalProperties: false`の
      * v1 schemaを保持する厳密なデコーダを壊す（`markers`をv1のまま任意で足したのと
@@ -949,7 +949,7 @@ const continuousDamageAppliedDetailsSchema = {
     /*
      * DMG-005（Issue #190、R-SHD-02 #4／R-SUB-01）: サブユニット吸収量。
      *
-     * PRレビュー[P1]（#289）: `required`へは入れない。`10_API設計.md`「バージョニング」が
+     * `required`へは入れない。`10_API設計.md`「バージョニング」が
      * 後方互換な追加として認めるのは**任意プロパティの追加**だけであり、`schemaVersion`が
      * 1のまま既存イベントのdetailsへ必須項目を足すと、`additionalProperties: false`の
      * v1 schemaを保持する厳密なデコーダを壊す（`markers`をv1のまま任意で足したのと
@@ -1136,7 +1136,7 @@ const actionOrderEntryDetailsSchema = {
   },
 } as const;
 
-/** R-ORD-04: `ActionQueueReordered`。未実装で欠落していた(EVENT_DETAILS_SCHEMA_BY_TYPEレビュー指摘に付随して発見)。 */
+/** R-ORD-04: `ActionQueueReordered`。 */
 const actionQueueReorderedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1254,8 +1254,7 @@ const passiveResolvedDetailsSchema = {
 } as const;
 
 /**
- * Issue #217設計方針C（案1、厳密値のみを公開）／レビュー指摘[P2]（PR #218、
- * 2度目の再レビュー）: `unresolvedEffectCount`は、中断が起きた時点で実際に
+ * Issue #217設計方針C（案1、厳密値のみを公開）: `unresolvedEffectCount`は、中断が起きた時点で実際に
  * 開いていたACTION適用一覧のうち未処理のまま残った「効果単位」数の厳密値で
  * あり、静的な見積もりや上限値ではない。計数単位は実装（`countHits`、
  * `application.hits.length`の合計）と一致させる: DAMAGEは残りヒットごとに1、
@@ -1355,10 +1354,9 @@ const RUNTIME_COUNTER_CHANGED_COMMON_REQUIRED = [
  * `RuntimeCounterChanged`（M6最小実装、Issue #143。`APPLIED_EFFECT`スコープは
  * EFF-005/Issue #162で追加）。`carry`は観測用の繰り越し端数。`valueChanged`
  * （`before !== after`）は、carryのみの変化でもこのイベント自体は発行される
- * （追跡性のため）ことと区別するためのフィールド（レビュー再々々レビュー[P1]、
- * Issue #143）。`skillDefinitionId`/`effectInstanceId`は`scope`に応じて排他的に
+ * （追跡性のため）ことと区別するためのフィールド（Issue #143）。`skillDefinitionId`/`effectInstanceId`は`scope`に応じて排他的に
  * 存在する（`domain-event.ts`の同名フィールドと同じ規約）。`cooldownStateResponseSchema`
- * （`10_API設計.md`「CooldownStateResponse」）と同じ理由（PR #211レビュー[P2]）で
+ * （`10_API設計.md`「CooldownStateResponse」）と同じ理由で
  * `oneOf`によるXOR制約を強制する — 現在実際に発行されるscopeは`SKILL_RUNTIME`／
  * `APPLIED_EFFECT`のみ（`BATTLE`／`BATTLE_UNIT`／`EFFECT_SEQUENCE`はCatalogロード
  * 時点で拒否されるため発行されない）のため、`oneOf`はこの2 variantだけを列挙する。
@@ -1426,8 +1424,7 @@ const CONSUMPTION_KIND_ENUM = [
 const COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
 const jsonPrimitiveSchema = { type: ["string", "number", "boolean"] } as const;
 /**
- * `references.ts`の`createTargetReference`と1:1対応する制約（PR #207再レビュー
- * [P2]）: `BINDING`は`targetBindingId`必須、それ以外のkindは同fieldを禁止する
+ * `references.ts`の`createTargetReference`と1:1対応する制約: `BINDING`は`targetBindingId`必須、それ以外のkindは同fieldを禁止する
  * （ドメイン側「must not be set when kind is ... (only valid when kind is
  * BINDING)」）。`targetBindingId`を常にoptionalとする単一schemaでは、
  * ドメインが拒否する組み合わせ（例: `SELF`に`targetBindingId`を付与）も
@@ -1476,7 +1473,7 @@ const targetReferenceDetailsSchema = {
 
 /**
  * `condition-definition.ts`の`ConditionDefinition`と1:1対応するOpenAPI schema
- * （PR #207レビュー[P2]: `{ type: "object" }`のような任意許容ではなく、
+ * （`{ type: "object" }`のような任意許容ではなく、
  * `kind`を判別子にした実際の構造を検証する）。`AND`/`OR`/`NOT`は自身を再帰的に
  * 参照するため、`$id`を持つ独立schemaとして定義し`$ref`で自己参照する
  * （fastify/@fastify/swaggerを含むこのリポジトリで初めての`$id`/`$ref`使用 —
@@ -1530,8 +1527,7 @@ export const conditionDefinitionDetailsSchema = {
         condition: { $ref: CONDITION_DEFINITION_SCHEMA_ID },
       },
     },
-    // `condition-definition.ts`の`TARGET_STATE_FIELD_TYPES`（PR #207再レビュー
-    // [P2]）: fieldごとに`value`の型が固定されている（`IS_ALIVE`はboolean、
+    // `condition-definition.ts`の`TARGET_STATE_FIELD_TYPES`: fieldごとに`value`の型が固定されている（`IS_ALIVE`はboolean、
     // `HP_RATIO`/`RESOURCE_*`はnumber、それ以外はstringのみ）。単一の
     // `value: string | number | boolean`では、Domainが拒否する組み合わせ
     // （例: `IS_ALIVE`にstring値）も有効と判定してしまうため、fieldの型別に
@@ -1628,9 +1624,8 @@ export const conditionDefinitionDetailsSchema = {
         counter: { type: "string" },
         op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
-        // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`
-        // （PR #207再レビュー[P2]）。`TURN_NUMBER.modulo`（下のvariant）もRES-004
-        // （Issue #171、PR #222再レビュー[P2]）で同じ制約へ揃えた。
+        // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`。
+        // `TURN_NUMBER.modulo`（下のvariant、RES-004・Issue #171）も同じ制約。
         modulo: { type: "integer", minimum: 1 },
       },
     },
@@ -1643,7 +1638,7 @@ export const conditionDefinitionDetailsSchema = {
         op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
         // `condition-definition.ts`: `assertInteger(input.modulo, ..., { min: 1 })`
-        // （RES-004、Issue #171、PR #222再レビュー[P2]）。
+        // （RES-004、Issue #171）。
         modulo: { type: "integer", minimum: 1 },
       },
     },

@@ -32,8 +32,8 @@ import { loadConfig } from "./config.js";
  */
 export async function bootstrap(): Promise<FastifyInstance> {
   // `11_インフラストラクチャ設計.md`「設定管理」「数値変換失敗や矛盾する期限は
-  // 起動エラーにする」（レビュー指摘: 素の`Number()`変換は`SIMULATION_TIMEOUT_MS=abc`
-  // を`NaN`へ、`WORKER_MAX_QUEUE=Infinity`を無制限へ、検証なしで通していた）。
+  // 起動エラーにする」（素の`Number()`変換は`SIMULATION_TIMEOUT_MS=abc`を`NaN`へ、
+  // `WORKER_MAX_QUEUE=Infinity`を無制限へ、検証なしで通してしまう）。
   // `config.ts`が投げる`ConfigError`はここで捕まえず、そのまま`bootstrap()`の
   // rejectとして伝播させる——`listen`に到達させず`main.ts`が`process.exit(1)`する。
   const {
@@ -87,7 +87,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     corsAllowedOrigins,
   });
   const disposeShutdownSignalHandlers = installShutdownSignalHandlers({ app, pool, shutdownState });
-  // レビュー指摘: `process.once`のSIGTERM/SIGINTリスナーは、シグナルが一度も
+  // `process.once`のSIGTERM/SIGINTリスナーは、シグナルが一度も
   // 発火しないまま`bootstrap()`を複数回呼ぶ（結合テストなど）とプロセスへ
   // 残り続ける。`app`のライフサイクルへ同期させ、`app.close()`（直接呼び出しと
   // Graceful Shutdown自身の呼び出しの両方）で確実に解除する。
@@ -98,7 +98,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
   try {
     await app.listen({ port, host });
   } catch (error) {
-    // レビュー指摘: `listen()`がポート競合などで失敗すると、上の`onClose`
+    // `listen()`がポート競合などで失敗すると、上の`onClose`
     // フック（`app.close()`が呼ばれて初めて発火する）は一切実行されない。
     // ここで明示的に`app.close()`（シグナルリスナーの解除）と`pool.close()`
     // （`create()`が既に起動済みのWorker Threadの即時破棄——ここではまだ

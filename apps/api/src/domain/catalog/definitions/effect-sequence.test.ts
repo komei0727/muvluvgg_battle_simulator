@@ -607,7 +607,7 @@ describe("EffectSequence", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SEQ-031 (PR #213 review [P2]): rejects counterUpdates that declares resetScope: RESOLUTION_SCOPE, since EffectSequence counters always discard at resolution end regardless of resetScope", () => {
+  it("UT-CAT-SEQ-031: rejects counterUpdates that declares resetScope: RESOLUTION_SCOPE, since EffectSequence counters always discard at resolution end regardless of resetScope", () => {
     expect(() =>
       createEffectSequence(
         {
@@ -654,7 +654,7 @@ describe("EffectSequence", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SEQ-032 (PR #218 review [P2]): rejects a WEIGHTED_ONE RANDOM_BRANCH where every branch has weight: 0 (selectWeightedBranch would have no branch to choose)", () => {
+  it("UT-CAT-SEQ-032: rejects a WEIGHTED_ONE RANDOM_BRANCH where every branch has weight: 0 (selectWeightedBranch would have no branch to choose)", () => {
     expect(() =>
       createEffectSequence(
         {
@@ -675,7 +675,7 @@ describe("EffectSequence", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SEQ-033 (PR #218 review [P2]): accepts a WEIGHTED_ONE RANDOM_BRANCH where only one of several branches has weight > 0", () => {
+  it("UT-CAT-SEQ-033: accepts a WEIGHTED_ONE RANDOM_BRANCH where only one of several branches has weight > 0", () => {
     const result = createEffectSequence(
       {
         targetBindings: [],

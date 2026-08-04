@@ -14,7 +14,7 @@ if [ -z "${TARGET_REVISION:-}" ]; then
   # 「直近のReady revision」は使わない——複数回連続でcandidateがsmokeに
   # 失敗すると、未promoteの失敗revisionがReadyのまま残り、`candidate` tagは
   # 常に最新の失敗revisionへ移るため、tagだけの除外でも古い失敗revisionを
-  # 再選択し得る（PRレビュー指摘 #112 P1、2026-07-15再レビュー）。
+  # 再選択し得る。
   # `stable-previous`はpromote成功時にだけ`ci-promote-traffic.sh`が更新する
   # 永続的な記録であり、必ず「過去に実際promoteされたrevision」を指す。
   TARGET_REVISION="$(gcloud run services describe "$SERVICE" \
@@ -37,11 +37,11 @@ echo "== roll back: shift traffic, mark target as stable, and clear stable-previ
 # --to-revisions・--update-tags・--remove-tagsを1回のupdate-traffic呼び出しに
 # まとめる。traffic切替とtag更新を別呼び出しに分けると、間で失敗した場合に
 # 「新trafficは既にtarget revisionだがstableは旧revisionのまま」という不整合が
-# 残り得る（PRレビュー指摘 #112 P2と同種の懸念）。stable-previousは削除する
+# 残り得る。stable-previousは削除する
 # ——rollback後もstable-previousが残ると、次回の自動rollbackが「現在traffic
-# を受けているrevision」を再び選び、no-opのまま成功扱いになってしまう
-# （PRレビュー指摘 #112 P1、2026-07-15 3回目レビュー）。rollback後、より
-# 過去のrevisionへ更にrollbackしたい場合はTARGET_REVISIONを明示する。
+# を受けているrevision」を再び選び、no-opのまま成功扱いになってしまう。
+# rollback後、より過去のrevisionへ更にrollbackしたい場合は
+# TARGET_REVISIONを明示する。
 gcloud run services update-traffic "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT_ID" \

@@ -1116,7 +1116,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-075 (PR #245 re-review [P2] fix): rejects EFFECT_IMMUNITY statusKinds containing a StatusKind that is schema-valid but not a status ailment (R-STS-01 only classifies STUN/FREEZE/BLIND as STATUS at runtime — anything else, e.g. STEALTH, would silently never block)", () => {
+  it("UT-CAT-ACT-075: rejects EFFECT_IMMUNITY statusKinds containing a StatusKind that is schema-valid but not a status ailment (R-STS-01 only classifies STUN/FREEZE/BLIND as STATUS at runtime — anything else, e.g. STEALTH, would silently never block)", () => {
     expect(() =>
       createEffectActionDefinition(
         {

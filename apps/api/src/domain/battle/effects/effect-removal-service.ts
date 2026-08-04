@@ -30,7 +30,7 @@ export interface RemoveEffectsContext {
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
   /**
-   * PR #280レビュー[P1]: 1インスタンスの除去ごと（カスケード分もseed分も）に、
+   * 1インスタンスの除去ごと（カスケード分もseed分も）に、
    * 次へ進む前にPS/Memoryの即時連鎖へ通知する。詳細は
    * `linked-group-cascade.ts`の`LinkedGroupCascadeContext`を参照。未指定なら
    * 通知せず、呼び出し側がイベント列をまとめて扱う（従来どおりの挙動）。
@@ -104,7 +104,7 @@ export function removeEffects(
   const target = requireUnit(units, targetId);
 
   // #1〜#3: 一致する効果を付与順で抽出し、maxRemovalsで解除数を制限する。
-  // R-EFF-01/R-EFF-02（レビュー[P1]）: 明示的に解除不可（`dispellable: false`）と
+  // R-EFF-01/R-EFF-02: 明示的に解除不可（`dispellable: false`）と
   // された効果・永続効果は直接解除の対象にしない。linkedEffectGroupの親解除に伴う
   // cascade（R-EFF-09）はこれとは別扱いで、`dispellable`を問わず巻き込む。
   const matched = target.appliedEffects.filter((effect) => {
@@ -121,7 +121,7 @@ export function removeEffects(
     return { units, lastEventId: parentEventId, removedCount: 0 };
   }
 
-  // R-EFF-09（レビュー[P2]）: 親子の両方が解除カテゴリへ一致した場合、子を独立seedと
+  // R-EFF-09: 親子の両方が解除カテゴリへ一致した場合、子を独立seedと
   // せず親のcascade対象として扱い、「子を先に（`LINKED_GROUP_CASCADE`/`cascaded:true`）、
   // 親を最後に（`REMOVED`）」の順序・reasonを保証する。ある一致効果は、同じ
   // linkedEffectGroupに一致した非CHILDメンバー（cascade起点になり得る親/ロールなし）が
@@ -149,7 +149,7 @@ export function removeEffects(
   // `reason: LINKED_GROUP_CASCADE`）。カスケード分の`AppliedEffect`は解除起点に
   // 連なるため`EffectRemoved`で表す（`EffectRemovalReason`）。
   //
-  // PR #280再々レビュー[P2]: カスケード分とroot seed分を単一の除去バッチとして
+  // カスケード分とroot seed分を単一の除去バッチとして
   // 扱い、メンバーごとの`reason`/`cascaded`を保ったまま一度だけrole順へ整列する。
   const cascade = collectLinkedGroupCascade(units, seedInstances);
   const removals = orderGroupRemovals(units, [

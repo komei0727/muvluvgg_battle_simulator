@@ -217,7 +217,7 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
     expect(statChanged!.payload).toMatchObject({ stat: "ATTACK", reason: "EFFECT_EXPIRED" });
   });
 
-  it("UT-R-STS-03-015 (レビュー指摘[P2], Issue #183): notifies onFactEventForPassiveChain immediately after each cascade step, before the next step (or the freeze's own FreezeRemoved) is recorded", () => {
+  it("UT-R-STS-03-015 (Issue #183): notifies onFactEventForPassiveChain immediately after each cascade step, before the next step (or the freeze's own FreezeRemoved) is recorded", () => {
     const statMod = statModDefinition("ACT_LINK");
     const targetId = createBattleUnitId("target-1");
     const freeze = freezeEffect("freeze-1", targetId, {

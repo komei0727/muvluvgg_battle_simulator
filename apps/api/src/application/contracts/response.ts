@@ -83,7 +83,7 @@ export interface EffectStateResponseBody {
   /**
    * M7-009（Issue #182）: `APPLY_STATUS`由来の効果だけが持つ状態の種別。気絶等の
    * 状態異常（`category: STATUS_ABNORMALITY`）だけでなく、STEALTH等の対象に有利な
-   * 状態（`category: BUFF`）も持つ（PR #264レビュー[P1]）。どの状態かをクライアント
+   * 状態（`category: BUFF`）も持つ。どの状態かをクライアント
    * が`effectKindKey`（現状は効果アクション定義ID）の命名から推測せずに表示できる
    * ようにするための値であり、状態異常かどうかの判定には`category`を使う。
    */
@@ -112,7 +112,7 @@ export interface MarkerStateResponseBody {
    * 変更と定めるため、v1契約では必須のまま据え置く。Memory由来Markerを生む唯一の
    * production定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は`CAP_MEMORY_GRANTED_MARKER`
    * （`runtimeStatus: PLANNED`、`REL-008`／Issue #263）がCapability preflightで
-   * 編成不可として弾くため、v1のレスポンスへ到達しない（PR #262レビュー[P1]）。
+   * 編成不可として弾くため、v1のレスポンスへ到達しない。
    */
   readonly sourceUnitId: string;
   readonly stackCount: number;
@@ -124,10 +124,10 @@ export interface MarkerStateResponseBody {
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
  * `unit`(ACTION/TURN)に応じてどちらか一方だけ存在する（Domainの`CooldownEntry`と
  * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。discriminated union
- * にすることで、両方欠落・両方存在という不正な組み合わせをコンパイル時に防ぐ
- * （M5レビュー3巡目[P2]）。反対側フィールドを`?: never`にしているのは、
+ * にすることで、両方欠落・両方存在という不正な組み合わせをコンパイル時に防ぐ。
+ * 反対側フィールドを`?: never`にしているのは、
  * オブジェクトリテラル直書き以外（変数経由の代入）でもexcess property check を
- * 回避できないようにするため（M5レビュー4巡目[P3]: `never`が無いと構造的部分型
+ * 回避できないようにするため（`never`が無いと構造的部分型
  * 付けにより両方のフィールドを持つ値も代入できてしまう）。`remaining`は残数が
  * あるスキルだけを返す契約のため1以上。
  */
@@ -182,7 +182,7 @@ export interface BattleUnitStateResponseBody {
   readonly subUnits: readonly SubUnitStateResponseBody[];
   readonly effects: readonly EffectStateResponseBody[];
   /**
-   * PR #210再レビュー[P2]: `10_API設計.md`「schemaVersion」の後方互換規則は
+   * `10_API設計.md`「schemaVersion」の後方互換規則は
    * 「任意プロパティの追加」だけを許す。`effects`等は元々v1契約の必須項目だが、
    * `markers`はEFF-004でv1のまま新規追加したフィールドのため、既存の厳密な
    * v1デコーダ（`additionalProperties: false`のschemaを保持するクライアント）を
@@ -251,7 +251,7 @@ export interface EntityCollectionDeltaResponseBody {
  * （現行v1のRequest/Response契約を`additionalProperties: false`のまま将来へ
  * 拡張できるよう、フィールド自体は先に外部契約へ持たせておく）。`markers`は
  * EFF-004（R-EFF-10）でResponse Mapperが`delta.markers`から実際に値を設定する
- * （PR #210レビュー[P1]: `effects`同様の`EntityCollectionDelta`変換）。
+ * （`effects`同様の`EntityCollectionDelta`変換）。
  */
 export interface UnitStateDeltaResponseBody {
   readonly combatStatus?: ValueChangeBody<string>;

@@ -188,12 +188,12 @@ export function applyModifyResourceAction(
     // 交差させる — Catalog作者が範囲外の値（負のmin、currentMaxを超えるmax）を
     // 指定しても、`createHitPoint`等の値オブジェクト不変条件違反で例外にせず、
     // 静かに実際の可動域内へ丸める。
-    // PRレビュー指摘[P2]（PR #254、3rd round）: minを下限0だけでclampすると、
+    // minを下限0だけでclampすると、
     // 例えば`bounds: {min: 999, max: CURRENT_MAX}`（currentMax=100）のように、
     // min自体がcurrentMaxを超えるケースを捕捉できない。minも上限currentMaxで
     // clampする。
     const min = Math.min(currentMax, Math.max(authoredMin, 0));
-    // PRレビュー指摘[P2]（PR #254）: minとmaxBoundを個別に[0, currentMax]と交差させる
+    // minとmaxBoundを個別に[0, currentMax]と交差させる
     // だけでは、例えば`bounds: {min: 0, max: -1}`のように交差後もmaxBound < minという
     // 空区間になりうる（min=0のまま、maxBound=-1）。maxBoundをさらにminで底上げし、
     // 交差後の区間が常に空でないことを保証する。

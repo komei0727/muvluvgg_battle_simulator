@@ -35,7 +35,7 @@ import {
  * > 対象が「凶兆」を2つ所持していなかった場合、「凶兆」を1つ付与する
  *
  * を、実 `catalog/` の `SKL_TATIANA_SAGE_EX` を無改変のまま実 `resolveSkillUse`
- * へ通して検証する。PR #231 は `CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）未実装の
+ * へ通して検証する。当初は `CAP_DAMAGE_MOD`（`DMG-002`／Issue #192）未実装の
  * ため `EffectSequencePlan` レベルの振り分け（`IT-CAP-EFFSTEP-005`）までしか
  * 確かめられなかった。#192 が `APPLY_DAMAGE_MOD` を実ライフサイクルへ配線したので、
  * ここでは実際の付与・実際のダメージ無効化・消費による失効までを固定する。

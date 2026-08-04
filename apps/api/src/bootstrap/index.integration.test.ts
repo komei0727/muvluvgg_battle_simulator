@@ -141,7 +141,7 @@ describe("bootstrap (compiled build)", () => {
     }
   });
 
-  it("INT-BOOTSTRAP-005 (レビュー指摘: listen失敗時はシグナルハンドラーとWorker Poolが残る): when app.listen() itself fails (e.g. the port is already bound by another process), bootstrap() still disposes the SIGTERM/SIGINT listeners and closes the Worker Pool it already created — not just the earlier Worker-Catalog-init failure path (INT-BOOTSTRAP-001), which fails before any of that is created", async () => {
+  it("INT-BOOTSTRAP-005 (listen失敗時はシグナルハンドラーとWorker Poolが残る): when app.listen() itself fails (e.g. the port is already bound by another process), bootstrap() still disposes the SIGTERM/SIGINT listeners and closes the Worker Pool it already created — not just the earlier Worker-Catalog-init failure path (INT-BOOTSTRAP-001), which fails before any of that is created", async () => {
     const port = 34583;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";

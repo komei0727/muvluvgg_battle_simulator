@@ -113,7 +113,7 @@ jobs:
       # 受け入れ条件「最小simulationが成功してからtrafficを確定する」を満たす
       # ため、candidateのCatalogから選択可能なUnitを見つけてrequestを組み立てる。
       # 選択可能なUnitが無い場合はここでjobを失敗させる——smoke testを
-      # 黙ってskipしない（PRレビュー指摘 #112 P1-3）。
+      # 黙ってskipしない。
       - name: Build minimal simulation smoke test request
         env:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
@@ -219,8 +219,7 @@ jobs:
       # commitは異なるSHAを持つため再buildしたcontentは前回成功時と一致し得ず、
       # digest比較によるrollback検証は原理的に成立しない
       # （実測: 同一sourceでもVITE_BUILD_REVISIONだけが異なるとdist全体の
-      # digestが変わることをPRレビューで確認済み——PRレビュー指摘 #125
-      # 再レビューP2）。そのため「再buildして同一性を確認する」のではなく、
+      # digestが変わることを実測で確認済み）。そのため「再buildして同一性を確認する」のではなく、
       # 「rebuildせずこのartifactをそのまま将来再deployできるようにする」方針へ
       # 変更する。`pages-rollback.yml`がこの`pages-dist` artifactを
       # `run-id`指定でdownloadし、rebuildなしでそのままdeployする
@@ -267,7 +266,7 @@ jobs:
   #
   # このjobはdeploy直後に実行されるため、`deploy`（API）が実行された回は直前の
   # Catalog／simulation smoke testでCloud Run instanceが既にwarmになっており、
-  # scale-to-zero後のcold startは実証できない（PRレビュー指摘 #125 P2）。
+  # scale-to-zero後のcold startは実証できない。
   # cold start自体の検証は`.github/workflows/pages-live-smoke-cold-start.yml`
   # （深夜cronでidle時間を確保した別workflow）が担う。
   pages-smoke:

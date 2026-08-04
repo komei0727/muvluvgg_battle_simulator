@@ -160,7 +160,7 @@ describe("EventRecorder", () => {
     expect(r.getEvents().map((e) => e.eventType)).toEqual(["TurnStarted", "TurnCompleting"]);
   });
 
-  it("review fix [P2]: throws a deterministic ExecutionGuardExceededError once the total-event SimulationExecutionGuard limit is reached, instead of accumulating events without bound", () => {
+  it("throws a deterministic ExecutionGuardExceededError once the total-event SimulationExecutionGuard limit is reached, instead of accumulating events without bound", () => {
     const r = new EventRecorder(BATTLE_ID, 2);
     const scope = r.nextResolutionScopeId();
     const record = () =>

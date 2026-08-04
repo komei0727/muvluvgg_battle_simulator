@@ -1316,7 +1316,7 @@ describe("resolveTargets", () => {
       );
     });
 
-    it("UT-TGT-002-009B: MARKER_IN_AREA ignores a defeated marker holder (PR #233 review [P1])", () => {
+    it("UT-TGT-002-009B: MARKER_IN_AREA ignores a defeated marker holder", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const markerId = createMarkerId("MARKER_CLARA_SANTA_TAG");
       // The only marked unit in the LEFT column is defeated, so the column
@@ -1821,7 +1821,7 @@ describe("resolveTargets", () => {
       expect(result.stealthConsumption).toBeUndefined();
     });
 
-    it("UT-R-TGT-08-005 (R-TGT-08 #7, PR #237再レビュー[P1]): a TRIGGER_TARGET selector whose event-provided candidate set is structurally limited to a single unit never redirects (『攻撃を受けた味方単体』例)", () => {
+    it("UT-R-TGT-08-005 (R-TGT-08 #7): a TRIGGER_TARGET selector whose event-provided candidate set is structurally limited to a single unit never redirects (『攻撃を受けた味方単体』例)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const onlyCandidate = unit(
         "ONLY",
@@ -1849,7 +1849,7 @@ describe("resolveTargets", () => {
       expect(result.stealthConsumption).toBeUndefined();
     });
 
-    it("UT-R-TGT-08-008 (Q-TGT-05, PR #237再レビュー[P1]): a normal SELECT selector whose only surviving candidate holds Stealth still consumes it and hits them (battlefield happenstance, not a structural limitation)", () => {
+    it("UT-R-TGT-08-008 (Q-TGT-05): a normal SELECT selector whose only surviving candidate holds Stealth still consumes it and hits them (battlefield happenstance, not a structural limitation)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const onlySurvivor = unit(
         "ONLY_SURVIVOR",
@@ -1873,7 +1873,7 @@ describe("resolveTargets", () => {
       });
     });
 
-    it("UT-R-TGT-08-010 (R-TGT-08 #7, PR #237再々レビュー[P1]): a SELECT selector narrowed by a POSITION_SLOT filter to a single definitionally-unique slot never redirects, even though kind is SELECT (not just a survivor happenstance)", () => {
+    it("UT-R-TGT-08-010 (R-TGT-08 #7): a SELECT selector narrowed by a POSITION_SLOT filter to a single definitionally-unique slot never redirects, even though kind is SELECT (not just a survivor happenstance)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const slotHolder = unit(
         "SLOT_HOLDER",
@@ -1901,7 +1901,7 @@ describe("resolveTargets", () => {
       expect(result.stealthConsumption).toBeUndefined();
     });
 
-    it("UT-R-TGT-08-011 (R-TGT-08 #7, PR #237再々レビュー[P1]): a BINDING_DERIVED selector with a DIRECTLY_AHEAD_OF_BASE area (a single unique coordinate) never redirects", () => {
+    it("UT-R-TGT-08-011 (R-TGT-08 #7): a BINDING_DERIVED selector with a DIRECTLY_AHEAD_OF_BASE area (a single unique coordinate) never redirects", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
       const ahead = unit(
         "AHEAD",

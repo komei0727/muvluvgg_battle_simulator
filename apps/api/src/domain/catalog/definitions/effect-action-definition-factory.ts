@@ -74,7 +74,7 @@ const CRITICAL_MODES = ["NORMAL", "GUARANTEED", "PREVENTED"] as const;
 const ACCURACY_MODES = ["NORMAL", "GUARANTEED"] as const;
 const RESOURCE_KINDS = ["AP", "PP", "EX_GAUGE", "HP"] as const;
 const RESOURCE_OPERATIONS = ["ADD", "SET", "SET_TO_MAX", "DISTRIBUTE"] as const;
-/** PRレビュー指摘[P2]（Issue #185）: `APPLY_RESOURCE_GAIN_MOD`はEXゲージ増加（R-ACT-03）だけを合成対象にする。 */
+/** Issue #185: `APPLY_RESOURCE_GAIN_MOD`はEXゲージ増加（R-ACT-03）だけを合成対象にする。 */
 const RESOURCE_GAIN_MOD_RESOURCE_KINDS = ["EX_GAUGE"] as const;
 const STAT_VALUE_TYPES = ["RATIO", "FIXED"] as const;
 const STACKING_MODES = ["STACKABLE"] as const;
@@ -97,7 +97,7 @@ const EFFECT_IMMUNITY_CATEGORIES = [
   "SUBUNIT",
   "SPECIFIC_EFFECT",
 ] as const;
-/** DMG-007（Issue #187、PR #299レビュー[P2]）: `APPLY_DAMAGE_LINK.polarity`。 */
+/** DMG-007（Issue #187）: `APPLY_DAMAGE_LINK.polarity`。 */
 const DAMAGE_LINK_POLARITIES = ["BUFF", "DEBUFF"] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
@@ -941,7 +941,7 @@ function createPayload(
       assertNonEmptyArray(categories ?? [], `${path}.categories`);
       for (const [i, category] of (categories ?? []).entries()) {
         assertEnumValue(category, EFFECT_IMMUNITY_CATEGORIES, `${path}.categories[${i}]`);
-        // M7-001（Issue #181、レビュー[P2]）: `MARKER`は`REMOVE_EFFECTS`（AppliedEffect
+        // M7-001（Issue #181）: `MARKER`は`REMOVE_EFFECTS`（AppliedEffect
         // だけを走査する）では解除できず黙ってno-opになるため、Catalogロード時点で
         // 拒否する。Markerの解除は`REMOVE_MARKER`（`markerId`指定）を使う。
         if (category === "MARKER") {
@@ -1021,10 +1021,10 @@ function createPayload(
       // `statusKinds`は`categories`が`STATUS`を含む場合だけ意味を持つ。
       // `effectActionDefinitionIds`（SPECIFIC_EFFECT専用）と同じ理由で、
       // 無関係な場合に指定すると黙って無視されてしまうため拒否する。
-      // PR #245再レビュー[P2]: 値は`STATUS_KINDS`全体ではなく`STATUS_AILMENT_KINDS`
+      // 値は`STATUS_KINDS`全体ではなく`STATUS_AILMENT_KINDS`
       // （気絶・凍結・暗闇）へ限定する — `effect-category-classifier.ts`が実行時に
       // `STATUS`カテゴリへ分類するのはこの部分集合だけで、`STEALTH`等を指定すると
-      // 実行時のカテゴリ一致に一切到達せず免疫が黙って無効になっていた。
+      // 実行時のカテゴリ一致に一切到達せず免疫が黙って無効になる。
       const statusKindsRaw = payload["statusKinds"] as readonly string[] | undefined;
       if (statusKindsRaw !== undefined) {
         if (!typedCategories.includes("STATUS")) {
@@ -1192,7 +1192,7 @@ function createPayload(
         payload["linkTo"] as TargetReferenceInput | undefined,
         `${path}.linkTo`,
       );
-      // PR #299レビュー[P2]: `polarity`も既定を持たない必須fieldである（同じkindが
+      // `polarity`も既定を持たない必須fieldである（同じkindが
       // 味方向け・敵向けの両方で使われるため、符号からもkindからも導けない）。
       const polarity = requireField(payload["polarity"] as string | undefined, `${path}.polarity`);
       assertEnumValue(polarity, DAMAGE_LINK_POLARITIES, `${path}.polarity`);
@@ -1324,7 +1324,7 @@ function createPayload(
       };
     }
     case "APPLY_RESOURCE_GAIN_MOD": {
-      // PRレビュー指摘[P2]（Issue #185）: 合成経路（`composeResourceGainRate`）は
+      // Issue #185: 合成経路（`composeResourceGainRate`）は
       // EXゲージ増加だけを対象にするため、共有の`RESOURCE_KINDS`（AP/PP/EX_GAUGE/
       // HP）ではなく`EX_GAUGE`単一値へ絞る — AP/PP/HP指定は検証を通過しても
       // 何の獲得経路にも作用しない「無効な定義」になってしまうため。

@@ -22,7 +22,7 @@ BUILD_SERVICE_ACCOUNT_EMAIL="${BUILD_SERVICE_ACCOUNT_EMAIL:-${BUILD_SERVICE_ACCO
 
 # publicly-invokable(allUsers)なCloud Run containerのruntime identity。
 # project既定のCompute Engine SA(既定でroles/editor)へ委ねない専用SAで、
-# project IAM roleは付与しない(00-bootstrap-ci-cd.shが作成するP1レビュー指摘対応)。
+# project IAM roleは付与しない(00-bootstrap-ci-cd.shが作成する)。
 # gcloud iam service-accounts createのaccount IDは6〜30文字制限のため、
 # service名(muvluvgg-battle-simulator-api、29文字)をそのまま流用できない。
 RUNTIME_SERVICE_ACCOUNT_ID="${RUNTIME_SERVICE_ACCOUNT_ID:-battle-sim-api-runtime}"

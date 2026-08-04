@@ -260,7 +260,7 @@ describe("assembleSimulationResult", () => {
     }
   });
 
-  it("UT-RESULT-ASSEMBLER-009 (R-SKL-05 / regression PR#128 review [P1]): restores a real ChargeStarted->ChargeReleased StateDelta sequence without INTERNAL_INVARIANT_VIOLATION, even though each event independently builds its own ChargeState payload object", () => {
+  it("UT-RESULT-ASSEMBLER-009 (R-SKL-05 regression): restores a real ChargeStarted->ChargeReleased StateDelta sequence without INTERNAL_INVARIANT_VIOLATION, even though each event independently builds its own ChargeState payload object", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
     const startedActionId = createActionId("battle-1:action:1");
@@ -380,7 +380,7 @@ describe("assembleSimulationResult", () => {
     expect(result.stateTransitions).toHaveLength(4);
   });
 
-  it("UT-RESULT-ASSEMBLER-010 (M5 review [P2] fix): restores a CooldownStarted->CooldownReduced StateDelta sequence without INTERNAL_INVARIANT_VIOLATION", () => {
+  it("UT-RESULT-ASSEMBLER-010: restores a CooldownStarted->CooldownReduced StateDelta sequence without INTERNAL_INVARIANT_VIOLATION", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const skillDefinitionId = createSkillDefinitionId("SKL_CD");
 
@@ -463,7 +463,7 @@ describe("assembleSimulationResult", () => {
     expect(result.stateTransitions).toHaveLength(3);
   });
 
-  it("UT-RESULT-ASSEMBLER-011 (M5 review [P2] regression): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's cooldowns disagree with initialState + stateTransitions restored through the independent Reducer (previously unitSnapshotsEqual ignored cooldowns entirely and let this slip through)", () => {
+  it("UT-RESULT-ASSEMBLER-011 (regression): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's cooldowns disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore cooldowns)", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const skillDefinitionId = createSkillDefinitionId("SKL_CD");
 
@@ -541,7 +541,7 @@ describe("assembleSimulationResult", () => {
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
   });
 
-  it("UT-RESULT-ASSEMBLER-012 (M5 review round 2 [P1] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's cooldown setActionId disagrees with the CooldownStarted delta's setActionId (setActionId/setTurnNumber are now delta-tracked, not exempted from restoration)", () => {
+  it("UT-RESULT-ASSEMBLER-012: throws INTERNAL_INVARIANT_VIOLATION when the given finalState's cooldown setActionId disagrees with the CooldownStarted delta's setActionId (setActionId/setTurnNumber are now delta-tracked, not exempted from restoration)", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const skillDefinitionId = createSkillDefinitionId("SKL_CD");
     const recordedActionId = createActionId("battle-1:action:1");
@@ -741,7 +741,7 @@ describe("assembleSimulationResult", () => {
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
   });
 
-  it("UT-R-EFF-10-013 (R-EFF-10, PR #210レビュー[P2] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerStates disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore markers, mirroring the effects regression above)", () => {
+  it("UT-R-EFF-10-013 (R-EFF-10): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerStates disagree with initialState + stateTransitions restored through the independent Reducer (unitSnapshotsEqual must not ignore markers, mirroring the effects regression above)", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
     const markerId = createMarkerId("MARKER_TEST");
@@ -841,7 +841,7 @@ describe("assembleSimulationResult", () => {
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
   });
 
-  it("UT-R-EFF-10-014 (R-EFF-10, PR #210レビュー[P2] fix): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerState stack count disagrees with the restored value (reordered/duplicated deltas must not slip through as a false match)", () => {
+  it("UT-R-EFF-10-014 (R-EFF-10): throws INTERNAL_INVARIANT_VIOLATION when the given finalState's MarkerState stack count disagrees with the restored value (reordered/duplicated deltas must not slip through as a false match)", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const markerInstanceId = createMarkerInstanceId("battle-1:marker:1");
     const markerId = createMarkerId("MARKER_TEST");

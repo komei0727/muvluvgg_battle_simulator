@@ -30,7 +30,7 @@ export interface RuntimeCounterUpdateResult {
   readonly carryBefore: number;
   /**
    * `before !== after`（公開値が実際に変化した＝閾値を跨いだ）かどうか。
-   * レビュー再々レビュー[P1]: `RuntimeCounterChanged`はcarryのみの変化でも
+   * `RuntimeCounterChanged`はcarryのみの変化でも
    * 発行するため（追跡性のため）、閾値到達時だけ発動すべきPS
    * （`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）はこのフィールドで絞り込む
    * 契約とする（Catalog側の条件は`docs/ddd/14_Catalog定義スキーマ.md`参照）。
@@ -120,7 +120,7 @@ export function applyUpdate(
 export interface MatchedRuntimeCounterUpdate {
   readonly ownerUnitId: BattleUnitId;
   readonly skillDefinitionId: SkillDefinitionId;
-  /** 定義オブジェクト自身を識別子として使う。同じcounterへの複数`counterUpdates`定義（レビュー再々指摘[P2]）でも、配列上の別エントリとして区別できる。 */
+  /** 定義オブジェクト自身を識別子として使う。同じcounterへの複数`counterUpdates`定義でも、配列上の別エントリとして区別できる。 */
   readonly update: RuntimeCounterUpdateDefinition;
 }
 
@@ -130,7 +130,7 @@ export interface MatchedRuntimeCounterUpdate {
  * 一致する`counterUpdates`定義を、決定論的な順序（Unit→Unitが持つPS→
  * `counterUpdates`配列順）で列挙するだけで、値は一切適用しない。
  *
- * レビュー再々指摘[P2]: マッチする集合と順序は、原因イベント直後の状態から
+ * マッチする集合と順序は、原因イベント直後の状態から
  * 一度だけ確定しなければならない（R-EFF-11「原因イベントの状態変更確定後、
  * PS/Memory候補抽出前にcounter更新を決定する」）。呼び出し側がこの結果を
  * `input.units`のスナップショットに対して1回だけ計算し、以降のPS連鎖による
@@ -185,7 +185,7 @@ export function matchRuntimeCounterUpdates(
 /**
  * `matchRuntimeCounterUpdates`が確定した1件の`MatchedRuntimeCounterUpdate`を、
  * 呼び出し時点の`units`（先行`RuntimeCounterChanged`の候補解決を経た最新状態
- * でありうる）に対して適用する（レビュー再々指摘[P2]）。`before`/`after`/`carry`は
+ * でありうる）に対して適用する。`before`/`after`/`carry`は
  * 常にこの時点の実状態から計算するため、マッチングを確定した時点の状態とは
  * 異なりうる。
  */
@@ -208,7 +208,7 @@ export function applyMatchedRuntimeCounterUpdate(
   const existingCounters = owner.skillCounters?.[skillDefinitionId] ?? {};
   const carryBefore = existingCounters[update.counter]?.carry ?? 0;
   const applied = applyUpdate(update, existingCounters, owner, event);
-  // レビュー指摘[P1]: 閾値未到達（value不変）でも`applied.counters`の`carry`
+  // 閾値未到達（value不変）でも`applied.counters`の`carry`
   // （繰り越し端数）は必ず`units`へ反映する。ここで反映しないと次回の更新が
   // 繰り越し前のcarryから再計算され、複数回に分けて閾値へ到達する累計ダメージが
   // 正しく積み上がらない。
@@ -219,12 +219,12 @@ export function applyMatchedRuntimeCounterUpdate(
   const nextUnits = units.map((u) =>
     u.battleUnitId === updatedOwner.battleUnitId ? updatedOwner : u,
   );
-  // レビュー指摘[P2]: `value`(公開値)が変わらなくても`carry`(内部端数)が
+  // `value`(公開値)が変わらなくても`carry`(内部端数)が
   // 変化した場合は`RuntimeCounterChanged`を発行する。ここで完全にno-op扱い
   // すると、可変状態(carry)が変化したこと自体がイベント列から追跡できなくなる
   // （対象3スキルでは閾値未到達ヒットの方が通常経路）。`valueChanged`をpayloadへ
   // 含めるのは、この関数の呼び出し側（Catalog側の閾値到達PS）が「carryだけの
-  // 変化」と「実際の閾値到達」を区別できるようにするため（レビュー再々レビュー[P1]）。
+  // 変化」と「実際の閾値到達」を区別できるようにするため。
   const valueChanged = applied.before !== applied.after;
   if (!valueChanged && applied.carry === carryBefore) {
     return { units: nextUnits, change: undefined };
@@ -259,8 +259,8 @@ export function applyMatchedRuntimeCounterUpdate(
  * `Battle`／`BattleUnit`スコープは`createRuntimeCounterUpdateDefinition`
  * （Catalogロード時点）が既に拒否するため、ここへ到達するのは`SKILL_RUNTIME`
  * だけのはずである。それでも到達した場合（Catalogを経由しない直接構築など）に
- * 未対応のまま実行を続けないよう、防御的にも明示的に拒否する（レビュー指摘[P2]、
- * `matchRuntimeCounterUpdates`が担う）。
+ * 未対応のまま実行を続けないよう、防御的にも明示的に拒否する
+ * （`matchRuntimeCounterUpdates`が担う）。
  */
 export function detectRuntimeCounterUpdates(input: RuntimeCounterMatchInput): {
   readonly units: readonly BattleUnit[];
@@ -292,8 +292,7 @@ export interface RuntimeCounterResetScanInput {
 }
 
 /**
- * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（レビュー指摘[P2]、
- * Issue #143）: `resetScope: "RESOLUTION_SCOPE"`を宣言するcounterのうち、現在値を
+ * `R-EFF-11`「解決スコープ終了時にリセットするcounter」（Issue #143）: `resetScope: "RESOLUTION_SCOPE"`を宣言するcounterのうち、現在値を
  * 持つものを列挙する。呼び出し側（`PassiveActivationRuntime.finalizeResolutionScope`）
  * が、この結果を使ってcounterを破棄し`RuntimeCounterReset`を発行する。
  */

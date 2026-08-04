@@ -107,7 +107,7 @@ function resolveOneAction(
   // する（キャンセルしない、解除後の次の行動機会に発動）。`ChargeHeldByFreeze`は
   // `ActionWaited`自身のPS/Memory連鎖が解決した後・`ActionCompleting`より前の
   // 時点（`onWaitEstablished`フック）で、その時点の最新`units`から判定して
-  // 記録する（Issue #180 PRレビュー[P2]）——呼び出し前の`actor`スナップショット
+  // 記録する——呼び出し前の`actor`スナップショット
   // を参照すると、連鎖中にチャージが変化した場合を見逃す。
   if (isFrozen(actor)) {
     return resolveWait(
@@ -380,8 +380,8 @@ export function resolveActionPhase(
       units = resolution.units;
 
       // 戦闘不能者の除去（`06_戦闘状態遷移.md`）とR-ORD-01適格性の喪失
-      // （Issue #180 PRレビュー[P1]再指摘）を、除去対象と理由が安定するまで
-      // 1件ずつ再評価しながら処理する（PRレビュー[P2]再々指摘: ある除去のPS/
+      // （Issue #180）を、除去対象と理由が安定するまで
+      // 1件ずつ再評価しながら処理する（ある除去のPS/
       // Memory連鎖が他の予約の適格性・生死を変え得るため、事前に一括計算した
       // リストをそのまま使うと反映されない）。
       const removal = resolveReservationRemovals(remaining, units, {

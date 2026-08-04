@@ -46,7 +46,7 @@ export interface EffectActionApplication {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
   readonly hits: readonly ResolvedEffectApplication[];
   /**
-   * R-ACTN-01 #2 (RES-002 review finding [P2], PR #215): the
+   * R-ACTN-01 #2 (RES-002): the
    * `TargetSelectorDefinition.includeDefeated` that resolved this target.
    * `effect-action-group-resolver.ts` carries this per application so it can
    * decide whether an already-defeated target should still be skipped, or
@@ -140,7 +140,7 @@ export interface EffectSequencePlan {
 }
 
 /**
- * PRレビュー指摘[P2]: `triggerContext`はBattleUnitIdだけを持つ（stale
+ * `triggerContext`はBattleUnitIdだけを持つ（stale
  * snapshot回避のため）。`allUnits`（呼び出し時点の最新roster）から都度
  * 引き直す。
  */
@@ -553,7 +553,7 @@ function resolveEffectSequence(
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
   // ここまでに解決済みのbindingを`resolveTargetsWithStealthConsumption`へ渡しながら1件ずつ確定する。
-  // PR #234レビュー[P2]: 同じStealth所持者を複数のbindingが第一優先対象に選ぶ場合、
+  // 同じStealth所持者を複数のbindingが第一優先対象に選ぶ場合、
   // R-TGT-10の定義順評価と「第一優先対象になった時点で消費」（R-TGT-08 #2）に従い、
   // 最初に検出したbindingでのみ移動・消費が成立するよう、検出済みの`effectInstanceId`を
   // 後続bindingの評価へ引き継ぐ。
@@ -716,8 +716,8 @@ function invertSelectorSide(selector: TargetSelectorDefinition): TargetSelectorD
   const invertedFallback =
     selector.fallback === undefined ? undefined : invertSelectorSide(selector.fallback);
   // `TargetSelectorDefinition.side`はCatalogの`Side`（`catalog-enums.ts`）であり、
-  // `domain/shared/side.ts`の実行時`Side`と違って`ALL`（両陣営）を含む
-  // （PR #300レビュー[P2]）。R-CFS-01が定める反転は`ALLY`↔`ENEMY`だけなので、
+  // `domain/shared/side.ts`の実行時`Side`と違って`ALL`（両陣営）を含む。
+  // R-CFS-01が定める反転は`ALLY`↔`ENEMY`だけなので、
   // `ALL`はそのまま残す — `ALL`は既に両陣営を覆っており「逆陣営」も自分自身に
   // なるためで、`ALLY`へ倒すと本来の全ユニット対象が味方だけへ狭まってしまう。
   if (selector.side !== "ALLY" && selector.side !== "ENEMY") {

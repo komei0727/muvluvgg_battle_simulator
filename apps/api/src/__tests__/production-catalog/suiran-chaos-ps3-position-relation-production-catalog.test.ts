@@ -509,7 +509,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     });
   });
 
-  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172; PR #220 review finding [P2]): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, and its ACT_SUIRAN_CHAOS_PS2_HEAL now resolves end-to-end (M7-005, Issue #184)", () => {
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-003 (RES-005, Issue #172): SKL_SUIRAN_CHAOS_PS2 is detected and activates through the REAL HitPointReduced event applyDamageAction emits for a genuine enemy attack, and its ACT_SUIRAN_CHAOS_PS2_HEAL now resolves end-to-end (M7-005, Issue #184)", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
 
     const suiran = testBattleUnit({
@@ -521,11 +521,10 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
       overrides: { currentPp: LIMITS.maximumPp },
     });
     // PS2's trigger is `HitPointReduced` with `sourceSelector: "ANY"`,
-    // `targetSelector: "ALLY"` (PR #220 review [P2] re-review: the raw source
-    // doesn't limit "自身の目の前に編成されている味方のHPが半分以下" to any
-    // particular cause, so `ANY` is the accurate conversion — an earlier fix
-    // to `"ENEMY"` in this same PR was itself too narrow, since it would have
-    // silently excluded ally-caused/self-inflicted HP loss; see
+    // `targetSelector: "ALLY"` (the raw source doesn't limit
+    // "自身の目の前に編成されている味方のHPが半分以下" to any particular cause,
+    // so `ANY` is the accurate conversion — `"ENEMY"` would silently exclude
+    // ally-caused/self-inflicted HP loss; see
     // catalog-src/units/UNIT_SUIRAN_CHAOS/skills.json). This test covers the
     // ordinary case (an enemy attack); `IT-CAP-TRIGGER-CONTEXT-PROD-004`
     // below covers the boundary case (an ally-caused `HitPointReduced` must
@@ -664,7 +663,7 @@ describe("production Catalog SKL_SUIRAN_CHAOS_PS3 (Issue #144 follow-up, TRIGGER
     expect(passiveActivated).toBeDefined();
   });
 
-  it("IT-CAP-TRIGGER-CONTEXT-PROD-004 (PR #220 review finding [P2] re-review): SKL_SUIRAN_CHAOS_PS2 also candidate-izes for a REAL HitPointReduced whose source is an ALLY, not just an enemy — sourceSelector: ANY must not silently exclude ally-caused/self-inflicted HP loss", () => {
+  it("IT-CAP-TRIGGER-CONTEXT-PROD-004: SKL_SUIRAN_CHAOS_PS2 also candidate-izes for a REAL HitPointReduced whose source is an ALLY, not just an enemy — sourceSelector: ANY must not silently exclude ally-caused/self-inflicted HP loss", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [SUIRAN_UNIT_ID]);
 
     const suiran = testBattleUnit({

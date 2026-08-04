@@ -33,7 +33,7 @@ export interface RemoveFreezeStepsContext {
 
 export interface RemoveFreezeContext extends RemoveFreezeStepsContext {
   /**
-   * PRレビュー再指摘[P2]（Issue #183）: linkedEffectGroupカスケードの各ステップ
+   * Issue #183: linkedEffectGroupカスケードの各ステップ
    * （子の`EffectExpired`→その`CombatStatChanged`、…、最後に凍結自身の
    * `FreezeRemoved`→その`CombatStatChanged`）を記録した直後にPS/Memoryの
    * 即時連鎖へ通知する。呼び出し側がまとめて全カスケード終了後に通知すると、
@@ -79,7 +79,7 @@ function isEffectiveNow(unit: BattleUnit, effectInstanceId: EffectInstanceId): b
  * `FreezeRemoved`（R-STS-03固有の事実）で、カスケード分は`expireEffects`と
  * 区別しない — `EffectExpired`のまま。
  *
- * PRレビュー再々指摘[P2]（Issue #183）: カスケードの各ステップを記録した
+ * Issue #183: カスケードの各ステップを記録した
  * 直後に`yield`するgenerator — AS/EXの同期callback（`removeFreezeEffect`）と、
  * PS自身のEffectSequence解決（`resolveOneEffectActionApplication`が
  * `driveActivation`の共有stateへ`yield*`相当で参加する必要がある経路、
@@ -197,7 +197,7 @@ export function* removeFreezeEffectSteps(
   working = recalculation.units;
   lastEventId = recalculation.lastEventId;
 
-  // PRレビュー再指摘[P2]: 凍結自身の`FreezeRemoved`とそれに続く`CombatStatChanged`も
+  // 凍結自身の`FreezeRemoved`とそれに続く`CombatStatChanged`も
   // カスケードの各ステップと同じ粒度で`yield`する — まとめて最後に通知すると、
   // 最初のステップをtriggerにするPSが既に後続ステップまで完了した状態を見てしまう。
   // 呼び出し側が`.next()`へ渡す値は、このyield中にPS連鎖が変化させた最新の`units`。

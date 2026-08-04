@@ -32,7 +32,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
 
 /**
- * R-SKL-05（凍結中のチャージ維持、Issue #180 PRレビュー[P2]）: `ActionWaited`の
+ * R-SKL-05（凍結中のチャージ維持、Issue #180）: `ActionWaited`の
  * PS/Memory連鎖が解決した直後（`ActionCompleting`より前）の、待機確定時点の状態を
  * 渡す。この時点でのみ「維持した」事実を確定できる——連鎖中にチャージが変化し
  * 得るため、呼び出し前に捕まえた`actor`スナップショットではなく、ここで渡す
@@ -175,10 +175,10 @@ export function resolveWait(
     );
   }
 
-  // レビュー再々々レビュー[P2]: 待機も`ActionWaited`と`ActionCompleting`/
+  // 待機も`ActionWaited`と`ActionCompleting`/
   // Cooldown更新/`ActionCompleted`を発動タイミングとするPS/counter更新を
   // 持ちうるため、この行動専用の`PassiveActivationRuntime`を生成して接続する。
-  // PRレビュー指摘[P2]（PR #256、Issue #184）: 生成をR-HEAL-03の継続回復発火より
+  // Issue #184: 生成をR-HEAL-03の継続回復発火より
   // 前へ移し、`HealApplied`もAS/EX経路と同じFACTイベント連鎖へ流す。この時点の
   // `working`はコスト消費・EXゲージ増加を適用済みで、`ActionWaited`より前に
   // 状態を変えるのは継続回復だけのため、生成位置を早めても観測できる差はない。
@@ -243,7 +243,7 @@ export function resolveWait(
   working = continuousHeal.units;
   lastEventId = continuousHeal.lastEventId;
 
-  // START_EVENT #4（`06_戦闘状態遷移.md`、再レビュー[P2] PR #256）: 継続回復と
+  // START_EVENT #4（`06_戦闘状態遷移.md`）: 継続回復と
   // その`HealApplied`起点のPS連鎖で行動者が戦闘不能になった場合、本体を実行せず
   // `COMPLETING`へ進む。
   const interrupted = completeActionIfActorDefeatedAtStart(
@@ -293,7 +293,7 @@ export function resolveWait(
 
   working = passiveRuntime.onFactEvent(actionWaited, working).units;
 
-  // R-SKL-05（Issue #180 PRレビュー[P2]）: `ActionWaited`自身のPS/Memory連鎖が
+  // R-SKL-05（Issue #180）: `ActionWaited`自身のPS/Memory連鎖が
   // 解決した後、`ActionCompleting`より前のこの時点で待機確定時イベント（例:
   // `ChargeHeldByFreeze`）を記録する。連鎖中の状態変化を反映した`working`から
   // 判定させるため、呼び出し前の`actor`スナップショットは渡さない。

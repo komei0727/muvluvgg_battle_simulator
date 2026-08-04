@@ -48,7 +48,7 @@ export function linkedGroupMemberKey(member: LinkedGroupMember): LinkedGroupMemb
  * `freeze-removal-service.ts`）が、この結果集合から「子を先に、親を最後に」
  * 失効イベントを順序付けて発行する。
  *
- * レビュー再指摘[P2]（PR #209）: `linkedEffectGroupRole`（`PARENT`/`CHILD`）を
+ * `linkedEffectGroupRole`（`PARENT`/`CHILD`）を
  * 明示するメンバーがいるグループでは、カスケードの起点を`CHILD`ロールの
  * seedからは起こさない（R-EFF-09「子効果だけが消費条件で失効した場合、親効果は
  * 維持する」— 失効理由ではなく明示的な親子関係で判定する）。`PARENT`ロールの
