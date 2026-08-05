@@ -526,29 +526,36 @@ EffectStateResponse {
 MarkerStateResponse {
   markerInstanceId
   markerId
-  sourceUnitId
+  sourceUnitId?
+  sourceSide?
   stackCount
   stackMax
   duration?
 }
 ```
 
-| プロパティ         | 説明                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| `markerInstanceId` | 個別インスタンスの安定したドメインID。                                                     |
-| `markerId`         | Marker種別を識別するID（`MARKER_` 接頭辞）。                                               |
-| `sourceUnitId`     | 直近の付与者。複数付与元から同じMarkerが付与された場合も対象ごとに単一インスタンスへ積む。 |
-| `stackCount`       | 現在のスタック数（0未満にならない）。                                                      |
-| `stackMax`         | スタック上限。上限なしは `null`。                                                          |
-| `duration`         | `{ unit: "ACTION" \| "TURN", remaining: integer }`。永続効果では省略する。                 |
+| プロパティ         | 説明                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `markerInstanceId` | 個別インスタンスの安定したドメインID。                                                                              |
+| `markerId`         | Marker種別を識別するID（`MARKER_` 接頭辞）。                                                                        |
+| `sourceUnitId`     | 直近の付与者。複数付与元から同じMarkerが付与された場合も対象ごとに単一インスタンスへ積む。                          |
+| `sourceSide`       | Memory の `triggeredEffects` 由来のMarkerだけが持つ付与元の陣営（`R-MEM-04`）。この場合 `sourceUnitId` は持たない。 |
+| `stackCount`       | 現在のスタック数（0未満にならない）。                                                                               |
+| `stackMax`         | スタック上限。上限なしは `null`。                                                                                   |
+| `duration`         | `{ unit: "ACTION" \| "TURN", remaining: integer }`。永続効果では省略する。                                          |
 
 `EffectStateResponse` と異なり `category`/`stackMode`/`isEffective`/`value` を持たない。Markerは重複あり・なしの選択（R-EFF-05）の対象ではなく、対象ごとに常に1インスタンスだけが存在し、`ADD`/`KEEP_EXISTING`/`REFRESH`/`REPLACE`の付与方針でこのインスタンスを更新する（R-EFF-10）。
 
-#### Memory由来Markerと `sourceUnitId` の必須性（M7-008 / Issue #176）
+#### Memory由来Markerの付与元（M7-008 / Issue #176、REL-008 / Issue #263）
 
-R-MEM-04 の Memory は使用者 `BattleUnit` を持たないため、Memory が付与した `MarkerState` は付与者ユニットの代わりに付与元陣営（`sourceSide`）だけを持つ。M7-008 でこの表現を Domain・`StateDelta`・`MarkerApplied`/`MarkerUpdated` の各payloadへ実装したが、`MarkerStateResponse.sourceUnitId`（および同名のイベント `details` プロパティ）を任意へ緩める変更は、下記「バージョニング」が破壊的変更と定義する「既存必須プロパティの削除」に当たるため採用しない。
+R-MEM-04 の Memory は使用者 `BattleUnit` を持たないため、Memory が付与した `MarkerState` は付与者ユニットの代わりに付与元陣営（`sourceSide`）だけを持つ。M7-008 でこの表現を Domain・`StateDelta`・`MarkerApplied`/`MarkerUpdated` の各payloadへ実装した時点では、`MarkerStateResponse.sourceUnitId`（および同名のイベント `details` プロパティ）が必須のままだったため、Memory が Marker を付与する production 定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`）が Capability preflight で編成不可として弾いていた。
 
-したがってv1では `sourceUnitId` を必須のまま据え置き、Memory が Marker を付与する production 定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`）が Capability preflight で編成不可として弾く。互換性を保つ公開方法（`/api/v2` 化など）の決定と実装は `REL-008`（Issue #263）が担当する。`simulate-battle-response-mapper.ts` は、preflight をすり抜けて付与元なしMarkerが到達した場合に `INTERNAL_INVARIANT_VIOLATION` で明確に失敗させる（黙って `sourceUnitId` を欠落させない）。
+REL-008 で `EffectStateResponse`・`EffectApplied` と同じ「`sourceUnitId` と `sourceSide` のどちらか一方だけを持つ」形へ揃え、`/api/v1`・`schemaVersion: 1` のまま公開した。下記「バージョニング」の後方互換な追加として扱う根拠は次のとおりである。
+
+- ユニットが付与した Marker は従来どおり常に `sourceUnitId` を持つため、既存クライアントがそれまで受け取れたレスポンスの形は変わらない。
+- `sourceUnitId` を持たない変種は `CAP_MEMORY_GRANTED_MARKER` が編成段階で弾いていたため、v1 のレスポンスとして一度も出現していない。解放によって初めて現れる新しい変種である。
+
+付与者を推測して埋めることはしない（`08_ドメインイベント.md`「Markerイベント」と同じく、代替の付与者を作らない）。
 
 ### SubUnitStateResponse
 
@@ -901,6 +908,7 @@ reconstructedFinalState = apply(
 - 新しいイベント種別の追加
 - 新しいエラーコードの追加
 - 新しい列挙値の追加。ただし既存クライアントが未知値を扱えることを前提とする。
+- Capability preflightが編成段階で弾いていたため一度も公開されたことがない変種の追加。既存クライアントが受け取れたレスポンスの形が変わらないことが条件であり、そのために必須プロパティを任意へ緩める場合は、緩めた後も従来から公開されていた変種では常に存在することを併せて示す（REL-008 / Issue #263 の `MarkerStateResponse.sourceUnitId`。上記「Memory由来Markerの付与元」を参照）。
 
 次は破壊的変更としてAPIメジャーバージョンを検討する。
 

@@ -422,7 +422,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "EFF-004",
-    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士・AppliedEffectとのcross-type）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの「所持状態を読む」側はそれぞれ別Capabilityが管理する（順にCAP_MARKER_STACK_FORMULA／M7-015・Issue #269、RES-004、TGT-002）。未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_DURATION）。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、それまでの拒否（UNSUPPORTED_MARKER_LINKED_GROUP）を撤去した — production CatalogのTARISA_TROUBLEMAKER_PS1_LINK/AOI_ELEGANT_AS1_KOUYOU_LINKがMarkerをPARENT、AppliedEffectをCHILDとして使う。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。ただしAPI公開（`MarkerStateResponse.sourceUnitId`が必須）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当する。",
+    "description": "APPLY_MARKER/REMOVE_MARKERによるMarkerState付与・スタック方針（ADD/KEEP_EXISTING/REFRESH/REPLACE）・stack.max・行動/ターン単位Duration失効・linkedEffectGroupカスケード（Marker同士・AppliedEffectとのcross-type）・明示解除（R-EFF-10）。MARKER_COUNT_SCALE Formula・TARGET_HAS_MARKER Condition・HAS_MARKER TargetSelectorからの「所持状態を読む」側はそれぞれ別Capabilityが管理する（順にCAP_MARKER_STACK_FORMULA／M7-015・Issue #269、RES-004、TGT-002）。未実装のMarker Duration機構（consumption・expiration・HIT/SKILL_USE単位timeLimit）は、対応するproduction定義をCatalogロード時点で明示的に拒否する（UNSUPPORTED_MARKER_DURATION）。AppliedEffectをまたぐlinkedEffectGroupカスケード（cross-type、R-EFF-09第1項）はM7-013（Issue #267）が実装し、それまでの拒否（UNSUPPORTED_MARKER_LINKED_GROUP）を撤去した — production CatalogのTARISA_TROUBLEMAKER_PS1_LINK/AOI_ELEGANT_AS1_KOUYOU_LINKがMarkerをPARENT、AppliedEffectをCHILDとして使う。BattleUnitStateResponse.markers（v1後方互換のため任意プロパティ）/UnitStateDeltaResponse.markersへのAPI応答マッピングと、独立Reducer復元の一致判定（unitSnapshotsEqual）へのMarker反映も完成済み。M7-008（Issue #176、R-MEM-04）は`MarkerState`の付与元を`AppliedEffect`と同じ`sourceUnitId`/`sourceSide`のexactly-one unionへ揃え、使用者BattleUnitを持たないMemory由来の`APPLY_MARKER`（`MEM_ALWAYS_PICO_BESIDE_YOU`の「三ツ星」）をDomain・StateDelta・独立Reducer復元まで通せるようにした。API公開（`MarkerStateResponse`／`MarkerApplied`／`MarkerUpdated`の`sourceUnitId`任意化と`sourceSide`追加）は別Capability `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）が担当し、そちらで完了した。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_DOROTHEA_PIONEER_AS1_MARKER",
@@ -497,12 +497,16 @@
   {
     "capabilityId": "CAP_MEMORY_GRANTED_MARKER",
     "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
+    "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "REL-008",
-    "description": "Memory由来Marker（R-MEM-04）のAPI公開。M7-008（Issue #176）でDomain側（`MarkerState.sourceId`/`sourceSide`のexactly-one union、`MarkerSnapshot`、`MarkerApplied`/`MarkerUpdated` payload、独立Reducer復元）は実装・検証済みだが、`10_API設計.md`「バージョニング」が既存必須プロパティの削除を破壊的変更と定めるため、v1の`MarkerStateResponse.sourceUnitId`（および同名のイベントdetails）を必須のまま据え置いた。したがってMemoryがMarkerを付与するCatalog定義はCapability preflightが編成不可として弾く。`/api/v2`化など互換性を保つ公開方法の決定と実装は`REL-008`（Issue #263）が担当する。",
+    "description": "Memory由来Marker（R-MEM-04）のAPI公開。M7-008（Issue #176）でDomain側（`MarkerState.sourceUnitId`/`sourceSide`のexactly-one union、`MarkerSnapshot`、`MarkerApplied`/`MarkerUpdated` payload、独立Reducer復元）は実装・検証済みだったが、v1の`MarkerStateResponse.sourceUnitId`（および同名のイベントdetails）が必須のままだったため、MemoryがMarkerを付与するCatalog定義はCapability preflightが編成不可として弾いていた。REL-008（Issue #263）で`EffectStateResponse`／`EffectApplied`と同じexactly-one union（`sourceUnitId`任意＋`sourceSide`任意）へ揃え、`/api/v1`・`schemaVersion: 1`のまま公開した — Capabilityが未解放だった変種の追加であり、既存クライアントが受け取れたレスポンス形は変わらないため、`10_API設計.md`「バージョニング」の後方互換な追加として扱う。",
     "verification": {
       "productionDefinitionIds": ["MEM_ALWAYS_PICO_BESIDE_YOU"],
-      "testCaseIds": []
+      "testCaseIds": [
+        "IT-CAP-MEMORY-GRANTED-MARKER-PROD-001",
+        "IT-CAP-MEMORY-GRANTED-MARKER-PROD-002",
+        "IT-CAP-MEMORY-GRANTED-MARKER-PROD-003"
+      ]
     }
   },
   {

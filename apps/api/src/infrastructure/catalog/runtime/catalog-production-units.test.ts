@@ -310,7 +310,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `capabilities.json` descriptions to match CLAUDE.md's comment convention.
     // Wording only — no definition, `runtimeStatus`, or `verification` changed,
     // so every expectation in this file stays the same.
-    expect(catalog.catalogRevision).toBe("2026-08-02.12");
+    // `2026-08-05.1` is REL-008 (Issue #263, R-MEM-04): `CAP_MEMORY_GRANTED_MARKER`
+    // flipped to `IMPLEMENTED` now that `MarkerStateResponse` /
+    // `MarkerApplied` / `MarkerUpdated` publish the same `sourceUnitId`-or-
+    // `sourceSide` union the Effect side already published, which unblocks
+    // `MEM_ALWAYS_PICO_BESIDE_YOU` (the last non-selectable Memory). Capability
+    // metadata only — no Unit/Skill/EffectAction definition changed, so
+    // `unitCount`/violation/`selectable` expectations here stay the same.
+    expect(catalog.catalogRevision).toBe("2026-08-05.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

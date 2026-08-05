@@ -316,11 +316,14 @@ export const effectStateResponseSchema = {
 const markerStateResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["markerInstanceId", "markerId", "sourceUnitId", "stackCount", "stackMax"],
+  required: ["markerInstanceId", "markerId", "stackCount", "stackMax"],
   properties: {
     markerInstanceId: { type: "string" },
     markerId: { type: "string" },
     sourceUnitId: { type: "string" },
+    // R-MEM-04（REL-008、Issue #263）: Memory由来Markerは付与者ユニットを持たず
+    // 付与元陣営を持つ（`effectStateResponseSchema`と同じexactly-one union）。
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     stackCount: { type: "integer", minimum: 0 },
     stackMax: { type: ["integer", "null"], minimum: 1 },
     duration: {
