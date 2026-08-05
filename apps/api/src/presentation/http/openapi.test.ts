@@ -1160,4 +1160,60 @@ describe("OpenAPI document", () => {
       JSON.stringify(validateEvent.errors),
     ).toBe(true);
   });
+
+  it("API-OPENAPI-015 (REL-008, Issue #263, R-MEM-04): MARKER_APPLIED/MARKER_UPDATED details document the sourceUnitId-or-sourceSide union — both variants validate, and an unknown side is still rejected", () => {
+    const validateEvent = new Ajv({ strict: false }).compile(battleLogEventResponseDocSchema);
+    const event = (type: string, details: Record<string, unknown>): Record<string, unknown> => ({
+      sequence: 1,
+      type,
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["ally:1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+      details,
+    });
+    const applied = {
+      markerInstanceId: "battle-1:marker:1",
+      markerId: "MARKER_TEST",
+      targetUnitId: "ally:1",
+      stackCount: 1,
+      stackMax: null,
+      linkedEffectGroupId: null,
+    };
+    const updated = {
+      markerInstanceId: "battle-1:marker:1",
+      markerId: "MARKER_TEST",
+      targetUnitId: "ally:1",
+      stackBefore: 1,
+      stackAfter: 2,
+      linkedEffectGroupId: null,
+    };
+
+    // Memory由来（付与者ユニットを持たない）。`MARKER_UPDATED`側は`ADD`で積み増した場合に発行される。
+    for (const candidate of [
+      event("MARKER_APPLIED", { ...applied, sourceSide: "ALLY" }),
+      event("MARKER_UPDATED", { ...updated, sourceSide: "ALLY", policy: "ADD" }),
+    ]) {
+      expect(validateEvent(candidate), JSON.stringify(validateEvent.errors)).toBe(true);
+    }
+
+    // 従来から公開されていたユニット付与側は、`sourceUnitId`を持つ形のまま受理される。
+    for (const candidate of [
+      event("MARKER_APPLIED", { ...applied, sourceUnitId: "ally:2" }),
+      event("MARKER_UPDATED", { ...updated, sourceUnitId: "ally:2", policy: "ADD" }),
+    ]) {
+      expect(validateEvent(candidate), JSON.stringify(validateEvent.errors)).toBe(true);
+    }
+
+    // 陣営はALLY/ENEMYのenumであり、任意の文字列を受け付けない。
+    expect(validateEvent(event("MARKER_APPLIED", { ...applied, sourceSide: "NEUTRAL" }))).toBe(
+      false,
+    );
+    expect(validateEvent(event("MARKER_UPDATED", { ...updated, sourceSide: "NEUTRAL" }))).toBe(
+      false,
+    );
+  });
 });
