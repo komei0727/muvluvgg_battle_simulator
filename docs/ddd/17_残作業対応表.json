@@ -41,7 +41,7 @@
     },
     "capabilities": {
       "total": 51,
-      "implemented": 48
+      "implemented": 49
     }
   },
   "tasks": [
@@ -533,7 +533,7 @@
       "issue": 263,
       "phase": 4,
       "milestone": "M9",
-      "status": "OPEN"
+      "status": "CLOSED"
     }
   ],
   "ruleAssignments": [
@@ -560,17 +560,9 @@
       "syntheticUnits": 1,
       "selectableSyntheticUnits": 1,
       "memories": 32,
-      "selectableMemories": 31
+      "selectableMemories": 32
     },
-    "blockingCapabilities": [
-      {
-        "capabilityId": "CAP_MEMORY_GRANTED_MARKER",
-        "blockedUnits": 0,
-        "blockedMemories": 1,
-        "exclusivelyBlockedUnits": 0,
-        "exclusivelyBlockedMemories": 1
-      }
-    ],
+    "blockingCapabilities": [],
     "unreferencedCapabilities": [
       "CAP_EFFECT_RUNTIME_COUNTER",
       "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"

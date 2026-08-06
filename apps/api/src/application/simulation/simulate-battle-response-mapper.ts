@@ -1,4 +1,3 @@
-import { ApplicationError } from "../contracts/application-error.js";
 import { shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
 import { subUnitInstances } from "../../domain/battle/combat/sub-unit-policy.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
@@ -204,30 +203,16 @@ function toSubUnitStateResponseBody(effect: EffectSnapshot): SubUnitStateRespons
  * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
  * 監査用の値）。
  *
- * R-MEM-04（M7-008、Issue #176）のMemory由来Markerは付与者
- * ユニットを持たない（`MarkerSnapshot.sourceUnitId`が`undefined`）が、v1契約は
- * `sourceUnitId`を必須のまま据え置く（既存必須プロパティの削除は
- * `10_API設計.md`「バージョニング」の破壊的変更に当たる）。そうしたMarkerを生む
- * 唯一のproduction定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は
- * `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`、`REL-008`／Issue #263）が
- * Capability preflightで編成不可として弾くため、ここへは到達しない。将来
- * preflightをすり抜けた場合に「付与元不明のMarkerを黙って返す」ことがないよう、
- * 実装不変条件違反として明確に失敗させる。
+ * R-MEM-04のMemory由来Markerは付与者ユニットを持たず付与元陣営だけを持つため、
+ * `EffectStateResponse`と同じ「どちらか一方だけを持つ」形で公開する（REL-008／
+ * Issue #263）。付与者を推測して埋めることはしない。
  */
 function toMarkerStateResponseBody(marker: MarkerSnapshot): MarkerStateResponseBody {
-  if (marker.sourceUnitId === undefined) {
-    throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
-      {
-        definitionId: marker.markerId,
-        reason:
-          "Marker has no source BattleUnit, which the v1 MarkerStateResponse contract cannot represent (Memory-granted Markers stay gated by CAP_MEMORY_GRANTED_MARKER until REL-008 / issue #263)",
-      },
-    ]);
-  }
   return {
     markerInstanceId: marker.markerInstanceId,
     markerId: marker.markerId,
-    sourceUnitId: marker.sourceUnitId,
+    ...(marker.sourceUnitId !== undefined ? { sourceUnitId: marker.sourceUnitId } : {}),
+    ...(marker.sourceSide !== undefined ? { sourceSide: marker.sourceSide } : {}),
     stackCount: marker.stackCount,
     stackMax: marker.stackMax,
     ...(marker.duration !== undefined ? { duration: marker.duration } : {}),

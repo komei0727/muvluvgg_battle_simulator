@@ -1986,7 +1986,6 @@ const markerAppliedDetailsSchema = {
   required: [
     "markerInstanceId",
     "markerId",
-    "sourceUnitId",
     "targetUnitId",
     "stackCount",
     "stackMax",
@@ -1995,7 +1994,10 @@ const markerAppliedDetailsSchema = {
   properties: {
     markerInstanceId: { type: "string" },
     markerId: { type: "string" },
+    // R-MEM-04（REL-008、Issue #263）: Memory由来の付与は`sourceUnitId`を持たず
+    // `sourceSide`を持つ（`EFFECT_APPLIED`と同じ規約）。
     sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     targetUnitId: { type: "string" },
     stackCount: { type: "integer", minimum: 0 },
     stackMax: { type: ["integer", "null"], minimum: 1 },
@@ -2019,7 +2021,6 @@ const markerUpdatedDetailsSchema = {
     "markerInstanceId",
     "markerId",
     "targetUnitId",
-    "sourceUnitId",
     "stackBefore",
     "stackAfter",
     "linkedEffectGroupId",
@@ -2028,7 +2029,9 @@ const markerUpdatedDetailsSchema = {
     markerInstanceId: { type: "string" },
     markerId: { type: "string" },
     targetUnitId: { type: "string" },
+    // R-MEM-04（REL-008、Issue #263）: `MARKER_APPLIED`と同じexactly-one union。
     sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
     policy: { type: "string", enum: MARKER_STACK_POLICY_ENUM },
     stackBefore: { type: "integer", minimum: 0 },
     stackAfter: { type: "integer", minimum: 0 },

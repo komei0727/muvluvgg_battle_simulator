@@ -46,11 +46,11 @@ import {
  *
  * `APPLY_DAMAGE_MOD` を含む9件は `CAP_DAMAGE_MOD` が `PLANNED` の間 preflight で
  * 弾かれていたが、`DMG-002`（Issue #192）が同Capabilityを `IMPLEMENTED` にしたため
- * 編成可能になった。Memory由来Markerを持つ `MEM_ALWAYS_PICO_BESIDE_YOU` はDomain側は
- * 完走できるが、v1 API契約が付与元なしMarkerを表現できないため
- * `CAP_MEMORY_GRANTED_MARKER`（`REL-008`／Issue #263）で
- * 引き続きpreflightが弾く。いずれもCatalog上の変換が近似なしであることと、
- * 残る1件だけが編成不可であることを固定する。
+ * 編成可能になった。Memory由来Markerを持つ `MEM_ALWAYS_PICO_BESIDE_YOU` も、v1 API契約が
+ * 付与元なしMarkerを表現できるようになった `REL-008`（Issue #263）で編成可能になった。
+ * ここではCatalog上の変換が近似なしであることと、20件すべてが編成可能であることを
+ * 固定する（API公開形そのものは
+ * `memory-granted-marker-api-production-catalog.test.ts`が担う）。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -396,8 +396,6 @@ function statOf(unit: BattleUnit, stat: StatKind): number {
  * 通る（実ライフサイクルでの与ダメージ補正の適用そのものは
  * `damage-modifier-policy.ts`側テストが担う）。Domain解決を完走できる各件についても、
  * 実行結果の期待値がraw原文のどこ由来かをここで固定する。
- * `MEM_ALWAYS_PICO_BESIDE_YOU`だけはDomainは完走するがv1 API契約の都合で
- * `CAP_MEMORY_GRANTED_MARKER`が編成を弾く。
  */
 interface ActionExpectation {
   readonly effectActionDefinitionId: string;
@@ -437,9 +435,7 @@ interface MemoryExpectation {
   readonly displayName: string;
   /**
    * Capability preflightがこのMemoryを編成不可として弾く原因のCapability。
-   * `CAP_MEMORY_GRANTED_MARKER`はv1 API契約が付与元なしMarkerを表現できないこと
-   * （`REL-008`／Issue #263）による。空配列なら編成可能
-   * （`CAP_DAMAGE_MOD`は`DMG-002`／Issue #192で`IMPLEMENTED`になった）。
+   * 空配列なら編成可能で、現在は20件すべてが空である。
    */
   readonly gatedBy: readonly string[];
   readonly triggeredEffects: readonly TriggeredEffectExpectation[];
@@ -1058,7 +1054,8 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方のHPと防御力を300上昇させる」
     memoryDefinitionId: "MEM_ALWAYS_PICO_BESIDE_YOU",
     displayName: "お傍にいるのはいつでもピコですよ♪",
-    gatedBy: ["CAP_MEMORY_GRANTED_MARKER"],
+    // `CAP_MEMORY_GRANTED_MARKER`はREL-008（Issue #263）でv1契約へ公開済み。
+    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -1455,7 +1452,7 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     expect(restored?.markers?.[0]?.sourceSide).toBe("ALLY");
   });
 
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and only MEM_ALWAYS_PICO_BESIDE_YOU stays gated by an unimplemented Capability", () => {
+  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and none of them stays gated by an unimplemented Capability", () => {
     expect(MEMORY_EXPECTATIONS.map((expectation) => expectation.memoryDefinitionId)).toEqual([
       ...M7_008_MEMORY_IDS,
     ]);

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ApplicationError } from "../contracts/application-error.js";
 import type { CooldownStateResponseBody } from "../contracts/response.js";
 import { toBattleSimulationResponseBody } from "./simulate-battle-response-mapper.js";
 import type { SimulateBattleResult } from "./simulation-result-assembler.js";
@@ -545,7 +544,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 
-  it("API-RESP-012B: throws INTERNAL_INVARIANT_VIOLATION instead of silently omitting the required sourceUnitId when a Memory-granted (source-less) MarkerState reaches the v1 MarkerStateResponse mapper", () => {
+  it("API-RESP-012B (R-MEM-04, REL-008): publishes a Memory-granted MarkerState with sourceSide and no sourceUnitId instead of failing on the granter-less source", () => {
     const base = baseResult();
     const withMemoryMarker = baseResult({
       finalState: {
@@ -569,13 +568,17 @@ describe("toBattleSimulationResponseBody", () => {
       },
     });
 
-    // production Catalogでは`CAP_MEMORY_GRANTED_MARKER`（PLANNED、REL-008／Issue #263）が
-    // Capability preflightで弾くためここへは到達しない。到達した場合に`sourceUnitId`を
-    // 黙って落としたv1レスポンスを返さないことを固定する。
-    expect(() => toBattleSimulationResponseBody(withMemoryMarker)).toThrow(ApplicationError);
-    expect(() => toBattleSimulationResponseBody(withMemoryMarker)).toThrow(
-      /INTERNAL_INVARIANT_VIOLATION/,
-    );
+    // `EffectStateResponse`と同じexactly-one union。付与者ユニットを推測せず、
+    // 付与元陣営だけを公開する。
+    expect(toBattleSimulationResponseBody(withMemoryMarker).finalState.units[0]!.markers).toEqual([
+      {
+        markerInstanceId: "battle-1:marker:1",
+        markerId: "MARKER_TEST",
+        sourceSide: "ALLY",
+        stackCount: 1,
+        stackMax: null,
+      },
+    ]);
   });
 
   it("API-RESP-013 (R-EFF-10): maps a StateTransition's markers delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined)", () => {
