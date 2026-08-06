@@ -31,14 +31,17 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-004",
-    "description": "ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`（対象の攻撃を起点に追加ダメージを発生させる汎用バフ）を実装した。`formula`は付与時点で一度だけ評価し（`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）、結果を`AppliedEffect.magnitude`（`isAttackDamageBonus: true`）として保持する。`damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに、凍結解除時のダメージ増幅（R-STS-03）適用後・DAMAGE_IMMUNITY（R-DMG-02）判定前の値へ加算する（複数付与時は全て合算、免疫の無効化はこの合算後の値へも及ぶ）。production例: `SKL_ELENA_MOODMAKER_EX`の`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`（「攻撃力×15%のダメージを追加するバフ」）。",
+    "description": "ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`（対象の攻撃を起点に追加ダメージを発生させる汎用バフ）を実装した。`formula`は付与時点で一度だけ評価し（`APPLY_STAT_MOD`と同じ「付与時snapshot」規約）、結果を`AppliedEffect.magnitude`（`isAttackDamageBonus: true`）として保持する。`damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに、凍結解除時のダメージ増幅（R-STS-03）適用後・DAMAGE_IMMUNITY（R-DMG-02）判定前の値へ加算する（複数付与時は全て合算、免疫の無効化はこの合算後の値へも及ぶ）。production例: `SKL_ELENA_MOODMAKER_EX`の`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`（「攻撃力×15%のダメージを追加するバフ」）。 REL-001（Issue #202）が、実`catalog/`の`SKL_ELENA_MOODMAKER_EX`を`resolveSkillUse`から通す証跡を追加した — `LOWEST_ATTACK` bindingが選ぶ味方だけが付与を受けること、その`magnitude`が実DAMAGEヒットの切り捨て前ダメージへちょうど加算されること、付与後に攻撃力が変わっても`magnitude`が動かないこと（付与時snapshot）の3点である。",
     "verification": {
       "productionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"],
       "testCaseIds": [
         "UT-R-BON-ATTACK-DMG-001",
         "UT-R-BON-ATTACK-DMG-002",
         "UT-R-BON-ATTACK-DMG-003",
-        "UT-R-BON-ATTACK-DMG-004"
+        "UT-R-BON-ATTACK-DMG-004",
+        "IT-CAP-ATTACK-DAMAGE-BONUS-PROD-001",
+        "IT-CAP-ATTACK-DAMAGE-BONUS-PROD-002",
+        "IT-CAP-ATTACK-DAMAGE-BONUS-PROD-003"
       ]
     }
   },
@@ -302,7 +305,7 @@
     "capabilityId": "CAP_EFFECT_STEP_SET_CONDITION",
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
-    "implementationTaskId": "M7-019",
+    "implementationTaskId": "DMG-003",
     "description": "TARGET_SET_COUNTを使い、Area/TargetFilterで絞り込んだ対象集合（TargetReferenceが解決する集合）の存在・件数をしきい値判定する（EXISTS: op GTE value 1、NONE: op LT value 1、COUNT: 任意のop/value）。BRANCHの`condition`、またはACTIONの`stepCondition`（step全体のgate、Issue #230でACTIONの`condition`から分離）でだけ使える。条件評価時点の最新Battle stateを反映する。`countOf`は集合の生存側・戦闘不能側のどちらを数えるかを選び、省略時は`ALIVE`（Issue #227時点の既定の意味）。`DEFEATED`は`POST_DAMAGE_SURVIVAL_BRANCH`（`DMG-003`／Issue #196）が追加した——対象集合の大きさは実行時にしか分からないため「この攻撃で敵を倒した場合」を`ALIVE`側のしきい値では表せないためである。AS/EXの行動選択（CAP_ACTION_ACTIVATION_CONDITION）・PSの候補判定（CAP_PASSIVE_ACTIVATION_CONDITION）での利用はこの完了境界に含めない（Issue #227、#180（M7-003）へ引き渡す）。BRANCHの単一`condition`は今もTARGET_STATE/TARGET_HAS_MARKER（対象別条件、参照先のTargetReferenceは問わない）とTARGET_SET_COUNTをAND/OR/NOTで同時に含められない（両者は単一のbooleanへ還元する意味論が異なり、混在させると量化の位置に依存して結果が変わるため、Catalogロード時点でMIXED_STEP_TARGET_SET_CONDITIONとして明示的に拒否する）。ACTIONは`stepCondition`/`targetCondition`という独立したスキーマフィールドへ分離済みのため、この2種は型・Catalogスキーマの両方で最初から混在不可能になり、MIXED_STEP_TARGET_SET_CONDITIONの対象から外れた（Issue #230）。`DMG-003`（Issue #196）が`SKL_RAMI_UNYIELDING_EX`／`SKL_HIIRO_LONEWOLF_AS2`（どちらも`countOf: DEFEATED`で「この攻撃対象を倒した場合」）と`SKL_JULIE_SNOW_EX`（`countOf: ALIVE`で「攻撃後に敵が生存していた場合」）を近似なしへ更新し、production代表が揃ったため`IMPLEMENTED`になった。対象bindingはR-SKL-01より再評価されない（同じunit集合を指し続け状態だけが最新化される）ため、DAMAGE後に撃破された構成員も数え漏らさない。",
     "verification": {
       "productionDefinitionIds": [
@@ -792,7 +795,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-002",
-    "description": "G-05（`14_Catalog定義スキーマ.md`、M7-002/Issue #185で新設）: 一定期間、対象のリソース獲得量自体（R-ACT-03のAP/PP消費起因のEXゲージ増加）を割合で増減させる継続効果（`APPLY_RESOURCE_GAIN_MOD`）。`APPLY_STAT_MOD`と同じ評価規約で`rateDelta`を付与時点に一度だけ評価し、`AppliedEffect.magnitude`として保持する。stackingはSTACKABLEのみのため保持している全インスタンスの`rateDelta`を合算し、`amount * (1 + rate)`を`increaseExGauge`（`action-resolution-shared.ts`）呼び出し側4箇所（AS使用・待機・PS発動・チャージ発動には該当効果なし）へ適用してから最終的に1回だけ切り捨てる（R-NUM-02）。`ResourceChanged.baseDelta`（Modifier適用前・capacity適用前の基礎量）を新設し、`delta`との差分を追跡できるようにした。`UNIT_MAIA_SALON`（EXゲージ獲得-50%デバフ）・`UNIT_KARINA_DOWNER`（EXゲージ獲得+50%バフ）を近似なしへ変換した。",
+    "description": "G-05（`14_Catalog定義スキーマ.md`、M7-002/Issue #185で新設）: 一定期間、対象のリソース獲得量自体（R-ACT-03のAP/PP消費起因のEXゲージ増加）を割合で増減させる継続効果（`APPLY_RESOURCE_GAIN_MOD`）。`APPLY_STAT_MOD`と同じ評価規約で`rateDelta`を付与時点に一度だけ評価し、`AppliedEffect.magnitude`として保持する。stackingはSTACKABLEのみのため保持している全インスタンスの`rateDelta`を合算し、`amount * (1 + rate)`を`increaseExGauge`（`action-resolution-shared.ts`）呼び出し側4箇所（AS使用・待機・PS発動・チャージ発動には該当効果なし）へ適用してから最終的に1回だけ切り捨てる（R-NUM-02）。`ResourceChanged.baseDelta`（Modifier適用前・capacity適用前の基礎量）を新設し、`delta`との差分を追跡できるようにした。`UNIT_MAIA_SALON`（EXゲージ獲得-50%デバフ）・`UNIT_KARINA_DOWNER`（EXゲージ獲得+50%バフ）を近似なしへ変換した。 REL-001（Issue #202）が、実`SKL_MAIA_SALON_AS2`（-50%）と実`SKL_KARINA_DOWNER_PS2`（+50%、`TurnCompleting` trigger）で補正を付与したうえで、保持者が実`SKL_SENKA_SCHEMER_AS1`（AP2消費）を使ったときのEXゲージ獲得量が基礎量2から1／3へ実際に動くことまでを通す証跡を追加した。同一UnitDefinitionの複数編成（R-FRM-06）で-100%を下回った場合に獲得量が0で打ち止めになる境界も含む。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN",
@@ -807,7 +810,10 @@
         "UT-R-ACT-04-011",
         "UT-R-ACT-04-012",
         "UT-R-ACT-04-013",
-        "UT-R-ACT-04-014"
+        "UT-R-ACT-04-014",
+        "IT-CAP-RESOURCE-GAIN-MOD-PROD-001",
+        "IT-CAP-RESOURCE-GAIN-MOD-PROD-002",
+        "IT-CAP-RESOURCE-GAIN-MOD-PROD-003"
       ]
     }
   },
@@ -816,7 +822,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-002",
-    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（残る`operation: DISTRIBUTE`はM7-017/Issue #271が`CAP_RESOURCE_DISTRIBUTE`として実装した）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。",
+    "description": "AP / PP / EX / HP操作（MODIFY_RESOURCE）。M7-002（Issue #185）がADD/SET/SET_TO_MAXの3操作を`effect-action-group-resolver.ts`（`resource-modification-service.ts`）へ実配線した（残る`operation: DISTRIBUTE`はM7-017/Issue #271が`CAP_RESOURCE_DISTRIBUTE`として実装した）。HP_DIRECT_COST（`resource: HP`、防御力・会心などの通常ダメージ処理を経由しない直接消費）を新設し、`UNIT_SUIRAN_CASINO`/`UNIT_LILY_HERO`/`UNIT_OLGA_VETERAN`/`UNIT_MAO_COMMITTEE`の自己コストを近似なしへ変換した。 REL-001（Issue #202）が、実`SKL_LILY_HERO_AS1`（`MAX_HP_RATIO`）と実`SKL_MAO_COMMITTEE_AS1`（`CURRENT_HP_RATIO`）を`resolveSkillUse`から通す証跡を追加した — 支払い額が最大HP基準か現在HP基準かをHPを削った状態で区別し、`bounds.min: 0`により残HPを上回る支払いが負のHPにならないことと、`ResourceChanged`のStateDeltaが独立Reducerで同じHPへ復元できることを含む。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_SUIRAN_CASINO_AS2_HP_COST",
@@ -836,7 +842,10 @@
         "UT-R-ACTN-02-010",
         "UT-R-ACTN-02-011",
         "UT-R-ACTN-02-014",
-        "UT-R-ACT-04-005"
+        "UT-R-ACT-04-005",
+        "IT-CAP-RESOURCE-MUTATION-PROD-001",
+        "IT-CAP-RESOURCE-MUTATION-PROD-002",
+        "IT-CAP-RESOURCE-MUTATION-PROD-003"
       ]
     }
   },
@@ -908,7 +917,7 @@
     "schemaStatus": "SUPPORTED",
     "runtimeStatus": "IMPLEMENTED",
     "implementationTaskId": "M7-001B",
-    "description": "EFFECT_IMMUNITY の statusKinds による状態異常種別限定免疫（R-EFF-03、M7-001B）。categories が STATUS を含む場合に、免疫対象を特定の状態異常種別（気絶等）へ絞り込む（省略時は従来どおり STATUS カテゴリ全体、effect-immunity-service.ts の findBlockingImmunity）。免疫登録（EFFECT_IMMUNITY を AppliedEffect として付与）・付与拒否（EffectApplicationRejected、blockedCount によるmaxBlocks上限）・R-EFF-07 STATUS_BLOCKED消費による免疫自身の失効・StateDelta/独立Reducer復元を effect-action-group-resolver.ts の APPLY_STAT_MOD/APPLY_STATUS/APPLY_MARKER/EFFECT_IMMUNITY branchへ配線した。",
+    "description": "EFFECT_IMMUNITY の statusKinds による状態異常種別限定免疫（R-EFF-03、M7-001B）。categories が STATUS を含む場合に、免疫対象を特定の状態異常種別（気絶等）へ絞り込む（省略時は従来どおり STATUS カテゴリ全体、effect-immunity-service.ts の findBlockingImmunity）。免疫登録（EFFECT_IMMUNITY を AppliedEffect として付与）・付与拒否（EffectApplicationRejected、blockedCount によるmaxBlocks上限）・R-EFF-07 STATUS_BLOCKED消費による免疫自身の失効・StateDelta/独立Reducer復元を effect-action-group-resolver.ts の APPLY_STAT_MOD/APPLY_STATUS/APPLY_MARKER/EFFECT_IMMUNITY branchへ配線した。 REL-001（Issue #202）が、実`SKL_AOI_GUARDIAN_EX`・実`SKL_HIIRO_LONEWOLF_PS2`（`UnitDefeated` trigger）が付与するSTUN限定免疫に対し、実`SKL_LILY_HERO_AS2`のSTUNが拒否され（`EffectApplicationRejected`）、同じ行動のstat debuffと実`SKL_NANAE_COMMANDER_EX`のFREEZEは通ることを実ライフサイクルで通す証跡を追加した。拒否される種別と拒否されない種別を同じ免疫へ両方通さないと、STATUSカテゴリ全体の免疫と区別できないためである。",
     "verification": {
       "productionDefinitionIds": [
         "ACT_AOI_GUARDIAN_EX_STUN_IMMUNITY",
@@ -940,7 +949,11 @@
         "UT-R-EFF-03-015",
         "UT-R-EFF-03-016",
         "UT-R-EFF-03-017",
-        "UT-R-EFF-03-018"
+        "UT-R-EFF-03-018",
+        "IT-CAP-SPECIFIC-IMMUNITY-PROD-001",
+        "IT-CAP-SPECIFIC-IMMUNITY-PROD-002",
+        "IT-CAP-SPECIFIC-IMMUNITY-PROD-003",
+        "IT-CAP-SPECIFIC-IMMUNITY-PROD-004"
       ]
     }
   },

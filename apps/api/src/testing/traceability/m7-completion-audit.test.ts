@@ -162,6 +162,8 @@ describe("M7 completion audit (M7-010)", () => {
     // `IMPLEMENTED`側は対象外にする。`17_残作業対応表.json`はM7以降の残作業だけを
     // 登録する台帳であり、M6以前に完了したCapability（`CAP_COOLDOWN_MANIPULATION`の
     // `M6-CD-001`、`CAP_SKILL_RUNTIME_COUNTER`の`M6-RC-001`）は`tasks`へ登録されない。
+    // 裏返しの不変条件（`IMPLEMENTED`側の`implementationTaskId`が`CLOSED`であること、
+    // 証跡にproduction経路のテストを含むこと）は`capability-status-audit.test.ts`が持つ。
     expect(
       orphaned.sort(),
       "unimplemented Capabilities must name an OPEN implementation task",
