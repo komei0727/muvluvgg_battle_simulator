@@ -139,17 +139,13 @@ GET /health/ready
       "attribute": "SHY",
       "unitType": "PHYSICAL",
       "role": "PHYSICAL_ATTACKER",
-      "positionAptitudes": ["FRONT"],
-      "selectable": true,
-      "unavailableCapabilities": []
+      "positionAptitudes": ["FRONT"]
     }
   ],
   "memories": [
     {
       "memoryDefinitionId": "MEM_HEART_COLOR",
-      "displayName": "心の色",
-      "selectable": false,
-      "unavailableCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"]
+      "displayName": "心の色"
     }
   ]
 }
@@ -166,42 +162,28 @@ GET /health/ready
 
 ### CatalogUnitSummaryResponse
 
-| プロパティ                | 型       | 必須 | 説明                                                                 |
-| ------------------------- | -------- | ---- | -------------------------------------------------------------------- |
-| `unitDefinitionId`        | string   | 必須 | 不透明なUnit定義ID。                                                 |
-| `displayName`             | string   | 必須 | Catalog metadataの表示名。                                           |
-| `characterName`           | string   | 必須 | Catalog metadataのキャラクター名。                                   |
-| `attribute`               | string   | 必須 | Unit属性。未知の将来値を許容する。                                   |
-| `unitType`                | string   | 必須 | `PHYSICAL`、`ENERGY`、`AGILE`。未知の将来値を許容する。              |
-| `role`                    | string   | 必須 | Unit Role。将来追加を許容する。                                      |
-| `positionAptitudes`       | string[] | 必須 | `FRONT`、`BACK`の1件以上。API編成入力の後衛 `REAR`とは名称が異なる。 |
-| `selectable`              | boolean  | 必須 | 現在の実装Capabilityで戦闘事前検証を通過可能か。                     |
-| `unavailableCapabilities` | string[] | 必須 | 未実装Capability ID。重複なし・昇順。                                |
+| プロパティ          | 型       | 必須 | 説明                                                                 |
+| ------------------- | -------- | ---- | -------------------------------------------------------------------- |
+| `unitDefinitionId`  | string   | 必須 | 不透明なUnit定義ID。                                                 |
+| `displayName`       | string   | 必須 | Catalog metadataの表示名。                                           |
+| `characterName`     | string   | 必須 | Catalog metadataのキャラクター名。                                   |
+| `attribute`         | string   | 必須 | Unit属性。未知の将来値を許容する。                                   |
+| `unitType`          | string   | 必須 | `PHYSICAL`、`ENERGY`、`AGILE`。未知の将来値を許容する。              |
+| `role`              | string   | 必須 | Unit Role。将来追加を許容する。                                      |
+| `positionAptitudes` | string[] | 必須 | `FRONT`、`BACK`の1件以上。API編成入力の後衛 `REAR`とは名称が異なる。 |
 
 ### CatalogMemorySummaryResponse
 
-| プロパティ                | 型       | 必須 | 説明                                             |
-| ------------------------- | -------- | ---- | ------------------------------------------------ |
-| `memoryDefinitionId`      | string   | 必須 | 不透明なMemory定義ID。                           |
-| `displayName`             | string   | 必須 | Catalog metadataの表示名。                       |
-| `selectable`              | boolean  | 必須 | 現在の実装Capabilityで戦闘事前検証を通過可能か。 |
-| `unavailableCapabilities` | string[] | 必須 | 未実装Capability ID。重複なし・昇順。            |
-
-### 選択可否の規則
-
-- 対象定義自身だけでなく、参照Skill、EffectActionまで推移的に必要Capabilityを収集する。
-- 全必要CapabilityがCatalog上で `IMPLEMENTED`の場合だけ `selectable: true`とする。
-- `selectable: true`と `unavailableCapabilities: []`は常に対応する。
-- `selectable: false`では `unavailableCapabilities`を1件以上返す。
-- 同じCatalog revisionに対する一覧判定と `POST /api/v1/battle-simulations` の事前検証は一致しなければならない。
-- 未対応定義も一覧から除外しない。
+| プロパティ           | 型     | 必須 | 説明                       |
+| -------------------- | ------ | ---- | -------------------------- |
+| `memoryDefinitionId` | string | 必須 | 不透明なMemory定義ID。     |
+| `displayName`        | string | 必須 | Catalog metadataの表示名。 |
 
 ### 情報公開境界
 
 一覧APIは次を公開しない。
 
 - Skill、EffectAction、Formula、Condition、triggeredEffectsの完全定義
-- Capabilityの内部実装状況説明や実装計画
 - Catalogファイルパス、hash、manifest全文
 - 画像URL。初期版はUIの任意アセットmapで解決する。
 
@@ -548,7 +530,7 @@ MarkerStateResponse {
 
 #### Memory由来Markerの付与元（M7-008 / Issue #176、REL-008 / Issue #263）
 
-R-MEM-04 の Memory は使用者 `BattleUnit` を持たないため、Memory が付与した `MarkerState` は付与者ユニットの代わりに付与元陣営（`sourceSide`）だけを持つ。M7-008 でこの表現を Domain・`StateDelta`・`MarkerApplied`/`MarkerUpdated` の各payloadへ実装した時点では、`MarkerStateResponse.sourceUnitId`（および同名のイベント `details` プロパティ）が必須のままだったため、Memory が Marker を付与する production 定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は `CAP_MEMORY_GRANTED_MARKER`（`runtimeStatus: PLANNED`）が Capability preflight で編成不可として弾いていた。
+R-MEM-04 の Memory は使用者 `BattleUnit` を持たないため、Memory が付与した `MarkerState` は付与者ユニットの代わりに付与元陣営（`sourceSide`）だけを持つ。M7-008 でこの表現を Domain・`StateDelta`・`MarkerApplied`/`MarkerUpdated` の各payloadへ実装した時点では、`MarkerStateResponse.sourceUnitId`（および同名のイベント `details` プロパティ）が必須のままだったため、Memory が Marker を付与する production 定義（`MEM_ALWAYS_PICO_BESIDE_YOU`）は編成不可として弾いていた。
 
 REL-008 で `EffectStateResponse`・`EffectApplied` と同じ「`sourceUnitId` と `sourceSide` のどちらか一方だけを持つ」形へ揃え、`/api/v1`・`schemaVersion: 1` のまま公開した。下記「バージョニング」の後方互換な追加として扱う根拠は次のとおりである。
 
@@ -849,32 +831,31 @@ reconstructedFinalState = apply(
 
 ### ViolationResponse
 
-| プロパティ     | 型     | 必須 | 説明                          |
-| -------------- | ------ | ---- | ----------------------------- |
-| `path`         | string | 任意 | JSON Pointer形式の入力位置。  |
-| `definitionId` | string | 任意 | 問題がある定義ID。            |
-| `ruleId`       | string | 任意 | 違反規則またはCapability ID。 |
-| `message`      | string | 必須 | 個別違反の説明。              |
+| プロパティ     | 型     | 必須 | 説明                         |
+| -------------- | ------ | ---- | ---------------------------- |
+| `path`         | string | 任意 | JSON Pointer形式の入力位置。 |
+| `definitionId` | string | 任意 | 問題がある定義ID。           |
+| `ruleId`       | string | 任意 | 違反規則ID。                 |
+| `message`      | string | 必須 | 個別違反の説明。             |
 
 `message` の文言は互換性契約にしない。クライアントは `code`、`ruleId`、`path` を使用する。
 
 ### ステータスコード対応
 
-| HTTP                         | code                           | 使用条件                                 |
-| ---------------------------- | ------------------------------ | ---------------------------------------- |
-| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。   |
-| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                   |
-| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                 |
-| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                 |
-| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。        |
-| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。           |
-| `422 Unprocessable Content`  | `UNSUPPORTED_RULE`             | 選択定義が未実装Capabilityを必要とする。 |
-| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。   |
-| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。  |
-| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。               |
-| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。        |
-| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。     |
-| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。       |
+| HTTP                         | code                           | 使用条件                                |
+| ---------------------------- | ------------------------------ | --------------------------------------- |
+| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。  |
+| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                  |
+| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                |
+| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                |
+| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。       |
+| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。          |
+| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。  |
+| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。 |
+| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。              |
+| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。       |
+| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。    |
+| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。      |
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 
@@ -916,7 +897,7 @@ reconstructedFinalState = apply(
 - 新しいイベント種別の追加
 - 新しいエラーコードの追加
 - 新しい列挙値の追加。ただし既存クライアントが未知値を扱えることを前提とする。
-- Capability preflightが編成段階で弾いていたため一度も公開されたことがない変種の追加。既存クライアントが受け取れたレスポンスの形が変わらないことが条件であり、そのために必須プロパティを任意へ緩める場合は、緩めた後も従来から公開されていた変種では常に存在することを併せて示す（REL-008 / Issue #263 の `MarkerStateResponse.sourceUnitId`。上記「Memory由来Markerの付与元」を参照）。
+- 編成段階で弾かれていたため一度も公開されたことがない変種の追加。既存クライアントが受け取れたレスポンスの形が変わらないことが条件であり、そのために必須プロパティを任意へ緩める場合は、緩めた後も従来から公開されていた変種では常に存在することを併せて示す（REL-008 / Issue #263 の `MarkerStateResponse.sourceUnitId`。上記「Memory由来Markerの付与元」を参照）。
 - 同じ理由で、Response Mapperが常に例外にしていたため一度も公開されたことがない変種の追加（REL-004 / Issue #203 の `CooldownStateResponse.setAtActionId`。上記「設定スコープを持たないクールタイム」を参照）。
 
 次は破壊的変更としてAPIメジャーバージョンを検討する。
@@ -1018,9 +999,8 @@ GitHub Pages UIから別originのAPIを呼ぶため、M4.5でCORSをAPI契約へ
 3. 0体、6体、7件のメモリー、0・100ターンをそれぞれ拒否する。
 4. 同じ陣営内の配置重複をJSON Pointer付きで返す。
 5. 不明なユニット・メモリーIDを `422 DEFINITION_NOT_FOUND` で返す。
-6. 未実装Capabilityを必要とする定義を `422 UNSUPPORTED_RULE` で返す。
-7. 未知プロパティを拒否する。
-8. 対応しないContent-Type、Acceptをそれぞれ `415`、`406` で拒否する。
+6. 未知プロパティを拒否する。
+7. 対応しないContent-Type、Acceptをそれぞれ `415`、`406` で拒否する。
 
 ### ログレベルと障害
 

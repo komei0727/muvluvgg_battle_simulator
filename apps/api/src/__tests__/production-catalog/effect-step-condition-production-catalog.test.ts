@@ -53,9 +53,8 @@ import {
  * だけを検証する（`effect-action-group-resolver.ts`の`resolveRawStep`が
  * 実行時に呼ぶのと同じ関数・同じ`resolvedBindings`）。
  *
- * capability検証は「EffectStepの対象別条件」というこのcapability自身の境界
- * （`docs/ddd/14_Catalog定義スキーマ.md`のCAP_EFFECT_STEP_CONDITION行 —
- * 「集合条件」はこの境界から明示的に除外されている）に留める。
+ * 検証は「EffectStepの対象別条件」という機能自身の境界に留める
+ * （「集合条件」はこの境界から明示的に除外されている）。
  * `SKL_CHIYURU_MAZE_EX`/`SKL_TATIANA_SAGE_EX`/`SKL_LYDIA_GENIUS_AS1`など残る
  * AOE_PER_TARGET_CONDITION行は別の未設計スコープ（`HAS_STATUS`の状態異常追跡、
  * 集合条件用ConditionKindなど）にも依存するため、この検証範囲には含めない。
