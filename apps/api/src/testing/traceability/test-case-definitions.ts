@@ -16,7 +16,14 @@ export interface TestCaseDefinition {
   readonly position: number;
 }
 
-export const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E|PROP)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
+/**
+ * `12_テスト戦略.md`「テストケースID」の`<LEVEL>-<SUBJECT>-<NUMBER>`。
+ *
+ * `API`（API契約テスト）を含むのは、この層のIDが一意性検査の外に居ると
+ * 同じIDを別のテストが名乗っても誰も気づかないため（REL-004／Issue #203で
+ * `API-OPENAPI-005`〜`008`が実際に各2回使われていた）。
+ */
+export const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E|PROP|API)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
 const NON_EXECUTING_TEST_MODIFIERS = new Set(["skip", "skipIf", "todo", "runIf"]);
 export const VITEST_TEST_FUNCTIONS = new Set(["it", "test"]);
 const VITEST_SUITE_FUNCTIONS = new Set(["describe", "suite"]);

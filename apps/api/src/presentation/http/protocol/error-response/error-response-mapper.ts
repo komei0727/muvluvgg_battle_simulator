@@ -78,6 +78,16 @@ export function httpStatusForErrorCode(code: HttpErrorCode): number {
 }
 
 /**
+ * 指定ステータスで返し得る`code`の集合。`10_API設計.md`「ステータスコード対応」の
+ * 表をOpenAPI公開文書の`enum`として書き出すために、実際の変換表から導出する
+ * （表・実装・公開文書が別々に育つのを防ぐ）。安定した並びにするため
+ * `HTTP_ERROR_CODES`の宣言順を保つ。
+ */
+export function errorCodesForHttpStatus(status: number): readonly HttpErrorCode[] {
+  return HTTP_ERROR_CODES.filter((code) => STATUS_BY_CODE[code] === status);
+}
+
+/**
  * `10_API設計.md`「Inbound Adapterでの変換」で定義される内部⇔外部の名前対応。
  * `SimulateBattleCommand`の`slots`は外部DTOでは`units`と呼ぶ。
  */

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, InjectOptions } from "fastify";
 import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
 import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
@@ -379,7 +379,7 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("API-CONTRACT-015b (RFC 9110 §8.3.1): matches Accept media types case-insensitively", async () => {
+  it("API-CONTRACT-026 (RFC 9110 §8.3.1): matches Accept media types case-insensitively", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/battle-simulations",
@@ -390,7 +390,7 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("API-CONTRACT-015c (RFC 9110 §5.6.6): rejects application/json when explicitly excluded via an uppercase `Q=0` parameter name", async () => {
+  it("API-CONTRACT-027 (RFC 9110 §5.6.6): rejects application/json when explicitly excluded via an uppercase `Q=0` parameter name", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/battle-simulations",
@@ -578,6 +578,159 @@ describe("POST /api/v1/battle-simulations", () => {
       expect(executed).toBe(false);
     } finally {
       await shuttingDownApp.close();
+    }
+  });
+
+  it("API-CONTRACT-023 (REL-004, Issue #203, 10_API設計.md「出力上限に達した場合は不完全な200 OKを返さず、EXECUTION_LIMIT_EXCEEDEDとする」): an execution-guard overrun becomes 503 EXECUTION_LIMIT_EXCEEDED with an error body, never a truncated success body", async () => {
+    // `SimulateBattleUseCase`が`ExecutionGuardExceededError`をこのApplicationErrorへ
+    // 変換することは`simulate-battle-use-case.test.ts`が押さえている。ここで固定するのは
+    // HTTP境界——上限に達した実行が「途中まで埋まった200」にならないこと。
+    const overrunApp = await buildServer({
+      execute: () =>
+        Promise.reject(
+          new ApplicationError("EXECUTION_LIMIT_EXCEEDED", [
+            { reason: "event recording exceeded the SimulationExecutionGuard total-event limit" },
+          ]),
+        ),
+    });
+
+    try {
+      const response = await overrunApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(response.statusCode).toBe(503);
+      const body = response.json<ErrorResponseBody>();
+      expect(body.error.code).toBe("EXECUTION_LIMIT_EXCEEDED");
+      // 成功レスポンスとエラーレスポンスを同じ本文に混在させない（`10_API設計.md`「ErrorResponse」）。
+      const asUnknown = body as unknown as Record<string, unknown>;
+      for (const successField of ["result", "events", "stateTransitions", "finalState"]) {
+        expect(successField in asUnknown, `${successField} leaked into the error body`).toBe(false);
+      }
+    } finally {
+      await overrunApp.close();
+    }
+  });
+
+  it("API-CONTRACT-024 (REL-004, Issue #203, 10_API設計.md「期限切れをターン上限敗北として返してはならない」): a deadline overrun in the real UseCase becomes 504 EXECUTION_TIMEOUT rather than a TURN_LIMIT_REACHED result", async () => {
+    // 実`SimulateBattleUseCase`を、期限をとうに過ぎた時計で動かす。ターン境界の
+    // 期限確認（`simulate-battle-use-case.ts`）が実際に発火する経路を通す。
+    const expiredApp = await buildServer(
+      toDirectExecutor(
+        new SimulateBattleUseCase({
+          battleCatalog: new FakeBattleCatalog(UNITS),
+          battleIdGenerator: new FixedBattleIdGenerator(["B_TIMEOUT"]),
+          randomSourceFactory: new SequenceRandomSourceFactory([]),
+          clock: new ManualClock(Date.now() + 10_000_000),
+        }),
+      ),
+    );
+
+    try {
+      const response = await expiredApp.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody(),
+      });
+
+      expect(response.statusCode).toBe(504);
+      const body = response.json<ErrorResponseBody>();
+      expect(body.error.code).toBe("EXECUTION_TIMEOUT");
+      expect(JSON.stringify(body)).not.toContain("TURN_LIMIT_REACHED");
+    } finally {
+      await expiredApp.close();
+    }
+  });
+
+  it("API-CONTRACT-025 (REL-004, Issue #203, 10_API設計.md「すべてのレスポンスに同じX-Request-Idを返す」): every documented failure status echoes the client's X-Request-Id, not just the success and 500 paths", async () => {
+    const requestId = "01JREL004REQUESTID000000000";
+
+    // Fastify境界・UseCase・Poolのどこで確定するエラーでも同じ扱いにする。
+    const cases: readonly { readonly status: number; readonly inject: InjectOptions }[] = [
+      {
+        status: 400,
+        inject: {
+          method: "POST",
+          url: "/api/v1/battle-simulations",
+          headers: { "content-type": "application/json", "x-request-id": requestId },
+          payload: "{ not json",
+        },
+      },
+      {
+        status: 406,
+        inject: {
+          method: "POST",
+          url: "/api/v1/battle-simulations",
+          headers: { accept: "text/plain", "x-request-id": requestId },
+          payload: validRequestBody(),
+        },
+      },
+      {
+        status: 415,
+        inject: {
+          method: "POST",
+          url: "/api/v1/battle-simulations",
+          headers: { "content-type": "application/xml", "x-request-id": requestId },
+          payload: "<xml/>",
+        },
+      },
+      {
+        status: 422,
+        inject: {
+          method: "POST",
+          url: "/api/v1/battle-simulations",
+          headers: { "x-request-id": requestId },
+          payload: validRequestBody({ turnLimit: 0 }),
+        },
+      },
+    ];
+
+    for (const { status, inject } of cases) {
+      const response = await app.inject(inject);
+      expect(response.statusCode, JSON.stringify(inject)).toBe(status);
+      expect(response.headers["x-request-id"], `status ${status}`).toBe(requestId);
+    }
+
+    // 413・500・503・504はサーバー設定かUseCase側でしか起こせないので、専用のサーバーで確認する。
+    const failingApps = [
+      { status: 413, app: await buildServer(buildTestUseCase(), { bodyLimit: 64 }) },
+      {
+        status: 500,
+        app: await buildServer({
+          execute: () => Promise.reject(new Error("boom")),
+        }),
+      },
+      {
+        status: 504,
+        app: await buildServer({
+          execute: () =>
+            Promise.reject(new ApplicationError("EXECUTION_TIMEOUT", [{ reason: "deadline" }])),
+        }),
+      },
+      {
+        status: 503,
+        app: await buildServer({
+          execute: () => {
+            throw new SimulationCapacityExceededError();
+          },
+        }),
+      },
+    ];
+    try {
+      for (const { status, app: failingApp } of failingApps) {
+        const response = await failingApp.inject({
+          method: "POST",
+          url: "/api/v1/battle-simulations",
+          headers: { "x-request-id": requestId },
+          payload: validRequestBody(),
+        });
+        expect(response.statusCode).toBe(status);
+        expect(response.headers["x-request-id"], `status ${status}`).toBe(requestId);
+      }
+    } finally {
+      await Promise.all(failingApps.map(({ app: failingApp }) => failingApp.close()));
     }
   });
 });

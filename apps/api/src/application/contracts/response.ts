@@ -117,28 +117,32 @@ export interface MarkerStateResponseBody {
 
 /**
  * `10_API設計.md`「CooldownStateResponse」。`setAtActionId`/`setAtTurnNumber`は
- * `unit`(ACTION/TURN)に応じてどちらか一方だけ存在する（Domainの`CooldownEntry`と
- * 同じXOR。`state-delta.ts`の`CooldownState`コメント参照）。discriminated union
- * にすることで、両方欠落・両方存在という不正な組み合わせをコンパイル時に防ぐ。
- * 反対側フィールドを`?: never`にしているのは、
+ * 設定scopeは`unit`(ACTION/TURN)に対応する側だけが現れ、反対側は現れない
+ * （Domainの`CooldownEntry`と同じ対応。`state-delta.ts`の`CooldownState`コメント参照）。
+ * discriminated unionにして反対側フィールドを`?: never`にしているのは、
  * オブジェクトリテラル直書き以外（変数経由の代入）でもexcess property check を
- * 回避できないようにするため（`never`が無いと構造的部分型
- * 付けにより両方のフィールドを持つ値も代入できてしまう）。`remaining`は残数が
- * あるスキルだけを返す契約のため1以上。
+ * 回避できないようにするため（`never`が無いと構造的部分型付けにより両方の
+ * フィールドを持つ値も代入できてしまう）。`remaining`は残数があるスキルだけを
+ * 返す契約のため1以上。
+ *
+ * 対応する側も任意なのは、PSが行動外のトップレベルイベントから発動した
+ * クールタイムが設定scopeを持たないため（R-SKL-04、`cooldown-state.ts`の
+ * `startCooldown`）。必須にしていた間、この状態を持つ実在Unitのレスポンスは
+ * serialize時に落ちて`500`になっていた（REL-004 / Issue #203）。
  */
 export type CooldownStateResponseBody =
   | {
       readonly skillDefinitionId: string;
       readonly unit: "ACTION";
       readonly remaining: number;
-      readonly setAtActionId: string;
+      readonly setAtActionId?: string;
       readonly setAtTurnNumber?: never;
     }
   | {
       readonly skillDefinitionId: string;
       readonly unit: "TURN";
       readonly remaining: number;
-      readonly setAtTurnNumber: number;
+      readonly setAtTurnNumber?: number;
       readonly setAtActionId?: never;
     };
 

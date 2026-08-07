@@ -344,12 +344,30 @@ const markerStateResponseSchema = {
  * （両方欠落・両方存在は不正）。`remaining`は残数がある
  * スキルだけを返す契約のため`minimum: 1`。
  */
+/**
+ * 設定scopeフィールドは`unit`に対応する側だけを持ち、反対側は持たない
+ * （`10_API設計.md`「CooldownStateResponse」）。
+ *
+ * 一方で、対応する側すら持たないエントリが実在する。R-SKL-04のクールタイムは
+ * PSがターン開始・終了など**行動外のトップレベルイベント**から発動した場合に
+ * 設定scopeを持たず（`cooldown-state.ts`の`startCooldown`、`scope === undefined`）、
+ * 「不在そのもの」が『どの行動でも設定scopeに一致しない＝次の行動終了で減る』の
+ * 正本になる（`08_ドメインイベント.md`「差分がフィールドを持たないこと」）。
+ * `setAtActionId`を無条件必須にしていたため、この状態を持つ実在Unit
+ * （`UNIT_LUCIE_MAID`の`SKL_LUCIE_MAID_PS1`）のレスポンスはserialize時に落ち、
+ * 実HTTP経路が`500 INTERNAL_INVARIANT_VIOLATION`を返していた（REL-004で検出）。
+ *
+ * 必須から任意への緩和は`10_API設計.md`「バージョニング」の後方互換な追加に当たる。
+ * この変種は一度も公開されたことがなく（常に500だった）、従来公開されていた
+ * 「行動内で設定されたクールタイム」は今も必ず`setAtActionId`を持つため、
+ * 既存クライアントが受け取れたレスポンスの形は変わらない。
+ */
 export const cooldownStateResponseSchema = {
   oneOf: [
     {
       type: "object",
       additionalProperties: false,
-      required: ["skillDefinitionId", "unit", "remaining", "setAtActionId"],
+      required: ["skillDefinitionId", "unit", "remaining"],
       properties: {
         skillDefinitionId: { type: "string" },
         unit: { const: "ACTION" },
@@ -360,7 +378,7 @@ export const cooldownStateResponseSchema = {
     {
       type: "object",
       additionalProperties: false,
-      required: ["skillDefinitionId", "unit", "remaining", "setAtTurnNumber"],
+      required: ["skillDefinitionId", "unit", "remaining"],
       properties: {
         skillDefinitionId: { type: "string" },
         unit: { const: "TURN" },

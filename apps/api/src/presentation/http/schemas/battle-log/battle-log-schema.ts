@@ -237,7 +237,14 @@ const skillUseCompletedDetailsSchema = {
 } as const;
 
 const EFFECT_STEP_KIND_ENUM = ["ACTION", "BRANCH", "RANDOM_BRANCH", "REPEAT"] as const;
-const CONDITION_KIND_ENUM = [
+/**
+ * `EffectStepStarting`/`EffectStepSkipped`の`conditionKind`。値集合の正本は
+ * Domainの`CONDITION_KINDS`で、ここはそれをワイヤー契約として写したもの。
+ * 両者の一致は`openapi.test.ts`の`API-OPENAPI-028`が固定する — presentationは
+ * domainを直接importできない（`no-restricted-imports`）ため、写し漏れは
+ * テストでしか検出できない。
+ */
+export const CONDITION_KIND_ENUM = [
   "TRUE",
   "AND",
   "OR",
@@ -249,14 +256,16 @@ const CONDITION_KIND_ENUM = [
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
   "ALIVE_UNIT_COUNT",
-  // Issue #230: `stepCondition`（ACTIONの
-  // CAP_EFFECT_STEP_SET_CONDITION、Issue #227）としてEffectStepStarting/
-  // EffectStepSkippedの`conditionKind`に実際に現れうる。従来は
-  // `runtimeStatus: PLANNED`（production定義なし）だったため、この
-  // enumが実際にexerciseされたことがなく、抜けが検出されていなかった。
+  "POSITION_RELATION",
+  "RESOLUTION_PHASE",
   "TARGET_SET_COUNT",
+  "TARGET_HAS_EFFECT",
 ] as const;
-const EFFECT_ACTION_KIND_ENUM = [
+/**
+ * `EffectActionStarting.kind`／`EffectApplied.effectKind`。値集合の正本はDomainの
+ * `EFFECT_ACTION_KINDS`（一致は`API-OPENAPI-028`が固定する）。
+ */
+export const EFFECT_ACTION_KIND_ENUM = [
   "DAMAGE",
   "HEAL",
   "APPLY_CONTINUOUS_HEAL",
@@ -280,12 +289,9 @@ const EFFECT_ACTION_KIND_ENUM = [
   "APPLY_SUBUNIT",
   "COOLDOWN_MANIPULATION",
   "APPLY_ATTACK_DAMAGE_BONUS",
-  // M7-011（Issue #265）: `EffectApplied.effectKind`をこのenumで検証するように
-  // なったため、`effect-action-definition.ts`の`EFFECT_ACTION_KINDS`に対して
-  // 欠けていた2種（M7-005-HEAL-LINK／Issue #229、M7-002／Issue #185で実装済み）
-  // を補う。欠けたままではHEALING_LINK等の実付与がschema検証で落ちる。
   "APPLY_HEALING_LINK",
   "APPLY_RESOURCE_GAIN_MOD",
+  "APPLY_DAMAGE_LINK",
 ] as const;
 /**
  * `EffectApplied.categories`（M7-011、Issue #265）。`catalog-enums.ts`の
@@ -1717,6 +1723,10 @@ export const conditionDefinitionDetailsSchema = {
  * `EffectApplied`/`EffectApplicationRejected`の`details`と、
  * `EffectStateResponse`（`simulation-schema.ts`）が共有する。
  */
+/**
+ * `EffectApplied.statusKind`ほか。値集合の正本はDomainの`STATUS_KINDS`
+ * （一致は`API-OPENAPI-028`が固定する）。
+ */
 export const STATUS_KIND_ENUM = [
   "STUN",
   "FREEZE",
@@ -1728,6 +1738,8 @@ export const STATUS_KIND_ENUM = [
   "CRITICAL_PREVENTION",
   "GUARANTEED_HIT",
   "HIT_EVASION",
+  "CONFUSION",
+  "DAMAGE_TO_HEAL",
 ] as const;
 
 const effectAppliedDetailsSchema = {
@@ -2177,8 +2189,21 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
  * `details`の組み合わせ自体を検証対象にする。各variantは`type`の値で
  * 一意に排他となるため（`details`の形が複数variant間で重複していても）、
  * `oneOf`が「複数一致で失敗」になることはない。
+ *
+ * この`oneOf`は「今のAPI v1が発行し得る種別の全量」を文書化したものであり、
+ * ワイヤー契約としての閉じた集合ではない。`10_API設計.md`「バージョニング」は
+ * 新しいイベント種別の追加を後方互換な変更と定めており、実行時schemaの`type`は
+ * `{ type: "string" }` のまま（このファイル冒頭の`battleLogEventResponseSchema`）。
+ * その非対称性は`description`で公開文書にも明示する。
  */
+const UNKNOWN_EVENT_TYPE_TOLERANCE_DESCRIPTION =
+  "Battle log event. The listed type values are the complete set this API version can currently emit; " +
+  "adding a new event type is a backward-compatible change under the v1 contract " +
+  "(10_API設計.md「バージョニング」). Clients must not reject the whole response solely because " +
+  "an event carries an unrecognized type — skip or generically render the event instead.";
+
 export const battleLogEventResponseDocSchema = {
+  description: UNKNOWN_EVENT_TYPE_TOLERANCE_DESCRIPTION,
   oneOf: Object.entries(EVENT_DETAILS_SCHEMA_BY_TYPE).map(([type, detailsSchema]) => ({
     ...battleLogEventResponseSchema,
     properties: {

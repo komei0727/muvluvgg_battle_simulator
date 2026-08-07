@@ -1443,7 +1443,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(() => reconstructFinalState(duplicated)).toThrow(/does not continue from/);
   });
 
-  it("API-STATE-RESTORE-004b: rejects stateTransitions whose events[].stateTransitionIndex no longer points back to the transition it claims to have caused (12_テスト戦略.md「イベントのstateTransitionIndexが対応差分を指す」)", async () => {
+  it("API-STATE-RESTORE-011: rejects stateTransitions whose events[].stateTransitionIndex no longer points back to the transition it claims to have caused (12_テスト戦略.md「イベントのstateTransitionIndexが対応差分を指す」)", async () => {
     const body = await runLethalScenario();
     expect(body.stateTransitions.length).toBeGreaterThan(2);
     // Removing a middle transition, without also fixing up events[], leaves
@@ -1456,7 +1456,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     expect(() => reconstructFinalState(withGap)).toThrow(/stateTransitionIndex/);
   });
 
-  it("API-STATE-RESTORE-004c: rejects a stateTransitions array where a transition's causedBySequence names a *published* event, but that event's own stateTransitionIndex was dropped (the reverse direction of the event<->transition cross-reference — a forward-only check misses this)", async () => {
+  it("API-STATE-RESTORE-012: rejects a stateTransitions array where a transition's causedBySequence names a *published* event, but that event's own stateTransitionIndex was dropped (the reverse direction of the event<->transition cross-reference — a forward-only check misses this)", async () => {
     const body = await runLethalScenario();
     const ownerIndex = body.events.findIndex((event) => event.stateTransitionIndex !== undefined);
     expect(ownerIndex).toBeGreaterThanOrEqual(0);

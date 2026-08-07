@@ -54,50 +54,46 @@ function toPercentagePoints(ratio: number): number {
 
 /**
  * `10_API設計.md`「CooldownStateResponse」: `unit`に応じて`setAtActionId`/
- * `setAtTurnNumber`のどちらか一方だけを持つdiscriminated unionを構築する。
- * Domainの`CooldownState`はこのXORをコンパイル時には強制しない（`unit`と
- * `setActionId`/`setTurnNumber`が独立したoptionalフィールドのため）ので、ここで
- * 実行時に検証する。反対側のscopeフィールドが同時に存在する場合も、黙って
- * 捨てて正常化するのではなく例外にする（Domain不変条件が破れているサインを
- * 握りつぶさない）。
+ * `setAtTurnNumber`のうち**対応する側だけ**を持つdiscriminated unionを構築する。
+ * Domainの`CooldownState`は`unit`と`setActionId`/`setTurnNumber`が独立した
+ * optionalフィールドなのでこの対応をコンパイル時に強制できず、反対側のscope
+ * フィールドが同時に存在する場合は黙って捨てず例外にする（Domain不変条件が
+ * 破れているサインを握りつぶさない）。
+ *
+ * 対応する側が**不在**なのは正当な状態で、例外にしない。PSがターン開始・終了など
+ * 行動外のトップレベルイベントから発動したクールタイムは設定scopeを持たず
+ * （`cooldown-state.ts`の`startCooldown`）、その不在自体が「どの行動でも設定scopeに
+ * 一致しない」の正本になる（R-SKL-04）。ここで落としていたため、
+ * `UNIT_LUCIE_MAID`のような実在Unitの戦闘が実HTTP経路で
+ * `500 INTERNAL_INVARIANT_VIOLATION`になっていた。
  */
 function toCooldownStateResponseBody(
   skillDefinitionId: string,
   state: CooldownState,
 ): CooldownStateResponseBody {
   if (state.unit === "ACTION") {
-    if (state.setActionId === undefined) {
-      throw new Error(
-        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but no setActionId (violates the ACTION/TURN setting-scope XOR)`,
-      );
-    }
     if (state.setTurnNumber !== undefined) {
       throw new Error(
-        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but also has setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
+        `cooldowns["${skillDefinitionId}"] has unit "ACTION" but also has setTurnNumber (the setting scope must match the unit)`,
       );
     }
     return {
       skillDefinitionId,
       unit: "ACTION",
       remaining: state.remaining,
-      setAtActionId: state.setActionId,
+      ...(state.setActionId !== undefined ? { setAtActionId: state.setActionId } : {}),
     };
-  }
-  if (state.setTurnNumber === undefined) {
-    throw new Error(
-      `cooldowns["${skillDefinitionId}"] has unit "TURN" but no setTurnNumber (violates the ACTION/TURN setting-scope XOR)`,
-    );
   }
   if (state.setActionId !== undefined) {
     throw new Error(
-      `cooldowns["${skillDefinitionId}"] has unit "TURN" but also has setActionId (violates the ACTION/TURN setting-scope XOR)`,
+      `cooldowns["${skillDefinitionId}"] has unit "TURN" but also has setActionId (the setting scope must match the unit)`,
     );
   }
   return {
     skillDefinitionId,
     unit: "TURN",
     remaining: state.remaining,
-    setAtTurnNumber: state.setTurnNumber,
+    ...(state.setTurnNumber !== undefined ? { setAtTurnNumber: state.setTurnNumber } : {}),
   };
 }
 

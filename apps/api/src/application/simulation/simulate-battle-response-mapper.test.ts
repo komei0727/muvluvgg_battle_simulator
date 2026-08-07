@@ -945,41 +945,48 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-010B: throws instead of silently producing an invalid CooldownStateResponse when a Domain cooldown's unit/setActionId/setTurnNumber XOR is violated (ACTION unit missing setActionId)", () => {
-    expect(() =>
-      toBattleSimulationResponseBody(
-        baseResult({
-          finalState: {
-            status: "COMPLETED",
-            currentTurn: 1,
-            result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
-            units: {
-              [ALLY_ID]: {
-                hp: 90,
-                ap: 1,
-                pp: 0,
-                extraGauge: 5,
-                maximumAp: 3,
-                maximumPp: 2,
-                maximumExtraGauge: 100,
-                combatStats: ALLY_COMBAT_STATS,
-                cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
-              },
-              [ENEMY_ID]: {
-                hp: 0,
-                ap: 0,
-                pp: 0,
-                extraGauge: 0,
-                maximumAp: 3,
-                maximumPp: 2,
-                maximumExtraGauge: 100,
-                combatStats: ENEMY_COMBAT_STATS,
-              },
+  it("API-RESP-010B (REL-004, Issue #203, R-SKL-04): serializes an ACTION cooldown that has no setting scope by omitting setAtActionId, because a Passive Skill activated outside any action legitimately produces one", () => {
+    // `startCooldown`は`scope === undefined`（ターン開始・終了などのトップレベル
+    // イベントからのPS発動）で設定scopeなしのエントリを作る。ここで例外にしていた
+    // ため、実在Unit`UNIT_LUCIE_MAID`のレスポンスが500になっていた。
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        finalState: {
+          status: "COMPLETED",
+          currentTurn: 1,
+          result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+          units: {
+            [ALLY_ID]: {
+              hp: 90,
+              ap: 1,
+              pp: 0,
+              extraGauge: 5,
+              maximumAp: 3,
+              maximumPp: 2,
+              maximumExtraGauge: 100,
+              combatStats: ALLY_COMBAT_STATS,
+              cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
+            },
+            [ENEMY_ID]: {
+              hp: 0,
+              ap: 0,
+              pp: 0,
+              extraGauge: 0,
+              maximumAp: 3,
+              maximumPp: 2,
+              maximumExtraGauge: 100,
+              combatStats: ENEMY_COMBAT_STATS,
             },
           },
-        }),
-      ),
-    ).toThrow(/setActionId/);
+        },
+      }),
+    );
+
+    const cooldowns = body.finalState.units.find(
+      (unit) => unit.battleUnitId === ALLY_ID,
+    )?.cooldowns;
+    expect(cooldowns).toEqual([{ skillDefinitionId: SKL_A, unit: "ACTION", remaining: 2 }]);
+    expect(cooldowns?.[0] && "setAtActionId" in cooldowns[0]).toBe(false);
   });
 
   it("API-RESP-010C: throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {

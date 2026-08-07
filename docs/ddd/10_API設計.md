@@ -584,7 +584,13 @@ CooldownStateResponse {
 }
 ```
 
-設定した同じ行動・ターンでは減算しないことを追跡できるよう、設定スコープを含める。`unit`に応じてどちらか一方だけが存在する（`ACTION`なら`setAtActionId`、`TURN`なら`setAtTurnNumber`）。Domain側もこの設定scopeを行動単位・ターン単位のいずれか一方でしか保持しないため（`06_戦闘状態遷移.md`R-SKL-04）、両方を常に返す契約にはしない。
+設定した同じ行動・ターンでは減算しないことを追跡できるよう、設定スコープを含める。`unit`に応じて対応する側だけが存在する（`ACTION`なら`setAtActionId`、`TURN`なら`setAtTurnNumber`）。Domain側もこの設定scopeを行動単位・ターン単位のいずれか一方でしか保持しないため（`06_戦闘状態遷移.md`R-SKL-04）、両方を常に返す契約にはしない。
+
+#### 設定スコープを持たないクールタイム（REL-004 / Issue #203）
+
+対応する側の設定スコープも省略され得る。PSがターン開始・終了など**行動外のトップレベルイベント**から発動した場合、R-SKL-04のクールタイムは対応する`actionId`を持たず、その**不在自体**が「どの行動でも設定スコープに一致しない＝所有者の次の行動終了で減る」の正本になる（`08_ドメインイベント.md`「差分がフィールドを持たないこと」と同じ扱い）。したがって`setAtActionId`・`setAtTurnNumber`はいずれも任意とする。
+
+この緩和は「バージョニング」の後方互換な追加に当たる。設定スコープなしの変種は一度も公開されたことがなく（Response Mapperが不変条件違反として落とし、実HTTP経路が`500 INTERNAL_INVARIANT_VIOLATION`を返していた。実在Unit`UNIT_LUCIE_MAID`の`SKL_LUCIE_MAID_PS1`が該当）、従来から公開されていた「行動内で設定されたクールタイム」は緩和後も必ず`setAtActionId`を持つため、既存クライアントが受け取れたレスポンスの形は変わらない。
 
 ### ChargeStateResponse
 
@@ -872,6 +878,8 @@ reconstructedFinalState = apply(
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 
+実装上、入力起因の違反はUseCaseが `DomainValidationError` を受けた時点で `INVALID_COMMAND` へ変換しており（`simulate-battle-use-case.ts`）、`DOMAIN_RULE_VIOLATION` を送出する経路は存在しない。HTTP境界の変換表（`error-response-mapper.ts`）はこのコードを `500 INTERNAL_INVARIANT_VIOLATION` と同じ扱いに固定した防御的なマッピングとして持つ。実経路が生まれた時点で 422 側の分岐を追加する（REL-004 / Issue #203）。
+
 クライアント切断によるキャンセルでは接続自体が失われるため、レスポンスを返せない場合がある。サーバー内部からのキャンセルで返却可能なら `503 Service Unavailable` とし、`EXECUTION_CANCELLED` を使用する。
 
 ### 情報公開
@@ -909,6 +917,7 @@ reconstructedFinalState = apply(
 - 新しいエラーコードの追加
 - 新しい列挙値の追加。ただし既存クライアントが未知値を扱えることを前提とする。
 - Capability preflightが編成段階で弾いていたため一度も公開されたことがない変種の追加。既存クライアントが受け取れたレスポンスの形が変わらないことが条件であり、そのために必須プロパティを任意へ緩める場合は、緩めた後も従来から公開されていた変種では常に存在することを併せて示す（REL-008 / Issue #263 の `MarkerStateResponse.sourceUnitId`。上記「Memory由来Markerの付与元」を参照）。
+- 同じ理由で、Response Mapperが常に例外にしていたため一度も公開されたことがない変種の追加（REL-004 / Issue #203 の `CooldownStateResponse.setAtActionId`。上記「設定スコープを持たないクールタイム」を参照）。
 
 次は破壊的変更としてAPIメジャーバージョンを検討する。
 
