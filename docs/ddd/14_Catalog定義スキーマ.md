@@ -14,16 +14,15 @@ Catalog v2 は、Unit Skill と Memory の効果を同じ基盤で表現する�
 
 効果は次の構成要素に分解する。
 
-| 要素                      | 役割                                            |
-| ------------------------- | ----------------------------------------------- |
-| `TriggerDefinition`       | いつ発動候補になるか                            |
-| `ConditionDefinition`     | どの状態なら実行するか                          |
-| `TargetBindingDefinition` | 誰を対象として束縛するか                        |
-| `EffectStepDefinition`    | どの順番で何を解決するか                        |
-| `EffectActionDefinition`  | HP、リソース、状態、マーカーなどへ何をするか    |
-| `FormulaDefinition`       | 値をどの戦闘状態から計算するか                  |
-| `DurationDefinition`      | いつまで有効か、何で消費・失効するか            |
-| `Capability`              | 表現済みだが未実装の機能を preflight で隔離する |
+| 要素                      | 役割                                         |
+| ------------------------- | -------------------------------------------- |
+| `TriggerDefinition`       | いつ発動候補になるか                         |
+| `ConditionDefinition`     | どの状態なら実行するか                       |
+| `TargetBindingDefinition` | 誰を対象として束縛するか                     |
+| `EffectStepDefinition`    | どの順番で何を解決するか                     |
+| `EffectActionDefinition`  | HP、リソース、状態、マーカーなどへ何をするか |
+| `FormulaDefinition`       | 値をどの戦闘状態から計算するか               |
+| `DurationDefinition`      | いつまで有効か、何で消費・失効するか         |
 
 任意コード、文字列式、eval 相当の拡張は許可しない。条件、式、対象選択は列挙値と構造化フィールドだけで表す。
 
@@ -37,7 +36,6 @@ Catalog v2 は、Unit Skill と Memory の効果を同じ基盤で表現する�
 | 条件分岐        | AS発動条件とPS predicate中心                                                          | Step / Action 単位の `condition` と `BRANCH` step                                                                                                                      |
 | 確率            | 会心・暗闇・回避中心                                                                  | `RANDOM_BRANCH` step                                                                                                                                                   |
 | Memory          | 静的 `modifiers`                                                                      | `triggeredEffects` に一本化（`modifiers` 省略記法は廃止）                                                                                                              |
-| Capability      | 保留仕様のみ                                                                          | `CAP_*` による段階導入機能も管理                                                                                                                                       |
 
 ---
 
@@ -50,7 +48,6 @@ apps/api/catalog/
   skills.json
   effects.json
   memories.json
-  capabilities.json
 ```
 
 `effects.json` は v1 の `SkillEffectDefinition` ではなく、再利用可能な `EffectActionDefinition` を格納する。Skill / Memory の解決順、対象、条件、分岐はそれぞれの `effectSequence` が持つ。
@@ -65,8 +62,7 @@ apps/api/catalog/
     "units.json": "sha256:...",
     "skills.json": "sha256:...",
     "effects.json": "sha256:...",
-    "memories.json": "sha256:...",
-    "capabilities.json": "sha256:..."
+    "memories.json": "sha256:..."
   }
 }
 ```
@@ -85,7 +81,6 @@ apps/api/catalog/
 
 ```text
 apps/api/catalog-src/
-  capabilities.json          # 共有・フラット。catalog/capabilities.json と同一形式
   units/
     <unitDefinitionId>/      # 例: UNIT_EVIE_ECO。バージョン単位のID。キャラクター単位ではない
       unit.json               # UnitDefinition 1件
@@ -111,7 +106,7 @@ apps/api/catalog-src/
 pnpm --filter api run generate-catalog catalog-src catalog <catalogRevision>
 ```
 
-- 各 `catalog-src/units/*/{unit.json,skills.json,effects.json}` と `catalog-src/memories/*/{memory.json,effects.json}`、`catalog-src/capabilities.json` を読み込み、ディレクトリ名昇順でユニット/メモリを並べて集約する。
+- 各 `catalog-src/units/*/{unit.json,skills.json,effects.json}` と `catalog-src/memories/*/{memory.json,effects.json}` を読み込み、ディレクトリ名昇順でユニット/メモリを並べて集約する。
 - ユニットディレクトリ名が `unit.json` の `unitDefinitionId` と一致しない場合（メモリも同様）は生成せずエラーにする。
 - 出力はリポジトリの Prettier 設定（`.prettierrc`）で整形され、`pnpm run format:check` をそのまま通過する。
 - `manifest.json` の各ファイルhashは生成した内容から自動算出される。`catalogRevision` は明示指定必須（暗黙の日付生成はしない）。
@@ -143,15 +138,14 @@ pnpm --filter api run check-catalog-src catalog-src catalog
 
 ## ID体系
 
-| 種別           | プレフィックス  | 例                               |
-| -------------- | --------------- | -------------------------------- |
-| Unit           | `UNIT_`         | `UNIT_001`                       |
-| Skill          | `SKL_`          | `SKL_001_AS1`                    |
-| EffectAction   | `ACT_`          | `ACT_001_DAMAGE`                 |
-| Memory         | `MEM_`          | `MEM_001`                        |
-| Target binding | `TGT_`          | `TGT_PRIMARY`                    |
-| Marker         | `MARKER_`       | `MARKER_CURSE`                   |
-| Capability     | `Q-*` / `CAP_*` | `CAP_HEAL`, `CAP_REFLECT_DAMAGE` |
+| 種別           | プレフィックス | 例               |
+| -------------- | -------------- | ---------------- |
+| Unit           | `UNIT_`        | `UNIT_001`       |
+| Skill          | `SKL_`         | `SKL_001_AS1`    |
+| EffectAction   | `ACT_`         | `ACT_001_DAMAGE` |
+| Memory         | `MEM_`         | `MEM_001`        |
+| Target binding | `TGT_`         | `TGT_PRIMARY`    |
+| Marker         | `MARKER_`      | `MARKER_CURSE`   |
 
 ID は ASCII 英数字、ハイフン、アンダースコアのみ許可する。Catalog 全体で同種 ID は一意でなければならない。
 
@@ -187,7 +181,6 @@ passiveSkillDefinitionIds:
   - SKL_001_PS1
   - SKL_001_PS2
 extraSkillDefinitionId: SKL_001_EX
-requiredCapabilities: []
 metadata:
   displayName: "【純真無垢なるジーニアス】リディア・エルドリッジ"
   characterName: "リディア・エルドリッジ"
@@ -219,7 +212,6 @@ metadata:
 | `activeSkillDefinitionIds`      | string[] | ✓    | AS選択優先順                                                         |
 | `passiveSkillDefinitionIds`     | string[] | ✓    | 0件可。PSタイブレーカー順                                            |
 | `extraSkillDefinitionId`        | string   | ✓    | EXスキル1件                                                          |
-| `requiredCapabilities`          | string[] | ✓    | 空配列可                                                             |
 | `metadata`                      | object   | ✓    | 表示、所属、タグ                                                     |
 
 ### v2でUnitに保持する/削除するフィールド
@@ -290,7 +282,6 @@ traits:
     defenseIgnoreRate: 0
     shieldIgnoreRate: 0
     damageReductionIgnoreRate: 0
-requiredCapabilities: []
 metadata:
   displayName: "ジャマしちゃ、めっ……だよ？"
   tags: []
@@ -298,18 +289,17 @@ metadata:
 
 ### フィールド詳細
 
-| フィールド             | 型                        | 必須 | 制約                            |
-| ---------------------- | ------------------------- | ---- | ------------------------------- |
-| `skillDefinitionId`    | string                    | ✓    | 一意                            |
-| `skillType`            | enum                      | ✓    | `AS` / `PS` / `EX`              |
-| `cost`                 | object                    | ✓    | AS=`AP`, PS=`PP`, EX=`EX_GAUGE` |
-| `activationCondition`  | ConditionDefinition       | ✓    | Skill使用可否。通常は `TRUE`    |
-| `triggers`             | TriggerDefinition[]       | ✓    | PSは1件以上。AS/EXは空配列      |
-| `resolution`           | SkillResolutionDefinition | ✓    | 下記                            |
-| `cooldown`             | object                    | ✓    | `unit`, `count`                 |
-| `traits`               | object                    | ✓    | 先制、同時発動制限、命中、貫通  |
-| `requiredCapabilities` | string[]                  | ✓    | 空配列可                        |
-| `metadata`             | object                    | ✓    | `displayName`, `tags`           |
+| フィールド            | 型                        | 必須 | 制約                            |
+| --------------------- | ------------------------- | ---- | ------------------------------- |
+| `skillDefinitionId`   | string                    | ✓    | 一意                            |
+| `skillType`           | enum                      | ✓    | `AS` / `PS` / `EX`              |
+| `cost`                | object                    | ✓    | AS=`AP`, PS=`PP`, EX=`EX_GAUGE` |
+| `activationCondition` | ConditionDefinition       | ✓    | Skill使用可否。通常は `TRUE`    |
+| `triggers`            | TriggerDefinition[]       | ✓    | PSは1件以上。AS/EXは空配列      |
+| `resolution`          | SkillResolutionDefinition | ✓    | 下記                            |
+| `cooldown`            | object                    | ✓    | `unit`, `count`                 |
+| `traits`              | object                    | ✓    | 先制、同時発動制限、命中、貫通  |
+| `metadata`            | object                    | ✓    | `displayName`, `tags`           |
 
 ### traits
 
@@ -431,7 +421,7 @@ resolution:
 
 `kind: CHARGE` の開始側 EffectSequence（トップレベルの `steps` / `counterUpdates`）は**必ず空**とする。`06_戦闘状態遷移.md`「チャージ開始」#1〜6 と `R-SKL-05` はコスト消費・クールタイム設定・チャージ状態化・`ChargeStarted` 発行・PS解決・行動完了だけを規定し、効果解決の手順を持たない。`resolveChargeStart` も開始側のstepを一つも解決しないため、ここにEffectActionを宣言すると、対応するDomain Event・StateDeltaごと実行時に黙って欠落する。DTOのJSON Schema（`catalog-schema.ts` の `kind` 条件付き `maxItems: 0`）とDomainのfactory（`createResolution`）の両方がロード時点で拒否する（`M7-016`／Issue #270。`counterUpdates` も同じ理由で拒否する）。開始側の `targetBindings` だけは、AS/EX の `activationCondition` が開始側bindingへスコープされるため引き続き意味を持つ。チャージ効果は `chargeRelease` にだけ宣言する。
 
-`CHARGE` 中の「回避と自身のパッシブスキルが使用できない」は、チャージ状態の共通ルール（`R-HIT-02`・`R-HIT-04`・`R-PS-04`）として、チャージ中の所有者に対して常に適用する。`M7-016`（Issue #270）以降、`resolution.kind: CHARGE` を持つSkillは `requiredCapabilities` に `CAP_CHARGE_RESTRICTION` を必ず含めること（`catalog-integrity.ts` が宣言漏れを `MISSING_REQUIRED_CAPABILITY` として拒否する）。制限自体はチャージ状態の有無だけで決まるため、宣言はCapability→production定義の追跡可能性を保つためのものであり、宣言の有無が挙動を切り替えるわけではない。
+`CHARGE` 中の「回避と自身のパッシブスキルが使用できない」は、チャージ状態の共通ルール（`R-HIT-02`・`R-HIT-04`・`R-PS-04`）として、チャージ中の所有者に対して常に適用する。制限自体はチャージ状態の有無だけで決まる。
 
 ---
 
@@ -717,49 +707,47 @@ payload:
   hitCount: 1
   link:
     enabled: false
-requiredCapabilities: []
 metadata:
   tags: []
 ```
 
 ### 共通フィールド
 
-| フィールド                 | 型       | 必須 | 制約             |
-| -------------------------- | -------- | ---- | ---------------- |
-| `effectActionDefinitionId` | string   | ✓    | 一意             |
-| `kind`                     | enum     | ✓    | 下表             |
-| `payload`                  | object   | ✓    | kindごとに異なる |
-| `requiredCapabilities`     | string[] | ✓    | 空配列可         |
-| `metadata`                 | object   | ✓    | `tags`           |
+| フィールド                 | 型     | 必須 | 制約             |
+| -------------------------- | ------ | ---- | ---------------- |
+| `effectActionDefinitionId` | string | ✓    | 一意             |
+| `kind`                     | enum   | ✓    | 下表             |
+| `payload`                  | object | ✓    | kindごとに異なる |
+| `metadata`                 | object | ✓    | `tags`           |
 
 ### kind 一覧
 
-| kind                       | 概要                                     | 主なCapability                 |
-| -------------------------- | ---------------------------------------- | ------------------------------ |
-| `DAMAGE`                   | HP/シールドへダメージ                    | なし / `CAP_PARTIAL_PIERCING`  |
-| `APPLY_PIERCING_MOD`       | 後続の自身の攻撃へ一時的に防御貫通を付与 | `CAP_PARTIAL_PIERCING`         |
-| `HEAL`                     | 即時回復                                 | `CAP_HEAL`                     |
-| `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                  | `CAP_CONTINUOUS_HEAL`          |
-| `APPLY_CONTINUOUS_DAMAGE`  | 行動/ターン時の継続ダメージ（DoT）       | `CAP_CONTINUOUS_DAMAGE`        |
-| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正   | `CAP_STAT_MOD`                 |
-| `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正                | `CAP_DAMAGE_MOD`               |
-| `APPLY_HEALING_MOD`        | 回復量増減                               | `CAP_HEAL`                     |
-| `APPLY_HEALING_LINK`       | 回復リンク（回復効果の転送）             | `CAP_HEALING_LINK`             |
-| `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                       | `CAP_RESOURCE_MUTATION`        |
-| `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                       | `CAP_RESOURCE_CAPACITY_MOD`    |
-| `APPLY_STATUS`             | 気絶、凍結、暗闇など                     | 状態により異なる               |
-| `APPLY_SHIELD`             | シールド付与                             | `CAP_SHIELD`                   |
-| `REMOVE_EFFECTS`           | 効果解除                                 | `CAP_REMOVE_EFFECTS`           |
-| `EFFECT_IMMUNITY`          | 効果付与拒否                             | なし / `CAP_SPECIFIC_IMMUNITY` |
-| `APPLY_MARKER`             | 固有マーカー付与                         | `CAP_MARKER`                   |
-| `REMOVE_MARKER`            | 固有マーカー解除                         | `CAP_MARKER`                   |
-| `APPLY_DEATH_SURVIVAL`     | 致死耐え                                 | `CAP_DEATH_SURVIVAL`           |
-| `APPLY_TARGET_REDIRECT`    | 攻撃引き寄せ                             | `CAP_TARGET_REDIRECT`          |
-| `APPLY_COVER`              | 肩代わり                                 | `CAP_COVER_DAMAGE`             |
-| `APPLY_REFLECT`            | 反射                                     | `CAP_REFLECT_DAMAGE`           |
-| `APPLY_DAMAGE_LINK`        | 継続リンク状態                           | `CAP_DAMAGE_LINK_STATE`        |
-| `APPLY_SUBUNIT`            | サブユニット                             | なし                           |
-| `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット     | `CAP_COOLDOWN_MANIPULATION`    |
+| kind                       | 概要                                     |
+| -------------------------- | ---------------------------------------- |
+| `DAMAGE`                   | HP/シールドへダメージ                    |
+| `APPLY_PIERCING_MOD`       | 後続の自身の攻撃へ一時的に防御貫通を付与 |
+| `HEAL`                     | 即時回復                                 |
+| `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                  |
+| `APPLY_CONTINUOUS_DAMAGE`  | 行動/ターン時の継続ダメージ（DoT）       |
+| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正   |
+| `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正                |
+| `APPLY_HEALING_MOD`        | 回復量増減                               |
+| `APPLY_HEALING_LINK`       | 回復リンク（回復効果の転送）             |
+| `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                       |
+| `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                       |
+| `APPLY_STATUS`             | 気絶、凍結、暗闇など                     |
+| `APPLY_SHIELD`             | シールド付与                             |
+| `REMOVE_EFFECTS`           | 効果解除                                 |
+| `EFFECT_IMMUNITY`          | 効果付与拒否                             |
+| `APPLY_MARKER`             | 固有マーカー付与                         |
+| `REMOVE_MARKER`            | 固有マーカー解除                         |
+| `APPLY_DEATH_SURVIVAL`     | 致死耐え                                 |
+| `APPLY_TARGET_REDIRECT`    | 攻撃引き寄せ                             |
+| `APPLY_COVER`              | 肩代わり                                 |
+| `APPLY_REFLECT`            | 反射                                     |
+| `APPLY_DAMAGE_LINK`        | 継続リンク状態                           |
+| `APPLY_SUBUNIT`            | サブユニット                             |
+| `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット     |
 
 ---
 
@@ -818,7 +806,7 @@ payload:
 | `overheal`     | enum              | —    | `DISCARD` 固定で開始                                                                                                                                     |
 | `distribution` | enum              | —    | `NONE`（既定、対象ごとに評価結果の全量を回復）／`EVEN`（評価結果を総回復量とみなし、同一EffectStep内でこのEffectActionが適用される対象数で等分）。M7-005 |
 
-`distribution: EVEN` は `MODIFY_RESOURCE.operation: DISTRIBUTE` の HEAL 版であり、「威力65分のHP回復量を均等に配分して回復する」（`SKL_LUCIE_COMPANION_AS3`）のような原文をそのまま表現するために M7-005（Issue #184）で追加した。分配数（分母）は同一EffectStep内でこのEffectAction参照が実際に適用される対象数（同じEffectActionを複数回参照した場合は参照ごとに独立した分配になる）だが、`HEAL` は R-HEAL-01 に蘇生規則が無く戦闘不能の対象を一切回復しないため、`includeDefeated` の有無にかかわらず戦闘不能者を分母から除外する（`MODIFY_RESOURCE.DISTRIBUTE` は明示指定された戦闘不能の対象へ実際に適用するため分母に残す点だけが異なる）。`CAP_HEAL`（`IMPLEMENTED`）以外の追加Capability宣言は要求しない。
+`distribution: EVEN` は `MODIFY_RESOURCE.operation: DISTRIBUTE` の HEAL 版であり、「威力65分のHP回復量を均等に配分して回復する」（`SKL_LUCIE_COMPANION_AS3`）のような原文をそのまま表現するために M7-005（Issue #184）で追加した。分配数（分母）は同一EffectStep内でこのEffectAction参照が実際に適用される対象数（同じEffectActionを複数回参照した場合は参照ごとに独立した分配になる）だが、`HEAL` は R-HEAL-01 に蘇生規則が無く戦闘不能の対象を一切回復しないため、`includeDefeated` の有無にかかわらず戦闘不能者を分母から除外する（`MODIFY_RESOURCE.DISTRIBUTE` は明示指定された戦闘不能の対象へ実際に適用するため分母に残す点だけが異なる）。
 
 ### APPLY_CONTINUOUS_HEAL
 
@@ -1065,7 +1053,7 @@ payload:
 | `transferRate` | number             | ✓    | 転送率。`0` 以上 `1` 以下。`1` が原文の「100%転送」                                                                    |
 | `duration`     | DurationDefinition | ✓    | 「自身が1回行動を終えるまでの間」は `{unit: ACTION, count: 1, owner: EFFECT_SOURCE}`（R-EFF-04、既存の同一原文と同じ） |
 
-`transferTo` はスキーマ上 `TargetReference` の全kindを取れるが、`heal-application-service.ts` が転送先として解決できるのは付与時点に確定する `SELF` だけである。`TRIGGER_SOURCE`/`TRIGGER_TARGET`/`BINDING`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` は「付与は成功するが転送先が決まらない」silent partial implementationになるため、`APPLY_CONTINUOUS_HEAL` の未対応 `timing` と同じくCatalogロード時点で `UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET` として拒否する。`APPLY_HEALING_LINK` を使う `EffectActionDefinition` は `requiredCapabilities` へ `CAP_HEALING_LINK` を含めること（宣言漏れ自体を `MISSING_REQUIRED_CAPABILITY` として拒否する。`CAP_COOLDOWN_MANIPULATION` と同じ規約）。
+`transferTo` はスキーマ上 `TargetReference` の全kindを取れるが、`heal-application-service.ts` が転送先として解決できるのは付与時点に確定する `SELF` だけである。`TRIGGER_SOURCE`/`TRIGGER_TARGET`/`BINDING`/`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS` は「付与は成功するが転送先が決まらない」silent partial implementationになるため、`APPLY_CONTINUOUS_HEAL` の未対応 `timing` と同じくCatalogロード時点で `UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET` として拒否する。
 
 ### MODIFY_RESOURCE
 
@@ -1087,12 +1075,12 @@ payload:
 | `resource` | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。`HP`はM7-002（Issue #185、HP_DIRECT_COST）で追加し、防御力・会心などの通常ダメージ処理を経由せずHPを直接増減する                                                        |
 | `bounds`   | object（optional） | `min`/`max`はCatalog作成者が任意の有限値を指定できるが、実行側は常に対象リソースの実際の可動域`0..currentMax`と交差させてから適用する（範囲外や空区間の指定でも実行時例外にはならず、静かにclampされる） |
 
-| operation    | 意味                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ADD`        | 現在値へ加算。減算は負値                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `SET`        | 指定値にする                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `SET_TO_MAX` | 最大値にする                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `DISTRIBUTE` | 対象間で分配（M7-017／Issue #271で実装）。`formula`の評価結果は対象ごとの適用量ではなく**総量**であり、同一EffectStep内でこのEffectAction**参照**が実際に適用される対象数で等分した取り分を`ADD`と同じ規約で加算する（R-ACTN-02、端数は対象ごとに切り捨て＝R-NUM-02、余りは破棄）。同じEffectActionを1つのACTION stepから複数回参照した場合（R-SKL-06 #4）は各参照が独立に総量を分配する。`HEAL`の`distribution: EVEN`のリソース版。使用する場合は`requiredCapabilities`へ`CAP_RESOURCE_DISTRIBUTE`の宣言を必須とし、Catalogロード時点で宣言漏れを拒否する（`catalog-integrity.ts`、`COOLDOWN_MANIPULATION`/`APPLY_STAT_MOD`と同じ運用） |
+| operation    | 意味                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ADD`        | 現在値へ加算。減算は負値                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `SET`        | 指定値にする                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `SET_TO_MAX` | 最大値にする                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `DISTRIBUTE` | 対象間で分配（M7-017／Issue #271で実装）。`formula`の評価結果は対象ごとの適用量ではなく**総量**であり、同一EffectStep内でこのEffectAction**参照**が実際に適用される対象数で等分した取り分を`ADD`と同じ規約で加算する（R-ACTN-02、端数は対象ごとに切り捨て＝R-NUM-02、余りは破棄）。同じEffectActionを1つのACTION stepから複数回参照した場合（R-SKL-06 #4）は各参照が独立に総量を分配する。`HEAL`の`distribution: EVEN`のリソース版。 |
 
 ### MODIFY_RESOURCE_CAPACITY
 
@@ -1119,8 +1107,6 @@ payload:
 | `operation` | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない。有効な`SET`が複数ある場合は付与順で後のものが基準を置き換え、`ADD`はその結果へ合算する（R-ACTN-03）                                                                                                           |
 | `formula`   | FormulaDefinition  | 変更量。`APPLY_STAT_MOD`と同じ評価規約で付与時点に一度だけ評価する                                                                                                                                                                                                                                  |
 | `duration`  | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す                                                                                                                                                                                                                    |
-
-`requiredCapabilities`へ`CAP_RESOURCE_CAPACITY_MOD`を宣言することを必須とし、宣言漏れはCatalogロード時点で拒否する（`catalog-integrity.ts`、`APPLY_STAT_MOD`/`CAP_STAT_MOD`・`MODIFY_RESOURCE(DISTRIBUTE)`/`CAP_RESOURCE_DISTRIBUTE`と同じ運用）。
 
 ### APPLY_RESOURCE_GAIN_MOD
 
@@ -1305,7 +1291,7 @@ payload:
 | `duration`                  | DurationDefinition | 省略時は即時効果として不正                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `maxBlocks`                 | integer/null       | null = 期間中は上限なし                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
-`EFFECT_IMMUNITY` により付与を拒否した場合は `EffectApplicationRejected` を発行する（`08_ドメインイベント.md`「EffectApplicationRejected payload」）。`statusKinds` を指定する `EFFECT_IMMUNITY` は `requiredCapabilities` に `CAP_SPECIFIC_IMMUNITY` を含めること（Catalogロード時点で宣言漏れ自体を拒否する、`catalog-integrity.ts`）。
+`EFFECT_IMMUNITY` により付与を拒否した場合は `EffectApplicationRejected` を発行する（`08_ドメインイベント.md`「EffectApplicationRejected payload」）。
 
 ### REMOVE_EFFECTS
 
@@ -1328,9 +1314,7 @@ payload:
 
 M7-001（Issue #181）で `BUFF`（`REMOVE_BUFF_CATEGORY`）・`SHIELD`・`SUBUNIT`（`REMOVE_EFFECTS_CATEGORY_GAP`）を `categories` へ追加した。バフ/デバフ判定は R-EFF-05「バフは正の効果量、デバフは弱化量」に従い符号付き効果量から導き、状態異常（`STATUS`）は R-STS-01 により `DEBUFF` も兼ねる（`effect-category-classifier.ts`）。解除優先順が定義されていない場合の既定は付与順の古い順とする（R-EFF-02 #3）。
 
-`SHIELD` は DMG-004（Issue #194）が `CAP_SHIELD` を、`SUBUNIT` は DMG-005（Issue #190）が `CAP_SUBUNIT` を `IMPLEMENTED` にしたため、どちらも実行時状態を持つ（`AppliedEffect.shield` / `AppliedEffect.subUnit`）。これを受けて M7-001A（Issue #242）が `effect-action-group-resolver.ts` の実行時拒否を解除し、両カテゴリは他のカテゴリと同じ `removeEffects` 経路でインスタンスごと解除される（シールドプールもサブユニット耐久力もインスタンス集合からの導出値のため、インスタンス除去がそのまま解除になる）。下の宣言規則自体は両カテゴリで変わらない。`categories` へこれらを指定する `REMOVE_EFFECTS` は、対応する Capability（`SHIELD`→`CAP_SHIELD`、`SUBUNIT`→`CAP_SUBUNIT`）を `requiredCapabilities` へ宣言すること（`COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体をCatalogロード時点で拒否する」パターン）。宣言してさえいれば、その Capability が `PLANNED` のままでも Catalog 自体は正しくロードできる — 実際の拒否は、そのUnit/Memoryが選択された時点で `SimulationPreflightValidator` が `UNSUPPORTED_RULE` として行う（`09_アプリケーション設計.md`）。`MARKER`（Catalogロード時点の即時拒否、直前の段落）とこの扱いが異なるのは、両者のギャップの性質が違うためである。`MARKER` は `REMOVE_EFFECTS` が走査する `AppliedEffect` に原理的に含まれない（`MarkerState` は別モデル）ので、どれだけ実装が進んでも黙って no-op になる恒久的な誤りであり、Catalogロード時点で拒否してよい。対して依存 Capability の実装状況は Catalog 定義自体の正しさとは独立に変化しうるため、宣言さえ正しければロードは通し、実際に選択された Unit/Memory に対してだけ preflight が判断する — この一般則があるので、`CAP_SHIELD`/`CAP_SUBUNIT` が仮に `PLANNED` へ差し戻されても、Catalog全体のロードを失敗させてはならない。
-
-`REMOVE_EFFECTS` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_REMOVE_EFFECTS` を含めること。Battle Engineが未実装のkindは、Capabilityで隔離しないと preflight（`SimulationPreflightValidator`、`09_アプリケーション設計.md`）を素通りしてしまう。
+`SHIELD` は DMG-004（Issue #194）が `CAP_SHIELD` を、`SUBUNIT` は DMG-005（Issue #190）が `CAP_SUBUNIT` を `IMPLEMENTED` にしたため、どちらも実行時状態を持つ（`AppliedEffect.shield` / `AppliedEffect.subUnit`）。これを受けて M7-001A（Issue #242）が `effect-action-group-resolver.ts` の実行時拒否を解除し、両カテゴリは他のカテゴリと同じ `removeEffects` 経路でインスタンスごと解除される（シールドプールもサブユニット耐久力もインスタンス集合からの導出値のため、インスタンス除去がそのまま解除になる）。`MARKER` を `categories` に含める `REMOVE_EFFECTS`（直前の段落）だけはCatalogロード時点で拒否する。`MARKER` は `REMOVE_EFFECTS` が走査する `AppliedEffect` に原理的に含まれない（`MarkerState` は別モデル）ため、どれだけ実装が進んでも黙って no-op になる恒久的な誤りだからである。
 
 ### APPLY_DEATH_SURVIVAL
 
@@ -1363,7 +1347,7 @@ payload:
 | `healAfterSurvival`        | FormulaDefinition/null | 耐えた後に回復する場合のみ指定                 |
 | `duration`                 | DurationDefinition     | 通常は `consumption.kind=LETHAL_DAMAGE` を持つ |
 
-`DMG-006`（Issue #188、`R-INT-01` #5）で実行時へ配線した。実装するのは `trigger.lethalDamageOnly: true` だけであり（致死耐えはHPへ適用する量が確定した時点でのみ成立する）、`false` は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`survivalHp`／`healAfterSurvival` は付与時点ではなく耐えた時点で評価する（`MAX_HP_RATIO` が耐えた時点の最大HPを参照するため）。`APPLY_DEATH_SURVIVAL` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_DEATH_SURVIVAL` を含めること。
+`DMG-006`（Issue #188、`R-INT-01` #5）で実行時へ配線した。実装するのは `trigger.lethalDamageOnly: true` だけであり（致死耐えはHPへ適用する量が確定した時点でのみ成立する）、`false` は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`survivalHp`／`healAfterSurvival` は付与時点ではなく耐えた時点で評価する（`MAX_HP_RATIO` が耐えた時点の最大HPを参照するため）。
 
 ### APPLY_TARGET_REDIRECT
 
@@ -1391,7 +1375,7 @@ payload:
 
 `DMG-006`（Issue #188、`R-INT-01` #1）で実行時へ配線した。この効果は**攻撃側**が保持し（production定義の付与対象はいずれも `TRIGGER_SOURCE`、raw原文「攻撃してくる敵単体に対して…攻撃を自身に引き寄せ」）、`redirectTo` は付与時点で解決して効果インスタンスへ焼き込む。そのため実装するのは付与時点に確定する `SELF` だけであり、他の `kind` は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する（`APPLY_HEALING_LINK.transferTo` と同じ制限）。
 
-`appliesTo.actionKinds` も実装するのは `["DAMAGE"]` だけである。`R-INT-01` が介入の評価点として定めるのは `DamageWillBeApplied` の後だけで、デバフ付与のライフサイクルには介入の評価点自体が無いため、`DEBUFF` を含む宣言は「`EffectApplied` としては成功するが一度も作用しない」silent no-opになる（`ANY` も同じ理由で `DAMAGE` 以外には作用しない）。同じく `UNSUPPORTED_DEFENSIVE_INTERVENTION` として拒否し、デバフ側へ配線した時点で解除する。`requiredCapabilities` に `CAP_TARGET_REDIRECT` を含めること。
+`appliesTo.actionKinds` も実装するのは `["DAMAGE"]` だけである。`R-INT-01` が介入の評価点として定めるのは `DamageWillBeApplied` の後だけで、デバフ付与のライフサイクルには介入の評価点自体が無いため、`DEBUFF` を含む宣言は「`EffectApplied` としては成功するが一度も作用しない」silent no-opになる（`ANY` も同じ理由で `DAMAGE` 以外には作用しない）。同じく `UNSUPPORTED_DEFENSIVE_INTERVENTION` として拒否し、デバフ側へ配線した時点で解除する。
 
 ### APPLY_COVER
 
@@ -1423,7 +1407,7 @@ payload:
 
 `APPLY_TARGET_REDIRECT` と `APPLY_COVER` を同じ行動で付与する場合、redirect 後の攻撃対象に対して cover を評価する。
 
-`DMG-006`（Issue #188、`R-INT-01` #2／`R-INT-02`）で実行時へ配線した。`APPLY_TARGET_REDIRECT` と同じく攻撃側が保持し、`coverer` は付与時点で解決するため実装するのは `SELF` だけ、`appliesTo.actionKinds` も同じ理由で `["DAMAGE"]` だけである。`damageShareRate` も実装するのは `1`（`R-INT-02` 第1項「防御側を肩代わり者へ変更する」）だけで、1未満は1ヒットのダメージを2体へ分割適用することになり `R-INT-02` が規定しない。どちらも外れる定義は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`guardRate` は最終切り捨ての前に掛ける（`Q-DMG-01`）ため、肩代わり者が redirect 後の対象自身であっても軽減だけは成立する（`ACT_EVIE_ECO_PS1_COVER`）。`requiredCapabilities` に `CAP_COVER_DAMAGE` を含めること。
+`DMG-006`（Issue #188、`R-INT-01` #2／`R-INT-02`）で実行時へ配線した。`APPLY_TARGET_REDIRECT` と同じく攻撃側が保持し、`coverer` は付与時点で解決するため実装するのは `SELF` だけ、`appliesTo.actionKinds` も同じ理由で `["DAMAGE"]` だけである。`damageShareRate` も実装するのは `1`（`R-INT-02` 第1項「防御側を肩代わり者へ変更する」）だけで、1未満は1ヒットのダメージを2体へ分割適用することになり `R-INT-02` が規定しない。どちらも外れる定義は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`guardRate` は最終切り捨ての前に掛ける（`Q-DMG-01`）ため、肩代わり者が redirect 後の対象自身であっても軽減だけは成立する（`ACT_EVIE_ECO_PS1_COVER`）。
 
 ### APPLY_REFLECT
 
@@ -1453,7 +1437,7 @@ payload:
 | `allowRecursiveReflect` | boolean            | 通常 false                                |
 | `duration`              | DurationDefinition | 省略時は即時反撃として扱わず不正          |
 
-`DMG-006`（Issue #188、`R-INT-01` #4／`R-INT-03`）で実行時へ配線した。引き寄せ・肩代わりと違い、この効果は**防御側**（反射する側）が保持する。実装するのは `reflectTo: TRIGGER_SOURCE`（元ダメージの攻撃者）と `allowRecursiveReflect: false`（`R-INT-03` 第2項「反射からさらに反射を発生させない」）だけで、それ以外は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`formula` は反射時点に評価し（production例は `DAMAGE_RECEIVED_RATIO`／`LAST_DAMAGE_RECEIVED` の75%）、`R-DMG-02` の切り捨て・最低1ダメージだけを適用する。`requiredCapabilities` に `CAP_REFLECT_DAMAGE` を含めること。
+`DMG-006`（Issue #188、`R-INT-01` #4／`R-INT-03`）で実行時へ配線した。引き寄せ・肩代わりと違い、この効果は**防御側**（反射する側）が保持する。実装するのは `reflectTo: TRIGGER_SOURCE`（元ダメージの攻撃者）と `allowRecursiveReflect: false`（`R-INT-03` 第2項「反射からさらに反射を発生させない」）だけで、それ以外は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`formula` は反射時点に評価し（production例は `DAMAGE_RECEIVED_RATIO`／`LAST_DAMAGE_RECEIVED` の75%）、`R-DMG-02` の切り捨て・最低1ダメージだけを適用する。
 
 ### APPLY_SHIELD
 
@@ -1482,8 +1466,6 @@ payload:
 | `duration`   | DurationDefinition      | シールドの残量が尽きる前でも失効しうる（`timeLimit` 経過で消滅） |
 | `shieldType` | enum（`PHYSICAL`/`EN`） | 省略時はタイプなしシールド。DMG-004（Issue #194）で追加          |
 | `decay`      | ShieldDecayDefinition   | 省略時は漸減しない。DMG-004（Issue #194）で追加                  |
-
-`APPLY_SHIELD` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_SHIELD` を含めること。理由は `REMOVE_EFFECTS` と同じ（Battle Engine未実装のkindをpreflightで隔離するため）。
 
 #### shieldType（DMG-004、Issue #194）
 
@@ -1543,7 +1525,7 @@ payload:
 
 他のkindは `UNSUPPORTED_DEFENSIVE_INTERVENTION`、宣言のない（または複数体へ解決しうる）bindingを指す `BINDING` は `DAMAGE_LINK_UNBOUNDED_BINDING` として Catalog ロード時点で拒否する。`EffectActionDefinition` は自分の使われ方を知らないため、後者の検証は Skill／Memory 側から行う（`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE` と同じ扱い）。
 
-`requiredCapabilities` へ `CAP_DAMAGE_LINK_STATE` を宣言しなければ `MISSING_REQUIRED_CAPABILITY` になる（他の防御介入系kindと同じ宣言ゲート）。「元効果の消滅と同時にリンクも消滅する」（`SKL_SUIRAN_CASINO_AS1` の「2枚目の消滅と同時にダメージリンクも消滅する」）は `duration.linkedEffectGroupId`／`linkedEffectGroupRole` の親子連動（R-EFF-09）で表す。
+「元効果の消滅と同時にリンクも消滅する」（`SKL_SUIRAN_CASINO_AS1` の「2枚目の消滅と同時にダメージリンクも消滅する」）は `duration.linkedEffectGroupId`／`linkedEffectGroupRole` の親子連動（R-EFF-09）で表す。
 
 ### APPLY_SUBUNIT
 
@@ -1631,7 +1613,7 @@ payload:
 | `operation`               | enum   | ✓        | `RESET` / `REDUCE`                   |
 | `amount`                  | number | 条件付き | `operation: REDUCE` の場合必須、>= 1 |
 
-`targetSkillDefinitionId` の存在は Catalog 検証で拒否する（未定義のSkill IDへの参照）。加えて、対象スキルは操作元の`EffectAction`を保有するUnitと同じUnitが所有するスキルでなければならず、所有者が一致しない参照もCatalog検証で拒否する。`COOLDOWN_MANIPULATION` を使う `EffectActionDefinition` は `requiredCapabilities` に `CAP_COOLDOWN_MANIPULATION` を含めること。
+`targetSkillDefinitionId` の存在は Catalog 検証で拒否する（未定義のSkill IDへの参照）。加えて、対象スキルは操作元の`EffectAction`を保有するUnitと同じUnitが所有するスキルでなければならず、所有者が一致しない参照もCatalog検証で拒否する。
 
 ---
 
@@ -1761,10 +1743,6 @@ ratio: 0.6
 - まだ 1 件も `DAMAGE` 結果が確定していない `EffectSequence` では、空集合の合計として **0** を返す（「直前結果が存在しない」＝値そのものが無い `LAST_DAMAGE_*` とは異なり、合計は 0 として定義される）。DAMAGE step が対象 0 件に解決された場合でも、後続の `HEAL` は例外にならず 0 回復になる。
 - MISS・対象不在などで適用されなかった `DAMAGE` 結果は 0 として加算する（R-SKL-08 の直前結果と同じ契約）。累計は 0 の加算で変化しないため、それまでの合計をそのまま保つ。
 - `EffectSequence` の外（`continuous-heal-service.ts` の継続回復など）から評価される場合は `SUM_*` を `FormulaEvaluationContext` へ渡さず、`FormulaEvaluator` が `DomainValidationError` で明確に拒否する（暗黙の 0 にしない）。
-
-`SUM_*` を参照する `EffectActionDefinition` は `requiredCapabilities` に `CAP_SUM_DAMAGE_RESULT` を含めること。`checkRequiredCapabilities` は列挙済み Capability の存在有無しか検証できず宣言漏れを素通ししてしまうため、`CAP_COOLDOWN_MANIPULATION` と同じく `catalog-integrity.ts` が `MISSING_REQUIRED_CAPABILITY` として宣言漏れ自体を拒否する。この宣言が Capability → 定義の追跡可能性であり、将来 `SUM_*` の対応範囲が狭まった場合に `SimulationPreflightValidator` が該当定義を隔離する足場にもなる。
-
-なお Capability registry の `verification.productionDefinitionIds` は、他の Capability と同様に**代表証跡**であって参照定義集合の網羅一覧ではない（例: `CAP_CONTINUOUS_HEAL` は production 13 件のうち 1 件だけを挙げる）。上記の検証も各定義の宣言漏れを拒否するだけで、証跡一覧への登録漏れは検出しない。
 
 ### 例: 対象の現在HP90%、攻撃力150%上限
 
@@ -1983,7 +1961,7 @@ duration:
       - { kind: RUNTIME_COUNTER, counter: ACT_EXAMPLE_HIT_COUNT, op: GTE, value: 3 }
 ```
 
-`counterUpdates`を持つduration保持`EffectActionDefinition`（`APPLY_MARKER`を除く）は`requiredCapabilities`へ`CAP_EFFECT_RUNTIME_COUNTER`を宣言しなければならない。`APPLY_MARKER.duration.counterUpdates`はCatalogロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_DURATION`）— `MarkerState`も同じ`DurationDefinition`/`EffectDurationState`を再利用するためschema上は設定できてしまうが、Marker自身のconsumption/expiration機構が別途未実装のため、宣言してもMarkerが失効しないまま静かに無視される事態を防ぐ。`resetScope`（`RESOLUTION_SCOPE`）はこの位置では意味を持たない（`AppliedEffect`スコープのcounterは効果インスタンス自身の失効がリセットを兼ねるため、`RuntimeCounterReset`を発行しない）。利用するproduction定義は現状存在しないため、`CAP_EFFECT_RUNTIME_COUNTER`は明示的Scenarioで検証済みだが`runtimeStatus: PLANNED`のまま — `runtimeStatus: IMPLEMENTED`は`productionDefinitionIds`が非空であることを要求する（`capability-definition.ts`）。
+`APPLY_MARKER.duration.counterUpdates`はCatalogロード時点で明示的に拒否する（`UNSUPPORTED_MARKER_DURATION`）— `MarkerState`も同じ`DurationDefinition`/`EffectDurationState`を再利用するためschema上は設定できてしまうが、Marker自身のconsumption/expiration機構が別途未実装のため、宣言してもMarkerが失効しないまま静かに無視される事態を防ぐ。`resetScope`（`RESOLUTION_SCOPE`）はこの位置では意味を持たない（`AppliedEffect`スコープのcounterは効果インスタンス自身の失効がリセットを兼ねるため、`RuntimeCounterReset`を発行しない）。利用するproduction定義は現状存在せず、明示的Scenarioでのみ検証している。
 
 ### counterUpdates（EffectSequenceスコープ、EFF-006）
 
@@ -2019,7 +1997,7 @@ resolution:
         amount: 1
 ```
 
-`counterUpdates`を宣言する`EffectSequence`を持つ`SkillDefinition`は`requiredCapabilities`へ`CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER`を宣言しなければならない。**CHARGEスキルの開始側（トップレベルの`steps`/`targetBindings`）に宣言することはできない**（`resolveChargeStart`が一度もこのEffectSequenceを解決しないため、宣言しても更新もResetも一切発生しない — Catalogロード時点で明示的に拒否する）。`chargeRelease`側（`resolveChargeRelease`が実際に解決する）にだけ宣言できる。利用するproduction定義は現状存在しないため、`CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER`は明示的Scenarioで検証済みだが`runtimeStatus: PLANNED`のまま。
+`counterUpdates`を宣言する`EffectSequence`は、**CHARGEスキルの開始側（トップレベルの`steps`/`targetBindings`）に宣言することはできない**（`resolveChargeStart`が一度もこのEffectSequenceを解決しないため、宣言しても更新もResetも一切発生しない — Catalogロード時点で明示的に拒否する）。`chargeRelease`側（`resolveChargeRelease`が実際に解決する）にだけ宣言できる。利用するproduction定義は現状存在せず、明示的Scenarioでのみ検証している。
 
 ### TARGET_STATE field
 
@@ -2292,8 +2270,6 @@ triggeredEffects:
             targetBindingId: TGT_ALL_ALLIES
           actions:
             - effectActionDefinitionId: ACT_MEMORY_ATTACK_FIXED_250
-requiredCapabilities:
-  - CAP_MEMORY_TRIGGERED_EFFECT
 metadata:
   displayName: "Colorful Bouquet"
   tags: []
@@ -2301,16 +2277,15 @@ metadata:
 
 ### フィールド詳細
 
-| フィールド             | 型       | 必須 | 制約                  |
-| ---------------------- | -------- | ---- | --------------------- |
-| `memoryDefinitionId`   | string   | ✓    | 一意                  |
-| `triggeredEffects`     | object[] | ✓    | 1件以上。v2唯一の表現 |
-| `requiredCapabilities` | string[] | ✓    | 空配列可              |
-| `metadata`             | object   | ✓    | displayName / tags    |
+| フィールド           | 型       | 必須 | 制約                  |
+| -------------------- | -------- | ---- | --------------------- |
+| `memoryDefinitionId` | string   | ✓    | 一意                  |
+| `triggeredEffects`   | object[] | ✓    | 1件以上。v2唯一の表現 |
+| `metadata`           | object   | ✓    | displayName / tags    |
 
 単純な「戦闘開始時に味方へ stat 補正」も、`APPLY_STAT_MOD` を持つ `triggeredEffects` として表現する（`eventType: BattleStarted`、`side: ALLY` の `selector`、`duration.timeLimit: { unit: BATTLE, count: 1 }`）。`modifiers` 省略記法は廃止した。
 
-`triggeredEffects` を持つ Memory は `requiredCapabilities` に `CAP_MEMORY_TRIGGERED_EFFECT` を含めること。Memory発動エンジン（`BattleStarted` での `triggeredEffects` 解決、`R-MEM-01`〜`04`）は M7-006（Issue #179）で実装し、同Capabilityは `IMPLEMENTED` になった。宣言自体は引き続き必須とする（宣言漏れのMemoryをCatalogロード時点で検出するため）。
+Memory発動エンジン（`BattleStarted` での `triggeredEffects` 解決、`R-MEM-01`〜`04`）は M7-006（Issue #179）で実装した。
 
 `R-MEM-04`「具体的な発生源 BattleUnit が必要なEffectActionをMemoryから使用する場合は、Catalog検証またはpreflightで拒否する」は、Catalog整合性検証の `MEMORY_REQUIRES_SOURCE_UNIT` が担う。Memory の `triggeredEffects` は次を宣言できない。
 
@@ -2323,128 +2298,6 @@ metadata:
 - `EffectSequence` スコープの `counterUpdates`（保持先が解決ユニットになるため）。
 
 実行時（`FormulaEvaluator`・`TargetSelectionPolicy`・`EffectActionGroupResolver`）も同じ構成を明確なエラーで拒否するが、戦闘開始後に効果解決の途中で失敗させないため、Catalogロード時点で先に検出する。
-
----
-
-## CapabilityDefinition
-
-### capabilities.json
-
-```json
-[
-  {
-    "capabilityId": "CAP_HEAL",
-    "schemaStatus": "SUPPORTED",
-    "runtimeStatus": "PLANNED",
-    "implementationTaskId": "M7-005",
-    "description": "即時回復EffectAction",
-    "verification": {
-      "productionDefinitionIds": [],
-      "testCaseIds": []
-    }
-  }
-]
-```
-
-| フィールド                             | 型       | 必須 | 制約                                               |
-| -------------------------------------- | -------- | ---- | -------------------------------------------------- |
-| `capabilityId`                         | string   | ✓    | `Q-*` または `CAP_*`                               |
-| `schemaStatus`                         | enum     | ✓    | `SUPPORTED` / `PLANNED` / `BLOCKED`                |
-| `runtimeStatus`                        | enum     | ✓    | `IMPLEMENTED` / `PLANNED` / `BLOCKED`              |
-| `implementationTaskId`                 | string   | ✓    | 実行可能化を完了責任として持つ単一Task ID          |
-| `description`                          | string   | ✓    | 近似なしで完了判定できる機能境界                   |
-| `verification.productionDefinitionIds` | string[] | ✓    | 本番検証対象のUnit / Skill / EffectAction / Memory |
-| `verification.testCaseIds`             | string[] | ✓    | 本番経路を検証するテストID                         |
-
-`schemaStatus` はCatalogが近似なしで表現できるか、`runtimeStatus` はBattle Engineが実ライフサイクルで実行できるかを表す。production定義の`requiredCapabilities`は`schemaStatus == SUPPORTED`だけを参照できる。`SimulationPreflightValidator`は編成から推移的に集めたCapabilityの`runtimeStatus != IMPLEMENTED`を`UNSUPPORTED_RULE`としてBattle生成前に拒否する。
-
-`runtimeStatus`を`IMPLEMENTED`へ変更するには、`productionDefinitionIds`と`testCaseIds`をそれぞれ1件以上記録する。Catalog整合性検証は各production definition IDの存在と、その定義自身が同じCapabilityを`requiredCapabilities`へ宣言していることを検査する。repository traceability testはTypeScript ASTから、Vitestからnamed importした`it`/`test`（aliasを含む）がトップレベルまたは実行対象の`describe`/`suite` callbackへ無条件に登録するタイトルを読み取り、各test case IDが一意なテスト定義として実在することを検査する。証跡用test/suiteはinline callbackを必須とし、optionsはspreadや動的computed keyを含まないobject literalかつ`skip`/`todo`が未指定または明示的な`false`の場合だけ受理する。parameterized test/suiteはSpreadElementを含まず、静的に1件以上のcaseを持つ配列リテラルだけを受理する。コメント、任意の文字列、同一ファイル内を含む重複テスト定義、ローカル同名関数、空・spread・動的なparameterized test/suite、callback欠落、optionsまたはmodifierによるskip/todo、条件式/未呼出関数配下の非実行テストは証跡として受理しない。Schema/Mapperや単体関数だけの完成、fixtureだけのテストでは`IMPLEMENTED`にしない。
-
-`implementationTaskId`は一つだけ持たせる。複数Taskの完了を待つ広域Capabilityを作らず、各Taskがproduction定義と統合テストを提示できる機能単位へ分割する。
-
-#### `IMPLEMENTED`側の監査不変条件（`REL-001`／Issue #202）
-
-上記2段落の規約のうち「Schema/Mapperや単体関数だけの完成では`IMPLEMENTED`にしない」と「`implementationTaskId`は実行可能化を完了責任として持つTaskを指す」は、長らく人手のレビューでしか守られていなかった。`m7-completion-audit.test.ts`の`UT-AUDIT-M7-002`は未`IMPLEMENTED` Capabilityだけを検査するため、`IMPLEMENTED`側の宣言が事実からずれても機械検出されない。実際にREL-001の監査は、Capability 4件が production 経路を通らないテストだけを証跡にしていたことと、`CAP_EFFECT_STEP_SET_CONDITION`が完了済みの作業を未着手Task（`M7-019`）に所有させたままだったことを検出した。
-
-そのため`capability-status-audit.test.ts`が次の2件を機械検証する。
-
-| 検証                   | 内容                                                                                                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UT-AUDIT-REL-001-001` | `IMPLEMENTED` Capabilityは`verification.testCaseIds`のうち少なくとも1件が`apps/api/src/__tests__/production-catalog/`配下で定義されていなければならない                   |
-| `UT-AUDIT-REL-001-002` | `IMPLEMENTED` Capabilityの`implementationTaskId`は`17_残作業対応表.json`の`tasks`で`CLOSED`でなければならない（M6以前の`M6-CD-001`／`M6-RC-001`だけを明示的な例外にする） |
-
-1件目は「productionテストか」をテストID接頭辞（`IT-`）ではなく**定義ファイルの位置**で判定する。接頭辞は命名規約に過ぎず、実`catalog/`をロードしている保証にならないためである。この不変条件は[`12_テスト戦略.md`](./12_テスト戦略.md)「production Catalog 結合テストの2軸モデル」のretire方針に下限を課す — golden battleがproduction-catalogテストを包含してもretireできるのは最後の1件までで、`IMPLEMENTED` Capabilityごとに機構検証を1件は`production-catalog/`へ残す（同節「retire の下限」）。2件目は「実装したPRが同じcommitで自Taskを`CLOSED`にする」既存運用（`17_残作業対応表.md`「更新手順」#4）を前提にしており、未着手Taskによる所有と、台帳に存在しないTask IDの誤記の双方を弾く。
-
-なお`M6-CD-001`（`CAP_COOLDOWN_MANIPULATION`）・`M6-RC-001`（`CAP_SKILL_RUNTIME_COUNTER`）は`17_残作業対応表.json`がM7以降の残作業だけを登録する台帳であるため`tasks`に存在しない。台帳へ遡って登録すると台帳の位置づけが崩れるため、例外として許可リストに置く（`UT-AUDIT-M7-002`の同趣旨の除外と対になる）。
-
-### Issue #166での分割
-
-| 旧Capability                   | 現Capability                                                                        |
-| ------------------------------ | ----------------------------------------------------------------------------------- |
-| `CAP_ADVANCED_TARGETING`       | `CAP_TARGET_FILTER_ORDER`、`CAP_TARGET_DERIVED_AREA`、`CAP_TARGET_BINDING_FALLBACK` |
-| `CAP_ADVANCED_PASSIVE_TRIGGER` | `CAP_TRIGGER_CONTEXT`（その他の条件・効果はそれぞれの既存Capability）               |
-| `CAP_RUNTIME_COUNTER`          | 実装済み`CAP_SKILL_RUNTIME_COUNTER`、未実装`CAP_EFFECT_RUNTIME_COUNTER`             |
-| `CAP_EFFECT_CONDITION`         | `CAP_EFFECT_STEP_CONDITION`                                                         |
-| `CAP_RESOLUTION_BRANCH`        | `CAP_RESOLUTION_BRANCH_REPEAT`                                                      |
-| `CAP_RESOURCE_MOD`             | `CAP_RESOURCE_MUTATION`                                                             |
-| `CAP_DERIVED_TARGETS`          | `CAP_TARGET_DERIVED_AREA`                                                           |
-| `CAP_TARGET_FALLBACK`          | `CAP_TARGET_BINDING_FALLBACK`                                                       |
-
-旧IDは互換aliasとして残さない。`catalog-src/`内の参照と生成済み`catalog/`を同じrevisionで一括移行する。API v1はCapability定義本体を公開せず、選択不可理由のCapability IDだけを返すため、レスポンスSchemaの変更はない。
-
-RES-004（Issue #171）では、`CAP_EFFECT_STEP_CONDITION`の完了境界を「EffectStepの対象別条件（自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERの個別評価）と、既存productionが使う非TRUE条件（`LAST_RESULT`等）」に絞り、`IMPLEMENTED`はこの境界だけで判断する。「集合条件」（対象集合のしきい値判定、`SET_THRESHOLD_ACTIVATION_CONDITION`）は、当時`schemaStatus: SUPPORTED`にできる具体的な`ConditionKind`設計がまだ無かったため、このCapabilityの完了境界に含めなかった。
-
-RES-004後続（Issue #227）で、`ConditionDefinition.kind: TARGET_SET_COUNT`として集合条件のschemaを設計し、`CAP_EFFECT_STEP_SET_CONDITION`を新規Capabilityとして追加した（Issue #166のような改名ではなく、未着手スコープの新規追加）。schema・`EffectStep`条件評価器（`ACTION`/`BRANCH`）への配線・Catalog検証はこの時点で実装済みだったが、利用するproduction定義（`SKL_LYDIA_GENIUS_AS1`/`SKL_ELENA_MOODMAKER_AS1`はいずれもAS/EXの`activationCondition`としての利用であり、`CAP_ACTION_ACTIVATION_CONDITION`（#180、M7-003）のスコープ）が存在しなかったため`runtimeStatus: PLANNED`に留めていた。`DMG-003`（Issue #196）が`SKL_RAMI_UNYIELDING_EX`／`SKL_HIIRO_LONEWOLF_AS2`／`SKL_JULIE_SNOW_EX`を近似なしへ更新してproduction代表を揃え、`IMPLEMENTED`へ移した。`implementationTaskId`は待機Task`M7-019`を指したままだったため、`REL-001`（Issue #202）が実際に実行可能化したTask`DMG-003`へ付け替えた。
-
-実行時構造から必要Capabilityを一意に導出し、Skill/Memory自身の`requiredCapabilities`へ宣言する。非空`filters`または`["DEFAULT"]`以外の`order`は`CAP_TARGET_FILTER_ORDER`、`BINDING_DERIVED`または`area`は`CAP_TARGET_DERIVED_AREA`、`fallback`は`CAP_TARGET_BINDING_FALLBACK`を必須とする。TargetSelectorのkind/baseまたはEffectStep targetが`TRIGGER_SOURCE`/`TRIGGER_TARGET`なら`CAP_TRIGGER_CONTEXT`、EffectStep targetが`LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`なら`CAP_RESOLUTION_BRANCH_REPEAT`を必須とする。`RANDOM_BRANCH`は`CAP_RANDOM_BRANCH`、Memoryの`triggeredEffects`は`CAP_MEMORY_TRIGGERED_EFFECT`を必須とする。Skillの`activationCondition`が`TRUE`以外なら、AS/EXは`CAP_ACTION_ACTIVATION_CONDITION`、PSは`CAP_PASSIVE_ACTIVATION_CONDITION`を必須とする。前者はR-ACT-01/02の行動選択、後者はPS候補判定・発動直前再確認という別ライフサイクルを完了境界とする。Catalog整合性検証はEffectStepの分岐・反復とselectorのfallbackを再帰走査し、宣言漏れを拒否する。
-
-### 現Capability registry
-
-正本は`catalog-src/capabilities.json`とし、下表は担当境界を示す。
-
-| Capability                         | 完了責任Task | 実行可能化の境界                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CAP_ACTION_ACTIVATION_CONDITION`  | `M7-003`     | AS / EXのactivationConditionを行動選択で評価する                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `CAP_PASSIVE_ACTIVATION_CONDITION` | `RES-004`    | PSのactivationConditionを候補判定・直前再確認で評価する                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `CAP_CHARGE_RESTRICTION`           | `M7-016`     | チャージ中の回避/PS制限（`R-HIT-02`・`R-HIT-04`・`R-PS-04`）。`resolution.kind: CHARGE`のSkillは`requiredCapabilities`にこのCapabilityを含めること（Issue #270で必須化）。チャージ状態そのもののライフサイクル（`R-SKL-05`）は`resolveChargeStart`／`resolveChargeRelease`が担う                                                                                                                                                                                                                      |
-| `CAP_COMPLEX_EXPIRATION`           | `EFF-003`    | ACTION/TURN期間・消費・特殊失効・親子連動                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `CAP_CONTINUOUS_DAMAGE`            | `DMG-008`    | 継続ダメージ(DoT)。`DMG-008`（Issue #189）が`R-DOT-01`〜`R-DOT-04`を実ライフサイクルへ配線し`IMPLEMENTED`にした                                                                                                                                                                                                                                                                                                                                                                                       |
-| `CAP_CONTINUOUS_HEAL`              | `M7-005`     | 継続回復                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `CAP_COOLDOWN_MANIPULATION`        | `M6-CD-001`  | 他スキルのクールタイム短縮・リセット                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `CAP_COVER_DAMAGE`                 | `DMG-006`    | 肩代わり（R-INT-01 #2／R-INT-02）。`DMG-006`（Issue #188）が実行時へ配線し`IMPLEMENTED`にした。状態は攻撃側が保持し、redirect後の対象に対して評価して防御側そのものを肩代わり者へ変更する。実装するのは`coverer: SELF`・`damageShareRate: 1`だけ                                                                                                                                                                                                                                                      |
-| `CAP_CRITICAL_CONTROL`             | `DMG-003A`   | 会心保証・会心不可（R-CRT-03）。`critical.mode`の`GUARANTEED`/`PREVENTED`は先に実装済みで、`APPLY_STATUS`の`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`だけが未配線だった。`DMG-003`（Issue #196）の3テーマとは独立した機能のため`DMG-003A`（Issue #295）へ分離し、同Issueが実効会心モード（`resolveEffectiveCriticalMode`）を配線して`IMPLEMENTED`にした                                                                                                                                               |
-| `CAP_DAMAGE_MOD`                   | `DMG-002`    | 与ダメージ・被ダメージ補正                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `CAP_DEATH_SURVIVAL`               | `DMG-006`    | 致死耐え（R-INT-01 #5）。`DMG-006`（Issue #188）が実行時へ配線し`IMPLEMENTED`にした。HP適用時に成立を判定して`survivalHp`でHPを止め、`UnitDefeated`の代わりに`LethalDamageSurvived`を発行してR-EFF-07の`LETHAL_DAMAGE`消費と`healAfterSurvival`の回復を続ける                                                                                                                                                                                                                                         |
-| `CAP_EFFECT_RUNTIME_COUNTER`       | `EFF-005`    | AppliedEffectスコープのRuntimeCounter（実装済み、production定義が現れるまで`runtimeStatus: PLANNED`）                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `CAP_EFFECT_STEP_CONDITION`        | `RES-004`    | EffectStepの対象別条件（ACTIONの`targetCondition`、またはBRANCHの`condition`が自身のtargetを参照するTARGET_STATE/TARGET_HAS_MARKERを対象ごとに個別評価。Issue #230でACTIONは専用フィールドへ分離）。集合条件は`CAP_EFFECT_STEP_SET_CONDITION`が別途担う                                                                                                                                                                                                                                               |
-| `CAP_EFFECT_STEP_SET_CONDITION`    | `DMG-003`    | BRANCHの`condition`、またはACTIONの`stepCondition`（Issue #230でACTIONの`condition`から分離）でTARGET_SET_COUNTを評価する。schemaと評価器は`RES-004`後続（Issue #227）が用意し、`DMG-003`（Issue #196）がproduction代表を揃えて`IMPLEMENTED`にした。AS/EXのactivationConditionでの利用は`CAP_ACTION_ACTIVATION_CONDITION`（#180、M7-003）が別途担う                                                                                                                                                   |
-| `CAP_FORMULA`                      | `RES-001`    | 動的値計算                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `CAP_HEAL`                         | `M7-005`     | 即時回復EffectAction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `CAP_HIT_COUNT_EVASION`            | `M7-018`     | Nヒット回避（R-HIT-04）。回避が成立した被ヒットが、回避を成立させたインスタンス自身の`consumption: INCOMING_HIT`を1消費する（Issue #272で実装）。`EVASION`/`HIT_EVASION`はどちらもこの機構で扱う                                                                                                                                                                                                                                                                                                      |
-| `CAP_MARKER`                       | `EFF-004`    | 固有マーカー                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `CAP_MARKER_STACK_FORMULA`         | `M7-015`     | Marker数を参照するFormula（`MARKER_COUNT_SCALE`）。`MARKER_COUNT_SCALE`を含むFormulaを持つ`EffectActionDefinition`は`requiredCapabilities`にこのCapabilityを含めること（Issue #269で必須化、`SUM`/`PRODUCT`/`MIN`/`MAX`/`CLAMP`の入れ子も対象）。Markerの付与・スタック・失効そのものは`CAP_MARKER`が担う                                                                                                                                                                                             |
-| `CAP_MEMORY_TRIGGERED_EFFECT`      | `M7-006`     | MemoryのTriggeredEffect発動engine                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `CAP_PARTIAL_PIERCING`             | `DMG-003`    | 部分防御/シールド無視（R-DMG-03）。静的な`DamagePayload.piercing`は`DMG-002`／`DMG-004`が配線済みで、`DMG-003`（Issue #196）が`APPLY_PIERCING_MOD`（一時付与）を追加して完了させた。貫通を宣言する定義は`requiredCapabilities`にこのCapabilityを含めること（Issue #196で必須化）                                                                                                                                                                                                                      |
-| `CAP_RANDOM_BRANCH`                | `RES-003`    | 確率分岐                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `CAP_REFLECT_DAMAGE`               | `DMG-006`    | 反射（R-INT-01 #4／R-INT-03）。`14_Catalog定義スキーマ.md`が`APPLY_REFLECT`のpayloadを定義しながらレジストリへ未登録だったため`validate-catalog`が`UNKNOWN_CAPABILITY`で拒否していた（`15_Unit_Memory変換台帳.md`の`REFLECT_DAMAGE`）。`DMG-006`（Issue #188）が登録と実装を同時に行い`IMPLEMENTED`にした。状態は防御側が保持し、元ダメージの`DamageApplied`後に`ReflectedDamageGenerated`を発行してから反射先へ適用する。実装するのは`reflectTo: TRIGGER_SOURCE`・`allowRecursiveReflect: false`だけ |
-| `CAP_REMOVE_EFFECTS`               | `M7-001`     | 効果解除                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `CAP_RESOLUTION_BRANCH_REPEAT`     | `RES-003`    | BRANCH / REPEATと直前結果                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `CAP_RESOURCE_CAPACITY_MOD`        | `M7-002`     | 最大APなどの上限変更                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `CAP_RESOURCE_MUTATION`            | `M7-002`     | AP / PP / EX 操作                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `CAP_SHIELD`                       | `DMG-004`    | シールド付与（R-SHD-01〜03、DMG-004／Issue #194で`IMPLEMENTED`）                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `CAP_SKILL_RUNTIME_COUNTER`        | `M6-RC-001`  | SkillRuntimeスコープの発動回数・累計条件                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `CAP_SPECIFIC_IMMUNITY`            | `M7-001B`    | 個別状態異常無効（`EFFECT_IMMUNITY.statusKinds`、R-EFF-03、Issue #243で実装済み）                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `CAP_STATUS_EFFECT_KIND`           | `M7-018`     | `APPLY_STATUS`の`status`がSTEALTH以外の場合の実効処理（R-STS-01〜04・R-HIT-02・R-HIT-04・R-HIT-05・R-DMG-02）。resolverは`status`自体の許可リストで判定する。宣言しているproduction行は`UNIT_LAYLA_ENTREPRENEUR`のEX/PS1の2行（M7-001B、Issue #243）で、Issue #272で両方とも解決可能になった。最後まで未対応だった`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`は`CAP_CRITICAL_CONTROL`（DMG-003A／Issue #295）が配線し、許可リストは`StatusKind`の全値を網羅する                                        |
-| `CAP_SUBUNIT`                      | `DMG-005`    | サブユニット付与（R-SUB-01/02）。DMG-005（Issue #190）が耐久力の吸収（R-SHD-02 #4）・`SubUnitDamaged`・`EffectExpired`(`SUBUNIT_DEPLETED`)・対象ごとの追加ダメージと追加デバフを実ライフサイクルへ配線した。M7-001で`REMOVE_EFFECTS`の`SUBUNIT`カテゴリが要求するCapabilityとしても登録する                                                                                                                                                                                                           |
-| `CAP_TARGET_BINDING_FALLBACK`      | `TGT-003`    | TargetBinding固定・参照時の戦闘不能skip・fallback判定                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `CAP_TARGET_DERIVED_AREA`          | `TGT-001`    | area・距離・隣接・列による派生対象                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `CAP_TARGET_FILTER_ORDER`          | `TGT-002`    | Target filter・order・除外選択                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `CAP_TARGET_REDIRECT`              | `DMG-006`    | 挑発・攻撃引き寄せ（R-INT-01 #1）。`DMG-006`（Issue #188）が実行時へ配線し`IMPLEMENTED`にした。状態は攻撃側が保持し、`DamageWillBeApplied`の後・ダメージ確定前にその攻撃の防御側を引き寄せ先へ差し替える。実装するのは`redirectTo: SELF`だけ                                                                                                                                                                                                                                                          |
-| `CAP_TRIGGER_CONTEXT`              | `RES-005`    | TRIGGER_SOURCE / TRIGGER_TARGETと基本Damage事実イベント                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-
-現時点で保留仕様として隔離する `Q-*` Capability はない。
-
----
 
 ## raw からの変換例
 
@@ -2548,9 +2401,6 @@ triggeredEffects:
             targetBindingId: TGT_ENEMY_FRONT
           actions:
             - effectActionDefinitionId: ACT_INCOMING_DAMAGE_UP_075
-requiredCapabilities:
-  - CAP_MEMORY_TRIGGERED_EFFECT
-  - CAP_DAMAGE_MOD
 ```
 
 ### 例4: 固有マーカー数に応じたダメージ増加
@@ -2577,9 +2427,6 @@ payload:
       markerId: MARKER_KEIBO
       perStack: 0.15
       max: 0.45
-requiredCapabilities:
-  - CAP_MARKER
-  - CAP_MARKER_STACK_FORMULA
 ```
 
 ---
@@ -2593,12 +2440,11 @@ Catalog v2 検証器は次を確認する。
 3. Skill / Memory の `effectSequence.steps` が参照する `effectActionDefinitionId` が存在する。
 4. `TargetReference.kind: BINDING` が同じ sequence 内の `targetBindings` に存在する。
 5. `ConditionDefinition` と `FormulaDefinition` の参照 field が許可一覧に存在する。
-6. `requiredCapabilities` が `capabilities.json` に存在する。
-7. `schemaVersion` が `2` である。
-8. `triggeredEffects` を1件以上持つ Memory だけを許可する。
-9. AS/EX の `triggers` は空、PS の `triggers` は1件以上。
-10. EX Skill の `cost.resource` は `EX_GAUGE` で、`cost.amount` が Unit の `extraGaugeMaximum` と一致する。
-11. `EFFECT_IMMUNITY` / `REMOVE_EFFECTS` の `payload.effectActionDefinitionIds`（`categories` に `SPECIFIC_EFFECT` を含む場合）が参照する `EffectActionDefinition` が存在する。
+6. `schemaVersion` が `3` である。
+7. `triggeredEffects` を1件以上持つ Memory だけを許可する。
+8. AS/EX の `triggers` は空、PS の `triggers` は1件以上。
+9. EX Skill の `cost.resource` は `EX_GAUGE` で、`cost.amount` が Unit の `extraGaugeMaximum` と一致する。
+10. `EFFECT_IMMUNITY` / `REMOVE_EFFECTS` の `payload.effectActionDefinitionIds`（`categories` に `SPECIFIC_EFFECT` を含む場合）が参照する `EffectActionDefinition` が存在する。
 
 ---
 
@@ -2608,9 +2454,9 @@ Unit / Memory Markdown から Catalog v2 へ変換する際は、次をテンプ
 
 - Unit metadata: `characterName`, `characterId`, `affiliations`
 - Unit generated fields: `baseStats.affinityBonus = 0.25`, `baseStats.criticalDamageBonus = 0.5`, `extraGaugeMaximum = EX skill cost.amount`
-- Skill: `targetBindings`, `steps`, `requiredCapabilities`
-- EffectAction: `formula`, `duration`, `stacking`, `requiredCapabilities`
-- Memory: `triggeredEffects`、`requiredCapabilities`（`CAP_MEMORY_TRIGGERED_EFFECT` を必ず含める）
+- Skill: `targetBindings`, `steps`
+- EffectAction: `formula`, `duration`, `stacking`
+- Memory: `triggeredEffects`
 - 判断記録: raw 文のどの句が Target / Condition / Formula / Action / Duration に対応したか
 
 production Catalog には source text を含めない。出典と転記根拠は authoring Markdown の front matter / source block / decisions block へ保持する。
@@ -2627,7 +2473,6 @@ production Catalog には source text を含めない。出典と転記根拠は
 4. Marker と linkedEffectGroup の失効順。
 5. RandomBranch のログ形式。
 6. Memory の複数指定時の発動順。
-7. Capability ごとの初期 `IMPLEMENTED` / `PLANNED` 状態。
 
 ## Issue #6実装で判明した制約
 
@@ -2646,19 +2491,19 @@ Issue #41（代表10ユニットのv2 Catalog変換パイロット）で、当�
 
 ### 実装したもの（Mapper拡張済み、fixtureで実データ再変換済み）
 
-| #    | 内容                                                                  | 追加したschema要素                                                                                                                                                                                                                                                                                                             | Capability                                                                                                                                                                                                                                                                                                                                    |
-| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G-01 | 回復量増減の被付与                                                    | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                                                                                                                                                                                                                                                               | `CAP_HEAL`（既存を再利用、`IMPLEMENTED` — M7-005/Issue #184で実装）                                                                                                                                                                                                                                                                           |
-| G-02 | 継続ダメージ(DoT)                                                     | `EffectActionDefinition.kind: APPLY_CONTINUOUS_DAMAGE`                                                                                                                                                                                                                                                                         | `CAP_CONTINUOUS_DAMAGE`（`IMPLEMENTED`、`DMG-008`／Issue #189）                                                                                                                                                                                                                                                                               |
-| G-03 | 生存ユニット数を直接比較する条件                                      | `ConditionDefinition.kind: ALIVE_UNIT_COUNT`                                                                                                                                                                                                                                                                                   | AS/EXの`activationCondition`では`CAP_ACTION_ACTIVATION_CONDITION`、PSでは`CAP_PASSIVE_ACTIVATION_CONDITION`、EffectStepでは`CAP_EFFECT_STEP_CONDITION`（いずれも`IMPLEMENTED`）                                                                                                                                                               |
-| G-04 | 効果解除                                                              | `EffectActionDefinition.kind: REMOVE_EFFECTS`                                                                                                                                                                                                                                                                                  | `CAP_REMOVE_EFFECTS`（新規、`IMPLEMENTED`）                                                                                                                                                                                                                                                                                                   |
-| G-06 | `DAMAGE_IMMUNITY`のダメージ量しきい値                                 | `APPLY_STATUS.payload.damageThreshold`（既存kindへのフィールド追加）                                                                                                                                                                                                                                                           | なし（`APPLY_STATUS`の既存Capability方針を継承。`status !== DAMAGE_IMMUNITY`ではMapperが拒否する）                                                                                                                                                                                                                                            |
-| G-08 | シールド付与                                                          | `EffectActionDefinition.kind: APPLY_SHIELD`                                                                                                                                                                                                                                                                                    | `CAP_SHIELD`（新規、`PLANNED`）                                                                                                                                                                                                                                                                                                               |
-| G-09 | 最大リソース上限変更                                                  | `EffectActionDefinition.kind: MODIFY_RESOURCE_CAPACITY`                                                                                                                                                                                                                                                                        | `CAP_RESOURCE_CAPACITY_MOD`（既存を再利用。M7-002A／Issue #255で`IMPLEMENTED`）                                                                                                                                                                                                                                                               |
-| G-10 | 同一EffectSequence内のDAMAGE結果合算参照                              | `FormulaDefinition` の `sourceResult: SUM_DAMAGE_DEALT` / `SUM_DAMAGE_RECEIVED`                                                                                                                                                                                                                                                | `CAP_FORMULA`（既存を再利用、`IMPLEMENTED`）＋`CAP_SUM_DAMAGE_RESULT`（`IMPLEMENTED`）。累計は1回の`EffectSequence`解決（`SkillUseId`）を単位に`DamageResultRegistry`が保持し、`FormulaEvaluationContext`へ配線済み（RES-003A／Issue #257、上記「`SUM_*`の集計スコープ」節）。参照する定義は`CAP_SUM_DAMAGE_RESULT`の宣言を引き続き必須とする |
-| G-05 | リソース「獲得量」自体を増減させるModifier（実装: M7-002/Issue #185） | `EffectActionDefinition.kind: APPLY_RESOURCE_GAIN_MOD`。`resource`は当初計画の`AP`/`PP`/`EX_GAUGE`から`EX_GAUGE`固定へ絞った（合成経路がEXゲージ増加だけを対象にするため、AP/PP/HPを受理しても機能しない「無効な定義」になってしまうことをレビューで指摘され修正）。`UNIT_MAIA_SALON`/`UNIT_KARINA_DOWNER`を実データ再変換済み | `CAP_RESOURCE_GAIN_MOD`（新規、`IMPLEMENTED`）                                                                                                                                                                                                                                                                                                |
+| #    | 内容                                                                  | 追加したschema要素                                                                                                                                                                                                                                                                                                             |
+| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| G-01 | 回復量増減の被付与                                                    | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                                                                                                                                                                                                                                                               |
+| G-02 | 継続ダメージ(DoT)                                                     | `EffectActionDefinition.kind: APPLY_CONTINUOUS_DAMAGE`                                                                                                                                                                                                                                                                         |
+| G-03 | 生存ユニット数を直接比較する条件                                      | `ConditionDefinition.kind: ALIVE_UNIT_COUNT`                                                                                                                                                                                                                                                                                   |
+| G-04 | 効果解除                                                              | `EffectActionDefinition.kind: REMOVE_EFFECTS`                                                                                                                                                                                                                                                                                  |
+| G-06 | `DAMAGE_IMMUNITY`のダメージ量しきい値                                 | `APPLY_STATUS.payload.damageThreshold`（既存kindへのフィールド追加）                                                                                                                                                                                                                                                           |
+| G-08 | シールド付与                                                          | `EffectActionDefinition.kind: APPLY_SHIELD`                                                                                                                                                                                                                                                                                    |
+| G-09 | 最大リソース上限変更                                                  | `EffectActionDefinition.kind: MODIFY_RESOURCE_CAPACITY`                                                                                                                                                                                                                                                                        |
+| G-10 | 同一EffectSequence内のDAMAGE結果合算参照                              | `FormulaDefinition` の `sourceResult: SUM_DAMAGE_DEALT` / `SUM_DAMAGE_RECEIVED`                                                                                                                                                                                                                                                |
+| G-05 | リソース「獲得量」自体を増減させるModifier（実装: M7-002/Issue #185） | `EffectActionDefinition.kind: APPLY_RESOURCE_GAIN_MOD`。`resource`は当初計画の`AP`/`PP`/`EX_GAUGE`から`EX_GAUGE`固定へ絞った（合成経路がEXゲージ増加だけを対象にするため、AP/PP/HPを受理しても機能しない「無効な定義」になってしまうことをレビューで指摘され修正）。`UNIT_MAIA_SALON`/`UNIT_KARINA_DOWNER`を実データ再変換済み |
 
-上表の`runtimeStatus`（`IMPLEMENTED`/`PLANNED`）は`apps/api/catalog-src/capabilities.json`が正本であり、本書のこの一覧は執筆時点のスナップショットに過ぎない。`PLANNED`のCapabilityはMapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）を分離する既存の`CAP_MARKER`などと同じ方針を取り、Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181）で追跡する。`MODIFY_RESOURCE_CAPACITY`はM7-002A（Issue #255）が実装し`IMPLEMENTED`になった。
+Mapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）は分離して段階的に実装した。Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181、`MODIFY_RESOURCE_CAPACITY`はM7-002A／Issue #255）で追跡した。
 
 `MODIFY_RESOURCE` は一回限りの加減算のままとし、`APPLY_RESOURCE_GAIN_MOD` とは別kindとして扱う（「Duration付与時に確定した符号付き量を加算する」既存の`APPLY_DAMAGE_MOD`/`APPLY_HEALING_MOD`と同じモデルへ揃え、将来の獲得イベントへ事後的にフックする新モデルは導入しない）。フィールド名・丸め規則・複数Modifier合成順は、M7-002（Issue #185）で`resource: EX_GAUGE`固定の契約として確定・実装済み（上記「実装したもの」表のG-05、および[APPLY_RESOURCE_GAIN_MOD](#apply_resource_gain_mod)参照）。
 
