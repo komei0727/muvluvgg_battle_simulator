@@ -174,7 +174,19 @@ describe("validateDraft — unsupported capability (UI-UT-VAL-006)", () => {
     );
   });
 
-  // Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
+  it("rejects a unit definition id that is missing from the catalog entirely", () => {
+    const catalog = catalogWith([]);
+    const draft = draftWithAllyCount(1, "UNKNOWN_UNIT");
+
+    const violations = validateDraft(draft, catalog);
+    expect(violations).toContainEqual(
+      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION", severity: "error" }),
+    );
+  });
+});
+
+// Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
+describe("validateDraft — tolerates a missing selectable", () => {
   it("accepts a unit definition without selectable", () => {
     const { selectable: _selectable, ...unit } = selectableUnit("UNIT_A");
     const catalog = catalogWith([unit]);
@@ -197,16 +209,6 @@ describe("validateDraft — unsupported capability (UI-UT-VAL-006)", () => {
     const violations = validateDraft(draft, catalog);
     expect(violations).not.toContainEqual(
       expect.objectContaining({ code: "UNSUPPORTED_DEFINITION" }),
-    );
-  });
-
-  it("rejects a unit definition id that is missing from the catalog entirely", () => {
-    const catalog = catalogWith([]);
-    const draft = draftWithAllyCount(1, "UNKNOWN_UNIT");
-
-    const violations = validateDraft(draft, catalog);
-    expect(violations).toContainEqual(
-      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION", severity: "error" }),
     );
   });
 });

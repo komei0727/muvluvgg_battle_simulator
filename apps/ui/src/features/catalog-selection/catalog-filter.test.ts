@@ -239,6 +239,17 @@ describe("filterMemories", () => {
     ).not.toContain("MEMORY_DELTA");
   });
 
+  it("sorts a memory without selectable ahead of an explicitly unavailable one", () => {
+    const sample: readonly CatalogMemorySummary[] = [
+      { ...memories[1]!, memoryDefinitionId: "MEMORY_C", displayName: "Charlie" },
+      { ...memoryWithoutAvailability, memoryDefinitionId: "MEMORY_D", displayName: "Delta" },
+    ];
+
+    const result = filterMemories(sample, { query: "", availability: "all" });
+
+    expect(result.map((memory) => memory.memoryDefinitionId)).toEqual(["MEMORY_D", "MEMORY_C"]);
+  });
+
   it("does not mutate the input array", () => {
     const original = [...memories];
 
