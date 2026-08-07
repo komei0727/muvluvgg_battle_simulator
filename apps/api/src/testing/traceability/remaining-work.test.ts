@@ -230,8 +230,15 @@ describe("remaining work manifest (PLAN-001)", () => {
     const unitDirectories = readdirSync(`${repositoryRoot}/apps/api/catalog-src/units`, {
       withFileTypes: true,
     }).filter((entry) => entry.isDirectory());
-    const syntheticUnitDirectories = unitDirectories.filter(
-      (entry) => entry.name === "UNIT_CI_SMOKE_TEST",
+    // REL-002（Issue #199）で合成Unitは0件になったが、判定は残す——ID直書きでは
+    // なく`INTERNAL`タグで数えることで、再び合成Unitを足したときに台帳の
+    // `syntheticUnits`更新を強制し、変換済み件数へ紛れ込ませない。
+    const syntheticUnitDirectories = unitDirectories.filter((entry) =>
+      (
+        JSON.parse(readRepositoryFile(`apps/api/catalog-src/units/${entry.name}/unit.json`)) as {
+          readonly metadata?: { readonly tags?: readonly string[] };
+        }
+      ).metadata?.tags?.includes("INTERNAL"),
     );
     const memoryDirectories = readdirSync(`${repositoryRoot}/apps/api/catalog-src/memories`, {
       withFileTypes: true,

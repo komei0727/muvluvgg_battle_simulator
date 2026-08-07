@@ -19,11 +19,13 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
-### Issue #106: 台帳外の合成Unit（`UNIT_CI_SMOKE_TEST`）
+### Issue #106: 台帳外の合成Unit（`UNIT_CI_SMOKE_TEST`、`REL-002`で削除済み）
 
-`catalog-src/units/UNIT_CI_SMOKE_TEST/` は `raw/units/` のキャラクター変換ではない。追加時点では`capabilities.json`の30件中29件が`PLANNED`であり（Issue #166後の現在値は[`17_残作業対応表.md`](./17_残作業対応表.md)を正本とする）、実在キャラクターUnitは1件も`selectable`にならず、Cloud Run CI/CDのpost-deploy simulation smoke test（`docs/運用手順.md`「Cloud Run deploy」）が実行不能だった問題への対応として、未実装Capabilityを参照しない合成Unit（Active 1・EX 1・Passive 1、`metadata.tags: ["INTERNAL","SMOKE_TEST","TEMPORARY"]`）を追加した（2026-07-15）。Issue #166では実装済み`CAP_SKILL_RUNTIME_COUNTER`のproduction lifecycle証跡として、通常のDAMAGE解決だけを行うPassiveを追加した。これによりdeploy smokeの選択可能性を維持したまま、`TurnStarted`から`PassiveActivated`、counter更新、StateDelta replayまでを実Catalog定義で検証する。
+`catalog-src/units/UNIT_CI_SMOKE_TEST/` は `raw/units/` のキャラクター変換ではなかった。追加時点では`capabilities.json`の30件中29件が`PLANNED`であり、実在キャラクターUnitは1件も`selectable`にならず、Cloud Run CI/CDのpost-deploy simulation smoke test（`docs/運用手順.md`「Cloud Run deploy」）が実行不能だった問題への対応として、未実装Capabilityを参照しない合成Unit（Active 1・EX 1・Passive 1、`metadata.tags: ["INTERNAL","SMOKE_TEST","TEMPORARY"]`）を追加した（2026-07-15）。
 
-この台帳の69件（`raw/units/`変換）・`catalog-src-inventory.test.ts`の69件アサーション（`IT-CAT-INV-001`のraw/変換キャラクター数）には含めない。`catalog-src/`のunit directory総数は70件になる。削除の前提条件「実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になること」は、`DMG-006`（Issue #188）で実在Unit全69件が`selectable`になり成立済みである。残作業はこのUnitの削除とCatalog revision再生成のみで、削除手順は`REL-002`（Issue #199）が実施する。
+削除の前提条件「実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になること」は`DMG-006`（Issue #188）で実在Unit全69件が`selectable`になり成立したため、`REL-002`（Issue #199）がこのUnitと専用fixtureを削除しCatalog revisionを再生成した（`2026-08-07.1`）。deploy smoke testは`buildSimulationSmokeRequest`が一覧の先頭の`selectable`Unitを動的に選ぶため、削除だけで実在Unitへ切り替わる。Issue #166がこのUnitへ置いていた`CAP_SKILL_RUNTIME_COUNTER`のproduction lifecycle証跡（`TurnStarted`→`PassiveActivated`→counter更新→StateDelta replay→次回発動抑止）は、同じ構造を持つ実在Unitの`SKL_HIIRO_LONEWOLF_PS1`が引き継いだ（`IT-CAP-SKILL-RUNTIME-003`）。
+
+以後 `catalog-src/` のunit directory総数はこの台帳の69件（`raw/units/`変換）と一致する。合成Unitの計数は`unit.json`の`INTERNAL`タグから導出しており（`remaining-work.test.ts`・`m7-completion-audit.test.ts`）、再び合成Unitを足す場合は`17_残作業対応表.json`の`syntheticUnits`を更新しないとCIが失敗する。
 
 ## Unit 変換台帳
 

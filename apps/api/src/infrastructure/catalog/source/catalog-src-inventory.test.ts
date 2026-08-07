@@ -23,15 +23,18 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * to 62. Issue #60 (Batch F of Issue #54) adds the remaining 7 units,
  * bringing the total to 69.
  *
- * Issue #106 review (2026-07-15) adds a 70th unit, `UNIT_CI_SMOKE_TEST` — a
- * synthetic, zero-`requiredCapabilities` unit (tagged
- * `INTERNAL`/`SMOKE_TEST`/`TEMPORARY`) that exists solely so production
- * Catalog has at least one `selectable` unit for the Cloud Run CI/CD
- * post-deploy simulation smoke test (`apps/api/src/infrastructure/deploy/
- * simulation-smoke-request.ts`). It is NOT a raw/ character conversion and
- * is intentionally excluded from the ledger's 69-unit tally in
- * `docs/ddd/15_Unit_Memory変換台帳.md` — remove it once a real converted unit
- * references only `IMPLEMENTED` capabilities.
+ * Issue #106 review (2026-07-15) added a 70th unit, `UNIT_CI_SMOKE_TEST` — a
+ * synthetic, zero-`requiredCapabilities` unit that existed solely so
+ * production Catalog had at least one `selectable` unit for the Cloud Run
+ * CI/CD post-deploy simulation smoke test. `REL-002` (Issue #199) removed it
+ * once every converted character unit became `selectable` on `IMPLEMENTED`
+ * capabilities alone (`DMG-006`/Issue #188).
+ *
+ * This test counts CONVERTED units only — units carrying the `INTERNAL` tag
+ * are synthetic fixtures, are not `raw/units/` conversions, and belong to a
+ * separate tally owned by `UT-PLAN-001-005`. Counting the directory total
+ * instead would conflate the two: re-adding a synthetic unit would fail here
+ * and invite editing the ledger's converted-unit constant to make it pass.
  */
 
 function apiPackageRootPath(...segments: string[]): string {
@@ -39,9 +42,15 @@ function apiPackageRootPath(...segments: string[]): string {
 }
 
 describe("catalog-src/ inventory (Issue #47 ledger)", () => {
-  it("IT-CAT-INV-001: catalog-src/ has the 69 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A + 8 from Issue #59 Batch B + 8 from Issue #57 Batch C + 8 from Issue #56 Batch D + 8 from Issue #58 Batch E + 7 from Issue #60 Batch F) plus the 1 synthetic CI smoke-test unit from Issue #106", () => {
+  it("IT-CAT-INV-001: catalog-src/ has exactly the 69 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A + 8 from Issue #59 Batch B + 8 from Issue #57 Batch C + 8 from Issue #56 Batch D + 8 from Issue #58 Batch E + 7 from Issue #60 Batch F), excluding synthetic INTERNAL fixtures", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
-    expect(source.units.length).toBe(70);
+    const converted = source.units.filter(
+      (unit) =>
+        !((unit as { metadata?: { tags?: readonly string[] } }).metadata?.tags ?? []).includes(
+          "INTERNAL",
+        ),
+    );
+    expect(converted).toHaveLength(69);
   });
 
   it("IT-CAT-INV-002: catalog-src/ has all 32 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007 + 20 from Issue #176 M7-008)", () => {

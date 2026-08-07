@@ -120,7 +120,19 @@ function countCapabilityDeclarations(): ReadonlyMap<string, number> {
   return counts;
 }
 
-const SYNTHETIC_UNIT_ID = "UNIT_CI_SMOKE_TEST";
+/**
+ * 合成Unit（CI用fixture）はraw/変換キャラクターの件数と混ぜて数えない。REL-002
+ * （Issue #199）で現状0件になったが、判定はID直書きではなく`INTERNAL`タグで行う——
+ * 再び合成Unitを足したときに`m7Audit.selectability`の更新を強制するため。
+ */
+function syntheticUnitIds(): ReadonlySet<string> {
+  const snapshot = loadBattleCatalogDirectory(catalogPath).loadSnapshot();
+  return new Set(
+    [...snapshot.units.values()]
+      .filter((unit) => unit.metadata.tags.includes("INTERNAL"))
+      .map((unit) => unit.unitDefinitionId as string),
+  );
+}
 
 function projectCatalog(): ReturnType<GetBattleSimulationCatalogUseCase["execute"]> {
   return new GetBattleSimulationCatalogUseCase({
@@ -173,12 +185,9 @@ describe("M7 completion audit (M7-010)", () => {
   it("UT-AUDIT-M7-003: records the real-Unit and Memory selectability reached at M7", () => {
     const manifest = readManifest();
     const result = projectCatalog();
-    const productionUnits = result.units.filter(
-      (unit) => unit.unitDefinitionId !== SYNTHETIC_UNIT_ID,
-    );
-    const syntheticUnits = result.units.filter(
-      (unit) => unit.unitDefinitionId === SYNTHETIC_UNIT_ID,
-    );
+    const synthetic = syntheticUnitIds();
+    const productionUnits = result.units.filter((unit) => !synthetic.has(unit.unitDefinitionId));
+    const syntheticUnits = result.units.filter((unit) => synthetic.has(unit.unitDefinitionId));
 
     expect({
       productionUnits: productionUnits.length,

@@ -24,10 +24,12 @@ import { buildSimulationSmokeRequest } from "../../infrastructure/deploy/simulat
  * deploy job (`scripts/cloud-run/ci-deploy-candidate.sh` /
  * `.github/workflows/main.yml`) uses for its own post-deploy smoke test.
  *
- * See `docs/ddd/15_Unit_Memory変換台帳.md`「Issue #106: 台帳外の合成Unit」for
- * why `UNIT_CI_SMOKE_TEST` — a synthetic, implemented-Capability-only unit —
- * exists: every real converted character unit still references at least one
- * `PLANNED` capability, so none of them are `selectable` yet.
+ * The unit under test is whichever converted character unit the Catalog
+ * projection reports as `selectable` first — the same choice the deploy job
+ * makes. Until `REL-002` (Issue #199) this was the synthetic
+ * `UNIT_CI_SMOKE_TEST`, because every converted character unit still
+ * referenced at least one `PLANNED` capability; `DMG-006` (Issue #188) made
+ * all 69 of them `selectable`, so the synthetic unit was removed.
  *
  * Compiled/dist-based imports mirror `battle-simulation-http-worker.e2e.test.ts`
  * to avoid the dual-module-instance `ApplicationError` mismatch described

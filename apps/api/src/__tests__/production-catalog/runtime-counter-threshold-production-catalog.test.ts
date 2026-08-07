@@ -249,9 +249,13 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
     },
   );
 
+  // REL-002（Issue #199）で合成Unit`UNIT_CI_SMOKE_TEST`を削除したため、実ライフサイクル
+  // 証跡は実在Unitの`SKL_HIIRO_LONEWOLF_PS1`が担う。合成PSと同じ構造
+  // （`TurnStarted`トリガ + `RUNTIME_COUNTER LT 1`による1回限りの発動 + PP消費1 +
+  // 敵1体へのDAMAGE）を持ち、置換で証跡が痩せない。
   it("IT-CAP-SKILL-RUNTIME-003: an executable production PS traverses TurnStarted through PassiveActivated, RuntimeCounterChanged, StateDelta replay, and next-activation blocking", () => {
-    const unitId = "UNIT_CI_SMOKE_TEST";
-    const skillId = createSkillDefinitionId("SKL_CI_SMOKE_TEST_PS1");
+    const unitId = "UNIT_HIIRO_LONEWOLF";
+    const skillId = createSkillDefinitionId("SKL_HIIRO_LONEWOLF_PS1");
     const counterId = createRuntimeCounterId(`${skillId}_ACTIVATIONS`);
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const unitDefinition = unitFrom(snapshot, unitId);
@@ -259,12 +263,13 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       ...actorFor(unitId, "ALLY", "B_CAP_RUNTIME:unit:1", unitDefinition.baseStats.maximumHp),
       currentPp: 4,
     };
-    const enemy = actorFor(
-      unitId,
-      "ENEMY",
-      "B_CAP_RUNTIME:unit:2",
-      unitDefinition.baseStats.maximumHp,
-    );
+    // ミラー編成なので敵も同じPSを持つ。PP 0を明示して敵側がコストを払えない状態に
+    // 固定する——暗黙のfixture既定値に頼ると、既定値が変わったとき敵PSの`PP_ZERO`が
+    // 使用者を対象にして、counterと無関係な理由でPPアサーションが落ちる。
+    const enemy = {
+      ...actorFor(unitId, "ENEMY", "B_CAP_RUNTIME:unit:2", unitDefinition.baseStats.maximumHp),
+      currentPp: 0,
+    };
     const initial = initialSnapshotFor([owner, enemy]);
     const definitions = lifecycleDefinitions(snapshot, unitId, skillId);
     const recorder = new EventRecorder(createBattleId("B_CAP_RUNTIME"));
