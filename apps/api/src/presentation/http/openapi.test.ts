@@ -1166,9 +1166,9 @@ describe("OpenAPI document", () => {
     expect(validateRuntime(body), JSON.stringify(validateRuntime.errors)).toBe(true);
 
     // The published doc schema is deliberately stricter: it is the exhaustive
-    // catalogue of what this version emits (that strictness is what makes
-    // API-OPENAPI-005 able to detect an undocumented new event type). A client
-    // generated from it therefore must apply the documented tolerance itself.
+    // catalogue of what this version emits, and that strictness is what lets the
+    // oneOf-completeness test below detect a domain event type nobody documented.
+    // A client generated from it therefore must apply the documented tolerance itself.
     expect(validateDoc(body)).toBe(false);
     expect(battleLogEventResponseDocSchema.description).toMatch(
       /must not reject the whole response/i,

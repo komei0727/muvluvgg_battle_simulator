@@ -268,5 +268,113 @@ describe("OpenAPI v1 compatibility", () => {
       events["oneOf"] = [sample, ...variants];
     });
     expect(findBreakingChanges(baseline, withNewEventVariant)).toEqual([]);
+
+    // Breaking: a property keeps its name but stops declaring `type` at all
+    // (e.g. widened into a oneOf). 10_API設計.md「バージョニング」counts a type
+    // change as breaking however it is spelled.
+    const withTypeKeywordDropped = mutate((document) => {
+      const schemaVersion = navigate(battleResponseSchema(document, "200"), [
+        "properties",
+        "schemaVersion",
+      ]) as Record<string, unknown> | undefined;
+      expect(schemaVersion).toBeDefined();
+      delete schemaVersion!["type"];
+      schemaVersion!["oneOf"] = [{ type: "string" }, { type: "integer" }];
+    });
+    expect(findBreakingChanges(baseline, withTypeKeywordDropped)).toEqual([
+      expect.objectContaining({ kind: "PROPERTY_TYPE_CHANGED" }),
+    ]);
+  });
+
+  it("API-OPENAPI-029 (REL-004, Issue #203): shared components.schemas are compared by name, so a contract reachable only through $ref cannot change unnoticed", () => {
+    // `paths`側からは`{ $ref: "#/components/schemas/def-0" }`としか見えないため、
+    // components を見ない比較器は参照先（再帰的な`ConditionDefinition`＝
+    // `EffectApplied`/`EffectApplicationRejected`の`details.expirationConditions`）の
+    // 変更を丸ごと見逃す。`$ref`は解決せず（自己参照で無限再帰になる）、
+    // components を名前どうしで突き合わせることで塞ぐ。
+    const baseline = app.swagger() as unknown;
+    const componentsOf = (document: Record<string, unknown>): Record<string, unknown> =>
+      navigate(document, ["components", "schemas"]) as Record<string, unknown>;
+
+    const conditionDefinition = componentsOf(baseline as Record<string, unknown>)["def-0"] as
+      | { readonly oneOf?: readonly unknown[] }
+      | undefined;
+    expect(
+      conditionDefinition?.oneOf?.length,
+      "def-0 is expected to be the recursive ConditionDefinition union",
+    ).toBeGreaterThan(1);
+
+    const mutate = (edit: (document: Record<string, unknown>) => void): unknown => {
+      const copy = JSON.parse(JSON.stringify(baseline)) as Record<string, unknown>;
+      edit(copy);
+      return copy;
+    };
+
+    // Breaking: one condition kind is dropped from the shared union.
+    const withVariantRemoved = mutate((document) => {
+      const definition = componentsOf(document)["def-0"] as { oneOf: unknown[] };
+      definition.oneOf = definition.oneOf.slice(1);
+    });
+    const variantRemoval = findBreakingChanges(baseline, withVariantRemoved);
+    expect(variantRemoval).toHaveLength(1);
+    expect(variantRemoval[0]?.kind).toBe("REQUIRED_PROPERTY_REMOVED");
+    expect(variantRemoval[0]?.location).toMatch(/^components\.schemas\.def-0\.oneOf\[/);
+
+    // Breaking: the shared schema disappears entirely.
+    const withComponentRemoved = mutate((document) => {
+      delete componentsOf(document)["def-0"];
+    });
+    expect(findBreakingChanges(baseline, withComponentRemoved)).toEqual([
+      expect.objectContaining({
+        kind: "REQUIRED_PROPERTY_REMOVED",
+        location: "components.schemas.def-0",
+      }),
+    ]);
+
+    // Breaking: a path stops pointing at the shared schema.
+    const withRefRetargeted = mutate((document) => {
+      const components = componentsOf(document);
+      components["def-1"] = { type: "string" };
+      const holder = navigate(document, [
+        "paths",
+        "/api/v1/battle-simulations",
+        "post",
+        "responses",
+        "200",
+        "content",
+        "application/json",
+        "schema",
+        "properties",
+        "events",
+        "items",
+      ]) as { oneOf: Record<string, unknown>[] };
+      const refHolder = holder.oneOf.find((variant) =>
+        JSON.stringify(variant).includes("#/components/schemas/def-0"),
+      );
+      expect(
+        refHolder,
+        "no published event references the shared ConditionDefinition",
+      ).toBeDefined();
+      const retargeted = JSON.parse(
+        JSON.stringify(refHolder).replaceAll(
+          "#/components/schemas/def-0",
+          "#/components/schemas/def-1",
+        ),
+      ) as Record<string, unknown>;
+      holder.oneOf[holder.oneOf.indexOf(refHolder!)] = retargeted;
+    });
+    // AND/OR/NOT がそれぞれ def-0 を参照しているため、報告は1件ではなく参照箇所の数になる。
+    const refChanges = findBreakingChanges(baseline, withRefRetargeted);
+    expect(refChanges.length).toBeGreaterThan(0);
+    for (const change of refChanges) {
+      expect(change.kind).toBe("PROPERTY_TYPE_CHANGED");
+      expect(change.detail).toMatch(/\$ref #\/components\/schemas\/def-0 -> /);
+    }
+
+    // Adding a brand-new shared schema is a backward-compatible addition.
+    const withNewComponent = mutate((document) => {
+      componentsOf(document)["def-99"] = { type: "object", properties: {} };
+    });
+    expect(findBreakingChanges(baseline, withNewComponent)).toEqual([]);
   });
 });

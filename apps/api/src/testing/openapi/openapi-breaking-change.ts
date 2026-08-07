@@ -29,25 +29,55 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * `oneOf`/`anyOf`のvariantを安定した名前で指す。イベントログの union は
- * `type`を単一値の`enum`で判別する（`@fastify/swagger`がOpenAPI 3.0向けに
- * `const`をこの形へ正規化する）ため、その値をキーにする。位置indexをキーにすると
- * 新しいイベント種別が途中へ挿入されただけで以降が全部ずれて偽陽性になる。
+ * `oneOf`/`anyOf`のvariantを安定した名前で指す。位置indexをキーにすると、新しい
+ * variantが途中へ挿入されただけで以降が全部ずれ、追加を削除と読み違える。
+ *
+ * 判別子は単一値`enum`を持つプロパティ（`@fastify/swagger`がOpenAPI 3.0向けに
+ * `const`をこの形へ正規化する）。イベントログのunionは`type`、
+ * `ConditionDefinition`は`kind`で判別するため、両方を候補として順に見る。
  */
-function variantKey(variant: unknown, index: number): string {
-  if (isRecord(variant)) {
-    const properties = variant["properties"];
-    if (isRecord(properties)) {
-      const discriminator = properties["type"];
-      if (isRecord(discriminator)) {
-        const values = discriminator["enum"];
-        if (Array.isArray(values) && values.length === 1 && typeof values[0] === "string") {
-          return values[0];
-        }
-      }
+const VARIANT_DISCRIMINATOR_PROPERTIES = ["type", "kind"] as const;
+
+function discriminatorOf(variant: unknown): string | undefined {
+  if (!isRecord(variant)) {
+    return undefined;
+  }
+  const properties = variant["properties"];
+  if (!isRecord(properties)) {
+    return undefined;
+  }
+  for (const discriminatorName of VARIANT_DISCRIMINATOR_PROPERTIES) {
+    const discriminator = properties[discriminatorName];
+    if (!isRecord(discriminator)) {
+      continue;
+    }
+    const values = discriminator["enum"];
+    if (Array.isArray(values) && values.length === 1 && typeof values[0] === "string") {
+      return `${discriminatorName}=${values[0]}`;
     }
   }
-  return `#${index}`;
+  return undefined;
+}
+
+/**
+ * 配列全体のvariantキーを一度に決める。
+ *
+ * 判別子は一意とは限らない（`ConditionDefinition`の`kind=TARGET_STATE`は
+ * `field`と`value`の型の組み合わせごとに3variantある）。同じ判別子が複数あるときは
+ * その中での出現順を添えて区別する——新しい判別子の追加では既存キーが動かず、
+ * 同じ判別子の変種を足したときだけ末尾に新キーが増える。
+ */
+function variantKeys(variants: readonly unknown[]): readonly string[] {
+  const seen = new Map<string, number>();
+  return variants.map((variant, index) => {
+    const discriminator = discriminatorOf(variant);
+    if (discriminator === undefined) {
+      return `#${index}`;
+    }
+    const occurrence = seen.get(discriminator) ?? 0;
+    seen.set(discriminator, occurrence + 1);
+    return occurrence === 0 ? discriminator : `${discriminator}#${occurrence}`;
+  });
 }
 
 type SchemaFactSink = (change: BreakingChange) => void;
@@ -75,17 +105,34 @@ function compareSchema(
     return;
   }
 
-  const baselineType = baseline["type"];
-  const currentType = current["type"];
-  if (
-    typeof baselineType === "string" &&
-    typeof currentType === "string" &&
-    baselineType !== currentType
-  ) {
+  // `$ref`は解決せず、参照先の名前が変わっていないかだけを見る。参照先の中身は
+  // `components.schemas`を名前どうしで突き合わせる経路（`findBreakingChanges`）が
+  // 比較する。解決してしまうと`ConditionDefinition`のような自己参照schemaで
+  // 無限再帰になるため、この二段構えにしている。
+  const baselineRef = baseline["$ref"];
+  const currentRef = current["$ref"];
+  if (typeof baselineRef === "string" && baselineRef !== currentRef) {
     report({
       kind: "PROPERTY_TYPE_CHANGED",
       location,
-      detail: `type ${baselineType} -> ${currentType}`,
+      detail:
+        typeof currentRef === "string"
+          ? `$ref ${baselineRef} -> ${currentRef}`
+          : `$ref ${baselineRef} was replaced by an inline schema`,
+    });
+    return;
+  }
+
+  const baselineType = baseline["type"];
+  const currentType = current["type"];
+  if (typeof baselineType === "string" && baselineType !== currentType) {
+    report({
+      kind: "PROPERTY_TYPE_CHANGED",
+      location,
+      // `type`キーごと消えて`oneOf`等へ組み替えられた場合も、値域が広がった／
+      // 変わったことに違いはないので報告する。`10_API設計.md`「バージョニング」の
+      // 「既存必須プロパティの…型変更」。
+      detail: `type ${baselineType} -> ${typeof currentType === "string" ? currentType : "(no type keyword)"}`,
     });
   }
 
@@ -113,6 +160,17 @@ function compareSchema(
     Array.isArray(current["required"]) ? (current["required"] as unknown[]) : [],
   );
 
+  // 「既存必須プロパティの削除」は、プロパティ自体が消えた場合だけ機械的に判定する。
+  //
+  // `required`から外すだけ（プロパティは残る）の緩和を無条件の破壊とはしない。
+  // `10_API設計.md`「バージョニング」はこれを**条件付き**で後方互換と認めており
+  // （「緩めた後も従来から公開されていた変種では常に存在することを併せて示す」）、
+  // その条件——どの変種が従来公開されていたか——は文書だけからは判定できない。
+  // REL-008の`MarkerStateResponse.sourceUnitId`とREL-004の
+  // `CooldownStateResponse.setAtActionId`がこの形で、いずれも「その変種は一度も
+  // 公開されたことがない」ことを人手で示して初めて互換と言える。
+  // したがってレスポンス側の`required`縮小はここを素通りする。緩和する側が
+  // 設計書へ根拠を書く責任を負う。
   for (const name of baselineRequired) {
     if (typeof name === "string" && !(name in currentProperties) && name in baselineProperties) {
       report({
@@ -165,11 +223,13 @@ function compareSchema(
       continue;
     }
     const currentVariants = Array.isArray(current[keyword]) ? (current[keyword] as unknown[]) : [];
+    const currentKeys = variantKeys(currentVariants);
     const currentByKey = new Map(
-      currentVariants.map((variant, index) => [variantKey(variant, index), variant]),
+      currentVariants.map((variant, index) => [currentKeys[index]!, variant]),
     );
+    const baselineKeys = variantKeys(baselineVariants);
     for (const [index, variant] of baselineVariants.entries()) {
-      const key = variantKey(variant, index);
+      const key = baselineKeys[index]!;
       const counterpart = currentByKey.get(key);
       if (counterpart === undefined) {
         report({
@@ -197,6 +257,7 @@ interface OperationShape {
 
 type DocumentShape = {
   readonly paths?: Record<string, Record<string, OperationShape>>;
+  readonly components?: { readonly schemas?: Record<string, unknown> };
 };
 
 /**
@@ -208,6 +269,26 @@ export function findBreakingChanges(
 ): readonly BreakingChange[] {
   const changes: BreakingChange[] = [];
   const report: SchemaFactSink = (change) => changes.push(change);
+
+  // `components.schemas`を先に名前どうしで比較する。`paths`側からは`$ref`としか
+  // 見えないため、ここを見ないと参照先の中身（この文書では再帰的な
+  // `ConditionDefinition`＝`EffectApplied`/`EffectApplicationRejected`の
+  // `details.expirationConditions`）が丸ごと検査の外に落ちる。
+  const baseComponents = (baseline as DocumentShape).components?.schemas ?? {};
+  const currentComponents = (current as DocumentShape).components?.schemas ?? {};
+  for (const [name, baseSchema] of Object.entries(baseComponents)) {
+    if (!(name in currentComponents)) {
+      changes.push({
+        kind: "REQUIRED_PROPERTY_REMOVED",
+        location: `components.schemas.${name}`,
+        detail: "the baseline documented this shared schema and it is gone",
+      });
+      continue;
+    }
+    // 共有schemaはrequest・response双方から参照され得るので、requestだけの規則
+    // （任意→必須の締め付け）は適用しない。
+    compareSchema(baseSchema, currentComponents[name], `components.schemas.${name}`, false, report);
+  }
 
   const basePaths = (baseline as DocumentShape).paths ?? {};
   const currentPaths = (current as DocumentShape).paths ?? {};

@@ -15,6 +15,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { stdout } from "node:process";
 import { fileURLToPath } from "node:url";
+import { format, resolveConfig } from "prettier";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { buildServer } = await import(resolve(here, "../dist/presentation/http/build-server.js"));
@@ -29,5 +30,15 @@ await app.close();
 
 const target = resolve(here, "../openapi/v1-baseline.json");
 mkdirSync(dirname(target), { recursive: true });
-writeFileSync(target, `${JSON.stringify(document, null, 2)}\n`);
+// 書き出し前にPrettierを通す。素の`JSON.stringify`のままコミットすると
+// `format:check`（品質ゲート）が整形差分で落ちる。
+//
+// 入力を`null, 2`で展開しておくのは、PrettierのJSON出力が入力の改行位置を
+// 引き継ぐため。詰めた1行を渡すと配列・objectが畳まれ、契約baselineとしての
+// 行単位diffがレビューで読めなくなる。
+const options = await resolveConfig(target);
+writeFileSync(
+  target,
+  await format(JSON.stringify(document, null, 2), { ...options, filepath: target }),
+);
 stdout.write(`wrote ${target}\n`);
