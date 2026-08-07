@@ -437,7 +437,23 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 移した（重複記録なし）。消費→増加の順序、変化量0での発行省略を検証する。
   {
     ruleId: "R-ACT-04",
-    testCaseIds: ["UT-R-ACT-04-001", "UT-R-ACT-04-002", "UT-R-ACT-04-015", "UT-R-PS-05-003"],
+    testCaseIds: [
+      "UT-R-ACT-04-001",
+      "UT-R-ACT-04-002",
+      "UT-R-ACT-04-015",
+      "UT-R-PS-05-003",
+      // リソース獲得量Modifier（`APPLY_RESOURCE_GAIN_MOD`、M7-002/Issue #185）。
+      // 合成順・丸め・上限適用順はM7-002へ委譲されたまま台帳未登録だったため、
+      // REF-022（Issue #351）で本則へ還流し既存テストを登録した:
+      // 付与時のrateDelta評価・resource一致の全インスタンス合算・負率・
+      // -100%下限の0クランプ・full stackでのEXゲージ増加倍化。
+      "UT-R-ACT-04-006",
+      "UT-R-ACT-04-007",
+      "UT-R-ACT-04-011",
+      "UT-R-ACT-04-012",
+      "UT-R-ACT-04-013",
+      "UT-R-ACT-04-014",
+    ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
 
@@ -1809,6 +1825,23 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-AUDIT-M8-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  },
+  // REF-022（Issue #351）でR-DMG-06「攻撃時追加ダメージ」を新設した。
+  // `APPLY_ATTACK_DAMAGE_BONUS`はM7-004が実装しテストも存在したが、
+  // `07_戦闘ルール詳細.md`にはR-SUB-02の除外条項しか無く、加算そのものの
+  // 規定とルール登録が欠けていた（R-HIT-04/05・R-CRT-03と同じ
+  // 「production定義だけが存在」の後追いルール化）。
+  {
+    ruleId: "R-DMG-06",
+    testCaseIds: [
+      // #1 付与時snapshot（formulaの1回評価とAppliedEffect保持）。
+      "UT-R-BON-ATTACK-DMG-001",
+      // #2 ヒットへの加算、#3 ダメージ無効による上限、#4 回避時の非加算。
+      "UT-R-BON-ATTACK-DMG-002",
+      "UT-R-BON-ATTACK-DMG-003",
+      "UT-R-BON-ATTACK-DMG-004",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
 
   // HEAL: 回復計算
