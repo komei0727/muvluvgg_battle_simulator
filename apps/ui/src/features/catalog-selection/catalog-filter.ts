@@ -1,38 +1,17 @@
 import { aptitudeMatches } from "../../lib/aptitude.js";
-import type {
-  CatalogAvailability,
-  CatalogMemorySummary,
-  CatalogUnitSummary,
-} from "../simulation/api-contract.js";
-import { isSelectable } from "../simulation/catalog-availability.js";
+import type { CatalogMemorySummary, CatalogUnitSummary } from "../simulation/api-contract.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §8: Filter state.
-export type CatalogAvailabilityFilter = "all" | "selectable" | "unavailable";
 
 export interface UnitFilter {
   readonly query: string;
   readonly attribute?: string;
   readonly role?: string;
   readonly aptitude?: "FRONT" | "REAR";
-  readonly availability: CatalogAvailabilityFilter;
 }
 
 export interface MemoryFilter {
   readonly query: string;
-  readonly availability: CatalogAvailabilityFilter;
-}
-
-function matchesAvailability(
-  entry: CatalogAvailability,
-  availability: CatalogAvailabilityFilter,
-): boolean {
-  if (availability === "selectable") {
-    return isSelectable(entry);
-  }
-  if (availability === "unavailable") {
-    return !isSelectable(entry);
-  }
-  return true;
 }
 
 function matchesQuery(query: string, displayName: string, definitionId: string): boolean {
@@ -46,13 +25,10 @@ function matchesQuery(query: string, displayName: string, definitionId: string):
   );
 }
 
-function bySelectableThenDisplayNameThenId<
-  T extends CatalogAvailability & { readonly displayName: string },
->(idOf: (entry: T) => string): (a: T, b: T) => number {
+function byDisplayNameThenId<T extends { readonly displayName: string }>(
+  idOf: (entry: T) => string,
+): (a: T, b: T) => number {
   return (a, b) => {
-    if (isSelectable(a) !== isSelectable(b)) {
-      return isSelectable(a) ? -1 : 1;
-    }
     const nameComparison = a.displayName.localeCompare(b.displayName);
     if (nameComparison !== 0) {
       return nameComparison;
@@ -73,8 +49,7 @@ export function filterUnits(
       (unit) =>
         filter.aptitude === undefined || aptitudeMatches(filter.aptitude, unit.positionAptitudes),
     )
-    .filter((unit) => matchesAvailability(unit, filter.availability))
-    .toSorted(bySelectableThenDisplayNameThenId((unit) => unit.unitDefinitionId));
+    .toSorted(byDisplayNameThenId((unit) => unit.unitDefinitionId));
 }
 
 export function filterMemories(
@@ -83,6 +58,5 @@ export function filterMemories(
 ): readonly CatalogMemorySummary[] {
   return memories
     .filter((memory) => matchesQuery(filter.query, memory.displayName, memory.memoryDefinitionId))
-    .filter((memory) => matchesAvailability(memory, filter.availability))
-    .toSorted(bySelectableThenDisplayNameThenId((memory) => memory.memoryDefinitionId));
+    .toSorted(byDisplayNameThenId((memory) => memory.memoryDefinitionId));
 }

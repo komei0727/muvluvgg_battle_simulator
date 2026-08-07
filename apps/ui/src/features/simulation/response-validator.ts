@@ -18,10 +18,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-function isStringArray(value: unknown): value is readonly string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
 const POSITION_APTITUDES = ["FRONT", "BACK"];
 
 // apps/api/src/presentation/http/schemas/catalog/catalog-schema.ts の catalogUnitSummaryResponseSchema:
@@ -31,17 +27,6 @@ function isPositionAptitudes(value: unknown): value is readonly string[] {
     Array.isArray(value) &&
     value.length > 0 &&
     value.every((item) => typeof item === "string" && POSITION_APTITUDES.includes(item))
-  );
-}
-
-// 両フィールドはAPI側のCapability廃止で送出されなくなるため、欠落を許容し
-// 相互の整合（selectable と unavailableCapabilities の対応）も検証しない。
-// 送られてきた場合の型だけを確認する。
-function hasValidAvailability(value: Record<string, unknown>): boolean {
-  const { selectable, unavailableCapabilities } = value;
-  return (
-    (selectable === undefined || typeof selectable === "boolean") &&
-    (unavailableCapabilities === undefined || isStringArray(unavailableCapabilities))
   );
 }
 
@@ -56,8 +41,7 @@ function isValidUnit(value: unknown): value is CatalogUnitSummary {
     isNonEmptyString(value["attribute"]) &&
     isNonEmptyString(value["unitType"]) &&
     isNonEmptyString(value["role"]) &&
-    isPositionAptitudes(value["positionAptitudes"]) &&
-    hasValidAvailability(value)
+    isPositionAptitudes(value["positionAptitudes"])
   );
 }
 
@@ -65,11 +49,7 @@ function isValidMemory(value: unknown): value is CatalogMemorySummary {
   if (!isRecord(value)) {
     return false;
   }
-  return (
-    isNonEmptyString(value["memoryDefinitionId"]) &&
-    isNonEmptyString(value["displayName"]) &&
-    hasValidAvailability(value)
-  );
+  return isNonEmptyString(value["memoryDefinitionId"]) && isNonEmptyString(value["displayName"]);
 }
 
 function hasDuplicateIds(ids: readonly string[]): boolean {

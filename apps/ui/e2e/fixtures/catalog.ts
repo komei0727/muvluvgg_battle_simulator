@@ -1,7 +1,5 @@
 // Regression fixture: a minimal but realistic Catalog response used by the
-// mock-API E2E suite. One memory is intentionally left unselectable to cover
-// UI-E2E-002 (未対応Capabilityの理由表示) without depending on the real M4.5
-// production Catalog shrinking to zero selectable memories over time.
+// mock-API E2E suite.
 export const CATALOG_REVISION = "e2e-catalog-rev-1";
 
 export const catalogFixture = {
@@ -16,8 +14,6 @@ export const catalogFixture = {
       unitType: "ATTACKER",
       role: "PHYSICAL_ATTACKER",
       positionAptitudes: ["FRONT"],
-      selectable: true,
-      unavailableCapabilities: [],
     },
     {
       unitDefinitionId: "UNIT_ENEMY_A",
@@ -27,16 +23,12 @@ export const catalogFixture = {
       unitType: "ATTACKER",
       role: "PHYSICAL_ATTACKER",
       positionAptitudes: ["FRONT"],
-      selectable: true,
-      unavailableCapabilities: [],
     },
   ],
   memories: [
     {
-      memoryDefinitionId: "MEM_LOCKED",
-      displayName: "封印された記憶",
-      selectable: false,
-      unavailableCapabilities: ["CAP_M5_MEMORY_EFFECT"],
+      memoryDefinitionId: "MEM_ALPHA",
+      displayName: "記憶アルファ",
     },
   ],
 };

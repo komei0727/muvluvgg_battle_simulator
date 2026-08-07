@@ -18,8 +18,6 @@ const catalog: BattleSimulationCatalogResponse = {
       unitType: "HUMANOID",
       role: "PHYSICAL_ATTACKER",
       positionAptitudes: ["FRONT"],
-      selectable: true,
-      unavailableCapabilities: [],
     },
   ],
   memories: [],

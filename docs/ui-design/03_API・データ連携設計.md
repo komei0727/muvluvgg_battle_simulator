@@ -25,12 +25,7 @@ interface BattleSimulationCatalogResponse {
   readonly memories: readonly CatalogMemorySummary[];
 }
 
-interface CatalogAvailability {
-  readonly selectable?: boolean;
-  readonly unavailableCapabilities?: readonly string[];
-}
-
-interface CatalogUnitSummary extends CatalogAvailability {
+interface CatalogUnitSummary {
   readonly unitDefinitionId: string;
   readonly displayName: string;
   readonly characterName: string;
@@ -40,15 +35,12 @@ interface CatalogUnitSummary extends CatalogAvailability {
   readonly positionAptitudes: readonly string[];
 }
 
-interface CatalogMemorySummary extends CatalogAvailability {
+interface CatalogMemorySummary {
   readonly memoryDefinitionId: string;
   readonly displayName: string;
 }
 ```
 
-- `selectable`はバックエンドが対象定義からSkill/EffectActionまで推移的にCapabilityを収集して判定する。
-- `unavailableCapabilities`は選択不可理由となるCapability IDを重複なく昇順で返す。
-- 両フィールドはCapability廃止に伴いバックエンドが送出を停止するため、UIはoptionalとして受ける。UIとバックエンドは別々にデプロイされるため、欠落は「選択可能・未対応理由なし」として扱い、両者の整合は検証しない。
 - Unit/Memory配列はdefinition ID昇順とし、UI側の表示sortに依存しない安定順を持つ。
 - 画像URLはAPI契約に含めない。UIはdefinition IDに対応する任意のローカル画像mapを重ね、なければfallbackを使う。
 - Skill、EffectAction、Formula、Condition、triggeredEffectsの内容を返さない。
@@ -186,15 +178,14 @@ interface FormationRequest {
 
 送信前に全違反を収集し、一度に表示する。
 
-| Path                     | 規則              | UIメッセージ                                         |
-| ------------------------ | ----------------- | ---------------------------------------------------- |
-| `/allyFormation/units`   | 1～5体            | 味方ユニットを1～5体設定してください。               |
-| `/enemyFormation/units`  | 1～5体            | 敵ユニットを1～5体設定してください。                 |
-| `/*/units/*/position`    | 座標重複なし      | 同じ配置枠に複数のユニットは設定できません。         |
-| `/*/memoryDefinitionIds` | 0～6件            | メモリーは6件まで設定できます。                      |
-| `/turnLimit`             | integer 1～99     | ターン上限は1～99の整数で入力してください。          |
-| `/options/logLevel`      | 許容列挙値        | ログレベルを選択してください。                       |
-| definition               | `selectable=true` | 未対応の戦闘ルールを必要とする定義は選択できません。 |
+| Path                     | 規則          | UIメッセージ                                 |
+| ------------------------ | ------------- | -------------------------------------------- |
+| `/allyFormation/units`   | 1～5体        | 味方ユニットを1～5体設定してください。       |
+| `/enemyFormation/units`  | 1～5体        | 敵ユニットを1～5体設定してください。         |
+| `/*/units/*/position`    | 座標重複なし  | 同じ配置枠に複数のユニットは設定できません。 |
+| `/*/memoryDefinitionIds` | 0～6件        | メモリーは6件まで設定できます。              |
+| `/turnLimit`             | integer 1～99 | ターン上限は1～99の整数で入力してください。  |
+| `/options/logLevel`      | 許容列挙値    | ログレベルを選択してください。               |
 
 クライアント検証を通過してもサーバー検証を省略できない。Catalog revision差、UI生成の不具合、直接HTTP呼び出しがあるため、APIの422を通常の入力エラーとして扱う。
 
@@ -270,7 +261,6 @@ type SimulationApiResult =
 - `units`と`memories`がarray
 - 各定義IDが空でなく、配列内で重複しない
 - `displayName`と分類値が契約shapeを満たす
-- `selectable`と `unavailableCapabilities`は欠落を許容し、送られてきた場合だけ型を検証する（両者の整合は検証しない）
 
 契約違反時は編成を有効にせず `RESPONSE_CONTRACT_MISMATCH`を表示する。UIがCatalogファイルから欠損値を補完しない。
 
@@ -436,7 +426,6 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 ```ts
 type UiApiErrorKind =
   | "VALIDATION"
-  | "UNSUPPORTED_DEFINITION"
   | "RATE_LIMIT"
   | "CAPACITY"
   | "TIMEOUT"
@@ -453,7 +442,6 @@ type UiApiErrorKind =
 | 406 / 415                  | `SERVER`                  | UI/API設定不整合                               |
 | 422 `INVALID_COMMAND`      | `VALIDATION`              | JSON Pointerに対応する入力を強調               |
 | 422 `DEFINITION_NOT_FOUND` | `VALIDATION`              | Catalog版差異を示し再読込を案内                |
-| 422 `UNSUPPORTED_RULE`     | `UNSUPPORTED_DEFINITION`  | Capability IDと定義IDを表示                    |
 | 429                        | `RATE_LIMIT`              | `Retry-After`を表示し手動再試行                |
 | 503 `CAPACITY_EXCEEDED`    | `CAPACITY`                | 一時的混雑。手動再試行                         |
 | 503 cancel/limit           | `CANCELLED`または`SERVER` | code別表示                                     |

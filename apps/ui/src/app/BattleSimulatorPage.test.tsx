@@ -36,8 +36,6 @@ function catalogResponse(): BattleSimulationCatalogResponse {
         unitType: "ATTACKER",
         role: "PHYSICAL_ATTACKER",
         positionAptitudes: ["FRONT"],
-        selectable: true,
-        unavailableCapabilities: [],
       },
       {
         unitDefinitionId: "UNIT_LOCKED",
@@ -47,8 +45,6 @@ function catalogResponse(): BattleSimulationCatalogResponse {
         unitType: "ATTACKER",
         role: "TANK",
         positionAptitudes: ["FRONT"],
-        selectable: false,
-        unavailableCapabilities: ["CAP_LOCKED"],
       },
     ],
     memories: [],
@@ -176,24 +172,6 @@ describe("BattleSimulatorPage — formation editing once the catalog is ready", 
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /前衛1: アルファを変更/ })).toHaveFocus();
-  });
-
-  it("does not offer a non-selectable unit for selection, showing its capability reason (UI-CT-006)", async () => {
-    const user = userEvent.setup();
-    render(
-      <BattleSimulatorPage
-        apiBaseUrl="https://api.example.com"
-        getCatalogImpl={readyGetCatalogImpl()}
-      />,
-    );
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /ALLY FORMATION/ })).toBeInTheDocument();
-    });
-
-    await user.click(screen.getAllByRole("button", { name: "前衛1にユニットを追加" })[0]!);
-
-    expect(screen.getByRole("button", { name: "ロックを選択" })).toBeDisabled();
-    expect(screen.getByText(/CAP_LOCKED/)).toBeInTheDocument();
   });
 
   it("renders the mapped image for a unit once selected into a formation slot", async () => {

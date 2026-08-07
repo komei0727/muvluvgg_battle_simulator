@@ -23,8 +23,6 @@ function unitDefinition(unitDefinitionId: string, displayName: string) {
     unitType: "HUMANOID",
     role: "PHYSICAL_ATTACKER",
     positionAptitudes: ["FRONT"],
-    selectable: true,
-    unavailableCapabilities: [],
   };
 }
 

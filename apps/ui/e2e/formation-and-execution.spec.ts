@@ -112,18 +112,14 @@ test("separates calculated damage, shield/sub unit absorption and HP damage of a
   ).toBeVisible();
 });
 
-// UI-E2E-002: memory dialogに未対応itemと理由が表示される。
-test("shows the unavailable-capability reason for a locked memory instead of hiding it", async ({
-  page,
-}) => {
+// UI-E2E-002: memory dialogの全itemが選択できる。
+test("offers every memory in the dialog for selection", async ({ page }) => {
   await page.goto("./");
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
 
   await page.getByRole("button", { name: "メモリー1を追加" }).first().click();
 
-  const lockedItemButton = page.getByRole("button", { name: "封印された記憶を選択" });
-  await expect(lockedItemButton).toBeDisabled();
-  await expect(page.getByText(/CAP_M5_MEMORY_EFFECT/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "記憶アルファを選択" })).toBeEnabled();
 });
 
 // UI-E2E-005: events → transitions → JSONを切り替え、JSONをcopyする。

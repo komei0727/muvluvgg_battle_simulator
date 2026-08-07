@@ -38,14 +38,14 @@ describe("ValidationSummary", () => {
       {
         path: "/allyFormation/units",
         slotKey: "ally:FRONT:0",
-        code: "UNSUPPORTED_DEFINITION",
+        code: "UNKNOWN_DEFINITION",
         message: "未対応の戦闘ルールを必要とする定義は選択できません。",
         severity: "error",
       },
       {
         path: "/allyFormation/units",
         slotKey: "ally:FRONT:1",
-        code: "UNSUPPORTED_DEFINITION",
+        code: "UNKNOWN_DEFINITION",
         message: "未対応の戦闘ルールを必要とする定義は選択できません。",
         severity: "error",
       },

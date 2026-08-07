@@ -5,14 +5,8 @@ import styles from "./SelectionDialog.module.css";
 export interface SelectionDialogItem {
   readonly definitionId: string;
   readonly displayName: string;
-  /** 定義そのものが選択可能か。falseのとき未対応capabilityを表示する。 */
-  readonly selectable: boolean;
-  /**
-   * 選択ボタンを無効化するか。`!selectable`に加えて枠側の事情（unit側の
-   * 5体上限など）も含むため、呼び出し側が組み立てる。
-   */
+  /** 選択ボタンを無効化するか。枠側の事情（unit側の5体上限など）で決まる。 */
   readonly disabled: boolean;
-  readonly unavailableCapabilities: readonly string[];
   readonly tags?: readonly string[];
 }
 
@@ -68,13 +62,6 @@ export function SelectionDialogList({
                       </span>
                     ))}
                   </div>
-                ) : null}
-                {/* 理由が空なら「未対応:」だけの読めないラベルになるため出さない。
-                    APIが選択不可を理由なしで返し得る（整合検証は行わない）。 */}
-                {!item.selectable && item.unavailableCapabilities.length > 0 ? (
-                  <p className={styles["unavailable"]}>
-                    未対応: {item.unavailableCapabilities.join(", ")}
-                  </p>
                 ) : null}
               </div>
               <button

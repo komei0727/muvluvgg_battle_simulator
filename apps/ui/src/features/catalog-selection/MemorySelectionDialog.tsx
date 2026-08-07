@@ -1,7 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
 import type { CatalogMemorySummary } from "../simulation/api-contract.js";
-import { isSelectable, unavailableCapabilitiesOf } from "../simulation/catalog-availability.js";
 import { filterMemories } from "./catalog-filter.js";
 import type { MemoryFilter } from "./catalog-filter.js";
 import { SelectionDialogList } from "./SelectionDialogList.js";
@@ -17,7 +16,7 @@ export interface MemorySelectionDialogProps {
   readonly onClose: () => void;
 }
 
-const INITIAL_FILTER: MemoryFilter = { query: "", availability: "all" };
+const INITIAL_FILTER: MemoryFilter = { query: "" };
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §3 MemorySelectionDialog:
 // "Unit版と同じ基本挙動とし、属性・ロールfilterは持たない".
@@ -39,9 +38,7 @@ export function MemorySelectionDialog({
       filtered.map((memory) => ({
         definitionId: memory.memoryDefinitionId,
         displayName: memory.displayName,
-        selectable: isSelectable(memory),
-        disabled: !isSelectable(memory),
-        unavailableCapabilities: unavailableCapabilitiesOf(memory),
+        disabled: false,
       })),
     [filtered],
   );

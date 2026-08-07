@@ -13,8 +13,6 @@ const units: readonly CatalogUnitSummary[] = [
     unitType: "ATTACKER",
     role: "PHYSICAL_ATTACKER",
     positionAptitudes: ["FRONT"],
-    selectable: true,
-    unavailableCapabilities: [],
   },
   {
     unitDefinitionId: "UNIT_BETA",
@@ -24,8 +22,6 @@ const units: readonly CatalogUnitSummary[] = [
     unitType: "GUARDIAN",
     role: "TANK",
     positionAptitudes: ["FRONT", "BACK"],
-    selectable: false,
-    unavailableCapabilities: ["CAP_UNSUPPORTED"],
   },
 ];
 
@@ -104,51 +100,8 @@ describe("UnitSelectionDialog — search/filter/select/remove (UI-CT-005)", () =
   });
 });
 
-describe("UnitSelectionDialog — unavailable definitions (UI-CT-006)", () => {
-  it("disables selection for a non-selectable unit and shows its capability reason", () => {
-    render(
-      <UnitSelectionDialog
-        units={units}
-        atCapacity={false}
-        onSelect={vi.fn()}
-        onRemove={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: "ベータを選択" })).toBeDisabled();
-    expect(screen.getByText(/CAP_UNSUPPORTED/)).toBeInTheDocument();
-  });
-
-  // Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
-  it("keeps a unit without selectable enabled and shows no unavailable reason", () => {
-    const withoutAvailability: CatalogUnitSummary = {
-      unitDefinitionId: "UNIT_GAMMA",
-      displayName: "ガンマ",
-      characterName: "Gamma",
-      attribute: "COOL",
-      unitType: "ATTACKER",
-      role: "PHYSICAL_ATTACKER",
-      positionAptitudes: ["FRONT"],
-    };
-
-    render(
-      <UnitSelectionDialog
-        units={[withoutAvailability]}
-        atCapacity={false}
-        onSelect={vi.fn()}
-        onRemove={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: "ガンマを選択" })).toBeEnabled();
-    expect(screen.queryByText(/未対応/)).not.toBeInTheDocument();
-  });
-});
-
 describe("UnitSelectionDialog — capacity guard (UI-CT-007)", () => {
-  it("disables every selectable item and shows a limit notice when the side is at capacity for an empty slot", () => {
+  it("disables every item and shows a limit notice when the side is at capacity for an empty slot", () => {
     render(
       <UnitSelectionDialog
         units={units}

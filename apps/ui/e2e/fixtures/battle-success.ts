@@ -1,7 +1,7 @@
 import { CATALOG_REVISION } from "./catalog.js";
 
 // Regression fixture: a minimal successful battle response for a 1v1 formed
-// from catalog.ts's two selectable units. Includes one intentionally unknown
+// from catalog.ts's two units. Includes one intentionally unknown
 // event type (MYSTERIOUS_FUTURE_EVENT) so the mock-API E2E suite exercises
 // the generic event fallback end-to-end (UI-AC-011, UI-TEST-003) without
 // waiting for a real future-milestone event contract.

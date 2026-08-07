@@ -18,8 +18,6 @@ function catalog(): BattleSimulationCatalogResponse {
         unitType: "ATTACKER",
         role: "PHYSICAL_ATTACKER",
         positionAptitudes: ["FRONT"],
-        selectable: true,
-        unavailableCapabilities: [],
       },
     ],
     memories: [],

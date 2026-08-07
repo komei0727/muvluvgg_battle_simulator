@@ -11,8 +11,6 @@ const units: readonly CatalogUnitSummary[] = [
     unitType: "ATTACKER",
     role: "DPS",
     positionAptitudes: ["FRONT"],
-    selectable: true,
-    unavailableCapabilities: [],
   },
   {
     unitDefinitionId: "UNIT_BETA",
@@ -22,8 +20,6 @@ const units: readonly CatalogUnitSummary[] = [
     unitType: "GUARDIAN",
     role: "TANK",
     positionAptitudes: ["FRONT", "BACK"],
-    selectable: false,
-    unavailableCapabilities: ["CAP_UNSUPPORTED"],
   },
   {
     unitDefinitionId: "UNIT_GAMMA",
@@ -33,8 +29,6 @@ const units: readonly CatalogUnitSummary[] = [
     unitType: "SUPPORT",
     role: "TANK",
     positionAptitudes: ["BACK"],
-    selectable: true,
-    unavailableCapabilities: [],
   },
 ];
 
@@ -42,55 +36,35 @@ const memories: readonly CatalogMemorySummary[] = [
   {
     memoryDefinitionId: "MEMORY_ALPHA",
     displayName: "記憶アルファ",
-    selectable: true,
-    unavailableCapabilities: [],
   },
   {
     memoryDefinitionId: "MEMORY_BETA",
     displayName: "Beta Memory",
-    selectable: false,
-    unavailableCapabilities: ["CAP_UNSUPPORTED"],
   },
 ];
-
-// Capability廃止後のAPIはselectable/unavailableCapabilitiesを送らない。
-const unitWithoutAvailability: CatalogUnitSummary = {
-  unitDefinitionId: "UNIT_DELTA",
-  displayName: "Delta Unit",
-  characterName: "Delta",
-  attribute: "FIRE",
-  unitType: "ATTACKER",
-  role: "DPS",
-  positionAptitudes: ["FRONT"],
-};
-
-const memoryWithoutAvailability: CatalogMemorySummary = {
-  memoryDefinitionId: "MEMORY_DELTA",
-  displayName: "Delta Memory",
-};
 
 describe("filterUnits", () => {
   // UI-UT-CAT-001
   it("matches displayName case-insensitively", () => {
-    const result = filterUnits(units, { query: "gamma", availability: "all" });
+    const result = filterUnits(units, { query: "gamma" });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_GAMMA"]);
   });
 
   it("matches definitionId case-insensitively", () => {
-    const result = filterUnits(units, { query: "unit_beta", availability: "all" });
+    const result = filterUnits(units, { query: "unit_beta" });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_BETA"]);
   });
 
   it("matches a Japanese displayName", () => {
-    const result = filterUnits(units, { query: "アルファ", availability: "all" });
+    const result = filterUnits(units, { query: "アルファ" });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_ALPHA"]);
   });
 
   it("trims surrounding whitespace from the query", () => {
-    const result = filterUnits(units, { query: "  gamma  ", availability: "all" });
+    const result = filterUnits(units, { query: "  gamma  " });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_GAMMA"]);
   });
@@ -101,14 +75,13 @@ describe("filterUnits", () => {
       query: "",
       attribute: "FIRE",
       role: "TANK",
-      availability: "all",
     });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_GAMMA"]);
   });
 
   it("filters by aptitude using the FRONT/BACK to FRONT/REAR mapping", () => {
-    const result = filterUnits(units, { query: "", aptitude: "REAR", availability: "all" });
+    const result = filterUnits(units, { query: "", aptitude: "REAR" });
 
     // Order is asserted separately; here only membership matters.
     expect(result.map((unit) => unit.unitDefinitionId).toSorted()).toEqual(
@@ -116,80 +89,26 @@ describe("filterUnits", () => {
     );
   });
 
-  // UI-UT-CAT-003
-  it("returns only selectable units when availability is 'selectable'", () => {
-    const result = filterUnits(units, { query: "", availability: "selectable" });
-
-    expect(result.map((unit) => unit.unitDefinitionId).toSorted()).toEqual(
-      ["UNIT_ALPHA", "UNIT_GAMMA"].toSorted(),
-    );
-  });
-
-  it("returns only unavailable units when availability is 'unavailable'", () => {
-    const result = filterUnits(units, { query: "", availability: "unavailable" });
-
-    expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_BETA"]);
-  });
-
-  // UI-UT-CAT-004
-  it("preserves the original selectable and unavailableCapabilities values", () => {
-    const result = filterUnits(units, { query: "", availability: "all" });
-
-    const beta = result.find((unit) => unit.unitDefinitionId === "UNIT_BETA");
-    expect(beta?.selectable).toBe(false);
-    expect(beta?.unavailableCapabilities).toEqual(["CAP_UNSUPPORTED"]);
-  });
-
-  it("sorts selectable units first, then by displayName, then by id", () => {
+  it("sorts by displayName, then by id", () => {
     // Same-script display names to keep locale comparison deterministic
     // across ICU builds.
     const sortSample: readonly CatalogUnitSummary[] = [
-      { ...units[1]!, unitDefinitionId: "UNIT_C", displayName: "Charlie", selectable: false },
+      { ...units[1]!, unitDefinitionId: "UNIT_C", displayName: "Charlie" },
       {
         ...units[0]!,
         unitDefinitionId: "UNIT_B",
         displayName: "Bravo",
-        selectable: true,
-        unavailableCapabilities: [],
       },
       {
         ...units[0]!,
         unitDefinitionId: "UNIT_A",
         displayName: "Alpha",
-        selectable: true,
-        unavailableCapabilities: [],
       },
     ];
 
-    const result = filterUnits(sortSample, { query: "", availability: "all" });
+    const result = filterUnits(sortSample, { query: "" });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_A", "UNIT_B", "UNIT_C"]);
-  });
-
-  it("treats a unit without selectable as selectable", () => {
-    const sample = [...units, unitWithoutAvailability];
-
-    expect(
-      filterUnits(sample, { query: "", availability: "selectable" }).map(
-        (unit) => unit.unitDefinitionId,
-      ),
-    ).toContain("UNIT_DELTA");
-    expect(
-      filterUnits(sample, { query: "", availability: "unavailable" }).map(
-        (unit) => unit.unitDefinitionId,
-      ),
-    ).not.toContain("UNIT_DELTA");
-  });
-
-  it("sorts a unit without selectable ahead of an explicitly unavailable one", () => {
-    const sample: readonly CatalogUnitSummary[] = [
-      { ...units[1]!, unitDefinitionId: "UNIT_C", displayName: "Charlie", selectable: false },
-      { ...unitWithoutAvailability, unitDefinitionId: "UNIT_D", displayName: "Delta" },
-    ];
-
-    const result = filterUnits(sample, { query: "", availability: "all" });
-
-    expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_D", "UNIT_C"]);
   });
 
   it("falls back to definitionId when displayName is tied", () => {
@@ -198,7 +117,7 @@ describe("filterUnits", () => {
       { ...units[0]!, unitDefinitionId: "UNIT_A", displayName: "Same Name" },
     ];
 
-    const result = filterUnits(tiedSample, { query: "", availability: "all" });
+    const result = filterUnits(tiedSample, { query: "" });
 
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_A", "UNIT_Z"]);
   });
@@ -206,54 +125,15 @@ describe("filterUnits", () => {
 
 describe("filterMemories", () => {
   it("matches displayName case-insensitively", () => {
-    const result = filterMemories(memories, { query: "beta", availability: "all" });
+    const result = filterMemories(memories, { query: "beta" });
 
     expect(result.map((memory) => memory.memoryDefinitionId)).toEqual(["MEMORY_BETA"]);
-  });
-
-  it("separates selectable and unavailable memories", () => {
-    expect(
-      filterMemories(memories, { query: "", availability: "selectable" }).map(
-        (memory) => memory.memoryDefinitionId,
-      ),
-    ).toEqual(["MEMORY_ALPHA"]);
-    expect(
-      filterMemories(memories, { query: "", availability: "unavailable" }).map(
-        (memory) => memory.memoryDefinitionId,
-      ),
-    ).toEqual(["MEMORY_BETA"]);
-  });
-
-  it("treats a memory without selectable as selectable", () => {
-    const sample = [...memories, memoryWithoutAvailability];
-
-    expect(
-      filterMemories(sample, { query: "", availability: "selectable" }).map(
-        (memory) => memory.memoryDefinitionId,
-      ),
-    ).toContain("MEMORY_DELTA");
-    expect(
-      filterMemories(sample, { query: "", availability: "unavailable" }).map(
-        (memory) => memory.memoryDefinitionId,
-      ),
-    ).not.toContain("MEMORY_DELTA");
-  });
-
-  it("sorts a memory without selectable ahead of an explicitly unavailable one", () => {
-    const sample: readonly CatalogMemorySummary[] = [
-      { ...memories[1]!, memoryDefinitionId: "MEMORY_C", displayName: "Charlie" },
-      { ...memoryWithoutAvailability, memoryDefinitionId: "MEMORY_D", displayName: "Delta" },
-    ];
-
-    const result = filterMemories(sample, { query: "", availability: "all" });
-
-    expect(result.map((memory) => memory.memoryDefinitionId)).toEqual(["MEMORY_D", "MEMORY_C"]);
   });
 
   it("does not mutate the input array", () => {
     const original = [...memories];
 
-    filterMemories(memories, { query: "", availability: "all" });
+    filterMemories(memories, { query: "" });
 
     expect(memories).toEqual(original);
   });

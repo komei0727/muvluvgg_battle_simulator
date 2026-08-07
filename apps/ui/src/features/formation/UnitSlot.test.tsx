@@ -12,8 +12,6 @@ const unit: CatalogUnitSummary = {
   unitType: "ATTACKER",
   role: "PHYSICAL_ATTACKER",
   positionAptitudes: ["FRONT"],
-  selectable: true,
-  unavailableCapabilities: [],
 };
 
 describe("UnitSlot — empty (UI-CT-001)", () => {
