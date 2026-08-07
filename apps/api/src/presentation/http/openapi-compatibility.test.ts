@@ -377,4 +377,78 @@ describe("OpenAPI v1 compatibility", () => {
     });
     expect(findBreakingChanges(baseline, withNewComponent)).toEqual([]);
   });
+
+  it("API-OPENAPI-030 (REL-004, Issue #203): variants sharing one discriminator are paired by content, so inserting into the middle of that group is an addition while a real edit or removal inside it is still reported", () => {
+    // `ConditionDefinition`の`kind=TARGET_STATE`は`field`と`value`の型の
+    // 組み合わせごとに複数variantあり、判別子が一意にならない。グループ内を
+    // 出現順だけで対応付けると、途中への後方互換な追加で以降が全部ずれ、
+    // 大量の誤報になる。内容一致を先に消し込むことでこれを防ぐ。
+    const baseline = app.swagger() as unknown;
+    const variantsOf = (document: Record<string, unknown>): Record<string, unknown>[] =>
+      navigate(document, ["components", "schemas", "def-0", "oneOf"]) as Record<string, unknown>[];
+    const discriminatorOf = (variant: Record<string, unknown>): string | undefined =>
+      ((
+        variant["properties"] as Record<string, { readonly enum?: readonly string[] }> | undefined
+      )?.["kind"]?.enum ?? [])[0];
+
+    const variants = variantsOf(baseline as Record<string, unknown>);
+    const occurrences = new Map<string, number[]>();
+    for (const [index, variant] of variants.entries()) {
+      const kind = discriminatorOf(variant);
+      if (kind === undefined) {
+        continue;
+      }
+      occurrences.set(kind, [...(occurrences.get(kind) ?? []), index]);
+    }
+    const duplicated = [...occurrences.entries()].find(([, indexes]) => indexes.length > 2);
+    expect(
+      duplicated,
+      "ConditionDefinition no longer has a discriminator shared by 3+ variants; this test's premise is gone",
+    ).toBeDefined();
+    const groupIndexes = duplicated![1];
+    const middle = groupIndexes[1]!;
+
+    const mutate = (edit: (document: Record<string, unknown>) => void): unknown => {
+      const copy = JSON.parse(JSON.stringify(baseline)) as Record<string, unknown>;
+      edit(copy);
+      return copy;
+    };
+
+    // Compatible: a new variant of the same kind, inserted mid-group.
+    const insertedMidGroup = mutate((document) => {
+      const group = variantsOf(document);
+      group.splice(middle, 0, JSON.parse(JSON.stringify(group[middle])) as Record<string, unknown>);
+    });
+    expect(findBreakingChanges(baseline, insertedMidGroup)).toEqual([]);
+
+    // Compatible: appended at the end of the group.
+    const appendedToGroup = mutate((document) => {
+      const group = variantsOf(document);
+      const last = groupIndexes[groupIndexes.length - 1]!;
+      group.splice(last + 1, 0, JSON.parse(JSON.stringify(group[last])) as Record<string, unknown>);
+    });
+    expect(findBreakingChanges(baseline, appendedToGroup)).toEqual([]);
+
+    // Breaking: an enum value dropped from the middle variant of the group.
+    let droppedValue: string | undefined;
+    const editedMidGroup = mutate((document) => {
+      const field = navigate(variantsOf(document)[middle], ["properties", "field"]) as {
+        enum: string[];
+      };
+      droppedValue = field.enum[0];
+      field.enum = field.enum.slice(1);
+    });
+    const edits = findBreakingChanges(baseline, editedMidGroup);
+    expect(edits).toHaveLength(1);
+    expect(edits[0]?.kind).toBe("ENUM_VALUE_REMOVED");
+    expect(edits[0]?.detail).toContain(droppedValue!);
+
+    // Breaking: the middle variant of the group removed outright.
+    const removedMidGroup = mutate((document) => {
+      variantsOf(document).splice(middle, 1);
+    });
+    const removals = findBreakingChanges(baseline, removedMidGroup);
+    expect(removals).toHaveLength(1);
+    expect(removals[0]?.kind).toBe("REQUIRED_PROPERTY_REMOVED");
+  });
 });
