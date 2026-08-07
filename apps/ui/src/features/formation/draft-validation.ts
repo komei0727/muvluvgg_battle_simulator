@@ -3,6 +3,7 @@
 
 import { aptitudeMatches } from "../../lib/aptitude.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import { isSelectable } from "../simulation/catalog-availability.js";
 import { memorySlotKeyOf } from "./types.js";
 import type { BattleDraft, FormationSlotInput, Side } from "./types.js";
 
@@ -114,7 +115,7 @@ function validateUnitSelectability(
     const definition = catalog.units.find(
       (unit) => unit.unitDefinitionId === slot.unitDefinitionId,
     );
-    if (definition === undefined || !definition.selectable) {
+    if (definition === undefined || !isSelectable(definition)) {
       violations.push({
         path: unitsPath(side),
         slotKey: slot.slotKey,
@@ -140,7 +141,7 @@ function validateMemorySelectability(
     const definition = catalog.memories.find(
       (memory) => memory.memoryDefinitionId === memoryDefinitionId,
     );
-    if (definition === undefined || !definition.selectable) {
+    if (definition === undefined || !isSelectable(definition)) {
       violations.push({
         path: `${memoriesPath(side)}/${index}`,
         slotKey: memorySlotKeyOf(side, index),

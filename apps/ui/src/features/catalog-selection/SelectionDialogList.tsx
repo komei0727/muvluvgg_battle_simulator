@@ -69,7 +69,9 @@ export function SelectionDialogList({
                     ))}
                   </div>
                 ) : null}
-                {!item.selectable ? (
+                {/* 理由が空なら「未対応:」だけの読めないラベルになるため出さない。
+                    APIが選択不可を理由なしで返し得る（整合検証は行わない）。 */}
+                {!item.selectable && item.unavailableCapabilities.length > 0 ? (
                   <p className={styles["unavailable"]}>
                     未対応: {item.unavailableCapabilities.join(", ")}
                   </p>

@@ -26,8 +26,8 @@ interface BattleSimulationCatalogResponse {
 }
 
 interface CatalogAvailability {
-  readonly selectable: boolean;
-  readonly unavailableCapabilities: readonly string[];
+  readonly selectable?: boolean;
+  readonly unavailableCapabilities?: readonly string[];
 }
 
 interface CatalogUnitSummary extends CatalogAvailability {
@@ -48,6 +48,7 @@ interface CatalogMemorySummary extends CatalogAvailability {
 
 - `selectable`はバックエンドが対象定義からSkill/EffectActionまで推移的にCapabilityを収集して判定する。
 - `unavailableCapabilities`は選択不可理由となるCapability IDを重複なく昇順で返す。
+- 両フィールドはCapability廃止に伴いバックエンドが送出を停止するため、UIはoptionalとして受ける。UIとバックエンドは別々にデプロイされるため、欠落は「選択可能・未対応理由なし」として扱い、両者の整合は検証しない。
 - Unit/Memory配列はdefinition ID昇順とし、UI側の表示sortに依存しない安定順を持つ。
 - 画像URLはAPI契約に含めない。UIはdefinition IDに対応する任意のローカル画像mapを重ね、なければfallbackを使う。
 - Skill、EffectAction、Formula、Condition、triggeredEffectsの内容を返さない。
@@ -268,9 +269,8 @@ type SimulationApiResult =
 - `catalogRevision`が空でないstring
 - `units`と`memories`がarray
 - 各定義IDが空でなく、配列内で重複しない
-- `displayName`、分類値、`selectable`、`unavailableCapabilities`が契約shapeを満たす
-- `selectable: true`なら `unavailableCapabilities`が空
-- `selectable: false`なら `unavailableCapabilities`が1件以上
+- `displayName`と分類値が契約shapeを満たす
+- `selectable`と `unavailableCapabilities`は欠落を許容し、送られてきた場合だけ型を検証する（両者の整合は検証しない）
 
 契約違反時は編成を有効にせず `RESPONSE_CONTRACT_MISMATCH`を表示する。UIがCatalogファイルから欠損値を補完しない。
 

@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
 import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import { isSelectable, unavailableCapabilitiesOf } from "../simulation/catalog-availability.js";
 import { filterUnits } from "./catalog-filter.js";
 import type { UnitFilter } from "./catalog-filter.js";
 import { SelectionDialogList } from "./SelectionDialogList.js";
@@ -48,12 +49,13 @@ export function UnitSelectionDialog({
     () =>
       filtered.map((unit) => {
         const isCurrent = unit.unitDefinitionId === currentUnitDefinitionId;
+        const selectable = isSelectable(unit);
         return {
           definitionId: unit.unitDefinitionId,
           displayName: unit.displayName,
-          selectable: unit.selectable,
-          disabled: !unit.selectable || (isEmptySlotAtCapacity && !isCurrent),
-          unavailableCapabilities: unit.unavailableCapabilities,
+          selectable,
+          disabled: !selectable || (isEmptySlotAtCapacity && !isCurrent),
+          unavailableCapabilities: unavailableCapabilitiesOf(unit),
           tags: [unit.attribute, unit.role, unit.positionAptitudes.join("/")],
         };
       }),

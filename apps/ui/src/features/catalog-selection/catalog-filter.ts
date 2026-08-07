@@ -1,5 +1,10 @@
 import { aptitudeMatches } from "../../lib/aptitude.js";
-import type { CatalogMemorySummary, CatalogUnitSummary } from "../simulation/api-contract.js";
+import type {
+  CatalogAvailability,
+  CatalogMemorySummary,
+  CatalogUnitSummary,
+} from "../simulation/api-contract.js";
+import { isSelectable } from "../simulation/catalog-availability.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §8: Filter state.
 export type CatalogAvailabilityFilter = "all" | "selectable" | "unavailable";
@@ -17,19 +22,15 @@ export interface MemoryFilter {
   readonly availability: CatalogAvailabilityFilter;
 }
 
-interface Availability {
-  readonly selectable: boolean;
-}
-
 function matchesAvailability(
-  entry: Availability,
+  entry: CatalogAvailability,
   availability: CatalogAvailabilityFilter,
 ): boolean {
   if (availability === "selectable") {
-    return entry.selectable;
+    return isSelectable(entry);
   }
   if (availability === "unavailable") {
-    return !entry.selectable;
+    return !isSelectable(entry);
   }
   return true;
 }
@@ -46,11 +47,11 @@ function matchesQuery(query: string, displayName: string, definitionId: string):
 }
 
 function bySelectableThenDisplayNameThenId<
-  T extends Availability & { readonly displayName: string },
+  T extends CatalogAvailability & { readonly displayName: string },
 >(idOf: (entry: T) => string): (a: T, b: T) => number {
   return (a, b) => {
-    if (a.selectable !== b.selectable) {
-      return a.selectable ? -1 : 1;
+    if (isSelectable(a) !== isSelectable(b)) {
+      return isSelectable(a) ? -1 : 1;
     }
     const nameComparison = a.displayName.localeCompare(b.displayName);
     if (nameComparison !== 0) {

@@ -133,24 +133,24 @@ describe("validateCatalogResponse", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects selectable: true paired with non-empty unavailableCapabilities", () => {
+  it("accepts selectable: true paired with non-empty unavailableCapabilities", () => {
     const result = validateCatalogResponse(
       validResponse({
         units: [validUnit({ selectable: true, unavailableCapabilities: ["CAP_X"] })],
       }),
     );
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
   });
 
-  it("rejects selectable: false paired with empty unavailableCapabilities", () => {
+  it("accepts selectable: false paired with empty unavailableCapabilities", () => {
     const result = validateCatalogResponse(
       validResponse({
         units: [validUnit({ selectable: false, unavailableCapabilities: [] })],
       }),
     );
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
   });
 
   it("accepts selectable: false with unavailableCapabilities populated", () => {
@@ -161,6 +161,44 @@ describe("validateCatalogResponse", () => {
     );
 
     expect(result.ok).toBe(true);
+  });
+
+  it("accepts a unit without selectable and unavailableCapabilities", () => {
+    const {
+      selectable: _selectable,
+      unavailableCapabilities: _unavailableCapabilities,
+      ...withoutAvailability
+    } = validUnit();
+    const result = validateCatalogResponse(validResponse({ units: [withoutAvailability] }));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts a memory without selectable and unavailableCapabilities", () => {
+    const {
+      selectable: _selectable,
+      unavailableCapabilities: _unavailableCapabilities,
+      ...withoutAvailability
+    } = validMemory();
+    const result = validateCatalogResponse(validResponse({ memories: [withoutAvailability] }));
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects a non-boolean selectable when the field is present", () => {
+    const result = validateCatalogResponse(
+      validResponse({ units: [validUnit({ selectable: "true" })] }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a non-string-array unavailableCapabilities when the field is present", () => {
+    const result = validateCatalogResponse(
+      validResponse({ units: [validUnit({ unavailableCapabilities: [1] })] }),
+    );
+
+    expect(result.ok).toBe(false);
   });
 
   it("reports RESPONSE_CONTRACT_MISMATCH as the error kind on failure", () => {

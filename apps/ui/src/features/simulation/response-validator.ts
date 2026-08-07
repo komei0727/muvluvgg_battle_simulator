@@ -34,12 +34,15 @@ function isPositionAptitudes(value: unknown): value is readonly string[] {
   );
 }
 
+// 両フィールドはAPI側のCapability廃止で送出されなくなるため、欠落を許容し
+// 相互の整合（selectable と unavailableCapabilities の対応）も検証しない。
+// 送られてきた場合の型だけを確認する。
 function hasValidAvailability(value: Record<string, unknown>): boolean {
   const { selectable, unavailableCapabilities } = value;
-  if (typeof selectable !== "boolean" || !isStringArray(unavailableCapabilities)) {
-    return false;
-  }
-  return selectable ? unavailableCapabilities.length === 0 : unavailableCapabilities.length > 0;
+  return (
+    (selectable === undefined || typeof selectable === "boolean") &&
+    (unavailableCapabilities === undefined || isStringArray(unavailableCapabilities))
+  );
 }
 
 function isValidUnit(value: unknown): value is CatalogUnitSummary {
