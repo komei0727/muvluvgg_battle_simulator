@@ -263,12 +263,13 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       ...actorFor(unitId, "ALLY", "B_CAP_RUNTIME:unit:1", unitDefinition.baseStats.maximumHp),
       currentPp: 4,
     };
-    const enemy = actorFor(
-      unitId,
-      "ENEMY",
-      "B_CAP_RUNTIME:unit:2",
-      unitDefinition.baseStats.maximumHp,
-    );
+    // ミラー編成なので敵も同じPSを持つ。PP 0を明示して敵側がコストを払えない状態に
+    // 固定する——暗黙のfixture既定値に頼ると、既定値が変わったとき敵PSの`PP_ZERO`が
+    // 使用者を対象にして、counterと無関係な理由でPPアサーションが落ちる。
+    const enemy = {
+      ...actorFor(unitId, "ENEMY", "B_CAP_RUNTIME:unit:2", unitDefinition.baseStats.maximumHp),
+      currentPp: 0,
+    };
     const initial = initialSnapshotFor([owner, enemy]);
     const definitions = lifecycleDefinitions(snapshot, unitId, skillId);
     const recorder = new EventRecorder(createBattleId("B_CAP_RUNTIME"));
