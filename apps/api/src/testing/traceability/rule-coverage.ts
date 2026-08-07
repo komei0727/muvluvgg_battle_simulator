@@ -506,8 +506,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // IT-CAP-STEALTH-PROD-001/002）で対象選択・消費・独立Reducer復元まで確認した
   // ため、Rule完了として扱う。`SKL_MAO_COMMITTEE_PS2`自身が同じstepで解決する
   // CLEANSE（`REMOVE_EFFECTS`、M7-001）・HEAL（`APPLY_CONTINUOUS_HEAL`、
-  // M7-005）・DMG_DOWN（`APPLY_DAMAGE_MOD`、DMG-002）は`capabilities.json`で
-  // 別タスク化された未実装kindのため、スキル全体のend-to-end実行はスコープ外
+  // M7-005）・DMG_DOWN（`APPLY_DAMAGE_MOD`、DMG-002）は当時未実装のkindだった
+  // ため、スキル全体のend-to-end実行はスコープ外
   // のまま（R-TGT-08自体の完了とは独立）。
   {
     ruleId: "R-TGT-08",
@@ -1354,7 +1354,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   {
     ruleId: "R-ACTN-01",
     testCaseIds: [
-      // #1 Capability preflight: EffectAction単位のrequiredCapabilitiesがpreflightで拒否対象になることを検証する。
       // #2 対象戦闘不能skip(明示指定なし): 全kindが対象戦闘不能を理由に適用をスキップする。
       "UT-R-ACTN-01-001",
       "UT-R-ACTN-01-002",
@@ -2696,8 +2695,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`marker-removal-service.ts`/`model/linked-effect-group.ts`）、ACTION/TURN単位
   // Duration失効（`marker-duration.ts`、`action-completion.ts`/`battle.ts`への
   // 実ライフサイクル配線）を実装した。`MarkerState.stackCount`を**読む**側は
-  // それぞれ別Capabilityのスコープとして残した — `MARKER_COUNT_SCALE`Formula評価
-  // （`CAP_MARKER_STACK_FORMULA`）はM7-015（Issue #269）が実ライフサイクル検証
+  // それぞれ別タスクのスコープとして残した — `MARKER_COUNT_SCALE`Formula評価は
+  // M7-015（Issue #269）が実ライフサイクル検証
   // （`IT-CAP-MARKER-STACK-PROD-001`〜`006`、R-NUM-04側で計上）まで通して完了させ、
   // `TARGET_HAS_MARKER`Condition評価はRES-004（Issue #171）、`HAS_MARKER`
   // TargetSelector評価はTGT-002（Issue #169）が担当する。

@@ -2,78 +2,34 @@
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_HEAL",
     "kind": "HEAL",
-    "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.5
-      },
-      "overheal": "DISCARD"
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.5 }, "overheal": "DISCARD" },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
-      "formula": {
-        "kind": "MISSING_HP_RATIO",
-        "source": {
-          "kind": "TARGET"
-        },
-        "ratio": 0.3
-      },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.858
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_CURSE",
-      "stack": {
-        "policy": "ADD",
-        "max": null
-      },
-      "duration": {
-        "dispellable": false,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "stack": { "policy": "ADD", "max": null },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN",
@@ -81,25 +37,15 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.075
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": false,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        },
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "HARRIET_CURSE_LINK"
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN",
@@ -107,25 +53,15 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.075
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": false,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        },
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "HARRIET_CURSE_LINK"
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO",
@@ -133,24 +69,15 @@
     "payload": {
       "resource": "PP",
       "operation": "SET",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0
-      }
+      "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
     "kind": "REMOVE_MARKER",
-    "payload": {
-      "markerId": "MARKER_CURSE"
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "markerId": "MARKER_CURSE" },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS2_IMMUNITY",
@@ -159,83 +86,47 @@
       "status": "DAMAGE_IMMUNITY",
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        },
-        "consumption": {
-          "kind": "INCOMING_HIT",
-          "maxCount": 2
-        },
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 },
         "linkedEffectGroupId": "HARRIET_BARRIER",
         "linkedEffectGroupRole": "PARENT"
       },
       "damageThreshold": {
         "op": "GT",
-        "formula": {
-          "kind": "CURRENT_HP_RATIO",
-          "source": {
-            "kind": "TARGET"
-          },
-          "ratio": 0.35
-        }
+        "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.135
-      },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.135 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": {
         "dispellable": false,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        },
+        "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "HARRIET_BARRIER",
         "linkedEffectGroupRole": "CHILD"
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.105
-      },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.105 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "TURN",
-          "count": 1
-        },
+        "timeLimit": { "unit": "TURN", "count": 1 },
         "expiration": {
           "conditions": [
             {
               "kind": "TARGET_STATE",
-              "target": {
-                "kind": "SELF"
-              },
+              "target": { "kind": "SELF" },
               "field": "IS_ALIVE",
               "op": "EQ",
               "value": false
@@ -244,9 +135,7 @@
         }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS2_AP_UP",
@@ -254,18 +143,10 @@
     "payload": {
       "resource": "AP",
       "operation": "ADD",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 1
-      },
-      "bounds": {
-        "min": 0,
-        "max": "CURRENT_MAX"
-      }
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_PS2_SPEED_UP",
@@ -273,23 +154,10 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 100
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 100 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

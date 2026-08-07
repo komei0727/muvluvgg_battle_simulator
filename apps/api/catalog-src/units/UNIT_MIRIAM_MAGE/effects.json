@@ -4,14 +4,9 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.936
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.936 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
@@ -21,59 +16,33 @@
       "damageType": "EN",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
+        "source": { "kind": "SKILL_SOURCE" },
         "stat": "ATTACK",
         "ratio": 0.12
       },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_FREEZE",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "FREEZE",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      },
-      "damageAmplificationOnBreak": 1
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "damageAmplificationOnBreak": 1.0
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.624
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.624 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DMG_DOWN",
@@ -81,83 +50,47 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.312
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.312 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS2_FREEZE",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "FREEZE",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 3
-        }
-      },
-      "damageAmplificationOnBreak": 1
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } },
+      "damageAmplificationOnBreak": 1.0
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.59
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 1.59 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MIRIAM_MAGE_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.954
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.954 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

@@ -2,80 +2,41 @@
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 3.392
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.392 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.4875
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.4875 },
       "hitCount": 4,
-      "critical": {
-        "mode": "PREVENTED"
-      }
+      "critical": { "mode": "PREVENTED" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_GOOD_LUCK",
-      "stack": {
-        "policy": "REPLACE",
-        "max": 1
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "stack": { "policy": "REPLACE", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_CD_RESET",
     "kind": "COOLDOWN_MANIPULATION",
-    "payload": {
-      "targetSkillDefinitionId": "SKL_SAYA_BUNNY_AS1",
-      "operation": "RESET"
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "targetSkillDefinitionId": "SKL_SAYA_BUNNY_AS1", "operation": "RESET" },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.56
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DEBUFF",
@@ -83,52 +44,23 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.3
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.3 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.092
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.092 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.56
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_CRIT_UP",
@@ -136,52 +68,26 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.15
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.092
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.092 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS3_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 2.65
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.65 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_UP",
@@ -189,24 +95,11 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.025
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.025 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_DMG_UP",
@@ -214,23 +107,10 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.0875
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.0875 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

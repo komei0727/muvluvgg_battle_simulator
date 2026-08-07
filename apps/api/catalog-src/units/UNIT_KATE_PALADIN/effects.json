@@ -4,94 +4,55 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.3816
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.3816 },
       "hitCount": 5
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_FREEZE",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "FREEZE",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 3
-        }
-      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } },
       "damageAmplificationOnBreak": 1.5
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_ALL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "MAX_HP_RATIO",
-        "source": {
-          "kind": "TARGET"
-        },
-        "ratio": 0.45
-      },
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.45 },
       "overheal": "DISCARD"
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_EXTRA",
     "kind": "HEAL",
-    "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.745
-      },
-      "overheal": "DISCARD"
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.745 }, "overheal": "DISCARD" },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE1",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.234
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.234 },
       "hitCount": 4
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DAMAGE2",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.1248
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.1248 },
       "hitCount": 4
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_EX_DOWN",
@@ -99,18 +60,10 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "ADD",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -1
-      },
-      "bounds": {
-        "min": 0,
-        "max": "CURRENT_MAX"
-      }
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN",
@@ -118,84 +71,41 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.15
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_100",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 1
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "LAST_DAMAGE_DEALT", "ratio": 1 },
       "overheal": "DISCARD"
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_20",
     "kind": "HEAL",
-    "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.2
-      },
-      "overheal": "DISCARD"
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.2 }, "overheal": "DISCARD" },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.936
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.936 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_STUN_TARGET",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_DMG_DOWN",
@@ -203,24 +113,11 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.75
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.75 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_EVASION",
@@ -229,67 +126,33 @@
       "status": "EVASION",
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "consumption": {
-          "kind": "INCOMING_HIT",
-          "maxCount": 2
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
       },
       "probability": 1,
-      "appliesTo": {
-        "incomingActionKinds": ["DAMAGE"]
-      }
+      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_SELF_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.742
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.742 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_PS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.59
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
+    "metadata": { "tags": [] }
   }
 ]

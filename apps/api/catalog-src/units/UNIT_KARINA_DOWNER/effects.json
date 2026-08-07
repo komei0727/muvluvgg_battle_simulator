@@ -2,16 +2,8 @@
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.248
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.248 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN",
@@ -19,49 +11,29 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.3
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.3 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.53
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.53 },
       "damageModifiers": [
         {
           "kind": "MARKER_COUNT_SCALE",
-          "target": {
-            "kind": "TARGET"
-          },
+          "target": { "kind": "TARGET" },
           "markerId": "MARKER_KEIBO",
           "perStack": 0.15,
           "max": 0.45
         }
       ]
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS1_EX_DOWN",
@@ -69,32 +41,16 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "ADD",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -1
-      },
-      "bounds": {
-        "min": 0,
-        "max": "CURRENT_MAX"
-      }
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.404
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.404 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_ATKDOWN",
@@ -102,24 +58,11 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_SELF_IMMUNITY",
@@ -128,38 +71,21 @@
       "categories": ["DEBUFF"],
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1,
-          "owner": "BATTLE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       },
       "maxBlocks": null
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_MARK_ATTACKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_KEIBO",
-      "stack": {
-        "policy": "ADD",
-        "max": 3
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "stack": { "policy": "ADD", "max": 3 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN",
@@ -167,73 +93,42 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.25
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.25 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1,
-          "owner": "BATTLE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_REDIRECT",
     "kind": "APPLY_TARGET_REDIRECT",
     "payload": {
-      "redirectTo": {
-        "kind": "SELF"
-      },
-      "appliesTo": {
-        "actionKinds": ["DAMAGE"]
-      },
+      "redirectTo": { "kind": "SELF" },
+      "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1,
-          "owner": "BATTLE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_COVER",
     "kind": "APPLY_COVER",
     "payload": {
-      "coverer": {
-        "kind": "SELF"
-      },
+      "coverer": { "kind": "SELF" },
       "damageShareRate": 1,
       "guardRate": 0,
-      "appliesTo": {
-        "actionKinds": ["DAMAGE"]
-      },
+      "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1,
-          "owner": "BATTLE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN",
@@ -241,24 +136,11 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 3
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_DEBUFF",
@@ -266,51 +148,25 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CURRENT_HP_RATIO",
-        "source": {
-          "kind": "TARGET"
-        },
-        "ratio": -0.3
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": -0.3 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP",
     "kind": "APPLY_RESOURCE_GAIN_MOD",
     "payload": {
       "resource": "EX_GAUGE",
-      "rateDelta": {
-        "kind": "CONSTANT",
-        "value": 0.5
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "rateDelta": { "kind": "CONSTANT", "value": 0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
@@ -320,26 +176,13 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
+        "source": { "kind": "SKILL_SOURCE" },
         "stat": "ATTACK",
         "ratio": 0.075
       },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

@@ -2,155 +2,89 @@
   {
     "skillDefinitionId": "SKL_SIENA_DIVA_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 8
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN"
-            }
+            { "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "紡ぎ出すメロディー",
-      "tags": []
-    }
+    "metadata": { "displayName": "紡ぎ出すメロディー", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SIENA_DIVA_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DMG_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DMG_DOWN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "フォルテピアノ",
-      "tags": []
-    }
+    "metadata": { "displayName": "フォルテピアノ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SIENA_DIVA_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "SELF"
-            },
+            "target": { "kind": "SELF" },
             "markerId": "MARKER_SIENA_RHYTHMICAL"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_ENEMY"
-              },
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
               "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE_EXTRA"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DMG_DOWN"
-                }
+                { "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE_EXTRA" },
+                { "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DMG_DOWN" }
               ]
             }
           ],
@@ -158,34 +92,19 @@
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_APPLY_RHYTHMICAL"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_APPLY_RHYTHMICAL" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "リフレイン",
-      "tags": []
-    }
+    "metadata": { "displayName": "リフレイン", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SIENA_DIVA_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -194,54 +113,30 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": {
-              "kind": "TRIGGER_TARGET"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            }
+            "base": { "kind": "TRIGGER_TARGET" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_ATK_UP"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_ATK_UP" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN"
-            }
+            { "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "コン・フオーコ",
-      "tags": []
-    },
+    "metadata": { "displayName": "コン・フオーコ", "tags": [] },
     "triggers": [
       {
         "eventType": "EffectApplied",
@@ -257,21 +152,9 @@
               "op": "CONTAINS",
               "value": "STATUS"
             },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "BATTLE_START",
-              "negate": true
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "TURN_START",
-              "negate": true
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "TURN_END",
-              "negate": true
-            }
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
           ]
         }
       }
@@ -280,10 +163,7 @@
   {
     "skillDefinitionId": "SKL_SIENA_DIVA_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -293,12 +173,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "FRONT"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
           }
         },
         {
@@ -307,12 +182,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "BACK"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
           }
         },
         {
@@ -321,12 +191,7 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "FRONT"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
           }
         },
         {
@@ -335,75 +200,36 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "BACK"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALLY_FRONT"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLY_FRONT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY_FRONT"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY_FRONT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALLY_BACK"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLY_BACK" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY_BACK"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY_BACK" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "TURN",
-      "count": 1
-    },
+    "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "テンポプリモ",
-      "tags": []
-    },
+    "metadata": { "displayName": "テンポプリモ", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",

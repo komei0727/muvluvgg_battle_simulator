@@ -7,9 +7,7 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       },
       "effectSequence": {
         "targetBindings": [
@@ -19,26 +17,16 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [
-                {
-                  "kind": "ROLE",
-                  "role": "PHYSICAL_ATTACKER"
-                }
-              ]
+              "filters": [{ "kind": "ROLE", "role": "PHYSICAL_ATTACKER" }]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PHYSICAL_ATTACKER_ALLIES"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PHYSICAL_ATTACKER_ALLIES" },
             "actions": [
-              {
-                "effectActionDefinitionId": "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_ATTACKER_DMG_UP"
-              }
+              { "effectActionDefinitionId": "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_ATTACKER_DMG_UP" }
             ]
           }
         ]
@@ -50,9 +38,7 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       },
       "effectSequence": {
         "targetBindings": [
@@ -62,34 +48,19 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [
-                {
-                  "kind": "UNIT_TYPE",
-                  "unitType": "PHYSICAL"
-                }
-              ]
+              "filters": [{ "kind": "UNIT_TYPE", "unitType": "PHYSICAL" }]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PHYSICAL_ALLIES"
-            },
-            "actions": [
-              {
-                "effectActionDefinitionId": "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_CRIT_UP"
-              }
-            ]
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PHYSICAL_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_CRIT_UP" }]
           }
         ]
       }
     }
   ],
-  "metadata": {
-    "displayName": "絶対命令行使権！",
-    "tags": []
-  }
+  "metadata": { "displayName": "絶対命令行使権！", "tags": [] }
 }

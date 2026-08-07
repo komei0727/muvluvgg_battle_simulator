@@ -186,7 +186,7 @@
       "damageType": null,
       "formula": {
         "kind": "CONSTANT",
-        "value": 1
+        "value": 1.0
       },
       "stacking": {
         "mode": "STACKABLE"

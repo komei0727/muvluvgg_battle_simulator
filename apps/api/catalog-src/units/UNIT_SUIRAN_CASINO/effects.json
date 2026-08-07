@@ -78,7 +78,7 @@
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
         "sourceResult": "SUM_DAMAGE_DEALT",
-        "ratio": 1
+        "ratio": 1.0
       },
       "duration": {
         "dispellable": true,

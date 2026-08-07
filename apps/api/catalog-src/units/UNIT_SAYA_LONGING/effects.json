@@ -2,16 +2,8 @@
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.2048
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.2048 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_BURN",
@@ -21,27 +13,14 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
+        "source": { "kind": "SKILL_SOURCE" },
         "stat": "ATTACK",
         "ratio": 0.3
       },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 3
-        }
-      }
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_HEAL",
@@ -54,23 +33,13 @@
       },
       "overheal": "DISCARD"
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.896
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.896 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_HEAL",
@@ -83,9 +52,7 @@
       },
       "overheal": "DISCARD"
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_PP_DOWN",
@@ -93,41 +60,22 @@
     "payload": {
       "resource": "PP",
       "operation": "ADD",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -1
-      },
-      "bounds": {
-        "min": 0,
-        "max": "CURRENT_MAX"
-      }
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.624
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.624 },
       "damageModifiers": [
-        {
-          "kind": "CURRENT_HP_RATIO",
-          "source": {
-            "kind": "SKILL_SOURCE"
-          },
-          "ratio": 3
-        }
+        { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 3 }
       ]
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_PS1_DMG_UP",
@@ -135,24 +83,14 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.5
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": 0.5 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_PS2_ATK_UP",
@@ -160,27 +98,14 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CURRENT_HP_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
-        "ratio": 0.5
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.5 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_PS2_CRIT_UP",
@@ -188,26 +113,13 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CURRENT_HP_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
-        "ratio": 0.4
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.4 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

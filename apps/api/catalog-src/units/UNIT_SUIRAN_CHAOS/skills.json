@@ -2,21 +2,13 @@
   {
     "skillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 8
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ALLIES",
@@ -24,137 +16,72 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "SELF"
-                }
-              }
-            ]
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ブラック・スタイル",
-      "tags": []
-    }
+    "metadata": { "displayName": "ブラック・スタイル", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SUIRAN_CHAOS_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF"
-            }
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "一破能弾",
-      "tags": []
-    }
+    "metadata": { "displayName": "一破能弾", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SUIRAN_CHAOS_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS1_EVASION"
-            }
-          ]
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS1_EVASION" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
-    "traits": {
-      "simultaneousActivationLimited": true
-    },
-    "metadata": {
-      "displayName": "代助一避",
-      "tags": []
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "代助一避", "tags": [] },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
@@ -163,9 +90,7 @@
         "targetSelector": "ALLY",
         "condition": {
           "kind": "POSITION_RELATION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
+          "target": { "kind": "TRIGGER_TARGET" },
           "relation": "IN_FRONT_OF"
         }
       }
@@ -174,42 +99,25 @@
   {
     "skillDefinitionId": "SKL_SUIRAN_CHAOS_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
+          "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_HEAL"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_ATK_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_DEF_UP"
-            }
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_DEF_UP" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "再起律動",
-      "tags": []
-    },
+    "metadata": { "displayName": "再起律動", "tags": [] },
     "triggers": [
       {
         "eventType": "HitPointReduced",
@@ -221,18 +129,14 @@
           "conditions": [
             {
               "kind": "TARGET_STATE",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
+              "target": { "kind": "TRIGGER_TARGET" },
               "field": "HP_RATIO",
               "op": "LTE",
               "value": 0.5
             },
             {
               "kind": "POSITION_RELATION",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
+              "target": { "kind": "TRIGGER_TARGET" },
               "relation": "IN_FRONT_OF"
             }
           ]
@@ -243,52 +147,29 @@
   {
     "skillDefinitionId": "SKL_SUIRAN_CHAOS_PS3",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
+          "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP"
-            }
-          ]
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
-    "traits": {
-      "simultaneousActivationLimited": true
-    },
-    "metadata": {
-      "displayName": "追撃符",
-      "tags": []
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "追撃符", "tags": [] },
     "triggers": [
       {
         "eventType": "SkillUseStarting",
@@ -298,17 +179,10 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            {
-              "kind": "EVENT_PAYLOAD",
-              "field": "skillType",
-              "op": "EQ",
-              "value": "AS"
-            },
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
             {
               "kind": "POSITION_RELATION",
-              "target": {
-                "kind": "TRIGGER_SOURCE"
-              },
+              "target": { "kind": "TRIGGER_SOURCE" },
               "relation": "IN_FRONT_OF"
             }
           ]

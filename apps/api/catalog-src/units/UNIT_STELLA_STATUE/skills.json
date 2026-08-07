@@ -2,179 +2,96 @@
   {
     "skillDefinitionId": "SKL_STELLA_STATUE_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 8
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ALLY",
-            "count": "ALL"
-          }
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
         },
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL"
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_EVASION"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_EVASION" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ENEMIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_MARKER"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_MARKER" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_REMOVE_DEBUFFS"
-            },
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_DEBUFF_IMMUNITY"
-            }
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_REMOVE_DEBUFFS" },
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_DEBUFF_IMMUNITY" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "極夜のマスカレード",
-      "tags": []
-    }
+    "metadata": { "displayName": "極夜のマスカレード", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_STELLA_STATUE_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 2
-    },
+    "cost": { "resource": "AP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["NEAREST"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
             "side": "ENEMY"
           }
         },
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ALLY",
-            "count": "ALL"
-          }
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_BLIND"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_BLIND" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_CRIT_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS1_CRIT_UP" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "ブラックアウト・ラビリンス",
-      "tags": []
-    }
+    "metadata": { "displayName": "ブラックアウト・ラビリンス", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_STELLA_STATUE_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
@@ -182,103 +99,59 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PRIMARY"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "markerId": "MARKER_WAKKOU"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE_BOOSTED"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE_BOOSTED" }]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE" }]
             }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_SELF_EVASION"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_SELF_EVASION" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "オーロラとの戯れ",
-      "tags": []
-    }
+    "metadata": { "displayName": "オーロラとの戯れ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_STELLA_STATUE_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
+          "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_REMOVE_MARKER"
-            }
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_REMOVE_MARKER" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {
       "simultaneousActivationLimited": true,
       "exclusiveActivationGroupId": "STELLA_HP_REACTION"
     },
-    "metadata": {
-      "displayName": "氷結のシンフォニー",
-      "tags": []
-    },
+    "metadata": { "displayName": "氷結のシンフォニー", "tags": [] },
     "triggers": [
       {
         "eventType": "HitPointReduced",
@@ -290,16 +163,12 @@
           "conditions": [
             {
               "kind": "TARGET_HAS_MARKER",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
+              "target": { "kind": "TRIGGER_TARGET" },
               "markerId": "MARKER_WAKKOU"
             },
             {
               "kind": "TARGET_STATE",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
+              "target": { "kind": "TRIGGER_TARGET" },
               "field": "HP_RATIO",
               "op": "LTE",
               "value": 0.5
@@ -312,50 +181,29 @@
   {
     "skillDefinitionId": "SKL_STELLA_STATUE_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_COUNTER"
-            }
-          ]
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_COUNTER" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_HEAL"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_STELLA_STATUE_PS2_HEAL" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {
       "simultaneousActivationLimited": true,
       "exclusiveActivationGroupId": "STELLA_HP_REACTION"
     },
-    "metadata": {
-      "displayName": "ベルセルクの洗礼",
-      "tags": []
-    },
+    "metadata": { "displayName": "ベルセルクの洗礼", "tags": [] },
     "triggers": [
       {
         "eventType": "DamageApplied",

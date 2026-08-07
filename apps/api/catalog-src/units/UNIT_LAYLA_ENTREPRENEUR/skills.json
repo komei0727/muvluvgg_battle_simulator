@@ -2,34 +2,20 @@
   {
     "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
             "side": "ENEMY"
           }
         }
@@ -37,70 +23,37 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_IMMUNITY"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_EX_IMMUNITY" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "大儲けだー！",
-      "tags": []
-    }
+    "metadata": { "displayName": "大儲けだー！", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 2
-    },
+    "cost": { "resource": "AP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_COLUMN_AS_BASE",
-              "includeBase": true
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
             "side": "ENEMY"
           }
         }
@@ -108,35 +61,19 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_COLUMN"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_CRIT_UP"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_CRIT_UP" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "field": "UNIT_TYPE",
             "op": "EQ",
             "value": "PHYSICAL"
@@ -144,112 +81,63 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_BASE"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE_EXTRA"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS1_DAMAGE_EXTRA" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "フォーカススラスト",
-      "tags": []
-    }
+    "metadata": { "displayName": "フォーカススラスト", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_AS2_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "四連突",
-      "tags": []
-    }
+    "metadata": { "displayName": "四連突", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_CRIT_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT"
-            }
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "CRTフォーカス",
-      "tags": []
-    },
+    "metadata": { "displayName": "CRTフォーカス", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",
@@ -288,39 +176,24 @@
   {
     "skillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
+          "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP"
-            }
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ラッキー４！",
-      "tags": []
-    },
+    "metadata": { "displayName": "ラッキー４！", "tags": [] },
     "triggers": [
       {
         "eventType": "CriticalCheckResolved",
@@ -330,12 +203,7 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            {
-              "kind": "EVENT_PAYLOAD",
-              "field": "result",
-              "op": "EQ",
-              "value": true
-            },
+            { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true },
             {
               "kind": "RUNTIME_COUNTER",
               "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
@@ -357,12 +225,7 @@
           "category": "FACT",
           "sourceSelector": "SELF",
           "targetSelector": "ENEMY",
-          "condition": {
-            "kind": "EVENT_PAYLOAD",
-            "field": "result",
-            "op": "EQ",
-            "value": true
-          }
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
         },
         "amount": 1
       }

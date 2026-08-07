@@ -91,10 +91,7 @@
             "filters": [
               {
                 "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_LOWEST"
-                }
+                "reference": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" }
               }
             ],
             "order": ["LOWEST_HP_RATIO"]

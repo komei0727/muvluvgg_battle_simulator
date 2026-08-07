@@ -2,10 +2,7 @@
   {
     "skillDefinitionId": "SKL_MAO_COMMITTEE_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -23,82 +20,46 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "ADJACENT_ORTHOGONAL"
-            }
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_BASE"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ADJACENT"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_HEAL"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_HEAL" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "これは没収です！",
-      "tags": []
-    }
+    "metadata": { "displayName": "これは没収です！", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_MAO_COMMITTEE_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "activationCondition": {
       "kind": "TARGET_STATE",
-      "target": {
-        "kind": "SELF"
-      },
+      "target": { "kind": "SELF" },
       "field": "HP_RATIO",
       "op": "GTE",
       "value": 0.6
@@ -108,26 +69,15 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            }
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
           }
         },
         {
@@ -136,72 +86,36 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": 1,
-            "filters": [
-              {
-                "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "SELF"
-                }
-              }
-            ]
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_SHIELD_ALLY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_SHIELD"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_SHIELD_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_SHIELD" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_HP_COST"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS1_HP_COST" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "風紀を守る一撃",
-      "tags": []
-    }
+    "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_MAO_COMMITTEE_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -225,52 +139,30 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_COLUMN_AS_BASE",
-              "includeBase": true
-            }
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_COLUMN"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_MARKER"
-            }
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF" },
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_AS2_MARKER" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "容疑者を捕捉！",
-      "tags": []
-    }
+    "metadata": { "displayName": "容疑者を捕捉！", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_MAO_COMMITTEE_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -280,52 +172,26 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "SELF"
-                }
-              }
-            ]
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALLY_ALL"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DMG_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLY_ALL" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DMG_UP" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "抵抗は無意味です！",
-      "tags": []
-    },
+    "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
@@ -376,10 +242,7 @@
   {
     "skillDefinitionId": "SKL_MAO_COMMITTEE_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "activationCondition": {
       "kind": "ALIVE_UNIT_COUNT",
       "side": "ALLY",
@@ -393,44 +256,26 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_CLEANSE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_STEALTH"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_HEAL"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_DMG_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_CLEANSE" },
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_STEALTH" },
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS2_DMG_DOWN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "風紀委員長としての矜持",
-      "tags": []
-    },
+    "metadata": { "displayName": "風紀委員長としての矜持", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   }

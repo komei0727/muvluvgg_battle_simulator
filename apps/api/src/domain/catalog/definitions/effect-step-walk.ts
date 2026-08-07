@@ -23,7 +23,7 @@ export const EFFECT_STEP_ROOT_PATH = "steps";
  * 1つのstepが持つ子step列を、定義path上のセグメントとともに列挙する。
  * 網羅`switch`とし、新しいstep kindの追加時にこの関数の更新漏れをコンパイル
  * エラーとして検出する（`effect-action-definition.ts`のkindに対する
- * `durationOf`/`formulasOf`と同じ方針）。
+ * `durationOf`と同じ方針）。
  */
 export function effectStepChildSteps(step: EffectStepDefinition): readonly EffectStepChildSteps[] {
   switch (step.kind) {

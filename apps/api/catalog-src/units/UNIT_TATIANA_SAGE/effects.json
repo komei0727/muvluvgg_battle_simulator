@@ -19,19 +19,11 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -1.0 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
     "metadata": {
@@ -151,7 +143,7 @@
       "damageType": "EN",
       "formula": {
         "kind": "SKILL_POWER",
-        "power": 1
+        "power": 1.0
       }
     },
     "metadata": {
@@ -291,7 +283,7 @@
       "damageType": "EN",
       "formula": {
         "kind": "SKILL_POWER",
-        "power": 1
+        "power": 1.0
       }
     },
     "metadata": {

@@ -2,145 +2,71 @@
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 2.12
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "dispellable": true
-      },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true },
       "probability": 1
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.326
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.326 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DMG_DOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.6
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.6 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.17
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE_EXTRA",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.39
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.39 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DMG_DOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.3
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "dispellable": true
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.3 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_APPLY_RHYTHMICAL",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_SIENA_RHYTHMICAL",
-      "stack": {
-        "policy": "REFRESH",
-        "max": 1
-      },
-      "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "dispellable": true
-      }
+      "stack": { "policy": "REFRESH", "max": 1 },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_ATK_UP",
@@ -148,38 +74,17 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "dispellable": true
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.234
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.234 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN",
@@ -187,24 +92,13 @@
     "payload": {
       "status": "STUN",
       "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
+        "timeLimit": { "unit": "ACTION", "count": 1 },
         "dispellable": true,
-        "reapply": {
-          "existingRemaining": {
-            "op": "EQ",
-            "value": 1
-          },
-          "count": 2
-        }
+        "reapply": { "existingRemaining": { "op": "EQ", "value": 1 }, "count": 2 }
       },
       "probability": 1
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
@@ -212,24 +106,11 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.15
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "timeLimit": {
-          "unit": "TURN",
-          "count": 1
-        },
-        "dispellable": true
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN",
@@ -237,23 +118,10 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.5
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "timeLimit": {
-          "unit": "TURN",
-          "count": 1
-        },
-        "dispellable": true
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

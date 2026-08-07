@@ -2,29 +2,17 @@
   {
     "skillDefinitionId": "SKL_YURIA_WILDCARD_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL"
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
         }
       ],
       "steps": [
@@ -32,10 +20,7 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PRIMARY"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.4
@@ -43,29 +28,15 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE_BOOSTED"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE_BOOSTED" }]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_DAMAGE" }]
             }
           ]
         },
@@ -73,10 +44,7 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PRIMARY"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "field": "IS_ALIVE",
             "op": "EQ",
             "value": false
@@ -84,163 +52,91 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_ALL_ENEMIES"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_AP_DOWN"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_EX_AP_DOWN" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "びしょ濡れだねー！",
-      "tags": []
-    }
+    "metadata": { "displayName": "びしょ濡れだねー！", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_YURIA_WILDCARD_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["FARTHEST"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN"
-            }
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "カオスキャノン",
-      "tags": []
-    }
+    "metadata": { "displayName": "カオスキャノン", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_YURIA_WILDCARD_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS2_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "マッドブレイドオーバーロード",
-      "tags": []
-    }
+    "metadata": { "displayName": "マッドブレイドオーバーロード", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_YURIA_WILDCARD_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_EX_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_DEF_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_SHIELD"
-            }
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_EX_UP" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_DEF_UP" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS1_SHIELD" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "アナーキーシールド",
-      "tags": []
-    },
+    "metadata": { "displayName": "アナーキーシールド", "tags": [] },
     "triggers": [
       {
         "eventType": "UnitDefeated",
@@ -253,51 +149,31 @@
   {
     "skillDefinitionId": "SKL_YURIA_WILDCARD_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
+          "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_COUNTER"
-            },
-            {
-              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_EX_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_COUNTER" },
+            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_EX_DOWN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "フレンジーキャノン",
-      "tags": []
-    },
+    "metadata": { "displayName": "フレンジーキャノン", "tags": [] },
     "triggers": [
       {
         "eventType": "DamageApplied",
         "category": "FACT",
         "sourceSelector": "ENEMY",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
-        }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   }

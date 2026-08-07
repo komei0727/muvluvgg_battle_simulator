@@ -2,21 +2,13 @@
   {
     "skillDefinitionId": "SKL_MERU_SIRIUS_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 6
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL",
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_HIGHEST_ATK",
@@ -31,50 +23,27 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ENEMIES"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DMG_UP"
-            }
+            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DMG_UP" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_HIGHEST_ATK"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_STUN"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_STUN" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ふわとろのきもち",
-      "tags": []
-    }
+    "metadata": { "displayName": "ふわとろのきもち", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_MERU_SIRIUS_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -91,24 +60,14 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_LOWEST_HP"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS1_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_LOWEST_HP"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
             "field": "HP_RATIO",
             "op": "LT",
             "value": 0.3
@@ -116,83 +75,46 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_LOWEST_HP"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS1_DAMAGE_EXTRA"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS1_DAMAGE_EXTRA" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "ペンタブレイド",
-      "tags": []
-    }
+    "metadata": { "displayName": "ペンタブレイド", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_MERU_SIRIUS_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_AS2_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "レストブレイカー",
-      "tags": []
-    }
+    "metadata": { "displayName": "レストブレイカー", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_MERU_SIRIUS_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -201,21 +123,13 @@
           "kind": "ACTION",
           "targetCondition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "TRIGGER_TARGET"
-            },
+            "target": { "kind": "TRIGGER_TARGET" },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.3
           },
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE_BOOSTED"
-            }
-          ]
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE_BOOSTED" }]
         },
         {
           "kind": "ACTION",
@@ -223,62 +137,35 @@
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_STATE",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
+              "target": { "kind": "TRIGGER_TARGET" },
               "field": "HP_RATIO",
               "op": "LTE",
               "value": 0.3
             }
           },
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "チェイスブレイダー",
-      "tags": []
-    },
+    "metadata": { "displayName": "チェイスブレイダー", "tags": [] },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "ALLY",
         "targetSelector": "ENEMY",
-        "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
-        }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_MERU_SIRIUS_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
-    "activationCondition": {
-      "kind": "TURN_NUMBER",
-      "op": "EQ",
-      "value": 0,
-      "modulo": 2
-    },
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": { "kind": "TURN_NUMBER", "op": "EQ", "value": 0, "modulo": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -295,30 +182,17 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_HIGHEST_ATK"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DMG_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DMG_DOWN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "TURN",
-      "count": 1
-    },
+    "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "リストリクションエッジ",
-      "tags": []
-    },
+    "metadata": { "displayName": "リストリクションエッジ", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnCompleting",

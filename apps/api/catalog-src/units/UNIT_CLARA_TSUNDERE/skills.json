@@ -2,34 +2,20 @@
   {
     "skillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
             "side": "ENEMY"
           }
         }
@@ -37,131 +23,71 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_PP_ZERO"
-            },
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_STUN"
-            }
+            { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_PP_ZERO" },
+            { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_STUN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "フェアボルゲネ・ゲフューレ",
-      "tags": []
-    }
+    "metadata": { "displayName": "フェアボルゲネ・ゲフューレ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_CLARA_TSUNDERE_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS1_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS1_HEAL"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS1_HEAL" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "クアッドエッジ",
-      "tags": []
-    }
+    "metadata": { "displayName": "クアッドエッジ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_CLARA_TSUNDERE_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_ENEMY"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
             "field": "UNIT_TYPE",
             "op": "EQ",
             "value": "PHYSICAL"
@@ -169,17 +95,10 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_ENEMY"
-              },
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
               "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN"
-                }
+                { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN" },
+                { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN" }
               ]
             }
           ],
@@ -187,71 +106,42 @@
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "アーマークラッシュ",
-      "tags": []
-    }
+    "metadata": { "displayName": "アーマークラッシュ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_CLARA_TSUNDERE_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN"
-            }
-          ]
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "アーマー・ジャム",
-      "tags": []
-    },
+    "metadata": { "displayName": "アーマー・ジャム", "tags": [] },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "ENEMY",
-        "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
-        }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_CLARA_TSUNDERE_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -261,14 +151,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "SELF"
-                }
-              }
-            ]
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
         },
         {
@@ -277,53 +160,26 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": 1,
-            "filters": [
-              {
-                "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "SELF"
-                }
-              }
-            ]
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS2_SPEED_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS2_SPEED_UP" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALLY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS2_EX_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS2_EX_UP" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "TURN",
-      "count": 99
-    },
+    "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "metadata": {
-      "displayName": "クイックブースト",
-      "tags": []
-    },
+    "metadata": { "displayName": "クイックブースト", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",

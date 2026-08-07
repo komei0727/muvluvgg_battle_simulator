@@ -115,23 +115,15 @@
               "kind": "BRANCH",
               "condition": {
                 "kind": "TARGET_HAS_MARKER",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_PRIMARY"
-                },
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                 "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
               },
               "thenSteps": [
                 {
                   "kind": "ACTION",
-                  "target": {
-                    "kind": "BINDING",
-                    "targetBindingId": "TGT_PRIMARY"
-                  },
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                   "actions": [
-                    {
-                      "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
-                    }
+                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
                   ]
                 }
               ],
@@ -184,23 +176,15 @@
               "kind": "BRANCH",
               "condition": {
                 "kind": "TARGET_HAS_MARKER",
-                "target": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_PRIMARY"
-                },
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                 "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
               },
               "thenSteps": [
                 {
                   "kind": "ACTION",
-                  "target": {
-                    "kind": "BINDING",
-                    "targetBindingId": "TGT_PRIMARY"
-                  },
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                   "actions": [
-                    {
-                      "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
-                    }
+                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
                   ]
                 }
               ],
@@ -288,27 +272,10 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            {
-              "kind": "EVENT_PAYLOAD",
-              "field": "categories",
-              "op": "CONTAINS",
-              "value": "STATUS"
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "BATTLE_START",
-              "negate": true
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "TURN_START",
-              "negate": true
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "TURN_END",
-              "negate": true
-            }
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "STATUS" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
           ]
         }
       }
@@ -370,27 +337,10 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            {
-              "kind": "EVENT_PAYLOAD",
-              "field": "statusKind",
-              "op": "EQ",
-              "value": "STUN"
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "BATTLE_START",
-              "negate": true
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "TURN_START",
-              "negate": true
-            },
-            {
-              "kind": "RESOLUTION_PHASE",
-              "phase": "TURN_END",
-              "negate": true
-            }
+            { "kind": "EVENT_PAYLOAD", "field": "statusKind", "op": "EQ", "value": "STUN" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
           ]
         }
       }

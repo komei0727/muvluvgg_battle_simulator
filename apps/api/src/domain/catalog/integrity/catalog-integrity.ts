@@ -25,8 +25,8 @@ import { validateUnit } from "./unit-integrity.js";
  * validated per-item Definitions (`catalog-definition-mapper.ts`); this module
  * only checks invariants that require seeing every file at once — ID
  * uniqueness across a whole file, Unit→Skill / Skill・Memory→EffectAction
- * reference existence, EX skill cost agreement, `requiredCapabilities`
- * existence, and the `TriggerDefinition.eventType` closed list that
+ * reference existence, EX skill cost agreement, and the
+ * `TriggerDefinition.eventType` closed list that
  * `trigger-definition.ts` explicitly defers here (issue #7).
  *
  * このmoduleは索引の構築と定義種別ごとの検証moduleの呼び出しだけを持ち、規則そのものは
@@ -36,8 +36,7 @@ import { validateUnit } from "./unit-integrity.js";
  *   `condition-inspection.ts`／`effect-step-inspection.ts`／
  *   `target-reference-cardinality.ts`／`effect-action-inspection.ts`
  * - 規則: `effect-sequence-integrity.ts`（EffectSequence共通）／
- *   `last-result-data-flow.ts`／`capability-declaration-integrity.ts`／
- *   `trigger-integrity.ts`／`effect-action-integrity.ts`／`skill-integrity.ts`／
+ *   `last-result-data-flow.ts`／`trigger-integrity.ts`／`effect-action-integrity.ts`／`skill-integrity.ts`／
  *   `unit-integrity.ts`／`memory-integrity.ts`
  */
 

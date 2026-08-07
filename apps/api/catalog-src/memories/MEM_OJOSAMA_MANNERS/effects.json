@@ -5,24 +5,11 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 80
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 80 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_OJOSAMA_MANNERS_ENEMY_DMG_UP",
@@ -30,23 +17,10 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.075
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

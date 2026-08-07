@@ -95,8 +95,7 @@ export type DetectMemoryCandidates = (event: TriggerCandidateEvent) => MemoryCan
 /**
  * `08_ドメインイベント.md`「発動直前の再確認」Memory候補: trigger conditionが
  * 現在も成立しているかを候補処理の直前に再評価する（PS候補の
- * `reconfirmPassiveCandidate`に対応）。`requiredCapabilities`はpreflightが戦闘
- * 開始前に保証済みのため実行時には再確認しない。「対象候補が1件以上存在する」は
+ * `reconfirmPassiveCandidate`に対応）。「対象候補が1件以上存在する」は
  * 実際にEffectSequenceの対象解決を行う`activateMemory`側でしか判定できないため、
  * 発動処理が対象0件を検出した時点でイベントを発行せずに終える契約とする。
  */

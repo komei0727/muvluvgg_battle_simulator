@@ -2,201 +2,116 @@
   {
     "skillDefinitionId": "SKL_EVIE_ECO_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 5
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 5 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN"
-            }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "スタックオーバーフロー",
-      "tags": []
-    }
+    "metadata": { "displayName": "スタックオーバーフロー", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_EVIE_ECO_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF"
-            }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "グリッチストライク",
-      "tags": []
-    }
+    "metadata": { "displayName": "グリッチストライク", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_EVIE_ECO_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_ECO_AS2_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "バニッシュ",
-      "tags": []
-    }
+    "metadata": { "displayName": "バニッシュ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_EVIE_ECO_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
+          "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_REDIRECT"
-            },
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_COVER"
-            }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS1_COVER" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
-    "traits": {
-      "simultaneousActivationLimited": true
-    },
-    "metadata": {
-      "displayName": "デコイプロトコル",
-      "tags": []
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "デコイプロトコル", "tags": [] },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
         "targetSelector": "ALLY",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_EVIE_ECO_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -204,13 +119,8 @@
           "targetBindingId": "TGT_ROW_ALLIES",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "SELF"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": false
-            },
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false },
             "side": "ALLY"
           }
         }
@@ -218,44 +128,23 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_HEAL"
-            },
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_SELF"
-            },
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_ATK_DOWN_SELF"
-            }
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_SELF" },
+            { "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_ATK_DOWN_SELF" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_ROW"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_DEF_UP_ROW" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "リカバリーブースト",
-      "tags": []
-    },
+    "metadata": { "displayName": "リカバリーブースト", "tags": [] },
     "triggers": [
       {
         "eventType": "HitPointReduced",
@@ -267,9 +156,7 @@
           "conditions": [
             {
               "kind": "TARGET_STATE",
-              "target": {
-                "kind": "SELF"
-              },
+              "target": { "kind": "SELF" },
               "field": "HP_RATIO",
               "op": "LTE",
               "value": 0.4

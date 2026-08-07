@@ -2,10 +2,7 @@
   {
     "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -20,94 +17,52 @@
         },
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ALLY",
-            "count": "ALL"
-          }
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_AP_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_AP_DOWN" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_EVASION"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_EVASION" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "アクセプトラヴ",
-      "tags": []
-    }
+    "metadata": { "displayName": "アクセプトラヴ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PRIMARY"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "field": "IS_ALIVE",
             "op": "EQ",
             "value": false
@@ -115,16 +70,10 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "SELF"
-              },
+              "target": { "kind": "SELF" },
               "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_CRIT_UP"
-                }
+                { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_ATK_UP" },
+                { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS1_CRIT_UP" }
               ]
             }
           ],
@@ -132,23 +81,14 @@
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "スウィートクレイヴ",
-      "tags": []
-    }
+    "metadata": { "displayName": "スウィートクレイヴ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -165,24 +105,14 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PRIMARY"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
             "field": "ATTRIBUTE",
             "op": "EQ",
             "value": "SMART"
@@ -190,64 +120,36 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "オブセッションロケット",
-      "tags": []
-    }
+    "metadata": { "displayName": "オブセッションロケット", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS1_EVASION"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS1_EVASION" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "ブレイジングハート",
-      "tags": []
-    },
+    "metadata": { "displayName": "ブレイジングハート", "tags": [] },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
@@ -260,74 +162,41 @@
   {
     "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_NEAREST",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["NEAREST"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_NEAREST"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION"
-            }
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_EVASION"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_EVASION" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
-    "traits": {
-      "priorityAttack": true
-    },
-    "metadata": {
-      "displayName": "エモーショナルエッジ",
-      "tags": []
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "priorityAttack": true },
+    "metadata": { "displayName": "エモーショナルエッジ", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TURN_NUMBER",
-          "op": "GT",
-          "value": 1
-        }
+        "condition": { "kind": "TURN_NUMBER", "op": "GT", "value": 1 }
       }
     ]
   }

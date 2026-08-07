@@ -230,8 +230,8 @@ export function assertConditionKindsWithin(
  * ACTION step自身の`target`（`expectedTarget`）を参照しているかを検証する
  * （AND/OR/NOTを再帰的に見る）。`targetCondition`は常に「このstepが今まさに
  * 処理している対象」の filterであり、他の`TargetReference`を参照する
- * 意味を持たない（そうしたければ`stepCondition`側で評価する別Capabilityの
- * 対象になる、Issue #230スコープ外）。
+ * 意味を持たない（そうしたければ`stepCondition`側で評価する、Issue #230
+ * スコープ外）。
  */
 export function assertTargetConditionReferencesOwnTarget(
   condition: ConditionDefinition,

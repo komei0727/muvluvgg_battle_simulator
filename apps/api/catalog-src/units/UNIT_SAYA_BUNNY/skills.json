@@ -2,21 +2,13 @@
   {
     "skillDefinitionId": "SKL_SAYA_BUNNY_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_NEAREST",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["NEAREST"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
         },
         {
           "targetBindingId": "TGT_OTHERS",
@@ -27,10 +19,7 @@
             "filters": [
               {
                 "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "BINDING",
-                  "targetBindingId": "TGT_NEAREST"
-                }
+                "reference": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" }
               }
             ]
           }
@@ -39,155 +28,83 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_NEAREST"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_OTHERS"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE_EXTRA"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHERS" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_DAMAGE_EXTRA" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_MARKER"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_MARKER" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_CD_RESET"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_EX_CD_RESET" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "バニー＆ベット",
-      "tags": []
-    }
+    "metadata": { "displayName": "バニー＆ベット", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SAYA_BUNNY_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DEBUFF"
-            }
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1" },
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DEBUFF" }
           ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "SELF"
-            },
+            "target": { "kind": "SELF" },
             "markerId": "MARKER_GOOD_LUCK"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED" }]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2" }]
             }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 4
-    },
+    "cooldown": { "unit": "ACTION", "count": 4 },
     "traits": {},
-    "metadata": {
-      "displayName": "オッドイーブン",
-      "tags": []
-    }
+    "metadata": { "displayName": "オッドイーブン", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SAYA_BUNNY_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -215,10 +132,7 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_LOWEST"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.6
@@ -226,123 +140,68 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "SELF"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_CRIT_UP"
-                }
-              ]
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_CRIT_UP" }]
             }
           ],
           "elseSteps": []
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_THREE"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS2_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "ハイローベット",
-      "tags": []
-    }
+    "metadata": { "displayName": "ハイローベット", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SAYA_BUNNY_AS3",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS3_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS3_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ストレートアップ",
-      "tags": []
-    }
+    "metadata": { "displayName": "ストレートアップ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SAYA_BUNNY_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_DMG_UP"
-            }
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_PS1_CRIT_DMG_UP" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ジャックポット",
-      "tags": []
-    },
+    "metadata": { "displayName": "ジャックポット", "tags": [] },
     "triggers": [
       {
         "eventType": "CriticalCheckResolved",

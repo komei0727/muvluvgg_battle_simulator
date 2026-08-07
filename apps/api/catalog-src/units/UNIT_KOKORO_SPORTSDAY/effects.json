@@ -4,63 +4,37 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.696
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 1.696 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_EX_STOIC",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_KOKORO_SPORTSDAY_STOIC",
-      "stack": {
-        "policy": "REFRESH",
-        "max": 1
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "stack": { "policy": "REFRESH", "max": 1 },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.896
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 1.896 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_AS1_DAMAGE_BACKROW",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.6116
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 1.6116 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS1_COUNTER",
@@ -73,23 +47,16 @@
         "ratio": 1.2
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.546
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.546 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
@@ -97,24 +64,14 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.3
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.3 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS3_DMG_DOWN",
@@ -122,48 +79,23 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.35
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.35 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1,
-          "owner": "EFFECT_SOURCE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS3_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.125
-      },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 3
-        }
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.125 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

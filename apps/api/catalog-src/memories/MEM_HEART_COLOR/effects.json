@@ -5,24 +5,11 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.085
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.085 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_ALL_CRIT_DMG_UP",
@@ -30,23 +17,10 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

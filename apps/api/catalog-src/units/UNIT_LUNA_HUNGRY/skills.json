@@ -2,89 +2,50 @@
   {
     "skillDefinitionId": "SKL_LUNA_HUNGRY_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 6
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL"
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ENEMIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_EX_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUNA_HUNGRY_EX_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_EX_SHIELD"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUNA_HUNGRY_EX_SHIELD" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "こっそりつまみ食い……",
-      "tags": []
-    }
+    "metadata": { "displayName": "こっそりつまみ食い……", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LUNA_HUNGRY_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ADJACENT",
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_PRIMARY"
-            },
-            "area": {
-              "kind": "ADJACENT_ORTHOGONAL"
-            }
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
           }
         }
       ],
@@ -93,218 +54,130 @@
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "SELF"
-            },
+            "target": { "kind": "SELF" },
             "markerId": "MARKER_LUNA_HUNGRY_POWERFUL"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE_CRIT"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DMG_DOWN"
-                }
+                { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE_CRIT" },
+                { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DMG_DOWN" }
               ]
             },
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_ADJACENT"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE" }]
             }
           ],
           "elseSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_PRIMARY"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE" }]
             }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "リミットブラスト",
-      "tags": []
-    }
+    "metadata": { "displayName": "リミットブラスト", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LUNA_HUNGRY_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
+          "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_REDIRECT"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_COVER"
-            }
+            { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_COVER" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_REFLECT"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_REFLECT" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
-    "traits": {
-      "simultaneousActivationLimited": true
-    },
-    "metadata": {
-      "displayName": "ネガティブヘイト",
-      "tags": []
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "ネガティブヘイト", "tags": [] },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
         "targetSelector": "ALLY",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_LUNA_HUNGRY_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS2_SHIELD"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS2_SHIELD" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "TURN",
-      "count": 1
-    },
+    "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "プロテクトウィズダム",
-      "tags": []
-    },
+    "metadata": { "displayName": "プロテクトウィズダム", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_LUNA_HUNGRY_PS3",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS3_SHIELD"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS3_MARKER"
-            }
+            { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS3_SHIELD" },
+            { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS3_MARKER" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "スナックタイム",
-      "tags": []
-    },
+    "metadata": { "displayName": "スナックタイム", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnCompleting",
         "category": "TIMING",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   }

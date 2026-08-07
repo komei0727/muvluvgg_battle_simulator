@@ -5,24 +5,11 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "FIXED",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 1250
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 1250 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_MOMOZONO_NEW_YEAR_AGILE_ATK_UP",
@@ -30,23 +17,10 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "FIXED",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 1250
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 1250 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

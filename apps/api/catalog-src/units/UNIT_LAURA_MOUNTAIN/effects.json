@@ -2,16 +2,8 @@
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.0428
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.0428 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN",
@@ -19,38 +11,17 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.15
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.848
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF",
@@ -64,34 +35,19 @@
         "perUnit": 0.0175,
         "max": 0.07
       },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ADJACENT_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.848
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF",
@@ -99,24 +55,11 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.075
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_RATE",
@@ -124,24 +67,11 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_DMG",
@@ -149,38 +79,17 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.125
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.125 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.954
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.954 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN",
@@ -190,51 +99,27 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
+        "source": { "kind": "SKILL_SOURCE" },
         "stat": "ATTACK",
         "ratio": 0.3
       },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN_HEALING_DOWN",
     "kind": "APPLY_HEALING_MOD",
     "payload": {
       "direction": "INCOMING",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.2
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1,
-          "owner": "EFFECT_SOURCE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

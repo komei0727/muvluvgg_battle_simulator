@@ -2,16 +2,8 @@
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.17
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN",
@@ -19,24 +11,11 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -100
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -100 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN",
@@ -44,39 +23,21 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.175
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.175 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.06
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 1.06 },
       "hitCount": 2
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS2_DMG_UP",
@@ -84,24 +45,11 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.35
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.35 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_AS2_DMG_DOWN",
@@ -109,24 +57,11 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.35
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.35 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_PS1_ATK_UP",
@@ -134,24 +69,11 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.125
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.125 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_PS2_SHIELD",
@@ -159,22 +81,14 @@
     "payload": {
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
+        "source": { "kind": "SKILL_SOURCE" },
         "ratio": 0.45
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2,
-          "owner": "EFFECT_SOURCE"
-        }
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

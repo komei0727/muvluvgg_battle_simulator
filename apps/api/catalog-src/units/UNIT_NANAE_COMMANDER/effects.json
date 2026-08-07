@@ -4,18 +4,10 @@
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "FREEZE",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 3
-        }
-      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } },
       "damageAmplificationOnBreak": 1.5
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS1_BURN",
@@ -25,72 +17,41 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": {
-          "kind": "SKILL_SOURCE"
-        },
+        "source": { "kind": "SKILL_SOURCE" },
         "stat": "ATTACK",
         "ratio": 0.3
       },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 5
-        }
-      }
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 5 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.35
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.35 },
       "overheal": "DISCARD"
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.936
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.936 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_ATK_DOWN",
@@ -98,24 +59,11 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.1
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_PS1_DMG_DOWN",
@@ -123,71 +71,38 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": "EN",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.3
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.3 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "INCOMING_HIT",
-          "maxCount": 3
-        }
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_PS1_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.65
-      },
-      "timing": {
-        "eventType": "ActionStarted",
-        "targetSelector": "EFFECT_OWNER"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 0.65 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_PS1_CLEANSE",
     "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["DEBUFF"]
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "categories": ["DEBUFF"] },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_PS2_COUNTER",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.06
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 1.06 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

@@ -2,16 +2,8 @@
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.794
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.794 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_DAMAGE_EXTRA",
@@ -21,27 +13,17 @@
       "formula": {
         "kind": "MIN",
         "formulas": [
-          {
-            "kind": "LOST_HP_RATIO",
-            "source": {
-              "kind": "TARGET"
-            },
-            "ratio": 0.5
-          },
+          { "kind": "LOST_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.5 },
           {
             "kind": "STAT_RATIO",
-            "source": {
-              "kind": "SKILL_SOURCE"
-            },
+            "source": { "kind": "SKILL_SOURCE" },
             "stat": "ATTACK",
             "ratio": 0.8
           }
         ]
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_GAUGE_FULL",
@@ -49,28 +31,15 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "SET_TO_MAX",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0
-      }
+      "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 2.12
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_AP_DOWN",
@@ -78,96 +47,49 @@
     "payload": {
       "resource": "AP",
       "operation": "ADD",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -1
-      },
-      "bounds": {
-        "min": 0,
-        "max": "CURRENT_MAX"
-      }
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_CD_RESET",
     "kind": "COOLDOWN_MANIPULATION",
-    "payload": {
-      "targetSkillDefinitionId": "SKL_MERU_FLATSPIN_PS1",
-      "operation": "RESET"
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "targetSkillDefinitionId": "SKL_MERU_FLATSPIN_PS1", "operation": "RESET" },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 2.12
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE_EXTRA",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.624
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.624 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.248
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 1.248 },
       "hitCount": 2
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS3_DMG_DOWN",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.25
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "dispellable": true
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_PS1_ATK_UP",
@@ -175,65 +97,37 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.4
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": 0.4 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_PS1_DMG_UP",
     "kind": "APPLY_DAMAGE_MOD",
     "payload": {
       "direction": "OUTGOING",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.2
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": 0.2 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_PS1_DEBUFF_IMMUNITY",
     "kind": "EFFECT_IMMUNITY",
     "payload": {
       "categories": ["DEBUFF"],
-      "duration": {
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        },
-        "dispellable": true
-      },
+      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true },
       "maxBlocks": 1
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

@@ -2,47 +2,24 @@
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.1376
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.1376 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 1.1376
-      },
-      "critical": {
-        "mode": "GUARANTEED"
-      }
+      "formula": { "kind": "SKILL_POWER", "power": 1.1376 },
+      "critical": { "mode": "GUARANTEED" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.702
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.702 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_SELF_BUFF",
@@ -50,53 +27,27 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": 0.025
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "BATTLE",
-          "count": 1
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": 0.025 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE1",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.2
-      },
+      "formula": { "kind": "SKILL_POWER", "power": 0.2 },
       "hitCount": 2
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE2",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.53
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.53 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DEBUFF",
@@ -104,24 +55,14 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.2
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_OUTGOING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS1_SHIELD_BUFF",
@@ -135,34 +76,19 @@
         "perUnit": -0.05,
         "max": -0.25
       },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
+      "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_INCOMING_ATTACK",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.78
-      }
-    },
-    "metadata": {
-      "tags": []
-    }
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_PP_DOWN",
@@ -170,41 +96,20 @@
     "payload": {
       "resource": "PP",
       "operation": "ADD",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -2
-      },
-      "bounds": {
-        "min": 0,
-        "max": "CURRENT_MAX"
-      }
+      "formula": { "kind": "CONSTANT", "value": -2 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN",
     "kind": "APPLY_HEALING_MOD",
     "payload": {
       "direction": "INCOMING",
-      "formula": {
-        "kind": "CONSTANT",
-        "value": -0.5
-      },
-      "stacking": {
-        "mode": "STACKABLE"
-      },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 2
-        }
-      }
+      "formula": { "kind": "CONSTANT", "value": -0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "metadata": {
-      "tags": []
-    }
+    "metadata": { "tags": [] }
   }
 ]

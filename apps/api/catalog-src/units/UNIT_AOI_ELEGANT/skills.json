@@ -2,10 +2,7 @@
   {
     "skillDefinitionId": "SKL_AOI_ELEGANT_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -28,14 +25,8 @@
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_COLUMN_AS_BASE",
-              "includeBase": true
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
             "side": "ENEMY"
           }
         }
@@ -43,66 +34,34 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_COLUMN"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_COLUMN"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "targetCondition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_COLUMN"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
           },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN"
-            }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_CD_RESET" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "衣擦れの調べ",
-      "tags": []
-    }
+    "metadata": { "displayName": "衣擦れの調べ", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_AOI_ELEGANT_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -119,53 +78,29 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_HIGHEST_HP"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_HP" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI"
-            }
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI" }
           ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_HIGHEST_HP"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_HP" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI",
-            "countCondition": {
-              "op": "GTE",
-              "value": 3
-            }
+            "countCondition": { "op": "GTE", "value": 3 }
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_HIGHEST_HP"
-              },
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_HP" },
               "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN"
-                },
-                {
-                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT"
-                }
+                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI" },
+                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU" },
+                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN" },
+                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT" }
               ]
             }
           ],
@@ -173,46 +108,27 @@
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "百花繚乱",
-      "tags": []
-    }
+    "metadata": { "displayName": "百花繚乱", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_AOI_ELEGANT_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["FARTHEST"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
         },
         {
           "targetBindingId": "TGT_ADJACENT",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "ADJACENT_ORTHOGONAL"
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
             "side": "ENEMY"
           }
         }
@@ -220,141 +136,83 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_BASE"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER"
-            }
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ADJACENT"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER"
-            }
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }
           ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
           },
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_BASE"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "清廉なる一撃",
-      "tags": []
-    }
+    "metadata": { "displayName": "清廉なる一撃", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_AOI_ELEGANT_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
+          "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "TURN",
-      "count": 99
-    },
+    "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "metadata": {
-      "displayName": "優雅な足取り",
-      "tags": []
-    },
+    "metadata": { "displayName": "優雅な足取り", "tags": [] },
     "triggers": [
       {
         "eventType": "DamageApplied",
         "category": "FACT",
         "sourceSelector": "ENEMY",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
-        }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_AOI_ELEGANT_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_KOUYOU",
@@ -366,10 +224,7 @@
               {
                 "kind": "HAS_MARKER",
                 "markerId": "MARKER_AOI_ELEGANT_KOUYOU",
-                "countCondition": {
-                  "op": "GTE",
-                  "value": 2
-                }
+                "countCondition": { "op": "GTE", "value": 2 }
               }
             ],
             "order": ["DEFAULT"]
@@ -379,56 +234,28 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN"
-            },
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN"
-            },
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_MARKER_UKIASHI"
-            }
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN" },
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN" },
+            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_MARKER_UKIASHI" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD"
-            }
-          ]
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_KOUYOU"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_KOUYOU" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "TURN",
-      "count": 1
-    },
+    "cooldown": { "unit": "TURN", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "高貴な一礼",
-      "tags": []
-    },
+    "metadata": { "displayName": "高貴な一礼", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",

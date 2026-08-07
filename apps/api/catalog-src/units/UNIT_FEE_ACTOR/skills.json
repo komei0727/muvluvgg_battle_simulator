@@ -2,34 +2,20 @@
   {
     "skillDefinitionId": "SKL_FEE_ACTOR_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ROW",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
             "side": "ENEMY"
           }
         }
@@ -37,61 +23,35 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN"
-            }
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "幕間の微睡み",
-      "tags": []
-    }
+    "metadata": { "displayName": "幕間の微睡み", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_FEE_ACTOR_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ADJACENT",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "ADJACENT_ORTHOGONAL"
-            },
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
             "side": "ENEMY"
           }
         }
@@ -99,72 +59,41 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_BASE"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_AP_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_AP_DOWN" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ADJACENT"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "カーテンショット",
-      "tags": []
-    }
+    "metadata": { "displayName": "カーテンショット", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_FEE_ACTOR_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_TARGET"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD"
-            }
-          ]
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "TRIGGER_SOURCE"
-            },
+            "target": { "kind": "TRIGGER_SOURCE" },
             "field": "ATTRIBUTE",
             "op": "EQ",
             "value": "SHY"
@@ -172,53 +101,31 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "TRIGGER_SOURCE"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_CRIT_UP"
-                }
-              ]
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_CRIT_UP" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
-    "traits": {
-      "simultaneousActivationLimited": true
-    },
-    "metadata": {
-      "displayName": "アタックアンプリファイ",
-      "tags": []
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "アタックアンプリファイ", "tags": [] },
     "triggers": [
       {
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "ALLY",
         "targetSelector": "ENEMY",
-        "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
-        }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_FEE_ACTOR_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -228,12 +135,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "BACK"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
           }
         },
         {
@@ -242,51 +144,26 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "FRONT"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_BACK_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_UP" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_FRONT_ENEMIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_DOWN"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_DOWN" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ステージブースト",
-      "tags": []
-    },
+    "metadata": { "displayName": "ステージブースト", "tags": [] },
     "triggers": [
       {
         "eventType": "TurnStarted",
@@ -325,10 +202,7 @@
   {
     "skillDefinitionId": "SKL_FEE_ACTOR_PS3",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -338,50 +212,26 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "BACK"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_BACK_ALLIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_ATK_UP"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_ATK_UP" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "TRIGGER_SOURCE"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_SPEED_DOWN"
-            }
-          ]
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_SPEED_DOWN" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "ヴォイドアンプリファイ",
-      "tags": []
-    },
+    "metadata": { "displayName": "ヴォイドアンプリファイ", "tags": [] },
     "triggers": [
       {
         "eventType": "DamageApplied",
@@ -391,17 +241,10 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            {
-              "kind": "EVENT_PAYLOAD",
-              "field": "skillType",
-              "op": "EQ",
-              "value": "AS"
-            },
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
             {
               "kind": "TARGET_STATE",
-              "target": {
-                "kind": "TRIGGER_TARGET"
-              },
+              "target": { "kind": "TRIGGER_TARGET" },
               "field": "POSITION_ROW",
               "op": "EQ",
               "value": "BACK"

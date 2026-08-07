@@ -1328,7 +1328,7 @@ export class PassiveActivationRuntime {
    * もう一度行う。PS側の`reconfirmPassiveCandidate`（PP・クールタイム・発動済み
    * 集合も見る）と異なり、Memoryはtrigger自身の成立だけを見る（R-MEM-01「Memory
    * triggeredEffects はPP、クールタイム、先制攻撃、1解決スコープ1回制限を
-   * 持たない」）。`requiredCapabilities`はpreflightが戦闘開始前に保証済み。
+   * 持たない」）。
    */
   private reconfirmMemoryCandidate(
     candidate: MemoryCandidate,

@@ -28,7 +28,7 @@ import { resolveDefensiveIntervention } from "./defensive-intervention-effect-ac
 
 /**
  * `EffectActionDefinition`のkindを、それを実装するハンドラへ振り分ける唯一の分岐。
- * `effect-action-inspection.ts`の`formulasOf`/`durationOf`と同じ網羅`switch`とし、
+ * `effect-action-inspection.ts`の`durationOf`と同じ網羅`switch`とし、
  * `effect-action-definition.ts`へ新しいkindが追加された際に、ハンドラの配線漏れを
  * コンパイルエラーとして検出する（`default`の`never`代入）。
  *

@@ -61,13 +61,10 @@ export function stepsContainTargetReferenceKinds(
 }
 
 /**
- * CAP_EFFECT_STEP_CONDITION_SCOPE（Issue #230）: ACTIONは`stepCondition`/
- * `targetCondition`のどちらか一方でも非TRUEなら対象とする — 実際に対象別filterを
- * 使うかどうかに関わらず、ACTIONが何らかの条件ロジックを宣言していること自体を
- * 要求するのがこのCapabilityの運用である。`stepCondition`が`TARGET_SET_COUNT`を
- * 含む場合は別Capability（CAP_EFFECT_STEP_SET_CONDITION、`stepsContainSetCondition`）も
- * 同時に要求されうる。BRANCHは`target`を持たずconditionが常にstep-wideのため
- * この区別が無い。
+ * Issue #230: ACTIONは`stepCondition`/`targetCondition`のどちらか一方でも非TRUE
+ * なら対象とする — 実際に対象別filterを使うかどうかに関わらず、ACTIONが何らかの
+ * 条件ロジックを宣言していること自体を見る。BRANCHは`target`を持たずconditionが
+ * 常にstep-wideのためこの区別が無い。
  */
 export function stepsContainNonTrueCondition(steps: readonly EffectStepDefinition[]): boolean {
   return stepsSomeCondition(steps, (condition) => condition.kind !== "TRUE");

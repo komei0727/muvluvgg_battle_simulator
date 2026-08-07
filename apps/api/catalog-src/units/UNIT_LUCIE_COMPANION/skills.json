@@ -2,10 +2,7 @@
   {
     "skillDefinitionId": "SKL_LUCIE_COMPANION_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 8
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -22,52 +19,29 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_LOWEST_HP_ALLY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_DAMAGE_IMMUNITY"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_ATK_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_POISON"
-            }
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_DAMAGE_IMMUNITY" },
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_EX_POISON" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "メイドの本能",
-      "tags": []
-    }
+    "metadata": { "displayName": "メイドの本能", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_COMPANION_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ENEMY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_LOWEST_HP_ALLY",
@@ -82,50 +56,27 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_DAMAGE" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_LOWEST_HP_ALLY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_HEAL_FROM_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_HEAL_MAXHP"
-            }
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_HEAL_FROM_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS1_HEAL_MAXHP" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "キックアウト",
-      "tags": []
-    }
+    "metadata": { "displayName": "キックアウト", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_COMPANION_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -142,104 +93,55 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_LOWEST_HP_ALLY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS2_HEAL"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS2_HEAL" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "エイド・フロム",
-      "tags": []
-    }
+    "metadata": { "displayName": "エイド・フロム", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_COMPANION_AS3",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ALLY",
-            "count": "ALL",
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL", "order": ["DEFAULT"] }
         },
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL",
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ALLIES"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL"
-            },
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL_UP"
-            }
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL" },
+            { "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL_UP" }
           ]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ALL_ENEMIES"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL_DOWN"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_COMPANION_AS3_HEAL_DOWN" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "マーシーズ・エンブレイス",
-      "tags": []
-    }
+    "metadata": { "displayName": "マーシーズ・エンブレイス", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_LUCIE_COMPANION_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 2
-    },
+    "cost": { "resource": "PP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -248,12 +150,8 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ALLY",
-            "base": {
-              "kind": "SELF"
-            },
-            "area": {
-              "kind": "ADJACENT_ORTHOGONAL"
-            }
+            "base": { "kind": "SELF" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
           }
         },
         {
@@ -262,63 +160,33 @@
             "kind": "SELECT",
             "side": "ENEMY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "POSITION_ROW",
-                "row": "FRONT"
-              }
-            ]
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ADJ_ALLY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL" }]
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ENEMY_FRONT"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY_FRONT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 2
-    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "metadata": {
-      "displayName": "ルミナス・ガード",
-      "tags": []
-    },
+    "metadata": { "displayName": "ルミナス・ガード", "tags": [] },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
-        }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
   }

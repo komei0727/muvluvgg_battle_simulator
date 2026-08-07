@@ -2,10 +2,7 @@
   {
     "skillDefinitionId": "SKL_SENKA_SCHEMER_EX",
     "skillType": "EX",
-    "cost": {
-      "resource": "EX_GAUGE",
-      "amount": 7
-    },
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -23,38 +20,22 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
-            "base": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
-            "area": {
-              "kind": "SAME_ROW_AS_BASE",
-              "includeBase": true
-            }
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ROW"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_EX_DAMAGE_ROW"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SENKA_SCHEMER_EX_DAMAGE_ROW" }]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": {
-              "kind": "BINDING",
-              "targetBindingId": "TGT_BASE"
-            },
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "field": "IS_ALIVE",
             "op": "EQ",
             "value": true
@@ -62,220 +43,129 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_BASE"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_SENKA_SCHEMER_EX_DAMAGE_FOLLOWUP"
-                }
-              ]
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SENKA_SCHEMER_EX_DAMAGE_FOLLOWUP" }]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "柊校舎の優等生",
-      "tags": []
-    }
+    "metadata": { "displayName": "柊校舎の優等生", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SENKA_SCHEMER_AS1",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 2
-    },
+    "cost": { "resource": "AP", "amount": 2 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS1_DAMAGE"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS1_BURN"
-            }
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS1_BURN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 1
-    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "metadata": {
-      "displayName": "イグニスファング",
-      "tags": []
-    }
+    "metadata": { "displayName": "イグニスファング", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SENKA_SCHEMER_AS2",
     "skillType": "AS",
-    "cost": {
-      "resource": "AP",
-      "amount": 1
-    },
+    "cost": { "resource": "AP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": 1,
-            "order": ["DEFAULT"]
-          }
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_PRIMARY"
-          },
-          "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS2_DAMAGE"
-            }
-          ]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SENKA_SCHEMER_AS2_DAMAGE" }]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ファーストファング",
-      "tags": []
-    }
+    "metadata": { "displayName": "ファーストファング", "tags": [] }
   },
   {
     "skillDefinitionId": "SKL_SENKA_SCHEMER_PS1",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS1_ATK_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS1_SPD_UP"
-            }
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS1_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS1_SPD_UP" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "ブレイブリフト",
-      "tags": []
-    },
+    "metadata": { "displayName": "ブレイブリフト", "tags": [] },
     "triggers": [
       {
         "eventType": "DamageApplied",
         "category": "FACT",
         "sourceSelector": "ENEMY",
         "targetSelector": "SELF",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_SENKA_SCHEMER_PS2",
     "skillType": "PS",
-    "cost": {
-      "resource": "PP",
-      "amount": 1
-    },
+    "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
+          "target": { "kind": "SELF" },
           "actions": [
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS2_ATK_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS2_HEALING_UP"
-            },
-            {
-              "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS2_DMG_DOWN"
-            }
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS2_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS2_HEALING_UP" },
+            { "effectActionDefinitionId": "ACT_SENKA_SCHEMER_PS2_DMG_DOWN" }
           ]
         }
       ]
     },
-    "cooldown": {
-      "unit": "ACTION",
-      "count": 0
-    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "metadata": {
-      "displayName": "テンションアップ",
-      "tags": []
-    },
+    "metadata": { "displayName": "テンションアップ", "tags": [] },
     "triggers": [
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
         "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
-        "condition": {
-          "kind": "TRUE"
-        }
+        "condition": { "kind": "TRUE" }
       }
     ]
   }

@@ -949,10 +949,6 @@ function createPayload(
         // （`AppliedEffect.shield`/`AppliedEffect.subUnit`）を持つようになったため、
         // 他のカテゴリと同じく無条件で受理する（`effect-action-group-resolver.ts`の
         // REMOVE_EFFECTS branchが`effect-removal-service.ts`へそのまま渡す）。
-        // `catalog-integrity.ts`は引き続き対応する`CAP_SHIELD`/`CAP_SUBUNIT`宣言を
-        // 必須にする — 解除対象の実行時状態を持つCapabilityへの依存自体は残るためで、
-        // 未実装へ差し戻された場合に`SimulationPreflightValidator`が選択時
-        // `UNSUPPORTED_RULE`として拒否できる形を保つ。
       }
       const typedCategories = (categories ?? []) as readonly EffectImmunityCategory[];
       const result: {
