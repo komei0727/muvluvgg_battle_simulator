@@ -24,7 +24,7 @@ function extractRuleIdsFromSpec(): string[] {
 const INTENTIONALLY_SHARED_TEST_CASE_IDS: ReadonlySet<string> = new Set(["SCN-BTL-001"]);
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 117 rule IDs", () => {
+  it("UT-TRACEABILITY-001: ledger contains exactly 118 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
     // M7-018（Issue #272）でR-HIT-04（Nヒット回避）・R-HIT-05（必中付与）を
     // 追加し110→112 — どちらも`07_戦闘ルール詳細.md`にRule定義自体が無いまま
@@ -38,9 +38,12 @@ describe("Rule coverage ledger", () => {
     // DMG-009（Issue #193）でR-CFS-01（混乱の対象振り替え）・R-CFS-02（混乱時の
     // ダメージ）・R-DTH-01（幻惑）を追加し114→117 — 同じく`SKL_OLGA_VETERAN_EX`／
     // `SKL_TATIANA_SAGE_AS1`のraw原文だけが存在してRule定義が無かった。
+    // REF-022（Issue #351）のEffect kind棚卸しでR-DMG-06（攻撃時追加ダメージ）を
+    // 追加し117→118 — `APPLY_ATTACK_DAMAGE_BONUS`はR-SUB-02の除外条項だけが
+    // 存在して加算そのもののRule定義が無かった。
     // 実装中に新しいRuleを発見した場合はここと`17_残作業対応表.json`の
     // `current.rules`を同じPRで更新する（`baseline`は履歴として変更しない）。
-    expect(RULE_COVERAGE).toHaveLength(117);
+    expect(RULE_COVERAGE).toHaveLength(118);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {
