@@ -87,4 +87,24 @@ describe("MemorySelectionDialog — unavailable definitions (UI-CT-006)", () => 
     expect(screen.getByRole("button", { name: "記憶ベータを選択" })).toBeDisabled();
     expect(screen.getByText(/CAP_MEMORY_UNSUPPORTED/)).toBeInTheDocument();
   });
+
+  // Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
+  it("keeps a memory without selectable enabled and shows no unavailable reason", () => {
+    const withoutAvailability: CatalogMemorySummary = {
+      memoryDefinitionId: "MEM_GAMMA",
+      displayName: "記憶ガンマ",
+    };
+
+    render(
+      <MemorySelectionDialog
+        memories={[withoutAvailability]}
+        onSelect={vi.fn()}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "記憶ガンマを選択" })).toBeEnabled();
+    expect(screen.queryByText(/未対応/)).not.toBeInTheDocument();
+  });
 });

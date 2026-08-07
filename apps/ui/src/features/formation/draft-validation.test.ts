@@ -174,6 +174,32 @@ describe("validateDraft — unsupported capability (UI-UT-VAL-006)", () => {
     );
   });
 
+  // Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
+  it("accepts a unit definition without selectable", () => {
+    const { selectable: _selectable, ...unit } = selectableUnit("UNIT_A");
+    const catalog = catalogWith([unit]);
+    const draft = draftWithAllyCount(1, "UNIT_A");
+
+    const violations = validateDraft(draft, catalog);
+    expect(violations).not.toContainEqual(
+      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION" }),
+    );
+  });
+
+  it("accepts a memory definition without selectable", () => {
+    const { selectable: _selectable, ...memory } = selectableMemory("MEM_A");
+    const catalog = catalogWith([selectableUnit("UNIT_A")], [memory]);
+    const draft: BattleDraft = {
+      ...draftWithAllyCount(1),
+      allyMemoryDefinitionIds: ["MEM_A", undefined, undefined, undefined, undefined, undefined],
+    };
+
+    const violations = validateDraft(draft, catalog);
+    expect(violations).not.toContainEqual(
+      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION" }),
+    );
+  });
+
   it("rejects a unit definition id that is missing from the catalog entirely", () => {
     const catalog = catalogWith([]);
     const draft = draftWithAllyCount(1, "UNKNOWN_UNIT");

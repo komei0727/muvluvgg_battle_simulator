@@ -2,9 +2,12 @@
 // The UI keeps its own type mirror rather than importing apps/api types: HTTP wire
 // contracts are the source of truth, not the server's internal TypeScript types.
 
+// APIはCapability廃止に伴い両フィールドの送出を止めるため、UIより後にデプロイ
+// されるAPIの新旧どちらのレスポンスでも壊れないよう optional として受ける。
+// 欠落は「選択可能・未対応理由なし」を意味する。
 export interface CatalogAvailability {
-  readonly selectable: boolean;
-  readonly unavailableCapabilities: readonly string[];
+  readonly selectable?: boolean;
+  readonly unavailableCapabilities?: readonly string[];
 }
 
 export interface CatalogUnitSummary extends CatalogAvailability {

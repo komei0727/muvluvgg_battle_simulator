@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
 import type { CatalogMemorySummary } from "../simulation/api-contract.js";
+import { isSelectable, unavailableCapabilitiesOf } from "../simulation/catalog-availability.js";
 import { filterMemories } from "./catalog-filter.js";
 import type { MemoryFilter } from "./catalog-filter.js";
 import { SelectionDialogList } from "./SelectionDialogList.js";
@@ -38,9 +39,9 @@ export function MemorySelectionDialog({
       filtered.map((memory) => ({
         definitionId: memory.memoryDefinitionId,
         displayName: memory.displayName,
-        selectable: memory.selectable,
-        disabled: !memory.selectable,
-        unavailableCapabilities: memory.unavailableCapabilities,
+        selectable: isSelectable(memory),
+        disabled: !isSelectable(memory),
+        unavailableCapabilities: unavailableCapabilitiesOf(memory),
       })),
     [filtered],
   );

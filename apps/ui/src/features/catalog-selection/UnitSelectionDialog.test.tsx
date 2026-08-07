@@ -119,6 +119,32 @@ describe("UnitSelectionDialog — unavailable definitions (UI-CT-006)", () => {
     expect(screen.getByRole("button", { name: "ベータを選択" })).toBeDisabled();
     expect(screen.getByText(/CAP_UNSUPPORTED/)).toBeInTheDocument();
   });
+
+  // Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
+  it("keeps a unit without selectable enabled and shows no unavailable reason", () => {
+    const withoutAvailability: CatalogUnitSummary = {
+      unitDefinitionId: "UNIT_GAMMA",
+      displayName: "ガンマ",
+      characterName: "Gamma",
+      attribute: "COOL",
+      unitType: "ATTACKER",
+      role: "PHYSICAL_ATTACKER",
+      positionAptitudes: ["FRONT"],
+    };
+
+    render(
+      <UnitSelectionDialog
+        units={[withoutAvailability]}
+        atCapacity={false}
+        onSelect={vi.fn()}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "ガンマを選択" })).toBeEnabled();
+    expect(screen.queryByText(/未対応/)).not.toBeInTheDocument();
+  });
 });
 
 describe("UnitSelectionDialog — capacity guard (UI-CT-007)", () => {
