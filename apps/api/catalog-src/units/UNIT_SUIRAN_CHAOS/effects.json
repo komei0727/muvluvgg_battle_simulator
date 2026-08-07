@@ -2,9 +2,16 @@
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 3.18 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 3.18
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE",
@@ -12,18 +19,32 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "DISTRIBUTE",
-      "formula": { "kind": "CONSTANT", "value": 8 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 8
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_RESOURCE_DISTRIBUTE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.56
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
@@ -31,15 +52,24 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.7 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.7
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS1_EVASION",
@@ -48,21 +78,37 @@
       "status": "EVASION",
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1 },
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        },
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 1
+        }
       },
       "probability": 1,
-      "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
+      "appliesTo": {
+        "incomingActionKinds": ["DAMAGE"]
+      }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_HEAL",
     "kind": "HEAL",
-    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.45 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.45
+      },
+      "overheal": "DISCARD"
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_ATK_UP",
@@ -70,12 +116,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.3 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_DEF_UP",
@@ -83,19 +141,38 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.3 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.3588 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.3588
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
@@ -103,12 +180,24 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": -200 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -200
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
@@ -116,14 +205,23 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

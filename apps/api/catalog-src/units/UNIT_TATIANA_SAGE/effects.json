@@ -9,7 +9,6 @@
         "power": 1.696
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -20,14 +19,21 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -1.0 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -49,7 +55,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -64,7 +69,6 @@
         "power": 0.936
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -85,7 +89,6 @@
         "healRate": 0.7
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_TO_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -107,7 +110,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -138,7 +140,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -150,10 +151,9 @@
       "damageType": "EN",
       "formula": {
         "kind": "SKILL_POWER",
-        "power": 1.0
+        "power": 1
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -164,7 +164,6 @@
     "payload": {
       "markerId": "MARKER_TATIANA_SAGE_OMEN"
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -180,7 +179,6 @@
       },
       "hitCount": 3
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -206,7 +204,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -232,7 +229,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -254,7 +250,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -285,7 +280,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -297,10 +291,9 @@
       "damageType": "EN",
       "formula": {
         "kind": "SKILL_POWER",
-        "power": 1.0
+        "power": 1
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -311,7 +304,6 @@
     "payload": {
       "markerId": "MARKER_TATIANA_SAGE_OMEN"
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -326,7 +318,6 @@
         "power": 1.908
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -348,7 +339,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -372,7 +362,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
@@ -392,7 +381,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -427,7 +415,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
     "metadata": {
       "tags": []
     }
@@ -449,7 +436,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }

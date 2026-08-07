@@ -7,7 +7,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -17,15 +19,27 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "FRONT"
+                }
+              ]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_FRONT_CRIT_UP" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_FRONT_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_FRONT_CRIT_UP"
+              }
+            ]
           }
         ]
       }
@@ -36,25 +50,40 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
           {
             "targetBindingId": "TGT_ALL_ALLIES",
-            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_ALL_CRIT_DMG_UP" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_HEART_COLOR_ALL_CRIT_DMG_UP"
+              }
+            ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
-  "metadata": { "displayName": "心の色", "tags": [] }
+  "metadata": {
+    "displayName": "心の色",
+    "tags": []
+  }
 }

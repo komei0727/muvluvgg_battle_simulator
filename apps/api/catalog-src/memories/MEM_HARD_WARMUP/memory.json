@@ -7,7 +7,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -17,15 +19,27 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "FRONT"
+                }
+              ]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HARD_WARMUP_FRONT_ATK_UP" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_FRONT_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_HARD_WARMUP_FRONT_ATK_UP"
+              }
+            ]
           }
         ]
       }
@@ -36,7 +50,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -46,20 +62,34 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+              "filters": [
+                {
+                  "kind": "POSITION_ROW",
+                  "row": "BACK"
+                }
+              ]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEM_HARD_WARMUP_BACK_ATK_UP" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BACK_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_HARD_WARMUP_BACK_ATK_UP"
+              }
+            ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
-  "metadata": { "displayName": "ハードな準備運動……？", "tags": [] }
+  "metadata": {
+    "displayName": "ハードな準備運動……？",
+    "tags": []
+  }
 }

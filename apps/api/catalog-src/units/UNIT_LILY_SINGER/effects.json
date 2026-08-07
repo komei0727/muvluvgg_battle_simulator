@@ -9,30 +9,42 @@
         "formulas": [
           {
             "kind": "CURRENT_HP_RATIO",
-            "source": { "kind": "SKILL_SOURCE" },
+            "source": {
+              "kind": "SKILL_SOURCE"
+            },
             "ratio": 0.75
           },
           {
             "kind": "STAT_RATIO",
-            "source": { "kind": "SKILL_SOURCE" },
+            "source": {
+              "kind": "SKILL_SOURCE"
+            },
             "stat": "ATTACK",
             "ratio": 0.75
           }
         ]
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_EX_IMMUNITY",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "DAMAGE_IMMUNITY",
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_AS1_IMMUNITY",
@@ -41,11 +53,15 @@
       "status": "DAMAGE_IMMUNITY",
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 2
+        }
       }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_AS1_SPEED_DOWN",
@@ -53,12 +69,24 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": -100 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -100
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_AS1_ATK_DOWN",
@@ -66,26 +94,49 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.3 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.636 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.636
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS1_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
-    "payload": { "categories": ["DEBUFF"], "maxRemovals": 5 },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
-    "metadata": { "tags": [] }
+    "payload": {
+      "categories": ["DEBUFF"],
+      "maxRemovals": 5
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS1_EN_DAMAGE_DOWN",
@@ -93,15 +144,24 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": "EN",
-      "formula": { "kind": "CONSTANT", "value": -0.25 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.25
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS2_SHIELD",
@@ -109,19 +169,25 @@
     "payload": {
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "ratio": 0.25
       },
       "shieldType": "EN",
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        },
         "linkedEffectGroupId": "LILY_SINGER_PS2_LINK",
         "linkedEffectGroupRole": "PARENT"
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS2_ATK_UP",
@@ -129,17 +195,26 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        },
         "linkedEffectGroupId": "LILY_SINGER_PS2_LINK",
         "linkedEffectGroupRole": "CHILD"
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS2_SELF_EN_VULN",
@@ -147,14 +222,23 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": "EN",
-      "formula": { "kind": "CONSTANT", "value": 0.1 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

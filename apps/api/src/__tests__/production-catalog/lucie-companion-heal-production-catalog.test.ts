@@ -85,7 +85,6 @@ function allAlliesSkill(effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "TestHealAllAllies", tags: [] },
   };
 }
@@ -120,7 +119,6 @@ function selfTargetedSkill(effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "TestSelfContinuousHeal", tags: [] },
   };
 }

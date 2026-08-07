@@ -10,7 +10,6 @@
       },
       "hitCount": 5
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -28,7 +27,6 @@
         }
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -54,7 +52,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -69,7 +66,6 @@
         "power": 2.12
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -95,7 +91,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -121,7 +116,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -136,7 +130,6 @@
         "power": 1.56
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -152,7 +145,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -178,7 +170,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -189,7 +180,6 @@
     "payload": {
       "categories": ["DEBUFF"]
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }
@@ -208,7 +198,6 @@
       },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -233,7 +222,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
@@ -259,7 +247,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -290,7 +277,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "tags": []
     }
@@ -321,7 +307,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD", "CAP_FORMULA", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "tags": []
     }

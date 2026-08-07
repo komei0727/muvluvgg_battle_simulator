@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_TATIANA_SAGE_PS1"],
   "extraSkillDefinitionId": "SKL_TATIANA_SAGE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_KURASUNA"],
     "tags": [],

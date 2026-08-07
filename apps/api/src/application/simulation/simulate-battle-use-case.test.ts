@@ -7,15 +7,12 @@ import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generat
 import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
 import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
-import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
-  createCapabilityId,
   createEffectActionDefinitionId,
   createMemoryDefinitionId,
   createRuntimeCounterId,
   createSkillDefinitionId,
   createUnitDefinitionId,
-  type CapabilityId,
   type EffectActionDefinitionId,
   type MemoryDefinitionId,
   type SkillDefinitionId,
@@ -37,10 +34,7 @@ import {
 } from "../../testing/scenario/definition-builders.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 
-function unitDefinition(
-  id: string,
-  requiredCapabilities: readonly CapabilityId[] = [],
-): UnitDefinition {
+function unitDefinition(id: string): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
     attribute: "AGGRESSIVE",
@@ -62,7 +56,6 @@ function unitDefinition(
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities,
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
   };
 }
@@ -73,7 +66,6 @@ class FakeBattleCatalog implements BattleCatalog {
   callCount = 0;
   private readonly units: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   private readonly memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition>;
-  private readonly capabilities: BattleCatalogSnapshot["capabilities"];
   private readonly catalogRevision: string;
   private readonly skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
   private readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
@@ -81,14 +73,12 @@ class FakeBattleCatalog implements BattleCatalog {
   constructor(
     units: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
     memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition> = new Map(),
-    capabilities: BattleCatalogSnapshot["capabilities"] = new Map(),
     catalogRevision = "rev-1",
     skills: ReadonlyMap<SkillDefinitionId, SkillDefinition> = EX_SKILLS,
     effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition> = new Map(),
   ) {
     this.units = units;
     this.memories = memories;
-    this.capabilities = capabilities;
     this.catalogRevision = catalogRevision;
     this.skills = skills;
     this.effectActions = effectActions;
@@ -102,7 +92,6 @@ class FakeBattleCatalog implements BattleCatalog {
       skills: this.skills,
       effectActions: this.effectActions,
       memories: this.memories,
-      capabilities: this.capabilities,
     };
   }
 }
@@ -192,46 +181,6 @@ describe("SimulateBattleUseCase", () => {
     }
   });
 
-  it("UT-USECASE-004 (R-FRM-06): rejects a definition graph with an unimplemented Capability, before any Battle is created", () => {
-    const capabilityId = createCapabilityId("CAP_UNSUPPORTED");
-    const units = new Map([
-      [createUnitDefinitionId("UNIT_GATED"), unitDefinition("UNIT_GATED", [capabilityId])],
-    ]);
-    const capabilities = new Map([
-      [
-        capabilityId,
-        createCapabilityDefinition({
-          capabilityId: "CAP_UNSUPPORTED",
-          schemaStatus: "SUPPORTED",
-          runtimeStatus: "PLANNED",
-          implementationTaskId: "TEST-001",
-          description: "not yet implemented",
-          verification: { productionDefinitionIds: ["TEST_DEFINITION"], testCaseIds: ["TEST-001"] },
-        }),
-      ],
-    ]);
-    const catalog = new FakeBattleCatalog(units, new Map(), capabilities);
-    const useCase = new SimulateBattleUseCase({
-      battleCatalog: catalog,
-      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSourceFactory: new SequenceRandomSourceFactory([]),
-      clock: new ManualClock(0),
-    });
-
-    try {
-      useCase.execute(
-        command({
-          allyFormation: { slots: [slot("UNIT_GATED", 0)], memoryDefinitionIds: [] },
-          enemyFormation: { slots: [slot("UNIT_GATED", 0)], memoryDefinitionIds: [] },
-        }),
-        testContext(),
-      );
-      expect.fail("expected execute to throw");
-    } catch (error) {
-      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
-    }
-  });
-
   it("UT-USECASE-005: loads the Catalog snapshot exactly once per execution (09_アプリケーション設計.md: 一つの実行中は同じCatalogスナップショットだけを参照する)", () => {
     const catalog = new FakeBattleCatalog(UNITS);
     const useCase = new SimulateBattleUseCase({
@@ -299,7 +248,6 @@ describe("SimulateBattleUseCase", () => {
               },
             },
           ],
-          requiredCapabilities: [],
           metadata: { displayName: "Test Memory" },
         }),
       ],
@@ -319,7 +267,6 @@ describe("SimulateBattleUseCase", () => {
             stacking: { mode: "STACKABLE" },
             duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
           metadata: { tags: [] },
         } as unknown as EffectActionDefinition,
       ],
@@ -327,7 +274,7 @@ describe("SimulateBattleUseCase", () => {
     const catalog = new FakeBattleCatalog(
       UNITS,
       memories,
-      new Map(),
+
       "rev-1",
       EX_SKILLS,
       memoryEffectActions,
@@ -376,7 +323,7 @@ describe("SimulateBattleUseCase", () => {
     const catalog = new FakeBattleCatalog(
       units,
       new Map(),
-      new Map(),
+
       "rev-1",
       skills,
       effectActions,
@@ -490,7 +437,6 @@ describe("SimulateBattleUseCase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: passiveSkillId, tags: [] },
     };
     const units = new Map([
@@ -498,7 +444,7 @@ describe("SimulateBattleUseCase", () => {
       [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
     ]);
     const skills = new Map([...EX_SKILLS, [createSkillDefinitionId(passiveSkillId), passiveSkill]]);
-    const catalog = new FakeBattleCatalog(units, new Map(), new Map(), "rev-1", skills);
+    const catalog = new FakeBattleCatalog(units, new Map(), "rev-1", skills);
     const useCase = new SimulateBattleUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),

@@ -5,12 +5,24 @@
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_TIMID_REINDEER_EVE_ALL_CRIT_UP",
@@ -18,11 +30,23 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.05 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

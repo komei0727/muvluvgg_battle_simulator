@@ -1,7 +1,5 @@
-import type { CapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
   createSkillDefinitionId,
-  type CapabilityId,
   type EffectActionDefinitionId,
   type MemoryDefinitionId,
   type SkillDefinitionId,
@@ -39,7 +37,7 @@ export class TestBattleCatalog implements BattleCatalog {
 
 /**
  * 合成Catalogを組み立てるBuilder（`12_テスト戦略.md`「テストCatalog」）。Unit/Skill/
- * EffectAction/Memory/Capability を宣言的に追加し、`build()` で `TestBattleCatalog` を返す。
+ * EffectAction/Memory を宣言的に追加し、`build()` で `TestBattleCatalog` を返す。
  * Unitが参照するEXスキルが未登録の場合、副作用のない既定EXスキルを自動補完する
  * （最小戦闘の記述量を減らすための便宜。`DefaultUnitDefinitionMap`と同じ思想）。
  */
@@ -48,7 +46,6 @@ export class CatalogBuilder {
   private readonly skills = new Map<SkillDefinitionId, SkillDefinition>();
   private readonly effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>();
   private readonly memories = new Map<MemoryDefinitionId, MemoryDefinition>();
-  private readonly capabilities = new Map<CapabilityId, CapabilityDefinition>();
   private catalogRevision = "test-rev-1";
 
   withRevision(revision: string): this {
@@ -84,13 +81,6 @@ export class CatalogBuilder {
     return this;
   }
 
-  withCapability(...capabilities: readonly CapabilityDefinition[]): this {
-    for (const capability of capabilities) {
-      this.capabilities.set(capability.capabilityId, capability);
-    }
-    return this;
-  }
-
   build(): TestBattleCatalog {
     for (const unit of this.units.values()) {
       if (!this.skills.has(unit.extraSkillDefinitionId)) {
@@ -106,7 +96,6 @@ export class CatalogBuilder {
       skills: new Map(this.skills),
       effectActions: new Map(this.effectActions),
       memories: new Map(this.memories),
-      capabilities: new Map(this.capabilities),
     });
   }
 }

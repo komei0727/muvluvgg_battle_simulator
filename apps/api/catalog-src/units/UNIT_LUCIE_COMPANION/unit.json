@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_LUCIE_COMPANION_PS1"],
   "extraSkillDefinitionId": "SKL_LUCIE_COMPANION_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],

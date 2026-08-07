@@ -85,7 +85,6 @@ function grantStealthSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "TestGrantStealth", tags: [] },
   };
 }
@@ -127,7 +126,6 @@ function attackerSkill(effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "TestAttacker", tags: [] },
   };
 }
@@ -136,7 +134,6 @@ function attackEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

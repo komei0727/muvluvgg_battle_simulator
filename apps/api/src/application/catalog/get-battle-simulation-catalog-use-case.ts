@@ -1,7 +1,3 @@
-import {
-  collectRequiredCapabilities,
-  findUnimplementedCapabilities,
-} from "../../domain/catalog/capability/capability-availability.js";
 import type {
   Attribute,
   PositionRow,
@@ -9,7 +5,6 @@ import type {
   UnitType,
 } from "../../domain/catalog/definitions/catalog-enums.js";
 import type {
-  CapabilityId,
   MemoryDefinitionId,
   UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
@@ -27,15 +22,11 @@ export interface BattleSimulationUnitSummary {
   readonly unitType: UnitType;
   readonly role: Role;
   readonly positionAptitudes: readonly PositionRow[];
-  readonly selectable: boolean;
-  readonly unavailableCapabilities: readonly CapabilityId[];
 }
 
 export interface BattleSimulationMemorySummary {
   readonly memoryDefinitionId: MemoryDefinitionId;
   readonly displayName: string;
-  readonly selectable: boolean;
-  readonly unavailableCapabilities: readonly CapabilityId[];
 }
 
 export interface BattleSimulationCatalogResult {
@@ -48,21 +39,7 @@ export interface GetBattleSimulationCatalogUseCaseDependencies {
   readonly battleCatalogDirectory: BattleCatalogDirectory;
 }
 
-function unavailableCapabilitiesOf(
-  snapshot: BattleCatalogSnapshot,
-  unitDefinitionIds: readonly UnitDefinitionId[],
-  memoryDefinitionIds: readonly MemoryDefinitionId[],
-): readonly CapabilityId[] {
-  const required = collectRequiredCapabilities(snapshot, unitDefinitionIds, memoryDefinitionIds);
-  const unimplemented = findUnimplementedCapabilities(required, snapshot.capabilities);
-  return unimplemented.map((entry) => entry.capabilityId).sort((a, b) => a.localeCompare(b));
-}
-
-function projectUnit(
-  unit: UnitDefinition,
-  snapshot: BattleCatalogSnapshot,
-): BattleSimulationUnitSummary {
-  const unavailableCapabilities = unavailableCapabilitiesOf(snapshot, [unit.unitDefinitionId], []);
+function projectUnit(unit: UnitDefinition): BattleSimulationUnitSummary {
   return {
     unitDefinitionId: unit.unitDefinitionId,
     displayName: unit.metadata.displayName,
@@ -71,35 +48,23 @@ function projectUnit(
     unitType: unit.unitType,
     role: unit.role,
     positionAptitudes: unit.positionAptitudes,
-    selectable: unavailableCapabilities.length === 0,
-    unavailableCapabilities,
   };
 }
 
-function projectMemory(
-  memory: MemoryDefinition,
-  snapshot: BattleCatalogSnapshot,
-): BattleSimulationMemorySummary {
-  const unavailableCapabilities = unavailableCapabilitiesOf(
-    snapshot,
-    [],
-    [memory.memoryDefinitionId],
-  );
+function projectMemory(memory: MemoryDefinition): BattleSimulationMemorySummary {
   return {
     memoryDefinitionId: memory.memoryDefinitionId,
     displayName: memory.metadata.displayName,
-    selectable: unavailableCapabilities.length === 0,
-    unavailableCapabilities,
   };
 }
 
 function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogResult {
   const units = [...snapshot.units.values()]
-    .map((unit) => projectUnit(unit, snapshot))
+    .map(projectUnit)
     .sort((a, b) => a.unitDefinitionId.localeCompare(b.unitDefinitionId));
 
   const memories = [...snapshot.memories.values()]
-    .map((memory) => projectMemory(memory, snapshot))
+    .map(projectMemory)
     .sort((a, b) => a.memoryDefinitionId.localeCompare(b.memoryDefinitionId));
 
   return deepFreeze({ catalogRevision: snapshot.catalogRevision, units, memories });
@@ -107,19 +72,16 @@ function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogRe
 
 /**
  * `09_アプリケーション設計.md` の `GetBattleSimulationCatalogUseCase`:
- * `BattleCatalogDirectory`から取得した検証済みスナップショットを、
- * `SimulationPreflightValidator`と同じ `collectRequiredCapabilities`/
- * `findUnimplementedCapabilities` で選択可否projectionする。Skill、
- * EffectAction、Formula、Condition、triggeredEffectsの完全定義は
- * Resultへ公開しない。
+ * `BattleCatalogDirectory`から取得した検証済みスナップショットを表示用へ
+ * projectionする。Skill、EffectAction、Formula、Condition、triggeredEffects
+ * の完全定義はResultへ公開しない。
  *
  * `11_インフラストラクチャ設計.md`「Catalog一覧read modelを起動時に1回だけ
  * 構築する」: `loadSnapshot`とprojectionはコンストラクタで1回だけ実行し、
- * `execute()`は同じResultをそのまま返す — HTTPリクエストのたびに
- * Capability収集・sortをやり直さない。全呼び出しが同じResultインスタンスを
- * 共有するため、`deepFreeze`でResultグラフ全体（`units`/`memories`配列、
- * 各summary、`unavailableCapabilities`配列）を実行時にも不変化し、
- * 一呼び出し側の変更が以後の`execute()`結果へ漏れ出さないようにする。
+ * `execute()`は同じResultをそのまま返す。全呼び出しが同じResultインスタンスを
+ * 共有するため、`deepFreeze`でResultグラフ全体（`units`/`memories`配列と
+ * 各summary）を実行時にも不変化し、一呼び出し側の変更が以後の`execute()`
+ * 結果へ漏れ出さないようにする。
  */
 export class GetBattleSimulationCatalogUseCase {
   private readonly result: BattleSimulationCatalogResult;

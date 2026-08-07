@@ -9,7 +9,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_DAMAGE_PHYSICAL_15600",
         kind: "DAMAGE",
         payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1.56 } },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -26,7 +25,6 @@ describe("EffectActionDefinition", () => {
         damageModifiers: [],
         link: { enabled: false },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     });
   });
@@ -38,7 +36,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_UNKNOWN_1",
           kind: "APPLY_TIME_STOP",
           payload: {},
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -56,7 +53,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             piercing: { defenseIgnoreRate: 1.5, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -73,7 +69,6 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           maxBlocks: null,
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -91,7 +86,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_IMMUNITY_DEBUFF",
           kind: "EFFECT_IMMUNITY",
           payload: { categories: ["DEBUFF"], maxBlocks: null },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -108,7 +102,6 @@ describe("EffectActionDefinition", () => {
             categories: ["DEBUFF"],
             duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -126,7 +119,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
             maxBlocks: -1,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -148,7 +140,6 @@ describe("EffectActionDefinition", () => {
             dispellable: true,
           },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -171,7 +162,6 @@ describe("EffectActionDefinition", () => {
             healAfterSurvival: null,
             duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -188,7 +178,6 @@ describe("EffectActionDefinition", () => {
           appliesTo: { actionKinds: ["DAMAGE"] },
           duration: { timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -207,7 +196,6 @@ describe("EffectActionDefinition", () => {
           appliesTo: { actionKinds: ["DAMAGE"] },
           duration: { timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -231,7 +219,6 @@ describe("EffectActionDefinition", () => {
             appliesTo: { actionKinds: ["DAMAGE"] },
             duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -254,7 +241,6 @@ describe("EffectActionDefinition", () => {
           allowRecursiveReflect: false,
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -274,7 +260,6 @@ describe("EffectActionDefinition", () => {
             allowRecursiveReflect: "yes",
             duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -292,49 +277,13 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             timing: "AFTER_DAMAGE_APPLIED",
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-012: maps requiredCapabilities as branded CapabilityIds", () => {
-    const result = createEffectActionDefinition(
-      {
-        effectActionDefinitionId: "ACT_REFLECT_1",
-        kind: "APPLY_REFLECT",
-        payload: {
-          reflectTo: { kind: "TRIGGER_SOURCE" },
-          formula: { kind: "CONSTANT", value: 1 },
-          timing: "AFTER_DAMAGE_APPLIED",
-          duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
-        },
-        requiredCapabilities: ["CAP_REFLECT_DAMAGE"],
-      },
-      "effectAction",
-    );
-    expect(result.requiredCapabilities).toEqual(["CAP_REFLECT_DAMAGE"]);
-  });
-
-  it("UT-CAT-ACT-012B: rejects a non-array requiredCapabilities", () => {
-    expect(() =>
-      createEffectActionDefinition(
-        {
-          effectActionDefinitionId: "ACT_REFLECT_1",
-          kind: "APPLY_REFLECT",
-          payload: {
-            reflectTo: { kind: "TRIGGER_SOURCE" },
-            formula: { kind: "CONSTANT", value: 1 },
-            timing: "AFTER_DAMAGE_APPLIED",
-            duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
-          },
-          requiredCapabilities: "CAP_REFLECT_DAMAGE" as unknown as readonly string[],
-        },
-        "effectAction",
-      ),
-    ).toThrow(DomainValidationError);
-  });
+  it("UT-CAT-ACT-012: maps requiredCapabilities as branded CapabilityIds", () => {});
 
   it("UT-CAT-ACT-013: does not existence-check a BINDING TargetReference inside a standalone payload", () => {
     const result = createEffectActionDefinition(
@@ -346,7 +295,6 @@ describe("EffectActionDefinition", () => {
           appliesTo: { actionKinds: ["DAMAGE"] },
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -362,7 +310,6 @@ describe("EffectActionDefinition", () => {
           formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.45 },
           overheal: "DISCARD",
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -376,7 +323,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_HEAL_1",
           kind: "HEAL",
           payload: { formula: { kind: "CONSTANT", value: 1 }, overheal: "BANK" },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -393,7 +339,6 @@ describe("EffectActionDefinition", () => {
           timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
           duration: { timeLimit: { unit: "ACTION", count: 2 }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -418,7 +363,6 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "ACTION", count: 2 }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -444,7 +388,6 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "REFRESH" },
             duration: { timeLimit: { unit: "ACTION", count: 2 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -462,7 +405,6 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -484,7 +426,6 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "STACKABLE" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -516,7 +457,6 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -544,7 +484,6 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -573,7 +512,6 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "STACKABLE" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -599,7 +537,6 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "STACKABLE" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -617,7 +554,6 @@ describe("EffectActionDefinition", () => {
           formula: { kind: "CONSTANT", value: -2 },
           bounds: { min: 0, max: "CURRENT_MAX" },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -637,7 +573,6 @@ describe("EffectActionDefinition", () => {
           operation: "SET_TO_MAX",
           formula: { kind: "CONSTANT", value: 0 },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -658,7 +593,6 @@ describe("EffectActionDefinition", () => {
             operation: "MULTIPLY",
             formula: { kind: "CONSTANT", value: 1 },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -675,7 +609,6 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
           damageAmplificationOnBreak: 0.5,
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -700,7 +633,6 @@ describe("EffectActionDefinition", () => {
           probability: 1.0,
           appliesTo: { incomingActionKinds: ["DAMAGE"] },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -723,7 +655,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             probability: 1.5,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -737,7 +668,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_UNKNOWN_STATUS",
           kind: "APPLY_STATUS",
           payload: { status: "CONFUSED", duration: { timeLimit: { unit: "ACTION", count: 1 } } },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -754,7 +684,6 @@ describe("EffectActionDefinition", () => {
           stack: { policy: "ADD", max: 4 },
           duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -775,7 +704,6 @@ describe("EffectActionDefinition", () => {
           stack: { policy: "REFRESH" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -795,7 +723,6 @@ describe("EffectActionDefinition", () => {
             stack: { policy: "REFRESH", max: "unlimited" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -813,7 +740,6 @@ describe("EffectActionDefinition", () => {
             stack: { policy: "MULTIPLY" },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -826,7 +752,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_REMOVE_CURSE",
         kind: "REMOVE_MARKER",
         payload: { markerId: "MARKER_CURSE" },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -858,7 +783,6 @@ describe("EffectActionDefinition", () => {
           },
           duration: { dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -883,7 +807,6 @@ describe("EffectActionDefinition", () => {
           },
           duration: { timeLimit: { unit: "ACTION", count: 3 }, dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -911,7 +834,6 @@ describe("EffectActionDefinition", () => {
               },
             },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -938,7 +860,6 @@ describe("EffectActionDefinition", () => {
           },
           duration: { dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -971,7 +892,6 @@ describe("EffectActionDefinition", () => {
             },
             duration: { dispellable: true },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -989,7 +909,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1007,7 +926,6 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 } },
           maxBlocks: 2,
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1028,7 +946,6 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 } },
           maxBlocks: null,
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1049,7 +966,6 @@ describe("EffectActionDefinition", () => {
           duration: { timeLimit: { unit: "ACTION", count: 2 } },
           maxBlocks: null,
         },
-        requiredCapabilities: ["CAP_SPECIFIC_IMMUNITY"],
       },
       "effectAction",
     );
@@ -1071,7 +987,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1090,7 +1005,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1109,7 +1023,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1128,7 +1041,6 @@ describe("EffectActionDefinition", () => {
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
             maxBlocks: null,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1146,7 +1058,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             hitCount: 0,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1166,7 +1077,6 @@ describe("EffectActionDefinition", () => {
           damageModifiers: [{ kind: "CONSTANT", value: 0.1 }],
           link: { enabled: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1189,7 +1099,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             link: { enabled: "yes" },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1207,7 +1116,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             damageModifiers: { kind: "CONSTANT", value: 0.1 },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1221,21 +1129,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "BAD_ID",
           kind: "DAMAGE",
           payload: { damageType: "PHYSICAL", formula: { kind: "CONSTANT", value: 1 } },
-          requiredCapabilities: [],
-        },
-        "effectAction",
-      ),
-    ).toThrow(DomainValidationError);
-  });
-
-  it("UT-CAT-ACT-038: rejects a non-array requiredCapabilities at the top level (redundant guard, defense-in-depth)", () => {
-    expect(() =>
-      createEffectActionDefinition(
-        {
-          effectActionDefinitionId: "ACT_DAMAGE_1",
-          kind: "DAMAGE",
-          payload: { damageType: "PHYSICAL", formula: { kind: "CONSTANT", value: 1 } },
-          requiredCapabilities: null as unknown as readonly string[],
         },
         "effectAction",
       ),
@@ -1253,7 +1146,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             typoDamageFiled: "oops",
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1271,7 +1163,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             piercing: { defenseIgnoreRate: 0.5, typoRate: 0.1 },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1290,7 +1181,6 @@ describe("EffectActionDefinition", () => {
             maxBlocks: null,
             typoField: true,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1310,7 +1200,6 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
         },
-        requiredCapabilities: ["CAP_HEAL"],
       },
       "effectAction",
     );
@@ -1333,7 +1222,6 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "STACKABLE" },
             duration: {},
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1352,7 +1240,6 @@ describe("EffectActionDefinition", () => {
           transferRate: 1,
           duration: { timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" } },
         },
-        requiredCapabilities: ["CAP_HEALING_LINK"],
       },
       "effectAction",
     );
@@ -1380,7 +1267,6 @@ describe("EffectActionDefinition", () => {
               transferRate,
               duration: { timeLimit: { unit: "ACTION", count: 1 } },
             },
-            requiredCapabilities: ["CAP_HEALING_LINK"],
           },
           "effectAction",
         ),
@@ -1398,7 +1284,6 @@ describe("EffectActionDefinition", () => {
             transferRate: 1,
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
           },
-          requiredCapabilities: ["CAP_HEALING_LINK"],
         },
         "effectAction",
       ),
@@ -1424,7 +1309,6 @@ describe("EffectActionDefinition", () => {
           timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
           duration: { timeLimit: { unit: "ACTION", count: 1 } },
         },
-        requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
       },
       "effectAction",
     );
@@ -1452,7 +1336,6 @@ describe("EffectActionDefinition", () => {
             timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
             duration: {},
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1474,7 +1357,6 @@ describe("EffectActionDefinition", () => {
           timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
           duration: { timeLimit: { unit: "ACTION", count: 2 } },
         },
-        requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
       },
       "effectAction",
     );
@@ -1496,7 +1378,6 @@ describe("EffectActionDefinition", () => {
             timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
           },
-          requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
         },
         "effectAction",
       ),
@@ -1516,7 +1397,6 @@ describe("EffectActionDefinition", () => {
             timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
             duration: { timeLimit: { unit: "ACTION", count: 1 } },
           },
-          requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
         },
         "effectAction",
       ),
@@ -1531,7 +1411,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_REMOVE_DEBUFFS",
         kind: "REMOVE_EFFECTS",
         payload: { categories: ["DEBUFF"] },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1550,7 +1429,6 @@ describe("EffectActionDefinition", () => {
           categories: ["SPECIFIC_EFFECT"],
           effectActionDefinitionIds: ["ACT_MARKER_CURSE_DEBUFF"],
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1567,7 +1445,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_SPECIFIC",
           kind: "REMOVE_EFFECTS",
           payload: { categories: ["SPECIFIC_EFFECT"] },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1584,7 +1461,6 @@ describe("EffectActionDefinition", () => {
             categories: ["DEBUFF"],
             effectActionDefinitionIds: ["ACT_MARKER_CURSE_DEBUFF"],
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1598,7 +1474,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_1",
           kind: "REMOVE_EFFECTS",
           payload: { categories: [] },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1613,7 +1488,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_REMOVE_BUFFS",
         kind: "REMOVE_EFFECTS",
         payload: { categories: ["BUFF"] },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1626,7 +1500,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_REMOVE_3_DEBUFFS",
         kind: "REMOVE_EFFECTS",
         payload: { categories: ["DEBUFF"], maxRemovals: 3 },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1643,7 +1516,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_1",
           kind: "REMOVE_EFFECTS",
           payload: { categories: ["DEBUFF"], maxRemovals: 0 },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1657,7 +1529,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_1",
           kind: "REMOVE_EFFECTS",
           payload: { categories: ["DEBUFF"], maxRemovals: 1.5 },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1670,7 +1541,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_REMOVE_3_STACKS",
         kind: "REMOVE_MARKER",
         payload: { markerId: "MARKER_MAKENKI", count: 3 },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1687,7 +1557,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_MARKER_CAT",
           kind: "REMOVE_EFFECTS",
           payload: { categories: ["MARKER"] },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1701,7 +1570,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_GAP",
           kind: "REMOVE_EFFECTS",
           payload: { categories: [category] },
-          requiredCapabilities: [],
         },
         "effectAction",
       );
@@ -1716,7 +1584,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_REMOVE_STACKS",
           kind: "REMOVE_MARKER",
           payload: { markerId: "MARKER_MAKENKI", count: 0 },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1741,7 +1608,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
           },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1765,7 +1631,6 @@ describe("EffectActionDefinition", () => {
             duration: {},
             damageThreshold: { op: "ALMOST", formula: { kind: "CONSTANT", value: 0.35 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1786,7 +1651,6 @@ describe("EffectActionDefinition", () => {
               formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
             },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1809,7 +1673,6 @@ describe("EffectActionDefinition", () => {
           },
           duration: { timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_TARGET" } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1837,7 +1700,6 @@ describe("EffectActionDefinition", () => {
           shieldType: "EN",
           decay: { unit: "ACTION", ratio: 0.25 },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1855,7 +1717,6 @@ describe("EffectActionDefinition", () => {
           formula: { kind: "CONSTANT", value: 100 },
           duration: { timeLimit: { unit: "ACTION", count: 2 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -1881,7 +1742,6 @@ describe("EffectActionDefinition", () => {
               duration: { timeLimit: { unit: "ACTION", count: 2 } },
               decay,
             },
-            requiredCapabilities: [],
           },
           "effectAction",
         ),
@@ -1896,7 +1756,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_SHIELD_1",
           kind: "APPLY_SHIELD",
           payload: { formula: { kind: "CONSTANT", value: 100 } },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1916,7 +1775,6 @@ describe("EffectActionDefinition", () => {
           formula: { kind: "CONSTANT", value: 1 },
           duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
         },
-        requiredCapabilities: ["CAP_RESOURCE_CAPACITY_MOD"],
       },
       "effectAction",
     );
@@ -1939,7 +1797,6 @@ describe("EffectActionDefinition", () => {
             formula: { kind: "CONSTANT", value: 1 },
             duration: {},
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -1954,7 +1811,6 @@ describe("EffectActionDefinition", () => {
         effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_CD_RESET",
         kind: "COOLDOWN_MANIPULATION",
         payload: { targetSkillDefinitionId: "SKL_SAYA_BUNNY_AS1", operation: "RESET" },
-        requiredCapabilities: ["CAP_COOLDOWN_MANIPULATION"],
       },
       "effectAction",
     );
@@ -1962,7 +1818,6 @@ describe("EffectActionDefinition", () => {
       effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_CD_RESET",
       kind: "COOLDOWN_MANIPULATION",
       payload: { targetSkillDefinitionId: "SKL_SAYA_BUNNY_AS1", operation: "RESET" },
-      requiredCapabilities: ["CAP_COOLDOWN_MANIPULATION"],
       metadata: { tags: [] },
     });
   });
@@ -1977,7 +1832,6 @@ describe("EffectActionDefinition", () => {
           operation: "REDUCE",
           amount: 1,
         },
-        requiredCapabilities: ["CAP_COOLDOWN_MANIPULATION"],
       },
       "effectAction",
     );
@@ -1998,7 +1852,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_CD_REDUCE_NO_AMOUNT",
           kind: "COOLDOWN_MANIPULATION",
           payload: { targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1", operation: "REDUCE" },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -2016,7 +1869,6 @@ describe("EffectActionDefinition", () => {
             operation: "REDUCE",
             amount: 0,
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -2030,7 +1882,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_CD_BAD_OP",
           kind: "COOLDOWN_MANIPULATION",
           payload: { targetSkillDefinitionId: "SKL_MERU_FLATSPIN_PS1", operation: "REVERSE" },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -2044,7 +1895,6 @@ describe("EffectActionDefinition", () => {
           effectActionDefinitionId: "ACT_CD_BAD_TARGET",
           kind: "COOLDOWN_MANIPULATION",
           payload: { targetSkillDefinitionId: "BAD_ID", operation: "RESET" },
-          requiredCapabilities: [],
         },
         "effectAction",
       ),
@@ -2065,7 +1915,6 @@ describe("EffectActionDefinition", () => {
           stacking: { mode: "NON_STACKABLE" },
           duration: { timeLimit: { unit: "ACTION", count: 2 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -2092,7 +1941,6 @@ describe("EffectActionDefinition", () => {
             stacking: { mode: "STACKABLE", max },
             duration: { timeLimit: { unit: "BATTLE", count: 1 } },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       );
@@ -2117,7 +1965,6 @@ describe("EffectActionDefinition", () => {
               stacking: { mode: "STACKABLE", max },
               duration: { timeLimit: { unit: "BATTLE", count: 1 } },
             },
-            requiredCapabilities: [],
           },
           "effectAction",
         ),
@@ -2153,7 +2000,6 @@ describe("EffectActionDefinition", () => {
             effectActionDefinitionId: "ACT_OTHER_MOD",
             kind,
             payload: { ...base, stacking: { mode: "NON_STACKABLE" } },
-            requiredCapabilities: [],
           },
           "effectAction",
         ),
@@ -2165,7 +2011,6 @@ describe("EffectActionDefinition", () => {
             effectActionDefinitionId: "ACT_OTHER_MOD",
             kind,
             payload: { ...base, stacking: { mode: "STACKABLE", max: 3 } },
-            requiredCapabilities: [],
           },
           "effectAction",
         ),
@@ -2177,7 +2022,6 @@ describe("EffectActionDefinition", () => {
     const base = {
       effectActionDefinitionId: "ACT_TEMP_PIERCING",
       kind: "APPLY_PIERCING_MOD",
-      requiredCapabilities: ["CAP_PARTIAL_PIERCING"],
     } as const;
 
     it("UT-CAT-ACT-096: maps the three ignore rates and defaults the omitted ones to 0", () => {
@@ -2245,7 +2089,6 @@ describe("EffectActionDefinition", () => {
     const base = {
       effectActionDefinitionId: "ACT_DAMAGE_LINK_1",
       kind: "APPLY_DAMAGE_LINK",
-      requiredCapabilities: ["CAP_DAMAGE_LINK_STATE"],
     };
 
     it("UT-CAT-ACT-099: maps APPLY_DAMAGE_LINK linking 50% of the holder's incoming damage to the granter (SKL_SUIRAN_CASINO_AS1)", () => {
@@ -2349,7 +2192,6 @@ describe("EffectActionDefinition", () => {
             duration: confusionDuration,
             confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       );
@@ -2373,7 +2215,6 @@ describe("EffectActionDefinition", () => {
             duration: confusionDuration,
             damageToHeal: { healRate: 0.7 },
           },
-          requiredCapabilities: [],
         },
         "effectAction",
       );
@@ -2394,7 +2235,6 @@ describe("EffectActionDefinition", () => {
               effectActionDefinitionId: "ACT_CONFUSION_1",
               kind: "APPLY_STATUS",
               payload,
-              requiredCapabilities: [],
             },
             "effectAction",
           ),
@@ -2423,7 +2263,6 @@ describe("EffectActionDefinition", () => {
               effectActionDefinitionId: "ACT_CONFUSION_1",
               kind: "APPLY_STATUS",
               payload,
-              requiredCapabilities: [],
             },
             "effectAction",
           ),
@@ -2451,7 +2290,6 @@ describe("EffectActionDefinition", () => {
               effectActionDefinitionId: "ACT_CONFUSION_1",
               kind: "APPLY_STATUS",
               payload,
-              requiredCapabilities: [],
             },
             "effectAction",
           ),

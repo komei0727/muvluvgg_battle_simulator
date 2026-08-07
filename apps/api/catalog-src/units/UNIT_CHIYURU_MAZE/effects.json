@@ -9,7 +9,6 @@
         "power": 1.17
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -28,7 +27,6 @@
       },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -41,7 +39,7 @@
       "damageType": null,
       "formula": {
         "kind": "CONSTANT",
-        "value": 1.0
+        "value": 1
       },
       "stacking": {
         "mode": "STACKABLE"
@@ -54,7 +52,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -69,7 +66,6 @@
         "power": 1.4056
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -99,7 +95,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -115,7 +110,6 @@
       },
       "hitCount": 13
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -130,7 +124,6 @@
         "power": 1.06
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -160,7 +153,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -175,7 +167,6 @@
         "power": 0.3816
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -205,7 +196,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -231,7 +221,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }

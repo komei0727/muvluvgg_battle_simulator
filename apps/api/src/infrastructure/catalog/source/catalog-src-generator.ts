@@ -41,7 +41,6 @@ export async function buildCatalogFiles(
     "skills.json": source.skills,
     "effects.json": source.effects,
     "memories.json": source.memories,
-    "capabilities.json": source.capabilities,
   };
 
   const files: Record<string, string> = {};
@@ -60,7 +59,6 @@ export async function buildCatalogFiles(
       "skills.json": sha256Hex(files["skills.json"]!),
       "effects.json": sha256Hex(files["effects.json"]!),
       "memories.json": sha256Hex(files["memories.json"]!),
-      "capabilities.json": sha256Hex(files["capabilities.json"]!),
     },
   };
   files["manifest.json"] = await formatJson(

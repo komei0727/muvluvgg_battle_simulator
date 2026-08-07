@@ -67,7 +67,6 @@ function freezeDefinition(): EffectActionDefinition {
   return {
     kind: "APPLY_STATUS",
     effectActionDefinitionId: FREEZE_ACTION_ID,
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { status: "FREEZE", duration: freezeDuration(1) },
   };

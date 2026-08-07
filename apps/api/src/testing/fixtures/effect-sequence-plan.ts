@@ -62,7 +62,6 @@ export function damageAction(id: string, hitCount = 1): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -81,7 +80,6 @@ export function statModAction(id: string): EffectActionDefinition {
   return {
     kind: "APPLY_STAT_MOD",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       stat: "ATTACK",
@@ -108,7 +106,6 @@ export function statusAction(
   return {
     kind: "APPLY_STATUS",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       status: "STEALTH",
@@ -124,7 +121,6 @@ export function markerAction(
   return {
     kind: "APPLY_MARKER",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       markerId,
@@ -141,7 +137,6 @@ export function removeMarkerAction(
   return {
     kind: "REMOVE_MARKER",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { markerId },
   };
@@ -154,7 +149,6 @@ export function cooldownManipulationAction(
   return {
     kind: "COOLDOWN_MANIPULATION",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { targetSkillDefinitionId, operation: "RESET" },
   };
@@ -182,7 +176,6 @@ export function skillOf(resolution: SkillResolutionDefinition): SkillDefinition 
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Test", tags: [] },
   };
 }

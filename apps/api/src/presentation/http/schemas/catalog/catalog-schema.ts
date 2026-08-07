@@ -10,8 +10,6 @@ const catalogUnitSummaryResponseSchema = {
     "unitType",
     "role",
     "positionAptitudes",
-    "selectable",
-    "unavailableCapabilities",
   ],
   properties: {
     unitDefinitionId: { type: "string" },
@@ -25,8 +23,6 @@ const catalogUnitSummaryResponseSchema = {
       items: { type: "string", enum: ["FRONT", "BACK"] },
       minItems: 1,
     },
-    selectable: { type: "boolean" },
-    unavailableCapabilities: { type: "array", items: { type: "string" } },
   },
 } as const;
 
@@ -34,12 +30,10 @@ const catalogUnitSummaryResponseSchema = {
 const catalogMemorySummaryResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["memoryDefinitionId", "displayName", "selectable", "unavailableCapabilities"],
+  required: ["memoryDefinitionId", "displayName"],
   properties: {
     memoryDefinitionId: { type: "string" },
     displayName: { type: "string" },
-    selectable: { type: "boolean" },
-    unavailableCapabilities: { type: "array", items: { type: "string" } },
   },
 } as const;
 

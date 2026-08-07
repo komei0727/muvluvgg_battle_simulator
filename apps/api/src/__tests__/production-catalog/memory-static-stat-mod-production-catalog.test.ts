@@ -20,10 +20,6 @@ import {
   type BattleStateSnapshot,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import {
-  collectRequiredCapabilities,
-  findUnimplementedCapabilities,
-} from "../../domain/catalog/capability/capability-availability.js";
-import {
   definitionsWith,
   effectActionFrom,
   loadProductionSnapshot,
@@ -461,15 +457,6 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
         // 「戦闘開始時に発動」の補正は戦闘終了まで残る（期間指定はraw原文に無い）。
         expect(action.payload.duration.timeLimit).toEqual({ unit: "BATTLE", count: 1 });
       });
-
-      // `DMG-002`（Issue #192）が`CAP_DAMAGE_MOD`を`IMPLEMENTED`にしたため、この2件は
-      // Capability preflightを通過するようになった（他に未実装Capabilityも要さない）。
-      expect(memory.requiredCapabilities).toContain("CAP_DAMAGE_MOD");
-      const unimplemented = findUnimplementedCapabilities(
-        collectRequiredCapabilities(snapshot, [], [memory.memoryDefinitionId]),
-        snapshot.capabilities,
-      );
-      expect(unimplemented).toEqual([]);
     }
   });
 });

@@ -23,14 +23,10 @@ export function toBattleSimulationCatalogResponseBody(
       unitType: unit.unitType,
       role: unit.role,
       positionAptitudes: unit.positionAptitudes,
-      selectable: unit.selectable,
-      unavailableCapabilities: unit.unavailableCapabilities,
     })),
     memories: result.memories.map((memory) => ({
       memoryDefinitionId: memory.memoryDefinitionId,
       displayName: memory.displayName,
-      selectable: memory.selectable,
-      unavailableCapabilities: memory.unavailableCapabilities,
     })),
   };
 }

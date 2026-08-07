@@ -71,7 +71,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ど～こ見てんのよ♪",
       "tags": []
@@ -132,7 +131,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": {
       "displayName": "破魔砲",
       "tags": []
@@ -196,7 +194,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "厄除け祈願",
       "tags": []
@@ -242,7 +239,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "必勝祈願",
       "tags": []
@@ -360,12 +356,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_RANDOM_BRANCH",
-      "CAP_DAMAGE_MOD",
-      "CAP_PASSIVE_ACTIVATION_CONDITION",
-      "CAP_PARTIAL_PIERCING"
-    ],
     "metadata": {
       "displayName": "おみくじ運試し",
       "tags": []

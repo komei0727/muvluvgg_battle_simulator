@@ -7,7 +7,6 @@ import type {
   ResourceModifyOperation,
 } from "./catalog-enums.js";
 import {
-  createCapabilityId,
   createEffectActionDefinitionId,
   createMarkerId,
   createSkillDefinitionId,
@@ -452,16 +451,11 @@ export function createEffectActionDefinition(
   const payload = input.payload;
   const shape = createPayload(input.kind, payload, payloadPath);
 
-  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
-  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
-    createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
-  );
   const tags = input.metadata?.tags ?? [];
 
   return deepFreeze({
     ...shape,
     effectActionDefinitionId,
-    requiredCapabilities,
     metadata: { tags },
   });
 }

@@ -45,7 +45,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "displayName": "ノーブル・プライド",
       "tags": []
@@ -103,7 +102,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "リビューク・ジ・イグノーブル",
       "tags": []
@@ -152,7 +150,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "エッジ・オブ・グレイス",
       "tags": []
@@ -219,11 +216,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_LINK_STATE",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "融和の象徴",
       "tags": []
@@ -326,12 +318,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_SHIELD",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_EFFECT_QUERY",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "新時代の先駆け",
       "tags": []

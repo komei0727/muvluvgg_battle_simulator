@@ -1,5 +1,4 @@
-import type { CapabilityDefinition } from "../capability/capability-definition.js";
-import type { CapabilityId, EffectActionDefinitionId } from "../definitions/catalog-ids.js";
+import type { EffectActionDefinitionId } from "../definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { MemoryDefinition } from "../definitions/memory-definition.js";
@@ -8,11 +7,6 @@ import type {
   TargetSelectorDefinition,
 } from "../definitions/target-selector-definition.js";
 import type { TriggerDefinition } from "../definitions/trigger-definition.js";
-import {
-  checkRequiredCapabilities,
-  requireRuntimeCapability,
-  validateRuntimeCapabilityDeclarations,
-} from "./capability-declaration-integrity.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
   collectConditionEffectActionReferences,
@@ -265,27 +259,8 @@ function validateMemorySourceUnitIndependence(
 export function validateMemory(
   memory: MemoryDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
-  capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
-  if (memory.triggeredEffects.length > 0) {
-    requireRuntimeCapability(
-      memory.memoryDefinitionId,
-      memory.requiredCapabilities,
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "Memory triggeredEffects",
-      violations,
-    );
-  }
-  validateRuntimeCapabilityDeclarations(
-    memory.memoryDefinitionId,
-    memory.requiredCapabilities,
-    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.effectSequence),
-    memory.triggeredEffects.map((triggeredEffect) => triggeredEffect.trigger),
-    undefined,
-    undefined,
-    violations,
-  );
   for (const triggeredEffect of memory.triggeredEffects) {
     validateTrigger(triggeredEffect.trigger, memory.memoryDefinitionId, violations);
     validateLastResultDataFlow(
@@ -333,10 +308,4 @@ export function validateMemory(
     );
   }
   validateMemorySourceUnitIndependence(memory, effectActions, violations);
-  checkRequiredCapabilities(
-    memory.requiredCapabilities,
-    memory.memoryDefinitionId,
-    capabilities,
-    violations,
-  );
 }

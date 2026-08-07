@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_MERU_FLATSPIN_PS1"],
   "extraSkillDefinitionId": "SKL_MERU_FLATSPIN_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],

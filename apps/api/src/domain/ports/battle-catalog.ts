@@ -1,6 +1,4 @@
-import type { CapabilityDefinition } from "../catalog/capability/capability-definition.js";
 import type {
-  CapabilityId,
   EffectActionDefinitionId,
   MemoryDefinitionId,
   SkillDefinitionId,
@@ -12,7 +10,7 @@ import type { SkillDefinition } from "../catalog/definitions/skill-definition.js
 import type { UnitDefinition } from "../catalog/definitions/unit-definition.js";
 
 /**
- * Requested Units/Memories plus their transitive Skill/EffectAction/Capability
+ * Requested Units/Memories plus their transitive Skill/EffectAction
  * closure (`09_アプリケーション設計.md` の定義グラフ). Requested IDs absent
  * from the underlying Catalog are simply missing from `units`/`memories` —
  * callers detect gaps with `.has(id)` rather than the port throwing, so a
@@ -24,7 +22,6 @@ export interface BattleCatalogSnapshot {
   readonly skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   readonly memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition>;
-  readonly capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>;
 }
 
 /**

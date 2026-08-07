@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { assertBattleInvariants } from "../../testing/scenario/run-scenario.js";
 import {
   runProductionUnitBattle,
-  selectableProductionUnitIds,
+  allProductionUnitIds,
 } from "../../testing/scenario/run-production-battle.js";
 
 /**
@@ -21,14 +21,14 @@ import {
  * 発行され得るイベント列すべてを回帰対象に保つ。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
-const SELECTABLE_UNIT_IDS = selectableProductionUnitIds(CATALOG_DIR);
+const PRODUCTION_UNIT_IDS = allProductionUnitIds(CATALOG_DIR);
 
 describe("production Unit golden battles", () => {
   it("E2E-GOLDEN-000: at least one production Unit is selectable (guards against a silently empty golden layer)", () => {
-    expect(SELECTABLE_UNIT_IDS.length).toBeGreaterThan(0);
+    expect(PRODUCTION_UNIT_IDS.length).toBeGreaterThan(0);
   });
 
-  it.each(SELECTABLE_UNIT_IDS)(
+  it.each(PRODUCTION_UNIT_IDS)(
     "E2E-GOLDEN: %s completes a deterministic mirror battle and holds battle invariants",
     (unitDefinitionId) => {
       const result = runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createCapabilityDefinition,
-  type CapabilityDefinition,
-} from "../../../domain/catalog/capability/capability-definition.js";
-import {
   buildCatalogIndex,
   type CatalogDefinitions,
 } from "../../../domain/catalog/integrity/catalog-integrity.js";
@@ -23,16 +19,12 @@ import {
 } from "../../../domain/catalog/definitions/unit-definition.js";
 import { InMemoryBattleCatalogDirectory } from "./in-memory-battle-catalog-directory.js";
 
-function damageAction(
-  id: string,
-  requiredCapabilities: readonly string[] = [],
-): EffectActionDefinition {
+function damageAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
       kind: "DAMAGE",
       payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -43,10 +35,7 @@ function damageAction(
  * 持たないため、`DAMAGE`のように発生源ユニットを必要とするEffectActionを参照できない
  * （`MEMORY_REQUIRES_SOURCE_UNIT`）。Memory用のfixtureは静的なstat補正を使う。
  */
-function memoryModifierAction(
-  id: string,
-  requiredCapabilities: readonly string[] = [],
-): EffectActionDefinition {
+function memoryModifierAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -58,38 +47,9 @@ function memoryModifierAction(
         stacking: { mode: "STACKABLE" },
         duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
-}
-
-function asSkill(id: string, requiredCapabilities: readonly string[] = []): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    resolution: {
-      kind: "IMMEDIATE",
-      targetBindings: [
-        {
-          targetBindingId: "TGT_PRIMARY",
-          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
-        },
-      ],
-      steps: [
-        {
-          kind: "ACTION",
-          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_AS" }],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 1 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "AS" },
-  });
 }
 
 function exSkill(id: string, amount: number): SkillDefinition {
@@ -115,15 +75,38 @@ function exSkill(id: string, amount: number): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [],
     metadata: { displayName: "EX" },
   });
 }
 
-function unit(
-  id: string,
-  overrides: { requiredCapabilities?: readonly string[] } = {},
-): UnitDefinition {
+function asSkill(id: string): SkillDefinition {
+  return createSkillDefinition({
+    skillDefinitionId: id,
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: "TGT_PRIMARY",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_AS" }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 1 },
+    traits: {},
+    metadata: { displayName: "AS" },
+  });
+}
+
+function unit(id: string): UnitDefinition {
   return createUnitDefinition({
     unitDefinitionId: id,
     attribute: "COMICAL",
@@ -143,12 +126,20 @@ function unit(
     activeSkillDefinitionIds: ["SKL_AS1"],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: "SKL_EX1",
-    requiredCapabilities: overrides.requiredCapabilities ?? [],
     metadata: { displayName: "Unit", characterName: "Character", characterId: "CHAR_1" },
   });
 }
 
-function memory(id: string, requiredCapabilities: readonly string[] = []): MemoryDefinition {
+function buildDefinitions(): CatalogDefinitions {
+  return {
+    units: [unit("UNIT_001"), unit("UNIT_002")],
+    skills: [asSkill("SKL_AS1"), exSkill("SKL_EX1", 7)],
+    effectActions: [damageAction("ACT_DAMAGE_AS"), memoryModifierAction("ACT_DAMAGE_MEMORY")],
+    memories: [memory("MEM_001")],
+  };
+}
+
+function memory(id: string): MemoryDefinition {
   return createMemoryDefinition({
     memoryDefinitionId: id,
     triggeredEffects: [
@@ -176,50 +167,8 @@ function memory(id: string, requiredCapabilities: readonly string[] = []): Memor
         },
       },
     ],
-    requiredCapabilities,
     metadata: { displayName: "Memory" },
   });
-}
-
-function capability(id: string, status = "IMPLEMENTED"): CapabilityDefinition {
-  const evidenceDefinitionIds: Readonly<Record<string, string>> = {
-    CAP_UNIT: "UNIT_001",
-    CAP_SKILL: "SKL_AS1",
-    CAP_ACTION: "ACT_DAMAGE_AS",
-    CAP_MEMORY: "MEM_001",
-    CAP_MEMORY_TRIGGERED_EFFECT: "MEM_001",
-  };
-  const evidenceDefinitionId = evidenceDefinitionIds[id];
-  return createCapabilityDefinition({
-    capabilityId: id,
-    schemaStatus: "SUPPORTED",
-    runtimeStatus: status,
-    implementationTaskId: "TEST-001",
-    description: "d",
-    verification: {
-      productionDefinitionIds: evidenceDefinitionId === undefined ? [] : [evidenceDefinitionId],
-      testCaseIds: status === "IMPLEMENTED" ? ["TEST-001"] : [],
-    },
-  });
-}
-
-function buildDefinitions(): CatalogDefinitions {
-  return {
-    units: [unit("UNIT_001", { requiredCapabilities: ["CAP_UNIT"] }), unit("UNIT_002")],
-    skills: [asSkill("SKL_AS1", ["CAP_SKILL"]), exSkill("SKL_EX1", 7)],
-    effectActions: [
-      damageAction("ACT_DAMAGE_AS", ["CAP_ACTION"]),
-      memoryModifierAction("ACT_DAMAGE_MEMORY"),
-    ],
-    memories: [memory("MEM_001", ["CAP_MEMORY", "CAP_MEMORY_TRIGGERED_EFFECT"])],
-    capabilities: [
-      capability("CAP_UNIT"),
-      capability("CAP_SKILL"),
-      capability("CAP_ACTION"),
-      capability("CAP_MEMORY"),
-      capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-    ],
-  };
 }
 
 describe("InMemoryBattleCatalogDirectory.loadSnapshot", () => {
@@ -239,21 +188,6 @@ describe("InMemoryBattleCatalogDirectory.loadSnapshot", () => {
     const snapshot = directory.loadSnapshot();
     expect(new Set(snapshot.units.keys())).toEqual(new Set(["UNIT_001", "UNIT_002"]));
     expect(new Set(snapshot.memories.keys())).toEqual(new Set(["MEM_001"]));
-  });
-
-  it("includes every Skill, EffectAction, and Capability needed to compute selectability", () => {
-    const directory = new InMemoryBattleCatalogDirectory(
-      "rev-1",
-      buildCatalogIndex(buildDefinitions()),
-    );
-    const snapshot = directory.loadSnapshot();
-    expect(new Set(snapshot.skills.keys())).toEqual(new Set(["SKL_AS1", "SKL_EX1"]));
-    expect(new Set(snapshot.effectActions.keys())).toEqual(
-      new Set(["ACT_DAMAGE_AS", "ACT_DAMAGE_MEMORY"]),
-    );
-    expect(new Set(snapshot.capabilities.keys())).toEqual(
-      new Set(["CAP_UNIT", "CAP_SKILL", "CAP_ACTION", "CAP_MEMORY", "CAP_MEMORY_TRIGGERED_EFFECT"]),
-    );
   });
 
   it("returns the same snapshot contents on repeated calls without re-reading the Catalog source", () => {

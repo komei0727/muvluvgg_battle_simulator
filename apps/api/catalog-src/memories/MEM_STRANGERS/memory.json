@@ -7,20 +7,33 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
           {
             "targetBindingId": "TGT_ALL_ALLIES",
-            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_SPEED_UP" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_SPEED_UP"
+              }
+            ]
           }
         ]
       }
@@ -31,25 +44,40 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
           {
             "targetBindingId": "TGT_ALL_ALLIES",
-            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_CRIT_UP" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_STRANGERS_ALL_CRIT_UP"
+              }
+            ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
-  "metadata": { "displayName": "STRANGERS", "tags": [] }
+  "metadata": {
+    "displayName": "STRANGERS",
+    "tags": []
+  }
 }

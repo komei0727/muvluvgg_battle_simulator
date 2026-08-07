@@ -1023,7 +1023,6 @@ describe("evaluateEffectStepCondition", () => {
                   timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
                   duration: { timeLimit: { unit: "ACTION", count: 3 } },
                 },
-                requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
               },
               "effectAction",
             ),

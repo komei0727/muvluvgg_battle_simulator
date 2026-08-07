@@ -61,7 +61,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "displayName": "チェックメイト",
       "tags": []
@@ -107,7 +106,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "ストライクリリース",
       "tags": []
@@ -159,7 +157,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "スキュア",
       "tags": []
@@ -245,12 +242,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_REMOVE_EFFECTS",
-      "CAP_TARGET_EFFECT_QUERY",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "インクリメントアタック",
       "tags": []
@@ -299,7 +290,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "displayName": "アフターシェイブ",
       "tags": []

@@ -2,33 +2,61 @@
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.34 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.34
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "CRITICAL_GUARANTEE",
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.896 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.896
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.1376 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.1376
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
@@ -36,19 +64,38 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.35 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.35
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.12
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS2_CRIT_UP",
@@ -56,12 +103,24 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.05 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_AP_DOWN",
@@ -69,11 +128,18 @@
     "payload": {
       "resource": "AP",
       "operation": "ADD",
-      "formula": { "kind": "CONSTANT", "value": -1 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_EX_FULL",
@@ -81,10 +147,14 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "SET_TO_MAX",
-      "formula": { "kind": "CONSTANT", "value": 0 }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_ATK_UP",
@@ -92,12 +162,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.1 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS1_ALLY_EX_UP",
@@ -105,11 +187,18 @@
     "payload": {
       "resource": "EX_GAUGE",
       "operation": "ADD",
-      "formula": { "kind": "CONSTANT", "value": 1 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_PS2_DMG_UP",
@@ -117,12 +206,24 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.2 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_EX_SHIELD",
@@ -130,16 +231,23 @@
     "payload": {
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 0.45
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_TARGET" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_TARGET"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

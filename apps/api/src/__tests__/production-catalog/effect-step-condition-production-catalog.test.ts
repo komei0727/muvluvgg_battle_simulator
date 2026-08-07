@@ -136,7 +136,6 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
     const skillId = "SKL_AOI_ELEGANT_EX";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_EFFECT_STEP_CONDITION");
     const atkDownStep = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : []).find(
       (s) =>
         s.kind === "ACTION" &&
@@ -187,10 +186,6 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const unitDefinition = unitFrom(snapshot, unitId);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toEqual([
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-    ]);
     const stunStep = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : []).find(
       (s) =>
         s.kind === "ACTION" && s.actions[0]?.effectActionDefinitionId === "ACT_LUCIE_MAID_AS1_STUN",
@@ -270,7 +265,6 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const unitDefinition = unitFrom(snapshot, unitId);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_EFFECT_STEP_CONDITION");
     const ppDownStep = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : []).find(
       (s) =>
         s.kind === "ACTION" &&
@@ -348,7 +342,6 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const unitDefinition = unitFrom(snapshot, unitId);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toEqual(["CAP_HEAL", "CAP_EFFECT_STEP_CONDITION"]);
     const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
     expect(
       steps.find(
@@ -441,9 +434,6 @@ describe("production Catalog CAP_EFFECT_STEP_CONDITION (RES-004, Issue #171ÂæåÂç
     const skillId = "SKL_TATIANA_SAGE_EX";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toEqual(
-      expect.arrayContaining(["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_EFFECT_STEP_CONDITION"]),
-    );
     const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
     expect(
       steps.find(

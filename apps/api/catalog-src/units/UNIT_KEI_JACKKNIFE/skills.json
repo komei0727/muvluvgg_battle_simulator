@@ -41,7 +41,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "突撃前衛",
       "tags": []
@@ -133,7 +132,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ウルフズショット",
       "tags": []
@@ -214,11 +212,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "ウルフズスラッシュ",
       "tags": []
@@ -256,7 +249,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "応急防御",
       "tags": []
@@ -325,7 +317,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "勝機の直感",
       "tags": []

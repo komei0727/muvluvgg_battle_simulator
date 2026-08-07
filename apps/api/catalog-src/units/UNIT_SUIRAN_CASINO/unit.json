@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_SUIRAN_CASINO_PS1"],
   "extraSkillDefinitionId": "SKL_SUIRAN_CASINO_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],

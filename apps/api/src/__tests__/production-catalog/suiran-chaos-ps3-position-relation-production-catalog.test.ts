@@ -110,7 +110,6 @@ function attackerSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "TestAttack", tags: [] },
   };
 }
@@ -119,7 +118,6 @@ function attackerEffectAction(): Extract<EffectActionDefinition, { kind: "DAMAGE
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACKER_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

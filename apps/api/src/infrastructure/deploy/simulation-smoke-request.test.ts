@@ -9,20 +9,20 @@ import { describe, expect, it } from "vitest";
 import { buildSimulationSmokeRequest } from "./simulation-smoke-request.js";
 
 describe("buildSimulationSmokeRequest", () => {
-  it("IT-INFRA-CICD-016: builds a minimal single-unit request from the first selectable unit", () => {
+  it("IT-INFRA-CICD-016: builds a minimal single-unit request from the first unit", () => {
     const request = buildSimulationSmokeRequest({
       units: [
-        { unitDefinitionId: "UNIT_000", selectable: false, positionAptitudes: ["FRONT"] },
-        { unitDefinitionId: "UNIT_001", selectable: true, positionAptitudes: ["FRONT", "BACK"] },
+        { unitDefinitionId: "UNIT_000", positionAptitudes: ["FRONT"] },
+        { unitDefinitionId: "UNIT_001", positionAptitudes: ["FRONT", "BACK"] },
       ],
     });
     expect(request).toEqual({
       allyFormation: {
-        units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+        units: [{ unitDefinitionId: "UNIT_000", position: { column: 0, row: "FRONT" } }],
         memoryDefinitionIds: [],
       },
       enemyFormation: {
-        units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+        units: [{ unitDefinitionId: "UNIT_000", position: { column: 0, row: "FRONT" } }],
         memoryDefinitionIds: [],
       },
       turnLimit: 3,
@@ -31,23 +31,19 @@ describe("buildSimulationSmokeRequest", () => {
 
   it('IT-INFRA-CICD-017: maps the Catalog\'s "BACK" position aptitude to the request schema\'s "REAR" row', () => {
     const request = buildSimulationSmokeRequest({
-      units: [{ unitDefinitionId: "UNIT_002", selectable: true, positionAptitudes: ["BACK"] }],
+      units: [{ unitDefinitionId: "UNIT_002", positionAptitudes: ["BACK"] }],
     });
     expect(request.allyFormation.units[0]?.position).toEqual({ column: 0, row: "REAR" });
   });
 
-  it("IT-INFRA-CICD-018: throws when no unit in the Catalog is selectable", () => {
-    expect(() =>
-      buildSimulationSmokeRequest({
-        units: [{ unitDefinitionId: "UNIT_000", selectable: false, positionAptitudes: ["FRONT"] }],
-      }),
-    ).toThrow(/no selectable unit/i);
+  it("IT-INFRA-CICD-018: throws when the Catalog has no unit at all", () => {
+    expect(() => buildSimulationSmokeRequest({ units: [] })).toThrow(/no unit found/i);
   });
 
-  it("IT-INFRA-CICD-019: throws when the selectable unit declares no positionAptitudes", () => {
+  it("IT-INFRA-CICD-019: throws when the first unit declares no positionAptitudes", () => {
     expect(() =>
       buildSimulationSmokeRequest({
-        units: [{ unitDefinitionId: "UNIT_003", selectable: true, positionAptitudes: [] }],
+        units: [{ unitDefinitionId: "UNIT_003", positionAptitudes: [] }],
       }),
     ).toThrow(/positionAptitudes/);
   });

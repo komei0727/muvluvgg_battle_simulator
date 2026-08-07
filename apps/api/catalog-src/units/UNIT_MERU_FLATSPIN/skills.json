@@ -94,13 +94,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_FORMULA",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "新たなる力",
       "tags": []
@@ -174,14 +167,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_RESOURCE_MUTATION",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_COOLDOWN_MANIPULATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_TARGET_EFFECT_QUERY"
-    ],
     "metadata": {
       "displayName": "フラットスピン",
       "tags": []
@@ -253,11 +238,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_EFFECT_QUERY"
-    ],
     "metadata": {
       "displayName": "スカイドライヴ",
       "tags": []
@@ -329,12 +309,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_EFFECT_QUERY"
-    ],
     "metadata": {
       "displayName": "ハードラッシュ",
       "tags": []
@@ -375,7 +349,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "超集中",
       "tags": []

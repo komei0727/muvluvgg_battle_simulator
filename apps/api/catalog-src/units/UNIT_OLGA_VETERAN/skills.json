@@ -38,7 +38,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONFUSION"],
     "metadata": {
       "displayName": "鉄の女",
       "tags": []
@@ -157,15 +156,6 @@
       "count": 3
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_RESOURCE_MUTATION",
-      "CAP_DAMAGE_MOD",
-      "CAP_HEAL",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "粛清です",
       "tags": []
@@ -245,7 +235,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "システマ・ヴラシェーニヤA",
       "tags": []
@@ -292,7 +281,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "この魂、レドフカに捧げます",
       "tags": []
@@ -401,12 +389,6 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_DEATH_SURVIVAL",
-      "CAP_FORMULA",
-      "CAP_RESOURCE_MUTATION"
-    ],
     "metadata": {
       "displayName": "ヴォルコワの血脈A",
       "tags": []

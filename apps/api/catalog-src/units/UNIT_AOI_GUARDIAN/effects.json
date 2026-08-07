@@ -5,13 +5,16 @@
     "payload": {
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "TARGET" },
+        "source": {
+          "kind": "TARGET"
+        },
         "ratio": 0.6
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_ATK_UP",
@@ -19,12 +22,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.5 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_STUN_IMMUNITY",
@@ -32,11 +47,18 @@
     "payload": {
       "categories": ["STATUS"],
       "statusKinds": ["STUN"],
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      },
       "maxBlocks": null
     },
-    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_EX_SHIELD",
@@ -44,14 +66,23 @@
     "payload": {
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 1.5
       },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS1_SHIELD",
@@ -59,14 +90,23 @@
     "payload": {
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 1.2
       },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS1_CONTINUOUS_HEAL",
@@ -74,21 +114,40 @@
     "payload": {
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "TARGET" },
+        "source": {
+          "kind": "TARGET"
+        },
         "ratio": 0.05
       },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.12
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS1_HEAL",
@@ -96,13 +155,16 @@
     "payload": {
       "formula": {
         "kind": "LOST_HP_RATIO",
-        "source": { "kind": "TARGET" },
+        "source": {
+          "kind": "TARGET"
+        },
         "ratio": 0.5
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_COUNTER",
@@ -112,22 +174,30 @@
       "formula": {
         "kind": "DAMAGE_RECEIVED_RATIO",
         "sourceResult": "LAST_DAMAGE_RECEIVED",
-        "ratio": 1.0
+        "ratio": 1
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      },
       "probability": 1
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_PP_ZERO",
@@ -135,10 +205,17 @@
     "payload": {
       "resource": "PP",
       "operation": "SET",
-      "formula": { "kind": "CONSTANT", "value": 0 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

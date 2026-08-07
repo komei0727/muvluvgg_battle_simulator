@@ -20,7 +20,6 @@ import { toSimulateBattleCommand } from "../../application/simulation/simulate-b
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import {
-  createCapabilityId,
   createEffectActionDefinitionId,
   createMarkerId,
   createRuntimeCounterId,
@@ -28,10 +27,6 @@ import {
   createTargetBindingId,
   createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
-import {
-  createCapabilityDefinition,
-  type CapabilityDefinition,
-} from "../../domain/catalog/capability/capability-definition.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
@@ -69,7 +64,6 @@ function unitDefinition(id: string): UnitDefinition {
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
   };
 }
@@ -112,7 +106,6 @@ function attackSkill(id: string, effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Attack", tags: [] },
   };
 }
@@ -135,7 +128,6 @@ function exSkillDefinition(id: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -144,7 +136,6 @@ function damageEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -164,7 +155,6 @@ function markerEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "APPLY_MARKER",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [createCapabilityId("CAP_MARKER")],
     metadata: { tags: [] },
     payload: {
       markerId: createMarkerId("MARKER_STATE_RESTORE_TEST"),
@@ -184,7 +174,6 @@ function hpCapacityEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "MODIFY_RESOURCE_CAPACITY",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [createCapabilityId("CAP_RESOURCE_CAPACITY_MOD")],
     metadata: { tags: [] },
     payload: {
       resource: "HP",
@@ -226,10 +215,6 @@ class FakeBattleCatalog implements BattleCatalog {
     ReturnType<typeof createEffectActionDefinitionId>,
     EffectActionDefinition
   >;
-  private readonly capabilities: ReadonlyMap<
-    ReturnType<typeof createCapabilityId>,
-    CapabilityDefinition
-  >;
 
   constructor(
     units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>,
@@ -238,15 +223,10 @@ class FakeBattleCatalog implements BattleCatalog {
       ReturnType<typeof createEffectActionDefinitionId>,
       EffectActionDefinition
     >,
-    capabilities: ReadonlyMap<
-      ReturnType<typeof createCapabilityId>,
-      CapabilityDefinition
-    > = new Map(),
   ) {
     this.units = units;
     this.skills = skills;
     this.effectActions = effectActions;
-    this.capabilities = capabilities;
   }
 
   loadSnapshot(): BattleCatalogSnapshot {
@@ -256,7 +236,6 @@ class FakeBattleCatalog implements BattleCatalog {
       skills: this.skills,
       effectActions: this.effectActions,
       memories: new Map(),
-      capabilities: this.capabilities,
     };
   }
 }
@@ -680,28 +659,12 @@ async function runMarkerScenario(): Promise<BattleSimulationResponseBody> {
   const effectActions = new Map([
     [createEffectActionDefinitionId(effectActionId), markerEffectAction(effectActionId)],
   ]);
-  const capabilities = new Map([
-    [
-      createCapabilityId("CAP_MARKER"),
-      createCapabilityDefinition({
-        capabilityId: "CAP_MARKER",
-        schemaStatus: "SUPPORTED",
-        runtimeStatus: "IMPLEMENTED",
-        implementationTaskId: "EFF-004",
-        description: "d",
-        verification: {
-          productionDefinitionIds: [effectActionId],
-          testCaseIds: ["API-STATE-RESTORE-008"],
-        },
-      }),
-    ],
-  ]);
 
   const useCase: SimulateBattleUseCasePort = {
     execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
       Promise.resolve(
         new SimulateBattleUseCase({
-          battleCatalog: new FakeBattleCatalog(units, skills, effectActions, capabilities),
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
           battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
           randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
           clock: new ManualClock(Date.now()),
@@ -843,7 +806,6 @@ async function runCombinedConditionScenario(): Promise<BattleSimulationResponseB
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "CombinedCond", tags: [] },
   };
   const skills = new Map([
@@ -854,28 +816,12 @@ async function runCombinedConditionScenario(): Promise<BattleSimulationResponseB
     [createEffectActionDefinitionId(markerActionId), markerEffectAction(markerActionId)],
     [createEffectActionDefinitionId(damageActionId), damageEffectAction(damageActionId)],
   ]);
-  const capabilities = new Map([
-    [
-      createCapabilityId("CAP_MARKER"),
-      createCapabilityDefinition({
-        capabilityId: "CAP_MARKER",
-        schemaStatus: "SUPPORTED",
-        runtimeStatus: "IMPLEMENTED",
-        implementationTaskId: "EFF-004",
-        description: "d",
-        verification: {
-          productionDefinitionIds: [markerActionId],
-          testCaseIds: ["API-STATE-RESTORE-009"],
-        },
-      }),
-    ],
-  ]);
 
   const useCase: SimulateBattleUseCasePort = {
     execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
       Promise.resolve(
         new SimulateBattleUseCase({
-          battleCatalog: new FakeBattleCatalog(units, skills, effectActions, capabilities),
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
           battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
           randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
           clock: new ManualClock(Date.now()),
@@ -972,7 +918,6 @@ async function runRuntimeCounterThresholdScenario(): Promise<BattleSimulationRes
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "ThresholdPS", tags: [] },
   };
   const defenderUnit: UnitDefinition = {
@@ -1065,28 +1010,12 @@ async function runHpCapacityScenario(): Promise<BattleSimulationResponseBody> {
   const effectActions = new Map([
     [createEffectActionDefinitionId(effectActionId), hpCapacityEffectAction(effectActionId)],
   ]);
-  const capabilities = new Map([
-    [
-      createCapabilityId("CAP_RESOURCE_CAPACITY_MOD"),
-      createCapabilityDefinition({
-        capabilityId: "CAP_RESOURCE_CAPACITY_MOD",
-        schemaStatus: "SUPPORTED",
-        runtimeStatus: "IMPLEMENTED",
-        implementationTaskId: "M7-002A",
-        description: "d",
-        verification: {
-          productionDefinitionIds: [effectActionId],
-          testCaseIds: ["API-STATE-RESTORE-010"],
-        },
-      }),
-    ],
-  ]);
 
   const useCase: SimulateBattleUseCasePort = {
     execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
       Promise.resolve(
         new SimulateBattleUseCase({
-          battleCatalog: new FakeBattleCatalog(units, skills, effectActions, capabilities),
+          battleCatalog: new FakeBattleCatalog(units, skills, effectActions),
           battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
           randomSourceFactory: new SequenceRandomSourceFactory([0.99]),
           clock: new ManualClock(Date.now()),
@@ -1158,7 +1087,6 @@ function chargeSkill(id: string, effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Charge", tags: [] },
   };
 }

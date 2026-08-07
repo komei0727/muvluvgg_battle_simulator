@@ -115,7 +115,6 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const unitDefinition = unitFrom(snapshot, unitId);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_PASSIVE_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({ kind: "TARGET_HAS_MARKER" });
 
     const maximumHp = unitDefinition.baseStats.maximumHp;
@@ -167,7 +166,6 @@ describe("production Catalog CAP_PASSIVE_ACTIVATION_CONDITION (RES-004, Issue #1
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const unitDefinition = unitFrom(snapshot, unitId);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toEqual(["CAP_PASSIVE_ACTIVATION_CONDITION"]);
     expect(skill.activationCondition).toMatchObject({
       kind: "ALIVE_UNIT_COUNT",
       side: "ALLY",

@@ -102,15 +102,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_HEAL",
-      "CAP_FORMULA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_EFFECT_STEP_SET_CONDITION"
-    ],
     "metadata": {
       "displayName": "あっかんべー♡",
       "tags": []
@@ -156,7 +147,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "クライシスドライブ",
       "tags": []
@@ -191,7 +181,6 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "緊急防壁",
       "tags": []
@@ -280,7 +269,6 @@
       "count": 6
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "まだ終わんないけど？",
       "tags": []
@@ -329,7 +317,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "ブーストトリガー",
       "tags": []

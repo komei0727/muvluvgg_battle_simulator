@@ -9,7 +9,6 @@
         "power": 1.2048
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -35,7 +34,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -51,7 +49,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": {
       "tags": []
     }
@@ -69,7 +66,6 @@
         "ratio": 0.5625
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -93,7 +89,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
@@ -116,7 +111,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -147,7 +141,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -169,7 +162,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -184,7 +176,6 @@
         "power": 0.78
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -210,7 +201,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -221,7 +211,6 @@
     "payload": {
       "categories": ["BUFF", "DEBUFF"]
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }
@@ -240,7 +229,6 @@
         "linkedEffectGroupId": "MAO_COMMITTEE_PS2_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_COMPLEX_EXPIRATION"],
     "metadata": {
       "tags": []
     }
@@ -269,7 +257,6 @@
         "linkedEffectGroupId": "MAO_COMMITTEE_PS2_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
     "metadata": {
       "tags": []
     }
@@ -301,7 +288,6 @@
         "linkedEffectGroupId": "MAO_COMMITTEE_PS2_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_COMPLEX_EXPIRATION", "CAP_FORMULA"],
     "metadata": {
       "tags": []
     }

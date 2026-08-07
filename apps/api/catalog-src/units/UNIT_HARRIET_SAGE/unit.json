@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_HARRIET_SAGE_AS1", "SKL_HARRIET_SAGE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_HARRIET_SAGE_PS1", "SKL_HARRIET_SAGE_PS2"],
   "extraSkillDefinitionId": "SKL_HARRIET_SAGE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],

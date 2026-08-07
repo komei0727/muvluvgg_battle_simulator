@@ -109,7 +109,6 @@ describe("production Catalog COOLDOWN_MANIPULATION (Issue #129)", () => {
       }
       expect(effectAction.payload.targetSkillDefinitionId).toBe(targetSkillId);
       expect(effectAction.payload.operation).toBe("RESET");
-      expect(effectAction.requiredCapabilities).toContain("CAP_COOLDOWN_MANIPULATION");
 
       const targetSkill = skillFrom(snapshot, targetSkillId);
       expect(targetSkill).toBeDefined();

@@ -66,7 +66,6 @@ describe("production Catalog APPLY_MARKER (EFF-004, R-EFF-10)", () => {
       if (effectAction.kind !== "APPLY_MARKER") {
         return;
       }
-      expect(effectAction.requiredCapabilities).toContain("CAP_MARKER");
 
       const source = actorFor(unitId, "B_1:unit:1");
       const target = actorFor(unitId, "B_1:unit:2");

@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_AS1", "SKL_ANIS_TROUBLEMAKER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_PS1", "SKL_ANIS_TROUBLEMAKER_PS2"],
   "extraSkillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],

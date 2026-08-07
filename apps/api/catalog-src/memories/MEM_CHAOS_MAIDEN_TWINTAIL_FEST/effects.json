@@ -5,12 +5,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 750 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 750
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_TWINTAIL_FEST_ALL_MAX_HP_UP",
@@ -18,11 +30,23 @@
     "payload": {
       "stat": "MAXIMUM_HP",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 300 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 300
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

@@ -68,7 +68,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": {
       "displayName": "お嬢に近づくな……！",
       "tags": []
@@ -169,7 +168,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": {
       "displayName": "スタンディクライン",
       "tags": []
@@ -241,7 +239,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": {
       "displayName": "シングル・プラス",
       "tags": []
@@ -276,11 +273,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_TRIGGER_CONTEXT",
-      "CAP_TARGET_STATE_EXTENDED_FIELD"
-    ],
     "metadata": {
       "displayName": "フィジカルガード",
       "tags": []
@@ -416,12 +408,6 @@
     "traits": {
       "priorityAttack": true
     },
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_PASSIVE_ACTIVATION_CONDITION"
-    ],
     "metadata": {
       "displayName": "スタート・プリエンプティブ",
       "tags": []

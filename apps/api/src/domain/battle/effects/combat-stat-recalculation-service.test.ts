@@ -69,7 +69,6 @@ function statModDefinition(
       stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -85,7 +84,6 @@ function hpCapacityDefinition(id: string, operation: "ADD" | "SET"): EffectActio
       formula: { kind: "CONSTANT", value: 0 },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -228,7 +226,6 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
         stack: { policy: "ADD", max: null },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const target = unit({ appliedEffects: [statMod(def.effectActionDefinitionId, true, 999)] });

@@ -59,7 +59,6 @@ function statModDefinition(id: string): EffectActionDefinition {
       stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -69,7 +68,6 @@ function statusDefinition(id: string): EffectActionDefinition {
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     kind: "APPLY_STATUS",
     payload: { status: "STUN", duration: { dispellable: true, linkedEffectGroupId: null } },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

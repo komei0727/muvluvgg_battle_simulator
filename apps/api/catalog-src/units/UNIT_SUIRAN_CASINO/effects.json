@@ -9,7 +9,6 @@
         "power": 1.2048
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -31,7 +30,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -55,7 +53,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
@@ -70,7 +67,6 @@
         "power": 1.56
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -82,7 +78,7 @@
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
         "sourceResult": "SUM_DAMAGE_DEALT",
-        "ratio": 1.0
+        "ratio": 1
       },
       "duration": {
         "dispellable": true,
@@ -94,7 +90,6 @@
         "linkedEffectGroupRole": "PARENT"
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": {
       "tags": []
     }
@@ -119,7 +114,6 @@
       },
       "polarity": "BUFF"
     },
-    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": {
       "tags": []
     }
@@ -142,7 +136,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -160,7 +153,6 @@
         "ratio": 0.424
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": {
       "tags": []
     }
@@ -180,7 +172,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -196,7 +187,6 @@
       },
       "hitCount": 3
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -212,7 +202,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": {
       "tags": []
     }
@@ -234,7 +223,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -260,7 +248,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -284,7 +271,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }

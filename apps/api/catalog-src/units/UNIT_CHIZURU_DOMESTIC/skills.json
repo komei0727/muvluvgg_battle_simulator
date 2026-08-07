@@ -65,7 +65,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "強襲掃討",
       "tags": []
@@ -136,11 +135,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "連単射",
       "tags": []
@@ -199,11 +193,6 @@
     "traits": {
       "priorityAttack": true
     },
-    "requiredCapabilities": [
-      "CAP_DAMAGE_LINK_STATE",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "チェーンマニューバ",
       "tags": []
@@ -275,11 +264,6 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DEATH_SURVIVAL",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TRIGGER_CONTEXT"
-    ],
     "metadata": {
       "displayName": "ハイ・リカバリー",
       "tags": []
@@ -387,12 +371,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MARKER",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "怒らせすぎ注意",
       "tags": []

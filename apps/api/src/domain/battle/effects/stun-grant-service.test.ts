@@ -68,7 +68,6 @@ function stunDefinition(): EffectActionDefinition {
   return {
     kind: "APPLY_STATUS",
     effectActionDefinitionId: STUN_ACTION_ID,
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { status: "STUN", duration: stunDuration(1) },
   };
@@ -232,7 +231,6 @@ describe("grantStunStatus with a dynamic duration on re-apply (R-EFF-12)", () =>
     return {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: STUN_ACTION_ID,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: { status: "STUN", duration: reapplyingStunDuration() },
     };

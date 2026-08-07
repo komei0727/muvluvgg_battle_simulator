@@ -2,34 +2,58 @@
   {
     "skillDefinitionId": "SKL_DOROTHEA_GRACE_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_REMOVE_DEBUFFS" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_REMOVE_DEBUFFS"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN"
+            }
           ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
             "field": "IS_ALIVE",
             "op": "EQ",
             "value": false
@@ -37,47 +61,71 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "SELF" },
-              "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_AP_UP" }]
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_AP_UP"
+                }
+              ]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_REMOVE_EFFECTS",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
-    "metadata": { "displayName": "ルミナグレイス", "tags": [] }
+    "metadata": {
+      "displayName": "ルミナグレイス",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_DOROTHEA_GRACE_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "BRANCH",
           "condition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_PRIMARY"
+            },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.7
@@ -85,38 +133,64 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_STUN" }]
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_STUN"
+                }
+              ]
             }
           ],
           "elseSteps": []
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
-    "metadata": { "displayName": "ソーヴィニヨン", "tags": [] }
+    "metadata": {
+      "displayName": "ソーヴィニヨン",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_DOROTHEA_GRACE_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS1_GUARD" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS1_GUARD"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "アイギスランバード", "tags": [] },
+    "metadata": {
+      "displayName": "アイギスランバード",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "UnitBeingAttacked",
@@ -129,7 +203,10 @@
   {
     "skillDefinitionId": "SKL_DOROTHEA_GRACE_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -139,7 +216,12 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+            "filters": [
+              {
+                "kind": "POSITION_ROW",
+                "row": "BACK"
+              }
+            ]
           }
         },
         {
@@ -149,8 +231,14 @@
             "side": "ALLY",
             "count": "ALL",
             "filters": [
-              { "kind": "POSITION_ROW", "row": "BACK" },
-              { "kind": "ATTRIBUTE", "attribute": "COMICAL" }
+              {
+                "kind": "POSITION_ROW",
+                "row": "BACK"
+              },
+              {
+                "kind": "ATTRIBUTE",
+                "attribute": "COMICAL"
+              }
             ]
           }
         }
@@ -158,23 +246,42 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BACK_ALLIES"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_ATK_UP" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_DEF_UP" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_DEF_UP"
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_COMICAL" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_EX_UP" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_BACK_COMICAL"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS2_EX_UP"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "グローリーコール", "tags": [] },
+    "metadata": {
+      "displayName": "グローリーコール",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnCompleting",
@@ -194,31 +301,52 @@
   {
     "skillDefinitionId": "SKL_DOROTHEA_GRACE_PS3",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL"
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ALLIES"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_ATK_UP" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_DEF_UP" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_EX_UP" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_DEF_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_PS3_EX_UP"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "displayName": "ブラッドオース", "tags": [] },
+    "metadata": {
+      "displayName": "ブラッドオース",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "UnitDefeated",

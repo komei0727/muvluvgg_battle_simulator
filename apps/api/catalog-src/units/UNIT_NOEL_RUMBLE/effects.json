@@ -9,7 +9,6 @@
         "power": 2.756
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -24,7 +23,6 @@
         "power": 0.39
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -55,7 +53,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -70,7 +67,6 @@
         "power": 1.6224
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -85,7 +81,6 @@
         "power": 2.12
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -111,7 +106,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -137,7 +131,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -152,7 +145,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -163,7 +155,6 @@
     "payload": {
       "categories": ["BUFF"]
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }
@@ -178,7 +169,6 @@
         "power": 2.4336
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }

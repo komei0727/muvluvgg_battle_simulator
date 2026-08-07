@@ -6,7 +6,7 @@ import { toBattleSimulationResponseBody } from "../../application/simulation/sim
 import { battleSimulationResponseDocSchema } from "../../presentation/http/schemas/simulation/simulation-schema.js";
 import {
   runProductionUnitBattle,
-  selectableProductionUnitIds,
+  allProductionUnitIds,
 } from "../../testing/scenario/run-production-battle.js";
 
 /**
@@ -25,7 +25,7 @@ import {
  * 全量だから（DETAILEDは`EffectStepSkipped`等を含まない）。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
-const SELECTABLE_UNIT_IDS = selectableProductionUnitIds(CATALOG_DIR);
+const PRODUCTION_UNIT_IDS = allProductionUnitIds(CATALOG_DIR);
 
 function describeErrors(validate: ValidateFunction): string {
   return JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2);
@@ -33,13 +33,13 @@ function describeErrors(validate: ValidateFunction): string {
 
 describe("published response conforms to the v1 doc schema across the production Catalog (REL-004)", () => {
   it("IT-REL-004-DOC-SCHEMA-001: every selectable production Unit's DIAGNOSTIC response satisfies battleSimulationResponseDocSchema, including the per-event-type details oneOf", () => {
-    expect(SELECTABLE_UNIT_IDS.length).toBeGreaterThan(0);
+    expect(PRODUCTION_UNIT_IDS.length).toBeGreaterThan(0);
     const validate = new Ajv({ strict: false }).compile(battleSimulationResponseDocSchema);
 
     const failures: string[] = [];
     const publishedEventTypes = new Set<string>();
 
-    for (const unitDefinitionId of SELECTABLE_UNIT_IDS) {
+    for (const unitDefinitionId of PRODUCTION_UNIT_IDS) {
       let body: ReturnType<typeof toBattleSimulationResponseBody>;
       try {
         body = toBattleSimulationResponseBody(

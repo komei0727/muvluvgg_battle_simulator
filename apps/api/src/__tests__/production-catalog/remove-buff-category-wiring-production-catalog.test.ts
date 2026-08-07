@@ -58,7 +58,6 @@ const BUFF_DEF_ID = createEffectActionDefinitionId("ACT_TEST_WIRING_BUFF");
 const buffDefinition: EffectActionDefinition = {
   kind: "APPLY_STAT_MOD",
   effectActionDefinitionId: BUFF_DEF_ID,
-  requiredCapabilities: [],
   metadata: { tags: [] },
   payload: {
     stat: "ATTACK",
@@ -196,7 +195,6 @@ describe("production Catalog SKL_SENKA_CHRISTMAS_PS2 wiring (M7-001C, Issue #244
     return {
       kind: "DAMAGE",
       effectActionDefinitionId: ATTACK_EFFECT_ID,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",

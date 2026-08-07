@@ -5,11 +5,23 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 100 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 100
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

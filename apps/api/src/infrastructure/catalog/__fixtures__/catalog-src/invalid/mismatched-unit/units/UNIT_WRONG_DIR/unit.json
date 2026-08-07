@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": [],
   "passiveSkillDefinitionIds": [],
   "extraSkillDefinitionId": "SKL_ACTUAL_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "displayName": "Mismatch Unit",
     "characterName": "Mismatch Character",

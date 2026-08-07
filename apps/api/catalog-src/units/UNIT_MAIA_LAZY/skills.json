@@ -83,7 +83,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "さて……準備はできたわ",
       "tags": []
@@ -172,13 +171,6 @@
       "count": 3
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_TARGET_EFFECT_QUERY",
-      "CAP_SHIELD",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "スナイプリフレクター",
       "tags": []
@@ -251,12 +243,6 @@
       "count": 3
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_CONTINUOUS_HEAL",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "アライヒーリング",
       "tags": []
@@ -305,7 +291,6 @@
       "count": 3
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "パワーアプライ",
       "tags": []
@@ -351,7 +336,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "シングル・スナイプ",
       "tags": []

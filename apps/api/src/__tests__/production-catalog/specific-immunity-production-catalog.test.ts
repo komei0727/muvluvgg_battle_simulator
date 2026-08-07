@@ -98,7 +98,6 @@ function loadSnapshot(): BattleCatalogSnapshot {
   expect(effectActionFrom(snapshot, AOI_STUN_IMMUNITY_ID)).toMatchObject({
     kind: "EFFECT_IMMUNITY",
     payload: { categories: ["STATUS"], statusKinds: ["STUN"], maxBlocks: null },
-    requiredCapabilities: ["CAP_SPECIFIC_IMMUNITY"],
   });
   expect(effectActionFrom(snapshot, HIIRO_STUN_IMMUNITY_ID)).toMatchObject({
     kind: "EFFECT_IMMUNITY",
@@ -107,7 +106,6 @@ function loadSnapshot(): BattleCatalogSnapshot {
       statusKinds: ["STUN"],
       duration: { consumption: { kind: "INCOMING_HIT", maxCount: 3 } },
     },
-    requiredCapabilities: ["CAP_SPECIFIC_IMMUNITY"],
   });
   expect(effectActionFrom(snapshot, LILY_STUN_ID)).toMatchObject({
     kind: "APPLY_STATUS",

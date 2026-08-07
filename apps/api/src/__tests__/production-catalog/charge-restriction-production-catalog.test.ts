@@ -170,7 +170,6 @@ function allyGrantSkill(effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: GRANT_SKILL_ID, tags: [] },
   };
 }
@@ -217,7 +216,6 @@ function attackerSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: ATTACK_SKILL_ID, tags: [] },
   };
 }
@@ -226,7 +224,6 @@ function twoHitAttack(): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACK_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

@@ -97,7 +97,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // `DAMAGE.damageModifiers`（`target: TARGET`）の両経路を実`resolveSkillUse`で
       // 通した所持数0・比例・`max`頭打ち・別markerId非寄与の実測である。
       "UT-R-NUM-04-032",
-      "UT-R-NUM-04-033",
       "IT-CAP-MARKER-STACK-PROD-001",
       "IT-CAP-MARKER-STACK-PROD-002",
       "IT-CAP-MARKER-STACK-PROD-003",
@@ -150,28 +149,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-FRM-05-005",
     ],
     kinds: ["BOUNDARY", "NEGATIVE"],
-  },
-  {
-    ruleId: "R-FRM-06",
-    testCaseIds: [
-      "UT-PREFLIGHT-001",
-      "UT-PREFLIGHT-002",
-      "UT-PREFLIGHT-003",
-      "UT-PREFLIGHT-004",
-      "UT-PREFLIGHT-005",
-      "UT-PREFLIGHT-006",
-      "UT-USECASE-003",
-      "UT-USECASE-004",
-      "SCN-BTL-022",
-      // 実`catalog/`に対する、Catalog一覧`selectable`とpreflight判定の一致証跡。
-      // 上のUT/SCNは合成Catalogでpreflight自身の判定を見るのに対し、こちらは
-      // 「一覧が選ばせた編成をpreflightが受理する」という編成入口全体の契約を見る。
-      "IT-REL-001-SELECTABILITY-PREFLIGHT-001",
-      "IT-REL-001-SELECTABILITY-PREFLIGHT-002",
-      "IT-REL-001-SELECTABILITY-PREFLIGHT-003",
-      "IT-REL-001-SELECTABILITY-PREFLIGHT-004",
-    ],
-    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
 
   // POS: 座標
@@ -824,10 +801,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `UT-R-SKL-06-052`〜`055`。`055`はtargetCondition scope、TARGET_STATEとのAND
   // 併用）。EVENT_PAYLOADを含むstepConditionはLAST_RESULT/TARGET_SET_COUNTと同じ
   // 理由でplanning時点では確定せずDeferredStepPlanへ回す（`isEagerActionStep`）。
-  // 対応するCapability要求は`UT-CAT-IDX-078`/`079`で検証した。トリガーイベントを
-  // 持たないAS/EX active skillでの誤用（preflightを通過し
-  // 実行時に初めて例外になる）は`EVENT_PAYLOAD_REQUIRES_PS_SKILL`として
-  // Catalog構築時に拒否し、`UT-CAT-IDX-080`で検証した。加えて、
+  // トリガーイベントを持たないAS/EX active skillでの誤用（実行時に初めて例外に
+  // なる）は`EVENT_PAYLOAD_REQUIRES_PS_SKILL`としてCatalog構築時に拒否し、
+  // `UT-CAT-IDX-080`で検証した。加えて、
   // `UT-R-SKL-06-055`は`evaluateEffectStepCondition`へ`triggerEventPayload`を
   // 直接渡しており、`buildEffectStepPerTargetFilter`の実配線を検証できて
   // いなかったため、`PassiveActivationRuntime.onFactEvent`から実`DamageApplied`
@@ -923,7 +899,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-053",
       "UT-R-SKL-06-054",
       "UT-R-SKL-06-055",
-      "UT-CAT-IDX-078",
       "UT-CAT-IDX-079",
       "UT-CAT-IDX-080",
       "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001",
@@ -1380,7 +1355,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ruleId: "R-ACTN-01",
     testCaseIds: [
       // #1 Capability preflight: EffectAction単位のrequiredCapabilitiesがpreflightで拒否対象になることを検証する。
-      "UT-PREFLIGHT-008",
       // #2 対象戦闘不能skip(明示指定なし): 全kindが対象戦闘不能を理由に適用をスキップする。
       "UT-R-ACTN-01-001",
       "UT-R-ACTN-01-002",
@@ -1442,7 +1416,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACTN-02-011",
       // 第4項 `DISTRIBUTE`の分配規約（総量の等分・端数切り捨て・参照ごとに独立）。
       "UT-R-ACTN-02-012",
-      "UT-R-ACTN-02-013",
       "UT-R-ACTN-02-014",
       "UT-R-ACTN-02-015",
       "UT-R-ACTN-02-016",
@@ -1491,7 +1464,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACTN-03-016",
       // Catalogロード時点の`CAP_RESOURCE_CAPACITY_MOD`宣言必須。
       "UT-R-ACTN-03-017",
-      "UT-R-ACTN-03-018",
       // 実production定義（`ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP`）の実ライフサイクル。
       "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001",
       "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-002",
@@ -1881,7 +1853,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: [
       "UT-R-HEAL-04-001",
       "UT-R-HEAL-04-002",
-      "UT-R-HEAL-04-003",
       "UT-R-HEAL-04-004",
       "UT-R-HEAL-04-005",
       "UT-R-HEAL-04-006",
@@ -2092,7 +2063,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-LNK-02-013",
       "UT-R-LNK-02-030",
       "UT-R-LNK-02-031",
-      "UT-R-LNK-02-032",
       "UT-R-LNK-02-033",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
@@ -2354,9 +2324,6 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 解除を、`IT-REMOVE-EFFECTS-PROD-008/009`がYui EX（敵単体のシールド全解除→防御力
   // デバフ→攻撃の順序）とOlga PS1（自身のシールド・サブユニット全解除→同じstepでの
   // 3体付与）をproduction Catalog定義に対して検証する。
-  // `UT-PREFLIGHT-012`は依存Capabilityが`PLANNED`の場合に選択時
-  // `UNSUPPORTED_RULE`となる契約（`catalog-integrity.ts`のCapability宣言必須と対）を
-  // 合成Catalogに対して引き続き固定する。
   // M7-001C（Issue #244）: 残りのREMOVE_BUFF_CATEGORY対象（Noel PS2・Shouka EX/AS3・
   // Senka PS2）をcategories:["BUFF"]へ変換した。`IT-REMOVE-EFFECTS-PROD-004/005`が
   // `removeEffects`実行器レベルでcategories/maxRemovalsを検証し、`IT-REMOVE-EFFECTS-
@@ -2859,13 +2826,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-RCU-014",
       "UT-CAT-RCU-015",
       "UT-CAT-RCU-016",
-      "UT-CAT-IDX-034",
       "UT-CAT-IDX-036",
       "UT-CAT-IDX-037",
       "UT-CAT-IDX-038",
-      "UT-CAT-IDX-039",
       "UT-CAT-IDX-040",
-      "UT-CAT-IDX-041",
       "UT-STATE-REDUCER-021",
       "UT-STATE-REDUCER-022",
       "UT-STATE-REDUCER-023",

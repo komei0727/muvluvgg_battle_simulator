@@ -7,7 +7,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -17,16 +19,26 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [{ "kind": "ATTRIBUTE", "attribute": "CUTE" }]
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "CUTE"
+                }
+              ]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_CUTE_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_CUTE_ALLIES"
+            },
             "actions": [
-              { "effectActionDefinitionId": "ACT_MEM_THREE_MAIDS_HOSPITALITY_CUTE_DMG_UP" }
+              {
+                "effectActionDefinitionId": "ACT_MEM_THREE_MAIDS_HOSPITALITY_CUTE_DMG_UP"
+              }
             ]
           }
         ]
@@ -38,7 +50,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -48,26 +62,34 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [{ "kind": "ATTRIBUTE", "attribute": "SMART" }]
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "SMART"
+                }
+              ]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_SMART_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_SMART_ALLIES"
+            },
             "actions": [
-              { "effectActionDefinitionId": "ACT_MEM_THREE_MAIDS_HOSPITALITY_SMART_ATK_UP" }
+              {
+                "effectActionDefinitionId": "ACT_MEM_THREE_MAIDS_HOSPITALITY_SMART_ATK_UP"
+              }
             ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": [
-    "CAP_DAMAGE_MOD",
-    "CAP_MEMORY_TRIGGERED_EFFECT",
-    "CAP_TARGET_FILTER_ORDER"
-  ],
-  "metadata": { "displayName": "メイド３人のおもてなし？", "tags": [] }
+  "metadata": {
+    "displayName": "メイド３人のおもてなし？",
+    "tags": []
+  }
 }

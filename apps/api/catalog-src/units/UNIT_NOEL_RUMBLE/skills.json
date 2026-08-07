@@ -96,13 +96,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_CONTINUOUS_DAMAGE",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "バイト・ザ・ビクトリー！",
       "tags": []
@@ -176,11 +169,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_EFFECT_QUERY",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "クラッシュラッシュ",
       "tags": []
@@ -226,7 +214,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "ホップホップ",
       "tags": []
@@ -264,7 +251,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "ファイティングブースト",
       "tags": []
@@ -316,7 +302,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_HEAL"],
     "metadata": {
       "displayName": "ターンリスタート",
       "tags": []

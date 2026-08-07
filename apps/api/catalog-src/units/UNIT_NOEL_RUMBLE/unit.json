@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_NOEL_RUMBLE_AS1", "SKL_NOEL_RUMBLE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_NOEL_RUMBLE_PS1", "SKL_NOEL_RUMBLE_PS2"],
   "extraSkillDefinitionId": "SKL_NOEL_RUMBLE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_PRE_KURASU_A"],
     "tags": [],

@@ -96,7 +96,6 @@ function grantStunSkill(skillId: string, effectActionId: string): SkillDefinitio
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: skillId, tags: [] },
   };
 }

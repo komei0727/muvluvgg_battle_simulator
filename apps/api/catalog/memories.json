@@ -63,11 +63,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "絶対命令行使権！", "tags": [] }
   },
   {
@@ -136,12 +131,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_MEMORY_GRANTED_MARKER",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "お傍にいるのはいつでもピコですよ♪", "tags": [] }
   },
   {
@@ -205,11 +194,6 @@
           ]
         }
       }
-    ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "忙しい時のまどろみ", "tags": [] }
   },
@@ -277,11 +261,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "腐れ縁で犬猿の仲？", "tags": [] }
   },
   {
@@ -341,7 +320,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "Chaos Maiden", "tags": [] }
   },
   {
@@ -405,7 +383,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カオスメイデンツインテ祭り♡", "tags": [] }
   },
   {
@@ -467,7 +444,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "Colorful Bouquet", "tags": [] }
   },
   {
@@ -529,7 +505,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "気になる装備", "tags": [] }
   },
   {
@@ -598,7 +573,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "不満と不安", "tags": [] }
   },
   {
@@ -669,11 +643,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "駆け落ちフルスロットル！", "tags": [] }
   },
   {
@@ -730,7 +699,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
     "metadata": { "displayName": "少女たちとの邂逅", "tags": [] }
   },
   {
@@ -806,7 +774,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "１日ユーロ・タワー体験", "tags": [] }
   },
   {
@@ -866,7 +833,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "風紀委員会", "tags": [] }
   },
   {
@@ -931,7 +897,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ハードな準備運動……？", "tags": [] }
   },
   {
@@ -991,7 +956,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "心の色", "tags": [] }
   },
   {
@@ -1064,7 +1028,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "お忍びシスターの冒険", "tags": [] }
   },
   {
@@ -1131,7 +1094,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "桃園家のお正月", "tags": [] }
   },
   {
@@ -1202,11 +1164,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "エッ◯な罰ゲームやってみた", "tags": [] }
   },
   {
@@ -1261,7 +1218,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MEMORY_TRIGGERED_EFFECT"],
     "metadata": { "displayName": "新年のご挨拶", "tags": [] }
   },
   {
@@ -1320,11 +1276,6 @@
           ]
         }
       }
-    ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "お嬢様直伝マナー講座", "tags": [] }
   },
@@ -1392,7 +1343,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "おパンツ咥えたドラネコ", "tags": [] }
   },
   {
@@ -1454,7 +1404,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "Pyxis Ma Soeur", "tags": [] }
   },
   {
@@ -1521,11 +1470,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "家族のかたちを象りながら", "tags": [] }
   },
   {
@@ -1585,7 +1529,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "Sirius Sugar", "tags": [] }
   },
   {
@@ -1655,11 +1598,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "安心する香り", "tags": [] }
   },
   {
@@ -1714,7 +1652,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
     "metadata": { "displayName": "STRANGERS", "tags": [] }
   },
   {
@@ -1780,11 +1717,6 @@
           ]
         }
       }
-    ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "密着！？テントの中の珍騒動", "tags": [] }
   },
@@ -1854,11 +1786,6 @@
         }
       }
     ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "メイド３人のおもてなし？", "tags": [] }
   },
   {
@@ -1920,7 +1847,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "臆病トナカイの聖夜", "tags": [] }
   },
   {
@@ -1982,7 +1908,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "Treble Quintet", "tags": [] }
   },
   {
@@ -2044,7 +1969,6 @@
         }
       }
     ],
-    "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "Trinity Jewel", "tags": [] }
   },
   {
@@ -2112,11 +2036,6 @@
           ]
         }
       }
-    ],
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MEMORY_TRIGGERED_EFFECT",
-      "CAP_TARGET_FILTER_ORDER"
     ],
     "metadata": { "displayName": "これからも共に歩むあなたへ", "tags": [] }
   }

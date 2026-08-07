@@ -60,7 +60,6 @@ function statModDefinition(id: string): EffectActionDefinition {
       stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

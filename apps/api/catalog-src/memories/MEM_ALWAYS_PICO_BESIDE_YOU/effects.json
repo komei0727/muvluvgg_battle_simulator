@@ -5,26 +5,46 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 3000 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 3000
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "EFFECT_TARGET"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS",
-      "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "stack": {
+        "policy": "ADD",
+        "max": null
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_HP_UP",
@@ -32,12 +52,24 @@
     "payload": {
       "stat": "MAXIMUM_HP",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 300 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 300
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_DEF_UP",
@@ -45,11 +77,23 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 300 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 300
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

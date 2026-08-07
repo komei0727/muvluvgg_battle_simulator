@@ -56,7 +56,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ぺたぺた雪だるま",
       "tags": []
@@ -116,15 +115,23 @@
               "kind": "BRANCH",
               "condition": {
                 "kind": "TARGET_HAS_MARKER",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_PRIMARY"
+                },
                 "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
               },
               "thenSteps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                    {
+                      "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
+                    }
                   ]
                 }
               ],
@@ -177,15 +184,23 @@
               "kind": "BRANCH",
               "condition": {
                 "kind": "TARGET_HAS_MARKER",
-                "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                "target": {
+                  "kind": "BINDING",
+                  "targetBindingId": "TGT_PRIMARY"
+                },
                 "markerId": "MARKER_NADYA_SUCCESSOR_MARK"
               },
               "thenSteps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                    {
+                      "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF"
+                    }
                   ]
                 }
               ],
@@ -223,13 +238,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "システマ・ヴラシェーニヤΩ",
       "tags": []
@@ -267,7 +275,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "ヴォルコワの血脈Ω",
       "tags": []
@@ -281,10 +288,27 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "STATUS" },
-            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
-            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
-            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "categories",
+              "op": "CONTAINS",
+              "value": "STATUS"
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "BATTLE_START",
+              "negate": true
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "TURN_START",
+              "negate": true
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "TURN_END",
+              "negate": true
+            }
           ]
         }
       }
@@ -333,7 +357,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "隙ありです……！",
       "tags": []
@@ -347,10 +370,27 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "statusKind", "op": "EQ", "value": "STUN" },
-            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
-            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
-            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "statusKind",
+              "op": "EQ",
+              "value": "STUN"
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "BATTLE_START",
+              "negate": true
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "TURN_START",
+              "negate": true
+            },
+            {
+              "kind": "RESOLUTION_PHASE",
+              "phase": "TURN_END",
+              "negate": true
+            }
           ]
         }
       }
@@ -409,7 +449,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "お母様、見ててください……！",
       "tags": []

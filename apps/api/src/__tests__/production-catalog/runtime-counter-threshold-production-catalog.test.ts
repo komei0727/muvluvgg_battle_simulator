@@ -130,7 +130,6 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       expect(unitDefinition).toBeDefined();
       const skill = skillFrom(snapshot, skillId);
       expect(skill).toBeDefined();
-      expect(skill.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
       const trigger = skill.triggers[0];
       expect(trigger?.eventType).toBe("RuntimeCounterChanged");
 
@@ -215,7 +214,6 @@ describe("production Catalog CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER gating on value
       const skill = skillFrom(snapshot, skillId);
       expect(unitDefinition).toBeDefined();
       expect(skill).toBeDefined();
-      expect(skill.requiredCapabilities).toContain("CAP_SKILL_RUNTIME_COUNTER");
       expect(skill.counterUpdates).toHaveLength(1);
       expect(skill.counterUpdates[0]).toMatchObject({
         kind: "INCREMENT",

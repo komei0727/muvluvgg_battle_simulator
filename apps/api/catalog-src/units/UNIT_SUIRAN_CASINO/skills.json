@@ -49,7 +49,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "displayName": "スローイング・カード",
       "tags": []
@@ -173,14 +172,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_LINK_STATE",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_SHIELD",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "ショーダウン",
       "tags": []
@@ -264,12 +255,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_FORMULA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "レイズ",
       "tags": []
@@ -353,12 +338,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "スチール",
       "tags": []
@@ -429,13 +408,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_SHIELD",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TRIGGER_CONTEXT"
-    ],
     "metadata": {
       "displayName": "ブラフ",
       "tags": []

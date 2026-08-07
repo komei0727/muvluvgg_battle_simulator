@@ -1,24 +1,10 @@
-import type { CapabilityDefinition } from "../capability/capability-definition.js";
-import type {
-  CapabilityId,
-  EffectActionDefinitionId,
-  SkillDefinitionId,
-} from "../definitions/catalog-ids.js";
+import type { EffectActionDefinitionId, SkillDefinitionId } from "../definitions/catalog-ids.js";
 import type { ActionKind } from "../definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
-import {
-  checkRequiredCapabilities,
-  requireRuntimeCapability,
-} from "./capability-declaration-integrity.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import { collectConditionEffectActionReferences } from "./condition-inspection.js";
-import {
-  durationOf,
-  formulasOf,
-  referencesMarkerCountScale,
-  referencesSumDamageResult,
-} from "./effect-action-inspection.js";
+import { durationOf } from "./effect-action-inspection.js";
 import { validateConditionEffectActionReferences } from "./effect-sequence-integrity.js";
 
 /**
@@ -26,10 +12,8 @@ import { validateConditionEffectActionReferences } from "./effect-sequence-integ
  *
  * - 参照の実在（`effectActionDefinitionIds`／`targetSkillDefinitionId`等）。
  * - 「schemaは受理するが実装が対応していない形」の拒否。どれも`EffectApplied`と
- *   しては成功するのに効果が一度も作用しないsilent partial implementationになり、
- *   Capability（`IMPLEMENTED`）だけでは隔離できないため、Catalogロード時点で拒否する。
- *   併せて対応Capabilityの宣言も必須にする（`checkRequiredCapabilities`は列挙済み
- *   Capabilityの存在有無しか見ず、宣言漏れは素通りしてしまうため）。
+ *   しては成功するのに効果が一度も作用しないsilent partial implementationになるため、
+ *   Catalogロード時点で拒否する。
  *
  * `validateEffectAction`はkind別の独立した節が並ぶ長い関数のままである。次の分割は
  * 「kind別ハンドラ表（`Record<kind, validator[]>`）へ展開する」形が候補だが、
@@ -40,7 +24,6 @@ export function validateEffectAction(
   effectAction: EffectActionDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
-  capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
   // `ConditionDefinition`はSkill/Memory側だけでなく`DurationDefinition`にも2か所ある
@@ -100,65 +83,6 @@ export function validateEffectAction(
       }
     }
   }
-  // M7-001（Issue #181）: REMOVE_EFFECTSのSHIELD/SUBUNITカテゴリは解除対象の実行時
-  // 状態を持つCapability（`CAP_SHIELD`=DMG-004、`CAP_SUBUNIT`=DMG-005）へ依存する。
-  // Catalog自体は正しく宣言されていればロードでき（依存先Capabilityが`PLANNED`へ
-  // 差し戻された場合でも）、実際の拒否は選択時の`SimulationPreflightValidator`
-  // （`findUnimplementedCapabilities`）が`UNSUPPORTED_RULE`として行う — Catalog全体の
-  // ロード失敗にはしない。
-  if (effectAction.kind === "REMOVE_EFFECTS") {
-    // `14_Catalog定義スキーマ.md`「REMOVE_EFFECTSを使うEffectActionDefinitionは
-    // requiredCapabilitiesにCAP_REMOVE_EFFECTSを含めること」: categoriesの内容に
-    // よらず、REMOVE_EFFECTS自体の宣言を無条件で必須にする。SHIELD/SUBUNIT固有の
-    // CAP_SHIELD/CAP_SUBUNIT宣言はこれとは独立な追加要件（両方とも要求されうる）。
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_REMOVE_EFFECTS")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message: 'REMOVE_EFFECTS must declare "CAP_REMOVE_EFFECTS" in requiredCapabilities',
-      });
-    }
-    if (
-      effectAction.payload.categories.includes("SHIELD") &&
-      !effectAction.requiredCapabilities.some((id) => id === "CAP_SHIELD")
-    ) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message:
-          'REMOVE_EFFECTS with the "SHIELD" category must declare "CAP_SHIELD" in requiredCapabilities',
-      });
-    }
-    if (
-      effectAction.payload.categories.includes("SUBUNIT") &&
-      !effectAction.requiredCapabilities.some((id) => id === "CAP_SUBUNIT")
-    ) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message:
-          'REMOVE_EFFECTS with the "SUBUNIT" category must declare "CAP_SUBUNIT" in requiredCapabilities',
-      });
-    }
-  }
-  // M7-001B（Issue #243、EFFECT_IMMUNITY_STATUS_GRANULARITY）: `statusKinds`は
-  // `CAP_SPECIFIC_IMMUNITY`（個別状態異常無効）そのものの機能なので、使用時は
-  // `CAP_REMOVE_EFFECTS`と同じ「宣言漏れ自体を拒否する」パターンで宣言を必須に
-  // する。`statusKinds`を使わない（STATUSカテゴリ全体を対象にする）既存の
-  // `EFFECT_IMMUNITY`はこの新しいCapabilityを要求しない。
-  if (effectAction.kind === "EFFECT_IMMUNITY") {
-    if (
-      effectAction.payload.statusKinds !== undefined &&
-      !effectAction.requiredCapabilities.some((id) => id === "CAP_SPECIFIC_IMMUNITY")
-    ) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message:
-          'EFFECT_IMMUNITY with "statusKinds" must declare "CAP_SPECIFIC_IMMUNITY" in requiredCapabilities',
-      });
-    }
-  }
   // Issue #129: COOLDOWN_MANIPULATIONの対象スキル存在チェック。所有者一致は
   // `checkCooldownManipulationOwnership`（Unit視点でのみ判定可能）が担う。
   if (effectAction.kind === "COOLDOWN_MANIPULATION") {
@@ -167,122 +91,6 @@ export function validateEffectAction(
         targetId: effectAction.effectActionDefinitionId,
         rule: "DANGLING_REFERENCE",
         message: `COOLDOWN_MANIPULATION payload.targetSkillDefinitionId references undefined SkillDefinition "${effectAction.payload.targetSkillDefinitionId}"`,
-      });
-    }
-    // `14_Catalog定義スキーマ.md`は`CAP_COOLDOWN_MANIPULATION`をrequiredCapabilitiesへ
-    // 含めることを必須としているが、`checkRequiredCapabilities`は列挙済みCapabilityの
-    // 存在有無しか検証しないため、指定漏れ自体は別途検証する。
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_COOLDOWN_MANIPULATION")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message: `COOLDOWN_MANIPULATION must declare "CAP_COOLDOWN_MANIPULATION" in requiredCapabilities`,
-      });
-    }
-  }
-  // EFF-001はAppliedEffectレジストリ・EffectApplied・StateDeltaだけを実装し、
-  // CombatStat再計算（R-EFF-05/R-STA-02〜04、EFF-002のスコープ）は行わない。
-  // `APPLY_STAT_MOD`をこの状態でresolverへ到達させると、効いていない補正を
-  // `EffectActionCompleted.resultKind: "APPLIED"`として成功扱いにしてしまう。
-  // production Catalogの全行へ`CAP_STAT_MOD`を後付けしただけでは、宣言漏れの
-  // 新規/カスタムCatalogがこの検証をすり抜けてしまうため、
-  // `COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を
-  // 拒否する」検証をkindレベルで強制する。
-  if (effectAction.kind === "APPLY_STAT_MOD") {
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_STAT_MOD")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message: `APPLY_STAT_MOD must declare "CAP_STAT_MOD" in requiredCapabilities`,
-      });
-    }
-  }
-  // `CAP_RESOURCE_MUTATION`（ADD/SET/SET_TO_MAX）のIMPLEMENTED状態が、当時未実装
-  // だった`operation: DISTRIBUTE`まで安全であるかのように誤読されないよう、
-  // DISTRIBUTE使用箇所には専用の`CAP_RESOURCE_DISTRIBUTE`を必須宣言させる。
-  // M7-017（Issue #271）で`CAP_RESOURCE_DISTRIBUTE`はIMPLEMENTEDになったが、宣言
-  // そのものは`COOLDOWN_MANIPULATION`/`APPLY_STAT_MOD`（同じくIMPLEMENTED）と同じ
-  // 「宣言漏れ自体を拒否する」パターンで引き続き強制する — 分配セマンティクスを
-  // 使う定義がCatalog上で常に自己申告され、Capability台帳から追跡できる状態を保つ。
-  if (effectAction.kind === "MODIFY_RESOURCE" && effectAction.payload.operation === "DISTRIBUTE") {
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_RESOURCE_DISTRIBUTE")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message:
-          'MODIFY_RESOURCE with operation "DISTRIBUTE" must declare "CAP_RESOURCE_DISTRIBUTE" in requiredCapabilities',
-      });
-    }
-  }
-  // G-09（M7-002A／Issue #255）: `MODIFY_RESOURCE_CAPACITY`は`MODIFY_RESOURCE`
-  // （現在値の一回限りの加減算、`CAP_RESOURCE_MUTATION`）とは別に上限そのものを
-  // 期間付きで変える。`APPLY_STAT_MOD`/`CAP_STAT_MOD`と同じ「宣言漏れ自体を
-  // 拒否する」パターンで、この意味を使う定義がCatalog上で常に自己申告され
-  // Capability台帳から追跡できる状態を保つ。
-  if (effectAction.kind === "MODIFY_RESOURCE_CAPACITY") {
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_RESOURCE_CAPACITY_MOD")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message: `MODIFY_RESOURCE_CAPACITY must declare "CAP_RESOURCE_CAPACITY_MOD" in requiredCapabilities`,
-      });
-    }
-  }
-  // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003／Issue #196）: 防御貫通を宣言する
-  // 定義は`CAP_PARTIAL_PIERCING`を自己申告する。`DAMAGE`の静的な
-  // `payload.piercing`（いずれかの率が非0）と、一時付与の`APPLY_PIERCING_MOD`
-  // （factoryが全率0を拒否済み）の両方が対象で、`MODIFY_RESOURCE_CAPACITY`/
-  // `CAP_RESOURCE_CAPACITY_MOD`と同じ「宣言漏れ自体を拒否する」パターンである。
-  const declaresPiercing =
-    effectAction.kind === "APPLY_PIERCING_MOD" ||
-    (effectAction.kind === "DAMAGE" &&
-      Object.values(effectAction.payload.piercing).some((rate) => rate !== 0));
-  if (
-    declaresPiercing &&
-    !effectAction.requiredCapabilities.some((id) => id === "CAP_PARTIAL_PIERCING")
-  ) {
-    violations.push({
-      targetId: effectAction.effectActionDefinitionId,
-      rule: "MISSING_REQUIRED_CAPABILITY",
-      message: `${effectAction.kind} that ignores defense/shield/damage-reduction must declare "CAP_PARTIAL_PIERCING" in requiredCapabilities`,
-    });
-  }
-  // RES-003A（Issue #257、G-10）: `SUM_DAMAGE_DEALT`/`SUM_DAMAGE_RECEIVED`
-  // （EffectSequence実行中の累計）は`formula-evaluator.ts`の`DamageResultRegistry`へ
-  // `SkillUseId`（=1回のEffectSequence解決）単位で配線済みで、
-  // `CAP_SUM_DAMAGE_RESULT`は`IMPLEMENTED`である。宣言そのものは
-  // `COOLDOWN_MANIPULATION`/`CAP_COOLDOWN_MANIPULATION`と同じ「宣言漏れ自体を
-  // 拒否する」パターンで必須にする — 宣言はCapability→定義の追跡可能性そのもので
-  // あり、将来`SUM_*`の対応範囲が狭まった場合に`SimulationPreflightValidator`が
-  // 該当定義を隔離する足場にもなる。なお`verification.productionDefinitionIds`は
-  // 他のCapabilityと同じく代表証跡であり（例: `CAP_CONTINUOUS_HEAL`はproduction
-  // 13件中1件のみ）、この検証が証跡一覧との一致を保証するわけではない。
-  if (formulasOf(effectAction).some(referencesSumDamageResult)) {
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_SUM_DAMAGE_RESULT")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message:
-          'a FormulaDefinition referencing "SUM_DAMAGE_DEALT"/"SUM_DAMAGE_RECEIVED" must declare "CAP_SUM_DAMAGE_RESULT" in requiredCapabilities',
-      });
-    }
-  }
-  // M7-015（Issue #269、R-NUM-04「`MARKER_COUNT_SCALE`は評価時点の
-  // `MarkerState.stackCount`を参照する」）: `MARKER_COUNT_SCALE`はMarker本体
-  // （`CAP_MARKER`）とは別のCapability `CAP_MARKER_STACK_FORMULA`が担当する
-  // — Markerを付与する定義とMarker所持数を読む定義は別物で、後者だけを持つ
-  // 定義（`ACT_FEE_BATH_AS2_DAMAGE`のように付与は別EffectActionが行う）も
-  // 実在する。`CAP_SUM_DAMAGE_RESULT`と同じ「宣言漏れ自体を拒否する」
-  // パターンで宣言を必須にし、Capability→定義の追跡可能性を保つ。宣言があれば
-  // 実際の可否判定は選択時の`SimulationPreflightValidator`が行い、Catalogロード
-  // 自体は失敗させない。
-  if (formulasOf(effectAction).some(referencesMarkerCountScale)) {
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_MARKER_STACK_FORMULA")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message:
-          'a FormulaDefinition referencing "MARKER_COUNT_SCALE" must declare "CAP_MARKER_STACK_FORMULA" in requiredCapabilities',
       });
     }
   }
@@ -330,13 +138,6 @@ export function validateEffectAction(
         targetId: effectAction.effectActionDefinitionId,
         rule: "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET",
         message: `APPLY_HEALING_LINK only implements transferTo {kind: "SELF"} (R-HEAL-04, M7-005-HEAL-LINK), received {kind: "${effectAction.payload.transferTo.kind}"}`,
-      });
-    }
-    if (!effectAction.requiredCapabilities.some((id) => id === "CAP_HEALING_LINK")) {
-      violations.push({
-        targetId: effectAction.effectActionDefinitionId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message: 'APPLY_HEALING_LINK must declare "CAP_HEALING_LINK" in requiredCapabilities',
       });
     }
   }
@@ -390,14 +191,6 @@ export function validateEffectAction(
           "APPLY_MARKER.duration.counterUpdates is not yet supported: Marker RuntimeCounter (R-EFF-11 AppliedEffect scope) requires Marker expiration, which is not implemented",
       });
     }
-  } else if (duration !== undefined && (duration.counterUpdates ?? []).length > 0) {
-    requireRuntimeCapability(
-      effectAction.effectActionDefinitionId,
-      effectAction.requiredCapabilities,
-      "CAP_EFFECT_RUNTIME_COUNTER",
-      "EffectActionDefinition duration.counterUpdates",
-      violations,
-    );
   }
   // R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: 付与者の
   // 戦闘不能による解除は`marker-source-defeat-service.ts`が`MarkerState.sourceUnitId`
@@ -438,12 +231,6 @@ export function validateEffectAction(
       });
     }
   }
-  checkRequiredCapabilities(
-    effectAction.requiredCapabilities,
-    effectAction.effectActionDefinitionId,
-    capabilities,
-    violations,
-  );
 }
 
 /**
@@ -470,15 +257,6 @@ function collectDefensiveInterventionViolations(
   violations: CatalogIntegrityViolation[],
 ): void {
   const targetId = effectAction.effectActionDefinitionId;
-  const requireCapability = (capabilityId: string): void => {
-    if (!effectAction.requiredCapabilities.some((id) => id === capabilityId)) {
-      violations.push({
-        targetId,
-        rule: "MISSING_REQUIRED_CAPABILITY",
-        message: `${effectAction.kind} must declare "${capabilityId}" in requiredCapabilities`,
-      });
-    }
-  };
   const unsupported = (message: string): void => {
     violations.push({ targetId, rule: "UNSUPPORTED_DEFENSIVE_INTERVENTION", message });
   };
@@ -492,7 +270,6 @@ function collectDefensiveInterventionViolations(
 
   switch (effectAction.kind) {
     case "APPLY_TARGET_REDIRECT": {
-      requireCapability("CAP_TARGET_REDIRECT");
       if (effectAction.payload.redirectTo.kind !== "SELF") {
         unsupported(
           `APPLY_TARGET_REDIRECT only implements redirectTo {kind: "SELF"} (R-INT-01, DMG-006), received {kind: "${effectAction.payload.redirectTo.kind}"}`,
@@ -502,7 +279,6 @@ function collectDefensiveInterventionViolations(
       return;
     }
     case "APPLY_COVER": {
-      requireCapability("CAP_COVER_DAMAGE");
       requireDamageOnlyAppliesTo(effectAction.payload.appliesTo.actionKinds);
       if (effectAction.payload.coverer.kind !== "SELF") {
         unsupported(
@@ -517,7 +293,6 @@ function collectDefensiveInterventionViolations(
       return;
     }
     case "APPLY_REFLECT": {
-      requireCapability("CAP_REFLECT_DAMAGE");
       if (effectAction.payload.reflectTo.kind !== "TRIGGER_SOURCE") {
         unsupported(
           `APPLY_REFLECT only implements reflectTo {kind: "TRIGGER_SOURCE"} (R-INT-03, DMG-006), received {kind: "${effectAction.payload.reflectTo.kind}"}`,
@@ -538,7 +313,6 @@ function collectDefensiveInterventionViolations(
       // 付与時点に確定している。`TRIGGER_SOURCE`/`TRIGGER_TARGET`/`LAST_*`は
       // 付与時点のcontextに残っていないか複数体になりうるため受け付けない
       // （`APPLY_HEALING_LINK.transferTo`が`SELF`だけなのと同じ理由）。
-      requireCapability("CAP_DAMAGE_LINK_STATE");
       if (
         effectAction.payload.linkTo.kind !== "SELF" &&
         effectAction.payload.linkTo.kind !== "BINDING"
@@ -550,7 +324,6 @@ function collectDefensiveInterventionViolations(
       return;
     }
     case "APPLY_DEATH_SURVIVAL": {
-      requireCapability("CAP_DEATH_SURVIVAL");
       if (!effectAction.payload.trigger.lethalDamageOnly) {
         unsupported(
           "APPLY_DEATH_SURVIVAL only implements trigger.lethalDamageOnly true (R-INT-01 #5 resolves the survival at the moment HP would reach 0)",

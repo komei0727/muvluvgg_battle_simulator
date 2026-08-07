@@ -4,44 +4,69 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 1.092 }
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.092
+      }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_EX_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.4 },
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "ratio": 0.4
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 1.17 }
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.17
+      }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE_CRIT",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 1.17 },
-      "critical": { "mode": "GUARANTEED" }
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.17
+      },
+      "critical": {
+        "mode": "GUARANTEED"
+      }
     },
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DMG_DOWN",
@@ -49,51 +74,80 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.3 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_REDIRECT",
     "kind": "APPLY_TARGET_REDIRECT",
     "payload": {
-      "redirectTo": { "kind": "SELF" },
-      "appliesTo": { "actionKinds": ["DAMAGE"] },
+      "redirectTo": {
+        "kind": "SELF"
+      },
+      "appliesTo": {
+        "actionKinds": ["DAMAGE"]
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_TARGET_REDIRECT"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_COVER",
     "kind": "APPLY_COVER",
     "payload": {
-      "coverer": { "kind": "SELF" },
+      "coverer": {
+        "kind": "SELF"
+      },
       "damageShareRate": 1,
       "guardRate": 0,
-      "appliesTo": { "actionKinds": ["DAMAGE"] },
+      "appliesTo": {
+        "actionKinds": ["DAMAGE"]
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS1_REFLECT",
     "kind": "APPLY_REFLECT",
     "payload": {
-      "reflectTo": { "kind": "TRIGGER_SOURCE" },
+      "reflectTo": {
+        "kind": "TRIGGER_SOURCE"
+      },
       "formula": {
         "kind": "DAMAGE_RECEIVED_RATIO",
         "sourceResult": "LAST_DAMAGE_RECEIVED",
@@ -103,24 +157,40 @@
       "allowRecursiveReflect": false,
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "BATTLE"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_REFLECT_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS2_SHIELD",
     "kind": "APPLY_SHIELD",
     "payload": {
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.4 },
+      "formula": {
+        "kind": "MAX_HP_RATIO",
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
+        "ratio": 0.4
+      },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS3_SHIELD",
@@ -128,27 +198,44 @@
     "payload": {
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
-        "ratio": 1.0
+        "ratio": 1
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1,
+          "owner": "EFFECT_SOURCE"
+        }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LUNA_HUNGRY_PS3_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_LUNA_HUNGRY_POWERFUL",
-      "stack": { "policy": "REPLACE", "max": 1 },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "stack": {
+        "policy": "REPLACE",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

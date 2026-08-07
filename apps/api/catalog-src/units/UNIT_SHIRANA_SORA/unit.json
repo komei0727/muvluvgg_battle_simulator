@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_SHIRANA_SORA_AS1", "SKL_SHIRANA_SORA_AS2"],
   "passiveSkillDefinitionIds": ["SKL_SHIRANA_SORA_PS1", "SKL_SHIRANA_SORA_PS2"],
   "extraSkillDefinitionId": "SKL_SHIRANA_SORA_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],

@@ -127,7 +127,6 @@ function singleEnemyAttackSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: ATTACK_SKILL_ID, tags: [] },
   };
 }
@@ -136,7 +135,6 @@ function singleHitAttack(): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACK_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

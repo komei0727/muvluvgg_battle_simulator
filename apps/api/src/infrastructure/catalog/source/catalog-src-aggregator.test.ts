@@ -16,11 +16,6 @@ function fixturePath(...segments: string[]): string {
 }
 
 describe("readCatalogSource", () => {
-  it("UT-CAT-SRC-001: reads capabilities.json as-is from the catalog-src root", () => {
-    const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
-    expect(source.capabilities).toEqual([]);
-  });
-
   it("UT-CAT-SRC-002: aggregates one unit.json per unit directory into the units array", () => {
     const source = readCatalogSource(fixturePath("catalog-src", "valid", "minimal"));
     const unitIds = source.units.map((u) => (u as { unitDefinitionId: string }).unitDefinitionId);

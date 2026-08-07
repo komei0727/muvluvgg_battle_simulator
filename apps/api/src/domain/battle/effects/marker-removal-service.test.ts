@@ -49,7 +49,6 @@ function statModDefinition(id: string): EffectActionDefinition {
         linkedEffectGroupRole: "CHILD",
       },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

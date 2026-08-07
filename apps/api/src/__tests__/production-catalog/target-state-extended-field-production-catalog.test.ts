@@ -51,7 +51,6 @@ describe("production Catalog TARGET_STATE extended fields (CAP_TARGET_STATE_EXTE
     const attackerUnitId = "UNIT_TEST_ATTACKER";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_STATE_EXTENDED_FIELD");
     const trigger = skill.triggers[0]!;
     // 未改変の定義（TRIGGER_SOURCEのUNIT_TYPEが物理型または敏捷型）を評価対象にする。
     expect(trigger).toMatchObject({ eventType: "UnitBeingAttacked", sourceSelector: "ENEMY" });

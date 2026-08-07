@@ -57,7 +57,6 @@ function healAction(
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     kind: "HEAL",
     payload,
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

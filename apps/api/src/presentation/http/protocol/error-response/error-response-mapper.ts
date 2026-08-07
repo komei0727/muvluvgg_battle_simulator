@@ -23,7 +23,6 @@ export const HTTP_ERROR_CODES = [
   "UNSUPPORTED_MEDIA_TYPE",
   "INVALID_COMMAND",
   "DEFINITION_NOT_FOUND",
-  "UNSUPPORTED_RULE",
   "RATE_LIMIT_EXCEEDED",
   "INVALID_DEFINITION",
   "DOMAIN_RULE_VIOLATION",
@@ -42,7 +41,6 @@ const STATUS_BY_CODE: Record<HttpErrorCode, number> = {
   UNSUPPORTED_MEDIA_TYPE: 415,
   INVALID_COMMAND: 422,
   DEFINITION_NOT_FOUND: 422,
-  UNSUPPORTED_RULE: 422,
   RATE_LIMIT_EXCEEDED: 429,
   INVALID_DEFINITION: 500,
   // `10_API設計.md`: 事前検証を通過した後に生じた予期しない不変条件違反として扱う
@@ -62,7 +60,6 @@ const DEFAULT_MESSAGE_BY_CODE: Record<HttpErrorCode, string> = {
   UNSUPPORTED_MEDIA_TYPE: "The request Content-Type is not supported.",
   INVALID_COMMAND: "The request contains invalid battle conditions.",
   DEFINITION_NOT_FOUND: "The request references unknown Catalog definitions.",
-  UNSUPPORTED_RULE: "The request requires unimplemented Capabilities.",
   RATE_LIMIT_EXCEEDED: "Too many requests.",
   INVALID_DEFINITION: "The server's Catalog definitions are inconsistent.",
   DOMAIN_RULE_VIOLATION: "An unexpected domain rule violation occurred.",

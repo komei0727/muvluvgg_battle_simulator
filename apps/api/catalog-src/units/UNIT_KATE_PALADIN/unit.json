@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_KATE_PALADIN_PS1"],
   "extraSkillDefinitionId": "SKL_KATE_PALADIN_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],

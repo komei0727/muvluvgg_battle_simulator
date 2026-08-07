@@ -56,7 +56,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "あたしをナメんなよー！",
       "tags": []
@@ -105,7 +104,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
     "metadata": {
       "displayName": "躱せるもんならやってみろ！",
       "tags": []
@@ -154,7 +152,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "根性見せるぞおりゃーー！！",
       "tags": []
@@ -211,7 +208,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "displayName": "まだまだ終わんねぇぞッ！",
       "tags": []
@@ -266,11 +262,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"
-    ],
     "metadata": {
       "displayName": "徹底的にやってやろうじゃん！",
       "tags": []

@@ -1,11 +1,10 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "catalogRevision": "test-invalid-unknown-event-type.1",
   "files": {
-    "units.json": "sha256:e51bd628e83b515ff6102f829e2f10f55917f835682eea9d6edb1cdd56808e7b",
-    "skills.json": "sha256:33cf43e907570ce7e51ff5abb56f3336466edb8ab2e2699ed359acb11286999d",
-    "effects.json": "sha256:f711a572f231919835671cfe5d53380a594596f1454b0e3727d3a4465d4b3ba8",
-    "memories.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "capabilities.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    "units.json": "sha256:4c42bbe695956e93bec956d01cce3ceeb1bea4eb07cb49db67130637b9112906",
+    "skills.json": "sha256:65109a581a29a0ec88bf6719392013db34f20f3d0d68376749ed77d7095ff6ed",
+    "effects.json": "sha256:7ab3a55dfd0b523a0607ef52503fe7c4943b890be1ff2b65d8adeee4aff0dde6",
+    "memories.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
   }
 }

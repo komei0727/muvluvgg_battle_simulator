@@ -69,7 +69,6 @@ function memory(id: string, triggeredEffects: readonly TriggeredEffectInput[]): 
   return createMemoryDefinition({
     memoryDefinitionId: id,
     triggeredEffects,
-    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
     metadata: { displayName: id },
   });
 }

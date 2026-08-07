@@ -34,8 +34,6 @@ describe("toBattleSimulationCatalogResponseBody", () => {
             unitType: "PHYSICAL",
             role: "PHYSICAL_ATTACKER",
             positionAptitudes: ["FRONT"],
-            selectable: true,
-            unavailableCapabilities: [],
           },
         ] as unknown as BattleSimulationCatalogResult["units"],
       }),
@@ -50,8 +48,6 @@ describe("toBattleSimulationCatalogResponseBody", () => {
         unitType: "PHYSICAL",
         role: "PHYSICAL_ATTACKER",
         positionAptitudes: ["FRONT"],
-        selectable: true,
-        unavailableCapabilities: [],
       },
     ]);
   });
@@ -63,8 +59,6 @@ describe("toBattleSimulationCatalogResponseBody", () => {
           {
             memoryDefinitionId: "MEM_HEART_COLOR",
             displayName: "心の色",
-            selectable: false,
-            unavailableCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
           },
         ] as unknown as BattleSimulationCatalogResult["memories"],
       }),
@@ -74,8 +68,6 @@ describe("toBattleSimulationCatalogResponseBody", () => {
       {
         memoryDefinitionId: "MEM_HEART_COLOR",
         displayName: "心の色",
-        selectable: false,
-        unavailableCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
       },
     ]);
   });

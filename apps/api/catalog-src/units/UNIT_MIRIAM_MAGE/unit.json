@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_MIRIAM_MAGE_AS1", "SKL_MIRIAM_MAGE_AS2", "SKL_MIRIAM_MAGE_AS3"],
   "passiveSkillDefinitionIds": ["SKL_MIRIAM_MAGE_PS1"],
   "extraSkillDefinitionId": "SKL_MIRIAM_MAGE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_PYXIS_MA_SOEUR"],
     "tags": [],

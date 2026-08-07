@@ -24,7 +24,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "HEAL",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload,
       };
@@ -37,7 +36,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "APPLY_HEALING_MOD",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload,
       };
@@ -50,7 +48,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "APPLY_CONTINUOUS_HEAL",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload,
       };
@@ -60,7 +57,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "APPLY_HEALING_LINK",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           transferTo: { kind: "SELF" },
@@ -183,7 +179,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "APPLY_DAMAGE_LINK",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           linkTo,
@@ -472,7 +467,6 @@ describe("applyEffectActionGroups", () => {
       const heal: EffectActionDefinition = {
         kind: "HEAL",
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_SHARED"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           formula: { kind: "SKILL_POWER", power: 3 },
@@ -536,7 +530,6 @@ describe("applyEffectActionGroups", () => {
       const heal: EffectActionDefinition = {
         kind: "HEAL",
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_SHARED"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           formula: { kind: "SKILL_POWER", power: 3 },
@@ -597,7 +590,6 @@ describe("applyEffectActionGroups", () => {
       const heal: EffectActionDefinition = {
         kind: "HEAL",
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_SHARED"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           formula: { kind: "SKILL_POWER", power: 3 },
@@ -674,7 +666,6 @@ describe("applyEffectActionGroups", () => {
       const heal: EffectActionDefinition = {
         kind: "HEAL",
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL_BY_RECEIVED"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "SUM_DAMAGE_RECEIVED", ratio: 1 },

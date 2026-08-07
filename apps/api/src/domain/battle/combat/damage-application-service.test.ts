@@ -329,7 +329,6 @@ describe("applyDamageAction", () => {
     const richDamageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",
@@ -832,7 +831,6 @@ describe("applyDamageAction", () => {
     const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",
@@ -877,7 +875,6 @@ describe("applyDamageAction", () => {
     const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",
@@ -931,7 +928,6 @@ describe("applyDamageAction", () => {
     const counterAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_COUNTER"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",
@@ -1012,7 +1008,6 @@ describe("applyDamageAction", () => {
     const referencingAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_REFERENCING"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",

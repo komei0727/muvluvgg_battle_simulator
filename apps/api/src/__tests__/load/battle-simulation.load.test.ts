@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   createProductionBattleRunner,
-  selectableProductionUnitIds,
+  allProductionUnitIds,
 } from "../../testing/scenario/run-production-battle.js";
 
 /**
@@ -29,7 +29,7 @@ function percentile(sortedAscending: readonly number[], p: number): number {
 
 describe("battle simulation load/soak baseline", () => {
   it("LOAD-SOAK-001: repeatedly simulates a DIAGNOSTIC production battle without runaway time or heap growth, and reports a baseline", () => {
-    const [unitId] = selectableProductionUnitIds(CATALOG_DIR);
+    const [unitId] = allProductionUnitIds(CATALOG_DIR);
     expect(unitId, "at least one selectable production unit is required").toBeDefined();
 
     const runBattle = createProductionBattleRunner(CATALOG_DIR, unitId!, {

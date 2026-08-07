@@ -124,7 +124,6 @@ function unitDefinition(id: string, overrides: Partial<UnitDefinition> = {}): Un
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_DUMMY_EX"),
-    requiredCapabilities: [],
     metadata: {
       displayName: id,
       characterName: id,

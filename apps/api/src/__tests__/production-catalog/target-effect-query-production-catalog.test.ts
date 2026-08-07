@@ -116,7 +116,6 @@ function loadSkill(
 ) {
   const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitDefinitionId, ...alsoLoadUnitIds]);
   const skill = skillFrom(snapshot, skillDefinitionId);
-  expect(skill.requiredCapabilities).toContain("CAP_TARGET_EFFECT_QUERY");
   return { skill, snapshot };
 }
 

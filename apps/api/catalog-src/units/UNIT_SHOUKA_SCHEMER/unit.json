@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_SHOUKA_SCHEMER_PS1"],
   "extraSkillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],

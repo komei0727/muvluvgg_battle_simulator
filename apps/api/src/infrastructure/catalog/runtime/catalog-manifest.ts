@@ -4,7 +4,8 @@ import { Ajv, type ErrorObject } from "ajv";
 /**
  * `manifest.json` shape and hash verification — the "Read → Hash" stage of
  * the Catalog load pipeline (`11_インフラストラクチャ設計.md`). `schemaVersion`
- * is fixed at `2` for Catalog v2 (`14_Catalog定義スキーマ.md`).
+ * is fixed at `3` for Catalog v3 (`14_Catalog定義スキーマ.md`). v3 dropped
+ * `capabilities.json` and every definition's `requiredCapabilities`.
  */
 
 export const CATALOG_FILE_NAMES = [
@@ -12,11 +13,10 @@ export const CATALOG_FILE_NAMES = [
   "skills.json",
   "effects.json",
   "memories.json",
-  "capabilities.json",
 ] as const;
 export type CatalogFileName = (typeof CATALOG_FILE_NAMES)[number];
 
-export const CURRENT_CATALOG_SCHEMA_VERSION = 2;
+export const CURRENT_CATALOG_SCHEMA_VERSION = 3;
 
 export interface CatalogManifest {
   readonly schemaVersion: number;

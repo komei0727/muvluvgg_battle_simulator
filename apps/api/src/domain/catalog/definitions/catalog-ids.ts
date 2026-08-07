@@ -79,16 +79,3 @@ export type RuntimeCounterId = Brand<string, "RuntimeCounterId">;
 export function createRuntimeCounterId(value: string, path = "runtimeCounterId"): RuntimeCounterId {
   return createId("RuntimeCounterId", path, value);
 }
-
-/** `Q-*` (pending spec) or `CAP_*` (implementation-tracked). */
-export type CapabilityId = Brand<string, "CapabilityId">;
-export function createCapabilityId(value: string, path = "capabilityId"): CapabilityId {
-  const id = createId("CapabilityId", path, value);
-  if (!value.startsWith("CAP_") && !value.startsWith("Q-")) {
-    throw new DomainValidationError(
-      path,
-      `CapabilityId must start with "CAP_" or "Q-": "${value}"`,
-    );
-  }
-  return id;
-}

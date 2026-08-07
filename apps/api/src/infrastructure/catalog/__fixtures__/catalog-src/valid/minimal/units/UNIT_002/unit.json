@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": [],
   "passiveSkillDefinitionIds": [],
   "extraSkillDefinitionId": "SKL_002_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "displayName": "Minimal Unit Two",
     "characterName": "Minimal Character Two",

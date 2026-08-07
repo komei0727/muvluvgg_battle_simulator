@@ -2,9 +2,16 @@
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.59
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN",
@@ -14,22 +21,41 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 0.3
       },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 5 } }
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 5
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.422 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.422
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_AP_DOWN",
@@ -37,25 +63,46 @@
     "payload": {
       "resource": "AP",
       "operation": "ADD",
-      "formula": { "kind": "CONSTANT", "value": -1 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.474 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.474
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.2808 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.2808
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_CRIT_UP",
@@ -63,15 +110,24 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.3 },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_UP",
@@ -79,12 +135,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS2_ATK_DOWN",
@@ -92,12 +160,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": -0.15 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.15
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_ATK_UP",
@@ -105,12 +185,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.3 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.3
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS3_SPEED_DOWN",
@@ -118,11 +210,23 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": -100 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -100
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

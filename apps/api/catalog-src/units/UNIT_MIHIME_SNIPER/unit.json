@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_MIHIME_SNIPER_AS1", "SKL_MIHIME_SNIPER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_MIHIME_SNIPER_PS1", "SKL_MIHIME_SNIPER_PS2"],
   "extraSkillDefinitionId": "SKL_MIHIME_SNIPER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": [],
     "tags": [],

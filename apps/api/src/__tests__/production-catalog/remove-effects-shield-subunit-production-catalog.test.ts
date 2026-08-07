@@ -70,7 +70,6 @@ function shieldDefinitionOf(
   return {
     kind: "APPLY_SHIELD",
     effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       formula: { kind: "CONSTANT", value: 0 },
@@ -152,7 +151,6 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
     }
     expect([...removal.payload.categories]).toEqual(["SHIELD"]);
     expect(removal.payload.maxRemovals).toBeUndefined();
-    expect([...removal.requiredCapabilities].sort()).toEqual(["CAP_REMOVE_EFFECTS", "CAP_SHIELD"]);
 
     // 「解除し、さらに……防御力を低下させて、威力243.8で攻撃する」の順序。
     const skill = skillFrom(snapshot, "SKL_YUI_HEIR_EX");
@@ -260,11 +258,6 @@ describe("production Catalog SHIELD/SUBUNIT removal (M7-001A, Issue #242)", () =
     }
     expect([...removal.payload.categories].sort()).toEqual(["SHIELD", "SUBUNIT"]);
     expect(removal.payload.maxRemovals).toBeUndefined();
-    expect([...removal.requiredCapabilities].sort()).toEqual([
-      "CAP_REMOVE_EFFECTS",
-      "CAP_SHIELD",
-      "CAP_SUBUNIT",
-    ]);
 
     const skill = skillFrom(snapshot, "SKL_OLGA_VETERAN_PS1");
     const actions =

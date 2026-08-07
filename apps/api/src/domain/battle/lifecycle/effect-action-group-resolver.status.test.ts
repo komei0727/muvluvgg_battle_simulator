@@ -118,7 +118,6 @@ describe("applyEffectActionGroups", () => {
     const status: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -151,7 +150,6 @@ describe("applyEffectActionGroups", () => {
     const status: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN_NO_EXTRA_FIELDS"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -185,7 +183,6 @@ describe("applyEffectActionGroups", () => {
     const status: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_BLIND"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "BLIND",
@@ -224,7 +221,6 @@ describe("applyEffectActionGroups", () => {
     const immunity: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_IMMUNITY"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "DAMAGE_IMMUNITY",
@@ -273,7 +269,6 @@ describe("applyEffectActionGroups", () => {
     const freeze: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_FREEZE"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "FREEZE",
@@ -313,7 +308,6 @@ describe("applyEffectActionGroups", () => {
     const evasion: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_EVASION"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "EVASION",
@@ -356,7 +350,6 @@ describe("applyEffectActionGroups", () => {
     const hitEvasion: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_HIT_EVASION"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "HIT_EVASION",
@@ -396,7 +389,6 @@ describe("applyEffectActionGroups", () => {
     const guaranteedHit: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_GUARANTEED_HIT"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "GUARANTEED_HIT",
@@ -436,7 +428,6 @@ describe("applyEffectActionGroups", () => {
     const guaranteedHit: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_GUARANTEED_HIT"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "GUARANTEED_HIT",
@@ -467,7 +458,6 @@ describe("applyEffectActionGroups", () => {
     const criticalGuarantee: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_CRIT_GUARANTEE"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "CRITICAL_GUARANTEE",
@@ -508,7 +498,6 @@ describe("applyEffectActionGroups", () => {
     const criticalPrevention: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_CRIT_PREVENTION"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "CRITICAL_PREVENTION",
@@ -564,7 +553,6 @@ describe("applyEffectActionGroups", () => {
       const definition: EffectActionDefinition = {
         kind: "APPLY_STATUS",
         effectActionDefinitionId: createEffectActionDefinitionId(`ACT_CRIT_UNSUPPORTED_${index}`),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: { ...extra, duration: { dispellable: true, linkedEffectGroupId: null } },
       };
@@ -594,7 +582,6 @@ describe("applyEffectActionGroups", () => {
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -643,7 +630,6 @@ describe("applyEffectActionGroups", () => {
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -699,7 +685,6 @@ describe("applyEffectActionGroups", () => {
     const stunDef: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunDefId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -713,7 +698,6 @@ describe("applyEffectActionGroups", () => {
     const remove: EffectActionDefinition = {
       kind: "REMOVE_EFFECTS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_CLEANSE_DEBUFF"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: { categories: ["DEBUFF"] },
     };

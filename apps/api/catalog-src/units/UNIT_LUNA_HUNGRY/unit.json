@@ -21,7 +21,6 @@
     "SKL_LUNA_HUNGRY_PS3"
   ],
   "extraSkillDefinitionId": "SKL_LUNA_HUNGRY_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_TRINITY_JEWEL"],
     "tags": [],

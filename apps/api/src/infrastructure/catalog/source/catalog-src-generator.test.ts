@@ -52,9 +52,6 @@ describe("buildCatalogFiles", () => {
       JSON.parse(files["memories.json"]);
     }).not.toThrow();
     expect(() => {
-      JSON.parse(files["capabilities.json"]);
-    }).not.toThrow();
-    expect(() => {
       JSON.parse(files["manifest.json"]);
     }).not.toThrow();
   });
@@ -70,10 +67,9 @@ describe("buildCatalogFiles", () => {
     expect(manifest.files["skills.json"]).toBe(sha256Hex(files["skills.json"]));
     expect(manifest.files["effects.json"]).toBe(sha256Hex(files["effects.json"]));
     expect(manifest.files["memories.json"]).toBe(sha256Hex(files["memories.json"]));
-    expect(manifest.files["capabilities.json"]).toBe(sha256Hex(files["capabilities.json"]));
   });
 
-  it("IT-CAT-GEN-003: manifest.json carries the given catalogRevision and schemaVersion 2", async () => {
+  it("IT-CAT-GEN-003: manifest.json carries the given catalogRevision and schemaVersion 3", async () => {
     const files = await buildCatalogFiles({
       catalogSrcDir: fixturePath("catalog-src", "valid", "minimal"),
       catalogDir: outDir,
@@ -83,7 +79,7 @@ describe("buildCatalogFiles", () => {
       schemaVersion: number;
       catalogRevision: string;
     };
-    expect(manifest.schemaVersion).toBe(2);
+    expect(manifest.schemaVersion).toBe(3);
     expect(manifest.catalogRevision).toBe("test-gen.7");
   });
 

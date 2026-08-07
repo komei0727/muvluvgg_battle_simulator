@@ -23,7 +23,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "MODIFY_RESOURCE",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload,
       };
@@ -234,7 +233,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "APPLY_RESOURCE_GAIN_MOD",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload,
       };
@@ -283,7 +281,6 @@ describe("applyEffectActionGroups", () => {
       return {
         kind: "MODIFY_RESOURCE_CAPACITY",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload,
       };

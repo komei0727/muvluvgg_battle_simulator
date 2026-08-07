@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_RAVEL_MODEL_AS1", "SKL_RAVEL_MODEL_AS2"],
   "passiveSkillDefinitionIds": ["SKL_RAVEL_MODEL_PS1", "SKL_RAVEL_MODEL_PS2"],
   "extraSkillDefinitionId": "SKL_RAVEL_MODEL_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_TRINITY_JEWEL"],
     "tags": [],

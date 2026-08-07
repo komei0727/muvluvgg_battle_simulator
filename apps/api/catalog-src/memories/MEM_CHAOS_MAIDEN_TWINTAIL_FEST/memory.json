@@ -7,7 +7,9 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
@@ -17,16 +19,26 @@
               "kind": "SELECT",
               "side": "ALLY",
               "count": "ALL",
-              "filters": [{ "kind": "UNIT_TYPE", "unitType": "ENERGY" }]
+              "filters": [
+                {
+                  "kind": "UNIT_TYPE",
+                  "unitType": "ENERGY"
+                }
+              ]
             }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ENERGY_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ENERGY_ALLIES"
+            },
             "actions": [
-              { "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_TWINTAIL_FEST_ENERGY_ATK_UP" }
+              {
+                "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_TWINTAIL_FEST_ENERGY_ATK_UP"
+              }
             ]
           }
         ]
@@ -38,27 +50,40 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "SELF",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
           {
             "targetBindingId": "TGT_ALL_ALLIES",
-            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
             "actions": [
-              { "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_TWINTAIL_FEST_ALL_MAX_HP_UP" }
+              {
+                "effectActionDefinitionId": "ACT_MEM_CHAOS_MAIDEN_TWINTAIL_FEST_ALL_MAX_HP_UP"
+              }
             ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
-  "metadata": { "displayName": "カオスメイデンツインテ祭り♡", "tags": [] }
+  "metadata": {
+    "displayName": "カオスメイデンツインテ祭り♡",
+    "tags": []
+  }
 }

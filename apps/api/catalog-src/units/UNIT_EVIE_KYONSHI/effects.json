@@ -4,12 +4,19 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": { "kind": "SKILL_POWER", "power": 0.3432 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.3432
+      },
       "hitCount": 5,
-      "piercing": { "defenseIgnoreRate": 0.5, "shieldIgnoreRate": 0.5 }
+      "piercing": {
+        "defenseIgnoreRate": 0.5,
+        "shieldIgnoreRate": 0.5
+      }
     },
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DEBUFF",
@@ -17,12 +24,24 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.2 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_SELF_BUFF",
@@ -30,37 +49,67 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.1 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.1
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_KYONSHI_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "EN",
-      "formula": { "kind": "SKILL_POWER", "power": 0.8904 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.8904
+      },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_KYONSHI_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 2.12
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_KYONSHI_PS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.59
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_KYONSHI_PS2_CRIT_UP",
@@ -68,11 +117,23 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.015 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.015
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

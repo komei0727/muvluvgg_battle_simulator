@@ -20,7 +20,6 @@ describe("applyEffectActionGroups", () => {
     const bonus: EffectActionDefinition = {
       kind: "APPLY_ATTACK_DAMAGE_BONUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK_DAMAGE_BONUS"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         formula: { kind: "STAT_RATIO", source: { kind: "TARGET" }, stat: "ATTACK", ratio: 0.15 },
@@ -60,7 +59,6 @@ describe("APPLY_DAMAGE_MOD (R-DMG-03, R-DMG-04, DMG-002 Issue #192)", () => {
     return {
       kind: "APPLY_DAMAGE_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload,
     };

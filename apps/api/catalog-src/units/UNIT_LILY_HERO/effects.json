@@ -2,19 +2,33 @@
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_EX_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.12 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 3.12
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_EX_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": { "kind": "LOST_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
+      "formula": {
+        "kind": "LOST_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.3
+      },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_EX_SPEED_UP",
@@ -22,12 +36,24 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": 150 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 150
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_EX_DAMAGE_UP",
@@ -35,12 +61,24 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.5 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS1_HP_COST",
@@ -50,13 +88,19 @@
       "operation": "ADD",
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "ratio": -0.1
       },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS1_DAMAGE_HPCOST",
@@ -65,26 +109,43 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "MAX_HP_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "ratio": 0.3198
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS1_DAMAGE_FIXED",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.78
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS2_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.56
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS2_SPEED_DOWN",
@@ -92,23 +153,42 @@
     "payload": {
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
-      "formula": { "kind": "CONSTANT", "value": -90 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -90
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS2_STUN",
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STUN",
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      },
       "probability": 1
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_PS1_DAMAGE_REDUCTION",
@@ -116,21 +196,40 @@
     "payload": {
       "direction": "INCOMING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.5 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.5
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_PS2_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": { "kind": "LOST_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.5 },
+      "formula": {
+        "kind": "LOST_HP_RATIO",
+        "source": {
+          "kind": "TARGET"
+        },
+        "ratio": 0.5
+      },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

@@ -60,7 +60,6 @@ describe("production Catalog CAP_PARTIAL_PIERCING — APPLY_PIERCING_MOD (DMG-00
   it("IT-CAP-PARTIAL-PIERCING-PROD-001: SKL_RAMI_NEWYEAR_PS1's DAIKICHI branch grants the real ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI, carrying its 50% defense ignore onto the AppliedEffect, StateDelta and independent Reducer restoration", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_RAMI_NEWYEAR"]);
     const skill = skillFrom(snapshot, "SKL_RAMI_NEWYEAR_PS1");
-    expect(skill.requiredCapabilities).toContain("CAP_PARTIAL_PIERCING");
     const grant = effectActionFrom(snapshot, "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI");
     expect(grant.kind).toBe("APPLY_PIERCING_MOD");
     if (grant.kind !== "APPLY_PIERCING_MOD") {
@@ -248,6 +247,5 @@ describe("production Catalog CAP_PARTIAL_PIERCING — APPLY_PIERCING_MOD (DMG-00
       damageReductionIgnoreRate: 0,
     });
     // 貫通を宣言する定義は`CAP_PARTIAL_PIERCING`を自己申告する（Issue #196で必須化）。
-    expect(damage.requiredCapabilities).toContain("CAP_PARTIAL_PIERCING");
   });
 });

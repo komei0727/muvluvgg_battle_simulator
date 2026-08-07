@@ -2,26 +2,46 @@
   {
     "skillDefinitionId": "SKL_001_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_DAMAGE_PHYSICAL_100" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_DAMAGE_PHYSICAL_100"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": [],
-    "metadata": { "displayName": "Minimal EX One", "tags": [] }
+    "metadata": {
+      "displayName": "Minimal EX One",
+      "tags": []
+    }
   }
 ]

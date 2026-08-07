@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_FEE_ACTOR_AS1"],
   "passiveSkillDefinitionIds": ["SKL_FEE_ACTOR_PS1", "SKL_FEE_ACTOR_PS2", "SKL_FEE_ACTOR_PS3"],
   "extraSkillDefinitionId": "SKL_FEE_ACTOR_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],

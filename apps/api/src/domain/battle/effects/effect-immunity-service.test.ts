@@ -18,7 +18,6 @@ describe("findBlockingImmunity", () => {
     return {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",
@@ -38,7 +37,6 @@ describe("findBlockingImmunity", () => {
     return {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -55,7 +53,6 @@ describe("findBlockingImmunity", () => {
     return {
       kind: "APPLY_MARKER",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         markerId: createMarkerId("MARKER_TEST"),

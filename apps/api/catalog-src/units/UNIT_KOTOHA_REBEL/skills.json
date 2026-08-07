@@ -97,14 +97,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_PARTIAL_PIERCING",
-      "CAP_HEAL",
-      "CAP_CONTINUOUS_HEAL",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "支配への反逆",
       "tags": []
@@ -188,7 +180,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_MARKER"],
     "metadata": {
       "displayName": "快刀乱麻",
       "tags": []
@@ -341,12 +332,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_DAMAGE_MOD"
-    ],
     "metadata": {
       "displayName": "怒髪衝天",
       "tags": []
@@ -381,7 +366,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "報仇雪恨",
       "tags": []
@@ -427,7 +411,6 @@
       "count": 99
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL", "CAP_SKILL_RUNTIME_COUNTER", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "起死回生",
       "tags": []

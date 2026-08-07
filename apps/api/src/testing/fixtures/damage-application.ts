@@ -94,7 +94,6 @@ export function damageAction(
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK"),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -228,7 +227,6 @@ export function evasionDefinition(): EffectActionDefinition {
       probability: 1,
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -306,7 +304,6 @@ export function statModDefinition(): EffectActionDefinition {
       stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

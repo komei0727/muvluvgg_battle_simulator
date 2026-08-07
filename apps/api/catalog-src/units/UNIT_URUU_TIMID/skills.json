@@ -74,11 +74,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_STEP_CONDITION"
-    ],
     "metadata": {
       "displayName": "一日一不憫",
       "tags": []
@@ -166,13 +161,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD",
-      "CAP_STAT_MOD",
-      "CAP_EFFECT_STEP_CONDITION"
-    ],
     "metadata": {
       "displayName": "エクスペクトボーダー",
       "tags": []
@@ -229,7 +217,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "アフターライズ",
       "tags": []
@@ -292,7 +279,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ハイサポート",
       "tags": []
@@ -351,7 +337,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "スキルリレイティブ",
       "tags": []

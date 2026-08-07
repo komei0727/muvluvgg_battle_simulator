@@ -13,7 +13,6 @@
       },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -28,7 +27,6 @@
         "power": 1.716
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -43,7 +41,6 @@
         "power": 3.003
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -54,7 +51,6 @@
     "payload": {
       "markerId": "MARKER_FEE_BATH_FLUSH"
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -70,7 +66,6 @@
       },
       "hitCount": 3
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -92,7 +87,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -115,11 +109,10 @@
           },
           "markerId": "MARKER_FEE_BATH_FLUSH",
           "perStack": 0.2,
-          "max": 1.0
+          "max": 1
         }
       ]
     },
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA"],
     "metadata": {
       "tags": []
     }
@@ -141,7 +134,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -167,7 +159,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -189,7 +180,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -215,7 +205,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -237,7 +226,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }

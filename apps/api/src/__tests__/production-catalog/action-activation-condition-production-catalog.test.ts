@@ -58,7 +58,6 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     const skillId = "SKL_ELENA_MOODMAKER_AS1";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({
       kind: "AND",
       conditions: [
@@ -149,7 +148,6 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     const skillId = "SKL_LYDIA_GENIUS_AS1";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({
       kind: "TARGET_SET_COUNT",
       op: "GTE",
@@ -202,7 +200,6 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     const skillId = "SKL_LILY_HERO_AS1";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
 
     // TGT_ADJACENT (BINDING_DERIVED, ADJACENT_ORTHOGONAL of TGT_BASE) needs a
     // second enemy orthogonally adjacent to the nearest one, or the skill is
@@ -267,7 +264,6 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     const skillId = "SKL_MAO_COMMITTEE_AS1";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
 
     const enemy = unitOf("ENEMY_1", "UNIT_TEST_ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
     const ally = unitOf("ALLY_1", "UNIT_TEST_ALLY", "ALLY", { column: "RIGHT", row: "FRONT" });
@@ -323,7 +319,6 @@ describe("production Catalog CAP_ACTION_ACTIVATION_CONDITION (Issue #180, M7-003
     const skillId = "SKL_TATIANA_SAGE_AS2";
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [unitId]);
     const skill = skillFrom(snapshot, skillId);
-    expect(skill.requiredCapabilities).toContain("CAP_ACTION_ACTIVATION_CONDITION");
     expect(skill.activationCondition).toMatchObject({
       kind: "NOT",
       condition: { kind: "TARGET_HAS_MARKER", markerId: "MARKER_TATIANA_SAGE_PRUDENCE" },

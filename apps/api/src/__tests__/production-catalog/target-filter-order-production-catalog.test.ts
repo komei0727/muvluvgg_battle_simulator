@@ -60,8 +60,6 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
     const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_LYDIA_GENIUS"]);
     const skill = skillFrom(snapshot, "SKL_LYDIA_GENIUS_EX");
     expect(skill).toBeDefined();
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_BINDING_FALLBACK");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_COLUMNS", "TGT_BACK_ROW"]);
@@ -114,7 +112,6 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
     const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_CLARA_SANTA"]);
     const skill = skillFrom(snapshot, "SKL_CLARA_SANTA_AS2");
     expect(skill).toBeDefined();
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_BASE", "TGT_COLUMN"]);
@@ -176,7 +173,6 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
     const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_DOROTHEA_PIONEER"]);
     const skill = skillFrom(snapshot, "SKL_DOROTHEA_PIONEER_AS1");
     expect(skill).toBeDefined();
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
 
@@ -226,7 +222,6 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
     const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_MIHIME_SNIPER"]);
     const skill = skillFrom(snapshot, "SKL_MIHIME_SNIPER_AS1");
     expect(skill).toBeDefined();
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
     expect(targetBindings.map((b) => b.targetBindingId)).toEqual(["TGT_LOWEST", "TGT_OTHER"]);
@@ -264,7 +259,6 @@ describe("production Catalog CAP_TARGET_FILTER_ORDER (Issue #169/TGT-002)", () =
     ]);
     const skill = skillFrom(snapshot, "SKL_SHIRANA_SORA_AS1");
     expect(skill).toBeDefined();
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_FILTER_ORDER");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
 

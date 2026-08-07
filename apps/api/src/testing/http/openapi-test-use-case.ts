@@ -44,7 +44,6 @@ function unitDefinition(id: string): UnitDefinition {
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
   };
 }
@@ -67,7 +66,6 @@ function exSkillDefinition(id: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -86,7 +84,6 @@ class FakeBattleCatalog implements BattleCatalog {
       skills: new Map([[createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")]]),
       effectActions: new Map(),
       memories: new Map(),
-      capabilities: new Map(),
     };
   }
 }

@@ -63,7 +63,6 @@ function resourceGainModAction(id: string, rate: number): EffectActionDefinition
       stacking: { mode: "STACKABLE" },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -235,7 +234,6 @@ describe("composeResourceGainRate (G-05, M7-002 Issue #185, APPLY_RESOURCE_GAIN_
         stacking: { mode: "STACKABLE", max: null },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const targetUnitId = createBattleUnitId("ACTOR");

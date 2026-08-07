@@ -117,7 +117,6 @@ function unitDefinitionOf(
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds,
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: {
       displayName: "Test Unit",
       characterName: "Test Character",
@@ -161,7 +160,6 @@ function passiveSkillOf(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -170,7 +168,6 @@ function damageEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -189,7 +186,6 @@ function statusEffectAction(id: string, skillUseCount: number): EffectActionDefi
   return {
     kind: "APPLY_STATUS",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       status: "STEALTH",
@@ -1087,7 +1083,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         stacking: { mode: "STACKABLE", max: null },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const enemyBindingId = createTargetBindingId("TGT_FROZEN_ENEMY");
@@ -1672,7 +1667,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     const resetAction: EffectActionDefinition = {
       kind: "COOLDOWN_MANIPULATION",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_RESET"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: { targetSkillDefinitionId: targetSkillId, operation: "RESET" },
     };
@@ -1828,7 +1822,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS2", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -1932,7 +1925,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_A", tags: [] },
     };
     const skillB: SkillDefinition = {
@@ -1964,7 +1956,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_B", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2033,7 +2024,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_SELF_REACT", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2098,7 +2088,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_RESET", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2210,7 +2199,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_NO_RESET", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2290,7 +2278,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_RESET_LOOP", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2359,7 +2346,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_CARRY_ZERO", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", {
@@ -2546,7 +2532,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_RESOLVED_B", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2658,7 +2643,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_INTERRUPTED_WATCHER", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", {
@@ -2776,7 +2760,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_SEQUENTIAL_COUNTERS", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2869,7 +2852,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_COUNTER_SELF_REGEN", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -2973,7 +2955,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_COUNTER_RACE_ORIGINAL", tags: [] },
     };
     const mutatorSkill: SkillDefinition = {
@@ -3000,7 +2981,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_COUNTER_RACE_MUTATOR", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -3121,7 +3101,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_COUNTER_NO_VANISH_ORIGINAL", tags: [] },
     };
     const mutatorSkill: SkillDefinition = {
@@ -3148,7 +3127,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_COUNTER_NO_VANISH_MUTATOR", tags: [] },
     };
     const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
@@ -3213,7 +3191,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           stacking: { mode: "STACKABLE", max: null },
           duration: { dispellable: true, linkedEffectGroupId: null },
         },
-        requiredCapabilities: [],
         metadata: { tags: [] },
       };
     }
@@ -3439,7 +3416,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           stacking: { mode: "STACKABLE", max: null },
           duration: childDuration,
         },
-        requiredCapabilities: [],
         metadata: { tags: [] },
       };
     }
@@ -4730,7 +4706,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           accuracy: { guaranteedHit: false },
           piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
         },
-        requiredCapabilities: [],
         metadata: { displayName: "SKL_PS_SEQ_PARENT", tags: [] },
       };
 
@@ -4781,7 +4756,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           accuracy: { guaranteedHit: false },
           piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
         },
-        requiredCapabilities: [],
         metadata: { displayName: "SKL_PS_SEQ_CHILD", tags: [] },
       };
 
@@ -5468,7 +5442,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           accuracy: { guaranteedHit: false },
           piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
         },
-        requiredCapabilities: [],
         metadata: { displayName: "PSOnCompletion", tags: [] },
       };
       const psOnExpiry: SkillDefinition = {
@@ -5495,7 +5468,6 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           accuracy: { guaranteedHit: false },
           piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
         },
-        requiredCapabilities: [],
         metadata: { displayName: "PSOnExpiry", tags: [] },
       };
 
@@ -5787,7 +5759,6 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () 
   const healAction: EffectActionDefinition = {
     kind: "HEAL",
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_PARENT_HEAL"),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.3 },

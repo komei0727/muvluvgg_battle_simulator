@@ -28,7 +28,6 @@ export interface CatalogSourceAggregate {
   readonly skills: readonly unknown[];
   readonly effects: readonly unknown[];
   readonly memories: readonly unknown[];
-  readonly capabilities: readonly unknown[];
 }
 
 function readJsonFile(path: string): unknown {
@@ -238,8 +237,6 @@ function readMemoryDirectory(
 }
 
 export function readCatalogSource(catalogSrcDir: string): CatalogSourceAggregate {
-  const capabilities = readJsonArrayFile(join(catalogSrcDir, "capabilities.json"));
-
   const units: unknown[] = [];
   const skills: unknown[] = [];
   const effects: unknown[] = [];
@@ -259,5 +256,5 @@ export function readCatalogSource(catalogSrcDir: string): CatalogSourceAggregate
     effects.push(...memorySource.effects);
   }
 
-  return { units, skills, effects, memories, capabilities };
+  return { units, skills, effects, memories };
 }

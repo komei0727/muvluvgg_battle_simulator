@@ -1,14 +1,8 @@
-import type { CapabilityDefinition } from "../capability/capability-definition.js";
-import type {
-  CapabilityId,
-  EffectActionDefinitionId,
-  SkillDefinitionId,
-} from "../definitions/catalog-ids.js";
+import type { EffectActionDefinitionId, SkillDefinitionId } from "../definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
-import { checkRequiredCapabilities } from "./capability-declaration-integrity.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 
 function checkNoDuplicateSkillReferences(
@@ -103,7 +97,6 @@ export function validateUnit(
   unit: UnitDefinition,
   skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
-  capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
   checkNoDuplicateSkillReferences(
@@ -139,13 +132,6 @@ export function validateUnit(
       message: `EX skill "${exSkill.skillDefinitionId}" cost.amount (${exSkill.cost.amount}) does not match extraGaugeMaximum (${unit.extraGaugeMaximum})`,
     });
   }
-
-  checkRequiredCapabilities(
-    unit.requiredCapabilities,
-    unit.unitDefinitionId,
-    capabilities,
-    violations,
-  );
 
   const ownedSkillIds = new Set<SkillDefinitionId>([
     ...unit.activeSkillDefinitionIds,

@@ -24,7 +24,6 @@ function statusDefinition(status: StatusKind) {
       effectActionDefinitionId: `ACT_TEST_${status}`,
       kind: "APPLY_STATUS",
       payload: { status, duration: { timeLimit: { unit: "ACTION", count: 1 } } },
-      requiredCapabilities: [],
     },
     "effectAction",
   );

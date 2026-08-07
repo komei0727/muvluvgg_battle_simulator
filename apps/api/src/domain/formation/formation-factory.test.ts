@@ -43,7 +43,6 @@ function unitDefinition(
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: {
       displayName: id,
       characterName: id,
@@ -304,7 +303,6 @@ describe("createBattleParty — FormationFactory", () => {
           },
         },
       ],
-      requiredCapabilities: [],
       metadata: { displayName: "Test Memory" },
     });
     const formation: FormationInput = {

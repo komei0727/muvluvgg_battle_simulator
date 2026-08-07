@@ -491,7 +491,6 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
         perStack,
         max,
       });
-      expect([...statMod.requiredCapabilities]).toContain("CAP_MARKER_STACK_FORMULA");
     }
 
     // 対象の「警棒」1つにつき+15%、最大3つまで／「ほてり」1つにつき+20%、最大5つ相当。
@@ -513,7 +512,6 @@ describe("production Catalog MARKER_COUNT_SCALE (M7-015, Issue #269, R-NUM-04)",
           max,
         },
       ]);
-      expect([...damage.requiredCapabilities]).toContain("CAP_MARKER_STACK_FORMULA");
     }
 
     // Formulaが読むMarkerを積む側の実定義。Karina/Chiyuruは`stack.max`が

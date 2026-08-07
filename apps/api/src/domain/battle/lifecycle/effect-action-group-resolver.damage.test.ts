@@ -206,7 +206,6 @@ describe("applyEffectActionGroups", () => {
     const consumedAtkBuff: EffectActionDefinition = {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: consumedAtkBuffId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",

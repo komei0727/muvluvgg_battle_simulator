@@ -9,12 +9,9 @@ import { toSimulateBattleCommand } from "../../application/simulation/simulate-b
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
-import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
-  createCapabilityId,
   createSkillDefinitionId,
   createUnitDefinitionId,
-  type CapabilityId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
@@ -41,7 +38,6 @@ function exSkillDefinition(id: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -68,21 +64,15 @@ function unitDefinition(id: string): UnitDefinition {
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
   };
 }
 
 class FakeBattleCatalog implements BattleCatalog {
   private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
-  private readonly capabilities: BattleCatalogSnapshot["capabilities"];
 
-  constructor(
-    units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>,
-    capabilities: BattleCatalogSnapshot["capabilities"] = new Map(),
-  ) {
+  constructor(units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>) {
     this.units = units;
-    this.capabilities = capabilities;
   }
 
   loadSnapshot(): BattleCatalogSnapshot {
@@ -92,7 +82,6 @@ class FakeBattleCatalog implements BattleCatalog {
       skills: new Map([[createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")]]),
       effectActions: new Map(),
       memories: new Map(),
-      capabilities: this.capabilities,
     };
   }
 }
@@ -283,53 +272,6 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(body.error.violations).toEqual([
       expect.objectContaining({ path: "/allyFormation/units/0/unitDefinitionId" }),
     ]);
-  });
-
-  it("API-CONTRACT-011: returns 422 UNSUPPORTED_RULE for a definition requiring an unimplemented Capability", async () => {
-    const capabilityId: CapabilityId = createCapabilityId("CAP_UNSUPPORTED");
-    const gated = unitDefinition("UNIT_GATED");
-    const units = new Map([
-      [gated.unitDefinitionId, { ...gated, requiredCapabilities: [capabilityId] }],
-    ]);
-    const capabilities = new Map([
-      [
-        capabilityId,
-        createCapabilityDefinition({
-          capabilityId: "CAP_UNSUPPORTED",
-          schemaStatus: "SUPPORTED",
-          runtimeStatus: "PLANNED",
-          implementationTaskId: "TEST-001",
-          description: "not yet implemented",
-          verification: { productionDefinitionIds: ["TEST_DEFINITION"], testCaseIds: ["TEST-001"] },
-        }),
-      ],
-    ]);
-    const gatedUseCase = toDirectExecutor(
-      new SimulateBattleUseCase({
-        battleCatalog: new FakeBattleCatalog(units, capabilities),
-        battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-        randomSourceFactory: new SequenceRandomSourceFactory([]),
-        clock: new ManualClock(Date.now()),
-      }),
-    );
-    const gatedApp = await buildServer(gatedUseCase);
-    const gatedSlot = {
-      units: [{ unitDefinitionId: "UNIT_GATED", position: { column: 0, row: "FRONT" } }],
-      memoryDefinitionIds: [],
-    };
-
-    try {
-      const response = await gatedApp.inject({
-        method: "POST",
-        url: "/api/v1/battle-simulations",
-        payload: validRequestBody({ allyFormation: gatedSlot, enemyFormation: gatedSlot }),
-      });
-
-      expect(response.statusCode).toBe(422);
-      expect(response.json<ErrorResponseBody>().error.code).toBe("UNSUPPORTED_RULE");
-    } finally {
-      await gatedApp.close();
-    }
   });
 
   it("API-CONTRACT-012: returns 406 NOT_ACCEPTABLE when Accept excludes application/json and */*", async () => {

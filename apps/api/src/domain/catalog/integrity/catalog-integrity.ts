@@ -1,6 +1,4 @@
-import type { CapabilityDefinition } from "../capability/capability-definition.js";
 import type {
-  CapabilityId,
   EffectActionDefinitionId,
   MemoryDefinitionId,
   SkillDefinitionId,
@@ -12,7 +10,6 @@ import type { MemoryDefinition } from "../definitions/memory-definition.js";
 import { toReadonlyMap } from "../../shared/readonly-map.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { UnitDefinition } from "../definitions/unit-definition.js";
-import { validateCapabilityVerification } from "./capability-declaration-integrity.js";
 import {
   CatalogIntegrityError,
   type CatalogIntegrityViolation,
@@ -57,7 +54,6 @@ export interface CatalogDefinitions {
   readonly skills: readonly SkillDefinition[];
   readonly effectActions: readonly EffectActionDefinition[];
   readonly memories: readonly MemoryDefinition[];
-  readonly capabilities: readonly CapabilityDefinition[];
 }
 
 export interface CatalogIndex {
@@ -65,7 +61,6 @@ export interface CatalogIndex {
   readonly skills: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   readonly memories: ReadonlyMap<MemoryDefinitionId, MemoryDefinition>;
-  readonly capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>;
 }
 
 function indexById<Id extends string, Def>(
@@ -93,12 +88,6 @@ function indexById<Id extends string, Def>(
 export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex {
   const violations: CatalogIntegrityViolation[] = [];
 
-  const capabilities = indexById(
-    definitions.capabilities,
-    (c) => c.capabilityId,
-    "Capability",
-    violations,
-  );
   const effectActions = indexById(
     definitions.effectActions,
     (e) => e.effectActionDefinitionId,
@@ -114,21 +103,17 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
     violations,
   );
 
-  for (const capability of capabilities.values()) {
-    validateCapabilityVerification(capability, units, skills, effectActions, memories, violations);
-  }
-
   for (const effectAction of effectActions.values()) {
-    validateEffectAction(effectAction, effectActions, skills, capabilities, violations);
+    validateEffectAction(effectAction, effectActions, skills, violations);
   }
   for (const skill of skills.values()) {
-    validateSkill(skill, effectActions, capabilities, violations);
+    validateSkill(skill, effectActions, violations);
   }
   for (const unit of units.values()) {
-    validateUnit(unit, skills, effectActions, capabilities, violations);
+    validateUnit(unit, skills, effectActions, violations);
   }
   for (const memory of memories.values()) {
-    validateMemory(memory, effectActions, capabilities, violations);
+    validateMemory(memory, effectActions, violations);
   }
 
   if (violations.length > 0) {
@@ -140,6 +125,5 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
     skills: toReadonlyMap(skills),
     effectActions: toReadonlyMap(effectActions),
     memories: toReadonlyMap(memories),
-    capabilities: toReadonlyMap(capabilities),
   };
 }

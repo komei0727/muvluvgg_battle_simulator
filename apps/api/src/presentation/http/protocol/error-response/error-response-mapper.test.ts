@@ -16,7 +16,6 @@ describe("httpStatusForErrorCode", () => {
     ["UNSUPPORTED_MEDIA_TYPE", 415],
     ["INVALID_COMMAND", 422],
     ["DEFINITION_NOT_FOUND", 422],
-    ["UNSUPPORTED_RULE", 422],
     ["RATE_LIMIT_EXCEEDED", 429],
     ["INVALID_DEFINITION", 500],
     ["INTERNAL_INVARIANT_VIOLATION", 500],
@@ -43,7 +42,7 @@ describe("toErrorResponseBody", () => {
   });
 
   it("API-ERR-002: renames Violation.reason to ViolationResponseBody.message and preserves path/definitionId/ruleId only when present", () => {
-    const body = toErrorResponseBody("UNSUPPORTED_RULE", [
+    const body = toErrorResponseBody("DEFINITION_NOT_FOUND", [
       { ruleId: "CAP_X", definitionId: "UNIT_1", reason: "requires unimplemented capability" },
     ]);
 

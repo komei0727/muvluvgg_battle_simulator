@@ -2,7 +2,10 @@
   {
     "skillDefinitionId": "SKL_CLARA_SANTA_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 5 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 5
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -19,23 +22,38 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ENEMY"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_EX_EX_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_EX_EX_DOWN"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "サンタクイーンズ・ケーキ", "tags": [] }
+    "metadata": {
+      "displayName": "サンタクイーンズ・ケーキ",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CLARA_SANTA_AS1",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -61,28 +79,50 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_MAIN" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_MAIN"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_MAIN" },
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_MARKER" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_MAIN"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_MARKER"
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_LOWEST" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_LOWEST"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 3 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 3
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "届け、マイソング！", "tags": [] }
+    "metadata": {
+      "displayName": "届け、マイソング！",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CLARA_SANTA_AS2",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -95,7 +135,10 @@
             "filters": [
               {
                 "kind": "MARKER_IN_AREA",
-                "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+                "area": {
+                  "kind": "SAME_COLUMN_AS_BASE",
+                  "includeBase": true
+                },
                 "markerId": "MARKER_CLARA_SANTA_TAG"
               }
             ],
@@ -112,8 +155,14 @@
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            },
             "side": "ENEMY"
           }
         }
@@ -121,41 +170,62 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_BINDING_FALLBACK",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
-    "metadata": { "displayName": "アンコール！", "tags": [] }
+    "metadata": {
+      "displayName": "アンコール！",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CLARA_SANTA_AS3",
     "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_BASE",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["FARTHEST"]
+          }
         },
         {
           "targetBindingId": "TGT_COLUMN",
           "selector": {
             "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true },
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            },
             "side": "ENEMY"
           }
         }
@@ -163,20 +233,35 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_SANTA_AS3_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS3_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
-    "metadata": { "displayName": "メリ～クリスマ～ス！", "tags": [] }
+    "metadata": {
+      "displayName": "メリ～クリスマ～ス！",
+      "tags": []
+    }
   },
   {
     "skillDefinitionId": "SKL_CLARA_SANTA_PS1",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -193,20 +278,38 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_SANTA_PS1_DAMAGE" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ENEMY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_PS1_DAMAGE"
+            }
+          ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_SANTA_PS1_ATK_UP" }]
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_PS1_ATK_UP"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER", "CAP_SKILL_RUNTIME_COUNTER"],
-    "metadata": { "displayName": "クララ・オン・ステージ", "tags": [] },
+    "metadata": {
+      "displayName": "クララ・オン・ステージ",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
@@ -216,7 +319,12 @@
         "condition": {
           "kind": "AND",
           "conditions": [
-            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "skillType",
+              "op": "EQ",
+              "value": "AS"
+            },
             {
               "kind": "RUNTIME_COUNTER",
               "counter": "SKL_CLARA_SANTA_PS1_TRIGGER_COUNT",
@@ -238,7 +346,12 @@
           "category": "FACT",
           "sourceSelector": "SELF",
           "targetSelector": "ANY",
-          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillType",
+            "op": "EQ",
+            "value": "AS"
+          }
         },
         "amount": 1
       }

@@ -5,12 +5,24 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": 0.6 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.6
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_EX_SHIELD",
@@ -18,31 +30,51 @@
     "payload": {
       "formula": {
         "kind": "STAT_RATIO",
-        "source": { "kind": "SKILL_SOURCE" },
+        "source": {
+          "kind": "SKILL_SOURCE"
+        },
         "stat": "ATTACK",
         "ratio": 1
       },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
+        "consumption": {
+          "kind": "INCOMING_HIT",
+          "maxCount": 2
+        }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.484 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.484
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE_EXTRA",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.468
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF",
@@ -50,23 +82,39 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CONSTANT", "value": -0.2 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 0.53 },
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.53
+      },
       "hitCount": 4
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS2_AP_UP",
@@ -74,11 +122,18 @@
     "payload": {
       "resource": "AP",
       "operation": "ADD",
-      "formula": { "kind": "CONSTANT", "value": 1 },
-      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_SELF",
@@ -86,12 +141,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.05 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_DEF_UP_SELF",
@@ -99,12 +166,24 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.05 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.05
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_OTHERS",
@@ -112,12 +191,24 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.025 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.025
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_DEF_UP_OTHERS",
@@ -125,29 +216,61 @@
     "payload": {
       "stat": "DEFENSE",
       "valueType": "RATIO",
-      "formula": { "kind": "CONSTANT", "value": 0.025 },
-      "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 0.025
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS2_HEAL",
     "kind": "HEAL",
-    "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.25 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
-    "metadata": { "tags": [] }
+    "payload": {
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.25
+      },
+      "overheal": "DISCARD"
+    },
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS2_CONTINUOUS_HEAL",
     "kind": "APPLY_CONTINUOUS_HEAL",
     "payload": {
-      "formula": { "kind": "SKILL_POWER", "power": 0.15 },
-      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.15
+      },
+      "timing": {
+        "eventType": "ActionStarted",
+        "targetSelector": "EFFECT_OWNER"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2
+        }
+      }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

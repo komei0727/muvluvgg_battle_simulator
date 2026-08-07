@@ -1,11 +1,10 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "catalogRevision": "2026-08-07.1",
   "files": {
-    "units.json": "sha256:4fbb3161a6c5ed22d374e609ff91936dee2bb032be5c312636ddb7361e9227f7",
-    "skills.json": "sha256:836c2daaad2423dc0ff5e28a40dc763681b8b16cf6928c02676035a9a337615e",
-    "effects.json": "sha256:6a889ca454d4681fd8c9ca70c8e7fa9d565c9832b88774989b09794f03ba711b",
-    "memories.json": "sha256:86acdacc575a28bb1b8222a1b7a3d9b9c6a229b843c107445caa21f5de278e24",
-    "capabilities.json": "sha256:a22a64540c1426f8e34b1d7362c100fe224c8b05eff450e93a02d46a0dcea81c"
+    "units.json": "sha256:2ecfa3caad32c52f4f6cbcd91959e5615c3447e52316807395a488c182d79019",
+    "skills.json": "sha256:35c9af6443ebe3a454f6f78f2e612d1c2d544f009d60806e75aec2b9fff741d2",
+    "effects.json": "sha256:c546638ed615a8996cf7dfe5875febfe7fbcc8157de5c7cb094114bfa8ada43e",
+    "memories.json": "sha256:7f169f807fbb8f30e697520308b2e81633e15223df405bbaa608080b3da45640"
   }
 }

@@ -96,7 +96,6 @@ function grantAtkUpSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: GRANT_SKILL_ID, tags: [] },
   };
 }

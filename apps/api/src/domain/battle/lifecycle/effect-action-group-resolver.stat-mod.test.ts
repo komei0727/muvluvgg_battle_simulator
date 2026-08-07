@@ -125,7 +125,6 @@ describe("applyEffectActionGroups", () => {
     const statMod: EffectActionDefinition = {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_UP_RATIO"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",
@@ -186,7 +185,6 @@ describe("applyEffectActionGroups", () => {
     const hpRatioStatMod: EffectActionDefinition = {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_HP_RATIO_BUFF"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",
@@ -245,7 +243,6 @@ describe("applyEffectActionGroups: R-EFF-05 stacking mode and stack limit (M7-01
     return {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",

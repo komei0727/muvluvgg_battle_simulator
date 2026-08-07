@@ -111,7 +111,6 @@ function selfStepsSkill(skillId: string, ...effectActionIds: readonly string[]):
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: skillId, tags: [] },
   };
 }
@@ -131,7 +130,6 @@ function removeEffectsAction(id: string, category: "BUFF" | "DEBUFF"): EffectAct
   return categoryAction(id, {
     kind: "REMOVE_EFFECTS",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { categories: [category] },
   });
@@ -141,7 +139,6 @@ function immunityAction(id: string, category: "BUFF" | "DEBUFF"): EffectActionDe
   return categoryAction(id, {
     kind: "EFFECT_IMMUNITY",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       categories: [category],
@@ -192,7 +189,6 @@ function attackerSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "TestCritAttacker", tags: [] },
   };
 }
@@ -202,7 +198,6 @@ function singleHitAttack(criticalMode: CriticalMode): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACK_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

@@ -2,78 +2,136 @@
   {
     "skillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 8
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
-        }
-      ],
-      "steps": [
-        {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN" }
-          ]
-        }
-      ]
-    },
-    "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
-    "requiredCapabilities": [],
-    "metadata": { "displayName": "ラウラＳＯＳ！", "tags": [] }
-  },
-  {
-    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_AS1",
-    "skillType": "AS",
-    "cost": { "resource": "AP", "amount": 1 },
-    "resolution": {
-      "kind": "IMMEDIATE",
-      "targetBindings": [
-        {
-          "targetBindingId": "TGT_PRIMARY",
-          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
-        }
-      ],
-      "steps": [
-        {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_AS1_DAMAGE" }]
-        }
-      ]
-    },
-    "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
-    "requiredCapabilities": [],
-    "metadata": { "displayName": "落雷注意", "tags": [] }
-  },
-  {
-    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS1",
-    "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
-    "resolution": {
-      "kind": "IMMEDIATE",
-      "targetBindings": [
-        { "targetBindingId": "TGT_AS_TARGET", "selector": { "kind": "TRIGGER_TARGET" } },
-        {
-          "targetBindingId": "TGT_ADJACENT",
           "selector": {
-            "kind": "BINDING_DERIVED",
-            "base": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL"
           }
         }
       ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF" }]
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ALL_ENEMIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "ラウラＳＯＳ！",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_AS1_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "落雷注意",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_AS_TARGET",
+          "selector": {
+            "kind": "TRIGGER_TARGET"
+          }
+        },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_AS_TARGET"
+            },
+            "area": {
+              "kind": "ADJACENT_ORTHOGONAL"
+            }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF"
+            }
+          ]
         },
         {
           "kind": "RANDOM_BRANCH",
@@ -85,10 +143,17 @@
               "steps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_AS_TARGET"
+                  },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN" },
-                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN_HEALING_DOWN" }
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN"
+                    },
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_BURN_HEALING_DOWN"
+                    }
                   ]
                 }
               ]
@@ -105,16 +170,30 @@
               "steps": [
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_ADJACENT"
+                  },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ADJACENT_DAMAGE" },
-                    { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF" }
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ADJACENT_DAMAGE"
+                    },
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF"
+                    }
                   ]
                 },
                 {
                   "kind": "ACTION",
-                  "target": { "kind": "BINDING", "targetBindingId": "TGT_AS_TARGET" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF" }]
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_AS_TARGET"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS1_ENEMY_DEBUFF"
+                    }
+                  ]
                 }
               ]
             }
@@ -122,50 +201,66 @@
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 1 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 1
+    },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_FORMULA",
-      "CAP_RANDOM_BRANCH",
-      "CAP_DAMAGE_MOD",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TRIGGER_CONTEXT",
-      "CAP_CONTINUOUS_DAMAGE",
-      "CAP_HEAL"
-    ],
-    "metadata": { "displayName": "整いサウナ", "tags": [] },
+    "metadata": {
+      "displayName": "整いサウナ",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
         "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
       }
     ]
   },
   {
     "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS2",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
+          "target": {
+            "kind": "SELF"
+          },
           "actions": [
-            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_RATE" },
-            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_DMG" }
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_RATE"
+            },
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS2_CRIT_DMG"
+            }
           ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_PASSIVE_ACTIVATION_CONDITION"],
-    "metadata": { "displayName": "みんなと一緒！", "tags": [] },
+    "metadata": {
+      "displayName": "みんなと一緒！",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "TurnStarted",
@@ -185,29 +280,48 @@
   {
     "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS3",
     "skillType": "PS",
-    "cost": { "resource": "PP", "amount": 1 },
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE" }]
+          "target": {
+            "kind": "TRIGGER_TARGET"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE"
+            }
+          ]
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 2 },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 2
+    },
     "traits": {},
-    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
-    "metadata": { "displayName": "私も混ぜて～！", "tags": [] },
+    "metadata": {
+      "displayName": "私も混ぜて～！",
+      "tags": []
+    },
     "triggers": [
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "ALLY",
         "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
       }
     ]
   }

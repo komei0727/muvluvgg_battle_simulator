@@ -69,7 +69,6 @@ function capacityDefinition(
       formula: { kind: "CONSTANT", value: 0 },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
