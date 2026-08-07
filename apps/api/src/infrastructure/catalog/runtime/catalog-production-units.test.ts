@@ -324,7 +324,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Schema/Mapper evidence gained production-path `verification.testCaseIds`.
     // Capability metadata only — no Unit/Skill/EffectAction definition changed,
     // and no `runtimeStatus` moved, so every expectation here stays the same.
-    expect(catalog.catalogRevision).toBe("2026-08-06.1");
+    // `2026-08-07.1` is REL-002 (Issue #199): the synthetic
+    // `UNIT_CI_SMOKE_TEST` (1 unit, 3 skills, 1 effect action) was removed now
+    // that every converted character unit is `selectable` on `IMPLEMENTED`
+    // capabilities alone. It is not one of the 10 promoted units, so the
+    // `unitCount`/violation/`selectable` expectations here stay the same.
+    expect(catalog.catalogRevision).toBe("2026-08-07.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

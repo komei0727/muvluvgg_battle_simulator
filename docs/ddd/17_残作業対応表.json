@@ -31,7 +31,7 @@
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
-      "syntheticUnits": 1,
+      "syntheticUnits": 0,
       "incompleteConversionRows": 1
     },
     "memoryCatalog": {
@@ -491,7 +491,7 @@
       "issue": 199,
       "phase": 4,
       "milestone": "M9",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "REL-003",
@@ -557,8 +557,8 @@
     "selectability": {
       "productionUnits": 69,
       "selectableProductionUnits": 69,
-      "syntheticUnits": 1,
-      "selectableSyntheticUnits": 1,
+      "syntheticUnits": 0,
+      "selectableSyntheticUnits": 0,
       "memories": 32,
       "selectableMemories": 32
     },

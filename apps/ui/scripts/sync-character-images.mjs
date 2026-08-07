@@ -41,10 +41,6 @@ const UNIT_FILENAME_OVERRIDES = {
   UNIT_LUNA_HUNGRY: "博識なハングリーガール】 ルナ・メロウ.png",
 };
 
-// Definitions that are intentionally imageless (test fixtures, etc.) — not
-// reported as unmatched.
-const EXPECTED_IMAGELESS_UNITS = new Set(["UNIT_CI_SMOKE_TEST"]);
-
 function normalize(name) {
   return name.normalize("NFC").replace(/\s+/g, "");
 }
@@ -108,9 +104,7 @@ async function syncUnits() {
     const filename = overrideFilename ?? fileIndex.get(normalize(displayName));
 
     if (filename === undefined) {
-      if (!EXPECTED_IMAGELESS_UNITS.has(definitionId)) {
-        unmatched.push(`${definitionId} (${displayName})`);
-      }
+      unmatched.push(`${definitionId} (${displayName})`);
       continue;
     }
 
