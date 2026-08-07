@@ -2,7 +2,7 @@
 
 ## 目的
 
-本書は、[`02_仕様確認事項.md`](./02_仕様確認事項.md) の決定事項と、`raw/units/`・`raw/memories/` の実データ調査結果を踏まえ、Catalog v2 の JSON 契約を定義する。
+本書は、[`02_仕様確認事項.md`](./02_仕様確認事項.md) の決定事項と、`raw/units/`・`raw/memories/` の実データ調査結果を踏まえ、Catalog v3 の JSON 契約を定義する。
 
 前提文書: [`05_ドメインモデル.md`](./05_ドメインモデル.md)・[`07_戦闘ルール詳細.md`](./07_戦闘ルール詳細.md)・[`08_ドメインイベント.md`](./08_ドメインイベント.md)・[`11_インフラストラクチャ設計.md`](./11_インフラストラクチャ設計.md)
 
@@ -10,7 +10,7 @@
 
 ### 基本方針
 
-Catalog v2 は、Unit Skill と Memory の効果を同じ基盤で表現する。
+Catalog v3 は、Unit Skill と Memory の効果を同じ基盤で表現する。v3 は v2 から `capabilities.json` と各定義の `requiredCapabilities` を落とした版であり（`REF-023`／Issue #352）、それ以外の契約は v2 と同じである。本書に残る「v1 → v2」の記述は、その変更の由来として引き続き有効である。
 
 効果は次の構成要素に分解する。
 
@@ -56,7 +56,7 @@ apps/api/catalog/
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "catalogRevision": "2026-07-11.1",
   "files": {
     "units.json": "sha256:...",
@@ -69,9 +69,9 @@ apps/api/catalog/
 
 | フィールド        | 型      | 制約                                |
 | ----------------- | ------- | ----------------------------------- |
-| `schemaVersion`   | integer | v2 は `2` 固定                      |
+| `schemaVersion`   | integer | v3 は `3` 固定                      |
 | `catalogRevision` | string  | 不透明な文字列                      |
-| `files`           | object  | 上記5ファイルの sha256 を必須とする |
+| `files`           | object  | 上記4ファイルの sha256 を必須とする |
 
 ---
 
@@ -1837,7 +1837,7 @@ condition:
 
 ### counterUpdates（RuntimeCounterの更新契機、Issue #143）
 
-`RUNTIME_COUNTER` Conditionが参照するcounterは、`SkillDefinition.counterUpdates`（`RuntimeCounterUpdateDefinition[]`、省略時`[]`）が更新契機を宣言する。TriggerDefinition/activationConditionが参照するcounterは、必ずいずれかの`counterUpdates[].counter`と一致しなければならない。`SKILL_RUNTIME`更新とproductionテストを持つ定義は`CAP_SKILL_RUNTIME_COUNTER`を宣言する。Issue #166で従来の`<skillId>_ACTIVATIONS`/`<skillId>_CUMULATIVE_DAMAGE_RATIO`も明示的な更新定義へ移行した。`AppliedEffect`スコープの`counterUpdates`は`SkillDefinition`ではなく`DurationDefinition`が宣言する（下記「counterUpdates（AppliedEffectスコープ、EFF-005）」参照）。`CAP_EFFECT_RUNTIME_COUNTER`として別に追跡する。
+`RUNTIME_COUNTER` Conditionが参照するcounterは、`SkillDefinition.counterUpdates`（`RuntimeCounterUpdateDefinition[]`、省略時`[]`）が更新契機を宣言する。TriggerDefinition/activationConditionが参照するcounterは、必ずいずれかの`counterUpdates[].counter`と一致しなければならない。`SKILL_RUNTIME`更新は`SkillDefinition.counterUpdates`が担う。Issue #166で従来の`<skillId>_ACTIVATIONS`/`<skillId>_CUMULATIVE_DAMAGE_RATIO`も明示的な更新定義へ移行した。`AppliedEffect`スコープの`counterUpdates`は`SkillDefinition`ではなく`DurationDefinition`が宣言する（下記「counterUpdates（AppliedEffectスコープ、EFF-005）」参照）。`CAP_EFFECT_RUNTIME_COUNTER`として別に追跡する。
 
 ```yaml
 counterUpdates:
@@ -2433,7 +2433,7 @@ payload:
 
 ## 参照整合性規則
 
-Catalog v2 検証器は次を確認する。
+Catalog v3 検証器は次を確認する。
 
 1. ID一意性。
 2. Unit が参照する Skill が存在し、`skillType` が一致する。
@@ -2450,7 +2450,7 @@ Catalog v2 検証器は次を確認する。
 
 ## Authoring への影響
 
-Unit / Memory Markdown から Catalog v2 へ変換する際は、次をテンプレートへ追加する。
+Unit / Memory Markdown から Catalog v3 へ変換する際は、次をテンプレートへ追加する。
 
 - Unit metadata: `characterName`, `characterId`, `affiliations`
 - Unit generated fields: `baseStats.affinityBonus = 0.25`, `baseStats.criticalDamageBonus = 0.5`, `extraGaugeMaximum = EX skill cost.amount`

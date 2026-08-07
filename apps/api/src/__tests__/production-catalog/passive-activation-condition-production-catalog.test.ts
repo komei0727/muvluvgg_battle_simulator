@@ -33,10 +33,9 @@ import {
  * を候補判定（R-PS-01）・発動直前再確認（R-PS-04）の両経路で評価する production
  * 代表定義7件の検証証跡。各テストは`catalog/`から実際にロードした未改変の
  * `activationCondition`を対象に、`detectPassiveCandidates`/
- * `reconfirmPassiveCandidate`を直接駆動する — capability検証は「PSのactivation
- * ConditionをPS候補判定・直前再確認で評価する」というこのcapability自身の境界
- * （`docs/ddd/14_Catalog定義スキーマ.md`のCAP_PASSIVE_ACTIVATION_CONDITION行）
- * に留め、他の未実装Capability（`CAP_EFFECT_STEP_CONDITION`等、`SKL_LUCIE_MAID_PS2`/
+ * `reconfirmPassiveCandidate`を直接駆動する — 検証は「PSのactivation
+ * ConditionをPS候補判定・直前再確認で評価する」という機能自身の境界
+ * に留め、他の機能（EffectStepの条件評価など、`SKL_LUCIE_MAID_PS2`/
  * `SKL_TATIANA_SAGE_PS1`のBRANCH stepが必要とする）が要求するEffectSequence全体の
  * 解決は対象にしない。`SKL_LAURA_MOUNTAIN_PS2`のみ他の必須Capabilityを一切持たず
  * 完全に解決できるため、`PassiveActivationRuntime`を通した実ライフサイクル
