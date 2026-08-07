@@ -36,7 +36,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `TRIGGER_SOURCE`/`TRIGGER_TARGET` effect-target resolution
     // (`skill-resolution-service.ts`/`target-selection-policy.ts`) and the
     // `HitPointReduced` basic pipeline event wired the real lifecycle
-    // (`IT-CAP-TRIGGER-CONTEXT-PROD-001`, `SKL_SUIRAN_CHAOS_PS3`). Both of
+    // (`IT-UNIT-SUIRAN-CHAOS-003`, `SKL_SUIRAN_CHAOS_PS3`). Both of
     // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` still require other
     // not-yet-implemented capabilities of their own before they fully
     // activate. Issue #170 (TGT-001):
