@@ -161,18 +161,6 @@ describe("normalizeHttpErrorResponse", () => {
     expect(result.violations).toEqual(violations);
   });
 
-  it("maps 422 UNSUPPORTED_RULE to UNSUPPORTED_DEFINITION", () => {
-    const result = normalizeHttpErrorResponse({
-      status: 422,
-      body: {
-        schemaVersion: 1,
-        error: { code: "UNSUPPORTED_RULE", message: "Unsupported.", violations: [] },
-      },
-    });
-
-    expect(result.kind).toBe("UNSUPPORTED_DEFINITION");
-  });
-
   it("falls back to a status-based mapping when the body is not a valid error envelope", () => {
     const result = normalizeHttpErrorResponse({ status: 503, body: null });
 

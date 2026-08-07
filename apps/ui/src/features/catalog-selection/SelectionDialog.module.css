@@ -103,9 +103,3 @@
   font-size: 8px;
   font-weight: 600;
 }
-
-.unavailable {
-  margin: 4px 0 0;
-  color: var(--color-warning);
-  font-size: 10px;
-}

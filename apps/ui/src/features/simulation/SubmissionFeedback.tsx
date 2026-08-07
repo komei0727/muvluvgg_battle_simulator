@@ -18,7 +18,6 @@ export interface SubmissionFeedbackProps {
 // しない(05_非機能・アクセシビリティ設計.md §11 XSS)。
 const ERROR_KIND_GUIDANCE: Readonly<Record<UiApiErrorKind, string>> = {
   VALIDATION: "入力内容を確認してください。",
-  UNSUPPORTED_DEFINITION: "選択した定義は現在の戦闘ルールで未対応です。",
   RATE_LIMIT: "リクエストが多すぎます。しばらく待って再試行してください。",
   CAPACITY: "サーバーが混雑しています。しばらく待って再試行してください。",
   TIMEOUT: "応答がタイムアウトしました。条件を見直すか再試行してください。",

@@ -11,7 +11,7 @@ function catalogWith(
   return { schemaVersion: 1, catalogRevision: "rev-1", units, memories };
 }
 
-function selectableUnit(
+function catalogUnit(
   unitDefinitionId: string,
   overrides: Partial<BattleSimulationCatalogResponse["units"][number]> = {},
 ): BattleSimulationCatalogResponse["units"][number] {
@@ -23,21 +23,6 @@ function selectableUnit(
     unitType: "ATTACKER",
     role: "PHYSICAL_ATTACKER",
     positionAptitudes: ["FRONT", "BACK"],
-    selectable: true,
-    unavailableCapabilities: [],
-    ...overrides,
-  };
-}
-
-function selectableMemory(
-  memoryDefinitionId: string,
-  overrides: Partial<BattleSimulationCatalogResponse["memories"][number]> = {},
-): BattleSimulationCatalogResponse["memories"][number] {
-  return {
-    memoryDefinitionId,
-    displayName: memoryDefinitionId,
-    selectable: true,
-    unavailableCapabilities: [],
     ...overrides,
   };
 }
@@ -60,7 +45,7 @@ function draftWithAllyCount(count: number, catalogUnitId = "UNIT_A"): BattleDraf
 }
 
 describe("validateDraft — unit count (UI-UT-VAL-001/002/003)", () => {
-  const catalog = catalogWith([selectableUnit("UNIT_A")]);
+  const catalog = catalogWith([catalogUnit("UNIT_A")]);
 
   it("rejects 0 ally units", () => {
     const draft = draftWithAllyCount(0);
@@ -103,7 +88,7 @@ describe("validateDraft — unit count (UI-UT-VAL-001/002/003)", () => {
 });
 
 describe("validateDraft — memory count (UI-UT-VAL-004)", () => {
-  const catalog = catalogWith([selectableUnit("UNIT_A")]);
+  const catalog = catalogWith([catalogUnit("UNIT_A")]);
 
   it("accepts 0 and 6 memories, rejects 7", () => {
     const base = draftWithAllyCount(1);
@@ -131,91 +116,21 @@ describe("validateDraft — memory count (UI-UT-VAL-004)", () => {
   });
 });
 
-describe("validateDraft — turn limit (UI-UT-VAL-005)", () => {
-  const catalog = catalogWith([selectableUnit("UNIT_A")]);
-
-  it.each([1, 99])("accepts turnLimit %i", (turnLimit) => {
-    const draft: BattleDraft = { ...draftWithAllyCount(1), turnLimit };
-    expect(validateDraft(draft, catalog).filter((v) => v.path === "/turnLimit")).toEqual([]);
-  });
-
-  it.each([0, 100, 1.5, ""])("rejects turnLimit %s", (turnLimit) => {
-    const draft: BattleDraft = { ...draftWithAllyCount(1), turnLimit: turnLimit as number | "" };
-    expect(validateDraft(draft, catalog).filter((v) => v.path === "/turnLimit")).not.toEqual([]);
-  });
-});
-
-describe("validateDraft — unsupported capability (UI-UT-VAL-006)", () => {
-  it("rejects a unit definition that is not selectable", () => {
-    const catalog = catalogWith([
-      selectableUnit("UNIT_A", { selectable: false, unavailableCapabilities: ["CAP_X"] }),
-    ]);
-    const draft = draftWithAllyCount(1, "UNIT_A");
-
-    const violations = validateDraft(draft, catalog);
-    expect(violations).toContainEqual(
-      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION", severity: "error" }),
-    );
-  });
-
-  it("rejects a memory definition that is not selectable", () => {
-    const catalog = catalogWith(
-      [selectableUnit("UNIT_A")],
-      [selectableMemory("MEM_A", { selectable: false, unavailableCapabilities: ["CAP_Y"] })],
-    );
-    const draft: BattleDraft = {
-      ...draftWithAllyCount(1),
-      allyMemoryDefinitionIds: ["MEM_A", undefined, undefined, undefined, undefined, undefined],
-    };
-
-    const violations = validateDraft(draft, catalog);
-    expect(violations).toContainEqual(
-      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION", severity: "error" }),
-    );
-  });
-
+describe("validateDraft — unknown definition (UI-UT-VAL-006)", () => {
   it("rejects a unit definition id that is missing from the catalog entirely", () => {
     const catalog = catalogWith([]);
     const draft = draftWithAllyCount(1, "UNKNOWN_UNIT");
 
     const violations = validateDraft(draft, catalog);
     expect(violations).toContainEqual(
-      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION", severity: "error" }),
-    );
-  });
-});
-
-// Capability廃止後のAPIはselectableを送らない。欠落は選択可能として扱う。
-describe("validateDraft — tolerates a missing selectable", () => {
-  it("accepts a unit definition without selectable", () => {
-    const { selectable: _selectable, ...unit } = selectableUnit("UNIT_A");
-    const catalog = catalogWith([unit]);
-    const draft = draftWithAllyCount(1, "UNIT_A");
-
-    const violations = validateDraft(draft, catalog);
-    expect(violations).not.toContainEqual(
-      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION" }),
-    );
-  });
-
-  it("accepts a memory definition without selectable", () => {
-    const { selectable: _selectable, ...memory } = selectableMemory("MEM_A");
-    const catalog = catalogWith([selectableUnit("UNIT_A")], [memory]);
-    const draft: BattleDraft = {
-      ...draftWithAllyCount(1),
-      allyMemoryDefinitionIds: ["MEM_A", undefined, undefined, undefined, undefined, undefined],
-    };
-
-    const violations = validateDraft(draft, catalog);
-    expect(violations).not.toContainEqual(
-      expect.objectContaining({ code: "UNSUPPORTED_DEFINITION" }),
+      expect.objectContaining({ code: "UNKNOWN_DEFINITION", severity: "error" }),
     );
   });
 });
 
 describe("validateDraft — aptitude mismatch is a warning (UI-UT-VAL-007)", () => {
   it("does not block submission for an off-aptitude placement", () => {
-    const catalog = catalogWith([selectableUnit("UNIT_A", { positionAptitudes: ["FRONT"] })]);
+    const catalog = catalogWith([catalogUnit("UNIT_A", { positionAptitudes: ["FRONT"] })]);
     const base = createInitialDraft();
     const rearSlotKey = slotKeyOf("ally", "REAR", 0);
     const draft: BattleDraft = {
@@ -235,7 +150,7 @@ describe("validateDraft — aptitude mismatch is a warning (UI-UT-VAL-007)", () 
 
 describe("validateDraft — duplicate position", () => {
   it("does not flag the normal case where every slot has a distinct coordinate", () => {
-    const catalog = catalogWith([selectableUnit("UNIT_A")]);
+    const catalog = catalogWith([catalogUnit("UNIT_A")]);
     const draft = draftWithAllyCount(3, "UNIT_A");
 
     const violations = validateDraft(draft, catalog);
@@ -246,7 +161,7 @@ describe("validateDraft — duplicate position", () => {
   // structurally impossible (each slotKey maps to one row/column), but the
   // validator still guards against a malformed draft reaching this point.
   it("flags a second slot that shares another filled slot's row/column", () => {
-    const catalog = catalogWith([selectableUnit("UNIT_A")]);
+    const catalog = catalogWith([catalogUnit("UNIT_A")]);
     const base = draftWithAllyCount(1, "UNIT_A");
     const [firstSlot] = base.allySlots;
     const malformedSlots: readonly FormationSlotInput[] = [

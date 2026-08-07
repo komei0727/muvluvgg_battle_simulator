@@ -3,7 +3,6 @@
 
 import { aptitudeMatches } from "../../lib/aptitude.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
-import { isSelectable } from "../simulation/catalog-availability.js";
 import { memorySlotKeyOf } from "./types.js";
 import type { BattleDraft, FormationSlotInput, Side } from "./types.js";
 
@@ -105,7 +104,7 @@ function validateTurnLimit(turnLimit: BattleDraft["turnLimit"]): UiViolation[] {
   return [{ path: "/turnLimit", code: "TURN_LIMIT_INVALID", message, severity: "error" }];
 }
 
-function validateUnitSelectability(
+function validateUnitExistence(
   side: Side,
   slots: readonly FormationSlotInput[],
   catalog: BattleSimulationCatalogResponse,
@@ -115,12 +114,12 @@ function validateUnitSelectability(
     const definition = catalog.units.find(
       (unit) => unit.unitDefinitionId === slot.unitDefinitionId,
     );
-    if (definition === undefined || !isSelectable(definition)) {
+    if (definition === undefined) {
       violations.push({
         path: unitsPath(side),
         slotKey: slot.slotKey,
-        code: "UNSUPPORTED_DEFINITION",
-        message: "未対応の戦闘ルールを必要とする定義は選択できません。",
+        code: "UNKNOWN_DEFINITION",
+        message: "Catalogに存在しない定義です。選択し直してください。",
         severity: "error",
       });
     }
@@ -128,7 +127,7 @@ function validateUnitSelectability(
   return violations;
 }
 
-function validateMemorySelectability(
+function validateMemoryExistence(
   side: Side,
   ids: readonly (string | undefined)[],
   catalog: BattleSimulationCatalogResponse,
@@ -141,12 +140,12 @@ function validateMemorySelectability(
     const definition = catalog.memories.find(
       (memory) => memory.memoryDefinitionId === memoryDefinitionId,
     );
-    if (definition === undefined || !isSelectable(definition)) {
+    if (definition === undefined) {
       violations.push({
         path: `${memoriesPath(side)}/${index}`,
         slotKey: memorySlotKeyOf(side, index),
-        code: "UNSUPPORTED_DEFINITION",
-        message: "未対応の戦闘ルールを必要とする定義は選択できません。",
+        code: "UNKNOWN_DEFINITION",
+        message: "Catalogに存在しない定義です。選択し直してください。",
         severity: "error",
       });
     }
@@ -192,10 +191,10 @@ export function validateDraft(
     ...validateMemoryCount("ally", draft.allyMemoryDefinitionIds),
     ...validateMemoryCount("enemy", draft.enemyMemoryDefinitionIds),
     ...validateTurnLimit(draft.turnLimit),
-    ...validateUnitSelectability("ally", draft.allySlots, catalog),
-    ...validateUnitSelectability("enemy", draft.enemySlots, catalog),
-    ...validateMemorySelectability("ally", draft.allyMemoryDefinitionIds, catalog),
-    ...validateMemorySelectability("enemy", draft.enemyMemoryDefinitionIds, catalog),
+    ...validateUnitExistence("ally", draft.allySlots, catalog),
+    ...validateUnitExistence("enemy", draft.enemySlots, catalog),
+    ...validateMemoryExistence("ally", draft.allyMemoryDefinitionIds, catalog),
+    ...validateMemoryExistence("enemy", draft.enemyMemoryDefinitionIds, catalog),
     ...validateAptitudeWarnings("ally", draft.allySlots, catalog),
     ...validateAptitudeWarnings("enemy", draft.enemySlots, catalog),
   ];

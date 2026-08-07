@@ -8,17 +8,13 @@ const items: readonly SelectionDialogItem[] = [
   {
     definitionId: "DEF_ALPHA",
     displayName: "アルファ",
-    selectable: true,
     disabled: false,
-    unavailableCapabilities: [],
     tags: ["攻撃", "前衛"],
   },
   {
     definitionId: "DEF_BETA",
     displayName: "ベータ",
-    selectable: false,
     disabled: true,
-    unavailableCapabilities: ["CAP_UNSUPPORTED"],
   },
 ];
 
@@ -58,36 +54,10 @@ describe("SelectionDialogList", () => {
     expect(screen.getByRole("button", { name: "アルファ選択中" })).toBeEnabled();
   });
 
-  it("disables an item the caller marked disabled and shows its capability reason", () => {
+  it("disables an item the caller marked disabled", () => {
     render(<SelectionDialogList items={items} kind="unit" onSelect={vi.fn()} onRemove={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "ベータを選択" })).toBeDisabled();
-    expect(screen.getByText(/CAP_UNSUPPORTED/)).toBeInTheDocument();
-  });
-
-  // 理由が空のまま「未対応:」だけを出すと、利用者に読める情報がない。
-  it("omits the unavailable label when no capability reason is given", () => {
-    const withoutReason: readonly SelectionDialogItem[] = [
-      {
-        definitionId: "DEF_GAMMA",
-        displayName: "ガンマ",
-        selectable: false,
-        disabled: true,
-        unavailableCapabilities: [],
-      },
-    ];
-
-    render(
-      <SelectionDialogList
-        items={withoutReason}
-        kind="unit"
-        onSelect={vi.fn()}
-        onRemove={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: "ガンマを選択" })).toBeDisabled();
-    expect(screen.queryByText(/未対応/)).not.toBeInTheDocument();
   });
 
   it("hides the remove control while the slot is empty", () => {

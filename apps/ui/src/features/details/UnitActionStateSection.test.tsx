@@ -75,8 +75,6 @@ describe("UnitActionStateSection", () => {
         unitType: "HUMANOID",
         role: "PHYSICAL_ATTACKER",
         positionAptitudes: ["FRONT"],
-        selectable: true,
-        unavailableCapabilities: [],
       },
     ]);
     const response = responseWith({

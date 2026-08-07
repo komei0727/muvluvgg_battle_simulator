@@ -7,8 +7,6 @@ import { MemorySlot } from "./MemorySlot.js";
 const memory: CatalogMemorySummary = {
   memoryDefinitionId: "MEM_A",
   displayName: "記憶アルファ",
-  selectable: false,
-  unavailableCapabilities: ["CAP_UNSUPPORTED"],
 };
 
 describe("MemorySlot — empty", () => {
