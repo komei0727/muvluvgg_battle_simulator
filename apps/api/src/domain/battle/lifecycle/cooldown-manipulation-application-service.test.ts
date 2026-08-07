@@ -50,7 +50,6 @@ function resetAction(
   return {
     kind: "COOLDOWN_MANIPULATION",
     effectActionDefinitionId: createEffectActionDefinitionId("ACT_RESET_CT"),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { targetSkillDefinitionId: targetSkillId, operation: "RESET" },
   };

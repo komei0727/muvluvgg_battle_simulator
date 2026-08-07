@@ -58,7 +58,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "制圧砲撃",
       "tags": []
@@ -148,7 +147,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "正射必中",
       "tags": []
@@ -237,7 +235,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "効力射",
       "tags": []
@@ -278,7 +275,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "スポッティング",
       "tags": []
@@ -324,7 +320,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "カウンタースナイプ",
       "tags": []

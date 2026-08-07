@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.794 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -24,7 +23,6 @@
         ]
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -35,14 +33,12 @@
       "operation": "SET_TO_MAX",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -54,28 +50,24 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS1_CD_RESET",
     "kind": "COOLDOWN_MANIPULATION",
     "payload": { "targetSkillDefinitionId": "SKL_MERU_FLATSPIN_PS1", "operation": "RESET" },
-    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS2_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.624 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -86,7 +78,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 1.248 },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -98,7 +89,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -114,7 +104,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -129,7 +118,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -140,7 +128,6 @@
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true },
       "maxBlocks": 1
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   }
 ]

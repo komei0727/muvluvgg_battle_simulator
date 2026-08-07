@@ -160,7 +160,6 @@ function damageEffectAction(
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -184,7 +183,6 @@ function shieldEffectAction(id: string, amount = 10): EffectActionDefinition {
   return {
     kind: "APPLY_SHIELD",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       formula: { kind: "CONSTANT", value: amount },
@@ -207,7 +205,6 @@ function coverEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "APPLY_COVER",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       coverer: { kind: "SELF" },
@@ -228,7 +225,6 @@ function subUnitEffectAction(id: string, durability = 10): EffectActionDefinitio
   return {
     kind: "APPLY_SUBUNIT",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       durability: { formula: { kind: "CONSTANT", value: durability } },
@@ -259,7 +255,6 @@ function statModEffectAction(
   return {
     kind: "APPLY_STAT_MOD",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       stat,
@@ -309,7 +304,6 @@ function attackSkill(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Attack", tags: [] },
   };
 }
@@ -347,7 +341,6 @@ function exSkill(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Ex", tags: [] },
   };
 }
@@ -390,7 +383,6 @@ function chargeSkill(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Charge", tags: [] },
   };
 }
@@ -404,7 +396,6 @@ function cooldownManipulationEffectAction(
   return {
     kind: "COOLDOWN_MANIPULATION",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       targetSkillDefinitionId: createSkillDefinitionId(targetSkillDefinitionId),
@@ -448,7 +439,6 @@ function cooldownManipulationSkill(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "CooldownManipulation", tags: [] },
   };
 }
@@ -586,7 +576,6 @@ describe("resolveActionPhase", () => {
         stacking: { mode: "STACKABLE" },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const gainModEffect: AppliedEffect = {
@@ -657,7 +646,6 @@ describe("resolveActionPhase", () => {
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const hotEffect: AppliedEffect = {
@@ -767,7 +755,6 @@ describe("resolveActionPhase", () => {
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const hotEffect: AppliedEffect = {
@@ -843,7 +830,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "OnHealApplied", tags: [] },
     };
 
@@ -912,7 +898,6 @@ describe("resolveActionPhase", () => {
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     // R-DOT-01: 付与時の付与者攻撃力（100）× 30% = 30 を付与時に焼き込んである。
@@ -1030,7 +1015,6 @@ describe("resolveActionPhase", () => {
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
     const hotEffect: AppliedEffect = {
@@ -1108,7 +1092,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "PunishHeal", tags: [] },
     };
 
@@ -1259,7 +1242,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: eventType, tags: [] },
     });
     const onHitConfirmed = observerPassiveOf("SKL_PS_ON_HIT_CONFIRMED", "HitConfirmed");
@@ -1411,7 +1393,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: `Lethal on ${triggerEventType}`, tags: [] },
     };
 
@@ -2701,7 +2682,6 @@ describe("resolveActionPhase", () => {
     const stunAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -2760,7 +2740,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_STUN_FROZEN_ALLY_ON_WAIT", tags: [] },
     };
 
@@ -2788,7 +2767,6 @@ describe("resolveActionPhase", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "AllyStunner",
             characterName: "AllyStunner",
@@ -2919,7 +2897,6 @@ describe("resolveActionPhase", () => {
     const stunAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3028,7 +3005,6 @@ describe("resolveActionPhase", () => {
     const stunAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3076,7 +3052,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_RESERVATION_REMOVED", tags: [] },
     };
 
@@ -3125,7 +3100,6 @@ describe("resolveActionPhase", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "AllyStunnerWithPS",
             characterName: "AllyStunnerWithPS",
@@ -3214,7 +3188,6 @@ describe("resolveActionPhase", () => {
     const stunBAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunBActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3231,7 +3204,6 @@ describe("resolveActionPhase", () => {
     const stunDAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunDActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3280,7 +3252,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_STUN_D_ON_REMOVAL", tags: [] },
     };
 
@@ -3348,7 +3319,6 @@ describe("resolveActionPhase", () => {
             activeSkillDefinitionIds: [],
             passiveSkillDefinitionIds: [passiveSkillDefinitionId],
             extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-            requiredCapabilities: [],
             metadata: {
               displayName: "AllyStunnerChain",
               characterName: "AllyStunnerChain",
@@ -3449,7 +3419,6 @@ describe("resolveActionPhase", () => {
     const stunBAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunBActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3502,7 +3471,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_KILL_D_ON_REMOVAL", tags: [] },
     };
 
@@ -3575,7 +3543,6 @@ describe("resolveActionPhase", () => {
             activeSkillDefinitionIds: [],
             passiveSkillDefinitionIds: [passiveSkillDefinitionId],
             extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-            requiredCapabilities: [],
             metadata: {
               displayName: "AllyStunnerKillChain",
               characterName: "AllyStunnerKillChain",
@@ -3662,7 +3629,6 @@ describe("resolveActionPhase", () => {
     const stunBAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunBActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3708,7 +3674,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_COUNTER_ON_REMOVAL_ORD_6", tags: [] },
     };
     // Reacts to RuntimeCounterReset (only emitted by finalizeResolutionScope
@@ -3718,7 +3683,6 @@ describe("resolveActionPhase", () => {
     const stunDAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunDActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3767,7 +3731,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_STUN_D_ON_RESET_ORD_6", tags: [] },
     };
 
@@ -3836,7 +3799,6 @@ describe("resolveActionPhase", () => {
             activeSkillDefinitionIds: [],
             passiveSkillDefinitionIds: [counterSkillDefinitionId, stunOnResetSkillDefinitionId],
             extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-            requiredCapabilities: [],
             metadata: {
               displayName: "AllyStunnerResetChain",
               characterName: "AllyStunnerResetChain",
@@ -3950,7 +3912,6 @@ describe("resolveActionPhase", () => {
     const stunAction: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: stunActionId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -4008,7 +3969,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_STUN_AND_BUFF_ORD_04_002", tags: [] },
     };
 
@@ -4072,7 +4032,6 @@ describe("resolveActionPhase", () => {
             activeSkillDefinitionIds: [],
             passiveSkillDefinitionIds: [],
             extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-            requiredCapabilities: [],
             metadata: {
               displayName: "AllyStunnerAndBuffer",
               characterName: "AllyStunnerAndBuffer",
@@ -4528,7 +4487,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_DAMAGED", tags: [] },
     };
 
@@ -4556,7 +4514,6 @@ describe("resolveActionPhase", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Defender",
             characterName: "Defender",
@@ -4647,7 +4604,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_OWN_AS", tags: [] },
     };
 
@@ -4675,7 +4631,6 @@ describe("resolveActionPhase", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Attacker",
             characterName: "Attacker",
@@ -4763,7 +4718,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_OWN_WAIT", tags: [] },
     };
 
@@ -4791,7 +4745,6 @@ describe("resolveActionPhase", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Waiter",
             characterName: "Waiter",
@@ -4881,7 +4834,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_ALLY_CHARGE_START", tags: [] },
     };
 
@@ -4909,7 +4861,6 @@ describe("resolveActionPhase", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Supporter",
             characterName: "Supporter",
@@ -4997,7 +4948,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SelfDestruct", tags: [] },
     };
     const ally = unit("ALLY_1", "ALLY", {
@@ -5095,7 +5045,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SelfDestructLast", tags: [] },
     };
     const ally = unit("ALLY_1", "ALLY", {
@@ -5187,7 +5136,6 @@ describe("resolveActionPhase", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SelfDestructThenCooldownManip", tags: [] },
     };
     const allyBase = unit("ALLY_1", "ALLY", {

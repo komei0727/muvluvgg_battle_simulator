@@ -21,7 +21,6 @@ describe("applyDamageAction EffectSequence damage sums (G-10, RES-003A)", () => 
     return {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_SUM_REFERENCING"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",

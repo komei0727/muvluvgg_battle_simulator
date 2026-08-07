@@ -62,6 +62,5 @@
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
   "metadata": { "displayName": "おパンツ咥えたドラネコ", "tags": [] }
 }

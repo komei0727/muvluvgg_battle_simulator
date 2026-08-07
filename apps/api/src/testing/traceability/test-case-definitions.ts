@@ -5,7 +5,7 @@ import * as ts from "typescript";
  * テストケースIDが「リポジトリ内に実在する実行対象テスト」であることを、
  * TypeScript Compiler APIでソースを解析して機械的に判定するためのユーティリティ。
  *
- * トレーサビリティ台帳（{@link ../rule-coverage.ts}）とCapability検証・残作業対応表
+ * トレーサビリティ台帳（{@link ../rule-coverage.ts}）と残作業対応表
  * （{@link ./remaining-work.test.ts}）の双方から再利用する。コメント内・文字列内・
  * `it.skip`/`todo`/条件付き無効化・未呼び出し関数内などの「証跡になり得ない」記述は
  * 除外し、実際に登録・実行される `it`/`test` のタイトルに含まれるIDだけを収集する。

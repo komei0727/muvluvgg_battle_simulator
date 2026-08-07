@@ -1,6 +1,4 @@
-import type { CapabilityDefinition } from "../../../domain/catalog/capability/capability-definition.js";
 import type {
-  CapabilityId,
   EffectActionDefinitionId,
   MemoryDefinitionId,
   SkillDefinitionId,
@@ -41,17 +39,6 @@ export class InMemoryBattleCatalog implements BattleCatalog {
     const skills = new Map<SkillDefinitionId, SkillDefinition>();
     const effectActions = new Map<EffectActionDefinitionId, EffectActionDefinition>();
     const memories = new Map<MemoryDefinitionId, MemoryDefinition>();
-    const capabilities = new Map<CapabilityId, CapabilityDefinition>();
-
-    const includeCapability = (capabilityId: CapabilityId): void => {
-      if (capabilities.has(capabilityId)) {
-        return;
-      }
-      const capability = this.index.capabilities.get(capabilityId);
-      if (capability !== undefined) {
-        capabilities.set(capabilityId, capability);
-      }
-    };
 
     const includeEffectAction = (effectActionId: EffectActionDefinitionId): void => {
       if (effectActions.has(effectActionId)) {
@@ -62,9 +49,6 @@ export class InMemoryBattleCatalog implements BattleCatalog {
         return;
       }
       effectActions.set(effectActionId, effectAction);
-      for (const capabilityId of effectAction.requiredCapabilities) {
-        includeCapability(capabilityId);
-      }
       // R-SUB-02第3項（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`、DMG-005、Issue #190）:
       // EffectAction同士の参照も推移閉包へ含める。追加デバフはスキルのstepからは
       // 参照されず`APPLY_SUBUNIT`の payload からだけ指されるため、ここで辿らないと
@@ -95,9 +79,6 @@ export class InMemoryBattleCatalog implements BattleCatalog {
           includeEffectAction(ref.effectActionDefinitionId);
         }
       }
-      for (const capabilityId of skill.requiredCapabilities) {
-        includeCapability(capabilityId);
-      }
     };
 
     for (const unitId of unitDefinitionIds) {
@@ -106,9 +87,6 @@ export class InMemoryBattleCatalog implements BattleCatalog {
         continue;
       }
       units.set(unitId, unit);
-      for (const capabilityId of unit.requiredCapabilities) {
-        includeCapability(capabilityId);
-      }
       for (const skillId of [
         ...unit.activeSkillDefinitionIds,
         ...unit.passiveSkillDefinitionIds,
@@ -124,9 +102,6 @@ export class InMemoryBattleCatalog implements BattleCatalog {
         continue;
       }
       memories.set(memoryId, memory);
-      for (const capabilityId of memory.requiredCapabilities) {
-        includeCapability(capabilityId);
-      }
       for (const triggeredEffect of memory.triggeredEffects) {
         for (const ref of collectEffectActionReferences(triggeredEffect.effectSequence.steps)) {
           includeEffectAction(ref.effectActionDefinitionId);
@@ -140,7 +115,6 @@ export class InMemoryBattleCatalog implements BattleCatalog {
       skills: toReadonlyMap(skills),
       effectActions: toReadonlyMap(effectActions),
       memories: toReadonlyMap(memories),
-      capabilities: toReadonlyMap(capabilities),
     };
   }
 }

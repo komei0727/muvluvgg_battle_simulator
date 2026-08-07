@@ -21,7 +21,6 @@
         ]
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -31,7 +30,6 @@
       "status": "DAMAGE_IMMUNITY",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -44,7 +42,6 @@
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
       }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -57,7 +54,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -70,21 +66,18 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.636 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_SINGER_PS1_REMOVE_DEBUFF",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["DEBUFF"], "maxRemovals": 5 },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {
@@ -100,7 +93,6 @@
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -120,7 +112,6 @@
         "linkedEffectGroupRole": "PARENT"
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
@@ -138,7 +129,6 @@
         "linkedEffectGroupRole": "CHILD"
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -154,7 +144,6 @@
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   }
 ]

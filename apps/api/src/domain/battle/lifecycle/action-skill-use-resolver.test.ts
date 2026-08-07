@@ -94,7 +94,6 @@ function unitDefinitionOf(
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds,
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: {
       displayName: "Test Unit",
       characterName: "Test Character",
@@ -109,7 +108,6 @@ function damageEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -137,7 +135,6 @@ function statusEffectAction(id: string, skillUseCount: number): EffectActionDefi
   return {
     kind: "APPLY_STATUS",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       status: "STEALTH",
@@ -180,7 +177,6 @@ function selfStatusSkill(id: string, effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -215,7 +211,6 @@ function trivialAttackSkill(id: string, effectActionId: string): SkillDefinition
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -267,7 +262,6 @@ function asSkillWithCounterUpdates(effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "AS", tags: [] },
   };
 }
@@ -481,7 +475,6 @@ describe("resolveSkillUse", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "ReactivePS", tags: [] },
     };
 
@@ -584,7 +577,6 @@ describe("resolveSkillUse", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "PSOnCompletion", tags: [] },
     };
     const psOnExpiry: SkillDefinition = {
@@ -611,7 +603,6 @@ describe("resolveSkillUse", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "PSOnExpiry", tags: [] },
     };
 
@@ -760,7 +751,6 @@ describe("resolveSkillUse", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "PSDoubleDecrement", tags: [] },
     };
 
@@ -906,7 +896,6 @@ describe("resolveSkillUse", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "PSDecrementParent", tags: [] },
     };
 

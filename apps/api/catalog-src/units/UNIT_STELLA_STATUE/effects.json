@@ -12,7 +12,6 @@
       "probability": 1,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   },
   {
@@ -23,7 +22,6 @@
       "stack": { "policy": "KEEP_EXISTING", "max": 1 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -34,7 +32,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -45,7 +42,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
       "probability": 0.55
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -58,14 +54,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_STELLA_STATUE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.9 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -76,7 +70,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.9 },
       "damageModifiers": [{ "kind": "CONSTANT", "value": 0.5 }]
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -92,7 +85,6 @@
       "probability": 0.6,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   },
   {
@@ -113,14 +105,12 @@
         ]
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_STELLA_STATUE_PS1_REMOVE_MARKER",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_WAKKOU" },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -134,7 +124,6 @@
         "ratio": 0.5
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -144,14 +133,12 @@
       "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_STELLA_STATUE_EX_REMOVE_DEBUFFS",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["DEBUFF"] },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   }
 ]

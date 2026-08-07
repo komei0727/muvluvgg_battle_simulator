@@ -113,7 +113,6 @@ function selfSkill(skillDefinitionId: string, effectActionIds: readonly string[]
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: skillDefinitionId, tags: [] },
   };
 }
@@ -169,7 +168,6 @@ function markerWatcherPassiveSkill(skillDefinitionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: skillDefinitionId, tags: [] },
   };
 }

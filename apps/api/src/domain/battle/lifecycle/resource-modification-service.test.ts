@@ -52,7 +52,6 @@ function modifyResourceAction(
     effectActionDefinitionId: createEffectActionDefinitionId(id),
     kind: "MODIFY_RESOURCE",
     payload,
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

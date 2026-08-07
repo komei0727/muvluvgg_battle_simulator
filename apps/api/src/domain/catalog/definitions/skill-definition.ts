@@ -1,10 +1,5 @@
 import type { ResourceKind, SkillType } from "./catalog-enums.js";
-import {
-  createCapabilityId,
-  createSkillDefinitionId,
-  type CapabilityId,
-  type SkillDefinitionId,
-} from "./catalog-ids.js";
+import { createSkillDefinitionId, type SkillDefinitionId } from "./catalog-ids.js";
 import {
   createConditionDefinition,
   type ConditionDefinition,
@@ -98,7 +93,6 @@ export interface SkillDefinition {
   readonly resolution: SkillResolutionDefinition;
   readonly cooldown: Cooldown;
   readonly traits: SkillTraits;
-  readonly requiredCapabilities: readonly CapabilityId[];
   readonly metadata: { readonly displayName: string; readonly tags: readonly string[] };
 }
 
@@ -149,7 +143,6 @@ export interface SkillDefinitionInput {
   readonly resolution: SkillResolutionDefinitionInput;
   readonly cooldown: CooldownInput;
   readonly traits: SkillTraitsInput;
-  readonly requiredCapabilities: readonly string[];
   readonly metadata: { readonly displayName: string; readonly tags?: readonly string[] };
 }
 
@@ -376,11 +369,6 @@ export function createSkillDefinition(
     );
   }
 
-  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
-  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
-    createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
-  );
-
   const activationCondition =
     input.activationCondition === undefined
       ? { kind: "TRUE" as const }
@@ -408,7 +396,6 @@ export function createSkillDefinition(
     resolution: createResolution(input.resolution, `${path}.resolution`),
     cooldown: createCooldown(input.cooldown, `${path}.cooldown`),
     traits: createTraits(input.traits, `${path}.traits`),
-    requiredCapabilities,
     metadata: { displayName: input.metadata.displayName, tags: input.metadata.tags ?? [] },
   });
 }

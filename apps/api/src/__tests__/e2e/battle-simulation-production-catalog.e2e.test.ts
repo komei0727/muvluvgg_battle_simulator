@@ -83,8 +83,6 @@ describe("production Catalog has a selectable unit that actually completes a bat
       battleCatalogDirectory: directory,
     }).execute();
 
-    expect(catalogResult.units.some((unit) => unit.selectable)).toBe(true);
-
     const request = buildSimulationSmokeRequest(catalogResult);
 
     pool = await SimulationWorkerPool.create({

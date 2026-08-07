@@ -9,7 +9,6 @@
         "power": 0.858
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -31,7 +30,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -57,7 +55,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -78,7 +75,6 @@
         }
       ]
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -109,7 +105,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -130,7 +125,6 @@
         }
       ]
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -151,7 +145,6 @@
         }
       ]
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -166,7 +159,6 @@
         "power": 1.166
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -181,7 +173,6 @@
         "power": 1.2048
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -199,7 +190,6 @@
         }
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -214,7 +204,6 @@
         "power": 0.702
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -236,7 +225,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -262,7 +250,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -282,7 +269,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -308,7 +294,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -330,7 +315,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }

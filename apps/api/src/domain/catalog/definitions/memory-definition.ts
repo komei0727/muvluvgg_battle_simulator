@@ -1,9 +1,4 @@
-import {
-  createCapabilityId,
-  createMemoryDefinitionId,
-  type CapabilityId,
-  type MemoryDefinitionId,
-} from "./catalog-ids.js";
+import { createMemoryDefinitionId, type MemoryDefinitionId } from "./catalog-ids.js";
 import {
   createEffectSequence,
   type EffectSequence,
@@ -33,14 +28,12 @@ export interface TriggeredEffectInput {
 export interface MemoryDefinition {
   readonly memoryDefinitionId: MemoryDefinitionId;
   readonly triggeredEffects: readonly TriggeredEffect[];
-  readonly requiredCapabilities: readonly CapabilityId[];
   readonly metadata: { readonly displayName: string; readonly tags: readonly string[] };
 }
 
 export interface MemoryDefinitionInput {
   readonly memoryDefinitionId: string;
   readonly triggeredEffects?: readonly TriggeredEffectInput[];
-  readonly requiredCapabilities: readonly string[];
   readonly metadata: { readonly displayName: string; readonly tags?: readonly string[] };
 }
 
@@ -70,15 +63,9 @@ export function createMemoryDefinition(
     throw new DomainValidationError(path, "must declare at least one triggeredEffect");
   }
 
-  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
-  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
-    createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
-  );
-
   return deepFreeze({
     memoryDefinitionId,
     triggeredEffects,
-    requiredCapabilities,
     metadata: { displayName: input.metadata.displayName, tags: input.metadata.tags ?? [] },
   });
 }

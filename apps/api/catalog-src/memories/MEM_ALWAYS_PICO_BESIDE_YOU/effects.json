@@ -12,7 +12,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -23,7 +22,6 @@
       "stack": { "policy": "ADD", "max": null },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -36,7 +34,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -49,7 +46,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

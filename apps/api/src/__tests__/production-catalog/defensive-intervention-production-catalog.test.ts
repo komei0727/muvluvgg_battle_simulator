@@ -11,7 +11,6 @@ import { SequenceRandomSource } from "../../testing/random/sequence-random-sourc
 import { createActionId } from "../../domain/shared/event-ids.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import {
-  createCapabilityId,
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
@@ -114,7 +113,6 @@ function selfStepsSkill(skillId: string, ...effectActionIds: readonly string[]):
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: skillId, tags: [] },
   };
 }
@@ -175,7 +173,6 @@ function frontRowAttackSkill(): SkillDefinition {
         },
       ],
     },
-    requiredCapabilities: [createCapabilityId("CAP_TARGET_FILTER_ORDER")],
   };
 }
 
@@ -183,7 +180,6 @@ function singleHitAttack(): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACK_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

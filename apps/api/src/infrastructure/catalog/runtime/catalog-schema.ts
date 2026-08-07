@@ -18,10 +18,8 @@ import { Ajv, type ValidateFunction } from "ajv";
  * Every other object — the top level of each DTO and every fixed-shape sub-
  * object (`baseStats`, `metadata`, `cost`, `cooldown`, the outer `resolution`
  * envelope) — sets `additionalProperties: false` per `12_テスト戦略.md`'s
- * Catalogテスト方針 ("未知プロパティを拒否する"). Without this, a typo like
- * `requiredCapability` (singular) sitting next to a correct but empty
- * `requiredCapabilities: []` would pass Shape validation silently, and the
- * downstream Capability preflight would never see the intended requirement.
+ * Catalogテスト方針 ("未知プロパティを拒否する"). Without this, a misspelled
+ * property would pass Shape validation silently and never take effect.
  */
 
 const idSchema = (prefix: string) => ({
@@ -47,7 +45,6 @@ export const unitDefinitionSchema = {
     "activeSkillDefinitionIds",
     "passiveSkillDefinitionIds",
     "extraSkillDefinitionId",
-    "requiredCapabilities",
     "metadata",
   ],
   properties: {
@@ -88,7 +85,6 @@ export const unitDefinitionSchema = {
     activeSkillDefinitionIds: { type: "array", items: idSchema("SKL_") },
     passiveSkillDefinitionIds: { type: "array", items: idSchema("SKL_") },
     extraSkillDefinitionId: idSchema("SKL_"),
-    requiredCapabilities: { type: "array", items: { type: "string" } },
     metadata: {
       type: "object",
       additionalProperties: false,
@@ -115,7 +111,6 @@ export const skillDefinitionSchema = {
     "resolution",
     "cooldown",
     "traits",
-    "requiredCapabilities",
     "metadata",
   ],
   properties: {
@@ -171,7 +166,6 @@ export const skillDefinitionSchema = {
       },
     },
     traits: looseObject,
-    requiredCapabilities: { type: "array", items: { type: "string" } },
     metadata: {
       type: "object",
       additionalProperties: false,
@@ -188,7 +182,7 @@ export const effectActionDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/effect-action-definition.json",
   type: "object",
   additionalProperties: false,
-  required: ["effectActionDefinitionId", "kind", "payload", "requiredCapabilities"],
+  required: ["effectActionDefinitionId", "kind", "payload"],
   properties: {
     effectActionDefinitionId: idSchema("ACT_"),
     kind: {
@@ -222,7 +216,6 @@ export const effectActionDefinitionSchema = {
       ],
     },
     payload: looseObject,
-    requiredCapabilities: { type: "array", items: { type: "string" } },
     metadata: {
       type: "object",
       additionalProperties: false,
@@ -235,11 +228,10 @@ export const memoryDefinitionSchema = {
   $id: "https://muvluvgg.local/catalog/memory-definition.json",
   type: "object",
   additionalProperties: false,
-  required: ["memoryDefinitionId", "triggeredEffects", "requiredCapabilities", "metadata"],
+  required: ["memoryDefinitionId", "triggeredEffects", "metadata"],
   properties: {
     memoryDefinitionId: idSchema("MEM_"),
     triggeredEffects: looseObjectArray,
-    requiredCapabilities: { type: "array", items: { type: "string" } },
     metadata: {
       type: "object",
       additionalProperties: false,
@@ -247,39 +239,6 @@ export const memoryDefinitionSchema = {
       properties: {
         displayName: { type: "string" },
         tags: { type: "array", items: { type: "string" } },
-      },
-    },
-  },
-} as const;
-
-export const capabilityDefinitionSchema = {
-  $id: "https://muvluvgg.local/catalog/capability-definition.json",
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "capabilityId",
-    "schemaStatus",
-    "runtimeStatus",
-    "implementationTaskId",
-    "description",
-    "verification",
-  ],
-  properties: {
-    capabilityId: { type: "string", pattern: "^(CAP_|Q-)[A-Za-z0-9_-]*$" },
-    schemaStatus: { enum: ["SUPPORTED", "PLANNED", "BLOCKED"] },
-    runtimeStatus: { enum: ["IMPLEMENTED", "PLANNED", "BLOCKED"] },
-    implementationTaskId: { type: "string", minLength: 1 },
-    description: { type: "string", minLength: 1 },
-    verification: {
-      type: "object",
-      additionalProperties: false,
-      required: ["productionDefinitionIds", "testCaseIds"],
-      properties: {
-        productionDefinitionIds: {
-          type: "array",
-          items: { type: "string", minLength: 1 },
-        },
-        testCaseIds: { type: "array", items: { type: "string", minLength: 1 } },
       },
     },
   },
@@ -295,4 +254,3 @@ export const validateUnitDefinitionDto = compile(unitDefinitionSchema);
 export const validateSkillDefinitionDto = compile(skillDefinitionSchema);
 export const validateEffectActionDefinitionDto = compile(effectActionDefinitionSchema);
 export const validateMemoryDefinitionDto = compile(memoryDefinitionSchema);
-export const validateCapabilityDefinitionDto = compile(capabilityDefinitionSchema);

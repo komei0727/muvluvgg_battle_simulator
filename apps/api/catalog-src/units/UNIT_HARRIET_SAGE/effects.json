@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.5 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -14,14 +13,12 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -32,7 +29,6 @@
       "stack": { "policy": "ADD", "max": null },
       "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -49,7 +45,6 @@
         "linkedEffectGroupId": "HARRIET_CURSE_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_MARKER", "CAP_COMPLEX_EXPIRATION", "CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -66,7 +61,6 @@
         "linkedEffectGroupId": "HARRIET_CURSE_LINK"
       }
     },
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_COMPLEX_EXPIRATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -77,14 +71,12 @@
       "operation": "SET",
       "formula": { "kind": "CONSTANT", "value": 0 }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_CURSE" },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -104,11 +96,6 @@
         "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 }
       }
     },
-    "requiredCapabilities": [
-      "CAP_SPECIFIC_IMMUNITY",
-      "CAP_HIT_COUNT_EVASION",
-      "CAP_COMPLEX_EXPIRATION"
-    ],
     "metadata": { "tags": [] }
   },
   {
@@ -124,7 +111,6 @@
         "linkedEffectGroupRole": "CHILD"
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -149,7 +135,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL", "CAP_COMPLEX_EXPIRATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -161,7 +146,6 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -174,7 +158,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

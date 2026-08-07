@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.506 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -15,7 +14,6 @@
       "formula": { "kind": "CONSTANT", "value": 0 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -26,7 +24,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -37,7 +34,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.3614 },
       "hitCount": 4
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -51,14 +47,12 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -71,7 +65,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -84,7 +77,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -100,7 +92,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -113,7 +104,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -125,7 +115,6 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   }
 ]

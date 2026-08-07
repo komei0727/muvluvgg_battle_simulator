@@ -18,7 +18,6 @@
     "activeSkillDefinitionIds": ["SKL_001_AS1"],
     "passiveSkillDefinitionIds": [],
     "extraSkillDefinitionId": "SKL_001_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "Minimal Unit",
       "characterName": "Minimal Character",
@@ -46,7 +45,6 @@
     "activeSkillDefinitionIds": ["SKL_001_AS1"],
     "passiveSkillDefinitionIds": [],
     "extraSkillDefinitionId": "SKL_001_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "Minimal Unit (duplicate)",
       "characterName": "Minimal Character",

@@ -69,11 +69,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_ATTACK_DAMAGE_BONUS"
-    ],
     "metadata": {
       "displayName": "あったかいの、どうぞ♪",
       "tags": []
@@ -195,12 +190,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_HEALING_LINK",
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_ACTION_ACTIVATION_CONDITION"
-    ],
     "metadata": {
       "displayName": "私に任せて！",
       "tags": []
@@ -246,7 +235,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "苦手なのはそこだね！",
       "tags": []
@@ -281,7 +269,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": {
       "displayName": "リラックスだよ～♪",
       "tags": []
@@ -383,7 +370,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "それはやりすぎ！",
       "tags": []

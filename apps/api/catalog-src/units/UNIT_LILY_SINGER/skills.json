@@ -26,7 +26,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "displayName": "RAY OF HERO", "tags": [] }
   },
   {
@@ -64,7 +63,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 3 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "カバーは任せて！", "tags": [] }
   },
   {
@@ -89,7 +87,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "みんな、ノッてる！？", "tags": [] }
   },
   {
@@ -112,7 +109,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "気合い入れていこー！", "tags": [] },
     "triggers": [
       {
@@ -167,7 +163,6 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "ライブ開始だよ！", "tags": [] },
     "triggers": [
       {

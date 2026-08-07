@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.272 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -16,14 +15,12 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_CD_RESET",
     "kind": "COOLDOWN_MANIPULATION",
     "payload": { "targetSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_AS1", "operation": "RESET" },
-    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -34,7 +31,6 @@
       "stack": { "policy": "ADD", "max": 6 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -56,7 +52,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -78,7 +73,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -89,7 +83,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.39 },
       "hitCount": 3
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -101,7 +94,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -115,14 +107,12 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.484 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -135,7 +125,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -145,7 +134,6 @@
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.15 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -158,14 +146,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_PS1_CD_RESET",
     "kind": "COOLDOWN_MANIPULATION",
     "payload": { "targetSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_AS1", "operation": "RESET" },
-    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -176,7 +162,6 @@
       "stack": { "policy": "ADD", "max": 6 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -186,7 +171,6 @@
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   }
 ]

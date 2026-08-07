@@ -4,19 +4,27 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 1.0 }
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1
+      }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   },
   {
     "effectActionDefinitionId": "ACT_MEMORY_UNUSED",
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "SKILL_POWER", "power": 1.0 }
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1
+      }
     },
-    "requiredCapabilities": [],
-    "metadata": { "tags": [] }
+    "metadata": {
+      "tags": []
+    }
   }
 ]

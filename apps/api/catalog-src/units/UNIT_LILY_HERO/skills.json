@@ -30,7 +30,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "SLAAAAASH!!!", "tags": [] }
   },
   {
@@ -90,13 +89,6 @@
       }
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_FORMULA",
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_ACTION_ACTIVATION_CONDITION",
-      "CAP_RESOURCE_MUTATION"
-    ],
     "metadata": { "displayName": "アイム・ア・ヒーロー", "tags": [] }
   },
   {
@@ -125,7 +117,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "カムズレイト", "tags": [] }
   },
   {
@@ -145,7 +136,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "テイルウインド", "tags": [] },
     "triggers": [
       {
@@ -173,7 +163,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "displayName": "リゲイン", "tags": [] },
     "triggers": [
       {

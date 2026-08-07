@@ -87,7 +87,6 @@ function setup(): {
         ratio: BONUS_RATIO,
       },
     },
-    requiredCapabilities: ["CAP_ATTACK_DAMAGE_BONUS"],
   });
 
   const elena = testBattleUnit({

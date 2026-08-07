@@ -16,7 +16,6 @@
         "lowAttackBaseDamageRate": 0.1
       }
     },
-    "requiredCapabilities": ["CAP_CONFUSION"],
     "metadata": {
       "tags": []
     }
@@ -31,7 +30,6 @@
         "power": 1.716
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -46,7 +44,6 @@
         "power": 0.25
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -66,7 +63,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -92,7 +88,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -108,7 +103,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": {
       "tags": []
     }
@@ -123,7 +117,6 @@
         "power": 2.12
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -139,7 +132,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -161,7 +153,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -192,7 +183,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -203,7 +193,6 @@
     "payload": {
       "categories": ["SHIELD", "SUBUNIT"]
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD", "CAP_SUBUNIT"],
     "metadata": { "tags": [] }
   },
   {
@@ -227,7 +216,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -263,7 +251,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -286,7 +273,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -318,7 +304,6 @@
         "dispellable": true
       }
     },
-    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -353,7 +338,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
     "metadata": {
       "tags": []
     }

@@ -94,7 +94,6 @@ function loadSnapshot(): BattleCatalogSnapshot {
         rateDelta: { kind: "CONSTANT", value: rateDelta },
         stacking: { mode: "STACKABLE" },
       },
-      requiredCapabilities: ["CAP_RESOURCE_GAIN_MOD"],
     });
   }
   expect(skillFrom(snapshot, SENKA_AS1_ID).cost).toMatchObject({

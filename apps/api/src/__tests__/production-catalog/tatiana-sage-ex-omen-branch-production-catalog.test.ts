@@ -93,7 +93,6 @@ function enemyAttackAction(): Extract<EffectActionDefinition, { kind: "DAMAGE" }
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ENEMY_ATTACK_ACTION_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -149,7 +148,6 @@ function enemyAttackSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: ENEMY_ATTACK_SKILL_ID, tags: [] },
   };
 }
@@ -523,7 +521,6 @@ describe("production Catalog SKL_TATIANA_SAGE_EX Omen threshold branch (RES-004-
       kind: "NEXT_OUTGOING_ATTACK",
       maxCount: 1,
     });
-    expect([...debuff.requiredCapabilities]).toEqual(["CAP_DAMAGE_MOD"]);
 
     const mark = effectActionFrom(snapshot, MARK_ACTION_ID);
     expect(mark.kind).toBe("APPLY_MARKER");

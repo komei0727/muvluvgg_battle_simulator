@@ -26,7 +26,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "displayName": "紅玉の逆襲", "tags": [] }
   },
   {
@@ -76,12 +75,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "エイムグローリー", "tags": [] }
   },
   {
@@ -116,11 +109,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_PASSIVE_ACTIVATION_CONDITION"
-    ],
     "metadata": { "displayName": "ストイックリコイル", "tags": [] },
     "triggers": [
       {
@@ -184,14 +172,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "スターターショット", "tags": [] },
     "triggers": [
       {
@@ -241,14 +221,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_CONTINUOUS_HEAL",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "チアーエール", "tags": [] },
     "triggers": [
       {

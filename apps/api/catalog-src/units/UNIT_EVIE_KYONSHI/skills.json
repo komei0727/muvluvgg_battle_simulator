@@ -29,7 +29,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "ナイトメア・キョンシー", "tags": [] }
   },
   {
@@ -54,7 +53,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "ゴーストハザード", "tags": [] }
   },
   {
@@ -79,7 +77,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "ウォーキング・スペクター", "tags": [] }
   },
   {
@@ -104,7 +101,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "アンデッドリベンジ", "tags": [] },
     "triggers": [
       {
@@ -132,7 +128,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "ハロウィン・オブ・ザ・デッド", "tags": [] },
     "triggers": [
       {

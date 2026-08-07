@@ -6,7 +6,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 1.696 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -17,7 +16,6 @@
       "stack": { "policy": "REFRESH", "max": 1 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -27,7 +25,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 1.896 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -37,7 +34,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 1.6116 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -51,7 +47,6 @@
         "ratio": 1.2
       }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -61,7 +56,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.546 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -77,7 +71,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -93,7 +86,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -104,7 +96,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
     "metadata": { "tags": [] }
   }
 ]

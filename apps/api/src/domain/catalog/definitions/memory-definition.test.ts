@@ -31,7 +31,6 @@ describe("MemoryDefinition", () => {
           },
         },
       ],
-      requiredCapabilities: [],
       metadata: { displayName: "Colorful Bouquet" },
     });
     expect(result.memoryDefinitionId).toBe("MEM_001");
@@ -42,38 +41,7 @@ describe("MemoryDefinition", () => {
     expect(() =>
       createMemoryDefinition({
         memoryDefinitionId: "MEM_003",
-        requiredCapabilities: [],
         metadata: { displayName: "Empty" },
-      }),
-    ).toThrow(DomainValidationError);
-  });
-
-  it("UT-CAT-MEM-005: rejects a non-array requiredCapabilities", () => {
-    expect(() =>
-      createMemoryDefinition({
-        memoryDefinitionId: "MEM_005",
-        triggeredEffects: [
-          {
-            trigger: {
-              eventType: "BattleStarted",
-              category: "FACT",
-              sourceSelector: "ANY",
-              targetSelector: "ANY",
-            },
-            effectSequence: {
-              targetBindings: [],
-              steps: [
-                {
-                  kind: "ACTION",
-                  target: { kind: "SELF" },
-                  actions: [{ effectActionDefinitionId: "ACT_1" }],
-                },
-              ],
-            },
-          },
-        ],
-        requiredCapabilities: "CAP_HEAL" as unknown as readonly string[],
-        metadata: { displayName: "Invalid" },
       }),
     ).toThrow(DomainValidationError);
   });
@@ -83,7 +51,6 @@ describe("MemoryDefinition", () => {
       createMemoryDefinition({
         memoryDefinitionId: "MEM_006",
         triggeredEffects: "not-an-array" as unknown as never[],
-        requiredCapabilities: [],
         metadata: { displayName: "Invalid" },
       }),
     ).toThrow(DomainValidationError);
@@ -114,7 +81,6 @@ describe("MemoryDefinition", () => {
             typoField: "oops",
           } as never,
         ],
-        requiredCapabilities: [],
         metadata: { displayName: "Invalid" },
       }),
     ).toThrow(DomainValidationError);

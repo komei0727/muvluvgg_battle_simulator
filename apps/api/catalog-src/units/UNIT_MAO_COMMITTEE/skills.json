@@ -51,12 +51,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_DAMAGE_MOD",
-      "CAP_HEAL",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "これは没収です！", "tags": [] }
   },
   {
@@ -116,14 +110,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_SHIELD",
-      "CAP_ACTION_ACTIVATION_CONDITION",
-      "CAP_TARGET_FILTER_ORDER",
-      "CAP_FORMULA",
-      "CAP_RESOURCE_MUTATION"
-    ],
     "metadata": { "displayName": "風紀を守る一撃", "tags": [] }
   },
   {
@@ -171,12 +157,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_CONTINUOUS_DAMAGE",
-      "CAP_MARKER",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "容疑者を捕捉！", "tags": [] }
   },
   {
@@ -211,12 +191,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_TRIGGER_CONTEXT",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "抵抗は無意味です！", "tags": [] },
     "triggers": [
       {
@@ -294,13 +268,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_REMOVE_EFFECTS",
-      "CAP_CONTINUOUS_HEAL",
-      "CAP_DAMAGE_MOD",
-      "CAP_COMPLEX_EXPIRATION",
-      "CAP_PASSIVE_ACTIVATION_CONDITION"
-    ],
     "metadata": { "displayName": "風紀委員長としての矜持", "tags": [] },
     "triggers": [
       {

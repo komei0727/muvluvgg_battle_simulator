@@ -55,10 +55,5 @@
       }
     }
   ],
-  "requiredCapabilities": [
-    "CAP_DAMAGE_MOD",
-    "CAP_MEMORY_TRIGGERED_EFFECT",
-    "CAP_TARGET_FILTER_ORDER"
-  ],
   "metadata": { "displayName": "お嬢様直伝マナー講座", "tags": [] }
 }

@@ -81,7 +81,6 @@ function damageAction(id: string, hitCount = 1): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -113,7 +112,6 @@ function skillOf(resolution: SkillResolutionDefinition): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Test", tags: [] },
   };
 }
@@ -1014,7 +1012,6 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
   const buffAction = (id: string): EffectActionDefinition => ({
     kind: "APPLY_STAT_MOD",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       stat: "ATTACK",

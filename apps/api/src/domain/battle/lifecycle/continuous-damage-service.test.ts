@@ -93,7 +93,6 @@ function dotDefinition(
         linkedEffectGroupId: null,
       },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }

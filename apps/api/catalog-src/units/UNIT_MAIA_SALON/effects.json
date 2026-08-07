@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_MAIA_SALON_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -16,7 +15,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -29,14 +27,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.546 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -50,7 +46,6 @@
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -63,14 +58,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.092 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -83,7 +76,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -95,7 +87,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -105,7 +96,6 @@
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.0585 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -116,7 +106,6 @@
       "stack": { "policy": "KEEP_EXISTING", "max": 1 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -129,21 +118,18 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MAIA_SALON_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_MAIA_SALON_PS2_CLEAR_MARKER",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_MAIA_SALON_RANCHOU" },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   }
 ]

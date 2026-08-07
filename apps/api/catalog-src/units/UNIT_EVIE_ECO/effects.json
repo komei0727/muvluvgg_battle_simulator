@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.012 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -13,14 +12,12 @@
       "status": "STUN",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -36,14 +33,12 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_ECO_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -57,7 +52,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "requiredCapabilities": ["CAP_TARGET_REDIRECT"],
     "metadata": { "tags": [] }
   },
   {
@@ -73,14 +67,12 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_EVIE_ECO_PS2_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.75 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -93,7 +85,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -106,7 +97,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -119,7 +109,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

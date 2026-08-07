@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_SIENA_DIVA_AS1", "SKL_SIENA_DIVA_AS2"],
   "passiveSkillDefinitionIds": ["SKL_SIENA_DIVA_PS1", "SKL_SIENA_DIVA_PS2"],
   "extraSkillDefinitionId": "SKL_SIENA_DIVA_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],

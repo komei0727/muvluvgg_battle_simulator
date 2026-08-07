@@ -32,7 +32,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "餅つき、よいしょ～！", "tags": [] }
   },
   {
@@ -82,7 +81,6 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER_STACK_FORMULA", "CAP_TARGET_DERIVED_AREA", "CAP_HEAL"],
     "metadata": { "displayName": "除災招福", "tags": [] }
   },
   {
@@ -110,7 +108,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "お祓い", "tags": [] }
   },
   {
@@ -135,7 +132,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_MARKER", "CAP_COOLDOWN_MANIPULATION"],
     "metadata": { "displayName": "お清め", "tags": [] },
     "triggers": [
       {
@@ -163,7 +159,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_SKILL_RUNTIME_COUNTER"],
     "metadata": { "displayName": "災難除け", "tags": [] },
     "triggers": [
       {

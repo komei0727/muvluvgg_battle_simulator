@@ -14,7 +14,7 @@ import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog
 
 /**
  * production-catalogテストの行動主体ビルダー。既定値は「会心なし・属性相性なし」
- * の決定的ステータスで、乱数消費と補正を検証対象のCapabilityだけへ閉じる。
+ * の決定的ステータスで、乱数消費と補正を検証対象の機能だけへ閉じる。
  * テスト意図に関わる値だけを `combatStats` / `limits` / `overrides` で明示する。
  */
 

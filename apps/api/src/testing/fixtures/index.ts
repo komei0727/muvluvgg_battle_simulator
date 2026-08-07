@@ -13,7 +13,7 @@
  * - resolver内部の中間産物（`EffectSequencePlan`・per-targetフィルタ等）や
  *   特定イベントの因果関係そのものを検証する
  * - Memory編成・複数スロット・陣営非対称など、固定1対1コマンドで表現できない編成を使う
- * - まだturn action resolverが実行できないCapabilityの定義形状を検査する
+ * - まだturn action resolverが実行できない機能の定義形状を検査する
  */
 export {
   testBattleUnit,

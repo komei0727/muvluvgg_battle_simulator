@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -21,14 +20,12 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 5 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.422 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -40,21 +37,18 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.474 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.2808 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -70,7 +64,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -83,7 +76,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -96,7 +88,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -109,7 +100,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -122,7 +112,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

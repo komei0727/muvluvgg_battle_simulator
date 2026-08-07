@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
   "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],
   "extraSkillDefinitionId": "SKL_OLGA_VETERAN_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_KURASUNA"],
     "tags": [],

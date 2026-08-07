@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.506 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -15,7 +14,6 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -31,7 +29,6 @@
       "probability": 1,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   },
   {
@@ -42,7 +39,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.4618 },
       "hitCount": 4
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -55,7 +51,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -68,14 +63,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.7068 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -88,7 +81,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
@@ -104,14 +96,12 @@
       "probability": 1,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.008 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -122,7 +112,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
       "probability": 1
     },
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
     "metadata": { "tags": [] }
   },
   {
@@ -138,7 +127,6 @@
       "probability": 1,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   }
 ]

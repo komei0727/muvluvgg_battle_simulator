@@ -3,14 +3,12 @@
     "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.896 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_EX_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.474 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -25,21 +23,18 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_OFFSTAGE_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.802 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -52,7 +47,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "BATTLE", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -64,7 +58,6 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -80,7 +73,6 @@
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -93,7 +85,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 2 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -108,7 +99,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   }
 ]

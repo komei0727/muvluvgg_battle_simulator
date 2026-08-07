@@ -6,7 +6,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.936 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -24,7 +23,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
@@ -35,7 +33,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
       "damageAmplificationOnBreak": 1.0
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -45,7 +42,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.624 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -58,7 +54,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -68,7 +63,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.312 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -79,7 +73,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } },
       "damageAmplificationOnBreak": 1.0
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -89,7 +82,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 1.59 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -99,7 +91,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.954 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   }
 ]

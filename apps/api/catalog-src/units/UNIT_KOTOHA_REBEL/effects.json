@@ -9,7 +9,6 @@
         "power": 4.664
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -28,7 +27,6 @@
         "shieldIgnoreRate": 0.2
       }
     },
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
     "metadata": {
       "tags": []
     }
@@ -46,7 +44,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -71,7 +68,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -87,7 +83,6 @@
       },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -103,7 +98,6 @@
       },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -125,7 +119,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -151,7 +144,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -166,7 +158,6 @@
         "power": 1.872
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -182,7 +173,6 @@
       },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -198,7 +188,6 @@
       },
       "hitCount": 3
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -220,7 +209,6 @@
         }
       ]
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -246,7 +234,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -272,7 +259,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -307,7 +293,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
     "metadata": {
       "tags": []
     }
@@ -339,7 +324,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }

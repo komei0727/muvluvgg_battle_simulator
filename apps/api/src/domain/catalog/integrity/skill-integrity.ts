@@ -1,21 +1,18 @@
-import type { CapabilityDefinition } from "../capability/capability-definition.js";
-import type { CapabilityId, EffectActionDefinitionId } from "../definitions/catalog-ids.js";
+import type { EffectActionDefinitionId } from "../definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { TargetReference } from "../definitions/references.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
-import {
-  checkRequiredCapabilities,
-  requireRuntimeCapability,
-  validateRuntimeCapabilityDeclarations,
-} from "./capability-declaration-integrity.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
   collectConditionEffectActionReferences,
   collectConditionTargetReferencePaths,
   collectTargetStateOrMarkerReferences,
 } from "./condition-inspection.js";
-import { collectStepConditionEffectActionReferences } from "./effect-step-inspection.js";
+import {
+  collectStepConditionEffectActionReferences,
+  stepsContainEventPayloadCondition,
+} from "./effect-step-inspection.js";
 import {
   validateBranchTargetStateUnboundedReference,
   validateConditionEffectActionReferences,
@@ -119,7 +116,6 @@ function validateActivationConditionReferences(
 export function validateSkill(
   skill: SkillDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
-  capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>,
   violations: CatalogIntegrityViolation[],
 ): void {
   validateEffectActionReferences(
@@ -133,21 +129,6 @@ export function validateSkill(
       skill.resolution.chargeRelease.steps,
       effectActions,
       skill.skillDefinitionId,
-      violations,
-    );
-  }
-  // M7-016（Issue #270）: `resolution.kind: CHARGE`はチャージ状態そのものを作る
-  // 唯一の定義形であり、チャージ中はR-HIT-02/R-HIT-04の回避効果が発動せず
-  // （`hit-policy.ts`の`resolveEvasion`）、R-PS-04で所有者のPS候補も破棄される
-  // （`passive-trigger-matcher.ts`/`reconfirm-passive-candidate.ts`）。この制限は
-  // Catalog定義側に固有の目印を持たないため、`CAP_CHARGE_RESTRICTION`の宣言を
-  // 必須にしてCapability→production定義の追跡可能性を保つ。
-  if (skill.resolution.kind === "CHARGE") {
-    requireRuntimeCapability(
-      skill.skillDefinitionId,
-      skill.requiredCapabilities,
-      "CAP_CHARGE_RESTRICTION",
-      "a CHARGE resolution (evasion and passive skills are suppressed while the charge is pending)",
       violations,
     );
   }
@@ -203,43 +184,27 @@ export function validateSkill(
       violations,
     );
   }
-  if (skill.counterUpdates.length > 0) {
-    requireRuntimeCapability(
-      skill.skillDefinitionId,
-      skill.requiredCapabilities,
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "Skill counterUpdates",
-      violations,
-    );
+  // Issue #247 M7-001D: `EVENT_PAYLOAD`はPS発動を引き起こしたトリガーイベントの
+  // payloadだけを参照できる（`PassiveActivationRuntime`が
+  // `EffectActionGroupContext.triggerEventPayload`へ供給する）。AS/EXの解決
+  // （`action-skill-use-resolver.ts`の`resolveSkillUse`）はこのフィールドを一切
+  // populateしないため、schemaが受理してもCatalogロード時点で拒否する — 実行時まで
+  // 待つと`evaluateEffectStepCondition`が`DomainValidationError`を投げ、行動選択後に
+  // 解決が途中で失敗してしまう。
+  if (
+    (skill.skillType === "AS" || skill.skillType === "EX") &&
+    sequences.some((sequence) => stepsContainEventPayloadCondition(sequence.steps))
+  ) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
+      message: `EVENT_PAYLOAD condition requires a PS Skill (the triggering event's payload only exists during a passive activation) — "${skill.skillDefinitionId}" is skillType "${skill.skillType}"`,
+    });
   }
-  if (sequences.some((sequence) => (sequence.counterUpdates ?? []).length > 0)) {
-    requireRuntimeCapability(
-      skill.skillDefinitionId,
-      skill.requiredCapabilities,
-      "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER",
-      "EffectSequence counterUpdates",
-      violations,
-    );
-  }
-  validateRuntimeCapabilityDeclarations(
-    skill.skillDefinitionId,
-    skill.requiredCapabilities,
-    sequences,
-    runtimeTriggers,
-    skill.activationCondition,
-    skill.skillType,
-    violations,
-  );
   for (const trigger of skill.triggers) {
     validateTrigger(trigger, skill.skillDefinitionId, violations);
   }
   for (const counterUpdate of skill.counterUpdates) {
     validateTrigger(counterUpdate.trigger, skill.skillDefinitionId, violations);
   }
-  checkRequiredCapabilities(
-    skill.requiredCapabilities,
-    skill.skillDefinitionId,
-    capabilities,
-    violations,
-  );
 }

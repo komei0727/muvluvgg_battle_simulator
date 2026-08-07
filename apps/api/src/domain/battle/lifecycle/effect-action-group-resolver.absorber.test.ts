@@ -26,7 +26,6 @@ describe("zero-amount shield sweep (DMG-004, Issue #194)", () => {
     return {
       kind: "APPLY_SHIELD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         formula: { kind: "CONSTANT", value: amount },
@@ -44,7 +43,6 @@ describe("zero-amount shield sweep (DMG-004, Issue #194)", () => {
     return {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",
@@ -214,7 +212,6 @@ describe("zero-amount shield sweep on interruption (DMG-004)", () => {
     const zeroShield: EffectActionDefinition = {
       kind: "APPLY_SHIELD",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_SHIELD_ZERO"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         formula: { kind: "CONSTANT", value: 0 },

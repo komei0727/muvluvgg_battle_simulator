@@ -9,7 +9,6 @@
         "power": 1.802
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -21,7 +20,6 @@
       "targetSkillDefinitionId": "SKL_AOI_ELEGANT_PS1",
       "operation": "RESET"
     },
-    "requiredCapabilities": ["CAP_COOLDOWN_MANIPULATION"],
     "metadata": {
       "tags": []
     }
@@ -47,7 +45,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -62,7 +59,6 @@
         "power": 1.404
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -84,7 +80,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -95,7 +90,6 @@
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -120,7 +114,6 @@
         "removeOnSourceDefeated": true
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -148,7 +141,6 @@
         "linkedEffectGroupRole": "CHILD"
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -181,7 +173,6 @@
         "linkedEffectGroupRole": "CHILD"
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": {
       "tags": []
     }
@@ -196,7 +187,6 @@
         "power": 0.848
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -219,7 +209,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -250,7 +239,6 @@
         ]
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": {
       "tags": []
     }
@@ -265,7 +253,6 @@
         "power": 1.794
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -291,7 +278,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -317,7 +303,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -343,7 +328,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -365,7 +349,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -396,7 +379,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -407,7 +389,6 @@
     "payload": {
       "markerId": "MARKER_AOI_ELEGANT_KOUYOU"
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }

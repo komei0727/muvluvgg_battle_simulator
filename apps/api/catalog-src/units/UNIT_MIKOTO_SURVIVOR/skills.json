@@ -34,7 +34,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL", "CAP_SHIELD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "飽和爆撃", "tags": [] }
   },
   {
@@ -78,7 +77,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "制圧支援", "tags": [] }
   },
   {
@@ -125,7 +123,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "点射", "tags": [] }
   },
   {
@@ -178,12 +175,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 5 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": { "displayName": "フェイルセーフ", "tags": [] },
     "triggers": [
       {
@@ -242,7 +233,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "諸元修正", "tags": [] },
     "triggers": [
       {

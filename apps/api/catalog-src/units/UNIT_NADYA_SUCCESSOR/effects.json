@@ -9,7 +9,6 @@
         "power": 1.484
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -27,7 +26,6 @@
         }
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -49,7 +47,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -84,7 +81,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -105,7 +101,6 @@
         }
       ]
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -120,7 +115,6 @@
         "power": 0.858
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -146,7 +140,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -168,7 +161,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -194,7 +186,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -229,7 +220,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -240,7 +230,6 @@
     "payload": {
       "markerId": "MARKER_NADYA_SUCCESSOR_TRAINING"
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -262,7 +251,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -297,7 +285,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -312,7 +299,6 @@
         "power": 0.78
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -334,7 +320,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }
@@ -369,7 +354,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SUBUNIT"],
     "metadata": {
       "tags": []
     }
@@ -395,7 +379,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -421,7 +404,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -447,7 +429,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }

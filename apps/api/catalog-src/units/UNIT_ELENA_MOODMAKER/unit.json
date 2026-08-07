@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_AS1", "SKL_ELENA_MOODMAKER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_PS1", "SKL_ELENA_MOODMAKER_PS2"],
   "extraSkillDefinitionId": "SKL_ELENA_MOODMAKER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_KURASUNA"],
     "tags": [],

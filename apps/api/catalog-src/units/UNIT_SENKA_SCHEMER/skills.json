@@ -53,12 +53,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "柊校舎の優等生", "tags": [] }
   },
   {
@@ -86,7 +80,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "displayName": "イグニスファング", "tags": [] }
   },
   {
@@ -111,7 +104,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "ファーストファング", "tags": [] }
   },
   {
@@ -134,7 +126,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "ブレイブリフト", "tags": [] },
     "triggers": [
       {
@@ -167,7 +158,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "テンションアップ", "tags": [] },
     "triggers": [
       {

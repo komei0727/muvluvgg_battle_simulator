@@ -93,7 +93,6 @@ function loadSnapshot(): BattleCatalogSnapshot {
       },
       bounds: { min: 0, max: "CURRENT_MAX" },
     },
-    requiredCapabilities: ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
   });
   expect(effectActionFrom(snapshot, MAO_HP_COST_ID)).toMatchObject({
     kind: "MODIFY_RESOURCE",
@@ -107,7 +106,6 @@ function loadSnapshot(): BattleCatalogSnapshot {
       },
       bounds: { min: 0, max: "CURRENT_MAX" },
     },
-    requiredCapabilities: ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
   });
   return snapshot;
 }

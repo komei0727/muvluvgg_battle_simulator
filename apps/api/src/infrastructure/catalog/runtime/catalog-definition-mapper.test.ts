@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { DomainValidationError } from "../../../domain/shared/errors.js";
 import {
   CatalogShapeValidationError,
-  mapCapabilityDefinition,
   mapEffectActionDefinition,
   mapMemoryDefinition,
   mapSkillDefinition,
@@ -31,7 +30,6 @@ const unitDto = {
   activeSkillDefinitionIds: ["SKL_001_AS1", "SKL_001_AS2"],
   passiveSkillDefinitionIds: ["SKL_001_PS1", "SKL_001_PS2"],
   extraSkillDefinitionId: "SKL_001_EX",
-  requiredCapabilities: [],
   metadata: {
     displayName: "【純真無垢なるジーニアス】リディア・エルドリッジ",
     characterName: "リディア・エルドリッジ",
@@ -77,7 +75,6 @@ const skillDto = {
     accuracy: { guaranteedHit: false },
     piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
   },
-  requiredCapabilities: [],
   metadata: { displayName: "ジャマしちゃ、めっ……だよ？", tags: [] },
 };
 
@@ -91,7 +88,6 @@ const effectActionDto = {
     hitCount: 1,
     link: { enabled: false },
   },
-  requiredCapabilities: [],
   metadata: { tags: [] },
 };
 
@@ -122,17 +118,7 @@ const memoryDto = {
       },
     },
   ],
-  requiredCapabilities: [],
   metadata: { displayName: "Colorful Bouquet", tags: [] },
-};
-
-const capabilityDto = {
-  capabilityId: "CAP_HEAL",
-  schemaStatus: "SUPPORTED",
-  runtimeStatus: "PLANNED",
-  implementationTaskId: "TEST-001",
-  description: "即時回復EffectAction",
-  verification: { productionDefinitionIds: [], testCaseIds: [] },
 };
 
 describe("Catalog v2 definition mapper", () => {
@@ -164,11 +150,6 @@ describe("Catalog v2 definition mapper", () => {
     const memory = mapMemoryDefinition(memoryDto);
     expect(memory.memoryDefinitionId).toBe("MEM_001");
     expect(memory.triggeredEffects).toHaveLength(1);
-  });
-
-  it("UT-INFRA-MAP-005: maps a Capability definition", () => {
-    const capability = mapCapabilityDefinition(capabilityDto);
-    expect(capability.capabilityId).toBe("CAP_HEAL");
   });
 
   it("UT-INFRA-MAP-006: raises CatalogShapeValidationError for a shape-invalid Unit DTO (JSON Schema stage)", () => {
@@ -220,18 +201,11 @@ describe("Catalog v2 definition mapper", () => {
     );
   });
 
-  it("UT-INFRA-MAP-013: raises CatalogShapeValidationError for a shape-invalid Capability DTO", () => {
-    expect(() => mapCapabilityDefinition({ ...capabilityDto, runtimeStatus: "DONE" })).toThrow(
-      CatalogShapeValidationError,
-    );
-  });
-
   it("UT-INFRA-MAP-014: raises DomainValidationError for a shape-valid but semantically-invalid Memory DTO (empty triggeredEffects)", () => {
     expect(() =>
       mapMemoryDefinition({
         memoryDefinitionId: "MEM_002",
         triggeredEffects: [],
-        requiredCapabilities: [],
         metadata: { displayName: "Empty" },
       }),
     ).toThrow(DomainValidationError);
@@ -243,28 +217,8 @@ describe("Catalog v2 definition mapper", () => {
         effectActionDefinitionId: "ACT_DAMAGE_1",
         kind: "DAMAGE",
         payload: { damageType: "PHYSICAL" },
-        requiredCapabilities: [],
       }),
     ).toThrow(DomainValidationError);
-  });
-
-  it("UT-INFRA-MAP-016: maps a Capability with a Q-* id", () => {
-    const capability = mapCapabilityDefinition({
-      capabilityId: "Q-TGT-06",
-      schemaStatus: "PLANNED",
-      runtimeStatus: "BLOCKED",
-      implementationTaskId: "TEST-001",
-      description: "pending",
-      verification: { productionDefinitionIds: [], testCaseIds: [] },
-    });
-    expect(capability.capabilityId).toBe("Q-TGT-06");
-  });
-
-  it("UT-INFRA-MAP-017: raises CatalogShapeValidationError when requiredCapabilities is missing from a Unit DTO", () => {
-    const { requiredCapabilities: _omit, ...unitDtoWithoutCapabilities } = unitDto;
-    expect(() => mapUnitDefinition(unitDtoWithoutCapabilities)).toThrow(
-      CatalogShapeValidationError,
-    );
   });
 
   it("UT-INFRA-MAP-018: raises DomainValidationError when a Skill's traits booleans are wrong-typed (bypasses the loose JSON Schema, caught by the Mapper)", () => {
@@ -283,7 +237,6 @@ describe("Catalog v2 definition mapper", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: "nope" },
           maxBlocks: null,
         },
-        requiredCapabilities: [],
       }),
     ).toThrow(DomainValidationError);
   });
@@ -296,7 +249,6 @@ describe("Catalog v2 definition mapper", () => {
     expect(() =>
       mapEffectActionDefinition({
         ...effectActionDto,
-        requiredCapabilities: [],
         requiredCapability: ["CAP_REFLECT_DAMAGE"],
       }),
     ).toThrow(CatalogShapeValidationError);
@@ -403,7 +355,6 @@ describe("Catalog v2 definition mapper", () => {
     expect(() =>
       mapMemoryDefinition({
         memoryDefinitionId: "MEM_002",
-        requiredCapabilities: [],
         metadata: { displayName: "Empty" },
       }),
     ).toThrow(CatalogShapeValidationError);

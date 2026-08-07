@@ -44,7 +44,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "シャル・ウィ・ダンス？", "tags": [] }
   },
   {
@@ -73,7 +72,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "絢爛なるワルツ", "tags": [] }
   },
   {
@@ -102,7 +100,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
     "metadata": { "displayName": "優雅なるロンド", "tags": [] }
   },
   {
@@ -144,12 +141,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_HEAL"
-    ],
     "metadata": { "displayName": "夜会のプレリュード", "tags": [] },
     "triggers": [
       {
@@ -186,7 +177,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_EFFECT_STEP_CONDITION", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "ポストリュード", "tags": [] },
     "triggers": [
       {

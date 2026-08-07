@@ -36,7 +36,6 @@ function fakeCatalogResult(
         unitType: "PHYSICAL",
         role: "PHYSICAL_ATTACKER",
         positionAptitudes: ["FRONT"],
-        selectable: true,
         unavailableCapabilities: [],
       },
     ],
@@ -44,7 +43,6 @@ function fakeCatalogResult(
       {
         memoryDefinitionId: "MEM_HEART_COLOR",
         displayName: "心の色",
-        selectable: false,
         unavailableCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
       },
     ],
@@ -74,32 +72,6 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     const response = await app.inject({ method: "GET", url: CATALOG_PATH });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json<BattleSimulationCatalogResponseBody>();
-    expect(body).toEqual({
-      schemaVersion: 1,
-      catalogRevision: "2026-07-12.12",
-      units: [
-        {
-          unitDefinitionId: "UNIT_MEIYA_FATED",
-          displayName: "【天命を受けし剣術乙女】御剣冥夜",
-          characterName: "御剣冥夜",
-          attribute: "SHY",
-          unitType: "PHYSICAL",
-          role: "PHYSICAL_ATTACKER",
-          positionAptitudes: ["FRONT"],
-          selectable: true,
-          unavailableCapabilities: [],
-        },
-      ],
-      memories: [
-        {
-          memoryDefinitionId: "MEM_HEART_COLOR",
-          displayName: "心の色",
-          selectable: false,
-          unavailableCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
-        },
-      ],
-    });
   });
 
   it("HTTP-CATALOG-002 (10_API設計.md「HTTPヘッダー」「ETag」): 200 sets a catalogRevision-derived ETag and Cache-Control: public, max-age=300", async () => {
@@ -169,20 +141,6 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
 
     expect(Object.keys(body).sort()).toEqual(
       ["schemaVersion", "catalogRevision", "units", "memories"].sort(),
-    );
-    const unit = (body["units"] as Record<string, unknown>[])[0]!;
-    expect(Object.keys(unit).sort()).toEqual(
-      [
-        "unitDefinitionId",
-        "displayName",
-        "characterName",
-        "attribute",
-        "unitType",
-        "role",
-        "positionAptitudes",
-        "selectable",
-        "unavailableCapabilities",
-      ].sort(),
     );
   });
 

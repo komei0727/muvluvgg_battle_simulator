@@ -71,7 +71,6 @@ function statModDefinitionOf(
   return {
     kind: "APPLY_STAT_MOD",
     effectActionDefinitionId,
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       stat: "ATTACK",
@@ -141,7 +140,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
         return;
       }
       expect(effectAction.payload.maxRemovals).toBe(limit);
-      expect(effectAction.requiredCapabilities).toContain("CAP_REMOVE_EFFECTS");
 
       const owner = actorFor(unitId, "B_1:unit:1");
       const { context } = newContext();
@@ -151,7 +149,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       const debuffDef: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
         effectActionDefinitionId: debuffDefId,
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           stat: "ATTACK",
@@ -204,7 +201,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       }
       expect([...effectAction.payload.categories]).toEqual(["BUFF"]);
       expect(effectAction.payload.maxRemovals).toBe(limit);
-      expect(effectAction.requiredCapabilities).toContain("CAP_REMOVE_EFFECTS");
 
       const owner = actorFor(unitId, "B_1:unit:1");
       const { context } = newContext();
@@ -214,7 +210,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       const buffDef: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
         effectActionDefinitionId: buffDefId,
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           stat: "ATTACK",
@@ -259,7 +254,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       }
       expect([...effectAction.payload.categories]).toEqual(["BUFF"]);
       expect(effectAction.payload.maxRemovals).toBeUndefined();
-      expect(effectAction.requiredCapabilities).toContain("CAP_REMOVE_EFFECTS");
 
       const owner = actorFor(unitId, "B_1:unit:1");
       const { context } = newContext();
@@ -268,7 +262,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
       const buffDef: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
         effectActionDefinitionId: buffDefId,
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           stat: "ATTACK",
@@ -312,7 +305,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
     ): EffectActionDefinition => ({
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: id,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",
@@ -378,7 +370,6 @@ describe("production Catalog REMOVE_EFFECTS (M7-001, R-EFF-02)", () => {
     const buffDef: EffectActionDefinition = {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: buffDefId,
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",

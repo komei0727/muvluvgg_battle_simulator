@@ -92,12 +92,6 @@
       }
     }
   ],
-  "requiredCapabilities": [
-    "CAP_MARKER",
-    "CAP_MEMORY_GRANTED_MARKER",
-    "CAP_MEMORY_TRIGGERED_EFFECT",
-    "CAP_TARGET_FILTER_ORDER"
-  ],
   "metadata": {
     "displayName": "お傍にいるのはいつでもピコですよ♪",
     "tags": []

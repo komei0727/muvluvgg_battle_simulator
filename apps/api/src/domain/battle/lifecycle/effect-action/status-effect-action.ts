@@ -19,7 +19,7 @@ import { buildConsumeEffectDurationHooks } from "./effect-duration-consumption.j
 
 /**
  * `APPLY_STATUS`の`status`のうち、resolverが実効処理まで配線済みのもの。この許可リストは
- * Capability経由ではなくここでハードコードしており、未配線のstatusを「付与だけされて何も
+ * ここでハードコードしており、未配線のstatusを「付与だけされて何も
  * 起きない」silent partial implementationへ退行させないための門である。
  *
  * DMG-003A（`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`、R-CRT-03）が最後の2種を配線した

@@ -86,24 +86,12 @@ interface M8AuditManifest {
   };
 }
 
-interface CapabilityEntry {
-  readonly capabilityId: string;
-  readonly runtimeStatus: string;
-  readonly implementationTaskId: string;
-}
-
 const repositoryRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
 
 function readManifest(): M8AuditManifest {
   return JSON.parse(
     readFileSync(`${repositoryRoot}/docs/ddd/17_残作業対応表.json`, "utf8"),
   ) as M8AuditManifest;
-}
-
-function readCapabilities(): readonly CapabilityEntry[] {
-  return JSON.parse(
-    readFileSync(`${repositoryRoot}/apps/api/catalog-src/capabilities.json`, "utf8"),
-  ) as readonly CapabilityEntry[];
 }
 
 describe("M8 completion audit (DMG-011)", () => {
@@ -151,21 +139,5 @@ describe("M8 completion audit (DMG-011)", () => {
     );
     // baselineがM8へ割り当てた34行を全件解消した記録（`15_Unit_Memory変換台帳.md`）。
     expect(manifest.m8Audit.resolvedConversionRows).toBe(34);
-  });
-
-  it("UT-AUDIT-M8-003: every Capability an M8 task owns is IMPLEMENTED", () => {
-    const manifest = readManifest();
-    const m8TaskIds = new Set(
-      manifest.tasks.filter((task) => task.milestone === "M8").map((task) => task.taskId),
-    );
-    const unimplemented = readCapabilities()
-      .filter((capability) => m8TaskIds.has(capability.implementationTaskId))
-      .filter((capability) => capability.runtimeStatus !== "IMPLEMENTED")
-      .map((capability) => `${capability.capabilityId} -> ${capability.implementationTaskId}`);
-
-    expect(
-      unimplemented.sort(),
-      "an M8-owned Capability must not stay PLANNED after the M8 completion audit",
-    ).toEqual([]);
   });
 });

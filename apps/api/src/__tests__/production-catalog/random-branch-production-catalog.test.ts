@@ -63,7 +63,6 @@ describe("production Catalog CAP_RANDOM_BRANCH (RES-003, Issue #173)", () => {
   it("IT-CAP-RANDOM-BRANCH-PROD-001: SKL_KATE_PALADIN_EX's real WEIGHTED_ONE RANDOM_BRANCH selects branch[0] HIT5 for a low roll and resolves the real ACT_KATE_PALADIN_EX_DAMAGE5 through the lifecycle (RandomBranchSelected + DamageApplied + StateDelta + independent Reducer restoration)", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, [UNIT_ID]);
     const skill = skillFrom(snapshot, SKILL_ID);
-    expect(skill.requiredCapabilities).toContain("CAP_RANDOM_BRANCH");
     const step = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [])[0];
     expect(step?.kind).toBe("RANDOM_BRANCH");
     if (step?.kind !== "RANDOM_BRANCH") {

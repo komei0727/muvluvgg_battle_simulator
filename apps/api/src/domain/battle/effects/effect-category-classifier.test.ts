@@ -20,7 +20,6 @@ describe("effectCategoriesOf", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
-        requiredCapabilities: ["CAP_STAT_MOD"],
       },
       "effectAction",
     );
@@ -32,7 +31,6 @@ describe("effectCategoriesOf", () => {
         effectActionDefinitionId: id,
         kind: "APPLY_STATUS",
         payload: { status, duration: { timeLimit: { unit: "ACTION", count: 1 } } },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -49,7 +47,6 @@ describe("effectCategoriesOf", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 } },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -129,7 +126,6 @@ describe("effectCategoriesOf", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 } },
           confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -142,7 +138,6 @@ describe("effectCategoriesOf", () => {
           duration: { timeLimit: { unit: "ACTION", count: 1 } },
           damageToHeal: { healRate: 0.7 },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -177,7 +172,6 @@ describe("effectCategoriesOf", () => {
           timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
           duration: { timeLimit: { unit: "ACTION", count: 3 } },
         },
-        requiredCapabilities: ["CAP_CONTINUOUS_DAMAGE"],
       },
       "effectAction",
     );
@@ -233,7 +227,6 @@ describe("effectCategoriesOf", () => {
           shieldType: "EN",
           duration: { dispellable: true },
         },
-        requiredCapabilities: ["CAP_SHIELD"],
       },
       "effectAction",
     );
@@ -260,7 +253,6 @@ describe("effectCategoriesOf", () => {
           },
           duration: { dispellable: true, timeLimit: { unit: "ACTION", count: 2 } },
         },
-        requiredCapabilities: ["CAP_SUBUNIT"],
       },
       "effectAction",
     );
@@ -278,7 +270,6 @@ describe("effectCategoriesOf", () => {
           stack: { policy: "ADD", max: null },
           duration: { dispellable: true },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );

@@ -18,7 +18,6 @@
     "activeSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_AS1", "SKL_ANIS_TROUBLEMAKER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_PS1", "SKL_ANIS_TROUBLEMAKER_PS2"],
     "extraSkillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -46,7 +45,6 @@
     "activeSkillDefinitionIds": ["SKL_AOI_ELEGANT_AS1", "SKL_AOI_ELEGANT_AS2"],
     "passiveSkillDefinitionIds": ["SKL_AOI_ELEGANT_PS1", "SKL_AOI_ELEGANT_PS2"],
     "extraSkillDefinitionId": "SKL_AOI_ELEGANT_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -74,7 +72,6 @@
     "activeSkillDefinitionIds": ["SKL_AOI_GUARDIAN_AS1", "SKL_AOI_GUARDIAN_AS2"],
     "passiveSkillDefinitionIds": ["SKL_AOI_GUARDIAN_PS1", "SKL_AOI_GUARDIAN_PS2"],
     "extraSkillDefinitionId": "SKL_AOI_GUARDIAN_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -102,7 +99,6 @@
     "activeSkillDefinitionIds": ["SKL_CHIYURU_MAZE_AS1", "SKL_CHIYURU_MAZE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CHIYURU_MAZE_PS1", "SKL_CHIYURU_MAZE_PS2"],
     "extraSkillDefinitionId": "SKL_CHIYURU_MAZE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -130,7 +126,6 @@
     "activeSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_AS1", "SKL_CHIYURU_NEWYEAR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_PS1", "SKL_CHIYURU_NEWYEAR_PS2"],
     "extraSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -162,7 +157,6 @@
       "SKL_CHIZURU_DOMESTIC_PS3"
     ],
     "extraSkillDefinitionId": "SKL_CHIZURU_DOMESTIC_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -194,7 +188,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_CLARA_SANTA_PS1"],
     "extraSkillDefinitionId": "SKL_CLARA_SANTA_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -222,7 +215,6 @@
     "activeSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_AS1", "SKL_CLARA_TSUNDERE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_PS1", "SKL_CLARA_TSUNDERE_PS2"],
     "extraSkillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -254,7 +246,6 @@
       "SKL_DOROTHEA_GRACE_PS3"
     ],
     "extraSkillDefinitionId": "SKL_DOROTHEA_GRACE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -282,7 +273,6 @@
     "activeSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_AS1", "SKL_DOROTHEA_PIONEER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_PS1", "SKL_DOROTHEA_PIONEER_PS2"],
     "extraSkillDefinitionId": "SKL_DOROTHEA_PIONEER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -310,7 +300,6 @@
     "activeSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_AS1", "SKL_ELENA_MOODMAKER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_PS1", "SKL_ELENA_MOODMAKER_PS2"],
     "extraSkillDefinitionId": "SKL_ELENA_MOODMAKER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_KURASUNA"],
       "tags": [],
@@ -338,7 +327,6 @@
     "activeSkillDefinitionIds": ["SKL_EVIE_ECO_AS1", "SKL_EVIE_ECO_AS2"],
     "passiveSkillDefinitionIds": ["SKL_EVIE_ECO_PS1", "SKL_EVIE_ECO_PS2"],
     "extraSkillDefinitionId": "SKL_EVIE_ECO_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -366,7 +354,6 @@
     "activeSkillDefinitionIds": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"],
     "passiveSkillDefinitionIds": ["SKL_EVIE_KYONSHI_PS1", "SKL_EVIE_KYONSHI_PS2"],
     "extraSkillDefinitionId": "SKL_EVIE_KYONSHI_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -394,7 +381,6 @@
     "activeSkillDefinitionIds": ["SKL_FEE_ACTOR_AS1"],
     "passiveSkillDefinitionIds": ["SKL_FEE_ACTOR_PS1", "SKL_FEE_ACTOR_PS2", "SKL_FEE_ACTOR_PS3"],
     "extraSkillDefinitionId": "SKL_FEE_ACTOR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -422,7 +408,6 @@
     "activeSkillDefinitionIds": ["SKL_FEE_BATH_AS1", "SKL_FEE_BATH_AS2"],
     "passiveSkillDefinitionIds": ["SKL_FEE_BATH_PS1", "SKL_FEE_BATH_PS2"],
     "extraSkillDefinitionId": "SKL_FEE_BATH_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -450,7 +435,6 @@
     "activeSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_AS1", "SKL_FLUTE_INFLUENCER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_PS1", "SKL_FLUTE_INFLUENCER_PS2"],
     "extraSkillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -482,7 +466,6 @@
       "SKL_FLUTE_VAMPIRE_PS3"
     ],
     "extraSkillDefinitionId": "SKL_FLUTE_VAMPIRE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -510,7 +493,6 @@
     "activeSkillDefinitionIds": ["SKL_HARRIET_SAGE_AS1", "SKL_HARRIET_SAGE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_HARRIET_SAGE_PS1", "SKL_HARRIET_SAGE_PS2"],
     "extraSkillDefinitionId": "SKL_HARRIET_SAGE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -538,7 +520,6 @@
     "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],
     "passiveSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_PS1", "SKL_HIIRO_LONEWOLF_PS2"],
     "extraSkillDefinitionId": "SKL_HIIRO_LONEWOLF_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -566,7 +547,6 @@
     "activeSkillDefinitionIds": ["SKL_JULIE_SNOW_AS1", "SKL_JULIE_SNOW_AS2"],
     "passiveSkillDefinitionIds": ["SKL_JULIE_SNOW_PS1", "SKL_JULIE_SNOW_PS2"],
     "extraSkillDefinitionId": "SKL_JULIE_SNOW_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
@@ -594,7 +574,6 @@
     "activeSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_AS1", "SKL_JUNKA_CHILDHOOD_AS2"],
     "passiveSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_PS1", "SKL_JUNKA_CHILDHOOD_PS2"],
     "extraSkillDefinitionId": "SKL_JUNKA_CHILDHOOD_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -622,7 +601,6 @@
     "activeSkillDefinitionIds": ["SKL_KARINA_DOWNER_AS1", "SKL_KARINA_DOWNER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KARINA_DOWNER_PS1", "SKL_KARINA_DOWNER_PS2"],
     "extraSkillDefinitionId": "SKL_KARINA_DOWNER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
@@ -654,7 +632,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_KATE_PALADIN_PS1"],
     "extraSkillDefinitionId": "SKL_KATE_PALADIN_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -682,7 +659,6 @@
     "activeSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_AS1", "SKL_KEI_JACKKNIFE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_PS1", "SKL_KEI_JACKKNIFE_PS2"],
     "extraSkillDefinitionId": "SKL_KEI_JACKKNIFE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -714,7 +690,6 @@
       "SKL_KOKORO_SPORTSDAY_PS3"
     ],
     "extraSkillDefinitionId": "SKL_KOKORO_SPORTSDAY_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
@@ -742,7 +717,6 @@
     "activeSkillDefinitionIds": ["SKL_KOTOHA_REBEL_AS1", "SKL_KOTOHA_REBEL_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KOTOHA_REBEL_PS1", "SKL_KOTOHA_REBEL_PS2"],
     "extraSkillDefinitionId": "SKL_KOTOHA_REBEL_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -774,7 +748,6 @@
       "SKL_LAURA_MOUNTAIN_PS3"
     ],
     "extraSkillDefinitionId": "SKL_LAURA_MOUNTAIN_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
@@ -802,7 +775,6 @@
     "activeSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_AS1", "SKL_LAYLA_ENTREPRENEUR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_PS1", "SKL_LAYLA_ENTREPRENEUR_PS2"],
     "extraSkillDefinitionId": "SKL_LAYLA_ENTREPRENEUR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -830,7 +802,6 @@
     "activeSkillDefinitionIds": ["SKL_LILY_HERO_AS1", "SKL_LILY_HERO_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LILY_HERO_PS1", "SKL_LILY_HERO_PS2"],
     "extraSkillDefinitionId": "SKL_LILY_HERO_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
@@ -858,7 +829,6 @@
     "activeSkillDefinitionIds": ["SKL_LILY_SINGER_AS1", "SKL_LILY_SINGER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LILY_SINGER_PS1", "SKL_LILY_SINGER_PS2"],
     "extraSkillDefinitionId": "SKL_LILY_SINGER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
@@ -890,7 +860,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_LUCIE_COMPANION_PS1"],
     "extraSkillDefinitionId": "SKL_LUCIE_COMPANION_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -918,7 +887,6 @@
     "activeSkillDefinitionIds": ["SKL_LUCIE_MAID_AS1", "SKL_LUCIE_MAID_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LUCIE_MAID_PS1", "SKL_LUCIE_MAID_PS2"],
     "extraSkillDefinitionId": "SKL_LUCIE_MAID_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -950,7 +918,6 @@
       "SKL_LUNA_HUNGRY_PS3"
     ],
     "extraSkillDefinitionId": "SKL_LUNA_HUNGRY_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TRINITY_JEWEL"],
       "tags": [],
@@ -978,7 +945,6 @@
     "activeSkillDefinitionIds": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LYDIA_GENIUS_PS1", "SKL_LYDIA_GENIUS_PS2"],
     "extraSkillDefinitionId": "SKL_LYDIA_GENIUS_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TRINITY_JEWEL"],
       "tags": [],
@@ -1011,7 +977,6 @@
     ],
     "passiveSkillDefinitionIds": [],
     "extraSkillDefinitionId": "SKL_MAIA_LAZY_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -1039,7 +1004,6 @@
     "activeSkillDefinitionIds": ["SKL_MAIA_SALON_AS1", "SKL_MAIA_SALON_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MAIA_SALON_PS1", "SKL_MAIA_SALON_PS2"],
     "extraSkillDefinitionId": "SKL_MAIA_SALON_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -1067,7 +1031,6 @@
     "activeSkillDefinitionIds": ["SKL_MAO_COMMITTEE_AS1", "SKL_MAO_COMMITTEE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MAO_COMMITTEE_PS1", "SKL_MAO_COMMITTEE_PS2"],
     "extraSkillDefinitionId": "SKL_MAO_COMMITTEE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
@@ -1095,7 +1058,6 @@
     "activeSkillDefinitionIds": ["SKL_MEIYA_FATED_AS1", "SKL_MEIYA_FATED_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MEIYA_FATED_PS1", "SKL_MEIYA_FATED_PS2"],
     "extraSkillDefinitionId": "SKL_MEIYA_FATED_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -1127,7 +1089,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_MERU_FLATSPIN_PS1"],
     "extraSkillDefinitionId": "SKL_MERU_FLATSPIN_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1155,7 +1116,6 @@
     "activeSkillDefinitionIds": ["SKL_MERU_SIRIUS_AS1", "SKL_MERU_SIRIUS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MERU_SIRIUS_PS1", "SKL_MERU_SIRIUS_PS2"],
     "extraSkillDefinitionId": "SKL_MERU_SIRIUS_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1183,7 +1143,6 @@
     "activeSkillDefinitionIds": ["SKL_MIHIME_SNIPER_AS1", "SKL_MIHIME_SNIPER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MIHIME_SNIPER_PS1", "SKL_MIHIME_SNIPER_PS2"],
     "extraSkillDefinitionId": "SKL_MIHIME_SNIPER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -1211,7 +1170,6 @@
     "activeSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_PS1", "SKL_MIKOTO_SURVIVOR_PS2"],
     "extraSkillDefinitionId": "SKL_MIKOTO_SURVIVOR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -1243,7 +1201,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_MIRIAM_MAGE_PS1"],
     "extraSkillDefinitionId": "SKL_MIRIAM_MAGE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PYXIS_MA_SOEUR"],
       "tags": [],
@@ -1275,7 +1232,6 @@
       "SKL_NADYA_SUCCESSOR_PS3"
     ],
     "extraSkillDefinitionId": "SKL_NADYA_SUCCESSOR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_KURASUNA"],
       "tags": [],
@@ -1303,7 +1259,6 @@
     "activeSkillDefinitionIds": ["SKL_NANAE_COMMANDER_AS1", "SKL_NANAE_COMMANDER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_NANAE_COMMANDER_PS1", "SKL_NANAE_COMMANDER_PS2"],
     "extraSkillDefinitionId": "SKL_NANAE_COMMANDER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1331,7 +1286,6 @@
     "activeSkillDefinitionIds": ["SKL_NOEL_RUMBLE_AS1", "SKL_NOEL_RUMBLE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_NOEL_RUMBLE_PS1", "SKL_NOEL_RUMBLE_PS2"],
     "extraSkillDefinitionId": "SKL_NOEL_RUMBLE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_PRE_KURASU_A"],
       "tags": [],
@@ -1359,7 +1313,6 @@
     "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
     "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],
     "extraSkillDefinitionId": "SKL_OLGA_VETERAN_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_KURASUNA"],
       "tags": [],
@@ -1391,7 +1344,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_RAMI_NEWYEAR_PS1"],
     "extraSkillDefinitionId": "SKL_RAMI_NEWYEAR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1423,7 +1375,6 @@
       "SKL_RAMI_UNYIELDING_PS3"
     ],
     "extraSkillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1451,7 +1402,6 @@
     "activeSkillDefinitionIds": ["SKL_RAVEL_MODEL_AS1", "SKL_RAVEL_MODEL_AS2"],
     "passiveSkillDefinitionIds": ["SKL_RAVEL_MODEL_PS1", "SKL_RAVEL_MODEL_PS2"],
     "extraSkillDefinitionId": "SKL_RAVEL_MODEL_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TRINITY_JEWEL"],
       "tags": [],
@@ -1483,7 +1433,6 @@
       "SKL_ROSIE_ARTIST_PS3"
     ],
     "extraSkillDefinitionId": "SKL_ROSIE_ARTIST_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -1511,7 +1460,6 @@
     "activeSkillDefinitionIds": ["SKL_SAYA_BUNNY_AS1", "SKL_SAYA_BUNNY_AS2", "SKL_SAYA_BUNNY_AS3"],
     "passiveSkillDefinitionIds": ["SKL_SAYA_BUNNY_PS1"],
     "extraSkillDefinitionId": "SKL_SAYA_BUNNY_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -1539,7 +1487,6 @@
     "activeSkillDefinitionIds": ["SKL_SAYA_LONGING_AS1", "SKL_SAYA_LONGING_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SAYA_LONGING_PS1", "SKL_SAYA_LONGING_PS2"],
     "extraSkillDefinitionId": "SKL_SAYA_LONGING_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -1567,7 +1514,6 @@
     "activeSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_AS1", "SKL_SENKA_CHRISTMAS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_PS1", "SKL_SENKA_CHRISTMAS_PS2"],
     "extraSkillDefinitionId": "SKL_SENKA_CHRISTMAS_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -1595,7 +1541,6 @@
     "activeSkillDefinitionIds": ["SKL_SENKA_SCHEMER_AS1", "SKL_SENKA_SCHEMER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SENKA_SCHEMER_PS1", "SKL_SENKA_SCHEMER_PS2"],
     "extraSkillDefinitionId": "SKL_SENKA_SCHEMER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -1623,7 +1568,6 @@
     "activeSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_AS1", "SKL_SHIRANA_LUCKY_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_PS1", "SKL_SHIRANA_LUCKY_PS2"],
     "extraSkillDefinitionId": "SKL_SHIRANA_LUCKY_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1651,7 +1595,6 @@
     "activeSkillDefinitionIds": ["SKL_SHIRANA_SORA_AS1", "SKL_SHIRANA_SORA_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SHIRANA_SORA_PS1", "SKL_SHIRANA_SORA_PS2"],
     "extraSkillDefinitionId": "SKL_SHIRANA_SORA_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_SIRIUS_SUGAR"],
       "tags": [],
@@ -1683,7 +1626,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_SHOUKA_SCHEMER_PS1"],
     "extraSkillDefinitionId": "SKL_SHOUKA_SCHEMER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
@@ -1711,7 +1653,6 @@
     "activeSkillDefinitionIds": ["SKL_SIENA_DIVA_AS1", "SKL_SIENA_DIVA_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SIENA_DIVA_PS1", "SKL_SIENA_DIVA_PS2"],
     "extraSkillDefinitionId": "SKL_SIENA_DIVA_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -1739,7 +1680,6 @@
     "activeSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_AS1", "SKL_SIENA_OFFSTAGE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_PS1", "SKL_SIENA_OFFSTAGE_PS2"],
     "extraSkillDefinitionId": "SKL_SIENA_OFFSTAGE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
@@ -1767,7 +1707,6 @@
     "activeSkillDefinitionIds": ["SKL_STELLA_STATUE_AS1", "SKL_STELLA_STATUE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_STELLA_STATUE_PS1", "SKL_STELLA_STATUE_PS2"],
     "extraSkillDefinitionId": "SKL_STELLA_STATUE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -1799,7 +1738,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_SUIRAN_CASINO_PS1"],
     "extraSkillDefinitionId": "SKL_SUIRAN_CASINO_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -1831,7 +1769,6 @@
       "SKL_SUIRAN_CHAOS_PS3"
     ],
     "extraSkillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -1863,7 +1800,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_TARISA_TROUBLEMAKER_PS1"],
     "extraSkillDefinitionId": "SKL_TARISA_TROUBLEMAKER_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -1895,7 +1831,6 @@
     ],
     "passiveSkillDefinitionIds": ["SKL_TATIANA_SAGE_PS1"],
     "extraSkillDefinitionId": "SKL_TATIANA_SAGE_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_KURASUNA"],
       "tags": [],
@@ -1923,7 +1858,6 @@
     "activeSkillDefinitionIds": ["SKL_URUU_TIMID_AS1"],
     "passiveSkillDefinitionIds": ["SKL_URUU_TIMID_PS1", "SKL_URUU_TIMID_PS2", "SKL_URUU_TIMID_PS3"],
     "extraSkillDefinitionId": "SKL_URUU_TIMID_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_COLORFUL_BOUQUET"],
       "tags": [],
@@ -1951,7 +1885,6 @@
     "activeSkillDefinitionIds": ["SKL_YUI_HEIR_AS1", "SKL_YUI_HEIR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YUI_HEIR_PS1", "SKL_YUI_HEIR_PS2"],
     "extraSkillDefinitionId": "SKL_YUI_HEIR_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": [],
       "tags": [],
@@ -1979,7 +1912,6 @@
     "activeSkillDefinitionIds": ["SKL_YURIA_WILDCARD_AS1", "SKL_YURIA_WILDCARD_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YURIA_WILDCARD_PS1", "SKL_YURIA_WILDCARD_PS2"],
     "extraSkillDefinitionId": "SKL_YURIA_WILDCARD_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],
@@ -2007,7 +1939,6 @@
     "activeSkillDefinitionIds": ["SKL_YURIA_YUKATA_AS1", "SKL_YURIA_YUKATA_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YURIA_YUKATA_PS1", "SKL_YURIA_YUKATA_PS2"],
     "extraSkillDefinitionId": "SKL_YURIA_YUKATA_EX",
-    "requiredCapabilities": [],
     "metadata": {
       "affiliations": ["AFF_CHAOS_MAIDEN"],
       "tags": [],

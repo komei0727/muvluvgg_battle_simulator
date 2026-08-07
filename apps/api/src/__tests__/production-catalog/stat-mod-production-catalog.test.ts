@@ -60,7 +60,6 @@ describe("production Catalog APPLY_STAT_MOD (EFF-002, R-STA-02〜04/R-EFF-05)", 
       if (effectAction.kind !== "APPLY_STAT_MOD") {
         return;
       }
-      expect(effectAction.requiredCapabilities).toContain("CAP_STAT_MOD");
       expect(effectAction.payload.formula.kind).toBe("CONSTANT");
       if (effectAction.payload.formula.kind !== "CONSTANT") {
         return;

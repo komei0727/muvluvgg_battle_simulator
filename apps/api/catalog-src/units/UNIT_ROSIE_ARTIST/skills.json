@@ -49,7 +49,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "あたしのアイデアになって",
       "tags": []
@@ -145,12 +144,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_STEP_CONDITION"
-    ],
     "metadata": {
       "displayName": "メタル・ワイドバレット",
       "tags": []
@@ -185,7 +178,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "ラスト・プレゼント",
       "tags": []
@@ -282,7 +274,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_EFFECT_STEP_CONDITION"],
     "metadata": {
       "displayName": "ヒール・アクティブ",
       "tags": []
@@ -353,7 +344,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "エクストラ・パワーアップ！",
       "tags": []

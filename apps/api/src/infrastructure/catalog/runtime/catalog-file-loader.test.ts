@@ -78,16 +78,6 @@ describe("loadCatalogFromDirectory", () => {
     }
   });
 
-  it("IT-CAT-LOADER-007: rejects a Catalog referencing an undefined Capability", () => {
-    try {
-      loadCatalogFromDirectory(fixturePath("runtime", "invalid", "unknown-capability"));
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(err.violations[0]?.rule).toBe("UNKNOWN_CAPABILITY");
-    }
-  });
-
   it("IT-CAT-LOADER-008: rejects a Catalog with a Trigger referencing an unknown eventType", () => {
     try {
       loadCatalogFromDirectory(fixturePath("runtime", "invalid", "unknown-event-type"));

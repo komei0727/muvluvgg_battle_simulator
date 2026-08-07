@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createCapabilityDefinition,
-  type CapabilityDefinition,
-} from "../capability/capability-definition.js";
-import {
   buildCatalogIndex,
   CatalogIntegrityError,
   type CatalogDefinitions,
@@ -24,7 +20,6 @@ function damageAction(id: string): EffectActionDefinition {
       effectActionDefinitionId: id,
       kind: "DAMAGE",
       payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
-      requiredCapabilities: [],
     },
     "effectAction",
   );
@@ -47,7 +42,6 @@ function memoryModifierAction(id: string): EffectActionDefinition {
         stacking: { mode: "STACKABLE" },
         duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
       },
-      requiredCapabilities: [],
     },
     "effectAction",
   );
@@ -90,7 +84,6 @@ function memoryWithTrigger(
         },
       },
     ],
-    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_PASSIVE_ACTIVATION_CONDITION"],
     metadata: { displayName: memoryDefinitionId },
   });
 }
@@ -123,7 +116,6 @@ function memoryUsing(memoryDefinitionId: string, effectActionDefinitionId: strin
         },
       },
     ],
-    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
     metadata: { displayName: memoryDefinitionId },
   });
 }
@@ -142,7 +134,6 @@ function effectImmunityAction(
         duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         maxBlocks: null,
       },
-      requiredCapabilities: [],
     },
     "effectAction",
   );
@@ -160,17 +151,13 @@ function removeEffectsAction(
         categories: ["SPECIFIC_EFFECT"],
         effectActionDefinitionIds: referencedEffectActionIds,
       },
-      requiredCapabilities: [],
     },
     "effectAction",
   );
 }
 
 /** M7-001B（Issue #243、EFFECT_IMMUNITY_STATUS_GRANULARITY、R-EFF-03）。 */
-function statusScopedImmunityAction(
-  id: string,
-  requiredCapabilities: readonly string[] = [],
-): EffectActionDefinition {
+function statusScopedImmunityAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -181,7 +168,6 @@ function statusScopedImmunityAction(
         duration: { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         maxBlocks: null,
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -190,14 +176,12 @@ function statusScopedImmunityAction(
 function removeEffectsCategoryAction(
   id: string,
   categories: readonly ("BUFF" | "DEBUFF" | "STATUS" | "DAMAGE_MOD" | "SHIELD" | "SUBUNIT")[],
-  requiredCapabilities: readonly string[] = [],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
       kind: "REMOVE_EFFECTS",
       payload: { categories },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -226,7 +210,6 @@ function asSkill(id: string, targetActionId: string): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 1 },
     traits: {},
-    requiredCapabilities: [],
     metadata: { displayName: "AS" },
   });
 }
@@ -235,137 +218,9 @@ function asSkill(id: string, targetActionId: string): SkillDefinition {
  * M7-016（Issue #270）: `resolution.kind: CHARGE`の最小スキル。開始側・解放側とも
  * 敵1体を対象にし、`CAP_CHARGE_RESTRICTION`宣言の有無だけを切り替えられる。
  */
-function chargeSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 2 },
-    resolution: {
-      kind: "CHARGE",
-      targetBindings: [
-        {
-          targetBindingId: "TGT_START",
-          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
-        },
-      ],
-      // M7-016（Issue #270）: CHARGE開始側は効果を解決しないため
-      // `steps`は常に空でなければならない。
-      steps: [],
-      chargeRelease: {
-        targetBindings: [
-          {
-            targetBindingId: "TGT_RELEASE",
-            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
-          },
-        ],
-        steps: [
-          {
-            kind: "ACTION",
-            target: { kind: "BINDING", targetBindingId: "TGT_RELEASE" },
-            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-          },
-        ],
-      },
-    },
-    cooldown: { unit: "ACTION", count: 2 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "Charge AS" },
-  });
-}
-
-function branchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    resolution: {
-      kind: "IMMEDIATE",
-      steps: [
-        {
-          kind: "BRANCH",
-          condition: { kind: "TRUE" },
-          thenSteps: [
-            {
-              kind: "ACTION",
-              target: { kind: "SELF" },
-              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-            },
-          ],
-          elseSteps: [],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 1 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "BRANCH AS" },
-  });
-}
-
-function conditionalActionSkill(
-  id: string,
-  requiredCapabilities: readonly string[],
-): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    resolution: {
-      kind: "IMMEDIATE",
-      steps: [
-        {
-          kind: "ACTION",
-          stepCondition: { kind: "TURN_NUMBER", op: "GTE", value: 1 },
-          target: { kind: "SELF" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 1 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "Conditional AS" },
-  });
-}
-
-function setConditionActionSkill(
-  id: string,
-  requiredCapabilities: readonly string[],
-): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    resolution: {
-      kind: "IMMEDIATE",
-      steps: [
-        {
-          kind: "ACTION",
-          stepCondition: {
-            kind: "TARGET_SET_COUNT",
-            target: { kind: "SELF" },
-            op: "GTE",
-            value: 1,
-          },
-          target: { kind: "SELF" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 1 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "Set-condition AS" },
-  });
-}
 
 /** CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `stepCondition`にEVENT_PAYLOADを含むACTION step。 */
-function eventPayloadActionSkill(
-  id: string,
-  requiredCapabilities: readonly string[],
-  skillType: "AS" | "EX" = "AS",
-): SkillDefinition {
+function eventPayloadActionSkill(id: string, skillType: "AS" | "EX" = "AS"): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
     skillType,
@@ -383,16 +238,12 @@ function eventPayloadActionSkill(
     },
     cooldown: { unit: "ACTION", count: skillType === "AS" ? 1 : 0 },
     traits: {},
-    requiredCapabilities,
     metadata: { displayName: `Event-payload-condition ${skillType}` },
   });
 }
 
 /** CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: `stepCondition`にEVENT_PAYLOADを含むPSスキル（唯一の合法なskillType）。 */
-function eventPayloadPassiveSkill(
-  id: string,
-  requiredCapabilities: readonly string[],
-): SkillDefinition {
+function eventPayloadPassiveSkill(id: string): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
     skillType: "PS",
@@ -418,207 +269,11 @@ function eventPayloadPassiveSkill(
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities,
     metadata: { displayName: "Event-payload-condition PS" },
   });
 }
 
-function randomBranchSkill(id: string, requiredCapabilities: readonly string[]): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    resolution: {
-      kind: "IMMEDIATE",
-      steps: [
-        {
-          kind: "RANDOM_BRANCH",
-          mode: "WEIGHTED_ONE",
-          branches: [
-            {
-              weight: 1,
-              steps: [
-                {
-                  kind: "ACTION",
-                  target: { kind: "SELF" },
-                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 1 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "RANDOM_BRANCH AS" },
-  });
-}
-
-function targetingSkill(
-  selector: TargetSelectorDefinitionInput,
-  requiredCapabilities: readonly string[],
-  target: TargetReferenceInput = { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
-  activationCondition?: ConditionDefinitionInput,
-  skillType: "AS" | "PS" | "EX" = "AS",
-): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: skillType === "PS" ? "SKL_PS1" : skillType === "EX" ? "SKL_EX1" : "SKL_AS1",
-    skillType,
-    cost: {
-      resource: skillType === "PS" ? "PP" : skillType === "EX" ? "EX_GAUGE" : "AP",
-      amount: skillType === "EX" ? 7 : 1,
-    },
-    resolution: {
-      kind: "IMMEDIATE",
-      targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
-      steps: [
-        {
-          kind: "ACTION",
-          target,
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 1 },
-    ...(activationCondition === undefined ? {} : { activationCondition }),
-    ...(skillType === "PS"
-      ? {
-          triggers: [
-            {
-              eventType: "TurnStarted",
-              category: "FACT",
-              sourceSelector: "SELF",
-              targetSelector: "SELF",
-            },
-          ],
-        }
-      : {}),
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "Targeting AS" },
-  });
-}
-
-function branchMemory(requiredCapabilities: readonly string[]) {
-  return createMemoryDefinition({
-    memoryDefinitionId: "MEM_BRANCH",
-    triggeredEffects: [
-      {
-        trigger: {
-          eventType: "BattleStarted",
-          category: "FACT",
-          sourceSelector: "ANY",
-          targetSelector: "ANY",
-        },
-        effectSequence: {
-          // R-MEM-04（Issue #179）: Memoryは使用者BattleUnitを持たないため、
-          // `SELF`対象参照や発生源を必要とするEffectActionは宣言できない。
-          targetBindings: [
-            {
-              targetBindingId: "TGT_ALL_ALLIES",
-              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
-            },
-          ],
-          steps: [
-            {
-              kind: "BRANCH",
-              condition: { kind: "TRUE" },
-              thenSteps: [
-                {
-                  kind: "ACTION",
-                  target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
-                  actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
-                },
-              ],
-              elseSteps: [],
-            },
-          ],
-        },
-      },
-    ],
-    requiredCapabilities,
-    metadata: { displayName: "Branch Memory" },
-  });
-}
-
-function triggeredMemory(requiredCapabilities: readonly string[]) {
-  return createMemoryDefinition({
-    memoryDefinitionId: "MEM_TRIGGERED",
-    triggeredEffects: [
-      {
-        trigger: {
-          eventType: "BattleStarted",
-          category: "FACT",
-          sourceSelector: "ANY",
-          targetSelector: "ANY",
-        },
-        effectSequence: {
-          // R-MEM-04（Issue #179）: Memoryは使用者BattleUnitを持たないため、
-          // `SELF`対象参照や発生源を必要とするEffectActionは宣言できない。
-          targetBindings: [
-            {
-              targetBindingId: "TGT_ALL_ALLIES",
-              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
-            },
-          ],
-          steps: [
-            {
-              kind: "ACTION",
-              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
-              actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
-            },
-          ],
-        },
-      },
-    ],
-    requiredCapabilities,
-    metadata: { displayName: "Triggered Memory" },
-  });
-}
-
-function triggerContextMemory(requiredCapabilities: readonly string[]) {
-  return createMemoryDefinition({
-    memoryDefinitionId: "MEM_TRIGGER_CONTEXT",
-    triggeredEffects: [
-      {
-        trigger: {
-          eventType: "HitPointReduced",
-          category: "FACT",
-          sourceSelector: "ANY",
-          targetSelector: "SELF",
-        },
-        effectSequence: {
-          // R-MEM-04（Issue #179）: Memoryは使用者BattleUnitを持たないため、
-          // `SELF`対象参照や発生源を必要とするEffectActionは宣言できない。
-          targetBindings: [
-            {
-              targetBindingId: "TGT_ALL_ALLIES",
-              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
-            },
-          ],
-          steps: [
-            {
-              kind: "ACTION",
-              target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
-              actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
-            },
-          ],
-        },
-      },
-    ],
-    requiredCapabilities,
-    metadata: { displayName: "Trigger Context Memory" },
-  });
-}
-
-function psSkill(
-  id: string,
-  eventType: string,
-  category: string,
-  requiredCapabilities: readonly string[] = [],
-): SkillDefinition {
+function psSkill(id: string, eventType: string, category: string): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
     skillType: "PS",
@@ -636,99 +291,11 @@ function psSkill(
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities,
     metadata: { displayName: "PS" },
   });
 }
 
-function runtimeCounterSkill(requiredCapabilities: readonly string[]): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: "SKL_PS1",
-    skillType: "PS",
-    cost: { resource: "PP", amount: 1 },
-    triggers: [
-      {
-        eventType: "TurnStarted",
-        category: "FACT",
-        sourceSelector: "ANY",
-        targetSelector: "SELF",
-      },
-    ],
-    counterUpdates: [
-      {
-        kind: "INCREMENT",
-        counter: "SKL_PS1_ACTIVATIONS",
-        scope: "SKILL_RUNTIME",
-        trigger: {
-          eventType: "PassiveActivated",
-          category: "FACT",
-          sourceSelector: "SELF",
-          targetSelector: "SELF",
-        },
-        amount: 1,
-      },
-    ],
-    resolution: {
-      kind: "IMMEDIATE",
-      steps: [
-        {
-          kind: "ACTION",
-          target: { kind: "SELF" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 0 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "Runtime counter PS" },
-  });
-}
-
-function effectSequenceRuntimeCounterSkill(
-  id: string,
-  requiredCapabilities: readonly string[],
-): SkillDefinition {
-  return createSkillDefinition({
-    skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
-    resolution: {
-      kind: "IMMEDIATE",
-      steps: [
-        {
-          kind: "ACTION",
-          target: { kind: "SELF" },
-          actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-        },
-      ],
-      counterUpdates: [
-        {
-          kind: "INCREMENT",
-          counter: "RUNTIME_COUNTER_SEQ_HITS",
-          scope: "EFFECT_SEQUENCE",
-          trigger: {
-            eventType: "EffectActionCompleted",
-            category: "FACT",
-            sourceSelector: "SELF",
-            targetSelector: "ANY",
-          },
-          amount: 1,
-        },
-      ],
-    },
-    cooldown: { unit: "ACTION", count: 0 },
-    traits: {},
-    requiredCapabilities,
-    metadata: { displayName: "EffectSequence runtime counter AS" },
-  });
-}
-
-function runtimeCounterSkillWithTrigger(
-  eventType: string,
-  category: string,
-  requiredCapabilities: readonly string[],
-): SkillDefinition {
+function runtimeCounterSkillWithTrigger(eventType: string, category: string): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: "SKL_PS1",
     skillType: "PS",
@@ -767,7 +334,6 @@ function runtimeCounterSkillWithTrigger(
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities,
     metadata: { displayName: "Runtime counter PS" },
   });
 }
@@ -795,7 +361,6 @@ function exSkill(id: string, amount: number): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [],
     metadata: { displayName: "EX" },
   });
 }
@@ -804,14 +369,12 @@ function cooldownManipulationAction(
   id: string,
   targetSkillDefinitionId: string,
   operation: "RESET" | "REDUCE" = "RESET",
-  requiredCapabilities: readonly string[] = ["CAP_COOLDOWN_MANIPULATION"],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
       kind: "COOLDOWN_MANIPULATION",
       payload: { targetSkillDefinitionId, operation },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -819,7 +382,6 @@ function cooldownManipulationAction(
 
 function statModAction(
   id: string,
-  requiredCapabilities: readonly string[] = ["CAP_STAT_MOD"],
   linkedEffectGroupId: string | null = null,
 ): EffectActionDefinition {
   return createEffectActionDefinition(
@@ -833,7 +395,6 @@ function statModAction(
         stacking: { mode: "STACKABLE" },
         duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true, linkedEffectGroupId },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -866,16 +427,12 @@ function subunitAction(
         },
         duration: { timeLimit: { unit: "ACTION", count: 3 }, dispellable: true },
       },
-      requiredCapabilities: ["CAP_SUBUNIT"],
     },
     "effectAction",
   );
 }
 
-function modifyResourceDistributeAction(
-  id: string,
-  requiredCapabilities: readonly string[] = ["CAP_RESOURCE_MUTATION", "CAP_RESOURCE_DISTRIBUTE"],
-): EffectActionDefinition {
+function modifyResourceDistributeAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -886,16 +443,12 @@ function modifyResourceDistributeAction(
         formula: { kind: "CONSTANT", value: 8 },
         bounds: { min: 0, max: "CURRENT_MAX" },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
 }
 
-function modifyResourceCapacityAction(
-  id: string,
-  requiredCapabilities: readonly string[] = ["CAP_RESOURCE_CAPACITY_MOD"],
-): EffectActionDefinition {
+function modifyResourceCapacityAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -906,16 +459,12 @@ function modifyResourceCapacityAction(
         formula: { kind: "CONSTANT", value: 1 },
         duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
 }
 
-function sumDamageHealAction(
-  id: string,
-  requiredCapabilities: readonly string[] = ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
-): EffectActionDefinition {
+function sumDamageHealAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -936,7 +485,6 @@ function sumDamageHealAction(
         },
         overheal: "DISCARD",
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -947,10 +495,7 @@ function sumDamageHealAction(
  * 置き、さらに`SUM`/`CLAMP`で入れ子にして、`sumDamageHealAction`と同じく
  * walkerの再帰と`DAMAGE`の`damageModifiers`収集の両方を通す。
  */
-function markerCountScaleDamageAction(
-  id: string,
-  requiredCapabilities: readonly string[] = ["CAP_MARKER_STACK_FORMULA"],
-): EffectActionDefinition {
+function markerCountScaleDamageAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -979,7 +524,6 @@ function markerCountScaleDamageAction(
           },
         ],
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -988,7 +532,6 @@ function markerCountScaleDamageAction(
 function healingLinkAction(
   id: string,
   transferTo: { kind: string; targetBindingId?: string } = { kind: "SELF" },
-  requiredCapabilities: readonly string[] = ["CAP_HEALING_LINK"],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
@@ -1003,7 +546,6 @@ function healingLinkAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -1015,7 +557,6 @@ function continuousHealAction(
     eventType: "ActionStarted",
     targetSelector: "EFFECT_OWNER",
   },
-  requiredCapabilities: readonly string[] = ["CAP_CONTINUOUS_HEAL"],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
@@ -1030,7 +571,6 @@ function continuousHealAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -1039,7 +579,6 @@ function continuousHealAction(
 function markerAction(
   id: string,
   linkedEffectGroupId: string | null = null,
-  requiredCapabilities: readonly string[] = ["CAP_MARKER"],
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
@@ -1050,7 +589,6 @@ function markerAction(
         stack: { policy: "ADD", max: null },
         duration: { dispellable: true, linkedEffectGroupId },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -1083,16 +621,12 @@ function markerActionWithCounterUpdates(id: string): EffectActionDefinition {
           counterUpdates: [hitCounterUpdate],
         },
       },
-      requiredCapabilities: ["CAP_MARKER"],
     },
     "effectAction",
   );
 }
 
-function statModActionWithCounterUpdates(
-  id: string,
-  requiredCapabilities: readonly string[] = ["CAP_STAT_MOD"],
-): EffectActionDefinition {
+function statModActionWithCounterUpdates(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
       effectActionDefinitionId: id,
@@ -1109,7 +643,6 @@ function statModActionWithCounterUpdates(
           counterUpdates: [hitCounterUpdate],
         },
       },
-      requiredCapabilities,
     },
     "effectAction",
   );
@@ -1144,19 +677,7 @@ function unit(
     activeSkillDefinitionIds: overrides.active ?? ["SKL_AS1"],
     passiveSkillDefinitionIds: overrides.passive ?? [],
     extraSkillDefinitionId: overrides.extra ?? "SKL_EX1",
-    requiredCapabilities: overrides.requiredCapabilities ?? [],
     metadata: { displayName: "Unit", characterName: "Character", characterId: "CHAR_1" },
-  });
-}
-
-function capability(id: string, status = "PLANNED"): CapabilityDefinition {
-  return createCapabilityDefinition({
-    capabilityId: id,
-    schemaStatus: "SUPPORTED",
-    runtimeStatus: status,
-    implementationTaskId: "TEST-001",
-    description: "d",
-    verification: { productionDefinitionIds: [], testCaseIds: [] },
   });
 }
 
@@ -1187,7 +708,6 @@ function targetRedirectAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_TARGET_REDIRECT"],
     },
     "effectAction",
   );
@@ -1217,7 +737,6 @@ function coverAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_COVER_DAMAGE"],
     },
     "effectAction",
   );
@@ -1249,7 +768,6 @@ function damageLinkAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_DAMAGE_LINK_STATE"],
     },
     "effectAction",
   );
@@ -1282,7 +800,6 @@ function reflectAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_REFLECT_DAMAGE"],
     },
     "effectAction",
   );
@@ -1307,7 +824,6 @@ function deathSurvivalAction(
           linkedEffectGroupId: null,
         },
       },
-      requiredCapabilities: overrides.requiredCapabilities ?? ["CAP_DEATH_SURVIVAL"],
     },
     "effectAction",
   );
@@ -1376,12 +892,6 @@ function psSkillWithCondition(
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: {},
-    requiredCapabilities: [
-      "CAP_TARGET_EFFECT_QUERY",
-      ...(where.counterUpdateTrigger !== undefined ? ["CAP_SKILL_RUNTIME_COUNTER"] : []),
-      ...(where.activationCondition !== undefined ? ["CAP_PASSIVE_ACTIVATION_CONDITION"] : []),
-      ...(where.targetCondition !== undefined ? ["CAP_EFFECT_STEP_CONDITION_SCOPE"] : []),
-    ],
     metadata: { displayName: id },
   });
 }
@@ -1392,7 +902,6 @@ function baseDefinitions(): CatalogDefinitions {
     skills: [asSkill("SKL_AS1", "ACT_DAMAGE_1"), exSkill("SKL_EX1", 7)],
     effectActions: [damageAction("ACT_DAMAGE_1")],
     memories: [],
-    capabilities: [],
   };
 }
 
@@ -1521,11 +1030,9 @@ describe("buildCatalogIndex", () => {
               },
             },
           ],
-          requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
           metadata: { displayName: "Memory" },
         }),
       ],
-      capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
     };
     expect(() => buildCatalogIndex(withDangling)).toThrow(CatalogIntegrityError);
     try {
@@ -1536,34 +1043,6 @@ describe("buildCatalogIndex", () => {
       expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
       expect(err.violations[0]?.targetId).toBe("MEM_001");
     }
-  });
-
-  it("UT-CAT-IDX-008: rejects requiredCapabilities that are not defined in capabilities.json", () => {
-    const defs = baseDefinitions();
-    const withUnknownCap: CatalogDefinitions = {
-      ...defs,
-      units: [unit("UNIT_001", { requiredCapabilities: ["CAP_UNKNOWN"] })],
-    };
-    expect(() => buildCatalogIndex(withUnknownCap)).toThrow(CatalogIntegrityError);
-    try {
-      buildCatalogIndex(withUnknownCap);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(err.violations[0]?.rule).toBe("UNKNOWN_CAPABILITY");
-      expect(err.violations[0]?.targetId).toBe("UNIT_001");
-    }
-  });
-
-  it("UT-CAT-IDX-009: accepts requiredCapabilities that are defined in capabilities.json", () => {
-    const defs = baseDefinitions();
-    const withCap: CatalogDefinitions = {
-      ...defs,
-      units: [unit("UNIT_001", { requiredCapabilities: ["CAP_HEAL"] })],
-      capabilities: [capability("CAP_HEAL", "PLANNED")],
-    };
-    const index = buildCatalogIndex(withCap);
-    expect(index.capabilities.get("CAP_HEAL" as never)?.runtimeStatus).toBe("PLANNED");
   });
 
   it("UT-CAT-IDX-010: rejects a PS trigger referencing an unknown eventType", () => {
@@ -1590,11 +1069,7 @@ describe("buildCatalogIndex", () => {
       ...defs,
       units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
       // UnitBeingAttacked is documented as TIMING, not FACT.
-      skills: [
-        ...defs.skills,
-        psSkill("SKL_PS1", "UnitBeingAttacked", "FACT", ["CAP_TRIGGER_CONTEXT"]),
-      ],
-      capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      skills: [...defs.skills, psSkill("SKL_PS1", "UnitBeingAttacked", "FACT")],
     };
     expect(() => buildCatalogIndex(withMismatch)).toThrow(CatalogIntegrityError);
     try {
@@ -1611,11 +1086,7 @@ describe("buildCatalogIndex", () => {
     const withEffectApplied: CatalogDefinitions = {
       ...defs,
       units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
-      skills: [
-        ...defs.skills,
-        psSkill("SKL_PS1", "EffectApplied", "FACT", ["CAP_TRIGGER_CONTEXT"]),
-      ],
-      capabilities: [capability("CAP_TRIGGER_CONTEXT")],
+      skills: [...defs.skills, psSkill("SKL_PS1", "EffectApplied", "FACT")],
     };
     const index = buildCatalogIndex(withEffectApplied);
     expect(index.skills.get("SKL_PS1" as never)).toBeDefined();
@@ -1642,7 +1113,7 @@ describe("buildCatalogIndex", () => {
     const defs = baseDefinitions();
     const multi: CatalogDefinitions = {
       ...defs,
-      units: [unit("UNIT_001", { active: ["SKL_MISSING"], requiredCapabilities: ["CAP_UNKNOWN"] })],
+      units: [unit("UNIT_001", { active: ["SKL_MISSING", "SKL_ALSO_MISSING"] })],
     };
     try {
       buildCatalogIndex(multi);
@@ -1690,70 +1161,19 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-071 (M7-001, Issue #181): rejects a REMOVE_EFFECTS with the SHIELD category missing the required CAP_SHIELD declaration", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      effectActions: [
-        ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_SHIELD", ["SHIELD"], ["CAP_REMOVE_EFFECTS"]),
-      ],
-      capabilities: [capability("CAP_REMOVE_EFFECTS")],
-    };
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_REMOVE_SHIELD",
-        ),
-      ).toBe(true);
-    }
-  });
-
   it("UT-CAT-IDX-072 (M7-001, Issue #181): accepts a REMOVE_EFFECTS with the SHIELD category that declares both CAP_REMOVE_EFFECTS and CAP_SHIELD, even though CAP_SHIELD itself is PLANNED (Catalog build only checks declaration, not implementation status)", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {
       ...defs,
       effectActions: [
         ...defs.effectActions,
-        removeEffectsCategoryAction(
-          "ACT_REMOVE_SHIELD",
-          ["SHIELD"],
-          ["CAP_REMOVE_EFFECTS", "CAP_SHIELD"],
-        ),
+        removeEffectsCategoryAction("ACT_REMOVE_SHIELD", ["SHIELD"]),
       ],
-      capabilities: [capability("CAP_REMOVE_EFFECTS"), capability("CAP_SHIELD", "PLANNED")],
     };
 
     const index = buildCatalogIndex(withCapability);
 
     expect(index.effectActions.get("ACT_REMOVE_SHIELD" as never)).toBeDefined();
-  });
-
-  it("UT-CAT-IDX-073 (M7-001, Issue #181): rejects a REMOVE_EFFECTS with the SUBUNIT category missing the required CAP_SUBUNIT declaration", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      effectActions: [
-        ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_SUBUNIT", ["SUBUNIT"], ["CAP_REMOVE_EFFECTS"]),
-      ],
-      capabilities: [capability("CAP_REMOVE_EFFECTS")],
-    };
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_REMOVE_SUBUNIT",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-CAT-IDX-074 (M7-001, Issue #181): accepts a REMOVE_EFFECTS with the SUBUNIT category that declares both CAP_REMOVE_EFFECTS and CAP_SUBUNIT", () => {
@@ -1762,13 +1182,8 @@ describe("buildCatalogIndex", () => {
       ...defs,
       effectActions: [
         ...defs.effectActions,
-        removeEffectsCategoryAction(
-          "ACT_REMOVE_SUBUNIT",
-          ["SUBUNIT"],
-          ["CAP_REMOVE_EFFECTS", "CAP_SUBUNIT"],
-        ),
+        removeEffectsCategoryAction("ACT_REMOVE_SUBUNIT", ["SUBUNIT"]),
       ],
-      capabilities: [capability("CAP_REMOVE_EFFECTS"), capability("CAP_SUBUNIT", "PLANNED")],
     };
 
     const index = buildCatalogIndex(withCapability);
@@ -1784,7 +1199,6 @@ describe("buildCatalogIndex", () => {
         ...defs.effectActions,
         subunitAction("ACT_SUBUNIT_DANGLING", { debuffId: "ACT_MISSING_DEBUFF" }),
       ],
-      capabilities: [capability("CAP_SUBUNIT")],
     };
     try {
       buildCatalogIndex(withDangling);
@@ -1807,7 +1221,6 @@ describe("buildCatalogIndex", () => {
         ...defs.effectActions,
         subunitAction("ACT_SUBUNIT_BAD_DEBUFF", { debuffId: "ACT_DAMAGE_1" }),
       ],
-      capabilities: [capability("CAP_SUBUNIT")],
     };
     try {
       buildCatalogIndex(withNonGrantable);
@@ -1831,7 +1244,6 @@ describe("buildCatalogIndex", () => {
         statModAction("ACT_SPEED_DOWN"),
         subunitAction("ACT_SUBUNIT_WITH_DEBUFF", { debuffId: "ACT_SPEED_DOWN" }),
       ],
-      capabilities: [capability("CAP_SUBUNIT"), capability("CAP_STAT_MOD")],
     };
 
     const index = buildCatalogIndex(withDebuff);
@@ -1839,90 +1251,11 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_SUBUNIT_WITH_DEBUFF" as never)).toBeDefined();
   });
 
-  it("UT-CAT-IDX-101 (M7-016, Issue #270, R-SKL-05/R-HIT-02/R-PS-04): rejects a resolution.kind CHARGE skill that does not declare CAP_CHARGE_RESTRICTION", () => {
-    const defs = baseDefinitions();
-    const withUndeclaredCharge: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, chargeSkill("SKL_CHARGE_1", [])],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_CHARGE_1"] })],
-    };
-    try {
-      buildCatalogIndex(withUndeclaredCharge);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "SKL_CHARGE_1",
-        ),
-      ).toBe(true);
-    }
-  });
-
-  it("UT-CAT-IDX-102 (M7-016, Issue #270, R-SKL-05/R-HIT-02/R-PS-04): accepts a resolution.kind CHARGE skill that declares CAP_CHARGE_RESTRICTION", () => {
-    const defs = baseDefinitions();
-    const withDeclaredCharge: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, chargeSkill("SKL_CHARGE_1", ["CAP_CHARGE_RESTRICTION"])],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_CHARGE_1"] })],
-      capabilities: [capability("CAP_CHARGE_RESTRICTION")],
-    };
-
-    const index = buildCatalogIndex(withDeclaredCharge);
-
-    expect(index.skills.get("SKL_CHARGE_1" as never)).toBeDefined();
-  });
-
-  it("UT-CAT-IDX-075 (Issue #181): rejects ANY REMOVE_EFFECTS missing CAP_REMOVE_EFFECTS, regardless of categories (e.g. STATUS, which needs no other capability)", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      effectActions: [
-        ...defs.effectActions,
-        removeEffectsCategoryAction("ACT_REMOVE_STATUS", ["STATUS"], []),
-      ],
-    };
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_REMOVE_STATUS",
-        ),
-      ).toBe(true);
-    }
-  });
-
-  it("UT-CAT-IDX-076 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): rejects an EFFECT_IMMUNITY with statusKinds missing the required CAP_SPECIFIC_IMMUNITY declaration", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      effectActions: [...defs.effectActions, statusScopedImmunityAction("ACT_STUN_IMMUNITY", [])],
-    };
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STUN_IMMUNITY",
-        ),
-      ).toBe(true);
-    }
-  });
-
   it("UT-CAT-IDX-077 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): accepts an EFFECT_IMMUNITY with statusKinds that declares CAP_SPECIFIC_IMMUNITY", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {
       ...defs,
-      effectActions: [
-        ...defs.effectActions,
-        statusScopedImmunityAction("ACT_STUN_IMMUNITY", ["CAP_SPECIFIC_IMMUNITY"]),
-      ],
-      capabilities: [capability("CAP_SPECIFIC_IMMUNITY")],
+      effectActions: [...defs.effectActions, statusScopedImmunityAction("ACT_STUN_IMMUNITY")],
     };
 
     const index = buildCatalogIndex(withCapability);
@@ -1993,38 +1326,11 @@ describe("buildCatalogIndex", () => {
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_CD_RESET")],
       effectActions: [...defs.effectActions, cooldownManipulationAction("ACT_CD_RESET", "SKL_AS1")],
-      capabilities: [capability("CAP_COOLDOWN_MANIPULATION")],
     };
 
     const index = buildCatalogIndex(withOwned);
 
     expect(index.effectActions.get("ACT_CD_RESET" as never)).toBeDefined();
-  });
-
-  it("UT-CAT-IDX-020: rejects a COOLDOWN_MANIPULATION missing the required CAP_COOLDOWN_MANIPULATION capability (Issue #129 review)", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_CD_RESET")],
-      effectActions: [
-        ...defs.effectActions,
-        cooldownManipulationAction("ACT_CD_RESET", "SKL_AS1", "RESET", []),
-      ],
-      capabilities: [capability("CAP_COOLDOWN_MANIPULATION")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_CD_RESET",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-R-EFF-01-025: accepts an APPLY_STAT_MOD that declares the required CAP_STAT_MOD capability", () => {
@@ -2034,35 +1340,11 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, statModAction("ACT_STAT_MOD")],
-      capabilities: [capability("CAP_STAT_MOD")],
     };
 
     const index = buildCatalogIndex(withStatMod);
 
     expect(index.effectActions.get("ACT_STAT_MOD" as never)).toBeDefined();
-  });
-
-  it("UT-R-EFF-01-026: rejects an APPLY_STAT_MOD missing the required CAP_STAT_MOD capability, so an incomplete resolver path can't be reached from custom Catalog data", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [...defs.effectActions, statModAction("ACT_STAT_MOD", [])],
-      capabilities: [capability("CAP_STAT_MOD")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_STAT_MOD",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-R-ACTN-02-012: accepts a MODIFY_RESOURCE(operation: DISTRIBUTE) that declares the required CAP_RESOURCE_DISTRIBUTE capability", () => {
@@ -2072,38 +1354,11 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DISTRIBUTE")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, modifyResourceDistributeAction("ACT_DISTRIBUTE")],
-      capabilities: [capability("CAP_RESOURCE_MUTATION"), capability("CAP_RESOURCE_DISTRIBUTE")],
     };
 
     const index = buildCatalogIndex(withDistribute);
 
     expect(index.effectActions.get("ACT_DISTRIBUTE" as never)).toBeDefined();
-  });
-
-  it("UT-R-ACTN-02-013: rejects a MODIFY_RESOURCE(operation: DISTRIBUTE) missing the required CAP_RESOURCE_DISTRIBUTE capability, so the unsupported operation is caught at Catalog load time rather than only inside battle resolution", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DISTRIBUTE")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [
-        ...defs.effectActions,
-        modifyResourceDistributeAction("ACT_DISTRIBUTE", ["CAP_RESOURCE_MUTATION"]),
-      ],
-      capabilities: [capability("CAP_RESOURCE_MUTATION"), capability("CAP_RESOURCE_DISTRIBUTE")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_DISTRIBUTE",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-R-ACTN-03-017 (G-09, M7-002A Issue #255): accepts a MODIFY_RESOURCE_CAPACITY that declares the required CAP_RESOURCE_CAPACITY_MOD capability", () => {
@@ -2113,35 +1368,11 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MAX_AP_UP")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, modifyResourceCapacityAction("ACT_MAX_AP_UP")],
-      capabilities: [capability("CAP_RESOURCE_CAPACITY_MOD")],
     };
 
     const index = buildCatalogIndex(withCapacity);
 
     expect(index.effectActions.get("ACT_MAX_AP_UP" as never)).toBeDefined();
-  });
-
-  it("UT-R-ACTN-03-018 (G-09, M7-002A Issue #255): rejects a MODIFY_RESOURCE_CAPACITY missing the required CAP_RESOURCE_CAPACITY_MOD capability, so an undeclared capacity change is caught at Catalog load time", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MAX_AP_UP")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [...defs.effectActions, modifyResourceCapacityAction("ACT_MAX_AP_UP", [])],
-      capabilities: [capability("CAP_RESOURCE_CAPACITY_MOD")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_MAX_AP_UP",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-R-HEAL-01-009 (RES-003A, Issue #257): accepts a HEAL referencing SUM_DAMAGE_DEALT when it declares the required CAP_SUM_DAMAGE_RESULT capability", () => {
@@ -2151,35 +1382,11 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SUM_HEAL")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, sumDamageHealAction("ACT_SUM_HEAL")],
-      capabilities: [capability("CAP_HEAL"), capability("CAP_SUM_DAMAGE_RESULT")],
     };
 
     const index = buildCatalogIndex(withSum);
 
     expect(index.effectActions.get("ACT_SUM_HEAL" as never)).toBeDefined();
-  });
-
-  it("UT-R-HEAL-01-010 (RES-003A, Issue #257, NEGATIVE): rejects a HEAL referencing SUM_DAMAGE_DEALT without CAP_SUM_DAMAGE_RESULT, keeping the Capability registry's productionDefinitionIds aligned with the definitions that actually reference the accumulation", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SUM_HEAL")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [...defs.effectActions, sumDamageHealAction("ACT_SUM_HEAL", ["CAP_HEAL"])],
-      capabilities: [capability("CAP_HEAL"), capability("CAP_SUM_DAMAGE_RESULT")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_SUM_HEAL",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-R-NUM-04-032 (M7-015, Issue #269): accepts a DAMAGE whose damageModifiers reference MARKER_COUNT_SCALE when it declares the required CAP_MARKER_STACK_FORMULA capability", () => {
@@ -2192,39 +1399,11 @@ describe("buildCatalogIndex", () => {
         ...defs.effectActions,
         markerCountScaleDamageAction("ACT_MARKER_SCALE_DAMAGE"),
       ],
-      capabilities: [capability("CAP_MARKER_STACK_FORMULA")],
     };
 
     const index = buildCatalogIndex(withMarkerScale);
 
     expect(index.effectActions.get("ACT_MARKER_SCALE_DAMAGE" as never)).toBeDefined();
-  });
-
-  it("UT-R-NUM-04-033 (M7-015, Issue #269, NEGATIVE): rejects a DAMAGE whose damageModifiers reference MARKER_COUNT_SCALE without CAP_MARKER_STACK_FORMULA, keeping every definition that reads MarkerState.stackCount self-declared", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SCALE_DAMAGE")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [
-        ...defs.effectActions,
-        markerCountScaleDamageAction("ACT_MARKER_SCALE_DAMAGE", []),
-      ],
-      capabilities: [capability("CAP_MARKER_STACK_FORMULA")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) =>
-            v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_MARKER_SCALE_DAMAGE",
-        ),
-      ).toBe(true);
-    }
   });
 
   it("UT-R-HEAL-03-003 (M7-005 Issue #184): accepts an APPLY_CONTINUOUS_HEAL whose timing is the implemented ActionStarted/EFFECT_OWNER combination", () => {
@@ -2234,7 +1413,6 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_HOT")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, continuousHealAction("ACT_HOT")],
-      capabilities: [capability("CAP_CONTINUOUS_HEAL")],
     };
 
     const index = buildCatalogIndex(withHot);
@@ -2255,7 +1433,6 @@ describe("buildCatalogIndex", () => {
           targetSelector: "EFFECT_OWNER",
         }),
       ],
-      capabilities: [capability("CAP_CONTINUOUS_HEAL")],
     };
 
     try {
@@ -2278,7 +1455,6 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, healingLinkAction("ACT_LINK")],
-      capabilities: [capability("CAP_HEALING_LINK")],
     };
 
     const index = buildCatalogIndex(withLink);
@@ -2296,7 +1472,6 @@ describe("buildCatalogIndex", () => {
         ...defs.effectActions,
         healingLinkAction("ACT_LINK", { kind: "TRIGGER_SOURCE" }),
       ],
-      capabilities: [capability("CAP_HEALING_LINK")],
     };
 
     try {
@@ -2307,29 +1482,6 @@ describe("buildCatalogIndex", () => {
       expect(
         err.violations.some(
           (v) => v.rule === "UNSUPPORTED_HEALING_LINK_TRANSFER_TARGET" && v.targetId === "ACT_LINK",
-        ),
-      ).toBe(true);
-    }
-  });
-
-  it("UT-R-HEAL-04-003 (M7-005-HEAL-LINK Issue #229, NEGATIVE): rejects an APPLY_HEALING_LINK that omits CAP_HEALING_LINK from requiredCapabilities (same declaration-gate as CAP_COOLDOWN_MANIPULATION)", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [...defs.effectActions, healingLinkAction("ACT_LINK", { kind: "SELF" }, [])],
-      capabilities: [capability("CAP_HEALING_LINK")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_LINK",
         ),
       ).toBe(true);
     }
@@ -2356,12 +1508,6 @@ describe("buildCatalogIndex", () => {
         reflectAction("ACT_REFLECT"),
         deathSurvivalAction("ACT_SURVIVAL"),
       ],
-      capabilities: [
-        capability("CAP_TARGET_REDIRECT"),
-        capability("CAP_COVER_DAMAGE"),
-        capability("CAP_REFLECT_DAMAGE"),
-        capability("CAP_DEATH_SURVIVAL"),
-      ],
     };
 
     const index = buildCatalogIndex(withInterventions);
@@ -2387,7 +1533,6 @@ describe("buildCatalogIndex", () => {
         skills: [...defs.skills, asSkill("SKL_AS2", actionId)],
         units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
         effectActions: [...defs.effectActions, action],
-        capabilities: [capability("CAP_TARGET_REDIRECT"), capability("CAP_COVER_DAMAGE")],
       };
 
       try {
@@ -2423,12 +1568,6 @@ describe("buildCatalogIndex", () => {
         skills: [...defs.skills, asSkill("SKL_AS2", actionId)],
         units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
         effectActions: [...defs.effectActions, action],
-        capabilities: [
-          capability("CAP_TARGET_REDIRECT"),
-          capability("CAP_COVER_DAMAGE"),
-          capability("CAP_REFLECT_DAMAGE"),
-          capability("CAP_DEATH_SURVIVAL"),
-        ],
       };
 
       try {
@@ -2439,42 +1578,6 @@ describe("buildCatalogIndex", () => {
         expect(
           err.violations.some(
             (v) => v.rule === "UNSUPPORTED_DEFENSIVE_INTERVENTION" && v.targetId === actionId,
-          ),
-        ).toBe(true);
-      }
-    }
-  });
-
-  it("UT-R-INT-02-021 (DMG-006 Issue #188, NEGATIVE): rejects a defensive intervention that omits its Capability from requiredCapabilities (same declaration-gate as CAP_HEALING_LINK)", () => {
-    const defs = baseDefinitions();
-
-    for (const [actionId, action] of [
-      ["ACT_REDIRECT", targetRedirectAction("ACT_REDIRECT", { requiredCapabilities: [] })],
-      ["ACT_COVER", coverAction("ACT_COVER", { requiredCapabilities: [] })],
-      ["ACT_REFLECT", reflectAction("ACT_REFLECT", { requiredCapabilities: [] })],
-      ["ACT_SURVIVAL", deathSurvivalAction("ACT_SURVIVAL", { requiredCapabilities: [] })],
-    ] as const) {
-      const withMissingCapability: CatalogDefinitions = {
-        ...defs,
-        skills: [...defs.skills, asSkill("SKL_AS2", actionId)],
-        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-        effectActions: [...defs.effectActions, action],
-        capabilities: [
-          capability("CAP_TARGET_REDIRECT"),
-          capability("CAP_COVER_DAMAGE"),
-          capability("CAP_REFLECT_DAMAGE"),
-          capability("CAP_DEATH_SURVIVAL"),
-        ],
-      };
-
-      try {
-        buildCatalogIndex(withMissingCapability);
-        expect.unreachable();
-      } catch (error) {
-        const err = error as CatalogIntegrityError;
-        expect(
-          err.violations.some(
-            (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === actionId,
           ),
         ).toBe(true);
       }
@@ -2511,7 +1614,6 @@ describe("buildCatalogIndex", () => {
       },
       cooldown: { unit: "ACTION", count: 1 },
       traits: {},
-      requiredCapabilities: [],
       metadata: { displayName: "AS" },
     });
     const withMisscopedGrantedBy: CatalogDefinitions = {
@@ -2560,12 +1662,6 @@ describe("buildCatalogIndex", () => {
         ...defs,
         skills: [...defs.skills, skill],
         units: [unit("UNIT_001", { passive: [skill.skillDefinitionId] })],
-        capabilities: [
-          capability("CAP_TARGET_EFFECT_QUERY"),
-          capability("CAP_SKILL_RUNTIME_COUNTER"),
-          capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
-          capability("CAP_EFFECT_STEP_CONDITION_SCOPE"),
-        ],
       };
 
       try {
@@ -2631,11 +1727,6 @@ describe("buildCatalogIndex", () => {
               ...durationExtra,
             },
           },
-          requiredCapabilities: [
-            "CAP_STAT_MOD",
-            "CAP_COMPLEX_EXPIRATION",
-            "CAP_TARGET_EFFECT_QUERY",
-          ],
         },
         "effectAction",
       );
@@ -2645,12 +1736,6 @@ describe("buildCatalogIndex", () => {
         skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DURATION_QUERY")],
         units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
         effectActions: [...defs.effectActions, action],
-        capabilities: [
-          capability("CAP_STAT_MOD"),
-          capability("CAP_COMPLEX_EXPIRATION"),
-          capability("CAP_TARGET_EFFECT_QUERY"),
-          capability("CAP_EFFECT_RUNTIME_COUNTER"),
-        ],
       };
 
       try {
@@ -2681,12 +1766,6 @@ describe("buildCatalogIndex", () => {
           grantedBy: "SELF",
         }),
       ],
-      capabilities: [
-        capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
-        capability("CAP_TARGET_EFFECT_QUERY"),
-        capability("CAP_STAT_MOD"),
-      ],
     };
 
     try {
@@ -2716,7 +1795,6 @@ describe("buildCatalogIndex", () => {
           linkTo: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
         }),
       ],
-      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
     };
 
     const index = buildCatalogIndex(withLinks);
@@ -2733,7 +1811,6 @@ describe("buildCatalogIndex", () => {
         skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
         units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
         effectActions: [...defs.effectActions, damageLinkAction("ACT_LINK", { linkTo })],
-        capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
       };
 
       try {
@@ -2750,32 +1827,6 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-LNK-02-032 (DMG-007 Issue #187, NEGATIVE): rejects an APPLY_DAMAGE_LINK that omits CAP_DAMAGE_LINK_STATE from requiredCapabilities", () => {
-    const defs = baseDefinitions();
-    const withMissingCapability: CatalogDefinitions = {
-      ...defs,
-      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_LINK")],
-      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-      effectActions: [
-        ...defs.effectActions,
-        damageLinkAction("ACT_LINK", { requiredCapabilities: [] }),
-      ],
-      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
-    };
-
-    try {
-      buildCatalogIndex(withMissingCapability);
-      expect.unreachable();
-    } catch (error) {
-      const err = error as CatalogIntegrityError;
-      expect(
-        err.violations.some(
-          (v) => v.rule === "MISSING_REQUIRED_CAPABILITY" && v.targetId === "ACT_LINK",
-        ),
-      ).toBe(true);
-    }
-  });
-
   it("UT-R-LNK-02-033 (DMG-007 Issue #187, NEGATIVE): rejects a BINDING linkTo that the using skill never declares (silent no-op at grant time)", () => {
     const defs = baseDefinitions();
     const withUnboundBinding: CatalogDefinitions = {
@@ -2788,7 +1839,6 @@ describe("buildCatalogIndex", () => {
           linkTo: { kind: "BINDING", targetBindingId: "TGT_NOT_DECLARED" },
         }),
       ],
-      capabilities: [capability("CAP_DAMAGE_LINK_STATE")],
     };
 
     try {
@@ -2807,7 +1857,6 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, markerAction("ACT_MARKER", null)],
-      capabilities: [capability("CAP_MARKER")],
     };
 
     const index = buildCatalogIndex(withMarker);
@@ -2830,7 +1879,6 @@ describe("buildCatalogIndex", () => {
         markerAction("ACT_MARKER_1", "GROUP_1"),
         markerAction("ACT_MARKER_2", "GROUP_1"),
       ],
-      capabilities: [capability("CAP_MARKER")],
     };
 
     const index = buildCatalogIndex(withLinkedMarkers);
@@ -2852,9 +1900,8 @@ describe("buildCatalogIndex", () => {
       effectActions: [
         ...defs.effectActions,
         markerAction("ACT_MARKER", "GROUP_1"),
-        statModAction("ACT_STAT_MOD", ["CAP_STAT_MOD"], "GROUP_1"),
+        statModAction("ACT_STAT_MOD", "GROUP_1"),
       ],
-      capabilities: [capability("CAP_MARKER"), capability("CAP_STAT_MOD")],
     };
 
     const index = buildCatalogIndex(withCrossTypeGroup);
@@ -2877,7 +1924,6 @@ describe("buildCatalogIndex", () => {
             consumption: { kind: "INCOMING_HIT", maxCount: 1 },
           },
         },
-        requiredCapabilities: ["CAP_MARKER"],
       },
       "effectAction",
     );
@@ -2894,7 +1940,6 @@ describe("buildCatalogIndex", () => {
             expiration: { conditions: [{ kind: "TRUE" }] },
           },
         },
-        requiredCapabilities: ["CAP_MARKER"],
       },
       "effectAction",
     );
@@ -2911,7 +1956,6 @@ describe("buildCatalogIndex", () => {
             timeLimit: { unit: "HIT", count: 1 },
           },
         },
-        requiredCapabilities: ["CAP_MARKER"],
       },
       "effectAction",
     );
@@ -2932,7 +1976,6 @@ describe("buildCatalogIndex", () => {
         withExpirationPatched,
         withHitUnitPatched,
       ],
-      capabilities: [capability("CAP_MARKER")],
     };
 
     try {
@@ -2969,7 +2012,6 @@ describe("buildCatalogIndex", () => {
             removeOnSourceDefeated: true,
           },
         },
-        requiredCapabilities: ["CAP_MARKER"],
       },
       "effectAction",
     );
@@ -2980,7 +2022,6 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SOURCE_DEFEAT")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, markerWithSourceDefeatRemoval],
-      capabilities: [capability("CAP_MARKER")],
     });
 
     expect(index.effectActions.get("ACT_MARKER_SOURCE_DEFEAT" as never)).toBeDefined();
@@ -3003,7 +2044,6 @@ describe("buildCatalogIndex", () => {
             removeOnSourceDefeated: true,
           },
         },
-        requiredCapabilities: ["CAP_STAT_MOD"],
       },
       "effectAction",
     );
@@ -3015,7 +2055,6 @@ describe("buildCatalogIndex", () => {
         skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD_SOURCE_DEFEAT")],
         units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
         effectActions: [...defs.effectActions, statModWithSourceDefeatRemoval],
-        capabilities: [capability("CAP_MARKER"), capability("CAP_STAT_MOD")],
       });
       expect.unreachable();
     } catch (error) {
@@ -3028,245 +2067,6 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-021: rejects a production definition that uses a schema-unsupported Capability", () => {
-    const defs = baseDefinitions();
-    const schemaPlanned = createCapabilityDefinition({
-      capabilityId: "CAP_FUTURE_SCHEMA",
-      schemaStatus: "PLANNED",
-      runtimeStatus: "PLANNED",
-      implementationTaskId: "TEST-001",
-      description: "future schema",
-      verification: { productionDefinitionIds: [], testCaseIds: [] },
-    });
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        units: [unit("UNIT_001", { requiredCapabilities: ["CAP_FUTURE_SCHEMA"] })],
-        capabilities: [schemaPlanned],
-      }),
-    ).toThrowError(/UNSUPPORTED_SCHEMA_CAPABILITY/);
-  });
-
-  it("UT-CAT-IDX-022: rejects IMPLEMENTED evidence pointing to a missing production definition", () => {
-    const defs = baseDefinitions();
-    const implemented = createCapabilityDefinition({
-      capabilityId: "CAP_READY",
-      schemaStatus: "SUPPORTED",
-      runtimeStatus: "IMPLEMENTED",
-      implementationTaskId: "TEST-001",
-      description: "ready",
-      verification: {
-        productionDefinitionIds: ["ACT_MISSING"],
-        testCaseIds: ["TEST-001"],
-      },
-    });
-
-    expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
-      /INVALID_CAPABILITY_VERIFICATION/,
-    );
-  });
-
-  it("UT-CAT-IDX-023: rejects IMPLEMENTED evidence whose production definition does not declare the Capability", () => {
-    const defs = baseDefinitions();
-    const implemented = createCapabilityDefinition({
-      capabilityId: "CAP_READY",
-      schemaStatus: "SUPPORTED",
-      runtimeStatus: "IMPLEMENTED",
-      implementationTaskId: "TEST-001",
-      description: "ready",
-      verification: {
-        productionDefinitionIds: ["ACT_DAMAGE_1"],
-        testCaseIds: ["TEST-001"],
-      },
-    });
-
-    expect(() => buildCatalogIndex({ ...defs, capabilities: [implemented] })).toThrowError(
-      /does not declare capability/,
-    );
-  });
-
-  it("UT-CAT-IDX-024: rejects BRANCH/REPEAT skills without CAP_RESOLUTION_BRANCH_REPEAT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [branchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
-        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
-      }),
-    ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [branchSkill("SKL_AS1", ["CAP_RESOLUTION_BRANCH_REPEAT"]), exSkill("SKL_EX1", 7)],
-        capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-025: rejects runtime-owned trigger events without CAP_TRIGGER_CONTEXT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
-        skills: [...defs.skills, psSkill("SKL_PS1", "HitPointReduced", "FACT")],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
-      }),
-    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
-  });
-
-  it("UT-CAT-IDX-103 (R-DMG-05 #4、DMG-001/Issue #195): treats DamageWillBeApplied as a runtime-owned trigger event, so a PS reacting to it must declare CAP_TRIGGER_CONTEXT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
-        skills: [...defs.skills, psSkill("SKL_PS1", "DamageWillBeApplied", "TIMING")],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
-      }),
-    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
-        skills: [
-          ...defs.skills,
-          psSkill("SKL_PS1", "DamageWillBeApplied", "TIMING", ["CAP_TRIGGER_CONTEXT"]),
-        ],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-026: rejects BRANCH/REPEAT memories without CAP_RESOLUTION_BRANCH_REPEAT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
-        memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
-        capabilities: [
-          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-          capability("CAP_RESOLUTION_BRANCH_REPEAT"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
-        memories: [branchMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_RESOLUTION_BRANCH_REPEAT"])],
-        capabilities: [
-          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-          capability("CAP_RESOLUTION_BRANCH_REPEAT"),
-        ],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-027: rejects runtime-owned Memory triggers without CAP_TRIGGER_CONTEXT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
-        memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
-        capabilities: [
-          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-          capability("CAP_TRIGGER_CONTEXT"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
-        memories: [triggerContextMemory(["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TRIGGER_CONTEXT"])],
-        capabilities: [
-          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-          capability("CAP_TRIGGER_CONTEXT"),
-        ],
-      }),
-    ).not.toThrow();
-  });
-
-  it.each([
-    {
-      capabilityId: "CAP_TARGET_FILTER_ORDER",
-      selector: {
-        kind: "SELECT",
-        side: "ENEMY",
-        count: 1,
-        filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
-      },
-    },
-    {
-      capabilityId: "CAP_TARGET_DERIVED_AREA",
-      selector: {
-        kind: "BINDING_DERIVED",
-        base: { kind: "SELF" },
-        area: { kind: "SAME_ROW_AS_BASE", includeBase: false },
-      },
-    },
-    {
-      capabilityId: "CAP_TARGET_BINDING_FALLBACK",
-      selector: {
-        kind: "SELECT",
-        side: "ENEMY",
-        count: 1,
-        fallback: { kind: "SELECT", side: "ENEMY", count: 1 },
-      },
-    },
-  ])(
-    "UT-CAT-IDX-028: rejects $capabilityId-owned target structure without its Capability",
-    ({ capabilityId, selector }) => {
-      const defs = baseDefinitions();
-      expect(() =>
-        buildCatalogIndex({
-          ...defs,
-          skills: [targetingSkill(selector, []), exSkill("SKL_EX1", 7)],
-          capabilities: [capability(capabilityId)],
-        }),
-      ).toThrowError(new RegExp(`must declare "${capabilityId}"`));
-
-      expect(() =>
-        buildCatalogIndex({
-          ...defs,
-          skills: [targetingSkill(selector, [capabilityId]), exSkill("SKL_EX1", 7)],
-          capabilities: [capability(capabilityId)],
-        }),
-      ).not.toThrow();
-    },
-  );
-
-  it("UT-CAT-IDX-029: rejects TRIGGER_SOURCE/TRIGGER_TARGET EffectStep references without CAP_TRIGGER_CONTEXT", () => {
-    const defs = baseDefinitions();
-    const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [targetingSkill(selector, [], { kind: "TRIGGER_TARGET" }), exSkill("SKL_EX1", 7)],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
-      }),
-    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          targetingSkill(selector, ["CAP_TRIGGER_CONTEXT"], { kind: "TRIGGER_SOURCE" }),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [capability("CAP_TRIGGER_CONTEXT")],
-      }),
-    ).not.toThrow();
-  });
-
   /**
    * Issue #227: `TargetReference`の走査は従来ACTIONの
    * `step.target`だけを見ており、`condition`（`TARGET_SET_COUNT`等）に埋め込まれた
@@ -3275,7 +2075,6 @@ describe("buildCatalogIndex", () => {
    */
   function conditionTargetRefSkill(
     conditionTarget: TargetReferenceInput,
-    requiredCapabilities: readonly string[],
     withPrecedingAction = false,
   ): SkillDefinition {
     const conditionStep = {
@@ -3303,72 +2102,19 @@ describe("buildCatalogIndex", () => {
       },
       cooldown: { unit: "ACTION", count: 1 },
       traits: {},
-      requiredCapabilities,
       metadata: { displayName: "Set-condition TargetReference AS" },
     });
   }
 
-  it("UT-CAT-IDX-057（Issue #227）: rejects a TARGET_SET_COUNT condition referencing TRIGGER_TARGET without CAP_TRIGGER_CONTEXT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          conditionTargetRefSkill({ kind: "TRIGGER_TARGET" }, [
-            "CAP_EFFECT_STEP_CONDITION",
-            "CAP_EFFECT_STEP_SET_CONDITION",
-          ]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-          capability("CAP_TRIGGER_CONTEXT"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_TRIGGER_CONTEXT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          conditionTargetRefSkill({ kind: "TRIGGER_TARGET" }, [
-            "CAP_EFFECT_STEP_CONDITION",
-            "CAP_EFFECT_STEP_SET_CONDITION",
-            "CAP_TRIGGER_CONTEXT",
-          ]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-          capability("CAP_TRIGGER_CONTEXT"),
-        ],
-      }),
-    ).not.toThrow();
-  });
-
   it("UT-CAT-IDX-058（Issue #227）: rejects a TARGET_SET_COUNT condition referencing LAST_ACTION_TARGETS with no preceding EffectAction result (MISSING_PRECEDING_RESULT)", () => {
     const defs = baseDefinitions();
-    const caps = [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_EFFECT_STEP_SET_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-    ];
-    const capabilities = [
-      capability("CAP_EFFECT_STEP_CONDITION"),
-      capability("CAP_EFFECT_STEP_SET_CONDITION"),
-      capability("CAP_RESOLUTION_BRANCH_REPEAT"),
-    ];
-
     expect(() =>
       buildCatalogIndex({
         ...defs,
         skills: [
-          conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, caps, false),
+          conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, false),
           exSkill("SKL_EX1", 7),
         ],
-        capabilities,
       }),
     ).toThrowError(/MISSING_PRECEDING_RESULT/);
 
@@ -3376,10 +2122,9 @@ describe("buildCatalogIndex", () => {
       buildCatalogIndex({
         ...defs,
         skills: [
-          conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, caps, true),
+          conditionTargetRefSkill({ kind: "LAST_ACTION_TARGETS" }, true),
           exSkill("SKL_EX1", 7),
         ],
-        capabilities,
       }),
     ).not.toThrow();
   });
@@ -3396,12 +2141,6 @@ describe("buildCatalogIndex", () => {
 
   it("UT-CAT-IDX-062（Issue #227）: rejects the same mix inside a BRANCH's own condition, which also evaluates with no per-target context at runtime", () => {
     const defs = baseDefinitions();
-    const caps = ["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"];
-    const capabilities = [
-      capability("CAP_EFFECT_STEP_CONDITION"),
-      capability("CAP_EFFECT_STEP_SET_CONDITION"),
-    ];
-
     const branchMixedSkill = createSkillDefinition({
       skillDefinitionId: "SKL_AS1",
       skillType: "AS",
@@ -3455,7 +2194,6 @@ describe("buildCatalogIndex", () => {
       },
       cooldown: { unit: "ACTION", count: 1 },
       traits: {},
-      requiredCapabilities: [...caps, "CAP_RESOLUTION_BRANCH_REPEAT"],
       metadata: { displayName: "Branch-condition mixed AS" },
     });
 
@@ -3463,27 +2201,14 @@ describe("buildCatalogIndex", () => {
       buildCatalogIndex({
         ...defs,
         skills: [branchMixedSkill, exSkill("SKL_EX1", 7)],
-        capabilities: [...capabilities, capability("CAP_RESOLUTION_BRANCH_REPEAT")],
       }),
     ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
   });
 
   describe("BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE（Issue #230）: BRANCHのcondition内のTARGET_STATE/TARGET_HAS_MARKERは高々1体に解決される参照だけを許可する", () => {
-    const caps = [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_TRIGGER_CONTEXT",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-    ];
-    const capabilities = [
-      capability("CAP_EFFECT_STEP_CONDITION"),
-      capability("CAP_TRIGGER_CONTEXT"),
-      capability("CAP_RESOLUTION_BRANCH_REPEAT"),
-    ];
-
     function branchConditionSkill(
       condition: ConditionDefinitionInput,
       multiBindingSelector?: TargetSelectorDefinitionInput,
-      extraCapabilities: readonly string[] = [],
     ): SkillDefinition {
       return createSkillDefinition({
         skillDefinitionId: "SKL_AS1",
@@ -3512,7 +2237,6 @@ describe("buildCatalogIndex", () => {
         },
         cooldown: { unit: "ACTION", count: 1 },
         traits: {},
-        requiredCapabilities: [...caps, ...extraCapabilities],
         metadata: { displayName: "Branch target-state scope AS" },
       });
     }
@@ -3527,7 +2251,7 @@ describe("buildCatalogIndex", () => {
         value: true,
       });
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)] }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
@@ -3542,7 +2266,7 @@ describe("buildCatalogIndex", () => {
         { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
       );
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [allSkill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [allSkill, exSkill("SKL_EX1", 7)] }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
 
       const twoSkill = branchConditionSkill(
@@ -3554,7 +2278,7 @@ describe("buildCatalogIndex", () => {
         { kind: "SELECT", side: "ENEMY", count: 2, order: ["DEFAULT"] },
       );
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [twoSkill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [twoSkill, exSkill("SKL_EX1", 7)] }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
@@ -3575,7 +2299,7 @@ describe("buildCatalogIndex", () => {
         },
       );
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)] }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
@@ -3589,7 +2313,7 @@ describe("buildCatalogIndex", () => {
         value: true,
       });
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [selfSkill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [selfSkill, exSkill("SKL_EX1", 7)] }),
       ).not.toThrow();
 
       const triggerSourceSkill = branchConditionSkill({
@@ -3603,7 +2327,6 @@ describe("buildCatalogIndex", () => {
         buildCatalogIndex({
           ...defs,
           skills: [triggerSourceSkill, exSkill("SKL_EX1", 7)],
-          capabilities,
         }),
       ).not.toThrow();
 
@@ -3616,7 +2339,7 @@ describe("buildCatalogIndex", () => {
         { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
       );
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [bindingSkill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [bindingSkill, exSkill("SKL_EX1", 7)] }),
       ).not.toThrow();
     });
 
@@ -3664,18 +2387,12 @@ describe("buildCatalogIndex", () => {
         },
         cooldown: { unit: "ACTION", count: 1 },
         traits: {},
-        requiredCapabilities: [
-          "CAP_TRIGGER_CONTEXT",
-          "CAP_RESOLUTION_BRANCH_REPEAT",
-          "CAP_RANDOM_BRANCH",
-        ],
         metadata: { displayName: "Nested branch target-state scope AS" },
       });
       expect(() =>
         buildCatalogIndex({
           ...defs,
           skills: [withNestedBranch, exSkill("SKL_EX1", 7)],
-          capabilities: [...capabilities, capability("CAP_RANDOM_BRANCH")],
         }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
@@ -3699,7 +2416,7 @@ describe("buildCatalogIndex", () => {
         },
       );
       expect(() =>
-        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)], capabilities }),
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)] }),
       ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
     });
 
@@ -3750,19 +2467,9 @@ describe("buildCatalogIndex", () => {
         },
         cooldown: { unit: "ACTION", count: 1 },
         traits: {},
-        requiredCapabilities:
-          skillType === "PS"
-            ? ["CAP_PASSIVE_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"]
-            : ["CAP_ACTION_ACTIVATION_CONDITION", "CAP_TARGET_EFFECT_QUERY"],
         metadata: { displayName: "Activation condition scope AS" },
       });
     }
-
-    const ACTIVATION_CAPABILITIES = [
-      capability("CAP_ACTION_ACTIVATION_CONDITION"),
-      capability("CAP_TARGET_EFFECT_QUERY"),
-      capability("CAP_CHARGE_RESTRICTION"),
-    ];
 
     it("UT-CAT-IDX-092 (Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
       const defs = baseDefinitions();
@@ -3778,7 +2485,6 @@ describe("buildCatalogIndex", () => {
         buildCatalogIndex({
           ...defs,
           skills: [skill, exSkill("SKL_EX1", 7)],
-          capabilities: ACTIVATION_CAPABILITIES,
         }),
       ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
     });
@@ -3809,7 +2515,6 @@ describe("buildCatalogIndex", () => {
           buildCatalogIndex({
             ...defs,
             skills: [activationConditionSkill(condition, multiSelector), exSkill("SKL_EX1", 7)],
-            capabilities: ACTIVATION_CAPABILITIES,
           }),
         ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
       }
@@ -3831,7 +2536,6 @@ describe("buildCatalogIndex", () => {
             ),
             exSkill("SKL_EX1", 7),
           ],
-          capabilities: ACTIVATION_CAPABILITIES,
         }),
       ).not.toThrow();
     });
@@ -3861,7 +2565,6 @@ describe("buildCatalogIndex", () => {
               ),
               exSkill("SKL_EX1", 7),
             ],
-            capabilities: [...ACTIVATION_CAPABILITIES, capability("CAP_TRIGGER_CONTEXT")],
           }),
         ).toThrowError(/ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE/);
       }
@@ -3869,11 +2572,6 @@ describe("buildCatalogIndex", () => {
 
     it("UT-CAT-IDX-096 (Issue #248): rejects a PS activationCondition referencing a BINDING, which evaluateTriggerCondition cannot resolve, while still accepting its own trigger-context kinds", () => {
       const defs = baseDefinitions();
-      const psCapabilities = [
-        ...ACTIVATION_CAPABILITIES,
-        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
-        capability("CAP_TRIGGER_CONTEXT"),
-      ];
       const psSkill = (target: TargetReferenceInput, selector: TargetSelectorDefinitionInput) =>
         activationConditionSkill(
           { kind: "TARGET_HAS_EFFECT", target, categories: ["DEBUFF"] },
@@ -3895,7 +2593,6 @@ describe("buildCatalogIndex", () => {
             asSkill("SKL_AS1", "ACT_DAMAGE_1"),
             exSkill("SKL_EX1", 7),
           ],
-          capabilities: psCapabilities,
         }),
       ).toThrowError(/ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE/);
 
@@ -3913,7 +2610,6 @@ describe("buildCatalogIndex", () => {
               asSkill("SKL_AS1", "ACT_DAMAGE_1"),
               exSkill("SKL_EX1", 7),
             ],
-            capabilities: psCapabilities,
           }),
         ).not.toThrow();
       }
@@ -3958,11 +2654,6 @@ describe("buildCatalogIndex", () => {
           traits: {},
           // M7-016（Issue #270）: `resolution.kind: CHARGE`は`CAP_CHARGE_RESTRICTION`
           // の宣言が必須（`validateSkill`）。
-          requiredCapabilities: [
-            "CAP_ACTION_ACTIVATION_CONDITION",
-            "CAP_TARGET_EFFECT_QUERY",
-            "CAP_CHARGE_RESTRICTION",
-          ],
           metadata: { displayName: "Charge activation condition AS" },
         });
       const startSelector: TargetSelectorDefinitionInput = {
@@ -3989,7 +2680,6 @@ describe("buildCatalogIndex", () => {
             ),
             exSkill("SKL_EX1", 7),
           ],
-          capabilities: ACTIVATION_CAPABILITIES,
         }),
       ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
 
@@ -4011,7 +2701,6 @@ describe("buildCatalogIndex", () => {
             ),
             exSkill("SKL_EX1", 7),
           ],
-          capabilities: ACTIVATION_CAPABILITIES,
         }),
       ).not.toThrow();
     });
@@ -4033,13 +2722,11 @@ describe("buildCatalogIndex", () => {
           order: ["DEFAULT"],
           fallback: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
         },
-        ["CAP_TARGET_BINDING_FALLBACK"],
       );
       expect(() =>
         buildCatalogIndex({
           ...defs,
           skills: [skill, exSkill("SKL_EX1", 7)],
-          capabilities: [...capabilities, capability("CAP_TARGET_BINDING_FALLBACK")],
         }),
       ).not.toThrow();
     });
@@ -4053,249 +2740,6 @@ describe("buildCatalogIndex", () => {
    * variant adds an unconditional preceding ACTION step so the capability
    * check under test stays isolated from that separate invariant.
    */
-  function targetingSkillWithPrecedingAction(
-    selector: TargetSelectorDefinitionInput,
-    requiredCapabilities: readonly string[],
-    target: TargetReferenceInput,
-  ): SkillDefinition {
-    return createSkillDefinition({
-      skillDefinitionId: "SKL_AS1",
-      skillType: "AS",
-      cost: { resource: "AP", amount: 1 },
-      resolution: {
-        kind: "IMMEDIATE",
-        targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
-        steps: [
-          {
-            kind: "ACTION",
-            target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
-            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-          },
-          {
-            kind: "ACTION",
-            target,
-            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-          },
-        ],
-      },
-      cooldown: { unit: "ACTION", count: 1 },
-      traits: {},
-      requiredCapabilities,
-      metadata: { displayName: "Targeting AS" },
-    });
-  }
-
-  it.each(["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const)(
-    "UT-CAT-IDX-030: rejects %s EffectStep references without CAP_RESOLUTION_BRANCH_REPEAT",
-    (kind) => {
-      const defs = baseDefinitions();
-      const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
-      expect(() =>
-        buildCatalogIndex({
-          ...defs,
-          skills: [
-            targetingSkillWithPrecedingAction(selector, [], { kind }),
-            exSkill("SKL_EX1", 7),
-          ],
-          capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
-        }),
-      ).toThrowError(/must declare "CAP_RESOLUTION_BRANCH_REPEAT"/);
-
-      expect(() =>
-        buildCatalogIndex({
-          ...defs,
-          skills: [
-            targetingSkillWithPrecedingAction(selector, ["CAP_RESOLUTION_BRANCH_REPEAT"], { kind }),
-            exSkill("SKL_EX1", 7),
-          ],
-          capabilities: [capability("CAP_RESOLUTION_BRANCH_REPEAT")],
-        }),
-      ).not.toThrow();
-    },
-  );
-
-  it.each([
-    { skillType: "AS" as const, capabilityId: "CAP_ACTION_ACTIVATION_CONDITION" },
-    { skillType: "EX" as const, capabilityId: "CAP_ACTION_ACTIVATION_CONDITION" },
-    { skillType: "PS" as const, capabilityId: "CAP_PASSIVE_ACTIVATION_CONDITION" },
-  ])(
-    "UT-CAT-IDX-031: rejects a non-TRUE $skillType activationCondition without $capabilityId",
-    ({ skillType, capabilityId }) => {
-      const defs = baseDefinitions();
-      const selector = { kind: "SELECT", side: "ENEMY", count: 1 } as const;
-      const activationCondition = { kind: "TURN_NUMBER", op: "GTE", value: 2 } as const;
-      const units = skillType === "PS" ? [unit("UNIT_001", { passive: ["SKL_PS1"] })] : defs.units;
-      const skillsWithActivationCondition = (requiredCapabilities: readonly string[]) => {
-        const activationSkill = targetingSkill(
-          selector,
-          requiredCapabilities,
-          undefined,
-          activationCondition,
-          skillType,
-        );
-        if (skillType === "PS") {
-          return [...defs.skills, activationSkill];
-        }
-        return skillType === "EX"
-          ? [asSkill("SKL_AS1", "ACT_DAMAGE_1"), activationSkill]
-          : [activationSkill, exSkill("SKL_EX1", 7)];
-      };
-      expect(() =>
-        buildCatalogIndex({
-          ...defs,
-          units,
-          skills: skillsWithActivationCondition([]),
-          capabilities: [capability(capabilityId)],
-        }),
-      ).toThrowError(new RegExp(`must declare "${capabilityId}"`));
-
-      expect(() =>
-        buildCatalogIndex({
-          ...defs,
-          units,
-          skills: skillsWithActivationCondition([capabilityId]),
-          capabilities: [capability(capabilityId)],
-        }),
-      ).not.toThrow();
-    },
-  );
-
-  it("UT-CAT-IDX-032: rejects RANDOM_BRANCH skills without CAP_RANDOM_BRANCH", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [randomBranchSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
-        capabilities: [capability("CAP_RANDOM_BRANCH")],
-      }),
-    ).toThrowError(/must declare "CAP_RANDOM_BRANCH"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [randomBranchSkill("SKL_AS1", ["CAP_RANDOM_BRANCH"]), exSkill("SKL_EX1", 7)],
-        capabilities: [capability("CAP_RANDOM_BRANCH")],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-033: rejects triggeredEffects memories without CAP_MEMORY_TRIGGERED_EFFECT", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
-        memories: [triggeredMemory([])],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
-      }),
-    ).toThrowError(/must declare "CAP_MEMORY_TRIGGERED_EFFECT"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
-        memories: [triggeredMemory(["CAP_MEMORY_TRIGGERED_EFFECT"])],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-034: rejects Skill counterUpdates without CAP_SKILL_RUNTIME_COUNTER", () => {
-    const defs = baseDefinitions();
-    const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
-    const capabilities = [capability("CAP_SKILL_RUNTIME_COUNTER")];
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        units,
-        skills: [...defs.skills, runtimeCounterSkill([])],
-        capabilities,
-      }),
-    ).toThrowError(/must declare "CAP_SKILL_RUNTIME_COUNTER"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        units,
-        skills: [...defs.skills, runtimeCounterSkill(["CAP_SKILL_RUNTIME_COUNTER"])],
-        capabilities,
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-035: rejects EffectStep non-TRUE conditions without CAP_EFFECT_STEP_CONDITION", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [conditionalActionSkill("SKL_AS1", []), exSkill("SKL_EX1", 7)],
-        capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
-      }),
-    ).toThrowError(/must declare "CAP_EFFECT_STEP_CONDITION"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          conditionalActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [capability("CAP_EFFECT_STEP_CONDITION")],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-056 (RES-004集合条件, Issue #227): rejects EffectStep TARGET_SET_COUNT conditions without CAP_EFFECT_STEP_SET_CONDITION, even when CAP_EFFECT_STEP_CONDITION is already declared", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          setConditionActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_EFFECT_STEP_SET_CONDITION"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          setConditionActionSkill("SKL_AS1", [
-            "CAP_EFFECT_STEP_CONDITION",
-            "CAP_EFFECT_STEP_SET_CONDITION",
-          ]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-        ],
-      }),
-    ).not.toThrow();
-  });
-
-  it("UT-CAT-IDX-078 (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition without CAP_TRIGGER_PAYLOAD_IN_RESOLUTION, even when CAP_EFFECT_STEP_CONDITION is already declared", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          eventPayloadActionSkill("SKL_AS1", ["CAP_EFFECT_STEP_CONDITION"]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"/);
-  });
 
   it("UT-CAT-IDX-079 (Issue #247 M7-001D): accepts EffectStep EVENT_PAYLOAD stepCondition on a PS skill once both CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are declared", () => {
     const defs = baseDefinitions();
@@ -4305,140 +2749,25 @@ describe("buildCatalogIndex", () => {
         units: [unit("UNIT_001", { active: ["SKL_AS1"], passive: ["SKL_PS1"] })],
         skills: [
           asSkill("SKL_AS1", "ACT_DAMAGE_1"),
-          eventPayloadPassiveSkill("SKL_PS1", [
-            "CAP_EFFECT_STEP_CONDITION",
-            "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION",
-          ]),
+          eventPayloadPassiveSkill("SKL_PS1"),
           exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
         ],
       }),
     ).not.toThrow();
   });
 
   it.each([{ skillType: "AS" as const }, { skillType: "EX" as const }])(
-    "UT-CAT-IDX-080 (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill even when CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are both declared — the triggering event's payload only exists during a PS activation",
+    "UT-CAT-IDX-080 (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill — the triggering event's payload only exists during a PS activation",
     ({ skillType }) => {
       const defs = baseDefinitions();
       expect(() =>
         buildCatalogIndex({
           ...defs,
-          skills: [
-            eventPayloadActionSkill(
-              "SKL_ACTIVE1",
-              ["CAP_EFFECT_STEP_CONDITION", "CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"],
-              skillType,
-            ),
-            exSkill("SKL_EX1", 7),
-          ],
-          capabilities: [
-            capability("CAP_EFFECT_STEP_CONDITION"),
-            capability("CAP_TRIGGER_PAYLOAD_IN_RESOLUTION"),
-          ],
+          skills: [eventPayloadActionSkill("SKL_ACTIVE1", skillType), exSkill("SKL_EX1", 7)],
         }),
       ).toThrowError(/EVENT_PAYLOAD condition requires a PS Skill/);
     },
   );
-
-  it("UT-CAT-IDX-063（Issue #230 RES-004-CONDITION-SCOPE）: accepts an ACTION step combining a non-TRUE stepCondition (TARGET_SET_COUNT) with a non-TRUE targetCondition (own-target TARGET_STATE) once both CAP_EFFECT_STEP_CONDITION and CAP_EFFECT_STEP_SET_CONDITION are declared — the exact combination MIXED_STEP_TARGET_SET_CONDITION used to reject outright before the schema split", () => {
-    const defs = baseDefinitions();
-    const combinedSkill = (requiredCapabilities: readonly string[]): SkillDefinition =>
-      createSkillDefinition({
-        skillDefinitionId: "SKL_AS1",
-        skillType: "AS",
-        cost: { resource: "AP", amount: 1 },
-        resolution: {
-          kind: "IMMEDIATE",
-          targetBindings: [
-            {
-              targetBindingId: "TGT_PRIMARY",
-              selector: {
-                kind: "SELECT",
-                side: "ENEMY",
-                count: 1,
-                filters: [],
-                order: ["DEFAULT"],
-                includeDefeated: false,
-              },
-            },
-            {
-              targetBindingId: "TGT_OTHER",
-              selector: {
-                kind: "SELECT",
-                side: "ALLY",
-                count: "ALL",
-                filters: [],
-                order: ["DEFAULT"],
-                includeDefeated: false,
-              },
-            },
-          ],
-          steps: [
-            {
-              kind: "ACTION",
-              stepCondition: {
-                kind: "TARGET_SET_COUNT",
-                target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
-                op: "GTE",
-                value: 1,
-              },
-              targetCondition: {
-                kind: "TARGET_STATE",
-                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
-                field: "IS_ALIVE",
-                op: "EQ",
-                value: true,
-              },
-              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
-              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
-            },
-          ],
-        },
-        cooldown: { unit: "ACTION", count: 1 },
-        traits: {},
-        requiredCapabilities,
-        metadata: { displayName: "Combined step/target condition AS" },
-      });
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [combinedSkill(["CAP_EFFECT_STEP_CONDITION"]), exSkill("SKL_EX1", 7)],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_EFFECT_STEP_SET_CONDITION"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [combinedSkill(["CAP_EFFECT_STEP_SET_CONDITION"]), exSkill("SKL_EX1", 7)],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-        ],
-      }),
-    ).toThrowError(/must declare "CAP_EFFECT_STEP_CONDITION"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          combinedSkill(["CAP_EFFECT_STEP_CONDITION", "CAP_EFFECT_STEP_SET_CONDITION"]),
-          exSkill("SKL_EX1", 7),
-        ],
-        capabilities: [
-          capability("CAP_EFFECT_STEP_CONDITION"),
-          capability("CAP_EFFECT_STEP_SET_CONDITION"),
-        ],
-      }),
-    ).not.toThrow();
-  });
 
   it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
     const defs = baseDefinitions();
@@ -4448,11 +2777,7 @@ describe("buildCatalogIndex", () => {
       buildCatalogIndex({
         ...defs,
         units,
-        skills: [
-          ...defs.skills,
-          runtimeCounterSkillWithTrigger("NotARealEvent", "FACT", ["CAP_SKILL_RUNTIME_COUNTER"]),
-        ],
-        capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER")],
+        skills: [...defs.skills, runtimeCounterSkillWithTrigger("NotARealEvent", "FACT")],
       }),
     ).toThrowError(/references unknown eventType "NotARealEvent"/);
   });
@@ -4468,12 +2793,8 @@ describe("buildCatalogIndex", () => {
         skills: [
           ...defs.skills,
           // UnitBeingAttacked is documented as TIMING, not FACT (see UT-CAT-IDX-011).
-          runtimeCounterSkillWithTrigger("UnitBeingAttacked", "FACT", [
-            "CAP_SKILL_RUNTIME_COUNTER",
-            "CAP_TRIGGER_CONTEXT",
-          ]),
+          runtimeCounterSkillWithTrigger("UnitBeingAttacked", "FACT"),
         ],
-        capabilities: [capability("CAP_SKILL_RUNTIME_COUNTER"), capability("CAP_TRIGGER_CONTEXT")],
       }),
     ).toThrowError(/is documented as category/);
   });
@@ -4485,7 +2806,6 @@ describe("buildCatalogIndex", () => {
       skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_COUNTER")],
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [...defs.effectActions, markerActionWithCounterUpdates("ACT_MARKER_COUNTER")],
-      capabilities: [capability("CAP_MARKER"), capability("CAP_EFFECT_RUNTIME_COUNTER")],
     };
 
     try {
@@ -4501,22 +2821,6 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-039 (EFF-005 Issue #162): rejects APPLY_STAT_MOD duration.counterUpdates without CAP_EFFECT_RUNTIME_COUNTER", () => {
-    const defs = baseDefinitions();
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_STAT_MOD_COUNTER")],
-        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-        effectActions: [
-          ...defs.effectActions,
-          statModActionWithCounterUpdates("ACT_STAT_MOD_COUNTER", ["CAP_STAT_MOD"]),
-        ],
-        capabilities: [capability("CAP_STAT_MOD")],
-      }),
-    ).toThrowError(/must declare "CAP_EFFECT_RUNTIME_COUNTER"/);
-  });
-
   it("UT-CAT-IDX-040 (EFF-005 Issue #162): accepts APPLY_STAT_MOD duration.counterUpdates that declares CAP_EFFECT_RUNTIME_COUNTER", () => {
     const defs = baseDefinitions();
     const index = buildCatalogIndex({
@@ -4525,40 +2829,11 @@ describe("buildCatalogIndex", () => {
       units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
       effectActions: [
         ...defs.effectActions,
-        statModActionWithCounterUpdates("ACT_STAT_MOD_COUNTER", [
-          "CAP_STAT_MOD",
-          "CAP_EFFECT_RUNTIME_COUNTER",
-        ]),
+        statModActionWithCounterUpdates("ACT_STAT_MOD_COUNTER"),
       ],
-      capabilities: [capability("CAP_STAT_MOD"), capability("CAP_EFFECT_RUNTIME_COUNTER")],
     });
 
     expect(index.effectActions.get("ACT_STAT_MOD_COUNTER" as never)).toBeDefined();
-  });
-
-  it("UT-CAT-IDX-041 (EFF-006 Issue #212): rejects EffectSequence counterUpdates without CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER", () => {
-    const defs = baseDefinitions();
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [...defs.skills, effectSequenceRuntimeCounterSkill("SKL_AS2", [])],
-        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-        capabilities: [capability("CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER")],
-      }),
-    ).toThrowError(/must declare "CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"/);
-
-    expect(() =>
-      buildCatalogIndex({
-        ...defs,
-        skills: [
-          ...defs.skills,
-          effectSequenceRuntimeCounterSkill("SKL_AS2", ["CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER"]),
-        ],
-        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-        capabilities: [capability("CAP_EFFECT_SEQUENCE_RUNTIME_COUNTER")],
-      }),
-    ).not.toThrow();
   });
 
   describe("MISSING_PRECEDING_RESULT: LAST_RESULT/LAST_*_TARGETS definite-assignment (Issue #217 design point E)", () => {
@@ -4570,20 +2845,9 @@ describe("buildCatalogIndex", () => {
         resolution: { kind: "IMMEDIATE", steps },
         cooldown: { unit: "ACTION", count: 1 },
         traits: {},
-        requiredCapabilities: [
-          "CAP_EFFECT_STEP_CONDITION",
-          "CAP_RESOLUTION_BRANCH_REPEAT",
-          "CAP_RANDOM_BRANCH",
-        ],
         metadata: { displayName: "LAST_RESULT dataflow AS" },
       });
     }
-
-    const CAPS = [
-      capability("CAP_EFFECT_STEP_CONDITION"),
-      capability("CAP_RESOLUTION_BRANCH_REPEAT"),
-      capability("CAP_RANDOM_BRANCH"),
-    ];
 
     const selfAction = {
       kind: "ACTION",
@@ -4604,7 +2868,6 @@ describe("buildCatalogIndex", () => {
           ...defs,
           skills: [...defs.skills, skillWithSteps(steps)],
           units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-          capabilities: CAPS,
         });
     }
 
@@ -4777,11 +3040,9 @@ describe("buildCatalogIndex", () => {
                 },
               },
             ],
-            requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
             metadata: { displayName: "Damage Memory" },
           }),
         ],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
       }),
     ).toThrowError(/requires a source BattleUnit/);
   });
@@ -4814,11 +3075,9 @@ describe("buildCatalogIndex", () => {
                 },
               },
             ],
-            requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
             metadata: { displayName: "Self Memory" },
           }),
         ],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT")],
       }),
     ).toThrowError(/cannot use the "SELF" target reference/);
   });
@@ -4862,13 +3121,8 @@ describe("buildCatalogIndex", () => {
                 },
               },
             ],
-            requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT", "CAP_TARGET_FILTER_ORDER"],
             metadata: { displayName: "Nearest Memory" },
           }),
-        ],
-        capabilities: [
-          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-          capability("CAP_TARGET_FILTER_ORDER"),
         ],
       }),
     ).toThrowError(/resolves relative to the source unit/);
@@ -4893,7 +3147,6 @@ describe("buildCatalogIndex", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
         },
-        requiredCapabilities: ["CAP_STAT_MOD"],
       },
       "effectAction",
     );
@@ -4902,7 +3155,6 @@ describe("buildCatalogIndex", () => {
         ...defs,
         effectActions: [...defs.effectActions, skillSourceStatMod],
         memories: [memoryUsing("MEM_SKILL_SOURCE", "ACT_MEMORY_SKILL_SOURCE")],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_STAT_MOD")],
       }),
     ).toThrowError(/references the source BattleUnit/);
   });
@@ -4918,7 +3170,6 @@ describe("buildCatalogIndex", () => {
           transferRate: 0.5,
           duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
         },
-        requiredCapabilities: ["CAP_HEALING_LINK"],
       },
       "effectAction",
     );
@@ -4927,7 +3178,6 @@ describe("buildCatalogIndex", () => {
         ...defs,
         effectActions: [...defs.effectActions, healingLink],
         memories: [memoryUsing("MEM_HEALING_LINK", "ACT_MEMORY_HEALING_LINK")],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_HEALING_LINK")],
       }),
     ).toThrowError(/references the source BattleUnit/);
   });
@@ -4938,10 +3188,6 @@ describe("buildCatalogIndex", () => {
       ...defs,
       effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
       memories: [memory],
-      capabilities: [
-        capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-        capability("CAP_PASSIVE_ACTIVATION_CONDITION"),
-      ],
     });
 
     expect(() =>
@@ -5047,7 +3293,6 @@ describe("buildCatalogIndex", () => {
             },
           },
         },
-        requiredCapabilities: ["CAP_STAT_MOD"],
       },
       "effectAction",
     );
@@ -5057,7 +3302,6 @@ describe("buildCatalogIndex", () => {
         ...defs,
         effectActions: [...defs.effectActions, holderScopedExpiry],
         memories: [memoryUsing("MEM_HOLDER_EXPIRY", "ACT_MEMORY_HOLDER_EXPIRY")],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_STAT_MOD")],
       }),
     ).not.toThrow();
   });
@@ -5086,7 +3330,6 @@ describe("buildCatalogIndex", () => {
           stacking: { mode: "STACKABLE" },
           duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
         },
-        requiredCapabilities: ["CAP_STAT_MOD", "CAP_SUM_DAMAGE_RESULT"],
       },
       "effectAction",
     );
@@ -5096,11 +3339,6 @@ describe("buildCatalogIndex", () => {
         ...defs,
         effectActions: [...defs.effectActions, lastDamageStatMod],
         memories: [memoryUsing("MEM_LAST_DAMAGE", "ACT_MEMORY_LAST_DAMAGE")],
-        capabilities: [
-          capability("CAP_MEMORY_TRIGGERED_EFFECT"),
-          capability("CAP_STAT_MOD"),
-          capability("CAP_SUM_DAMAGE_RESULT"),
-        ],
       }),
     ).toThrowError(/references the source BattleUnit/);
   });
@@ -5122,7 +3360,6 @@ describe("buildCatalogIndex", () => {
             dispellable: true,
           },
         },
-        requiredCapabilities: ["CAP_STAT_MOD"],
       },
       "effectAction",
     );
@@ -5132,7 +3369,6 @@ describe("buildCatalogIndex", () => {
         ...defs,
         effectActions: [...defs.effectActions, sourceOwnedDuration],
         memories: [memoryUsing("MEM_SOURCE_OWNED", "ACT_MEMORY_SOURCE_OWNED")],
-        capabilities: [capability("CAP_MEMORY_TRIGGERED_EFFECT"), capability("CAP_STAT_MOD")],
       }),
     ).toThrowError(/timeLimit.owner "EFFECT_SOURCE"/);
   });
@@ -5158,7 +3394,6 @@ describe("buildCatalogIndex", () => {
             reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 },
           },
         },
-        requiredCapabilities: ["CAP_MARKER"],
       },
       "effectAction",
     );
@@ -5169,7 +3404,6 @@ describe("buildCatalogIndex", () => {
         skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_REAPPLY")],
         units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
         effectActions: [...defs.effectActions, markerWithReapply],
-        capabilities: [capability("CAP_MARKER")],
       }),
     ).toThrowError(/duration\.reapply is not/);
   });
@@ -5192,7 +3426,6 @@ describe("buildCatalogIndex", () => {
             reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 },
           },
         },
-        requiredCapabilities: [],
       },
       "effectAction",
     );

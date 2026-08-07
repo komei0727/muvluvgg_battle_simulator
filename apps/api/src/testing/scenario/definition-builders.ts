@@ -3,7 +3,6 @@ import {
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
-  type CapabilityId,
   type SkillDefinitionId,
   type UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
@@ -49,7 +48,6 @@ export interface UnitDefinitionOverrides {
   readonly activeSkillDefinitionIds?: readonly SkillDefinitionId[];
   readonly passiveSkillDefinitionIds?: readonly SkillDefinitionId[];
   readonly extraSkillDefinitionId?: SkillDefinitionId;
-  readonly requiredCapabilities?: readonly CapabilityId[];
 }
 
 /** 「PSを持たない・特殊効果なし」の最小妥当なUnit定義。 */
@@ -80,7 +78,6 @@ export function unitDefinition(
     passiveSkillDefinitionIds: overrides.passiveSkillDefinitionIds ?? [],
     extraSkillDefinitionId:
       overrides.extraSkillDefinitionId ?? createSkillDefinitionId(DEFAULT_EX_SKILL_ID),
-    requiredCapabilities: overrides.requiredCapabilities ?? [],
     metadata: {
       displayName: id,
       characterName: id,
@@ -109,7 +106,6 @@ export function exSkillDefinition(id: string = DEFAULT_EX_SKILL_ID): SkillDefini
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }
@@ -144,7 +140,6 @@ export function attackSkill(id: string, effectActionId: string): SkillDefinition
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Attack", tags: [] },
   };
 }
@@ -165,7 +160,6 @@ export function damageEffectAction(
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType,

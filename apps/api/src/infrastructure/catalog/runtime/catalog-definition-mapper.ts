@@ -1,9 +1,4 @@
 import type { ErrorObject } from "ajv";
-import {
-  createCapabilityDefinition,
-  type CapabilityDefinition,
-  type CapabilityDefinitionInput,
-} from "../../../domain/catalog/capability/capability-definition.js";
 import type {
   EffectActionDefinition,
   EffectActionDefinitionInput,
@@ -25,7 +20,6 @@ import {
   type UnitDefinitionInput,
 } from "../../../domain/catalog/definitions/unit-definition.js";
 import {
-  validateCapabilityDefinitionDto,
   validateEffectActionDefinitionDto,
   validateMemoryDefinitionDto,
   validateSkillDefinitionDto,
@@ -85,14 +79,4 @@ export function mapMemoryDefinition(dto: unknown): MemoryDefinition {
     );
   }
   return createMemoryDefinition(dto as MemoryDefinitionInput);
-}
-
-export function mapCapabilityDefinition(dto: unknown): CapabilityDefinition {
-  if (!validateCapabilityDefinitionDto(dto)) {
-    throw new CatalogShapeValidationError(
-      "CapabilityDefinition",
-      validateCapabilityDefinitionDto.errors ?? [],
-    );
-  }
-  return createCapabilityDefinition(dto as CapabilityDefinitionInput);
 }

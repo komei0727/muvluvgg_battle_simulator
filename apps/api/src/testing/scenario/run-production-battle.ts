@@ -24,16 +24,13 @@ class ConstantRandomSourceFactory implements RandomSourceFactory {
   }
 }
 
-/** GET一覧APIが `selectable: true` と報告する production Unit の定義IDを返す。 */
-export function selectableProductionUnitIds(catalogDir: string): readonly string[] {
+/** GET一覧APIが公開する production Unit の定義IDを全件返す。 */
+export function allProductionUnitIds(catalogDir: string): readonly string[] {
   const directory = loadBattleCatalogDirectory(catalogDir);
   const result = new GetBattleSimulationCatalogUseCase({
     battleCatalogDirectory: directory,
   }).execute();
-  return result.units
-    .filter((unit) => unit.selectable)
-    .map((unit) => String(unit.unitDefinitionId))
-    .sort();
+  return result.units.map((unit) => String(unit.unitDefinitionId)).sort();
 }
 
 export interface ProductionBattleOptions {

@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -18,7 +17,6 @@
       "decay": { "unit": "ACTION", "ratio": 0.25 },
       "duration": { "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
@@ -29,7 +27,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 1.06 },
       "hitCount": 3
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -45,7 +42,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -61,14 +57,12 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -86,7 +80,6 @@
         "timeLimit": { "unit": "ACTION", "count": 3, "owner": "EFFECT_TARGET" }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
@@ -99,7 +92,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -115,7 +107,6 @@
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -133,7 +124,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   }
 ]

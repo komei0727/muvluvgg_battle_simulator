@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"],
   "passiveSkillDefinitionIds": ["SKL_LYDIA_GENIUS_PS1", "SKL_LYDIA_GENIUS_PS2"],
   "extraSkillDefinitionId": "SKL_LYDIA_GENIUS_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_TRINITY_JEWEL"],
     "tags": [],

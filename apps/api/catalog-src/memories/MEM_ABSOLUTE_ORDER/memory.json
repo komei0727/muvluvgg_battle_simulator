@@ -62,10 +62,5 @@
       }
     }
   ],
-  "requiredCapabilities": [
-    "CAP_DAMAGE_MOD",
-    "CAP_MEMORY_TRIGGERED_EFFECT",
-    "CAP_TARGET_FILTER_ORDER"
-  ],
   "metadata": { "displayName": "絶対命令行使権！", "tags": [] }
 }

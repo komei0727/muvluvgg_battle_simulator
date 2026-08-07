@@ -10,7 +10,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -23,7 +22,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -35,7 +33,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } },
       "maxBlocks": null
     },
-    "requiredCapabilities": ["CAP_SPECIFIC_IMMUNITY"],
     "metadata": { "tags": [] }
   },
   {
@@ -50,7 +47,6 @@
       },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
@@ -65,7 +61,6 @@
       },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
@@ -80,14 +75,12 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_AOI_GUARDIAN_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -101,7 +94,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -115,7 +107,6 @@
         "ratio": 1.0
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -126,7 +117,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -138,7 +128,6 @@
       "formula": { "kind": "CONSTANT", "value": 0 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   }
 ]

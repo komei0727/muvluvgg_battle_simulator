@@ -34,7 +34,6 @@ function defaultUnitDefinition(unitDefinitionId: UnitDefinitionId): UnitDefiniti
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-    requiredCapabilities: [],
     metadata: {
       displayName: "Default Test Unit",
       characterName: "Default Test Character",

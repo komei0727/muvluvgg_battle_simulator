@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.248 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -16,7 +15,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -35,7 +33,6 @@
         }
       ]
     },
-    "requiredCapabilities": ["CAP_MARKER", "CAP_MARKER_STACK_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -47,14 +44,12 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.404 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -67,7 +62,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -81,7 +75,6 @@
       },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -92,7 +85,6 @@
       "stack": { "policy": "ADD", "max": 3 },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -108,7 +100,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -122,7 +113,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "requiredCapabilities": ["CAP_TARGET_REDIRECT"],
     "metadata": { "tags": [] }
   },
   {
@@ -138,7 +128,6 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
       }
     },
-    "requiredCapabilities": ["CAP_COVER_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
@@ -151,7 +140,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -167,7 +155,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -179,7 +166,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_GAIN_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -197,7 +183,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   }
 ]

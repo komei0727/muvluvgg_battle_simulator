@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.1376 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -14,14 +13,12 @@
       "formula": { "kind": "SKILL_POWER", "power": 1.1376 },
       "critical": { "mode": "GUARANTEED" }
     },
-    "requiredCapabilities": ["CAP_CRITICAL_CONTROL"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.702 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -34,7 +31,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -45,14 +41,12 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.2 },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE2",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.53 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -68,7 +62,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -89,14 +82,12 @@
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -108,7 +99,6 @@
       "formula": { "kind": "CONSTANT", "value": -2 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -120,7 +110,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   }
 ]

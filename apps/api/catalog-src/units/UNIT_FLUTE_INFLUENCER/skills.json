@@ -59,7 +59,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "ライブストリーミング！",
       "tags": []
@@ -120,11 +119,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_CONTINUOUS_HEAL",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "いいね☆で元気だそ？",
       "tags": []
@@ -196,7 +190,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA"],
     "metadata": {
       "displayName": "ぽよビ～～ム♡",
       "tags": []
@@ -231,7 +224,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_SHIELD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "ぽよぽよプロテクト",
       "tags": []
@@ -304,13 +296,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_TRIGGER_CONTEXT",
-      "CAP_TARGET_EFFECT_QUERY",
-      "CAP_REMOVE_EFFECTS",
-      "CAP_EFFECT_STEP_CONDITION"
-    ],
     "metadata": {
       "displayName": "イケてる♡イケてる",
       "tags": []

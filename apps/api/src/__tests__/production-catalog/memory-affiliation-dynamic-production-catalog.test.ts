@@ -21,10 +21,6 @@ import {
   type BattleStateSnapshot,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import {
-  collectRequiredCapabilities,
-  findUnimplementedCapabilities,
-} from "../../domain/catalog/capability/capability-availability.js";
-import {
   definitionsWith,
   effectActionFrom,
   loadProductionSnapshot,
@@ -1536,16 +1532,6 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
           expect(action.payload.duration.consumption).toEqual(expectedAction.consumption);
         }
       });
-
-      const unimplemented = findUnimplementedCapabilities(
-        collectRequiredCapabilities(snapshot, [], [memory.memoryDefinitionId]),
-        snapshot.capabilities,
-      ).map((capability) => capability.capabilityId);
-      // gate対象のCapabilityは宣言もされていること（宣言漏れならpreflightをすり抜ける）。
-      for (const capabilityId of expectation.gatedBy) {
-        expect(memory.requiredCapabilities).toContain(capabilityId);
-      }
-      expect(unimplemented).toEqual([...expectation.gatedBy]);
     }
   });
 });

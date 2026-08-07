@@ -97,7 +97,6 @@ function damageEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -123,7 +122,6 @@ function statModDefinition(id: string): EffectActionDefinition {
       stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -189,7 +187,6 @@ function attackSkill(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Attack", tags: [] },
   };
 }
@@ -258,7 +255,6 @@ function mutuallyLethalDefinitions(): BattleDefinitions {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "MutuallyLethal", tags: [] },
   };
   const activeSkillsByUnit = new Map<UnitDefinitionId, readonly SkillDefinition[]>([
@@ -352,7 +348,6 @@ describe("startBattle", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_BATTLE_STARTED_COSTLY", tags: [] },
     };
     const unitDefinitions = new DefaultUnitDefinitionMap([
@@ -379,7 +374,6 @@ describe("startBattle", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Supporter",
             characterName: "Supporter",
@@ -861,7 +855,6 @@ describe("advanceBattle", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_TURN_COMPLETED", tags: [] },
     };
     const unitDefinitions = new DefaultUnitDefinitionMap([
@@ -888,7 +881,6 @@ describe("advanceBattle", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Supporter",
             characterName: "Supporter",
@@ -967,7 +959,6 @@ describe("advanceBattle", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_CASCADED_EXPIRY", tags: [] },
     };
     const unitDefinitions = new DefaultUnitDefinitionMap([
@@ -994,7 +985,6 @@ describe("advanceBattle", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Supporter",
             characterName: "Supporter",
@@ -1121,7 +1111,6 @@ describe("advanceBattle", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_TURN_STARTED", tags: [] },
     };
     const unitDefinitions = new DefaultUnitDefinitionMap([
@@ -1148,7 +1137,6 @@ describe("advanceBattle", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Supporter",
             characterName: "Supporter",
@@ -1240,7 +1228,6 @@ describe("advanceBattle", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "SKL_PS_ON_TURN_COMPLETING", tags: [] },
     };
     const unitDefinitions = new DefaultUnitDefinitionMap([
@@ -1267,7 +1254,6 @@ describe("advanceBattle", () => {
           activeSkillDefinitionIds: [],
           passiveSkillDefinitionIds: [passiveSkillDefinitionId],
           extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_DEFAULT"),
-          requiredCapabilities: [],
           metadata: {
             displayName: "Supporter",
             characterName: "Supporter",

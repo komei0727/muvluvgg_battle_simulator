@@ -7,7 +7,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.3816 },
       "hitCount": 5
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -18,7 +17,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } },
       "damageAmplificationOnBreak": 1.5
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -28,14 +26,12 @@
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.45 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_EX_HEAL_EXTRA",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.745 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -46,7 +42,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.234 },
       "hitCount": 4
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -57,7 +52,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.1248 },
       "hitCount": 4
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -69,7 +63,6 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -82,7 +75,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -92,21 +84,18 @@
       "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "LAST_DAMAGE_DEALT", "ratio": 1 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_20",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.2 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.936 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -116,7 +105,6 @@
       "status": "STUN",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -129,7 +117,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -145,7 +132,6 @@
       "probability": 1,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   },
   {
@@ -155,21 +141,18 @@
       "status": "STUN",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.742 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_KATE_PALADIN_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   }
 ]

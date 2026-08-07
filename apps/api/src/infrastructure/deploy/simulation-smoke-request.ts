@@ -1,16 +1,15 @@
 /**
  * `GET /api/v1/battle-simulation-catalog`のresponseから、smoke test用の
- * 最小`POST /api/v1/battle-simulations`リクエストを組み立てる。選択可能な
- * Unitが無い場合はrequestを作れないため例外を投げる——CI deployは
+ * 最小`POST /api/v1/battle-simulations`リクエストを組み立てる。Unitが
+ * 1件も無い場合はrequestを作れないため例外を投げる——CI deployは
  * これをそのままjob失敗として扱う（simulation smoke testを黙ってskipしない）。
  */
 
 export type CatalogPositionAptitude = "FRONT" | "BACK";
 
-/** Catalog GET responseのUnitの一部（selectable判定とposition組み立てに必要な分だけ）。 */
+/** Catalog GET responseのUnitの一部（position組み立てに必要な分だけ）。 */
 export interface SmokeCatalogUnit {
   readonly unitDefinitionId: string;
-  readonly selectable: boolean;
   readonly positionAptitudes: readonly CatalogPositionAptitude[];
 }
 
@@ -44,15 +43,15 @@ const ROW_BY_APTITUDE: Record<CatalogPositionAptitude, "FRONT" | "REAR"> = {
 };
 
 export function buildSimulationSmokeRequest(catalog: SmokeCatalog): SmokeSimulationRequest {
-  const unit = catalog.units.find((candidate) => candidate.selectable);
+  const unit = catalog.units[0];
   if (unit === undefined) {
     throw new Error(
-      "No selectable unit found in the Catalog; cannot build a minimal simulation smoke test request",
+      "No unit found in the Catalog; cannot build a minimal simulation smoke test request",
     );
   }
   const aptitude = unit.positionAptitudes[0];
   if (aptitude === undefined) {
-    throw new Error(`Selectable unit "${unit.unitDefinitionId}" declares no positionAptitudes`);
+    throw new Error(`Unit "${unit.unitDefinitionId}" declares no positionAptitudes`);
   }
 
   const formationUnit: SmokeFormationUnit = {

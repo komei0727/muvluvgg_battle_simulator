@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_NANAE_COMMANDER_AS1", "SKL_NANAE_COMMANDER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_NANAE_COMMANDER_PS1", "SKL_NANAE_COMMANDER_PS2"],
   "extraSkillDefinitionId": "SKL_NANAE_COMMANDER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],

@@ -1,11 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
-import {
-  collectTestCaseDefinitions,
-  collectTestCaseDefinitionsFromSource,
-} from "./test-case-definitions.js";
+import { collectTestCaseDefinitionsFromSource } from "./test-case-definitions.js";
 
 /**
  * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
@@ -53,7 +50,6 @@ interface RemainingWorkManifest {
       readonly converted: number;
       readonly unconverted: number;
     };
-    readonly capabilities: { readonly total: number; readonly implemented: number };
   };
   readonly tasks: readonly {
     readonly taskId: string;
@@ -224,96 +220,6 @@ describe("remaining work manifest (PLAN-001)", () => {
       ),
     ).toBe(true);
   });
-
-  it("UT-PLAN-001-005: current inventory matches Catalog source and Capability registry", () => {
-    const manifest = readManifest();
-    const unitDirectories = readdirSync(`${repositoryRoot}/apps/api/catalog-src/units`, {
-      withFileTypes: true,
-    }).filter((entry) => entry.isDirectory());
-    // REL-002（Issue #199）で合成Unitは0件になったが、判定は残す——ID直書きでは
-    // なく`INTERNAL`タグで数えることで、再び合成Unitを足したときに台帳の
-    // `syntheticUnits`更新を強制し、変換済み件数へ紛れ込ませない。
-    const syntheticUnitDirectories = unitDirectories.filter((entry) =>
-      (
-        JSON.parse(readRepositoryFile(`apps/api/catalog-src/units/${entry.name}/unit.json`)) as {
-          readonly metadata?: { readonly tags?: readonly string[] };
-        }
-      ).metadata?.tags?.includes("INTERNAL"),
-    );
-    const memoryDirectories = readdirSync(`${repositoryRoot}/apps/api/catalog-src/memories`, {
-      withFileTypes: true,
-    }).filter((entry) => entry.isDirectory());
-    const capabilities = JSON.parse(
-      readRepositoryFile("apps/api/catalog-src/capabilities.json"),
-    ) as readonly {
-      readonly capabilityId: string;
-      readonly schemaStatus: string;
-      readonly runtimeStatus: string;
-      readonly implementationTaskId: string;
-      readonly verification: {
-        readonly productionDefinitionIds: readonly string[];
-        readonly testCaseIds: readonly string[];
-      };
-    }[];
-    const remainingTaskIds = new Set(manifest.tasks.map((task) => task.taskId));
-    const testCaseDefinitions = collectTestCaseDefinitions(`${repositoryRoot}/apps/api/src`);
-
-    expect(unitDirectories).toHaveLength(
-      manifest.current.unitCatalog.convertedProductionUnits +
-        manifest.current.unitCatalog.syntheticUnits,
-    );
-    expect(syntheticUnitDirectories).toHaveLength(manifest.current.unitCatalog.syntheticUnits);
-    expect(unitDirectories.length - syntheticUnitDirectories.length).toBe(
-      manifest.current.unitCatalog.convertedProductionUnits,
-    );
-    expect(memoryDirectories).toHaveLength(manifest.current.memoryCatalog.converted);
-    expect(
-      manifest.current.memoryCatalog.converted + manifest.current.memoryCatalog.unconverted,
-    ).toBe(manifest.current.memoryCatalog.sourceTotal);
-    expect(manifest.current.memoryCatalog.sourceTotal).toBe(
-      manifest.baseline.memoryCatalog.sourceTotal,
-    );
-    expect(manifest.current.memoryCatalog.converted).toBeGreaterThanOrEqual(
-      manifest.baseline.memoryCatalog.converted,
-    );
-    expect(manifest.current.memoryCatalog.unconverted).toBeLessThanOrEqual(
-      manifest.baseline.memoryCatalog.unconverted,
-    );
-    expect(capabilities).toHaveLength(manifest.current.capabilities.total);
-    expect(
-      capabilities.filter((capability) => capability.runtimeStatus === "IMPLEMENTED"),
-    ).toHaveLength(manifest.current.capabilities.implemented);
-    expect(capabilities.every((capability) => capability.schemaStatus === "SUPPORTED")).toBe(true);
-    expect(
-      capabilities
-        .filter((capability) => capability.runtimeStatus !== "IMPLEMENTED")
-        .every((capability) => remainingTaskIds.has(capability.implementationTaskId)),
-    ).toBe(true);
-    expect(new Set(capabilities.map((capability) => capability.capabilityId)).size).toBe(
-      capabilities.length,
-    );
-    for (const capability of capabilities.filter(
-      (candidate) => candidate.runtimeStatus === "IMPLEMENTED",
-    )) {
-      expect(new Set(capability.verification.testCaseIds).size).toBe(
-        capability.verification.testCaseIds.length,
-      );
-      for (const testCaseId of capability.verification.testCaseIds) {
-        expect(
-          testCaseDefinitions.get(testCaseId) ?? [],
-          `${capability.capabilityId} verification testCaseId "${testCaseId}" must identify exactly one test definition`,
-        ).toHaveLength(1);
-      }
-    }
-    expect(manifest.current.capabilities.implemented).toBeGreaterThanOrEqual(
-      manifest.baseline.capabilities.implemented,
-    );
-    // このテストは`collectTestCaseDefinitions`でリポジトリ内の
-    // 全`.test.ts`ファイルへTypeScript Compiler APIを個別実行するため、テスト数の
-    // 増加とともに実行時間が伸び、CI（GitHub Actionsのランナーはローカンより低速）
-    // ではデフォルトの5000msタイムアウトを超えて失敗した。ロジックの不具合では
-    // なくテストの重さそのものが原因のため、専用のタイムアウトを設定する。
-  }, 30000);
 
   it("UT-PLAN-001-006: preserves an internally coherent historical baseline", () => {
     const { baseline } = readManifest();

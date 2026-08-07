@@ -114,7 +114,6 @@ describe("production Catalog SUM_DAMAGE_DEALT (RES-003A, Issue #257, G-10)", () 
         formula: { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.6 },
       },
     });
-    expect(heal.requiredCapabilities).toContain("CAP_SUM_DAMAGE_RESULT");
   });
 
   it("IT-CAP-SUM-DAMAGE-PROD-002 (real lifecycle wiring): SKL_FLUTE_VAMPIRE_EX heals 60% of the column attack AND the conditional follow-up combined, not 60% of the follow-up alone", () => {

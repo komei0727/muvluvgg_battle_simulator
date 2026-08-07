@@ -12326,7 +12326,7 @@
                       "properties": {
                         "code": {
                           "type": "string",
-                          "enum": ["INVALID_COMMAND", "DEFINITION_NOT_FOUND", "UNSUPPORTED_RULE"]
+                          "enum": ["INVALID_COMMAND", "DEFINITION_NOT_FOUND"]
                         },
                         "message": {
                           "type": "string"
@@ -12863,9 +12863,7 @@
                           "attribute",
                           "unitType",
                           "role",
-                          "positionAptitudes",
-                          "selectable",
-                          "unavailableCapabilities"
+                          "positionAptitudes"
                         ],
                         "properties": {
                           "unitDefinitionId": {
@@ -12893,15 +12891,6 @@
                               "enum": ["FRONT", "BACK"]
                             },
                             "minItems": 1
-                          },
-                          "selectable": {
-                            "type": "boolean"
-                          },
-                          "unavailableCapabilities": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
                           }
                         }
                       }
@@ -12911,27 +12900,13 @@
                       "items": {
                         "type": "object",
                         "additionalProperties": false,
-                        "required": [
-                          "memoryDefinitionId",
-                          "displayName",
-                          "selectable",
-                          "unavailableCapabilities"
-                        ],
+                        "required": ["memoryDefinitionId", "displayName"],
                         "properties": {
                           "memoryDefinitionId": {
                             "type": "string"
                           },
                           "displayName": {
                             "type": "string"
-                          },
-                          "selectable": {
-                            "type": "boolean"
-                          },
-                          "unavailableCapabilities": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
                           }
                         }
                       }

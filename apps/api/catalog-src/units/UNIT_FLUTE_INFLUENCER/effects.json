@@ -12,7 +12,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -27,7 +26,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -55,7 +53,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -70,7 +67,6 @@
         "power": 1.248
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -85,7 +81,6 @@
         "power": 0.624
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -110,7 +105,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
@@ -125,7 +119,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -136,7 +129,6 @@
     "payload": {
       "categories": ["DEBUFF"]
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }

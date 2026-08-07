@@ -63,7 +63,6 @@ function statModDefinition(id: string): EffectActionDefinition {
       stacking: { mode: "STACKABLE", max: null },
       duration: { dispellable: true, linkedEffectGroupId: null },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   };
 }
@@ -766,7 +765,6 @@ describe("expireEffects: R-EFF-05 次点繰上げ (M7-012, Issue #266)", () => {
         stacking: { mode: "NON_STACKABLE", max: null },
         duration: { dispellable: true, linkedEffectGroupId: null },
       },
-      requiredCapabilities: [],
       metadata: { tags: [] },
     };
   }

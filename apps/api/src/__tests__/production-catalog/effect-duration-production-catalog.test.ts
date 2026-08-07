@@ -411,8 +411,6 @@ describe("production Catalog linkedEffectGroup cascade (EFF-003, R-EFF-09)", () 
     if (atkDown.kind !== "APPLY_STAT_MOD" || dmgDown.kind !== "APPLY_DAMAGE_MOD") {
       return;
     }
-    expect(atkDown.requiredCapabilities).toContain("CAP_COMPLEX_EXPIRATION");
-    expect(dmgDown.requiredCapabilities).toContain("CAP_COMPLEX_EXPIRATION");
     expect(atkDown.payload.duration.linkedEffectGroupId).toBe("HARRIET_CURSE_LINK");
     expect(dmgDown.payload.duration.linkedEffectGroupId).toBe("HARRIET_CURSE_LINK");
     expect(atkDown.payload.formula.kind).toBe("CONSTANT");

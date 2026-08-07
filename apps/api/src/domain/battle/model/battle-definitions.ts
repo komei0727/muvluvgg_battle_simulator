@@ -14,7 +14,7 @@ import type { Side } from "../../shared/side.js";
  * 定義だけを集めた不変オブジェクト。戦闘開始後は同じインスタンスを参照し続ける」
  * のうち、行動解決(`ActionSelectionPolicy`/`SkillResolutionService`)とPS発動
  * (`PassiveTriggerMatcher`、Issue #34)が必要とする部分だけを持つ。
- * MemoryDefinition/CapabilityDefinitionはこのIssueのスコープ外(Memory連鎖はM7)
+ * MemoryDefinitionはこのIssueのスコープ外(Memory連鎖はM7)
  * のため含まない。
  */
 export interface BattleDefinitions {

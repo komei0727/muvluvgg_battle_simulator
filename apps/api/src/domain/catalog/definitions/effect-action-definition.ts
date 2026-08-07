@@ -1,4 +1,4 @@
-import type { CapabilityId, EffectActionDefinitionId } from "./catalog-ids.js";
+import type { EffectActionDefinitionId } from "./catalog-ids.js";
 import type {
   ApplyAttackDamageBonusPayload,
   ApplyContinuousDamagePayload,
@@ -101,7 +101,6 @@ export type EffectActionPayload =
 
 export type EffectActionDefinition = EffectActionPayload & {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
-  readonly requiredCapabilities: readonly CapabilityId[];
   readonly metadata: { readonly tags: readonly string[] };
 };
 
@@ -111,6 +110,5 @@ export interface EffectActionDefinitionInput {
   readonly effectActionDefinitionId: string;
   readonly kind: string;
   readonly payload: Record<string, unknown>;
-  readonly requiredCapabilities: readonly string[];
   readonly metadata?: { readonly tags?: readonly string[] };
 }

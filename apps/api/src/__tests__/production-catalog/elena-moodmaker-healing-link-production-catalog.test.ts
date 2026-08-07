@@ -91,7 +91,6 @@ function lowestEnemyHealSkill(): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: TRAITS,
-    requiredCapabilities: [],
     metadata: { displayName: "TestHealLowestEnemy", tags: [] },
   };
 }
@@ -120,7 +119,6 @@ function selfHealSkill(): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 0 },
     traits: TRAITS,
-    requiredCapabilities: [],
     metadata: { displayName: "TestHealSelf", tags: [] },
   };
 }
@@ -192,7 +190,6 @@ describe("production Catalog SKL_ELENA_MOODMAKER_AS1 healing link (M7-005-HEAL-L
       },
     });
     const as1 = skillFrom(snapshot, AS1_SKILL_ID);
-    expect(as1.requiredCapabilities).toContain("CAP_HEALING_LINK");
 
     const units = [elena, woundedAlly, woundedEnemy, healthyEnemy];
     const recorder = new EventRecorder(createBattleId("B_1"));

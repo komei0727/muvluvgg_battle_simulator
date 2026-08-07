@@ -50,7 +50,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "装いを新たに",
       "tags": []
@@ -113,7 +112,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "幸運のデコイ",
       "tags": []
@@ -162,7 +160,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_REMOVE_EFFECTS", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "仲間想いのリカバリー",
       "tags": []
@@ -249,12 +246,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_DAMAGE_MOD",
-      "CAP_SKILL_RUNTIME_COUNTER"
-    ],
     "metadata": {
       "displayName": "期待に応えたい",
       "tags": []
@@ -335,7 +326,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "運ではなく実力で",
       "tags": []

@@ -29,7 +29,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA", "CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "displayName": "乙女の高ぶり", "tags": [] }
   },
   {
@@ -77,13 +76,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_FORMULA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": { "displayName": "禅刃再生", "tags": [] }
   },
   {
@@ -108,7 +100,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "displayName": "桜花の舞", "tags": [] }
   },
   {
@@ -128,7 +119,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "displayName": "鬼神活性", "tags": [] },
     "triggers": [
       {
@@ -160,7 +150,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "displayName": "茶鬼舞踏", "tags": [] },
     "triggers": [
       {

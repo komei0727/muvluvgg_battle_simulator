@@ -88,7 +88,6 @@ function unitDefinitionOf(
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds,
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: {
       displayName: "Test Unit",
       characterName: "Test Character",
@@ -103,7 +102,6 @@ function damageEffectAction(id: string): EffectActionDefinition {
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -160,7 +158,6 @@ function chargeReleaseSkill(effectActionId: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Charge", tags: [] },
   };
 }
@@ -216,7 +213,6 @@ function chargeReleaseSkillWithCounterUpdates(effectActionId: string): SkillDefi
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Charge", tags: [] },
   };
 }
@@ -274,7 +270,6 @@ function chargeReleaseSkillWithChargeReleasedCounterUpdates(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: "Charge", tags: [] },
   };
 }
@@ -305,7 +300,6 @@ function passiveSkillOnDamageApplied(id: string): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }

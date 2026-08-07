@@ -7,7 +7,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } },
       "damageAmplificationOnBreak": 1.5
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -25,7 +24,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 5 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
@@ -35,7 +33,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.35 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -45,7 +42,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.936 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -55,7 +51,6 @@
       "status": "STUN",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -68,7 +63,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -84,7 +78,6 @@
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -95,14 +88,12 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_NANAE_COMMANDER_PS1_CLEANSE",
     "kind": "REMOVE_EFFECTS",
     "payload": { "categories": ["DEBUFF"] },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": { "tags": [] }
   },
   {
@@ -112,7 +103,6 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 1.06 }
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   }
 ]

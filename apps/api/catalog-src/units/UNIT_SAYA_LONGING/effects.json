@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.2048 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -21,7 +20,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
@@ -35,14 +33,12 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.896 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -56,7 +52,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -68,7 +63,6 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -81,7 +75,6 @@
         { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 3 }
       ]
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
@@ -97,7 +90,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -113,7 +105,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -129,7 +120,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

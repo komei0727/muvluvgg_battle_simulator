@@ -21,7 +21,6 @@
     "SKL_ROSIE_ARTIST_PS3"
   ],
   "extraSkillDefinitionId": "SKL_ROSIE_ARTIST_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],

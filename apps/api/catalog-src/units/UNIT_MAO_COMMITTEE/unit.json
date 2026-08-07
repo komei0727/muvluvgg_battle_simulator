@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_MAO_COMMITTEE_AS1", "SKL_MAO_COMMITTEE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_MAO_COMMITTEE_PS1", "SKL_MAO_COMMITTEE_PS2"],
   "extraSkillDefinitionId": "SKL_MAO_COMMITTEE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_FUUKI_IINKAI"],
     "tags": [],

@@ -26,7 +26,6 @@ describe("APPLY_CONTINUOUS_DAMAGE (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     return {
       kind: "APPLY_CONTINUOUS_DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         continuousDamageKind,

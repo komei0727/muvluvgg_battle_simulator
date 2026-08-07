@@ -5,7 +5,6 @@ import {
   type CatalogDefinitions,
 } from "../../../domain/catalog/integrity/catalog-integrity.js";
 import {
-  mapCapabilityDefinition,
   mapEffectActionDefinition,
   mapMemoryDefinition,
   mapSkillDefinition,
@@ -65,7 +64,6 @@ function readCatalogIndex(catalogDir: string): {
     "skills.json": "",
     "effects.json": "",
     "memories.json": "",
-    "capabilities.json": "",
   };
   for (const fileName of CATALOG_FILE_NAMES) {
     fileContents[fileName] = readFileSync(join(catalogDir, fileName), "utf8");
@@ -77,9 +75,6 @@ function readCatalogIndex(catalogDir: string): {
     skills: readCatalogJsonArray(catalogDir, "skills.json").map(mapSkillDefinition),
     effectActions: readCatalogJsonArray(catalogDir, "effects.json").map(mapEffectActionDefinition),
     memories: readCatalogJsonArray(catalogDir, "memories.json").map(mapMemoryDefinition),
-    capabilities: readCatalogJsonArray(catalogDir, "capabilities.json").map(
-      mapCapabilityDefinition,
-    ),
   };
 
   return { catalogRevision: manifest.catalogRevision, index: buildCatalogIndex(definitions) };

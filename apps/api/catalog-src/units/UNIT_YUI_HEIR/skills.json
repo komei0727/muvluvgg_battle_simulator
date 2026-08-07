@@ -45,7 +45,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "ザ式戦術機動剣術「天崩」",
       "tags": []
@@ -130,12 +129,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術「貪狼」",
       "tags": []
@@ -311,13 +304,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_STAT_MOD",
-      "CAP_DAMAGE_MOD",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT"
-    ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術「破衝撃」",
       "tags": []
@@ -355,7 +341,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "ザ式戦術機動剣術・壱型「掩撃」",
       "tags": []
@@ -467,14 +452,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_SHIELD",
-      "CAP_HEAL",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "ザ式戦術機動剣術・弐型「反魂」",
       "tags": []

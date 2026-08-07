@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BattleLogEvent } from "../../application/observation/battle-log-event.js";
 import {
   runProductionUnitBattle,
-  selectableProductionUnitIds,
+  allProductionUnitIds,
 } from "../../testing/scenario/run-production-battle.js";
 
 /**
@@ -24,7 +24,7 @@ import {
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
-const SELECTABLE_UNIT_IDS = selectableProductionUnitIds(CATALOG_DIR);
+const PRODUCTION_UNIT_IDS = allProductionUnitIds(CATALOG_DIR);
 
 /**
  * `R-DMG-05`の9手順に対応する段階。1ヒットの窓の中で、この段階番号は単調非減少
@@ -196,7 +196,7 @@ function containsInOrder(types: readonly string[], required: readonly string[]):
   return cursor === required.length;
 }
 
-const BATTLES = SELECTABLE_UNIT_IDS.map((unitDefinitionId) => ({
+const BATTLES = PRODUCTION_UNIT_IDS.map((unitDefinitionId) => ({
   unitDefinitionId,
   result: runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
     turnLimit: 5,

@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_AS1", "SKL_CLARA_TSUNDERE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_PS1", "SKL_CLARA_TSUNDERE_PS2"],
   "extraSkillDefinitionId": "SKL_CLARA_TSUNDERE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_COLORFUL_BOUQUET"],
     "tags": [],

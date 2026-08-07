@@ -43,7 +43,6 @@ describe("production Catalog CAP_TARGET_DERIVED_AREA (Issue #170/TGT-001)", () =
     const snapshot = loadProductionSnapshot(catalogPath(), ["UNIT_LUCIE_MAID"]);
     const skill = skillFrom(snapshot, "SKL_LUCIE_MAID_AS2");
     expect(skill).toBeDefined();
-    expect(skill.requiredCapabilities).toContain("CAP_TARGET_DERIVED_AREA");
     expect(skill.resolution.kind).toBe("IMMEDIATE");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];

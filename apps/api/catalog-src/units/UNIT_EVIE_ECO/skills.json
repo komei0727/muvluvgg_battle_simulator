@@ -24,7 +24,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "スタックオーバーフロー", "tags": [] }
   },
   {
@@ -52,7 +51,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "グリッチストライク", "tags": [] }
   },
   {
@@ -77,7 +75,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "バニッシュ", "tags": [] }
   },
   {
@@ -100,7 +97,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": { "simultaneousActivationLimited": true },
-    "requiredCapabilities": ["CAP_TARGET_REDIRECT", "CAP_COVER_DAMAGE", "CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "デコイプロトコル", "tags": [] },
     "triggers": [
       {
@@ -148,12 +144,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_HEAL",
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TRIGGER_CONTEXT"
-    ],
     "metadata": { "displayName": "リカバリーブースト", "tags": [] },
     "triggers": [
       {

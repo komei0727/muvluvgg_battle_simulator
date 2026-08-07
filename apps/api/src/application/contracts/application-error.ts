@@ -3,8 +3,8 @@
  * Inbound Adapterへ返る唯一の失敗形。ドメインモデルへAPI向けメッセージや
  * HTTPステータスを持たせない。
  *
- * `#16`時点でUseCaseが実際に送出するのは `INVALID_COMMAND`、
- * `DEFINITION_NOT_FOUND`、`UNSUPPORTED_RULE`。`#18`で協調的な期限確認
+ * `#16`時点でUseCaseが実際に送出するのは `INVALID_COMMAND` と
+ * `DEFINITION_NOT_FOUND`。`#18`で協調的な期限確認
  * （`SimulateBattleUseCase`のターン境界チェック）が`EXECUTION_TIMEOUT`を、
  * `SimulationWorkerPool`のキャンセル処理が`EXECUTION_CANCELLED`を送出する
  * ようになった。`EXECUTION_LIMIT_EXCEEDED`と`DOMAIN_RULE_VIOLATION`は
@@ -14,7 +14,6 @@
 export const APPLICATION_ERROR_CODES = [
   "INVALID_COMMAND",
   "DEFINITION_NOT_FOUND",
-  "UNSUPPORTED_RULE",
   "INVALID_DEFINITION",
   "DOMAIN_RULE_VIOLATION",
   "EXECUTION_LIMIT_EXCEEDED",

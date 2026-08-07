@@ -21,7 +21,6 @@
     "SKL_SUIRAN_CHAOS_PS3"
   ],
   "extraSkillDefinitionId": "SKL_SUIRAN_CHAOS_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_CHAOS_MAIDEN"],
     "tags": [],

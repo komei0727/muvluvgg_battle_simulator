@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_AS1", "SKL_FLUTE_INFLUENCER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_PS1", "SKL_FLUTE_INFLUENCER_PS2"],
   "extraSkillDefinitionId": "SKL_FLUTE_INFLUENCER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_TREBLE_QUINTET"],
     "tags": [],

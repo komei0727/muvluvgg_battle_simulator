@@ -59,7 +59,6 @@ function statModAction(id: string, value: number): EffectActionDefinition {
       stacking: { mode: "STACKABLE" },
       duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
     },
-    requiredCapabilities: [],
     metadata: { tags: [] },
   } as unknown as EffectActionDefinition;
 }
@@ -96,7 +95,6 @@ function battleStartedStatModMemory(
   return createMemoryDefinition({
     memoryDefinitionId,
     triggeredEffects: [triggeredEffect],
-    requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
     metadata: { displayName: memoryDefinitionId },
   });
 }
@@ -253,7 +251,6 @@ describe("Memory triggeredEffects activation (R-MEM-03/R-MEM-04)", () => {
           },
         },
       ],
-      requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
       metadata: { displayName: "MEM_SELF" },
     });
     const definitions = definitionsWith({ ALLY: [selfTargetMemory], ENEMY: [] }, [
@@ -300,7 +297,6 @@ describe("Memory triggeredEffects activation (R-MEM-03/R-MEM-04)", () => {
           },
         },
       ],
-      requiredCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
       metadata: { displayName: "MEM_NO_TARGET" },
     });
     const definitions = definitionsWith({ ALLY: [noTargetMemory], ENEMY: [] }, [

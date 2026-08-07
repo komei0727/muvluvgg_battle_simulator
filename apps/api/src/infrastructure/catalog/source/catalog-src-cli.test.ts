@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 describe("generateCatalogCommand", () => {
-  it("CT-CAT-SRCCLI-001: writes catalog/ and reports ok=true with the six generated file names", async () => {
+  it("CT-CAT-SRCCLI-001: writes catalog/ and reports ok=true with the five generated file names", async () => {
     const result = await generateCatalogCommand(
       fixturePath("catalog-src", "valid", "minimal"),
       outDir,
@@ -42,14 +42,7 @@ describe("generateCatalogCommand", () => {
     if (result.ok) {
       expect(result.catalogRevision).toBe("test-cli.1");
       expect([...result.filesWritten].sort()).toEqual(
-        [
-          "capabilities.json",
-          "effects.json",
-          "manifest.json",
-          "memories.json",
-          "skills.json",
-          "units.json",
-        ].sort(),
+        ["effects.json", "manifest.json", "memories.json", "skills.json", "units.json"].sort(),
       );
     }
   });
@@ -109,7 +102,7 @@ describe("checkCatalogSrcCommand", () => {
   it("CT-CAT-SRCCLI-006: reports ok=false for a malformed catalog-src", async () => {
     writeFileSync(
       join(outDir, "manifest.json"),
-      JSON.stringify({ schemaVersion: 2, catalogRevision: "test-cli.1", files: {} }),
+      JSON.stringify({ schemaVersion: 3, catalogRevision: "test-cli.1", files: {} }),
     );
     const result = await checkCatalogSrcCommand(
       fixturePath("catalog-src", "invalid", "mismatched-unit"),

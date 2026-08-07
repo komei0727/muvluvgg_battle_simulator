@@ -75,7 +75,6 @@ function selfHitAction(power: number): Extract<EffectActionDefinition, { kind: "
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(SELF_HIT_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",
@@ -103,7 +102,6 @@ function setup() {
       formula: { kind: "CONSTANT", value: 1 },
       duration: { dispellable: false, timeLimit: { unit: "BATTLE", count: 1 } },
     },
-    requiredCapabilities: ["CAP_RESOURCE_CAPACITY_MOD"],
   });
   expect(unitFrom(snapshot, FLUTE_UNIT_ID).baseStats.maximumAp).toBe(FLUTE_BASE_MAX_AP);
 

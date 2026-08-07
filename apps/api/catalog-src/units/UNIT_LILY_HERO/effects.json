@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_LILY_HERO_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -13,7 +12,6 @@
       "formula": { "kind": "LOST_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -26,7 +24,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -39,7 +36,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -55,7 +51,6 @@
       },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_FORMULA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -69,21 +64,18 @@
         "ratio": 0.3198
       }
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS1_DAMAGE_FIXED",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.78 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_LILY_HERO_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -96,7 +88,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -107,7 +98,6 @@
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -120,7 +110,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -130,7 +119,6 @@
       "formula": { "kind": "LOST_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.5 },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   }
 ]

@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_AS1", "SKL_KEI_JACKKNIFE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_PS1", "SKL_KEI_JACKKNIFE_PS2"],
   "extraSkillDefinitionId": "SKL_KEI_JACKKNIFE_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": [],
     "tags": [],

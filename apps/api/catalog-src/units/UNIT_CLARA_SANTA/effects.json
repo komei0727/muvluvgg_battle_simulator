@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_CLARA_SANTA_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 2.332 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -15,14 +14,12 @@
       "formula": { "kind": "CONSTANT", "value": -2 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_MAIN",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -36,21 +33,18 @@
         "timeLimit": { "unit": "ACTION", "count": 3, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_LOWEST",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -63,21 +57,18 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CLARA_SANTA_AS3_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.59 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_CLARA_SANTA_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -90,7 +81,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

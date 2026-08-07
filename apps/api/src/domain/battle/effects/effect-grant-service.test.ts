@@ -76,7 +76,6 @@ function statModDefinition(): EffectActionDefinition {
   return {
     kind: "APPLY_STAT_MOD",
     effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       stat: "ATTACK",
@@ -92,7 +91,6 @@ function statusDefinition(status: StatusKind): EffectActionDefinition {
   return {
     kind: "APPLY_STATUS",
     effectActionDefinitionId: createEffectActionDefinitionId(`ACT_${status}`),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: { status, duration: TURN_DURATION },
   };

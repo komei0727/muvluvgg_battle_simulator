@@ -9,7 +9,6 @@
         "power": 1.506
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -21,7 +20,6 @@
       "categories": ["BUFF"],
       "maxRemovals": 3
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }
@@ -40,7 +38,6 @@
       },
       "maxBlocks": null
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -66,7 +63,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -81,7 +77,6 @@
         "power": 1.326
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -107,7 +102,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -133,7 +127,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -148,7 +141,6 @@
         "power": 1.248
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -160,7 +152,6 @@
       "categories": ["BUFF"],
       "maxRemovals": 1
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }
@@ -186,7 +177,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -206,7 +196,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -221,7 +210,6 @@
         "power": 1.7472
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }

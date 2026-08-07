@@ -21,7 +21,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": { "displayName": "七彩の庭園", "tags": [] }
   },
   {
@@ -60,12 +59,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 2 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_CONTINUOUS_DAMAGE",
-      "CAP_HEAL",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "イグナイト", "tags": [] }
   },
   {
@@ -131,12 +124,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": { "displayName": "スタンサプレッション", "tags": [] }
   },
   {
@@ -185,15 +172,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_DAMAGE_MOD",
-      "CAP_CONTINUOUS_HEAL",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_REMOVE_EFFECTS",
-      "CAP_TARGET_EFFECT_QUERY"
-    ],
     "metadata": { "displayName": "セントリストア", "tags": [] },
     "triggers": [
       {
@@ -227,7 +205,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "リベンジシュート", "tags": [] },
     "triggers": [
       {

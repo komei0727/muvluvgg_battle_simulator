@@ -20,7 +20,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": {
       "tags": []
     }
@@ -45,7 +44,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -60,7 +58,6 @@
         "power": 1.404
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -86,7 +83,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -128,7 +124,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": {
       "tags": []
     }
@@ -155,7 +150,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -181,7 +175,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -200,7 +193,6 @@
       },
       "maxBlocks": 1
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -226,7 +218,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -237,7 +228,6 @@
     "payload": {
       "categories": ["BUFF"]
     },
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS"],
     "metadata": {
       "tags": []
     }

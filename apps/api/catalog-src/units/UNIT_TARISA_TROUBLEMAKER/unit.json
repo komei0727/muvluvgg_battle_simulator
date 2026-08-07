@@ -21,7 +21,6 @@
   ],
   "passiveSkillDefinitionIds": ["SKL_TARISA_TROUBLEMAKER_PS1"],
   "extraSkillDefinitionId": "SKL_TARISA_TROUBLEMAKER_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": [],
     "tags": [],

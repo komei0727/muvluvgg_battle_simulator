@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -16,7 +15,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -29,7 +27,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -40,7 +37,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 1.06 },
       "hitCount": 2
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -53,7 +49,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -66,7 +61,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -79,7 +73,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -96,7 +89,6 @@
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
       }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   }
 ]

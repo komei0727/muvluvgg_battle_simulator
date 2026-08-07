@@ -53,7 +53,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "宝刀・皆琉神威",
       "tags": []
@@ -105,7 +104,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "displayName": "己が為の刃に非ず",
       "tags": []
@@ -165,7 +163,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "displayName": "牙無き者の為たれ",
       "tags": []
@@ -209,7 +206,6 @@
       "count": 2
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_REMOVE_EFFECTS", "CAP_SHIELD", "CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "明鏡止水",
       "tags": []
@@ -261,7 +257,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [],
     "metadata": {
       "displayName": "一意専心",
       "tags": []

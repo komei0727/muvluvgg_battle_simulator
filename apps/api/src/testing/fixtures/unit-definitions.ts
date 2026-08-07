@@ -12,7 +12,7 @@ export interface TestUnitDefinitionOverrides extends UnitDefinitionOverrides {
  * production-catalogテスト向けの「PSなし・特殊効果なし」Unit定義。scenario層の
  * `unitDefinition` と異なり、会心（criticalRate）と属性相性（affinityBonus）を
  * 既定で0にする — 実Catalogの定義を対象にするテストは乱数消費・補正を検証対象の
- * Capabilityだけへ閉じる必要があるため。Memory所属条件（affiliations）を検証する
+ * 検証対象の機能だけへ閉じる必要があるため。Memory所属条件（affiliations）を検証する
  * テストのために metadata overrides も受け付ける。
  *
  * `extraSkillDefinitionId` は必須フィールドのため常に実在の値を持ち、既定は

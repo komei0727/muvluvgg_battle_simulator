@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 3.18 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -15,14 +14,12 @@
       "formula": { "kind": "CONSTANT", "value": 8 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_RESOURCE_DISTRIBUTE"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.56 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -38,7 +35,6 @@
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -54,14 +50,12 @@
       "probability": 1,
       "appliesTo": { "incomingActionKinds": ["DAMAGE"] }
     },
-    "requiredCapabilities": ["CAP_HIT_COUNT_EVASION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS2_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.45 }, "overheal": "DISCARD" },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": { "tags": [] }
   },
   {
@@ -74,7 +68,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -87,14 +80,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
     "kind": "DAMAGE",
     "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.3588 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -107,7 +98,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -123,7 +113,6 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

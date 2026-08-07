@@ -7,7 +7,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 2.008 },
       "piercing": { "defenseIgnoreRate": 1, "shieldIgnoreRate": 1 }
     },
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
     "metadata": { "tags": [] }
   },
   {
@@ -19,7 +18,6 @@
       "piercing": { "defenseIgnoreRate": 1, "shieldIgnoreRate": 1 },
       "damageModifiers": [{ "kind": "CONSTANT", "value": 0.5 }]
     },
-    "requiredCapabilities": ["CAP_PARTIAL_PIERCING"],
     "metadata": { "tags": [] }
   },
   {
@@ -31,14 +29,12 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.544 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -56,7 +52,6 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
-    "requiredCapabilities": ["CAP_CONTINUOUS_DAMAGE"],
     "metadata": { "tags": [] }
   },
   {
@@ -67,7 +62,6 @@
       "formula": { "kind": "SKILL_POWER", "power": 0.6024 },
       "hitCount": 5
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -79,7 +73,6 @@
       "formula": { "kind": "CONSTANT", "value": 1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   },
   {
@@ -92,7 +85,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -107,14 +99,12 @@
       },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
-    "requiredCapabilities": ["CAP_SHIELD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_YURIA_WILDCARD_PS2_COUNTER",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 3.012 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -126,7 +116,6 @@
       "formula": { "kind": "CONSTANT", "value": -1 },
       "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": { "tags": [] }
   }
 ]

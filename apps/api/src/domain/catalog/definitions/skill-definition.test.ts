@@ -30,7 +30,6 @@ function minimalAsInput() {
     },
     cooldown: { unit: "ACTION", count: 1 },
     traits: {},
-    requiredCapabilities: [],
     metadata: { displayName: "ジャマしちゃ、めっ……だよ？" },
   };
 }
@@ -405,12 +404,6 @@ describe("SkillDefinition", () => {
         traits: { exclusiveActivationGroupId: 123 as unknown as string },
       }),
     ).toThrow(DomainValidationError);
-  });
-
-  it("UT-CAT-SKL-016: maps requiredCapabilities as branded CapabilityIds", () => {
-    const input = minimalAsInput();
-    const result = createSkillDefinition({ ...input, requiredCapabilities: ["CAP_HEAL"] });
-    expect(result.requiredCapabilities).toEqual(["CAP_HEAL"]);
   });
 
   it("UT-CAT-SKL-017: rejects a typo'd sibling key inside traits (traits.typoTraitField)", () => {

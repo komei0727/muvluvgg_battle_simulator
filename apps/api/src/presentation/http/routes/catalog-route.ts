@@ -45,7 +45,7 @@ export function registerCatalogRoute(
       // `11_インフラストラクチャ設計.md`「`GET /api/v1/battle-simulation-catalog`
       // のハンドラーは次だけを行う」: 起動時に構築済みのResultを参照し、
       // ETag比較で200/304を出し分けるだけ——Catalogファイルの読み込みや
-      // Capability計算をリクエストごとに行わない。
+      // projectionをリクエストごとに作り直さない。
       const result = catalogUseCase.execute();
       const opaqueTag = toOpaqueEntityTag(result.catalogRevision);
       const etag = `"${opaqueTag}"`;

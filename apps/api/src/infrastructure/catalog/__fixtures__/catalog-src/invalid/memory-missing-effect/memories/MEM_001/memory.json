@@ -5,25 +5,40 @@
       "trigger": {
         "eventType": "BattleStarted",
         "category": "FACT",
-        "condition": { "kind": "TRUE" }
+        "condition": {
+          "kind": "TRUE"
+        }
       },
       "effectSequence": {
         "targetBindings": [
           {
             "targetBindingId": "TGT_ALL_ALLIES",
-            "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
           }
         ],
         "steps": [
           {
             "kind": "ACTION",
-            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ALLIES" },
-            "actions": [{ "effectActionDefinitionId": "ACT_MEMORY_USED" }]
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEMORY_USED"
+              }
+            ]
           }
         ]
       }
     }
   ],
-  "requiredCapabilities": [],
-  "metadata": { "displayName": "Minimal Memory", "tags": [] }
+  "metadata": {
+    "displayName": "Minimal Memory",
+    "tags": []
+  }
 }

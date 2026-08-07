@@ -3284,7 +3284,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     return {
       kind: "REMOVE_EFFECTS",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload,
     };
@@ -3419,7 +3418,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     return {
       kind: "APPLY_SHIELD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         formula: { kind: "CONSTANT", value: 100 },
@@ -3433,7 +3431,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     return {
       kind: "APPLY_SUBUNIT",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         durability: { formula: { kind: "CONSTANT", value: 80 } },
@@ -3636,7 +3633,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     return {
       kind: "EFFECT_IMMUNITY",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload,
     };
@@ -3786,7 +3782,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     const debuff: EffectActionDefinition = {
       kind: "APPLY_STAT_MOD",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_DOWN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         stat: "ATTACK",
@@ -3868,7 +3863,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -3922,7 +3916,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",
@@ -4175,7 +4168,6 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     const stun: EffectActionDefinition = {
       kind: "APPLY_STATUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         status: "STUN",

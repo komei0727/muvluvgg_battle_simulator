@@ -76,7 +76,6 @@ describe("production Catalog POST_DAMAGE_CRITICAL_BRANCH / POST_DAMAGE_SURVIVAL_
   it("IT-CAP-POST-DAMAGE-BRANCH-PROD-001: SKL_FEE_BATH_AS2's real LAST_RESULT criticalHitCount branch grants the extra 「ほてり」 only when the attack actually crit", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_FEE_BATH"]);
     const skill = skillFrom(snapshot, "SKL_FEE_BATH_AS2");
-    expect(skill.requiredCapabilities).toContain("CAP_RESOLUTION_BRANCH_REPEAT");
     const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
     const branch = steps.find((s) => s.kind === "BRANCH")!;
     expect(branch.kind === "BRANCH" && branch.condition).toEqual({
@@ -229,7 +228,6 @@ describe("production Catalog POST_DAMAGE_CRITICAL_BRANCH / POST_DAMAGE_SURVIVAL_
   it("IT-CAP-POST-DAMAGE-BRANCH-PROD-004: SKL_HIIRO_LONEWOLF_AS2's real countOf DEFEATED branch fires when any member of the attacked column dies, not only the base target", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_HIIRO_LONEWOLF"]);
     const skill = skillFrom(snapshot, "SKL_HIIRO_LONEWOLF_AS2");
-    expect(skill.requiredCapabilities).toContain("CAP_EFFECT_STEP_SET_CONDITION");
     const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
     const branch = steps.find((s) => s.kind === "BRANCH")!;
     expect(branch.kind === "BRANCH" && branch.condition).toEqual({
@@ -328,7 +326,6 @@ describe("production Catalog POST_DAMAGE_CRITICAL_BRANCH / POST_DAMAGE_SURVIVAL_
   it("IT-CAP-POST-DAMAGE-BRANCH-PROD-006: SKL_JULIE_SNOW_EX's countOf ALIVE branch adds the follow-up strike only while a survivor remains among the three targets", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_JULIE_SNOW"]);
     const skill = skillFrom(snapshot, "SKL_JULIE_SNOW_EX");
-    expect(skill.requiredCapabilities).toContain("CAP_EFFECT_STEP_SET_CONDITION");
 
     const run = (enemyHp: number, scope: string) => {
       const actor = unitOf("ALLY", "julie", "UNIT_JULIE_SNOW", {

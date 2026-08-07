@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"],
   "passiveSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_PS1", "SKL_MIKOTO_SURVIVOR_PS2"],
   "extraSkillDefinitionId": "SKL_MIKOTO_SURVIVOR_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": [],
     "tags": [],

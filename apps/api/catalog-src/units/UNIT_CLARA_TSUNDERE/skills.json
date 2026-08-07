@@ -34,7 +34,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TARGET_DERIVED_AREA", "CAP_RESOURCE_MUTATION"],
     "metadata": { "displayName": "フェアボルゲネ・ゲフューレ", "tags": [] }
   },
   {
@@ -64,7 +63,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL", "CAP_FORMULA"],
     "metadata": { "displayName": "クアッドエッジ", "tags": [] }
   },
   {
@@ -110,7 +108,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_EFFECT_STEP_CONDITION", "CAP_RESOLUTION_BRANCH_REPEAT"],
     "metadata": { "displayName": "アーマークラッシュ", "tags": [] }
   },
   {
@@ -130,7 +127,6 @@
     },
     "cooldown": { "unit": "ACTION", "count": 1 },
     "traits": {},
-    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": { "displayName": "アーマー・ジャム", "tags": [] },
     "triggers": [
       {
@@ -183,7 +179,6 @@
     },
     "cooldown": { "unit": "TURN", "count": 99 },
     "traits": {},
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION", "CAP_TARGET_FILTER_ORDER"],
     "metadata": { "displayName": "クイックブースト", "tags": [] },
     "triggers": [
       {

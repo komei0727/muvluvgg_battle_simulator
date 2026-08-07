@@ -71,7 +71,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "スカーレット・ネイル",
       "tags": []
@@ -135,11 +134,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_RESOURCE_MUTATION",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "ペネトレイトバレット",
       "tags": []
@@ -227,13 +221,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_RESOURCE_MUTATION",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_DERIVED_AREA",
-      "CAP_EFFECT_STEP_SET_CONDITION"
-    ],
     "metadata": {
       "displayName": "ピアースショット",
       "tags": []
@@ -284,11 +271,6 @@
     "traits": {
       "priorityAttack": true
     },
-    "requiredCapabilities": [
-      "CAP_SKILL_RUNTIME_COUNTER",
-      "CAP_RESOURCE_MUTATION",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "ファーストストライク",
       "tags": []
@@ -360,7 +342,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "displayName": "クラッシュドレイン",
       "tags": []

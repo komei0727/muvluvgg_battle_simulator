@@ -3,7 +3,6 @@
     "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 2.12 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -14,14 +13,12 @@
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.326 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -36,21 +33,18 @@
         "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE_EXTRA",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.39 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -62,7 +56,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -73,7 +66,6 @@
       "stack": { "policy": "REFRESH", "max": 1 },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": { "tags": [] }
   },
   {
@@ -86,14 +78,12 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.234 } },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -108,7 +98,6 @@
       },
       "probability": 1
     },
-    "requiredCapabilities": [],
     "metadata": { "tags": [] }
   },
   {
@@ -121,7 +110,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   },
   {
@@ -134,7 +122,6 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": { "tags": [] }
   }
 ]

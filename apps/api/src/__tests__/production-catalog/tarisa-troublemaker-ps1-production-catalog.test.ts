@@ -75,7 +75,6 @@ function attackEffectAction(power: number): Extract<EffectActionDefinition, { ki
   return {
     kind: "DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(ATTACK_EFFECT_ID),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       damageType: "PHYSICAL",

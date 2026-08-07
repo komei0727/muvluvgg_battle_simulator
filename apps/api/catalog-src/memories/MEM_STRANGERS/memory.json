@@ -50,6 +50,5 @@
       }
     }
   ],
-  "requiredCapabilities": ["CAP_MEMORY_TRIGGERED_EFFECT"],
   "metadata": { "displayName": "STRANGERS", "tags": [] }
 }

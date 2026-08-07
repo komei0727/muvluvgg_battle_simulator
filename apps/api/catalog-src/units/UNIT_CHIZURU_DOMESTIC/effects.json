@@ -9,7 +9,6 @@
         "power": 1.17
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -25,7 +24,6 @@
       },
       "overheal": "DISCARD"
     },
-    "requiredCapabilities": ["CAP_HEAL", "CAP_SUM_DAMAGE_RESULT"],
     "metadata": {
       "tags": []
     }
@@ -40,7 +38,6 @@
         "power": 0.954
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -58,7 +55,6 @@
         }
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -73,7 +69,6 @@
         "power": 0.5
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -96,7 +91,6 @@
       },
       "polarity": "BUFF"
     },
-    "requiredCapabilities": ["CAP_DAMAGE_LINK_STATE"],
     "metadata": {
       "tags": []
     }
@@ -131,7 +125,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DEATH_SURVIVAL"],
     "metadata": {
       "tags": []
     }
@@ -157,7 +150,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_STAT_MOD"],
     "metadata": {
       "tags": []
     }
@@ -183,7 +175,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -201,7 +192,6 @@
         }
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -219,7 +209,6 @@
         }
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -241,7 +230,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_MARKER"],
     "metadata": {
       "tags": []
     }

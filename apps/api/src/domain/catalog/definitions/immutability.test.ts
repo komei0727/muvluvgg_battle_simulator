@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createCapabilityDefinition } from "../capability/capability-definition.js";
 import { createEffectActionDefinition } from "./effect-action-definition-factory.js";
 import { createUnitDefinition } from "./unit-definition.js";
 
@@ -30,7 +29,6 @@ describe("Converted Definitions are immutable", () => {
       activeSkillDefinitionIds: ["SKL_001_AS1"],
       passiveSkillDefinitionIds: [],
       extraSkillDefinitionId: "SKL_001_EX",
-      requiredCapabilities: [],
       metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
     });
 
@@ -53,7 +51,6 @@ describe("Converted Definitions are immutable", () => {
         effectActionDefinitionId: "ACT_DAMAGE_1",
         kind: "DAMAGE",
         payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
-        requiredCapabilities: [],
       },
       "effectAction",
     );
@@ -70,18 +67,12 @@ describe("Converted Definitions are immutable", () => {
 
   it("UT-CAT-FREEZE-003: two conversions of the same input produce deep-equal, independently-frozen definitions", () => {
     const input = {
-      capabilityId: "CAP_HEAL",
-      schemaStatus: "SUPPORTED" as const,
-      runtimeStatus: "PLANNED" as const,
-      implementationTaskId: "TEST-001",
-      description: "即時回復",
-      verification: {
-        productionDefinitionIds: [] as string[],
-        testCaseIds: [] as string[],
-      },
+      effectActionDefinitionId: "ACT_DAMAGE_1",
+      kind: "DAMAGE",
+      payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
     };
-    const first = createCapabilityDefinition(input);
-    const second = createCapabilityDefinition(input);
+    const first = createEffectActionDefinition(input, "effectAction");
+    const second = createEffectActionDefinition(input, "effectAction");
     expect(first).toEqual(second);
     expect(first).not.toBe(second);
   });

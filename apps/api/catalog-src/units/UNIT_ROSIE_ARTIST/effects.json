@@ -17,7 +17,6 @@
         }
       ]
     },
-    "requiredCapabilities": ["CAP_FORMULA"],
     "metadata": {
       "tags": []
     }
@@ -43,7 +42,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -58,7 +56,6 @@
         "power": 1.17
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -84,7 +81,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }
@@ -109,7 +105,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -134,7 +129,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_HEAL"],
     "metadata": {
       "tags": []
     }
@@ -149,7 +143,6 @@
         "power": 0.4375
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -169,7 +162,6 @@
         "max": "CURRENT_MAX"
       }
     },
-    "requiredCapabilities": ["CAP_RESOURCE_MUTATION"],
     "metadata": {
       "tags": []
     }
@@ -184,7 +176,6 @@
         "power": 0.39
       }
     },
-    "requiredCapabilities": [],
     "metadata": {
       "tags": []
     }
@@ -210,7 +201,6 @@
         }
       }
     },
-    "requiredCapabilities": ["CAP_DAMAGE_MOD"],
     "metadata": {
       "tags": []
     }

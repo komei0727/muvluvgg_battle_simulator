@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApplicationError } from "../../application/contracts/application-error.js";
-import { createCapabilityDefinition } from "../../domain/catalog/capability/capability-definition.js";
 import {
-  createCapabilityId,
   createEffectActionDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
@@ -32,40 +29,6 @@ import { runScenario } from "../../testing/scenario/run-scenario.js";
  * で追加する。
  */
 describe("battle scenarios (harness)", () => {
-  it("SCN-BTL-022: a definition graph requiring an unimplemented Capability is rejected with UNSUPPORTED_RULE before the battle starts", () => {
-    const capabilityId = createCapabilityId("CAP_UNSUPPORTED");
-    const gatedUnit = unitDefinition("UNIT_GATED", { requiredCapabilities: [capabilityId] });
-    const catalog = new CatalogBuilder()
-      .withUnit(gatedUnit)
-      .withCapability(
-        createCapabilityDefinition({
-          capabilityId: "CAP_UNSUPPORTED",
-          schemaStatus: "SUPPORTED",
-          runtimeStatus: "PLANNED",
-          implementationTaskId: "TEST-SCN-022",
-          description: "not yet implemented",
-          verification: {
-            productionDefinitionIds: ["TEST_DEFINITION"],
-            testCaseIds: ["TEST-SCN-022"],
-          },
-        }),
-      )
-      .build();
-
-    const command = battleCommand({
-      allyFormation: { slots: [formationSlot("UNIT_GATED", 0)], memoryDefinitionIds: [] },
-      enemyFormation: { slots: [formationSlot("UNIT_GATED", 0)], memoryDefinitionIds: [] },
-    });
-
-    try {
-      runScenario({ catalog, command });
-      expect.fail("expected runScenario to reject the unsupported Capability");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ApplicationError);
-      expect((error as ApplicationError).code).toBe("UNSUPPORTED_RULE");
-    }
-  });
-
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
     const { reduceStateDeltas } =
       await import("../../domain/battle/lifecycle/state-delta-reducer.js");
@@ -269,7 +232,6 @@ describe("battle scenarios (harness)", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: passiveSkillId, tags: [] },
     };
     const catalog = new CatalogBuilder()
@@ -398,7 +360,6 @@ describe("battle scenarios (harness)", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: "Kill nearest", tags: [] },
     };
     // Issue #251: reacts to ActionReservationRemoved (the DEFEATED removal of
@@ -431,7 +392,6 @@ describe("battle scenarios (harness)", () => {
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: passiveSkillId, tags: [] },
     };
     const catalog = new CatalogBuilder()
@@ -544,7 +504,6 @@ describe("battle scenarios (harness)", () => {
     const untypedShield = (id: string, amount: number): EffectActionDefinition => ({
       kind: "APPLY_SHIELD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         formula: { kind: "CONSTANT", value: amount },
@@ -559,7 +518,6 @@ describe("battle scenarios (harness)", () => {
     ): EffectActionDefinition => ({
       kind: "APPLY_SHIELD",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         formula: { kind: "CONSTANT", value: amount },
@@ -571,7 +529,6 @@ describe("battle scenarios (harness)", () => {
     const subUnit = (id: string, durability: number): EffectActionDefinition => ({
       kind: "APPLY_SUBUNIT",
       effectActionDefinitionId: createEffectActionDefinitionId(id),
-      requiredCapabilities: [],
       metadata: { tags: [] },
       payload: {
         durability: { formula: { kind: "CONSTANT", value: durability } },
@@ -640,7 +597,6 @@ describe("battle scenarios (harness)", () => {
         accuracy: { guaranteedHit: true },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      requiredCapabilities: [],
       metadata: { displayName: id, tags: [] },
     });
 
@@ -754,7 +710,6 @@ describe("battle scenarios (harness)", () => {
       const linkTo = (id: string, bindingId: string): EffectActionDefinition => ({
         kind: "APPLY_DAMAGE_LINK",
         effectActionDefinitionId: createEffectActionDefinitionId(id),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           linkTo: { kind: "BINDING", targetBindingId: createTargetBindingId(bindingId) },
@@ -855,7 +810,6 @@ describe("battle scenarios (harness)", () => {
       const continuousDamage: EffectActionDefinition = {
         kind: "APPLY_CONTINUOUS_DAMAGE",
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_DOT"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           continuousDamageKind: "FIXED",
@@ -877,7 +831,6 @@ describe("battle scenarios (harness)", () => {
       const halveOwnAttack: EffectActionDefinition = {
         kind: "APPLY_STAT_MOD",
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_SELF_ATTACK_DOWN"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           stat: "ATTACK",

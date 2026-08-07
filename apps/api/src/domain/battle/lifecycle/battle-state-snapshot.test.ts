@@ -41,7 +41,6 @@ const CHARGE_SKILL: SkillDefinition = {
     accuracy: { guaranteedHit: false },
     piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
   },
-  requiredCapabilities: [],
   metadata: { displayName: "Charge", tags: [] },
 };
 

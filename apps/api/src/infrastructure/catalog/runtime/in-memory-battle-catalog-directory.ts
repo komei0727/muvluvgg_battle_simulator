@@ -27,7 +27,6 @@ export class InMemoryBattleCatalogDirectory implements BattleCatalogDirectory {
       skills: this.index.skills,
       effectActions: this.index.effectActions,
       memories: this.index.memories,
-      capabilities: this.index.capabilities,
     };
   }
 }

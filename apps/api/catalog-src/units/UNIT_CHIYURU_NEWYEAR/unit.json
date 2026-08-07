@@ -17,7 +17,6 @@
   "activeSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_AS1", "SKL_CHIYURU_NEWYEAR_AS2"],
   "passiveSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_PS1", "SKL_CHIYURU_NEWYEAR_PS2"],
   "extraSkillDefinitionId": "SKL_CHIYURU_NEWYEAR_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_SIRIUS_SUGAR"],
     "tags": [],

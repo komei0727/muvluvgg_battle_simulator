@@ -21,7 +21,6 @@
     "SKL_KOKORO_SPORTSDAY_PS3"
   ],
   "extraSkillDefinitionId": "SKL_KOKORO_SPORTSDAY_EX",
-  "requiredCapabilities": [],
   "metadata": {
     "affiliations": ["AFF_PRE_KURASU_A"],
     "tags": [],

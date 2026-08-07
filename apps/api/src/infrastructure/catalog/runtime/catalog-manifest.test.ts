@@ -10,14 +10,13 @@ import {
 
 function validManifestDto() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     catalogRevision: "2026-07-11.1",
     files: {
       "units.json": sha256Hex("units"),
       "skills.json": sha256Hex("skills"),
       "effects.json": sha256Hex("effects"),
       "memories.json": sha256Hex("memories"),
-      "capabilities.json": sha256Hex("capabilities"),
     },
   };
 }
@@ -37,16 +36,16 @@ describe("sha256Hex", () => {
 });
 
 describe("parseCatalogManifest", () => {
-  it("UT-CAT-MANIFEST-003: parses a valid schemaVersion=2 manifest", () => {
+  it("UT-CAT-MANIFEST-003: parses a valid schemaVersion=3 manifest", () => {
     const manifest = parseCatalogManifest(validManifestDto());
-    expect(manifest.schemaVersion).toBe(2);
+    expect(manifest.schemaVersion).toBe(3);
     expect(manifest.catalogRevision).toBe("2026-07-11.1");
   });
 
   it("UT-CAT-MANIFEST-004: rejects a manifest missing a required file hash", () => {
     const dto = validManifestDto();
     const files = { ...dto.files } as Partial<typeof dto.files>;
-    delete files["capabilities.json"];
+    delete files["memories.json"];
     expect(() => parseCatalogManifest({ ...dto, files })).toThrow(CatalogManifestValidationError);
   });
 
@@ -76,7 +75,6 @@ describe("verifyCatalogFileHashes", () => {
         "skills.json": "skills",
         "effects.json": "effects",
         "memories.json": "memories",
-        "capabilities.json": "capabilities",
       }),
     ).not.toThrow();
   });
@@ -89,7 +87,6 @@ describe("verifyCatalogFileHashes", () => {
         "skills.json": "skills",
         "effects.json": "tampered-too",
         "memories.json": "memories",
-        "capabilities.json": "capabilities",
       });
       expect.unreachable();
     } catch (error) {

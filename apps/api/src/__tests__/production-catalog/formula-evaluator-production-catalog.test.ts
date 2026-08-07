@@ -144,7 +144,6 @@ describe("production Catalog DAMAGE with a non-SKILL_POWER formula (RES-001, R-N
     if (effectAction.kind !== "DAMAGE") {
       return;
     }
-    expect(effectAction.requiredCapabilities).toContain("CAP_FORMULA");
     expect(effectAction.payload.formula.kind).toBe("CURRENT_HP_RATIO");
 
     const target = unitFor("TARGET", "UNIT_A", { maximumHp: 1000 });
@@ -177,7 +176,6 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
       if (effectAction.kind !== "DAMAGE") {
         return;
       }
-      expect(effectAction.requiredCapabilities).toContain("CAP_FORMULA");
       expect(effectAction.payload.formula).toEqual({
         kind: "DAMAGE_RECEIVED_RATIO",
         sourceResult: "LAST_DAMAGE_RECEIVED",
@@ -197,7 +195,6 @@ describe("production Catalog DAMAGE_RECEIVED_RATIO counters (RES-001, R-NUM-04)"
       const triggeringDamageAction = {
         kind: "DAMAGE" as const,
         effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEST_TRIGGER"),
-        requiredCapabilities: [],
         metadata: { tags: [] },
         payload: {
           damageType: "PHYSICAL" as const,
@@ -293,7 +290,6 @@ describe("production Catalog APPLY_STAT_MOD with ALIVE_UNIT_COUNT_SCALE (RES-001
     if (effectAction.kind !== "APPLY_STAT_MOD") {
       return;
     }
-    expect(effectAction.requiredCapabilities).toContain("CAP_FORMULA");
     expect(effectAction.payload.formula).toEqual({
       kind: "ALIVE_UNIT_COUNT_SCALE",
       side: "ALLY",

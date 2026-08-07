@@ -81,7 +81,6 @@ function unitDefinitionOf(
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds,
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: {
       displayName: "Test Unit",
       characterName: "Test Character",
@@ -121,7 +120,6 @@ function passiveSkillOf(
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    requiredCapabilities: [],
     metadata: { displayName: id, tags: [] },
   };
 }

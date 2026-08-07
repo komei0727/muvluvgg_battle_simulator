@@ -93,7 +93,6 @@ function poisonDefinition(
   return {
     kind: "APPLY_CONTINUOUS_DAMAGE",
     effectActionDefinitionId: createEffectActionDefinitionId(id),
-    requiredCapabilities: [],
     metadata: { tags: [] },
     payload: {
       continuousDamageKind: "POISON",

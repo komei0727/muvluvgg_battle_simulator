@@ -72,7 +72,6 @@ describe("production Catalog CAP_RESOLUTION_BRANCH_REPEAT — BRANCH (RES-003, I
   it("IT-CAP-BRANCH-REPEAT-PROD-001: SKL_KEI_JACKKNIFE_AS2's real BRANCH takes thenSteps when SELF holds MARKER_ROUSHIN, boosting damage across three enemies (EffectStepStarting BRANCH + DamageApplied + StateDelta + independent Reducer restoration)", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_KEI_JACKKNIFE"]);
     const skill = skillFrom(snapshot, "SKL_KEI_JACKKNIFE_AS2");
-    expect(skill.requiredCapabilities).toContain("CAP_RESOLUTION_BRANCH_REPEAT");
     const step = (skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [])[0];
     expect(step?.kind).toBe("BRANCH");
 
@@ -172,7 +171,6 @@ describe("production Catalog CAP_RESOLUTION_BRANCH_REPEAT — BRANCH (RES-003, I
   it("IT-CAP-BRANCH-REPEAT-PROD-003: SKL_SENKA_SCHEMER_EX's real IS_ALIVE BRANCH applies the follow-up when the base survives the preceding row-damage step", () => {
     const snapshot = loadProductionSnapshot(CATALOG_DIR, ["UNIT_SENKA_SCHEMER"]);
     const skill = skillFrom(snapshot, "SKL_SENKA_SCHEMER_EX");
-    expect(skill.requiredCapabilities).toContain("CAP_RESOLUTION_BRANCH_REPEAT");
 
     const actor = unitOf("ALLY", "senka", "UNIT_SENKA_SCHEMER", {
       column: "LEFT",

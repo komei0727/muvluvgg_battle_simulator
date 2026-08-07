@@ -152,7 +152,6 @@ function unitDefinition(id: string, maximumAp: number, maximumPp: number): UnitD
     activeSkillDefinitionIds: [],
     passiveSkillDefinitionIds: [],
     extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
     metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
   };
 }

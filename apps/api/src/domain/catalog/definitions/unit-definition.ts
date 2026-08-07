@@ -1,9 +1,7 @@
 import type { Attribute, PositionRow, Role, UnitType } from "./catalog-enums.js";
 import {
-  createCapabilityId,
   createSkillDefinitionId,
   createUnitDefinitionId,
-  type CapabilityId,
   type SkillDefinitionId,
   type UnitDefinitionId,
 } from "./catalog-ids.js";
@@ -53,7 +51,6 @@ export interface UnitDefinition {
   readonly activeSkillDefinitionIds: readonly SkillDefinitionId[];
   readonly passiveSkillDefinitionIds: readonly SkillDefinitionId[];
   readonly extraSkillDefinitionId: SkillDefinitionId;
-  readonly requiredCapabilities: readonly CapabilityId[];
   readonly metadata: UnitMetadata;
 }
 
@@ -88,7 +85,6 @@ export interface UnitDefinitionInput {
   readonly activeSkillDefinitionIds: readonly string[];
   readonly passiveSkillDefinitionIds: readonly string[];
   readonly extraSkillDefinitionId: string;
-  readonly requiredCapabilities: readonly string[];
   readonly metadata: UnitMetadataInput;
 }
 
@@ -152,11 +148,6 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     input.extraSkillDefinitionId,
     `${path}.extraSkillDefinitionId`,
   );
-  assertArray(input.requiredCapabilities, `${path}.requiredCapabilities`);
-  const requiredCapabilities = input.requiredCapabilities.map((id, i) =>
-    createCapabilityId(id, `${path}.requiredCapabilities[${i}]`),
-  );
-
   return deepFreeze({
     unitDefinitionId,
     attribute: input.attribute,
@@ -168,7 +159,6 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     activeSkillDefinitionIds,
     passiveSkillDefinitionIds,
     extraSkillDefinitionId,
-    requiredCapabilities,
     metadata: {
       displayName: input.metadata.displayName,
       characterName: input.metadata.characterName,

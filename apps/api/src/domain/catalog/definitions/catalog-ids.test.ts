@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createCapabilityId,
   createEffectActionDefinitionId,
   createMarkerId,
   createMemoryDefinitionId,
@@ -32,15 +31,6 @@ describe("Catalog branded IDs", () => {
     expect(createMemoryDefinitionId("MEM_001")).toBe("MEM_001");
     expect(createTargetBindingId("TGT_PRIMARY")).toBe("TGT_PRIMARY");
     expect(createMarkerId("MARKER_CURSE")).toBe("MARKER_CURSE");
-  });
-
-  it("UT-CAT-ID-005: accepts CapabilityId with either CAP_ or Q- prefix", () => {
-    expect(createCapabilityId("CAP_HEAL")).toBe("CAP_HEAL");
-    expect(createCapabilityId("Q-TGT-06")).toBe("Q-TGT-06");
-  });
-
-  it("UT-CAT-ID-006: rejects a CapabilityId without an allowed prefix", () => {
-    expect(() => createCapabilityId("HEAL")).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-ID-007: accepts a RuntimeCounterId with no fixed prefix", () => {

@@ -109,12 +109,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER",
-      "CAP_EFFECT_STEP_CONDITION",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_TARGET_FILTER_ORDER"
-    ],
     "metadata": {
       "displayName": "あわあわふー",
       "tags": []
@@ -163,7 +157,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "かぶり湯",
       "tags": []
@@ -236,12 +229,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": [
-      "CAP_MARKER_STACK_FORMULA",
-      "CAP_MARKER",
-      "CAP_RESOLUTION_BRANCH_REPEAT",
-      "CAP_EFFECT_STEP_CONDITION"
-    ],
     "metadata": {
       "displayName": "背中流そうか？",
       "tags": []
@@ -276,7 +263,6 @@
       "count": 1
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_TRIGGER_CONTEXT"],
     "metadata": {
       "displayName": "すべすべお肌",
       "tags": []
@@ -339,7 +325,6 @@
       "count": 0
     },
     "traits": {},
-    "requiredCapabilities": ["CAP_MARKER", "CAP_DAMAGE_MOD", "CAP_TARGET_FILTER_ORDER"],
     "metadata": {
       "displayName": "のぼせた？",
       "tags": []
