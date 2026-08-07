@@ -317,7 +317,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `MEM_ALWAYS_PICO_BESIDE_YOU` (the last non-selectable Memory). Capability
     // metadata only — no Unit/Skill/EffectAction definition changed, so
     // `unitCount`/violation/`selectable` expectations here stay the same.
-    expect(catalog.catalogRevision).toBe("2026-08-05.1");
+    // `2026-08-06.1` is REL-001 (Issue #202): `CAP_EFFECT_STEP_SET_CONDITION`'s
+    // `implementationTaskId` was repointed from the still-open waiting task
+    // `M7-019` to `DMG-003`, the task that actually flipped it to
+    // `IMPLEMENTED`, and four Capabilities that had only Domain-unit or
+    // Schema/Mapper evidence gained production-path `verification.testCaseIds`.
+    // Capability metadata only — no Unit/Skill/EffectAction definition changed,
+    // and no `runtimeStatus` moved, so every expectation here stays the same.
+    expect(catalog.catalogRevision).toBe("2026-08-06.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

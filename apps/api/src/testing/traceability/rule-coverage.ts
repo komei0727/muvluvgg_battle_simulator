@@ -163,6 +163,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-USECASE-003",
       "UT-USECASE-004",
       "SCN-BTL-022",
+      // 実`catalog/`に対する、Catalog一覧`selectable`とpreflight判定の一致証跡。
+      // 上のUT/SCNは合成Catalogでpreflight自身の判定を見るのに対し、こちらは
+      // 「一覧が選ばせた編成をpreflightが受理する」という編成入口全体の契約を見る。
+      "IT-REL-001-SELECTABILITY-PREFLIGHT-001",
+      "IT-REL-001-SELECTABILITY-PREFLIGHT-002",
+      "IT-REL-001-SELECTABILITY-PREFLIGHT-003",
+      "IT-REL-001-SELECTABILITY-PREFLIGHT-004",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
