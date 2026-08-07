@@ -1,7 +1,11 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { UNCOVERED_MEMORY_IDS, UNCOVERED_UNIT_IDS } from "./production-id-coverage.js";
+import {
+  UNCOVERED_MEMORY_IDS,
+  UNCOVERED_UNIT_IDS,
+  unreferencedIds,
+} from "./production-id-coverage.js";
 
 const catalogDir = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const unitsTestDir = fileURLToPath(
@@ -193,7 +197,7 @@ describe("Production ID coverage audit", () => {
           continue;
         }
         const source = readFileSync(target.testFilePath, "utf8");
-        const missing = target.requiredIds.filter((id) => !source.includes(id));
+        const missing = unreferencedIds(source, target.requiredIds);
         if (missing.length > 0) {
           violations.push(`${target.definitionId}: unreferenced IDs ${JSON.stringify(missing)}`);
         }
@@ -221,6 +225,20 @@ describe("Production ID coverage audit", () => {
     expect(
       violations,
       `allowlisted definitions that already have a test file: ${JSON.stringify(violations)}`,
+    ).toEqual([]);
+  });
+
+  it("UT-AUDIT-UNITCOV-004: ID matching is word-bounded so a longer ID does not vouch for its prefix", () => {
+    // 監査001の本体（allowlist外の定義に対する照合）は、allowlistが全件である間は
+    // 一度も実行されない。照合の取りこぼしがバッチ移行の最初のPRまで露見しないため、
+    // 判定関数自体をここで直接検証する。production Catalogには一方が他方の接頭辞に
+    // なるIDが43組実在し、そのうち34ユニット分は同一ユニットのrequiredIds内に同居する。
+    const source = ['effectActionFrom(snapshot, "ACT_FEE_BATH_EX_DAMAGE_BOOSTED")'].join("\n");
+    expect(unreferencedIds(source, ["ACT_FEE_BATH_EX_DAMAGE"])).toEqual(["ACT_FEE_BATH_EX_DAMAGE"]);
+    expect(unreferencedIds(source, ["ACT_FEE_BATH_EX_DAMAGE_BOOSTED"])).toEqual([]);
+    // 語境界は末尾の引用符・カンマ・改行では切れる（実テストの記述形に一致する）。
+    expect(
+      unreferencedIds('["SKL_FEE_BATH_EX", "ACT_FEE_BATH_EX_DAMAGE_BOOSTED"]', ["SKL_FEE_BATH_EX"]),
     ).toEqual([]);
   });
 

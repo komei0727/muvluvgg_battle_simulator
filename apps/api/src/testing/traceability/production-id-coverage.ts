@@ -13,6 +13,21 @@
  * 同一PRでユニット単位結合テストを書く。
  */
 
+/**
+ * `requiredIds`のうち、テストソースが参照していないIDを返す。
+ *
+ * 照合は語境界（`\b`）で行う。単純な部分文字列一致では、一方が他方の接頭辞に
+ * なっているID（production Catalogに43組実在。例:
+ * `ACT_FEE_BATH_EX_DAMAGE`と`ACT_FEE_BATH_EX_DAMAGE_BOOSTED`）で、
+ * 長い方だけを書いたテストが短い方も参照済みと判定され、基礎ダメージ側が
+ * 一度も検証されないまま監査を通ってしまう。JSの`\w`は`_`を含むため、
+ * `\b`が後続の`_BOOSTED`との境界に一致せず、この取りこぼしを塞げる。
+ * IDは`[A-Z0-9_]`のみで正規表現メタ文字を含まないためエスケープは不要。
+ */
+export function unreferencedIds(source: string, requiredIds: readonly string[]): readonly string[] {
+  return requiredIds.filter((id) => !new RegExp(String.raw`${id}\b`).test(source));
+}
+
 export const UNCOVERED_UNIT_IDS: readonly string[] = [
   "UNIT_ANIS_TROUBLEMAKER",
   "UNIT_AOI_ELEGANT",
