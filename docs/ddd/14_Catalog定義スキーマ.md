@@ -2373,7 +2373,7 @@ metadata:
 | `UT-AUDIT-REL-001-001` | `IMPLEMENTED` Capabilityは`verification.testCaseIds`のうち少なくとも1件が`apps/api/src/__tests__/production-catalog/`配下で定義されていなければならない                   |
 | `UT-AUDIT-REL-001-002` | `IMPLEMENTED` Capabilityの`implementationTaskId`は`17_残作業対応表.json`の`tasks`で`CLOSED`でなければならない（M6以前の`M6-CD-001`／`M6-RC-001`だけを明示的な例外にする） |
 
-1件目は「productionテストか」をテストID接頭辞（`IT-`）ではなく**定義ファイルの位置**で判定する。接頭辞は命名規約に過ぎず、実`catalog/`をロードしている保証にならないためである。2件目は「実装したPRが同じcommitで自Taskを`CLOSED`にする」既存運用（`17_残作業対応表.md`「更新手順」#4）を前提にしており、未着手Taskによる所有と、台帳に存在しないTask IDの誤記の双方を弾く。
+1件目は「productionテストか」をテストID接頭辞（`IT-`）ではなく**定義ファイルの位置**で判定する。接頭辞は命名規約に過ぎず、実`catalog/`をロードしている保証にならないためである。この不変条件は[`12_テスト戦略.md`](./12_テスト戦略.md)「production Catalog 結合テストの2軸モデル」のretire方針に下限を課す — golden battleがproduction-catalogテストを包含してもretireできるのは最後の1件までで、`IMPLEMENTED` Capabilityごとに機構検証を1件は`production-catalog/`へ残す（同節「retire の下限」）。2件目は「実装したPRが同じcommitで自Taskを`CLOSED`にする」既存運用（`17_残作業対応表.md`「更新手順」#4）を前提にしており、未着手Taskによる所有と、台帳に存在しないTask IDの誤記の双方を弾く。
 
 なお`M6-CD-001`（`CAP_COOLDOWN_MANIPULATION`）・`M6-RC-001`（`CAP_SKILL_RUNTIME_COUNTER`）は`17_残作業対応表.json`がM7以降の残作業だけを登録する台帳であるため`tasks`に存在しない。台帳へ遡って登録すると台帳の位置づけが崩れるため、例外として許可リストに置く（`UT-AUDIT-M7-002`の同趣旨の除外と対になる）。
 
