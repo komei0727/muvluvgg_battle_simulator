@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { projectEventsForLogLevel } from "./battle-log-projection.js";
+import { SUMMARY_EVENT_TYPE_INCLUSION, projectEventsForLogLevel } from "./battle-log-projection.js";
+import { DIAGNOSTIC_ONLY_EVENT_TYPES } from "../../domain/catalog/definitions/catalog-event-types.js";
 import type {
   BattleDomainEvent,
   BattleDomainEventType,
@@ -9,7 +10,7 @@ import { createBattleId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-1");
 
-function recordAllM3Events(): readonly BattleDomainEvent[] {
+function recordAllEvents(): readonly BattleDomainEvent[] {
   const recorder = new EventRecorder(BATTLE_ID);
   const scope = () => recorder.nextResolutionScopeId();
   const actionId = recorder.nextActionId();
@@ -64,6 +65,23 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
       exAfter: 0,
     },
   });
+  // R-ACT-03: EXゲージ上限超過分の破棄（DIAGNOSTIC）。
+  recorder.record({
+    eventType: "ExtraGaugeOverflowDiscarded",
+    category: "DIAGNOSTIC",
+    turnNumber: 1,
+    cycleNumber: 1,
+    actionId,
+    resolutionScopeId: scope(),
+    sourceUnitId: "ally:1" as never,
+    payload: {
+      battleUnitId: "ally:1" as never,
+      baseDelta: 5,
+      requestedAmount: 5,
+      actualAmount: 2,
+      discardedAmount: 3,
+    },
+  });
   recorder.record({
     eventType: "TargetsSelected",
     category: "FACT",
@@ -101,6 +119,19 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
     resolutionScopeId: scope(),
     payload: { skillDefinitionId: "SKL_1" as never, costResource: "AP", costAmount: 1 },
   });
+  // `08_ドメインイベント.md`「公開レベル」: `EffectStepSkipped`はDIAGNOSTIC。
+  // 直後のFACTイベントの親に据えて、DETAILEDで間引かれた親の連番が
+  // `parentSequence`として残ることも同時に確認できるようにする。
+  const stepSkipped = recorder.record({
+    eventType: "EffectStepSkipped",
+    category: "DIAGNOSTIC",
+    turnNumber: 1,
+    cycleNumber: 1,
+    actionId,
+    skillUseId,
+    resolutionScopeId: scope(),
+    payload: { stepIndex: 0, conditionKind: "TRUE", result: false },
+  });
   recorder.record({
     eventType: "HitConfirmed",
     category: "FACT",
@@ -109,6 +140,8 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
     actionId,
     skillUseId,
     resolutionScopeId: scope(),
+    parentEventId: stepSkipped.eventId,
+    rootEventId: stepSkipped.eventId,
     payload: {
       skillDefinitionId: "SKL_1" as never,
       effectActionDefinitionId: "ACT_1" as never,
@@ -255,7 +288,7 @@ function recordAllM3Events(): readonly BattleDomainEvent[] {
 
 describe("projectEventsForLogLevel", () => {
   it("UT-LOG-PROJECTION-001: SUMMARY keeps only BattleStarted/ActionCompleted/UnitDefeated/TurnCompleted/BattleCompleted", () => {
-    const events = recordAllM3Events();
+    const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "SUMMARY");
 
@@ -271,28 +304,59 @@ describe("projectEventsForLogLevel", () => {
     expect(projected.map((e) => e.eventType)).toEqual(expectedTypes);
   });
 
-  it("UT-LOG-PROJECTION-002: DETAILED keeps the full M3 event set", () => {
-    const events = recordAllM3Events();
+  it("UT-LOG-PROJECTION-002: DETAILED drops DIAGNOSTIC-category events and keeps every FACT/TIMING event", () => {
+    const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "DETAILED");
 
-    expect(projected).toEqual(events);
+    expect(projected).toEqual(events.filter((event) => event.category !== "DIAGNOSTIC"));
+    expect(projected.some((event) => event.category === "DIAGNOSTIC")).toBe(false);
+    // The fixture must actually exercise the exclusion, otherwise this test
+    // passes for the wrong reason.
+    expect(events.filter((event) => event.category === "DIAGNOSTIC").length).toBeGreaterThan(0);
   });
 
-  it("UT-LOG-PROJECTION-003: DIAGNOSTIC keeps the full M3 event set (no DIAGNOSTIC-category events exist yet)", () => {
-    const events = recordAllM3Events();
+  it("UT-LOG-PROJECTION-003: DIAGNOSTIC keeps the DIAGNOSTIC-category events that DETAILED drops", () => {
+    const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "DIAGNOSTIC");
 
     expect(projected).toEqual(events);
+    expect(projected.map((event) => event.eventType)).toEqual(
+      expect.arrayContaining(["EffectStepSkipped", "ExtraGaugeOverflowDiscarded"]),
+    );
   });
 
   it("UT-LOG-PROJECTION-004: preserves sequence order within the SUMMARY subset", () => {
-    const events = recordAllM3Events();
+    const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "SUMMARY");
 
     const sequences = projected.map((e) => e.sequence);
     expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
+  });
+
+  it("UT-LOG-PROJECTION-005: DETAILED keeps a child of an excluded DIAGNOSTIC event, so the published parentSequence still names the internal sequence (10_API設計.md「直接の原因イベントが公開されているかにかかわらず、元の連番を返す」)", () => {
+    const events = recordAllEvents();
+    const skipped = events.find((event) => event.eventType === "EffectStepSkipped");
+    const child = events.find((event) => event.parentEventId === skipped?.eventId);
+    expect(skipped).toBeDefined();
+    expect(child).toBeDefined();
+
+    const projected = projectEventsForLogLevel(events, "DETAILED");
+
+    expect(projected).not.toContain(skipped);
+    expect(projected).toContain(child);
+  });
+
+  it("UT-LOG-PROJECTION-006: no DIAGNOSTIC-category event type is classified into SUMMARY", () => {
+    const summaryTypes = Object.entries(SUMMARY_EVENT_TYPE_INCLUSION)
+      .filter(([, included]) => included)
+      .map(([eventType]) => eventType);
+
+    expect(summaryTypes).not.toEqual(expect.arrayContaining([...DIAGNOSTIC_ONLY_EVENT_TYPES]));
+    for (const eventType of DIAGNOSTIC_ONLY_EVENT_TYPES) {
+      expect(summaryTypes).not.toContain(eventType);
+    }
   });
 });

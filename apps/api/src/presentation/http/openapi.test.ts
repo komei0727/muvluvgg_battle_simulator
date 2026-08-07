@@ -1,7 +1,14 @@
 import { Ajv } from "ajv";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
+import { buildServer } from "./build-server.js";
+import { BATTLE_SIMULATION_CATALOG_PATH } from "./routes/catalog-route.js";
+import { BATTLE_SIMULATIONS_PATH } from "./routes/simulation-route.js";
+import {
+  HTTP_ERROR_CODES,
+  errorCodesForHttpStatus,
+} from "./protocol/error-response/error-response-mapper.js";
+import { errorResponseDocSchemaForStatus } from "./schemas/error/error-schema.js";
 import {
   battleSimulationResponseSchema,
   battleSimulationResponseDocSchema,
@@ -10,25 +17,20 @@ import {
 } from "./schemas/simulation/simulation-schema.js";
 import {
   battleLogEventResponseDocSchema,
+  battleLogEventResponseSchema,
   runtimeCounterChangedDetailsSchema,
   effectDurationReducedDetailsSchema,
+  CONDITION_KIND_ENUM,
+  EFFECT_ACTION_KIND_ENUM,
+  STATUS_KIND_ENUM,
 } from "./schemas/battle-log/battle-log-schema.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
+import type { BattleLogEventResponseBody } from "../../application/contracts/battle-log.js";
 import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
-import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
-import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
-import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
-import type { BattleDomainEventType } from "../../domain/battle/events/domain-event.js";
-import {
-  createSkillDefinitionId,
-  createUnitDefinitionId,
-} from "../../domain/catalog/definitions/catalog-ids.js";
-import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
-import type { BattleCatalog, BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
-import { ManualClock } from "../../testing/clock/manual-clock.js";
-import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
-import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
+import { SUMMARY_EVENT_TYPE_INCLUSION } from "../../application/observation/battle-log-projection.js";
+import { CONDITION_KINDS } from "../../domain/catalog/definitions/condition-definition.js";
+import { EFFECT_ACTION_KINDS } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { STATUS_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
+import { buildOpenApiTestUseCase } from "../../testing/http/openapi-test-use-case.js";
 
 /**
  * 意図的な横断テスト（`12_テスト戦略.md`の co-location 規約における `<module>.test.ts`
@@ -36,100 +38,37 @@ import { SequenceRandomSourceFactory } from "../../testing/random/sequence-rando
  * から組み上げて公開する OpenAPI ドキュメント一枚であり、「全ルートと全ステータスに
  * Schema がある」（同書）はルート横断でしか確認できない。
  */
-function unitDefinition(id: string): UnitDefinition {
-  return {
-    unitDefinitionId: createUnitDefinitionId(id),
-    attribute: "AGGRESSIVE",
-    unitType: "PHYSICAL",
-    role: "PHYSICAL_ATTACKER",
-    positionAptitudes: ["FRONT", "BACK"],
-    baseStats: {
-      maximumHp: 100,
-      attack: 10,
-      defense: 10,
-      criticalRate: 0.1,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.25,
-      actionSpeed: 10,
-      maximumAp: 3,
-      maximumPp: 3,
-    },
-    extraGaugeMaximum: 100,
-    activeSkillDefinitionIds: [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: createSkillDefinitionId("SKL_EX"),
-    requiredCapabilities: [],
-    metadata: { displayName: id, characterName: id, characterId: id, affiliations: [], tags: [] },
-  };
+interface OpenApiResponseForTest {
+  readonly headers?: Readonly<Record<string, unknown>>;
+  readonly content?: Readonly<
+    Record<string, { readonly schema?: { readonly properties?: Record<string, unknown> } }>
+  >;
 }
 
-/** `unitDefinition`の`extraSkillDefinitionId`（"SKL_EX"）が参照するEXスキル。EXゲージは満タンにならないため実際には使用されない。 */
-function exSkillDefinition(id: string): SkillDefinition {
-  return {
-    skillDefinitionId: createSkillDefinitionId(id),
-    skillType: "EX",
-    cost: { resource: "EX_GAUGE", amount: 100 },
-    activationCondition: { kind: "TRUE" },
-    triggers: [],
-    counterUpdates: [],
-    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
-    cooldown: { unit: "ACTION", count: 0 },
-    traits: {
-      priorityAttack: false,
-      simultaneousActivationLimited: false,
-      exclusiveActivationGroupId: null,
-      accuracy: { guaranteedHit: false },
-      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
-    },
-    requiredCapabilities: [],
-    metadata: { displayName: id, tags: [] },
-  };
+interface OpenApiDocumentForTest {
+  readonly paths?: Readonly<
+    Record<
+      string,
+      Readonly<
+        Record<string, { readonly responses?: Readonly<Record<string, OpenApiResponseForTest>> }>
+      >
+    >
+  >;
 }
 
-class FakeBattleCatalog implements BattleCatalog {
-  private readonly units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>;
-
-  constructor(units: ReadonlyMap<ReturnType<typeof createUnitDefinitionId>, UnitDefinition>) {
-    this.units = units;
-  }
-
-  loadSnapshot(): BattleCatalogSnapshot {
-    return {
-      catalogRevision: "rev-1",
-      units: this.units,
-      skills: new Map([[createSkillDefinitionId("SKL_EX"), exSkillDefinition("SKL_EX")]]),
-      effectActions: new Map(),
-      memories: new Map(),
-      capabilities: new Map(),
-    };
-  }
+/** 公開文書のエラーresponseから`error.code`の`enum`を取り出す。 */
+function publishedErrorCodeEnum(response: OpenApiResponseForTest | undefined): unknown {
+  const schema = response?.content?.["application/json"]?.schema;
+  const error = schema?.properties?.["error"] as
+    | { readonly properties?: { readonly code?: { readonly enum?: unknown } } }
+    | undefined;
+  return error?.properties?.code?.enum;
 }
-
-/** `build-server.test.ts`と同様、Worker経由の実体を薄いdirect adapterで代替する。 */
-function toDirectExecutor(useCase: SimulateBattleUseCase): SimulateBattleUseCasePort {
-  return {
-    execute: (request: BattleSimulationRequestBody, context: SimulationExecutionContext) =>
-      Promise.resolve(useCase.execute(toSimulateBattleCommand(request), context)),
-  };
-}
-
-function buildTestUseCase(): SimulateBattleUseCasePort {
-  const units = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
-  return toDirectExecutor(
-    new SimulateBattleUseCase({
-      battleCatalog: new FakeBattleCatalog(units),
-      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
-      randomSourceFactory: new SequenceRandomSourceFactory([]),
-      clock: new ManualClock(Date.now()),
-    }),
-  );
-}
-
 describe("OpenAPI document", () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    app = await buildServer(buildTestUseCase());
+    app = await buildServer(buildOpenApiTestUseCase());
     await app.ready();
   });
 
@@ -845,7 +784,7 @@ describe("OpenAPI document", () => {
     expect(validate(withModulo(1.5))).toBe(false);
   });
 
-  it("API-OPENAPI-008 (DMG-005/Issue #190): DAMAGE_APPLIED keeps subUnitAbsorbed optional so a strict v1 decoder built before DMG-005 still validates", () => {
+  it("API-OPENAPI-027 (DMG-005/Issue #190): DAMAGE_APPLIED keeps subUnitAbsorbed optional so a strict v1 decoder built before DMG-005 still validates", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);
 
@@ -886,93 +825,14 @@ describe("OpenAPI document", () => {
     ).toBe(true);
   });
 
-  it("API-OPENAPI-005 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
-    // A mapped type over `BattleDomainEventType` forces a compile error (missing
-    // or excess key) whenever `BattleDomainEventPayloadMap` gains/loses an event
-    // type, so this list can't silently drift from the domain the way
-    // `EVENT_DETAILS_SCHEMA_BY_TYPE` did.
-    const ALL_EVENT_TYPES: Readonly<Record<BattleDomainEventType, true>> = {
-      BattleStarted: true,
-      TurnStarted: true,
-      ResourcesRecovered: true,
-      ActionQueueCreated: true,
-      ActionReservationRemoved: true,
-      ActionQueueReordered: true,
-      ActionStarted: true,
-      ActionWaited: true,
-      TargetsSelected: true,
-      SkillUseStarting: true,
-      SkillUseStarted: true,
-      SkillUseCompleted: true,
-      EffectStepStarting: true,
-      EffectStepSkipped: true,
-      EffectStepCompleted: true,
-      RandomBranchSelected: true,
-      EffectActionStarting: true,
-      EffectActionCompleted: true,
-      UnitBeingAttacked: true,
-      HitConfirmed: true,
-      EvasionActivated: true,
-      BlindnessCheckResolved: true,
-      SkillMissed: true,
-      CriticalCheckResolved: true,
-      DamageWillBeApplied: true,
-      DamageCalculated: true,
-      ShieldConsumed: true,
-      SubUnitDamaged: true,
-      HitPointReduced: true,
-      DamageApplied: true,
-      DamageConvertedToHeal: true,
-      LinkedDamageGenerated: true,
-      DamageRedirected: true,
-      ReflectedDamageGenerated: true,
-      LethalDamageSurvived: true,
-      HealApplied: true,
-      HealingTransferred: true,
-      ContinuousDamageApplied: true,
-      EffectMerged: true,
-      UnitDefeated: true,
-      ActionCompleting: true,
-      ActionCompleted: true,
-      CooldownStarted: true,
-      CooldownReduced: true,
-      CooldownCompleted: true,
-      ChargeStarted: true,
-      ChargeReleased: true,
-      ChargeCancelled: true,
-      ChargeHeldByFreeze: true,
-      TurnCompleting: true,
-      TurnCompleted: true,
-      BattleCompleted: true,
-      ResourceChanged: true,
-      PassivePointConsumed: true,
-      ExtraGaugeIncreased: true,
-      ExtraGaugeOverflowDiscarded: true,
-      PassiveActivated: true,
-      PassiveResolved: true,
-      PassiveInterrupted: true,
-      MemoryTriggered: true,
-      MemoryResolved: true,
-      SkillUseInterrupted: true,
-      RuntimeCounterChanged: true,
-      RuntimeCounterReset: true,
-      EffectApplied: true,
-      EffectApplicationRejected: true,
-      EffectiveEffectChanged: true,
-      CombatStatChanged: true,
-      ResourceCapacityChanged: true,
-      EffectDurationReduced: true,
-      StunDurationChanged: true,
-      FreezeRemoved: true,
-      EffectConsumptionChanged: true,
-      EffectExpired: true,
-      EffectRemoved: true,
-      MarkerApplied: true,
-      MarkerUpdated: true,
-      MarkerRemoved: true,
-    };
+  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
+    // `SUMMARY_EVENT_TYPE_INCLUSION` is a mapped type over `BattleDomainEventType`,
+    // so it gains a compile error (missing or excess key) whenever
+    // `BattleDomainEventPayloadMap` changes. Reusing it as the event-type roster
+    // keeps this test from drifting the way `EVENT_DETAILS_SCHEMA_BY_TYPE` did,
+    // without maintaining a second exhaustive list here.
     const expectedTypes = new Set(
-      Object.keys(ALL_EVENT_TYPES).map((eventType) =>
+      Object.keys(SUMMARY_EVENT_TYPE_INCLUSION).map((eventType) =>
         eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase(),
       ),
     );
@@ -987,7 +847,7 @@ describe("OpenAPI document", () => {
     expect(declaredTypes).toEqual(expectedTypes);
   });
 
-  it("API-OPENAPI-006: cooldownStateResponseSchema enforces the ACTION/TURN setting-scope XOR (10_API設計.md CooldownStateResponse) — accepts exactly one matching scope field, rejects both missing, both present, or a mismatched scope field", () => {
+  it("API-OPENAPI-025: cooldownStateResponseSchema keeps the setting scope matched to the unit (10_API設計.md CooldownStateResponse) — it accepts the matching scope field or none at all, and rejects both present or a mismatched scope field", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(cooldownStateResponseSchema);
 
@@ -998,8 +858,13 @@ describe("OpenAPI document", () => {
       validate({ skillDefinitionId: "SKL_1", unit: "TURN", remaining: 1, setAtTurnNumber: 3 }),
     ).toBe(true);
 
-    // Both missing.
-    expect(validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1 })).toBe(false);
+    // REL-004（Issue #203）: 設定scopeなしは正当な状態。PSが行動外のトップレベル
+    // イベントから発動したクールタイム（R-SKL-04）は`setAtActionId`を持たず、
+    // その不在が「どの行動でも設定scopeに一致しない」の正本になる。ここを必須に
+    // していた間、`UNIT_LUCIE_MAID`の実戦闘レスポンスは500になっていた。
+    expect(validate({ skillDefinitionId: "SKL_1", unit: "ACTION", remaining: 1 })).toBe(true);
+    expect(validate({ skillDefinitionId: "SKL_1", unit: "TURN", remaining: 1 })).toBe(true);
+
     // Both present.
     expect(
       validate({
@@ -1021,7 +886,7 @@ describe("OpenAPI document", () => {
     ).toBe(false);
   });
 
-  it("API-OPENAPI-007: runtimeCounterChangedDetailsSchema enforces the SKILL_RUNTIME/APPLIED_EFFECT scope XOR — accepts exactly one matching id field, rejects both missing, both present, or a mismatched scope field", () => {
+  it("API-OPENAPI-026: runtimeCounterChangedDetailsSchema enforces the SKILL_RUNTIME/APPLIED_EFFECT scope XOR — accepts exactly one matching id field, rejects both missing, both present, or a mismatched scope field", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(runtimeCounterChangedDetailsSchema);
 
@@ -1215,5 +1080,206 @@ describe("OpenAPI document", () => {
     expect(validateEvent(event("MARKER_UPDATED", { ...updated, sourceSide: "NEUTRAL" }))).toBe(
       false,
     );
+  });
+
+  it("API-OPENAPI-016 (REL-004, Issue #203): BattleLogEventResponseBody declares exactly the properties battleLogEventResponseSchema serializes, so the wire-contract type cannot silently drift from what is actually published", () => {
+    // A conditional spread (`...(x !== undefined ? { x } : {})`) bypasses TypeScript's
+    // excess-property check, so the Response Mapper can emit a property the wire type
+    // never declared — `sourceSide` did exactly that until this test existed.
+    // The mapped type below fails to compile if the interface changes, and the
+    // assertion fails if the JSON Schema changes; drift needs both to move together.
+    const WIRE_TYPE_PROPERTIES: Readonly<Record<keyof BattleLogEventResponseBody, true>> = {
+      sequence: true,
+      type: true,
+      category: true,
+      turnNumber: true,
+      cycleNumber: true,
+      actionId: true,
+      skillUseId: true,
+      parentSequence: true,
+      rootSequence: true,
+      sourceUnitId: true,
+      sourceSide: true,
+      targetUnitIds: true,
+      details: true,
+      stateVersionBefore: true,
+      stateVersionAfter: true,
+      stateTransitionIndex: true,
+    };
+
+    expect(new Set(Object.keys(battleLogEventResponseSchema.properties))).toEqual(
+      new Set(Object.keys(WIRE_TYPE_PROPERTIES)),
+    );
+  });
+
+  it("API-OPENAPI-017 (REL-004, Issue #203, 10_API設計.md「クライアントは未知のtypeだけでレスポンス全体を拒否しないことが望ましい」): an event carrying an unrecognized type still satisfies the runtime response schema, and the published doc schema says so even though its oneOf enumerates only the currently emitted types", () => {
+    const ajv = new Ajv({ strict: false });
+    const validateRuntime = ajv.compile(battleSimulationResponseSchema);
+    const validateDoc = ajv.compile(battleSimulationResponseDocSchema);
+
+    const knownEvent = {
+      sequence: 1,
+      type: "BATTLE_STARTED",
+      category: "FACT",
+      turnNumber: 0,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: [],
+      details: { turnLimit: 1, allySlotCount: 1, enemySlotCount: 1 },
+      stateVersionBefore: 0,
+      stateVersionAfter: 0,
+    };
+    // A type this API version cannot emit, shaped like a plausible future addition.
+    const futureEvent = {
+      ...knownEvent,
+      sequence: 2,
+      type: "SOME_FUTURE_EVENT_ADDED_AFTER_V1",
+      details: { somethingNew: true },
+    };
+    const body = {
+      schemaVersion: 1,
+      battleId: "battle-1",
+      catalogRevision: "test",
+      result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 1 },
+      initialState: {
+        stateVersion: 0,
+        battleStatus: "RUNNING",
+        turnNumber: 0,
+        cycleNumber: 0,
+        units: [],
+        actionQueue: [],
+      },
+      finalState: {
+        stateVersion: 0,
+        battleStatus: "COMPLETED",
+        turnNumber: 1,
+        cycleNumber: 0,
+        units: [],
+        actionQueue: [],
+      },
+      events: [knownEvent, futureEvent],
+      stateTransitions: [],
+    };
+
+    // The wire contract keeps `type` an open string, so a v1 decoder built from the
+    // runtime schema accepts the response as a whole.
+    expect(validateRuntime(body), JSON.stringify(validateRuntime.errors)).toBe(true);
+
+    // The published doc schema is deliberately stricter: it is the exhaustive
+    // catalogue of what this version emits (that strictness is what makes
+    // API-OPENAPI-005 able to detect an undocumented new event type). A client
+    // generated from it therefore must apply the documented tolerance itself.
+    expect(validateDoc(body)).toBe(false);
+    expect(battleLogEventResponseDocSchema.description).toMatch(
+      /must not reject the whole response/i,
+    );
+  });
+
+  it("API-OPENAPI-018 (REL-004, Issue #203, 10_API設計.md「ステータスコード対応」/「列挙値」): every documented error status publishes exactly the codes that map to it, so the spec table, STATUS_BY_CODE and the OpenAPI document cannot drift apart", () => {
+    const document = app.swagger() as unknown as OpenApiDocumentForTest;
+
+    const errorStatusesByPath = {
+      [BATTLE_SIMULATIONS_PATH]: "post",
+      [BATTLE_SIMULATION_CATALOG_PATH]: "get",
+    } as const;
+
+    const seenCodes = new Set<string>();
+    for (const [path, method] of Object.entries(errorStatusesByPath)) {
+      const responses = document.paths?.[path]?.[method]?.responses ?? {};
+      const errorStatuses = Object.keys(responses).filter((status) => Number(status) >= 400);
+      expect(errorStatuses.length).toBeGreaterThan(0);
+
+      for (const status of errorStatuses) {
+        const expectedCodes = errorCodesForHttpStatus(Number(status));
+        expect(expectedCodes.length, `no code maps to ${status}`).toBeGreaterThan(0);
+
+        const published = publishedErrorCodeEnum(responses[status]);
+        expect(published, `${method.toUpperCase()} ${path} -> ${status}`).toEqual([
+          ...expectedCodes,
+        ]);
+        for (const code of expectedCodes) {
+          seenCodes.add(code);
+        }
+      }
+    }
+
+    // The battle POST documents every status in the spec table, so the union of the
+    // published enums must be the whole taxonomy — a code that maps to no documented
+    // status would otherwise stay invisible to clients.
+    expect([...seenCodes].sort()).toEqual([...HTTP_ERROR_CODES].sort());
+
+    // Documenting a status the taxonomy has no code for is a contradiction between
+    // the route and 10_API設計.md「ステータスコード対応」, so the builder refuses it
+    // rather than publishing an empty enum nothing can satisfy.
+    expect(() => errorResponseDocSchemaForStatus(451)).toThrow(/451/);
+  });
+
+  it("API-OPENAPI-019 (REL-004, Issue #203, 10_API設計.md「Catalog一覧の200/304と戦闘POSTのcache header差異」): the document declares the protocol response headers the server actually sets, including the catalog-only ETag and the 503 Retry-After", async () => {
+    const document = app.swagger() as unknown as OpenApiDocumentForTest;
+    const battleResponses = document.paths?.[BATTLE_SIMULATIONS_PATH]?.post?.responses ?? {};
+    const catalogResponses = document.paths?.[BATTLE_SIMULATION_CATALOG_PATH]?.get?.responses ?? {};
+
+    // Cache-Control and X-Request-Id ride on every response, errors included.
+    for (const responses of [battleResponses, catalogResponses]) {
+      for (const [status, entry] of Object.entries(responses)) {
+        const headers = Object.keys(entry?.headers ?? {});
+        expect(headers, `status ${status}`).toEqual(
+          expect.arrayContaining(["Cache-Control", "X-Request-Id"]),
+        );
+      }
+    }
+
+    // ETag is a catalog-only conditional-GET validator.
+    expect(Object.keys(catalogResponses["200"]?.headers ?? {})).toContain("ETag");
+    expect(Object.keys(catalogResponses["304"]?.headers ?? {})).toContain("ETag");
+    expect(Object.keys(battleResponses["200"]?.headers ?? {})).not.toContain("ETag");
+
+    // Retry-After accompanies the capacity/rate-limit statuses only.
+    expect(Object.keys(battleResponses["503"]?.headers ?? {})).toContain("Retry-After");
+    expect(Object.keys(battleResponses["429"]?.headers ?? {})).toContain("Retry-After");
+    expect(Object.keys(battleResponses["200"]?.headers ?? {})).not.toContain("Retry-After");
+
+    // The documented cache difference matches what onSend really emits.
+    const battle = await app.inject({
+      method: "POST",
+      url: BATTLE_SIMULATIONS_PATH,
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 1,
+      },
+    });
+    const catalog = await app.inject({ method: "GET", url: BATTLE_SIMULATION_CATALOG_PATH });
+    expect(battle.headers["cache-control"]).toBe("no-store");
+    expect(catalog.headers["cache-control"]).toBe("public, max-age=300");
+    expect(battle.headers["x-request-id"]).toBeDefined();
+    expect(catalog.headers["x-request-id"]).toBeDefined();
+  });
+
+  it("API-OPENAPI-028 (REL-004, Issue #203, 10_API設計.md「OpenAPIへの反映」「列挙値」): the published event-details enums list exactly the values the Domain can produce, so a Domain enum gaining a member fails here instead of 422-ing a real battle response", () => {
+    // presentationは`no-restricted-imports`でdomainを直接importできないため、
+    // `battle-log-schema.ts`のenumはDomainの正本を手で写したものになる。その写しが
+    // 遅れると、実在Unitの正当なレスポンスが公開schemaを満たさなくなる —
+    // `APPLY_DAMAGE_LINK`・`TARGET_HAS_EFFECT`・`DAMAGE_TO_HEAL`が実際にそうなっており、
+    // production Catalog 8体分のレスポンスがdoc schemaを外れていた（REL-004で検出）。
+    // 過去にもIssue #230・#265が同じ形の抜けを事後修正しており、写し漏れを
+    // 構造的に検出するのはこのテストの役目。
+    const bindings = [
+      { published: CONDITION_KIND_ENUM, domain: CONDITION_KINDS, name: "conditionKind" },
+      { published: EFFECT_ACTION_KIND_ENUM, domain: EFFECT_ACTION_KINDS, name: "effectKind" },
+      { published: STATUS_KIND_ENUM, domain: STATUS_KINDS, name: "statusKind" },
+    ] as const;
+
+    for (const { published, domain, name } of bindings) {
+      expect([...published].sort(), `${name} enum drifted from the Domain`).toEqual(
+        [...domain].sort(),
+      );
+    }
   });
 });

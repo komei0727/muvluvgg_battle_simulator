@@ -73,11 +73,11 @@ describe("toExternalViolationPath", () => {
     ["allyFormation.memoryDefinitionIds", "/allyFormation/memoryDefinitionIds"],
     ["allyFormation.memoryDefinitionIds[1]", "/allyFormation/memoryDefinitionIds/1"],
     ["allyFormation.slots[0].unitDefinitionId", "/allyFormation/units/0/unitDefinitionId"],
-  ])("API-ERR-PATH-%#: %s -> %s", (internalPath, externalPointer) => {
+  ])("API-ERR-PATH-001 (table row %#): %s -> %s", (internalPath, externalPointer) => {
     expect(toExternalViolationPath(internalPath)).toBe(externalPointer);
   });
 
-  it("API-ERR-PATH-escaping: escapes literal '~' and '/' per RFC 6901 for segments that do not match the known dot/bracket shape", () => {
+  it("API-ERR-PATH-002: escapes literal '~' and '/' per RFC 6901 for segments that do not match the known dot/bracket shape", () => {
     expect(toExternalViolationPath("a~b/c")).toBe("/a~0b~1c");
   });
 });

@@ -81,7 +81,7 @@ export const TARGET_STATE_FIELD_TYPES: Record<TargetStateField, "boolean" | "num
   RESOURCE_EX_GAUGE: "number",
 };
 
-const CONDITION_KINDS = [
+export const CONDITION_KINDS = [
   "TRUE",
   "AND",
   "OR",

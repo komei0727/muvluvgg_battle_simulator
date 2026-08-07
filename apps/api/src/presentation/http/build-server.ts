@@ -19,6 +19,7 @@ import {
   type SimulateBattleUseCasePort,
   type ShutdownGatePort,
 } from "./routes/simulation-route.js";
+import { errorResponseDocSchemaForStatus } from "./schemas/error/error-schema.js";
 import { registerErrorHandler } from "./protocol/error-response/register-error-handler.js";
 import { toErrorResponseBody } from "./protocol/error-response/error-response-mapper.js";
 import {
@@ -58,6 +59,73 @@ const NO_CATALOG: GetBattleSimulationCatalogUseCasePort = {
 };
 
 const DEFAULT_BODY_LIMIT_BYTES = 1_048_576; // 1 MiB。`10_API設計.md`「編成入力自体は小さい」ための暫定上限。
+
+/**
+ * `onSend`フックが全レスポンスへ無条件に付ける protocol header
+ * （`10_API設計.md`「HTTPヘッダー」「レスポンス」）。CORSと違いoriginに依存しない。
+ */
+const PROTOCOL_RESPONSE_HEADERS_DOC = {
+  "Cache-Control": {
+    type: "string",
+    description:
+      "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」).",
+  },
+  "X-Request-Id": {
+    type: "string",
+    description:
+      "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors.",
+  },
+} as const;
+
+/** Catalog一覧GETの条件付きリクエスト用（`10_API設計.md`「ETag」）。 */
+const ETAG_RESPONSE_HEADER_DOC = {
+  ETag: {
+    type: "string",
+    description:
+      "Strong validator derived from catalogRevision; send it back as If-None-Match to get a 304.",
+  },
+} as const;
+
+/** `10_API設計.md`「`Retry-After`を設定できる場合は設定する」（429/503）。 */
+const RETRY_AFTER_RESPONSE_HEADER_DOC = {
+  "Retry-After": {
+    type: "string",
+    description: "Seconds to wait before retrying, when the server can estimate it.",
+  },
+} as const;
+
+/**
+ * OpenAPI公開文書のresponse群へ、実際に返るheaderとステータスごとのエラー`code`
+ * enumを与える。実行時の`route.schema.response`は変更しない
+ * （このファイルの`transform`の冒頭コメント参照）。
+ *
+ * `10_API設計.md`「OpenAPIへの反映」の「正常・エラーのステータスコード」「列挙値」
+ * 「Catalog一覧の200/304と戦闘POSTのcache header差異」をここで一括して満たす。
+ */
+function withResponseDoc(
+  responses: Record<string, unknown>,
+  options: { readonly etagStatuses?: readonly string[] } = {},
+): Record<string, unknown> {
+  const etagStatuses = new Set(options.etagStatuses ?? []);
+  return Object.fromEntries(
+    Object.entries(responses).map(([statusCode, entry]) => {
+      const status = Number(statusCode);
+      const isError = status >= 400;
+      return [
+        statusCode,
+        {
+          ...(isError ? errorResponseDocSchemaForStatus(status) : (entry as object)),
+          headers: {
+            ...CORS_RESPONSE_HEADERS_DOC,
+            ...PROTOCOL_RESPONSE_HEADERS_DOC,
+            ...(etagStatuses.has(statusCode) ? ETAG_RESPONSE_HEADER_DOC : {}),
+            ...(status === 429 || status === 503 ? RETRY_AFTER_RESPONSE_HEADER_DOC : {}),
+          },
+        },
+      ];
+    }),
+  );
+}
 // `11_インフラストラクチャ設計.md`「設定項目」`SIMULATION_TIMEOUT_MS`のデフォルト値。
 const DEFAULT_SIMULATION_TIMEOUT_MS = 30_000;
 
@@ -220,7 +288,7 @@ export async function buildServer(
             ...schema,
             ...(schema.response !== undefined
               ? {
-                  response: withResponseHeadersDoc(
+                  response: withResponseDoc(
                     {
                       ...schema.response,
                       304: {
@@ -228,7 +296,7 @@ export async function buildServer(
                           "Not Modified — If-None-Match matched the current catalogRevision ETag; no body.",
                       },
                     },
-                    CORS_RESPONSE_HEADERS_DOC,
+                    { etagStatuses: ["200", "304"] },
                   ),
                 }
               : {}),
@@ -245,10 +313,10 @@ export async function buildServer(
           ...(schema.body !== undefined ? { body: battleSimulationRequestDocSchema } : {}),
           ...(schema.response !== undefined
             ? {
-                response: withResponseHeadersDoc(
-                  { ...schema.response, 200: battleSimulationResponseDocSchema },
-                  CORS_RESPONSE_HEADERS_DOC,
-                ),
+                response: withResponseDoc({
+                  ...schema.response,
+                  200: battleSimulationResponseDocSchema,
+                }),
               }
             : {}),
         },

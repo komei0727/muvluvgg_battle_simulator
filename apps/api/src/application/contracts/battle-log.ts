@@ -23,6 +23,11 @@ export interface BattleLogEventResponseBody {
   readonly parentSequence?: number;
   readonly rootSequence: number;
   readonly sourceUnitId?: string;
+  /**
+   * `10_API設計.md`「BattleLogEventResponse」: Memory由来イベント（`MemoryTriggered`等）
+   * だけが持つ発生源の陣営。この場合`sourceUnitId`は持たない。
+   */
+  readonly sourceSide?: string;
   readonly targetUnitIds: readonly string[];
   readonly details: unknown;
   readonly stateVersionBefore: number;

@@ -424,6 +424,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "PROP-ACT-03-001",
       "PROP-ACT-03-002",
       "PROP-ACT-03-003",
+      // REL-004（Issue #203）: EX上限超過の破棄は`ExtraGaugeOverflowDiscarded`
+      // （DIAGNOSTICカテゴリ）で観測する。DETAILEDへ漏れず、DIAGNOSTICでだけ
+      // 公開されることを実`catalog/`・実HTTP経路で固定する。
+      "IT-REL-004-LOG-LEVEL-002",
+      "IT-REL-004-LOG-LEVEL-003",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
@@ -662,6 +667,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-ACTION-PHASE-011",
       "UT-ACTION-PHASE-013",
       "UT-BATTLE-013",
+      // REL-004（Issue #203）: 行動外のトップレベルイベントから発動したPSの
+      // クールタイムは設定scopeを持たない。その状態がAPI公開形へ載ることを
+      // 実`catalog/`（`SKL_LUCIE_MAID_PS1`）で固定する。
+      "IT-REL-004-DOC-SCHEMA-002",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
   },

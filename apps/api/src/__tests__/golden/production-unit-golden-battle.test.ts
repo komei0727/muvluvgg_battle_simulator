@@ -14,6 +14,11 @@ import {
  *
  * 新たに `selectable` となったUnitは自動的にケースが増え、snapshot未登録なら失敗する
  * （強制関数）。個別の回帰意図を持つテスト（例: `kei-jackknife-...`）は別途残す。
+ *
+ * DIAGNOSTICで実行する。既定のDETAILEDは`EffectStepSkipped`などDIAGNOSTICカテゴリを
+ * 公開しない（`08_ドメインイベント.md`「公開レベル」）ため、step条件の不成立という
+ * ルール間結合の回帰信号がsnapshotから落ちてしまう。公開レベルの上限で固定して、
+ * 発行され得るイベント列すべてを回帰対象に保つ。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const SELECTABLE_UNIT_IDS = selectableProductionUnitIds(CATALOG_DIR);
@@ -29,6 +34,7 @@ describe("production Unit golden battles", () => {
       const result = runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
         turnLimit: 5,
         randomValue: 0.5,
+        logLevel: "DIAGNOSTIC",
       });
 
       expect(typeof result.outcome).toBe("string");
