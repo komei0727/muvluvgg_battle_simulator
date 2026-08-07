@@ -25,9 +25,7 @@ interface BattleSimulationCatalogResponse {
   readonly memories: readonly CatalogMemorySummary[];
 }
 
-interface CatalogAvailability {}
-
-interface CatalogUnitSummary extends CatalogAvailability {
+interface CatalogUnitSummary {
   readonly unitDefinitionId: string;
   readonly displayName: string;
   readonly characterName: string;
@@ -37,7 +35,7 @@ interface CatalogUnitSummary extends CatalogAvailability {
   readonly positionAptitudes: readonly string[];
 }
 
-interface CatalogMemorySummary extends CatalogAvailability {
+interface CatalogMemorySummary {
   readonly memoryDefinitionId: string;
   readonly displayName: string;
 }

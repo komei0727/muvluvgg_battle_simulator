@@ -116,6 +116,20 @@ describe("validateDraft — memory count (UI-UT-VAL-004)", () => {
   });
 });
 
+describe("validateDraft — turn limit (UI-UT-VAL-005)", () => {
+  const catalog = catalogWith([catalogUnit("UNIT_A")]);
+
+  it.each([1, 99])("accepts turnLimit %i", (turnLimit) => {
+    const draft: BattleDraft = { ...draftWithAllyCount(1), turnLimit };
+    expect(validateDraft(draft, catalog).filter((v) => v.path === "/turnLimit")).toEqual([]);
+  });
+
+  it.each([0, 100, 1.5, ""])("rejects turnLimit %s", (turnLimit) => {
+    const draft: BattleDraft = { ...draftWithAllyCount(1), turnLimit: turnLimit as number | "" };
+    expect(validateDraft(draft, catalog).filter((v) => v.path === "/turnLimit")).not.toEqual([]);
+  });
+});
+
 describe("validateDraft — unknown definition (UI-UT-VAL-006)", () => {
   it("rejects a unit definition id that is missing from the catalog entirely", () => {
     const catalog = catalogWith([]);
@@ -124,6 +138,30 @@ describe("validateDraft — unknown definition (UI-UT-VAL-006)", () => {
     const violations = validateDraft(draft, catalog);
     expect(violations).toContainEqual(
       expect.objectContaining({ code: "UNKNOWN_DEFINITION", severity: "error" }),
+    );
+  });
+
+  it("rejects a memory definition id that is missing from the catalog entirely", () => {
+    const catalog = catalogWith([catalogUnit("UNIT_A")]);
+    const draft: BattleDraft = {
+      ...draftWithAllyCount(1, "UNIT_A"),
+      allyMemoryDefinitionIds: [
+        "UNKNOWN_MEM",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ],
+    };
+
+    const violations = validateDraft(draft, catalog);
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_DEFINITION",
+        severity: "error",
+        path: "/allyFormation/memoryDefinitionIds/0",
+      }),
     );
   });
 });
