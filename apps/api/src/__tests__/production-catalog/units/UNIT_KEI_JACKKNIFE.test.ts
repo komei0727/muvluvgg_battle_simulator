@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
+import {
+  completedTargetIdsOf,
+  effectActionGroupContext,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  seedRecorder,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -12,6 +24,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -349,5 +362,51 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-KEI-JACKKNIFE-004 (R-SKL-07, R-ACTN-03): AS2の実マーカーBRANCHは `EffectStepStarting` を1件だけ発行し、選ばれなかった腕のEffectActionを一切実行せず、その StateDelta だけからも独立Reducerが同じHPを復元する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, ROUSHIN);
+    const skill = skillFrom(snapshot, "SKL_KEI_JACKKNIFE_AS2");
+    const { recorder, rootEventId } = seedRecorder("B_KEI_BRANCH");
+    const result = applyEffectActionGroups(
+      resolveSkillOrder(
+        skill,
+        board.subject,
+        board.units,
+        board.definitions.effectActions,
+        undefined,
+        board.definitions.unitDefinitions,
+      ),
+      board.units,
+      effectActionGroupContext({
+        actor: board.subject,
+        skillId: "SKL_KEI_JACKKNIFE_AS2",
+        definitions: board.definitions,
+        recorder,
+        rootEventId,
+      }),
+    );
+
+    expect(
+      recorder
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === "EffectStepStarting" &&
+            (event.payload as { stepKind?: string }).stepKind === "BRANCH",
+        ),
+    ).toHaveLength(1);
+    expect(
+      [...completedTargetIdsOf(recorder, "ACT_KEI_JACKKNIFE_AS2_DAMAGE_BOOSTED")].sort(),
+    ).toEqual(["enemy:back", "enemy:front", "enemy:left"]);
+    expect(completedTargetIdsOf(recorder, "ACT_KEI_JACKKNIFE_AS2_DAMAGE")).toEqual([]);
+
+    const reconstructed = reconstruct(initialSnapshotFor(board.units), recorder);
+    for (const battleUnitId of ["enemy:front", "enemy:left", "enemy:back"].map((id) =>
+      createBattleUnitId(id),
+    )) {
+      const updated = result.units.find((unit) => unit.battleUnitId === battleUnitId)!;
+      expect(reconstructed.units[battleUnitId]?.hp).toBe(updated.currentHp);
+    }
   });
 });

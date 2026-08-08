@@ -239,6 +239,31 @@ export function effectApplied(options: {
   };
 }
 
+/**
+ * PS 1件の発動。「自身がパッシブスキルをN回使用するたびに」を数えるPSの契機。
+ * 実装は`PassiveResolved`と同じく対象を持たないため`targetUnitIds`を設定しない。
+ */
+export function passiveActivated(options: {
+  readonly actor: string;
+  readonly skillDefinitionId: string;
+}): PassiveTriggerEvent<"PassiveActivated"> {
+  const actorUnitId = createBattleUnitId(options.actor);
+  return {
+    eventType: "PassiveActivated",
+    category: "FACT",
+    sourceUnitId: actorUnitId,
+    payload: {
+      actorUnitId,
+      skillDefinitionId: createSkillDefinitionId(options.skillDefinitionId),
+      ppBefore: 1,
+      ppAfter: 0,
+      exBefore: 0,
+      exAfter: 1,
+      triggerEventId: SYNTHETIC_CAUSE_EVENT_ID,
+    },
+  };
+}
+
 /** PS 1件の解決完了。「味方のパッシブスキル発動後」を契機に持つPSが読む。 */
 export function passiveResolved(options: {
   readonly actor: string;

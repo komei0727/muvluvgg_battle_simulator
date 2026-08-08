@@ -200,11 +200,10 @@ describe("production Catalog SKL_SENKA_CHRISTMAS_PS2 wiring (M7-001C, Issue #244
         damageType: "PHYSICAL",
         formula: { kind: "SKILL_POWER", power: 1 },
         hitCount: 1,
-        // R-CRT-01 not exercised here: SKL_SENKA_CHRISTMAS_PS2's trigger
-        // condition is unconditional TRUE on CriticalCheckResolved (see
-        // catalog-src/units/UNIT_SENKA_CHRISTMAS/skills.json), so it fires
-        // regardless of whether the hit actually crit.
-        critical: { mode: "PREVENTED" },
+        // SKL_SENKA_CHRISTMAS_PS2's trigger requires `result: true` on
+        // CriticalCheckResolved (raw: 「自身の攻撃が会心攻撃になるたびに発動」), so the
+        // hit has to actually crit for the Passive to become a candidate at all.
+        critical: { mode: "GUARANTEED" },
         accuracy: { mode: "NORMAL" },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
         damageModifiers: [],

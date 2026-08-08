@@ -946,8 +946,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // production代表を実resolver（`applyEffectActionGroups`）で駆動し、`RANDOM_BRANCH`の
   // 定義順weighted選択（`SKL_KATE_PALADIN_EX`、`IT-UNIT-KATE-PALADIN-001`/`004`）と
   // `BRANCH`のthen/else分岐（`SKL_KEI_JACKKNIFE_AS2`のマーカー条件、
-  // `SKL_SENKA_SCHEMER_EX`のIS_ALIVE条件・空else、`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）を
-  // Domain Event・StateDelta・独立Reducer復元まで確認した。`CAP_RANDOM_BRANCH`/
+  // `SKL_SENKA_SCHEMER_EX`のIS_ALIVE条件・空else）をユニット効果軸の振る舞い表
+  // （`IT-UNIT-KEI-JACKKNIFE-001`／`IT-UNIT-SENKA-SCHEMER-001`）で両枝とも固定し、
+  // `EffectStepStarting`の発行・選ばれなかった腕の不実行・独立Reducer復元は
+  // `IT-UNIT-KEI-JACKKNIFE-004`／`IT-UNIT-SENKA-SCHEMER-004`が持つ。
+  // `CAP_RANDOM_BRANCH`/
   // `CAP_RESOLUTION_BRANCH_REPEAT`を`IMPLEMENTED`へ昇格。`REPEAT`はランタイム実装済み・
   // 単体テスト（下記UT）済みだがproduction定義が現時点で存在しない。
   {
@@ -967,10 +970,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-110",
       "UT-R-SKL-07-111",
       "IT-UNIT-KATE-PALADIN-004",
-      "IT-CAP-BRANCH-REPEAT-PROD-001",
-      "IT-CAP-BRANCH-REPEAT-PROD-002",
-      "IT-CAP-BRANCH-REPEAT-PROD-003",
-      "IT-CAP-BRANCH-REPEAT-PROD-004",
+      "IT-UNIT-KEI-JACKKNIFE-004",
+      "IT-UNIT-SENKA-SCHEMER-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE", "SCENARIO"],
   },
