@@ -7,6 +7,7 @@ import {
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
+  confusionStatus,
   observeSkillUse,
   resetExecutedActionIds,
   type SkillBehaviourCase,
@@ -234,40 +235,29 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
-    skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1",
-    intent:
-      "（混乱で対象が味方へ反転したAS攻撃でも発動する）自身がアクティブスキルで攻撃する前に発動",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1",
-      // 混乱（R-CFS-01）はASのDAMAGE stepが指すTargetBindingの`side`を反転させ、
-      // `SkillUseStarting.targetUnitIds` にも反転後の味方が入る。原文は攻撃先の陣営を
-      // 限定していないため、この形でも発動しなければならない（trigger の
-      // `targetSelector` を陣営で絞ると取りこぼす）。
-      trigger: skillUseStarting({
-        actor: "ally:subject",
-        targets: ["ally:front"],
-        skillType: "AS",
-        skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1",
-      }),
-      triggeredBy: "ally:subject",
-    },
+    skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1",
+    intent: "（混乱中のAS攻撃でもPS1が発動する）自身がアクティブスキルで攻撃する前に発動",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1" },
+    // 混乱（R-CFS-01）はASのDAMAGE stepが指すTargetBindingの`side`を反転させる。
+    // 反転後の候補には使用者自身が距離0で含まれ、`order: DEFAULT` が距離順に並べる
+    // ため、実際に発行される `SkillUseStarting.targetUnitIds` は自分自身になる。
+    // 原文「自身がアクティブスキルで攻撃する前」は攻撃先の陣営を限定していないので、
+    // この形でもPS1が候補化されなければならない（trigger の `targetSelector` を
+    // `ENEMY` で絞ると取りこぼす）。反転先は合成せず実 `resolveSkillOrder` に決めさせる。
+    board: { subject: { state: { appliedEffects: [confusionStatus("ally:subject")] } } },
     random: rolls(0.9, 0.9),
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_AS1_DAMAGE", targets: ["ally:subject"] },
       ],
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF",
-          magnitude: 0.052500000000000005,
-          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
-        },
-      ],
+      // 攻撃力1052.5 - 防御500 に威力84.8%で468、さらに混乱倍率（1 - 0.3）が乗って327。
+      // 攻撃力バフはこの自傷攻撃で消費されるため `effectsApplied` には残らない。
+      hpDeltas: { "ally:subject": -327 },
       resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1", remaining: 1 },

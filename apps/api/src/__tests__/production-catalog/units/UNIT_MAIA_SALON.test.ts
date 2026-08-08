@@ -7,6 +7,7 @@ import {
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
+  confusionStatus,
   observeSkillUse,
   resetExecutedActionIds,
   type BoardOverrides,
@@ -307,29 +308,26 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
-    skillDefinitionId: "SKL_MAIA_SALON_PS1",
-    intent:
-      "（混乱で対象が味方へ反転したAS使用でも発動する）自身がアクティブスキルを使用するたびに発動",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_MAIA_SALON_PS1",
-      // 混乱（R-CFS-01）はASのDAMAGE stepが指すTargetBindingの`side`を反転させ、
-      // `SkillUseStarting.targetUnitIds` にも反転後の味方が入る。原文は対象陣営を
-      // 限定していないため、この形でも発動しなければならない（trigger の
-      // `targetSelector` を陣営で絞ると取りこぼす）。
-      trigger: skillUseStarting({
-        actor: "ally:subject",
-        targets: ["ally:front"],
-        skillType: "AS",
-        skillDefinitionId: "SKL_MAIA_SALON_AS2",
-      }),
-      triggeredBy: "ally:subject",
-    },
+    skillDefinitionId: "SKL_MAIA_SALON_AS2",
+    intent: "（混乱中のAS使用でもPS1が発動する）自身がアクティブスキルを使用するたびに発動",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MAIA_SALON_AS2" },
+    // 混乱（R-CFS-01）はASのDAMAGE stepが指すTargetBindingの`side`を反転させる。
+    // 反転後の候補には使用者自身が距離0で含まれ、`order: DEFAULT` が距離順に並べる
+    // ため、実際に発行される `SkillUseStarting.targetUnitIds` は自分自身になる。
+    // 原文「自身がアクティブスキルを使用するたびに」は対象陣営を限定していないので、
+    // この形でもPS1が候補化されなければならない（trigger の `targetSelector` を
+    // `ENEMY` で絞ると取りこぼす）。反転先は合成せず実 `resolveSkillOrder` に決めさせる。
+    board: { subject: { state: { appliedEffects: [confusionStatus("ally:subject")] } } },
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MARKER", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MAX_HP_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_MAIA_SALON_AS2_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_MAIA_SALON_AS2_SPEED_DOWN", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN", targets: ["ally:subject"] },
       ],
+      // 546（威力109.2%）に混乱倍率（1 - 0.3）が乗って382。
+      hpDeltas: { "ally:subject": -382 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -337,11 +335,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           magnitude: 0.0315,
           timeLimit: { unit: "BATTLE", count: 1 },
         },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MAIA_SALON_AS2_SPEED_DOWN",
+          magnitude: -80,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN",
+          magnitude: -0.5,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
       ],
       markers: [{ unitId: "ally:subject", markerId: HANAMAI, stackCount: 1 }],
       resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
     },
   },

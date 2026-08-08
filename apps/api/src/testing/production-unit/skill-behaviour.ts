@@ -7,6 +7,10 @@ import { applyDamageAction } from "../../domain/battle/combat/damage-application
 import type { DamageResultRegistry } from "../../domain/battle/skill/formula-evaluator.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../domain/battle/model/applied-effect.js";
 import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activation-condition-evaluator.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
@@ -29,7 +33,7 @@ import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { BattleDomainEventType } from "../../domain/battle/events/domain-event.js";
-import { createActionId } from "../../domain/shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import type { Side } from "../../domain/shared/side.js";
 import {
@@ -107,6 +111,34 @@ export const BOARD_INITIAL_STATE = {
 export interface BoardMarkerSpec {
   readonly markerId: string;
   readonly stackCount?: number;
+}
+
+/**
+ * 混乱（R-CFS-01）を保持している状態を盤面の前提として作る。
+ *
+ * 混乱を付与するproduction定義は `ACT_OLGA_VETERAN_EX_CONFUSION` の1件だけで、
+ * 検証対象ユニットのスナップショットには載らない（`loadProductionSnapshot` は
+ * 対象ユニット分しか読まない）。前提そのものは検証対象ではないため、`statusDetails`
+ * だけをその実定義と同じ値（`damageReductionRate: 0.3`／`lowAttackBaseDamageRate: 0.1`）
+ * で組み立てる。**反転そのものは合成しない** — 対象がどちら側の誰へ振り替わるかは
+ * `resolveSkillOrder` の実処理が決める。
+ */
+export function confusionStatus(targetUnitId: string): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_TEST_CONFUSION");
+  return {
+    effectInstanceId: createEffectInstanceId(`B_BEHAVIOUR:confusion:${targetUnitId}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceUnitId: createBattleUnitId("enemy:front"),
+    targetUnitId: createBattleUnitId(targetUnitId),
+    magnitude: 0,
+    categories: ["DEBUFF"],
+    statusKind: "CONFUSION",
+    statusDetails: { confusion: { damageReductionRate: 0.3, lowAttackBaseDamageRate: 0.1 } },
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
 }
 
 export interface BoardUnitSpec {
