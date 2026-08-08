@@ -49,7 +49,7 @@ const MATCHUPS = PARTIES.map((ally, index) => ({
  * ここが増減した場合はガードの水準か production 定義が変わったということなので、
  * どちらのテストも失敗してレビューに乗る。
  */
-const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [1, 3];
+const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [3];
 
 const COMPLETING_MATCHUPS = MATCHUPS.filter(
   (matchup) => !GUARD_LIMITED_MATCHUP_INDICES.includes(matchup.index),

@@ -42,7 +42,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.4
       },
       "overheal": "DISCARD"

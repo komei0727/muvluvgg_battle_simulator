@@ -211,6 +211,9 @@ export function* applyConfirmedDamageSteps(
       effectActionDefinitionId: profile.effectActionDefinitionId,
       hitIndex: profile.hitIndex,
       targetUnitId,
+      // 「自身がアクティブスキルで攻撃された後」を`EVENT_PAYLOAD`で読むtriggerが
+      // 参照する。スキル種別へ帰属しない経路（継続ダメージ等）では未指定のまま。
+      ...(context.skillType === undefined ? {} : { skillType: context.skillType }),
       calculatedDamage: finalDamage,
       // R-SHD-02/03（DMG-004）＋R-SUB-01（DMG-005）: 適用先ごとの内訳。
       // `typedShieldAbsorbed + untypedShieldAbsorbed + subUnitAbsorbed + hitPointDamage +
