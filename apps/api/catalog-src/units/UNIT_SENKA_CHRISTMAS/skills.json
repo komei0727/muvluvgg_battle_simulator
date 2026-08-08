@@ -167,7 +167,7 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "ENEMY",
-        "condition": { "kind": "TRUE" }
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
       }
     ]
   }

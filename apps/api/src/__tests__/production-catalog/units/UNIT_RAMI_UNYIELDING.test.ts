@@ -121,14 +121,22 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     intent: "敵単体に威力106で攻撃する。自身のHPが少ないほどダメージが増加する(+150%まで)",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAMI_UNYIELDING_AS1" },
     expected: {
+      // PS3（「自身がアクティブスキルで攻撃する前に発動」）が使用開始の契機で先に走り、
+      // その与ダメージ+50%がこの攻撃へ乗る。
       actions: [
+        { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_PS3_DMG_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_AS1_DAMAGE", targets: ["enemy:front"] },
       ],
-      // 基礎530（威力106%）に、HP割合50%ぶんの増加（上限+150%の半分＝+75%）が乗る。
-      hpDeltas: { "enemy:front": -927 },
+      // 基礎530（威力106%）にHP割合50%ぶんの増加（上限+150%の半分＝+75%）が乗って927、
+      // さらにPS3の+50%が乗って1391（切り捨て）。
+      hpDeltas: { "enemy:front": -1391 },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_RAMI_UNYIELDING_PS3", remaining: 1 },
       ],
     },
   },
@@ -139,13 +147,18 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: { subject: { state: { currentHp: 1000 } } },
     expected: {
       actions: [
+        { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_PS3_DMG_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_AS1_DAMAGE", targets: ["enemy:front"] },
       ],
-      // HP割合10%では増加は上限の90%＝+135%。
-      hpDeltas: { "enemy:front": -1245 },
+      // HP割合10%では増加は上限の90%＝+135%で1245、さらにPS3の+50%が乗って1868。
+      hpDeltas: { "enemy:front": -1868 },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_RAMI_UNYIELDING_PS3", remaining: 1 },
       ],
     },
   },
@@ -153,14 +166,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
     intent:
       "自身のHPが30%以下になった際に発動。自身に対し、最大HP×50%までのダメージを防ぐシールドを付与する。シールドは3行動後に消滅する",
-    // production定義のtriggerは `sourceSelector: SELF` であり、`HitPointReduced` の
-    // 発生源（実装は攻撃側を載せる）が保持者自身であることを要求する。下の不成立行が
-    // 示すとおり敵からの被弾では条件を満たさないため、効果を観測できるのは自傷だけである。
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
       trigger: realDamage({
-        from: "ally:subject",
+        from: "enemy:front",
         to: "ally:subject",
         skillType: "AS",
         event: "HitPointReduced",
@@ -190,23 +200,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
-    intent: "(不成立): HPが30%より多い状態でのHP減少では発動しない",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
-      trigger: realDamage({
-        from: "ally:subject",
-        to: "ally:subject",
-        skillType: "AS",
-        event: "HitPointReduced",
-      }),
-    },
-    expected: { activated: false },
-  },
-  {
-    skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
-    intent:
-      "(不成立): 敵からの被弾でHPが30%以下になっても発動しない(現行定義の `sourceSelector: SELF` による)",
+    intent: "(不成立): HPが30%より多い状態での被弾では発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
@@ -217,7 +211,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         event: "HitPointReduced",
       }),
     },
-    board: SUBJECT_NEAR_THRESHOLD,
     expected: { activated: false },
   },
   {
@@ -227,7 +220,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       kind: "PASSIVE",
       skillDefinitionId: "SKL_RAMI_UNYIELDING_PS1",
       trigger: realDamage({
-        from: "ally:subject",
+        from: "enemy:front",
         to: "ally:subject",
         skillType: "AS",
         event: "HitPointReduced",
@@ -314,7 +307,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_UNYIELDING_PS3",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_RAMI_UNYIELDING_AS1",
       }),
@@ -349,7 +342,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_UNYIELDING_PS3",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "EX",
         skillDefinitionId: "SKL_RAMI_UNYIELDING_EX",
       }),

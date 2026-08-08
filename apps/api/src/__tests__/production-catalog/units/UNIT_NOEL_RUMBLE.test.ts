@@ -83,13 +83,32 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     intent: "敵単体に威力162.24で攻撃する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_NOEL_RUMBLE_AS1" },
     expected: {
+      // PS1（「自身がアクティブスキルで攻撃した直後に発動」）が使用完了の契機で走る。
+      // 攻撃力上昇はこの攻撃の後に入るため、ダメージ自体は素の811のまま。
       actions: [
         { effectActionDefinitionId: "ACT_NOEL_RUMBLE_AS1_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
       hpDeltas: { "enemy:front": -811 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP",
+          magnitude: 0.18,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN",
+          magnitude: -0.15,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_NOEL_RUMBLE_AS1", remaining: 1 },
@@ -108,12 +127,29 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING",
           targets: ["enemy:front"],
         },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
       // 811（威力162.24%）の50%増しを、別定義の威力243.36%として持つ。
       hpDeltas: { "enemy:front": -1216 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP",
+          magnitude: 0.18,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN",
+          magnitude: -0.15,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_NOEL_RUMBLE_AS1", remaining: 1 },
@@ -127,11 +163,28 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_NOEL_RUMBLE_AS2_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
       hpDeltas: { "enemy:front": -1060 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP",
+          magnitude: 0.18,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN",
+          magnitude: -0.15,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
     },
   },
@@ -139,16 +192,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
     intent:
       "自身がアクティブスキルで攻撃した直後に発動。自身の攻撃力を18%上昇させ(重複可)、被ダメージを15%減少させる効果を付与する(重複可)",
-    // production定義のtriggerは `targetSelector: SELF` であり、`SkillUseCompleted` の
-    // `targetUnitIds` に保持者自身が含まれることを要求する。上のAS1・AS2の行が示すとおり
-    // 実際のアクティブスキル使用（対象は敵）ではこの条件を満たさず発動しない。効果そのものを
-    // 観測するには、保持者自身が対象に入った契機を与えるしかない。
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
       trigger: skillUseCompleted({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_NOEL_RUMBLE_AS2",
       }),
@@ -181,30 +230,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
-    intent:
-      "(不成立): 敵を対象としたアクティブスキル使用では発動しない(現行定義の `targetSelector: SELF` による)",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
-      trigger: skillUseCompleted({
-        actor: "ally:subject",
-        targets: ["enemy:front"],
-        skillType: "AS",
-        skillDefinitionId: "SKL_NOEL_RUMBLE_AS2",
-      }),
-      triggeredBy: "ally:subject",
-    },
-    expected: { activated: false },
-  },
-  {
-    skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
     intent: "(不成立): EXスキルの使用では発動しない(「アクティブスキルで」に限る)",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
       trigger: skillUseCompleted({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "EX",
         skillDefinitionId: "SKL_NOEL_RUMBLE_EX",
       }),

@@ -163,7 +163,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3",
       }),
@@ -212,7 +212,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3",
       }),
@@ -261,7 +261,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3",
       }),
@@ -305,7 +305,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3",
       }),
@@ -349,7 +349,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "AS",
         skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3",
       }),
@@ -365,7 +365,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
       trigger: skillUseStarting({
         actor: "ally:subject",
-        targets: ["ally:subject"],
+        targets: ["enemy:front"],
         skillType: "EX",
         skillDefinitionId: "SKL_RAMI_NEWYEAR_EX",
       }),

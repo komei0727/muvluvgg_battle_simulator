@@ -107,15 +107,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       "敵単体に威力140.4で攻撃する。この攻撃によって対象のHPが50%を下回った場合、自身に対し、次に受ける攻撃の被ダメージを20%減少させる効果を付与する(重複可)",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_SENKA_CHRISTMAS_AS1" },
     expected: {
-      // PS2のtriggerは`CriticalCheckResolved`に`condition: TRUE`を置いており、会心が
-      // 出たかどうかに関わらず攻撃のたびに発動する。この盤面では会心率0で対象にバフも
-      // 無いため、解除は`SKIPPED`のまま発動コストだけが観測に残る。
+      // 会心率0の盤面のためPS2（「自身の攻撃が会心攻撃になるたびに発動」）は走らない。
       actions: [
-        {
-          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
-          targets: ["enemy:front"],
-          resultKind: "SKIPPED",
-        },
         { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
@@ -131,8 +124,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_SENKA_CHRISTMAS_AS1", remaining: 1 },
@@ -146,18 +138,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: { enemies: ENEMY_AT_FULL_HP },
     expected: {
       actions: [
-        {
-          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
-          targets: ["enemy:front"],
-          resultKind: "SKIPPED",
-        },
         { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DAMAGE", targets: ["enemy:front"] },
       ],
       hpDeltas: { "enemy:front": -702 },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_SENKA_CHRISTMAS_AS1", remaining: 1 },
@@ -304,6 +290,21 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
     },
+  },
+  {
+    skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",
+    intent: "(不成立): 会心攻撃にならなかった攻撃では発動しない(「会心攻撃になるたび」に限る)",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",
+      trigger: criticalCheckResolved({
+        source: "ally:subject",
+        target: "enemy:front",
+        result: false,
+      }),
+      triggeredBy: "ally:subject",
+    },
+    expected: { activated: false },
   },
   {
     skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",

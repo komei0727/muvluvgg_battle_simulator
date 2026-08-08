@@ -365,7 +365,7 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
           "kind": "EVENT_PAYLOAD",
           "field": "skillType",
