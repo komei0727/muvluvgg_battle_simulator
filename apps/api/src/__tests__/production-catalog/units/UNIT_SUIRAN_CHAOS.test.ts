@@ -1,4 +1,23 @@
 import { describe, expect, it } from "vitest";
+import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  unexecutedEffectActionIds,
+  unitEffectActionClosure,
+} from "../../../testing/production-unit/definition-closure.js";
+import {
+  BOARD_COMBAT_STATS,
+  PRODUCTION_CATALOG_DIR,
+  collectedExecutedActionIds,
+  observeSkillUse,
+  resetExecutedActionIds,
+  type SkillBehaviourCase,
+} from "../../../testing/production-unit/skill-behaviour.js";
+import {
+  hitPointReduced,
+  skillUseStarting,
+  unitBeingAttacked,
+} from "../../../testing/production-unit/trigger-events.js";
 import { applyDamageAction } from "../../../domain/battle/combat/damage-application-service.js";
 import {
   advanceBattle,
@@ -11,11 +30,8 @@ import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-u
 import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import type { BattleDefinitions } from "../../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
-import {
-  createEffectActionDefinitionId,
-  createSkillDefinitionId,
-  createTargetBindingId,
-} from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createTargetBindingId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../../domain/catalog/definitions/skill-definition.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
@@ -24,20 +40,14 @@ import { createTurnLimit } from "../../../domain/battle/model/turn-limit.js";
 import {
   definitionsWith,
   initialSnapshotFor,
-  loadProductionSnapshot,
   skillFrom,
   testBattleUnit,
   testUnitDefinition,
-  unitFrom,
 } from "../../../testing/fixtures/index.js";
 import {
-  MANIFESTATION_COMBAT_STATS,
-  MANIFESTATION_LIMITS,
-  PRODUCTION_CATALOG_DIR,
+  BOARD_LIMITS,
   STAND_IN_UNIT_ID,
-  observeEffectAction,
-  type EffectManifestationCase,
-} from "../../../testing/production-unit/effect-manifestation.js";
+} from "../../../testing/production-unit/skill-behaviour.js";
 import {
   activatedPassiveSkillIds,
   openPassiveChain,
@@ -48,24 +58,24 @@ import { SequenceRandomSource } from "../../../testing/random/sequence-random-so
  * `UNIT_SUIRAN_CHAOS`（【混沌の立役者】劉翠蘭）のユニット単位production結合テスト
  * （`12_テスト戦略.md`「ユニット効果軸」）。
  *
- * 下の表が、このユニットの全Skillから到達できる全EffectActionを1件ずつ、
- * 実`catalog/`の未改変定義のまま実解決経路（`resolveSkillOrder`→
- * `applyEffectActionGroups`）へ通したときの観測結果を宣言する。イベント列・HP変動・
- * 効果付与・リソース変動・マーカー・クールタイムのうち**実際に動いた項目だけ**が
- * 観測に現れるため、`toEqual`の完全一致は「宣言した効果が出ること」と
- * 「余計な副作用を出さないこと」を同時に固定する。
+ * 単位は**スキル使用1回**。実 `catalog/` の未改変定義を実経路へ通し、下表が
+ * 「発動したか」「誰が対象になったか」「どの分岐の腕が選ばれたか」「何が起きたか」
+ * を1行ずつ宣言する。`intent` は原文の該当句で、`raw/` がCIに存在しない以上、
+ * 転記が正しいかをレビューできる唯一の接点になる。
  *
- * 表は全Skill ID・全EffectAction IDを文字列リテラルで持つため、production全ID
- * 網羅監査（`UT-AUDIT-UNITCOV-001`）の照合対象になる。スキル側の対象選択・発動
- * 条件・PSトリガ・step分岐は表の対象外で、`-002`以降が機構ごとに検証する。
+ * 変化しなかった観測項目はキーごと落ちるため、`toEqual` の完全一致が
+ * 「宣言した振る舞いが起きること」と「余計なことを起こさないこと」を同時に固定する。
  */
 
 const UNIT_DEFINITION_ID = "UNIT_SUIRAN_CHAOS";
 
+/** 翠蘭は後列適性で、PSはいずれも「自身の目の前の味方」を条件にする。 */
+const SUIRAN_BACK = { subject: { position: { column: "LEFT", row: "BACK" } as const } };
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
-const PASSIVE_COMBAT_STATS = MANIFESTATION_COMBAT_STATS;
-const PASSIVE_LIMITS = MANIFESTATION_LIMITS;
+const PASSIVE_COMBAT_STATS = BOARD_COMBAT_STATS;
+const PASSIVE_LIMITS = BOARD_LIMITS;
 /** PS検証で相手役が使う合成スキル・EffectActionのID（実Catalogとは無関係）。 */
 const STAND_IN_AS_ID = "SKL_TEST_SUIRAN_PEER_AS";
 const STAND_IN_DAMAGE_ID = "ACT_TEST_SUIRAN_PEER_DAMAGE";
@@ -286,177 +296,350 @@ function resolveProductionEx(allyCount: number): {
   return { user, allies, recorder, result };
 }
 
-/** (SKL_ID, ACT_ID, 期待効果)。行の並びは AS → PS → EX のSkill定義順。 */
-const MANIFESTATIONS: readonly EffectManifestationCase[] = [
+/** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
+const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_SUIRAN_CHAOS_AS1",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_AS1_DAMAGE",
-    target: "ENEMY",
+    intent: "一破能弾: 敵単体へEN攻撃し、次に受ける攻撃の被ダメージを上げるデバフを付与する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SUIRAN_CHAOS_AS1" },
+    board: SUIRAN_BACK,
     expected: {
-      eventTypes: [
-        "UnitBeingAttacked",
-        "HitConfirmed",
-        "CriticalCheckResolved",
-        "DamageWillBeApplied",
-        "DamageCalculated",
-        "HitPointReduced",
-        "DamageApplied",
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_AS1_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
+          targets: ["enemy:left"],
+        },
       ],
       hpDeltas: {
-        "enemy:foe": -780,
+        "enemy:left": -780,
       },
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_AS1",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
-    target: "ENEMY",
-    expected: {
-      eventTypes: ["EffectApplied"],
       effectsApplied: [
         {
-          unitId: "enemy:foe",
+          unitId: "enemy:left",
           effectActionDefinitionId: "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
           magnitude: 0.7,
+          consumption: {
+            kind: "NEXT_INCOMING_ATTACK",
+            maxCount: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
         },
       ],
     },
   },
   {
     skillDefinitionId: "SKL_SUIRAN_CHAOS_PS1",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS1_EVASION",
-    target: "ALLY",
+    intent: "代助一避: 自身の目の前の味方が敵に攻撃されるとき、その味方へ回避を付与する",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS1",
+      trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:front" }),
+      triggeredBy: "enemy:front",
+    },
+    board: SUIRAN_BACK,
     expected: {
-      eventTypes: ["EffectApplied"],
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS1_EVASION",
+          targets: ["ally:front"],
+        },
+      ],
       effectsApplied: [
         {
-          unitId: "ally:peer",
+          unitId: "ally:front",
           effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS1_EVASION",
           magnitude: 0,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+          consumption: {
+            kind: "INCOMING_HIT",
+            maxCount: 1,
+          },
+          statusKind: "EVASION",
         },
       ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_ATK_UP",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied", "CombatStatChanged"],
-      effectsApplied: [
-        {
-          unitId: "ally:peer",
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_ATK_UP",
-          magnitude: 0.3,
-        },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_DEF_UP",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied", "CombatStatChanged"],
-      effectsApplied: [
-        {
-          unitId: "ally:peer",
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_DEF_UP",
-          magnitude: 0.3,
-        },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_HEAL",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["HealApplied"],
-      hpDeltas: {
-        "ally:peer": 450,
-      },
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied"],
-      effectsApplied: [
-        {
-          unitId: "ally:peer",
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
-          magnitude: 0.15,
-        },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
-    target: "ENEMY",
-    expected: {
-      eventTypes: [
-        "UnitBeingAttacked",
-        "HitConfirmed",
-        "CriticalCheckResolved",
-        "DamageWillBeApplied",
-        "DamageCalculated",
-        "HitPointReduced",
-        "DamageApplied",
-      ],
-      hpDeltas: {
-        "enemy:foe": -179,
-      },
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
-    target: "ENEMY",
-    expected: {
-      eventTypes: ["EffectApplied", "CombatStatChanged"],
-      effectsApplied: [
-        {
-          unitId: "enemy:foe",
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
-          magnitude: -200,
-        },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_EX",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_EX_DAMAGE",
-    target: "ENEMY",
-    expected: {
-      eventTypes: [
-        "UnitBeingAttacked",
-        "HitConfirmed",
-        "CriticalCheckResolved",
-        "DamageWillBeApplied",
-        "DamageCalculated",
-        "HitPointReduced",
-        "DamageApplied",
-      ],
-      hpDeltas: {
-        "enemy:foe": -1590,
-      },
-    },
-  },
-  {
-    skillDefinitionId: "SKL_SUIRAN_CHAOS_EX",
-    effectActionDefinitionId: "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["ResourceChanged"],
       resources: [
         {
-          unitId: "ally:peer",
+          unitId: "ally:subject",
+          resource: "PP",
+          delta: -2,
+        },
+        {
+          unitId: "ally:subject",
           resource: "EX_GAUGE",
-          delta: 8,
+          delta: 2,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_SUIRAN_CHAOS_PS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS1",
+    intent: "代助一避(不成立): 目の前ではない味方が攻撃されても発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS1",
+      trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:back" }),
+      triggeredBy: "enemy:front",
+    },
+    board: SUIRAN_BACK,
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
+    intent: "再起律動: 目の前の味方のHPが半分以下になったとき、回復と攻防バフを与える",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
+      trigger: hitPointReduced({
+        source: "enemy:front",
+        target: "ally:front",
+        damage: 1000,
+        hpBefore: 5000,
+      }),
+      triggeredBy: "enemy:front",
+    },
+    board: {
+      subject: SUIRAN_BACK.subject,
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 4000 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_HEAL",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_ATK_UP",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_DEF_UP",
+          targets: ["ally:front"],
+        },
+      ],
+      hpDeltas: {
+        "ally:front": 450,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_ATK_UP",
+          magnitude: 0.3,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS2_DEF_UP",
+          magnitude: 0.3,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "PP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
+          remaining: 1,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
+    intent: "再起律動(不成立): HPが半分より多く残っている間は発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS2",
+      trigger: hitPointReduced({
+        source: "enemy:front",
+        target: "ally:front",
+        damage: 1000,
+        hpBefore: 9000,
+      }),
+      triggeredBy: "enemy:front",
+    },
+    board: {
+      subject: SUIRAN_BACK.subject,
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 8000 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+    intent:
+      "追撃符: 目の前の味方がASを使うとき、その狙った敵へ追撃と速度低下、味方へ会心率上昇を与える",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+      trigger: skillUseStarting({ actor: "ally:front", targets: ["enemy:front"], skillType: "AS" }),
+      triggeredBy: "ally:front",
+    },
+    board: SUIRAN_BACK,
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
+          targets: ["ally:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -179,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
+          magnitude: 0.15,
+          consumption: {
+            kind: "NEXT_OUTGOING_ATTACK",
+            maxCount: 1,
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
+          magnitude: -200,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "PP",
+          delta: -2,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 2,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+          remaining: 1,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+    intent: "追撃符(不成立): AS以外（EX）の使用では発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+      trigger: skillUseStarting({ actor: "ally:front", targets: ["enemy:front"], skillType: "EX" }),
+      triggeredBy: "ally:front",
+    },
+    board: SUIRAN_BACK,
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_EX",
+    intent: "ブラック・スタイル: 敵単体へEN攻撃し、消費したEXゲージを自身を除く味方全体へ分配する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SUIRAN_CHAOS_EX" },
+    board: SUIRAN_BACK,
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_EX_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE",
+          targets: ["ally:back"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:left": -1590,
+      },
+      resources: [
+        {
+          unitId: "ally:front",
+          resource: "EX_GAUGE",
+          delta: 4,
+        },
+        {
+          unitId: "ally:back",
+          resource: "EX_GAUGE",
+          delta: 4,
         },
       ],
     },
@@ -464,48 +647,60 @@ const MANIFESTATIONS: readonly EffectManifestationCase[] = [
 ];
 
 describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠蘭)", () => {
-  it.each(MANIFESTATIONS)(
-    "IT-UNIT-SUIRAN-CHAOS-001: $effectActionDefinitionId ($skillDefinitionId) manifests exactly the declared effect on the $target target",
-    ({ effectActionDefinitionId, target, board, precedingSteps, expected }) => {
+  it.each(BEHAVIOURS)(
+    "IT-UNIT-SUIRAN-CHAOS-001: $skillDefinitionId — $intent",
+    ({ use, board, expected }) => {
       expect(
-        observeEffectAction({
+        observeSkillUse({
           snapshot,
           unitDefinitionId: UNIT_DEFINITION_ID,
-          effectActionDefinitionId,
-          target,
+          use,
           ...(board === undefined ? {} : { board }),
-          ...(precedingSteps === undefined ? {} : { precedingSteps }),
         }),
       ).toEqual(expected);
     },
   );
 
-  it("IT-UNIT-SUIRAN-CHAOS-002: the table's skill column covers exactly the Skills the production UnitDefinition declares", () => {
-    // 表の網羅は`UT-AUDIT-UNITCOV-001`がEffectAction側から機械検証するが、
-    // 「Skillが1つ丸ごと表から漏れている」ことは、そのSkill専用のEffectActionが
-    // 他Skillからも到達できる場合に検出できない。Skill集合そのものをここで固定する。
+  it("IT-UNIT-SUIRAN-CHAOS-002: the table covers exactly the Skills the production UnitDefinition declares", () => {
     const unit = unitFrom(snapshot, UNIT_DEFINITION_ID);
     const declared = [
       ...unit.activeSkillDefinitionIds,
       ...unit.passiveSkillDefinitionIds,
       unit.extraSkillDefinitionId,
     ];
-    expect(declared).toEqual([
-      "SKL_SUIRAN_CHAOS_AS1",
-      "SKL_SUIRAN_CHAOS_PS1",
-      "SKL_SUIRAN_CHAOS_PS2",
-      "SKL_SUIRAN_CHAOS_PS3",
-      "SKL_SUIRAN_CHAOS_EX",
-    ]);
-    expect([...new Set(MANIFESTATIONS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
+    expect([...new Set(BEHAVIOURS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
       [...declared].sort(),
     );
   });
-  // -003〜-007: 表で表現できない機構 — PSは「実際に発行されたイベント」を契機に
+
+  it("IT-UNIT-SUIRAN-CHAOS-003: every EffectAction reachable from this unit was actually executed by the table above", () => {
+    // 全ID網羅監査（`UT-AUDIT-UNITCOV-001`）は「IDが文字列として書かれているか」しか
+    // 見ないため、表に載っているだけで一度も実行されない定義を見逃す。実行された
+    // 集合そのものを閉包と突き合わせる。表をこのテスト内で回し直すのは、
+    // 収集器がモジュール全域の状態であり、テストファイル間の isolation 設定に
+    // 結果を依存させないため。
+    resetExecutedActionIds();
+    for (const { use, board } of BEHAVIOURS) {
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use,
+        ...(board === undefined ? {} : { board }),
+      });
+    }
+    expect(
+      unexecutedEffectActionIds(
+        unitEffectActionClosure(snapshot, UNIT_DEFINITION_ID),
+        collectedExecutedActionIds(),
+      ),
+    ).toEqual([]);
+  });
+
+  // -004〜-009: 表で表現できない機構 — PSは「実際に発行されたイベント」を契機に
   // しか発動しないため、契機イベント・発動条件・TRIGGER_TARGET/TRIGGER_SOURCEの
   // 解決先を個別に検証する。
 
-  it("IT-UNIT-SUIRAN-CHAOS-003 (R-PS-01, POSITION_RELATION): SKL_SUIRAN_CHAOS_PS3 activates from the very SkillUseStarting a real battle emits for an ally in front of Suiran, resolving TRIGGER_TARGET to that ally's enemy target and TRIGGER_SOURCE to the ally herself", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-004 (R-PS-01, POSITION_RELATION): SKL_SUIRAN_CHAOS_PS3 activates from the very SkillUseStarting a real battle emits for an ally in front of Suiran, resolving TRIGGER_TARGET to that ally's enemy target and TRIGGER_SOURCE to the ally herself", () => {
     const board = passiveBoard();
     // 契機イベントは手組みせず、実戦闘（`advanceBattle`）に発行させる。PS3の
     // 発動条件は`EVENT_PAYLOAD field: "skillType"`を読むため、そのフィールドが実際に
@@ -540,7 +735,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     ).toEqual(["SKL_SUIRAN_CHAOS_PS3"]);
   });
 
-  it("IT-UNIT-SUIRAN-CHAOS-004 (NEGATIVE, EVENT_PAYLOAD): SKL_SUIRAN_CHAOS_PS3 does not activate for a SkillUseStarting whose skillType is not AS, nor for one emitted by an ally who is not in front of Suiran", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-005 (NEGATIVE, EVENT_PAYLOAD): SKL_SUIRAN_CHAOS_PS3 does not activate for a SkillUseStarting whose skillType is not AS, nor for one emitted by an ally who is not in front of Suiran", () => {
     const board = passiveBoard();
 
     const exUse = openPassiveChain({
@@ -600,7 +795,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     expect(activatedPassiveSkillIds(offColumn)).toEqual([]);
   });
 
-  it("IT-UNIT-SUIRAN-CHAOS-005 (R-HIT-02): SKL_SUIRAN_CHAOS_PS1 activates from a UnitBeingAttacked aimed at the ally in front of Suiran and grants that ally a single-hit EVASION status", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-006 (R-HIT-02): SKL_SUIRAN_CHAOS_PS1 activates from a UnitBeingAttacked aimed at the ally in front of Suiran and grants that ally a single-hit EVASION status", () => {
     const board = passiveBoard();
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -636,7 +831,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     });
   });
 
-  it("IT-UNIT-SUIRAN-CHAOS-006 (sourceSelector: ANY): SKL_SUIRAN_CHAOS_PS2 activates from the HitPointReduced the real damage pipeline emits once the ally in front drops to half HP, whether the damage came from an enemy or from an ally", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-007 (sourceSelector: ANY): SKL_SUIRAN_CHAOS_PS2 activates from the HitPointReduced the real damage pipeline emits once the ally in front drops to half HP, whether the damage came from an enemy or from an ally", () => {
     for (const attackerSide of ["ENEMY", "ALLY"] as const) {
       const board = passiveBoard({ frontAllyHp: 5200 });
       const attacker =
@@ -700,11 +895,11 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     }
   });
 
-  // -007〜-008: EX連鎖 — 表は`ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE`を1体へ向けたときの
+  // -008〜-009: EX連鎖 — 表は`ACT_SUIRAN_CHAOS_EX_EX_DISTRIBUTE`を1体へ向けたときの
   // 発現しか見ないため、「総量を対象数で等分する」というDISTRIBUTE本来の意味は
   // 実スキル（自身を除く味方全体bindings）を通さないと現れない。
 
-  it("IT-UNIT-SUIRAN-CHAOS-007 (R-ACTN-02, R-NUM-02): SKL_SUIRAN_CHAOS_EX splits the 8 EX it consumed evenly across every ally except the user, and its ResourceChanged StateDelta reconstructs the same gauges through the independent Reducer", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-008 (R-ACTN-02, R-NUM-02): SKL_SUIRAN_CHAOS_EX splits the 8 EX it consumed evenly across every ally except the user, and its ResourceChanged StateDelta reconstructs the same gauges through the independent Reducer", () => {
     const { user, allies, recorder, result } = resolveProductionEx(2);
 
     // R-ACT-03: EX使用で使用者のEXゲージは全消費される（分配の原資）。
@@ -742,7 +937,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     }
   });
 
-  it("IT-UNIT-SUIRAN-CHAOS-008 (BOUNDARY, R-NUM-02): an indivisible total is truncated per ally, so three allies receive 2 each and the remainder is discarded rather than redistributed", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-009 (BOUNDARY, R-NUM-02): an indivisible total is truncated per ally, so three allies receive 2 each and the remainder is discarded rather than redistributed", () => {
     const { allies, recorder, result } = resolveProductionEx(3);
 
     // 8 / 3 = 2.666… → 各2（合計6）。端数2は破棄する。

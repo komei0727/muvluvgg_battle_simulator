@@ -1,4 +1,25 @@
 import { describe, expect, it } from "vitest";
+import {
+  createRuntimeCounterId,
+  createSkillDefinitionId,
+} from "../../../domain/catalog/definitions/catalog-ids.js";
+import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  unexecutedEffectActionIds,
+  unitEffectActionClosure,
+} from "../../../testing/production-unit/definition-closure.js";
+import {
+  BOARD_COMBAT_STATS,
+  PRODUCTION_CATALOG_DIR,
+  collectedExecutedActionIds,
+  observeSkillUse,
+  resetExecutedActionIds,
+  type SkillBehaviourCase,
+} from "../../../testing/production-unit/skill-behaviour.js";
+import {
+  skillUseCompleted,
+  unitDefeated,
+} from "../../../testing/production-unit/trigger-events.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
@@ -7,7 +28,6 @@ import type { BattleDefinitions } from "../../../domain/battle/model/battle-defi
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {
   createEffectActionDefinitionId,
-  createSkillDefinitionId,
   createTargetBindingId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../../domain/catalog/definitions/skill-definition.js";
@@ -19,33 +39,23 @@ import {
   definitionsWith,
   effectActionFrom,
   initialSnapshotFor,
-  loadProductionSnapshot,
   skillFrom,
   testBattleUnit,
-  unitFrom,
 } from "../../../testing/fixtures/index.js";
-import {
-  PRODUCTION_CATALOG_DIR,
-  STAND_IN_UNIT_ID,
-  observeEffectAction,
-  type EffectManifestationCase,
-} from "../../../testing/production-unit/effect-manifestation.js";
+import { STAND_IN_UNIT_ID } from "../../../testing/production-unit/skill-behaviour.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
 /**
  * `UNIT_ELENA_MOODMAKER`（【心色見つめるムードメーカー】エレーナ・パステルコワ）のユニット単位production結合テスト
  * （`12_テスト戦略.md`「ユニット効果軸」）。
  *
- * 下の表が、このユニットの全Skillから到達できる全EffectActionを1件ずつ、
- * 実`catalog/`の未改変定義のまま実解決経路（`resolveSkillOrder`→
- * `applyEffectActionGroups`）へ通したときの観測結果を宣言する。イベント列・HP変動・
- * 効果付与・リソース変動・マーカー・クールタイムのうち**実際に動いた項目だけ**が
- * 観測に現れるため、`toEqual`の完全一致は「宣言した効果が出ること」と
- * 「余計な副作用を出さないこと」を同時に固定する。
+ * 単位は**スキル使用1回**。実 `catalog/` の未改変定義を実経路へ通し、下表が
+ * 「発動したか」「誰が対象になったか」「どの分岐の腕が選ばれたか」「何が起きたか」
+ * を1行ずつ宣言する。`intent` は原文の該当句で、`raw/` がCIに存在しない以上、
+ * 転記が正しいかをレビューできる唯一の接点になる。
  *
- * 表は全Skill ID・全EffectAction IDを文字列リテラルで持つため、production全ID
- * 網羅監査（`UT-AUDIT-UNITCOV-001`）の照合対象になる。スキル側の対象選択・発動
- * 条件・PSトリガ・step分岐は表の対象外で、`-002`以降が機構ごとに検証する。
+ * 変化しなかった観測項目はキーごと落ちるため、`toEqual` の完全一致が
+ * 「宣言した振る舞いが起きること」と「余計なことを起こさないこと」を同時に固定する。
  */
 
 const UNIT_DEFINITION_ID = "UNIT_ELENA_MOODMAKER";
@@ -207,169 +217,379 @@ function useSkill(
   );
 }
 
-/** (SKL_ID, ACT_ID, 期待効果)。行の並びは AS → PS → EX のSkill定義順。 */
-const MANIFESTATIONS: readonly EffectManifestationCase[] = [
+/** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
+const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEAL",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["HealApplied"],
-      hpDeltas: {
-        "ally:peer": 1175,
-      },
+    intent:
+      "自身の現在HPの10%を消費し、最もHPの低い味方を回復。最もHP割合の低い敵と自身へ回復リンクを付与する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" }, state: { currentHp: 5000 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 1000 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 3000 },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
     },
-  },
-  {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
-    target: "SELF",
     expected: {
-      eventTypes: ["EffectApplied"],
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEAL",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "ally:front": 1175,
+      },
       effectsApplied: [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
           magnitude: 1,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+            owner: "EFFECT_SOURCE",
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          magnitude: 1,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+            owner: "EFFECT_SOURCE",
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
         },
       ],
     },
   },
   {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS2",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS2_DAMAGE",
-    target: "ENEMY",
+    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
+    intent: "(不成立): 自身のHPが40%未満の場合は発動しない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" }, state: { currentHp: 3000 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 1000 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
     expected: {
-      eventTypes: [
-        "UnitBeingAttacked",
-        "HitConfirmed",
-        "CriticalCheckResolved",
-        "DamageWillBeApplied",
-        "DamageCalculated",
-        "HitPointReduced",
-        "DamageApplied",
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
+    intent: "(不成立): HPが70%未満の味方がいない場合は発動しない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" }, state: { currentHp: 10000 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 10000 },
+        },
+        {
+          id: "ally:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 10000 },
+        },
+      ],
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS2",
+    intent: "敵単体へ対象の現在HP×12.5%のダメージ。ダメージは自身の攻撃力×50%を上限とする",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS2" },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS2_DAMAGE",
+          targets: ["enemy:front"],
+        },
       ],
       hpDeltas: {
-        "enemy:foe": -500,
+        "enemy:front": -500,
       },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
     },
   },
   {
     skillDefinitionId: "SKL_ELENA_MOODMAKER_PS1",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS1_HEAL",
-    target: "SELF",
+    intent: "アクティブスキルを4回使用するたびに発動し、自身のHPを威力65で回復する",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ELENA_MOODMAKER_PS1",
+      trigger: skillUseCompleted({
+        actor: "ally:subject",
+        targets: ["enemy:front"],
+        skillType: "AS",
+      }),
+      triggeredBy: "ally:subject",
+    },
+    board: {
+      subject: {
+        state: {
+          skillCounters: {
+            [createSkillDefinitionId("SKL_ELENA_MOODMAKER_PS1")]: {
+              [createRuntimeCounterId("SKL_ELENA_MOODMAKER_PS1_TRIGGER_COUNT")]: {
+                value: 3,
+                carry: 0,
+              },
+            },
+          },
+        },
+      },
+    },
     expected: {
-      eventTypes: ["HealApplied"],
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS1_HEAL",
+          targets: ["ally:subject"],
+        },
+      ],
       hpDeltas: {
         "ally:subject": 650,
       },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "PP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ELENA_MOODMAKER_PS1",
+    intent: "(不成立): 使用回数が4回に達していなければ発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ELENA_MOODMAKER_PS1",
+      trigger: skillUseCompleted({
+        actor: "ally:subject",
+        targets: ["enemy:front"],
+        skillType: "AS",
+      }),
+      triggeredBy: "ally:subject",
+    },
+    expected: {
+      activated: false,
     },
   },
   {
     skillDefinitionId: "SKL_ELENA_MOODMAKER_PS2",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_ATK_UP",
-    target: "SELF",
+    intent: "他の味方が敵に倒された際に発動し、自身の攻撃力+60%と敵全体へ威力46.8の攻撃",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ELENA_MOODMAKER_PS2",
+      trigger: unitDefeated({ unit: "ally:front", defeatedBy: "enemy:front" }),
+    },
     expected: {
-      eventTypes: ["EffectApplied", "CombatStatChanged"],
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_ATK_UP",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_DAMAGE",
+          targets: ["enemy:back"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -514,
+        "enemy:left": -514,
+        "enemy:back": -514,
+      },
       effectsApplied: [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_ATK_UP",
           magnitude: 0.6,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "PP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
         },
       ],
     },
   },
   {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_PS2",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_DAMAGE",
-    target: "ENEMY",
-    expected: {
-      eventTypes: [
-        "UnitBeingAttacked",
-        "HitConfirmed",
-        "CriticalCheckResolved",
-        "DamageWillBeApplied",
-        "DamageCalculated",
-        "HitPointReduced",
-        "DamageApplied",
-      ],
-      hpDeltas: {
-        "enemy:foe": -234,
-      },
-    },
-  },
-  {
     skillDefinitionId: "SKL_ELENA_MOODMAKER_EX",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied", "CombatStatChanged"],
-      effectsApplied: [
+    intent:
+      "最も攻撃力が高い味方と最も低い味方へ、攻撃力+35%・与ダメージ+10%・攻撃時に攻撃力×15%の追加ダメージを付与する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_EX" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" } },
+      allies: [
         {
-          unitId: "ally:peer",
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { combatStats: { ...BOARD_COMBAT_STATS, attack: 2000 } },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
-          magnitude: 0.35,
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
+          targets: ["ally:subject"],
         },
       ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_EX",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied", "CombatStatChanged"],
       effectsApplied: [
         {
-          unitId: "ally:peer",
+          unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
           magnitude: 0.35,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
         },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_EX",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied"],
-      effectsApplied: [
         {
-          unitId: "ally:peer",
-          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
-          magnitude: 150,
-        },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_EX",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied"],
-      effectsApplied: [
-        {
-          unitId: "ally:peer",
-          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
-          magnitude: 0.1,
-        },
-      ],
-    },
-  },
-  {
-    skillDefinitionId: "SKL_ELENA_MOODMAKER_EX",
-    effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW",
-    target: "ALLY",
-    expected: {
-      eventTypes: ["EffectApplied"],
-      effectsApplied: [
-        {
-          unitId: "ally:peer",
+          unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW",
           magnitude: 0.1,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
+          magnitude: 202.5,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
+          magnitude: 0.35,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
+          magnitude: 0.1,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
+          magnitude: 202.5,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
         },
       ],
     },
@@ -377,48 +597,60 @@ const MANIFESTATIONS: readonly EffectManifestationCase[] = [
 ];
 
 describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムードメーカー】エレーナ・パステルコワ)", () => {
-  it.each(MANIFESTATIONS)(
-    "IT-UNIT-ELENA-MOODMAKER-001: $effectActionDefinitionId ($skillDefinitionId) manifests exactly the declared effect on the $target target",
-    ({ effectActionDefinitionId, target, board, precedingSteps, expected }) => {
+  it.each(BEHAVIOURS)(
+    "IT-UNIT-ELENA-MOODMAKER-001: $skillDefinitionId — $intent",
+    ({ use, board, expected }) => {
       expect(
-        observeEffectAction({
+        observeSkillUse({
           snapshot,
           unitDefinitionId: UNIT_DEFINITION_ID,
-          effectActionDefinitionId,
-          target,
+          use,
           ...(board === undefined ? {} : { board }),
-          ...(precedingSteps === undefined ? {} : { precedingSteps }),
         }),
       ).toEqual(expected);
     },
   );
 
-  it("IT-UNIT-ELENA-MOODMAKER-002: the table's skill column covers exactly the Skills the production UnitDefinition declares", () => {
-    // 表の網羅は`UT-AUDIT-UNITCOV-001`がEffectAction側から機械検証するが、
-    // 「Skillが1つ丸ごと表から漏れている」ことは、そのSkill専用のEffectActionが
-    // 他Skillからも到達できる場合に検出できない。Skill集合そのものをここで固定する。
+  it("IT-UNIT-ELENA-MOODMAKER-002: the table covers exactly the Skills the production UnitDefinition declares", () => {
     const unit = unitFrom(snapshot, UNIT_DEFINITION_ID);
     const declared = [
       ...unit.activeSkillDefinitionIds,
       ...unit.passiveSkillDefinitionIds,
       unit.extraSkillDefinitionId,
     ];
-    expect(declared).toEqual([
-      "SKL_ELENA_MOODMAKER_AS1",
-      "SKL_ELENA_MOODMAKER_AS2",
-      "SKL_ELENA_MOODMAKER_PS1",
-      "SKL_ELENA_MOODMAKER_PS2",
-      "SKL_ELENA_MOODMAKER_EX",
-    ]);
-    expect([...new Set(MANIFESTATIONS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
+    expect([...new Set(BEHAVIOURS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
       [...declared].sort(),
     );
   });
-  // -003〜-005: 表で表現できない機構 — 回復リンク（R-HEAL-04）は「付与」と
+
+  it("IT-UNIT-ELENA-MOODMAKER-003: every EffectAction reachable from this unit was actually executed by the table above", () => {
+    // 全ID網羅監査（`UT-AUDIT-UNITCOV-001`）は「IDが文字列として書かれているか」しか
+    // 見ないため、表に載っているだけで一度も実行されない定義を見逃す。実行された
+    // 集合そのものを閉包と突き合わせる。表をこのテスト内で回し直すのは、
+    // 収集器がモジュール全域の状態であり、テストファイル間の isolation 設定に
+    // 結果を依存させないため。
+    resetExecutedActionIds();
+    for (const { use, board } of BEHAVIOURS) {
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use,
+        ...(board === undefined ? {} : { board }),
+      });
+    }
+    expect(
+      unexecutedEffectActionIds(
+        unitEffectActionClosure(snapshot, UNIT_DEFINITION_ID),
+        collectedExecutedActionIds(),
+      ),
+    ).toEqual([]);
+  });
+
+  // -004〜-006: 表で表現できない機構 — 回復リンク（R-HEAL-04）は「付与」と
   // 「以後の回復の転送」が別の時点で起こるため、単発のEffectAction観測では
   // 転送そのものが現れない。実スキルの対象選択と、リンク保持後の別経路の回復を通す。
 
-  it("IT-UNIT-ELENA-MOODMAKER-003 (R-HEAL-04): the real SKL_ELENA_MOODMAKER_AS1 heals the lowest-HP ally and grants ACT_ELENA_MOODMAKER_AS1_HEALING_LINK to both the lowest-HP-ratio enemy and Elena herself, each resolving transferTo: SELF to Elena at grant time", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-004 (R-HEAL-04): the real SKL_ELENA_MOODMAKER_AS1 heals the lowest-HP ally and grants ACT_ELENA_MOODMAKER_AS1_HEALING_LINK to both the lowest-HP-ratio enemy and Elena herself, each resolving transferTo: SELF to Elena at grant time", () => {
     const board = linkBoard();
     // Catalog自身に対して、回復リンクが近似なしで表現されていることも確かめる。
     expect(effectActionFrom(snapshot, AS1_HEALING_LINK_ID)).toMatchObject({
@@ -503,7 +735,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     ]);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-004 (R-HEAL-04): once the enemy holds the AS1 link, healing that enemy transfers 100% to Elena — the enemy's HP does not move, HealingTransferred carries the causality and the HP StateDelta, and the independent Reducer restores the same HP", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-005 (R-HEAL-04): once the enemy holds the AS1 link, healing that enemy transfers 100% to Elena — the enemy's HP does not move, HealingTransferred carries the causality and the HP StateDelta, and the independent Reducer restores the same HP", () => {
     const board = linkBoard();
     const recorder = new EventRecorder(createBattleId("B_ELENA"));
     const granted = useSkill(
@@ -569,7 +801,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(restored.units[board.woundedEnemy.battleUnitId]!.hp).toBe(300);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-005 (BOUNDARY, R-HEAL-04): the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-006 (BOUNDARY, R-HEAL-04): the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
     const board = linkBoard();
     const recorder = new EventRecorder(createBattleId("B_ELENA"));
     const granted = useSkill(

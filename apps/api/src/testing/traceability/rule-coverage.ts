@@ -540,7 +540,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // target-selection-policy.test.tsのUT-R-TGT-09-001〜009、production統合は
   // IT-CAP-TARGET-DERIVED-AREA-PROD-001）。RES-005（Issue #172）で`kind`/`base`
   // 参照とも`TRIGGER_SOURCE`/`TRIGGER_TARGET`を実装した（回帰検証は
-  // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-UNIT-SUIRAN-CHAOS-003）。
+  // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-UNIT-SUIRAN-CHAOS-004）。
   // R-TGT-09は`kind→includeDefeated→filters→area→order→count→fallback`の全7段階を
   // 規定する単一ルールであり、TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）で
   // 残っていた#3（非空filters）を実装し、production統合（IT-CAP-TARGET-FILTER-ORDER-PROD-001
@@ -1870,9 +1870,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HEAL-04-019",
       "UT-R-HEAL-04-020",
       "UT-R-HEAL-04-021",
-      "IT-UNIT-ELENA-MOODMAKER-003",
       "IT-UNIT-ELENA-MOODMAKER-004",
       "IT-UNIT-ELENA-MOODMAKER-005",
+      "IT-UNIT-ELENA-MOODMAKER-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
