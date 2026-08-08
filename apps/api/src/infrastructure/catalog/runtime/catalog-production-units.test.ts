@@ -399,16 +399,19 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-08.5` は REF-029（Issue #359）の第5バッチが検出した原文との不一致。
     // (1) 「**他の**味方が〜」を `ALLY` selector で表していた4件（`SKL_KARINA_DOWNER_PS1`・
     // `SKL_LAURA_MOUNTAIN_PS3`・`SKL_LILY_SINGER_PS1`・`SKL_MERU_SIRIUS_PS1`）。
-    // (2) 「自身が〜した後／使用するたびに」を `targetSelector: SELF` で表し一度も
-    // 候補化されない3件（`SKL_LAURA_MOUNTAIN_PS1`・`SKL_LUCIE_COMPANION_PS1`・
-    // `SKL_MAIA_SALON_PS1`）。
-    // (3) `SKL_MAIA_SALON_PS2` の `HitPointReduced`＋`sourceSelector: ENEMY` は、
+    // (2) 「自身がアクティブスキルを使用した後／するたびに」を `targetSelector: SELF`
+    // で表し一度も候補化されない2件（`SKL_LUCIE_COMPANION_PS1`・`SKL_MAIA_SALON_PS1`）は
+    // `ANY` へ直した。
+    // (3) `SKL_LAURA_MOUNTAIN_PS1`（原文「自身がアクティブスキルで攻撃する前」）は
+    // `targetSelector: ENEMY` で、通常の攻撃では候補化されるが混乱（R-CFS-01）で
+    // 対象が味方へ反転した攻撃を取りこぼしていた。`ANY` ＋ 攻撃ASのIDリストへ直した。
+    // (4) `SKL_MAIA_SALON_PS2` の `HitPointReduced`＋`sourceSelector: ENEMY` は、
     // HPを削るのが通常こちら側であるため味方の攻撃では成立しなかった。
-    // (4) `SKL_KARINA_DOWNER_PS1` は「アクティブスキルで攻撃される」の `skillType`
+    // (5) `SKL_KARINA_DOWNER_PS1` は「アクティブスキルで攻撃される」の `skillType`
     // 条件が無く、EXの攻撃でも発動していた。
-    // (5) `ACT_KARINA_DOWNER_PS2_DEBUFF`（原文「最高30%低下…HPが多いほど高い効果」）は
+    // (6) `ACT_KARINA_DOWNER_PS2_DEBUFF`（原文「最高30%低下…HPが多いほど高い効果」）は
     // 絶対値Formula（`CURRENT_HP_RATIO`）で、実測値が割合ではなく -3000 だった。
-    // (6) `ACT_KATE_PALADIN_AS1_SELF_HEAL_100`（原文「与えたダメージの100%分」）は
+    // (7) `ACT_KATE_PALADIN_AS1_SELF_HEAL_100`（原文「与えたダメージの100%分」）は
     // 4ヒット攻撃の最終ヒット分（`LAST_DAMAGE_DEALT`）だけを読んでいた。
     expect(catalog.catalogRevision).toBe("2026-08-08.5");
   });

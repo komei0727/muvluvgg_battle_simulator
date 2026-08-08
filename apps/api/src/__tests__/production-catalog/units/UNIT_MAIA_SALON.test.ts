@@ -308,6 +308,45 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_MAIA_SALON_PS1",
+    intent:
+      "（混乱で対象が味方へ反転したAS使用でも発動する）自身がアクティブスキルを使用するたびに発動",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_MAIA_SALON_PS1",
+      // 混乱（R-CFS-01）はASのDAMAGE stepが指すTargetBindingの`side`を反転させ、
+      // `SkillUseStarting.targetUnitIds` にも反転後の味方が入る。原文は対象陣営を
+      // 限定していないため、この形でも発動しなければならない（trigger の
+      // `targetSelector` を陣営で絞ると取りこぼす）。
+      trigger: skillUseStarting({
+        actor: "ally:subject",
+        targets: ["ally:front"],
+        skillType: "AS",
+        skillDefinitionId: "SKL_MAIA_SALON_AS2",
+      }),
+      triggeredBy: "ally:subject",
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MARKER", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MAX_HP_UP", targets: ["ally:subject"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MAX_HP_UP",
+          magnitude: 0.0315,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+      ],
+      markers: [{ unitId: "ally:subject", markerId: HANAMAI, stackCount: 1 }],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_MAIA_SALON_PS1",
     intent: "自身が「華舞」を所持していた場合最大HP×5.85%分自身のHPを回復し",
     use: {
       kind: "PASSIVE",

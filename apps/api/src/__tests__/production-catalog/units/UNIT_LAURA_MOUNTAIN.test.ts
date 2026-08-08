@@ -235,6 +235,47 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1",
+    intent:
+      "（混乱で対象が味方へ反転したAS攻撃でも発動する）自身がアクティブスキルで攻撃する前に発動",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1",
+      // 混乱（R-CFS-01）はASのDAMAGE stepが指すTargetBindingの`side`を反転させ、
+      // `SkillUseStarting.targetUnitIds` にも反転後の味方が入る。原文は攻撃先の陣営を
+      // 限定していないため、この形でも発動しなければならない（trigger の
+      // `targetSelector` を陣営で絞ると取りこぼす）。
+      trigger: skillUseStarting({
+        actor: "ally:subject",
+        targets: ["ally:front"],
+        skillType: "AS",
+        skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1",
+      }),
+      triggeredBy: "ally:subject",
+    },
+    random: rolls(0.9, 0.9),
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF", targets: ["ally:subject"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF",
+          magnitude: 0.052500000000000005,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1",
     intent: "(不成立): 自身のEXスキル使用では発動しない（「アクティブスキルで攻撃する前」に限る）",
     use: {
       kind: "PASSIVE",
