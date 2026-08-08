@@ -266,7 +266,7 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ENEMY",
         "condition": {
           "kind": "EVENT_PAYLOAD",
           "field": "skillType",

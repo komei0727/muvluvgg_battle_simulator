@@ -44,7 +44,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `kind: BINDING_DERIVED` (`base`: SELF/BINDING) and `area` (ADJACENT_ORTHOGONAL,
     // DIRECTLY_AHEAD_OF_BASE, BEHIND_BASE, SAME_ROW_AS_BASE, SAME_COLUMN_AS_BASE,
     // R-TGT-04/05) plus `order` FARTHEST (R-TGT-03) and FRONT_ROW/BACK_ROW (R-TGT-06)
-    // wired the real lifecycle (`IT-CAP-TARGET-DERIVED-AREA-PROD-001`).
+    // wired the real lifecycle (`IT-UNIT-LUCIE-MAID-004`).
     // RES-004 (Issue #171後半): `CAP_EFFECT_STEP_CONDITION` flipped to IMPLEMENTED
     // once ACTION step conditions referencing their own `target` (TARGET_STATE/
     // TARGET_HAS_MARKER) are evaluated per-target, always deferred to JIT
@@ -370,7 +370,18 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (4) `ACT_CLARA_TSUNDERE_AS1_HEAL`（原文「与えたダメージの40%」）は
     // `LAST_DAMAGE_DEALT` を読んでおり、4ヒット攻撃の最終ヒット分だけを回復していた。
     // 同じ表現の `ACT_SAYA_LONGING_EX_HEAL` に合わせ `SUM_DAMAGE_DEALT` へ直した。
-    expect(catalog.catalogRevision).toBe("2026-08-08.2");
+    // `2026-08-08.3` は REF-027（Issue #357）の第3バッチが検出した原文との不一致。
+    // (1) `SKL_EVIE_KYONSHI_PS1`（原文「会心攻撃になるたびに」）は
+    // `CriticalCheckResolved` に `result` 条件を持たず、会心しなかった判定でも毎回
+    // 発動していた。先例の `SKL_SAYA_BUNNY_PS1` に合わせ `result: true` を課した。
+    // (2) 「自身がアクティブスキルで攻撃した後／する前に発動」を表す4件
+    // （`SKL_EVIE_KYONSHI_PS2`・`SKL_YURIA_YUKATA_PS1`・`SKL_LYDIA_GENIUS_PS1`・
+    // `SKL_MIKOTO_SURVIVOR_PS2`・`SKL_MEIYA_FATED_PS2`・`SKL_MERU_FLATSPIN_PS1`）は
+    // `targetSelector: SELF` を課していた。`SkillUseStarting`/`SkillUseCompleted` は
+    // 攻撃対象を `targetUnitIds` に持つため、この条件では一度も候補化されない。
+    // (3) `SKL_MIKOTO_SURVIVOR_PS1` の `TGT_OTHER_ALLIES`（原文「他の味方の」）は
+    // 自身を除外しておらず、名前と原文に反して自分自身も対象へ含めていた。
+    expect(catalog.catalogRevision).toBe("2026-08-08.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

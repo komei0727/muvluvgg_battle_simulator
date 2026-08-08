@@ -538,7 +538,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // area(BASE解決含む: ADJACENT_ORTHOGONAL/DIRECTLY_AHEAD_OF_BASE/BEHIND_BASE/
   // SAME_ROW_AS_BASE/SAME_COLUMN_AS_BASE)・orderの評価順を実装した（回帰検証は
   // target-selection-policy.test.tsのUT-R-TGT-09-001〜009、production統合は
-  // IT-CAP-TARGET-DERIVED-AREA-PROD-001）。RES-005（Issue #172）で`kind`/`base`
+  // IT-UNIT-LUCIE-MAID-004）。RES-005（Issue #172）で`kind`/`base`
   // 参照とも`TRIGGER_SOURCE`/`TRIGGER_TARGET`を実装した（回帰検証は
   // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-UNIT-SUIRAN-CHAOS-004）。
   // R-TGT-09は`kind→includeDefeated→filters→area→order→count→fallback`の全7段階を
@@ -550,7 +550,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ruleId: "R-TGT-09",
     testCaseIds: [
       "UT-R-TGT-09-001",
-      "IT-CAP-TARGET-DERIVED-AREA-PROD-001",
+      "IT-UNIT-LUCIE-MAID-004",
       "UT-TGT-002-001",
       "IT-CAP-TARGET-FILTER-ORDER-PROD-001",
     ],
@@ -1157,7 +1157,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-057",
       "UT-R-PS-01-058",
       "UT-R-PS-01-059",
-      "IT-CAP-TARGET-STATE-FIELD-PROD-002",
+      // trigger scopeの`UNIT_TYPE`（`SKL_LUCIE_MAID_PS1`の「物理型／敏捷型の敵から
+      // 攻撃される直前」）はユニット効果軸が実PS経路で成立・不成立とも押さえる。
+      "IT-UNIT-LUCIE-MAID-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
