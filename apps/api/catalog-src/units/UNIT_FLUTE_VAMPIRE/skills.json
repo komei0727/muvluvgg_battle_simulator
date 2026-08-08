@@ -122,7 +122,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "SELF",
+        "sourceSelector": "ANY",
         "targetSelector": "SELF",
         "condition": {
           "kind": "AND",

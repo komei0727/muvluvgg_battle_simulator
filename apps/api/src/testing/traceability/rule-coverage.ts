@@ -1123,6 +1123,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-131",
       "UT-R-PS-01-132",
       "UT-R-PS-01-133",
+      "UT-R-PS-01-134",
+      "UT-R-PS-01-135",
+      "UT-R-PS-01-136",
+      "UT-R-PS-01-137",
       "UT-R-PS-01-037",
       "UT-R-PS-01-038",
       "UT-R-PS-01-039",
@@ -1332,6 +1336,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-MEM-04-002",
       "UT-R-MEM-04-003",
       "UT-R-MEM-04-004",
+      "UT-R-MEM-04-005",
       "UT-CAT-IDX-081",
       "UT-CAT-IDX-082",
       "UT-CAT-IDX-083",
@@ -1466,9 +1471,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // Catalogロード時点の`CAP_RESOURCE_CAPACITY_MOD`宣言必須。
       "UT-R-ACTN-03-017",
       // 実production定義（`ACT_FLUTE_VAMPIRE_PS1_MAX_AP_UP`）の実ライフサイクル。
-      "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-001",
-      "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-002",
-      "IT-CAP-RESOURCE-CAPACITY-MOD-PROD-003",
+      "IT-UNIT-FLUTE-VAMPIRE-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -2687,7 +2690,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // （`removeMarkersSteps`＋`resolveChild`、`UT-R-EFF-10-034`が固定）。
       "UT-R-EFF-10-030",
       "UT-R-EFF-10-034",
-      "IT-MARKER-SOURCE-DEFEAT-PROD-002",
+      "IT-UNIT-AOI-ELEGANT-004",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2726,7 +2729,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // そのまま巻き込む。非`APPLY_MARKER`への宣言は`catalog-integrity.ts`が
   // `UNSUPPORTED_SOURCE_DEFEATED_REMOVAL`として拒否する（`UT-R-EFF-10-022`）。
   // production Catalogの`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`（「高揚」）が
-  // `IT-MARKER-SOURCE-DEFEAT-PROD-001/002/003`で検証される。
+  // `IT-UNIT-AOI-ELEGANT-004`で検証される。
   {
     ruleId: "R-EFF-10",
     testCaseIds: [
@@ -2776,9 +2779,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-MEMORY-DYNAMIC-PROD-007",
       "IT-MARKER-PROD-001",
       "IT-MARKER-PROD-002",
-      "IT-MARKER-SOURCE-DEFEAT-PROD-001",
-      "IT-MARKER-SOURCE-DEFEAT-PROD-002",
-      "IT-MARKER-SOURCE-DEFEAT-PROD-003",
+      "IT-UNIT-AOI-ELEGANT-004",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

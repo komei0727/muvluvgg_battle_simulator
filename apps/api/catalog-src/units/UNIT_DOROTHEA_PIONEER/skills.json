@@ -326,7 +326,7 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
+        "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",

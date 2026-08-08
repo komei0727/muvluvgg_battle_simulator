@@ -210,7 +210,7 @@
       {
         "eventType": "ChargeStarted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ALLY"
       }
     ]

@@ -147,6 +147,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER"
             }
           ]
         }

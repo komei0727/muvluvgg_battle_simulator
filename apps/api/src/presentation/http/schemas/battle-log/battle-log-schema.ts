@@ -397,6 +397,13 @@ const unitBeingAttackedDetailsSchema = {
     effectActionDefinitionId: { type: "string" },
     hitIndex: { type: "integer", minimum: 0 },
     targetUnitId: { type: "string" },
+    /**
+     * `EVENT_PAYLOAD field: "skillType"`をこのeventTypeへ条件付けるproduction
+     * Catalog行（`SKL_CHIZURU_DOMESTIC_PS2`等）のため、`DamageApplied`と同じ理由で
+     * 追加した。スキル種別へ帰属しない経路では欠落するため`required`へは入れない
+     * （v1デコーダ互換）。PSが与えたダメージもあるため`AS`/`EX`に加えて`PS`を取りうる。
+     */
+    skillType: { type: "string", enum: ["AS", "PS", "EX"] },
   },
 } as const;
 

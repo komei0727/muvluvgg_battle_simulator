@@ -470,6 +470,10 @@ function precedingSkill(action: PrecedingAction): SkillDefinition {
   const binding = createTargetBindingId(PRECEDING_BINDING_ID);
   const stepTarget: TargetReference =
     action.target === "SELF" ? { kind: "SELF" } : { kind: "BINDING", targetBindingId: binding };
+  const selector = action.target === "ALLY" ? ALLY_EXCEPT_SELF : ENEMY_ONE;
+  // payload が別の TargetBinding を参照する EffectAction（`APPLY_DAMAGE_LINK.linkTo`）は、
+  // その binding が合成スキルに無いと解決できず effect が一度も付かない。前提アクションは
+  // 「その効果を保持している状態」を作るためだけのものなので、参照先は対象と同じ解決で足りる。
   return {
     skillDefinitionId: createSkillDefinitionId(PRECEDING_SKILL_ID),
     skillType: "AS",
@@ -483,10 +487,11 @@ function precedingSkill(action: PrecedingAction): SkillDefinition {
         action.target === "SELF"
           ? []
           : [
-              {
-                targetBindingId: binding,
-                selector: action.target === "ALLY" ? ALLY_EXCEPT_SELF : ENEMY_ONE,
-              },
+              { targetBindingId: binding, selector },
+              ...(action.payloadBindingIds ?? []).map((id) => ({
+                targetBindingId: createTargetBindingId(id),
+                selector,
+              })),
             ],
       steps: [
         {
@@ -598,6 +603,13 @@ function strikeForTrigger(
 export interface PrecedingAction {
   readonly effectActionDefinitionId: string;
   readonly target: "SELF" | "ALLY" | "ENEMY";
+  /**
+   * この EffectAction の payload が参照する TargetBinding のID（`APPLY_DAMAGE_LINK`
+   * の `linkTo` 等）。合成スキルへ同名の binding を宣言しないと参照が解決できず、
+   * 効果が一度も付かないまま前提が空振りする。解決先は対象と同じで足りる —
+   * 前提アクションが作るのは「その効果を保持している」状態そのものだけである。
+   */
+  readonly payloadBindingIds?: readonly string[];
 }
 
 export interface ObserveSkillUseOptions {

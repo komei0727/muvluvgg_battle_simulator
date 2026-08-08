@@ -37,6 +37,23 @@ function rejectEffectOwner(
 }
 
 /**
+ * `OTHER_ALLY`は「所有者自身を除く味方」であり、所有ユニットを持たないMemory
+ * （R-MEM-04）からは意味を持たない。`ALLY`へ暗黙に丸めると原文が除いた自己発動を
+ * 静かに復活させるため、`EFFECT_OWNER`と同じく明示的に隔離する。
+ */
+function rejectOtherAllyForMemory(
+  selector: Exclude<EventSelector, "EFFECT_OWNER">,
+  path: string,
+): asserts selector is Exclude<EventSelector, "EFFECT_OWNER" | "OTHER_ALLY"> {
+  if (selector === "OTHER_ALLY") {
+    throw new DomainValidationError(
+      path,
+      'selector "OTHER_ALLY" is not supported for Memory triggers (a Memory has no owner BattleUnit to exclude, R-MEM-04)',
+    );
+  }
+}
+
+/**
  * Issue #144 follow-up: `TurnStarted`/`TurnCompleting`の
  * ように特定のBattleUnitに帰属しないグローバルな行動外イベントは、
  * `event-recorder.ts`の発行元が`sourceUnitId`/`sourceSide`のどちらも設定
@@ -72,6 +89,14 @@ function isTargetUnattributed(event: TriggerCandidateEvent): boolean {
  * R-PS-01「発生源...をConditionDefinitionで評価する」のうち`sourceSelector`部分。
  * `ALLY`/`ENEMY`はPS所有者自身を含む・含まないの区別を持たず、`resolveSourceSide`
  * が導出した発生源の陣営と所有者の`side`を比較する（自分自身か否かは`SELF`が担う）。
+ *
+ * `OTHER_ALLY`は`ALLY`から所有者自身を除く。「他の味方が〜した際に発動」を`ALLY`で
+ * 表すと、所有者自身の行動が自分のPSを呼んでしまい、原文が明示的に除いている
+ * 自己発動が起きる。`ALLY`と違い**解決可能な`sourceUnitId`を必須**にする —
+ * 「他の味方」は所有者以外の味方BattleUnitを指す語彙であり、`sourceSide`だけを持つ
+ * Memory由来イベントのように発生源のBattleUnitが存在しないものは、陣営が一致しても
+ * 「他の味方が」した事象ではない（`sourceSide`側だけで判定すると
+ * `undefined !== owner.battleUnitId`が常に成立し、そのまま誤発動する）。
  */
 export function evaluateSourceSelector(
   selector: EventSelector,
@@ -87,6 +112,15 @@ export function evaluateSourceSelector(
       return event.sourceUnitId === owner.battleUnitId || isSourceUnattributed(event);
     case "ALLY":
       return resolveSourceSide(event, unitsById) === owner.side;
+    case "OTHER_ALLY": {
+      const source =
+        event.sourceUnitId === undefined ? undefined : unitsById.get(event.sourceUnitId);
+      return (
+        source !== undefined &&
+        source.side === owner.side &&
+        source.battleUnitId !== owner.battleUnitId
+      );
+    }
     case "ENEMY": {
       const side = resolveSourceSide(event, unitsById);
       return side !== undefined && side !== owner.side;
@@ -115,6 +149,7 @@ export function evaluateMemorySourceSelector(
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
 ): boolean {
   rejectEffectOwner(selector, "trigger.sourceSelector");
+  rejectOtherAllyForMemory(selector, "trigger.sourceSelector");
   switch (selector) {
     case "ANY":
       return true;
@@ -137,6 +172,7 @@ export function evaluateMemoryTargetSelector(
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
 ): boolean {
   rejectEffectOwner(selector, "trigger.targetSelector");
+  rejectOtherAllyForMemory(selector, "trigger.targetSelector");
   if (selector === "ANY") {
     return true;
   }
@@ -159,6 +195,7 @@ export function evaluateMemoryTargetSelector(
 /**
  * R-PS-01「...対象...をConditionDefinitionで評価する」のうち`targetSelector`部分。
  * `targetUnitIds`は複数持ちうるため、いずれか1件が条件を満たせば候補にする。
+ * `OTHER_ALLY`は`sourceSelector`側と同じく、味方のうち所有者自身を除く。
  */
 export function evaluateTargetSelector(
   selector: EventSelector,
@@ -184,6 +221,9 @@ export function evaluateTargetSelector(
     const target = unitsById.get(id);
     if (target === undefined) {
       return false;
+    }
+    if (selector === "OTHER_ALLY") {
+      return target.side === owner.side && id !== owner.battleUnitId;
     }
     return selector === "ALLY" ? target.side === owner.side : target.side !== owner.side;
   });

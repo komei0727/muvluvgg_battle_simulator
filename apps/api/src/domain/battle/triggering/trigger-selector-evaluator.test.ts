@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { evaluateSourceSelector, evaluateTargetSelector } from "./trigger-selector-evaluator.js";
+import {
+  evaluateMemorySourceSelector,
+  evaluateMemoryTargetSelector,
+  evaluateSourceSelector,
+  evaluateTargetSelector,
+} from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -116,6 +121,57 @@ describe("evaluateSourceSelector", () => {
     expect(evaluateSourceSelector("ENEMY", owner, memoryEvent, unitsById)).toBe(false);
   });
 
+  it("UT-R-PS-01-134: OTHER_ALLY matches an ally that is not the owner, and never the owner itself", () => {
+    expect(
+      evaluateSourceSelector("OTHER_ALLY", owner, eventFromUnit(allyOther.battleUnitId), unitsById),
+    ).toBe(true);
+    // 「他の味方が」は自分の行動では成立しない。`ALLY`との唯一の差はここにある。
+    expect(
+      evaluateSourceSelector("OTHER_ALLY", owner, eventFromUnit(owner.battleUnitId), unitsById),
+    ).toBe(false);
+    expect(
+      evaluateSourceSelector("ALLY", owner, eventFromUnit(owner.battleUnitId), unitsById),
+    ).toBe(true);
+    expect(
+      evaluateSourceSelector(
+        "OTHER_ALLY",
+        owner,
+        eventFromUnit(enemyOther.battleUnitId),
+        unitsById,
+      ),
+    ).toBe(false);
+  });
+
+  it("UT-R-PS-01-135: OTHER_ALLY does not match a globally-scoped event with neither sourceUnitId nor sourceSide (no source to call an ally)", () => {
+    expect(evaluateSourceSelector("OTHER_ALLY", owner, eventFromUnit(undefined), unitsById)).toBe(
+      false,
+    );
+  });
+
+  it("UT-R-PS-01-137: OTHER_ALLY requires a resolvable source BattleUnit — an event carrying only sourceSide (Memory-origin) never matches it, while ALLY still does", () => {
+    // 発生源のBattleUnitが存在しないイベント。`ALLY`は陣営だけで成立するが、
+    // 「他の味方が」は「所有者以外の味方BattleUnit」を指すため成立してはならない。
+    const memoryEvent: TriggerCandidateEvent = {
+      eventType: "HealApplied",
+      category: "FACT",
+      sourceSide: "ALLY",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("ALLY", owner, memoryEvent, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("OTHER_ALLY", owner, memoryEvent, unitsById)).toBe(false);
+
+    // `sourceUnitId`はあるが盤面に居ない場合も同じ（`ALLY`は`sourceSide`へfallbackする）。
+    const unknownSource: TriggerCandidateEvent = {
+      eventType: "DamageApplied",
+      category: "FACT",
+      sourceUnitId: createBattleUnitId("UNKNOWN"),
+      sourceSide: "ALLY",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("ALLY", owner, unknownSource, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("OTHER_ALLY", owner, unknownSource, unitsById)).toBe(false);
+  });
+
   it("UT-R-PS-01-129: falls back to event.sourceSide when sourceUnitId does not resolve in unitsById", () => {
     const event: TriggerCandidateEvent = {
       eventType: "DamageApplied",
@@ -203,10 +259,56 @@ describe("evaluateTargetSelector", () => {
     ).toBe(false);
   });
 
+  it("UT-R-PS-01-136: OTHER_ALLY matches an allied target other than the owner, and never the owner alone", () => {
+    expect(
+      evaluateTargetSelector(
+        "OTHER_ALLY",
+        owner,
+        eventWithTargets([enemy.battleUnitId, ally.battleUnitId]),
+        unitsById,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateTargetSelector(
+        "OTHER_ALLY",
+        owner,
+        eventWithTargets([owner.battleUnitId]),
+        unitsById,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateTargetSelector("ALLY", owner, eventWithTargets([owner.battleUnitId]), unitsById),
+    ).toBe(true);
+  });
+
   it("UT-R-PS-01-119: a non-ANY selector never matches when there are no targets", () => {
     expect(evaluateTargetSelector("ALLY", owner, eventWithTargets(undefined), unitsById)).toBe(
       false,
     );
     expect(evaluateTargetSelector("ALLY", owner, eventWithTargets([]), unitsById)).toBe(false);
+  });
+});
+
+describe("evaluateMemorySourceSelector / evaluateMemoryTargetSelector", () => {
+  const ally = unit("ALLY_1", "ALLY");
+  const unitsById = new Map([[ally.battleUnitId, ally]]);
+  const event: TriggerCandidateEvent = {
+    eventType: "DamageApplied",
+    category: "FACT",
+    sourceUnitId: ally.battleUnitId,
+    targetUnitIds: [ally.battleUnitId],
+    payload: {},
+  };
+
+  it("UT-R-MEM-04-005: OTHER_ALLY throws for both Memory selectors (a Memory has no owner BattleUnit to exclude)", () => {
+    expect(() => evaluateMemorySourceSelector("OTHER_ALLY", "ALLY", event, unitsById)).toThrow(
+      DomainValidationError,
+    );
+    expect(() => evaluateMemoryTargetSelector("OTHER_ALLY", "ALLY", event, unitsById)).toThrow(
+      DomainValidationError,
+    );
+    // 隔離しないと`ALLY`へ丸められ、原文が除いた自己発動が静かに復活する。
+    expect(evaluateMemorySourceSelector("ALLY", "ALLY", event, unitsById)).toBe(true);
+    expect(evaluateMemoryTargetSelector("ALLY", "ALLY", event, unitsById)).toBe(true);
   });
 });

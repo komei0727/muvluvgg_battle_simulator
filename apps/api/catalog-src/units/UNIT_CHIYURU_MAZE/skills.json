@@ -260,7 +260,7 @@
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",
@@ -327,7 +327,7 @@
       {
         "eventType": "SkillUseStarting",
         "category": "TIMING",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",

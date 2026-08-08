@@ -137,18 +137,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
@@ -165,6 +159,16 @@
             }
           ],
           "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }]
         }
       ]
     },

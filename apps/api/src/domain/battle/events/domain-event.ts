@@ -240,6 +240,14 @@ export interface BattleDomainEventPayloadMap {
     readonly effectActionDefinitionId: EffectActionDefinitionId;
     readonly hitIndex: number;
     readonly targetUnitId: BattleUnitId;
+    /**
+     * この攻撃を発生させたスキルの種別。production Catalogは「自身がアクティブ
+     * スキルで攻撃される直前」を`EVENT_PAYLOAD field: "skillType"`で表現するため
+     * （`SKL_CHIZURU_DOMESTIC_PS2`等）、この欄が無いと当該triggerが一度も候補化
+     * されない（`DamageApplied`／`SkillUseStarting`の同じ欠落と同じ理由）。
+     * 継続ダメージ・リンク・反射のようにスキル種別へ帰属しない経路では省略する。
+     */
+    readonly skillType?: SkillType;
   };
   readonly HitConfirmed: {
     readonly skillDefinitionId: SkillDefinitionId;
