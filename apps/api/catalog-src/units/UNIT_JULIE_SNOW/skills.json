@@ -313,12 +313,22 @@
     },
     "resolution": {
       "kind": "IMMEDIATE",
-      "targetBindings": [],
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ATTACKED",
+          "selector": {
+            "kind": "TRIGGER_TARGET",
+            "side": "ENEMY",
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
       "steps": [
         {
           "kind": "ACTION",
           "target": {
-            "kind": "TRIGGER_TARGET"
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ATTACKED"
           },
           "actions": [
             {
@@ -345,7 +355,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
           "kind": "EVENT_PAYLOAD",
           "field": "skillType",

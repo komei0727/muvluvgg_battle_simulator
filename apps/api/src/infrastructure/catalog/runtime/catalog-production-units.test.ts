@@ -383,7 +383,20 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // ため、`targetSelector: ANY` と「攻撃を含むAS」のIDリストで判定する。
     // (3) `SKL_MIKOTO_SURVIVOR_PS1` の `TGT_OTHER_ALLIES`（原文「他の味方の」）は
     // 自身を除外しておらず、名前と原文に反して自分自身も対象へ含めていた。
-    expect(catalog.catalogRevision).toBe("2026-08-08.3");
+    // `2026-08-08.4` は REF-028（Issue #358）の第4バッチが検出した原文との不一致。
+    // (1) 「**他の**味方が〜した際に発動」を `sourceSelector: ALLY` で表していた3件
+    // （`SKL_CHIYURU_MAZE_PS1`／`PS2`・`SKL_HARRIET_SAGE_PS2`）は、`ALLY` が所有者
+    // 自身を含むため自分の行動で自分のPSを呼んでいた。新設した `OTHER_ALLY` へ直した。
+    // (2) 発生源・対象の帰属が実イベントと噛み合わない3件
+    // （`SKL_DOROTHEA_PIONEER_PS2` の `sourceSelector: ENEMY`、
+    // `SKL_FLUTE_VAMPIRE_PS1` の `HitPointReduced`＋`sourceSelector: SELF`、
+    // `SKL_JULIE_SNOW_PS2` の `SkillUseCompleted`＋`targetSelector: SELF`）は
+    // いずれも実戦闘で一度も候補化されなかった。
+    // (3) `SKL_AOI_ELEGANT_AS2` の追加ダメージ分岐は、自分が付けた「浮足」で条件が
+    // 必ず成立する位置に置かれており恒真だった。付与をBRANCHの後ろへ回した。
+    // (4) `SKL_FEE_BATH_AS1`（原文「「ほてり」を2つ付与する」）は `APPLY_MARKER` を
+    // 1件しか撃っておらず1つしか付いていなかった。
+    expect(catalog.catalogRevision).toBe("2026-08-08.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

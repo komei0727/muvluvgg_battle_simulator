@@ -338,18 +338,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" }]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_DAMAGE" }]
         },
         {
           "kind": "BRANCH",
@@ -366,6 +360,16 @@
             }
           ],
           "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }]
         }
       ]
     },
@@ -766,7 +770,7 @@
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",
@@ -809,7 +813,7 @@
       {
         "eventType": "SkillUseStarting",
         "category": "TIMING",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",
@@ -2149,7 +2153,7 @@
       {
         "eventType": "UnitDefeated",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
+        "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",
@@ -3118,6 +3122,7 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
           "actions": [
             { "effectActionDefinitionId": "ACT_FEE_BATH_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER" },
             { "effectActionDefinitionId": "ACT_FEE_BATH_AS1_MARKER" }
           ]
         }
@@ -3540,7 +3545,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "SELF",
+        "sourceSelector": "ANY",
         "targetSelector": "SELF",
         "condition": {
           "kind": "AND",
@@ -3903,7 +3908,7 @@
       {
         "eventType": "ChargeStarted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ALLY"
       }
     ]
@@ -4311,11 +4316,16 @@
     "cost": { "resource": "PP", "amount": 1 },
     "resolution": {
       "kind": "IMMEDIATE",
-      "targetBindings": [],
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ATTACKED",
+          "selector": { "kind": "TRIGGER_TARGET", "side": "ENEMY", "order": ["DEFAULT"] }
+        }
+      ],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
           "actions": [
             { "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN" },
             { "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_HEALING_DOWN" }
@@ -4331,7 +4341,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": {
           "kind": "EVENT_PAYLOAD",
           "field": "skillType",

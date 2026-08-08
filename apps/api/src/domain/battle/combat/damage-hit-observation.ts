@@ -111,6 +111,9 @@ export function* observeHitSteps(
       effectActionDefinitionId: profile.effectActionDefinitionId,
       hitIndex: profile.hitIndex,
       targetUnitId,
+      // 「自身がアクティブスキルで攻撃される直前」を`EVENT_PAYLOAD`で読むtriggerが
+      // 参照する。スキル種別へ帰属しない経路（継続ダメージ等）では未指定のまま。
+      ...(context.skillType === undefined ? {} : { skillType: context.skillType }),
     },
   });
   lastEventId = unitBeingAttacked.eventId;

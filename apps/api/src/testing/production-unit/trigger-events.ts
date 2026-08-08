@@ -7,7 +7,11 @@ import type {
   SkillType,
 } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { EffectActionKind } from "../../domain/catalog/definitions/effect-action-definition.js";
-import { createDomainEventId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
+import {
+  createActionId,
+  createDomainEventId,
+  createEffectInstanceId,
+} from "../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import type { PassiveTriggerEvent } from "./passive-activation.js";
 
@@ -30,10 +34,14 @@ const SYNTHETIC_CAUSE_EVENT_ID = createDomainEventId("B_BEHAVIOUR:cause");
 const SYNTHETIC_SKILL_ID = createSkillDefinitionId("SKL_TEST_TRIGGER_SOURCE");
 const SYNTHETIC_ACTION_ID = createEffectActionDefinitionId("ACT_TEST_TRIGGER_SOURCE");
 
-/** 敵の攻撃が対象へ当たる直前（R-EFF-07 の消費点）。 */
+/**
+ * 敵の攻撃が対象へ当たる直前（R-EFF-07 の消費点）。`skillType` は「自身がアクティブ
+ * スキルで攻撃される直前」を `EVENT_PAYLOAD` で読む trigger のために指定する。
+ */
 export function unitBeingAttacked(options: {
   readonly source: string;
   readonly target: string;
+  readonly skillType?: SkillType;
 }): PassiveTriggerEvent<"UnitBeingAttacked"> {
   return {
     eventType: "UnitBeingAttacked",
@@ -45,6 +53,7 @@ export function unitBeingAttacked(options: {
       effectActionDefinitionId: SYNTHETIC_ACTION_ID,
       hitIndex: 1,
       targetUnitId: createBattleUnitId(options.target),
+      ...(options.skillType === undefined ? {} : { skillType: options.skillType }),
     },
   };
 }
@@ -103,6 +112,28 @@ export function skillUseCompleted(options: {
       skillType: options.skillType,
       resolvedStepCount: 1,
       targetUnitIds,
+    },
+  };
+}
+
+/**
+ * チャージ開始。実装は「このイベントには外部の対象がなく、チャージを開始した本人
+ * 自身が観測対象である」として `targetUnitIds` へ本人を入れるため、ここでも同じ形にする。
+ */
+export function chargeStarted(options: {
+  readonly actor: string;
+  readonly skillDefinitionId: string;
+}): PassiveTriggerEvent<"ChargeStarted"> {
+  const actorUnitId = createBattleUnitId(options.actor);
+  return {
+    eventType: "ChargeStarted",
+    category: "FACT",
+    sourceUnitId: actorUnitId,
+    targetUnitIds: [actorUnitId],
+    payload: {
+      actorUnitId,
+      skillDefinitionId: createSkillDefinitionId(options.skillDefinitionId),
+      startedActionId: createActionId("B_BEHAVIOUR:action:1"),
     },
   };
 }
@@ -240,8 +271,12 @@ export interface RealDamageTrigger {
   readonly skillType: SkillType;
   /** `SKILL_POWER` の倍率。既定の1は「攻撃力 - 防御力」そのもの。 */
   readonly power?: number;
-  /** 契機として流すイベント種別。既定は `DamageApplied`。 */
-  readonly event?: "DamageApplied" | "HitPointReduced";
+  /**
+   * 契機として流すイベント種別。既定は `DamageApplied`。`UnitBeingAttacked` は
+   * 「自身がアクティブスキルで攻撃される直前」を表すtriggerのために選ぶ — この
+   * payloadの `skillType` も実装が載せて初めて存在するため、実pipelineに出させる。
+   */
+  readonly event?: "DamageApplied" | "HitPointReduced" | "UnitBeingAttacked";
 }
 
 /** 実ダメージpipelineが発行する `DamageApplied`／`HitPointReduced` を契機にする。 */
