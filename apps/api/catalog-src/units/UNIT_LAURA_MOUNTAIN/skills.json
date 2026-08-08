@@ -128,8 +128,13 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_LAURA_MOUNTAIN_AS1"]
+        }
       }
     ]
   },
@@ -192,7 +197,7 @@
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }

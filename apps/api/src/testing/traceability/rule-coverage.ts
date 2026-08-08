@@ -502,9 +502,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // resolver（`effect-action-group-resolver.ts`）・`statusKind`のDomain
   // Event/StateDelta/独立Reducer配線・`SKILL_USE`期間減算の実配線
   // （`action-skill-use-resolver.ts`）を完成させ、実カタログ定義を単体実行する
-  // 統合テスト（`mao-committee-ps2-stealth-production-catalog.test.ts`の
-  // IT-CAP-STEALTH-PROD-001/002）で対象選択・消費・独立Reducer復元まで確認した
-  // ため、Rule完了として扱う。`SKL_MAO_COMMITTEE_PS2`自身が同じstepで解決する
+  // 統合テスト（ユニット効果軸の `IT-UNIT-MAO-COMMITTEE-004`/`005`）で
+  // 対象選択・消費・独立Reducer復元まで確認したため、Rule完了として扱う。`SKL_MAO_COMMITTEE_PS2`自身が同じstepで解決する
   // CLEANSE（`REMOVE_EFFECTS`、M7-001）・HEAL（`APPLY_CONTINUOUS_HEAL`、
   // M7-005）・DMG_DOWN（`APPLY_DAMAGE_MOD`、DMG-002）は当時未実装のkindだった
   // ため、スキル全体のend-to-end実行はスコープ外
@@ -529,8 +528,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-SKILL-RESOLUTION-SERVICE-012",
       "UT-SKILL-RESOLUTION-SERVICE-013",
       "UT-SKILL-RESOLUTION-SERVICE-014",
-      "IT-CAP-STEALTH-PROD-001",
-      "IT-CAP-STEALTH-PROD-002",
+      "IT-UNIT-MAO-COMMITTEE-004",
+      "IT-UNIT-MAO-COMMITTEE-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -945,7 +944,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 例外を投げず正しく分岐することを`UT-R-SKL-07-111`で検証した。
   // RES-003 production統合（Issue #173）: 実`catalog/`からロードした未改変の
   // production代表を実resolver（`applyEffectActionGroups`）で駆動し、`RANDOM_BRANCH`の
-  // 定義順weighted選択（`SKL_KATE_PALADIN_EX`、`IT-CAP-RANDOM-BRANCH-PROD-001〜002`）と
+  // 定義順weighted選択（`SKL_KATE_PALADIN_EX`、`IT-UNIT-KATE-PALADIN-001`/`004`）と
   // `BRANCH`のthen/else分岐（`SKL_KEI_JACKKNIFE_AS2`のマーカー条件、
   // `SKL_SENKA_SCHEMER_EX`のIS_ALIVE条件・空else、`IT-CAP-BRANCH-REPEAT-PROD-001〜004`）を
   // Domain Event・StateDelta・独立Reducer復元まで確認した。`CAP_RANDOM_BRANCH`/
@@ -967,8 +966,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-07-109",
       "UT-R-SKL-07-110",
       "UT-R-SKL-07-111",
-      "IT-CAP-RANDOM-BRANCH-PROD-001",
-      "IT-CAP-RANDOM-BRANCH-PROD-002",
+      "IT-UNIT-KATE-PALADIN-004",
       "IT-CAP-BRANCH-REPEAT-PROD-001",
       "IT-CAP-BRANCH-REPEAT-PROD-002",
       "IT-CAP-BRANCH-REPEAT-PROD-003",
@@ -1832,7 +1830,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HEAL-01-006",
       "UT-R-HEAL-01-007",
       "UT-R-HEAL-01-008",
-      "IT-CAP-HEAL-PROD-001",
+      "IT-UNIT-LUCIE-COMPANION-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -1848,7 +1846,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HEAL-03-002",
       "UT-R-HEAL-03-003",
       "UT-R-HEAL-03-004",
-      "IT-CAP-CONTINUOUS-HEAL-PROD-001",
+      "IT-UNIT-LUCIE-COMPANION-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },

@@ -148,7 +148,13 @@
     "payload": {
       "direction": "OUTGOING",
       "damageType": null,
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": -0.3 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "TARGET" },
+        "min": 0,
+        "max": -0.3,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,

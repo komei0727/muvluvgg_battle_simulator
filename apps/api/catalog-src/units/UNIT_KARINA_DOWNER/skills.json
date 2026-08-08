@@ -146,10 +146,11 @@
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
-        "targetSelector": "ALLY",
+        "targetSelector": "OTHER_ALLY",
         "condition": {
           "kind": "AND",
           "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
             {
               "kind": "TARGET_STATE",
               "target": { "kind": "TRIGGER_SOURCE" },

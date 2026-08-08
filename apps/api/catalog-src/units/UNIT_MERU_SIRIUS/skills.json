@@ -155,7 +155,7 @@
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }

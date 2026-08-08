@@ -115,7 +115,7 @@
         "eventType": "EffectApplied",
         "category": "FACT",
         "sourceSelector": "ANY",
-        "targetSelector": "ALLY",
+        "targetSelector": "OTHER_ALLY",
         "condition": {
           "kind": "AND",
           "conditions": [
