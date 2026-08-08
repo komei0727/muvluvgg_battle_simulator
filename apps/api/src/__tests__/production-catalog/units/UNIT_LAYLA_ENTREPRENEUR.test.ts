@@ -5,6 +5,12 @@ import {
   observeEffectAction,
   type EffectManifestationCase,
 } from "../../../testing/production-unit/effect-manifestation.js";
+import {
+  declaredSkillIds,
+  observeFullBattle,
+  standardFullBattleBoard,
+} from "../../../testing/production-unit/full-battle.js";
+import { assertBattleInvariants } from "../../../testing/scenario/run-scenario.js";
 
 /**
  * `UNIT_LAYLA_ENTREPRENEUR`（【戦うアントレプレナー】レイラ・ジェンキンス）のユニット単位production結合テスト
@@ -243,5 +249,46 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
     expect([...new Set(MANIFESTATIONS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
       [...declared].sort(),
     );
+  });
+
+  // -100: 1バトル完走の中での全スキル発動。`-001`の表はEffectActionを1件だけ包んで
+  // 通すため、発動条件・PSトリガ・対象範囲・AP/PP/EXの資源経済・クールタイムが
+  // 観測に現れない。ここはそれらを含んだ実戦闘を1本通し、宣言した全Skillが
+  // 実際に到達可能であることを発動回数と発動順で固定する。
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-100: every declared Skill activates within one completed battle, with these counts and in this order", () => {
+    const observation = observeFullBattle(
+      standardFullBattleBoard({
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        enemyCount: 1,
+        turnLimit: 1,
+      }),
+    );
+
+    assertBattleInvariants(observation.result);
+    expect(observation.completionReason).toBe("TURN_LIMIT_REACHED");
+
+    // 宣言スキル集合との一致が「1つも発動しないSkillが無いこと」を守る。
+    // Skillが増えたときはこの行が落ちるため、盤面の見直しが強制される。
+    expect(Object.keys(observation.activationCounts).sort()).toEqual(
+      [...declaredSkillIds(UNIT_DEFINITION_ID)].sort(),
+    );
+    expect(observation.activationCounts).toEqual({
+      SKL_LAYLA_ENTREPRENEUR_AS1: 1,
+      SKL_LAYLA_ENTREPRENEUR_AS2: 2,
+      SKL_LAYLA_ENTREPRENEUR_PS1: 1,
+      SKL_LAYLA_ENTREPRENEUR_PS2: 3,
+      SKL_LAYLA_ENTREPRENEUR_EX: 1,
+    });
+    // PS1はターン開始時に1度だけ、PS2は会心4回ごと、EXはゲージ最大で予約発動する。
+    expect(observation.activationOrder).toEqual([
+      "PS1",
+      "AS1",
+      "AS2",
+      "PS2",
+      "AS2",
+      "PS2",
+      "EX",
+      "PS2",
+    ]);
   });
 });

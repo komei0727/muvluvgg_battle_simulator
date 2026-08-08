@@ -5,6 +5,12 @@ import {
   observeEffectAction,
   type EffectManifestationCase,
 } from "../../../testing/production-unit/effect-manifestation.js";
+import {
+  declaredSkillIds,
+  observeFullBattle,
+  standardFullBattleBoard,
+} from "../../../testing/production-unit/full-battle.js";
+import { assertBattleInvariants } from "../../../testing/scenario/run-scenario.js";
 
 /**
  * `UNIT_ANIS_TROUBLEMAKER`（【愛を求めるトラブルメーカー】アニス・ベネット）のユニット単位production結合テスト
@@ -264,5 +270,50 @@ describe("production Catalog UNIT_ANIS_TROUBLEMAKER (【愛を求めるトラブ
     expect([...new Set(MANIFESTATIONS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
       [...declared].sort(),
     );
+  });
+  // -100: 1バトル完走の中での全スキル発動。`-001`の表はEffectActionを1件だけ包んで
+  // 通すため、発動条件・PSトリガ・対象範囲・AP/PP/EXの資源経済・クールタイムが
+  // 観測に現れない。ここはそれらを含んだ実戦闘を1本通し、宣言した全Skillが
+  // 実際に到達可能であることを発動回数と発動順で固定する。
+  it("IT-UNIT-ANIS-TROUBLEMAKER-100: every declared Skill activates within one completed battle, with these counts and in this order", () => {
+    const observation = observeFullBattle(
+      standardFullBattleBoard({
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        enemyCount: 1,
+        turnLimit: 2,
+      }),
+    );
+
+    assertBattleInvariants(observation.result);
+    expect(observation.completionReason).toBe("TURN_LIMIT_REACHED");
+
+    // 宣言スキル集合との一致が「1つも発動しないSkillが無いこと」を守る。
+    // Skillが増えたときはこの行が落ちるため、盤面の見直しが強制される。
+    expect(Object.keys(observation.activationCounts).sort()).toEqual(
+      [...declaredSkillIds(UNIT_DEFINITION_ID)].sort(),
+    );
+    expect(observation.activationCounts).toEqual({
+      SKL_ANIS_TROUBLEMAKER_AS1: 4,
+      SKL_ANIS_TROUBLEMAKER_AS2: 4,
+      SKL_ANIS_TROUBLEMAKER_PS1: 3,
+      SKL_ANIS_TROUBLEMAKER_PS2: 1,
+      SKL_ANIS_TROUBLEMAKER_EX: 1,
+    });
+    // PS1は被攻撃直前、PS2はターン開始時（1ターン目を除く）に発動する。
+    expect(observation.activationOrder).toEqual([
+      "AS1",
+      "PS1",
+      "AS2",
+      "AS1",
+      "PS1",
+      "AS2",
+      "PS2",
+      "EX",
+      "PS1",
+      "AS1",
+      "AS2",
+      "AS1",
+      "AS2",
+    ]);
   });
 });

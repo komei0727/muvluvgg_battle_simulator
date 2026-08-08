@@ -30,6 +30,12 @@ import {
   observeEffectAction,
   type EffectManifestationCase,
 } from "../../../testing/production-unit/effect-manifestation.js";
+import {
+  declaredSkillIds,
+  observeFullBattle,
+  standardFullBattleBoard,
+} from "../../../testing/production-unit/full-battle.js";
+import { assertBattleInvariants } from "../../../testing/scenario/run-scenario.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
 /**
@@ -598,5 +604,36 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     });
     expect(newEvents.some((event) => event.eventType === "HealingTransferred")).toBe(false);
     expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(494);
+  });
+  // -100: 1バトル完走の中での全スキル発動。`-001`の表はEffectActionを1件だけ包んで
+  // 通すため、発動条件・PSトリガ・対象範囲・AP/PP/EXの資源経済・クールタイムが
+  // 観測に現れない。ここはそれらを含んだ実戦闘を1本通し、宣言した全Skillが
+  // 実際に到達可能であることを発動回数と発動順で固定する。
+  it("IT-UNIT-ELENA-MOODMAKER-100: every declared Skill activates within one completed battle, with these counts and in this order", () => {
+    const observation = observeFullBattle(
+      standardFullBattleBoard({
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        enemyCount: 2,
+        turnLimit: 1,
+      }),
+    );
+
+    assertBattleInvariants(observation.result);
+    expect(observation.completionReason).toBe("TURN_LIMIT_REACHED");
+
+    // 宣言スキル集合との一致が「1つも発動しないSkillが無いこと」を守る。
+    // Skillが増えたときはこの行が落ちるため、盤面の見直しが強制される。
+    expect(Object.keys(observation.activationCounts).sort()).toEqual(
+      [...declaredSkillIds(UNIT_DEFINITION_ID)].sort(),
+    );
+    expect(observation.activationCounts).toEqual({
+      SKL_ELENA_MOODMAKER_AS1: 3,
+      SKL_ELENA_MOODMAKER_AS2: 1,
+      SKL_ELENA_MOODMAKER_PS1: 1,
+      SKL_ELENA_MOODMAKER_PS2: 1,
+      SKL_ELENA_MOODMAKER_EX: 1,
+    });
+    // AS1はHP70%未満の味方が現れて初めて発動条件を満たすため、AS2が先に選ばれる。
+    expect(observation.activationOrder).toEqual(["AS2", "AS1", "PS2", "AS1", "AS1", "PS1", "EX"]);
   });
 });
