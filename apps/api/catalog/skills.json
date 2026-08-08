@@ -2217,7 +2217,8 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGH" },
           "actions": [
             { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH" },
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH" }
+            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH" },
+            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE" }
           ]
         },
         {
@@ -5684,13 +5685,16 @@
             "kind": "TARGET_HAS_MARKER",
             "target": { "kind": "SELF" },
             "markerId": "MARKER_FUNDO",
-            "countCondition": { "op": "LTE", "value": 1 }
+            "countCondition": { "op": "GTE", "value": 4 }
           },
           "thenSteps": [
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_1HIT" }]
+              "actions": [
+                { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED" },
+                { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
+              ]
             }
           ],
           "elseSteps": [
@@ -5700,13 +5704,16 @@
                 "kind": "TARGET_HAS_MARKER",
                 "target": { "kind": "SELF" },
                 "markerId": "MARKER_FUNDO",
-                "countCondition": { "op": "EQ", "value": 2 }
+                "countCondition": { "op": "GTE", "value": 3 }
               },
               "thenSteps": [
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_2HIT" }]
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT" },
+                    { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
+                  ]
                 }
               ],
               "elseSteps": [
@@ -5716,26 +5723,20 @@
                     "kind": "TARGET_HAS_MARKER",
                     "target": { "kind": "SELF" },
                     "markerId": "MARKER_FUNDO",
-                    "countCondition": { "op": "GTE", "value": 4 }
+                    "countCondition": { "op": "EQ", "value": 2 }
                   },
                   "thenSteps": [
                     {
                       "kind": "ACTION",
                       "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                      "actions": [
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED" },
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
-                      ]
+                      "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_2HIT" }]
                     }
                   ],
                   "elseSteps": [
                     {
                       "kind": "ACTION",
                       "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                      "actions": [
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT" },
-                        { "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN" }
-                      ]
+                      "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_1HIT" }]
                     }
                   ]
                 }
@@ -11438,7 +11439,8 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
       }
     ]
   },

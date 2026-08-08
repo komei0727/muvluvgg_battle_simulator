@@ -201,7 +201,7 @@ function preTruncationDamageOf(
 }
 
 describe("production Catalog ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE (REL-001, Issue #202, CAP_ATTACK_DAMAGE_BONUS)", () => {
-  it("IT-CAP-ATTACK-DAMAGE-BONUS-PROD-001 (real lifecycle wiring): the real SKL_ELENA_MOODMAKER_EX grants the LOWEST_ATTACK ally an isAttackDamageBonus effect whose magnitude is 15% of that ally's ATTACK at grant time", () => {
+  it("IT-CAP-ATTACK-DAMAGE-BONUS-PROD-001 (real lifecycle wiring): the real SKL_ELENA_MOODMAKER_EX grants both the LOWEST_ATTACK and the HIGHEST_ATTACK ally an isAttackDamageBonus effect whose magnitude is 15% of that ally's ATTACK at grant time", () => {
     const context = setup();
 
     const resolved = resolveElenaEx(context);
@@ -215,9 +215,12 @@ describe("production Catalog ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE (REL-001, Issue
     expect(aoi.combatStats.attack).toBe(AOI_BASE_ATTACK * (1 + ATTACK_UP_RATIO));
     expect(bonus[0]!.magnitude).toBe(AOI_BASE_ATTACK * (1 + ATTACK_UP_RATIO) * BONUS_RATIO);
 
-    // 追加ダメージは`LOWEST_ATTACK`側だけが受け取る（`HIGHEST_ATTACK`側のElenaには付かない）。
+    // 原文は`HIGHEST_ATTACK`側にも同じ追加ダメージバフを付与すると述べており、
+    // 両方のstepが`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`を撃つ。
     const elena = resolved.find((unit) => unit.battleUnitId === context.elena.battleUnitId)!;
-    expect(elena.appliedEffects.some((effect) => effect.isAttackDamageBonus === true)).toBe(false);
+    const elenaBonus = elena.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true);
+    expect(elenaBonus).toHaveLength(1);
+    expect(elenaBonus[0]!.effectActionDefinitionId).toBe(BONUS_DAMAGE_ID);
   });
 
   it("IT-CAP-ATTACK-DAMAGE-BONUS-PROD-002 (the bonus reaches real damage): a DAMAGE hit from the holder adds exactly the granted magnitude on top of the same hit without the bonus", () => {

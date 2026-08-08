@@ -5,6 +5,8 @@ import type { MarkerState } from "../../domain/battle/model/marker-state.js";
 
 export interface TestMarkerOverrides {
   readonly stackCount?: number;
+  /** 同一ユニットへ複数のMarkerを置く場合、instance IDの衝突を避けるために指定する。 */
+  readonly markerInstanceId?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ export function testMarker(
   overrides: TestMarkerOverrides = {},
 ): MarkerState {
   return {
-    markerInstanceId: createMarkerInstanceId("MARKER_INSTANCE_1"),
+    markerInstanceId: createMarkerInstanceId(overrides.markerInstanceId ?? "MARKER_INSTANCE_1"),
     markerId: createMarkerId(markerIdValue),
     sourceUnitId: unit.battleUnitId,
     targetUnitId: unit.battleUnitId,
