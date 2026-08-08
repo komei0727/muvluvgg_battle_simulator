@@ -52,6 +52,22 @@ describe("effectCategoriesOf", () => {
     );
   }
 
+  function incomingDamageModDefinition(id: string): EffectActionDefinition {
+    return createEffectActionDefinition(
+      {
+        effectActionDefinitionId: id,
+        kind: "APPLY_DAMAGE_MOD",
+        payload: {
+          direction: "INCOMING",
+          formula: { kind: "CONSTANT", value: -0.75 },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+        },
+      },
+      "effectAction",
+    );
+  }
+
   // `effectCategoriesOf` only reads `magnitude`/`statusKind` (Pick), so the
   // fixture is exactly that projection — no full AppliedEffect construction.
   // `exactOptionalPropertyTypes` forbids an explicit `statusKind: undefined`,
@@ -207,6 +223,27 @@ describe("effectCategoriesOf", () => {
       damageModDefinition("ACT_DMG_UP"),
     );
     expect(new Set(categories)).toEqual(new Set(["DAMAGE_MOD", "BUFF"]));
+  });
+
+  // R-EFF-05 の「弱化量」は保持者から見た不利であり`magnitude`の符号ではない。
+  // 被ダメージ補正は符号の意味が与ダメージ側と逆で、負値が保持者を強化する。
+  // 符号だけで決めると「デバフをすべて解除」（`ACT_MEIYA_FATED_PS1_REMOVE_DEBUFF`）が
+  // 自分の被ダメージ減少バフを剥がし、「自身にデバフが付与された際に発動」する
+  // PSが自分への防御バフで発動してしまう。
+  it("UT-R-EFF-02-029: classifies an incoming damage reduction as BUFF — the negative magnitude strengthens its holder", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: -0.75 }),
+      incomingDamageModDefinition("ACT_INCOMING_DMG_DOWN"),
+    );
+    expect(new Set(categories)).toEqual(new Set(["DAMAGE_MOD", "BUFF"]));
+  });
+
+  it("UT-R-EFF-02-030: classifies an incoming damage increase as DEBUFF — the positive magnitude weakens its holder", () => {
+    const categories = effectCategoriesOf(
+      effect({ magnitude: 0.3 }),
+      incomingDamageModDefinition("ACT_INCOMING_DMG_UP"),
+    );
+    expect(new Set(categories)).toEqual(new Set(["DAMAGE_MOD", "DEBUFF"]));
   });
 
   // M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）: シールド／サブユニットは

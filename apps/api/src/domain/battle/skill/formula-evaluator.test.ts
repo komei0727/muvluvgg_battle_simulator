@@ -221,6 +221,39 @@ describe("evaluateFormula", () => {
     expect(evaluateFormula(formula, ctx)).toBeCloseTo(0.07);
   });
 
+  // `max`は効果量の絶対値の上限であり、符号は効果の向きを表す。減少側の定義
+  // （`ACT_LYDIA_GENIUS_PS1_SHIELD_BUFF`）で0に近い側を切ると、常に上限が選ばれ
+  // 「数が多いほど高い効果」というスケールそのものが効かなくなる。
+  it("UT-R-NUM-04-033: ALIVE_UNIT_COUNT_SCALE scales a negative perUnit by the alive count instead of collapsing to max", () => {
+    const skillSource = unitAt("U_SOURCE", "ALLY");
+    const ally1 = unitAt("U_ALLY_1", "ALLY");
+    const ally2 = unitAt("U_ALLY_2", "ALLY");
+    const ctx = context({ skillSource, allUnits: [skillSource, ally1, ally2] });
+    const formula: FormulaDefinition = {
+      kind: "ALIVE_UNIT_COUNT_SCALE",
+      side: "ALLY",
+      perUnit: -0.05,
+      max: -0.25,
+    };
+    // 3 alive allies * -0.05 = -0.15, still short of the -0.25 cap
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(-0.15);
+  });
+
+  it("UT-R-NUM-04-034: ALIVE_UNIT_COUNT_SCALE still caps a negative perUnit at max once the count would exceed it", () => {
+    const allies = ["U_SOURCE", "U_A1", "U_A2", "U_A3", "U_A4", "U_A5"].map((id) =>
+      unitAt(id, "ALLY"),
+    );
+    const ctx = context({ skillSource: allies[0]!, allUnits: allies });
+    const formula: FormulaDefinition = {
+      kind: "ALIVE_UNIT_COUNT_SCALE",
+      side: "ALLY",
+      perUnit: -0.05,
+      max: -0.25,
+    };
+    // 6 alive allies * -0.05 = -0.3, capped at -0.25
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(-0.25);
+  });
+
   it("UT-R-NUM-04-014: DAMAGE_DEALT_RATIO/DAMAGE_RECEIVED_RATIO read the provided last-result value", () => {
     const ctx = context({
       lastResults: { LAST_DAMAGE_DEALT: 200, SUM_DAMAGE_RECEIVED: 80 },

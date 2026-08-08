@@ -121,7 +121,22 @@ export function effectCategoriesOf(
         ? new Set<EffectImmunityCategory>(["STATUS", "DEBUFF"])
         : new Set<EffectImmunityCategory>(["DEBUFF"]);
     case "APPLY_DAMAGE_MOD":
-      return new Set<EffectImmunityCategory>(["DAMAGE_MOD", polarity]);
+      // R-EFF-05「バフは正の効果量、デバフは弱化量」の「弱化」は保持者から見た
+      // 有利／不利であり、`magnitude`の符号そのものではない。被ダメージ補正
+      // （`direction: INCOMING`）は符号の意味が与ダメージ側と逆で、負値
+      // （「受けるダメージを75%減少させる」）が保持者を強化し、正値
+      // （「受けるダメージを増加させる」）が弱化する。符号だけで決めると
+      // 「デバフをすべて解除」が自分の被ダメージ減少バフを剥がし、
+      // 「自身にデバフが付与された際に発動」が自分への防御バフで発動し、
+      // 被ダメージ増加デバフがデバフ解除・デバフ無効の対象から外れる。
+      return new Set<EffectImmunityCategory>([
+        "DAMAGE_MOD",
+        definition.payload.direction === "INCOMING"
+          ? effect.magnitude <= 0
+            ? "BUFF"
+            : "DEBUFF"
+          : polarity,
+      ]);
     case "APPLY_PIERCING_MOD":
       // R-DMG-03（DMG-003、Issue #196）: 一時貫通は保持者が行う攻撃を強化する
       // 効果であり常にバフである。`APPLY_CONTINUOUS_DAMAGE`と同じ理由で符号から

@@ -107,7 +107,8 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
       }
     ]
   },
@@ -134,8 +135,13 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"]
+        }
       }
     ]
   }

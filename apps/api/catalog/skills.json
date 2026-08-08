@@ -2738,7 +2738,8 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY"
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
       }
     ]
   },
@@ -2765,8 +2766,13 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"]
+        }
       }
     ]
   },
@@ -7414,8 +7420,13 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"]
+        }
       }
     ]
   },
@@ -8311,8 +8322,13 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_MEIYA_FATED_AS1", "SKL_MEIYA_FATED_AS2"]
+        }
       }
     ]
   },
@@ -8536,8 +8552,13 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_MERU_FLATSPIN_AS1", "SKL_MERU_FLATSPIN_AS2", "SKL_MERU_FLATSPIN_AS3"]
+        }
       }
     ]
   },
@@ -9094,7 +9115,12 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_OTHER_ALLIES",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": "ALL" }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          }
         }
       ],
       "steps": [
@@ -9194,8 +9220,13 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"]
+        }
       }
     ]
   },
@@ -14851,8 +14882,13 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_YURIA_YUKATA_AS1"]
+        }
       }
     ]
   },

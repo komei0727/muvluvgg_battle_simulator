@@ -125,6 +125,19 @@ function statValue(unit: BattleUnit, stat: StatRatioStat): number {
   }
 }
 
+/**
+ * 「1件ごとに効果量が増え、`max`で頭打ちになる」形のFormula（`MARKER_COUNT_SCALE`・
+ * `ALIVE_UNIT_COUNT_SCALE`）の頭打ちを、**0から遠い側**で切る。
+ *
+ * `max`は効果量の絶対値の上限であり、符号は効果の向きを表す。減少側の定義
+ * （`ACT_LYDIA_GENIUS_PS1_SHIELD_BUFF`の`perUnit: -0.05` / `max: -0.25`）で
+ * `Math.min`を使うと常に`max`が選ばれ、「数が多いほど高い効果」というスケール
+ * そのものが効かなくなる。
+ */
+function scaleUpToCap(scaled: number, max: number): number {
+  return max >= 0 ? Math.min(scaled, max) : Math.max(scaled, max);
+}
+
 /** R-EFF-10: 同じmarkerIdのインスタンスは対象ごとに常に1つだけ存在する。未所持は0スタック扱い。 */
 function markerStackCount(unit: BattleUnit, markerId: MarkerId): number {
   return unit.markerStates.find((state) => state.markerId === markerId)?.stackCount ?? 0;
@@ -366,7 +379,7 @@ export function evaluateFormula(
     case "MARKER_COUNT_SCALE": {
       const target = resolveSourceUnit(formula.target, context, `${path}.target`);
       const stackCount = markerStackCount(target, formula.markerId);
-      return Math.min(stackCount * formula.perStack, formula.max);
+      return scaleUpToCap(stackCount * formula.perStack, formula.max);
     }
     case "HP_RATIO_SCALE": {
       // DMG-002（Issue #192、`HP_RATIO_SCALE_FORMULA`）: 参照対象のHP割合で
@@ -390,7 +403,7 @@ export function evaluateFormula(
         );
       }
       const count = aliveUnitCount(relativeSide, context.allUnits, formula.side);
-      return Math.min(count * formula.perUnit, formula.max);
+      return scaleUpToCap(count * formula.perUnit, formula.max);
     }
     case "PRODUCT":
       // DMG-002（Issue #192）: `SUM`の乗算版。「威力 × (1 + HP割合スケール)」のように
