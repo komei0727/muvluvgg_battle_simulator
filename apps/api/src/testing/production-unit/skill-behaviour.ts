@@ -7,11 +7,21 @@ import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activ
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { Attribute, UnitType } from "../../domain/catalog/definitions/catalog-enums.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+  createTargetBindingId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
+import type { TargetReference } from "../../domain/catalog/definitions/references.js";
+import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { BattleDomainEventType } from "../../domain/battle/events/domain-event.js";
@@ -25,6 +35,8 @@ import {
   testBattleUnit,
   testMarker,
   testUnitDefinition,
+  effectActionGroupContext,
+  seedRecorder,
 } from "../fixtures/index.js";
 import { openPassiveChain, type PassiveTriggerEvent } from "./passive-activation.js";
 
@@ -403,6 +415,88 @@ function executedActions(events: readonly BattleDomainEvent[]): readonly Observe
     }));
 }
 
+const PRECEDING_SKILL_ID = "SKL_TEST_PRECEDING";
+const PRECEDING_BINDING_ID = "TGT_TEST_PRECEDING";
+
+const PRECEDING_TRAITS: SkillDefinition["traits"] = {
+  priorityAttack: false,
+  simultaneousActivationLimited: false,
+  exclusiveActivationGroupId: null,
+  accuracy: { guaranteedHit: false },
+  piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+};
+
+const ALLY_EXCEPT_SELF: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ALLY",
+  count: 1,
+  filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+const ENEMY_ONE: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ENEMY",
+  count: 1,
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+function subjectOf(units: readonly BattleUnit[], battleUnitId: string): BattleUnit {
+  const found = units.find((unit) => unit.battleUnitId === battleUnitId);
+  if (found === undefined) {
+    throw new Error(`subject "${battleUnitId}" left the board`);
+  }
+  return found;
+}
+
+/** 前提状態を作るために、production EffectAction 1件だけを指定の相手へ撃つ合成AS。 */
+function precedingSkill(action: PrecedingAction): SkillDefinition {
+  const binding = createTargetBindingId(PRECEDING_BINDING_ID);
+  const stepTarget: TargetReference =
+    action.target === "SELF" ? { kind: "SELF" } : { kind: "BINDING", targetBindingId: binding };
+  return {
+    skillDefinitionId: createSkillDefinitionId(PRECEDING_SKILL_ID),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 0 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings:
+        action.target === "SELF"
+          ? []
+          : [
+              {
+                targetBindingId: binding,
+                selector: action.target === "ALLY" ? ALLY_EXCEPT_SELF : ENEMY_ONE,
+              },
+            ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: stepTarget,
+          actions: [
+            {
+              effectActionDefinitionId: createEffectActionDefinitionId(
+                action.effectActionDefinitionId,
+              ),
+            },
+          ],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: PRECEDING_TRAITS,
+    metadata: { displayName: PRECEDING_SKILL_ID, tags: [] },
+  };
+}
+
 /**
  * このモジュール経由で実行されたEffectAction IDを蓄積する。ユニット軸の
  * 実行ベース網羅監査（「表に書かれている」ではなく「実際に走った」）が参照する。
@@ -418,11 +512,24 @@ export function resetExecutedActionIds(): void {
   executedActionIds.clear();
 }
 
+/** 観測の前に前提状態を作るために撃つ、実 production EffectAction 1件。 */
+export interface PrecedingAction {
+  readonly effectActionDefinitionId: string;
+  readonly target: "SELF" | "ALLY" | "ENEMY";
+}
+
 export interface ObserveSkillUseOptions {
   readonly snapshot: BattleCatalogSnapshot;
   readonly unitDefinitionId: string;
   readonly use: SkillUse;
   readonly board?: BoardOverrides;
+  /**
+   * 観測対象の前に適用しておく production EffectAction。既存効果を要求する
+   * `REMOVE_EFFECTS` のように、前提そのものが別のproduction定義で作られるものを、
+   * 手組みの`AppliedEffect`ではなく実定義で用意する。これらが起こした変化は
+   * 観測の基準線に含める（差分には現れない）。
+   */
+  readonly precedingActions?: readonly PrecedingAction[];
   /** 命中・会心・確率分岐の抽選列。既定は「命中・非会心」へ倒す固定列。 */
   readonly random?: RandomSource;
 }
@@ -435,6 +542,49 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const board = productionBoard(options.snapshot, options.unitDefinitionId, options.board);
   const skill = skillFrom(options.snapshot, options.use.skillDefinitionId);
   const random = options.random ?? noMissNoCrit();
+
+  // 前提アクションは観測の基準線に含める（差分には現れない）。実行はしているので
+  // 実行ベース網羅の集合へは入る。
+  let baseline = board.units;
+  for (const action of options.precedingActions ?? []) {
+    const skillDefinition = precedingSkill(action);
+    const definitions: BattleDefinitions = {
+      ...board.definitions,
+      skillDefinitions: new Map(board.definitions.skillDefinitions).set(
+        skillDefinition.skillDefinitionId,
+        skillDefinition,
+      ),
+    };
+    const actor = baseline.find((unit) => unit.battleUnitId === board.subject.battleUnitId);
+    if (actor === undefined) {
+      throw new Error(`subject "${board.subject.battleUnitId}" left the board`);
+    }
+    const { recorder, rootEventId } = seedRecorder("B_PRECEDING");
+    const applied = applyEffectActionGroups(
+      resolveSkillOrder(
+        skillDefinition,
+        actor,
+        baseline,
+        definitions.effectActions,
+        undefined,
+        definitions.unitDefinitions,
+      ),
+      baseline,
+      effectActionGroupContext({
+        actor,
+        skillId: PRECEDING_SKILL_ID,
+        definitions,
+        recorder,
+        rootEventId,
+      }),
+    );
+    baseline = applied.units;
+    for (const executed of executedActions(recorder.getEvents())) {
+      if (executed.resultKind === undefined) {
+        executedActionIds.add(executed.effectActionDefinitionId);
+      }
+    }
+  }
 
   let after: readonly BattleUnit[];
   let events: readonly BattleDomainEvent[];
@@ -449,15 +599,15 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
       actionType === "EX"
         ? isExUsable(
             skill,
-            board.subject,
-            board.units,
+            subjectOf(baseline, board.subject.battleUnitId),
+            baseline,
             board.definitions.unitDefinitions,
             evaluateActivationCondition,
           )
         : selectAsCandidate(
             [skill],
-            board.subject,
-            board.units,
+            subjectOf(baseline, board.subject.battleUnitId),
+            baseline,
             board.definitions.unitDefinitions,
             evaluateActivationCondition,
           ).kind === "SKILL";
@@ -466,11 +616,11 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     }
     const recorder = new EventRecorder(createBattleId("B_BEHAVIOUR"));
     const result = resolveSkillUse(
-      board.subject,
+      subjectOf(baseline, board.subject.battleUnitId),
       skill,
       actionType,
       actionType,
-      board.units,
+      baseline,
       board.definitions,
       random,
       recorder,
@@ -489,7 +639,7 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
       battleId: "B_BEHAVIOUR",
       ...(options.use.turnNumber === undefined ? {} : { turnNumber: options.use.turnNumber }),
     });
-    after = chain.fire(options.use.trigger, board.units);
+    after = chain.fire(options.use.trigger, baseline);
     events = chain.recorder.getEvents();
     const activated = events.some(
       (event) =>
@@ -503,22 +653,27 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
 
   const actions = executedActions(events);
   for (const action of actions) {
-    executedActionIds.add(action.effectActionDefinitionId);
+    // `SKIPPED`/`MISSED`/`REJECTED`/`INTERRUPTED` は効果が一度も発現していない。
+    // これを網羅の達成として数えると、その定義やresolverが壊れていても `-003` を
+    // 通してしまうため、実際に適用された分だけを実行集合へ入れる。
+    if (action.resultKind === undefined) {
+      executedActionIds.add(action.effectActionDefinitionId);
+    }
   }
 
   const hpDeltas: Record<string, number> = {};
-  const beforeById = new Map(board.units.map((unit) => [unit.battleUnitId, unit]));
+  const beforeById = new Map(baseline.map((unit) => [unit.battleUnitId, unit]));
   for (const unit of after) {
     const delta = unit.currentHp - (beforeById.get(unit.battleUnitId)?.currentHp ?? unit.currentHp);
     if (delta !== 0) {
       hpDeltas[unit.battleUnitId] = delta;
     }
   }
-  const effectsApplied = differenceOf(effectSummaries(after), effectSummaries(board.units));
-  const effectsRemoved = differenceOf(effectSummaries(board.units), effectSummaries(after));
-  const markers = differenceOf(markerSummaries(after), markerSummaries(board.units));
-  const resources = resourceDeltas(after, board.units);
-  const cooldowns = differenceOf(cooldownEntries(after), cooldownEntries(board.units));
+  const effectsApplied = differenceOf(effectSummaries(after), effectSummaries(baseline));
+  const effectsRemoved = differenceOf(effectSummaries(baseline), effectSummaries(after));
+  const markers = differenceOf(markerSummaries(after), markerSummaries(baseline));
+  const resources = resourceDeltas(after, baseline);
+  const cooldowns = differenceOf(cooldownEntries(after), cooldownEntries(baseline));
 
   return {
     ...(actions.length === 0 ? {} : { actions }),
@@ -540,6 +695,7 @@ export interface SkillBehaviourCase {
   readonly intent: string;
   readonly use: SkillUse;
   readonly board?: BoardOverrides;
+  readonly precedingActions?: readonly PrecedingAction[];
   readonly random?: RandomSource;
   readonly expected: SkillUseObservation;
 }

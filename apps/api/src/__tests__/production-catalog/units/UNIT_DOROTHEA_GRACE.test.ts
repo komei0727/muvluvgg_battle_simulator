@@ -514,18 +514,55 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_DOROTHEA_GRACE_EX",
+    intent: "同上: 自身がデバフを保持していれば、攻撃の前にそれを全解除する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_DOROTHEA_GRACE_EX" },
+    // 解除対象は手組みの`AppliedEffect`ではなく、同ユニットの実定義（AS1の気絶）で作る。
+    precedingActions: [{ effectActionDefinitionId: "ACT_DOROTHEA_GRACE_AS1_STUN", target: "SELF" }],
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_DOROTHEA_GRACE_EX_REMOVE_DEBUFFS",
+          targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_DOROTHEA_GRACE_EX_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_DOROTHEA_GRACE_EX_STUN", targets: ["enemy:front"] },
+      ],
+      hpDeltas: { "enemy:front": -1907 },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_DOROTHEA_GRACE_EX_STUN",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2 },
+          statusKind: "STUN",
+        },
+      ],
+      effectsRemoved: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_DOROTHEA_GRACE_AS1_STUN",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1 },
+          statusKind: "STUN",
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_DOROTHEA_GRACE (【ノーブル・グレイス】ドロテア・カークランド)", () => {
   it.each(BEHAVIOURS)(
     "IT-UNIT-DOROTHEA-GRACE-001: $skillDefinitionId — $intent",
-    ({ use, board, expected }) => {
+    ({ use, board, precedingActions, expected }) => {
       expect(
         observeSkillUse({
           snapshot,
           unitDefinitionId: UNIT_DEFINITION_ID,
           use,
           ...(board === undefined ? {} : { board }),
+          ...(precedingActions === undefined ? {} : { precedingActions }),
         }),
       ).toEqual(expected);
     },
@@ -550,12 +587,13 @@ describe("production Catalog UNIT_DOROTHEA_GRACE (【ノーブル・グレイス
     // 収集器がモジュール全域の状態であり、テストファイル間の isolation 設定に
     // 結果を依存させないため。
     resetExecutedActionIds();
-    for (const { use, board } of BEHAVIOURS) {
+    for (const { use, board, precedingActions } of BEHAVIOURS) {
       observeSkillUse({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         use,
         ...(board === undefined ? {} : { board }),
+        ...(precedingActions === undefined ? {} : { precedingActions }),
       });
     }
     expect(

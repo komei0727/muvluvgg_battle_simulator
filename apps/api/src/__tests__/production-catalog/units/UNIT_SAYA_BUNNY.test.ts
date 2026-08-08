@@ -413,13 +413,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
 describe("production Catalog UNIT_SAYA_BUNNY (【発情バニー】紫雲沙耶)", () => {
   it.each(BEHAVIOURS)(
     "IT-UNIT-SAYA-BUNNY-001: $skillDefinitionId — $intent",
-    ({ use, board, expected }) => {
+    ({ use, board, precedingActions, expected }) => {
       expect(
         observeSkillUse({
           snapshot,
           unitDefinitionId: UNIT_DEFINITION_ID,
           use,
           ...(board === undefined ? {} : { board }),
+          ...(precedingActions === undefined ? {} : { precedingActions }),
         }),
       ).toEqual(expected);
     },
@@ -444,12 +445,13 @@ describe("production Catalog UNIT_SAYA_BUNNY (【発情バニー】紫雲沙耶)
     // 収集器がモジュール全域の状態であり、テストファイル間の isolation 設定に
     // 結果を依存させないため。
     resetExecutedActionIds();
-    for (const { use, board } of BEHAVIOURS) {
+    for (const { use, board, precedingActions } of BEHAVIOURS) {
       observeSkillUse({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         use,
         ...(board === undefined ? {} : { board }),
+        ...(precedingActions === undefined ? {} : { precedingActions }),
       });
     }
     expect(

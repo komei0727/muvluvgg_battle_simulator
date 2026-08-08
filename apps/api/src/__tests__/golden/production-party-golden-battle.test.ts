@@ -42,6 +42,22 @@ const MATCHUPS = PARTIES.map((ally, index) => ({
   enemy: PARTIES[(index + 1) % PARTIES.length]!,
 }));
 
+/**
+ * 実行ガード（`maxEffectsPerScope: 50`、`passive-activation-service.ts`）へ到達し、
+ * 完走しない組み合わせ。golden（完走）軸の契約は「完走・不変条件」なので、
+ * 例外を完走ケースの成功として飲み込まず、**既知の到達**として別のテストへ分離する。
+ * ここが増減した場合はガードの水準か production 定義が変わったということなので、
+ * どちらのテストも失敗してレビューに乗る。
+ */
+const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [1, 3];
+
+const COMPLETING_MATCHUPS = MATCHUPS.filter(
+  (matchup) => !GUARD_LIMITED_MATCHUP_INDICES.includes(matchup.index),
+);
+const GUARD_LIMITED_MATCHUPS = MATCHUPS.filter((matchup) =>
+  GUARD_LIMITED_MATCHUP_INDICES.includes(matchup.index),
+);
+
 describe("production party golden battles", () => {
   it("E2E-GOLDEN-PARTY-000: every production Unit appears once as an ally and once as an enemy", () => {
     const allyAppearances = MATCHUPS.flatMap((matchup) => matchup.ally).sort();
@@ -50,26 +66,17 @@ describe("production party golden battles", () => {
     expect(enemyAppearances).toEqual(allProductionUnitIds(CATALOG_DIR));
   });
 
-  it.each(MATCHUPS)(
+  it.each(COMPLETING_MATCHUPS)(
     "E2E-GOLDEN-PARTY: matchup $index completes a deterministic mixed-party battle and holds battle invariants",
     ({ index, ally, enemy }) => {
-      // 混成編成では、ミラー戦では起こらないPS連鎖の重なりが実行ガード
-      // （`maxEffectsPerScope: 50`、`passive-activation-service.ts`）へ届くことがある。
-      // 到達した組み合わせを握り潰さず snapshot へ残し、「どの編成がガードに触れるか」
-      // 自体を回帰対象にする（増減したらレビューに乗る）。
-      let result: ReturnType<typeof runProductionPartyBattle>;
-      try {
-        result = runProductionPartyBattle(
-          CATALOG_DIR,
-          { ally, enemy },
-          { turnLimit: 5, randomValue: 0.5, battleId: `B_GOLDEN_PARTY_${index}` },
-        );
-      } catch (error) {
-        expect({ ally, enemy, executionGuard: (error as Error).message }).toMatchSnapshot();
-        return;
-      }
+      const result = runProductionPartyBattle(
+        CATALOG_DIR,
+        { ally, enemy },
+        { turnLimit: 5, randomValue: 0.5, battleId: `B_GOLDEN_PARTY_${index}` },
+      );
 
       expect(typeof result.outcome).toBe("string");
+      expect(typeof result.completionReason).toBe("string");
       assertBattleInvariants(result);
 
       const eventTypeCounts: Record<string, number> = {};
@@ -86,6 +93,22 @@ describe("production party golden battles", () => {
           Object.entries(eventTypeCounts).sort(([left], [right]) => left.localeCompare(right)),
         ),
       }).toMatchSnapshot();
+    },
+  );
+
+  it.each(GUARD_LIMITED_MATCHUPS)(
+    "E2E-GOLDEN-PARTY-GUARD: matchup $index is a known mixed-party combination that reaches the PS chain execution guard instead of completing",
+    ({ index, ally, enemy }) => {
+      // 完走保証とは別枠の「既知の到達」テスト。ミラー戦では起こらないPS連鎖の重なりが
+      // ガードへ届くこと自体を追跡し、解消されたら（=例外が出なくなったら）失敗させて
+      // `GUARD_LIMITED_MATCHUP_INDICES` の更新を強制する。
+      expect(() =>
+        runProductionPartyBattle(
+          CATALOG_DIR,
+          { ally, enemy },
+          { turnLimit: 5, randomValue: 0.5, battleId: `B_GOLDEN_PARTY_${index}` },
+        ),
+      ).toThrow(/MAX_EFFECTS_PER_SCOPE_EXCEEDED/);
     },
   );
 });

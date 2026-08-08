@@ -70,26 +70,6 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup +0 complete
 }
 `;
 
-exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 1 completes a deterministic mixed-party battle and holds battle invariants 1`] = `
-{
-  "ally": [
-    "UNIT_CHIZURU_DOMESTIC",
-    "UNIT_CLARA_SANTA",
-    "UNIT_CLARA_TSUNDERE",
-    "UNIT_DOROTHEA_GRACE",
-    "UNIT_DOROTHEA_PIONEER",
-  ],
-  "enemy": [
-    "UNIT_ELENA_MOODMAKER",
-    "UNIT_EVIE_ECO",
-    "UNIT_EVIE_KYONSHI",
-    "UNIT_FEE_ACTOR",
-    "UNIT_FEE_BATH",
-  ],
-  "executionGuard": "EXECUTION_LIMIT_EXCEEDED: PS chain resolution exceeded its execution guard: MAX_EFFECTS_PER_SCOPE_EXCEEDED",
-}
-`;
-
 exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 2 completes a deterministic mixed-party battle and holds battle invariants 1`] = `
 {
   "ally": [
@@ -158,26 +138,6 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 2 completes
     "UNIT_DEFEATED": 5,
   },
   "outcome": "ALLY_WIN",
-}
-`;
-
-exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 3 completes a deterministic mixed-party battle and holds battle invariants 1`] = `
-{
-  "ally": [
-    "UNIT_FLUTE_INFLUENCER",
-    "UNIT_FLUTE_VAMPIRE",
-    "UNIT_HARRIET_SAGE",
-    "UNIT_HIIRO_LONEWOLF",
-    "UNIT_JULIE_SNOW",
-  ],
-  "enemy": [
-    "UNIT_JUNKA_CHILDHOOD",
-    "UNIT_KARINA_DOWNER",
-    "UNIT_KATE_PALADIN",
-    "UNIT_KEI_JACKKNIFE",
-    "UNIT_KOKORO_SPORTSDAY",
-  ],
-  "executionGuard": "EXECUTION_LIMIT_EXCEEDED: PS chain resolution exceeded its execution guard: MAX_EFFECTS_PER_SCOPE_EXCEEDED",
 }
 `;
 
