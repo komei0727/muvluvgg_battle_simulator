@@ -5,6 +5,7 @@ import {
 import type {
   EffectImmunityCategory,
   SkillType,
+  StatusKind,
 } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { EffectActionKind } from "../../domain/catalog/definitions/effect-action-definition.js";
 import {
@@ -204,13 +205,18 @@ export function criticalCheckResolved(options: {
   };
 }
 
-/** 効果の付与。付与された効果の分類（`categories`）を条件に読むPSの契機。 */
+/**
+ * 効果の付与。付与された効果の分類（`categories`）を条件に読むPSの契機。
+ * `statusKind` は `APPLY_STATUS` 由来の付与だけが持つ欄で、「凍結が付与された際」
+ * のように状態異常の種別まで絞るtriggerが読む。
+ */
 export function effectApplied(options: {
   readonly source: string;
   readonly target: string;
   readonly effectKind: EffectActionKind;
   readonly categories: readonly EffectImmunityCategory[];
   readonly magnitude?: number;
+  readonly statusKind?: StatusKind;
 }): PassiveTriggerEvent<"EffectApplied"> {
   return {
     eventType: "EffectApplied",
@@ -228,6 +234,7 @@ export function effectApplied(options: {
       categories: options.categories,
       magnitude: options.magnitude ?? 0,
       linkedEffectGroupId: null,
+      ...(options.statusKind === undefined ? {} : { statusKind: options.statusKind }),
     },
   };
 }

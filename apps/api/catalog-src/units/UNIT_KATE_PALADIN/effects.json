@@ -81,7 +81,7 @@
     "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_SELF_HEAL_100",
     "kind": "HEAL",
     "payload": {
-      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "LAST_DAMAGE_DEALT", "ratio": 1 },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 1 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }

@@ -4747,10 +4747,11 @@
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
-        "targetSelector": "ALLY",
+        "targetSelector": "OTHER_ALLY",
         "condition": {
           "kind": "AND",
           "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
             {
               "kind": "TARGET_STATE",
               "target": { "kind": "TRIGGER_SOURCE" },
@@ -5978,8 +5979,13 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_LAURA_MOUNTAIN_AS1"]
+        }
       }
     ]
   },
@@ -6042,7 +6048,7 @@
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
@@ -6570,7 +6576,7 @@
         "eventType": "EffectApplied",
         "category": "FACT",
         "sourceSelector": "ANY",
-        "targetSelector": "ALLY",
+        "targetSelector": "OTHER_ALLY",
         "condition": {
           "kind": "AND",
           "conditions": [
@@ -6814,7 +6820,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -7844,7 +7850,7 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -7879,7 +7885,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "ENEMY",
+        "sourceSelector": "ANY",
         "targetSelector": "ENEMY",
         "condition": {
           "kind": "AND",
@@ -8728,7 +8734,7 @@
       {
         "eventType": "SkillUseCompleted",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
