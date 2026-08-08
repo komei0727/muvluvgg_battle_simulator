@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import {
   unexecutedEffectActionIds,
@@ -38,6 +43,9 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION
 
 const UKIASHI = "MARKER_AOI_ELEGANT_UKIASHI";
 const KOUYOU = "MARKER_AOI_ELEGANT_KOUYOU";
+
+/** 会心率デバフの効きを観測するための基礎会心率（既定盤面は0で差が出ない）。 */
+const BASE_CRITICAL_RATE = 0.5;
 
 /** 既定の敵配置に、指定した1体だけMarkerを持たせる。 */
 function enemiesWith(
@@ -469,7 +477,10 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
   });
 
   it("IT-UNIT-AOI-ELEGANT-004 (R-EFF-10/R-EFF-09): 「高揚」は付与者が倒れると同時に解除され、会心率デバフと継続ダメージも連動して失効する", () => {
-    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    // 会心率デバフが実効値へ効いたことを見るため、基礎会心率を0以外へ置く。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: BASE_CRITICAL_RATE },
+    });
     // 「高揚」とその子効果は実 production 定義で作る（1回のスキル使用では、
     // 付与と付与者の戦闘不能を同じ観測へ載せられない）。
     const granted = applyPrecedingActions(board, [
@@ -483,6 +494,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN",
       "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
     ]);
+    expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE * (1 - 0.25), 9);
 
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -492,6 +504,9 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     const defeated = granted.map((unit) =>
       unit.battleUnitId === "ally:subject" ? { ...unit, currentHp: 0 } : unit,
     );
+    // 解除の公開差分だけで復元できることを見るため、解除直前の状態を基準線にする。
+    const initial = initialSnapshotFor(defeated, { include: ["effects", "markers"] });
+    const eventsBefore = chain.recorder.getEvents().length;
     const after = chain.fire(
       unitDefeated({ unit: "ally:subject", defeatedBy: "enemy:front" }),
       defeated,
@@ -500,12 +515,13 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     const holder = after.find((unit) => unit.battleUnitId === "enemy:front")!;
     expect(holder.markerStates).toEqual([]);
     expect(holder.appliedEffects).toEqual([]);
+    // 派生ステータスが古いまま残っていないこと — 子効果の失効が再計算まで通る。
+    expect(holder.combatStats.criticalRate).toBe(BASE_CRITICAL_RATE);
     // R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」。
-    const removals = chain.recorder
-      .getEvents()
-      .filter(
-        (event) => event.eventType === "EffectExpired" || event.eventType === "MarkerRemoved",
-      );
+    const emitted = chain.recorder.getEvents().slice(eventsBefore);
+    const removals = emitted.filter(
+      (event) => event.eventType === "EffectExpired" || event.eventType === "MarkerRemoved",
+    );
     expect(removals.map((event) => event.eventType)).toEqual([
       "EffectExpired",
       "EffectExpired",
@@ -515,5 +531,16 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       markerId: KOUYOU,
       reason: "SOURCE_DEFEATED",
     });
+
+    // 解除分のStateDeltaだけを独立Reducerへ流しても、「高揚」も子効果も残らない。
+    const restored = reduceStateDeltas(
+      initial,
+      emitted.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+    ).units[holder.battleUnitId]!;
+    expect(restored.effects ?? []).toHaveLength(0);
+    expect(restored.markers ?? []).toHaveLength(0);
+    expect(restored).toEqual(
+      initialSnapshotFor([holder], { include: ["effects", "markers"] }).units[holder.battleUnitId],
+    );
   });
 });

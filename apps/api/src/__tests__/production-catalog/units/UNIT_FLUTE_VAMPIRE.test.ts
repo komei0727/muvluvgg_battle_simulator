@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -417,6 +423,9 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
       actorUnitId: "enemy:front",
       battleId: "B_FLUTE_CAPACITY",
     });
+    // 発動直前の実状態と、そこから先に記録されたStateDeltaだけを突き合わせる。
+    const initial = initialSnapshotFor(board.units, { include: ["effects", "markers"] });
+    const eventsBefore = chain.recorder.getEvents().length;
     const after = chain.fire(
       hitPointReduced({
         source: "enemy:front",
@@ -435,5 +444,33 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
     expect(subject.currentAp).toBe(0);
     // 上限がどこにも効かない「記録だけの値」になっていないことの証拠。
     expect(recoverTurnResources(subject).currentAp).toBe(board.subject.maximumAp + 1);
+
+    // 集約のlive stateだけでは、イベントもStateDeltaも出ていない実装を通してしまう。
+    const emitted = chain.recorder.getEvents().slice(eventsBefore);
+    const capacityChanged = emitted.filter(
+      (event): event is Extract<BattleDomainEvent, { eventType: "ResourceCapacityChanged" }> =>
+        event.eventType === "ResourceCapacityChanged",
+    );
+    expect(capacityChanged).toHaveLength(1);
+    expect(capacityChanged[0]!.payload).toMatchObject({
+      battleUnitId: "ally:subject",
+      resource: "AP",
+      before: board.subject.maximumAp,
+      after: board.subject.maximumAp + 1,
+      reason: "EFFECT_APPLIED",
+    });
+    expect(capacityChanged[0]!.stateDelta?.units?.[subject.battleUnitId]?.maximumAp).toEqual({
+      before: board.subject.maximumAp,
+      after: board.subject.maximumAp + 1,
+    });
+
+    // 公開差分だけを独立Reducerへ流しても同じ上限・現在値へ復元できる。
+    const restored = reduceStateDeltas(
+      initial,
+      emitted.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+    );
+    expect(restored.units[subject.battleUnitId]!.maximumAp).toBe(subject.maximumAp);
+    expect(restored.units[subject.battleUnitId]!.ap).toBe(subject.currentAp);
+    expect(restored.units[subject.battleUnitId]!.hp).toBe(subject.currentHp);
   });
 });

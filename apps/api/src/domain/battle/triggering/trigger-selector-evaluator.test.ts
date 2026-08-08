@@ -148,6 +148,30 @@ describe("evaluateSourceSelector", () => {
     );
   });
 
+  it("UT-R-PS-01-137: OTHER_ALLY requires a resolvable source BattleUnit — an event carrying only sourceSide (Memory-origin) never matches it, while ALLY still does", () => {
+    // 発生源のBattleUnitが存在しないイベント。`ALLY`は陣営だけで成立するが、
+    // 「他の味方が」は「所有者以外の味方BattleUnit」を指すため成立してはならない。
+    const memoryEvent: TriggerCandidateEvent = {
+      eventType: "HealApplied",
+      category: "FACT",
+      sourceSide: "ALLY",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("ALLY", owner, memoryEvent, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("OTHER_ALLY", owner, memoryEvent, unitsById)).toBe(false);
+
+    // `sourceUnitId`はあるが盤面に居ない場合も同じ（`ALLY`は`sourceSide`へfallbackする）。
+    const unknownSource: TriggerCandidateEvent = {
+      eventType: "DamageApplied",
+      category: "FACT",
+      sourceUnitId: createBattleUnitId("UNKNOWN"),
+      sourceSide: "ALLY",
+      payload: {},
+    };
+    expect(evaluateSourceSelector("ALLY", owner, unknownSource, unitsById)).toBe(true);
+    expect(evaluateSourceSelector("OTHER_ALLY", owner, unknownSource, unitsById)).toBe(false);
+  });
+
   it("UT-R-PS-01-129: falls back to event.sourceSide when sourceUnitId does not resolve in unitsById", () => {
     const event: TriggerCandidateEvent = {
       eventType: "DamageApplied",

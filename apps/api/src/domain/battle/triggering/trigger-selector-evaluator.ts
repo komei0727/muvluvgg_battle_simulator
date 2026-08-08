@@ -92,8 +92,11 @@ function isTargetUnattributed(event: TriggerCandidateEvent): boolean {
  *
  * `OTHER_ALLY`は`ALLY`から所有者自身を除く。「他の味方が〜した際に発動」を`ALLY`で
  * 表すと、所有者自身の行動が自分のPSを呼んでしまい、原文が明示的に除いている
- * 自己発動が起きる。帰属先を持たないイベント（`isSourceUnattributed`）は発生源が
- * 「他の味方」であるとは言えないため成立させない。
+ * 自己発動が起きる。`ALLY`と違い**解決可能な`sourceUnitId`を必須**にする —
+ * 「他の味方」は所有者以外の味方BattleUnitを指す語彙であり、`sourceSide`だけを持つ
+ * Memory由来イベントのように発生源のBattleUnitが存在しないものは、陣営が一致しても
+ * 「他の味方が」した事象ではない（`sourceSide`側だけで判定すると
+ * `undefined !== owner.battleUnitId`が常に成立し、そのまま誤発動する）。
  */
 export function evaluateSourceSelector(
   selector: EventSelector,
@@ -109,11 +112,15 @@ export function evaluateSourceSelector(
       return event.sourceUnitId === owner.battleUnitId || isSourceUnattributed(event);
     case "ALLY":
       return resolveSourceSide(event, unitsById) === owner.side;
-    case "OTHER_ALLY":
+    case "OTHER_ALLY": {
+      const source =
+        event.sourceUnitId === undefined ? undefined : unitsById.get(event.sourceUnitId);
       return (
-        event.sourceUnitId !== owner.battleUnitId &&
-        resolveSourceSide(event, unitsById) === owner.side
+        source !== undefined &&
+        source.side === owner.side &&
+        source.battleUnitId !== owner.battleUnitId
       );
+    }
     case "ENEMY": {
       const side = resolveSourceSide(event, unitsById);
       return side !== undefined && side !== owner.side;

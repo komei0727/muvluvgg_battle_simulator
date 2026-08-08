@@ -1126,6 +1126,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-134",
       "UT-R-PS-01-135",
       "UT-R-PS-01-136",
+      "UT-R-PS-01-137",
       "UT-R-PS-01-037",
       "UT-R-PS-01-038",
       "UT-R-PS-01-039",
