@@ -13,6 +13,7 @@ import {
   collectedExecutedActionIds,
   observeSkillUse,
   resetExecutedActionIds,
+  type PrecedingAction,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { skillUseCompleted, turnStarted } from "../../../testing/production-unit/trigger-events.js";
@@ -29,7 +30,10 @@ import { skillUseCompleted, turnStarted } from "../../../testing/production-unit
 
 const UNIT_DEFINITION_ID = "UNIT_YURIA_YUKATA";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
 
 /** PS1は自身のAS完了そのものを契機に持つため、攻撃ASの観測には必ず連鎖が含まれる。 */
 const PS1_CHAIN_ACTIONS = [
@@ -57,6 +61,25 @@ const PS1_COOLDOWN = {
   unitId: "ally:subject",
   skillDefinitionId: "SKL_YURIA_YUKATA_PS1",
   remaining: 3,
+} as const;
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない。前提は実 production 定義で作る。
+ */
+const CONFUSED: readonly PrecedingAction[] = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+];
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
 } as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
@@ -189,6 +212,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "AS",
+        skillDefinitionId: "SKL_YURIA_YUKATA_AS1",
       }),
     },
     expected: {
@@ -203,14 +227,15 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_YURIA_YUKATA_PS1",
-    intent: "(不成立): アクティブスキル以外の使用完了では発動しない",
+    intent: "(不成立): 敵を攻撃しないAS（みんなで温泉入ろ♪）の完了では発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_YURIA_YUKATA_PS1",
       trigger: skillUseCompleted({
         actor: "ally:subject",
-        targets: ["enemy:front"],
-        skillType: "EX",
+        targets: ["ally:subject", "ally:front"],
+        skillType: "AS",
+        skillDefinitionId: "SKL_YURIA_YUKATA_AS2",
       }),
     },
     expected: {
@@ -283,6 +308,34 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: {
       activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_YURIA_YUKATA_PS1",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃した事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_YURIA_YUKATA_AS1" },
+    precedingActions: CONFUSED,
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_YURIA_YUKATA_AS1_DAMAGE", targets: ["ally:subject"] },
+        ...PS1_CHAIN_ACTIONS,
+      ],
+      // 混乱倍率0.7が掛かった1ヒット371×2ヒット。
+      hpDeltas: {
+        "ally:subject": -742,
+      },
+      effectsApplied: [...PS1_CHAIN_EFFECTS],
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 3 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_YURIA_YUKATA_AS1", remaining: 1 },
+        PS1_COOLDOWN,
+      ],
     },
   },
 ];

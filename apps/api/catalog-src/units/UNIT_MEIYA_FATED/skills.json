@@ -266,12 +266,12 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY",
+        "targetSelector": "ANY",
         "condition": {
           "kind": "EVENT_PAYLOAD",
-          "field": "skillType",
-          "op": "EQ",
-          "value": "AS"
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_MEIYA_FATED_AS1", "SKL_MEIYA_FATED_AS2"]
         }
       }
     ]

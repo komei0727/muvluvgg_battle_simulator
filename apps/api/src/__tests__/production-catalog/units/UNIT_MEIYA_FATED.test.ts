@@ -29,7 +29,10 @@ import {
 
 const UNIT_DEFINITION_ID = "UNIT_MEIYA_FATED";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
 
 /**
  * PS1の`REMOVE_EFFECTS`は解除対象のデバフが先に載っていないと何も起こさない。
@@ -68,6 +71,25 @@ const PS2_COOLDOWN = {
   unitId: "ally:subject",
   skillDefinitionId: "SKL_MEIYA_FATED_PS2",
   remaining: 1,
+} as const;
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない。前提は実 production 定義で作る。
+ */
+const CONFUSED: readonly PrecedingAction[] = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+];
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
 } as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
@@ -271,6 +293,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "AS",
+        skillDefinitionId: "SKL_MEIYA_FATED_AS1",
       }),
     },
     expected: {
@@ -293,6 +316,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "AS",
+        skillDefinitionId: "SKL_MEIYA_FATED_AS1",
       }),
     },
     board: {
@@ -331,7 +355,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_MEIYA_FATED_PS2",
-    intent: "(不成立): アクティブスキル以外の使用開始では発動しない",
+    intent: "(不成立): 攻撃しないスキル使用（EX）の開始では発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MEIYA_FATED_PS2",
@@ -343,6 +367,40 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: {
       activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_MEIYA_FATED_PS2",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃する事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MEIYA_FATED_AS2" },
+    precedingActions: CONFUSED,
+    expected: {
+      actions: [
+        ...PS2_CHAIN_ACTIONS,
+        { effectActionDefinitionId: "ACT_MEIYA_FATED_AS2_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_MEIYA_FATED_AS2_HEAL", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_MEIYA_FATED_AS2_ATK_UP", targets: ["ally:subject"] },
+      ],
+      // 混乱倍率0.7で546ダメージ、その70%を同じ自身へ回復するため差引-164。
+      hpDeltas: {
+        "ally:subject": -164,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MEIYA_FATED_AS2_ATK_UP",
+          magnitude: 0.04,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+      ],
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [PS2_COOLDOWN],
     },
   },
 ];

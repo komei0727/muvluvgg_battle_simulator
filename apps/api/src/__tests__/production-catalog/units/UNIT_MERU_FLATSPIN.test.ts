@@ -34,6 +34,7 @@ const UNIT_DEFINITION_ID = "UNIT_MERU_FLATSPIN";
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   "UNIT_LUCIE_MAID",
+  "UNIT_OLGA_VETERAN",
 ]);
 
 /** 前提の気絶が確実に本命の対象へ乗るよう、敵は1体だけの盤面にする。 */
@@ -74,6 +75,25 @@ const PS1_COOLDOWN = {
   unitId: "ally:subject",
   skillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
   remaining: 1,
+} as const;
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない。前提は実 production 定義で作る。
+ */
+const CONFUSED: readonly PrecedingAction[] = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+];
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
 } as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
@@ -301,6 +321,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "AS",
+        skillDefinitionId: "SKL_MERU_FLATSPIN_AS1",
       }),
     },
     expected: {
@@ -329,7 +350,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
-    intent: "(不成立): アクティブスキル以外の使用開始では発動しない",
+    intent: "(不成立): 攻撃しないスキル使用（EX）の開始では発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
@@ -341,6 +362,31 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: {
       activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃する事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MERU_FLATSPIN_AS3" },
+    precedingActions: CONFUSED,
+    expected: {
+      actions: [
+        ...PS1_CHAIN_ACTIONS,
+        { effectActionDefinitionId: "ACT_MERU_FLATSPIN_AS3_DAMAGE", targets: ["ally:subject"] },
+      ],
+      // PS1のバフが乗った1ヒット1347.84へ混乱倍率0.7を掛けた943×2ヒット。
+      hpDeltas: {
+        "ally:subject": -1886,
+      },
+      effectsApplied: [PS1_IMMUNITY_EFFECT],
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 3 },
+      ],
+      cooldowns: [PS1_COOLDOWN],
     },
   },
 ];

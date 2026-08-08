@@ -10,6 +10,7 @@ import {
   observeSkillUse,
   resetExecutedActionIds,
   type BoardUnitSpec,
+  type PrecedingAction,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { realDamage, skillUseCompleted } from "../../../testing/production-unit/trigger-events.js";
@@ -26,7 +27,10 @@ import { realDamage, skillUseCompleted } from "../../../testing/production-unit/
 
 const UNIT_DEFINITION_ID = "UNIT_MIKOTO_SURVIVOR";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
 
 /** HP割合が最も低い敵を1体だけ作る（EXの対象選択を判別可能にする）。 */
 const WOUNDED_LEFT_ENEMIES: readonly BoardUnitSpec[] = [
@@ -61,6 +65,25 @@ const CUMULATIVE_THRESHOLD_HIT = realDamage({
   skillType: "AS",
   power: 2,
 });
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない。前提は実 production 定義で作る。
+ */
+const CONFUSED: readonly PrecedingAction[] = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+];
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
+} as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -323,6 +346,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "AS",
+        skillDefinitionId: "SKL_MIKOTO_SURVIVOR_AS2",
       }),
     },
     expected: {
@@ -337,7 +361,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS2",
-    intent: "(不成立): アクティブスキル以外の使用完了では発動しない",
+    intent: "(不成立): 攻撃しないスキル使用（EX）の完了では発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS2",
@@ -349,6 +373,31 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: {
       activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS2",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃した事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIKOTO_SURVIVOR_AS2" },
+    precedingActions: CONFUSED,
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS2_DAMAGE", targets: ["ally:subject"] },
+        PS2_CHAIN_ACTION,
+      ],
+      // 混乱倍率0.7が掛かった (1000-500)×212%×0.7。
+      hpDeltas: {
+        "ally:subject": -742,
+      },
+      effectsApplied: [PS2_CHAIN_EFFECT],
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [PS2_COOLDOWN],
     },
   },
 ];

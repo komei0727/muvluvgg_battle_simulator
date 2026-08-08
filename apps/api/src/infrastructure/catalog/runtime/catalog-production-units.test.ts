@@ -374,11 +374,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (1) `SKL_EVIE_KYONSHI_PS1`（原文「会心攻撃になるたびに」）は
     // `CriticalCheckResolved` に `result` 条件を持たず、会心しなかった判定でも毎回
     // 発動していた。先例の `SKL_SAYA_BUNNY_PS1` に合わせ `result: true` を課した。
-    // (2) 「自身がアクティブスキルで攻撃した後／する前に発動」を表す4件
+    // (2) 「自身がアクティブスキルで攻撃した後／する前に発動」を表す6件
     // （`SKL_EVIE_KYONSHI_PS2`・`SKL_YURIA_YUKATA_PS1`・`SKL_LYDIA_GENIUS_PS1`・
     // `SKL_MIKOTO_SURVIVOR_PS2`・`SKL_MEIYA_FATED_PS2`・`SKL_MERU_FLATSPIN_PS1`）は
     // `targetSelector: SELF` を課していた。`SkillUseStarting`/`SkillUseCompleted` は
     // 攻撃対象を `targetUnitIds` に持つため、この条件では一度も候補化されない。
+    // 陣営で絞ると今度は混乱（R-CFS-01）で対象が味方側へ反転した攻撃を取りこぼす
+    // ため、`targetSelector: ANY` と「攻撃を含むAS」のIDリストで判定する。
     // (3) `SKL_MIKOTO_SURVIVOR_PS1` の `TGT_OTHER_ALLIES`（原文「他の味方の」）は
     // 自身を除外しておらず、名前と原文に反して自分自身も対象へ含めていた。
     expect(catalog.catalogRevision).toBe("2026-08-08.3");

@@ -49,11 +49,18 @@ export function unitBeingAttacked(options: {
   };
 }
 
-/** スキル使用の開始直前。`skillType` を条件に読むPSが多い。 */
+/**
+ * スキル使用の開始直前。`skillType` を条件に読むPSが多い。
+ *
+ * 「自身がアクティブスキルで**攻撃する**前」を表すPSは、混乱（R-CFS-01）で対象が
+ * 味方側へ反転しても発動しなければならないため、陣営ではなく `skillDefinitionId`
+ * を条件に取る。その成立を作れるよう、契機の使用スキルIDを指定できる。
+ */
 export function skillUseStarting(options: {
   readonly actor: string;
   readonly targets: readonly string[];
   readonly skillType: SkillType;
+  readonly skillDefinitionId?: string;
 }): PassiveTriggerEvent<"SkillUseStarting"> {
   const targetUnitIds = options.targets.map((id) => createBattleUnitId(id));
   return {
@@ -62,7 +69,10 @@ export function skillUseStarting(options: {
     sourceUnitId: createBattleUnitId(options.actor),
     targetUnitIds,
     payload: {
-      skillDefinitionId: SYNTHETIC_SKILL_ID,
+      skillDefinitionId:
+        options.skillDefinitionId === undefined
+          ? SYNTHETIC_SKILL_ID
+          : createSkillDefinitionId(options.skillDefinitionId),
       skillType: options.skillType,
       actorUnitId: createBattleUnitId(options.actor),
       targetUnitIds,
@@ -72,11 +82,12 @@ export function skillUseStarting(options: {
   };
 }
 
-/** スキル使用の完了。 */
+/** スキル使用の完了。`skillDefinitionId` は {@link skillUseStarting} と同じ理由で指定できる。 */
 export function skillUseCompleted(options: {
   readonly actor: string;
   readonly targets: readonly string[];
   readonly skillType: SkillType;
+  readonly skillDefinitionId?: string;
 }): PassiveTriggerEvent<"SkillUseCompleted"> {
   const targetUnitIds = options.targets.map((id) => createBattleUnitId(id));
   return {
@@ -85,7 +96,10 @@ export function skillUseCompleted(options: {
     sourceUnitId: createBattleUnitId(options.actor),
     targetUnitIds,
     payload: {
-      skillDefinitionId: SYNTHETIC_SKILL_ID,
+      skillDefinitionId:
+        options.skillDefinitionId === undefined
+          ? SYNTHETIC_SKILL_ID
+          : createSkillDefinitionId(options.skillDefinitionId),
       skillType: options.skillType,
       resolvedStepCount: 1,
       targetUnitIds,

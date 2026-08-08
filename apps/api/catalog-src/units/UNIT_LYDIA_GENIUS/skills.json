@@ -177,8 +177,13 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"]
+        }
       }
     ]
   },
