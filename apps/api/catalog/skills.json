@@ -564,7 +564,7 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -2587,7 +2587,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "SELF",
+        "sourceSelector": "ANY",
         "targetSelector": "SELF",
         "condition": {
           "kind": "AND",
@@ -3359,7 +3359,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "ENEMY",
         "targetSelector": "ALLY",
         "condition": {
           "kind": "TARGET_STATE",
@@ -11189,7 +11189,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -14158,7 +14158,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]

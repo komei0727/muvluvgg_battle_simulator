@@ -349,7 +349,28 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 順に判定し最後のelseで0個・1個を受ける形へ変更した。EffectActionの定義自体は
     // 変わらず、判定順だけが変わるため `unitCount`/violation/`selectable` の期待値は
     // そのまま。
-    expect(catalog.catalogRevision).toBe("2026-08-08.1");
+    // `2026-08-08.2` は REF-026（Issue #356）の第2バッチが検出した原文との不一致。
+    // いずれも EffectAction の種別・対象構造は変えず、trigger の selector・Formula
+    // 種別・参照する DAMAGE 結果だけを直しているため、`unitCount`/violation/
+    // `selectable` の期待値はそのまま。
+    // (1) 「自身がアクティブスキルを使用／攻撃した後」を `targetSelector: SELF` で
+    // 表していた3件（`SKL_AOI_GUARDIAN_PS1`／`SKL_URUU_TIMID_PS1`／
+    // `SKL_ROSIE_ARTIST_PS2`）は、`SkillUseStarting`/`SkillUseCompleted` が
+    // **スキルの対象**を `targetUnitIds` に載せるため、自分自身を対象に取る使用でしか
+    // 候補化されなかった。原文に対象の限定がないものは `ANY`、「攻撃した」ものは
+    // `ENEMY` へ直した。
+    // (2) `SKL_FLUTE_INFLUENCER_PS1`（原文「味方が攻撃され」）と
+    // `SKL_EVIE_ECO_PS2`（原文「自身のHPが40%以下になった際」）は
+    // `HitPointReduced` の **発生源**（＝攻撃側）へ `ALLY`／`SELF` を課しており、
+    // 敵からの攻撃では一度も発動しなかった。`ENEMY`／`ANY` へ直した。
+    // (3) `UNIT_SAYA_LONGING` の3件は「HPが多いほど高い効果」を `CURRENT_HP_RATIO`
+    // （＝現在HP×係数の絶対値を返すFormula）で表していたため、倍率のはずの値が
+    // 現在HPそのもののオーダーになっていた。同じ表現の先例に合わせ
+    // `HP_RATIO_SCALE`（`HIGHER_HP_IS_MAX`）へ直した。
+    // (4) `ACT_CLARA_TSUNDERE_AS1_HEAL`（原文「与えたダメージの40%」）は
+    // `LAST_DAMAGE_DEALT` を読んでおり、4ヒット攻撃の最終ヒット分だけを回復していた。
+    // 同じ表現の `ACT_SAYA_LONGING_EX_HEAL` に合わせ `SUM_DAMAGE_DEALT` へ直した。
+    expect(catalog.catalogRevision).toBe("2026-08-08.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

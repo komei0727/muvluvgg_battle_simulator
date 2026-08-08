@@ -2,8 +2,12 @@ import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
-import type { SkillType } from "../../domain/catalog/definitions/catalog-enums.js";
-import { createDomainEventId } from "../../domain/shared/event-ids.js";
+import type {
+  EffectImmunityCategory,
+  SkillType,
+} from "../../domain/catalog/definitions/catalog-enums.js";
+import type { EffectActionKind } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { createDomainEventId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import type { PassiveTriggerEvent } from "./passive-activation.js";
 
@@ -153,6 +157,82 @@ export function criticalCheckResolved(options: {
       result: options.result,
     },
   };
+}
+
+/** 効果の付与。付与された効果の分類（`categories`）を条件に読むPSの契機。 */
+export function effectApplied(options: {
+  readonly source: string;
+  readonly target: string;
+  readonly effectKind: EffectActionKind;
+  readonly categories: readonly EffectImmunityCategory[];
+  readonly magnitude?: number;
+}): PassiveTriggerEvent<"EffectApplied"> {
+  return {
+    eventType: "EffectApplied",
+    category: "FACT",
+    sourceUnitId: createBattleUnitId(options.source),
+    targetUnitIds: [createBattleUnitId(options.target)],
+    payload: {
+      effectInstanceId: createEffectInstanceId("B_BEHAVIOUR:effect:0"),
+      effectActionDefinitionId: SYNTHETIC_ACTION_ID,
+      sourceUnitId: createBattleUnitId(options.source),
+      targetUnitId: createBattleUnitId(options.target),
+      duplicate: false,
+      kindKey: SYNTHETIC_ACTION_ID,
+      effectKind: options.effectKind,
+      categories: options.categories,
+      magnitude: options.magnitude ?? 0,
+      linkedEffectGroupId: null,
+    },
+  };
+}
+
+/** PS 1件の解決完了。「味方のパッシブスキル発動後」を契機に持つPSが読む。 */
+export function passiveResolved(options: {
+  readonly actor: string;
+  readonly skillDefinitionId: string;
+  readonly resolvedStepCount?: number;
+}): PassiveTriggerEvent<"PassiveResolved"> {
+  return {
+    eventType: "PassiveResolved",
+    category: "FACT",
+    sourceUnitId: createBattleUnitId(options.actor),
+    // PS解決は対象を持つとは限らないため、実装は`targetUnitIds`を設定しない。
+    // production Catalogの`targetSelector: SELF`はこの「帰属先を持たない」ことに
+    // 依拠して成立する（`trigger-selector-evaluator.ts`）ので、ここでも省く。
+    payload: {
+      actorUnitId: createBattleUnitId(options.actor),
+      skillDefinitionId: createSkillDefinitionId(options.skillDefinitionId),
+      resolvedStepCount: options.resolvedStepCount ?? 1,
+    },
+  };
+}
+
+/**
+ * ダメージ適用の完了を契機とするPSは、**契機イベントを合成せず実ダメージ
+ * pipelineに出させる**（{@link RealDamageTrigger}）。`DamageApplied` payload の
+ * `skillType`／`hitPointDamage` のような欄は実装が載せて初めて存在し、手組みの
+ * payloadでは「条件が読む欄が実際には空である」種類の欠落を検出できないためである
+ * （`SkillUseStarting` の `skillType` 欠落がまさにこの形で見逃されていた）。
+ * 反撃系（`DAMAGE_RECEIVED_RATIO`）が読む「同じ解決スコープ内で直前に確定した
+ * DAMAGE結果」も、実pipelineを通さなければ存在しない。
+ */
+export interface RealDamageTrigger {
+  readonly kind: "REAL_DAMAGE";
+  /** 攻撃側。`sourceSelector` の判定に使われる。 */
+  readonly from: string;
+  readonly to: string;
+  /** 攻撃側のスキル種別。`EVENT_PAYLOAD field: "skillType"` を読む条件が参照する。 */
+  readonly skillType: SkillType;
+  /** `SKILL_POWER` の倍率。既定の1は「攻撃力 - 防御力」そのもの。 */
+  readonly power?: number;
+  /** 契機として流すイベント種別。既定は `DamageApplied`。 */
+  readonly event?: "DamageApplied" | "HitPointReduced";
+}
+
+/** 実ダメージpipelineが発行する `DamageApplied`／`HitPointReduced` を契機にする。 */
+export function realDamage(options: Omit<RealDamageTrigger, "kind">): RealDamageTrigger {
+  return { kind: "REAL_DAMAGE", ...options };
 }
 
 /** HP減少。HP割合を条件に読むPSの契機。 */

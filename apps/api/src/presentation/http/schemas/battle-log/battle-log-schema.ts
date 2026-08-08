@@ -660,6 +660,14 @@ const damageAppliedDetailsSchema = {
     effectActionDefinitionId: { type: "string" },
     hitIndex: { type: "integer", minimum: 0 },
     targetUnitId: { type: "string" },
+    /**
+     * `EVENT_PAYLOAD field: "skillType"`をこのeventTypeへ条件付けるproduction
+     * Catalog行（`SKL_AOI_GUARDIAN_PS2`等）のため、`SkillUseStarting`と同じ理由で
+     * 追加した。継続ダメージのようにスキル種別へ帰属しない経路では欠落するため、
+     * `subUnitAbsorbed`と同じ理由で`required`へは入れない（v1デコーダ互換）。
+     * PSが与えたダメージもあるため`AS`/`EX`に加えて`PS`を取りうる。
+     */
+    skillType: { type: "string", enum: ["AS", "PS", "EX"] },
     calculatedDamage: { type: "integer", minimum: 0 },
     // DMG-004（Issue #194、R-SHD-02/03）: 適用先ごとの内訳。
     hpDirectDamage: { type: "integer", minimum: 0 },

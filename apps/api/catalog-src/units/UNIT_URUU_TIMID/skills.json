@@ -226,7 +226,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ENEMY",
         "condition": {
           "kind": "EVENT_PAYLOAD",
           "field": "skillType",

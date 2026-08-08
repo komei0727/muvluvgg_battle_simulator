@@ -13,9 +13,12 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
+  type BoardOverrides,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
+import { applyDamageAction } from "../../../domain/battle/combat/damage-application-service.js";
 import {
   skillUseCompleted,
   unitDefeated,
@@ -30,6 +33,7 @@ import {
   createEffectActionDefinitionId,
   createTargetBindingId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../../domain/catalog/definitions/skill-definition.js";
 import type { TargetReference } from "../../../domain/catalog/definitions/references.js";
 import type { TargetSelectorDefinition } from "../../../domain/catalog/definitions/target-selector-definition.js";
@@ -39,6 +43,7 @@ import {
   definitionsWith,
   effectActionFrom,
   initialSnapshotFor,
+  noMissNoCrit,
   skillFrom,
   testBattleUnit,
 } from "../../../testing/fixtures/index.js";
@@ -62,6 +67,14 @@ const UNIT_DEFINITION_ID = "UNIT_ELENA_MOODMAKER";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
+const EX_SKILL_ID = "SKL_ELENA_MOODMAKER_EX";
+const EX_BONUS_DAMAGE_ID = "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE";
+/**
+ * 追加ダメージの加算を測る担ぎ手のヒット。エレーナ自身のDAMAGEは
+ * `MIN(対象の現在HP12.5%, 攻撃力50%)` で上限に張り付き、加算が差分に出ないため、
+ * 検証対象（追加ダメージ）ではない担ぎ手側は最小の合成DAMAGEにする。
+ */
+const BONUS_VEHICLE_DAMAGE_ID = "ACT_TEST_ELENA_BONUS_VEHICLE";
 const AS1_SKILL_ID = "SKL_ELENA_MOODMAKER_AS1";
 const AS1_HEAL_ID = "ACT_ELENA_MOODMAKER_AS1_HEAL";
 const AS1_HEALING_LINK_ID = "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK";
@@ -216,6 +229,19 @@ function useSkill(
     recorder.nextResolutionScopeId(),
   );
 }
+
+/** 攻撃力が最も高い味方を一意にする盤面（EXの2つのbindingの解決先を分ける）。 */
+const BONUS_BOARD: BoardOverrides = {
+  subject: { position: { column: "CENTER", row: "BACK" } },
+  allies: [
+    {
+      id: "ally:front",
+      position: { column: "LEFT", row: "FRONT" },
+      state: { combatStats: { ...BOARD_COMBAT_STATS, attack: 2000 } },
+    },
+    { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+  ],
+};
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -832,5 +858,141 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     });
     expect(newEvents.some((event) => event.eventType === "HealingTransferred")).toBe(false);
     expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(494);
+  });
+
+  // -007〜-008: 追加ダメージ（`APPLY_ATTACK_DAMAGE_BONUS`）は「付与」と「以後の
+  // 攻撃への加算」が別のスキル使用で起きるため、表の1行では加算そのものが現れない。
+  // 機能軸の `attack-damage-bonus-production-catalog.test.ts` が持っていた検証を
+  // ここへ移した（付与そのものと`magnitude`の観測は `-001` のEX行が持つ）。
+
+  /** 保持者が実AS2のDAMAGEを1ヒット当てたときの、切り捨て前ダメージ。 */
+  function preTruncationDamageOf(attacker: BattleUnit, target: BattleUnit): number {
+    const damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId(BONUS_VEHICLE_DAMAGE_ID),
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "SKILL_POWER", power: 1 },
+        hitCount: 1,
+        critical: { mode: "PREVENTED" },
+        accuracy: { mode: "GUARANTEED" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+    const recorder = new EventRecorder(createBattleId("B_ELENA_BONUS_HIT"));
+    const resolutionScopeId = recorder.nextResolutionScopeId();
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId,
+      payload: { turnNumber: 1 },
+    });
+    applyDamageAction(
+      attacker,
+      [
+        {
+          targetUnitId: target.battleUnitId,
+          effectActionDefinitionId: damageAction.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ],
+      damageAction,
+      [attacker, target],
+      noMissNoCrit(),
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: recorder.nextActionId(),
+        skillUseId: recorder.nextSkillUseId(),
+        resolutionScopeId,
+        rootEventId: seed.eventId,
+        parentEventId: seed.eventId,
+        skillDefinitionId: createSkillDefinitionId(EX_SKILL_ID),
+      },
+    );
+    return recorder
+      .getEvents()
+      .find(
+        (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
+          event.eventType === "DamageCalculated",
+      )!.payload.preTruncationDamage;
+  }
+
+  /**
+   * 実EXを実ライフサイクルへ通し、追加ダメージを受け取ったエレーナ自身を返す。
+   * 盤面は `-001` のEX行と同じ「攻撃力が最も高い味方が一意」な形にする — 全員同値だと
+   * `HIGHEST_ATTACK`/`LOWEST_ATTACK` の双方がエレーナへ解決し、追加ダメージを2つ
+   * 受け取ってしまうため。
+   */
+  function grantBonusToElena(): { readonly holder: BattleUnit; readonly enemy: BattleUnit } {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, BONUS_BOARD);
+    const recorder = new EventRecorder(createBattleId("B_ELENA_BONUS"));
+    const resolved = resolveSkillUse(
+      board.subject,
+      skillFrom(snapshot, EX_SKILL_ID),
+      "EX",
+      "EX",
+      board.units,
+      board.definitions,
+      noMissNoCrit(),
+      recorder,
+      1,
+      0,
+      createActionId("B_ELENA_BONUS:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+    return {
+      holder: unitOf(resolved.units, board.subject.battleUnitId),
+      enemy: unitOf(resolved.units, "enemy:front"),
+    };
+  }
+
+  it("IT-UNIT-ELENA-MOODMAKER-007 (Q-DMG-01): the granted attack damage bonus reaches a real DAMAGE hit — the holder's hit adds exactly the granted magnitude on top of the same hit without the bonus", () => {
+    const { holder, enemy } = grantBonusToElena();
+    const bonus = holder.appliedEffects.find((effect) => effect.isAttackDamageBonus === true);
+    expect(bonus?.effectActionDefinitionId).toBe(EX_BONUS_DAMAGE_ID);
+    expect(bonus!.magnitude).toBeGreaterThan(0);
+
+    // 対照実行は追加ダメージ効果**だけ**を外した同じ攻撃側にする（攻撃力バフ・
+    // 与ダメージ補正は残すため、差分は追加ダメージの寄与だけになる）。
+    const withoutBonus: BattleUnit = {
+      ...holder,
+      appliedEffects: holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus !== true),
+    };
+    expect(
+      holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true),
+    ).toHaveLength(1);
+
+    // Q-DMG-01: 追加ダメージは切り捨て前の値へ加算する。
+    expect(
+      preTruncationDamageOf(holder, enemy) - preTruncationDamageOf(withoutBonus, enemy),
+    ).toBeCloseTo(bonus!.magnitude, 6);
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-008 (BOUNDARY): the bonus is a grant-time snapshot — raising the holder's ATTACK afterwards does not change what the hit adds", () => {
+    const { holder, enemy } = grantBonusToElena();
+    const magnitude = holder.appliedEffects.find(
+      (effect) => effect.isAttackDamageBonus === true,
+    )!.magnitude;
+    const strengthened: BattleUnit = {
+      ...holder,
+      combatStats: { ...holder.combatStats, attack: holder.combatStats.attack * 10 },
+    };
+    const withoutBonus: BattleUnit = {
+      ...strengthened,
+      appliedEffects: strengthened.appliedEffects.filter(
+        (effect) => effect.isAttackDamageBonus !== true,
+      ),
+    };
+
+    expect(
+      preTruncationDamageOf(strengthened, enemy) - preTruncationDamageOf(withoutBonus, enemy),
+    ).toBeCloseTo(magnitude, 6);
   });
 });

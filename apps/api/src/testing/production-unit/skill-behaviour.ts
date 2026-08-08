@@ -3,6 +3,10 @@ import {
   isExUsable,
   selectAsCandidate,
 } from "../../domain/battle/action/action-selection-policy.js";
+import { applyDamageAction } from "../../domain/battle/combat/damage-application-service.js";
+import type { DamageResultRegistry } from "../../domain/battle/skill/formula-evaluator.js";
+import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
 import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activation-condition-evaluator.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
@@ -38,7 +42,12 @@ import {
   effectActionGroupContext,
   seedRecorder,
 } from "../fixtures/index.js";
-import { openPassiveChain, type PassiveTriggerEvent } from "./passive-activation.js";
+import {
+  openPassiveChain,
+  type PassiveChain,
+  type PassiveTriggerEvent,
+} from "./passive-activation.js";
+import type { RealDamageTrigger } from "./trigger-events.js";
 
 /**
  * ユニット単位production結合テスト（`__tests__/production-catalog/units/`）の
@@ -303,8 +312,12 @@ export type SkillUse =
   | {
       readonly kind: "PASSIVE";
       readonly skillDefinitionId: string;
-      /** 契機イベント。PSは実際に発行されたイベントからしか発動しない。 */
-      readonly trigger: PassiveTriggerEvent<BattleDomainEventType>;
+      /**
+       * 契機イベント。PSは実際に発行されたイベントからしか発動しない。
+       * {@link RealDamageTrigger} を渡した場合は実ダメージpipelineが発行した
+       * イベントをそのまま契機に使う（payload欄の欠落まで検出できる）。
+       */
+      readonly trigger: PassiveTriggerEvent<BattleDomainEventType> | RealDamageTrigger;
       /** 契機イベントの発行元（`ActionStarted` のactor）。既定は敵前列。 */
       readonly triggeredBy?: string;
       /** `TURN_NUMBER` を読む条件のための評価ターン。既定は1。 */
@@ -512,6 +525,75 @@ export function resetExecutedActionIds(): void {
   executedActionIds.clear();
 }
 
+/** 契機を作る相手役の攻撃。実Catalogとは無関係な最小DAMAGE定義。 */
+const STRIKE_SKILL_ID = "SKL_TEST_TRIGGER_STRIKE";
+const STRIKE_ACTION_ID = "ACT_TEST_TRIGGER_STRIKE";
+
+function strikeDamageAction(power: number): Extract<EffectActionDefinition, { kind: "DAMAGE" }> {
+  return {
+    kind: "DAMAGE",
+    effectActionDefinitionId: createEffectActionDefinitionId(STRIKE_ACTION_ID),
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "SKILL_POWER", power },
+      hitCount: 1,
+      critical: { mode: "PREVENTED" },
+      accuracy: { mode: "GUARANTEED" },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+}
+
+/**
+ * 契機イベントを実ダメージpipelineに発行させる。PS連鎖はここでは走らせず
+ * （`onFactEventForPassiveChain`を渡さない）、発行された当のイベントを
+ * 呼び出し側が `fireRecorded` へ流すことで、「実装が実際に載せたpayload」だけで
+ * PSが候補化されることを確かめられる。
+ */
+function strikeForTrigger(
+  chain: PassiveChain,
+  trigger: RealDamageTrigger,
+  units: readonly BattleUnit[],
+  damageResults: DamageResultRegistry,
+): { readonly units: readonly BattleUnit[]; readonly triggerEvent: BattleDomainEvent } {
+  const attacker = subjectOf(units, trigger.from);
+  const eventType = trigger.event ?? "DamageApplied";
+  const struck = applyDamageAction(
+    attacker,
+    [
+      {
+        targetUnitId: createBattleUnitId(trigger.to),
+        effectActionDefinitionId: createEffectActionDefinitionId(STRIKE_ACTION_ID),
+        hitIndex: 1,
+      },
+    ],
+    strikeDamageAction(trigger.power ?? 1),
+    units,
+    noMissNoCrit(),
+    {
+      recorder: chain.recorder,
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId: chain.actionId,
+      skillUseId: chain.recorder.nextSkillUseId(),
+      resolutionScopeId: chain.resolutionScopeId,
+      rootEventId: chain.rootEventId,
+      parentEventId: chain.rootEventId,
+      skillDefinitionId: createSkillDefinitionId(STRIKE_SKILL_ID),
+      skillType: trigger.skillType,
+      damageResults,
+    },
+  );
+  const triggerEvent = chain.eventsOfType(eventType).at(-1);
+  if (triggerEvent === undefined) {
+    throw new Error(`the strike from "${trigger.from}" emitted no ${eventType}`);
+  }
+  return { units: struck.units, triggerEvent };
+}
+
 /** 観測の前に前提状態を作るために撃つ、実 production EffectAction 1件。 */
 export interface PrecedingAction {
   readonly effectActionDefinitionId: string;
@@ -598,7 +680,7 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const skill = skillFrom(options.snapshot, options.use.skillDefinitionId);
   const random = options.random ?? noMissNoCrit();
 
-  const baseline = applyPrecedingActions(board, options.precedingActions ?? []);
+  let baseline = applyPrecedingActions(board, options.precedingActions ?? []);
 
   let after: readonly BattleUnit[];
   let events: readonly BattleDomainEvent[];
@@ -646,14 +728,31 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     after = result.units;
     events = recorder.getEvents();
   } else {
+    const trigger = options.use.trigger;
+    const isRealDamage = (candidate: typeof trigger): candidate is RealDamageTrigger =>
+      "kind" in candidate && candidate.kind === "REAL_DAMAGE";
+    // R-SKL-08の「同じ解決スコープ内で直前に確定したDAMAGE結果」は実行時registryが
+    // 持つ。契機を作る実ダメージとPS連鎖が同じスコープに居ることを表すため、
+    // 両者へ同じMapを渡す（反撃系の`DAMAGE_RECEIVED_RATIO`はこれを読む）。
+    const damageResults: DamageResultRegistry = new Map();
     const chain = openPassiveChain({
       definitions: board.definitions,
-      actorUnitId: options.use.triggeredBy ?? "enemy:front",
+      actorUnitId:
+        options.use.triggeredBy ?? (isRealDamage(trigger) ? trigger.from : "enemy:front"),
       random,
       battleId: "B_BEHAVIOUR",
+      damageResults,
       ...(options.use.turnNumber === undefined ? {} : { turnNumber: options.use.turnNumber }),
     });
-    after = chain.fire(options.use.trigger, baseline);
+    if (isRealDamage(trigger)) {
+      // 契機は実pipelineに出させる。ここで減ったHPはPS自身が起こした変化と
+      // 区別するため、観測の基準線（`baseline`）へ繰り込む。
+      const struck = strikeForTrigger(chain, trigger, baseline, damageResults);
+      baseline = struck.units;
+      after = chain.fireRecorded(struck.triggerEvent, struck.units);
+    } else {
+      after = chain.fire(trigger, baseline);
+    }
     events = chain.recorder.getEvents();
     const activated = events.some(
       (event) =>
@@ -710,6 +809,11 @@ export interface SkillBehaviourCase {
   readonly use: SkillUse;
   readonly board?: BoardOverrides;
   readonly precedingActions?: readonly PrecedingAction[];
-  readonly random?: RandomSource;
+  /**
+   * 抽選列は**生成関数**で持つ。`SequenceRandomSource` は消費位置を持つ状態物であり、
+   * 表は `-001` と実行ベース網羅監査（`-003`）の2回回されるため、インスタンスを
+   * 共有すると2周目が exhausted で落ちる。
+   */
+  readonly random?: () => RandomSource;
   readonly expected: SkillUseObservation;
 }

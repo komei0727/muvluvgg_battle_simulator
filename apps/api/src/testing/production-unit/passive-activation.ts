@@ -8,6 +8,7 @@ import type {
 } from "../../domain/battle/events/domain-event.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import type { DamageResultRegistry } from "../../domain/battle/skill/formula-evaluator.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { ActionId, DomainEventId, ResolutionScopeId } from "../../domain/shared/event-ids.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
@@ -71,6 +72,13 @@ export interface OpenPassiveChainOptions {
    * 契機イベントの `turnNumber` と揃える必要がある。
    */
   readonly turnNumber?: number;
+  /**
+   * R-SKL-08の実行時registry。`PassiveActivationRuntime` は1解決スコープにつき1つ
+   * だけ生成される契約のもとで自前のMapを持つが、このハーネスは契機を作る攻撃を
+   * runtimeの外で撃つため、同じスコープに居ることを表せるよう呼び出し側の
+   * registryを共有させる。反撃系（`DAMAGE_RECEIVED_RATIO`）はこれを読む。
+   */
+  readonly damageResults?: DamageResultRegistry;
 }
 
 /** `ActionStarted` を根に持つ行動envelopeを開き、PS連鎖を流せる状態にする。 */
@@ -135,6 +143,11 @@ export function openPassiveChain(options: OpenPassiveChainOptions): PassiveChain
         },
         units,
       );
+      if (options.damageResults !== undefined) {
+        for (const [unitId, entry] of options.damageResults) {
+          runtime.damageResultsRegistry.set(unitId, entry);
+        }
+      }
       return runtime.onFactEvent(event, units).units;
     },
     eventsOfType<Type extends BattleDomainEventType>(eventType: Type) {

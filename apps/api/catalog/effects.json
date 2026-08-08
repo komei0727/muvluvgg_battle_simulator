@@ -990,11 +990,7 @@
     "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 0.4
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.4 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }
@@ -6712,7 +6708,13 @@
       "damageType": "EN",
       "formula": { "kind": "SKILL_POWER", "power": 0.624 },
       "damageModifiers": [
-        { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 3 }
+        {
+          "kind": "HP_RATIO_SCALE",
+          "target": { "kind": "SKILL_SOURCE" },
+          "min": 0,
+          "max": 3,
+          "direction": "HIGHER_HP_IS_MAX"
+        }
       ]
     },
     "metadata": { "tags": [] }
@@ -6738,7 +6740,13 @@
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.5 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "min": 0,
+        "max": 0.5,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
@@ -6753,7 +6761,13 @@
     "payload": {
       "stat": "CRITICAL_RATE",
       "valueType": "RATIO",
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.4 },
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "min": 0,
+        "max": 0.4,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,

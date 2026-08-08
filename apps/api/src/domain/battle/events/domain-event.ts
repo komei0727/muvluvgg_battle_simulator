@@ -451,6 +451,14 @@ export interface BattleDomainEventPayloadMap {
     readonly effectActionDefinitionId: EffectActionDefinitionId;
     readonly hitIndex: number;
     readonly targetUnitId: BattleUnitId;
+    /**
+     * このダメージを発生させたスキルの種別。production Catalogは「自身がアクティブ
+     * スキルで攻撃された後」を`EVENT_PAYLOAD field: "skillType"`で表現するため
+     * （`SKL_AOI_GUARDIAN_PS2`等）、この欄が無いと当該triggerが一度も候補化されない
+     * （`SkillUseStarting`で同じ欠落を修正したのと同じ理由、Issue #144 follow-up）。
+     * 継続ダメージ・リンク・反射のようにスキル種別へ帰属しない経路では省略する。
+     */
+    readonly skillType?: SkillType;
     readonly calculatedDamage: number;
     /**
      * DMG-004（Issue #194、R-SHD-02 #1）: `shieldIgnoreRate`分としてシールドを
