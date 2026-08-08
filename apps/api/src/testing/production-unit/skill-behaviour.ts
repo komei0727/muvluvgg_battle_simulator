@@ -535,6 +535,61 @@ export interface ObserveSkillUseOptions {
 }
 
 /**
+ * 前提アクションを順に適用し、観測の基準線となる盤面を返す。
+ *
+ * 実行はしているが**実行ベース網羅の実績には数えない** — 前提アクションは
+ * production スキルの対象選択・分岐・発動条件を通さず EffectAction 1件を合成
+ * スキルで直接撃つものなので、これを数えると「スキル使用単位で保証する」という
+ * 方針そのものを迂回できてしまう（production 側では一度も `APPLIED` にならない
+ * Action を前提で撃つだけで `-003` を通せる）。
+ *
+ * `EventRecorder` は effectInstanceId／markerInstanceId／skillUseId とイベント連番を
+ * 内部カウンタから発番するため、**1つだけ作って全前提アクションで共有する**。
+ * 反復ごとに作り直すとカウンタが1から再開し、baselineへ同一runtime IDを持つ効果や
+ * Markerが並んで、解除・リンク・消費が実戦闘に存在しない状態で評価される。
+ */
+export function applyPrecedingActions(
+  board: ProductionBoard,
+  actions: readonly PrecedingAction[],
+): readonly BattleUnit[] {
+  if (actions.length === 0) {
+    return board.units;
+  }
+  let baseline = board.units;
+  const { recorder, rootEventId } = seedRecorder("B_PRECEDING");
+  for (const action of actions) {
+    const skillDefinition = precedingSkill(action);
+    const definitions: BattleDefinitions = {
+      ...board.definitions,
+      skillDefinitions: new Map(board.definitions.skillDefinitions).set(
+        skillDefinition.skillDefinitionId,
+        skillDefinition,
+      ),
+    };
+    const actor = subjectOf(baseline, board.subject.battleUnitId);
+    baseline = applyEffectActionGroups(
+      resolveSkillOrder(
+        skillDefinition,
+        actor,
+        baseline,
+        definitions.effectActions,
+        undefined,
+        definitions.unitDefinitions,
+      ),
+      baseline,
+      effectActionGroupContext({
+        actor,
+        skillId: PRECEDING_SKILL_ID,
+        definitions,
+        recorder,
+        rootEventId,
+      }),
+    ).units;
+  }
+  return baseline;
+}
+
+/**
  * 実 `catalog/` のスキルを1回使い、変化した観測項目だけを返す。戻り値は表の
  * 期待値と `toEqual` で突き合わせる前提の正規形。
  */
@@ -543,52 +598,7 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const skill = skillFrom(options.snapshot, options.use.skillDefinitionId);
   const random = options.random ?? noMissNoCrit();
 
-  // 前提アクションは観測の基準線に含める（差分には現れない）。
-  //
-  // 実行はしているが**実行ベース網羅の実績には数えない** — 前提アクションは
-  // production スキルの対象選択・分岐・発動条件を通さず EffectAction 1件を合成
-  // スキルで直接撃つものなので、これを数えると「スキル使用単位で保証する」という
-  // 方針そのものを迂回できてしまう（production 側では一度も `APPLIED` にならない
-  // Action を前提で撃つだけで `-003` を通せる）。
-  //
-  // `EventRecorder` は effectInstanceId／markerInstanceId／skillUseId とイベント連番を
-  // 内部カウンタから発番するため、**ループ外で1つだけ作って全前提アクションで共有する**。
-  // 反復ごとに作り直すとカウンタが1から再開し、baselineへ同一runtime IDを持つ効果や
-  // Markerが並んで、解除・リンク・消費が実戦闘に存在しない状態で評価される。
-  let baseline = board.units;
-  const precedingActions = options.precedingActions ?? [];
-  if (precedingActions.length > 0) {
-    const { recorder, rootEventId } = seedRecorder("B_PRECEDING");
-    for (const action of precedingActions) {
-      const skillDefinition = precedingSkill(action);
-      const definitions: BattleDefinitions = {
-        ...board.definitions,
-        skillDefinitions: new Map(board.definitions.skillDefinitions).set(
-          skillDefinition.skillDefinitionId,
-          skillDefinition,
-        ),
-      };
-      const actor = subjectOf(baseline, board.subject.battleUnitId);
-      baseline = applyEffectActionGroups(
-        resolveSkillOrder(
-          skillDefinition,
-          actor,
-          baseline,
-          definitions.effectActions,
-          undefined,
-          definitions.unitDefinitions,
-        ),
-        baseline,
-        effectActionGroupContext({
-          actor,
-          skillId: PRECEDING_SKILL_ID,
-          definitions,
-          recorder,
-          rootEventId,
-        }),
-      ).units;
-    }
-  }
+  const baseline = applyPrecedingActions(board, options.precedingActions ?? []);
 
   let after: readonly BattleUnit[];
   let events: readonly BattleDomainEvent[];
