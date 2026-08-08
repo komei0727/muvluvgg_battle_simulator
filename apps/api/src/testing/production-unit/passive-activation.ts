@@ -65,6 +65,12 @@ export interface OpenPassiveChainOptions {
   /** 既定は「命中・非会心」へ倒す固定列。 */
   readonly random?: RandomSource;
   readonly battleId?: string;
+  /**
+   * 連鎖を評価するターン番号。`TURN_NUMBER` を読む trigger 条件
+   * （「1ターン目には発動しない」等）は payload ではなく評価文脈から読むため、
+   * 契機イベントの `turnNumber` と揃える必要がある。
+   */
+  readonly turnNumber?: number;
 }
 
 /** `ActionStarted` を根に持つ行動envelopeを開き、PS連鎖を流せる状態にする。 */
@@ -73,10 +79,11 @@ export function openPassiveChain(options: OpenPassiveChainOptions): PassiveChain
   const recorder = new EventRecorder(battleId);
   const resolutionScopeId = recorder.nextResolutionScopeId();
   const actionId = recorder.nextActionId();
+  const turnNumber = options.turnNumber ?? 1;
   const actionStarted = recorder.record({
     eventType: "ActionStarted",
     category: "FACT",
-    turnNumber: 1,
+    turnNumber,
     cycleNumber: 1,
     actionId,
     resolutionScopeId,
@@ -102,7 +109,7 @@ export function openPassiveChain(options: OpenPassiveChainOptions): PassiveChain
       const recorded = recorder.record({
         eventType: event.eventType,
         category: event.category,
-        turnNumber: 1,
+        turnNumber,
         cycleNumber: 1,
         actionId,
         resolutionScopeId,
@@ -120,7 +127,7 @@ export function openPassiveChain(options: OpenPassiveChainOptions): PassiveChain
           definitions: options.definitions,
           random,
           recorder,
-          turnNumber: 1,
+          turnNumber,
           cycleNumber: 1,
           resolutionScopeId,
           rootEventId: actionStarted.eventId,

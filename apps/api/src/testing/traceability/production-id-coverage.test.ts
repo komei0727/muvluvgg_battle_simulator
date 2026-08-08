@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   UNCOVERED_MEMORY_IDS,
   UNCOVERED_UNIT_IDS,
+  collectEffectActionReferences,
+  effectActionClosure,
   unreferencedIds,
 } from "./production-id-coverage.js";
 
@@ -21,60 +23,6 @@ interface CatalogEntry {
 
 function readCatalogArray(fileName: string): readonly CatalogEntry[] {
   return JSON.parse(readFileSync(`${catalogDir}/${fileName}`, "utf8")) as CatalogEntry[];
-}
-
-/**
- * JSONツリーから `effectActionDefinitionId` 参照を再帰収集する。skill定義の
- * `resolution`／`chargeRelease` はstep種別（BRANCH/RANDOM_BRANCH/REPEAT）ごとに
- * ネスト形状が異なるため、形状を列挙せずキー名だけで拾う（形状の追加に追随できる）。
- */
-function collectEffectActionReferences(node: unknown, into: Set<string>): void {
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      collectEffectActionReferences(item, into);
-    }
-    return;
-  }
-  if (node === null || typeof node !== "object") {
-    return;
-  }
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "effectActionDefinitionId" && typeof value === "string") {
-      into.add(value);
-      continue;
-    }
-    collectEffectActionReferences(value, into);
-  }
-}
-
-/**
- * 起点集合から、EffectAction payloadが参照する別のEffectActionまで閉包を取る。
- * production Catalogには payload 経由の EffectAction間参照が実在するため
- * （例: 付与した効果が別のEffectActionを起動する定義）、skill直下の参照だけでは
- * 「そのUnitが発揮しうる全効果」に届かない。
- */
-function effectActionClosure(
-  seeds: ReadonlySet<string>,
-  effectPayloadsById: ReadonlyMap<string, unknown>,
-): ReadonlySet<string> {
-  const closure = new Set<string>(seeds);
-  const queue = [...seeds];
-  while (queue.length > 0) {
-    const id = queue.pop();
-    if (id === undefined) {
-      break;
-    }
-    const payload = effectPayloadsById.get(id);
-    const referenced = new Set<string>();
-    collectEffectActionReferences(payload, referenced);
-    for (const next of referenced) {
-      if (!closure.has(next)) {
-        closure.add(next);
-        queue.push(next);
-      }
-    }
-  }
-  return closure;
 }
 
 interface CoverageTarget {

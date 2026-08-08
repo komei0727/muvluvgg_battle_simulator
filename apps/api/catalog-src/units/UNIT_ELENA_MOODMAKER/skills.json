@@ -41,6 +41,9 @@
             },
             {
               "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
             }
           ]
         },

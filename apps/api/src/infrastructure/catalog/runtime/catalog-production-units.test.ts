@@ -329,7 +329,27 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // that every converted character unit is `selectable` on `IMPLEMENTED`
     // capabilities alone. It is not one of the 10 promoted units, so the
     // `unitCount`/violation/`selectable` expectations here stay the same.
-    expect(catalog.catalogRevision).toBe("2026-08-07.1");
+    // `2026-08-08.1` は REF-024（Issue #353）のユニット効果軸テストが、原文と実挙動の
+    // 不一致を3件検出したことによる定義修正。いずれも EffectAction 定義自体は変えず、
+    // 条件・判定順・付与先だけを直しているため `unitCount`/violation/`selectable` の
+    // 期待値はそのまま。
+    // (1) `SKL_SAYA_BUNNY_PS1`（ジャックポット、原文「自身の攻撃が会心攻撃になるたびに
+    // 発動」）は `CriticalCheckResolved` に条件を持たず、会心しなかった攻撃でも発動して
+    // いた。同じイベントを使う `SKL_LAYLA_ENTREPRENEUR_PS2` と揃えて
+    // `EVENT_PAYLOAD.result EQ true` を課した。
+    // (2) `SKL_ELENA_MOODMAKER_EX`（原文は最も攻撃力が高い味方と低い味方の**双方**へ
+    // 「攻撃時に攻撃力×15%のダメージを追加するバフ」を付与する）は
+    // `ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE` を `TGT_LOW` step にしか持たず、高攻撃側が
+    // 取りこぼされていた。`TGT_HIGH` step へも追加した。
+    // (3) `SKL_KOTOHA_REBEL_AS2` の憤怒分岐を
+    // 組み替えたもの。`TARGET_HAS_MARKER` はマーカーを1つも保持しない対象に対して
+    // `countCondition` の演算子によらず false を返すため、原文「1個以下：威力187.2で
+    // 1ヒット」を `LTE 1` で表すと憤怒0個が漏れて「3個以上」の腕へ落ちていた
+    // （憤怒を配るのはAS1だけなので、0個は戦闘開始直後に必ず到達する）。上の閾値から
+    // 順に判定し最後のelseで0個・1個を受ける形へ変更した。EffectActionの定義自体は
+    // 変わらず、判定順だけが変わるため `unitCount`/violation/`selectable` の期待値は
+    // そのまま。
+    expect(catalog.catalogRevision).toBe("2026-08-08.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
