@@ -1,13 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { Ajv, type ValidateFunction } from "ajv";
 import { describe, expect, it } from "vitest";
-import type { CooldownStateResponseBody } from "../../application/contracts/response.js";
-import { toBattleSimulationResponseBody } from "../../application/simulation/simulate-battle-response-mapper.js";
-import { battleSimulationResponseDocSchema } from "../../presentation/http/schemas/simulation/simulation-schema.js";
+import type { CooldownStateResponseBody } from "../../../../application/contracts/response.js";
+import { toBattleSimulationResponseBody } from "../../../../application/simulation/simulate-battle-response-mapper.js";
+import { battleSimulationResponseDocSchema } from "../../../../presentation/http/schemas/simulation/simulation-schema.js";
 import {
   runProductionUnitBattle,
   allProductionUnitIds,
-} from "../../testing/scenario/run-production-battle.js";
+} from "../../../../testing/scenario/run-production-battle.js";
 
 /**
  * REL-004（Issue #203）: `10_API設計.md`「OpenAPIへの反映」の
@@ -24,7 +24,7 @@ import {
  * DIAGNOSTICで実行するのは、公開レベルの上限＝発行され得るイベント種別の
  * 全量だから（DETAILEDは`EffectStepSkipped`等を含まない）。
  */
-const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
+const CATALOG_DIR = fileURLToPath(new URL("../../../../../catalog", import.meta.url));
 const PRODUCTION_UNIT_IDS = allProductionUnitIds(CATALOG_DIR);
 
 function describeErrors(validate: ValidateFunction): string {

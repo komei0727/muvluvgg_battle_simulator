@@ -73,6 +73,51 @@ export function runProductionUnitBattle(
   });
 }
 
+/** 6スロット（前列3・後列3）を左から詰めて割り当てる。 */
+function partySlots(unitDefinitionIds: readonly string[]): SimulateBattleCommand["allyFormation"] {
+  const columns = [0, 1, 2] as const;
+  return {
+    slots: unitDefinitionIds.map((id, index) => ({
+      unitDefinitionId: createUnitDefinitionId(id),
+      position: {
+        column: columns[index % 3]!,
+        row: index < 3 ? ("FRONT" as const) : ("REAR" as const),
+      },
+    })),
+    memoryDefinitionIds: [],
+  };
+}
+
+/**
+ * 異なる production ユニットを混成した編成同士の実戦闘。1対1ミラー戦
+ * （{@link runProductionUnitBattle}）では現れない「別ユニットの定義同士が同じ盤面で
+ * 噛み合うか」を通す層。行適性（`positionAptitudes`）は配置制限ではなく統計ペナルティ
+ * （R-STA-01）なので、任意の組み合わせを任意の位置へ置ける。
+ */
+export function runProductionPartyBattle(
+  catalogDir: string,
+  parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
+  options: ProductionBattleOptions = {},
+): SimulateBattleResult {
+  const battleCatalog = loadCatalogFromDirectory(catalogDir);
+  const command: SimulateBattleCommand = {
+    allyFormation: partySlots(parties.ally),
+    enemyFormation: partySlots(parties.enemy),
+    turnLimit: options.turnLimit ?? 5,
+    logLevel: options.logLevel ?? "DETAILED",
+  };
+  const useCase = new SimulateBattleUseCase({
+    battleCatalog,
+    battleIdGenerator: new FixedBattleIdGenerator([options.battleId ?? "B_GOLDEN_PARTY"]),
+    randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
+    clock: new ManualClock(0),
+  });
+  return useCase.execute(command, {
+    requestId: "golden-party-battle",
+    deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+  });
+}
+
 /**
  * Catalogを一度だけロードし、同じ定義グラフで戦闘を繰り返し実行するrunnerを返す
  * （`11_インフラストラクチャ設計.md`「Workerごとにcatalogを一度だけ読み込む」に整合。

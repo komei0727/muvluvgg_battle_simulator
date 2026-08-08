@@ -17,7 +17,7 @@ import {
   testBattleUnit,
   testUnitDefinition,
 } from "../fixtures/index.js";
-import { PRODUCTION_CATALOG_DIR } from "./effect-manifestation.js";
+import { PRODUCTION_CATALOG_DIR } from "./skill-behaviour.js";
 
 /**
  * ユニット単位production結合テストのMemory側（`__tests__/production-catalog/memories/`）
@@ -140,10 +140,27 @@ export interface MemoryGrant {
  * `BattleStarted`から配られた効果をEffectAction単位で観測する。
  * 効果を1件も受け取らなかったユニットは結果に現れない。
  */
+export interface MemoryObservation {
+  readonly grants: readonly MemoryGrant[];
+  /**
+   * `MemoryTriggered` の発火順（`<memoryDefinitionId>#<triggeredEffectIndex>`）。
+   * R-MEM-02の解決順（API宣言順 → `triggeredEffects` 定義順）が、対象0件の
+   * `triggeredEffect` を飛ばさずに現れることまで固定する。
+   */
+  readonly triggeredOrder: readonly string[];
+  /** 実際に実行されたEffectAction ID（実行ベース網羅監査が使う）。 */
+  readonly executedActionIds: readonly string[];
+}
+
+/** 付与結果だけが要る呼び出し向けの薄い入口。 */
 export function observeMemoryGrants(
   memoryDefinitionId: string,
   side: Side,
 ): readonly MemoryGrant[] {
+  return observeMemory(memoryDefinitionId, side).grants;
+}
+
+export function observeMemory(memoryDefinitionId: string, side: Side): MemoryObservation {
   const snapshot: BattleCatalogSnapshot = loadProductionSnapshot(
     PRODUCTION_CATALOG_DIR,
     [],
@@ -166,7 +183,30 @@ export function observeMemoryGrants(
       },
     }),
   );
-  const started = startBattle(battle, new SequenceRandomSource([]), new EventRecorder(battleId));
+  const recorder = new EventRecorder(battleId);
+  const started = startBattle(battle, new SequenceRandomSource([]), recorder);
+  const triggeredOrder = recorder
+    .getEvents()
+    .filter((event) => event.eventType === "MemoryTriggered")
+    .map((event) => {
+      const payload = event.payload as {
+        readonly memoryDefinitionId: string;
+        readonly triggeredEffectIndex: number;
+      };
+      return `${payload.memoryDefinitionId}#${payload.triggeredEffectIndex}`;
+    });
+  const executedActionIds = [
+    ...new Set(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "EffectActionCompleted")
+        .map(
+          (event) =>
+            (event.payload as { readonly effectActionDefinitionId: string })
+              .effectActionDefinitionId,
+        ),
+    ),
+  ].sort();
 
   const grants = new Map<string, { unitIds: string[]; magnitude: number; sourceSide: Side }>();
   for (const unit of [...started.allyUnits, ...started.enemyUnits]) {
@@ -190,16 +230,20 @@ export function observeMemoryGrants(
   // EffectAction IDで整列する。付与順はどちらの陣営がMemoryを宣言したかで
   // 入れ替わるため（宣言側から見た`ALLY`は反対陣営の走査で先に現れる）、
   // 表と`-002`のミラー比較を順序に依存させない。
-  return [...grants]
-    .map(([effectActionDefinitionId, grant]) => ({
-      effectActionDefinitionId,
-      unitIds: grant.unitIds,
-      magnitude: grant.magnitude,
-      sourceSide: grant.sourceSide,
-    }))
-    .sort((left, right) =>
-      left.effectActionDefinitionId.localeCompare(right.effectActionDefinitionId),
-    );
+  return {
+    grants: [...grants]
+      .map(([effectActionDefinitionId, grant]) => ({
+        effectActionDefinitionId,
+        unitIds: grant.unitIds,
+        magnitude: grant.magnitude,
+        sourceSide: grant.sourceSide,
+      }))
+      .sort((left, right) =>
+        left.effectActionDefinitionId.localeCompare(right.effectActionDefinitionId),
+      ),
+    triggeredOrder,
+    executedActionIds,
+  };
 }
 
 /** ALLY宣言時の観測を、ENEMY宣言時に期待される観測（陣営を入れ替えたもの）へ写す。 */
