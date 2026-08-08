@@ -543,46 +543,50 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const skill = skillFrom(options.snapshot, options.use.skillDefinitionId);
   const random = options.random ?? noMissNoCrit();
 
-  // 前提アクションは観測の基準線に含める（差分には現れない）。実行はしているので
-  // 実行ベース網羅の集合へは入る。
+  // 前提アクションは観測の基準線に含める（差分には現れない）。
+  //
+  // 実行はしているが**実行ベース網羅の実績には数えない** — 前提アクションは
+  // production スキルの対象選択・分岐・発動条件を通さず EffectAction 1件を合成
+  // スキルで直接撃つものなので、これを数えると「スキル使用単位で保証する」という
+  // 方針そのものを迂回できてしまう（production 側では一度も `APPLIED` にならない
+  // Action を前提で撃つだけで `-003` を通せる）。
+  //
+  // `EventRecorder` は effectInstanceId／markerInstanceId／skillUseId とイベント連番を
+  // 内部カウンタから発番するため、**ループ外で1つだけ作って全前提アクションで共有する**。
+  // 反復ごとに作り直すとカウンタが1から再開し、baselineへ同一runtime IDを持つ効果や
+  // Markerが並んで、解除・リンク・消費が実戦闘に存在しない状態で評価される。
   let baseline = board.units;
-  for (const action of options.precedingActions ?? []) {
-    const skillDefinition = precedingSkill(action);
-    const definitions: BattleDefinitions = {
-      ...board.definitions,
-      skillDefinitions: new Map(board.definitions.skillDefinitions).set(
-        skillDefinition.skillDefinitionId,
-        skillDefinition,
-      ),
-    };
-    const actor = baseline.find((unit) => unit.battleUnitId === board.subject.battleUnitId);
-    if (actor === undefined) {
-      throw new Error(`subject "${board.subject.battleUnitId}" left the board`);
-    }
+  const precedingActions = options.precedingActions ?? [];
+  if (precedingActions.length > 0) {
     const { recorder, rootEventId } = seedRecorder("B_PRECEDING");
-    const applied = applyEffectActionGroups(
-      resolveSkillOrder(
-        skillDefinition,
-        actor,
+    for (const action of precedingActions) {
+      const skillDefinition = precedingSkill(action);
+      const definitions: BattleDefinitions = {
+        ...board.definitions,
+        skillDefinitions: new Map(board.definitions.skillDefinitions).set(
+          skillDefinition.skillDefinitionId,
+          skillDefinition,
+        ),
+      };
+      const actor = subjectOf(baseline, board.subject.battleUnitId);
+      baseline = applyEffectActionGroups(
+        resolveSkillOrder(
+          skillDefinition,
+          actor,
+          baseline,
+          definitions.effectActions,
+          undefined,
+          definitions.unitDefinitions,
+        ),
         baseline,
-        definitions.effectActions,
-        undefined,
-        definitions.unitDefinitions,
-      ),
-      baseline,
-      effectActionGroupContext({
-        actor,
-        skillId: PRECEDING_SKILL_ID,
-        definitions,
-        recorder,
-        rootEventId,
-      }),
-    );
-    baseline = applied.units;
-    for (const executed of executedActions(recorder.getEvents())) {
-      if (executed.resultKind === undefined) {
-        executedActionIds.add(executed.effectActionDefinitionId);
-      }
+        effectActionGroupContext({
+          actor,
+          skillId: PRECEDING_SKILL_ID,
+          definitions,
+          recorder,
+          rootEventId,
+        }),
+      ).units;
     }
   }
 
