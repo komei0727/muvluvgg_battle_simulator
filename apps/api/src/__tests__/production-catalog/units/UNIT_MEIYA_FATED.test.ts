@@ -355,7 +355,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_MEIYA_FATED_PS2",
-    intent: "(不成立): 攻撃しないスキル使用（EX）の開始では発動しない",
+    intent: "(不成立): 同じく攻撃するEXの使用開始では発動しない（アクティブスキルではない）",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MEIYA_FATED_PS2",
@@ -363,6 +363,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "EX",
+        skillDefinitionId: "SKL_MEIYA_FATED_EX",
       }),
     },
     expected: {

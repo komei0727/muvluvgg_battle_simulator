@@ -350,7 +350,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
-    intent: "(不成立): 攻撃しないスキル使用（EX）の開始では発動しない",
+    intent: "(不成立): 同じく攻撃するEXの使用開始では発動しない（アクティブスキルではない）",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MERU_FLATSPIN_PS1",
@@ -358,6 +358,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "EX",
+        skillDefinitionId: "SKL_MERU_FLATSPIN_EX",
       }),
     },
     expected: {

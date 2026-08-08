@@ -427,7 +427,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_LYDIA_GENIUS_PS1",
-    intent: "(不成立): 攻撃しないスキル使用（EX）の完了では発動しない",
+    intent: "(不成立): 同じく攻撃するEXの使用完了では発動しない（アクティブスキルではない）",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_LYDIA_GENIUS_PS1",
@@ -435,6 +435,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         actor: "ally:subject",
         targets: ["enemy:front"],
         skillType: "EX",
+        skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
       }),
     },
     expected: {
