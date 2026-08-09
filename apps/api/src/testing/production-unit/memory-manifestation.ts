@@ -12,6 +12,7 @@ import type {
   Attribute,
   DamageType,
   Role,
+  Side as SelectorSide,
   StatKind,
   UnitType,
 } from "../../domain/catalog/definitions/catalog-enums.js";
@@ -226,12 +227,40 @@ export interface MemoryMarkerGrant {
 }
 
 /**
+ * `triggeredEffect` が対象集合をどう宣言しているか（`targetBindings` の selector）。
+ *
+ * 当たったスロット（`MemoryGrant.unitIds`）は「対象となる味方**全員**」を
+ * 保証しない — 固定盤面で一致対象が1体だけになる行（production 66付与のうち24件。
+ * `ROLE: SUPPORT`以外のロール絞り込み・所属条件・属性条件はどれも1スロットしか
+ * 引かない）では、`count: "ALL"` が `count: 1` へ退行しても `unitIds` が変わらない。
+ * 対象集合の宣言そのものを観測へ載せてこの死角を塞ぐ。
+ *
+ * `triggeredEffect` 1件につき `targetBindings` 1件が定義順に並ぶため、binding が
+ * 増減した場合も表の行数が変わって落ちる。
+ */
+export interface MemoryTargetSelection {
+  readonly triggeredEffectIndex: number;
+  readonly kind: string;
+  /**
+   * `kind: "SELECT"` だけが持つ（他のkindへ退行するとキーごと落ちて表と食い違う）。
+   * `catalog-enums` の `Side` は対象選択用で、陣営2種のほかに `"ALL"` を取る。
+   */
+  readonly side?: SelectorSide;
+  readonly count?: number | "ALL";
+}
+
+/**
  * 実`catalog/`のMemoryを片陣営が宣言した状態で`startBattle`を通し、
  * `BattleStarted`から配られた効果をEffectAction単位で観測する。
  * 効果を1件も受け取らなかったユニットは結果に現れない。
  */
 export interface MemoryObservation {
   readonly grants: readonly MemoryGrant[];
+  /**
+   * 全`triggeredEffect`の対象集合の宣言（定義順）。発動しなかった
+   * `triggeredEffect`（`TurnStarted`発動・対象0件）の分も含む。
+   */
+  readonly targetSelections: readonly MemoryTargetSelection[];
   /** 付与されたMarker（Marker ID順）。1件も無ければ空配列。 */
   readonly markers: readonly MemoryMarkerGrant[];
   /**
@@ -416,6 +445,21 @@ function sortedById<T extends { readonly effectActionDefinitionId: string }>(
   );
 }
 
+function targetSelectionsOf(
+  snapshot: BattleCatalogSnapshot,
+  memoryDefinitionId: string,
+): readonly MemoryTargetSelection[] {
+  return memoryFrom(snapshot, memoryDefinitionId).triggeredEffects.flatMap(
+    (triggeredEffect, triggeredEffectIndex) =>
+      triggeredEffect.effectSequence.targetBindings.map((binding) => ({
+        triggeredEffectIndex,
+        kind: binding.selector.kind,
+        ...(binding.selector.side === undefined ? {} : { side: binding.selector.side }),
+        ...(binding.selector.count === undefined ? {} : { count: binding.selector.count }),
+      })),
+  );
+}
+
 function grantsOf(
   units: readonly BattleUnit[],
   snapshot: BattleCatalogSnapshot,
@@ -500,6 +544,7 @@ export function observeMemory(
   const units = [...started.allyUnits, ...started.enemyUnits];
   return {
     grants: grantsOf(units, snapshot),
+    targetSelections: targetSelectionsOf(snapshot, memoryDefinitionId),
     markers: markersOf(units),
     triggeredOrder: triggeredOrderOf(recorder.getEvents()),
     executedActionIds: executedActionIdsOf(recorder.getEvents()),

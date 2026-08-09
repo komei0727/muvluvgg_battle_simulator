@@ -63,6 +63,13 @@ describe("production Catalog MEM_BUSY_DAY_SLUMBER (忙しい時のまどろみ)"
   it("IT-MEM-BUSY-DAY-SLUMBER-001: only the BattleStarted triggeredEffect manifests at startBattle, on exactly the declared slots with the declared magnitude", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
+    // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
+    // なる陣営全員）が `count: 1` へ退行しても `unitIds` は変わらないため、宣言
+    // そのものを固定する。
+    expect(observed.targetSelections).toEqual([
+      { triggeredEffectIndex: 0, kind: "SELECT", side: "ALLY", count: "ALL" },
+      { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL" },
+    ]);
     expect(observed.markers).toEqual([]);
     // R-MEM-02: `triggeredEffects` は定義順に解決されるが、`TurnStarted` 発動の
     // 効果1（index 0）は`BattleStarted`では候補にならず、飛ばされる。
