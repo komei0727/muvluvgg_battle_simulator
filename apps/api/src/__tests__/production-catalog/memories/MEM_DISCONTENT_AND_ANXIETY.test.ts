@@ -67,10 +67,15 @@ describe("production Catalog MEM_DISCONTENT_AND_ANXIETY (不満と不安)", () =
     expect(observed.triggeredOrder).toEqual([`${MEMORY_DEFINITION_ID}#1`]);
   });
 
-  it("IT-MEM-DISCONTENT-AND-ANXIETY-002 (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
+  it("IT-MEM-DISCONTENT-AND-ANXIETY-002 (R-MEM-04): the same Memory declared by the ENEMY side lands both triggers on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
     expect(observeMemoryGrants(MEMORY_DEFINITION_ID, "ENEMY")).toEqual(
       mirroredForEnemyDeclaration(EXPECTED_GRANTS),
     );
+    // `TurnStarted` 発動の効果1は`startBattle`だけの観測に現れないため、
+    // ターンを進めた側でも鏡像を取る（片方だけだと対象陣営や`sourceSide`の
+    // 取り違えがALLY宣言でしか観測されない効果で見逃される）。
+    const [firstTurn] = observeMemoryTurnStarts(MEMORY_DEFINITION_ID, "ENEMY", 1).turnStarts;
+    expect(firstTurn?.grants).toEqual(mirroredForEnemyDeclaration(EXPECTED_TURN_START_GRANTS));
   });
 
   it("IT-MEM-DISCONTENT-AND-ANXIETY-003: every EffectAction this Memory declares was actually executed", () => {
