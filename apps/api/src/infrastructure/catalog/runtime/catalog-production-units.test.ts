@@ -25,7 +25,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003`). Issue #160 (EFF-004):
     // `CAP_MARKER` flipped to IMPLEMENTED once MarkerState stack policies and
     // ACTION/TURN duration expiration (R-EFF-10) wired the real lifecycle
-    // (`IT-MARKER-PROD-001〜002`). RES-001 (Issue #175):
+    // (`UT-R-EFF-10-*`; 実データ経路は `IT-UNIT-AOI-ELEGANT-004`。当時の証跡だった
+    // `IT-MARKER-PROD-001〜002` は REF-025／Issue #354 で retire した).
+    // RES-001 (Issue #175):
     // `CAP_FORMULA` flipped to IMPLEMENTED once the general FormulaEvaluator
     // wired the real lifecycle (`IT-CAP-FORMULA-PROD-001〜004`). Issue #217:
     // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` corrected from a misused
