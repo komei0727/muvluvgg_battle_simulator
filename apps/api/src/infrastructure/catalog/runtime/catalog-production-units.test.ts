@@ -232,7 +232,8 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by RES-004-TATIANA-EX (Issue #225): `CAP_DAMAGE_MOD`と
     // `CAP_EFFECT_STEP_CONDITION`の`verification.testCaseIds`へ
     // `IT-CAP-TATIANA-OMEN-PROD-001`〜`005`（`SKL_TATIANA_SAGE_EX`の「凶兆」
-    // しきい値分岐の実ライフサイクル検証）を追加した。Unit・Skill・Effectの
+    // しきい値分岐の実ライフサイクル検証。REF-031／Issue #361 でユニット効果軸
+    // `IT-UNIT-TATIANA-SAGE-004`〜`006` へ移送済み）を追加した。Unit・Skill・Effectの
     // 定義自体は変えていないため期待値は据え置き。
     // Bumped again by M7-015 (Issue #269): `CAP_MARKER_STACK_FORMULA`を
     // `IMPLEMENTED`へ更新し、`verification`へ`MARKER_COUNT_SCALE`の実ライフ
@@ -426,7 +427,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-09.2` は同じ `SKL_SENKA_CHRISTMAS_PS2` の `targetSelector: ENEMY`。
     // 原文は解除先を「自身が攻撃した対象」としか言わず陣営を限定しないため、混乱
     // （R-CFS-01）で対象が味方側へ反転した会心攻撃を取りこぼしていた。`ANY` へ直した。
-    expect(catalog.catalogRevision).toBe("2026-08-09.2");
+    // `2026-08-09.3` は REF-031（Issue #361）の第7バッチが検出した原文との不一致3件。
+    // (1) `SKL_SHIRANA_LUCKY_PS1`（原文「自身のHPが50%以下になった際」）の
+    // `HitPointReduced`＋`sourceSelector: SELF`（`2026-08-09.1` の(2)と同型）は `ANY` へ。
+    // (2) `SKL_SIENA_OFFSTAGE_PS2`（原文「自身がアクティブスキルで攻撃した後に発動」）の
+    // `targetSelector: SELF` は `ANY` ＋ 攻撃ASのIDリストへ。
+    // (3) `SKL_STELLA_STATUE_PS1`（原文「「惑光」を所持している敵のHPが50%以下に
+    // なった際」）の `sourceSelector: ENEMY` は、HPを削るのがこちら側であるため味方の
+    // 攻撃では成立しなかった。`ANY` へ直した。
+    expect(catalog.catalogRevision).toBe("2026-08-09.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

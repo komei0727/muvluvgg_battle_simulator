@@ -746,9 +746,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // Issue #192）待ちのため、`EffectSequencePlan`レベルの振り分け検証に留め、
   // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残していた。
   // `DMG-002`が`APPLY_DAMAGE_MOD`を実ライフサイクルへ配線した後、Issue #225が
-  // `IT-CAP-TATIANA-OMEN-PROD-001`〜`005`で同じ対象別条件を実`resolveSkillUse`
-  // 経由の実付与（Marker 0/1/2/3件混在AOE・Domain Event・StateDelta・
-  // stateVersion・独立Reducer復元）まで通し、この暫定的な検証範囲を解消した。
+  // 機能軸の `IT-CAP-TATIANA-OMEN-PROD-*` で同じ対象別条件を実`resolveSkillUse`
+  // 経由の実付与（Marker混在AOE・Domain Event・StateDelta・stateVersion・
+  // 独立Reducer復元）まで通し、この暫定的な検証範囲を解消した。REF-031（Issue
+  // #361）でその機能軸をユニット効果軸（`IT-UNIT-TATIANA-SAGE-*`）へ移送した。
   // Issue #230（RES-004-CONDITION-SCOPE）で、ACTION stepの単一`condition`を
   // `stepCondition`（step全体を一度だけ評価するgate。falseなら
   // `EffectStepSkipped`）と`targetCondition`（対象ごとに個別評価するfilter。
@@ -810,7 +811,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // ことを`IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001`/`002`で検証した。`UNIT_TARISA_
   // TROUBLEMAKER`の`SKL_TARISA_TROUBLEMAKER_PS1`（「与えたダメージが10以下だった
   // 場合、『負けん気』を3つ解除する」）を実production Catalogに対し
-  // `IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001`〜`003`で近似なしへ変換した。
+  // 近似なしへ変換した（REF-031／Issue #361 でユニット効果軸
+  // `IT-UNIT-TARISA-TROUBLEMAKER-006` へ移送済み）。
   // M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）: `TARGET_HAS_EFFECT`
   // （`CAP_TARGET_EFFECT_QUERY`）と`TARGET_STATE`の`HAS_STATUS`/`UNIT_TYPE`/`ROLE`
   // （`CAP_TARGET_STATE_EXTENDED_FIELD`）を条件評価器へ接続した。分類元は
@@ -902,17 +904,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-IDX-080",
       "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001",
       "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002",
-      "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-001",
-      "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-002",
-      "IT-CAP-TRIGGER-PAYLOAD-RES-PROD-003",
+      "IT-UNIT-TARISA-TROUBLEMAKER-006",
       "IT-CAP-EFFSTEP-001",
       "IT-CAP-EFFSTEP-002",
       "IT-CAP-EFFSTEP-003",
       "IT-CAP-EFFSTEP-004",
       "IT-CAP-EFFSTEP-005",
-      "IT-CAP-TATIANA-OMEN-PROD-001",
-      "IT-CAP-TATIANA-OMEN-PROD-003",
-      "IT-CAP-TATIANA-OMEN-PROD-004",
+      "IT-UNIT-TATIANA-SAGE-004",
+      "IT-UNIT-TATIANA-SAGE-006",
       "UT-R-SKL-06-056",
       "UT-R-SKL-06-057",
       "UT-R-SKL-06-058",
@@ -1706,7 +1705,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // が与ダメージ倍率を0まで落とすため丸め前ダメージは0になるが、最終ダメージは
       // この最終化規則で1へ引き上げられる（`APPLY_DAMAGE_MOD`はこの全体不変条件の
       // 上書きを宣言しないため、効果定義側では0にできない）。
-      "IT-CAP-TATIANA-OMEN-PROD-002",
+      "IT-UNIT-TATIANA-SAGE-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -1762,11 +1761,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // `CONSTANT -1.0`）を、対象別条件で振り分けられた実AOE解決から実際に付与し、
       // 保持者の次の攻撃で与ダメージ倍率が0まで落ちること（最終ダメージは
       // R-DMG-02（最終化）#3の最低1ダメージで止まる）まで実ライフサイクルで固定する。
-      "IT-CAP-TATIANA-OMEN-PROD-001",
-      "IT-CAP-TATIANA-OMEN-PROD-002",
-      "IT-CAP-TATIANA-OMEN-PROD-003",
-      "IT-CAP-TATIANA-OMEN-PROD-004",
-      "IT-CAP-TATIANA-OMEN-PROD-005",
+      "IT-UNIT-TATIANA-SAGE-004",
+      "IT-UNIT-TATIANA-SAGE-005",
+      "IT-UNIT-TATIANA-SAGE-006",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -2481,8 +2478,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // - 次点繰上げの実失効経路: UT-R-EFF-05-021（`expireEffects`）
   // - 重複上限（上限到達時は付与せず`resultKind: SKIPPED`、別定義は上限を
   //   共有しない）: UT-R-EFF-05-014〜016/019/020、および実production Catalogの
-  //   `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`（`stacking.max: 14`）を
-  //   `resolveSkillUse`から検証する`IT-CAP-STAT-MOD-STACK-LIMIT-PROD-001`〜`003`。
+  //   `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`（`stacking.max: 14`）を実付与経路から
+  //   検証する`IT-UNIT-TARISA-TROUBLEMAKER-004`／`005`（REF-031／Issue #361 で
+  //   機能軸 `IT-CAP-STAT-MOD-STACK-LIMIT-PROD-*` から移送）。
   //
   // `NON_STACKABLE`を宣言するproduction定義は現時点で存在しない（raw原文が
   // 明記するのは「重複可」だけで、重複なしへの再分類はどの台帳行も要求して
@@ -2516,9 +2514,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-ACT-080",
       "UT-CAT-ACT-081",
       "UT-CAT-ACT-082",
-      "IT-CAP-STAT-MOD-STACK-LIMIT-PROD-001",
-      "IT-CAP-STAT-MOD-STACK-LIMIT-PROD-002",
-      "IT-CAP-STAT-MOD-STACK-LIMIT-PROD-003",
+      "IT-UNIT-TARISA-TROUBLEMAKER-004",
+      "IT-UNIT-TARISA-TROUBLEMAKER-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2559,7 +2556,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-07-014",
       "UT-R-EFF-07-015",
       "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
-      "IT-CAP-TATIANA-OMEN-PROD-002",
+      "IT-UNIT-TATIANA-SAGE-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2925,10 +2922,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-12-007",
       "UT-CAT-IDX-090",
       "UT-CAT-IDX-091",
-      "IT-CAP-DYNAMIC-DURATION-PROD-001",
-      "IT-CAP-DYNAMIC-DURATION-PROD-002",
-      "IT-CAP-DYNAMIC-DURATION-PROD-003",
-      "IT-CAP-DYNAMIC-DURATION-PROD-004",
+      "IT-UNIT-SIENA-DIVA-004",
+      "IT-UNIT-SIENA-DIVA-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

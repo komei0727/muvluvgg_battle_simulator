@@ -281,8 +281,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
-      // 自身の「研鑽」3つは解除されて差分に残らず、敵へ入った「メトカ」だけが増える。
+      // 増えるのは敵へ入った「メトカ」だけで、自身の「研鑽」3つは保持ごと無くなる。
       markers: [{ unitId: "enemy:front", markerId: MARK, stackCount: 1 }],
+      markersRemoved: [{ unitId: "ally:subject", markerId: TRAINING, stackCount: 3 }],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },

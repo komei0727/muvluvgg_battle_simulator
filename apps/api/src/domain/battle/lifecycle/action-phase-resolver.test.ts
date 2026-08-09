@@ -2415,7 +2415,7 @@ describe("resolveActionPhase", () => {
     ]);
   });
 
-  it("UT-ACTION-PHASE-012B (06_戦闘状態遷移.md「チャージ効果発動」#1-4): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ActionCompleting that follows DamageApplied", () => {
+  it("UT-ACTION-PHASE-012B (06_戦闘状態遷移.md「チャージ効果発動」#1-5): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ChargeReleaseCompleted that follows DamageApplied", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const skill = chargeSkill("ACT_CHARGE_HIT", 1);
     const ally = unit("ALLY_1", "ALLY", {
@@ -2450,15 +2450,17 @@ describe("resolveActionPhase", () => {
     expect(chargeReleased.stateVersionBefore).toBe(chargeReleased.stateVersionAfter);
 
     const damageApplied = events.find((e) => e.eventType === "DamageApplied")!;
-    // The ActionCompleting that follows the CHARGE_RELEASE action (not the
-    // earlier AS action's) owns the charge-clearing delta.
-    const actionCompletings = events.filter(
-      (e) => e.eventType === "ActionCompleting" && e.sourceUnitId === ally.battleUnitId,
-    );
-    const closingCompleting = actionCompletings.find(
+    // 「チャージ効果発動」#5（`ChargeReleaseCompleted`）がチャージ終了差分を所有する。
+    // 後続の `ActionCompleting` へ持たせると、公開差分を順に当て直す独立Reducerでは
+    // 完了イベントの時点でまだチャージ中に見えてしまう。
+    const chargeDeltaOwners = events.filter(
       (e) => e.stateDelta?.units?.[ally.battleUnitId]?.charge !== undefined,
-    )!;
-    expect(closingCompleting).toBeDefined();
+    );
+    expect(chargeDeltaOwners.map((e) => e.eventType)).toEqual([
+      "ChargeStarted",
+      "ChargeReleaseCompleted",
+    ]);
+    const closingCompleting = chargeDeltaOwners.at(-1)!;
     expect(closingCompleting.stateDelta).toEqual({
       units: {
         [ally.battleUnitId]: {

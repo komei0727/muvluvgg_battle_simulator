@@ -445,6 +445,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         "enemy:left": -1060,
         "enemy:back": -1060,
       },
+      // 「乱調」を持っていた敵からは保持ごと無くなる。
+      markersRemoved: [
+        { unitId: "enemy:front", markerId: RANCHOU, stackCount: 1 },
+        { unitId: "enemy:left", markerId: RANCHOU, stackCount: 1 },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },

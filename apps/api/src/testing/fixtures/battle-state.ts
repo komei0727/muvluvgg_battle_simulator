@@ -15,7 +15,7 @@ export interface InitialSnapshotOptions {
    * 「キーの有無」まで比較するため、既定では書かず（`captureBattleState` と
    * 同じく空のユニットへキーを書かない）、検証対象のテストだけが有効化する。
    */
-  readonly include?: readonly ("effects" | "markers" | "cooldowns")[];
+  readonly include?: readonly ("effects" | "markers" | "cooldowns" | "charge")[];
 }
 
 /** 実行前の `BattleStateSnapshot`（独立Reducerによる `stateDelta` 復元の起点）。 */
@@ -40,6 +40,17 @@ export function initialSnapshotFor(
           combatStats: unit.combatStats,
           ...(include.has("cooldowns") && Object.keys(unit.cooldowns).length > 0
             ? { cooldowns: unit.cooldowns }
+            : {}),
+          // `BattleUnit["charge"]` は `SkillDefinition` 全体を持つ実行時の形。
+          // StateDelta が運ぶ `ChargeState` は `ChargeStarted.after` と同じ射影
+          // （ID2つ）なので、そちらへ合わせないと reducer の `before` 照合が落ちる。
+          ...(include.has("charge") && unit.charge !== undefined
+            ? {
+                charge: {
+                  skillDefinitionId: unit.charge.skill.skillDefinitionId,
+                  startedActionId: unit.charge.startedActionId,
+                },
+              }
             : {}),
           ...(include.has("effects") && unit.appliedEffects.length > 0
             ? { effects: unit.appliedEffects.map((effect) => toEffectSnapshot(effect, true)) }

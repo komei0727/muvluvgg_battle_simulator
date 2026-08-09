@@ -178,8 +178,25 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_SIENA_OFFSTAGE_AS2"]
+        }
+      },
+      {
+        "eventType": "ChargeReleaseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillDefinitionId",
+          "op": "IN",
+          "value": ["SKL_SIENA_OFFSTAGE_AS1"]
+        }
       }
     ]
   }

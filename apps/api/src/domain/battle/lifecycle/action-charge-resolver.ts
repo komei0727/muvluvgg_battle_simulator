@@ -1,3 +1,4 @@
+import type { StateDelta } from "../events/state-delta.js";
 import {
   consumeAp,
   consumeExGaugeFully,
@@ -471,8 +472,9 @@ export function resolveChargeRelease(
       releaseActionId: actionId,
     },
     // `06_戦闘状態遷移.md`「チャージ効果発動」: `ChargeReleased`はトリガー
-    // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後の
-    // `ActionCompleting`が所有する（下記`closingStateDelta`）。
+    // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後に発行する
+    // `ChargeReleaseCompleted`/`ChargeReleaseInterrupted`(#5)が所有する
+    // （下記`chargeClosingStateDelta`）。
   });
   // `ChargeReleased`はEffectSequence解決開始のトリガーで
   // あり、`chargeRelease.counterUpdates`のtriggerにもなり得る
@@ -482,7 +484,7 @@ export function resolveChargeRelease(
   // 届けるとともに、`working`を最新化する。
   working = passiveRuntime.onFactEvent(chargeReleased, working).units;
 
-  applyEffectActionGroups(plan, working, {
+  const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
     actorUnitId,
     random,
@@ -510,18 +512,113 @@ export function resolveChargeRelease(
   working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
-  // （とPS解決、M6）の後（内部の`working`だけでなく、公開
-  // される`stateTransitions`上でも効果解決後に観測される必要があるため、
-  // 終了の状態差分自体を`ChargeReleased`ではなく`ActionCompleting`（効果解決の
-  // 後に発行される）へ持たせる。M6でPS解決が入った時に所有者のPSが
-  // 「チャージ中ではない」と誤判定するのを防ぐ）。
-  working = working.map((u) => {
-    if (u.battleUnitId !== actorUnitId) {
-      return u;
-    }
-    const { charge: _charge, ...withoutCharge } = u;
-    return withoutCharge;
-  });
+  // （とPS解決、M6）の後（M6でPS解決が入った時に所有者のPSが「チャージ中ではない」と
+  // 誤判定するのを防ぐ）。
+  //
+  // ただし解放中もactorはチャージを保持したままなので、この間のPS連鎖などでactorへ
+  // STUNが成立すると`cancelChargeOnStun`（R-STS-02/R-SKL-05）が既に
+  // `ChargeCancelled`とcharge削除の`StateDelta`を発行している。charge削除の所有者は
+  // 必ず1件でなければならない — 二重に発行すると、2件目の`before`が実状態
+  // （既に`undefined`）と食い違い、独立Reducerの再生が落ちる。
+  const chargeStillHeld = working.find((u) => u.battleUnitId === actorUnitId)?.charge !== undefined;
+  if (chargeStillHeld) {
+    working = working.map((u) => {
+      if (u.battleUnitId !== actorUnitId) {
+        return u;
+      }
+      const { charge: _charge, ...withoutCharge } = u;
+      return withoutCharge;
+    });
+  }
+
+  // 「チャージ効果発動」#5: 解放が終わったことを表すFACTイベント。AS/EX経路の
+  // `SkillUseCompleted`/`SkillUseInterrupted`に相当する — チャージ経路は
+  // `SkillUseStarting`/`SkillUseCompleted`を一切発行しないため、これが無いと
+  // 「自身がアクティブスキルで攻撃した後に発動」を表すtriggerが
+  // `resolution.kind: CHARGE` のスキルからは一度も成立しない（`SKL_SIENA_OFFSTAGE_PS2`）。
+  //
+  // 発行位置が #1（`ChargeReleased`）でも #2〜#3の途中でもなく**#4の後**なのは、
+  // 前2者ではどちらもPSが連鎖できないか、連鎖しても意味が変わるためである:
+  // - #1で発行すると、PSが付ける与ダメージバフが解放攻撃自身へ乗ってしまう
+  //   （原文の「攻撃した後」に反する）。
+  // - #2〜#3の間はまだチャージ状態が残っており、`passive-trigger-matcher.ts` が
+  //   「チャージ中は自身のパッシブスキルが使用できない」（R-SKL-05）として保持者の
+  //   PSを候補から外すため、一度も発動しない。
+  //
+  // チャージ終了の状態差分はこのイベント自身が所有する。`ActionCompleting`（さらに
+  // 後続）へ持たせると、公開差分を順に当て直す独立Reducerではこの時点でまだ
+  // チャージ中に見え、「チャージ状態終了後に発行する」という契約と食い違う。
+  // 解放中のSTUNで`ChargeCancelled`が既に削除を所有している場合は付けない（上記）。
+  const chargeClosingStateDelta: StateDelta | undefined = chargeStillHeld
+    ? {
+        units: {
+          [actorUnitId]: {
+            charge: {
+              before: {
+                skillDefinitionId: skill.skillDefinitionId,
+                startedActionId: charge.startedActionId,
+              },
+              after: undefined,
+            },
+          },
+        },
+      }
+    : undefined;
+
+  // Issue #217設計方針B（`action-skill-use-resolver.ts`と同じ）: 完了と中断の選択は
+  // `outcome.status`（実際に解決が最後まで進んだか、使用者戦闘不能で打ち切ったか
+  // という事実）だけから決める。無条件に完了イベントを出すと、中断された解放を
+  // 契機に「攻撃した後」のPSが候補化されてしまう。
+  const chargeReleaseFinished =
+    effectResult.outcome.status === "INTERRUPTED"
+      ? recorder.record({
+          eventType: "ChargeReleaseInterrupted",
+          category: "FACT",
+          turnNumber,
+          cycleNumber,
+          actionId,
+          skillUseId,
+          resolutionScopeId: actionScope,
+          parentEventId: chargeReleased.eventId,
+          rootEventId: actionStarted.eventId,
+          sourceUnitId: actorUnitId,
+          targetUnitIds,
+          ...(chargeClosingStateDelta === undefined ? {} : { stateDelta: chargeClosingStateDelta }),
+          payload: {
+            actorUnitId,
+            skillDefinitionId: skill.skillDefinitionId,
+            chargeStartActionId: charge.startedActionId,
+            releaseActionId: actionId,
+            reason: effectResult.outcome.reason,
+            resolvedEffectCount: effectResult.outcome.resolvedEffectCount,
+            unresolvedEffectCount: effectResult.outcome.unresolvedEffectCount,
+          },
+        })
+      : recorder.record({
+          eventType: "ChargeReleaseCompleted",
+          category: "FACT",
+          turnNumber,
+          cycleNumber,
+          actionId,
+          skillUseId,
+          resolutionScopeId: actionScope,
+          parentEventId: chargeReleased.eventId,
+          rootEventId: actionStarted.eventId,
+          sourceUnitId: actorUnitId,
+          targetUnitIds,
+          ...(chargeClosingStateDelta === undefined ? {} : { stateDelta: chargeClosingStateDelta }),
+          payload: {
+            actorUnitId,
+            skillDefinitionId: skill.skillDefinitionId,
+            skillType: skill.skillType,
+            chargeStartActionId: charge.startedActionId,
+            releaseActionId: actionId,
+            resolvedStepCount:
+              skill.resolution.kind === "CHARGE" ? skill.resolution.chargeRelease.steps.length : 0,
+            targetUnitIds,
+          },
+        });
+  working = passiveRuntime.onFactEvent(chargeReleaseFinished, working).units;
 
   const completion = recordActionCompletion(
     recorder,
@@ -541,21 +638,10 @@ export function resolveChargeRelease(
         passiveRuntime.onFactEvent(event, unitsForChain).units,
     },
     "CHARGE_RELEASE",
-    chargeReleased.eventId,
+    chargeReleaseFinished.eventId,
     working,
-    {
-      units: {
-        [actorUnitId]: {
-          charge: {
-            before: {
-              skillDefinitionId: skill.skillDefinitionId,
-              startedActionId: charge.startedActionId,
-            },
-            after: undefined,
-          },
-        },
-      },
-    },
+    // チャージ終了の状態差分は `ChargeReleaseCompleted`/`ChargeReleaseInterrupted`
+    // が既に所有している。ここで再度渡すと独立Reducerが同じ差分を二重適用する。
   );
 
   return finalizeAction(passiveRuntime, completion, actionScope, actionStarted.eventId);

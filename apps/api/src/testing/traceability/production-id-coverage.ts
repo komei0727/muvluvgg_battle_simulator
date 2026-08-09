@@ -82,18 +82,12 @@ export function effectActionClosure(
   return closure;
 }
 
-export const UNCOVERED_UNIT_IDS: readonly string[] = [
-  "UNIT_SHIRANA_LUCKY",
-  "UNIT_SHIRANA_SORA",
-  "UNIT_SHOUKA_SCHEMER",
-  "UNIT_SIENA_DIVA",
-  "UNIT_SIENA_OFFSTAGE",
-  "UNIT_STELLA_STATUE",
-  "UNIT_SUIRAN_CASINO",
-  "UNIT_TARISA_TROUBLEMAKER",
-  "UNIT_TATIANA_SAGE",
-  "UNIT_YUI_HEIR",
-];
+/**
+ * 全69ユニットが `production-catalog/units/<UNIT_ID>.test.ts` に載ったため空。
+ * 新しいユニットを追加するときも、ここへ積むのではなくユニット効果軸のファイルを
+ * 同じPRで用意する（`12_テスト戦略.md`「ユニット効果軸の標準形」）。
+ */
+export const UNCOVERED_UNIT_IDS: readonly string[] = [];
 
 export const UNCOVERED_MEMORY_IDS: readonly string[] = [
   "MEM_ALWAYS_PICO_BESIDE_YOU",
