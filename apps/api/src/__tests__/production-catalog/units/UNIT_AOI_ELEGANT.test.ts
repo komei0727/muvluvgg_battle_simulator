@@ -199,6 +199,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
       ],
       markers: [{ unitId: "enemy:front", markerId: KOUYOU, stackCount: 1 }],
+      // 3つ目まで増えた「浮足」は保持ごと無くなる（段数が減るのではない）。
+      markersRemoved: [{ unitId: "enemy:front", markerId: UKIASHI, stackCount: 2 }],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -395,6 +397,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
         { effectActionDefinitionId: "ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU", targets: ["enemy:left"] },
       ],
+      // 「高揚」は保持ごと無くなる（段数が減るのではない）。
+      markersRemoved: [{ unitId: "enemy:left", markerId: KOUYOU, stackCount: 2 }],
       effectsApplied: [
         {
           unitId: "ally:subject",

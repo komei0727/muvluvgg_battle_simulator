@@ -253,6 +253,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { unitId: "enemy:left", markerId: CURSE, stackCount: 1 },
         { unitId: "enemy:back", markerId: CURSE, stackCount: 1 },
       ],
+      // 4つ目を数えた「カース」は保持ごと無くなる（段数が減るのではない）。
+      markersRemoved: [{ unitId: "enemy:front", markerId: CURSE, stackCount: 3 }],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },

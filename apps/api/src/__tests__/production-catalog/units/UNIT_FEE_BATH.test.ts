@@ -112,6 +112,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           statusKind: "STUN",
         },
       ],
+      // 「ほてり」は保持ごと無くなる（段数が減るのではない）。
+      markersRemoved: [{ unitId: "enemy:back", markerId: FLUSH, stackCount: 7 }],
     },
   },
   {

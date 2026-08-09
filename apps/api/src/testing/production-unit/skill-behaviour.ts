@@ -49,6 +49,7 @@ import {
   testUnitDefinition,
   effectActionGroupContext,
   seedRecorder,
+  type SeededRecorder,
 } from "../fixtures/index.js";
 import {
   openPassiveChain,
@@ -157,6 +158,12 @@ export interface BoardUnitSpec {
   readonly unitType?: UnitType;
   /** 省略時はスタンドイン定義。実Catalogの別ユニットを置きたい場合だけ指定する。 */
   readonly unitDefinitionId?: string;
+  /**
+   * この1体だけの戦闘ステータス上書き。`HIGHEST_ATTACK` のように**盤面の中で誰が
+   * 上位か**で対象が決まる order を判別するために使う（盤面全体を動かす
+   * `BoardOverrides.combatStats` では相対順位が作れない）。
+   */
+  readonly combatStats?: Partial<CombatStats>;
   /** HP・リソース・クールタイムなどの前提状態。 */
   readonly state?: Partial<BattleUnit>;
   /**
@@ -186,6 +193,14 @@ export interface BoardOverrides {
   /** 検証対象ユニットの配置と前提状態。 */
   readonly subject?: {
     readonly position?: FormationPosition;
+    /**
+     * 属性。実戦闘では `UnitDefinition` をそのまま写す（R-ATR-02）が、盤面は
+     * 相手役も含め既定の `AGGRESSIVE` で揃えて属性相性倍率を観測から外している。
+     * 「自身を含む◯◯属性の味方に」のように**自分の属性が対象集合を決める**定義だけ、
+     * その行で実定義の属性を明示して自身を成立側へ入れる（攻撃を伴わない効果に限る —
+     * 指定すると相手役との相性倍率がダメージへ乗る）。
+     */
+    readonly attribute?: Attribute;
     readonly state?: Partial<BattleUnit>;
     readonly markers?: readonly BoardMarkerSpec[];
   };
@@ -221,7 +236,7 @@ function boardUnit(
     side,
     position: spec.position,
     ...(spec.attribute === undefined ? {} : { attribute: spec.attribute }),
-    combatStats,
+    combatStats: { ...combatStats, ...spec.combatStats },
     limits: BOARD_LIMITS,
     overrides: { ...BOARD_INITIAL_STATE, ...spec.state },
   });
@@ -254,6 +269,9 @@ export function productionBoard(
       id: SUBJECT_ID,
       position: overrides.subject?.position ?? { column: "CENTER", row: "FRONT" },
       unitDefinitionId,
+      ...(overrides.subject?.attribute === undefined
+        ? {}
+        : { attribute: overrides.subject.attribute }),
       ...(overrides.subject?.state === undefined ? {} : { state: overrides.subject.state }),
       ...(overrides.subject?.markers === undefined ? {} : { markers: overrides.subject.markers }),
     },
@@ -334,7 +352,10 @@ export interface SkillUseObservation {
   readonly hpDeltas?: Readonly<Record<string, number>>;
   readonly effectsApplied?: readonly ObservedEffect[];
   readonly effectsRemoved?: readonly ObservedEffect[];
+  /** 増えたMarker（段数が変わった場合は変化後の段数で現れる）。 */
   readonly markers?: readonly ObservedMarker[];
+  /** 消えたMarker。`REMOVE_MARKER` が実際に剥がしたことはここにしか現れない。 */
+  readonly markersRemoved?: readonly ObservedMarker[];
   readonly resources?: readonly ObservedResource[];
   readonly cooldowns?: readonly ObservedCooldown[];
   /**
@@ -678,6 +699,13 @@ export interface ObserveSkillUseOptions {
   readonly precedingActions?: readonly PrecedingAction[];
   /** 命中・会心・確率分岐の抽選列。既定は「命中・非会心」へ倒す固定列。 */
   readonly random?: RandomSource;
+  /**
+   * 前提アクション側の抽選列。既定は観測と同じ「命中・非会心」へ倒す固定列で、
+   * `probability` を持つ効果（確率付与の状態異常）は**外れる**。前提として
+   * その効果を保持している状態が要るときだけ、当たり側へ倒した列を渡す。
+   * 観測側とは別インスタンスにして、消費位置が混ざらないようにする。
+   */
+  readonly precedingRandom?: RandomSource;
 }
 
 /**
@@ -694,15 +722,27 @@ export interface ObserveSkillUseOptions {
  * 反復ごとに作り直すとカウンタが1から再開し、baselineへ同一runtime IDを持つ効果や
  * Markerが並んで、解除・リンク・消費が実戦闘に存在しない状態で評価される。
  */
+export interface PrecedingActionOptions {
+  /** 確率付与を当たり側へ倒したい場合の抽選列。既定は「命中・非会心」の固定列。 */
+  readonly random?: RandomSource;
+  /**
+   * イベント記録先。前提アクションが出したイベント（`EffectActionCompleted` の
+   * `resultKind` やStateDelta）まで見たい `-004` 以降のためだけに渡す。
+   */
+  readonly recorder?: SeededRecorder;
+}
+
 export function applyPrecedingActions(
   board: ProductionBoard,
   actions: readonly PrecedingAction[],
+  options: PrecedingActionOptions = {},
 ): readonly BattleUnit[] {
   if (actions.length === 0) {
     return board.units;
   }
+  const random = options.random;
   let baseline = board.units;
-  const { recorder, rootEventId } = seedRecorder("B_PRECEDING");
+  const { recorder, rootEventId } = options.recorder ?? seedRecorder("B_PRECEDING");
   for (const action of actions) {
     const skillDefinition = precedingSkill(action);
     const definitions: BattleDefinitions = {
@@ -729,6 +769,7 @@ export function applyPrecedingActions(
         definitions,
         recorder,
         rootEventId,
+        ...(random === undefined ? {} : { random }),
       }),
     ).units;
   }
@@ -744,7 +785,9 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const skill = skillFrom(options.snapshot, options.use.skillDefinitionId);
   const random = options.random ?? noMissNoCrit();
 
-  let baseline = applyPrecedingActions(board, options.precedingActions ?? []);
+  let baseline = applyPrecedingActions(board, options.precedingActions ?? [], {
+    ...(options.precedingRandom === undefined ? {} : { random: options.precedingRandom }),
+  });
 
   let after: readonly BattleUnit[];
   let events: readonly BattleDomainEvent[];
@@ -887,6 +930,15 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
       executedActionIds.add(action.effectActionDefinitionId);
     }
   }
+  // サブユニット追加ダメージに付随するデバフ（R-SUB-02第3項）は、EffectAction群の
+  // 解決器ではなく `grantSubUnitAdditionalDamageDebuff` フックから直接付与されるため
+  // `EffectActionCompleted` を持たない。付与が起きた事実は `EffectApplied` が示しており
+  // `APPLIED` と同等以上の証拠なので、こちらも実行の実績として数える。
+  for (const event of events) {
+    if (event.eventType === "EffectApplied") {
+      executedActionIds.add(event.payload.effectActionDefinitionId);
+    }
+  }
 
   const hpDeltas: Record<string, number> = {};
   const beforeById = new Map(baseline.map((unit) => [unit.battleUnitId, unit]));
@@ -899,6 +951,14 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const effectsApplied = differenceOf(effectSummaries(after), effectSummaries(baseline));
   const effectsRemoved = differenceOf(effectSummaries(baseline), effectSummaries(after));
   const markers = differenceOf(markerSummaries(after), markerSummaries(baseline));
+  // 段数が動いただけ（3→4）は `markers` が変化後の段数で表す。ここへ入れるのは
+  // 保持そのものが無くなったMarkerだけにして、`REMOVE_MARKER` の効果と区別する。
+  const remainingKeys = new Set(
+    markerSummaries(after).map((marker) => `${marker.unitId}/${marker.markerId}`),
+  );
+  const markersRemoved = markerSummaries(baseline).filter(
+    (marker) => !remainingKeys.has(`${marker.unitId}/${marker.markerId}`),
+  );
   const resources = resourceDeltas(after, baseline);
   const cooldowns = differenceOf(cooldownEntries(after), cooldownEntries(baseline));
   const chargeBefore = beforeById.get(board.subject.battleUnitId)?.charge;
@@ -915,6 +975,7 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     ...(effectsApplied.length === 0 ? {} : { effectsApplied }),
     ...(effectsRemoved.length === 0 ? {} : { effectsRemoved }),
     ...(markers.length === 0 ? {} : { markers }),
+    ...(markersRemoved.length === 0 ? {} : { markersRemoved }),
     ...(resources.length === 0 ? {} : { resources }),
     ...(cooldowns.length === 0 ? {} : { cooldowns }),
   };
@@ -936,5 +997,7 @@ export interface SkillBehaviourCase {
    * 共有すると2周目が exhausted で落ちる。
    */
   readonly random?: () => RandomSource;
+  /** 前提アクション側の抽選列。`random` と同じ理由で生成関数として持つ。 */
+  readonly precedingRandom?: () => RandomSource;
   readonly expected: SkillUseObservation;
 }
