@@ -36,13 +36,12 @@ import {
  * TargetFilterがMemory由来のEffectSequenceでも実際に効き、対象外のユニットと
  * 敵陣営には一切適用されないことを、対象・非対象の両方で確認する。
  *
- * `MEM_THREE_MAIDS_HOSPITALITY`・`MEM_ABSOLUTE_ORDER`の与ダメージ補正は
- * `APPLY_DAMAGE_MOD`（`CAP_DAMAGE_MOD`）を要する。`DMG-002`（Issue #192）が
- * このCapabilityを`IMPLEMENTED`にしたため、Catalog上の変換が近似なしであることに
- * 加えて、この2件がCapability preflightを通過することをここで固定する。
+ * `MEM_THREE_MAIDS_HOSPITALITY`・`MEM_ABSOLUTE_ORDER`の与ダメージ補正
+ * （`APPLY_DAMAGE_MOD`）は、Catalog上の変換が近似なしであることをここで固定する。
  *
- * 単一Memoryへ閉じていた旧`-001`（`MEM_PANTS_STRAY_CAT`）は、対象Memoryが
- * ユニット効果軸へ載った時点で`memories/MEM_PANTS_STRAY_CAT.test.ts`へ移して
+ * 単一Memoryへ閉じていた旧`-001`（`MEM_PANTS_STRAY_CAT`）と`-002`〜`-004`
+ * （`MEM_CHAOS_MAIDEN_TWINTAIL_FEST`・`MEM_MOMOZONO_NEW_YEAR`・`MEM_EURO_TOWER_DAY`）は、
+ * 対象Memoryがユニット効果軸へ載った時点で`memories/<MEM_ID>.test.ts`へ移して
  * retireした（`12_テスト戦略.md`「`IT-CAP-*` の retire 基準」）。
  */
 
@@ -263,61 +262,6 @@ const DAMAGE_MOD_MEMORY_EXPECTATIONS: readonly {
 ];
 
 describe("production Catalog M7-007 static Memory conversions (Issue #178)", () => {
-  it("IT-CAP-MEMORY-STATIC-PROD-002: MEM_CHAOS_MAIDEN_TWINTAIL_FEST raises ATTACK for ENERGY allies only and MAXIMUM_HP for the whole ally party", () => {
-    const { battle } = startWith(["MEM_CHAOS_MAIDEN_TWINTAIL_FEST"]);
-
-    // 効果1「EN型の味方の攻撃力を750上昇させる」
-    expect(allyBy(battle, "ally:en_attacker").combatStats.attack).toBeCloseTo(BASE_ATTACK + 750, 6);
-    expect(allyBy(battle, "ally:physical_tank").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-
-    // 効果2「味方全体のHPを300上昇させる」
-    for (const ally of battle.allyUnits) {
-      expect(ally.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP + 300, 6);
-    }
-    expect(battle.enemyUnits[0]!.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP, 6);
-  });
-
-  it("IT-CAP-MEMORY-STATIC-PROD-003: MEM_MOMOZONO_NEW_YEAR raises ATTACK for PHYSICAL and AGILE allies through two separate triggeredEffects, never for ENERGY allies", () => {
-    const { battle } = startWith(["MEM_MOMOZONO_NEW_YEAR"]);
-
-    expect(allyBy(battle, "ally:physical_attacker").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 1250,
-      6,
-    );
-    expect(allyBy(battle, "ally:physical_tank").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 1250,
-      6,
-    );
-    expect(allyBy(battle, "ally:agile_control").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 1250,
-      6,
-    );
-    expect(allyBy(battle, "ally:en_attacker").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-    expect(allyBy(battle, "ally:en_support").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-    // 同一ユニットが両方のtriggeredEffectに該当することはない（PHYSICALかAGILEの一方）
-    expect(allyBy(battle, "ally:physical_tank").appliedEffects).toHaveLength(1);
-  });
-
-  it("IT-CAP-MEMORY-STATIC-PROD-004: MEM_EURO_TOWER_DAY applies a ROLE-filtered ratio buff and a BACK CENTER/RIGHT slot-filtered fixed buff to disjoint ally sets", () => {
-    const { battle } = startWith(["MEM_EURO_TOWER_DAY"]);
-
-    // 効果1「サポートの攻撃力を4%上昇させる」— SUPPORTロールはBACK LEFTの1体だけ
-    expect(allyBy(battle, "ally:en_support").combatStats.attack).toBeCloseTo(BASE_ATTACK * 1.04, 6);
-    // 効果2「右列後衛・中央列後衛の攻撃力を1250上昇させる」
-    expect(allyBy(battle, "ally:physical_tank").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 1250,
-      6,
-    );
-    expect(allyBy(battle, "ally:agile_control").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 1250,
-      6,
-    );
-    // BACK LEFT は効果2の対象外、FRONT列はどちらの対象でもない
-    expect(allyBy(battle, "ally:en_support").appliedEffects).toHaveLength(1);
-    expect(allyBy(battle, "ally:en_attacker").appliedEffects).toHaveLength(0);
-    expect(allyBy(battle, "ally:physical_attacker").appliedEffects).toHaveLength(0);
-  });
-
   it("IT-CAP-MEMORY-STATIC-PROD-005: the four runnable M7-007 Memories emit MemoryTriggered/MemoryResolved with a sourceSide instead of a granter unit, and their StateDeltas alone reconstruct the started battle", () => {
     const { created, battle, recorder } = startWith(RUNNABLE_MEMORY_IDS);
 
@@ -370,7 +314,7 @@ describe("production Catalog M7-007 static Memory conversions (Issue #178)", () 
     expect(restoredSupport?.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP + 300, 6);
   });
 
-  it("IT-CAP-MEMORY-STATIC-PROD-006: MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER convert every raw filter and magnitude without approximation, and pass Capability preflight now that CAP_DAMAGE_MOD is implemented", () => {
+  it("IT-CAP-MEMORY-STATIC-PROD-006: MEM_THREE_MAIDS_HOSPITALITY/MEM_ABSOLUTE_ORDER convert every raw filter and magnitude without approximation", () => {
     for (const expectation of DAMAGE_MOD_MEMORY_EXPECTATIONS) {
       const memory = memoryFrom(snapshot, expectation.memoryDefinitionId);
       expect(memory.metadata.displayName).toBe(expectation.displayName);
