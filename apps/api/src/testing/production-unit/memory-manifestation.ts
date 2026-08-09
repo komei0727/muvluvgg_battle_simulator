@@ -8,7 +8,7 @@ import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
-import type { Role, UnitType } from "../../domain/catalog/definitions/catalog-enums.js";
+import type { Attribute, Role, UnitType } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../random/sequence-random-source.js";
@@ -117,6 +117,14 @@ function slotUnitDefinitionId(slot: MemorySlot): string {
 export interface MemoryBoardOverrides {
   /** スロットキー → そのスロットのUnitDefinitionが名乗る所属ID。 */
   readonly affiliationsBySlot?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * スロットキー → そのスロットの戦闘ユニットが持つ属性。`ATTRIBUTE` TargetFilterは
+   * `UnitDefinition`ではなく`BattleUnit.attribute`（編成時に決まる）を読むため、
+   * 所属と同じく検証したいMemoryごとに宣言する。既定は`testBattleUnit`の
+   * `AGGRESSIVE`で、盤面全体を実属性へ寄せると属性相性倍率が観測へ混ざるため
+   * opt-inに留める。
+   */
+  readonly attributesBySlot?: Readonly<Record<string, Attribute>>;
 }
 
 function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): UnitDefinition {
@@ -129,7 +137,8 @@ function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): 
   });
 }
 
-function slotBattleUnit(slot: MemorySlot, side: Side): BattleUnit {
+function slotBattleUnit(slot: MemorySlot, side: Side, overrides: MemoryBoardOverrides): BattleUnit {
+  const attribute = overrides.attributesBySlot?.[slot.key];
   return testBattleUnit({
     battleUnitId: memoryUnitId(side, slot.key),
     unitDefinitionId: slotUnitDefinitionId(slot),
@@ -137,6 +146,7 @@ function slotBattleUnit(slot: MemorySlot, side: Side): BattleUnit {
     position: slot.position,
     combatStats: MEMORY_COMBAT_STATS,
     limits: MEMORY_LIMITS,
+    ...(attribute === undefined ? {} : { attribute }),
   });
 }
 
@@ -219,8 +229,8 @@ function createMemoryBattle(
   return {
     created: createBattle(
       battleId,
-      MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ALLY")),
-      MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ENEMY")),
+      MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ALLY", overrides)),
+      MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ENEMY", overrides)),
       createTurnLimit(turnLimit),
       definitionsWith(snapshot, {
         units: MEMORY_SLOTS.map((slot) => slotUnitDefinition(slot, overrides)),

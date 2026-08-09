@@ -89,17 +89,9 @@ export function effectActionClosure(
  */
 export const UNCOVERED_UNIT_IDS: readonly string[] = [];
 
-export const UNCOVERED_MEMORY_IDS: readonly string[] = [
-  "MEM_NAUGHTY_PENALTY_GAME",
-  "MEM_NEW_YEAR_GREETING",
-  "MEM_PANTS_STRAY_CAT",
-  "MEM_PYXIS_MA_SOEUR",
-  "MEM_SHAPING_FAMILY",
-  "MEM_SIRIUS_SUGAR",
-  "MEM_SOOTHING_SCENT",
-  "MEM_STRANGERS",
-  "MEM_TENT_COMMOTION",
-  "MEM_THREE_MAIDS_HOSPITALITY",
-  "MEM_TREBLE_QUINTET",
-  "MEM_TRINITY_JEWEL",
-];
+/**
+ * 全32メモリーが `production-catalog/memories/<MEM_ID>.test.ts` に載ったため空。
+ * 新しいメモリーを追加するときも、ここへ積むのではなくユニット効果軸のファイルを
+ * 同じPRで用意する（`12_テスト戦略.md`「Memory 側の標準形」）。
+ */
+export const UNCOVERED_MEMORY_IDS: readonly string[] = [];
