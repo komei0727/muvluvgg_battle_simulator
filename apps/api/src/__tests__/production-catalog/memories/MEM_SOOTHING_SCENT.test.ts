@@ -81,7 +81,7 @@ describe("production Catalog MEM_SOOTHING_SCENT (安心する香り)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-SOOTHING-SCENT-004 (R-EFF-10): only the ATTACK buff carries the one-action time limit, and its owner is the holder because a Memory has no granter unit", () => {
+  it("IT-MEM-SOOTHING-SCENT-004 (R-MEM-04/R-EFF-01): only the ATTACK buff carries the one-action time limit, and its owner is the holder because a Memory has no granter unit", () => {
     // 原文「左列後衛の味方の攻撃力を1行動の間2500上昇させる」の「1行動の間」は
     // 攻撃力バフだけに掛かる修飾で、EN与ダメージ補正は戦闘終了まで残る。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
