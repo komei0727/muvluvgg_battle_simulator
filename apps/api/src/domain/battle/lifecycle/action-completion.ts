@@ -73,10 +73,12 @@ interface ActionCompletionResult {
  * （現在の行動で設定されたものは対象外、`decrementActionCooldowns`が判定する）。
  * 戻り値の`completedEventId`は`ActionReservationRemoved`の連鎖に使う。
  *
- * `closingStateDelta`（省略可）は`ActionCompleting`自身が所有する追加の状態差分
- * （`06_戦闘状態遷移.md`「チャージ効果発動」#4のチャージ状態終了など、効果解決
- * より後に観測されるべき差分）。`ActionCompleting`は元々delta無しのTIMING
- * イベントだが、この用途では`stateDelta`を持つ。
+ * `closingStateDelta`（省略可）は`ActionCompleting`自身が所有する追加の状態差分。
+ * `ActionCompleting`は元々delta無しのTIMINGイベントだが、この用途では`stateDelta`を
+ * 持つ。チャージ状態の終了（`06_戦闘状態遷移.md`「チャージ効果発動」#4）は
+ * **この経路では渡さない** — 終了差分は#5の`ChargeReleaseCompleted`/
+ * `ChargeReleaseInterrupted`が所有する（`ActionCompleting`へ持たせると、公開差分を
+ * 順に当て直す独立Reducerでは#5の時点でまだチャージ中に見えてしまう）。
  */
 export function recordActionCompletion(
   recorder: EventRecorder,

@@ -472,8 +472,9 @@ export function resolveChargeRelease(
       releaseActionId: actionId,
     },
     // `06_戦闘状態遷移.md`「チャージ効果発動」: `ChargeReleased`はトリガー
-    // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後の
-    // `ActionCompleting`が所有する（下記`closingStateDelta`）。
+    // (#1)を示すだけで、チャージ状態を終了する状態差分(#4)は効果解決後に発行する
+    // `ChargeReleaseCompleted`/`ChargeReleaseInterrupted`(#5)が所有する
+    // （下記`chargeClosingStateDelta`）。
   });
   // `ChargeReleased`はEffectSequence解決開始のトリガーで
   // あり、`chargeRelease.counterUpdates`のtriggerにもなり得る
@@ -513,13 +514,22 @@ export function resolveChargeRelease(
   // `06_戦闘状態遷移.md`「チャージ効果発動」#4: チャージ状態を終了するのは効果解決
   // （とPS解決、M6）の後（M6でPS解決が入った時に所有者のPSが「チャージ中ではない」と
   // 誤判定するのを防ぐ）。
-  working = working.map((u) => {
-    if (u.battleUnitId !== actorUnitId) {
-      return u;
-    }
-    const { charge: _charge, ...withoutCharge } = u;
-    return withoutCharge;
-  });
+  //
+  // ただし解放中もactorはチャージを保持したままなので、この間のPS連鎖などでactorへ
+  // STUNが成立すると`cancelChargeOnStun`（R-STS-02/R-SKL-05）が既に
+  // `ChargeCancelled`とcharge削除の`StateDelta`を発行している。charge削除の所有者は
+  // 必ず1件でなければならない — 二重に発行すると、2件目の`before`が実状態
+  // （既に`undefined`）と食い違い、独立Reducerの再生が落ちる。
+  const chargeStillHeld = working.find((u) => u.battleUnitId === actorUnitId)?.charge !== undefined;
+  if (chargeStillHeld) {
+    working = working.map((u) => {
+      if (u.battleUnitId !== actorUnitId) {
+        return u;
+      }
+      const { charge: _charge, ...withoutCharge } = u;
+      return withoutCharge;
+    });
+  }
 
   // 「チャージ効果発動」#5: 解放が終わったことを表すFACTイベント。AS/EX経路の
   // `SkillUseCompleted`/`SkillUseInterrupted`に相当する — チャージ経路は
@@ -538,19 +548,22 @@ export function resolveChargeRelease(
   // チャージ終了の状態差分はこのイベント自身が所有する。`ActionCompleting`（さらに
   // 後続）へ持たせると、公開差分を順に当て直す独立Reducerではこの時点でまだ
   // チャージ中に見え、「チャージ状態終了後に発行する」という契約と食い違う。
-  const chargeClosingStateDelta: StateDelta = {
-    units: {
-      [actorUnitId]: {
-        charge: {
-          before: {
-            skillDefinitionId: skill.skillDefinitionId,
-            startedActionId: charge.startedActionId,
+  // 解放中のSTUNで`ChargeCancelled`が既に削除を所有している場合は付けない（上記）。
+  const chargeClosingStateDelta: StateDelta | undefined = chargeStillHeld
+    ? {
+        units: {
+          [actorUnitId]: {
+            charge: {
+              before: {
+                skillDefinitionId: skill.skillDefinitionId,
+                startedActionId: charge.startedActionId,
+              },
+              after: undefined,
+            },
           },
-          after: undefined,
         },
-      },
-    },
-  };
+      }
+    : undefined;
 
   // Issue #217設計方針B（`action-skill-use-resolver.ts`と同じ）: 完了と中断の選択は
   // `outcome.status`（実際に解決が最後まで進んだか、使用者戦闘不能で打ち切ったか
@@ -570,7 +583,7 @@ export function resolveChargeRelease(
           rootEventId: actionStarted.eventId,
           sourceUnitId: actorUnitId,
           targetUnitIds,
-          stateDelta: chargeClosingStateDelta,
+          ...(chargeClosingStateDelta === undefined ? {} : { stateDelta: chargeClosingStateDelta }),
           payload: {
             actorUnitId,
             skillDefinitionId: skill.skillDefinitionId,
@@ -593,7 +606,7 @@ export function resolveChargeRelease(
           rootEventId: actionStarted.eventId,
           sourceUnitId: actorUnitId,
           targetUnitIds,
-          stateDelta: chargeClosingStateDelta,
+          ...(chargeClosingStateDelta === undefined ? {} : { stateDelta: chargeClosingStateDelta }),
           payload: {
             actorUnitId,
             skillDefinitionId: skill.skillDefinitionId,

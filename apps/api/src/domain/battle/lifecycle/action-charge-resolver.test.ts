@@ -410,6 +410,66 @@ function passiveSkillOnChargeReleaseCompleted(id: string): SkillDefinition {
   };
 }
 
+/** 1行動の気絶を付与する `APPLY_STATUS`。解放中のSTUN（R-STS-02）の再現用。 */
+function stunEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    metadata: { tags: [] },
+    payload: {
+      status: "STUN",
+      duration: {
+        timeLimit: { unit: "ACTION", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      probability: 1,
+    },
+  };
+}
+
+/** `DamageApplied` を契機に、攻撃してきた相手（`TRIGGER_SOURCE`）へ気絶を付与するPS。 */
+function passiveStunningTheAttacker(id: string, stunActionId: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [
+      {
+        eventType: "DamageApplied",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "SELF",
+        condition: { kind: "TRUE" },
+      },
+    ],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "TRIGGER_SOURCE" },
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(stunActionId) }],
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
 function definitionsOf(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
@@ -732,5 +792,76 @@ describe("resolveChargeRelease", () => {
         .filter((event) => event.stateDelta?.units?.[charger.battleUnitId]?.charge !== undefined)
         .map((event) => event.eventType),
     ).toEqual(["ChargeReleaseInterrupted"]);
+  });
+
+  it("when the actor is STUNNed mid-release, ChargeCancelled already owns the charge removal — the finishing event adds no second removal and an independent Reducer replays every StateDelta cleanly (R-STS-02/R-SKL-05)", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_CHARGE_HIT");
+    const stun = stunEffectAction("ACT_STUN_BACK");
+    const psSkill = passiveStunningTheAttacker("SKL_PS_STUN_BACK", "ACT_STUN_BACK");
+    const chargeSkill = chargeReleaseSkill("ACT_CHARGE_HIT");
+
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    // 解放攻撃を受けた敵が反撃としてチャージ中のactorへ気絶を付与する。
+    const enemy = unit("ENEMY", "ENEMY", {
+      unitDefinitionId: enemyUnitDefinitionId,
+      currentPp: 3,
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [
+          enemyUnitDefinitionId,
+          unitDefinitionOf(enemyUnitDefinitionId, [psSkill.skillDefinitionId]),
+        ],
+      ]),
+      new Map([[psSkill.skillDefinitionId, psSkill]]),
+      new Map([
+        [hit.effectActionDefinitionId, hit],
+        [stun.effectActionDefinitionId, stun],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const initialSnapshot = initialSnapshotFor([charger, enemy], {
+      include: ["effects", "markers", "charge"],
+    });
+
+    const result = resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    // 解放中にSTUNが成立し、`cancelChargeOnStun`がキャンセルを記録している。
+    expect(events.some((e) => e.eventType === "ChargeCancelled")).toBe(true);
+
+    // charge削除の所有者はその1件だけ。終了イベントは二重の削除差分を持たない。
+    expect(
+      events
+        .filter((event) => event.stateDelta?.units?.[charger.battleUnitId]?.charge !== undefined)
+        .map((event) => event.eventType),
+    ).toEqual(["ChargeCancelled"]);
+
+    // 公開差分を全件当て直しても`before`不一致で落ちず、チャージは消えている。
+    const restored = reduceStateDeltas(
+      initialSnapshot,
+      events.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+    );
+    expect(restored.units[charger.battleUnitId]?.charge).toBeUndefined();
+    expect(
+      result.units.find((u) => u.battleUnitId === charger.battleUnitId)!.charge,
+    ).toBeUndefined();
   });
 });
