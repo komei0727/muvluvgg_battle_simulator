@@ -39,12 +39,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 0.05,
+    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_TIMID_REINDEER_EVE_BACK_CRIT_DMG_UP",
     unitIds: ["ally:BACK_LEFT", "ally:BACK_CENTER", "ally:BACK_RIGHT"],
     magnitude: 0.15,
+    statMod: { stat: "CRITICAL_DAMAGE_BONUS", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
 ];
@@ -53,6 +55,26 @@ describe("production Catalog MEM_TIMID_REINDEER_EVE (臆病トナカイの聖夜
   it("IT-MEM-TIMID-REINDEER-EVE-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
+    // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
+    // なる陣営全員）が `count: 1` へ退行しても、絞り込みを同じ1体を引く別の
+    // `filters` へ差し替えても `unitIds` は変わらない。宣言そのものを固定する。
+    expect(observed.targetSelections).toEqual([
+      {
+        triggeredEffectIndex: 0,
+        kind: "SELECT",
+        side: "ALLY",
+        count: "ALL",
+        filters: [{ kind: "POSITION_ROW", row: "BACK" }],
+      },
+      { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL", filters: [] },
+    ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_TIMID_REINDEER_EVE_BACK_CRIT_DMG_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_TIMID_REINDEER_EVE_ALL_CRIT_UP"] },
+    ]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([
       `${MEMORY_DEFINITION_ID}#0`,

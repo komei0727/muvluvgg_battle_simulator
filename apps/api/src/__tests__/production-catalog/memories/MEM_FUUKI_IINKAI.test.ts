@@ -8,6 +8,7 @@ import {
   type MemoryBoardOverrides,
   type MemoryGrant,
   mirroredForEnemyDeclaration,
+  observeCoDeclaredMemories,
   observeMemory,
   observeMemoryGrants,
 } from "../../../testing/production-unit/memory-manifestation.js";
@@ -52,12 +53,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_FUUKI_IINKAI_AFFILIATION_ATK_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_FUUKI_IINKAI_ALL_SPEED_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 12,
+    statMod: { stat: "ACTION_SPEED", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -66,6 +69,26 @@ describe("production Catalog MEM_FUUKI_IINKAI (風紀委員会)", () => {
   it("IT-MEM-FUUKI-IINKAI-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", BOARD);
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
+    // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
+    // なる陣営全員）が `count: 1` へ退行しても、絞り込みを同じ1体を引く別の
+    // `filters` へ差し替えても `unitIds` は変わらない。宣言そのものを固定する。
+    expect(observed.targetSelections).toEqual([
+      {
+        triggeredEffectIndex: 0,
+        kind: "SELECT",
+        side: "ALLY",
+        count: "ALL",
+        filters: [{ kind: "AFFILIATION", affiliationId: "AFF_FUUKI_IINKAI" }],
+      },
+      { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL", filters: [] },
+    ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_FUUKI_IINKAI_AFFILIATION_ATK_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_FUUKI_IINKAI_ALL_SPEED_UP"] },
+    ]);
     expect(observed.markers).toEqual([]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([
@@ -110,6 +133,7 @@ describe("production Catalog MEM_FUUKI_IINKAI (風紀委員会)", () => {
         effectActionDefinitionId: "ACT_MEM_FUUKI_IINKAI_ALL_SPEED_UP",
         unitIds: ALL_ALLY_SLOTS,
         magnitude: 12,
+        statMod: { stat: "ACTION_SPEED", valueType: "FIXED" },
         sourceSide: "ALLY",
       },
     ]);
@@ -117,5 +141,52 @@ describe("production Catalog MEM_FUUKI_IINKAI (風紀委員会)", () => {
       expect(unit.combatStats.attack).toBe(MEMORY_COMBAT_STATS.attack);
       expect(unit.combatStats.actionSpeed).toBe(MEMORY_COMBAT_STATS.actionSpeed + 12);
     }
+  });
+
+  it("IT-MEM-FUUKI-IINKAI-005 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+    // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
+    // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
+    const observed = observeCoDeclaredMemories(
+      {
+        ALLY: [MEMORY_DEFINITION_ID, "MEM_HARD_WARMUP"],
+        ENEMY: ["MEM_STRANGERS"],
+      },
+      BOARD,
+    );
+
+    // R-MEM-02: API指定順 → 同一Memory内の`triggeredEffects`定義順。ALLY候補を
+    // すべて解決してからENEMY候補へ進む。
+    expect(observed.triggeredOrder).toEqual([
+      `${MEMORY_DEFINITION_ID}#0`,
+      `${MEMORY_DEFINITION_ID}#1`,
+      "MEM_HARD_WARMUP#0",
+      "MEM_HARD_WARMUP#1",
+      "MEM_STRANGERS#0",
+      "MEM_STRANGERS#1",
+    ]);
+    // 宣言順を入れ替えると解決順も入れ替わる（ID順でも定義順でもなくAPI指定順である）。
+    expect(
+      observeCoDeclaredMemories(
+        {
+          ALLY: ["MEM_HARD_WARMUP", MEMORY_DEFINITION_ID],
+          ENEMY: ["MEM_STRANGERS"],
+        },
+        BOARD,
+      ).triggeredOrder,
+    ).toEqual([
+      "MEM_HARD_WARMUP#0",
+      "MEM_HARD_WARMUP#1",
+      `${MEMORY_DEFINITION_ID}#0`,
+      `${MEMORY_DEFINITION_ID}#1`,
+      "MEM_STRANGERS#0",
+      "MEM_STRANGERS#1",
+    ]);
+
+    // 自Memoryの所属メンバー攻撃力+250と全体行動速度+12に、ハードな準備運動……？の後衛+2.5%（1000→1025）が乗る。
+    expect(observed.statChanges["ally:BACK_LEFT"]).toEqual({ attack: 1275, actionSpeed: 112 });
+
+    // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
+    expect(observed.stateFromDeltas).toEqual(observed.stateAfter);
+    expect(observed.stateBefore).not.toEqual(observed.stateAfter);
   });
 });

@@ -35,12 +35,15 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_SOOTHING_SCENT_BACK_LEFT_ATK_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 2500,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
+    timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_SOOTHING_SCENT_EN_ATTACKER_EN_DMG_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 0.035,
+    damageMod: { direction: "OUTGOING", damageType: "EN" },
     sourceSide: "ALLY",
   },
 ];
@@ -49,6 +52,35 @@ describe("production Catalog MEM_SOOTHING_SCENT (安心する香り)", () => {
   it("IT-MEM-SOOTHING-SCENT-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
+    // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
+    // なる陣営全員）が `count: 1` へ退行しても、絞り込みを同じ1体を引く別の
+    // `filters` へ差し替えても `unitIds` は変わらない。宣言そのものを固定する。
+    expect(observed.targetSelections).toEqual([
+      {
+        triggeredEffectIndex: 0,
+        kind: "SELECT",
+        side: "ALLY",
+        count: "ALL",
+        filters: [{ kind: "ROLE", role: "EN_ATTACKER" }],
+      },
+      {
+        triggeredEffectIndex: 1,
+        kind: "SELECT",
+        side: "ALLY",
+        count: "ALL",
+        filters: [
+          { kind: "POSITION_ROW", row: "BACK" },
+          { kind: "POSITION_COLUMN", column: "LEFT" },
+        ],
+      },
+    ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_SOOTHING_SCENT_EN_ATTACKER_EN_DMG_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_SOOTHING_SCENT_BACK_LEFT_ATK_UP"] },
+    ]);
     expect(observed.markers).toEqual([]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([

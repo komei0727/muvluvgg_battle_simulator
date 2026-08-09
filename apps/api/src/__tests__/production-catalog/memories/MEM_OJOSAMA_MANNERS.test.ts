@@ -32,6 +32,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_OJOSAMA_MANNERS_ENEMY_DMG_UP",
     unitIds: ["enemy:FRONT_LEFT", "enemy:FRONT_CENTER", "enemy:FRONT_RIGHT"],
     magnitude: 0.075,
+    damageMod: { direction: "INCOMING", damageType: null },
     sourceSide: "ALLY",
   },
   {
@@ -45,6 +46,8 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 80,
+    statMod: { stat: "ACTION_SPEED", valueType: "FIXED" },
+    timeLimit: { unit: "ACTION", count: 1 },
     sourceSide: "ALLY",
   },
 ];
@@ -53,6 +56,26 @@ describe("production Catalog MEM_OJOSAMA_MANNERS (お嬢様直伝マナー講座
   it("IT-MEM-OJOSAMA-MANNERS-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
+    // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
+    // なる陣営全員）が `count: 1` へ退行しても、絞り込みを同じ1体を引く別の
+    // `filters` へ差し替えても `unitIds` は変わらない。宣言そのものを固定する。
+    expect(observed.targetSelections).toEqual([
+      { triggeredEffectIndex: 0, kind: "SELECT", side: "ALLY", count: "ALL", filters: [] },
+      {
+        triggeredEffectIndex: 1,
+        kind: "SELECT",
+        side: "ENEMY",
+        count: "ALL",
+        filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
+      },
+    ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_OJOSAMA_MANNERS_SPEED_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_OJOSAMA_MANNERS_ENEMY_DMG_UP"] },
+    ]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([
       `${MEMORY_DEFINITION_ID}#0`,
