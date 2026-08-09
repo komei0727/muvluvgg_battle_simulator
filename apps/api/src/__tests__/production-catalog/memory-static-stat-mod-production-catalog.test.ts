@@ -40,6 +40,10 @@ import {
  * `APPLY_DAMAGE_MOD`（`CAP_DAMAGE_MOD`）を要する。`DMG-002`（Issue #192）が
  * このCapabilityを`IMPLEMENTED`にしたため、Catalog上の変換が近似なしであることに
  * 加えて、この2件がCapability preflightを通過することをここで固定する。
+ *
+ * 単一Memoryへ閉じていた旧`-001`（`MEM_PANTS_STRAY_CAT`）は、対象Memoryが
+ * ユニット効果軸へ載った時点で`memories/MEM_PANTS_STRAY_CAT.test.ts`へ移して
+ * retireした（`12_テスト戦略.md`「`IT-CAP-*` の retire 基準」）。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -259,31 +263,6 @@ const DAMAGE_MOD_MEMORY_EXPECTATIONS: readonly {
 ];
 
 describe("production Catalog M7-007 static Memory conversions (Issue #178)", () => {
-  it("IT-CAP-MEMORY-STATIC-PROD-001: MEM_PANTS_STRAY_CAT raises ATTACK for every ENERGY ally and DEFENSE only for the EN_ATTACKER, leaving other unit types, other roles and the enemy untouched", () => {
-    const { battle } = startWith(["MEM_PANTS_STRAY_CAT"]);
-
-    // 効果1「ENタイプの味方の攻撃力を1250上昇させる」
-    expect(allyBy(battle, "ally:en_attacker").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 1250,
-      6,
-    );
-    expect(allyBy(battle, "ally:en_support").combatStats.attack).toBeCloseTo(BASE_ATTACK + 1250, 6);
-    // PHYSICAL / AGILE は`UNIT_TYPE`フィルタで不成立
-    expect(allyBy(battle, "ally:physical_attacker").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-    expect(allyBy(battle, "ally:agile_control").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-
-    // 効果2「ENアタッカーの防御力を1000上昇させる」— ENERGYでもSUPPORTには乗らない
-    expect(allyBy(battle, "ally:en_attacker").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE + 1000,
-      6,
-    );
-    expect(allyBy(battle, "ally:en_support").combatStats.defense).toBeCloseTo(BASE_DEFENSE, 6);
-
-    // 味方陣営が指定したMemoryは敵へ一切適用されない（R-MEM-04のsource side）
-    expect(battle.enemyUnits[0]!.appliedEffects).toHaveLength(0);
-    expect(battle.enemyUnits[0]!.combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-  });
-
   it("IT-CAP-MEMORY-STATIC-PROD-002: MEM_CHAOS_MAIDEN_TWINTAIL_FEST raises ATTACK for ENERGY allies only and MAXIMUM_HP for the whole ally party", () => {
     const { battle } = startWith(["MEM_CHAOS_MAIDEN_TWINTAIL_FEST"]);
 

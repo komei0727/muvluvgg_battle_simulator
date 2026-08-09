@@ -15,10 +15,11 @@ import { PRODUCTION_CATALOG_DIR } from "../../../testing/production-unit/skill-b
 import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
 
 /**
- * `MEM_CHAOS_MAIDEN`（Chaos Maiden）のユニット単位production結合テスト
+ * `MEM_SHAPING_FAMILY`（家族のかたちを象りながら）のユニット単位production結合テスト
  * （`12_テスト戦略.md`「ユニット効果軸」）。
  *
- * `AFF_CHAOS_MAIDEN`に所属するキャラクターへ攻撃力+250、陣営全体へ防御力+200。
+ * `AFF_KURASUNA`に所属するキャラクターへ与ダメージ+2.5%、コントロールへ攻撃力+1250。
+ * 所属とROLEという別軸のフィルタが互いに素な集合を選ぶ。
  *
  * `AFFILIATION` TargetFilterは静的Catalogの`UnitDefinition.metadata.affiliations`を
  * 引くため、盤面の1スロットだけへ所属を持たせ、残る5スロットがそのまま非対象の
@@ -30,38 +31,31 @@ import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
  * production全ID網羅監査（`UT-AUDIT-UNITCOV-001`）の照合対象になる。
  */
 
-const MEMORY_DEFINITION_ID = "MEM_CHAOS_MAIDEN";
+const MEMORY_DEFINITION_ID = "MEM_SHAPING_FAMILY";
 
-/** 所属メンバーは前衛左の1スロットだけ。 */
+/** 所属メンバーは後衛中央の1スロットだけ（コントロールの後衛右とは別スロット）。 */
 const BOARD: MemoryBoardOverrides = {
-  affiliationsBySlot: { FRONT_LEFT: ["AFF_CHAOS_MAIDEN"] },
+  affiliationsBySlot: { BACK_CENTER: ["AFF_KURASUNA"] },
 };
 
 /** 期待する効果発現（EffectAction ID順）。盤面は`MEMORY_SLOTS`の6スロット×両陣営。 */
 const EXPECTED_GRANTS: readonly MemoryGrant[] = [
   {
-    effectActionDefinitionId: "ACT_MEM_CHAOS_MAIDEN_AFFILIATION_ATK_UP",
-    unitIds: ["ally:FRONT_LEFT"],
-    magnitude: 250,
+    effectActionDefinitionId: "ACT_MEM_SHAPING_FAMILY_AFFILIATION_DMG_UP",
+    unitIds: ["ally:BACK_CENTER"],
+    magnitude: 0.025,
     sourceSide: "ALLY",
   },
   {
-    effectActionDefinitionId: "ACT_MEM_CHAOS_MAIDEN_ALL_DEF_UP",
-    unitIds: [
-      "ally:FRONT_LEFT",
-      "ally:FRONT_CENTER",
-      "ally:FRONT_RIGHT",
-      "ally:BACK_LEFT",
-      "ally:BACK_CENTER",
-      "ally:BACK_RIGHT",
-    ],
-    magnitude: 200,
+    effectActionDefinitionId: "ACT_MEM_SHAPING_FAMILY_CONTROL_ATK_UP",
+    unitIds: ["ally:BACK_RIGHT"],
+    magnitude: 1250,
     sourceSide: "ALLY",
   },
 ];
 
-describe("production Catalog MEM_CHAOS_MAIDEN (Chaos Maiden)", () => {
-  it("IT-MEM-CHAOS-MAIDEN-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
+describe("production Catalog MEM_SHAPING_FAMILY (家族のかたちを象りながら)", () => {
+  it("IT-MEM-SHAPING-FAMILY-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", BOARD);
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
     expect(observed.markers).toEqual([]);
@@ -70,24 +64,22 @@ describe("production Catalog MEM_CHAOS_MAIDEN (Chaos Maiden)", () => {
       `${MEMORY_DEFINITION_ID}#0`,
       `${MEMORY_DEFINITION_ID}#1`,
     ]);
-    // 効果1は所属メンバーだけ、効果2は所属に関係なく全員へ乗る。
+    // 攻撃力の上昇はコントロールだけ。所属メンバー（後衛中央）には乗らない。
     for (const unit of observed.started.allyUnits) {
       expect(unit.combatStats.attack).toBe(
-        MEMORY_COMBAT_STATS.attack + (unit.battleUnitId === "ally:FRONT_LEFT" ? 250 : 0),
+        MEMORY_COMBAT_STATS.attack + (unit.battleUnitId === "ally:BACK_RIGHT" ? 1250 : 0),
       );
-      expect(unit.combatStats.defense).toBe(MEMORY_COMBAT_STATS.defense + 200);
     }
   });
 
-  it("IT-MEM-CHAOS-MAIDEN-002 (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
-    // 敵陣営の前衛左も同じ所属を名乗るが、ALLY宣言では一切影響を受けない
-    // （`-001` の表が味方スロットだけで閉じている）。
+  it("IT-MEM-SHAPING-FAMILY-002 (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
+    // 味方陣営の後衛中央も同じ所属を名乗るが、ENEMY宣言では一切影響を受けない。
     expect(observeMemoryGrants(MEMORY_DEFINITION_ID, "ENEMY", BOARD)).toEqual(
       mirroredForEnemyDeclaration(EXPECTED_GRANTS),
     );
   });
 
-  it("IT-MEM-CHAOS-MAIDEN-003: every EffectAction this Memory declares was actually executed", () => {
+  it("IT-MEM-SHAPING-FAMILY-003: every EffectAction this Memory declares was actually executed", () => {
     // 全ID網羅監査（`UT-AUDIT-UNITCOV-001`）は「IDが文字列として書かれているか」しか
     // 見ないため、表に載っているだけで一度も実行されない定義を見逃す。
     const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [], [MEMORY_DEFINITION_ID]);
@@ -99,13 +91,18 @@ describe("production Catalog MEM_CHAOS_MAIDEN (Chaos Maiden)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-CHAOS-MAIDEN-004 (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_CHAOS_MAIDEN, while the party-wide one still resolves", () => {
+  it("IT-MEM-SHAPING-FAMILY-004 (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_KURASUNA, while the ROLE-filtered one still resolves", () => {
     // 境界（`08_ドメインイベント.md`「発動直前の再確認」）: 対象0件の
     // `triggeredEffect` は`MemoryTriggered`自体を発行しない。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     expect(observed.triggeredOrder).toEqual([`${MEMORY_DEFINITION_ID}#1`]);
-    expect(observed.grants.map((grant) => grant.effectActionDefinitionId)).toEqual([
-      "ACT_MEM_CHAOS_MAIDEN_ALL_DEF_UP",
+    expect(observed.grants).toEqual([
+      {
+        effectActionDefinitionId: "ACT_MEM_SHAPING_FAMILY_CONTROL_ATK_UP",
+        unitIds: ["ally:BACK_RIGHT"],
+        magnitude: 1250,
+        sourceSide: "ALLY",
+      },
     ]);
   });
 });

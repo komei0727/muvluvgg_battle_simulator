@@ -47,10 +47,12 @@ import {
  * 固定する（API公開形そのものは
  * `memory-granted-marker-api-production-catalog.test.ts`が担う）。
  *
- * 単一Memoryへ閉じていた5件（旧 `-002`〜`-005`／`-007`）は、対象Memoryが
- * ユニット効果軸へ載った時点で `memories/<MEM_ID>.test.ts` へ移して retire した
- * （`12_テスト戦略.md`「`IT-CAP-*` の retire 基準」）。残る3件は複数Memoryを
- * 跨ぐ検証で、まだ allowlist に残るMemoryの定義も併せて参照している。
+ * 単一Memoryへ閉じていた5件（旧 `-002`〜`-005`／`-007`）と、6 Memoryを1件ずつ
+ * 独立に見ていた所属ペアの1件（旧 `-001`）は、対象Memoryがユニット効果軸へ
+ * 載った時点で `memories/<MEM_ID>.test.ts` へ移して retire した
+ * （`12_テスト戦略.md`「`IT-CAP-*` の retire 基準」）。残る2件は複数Memoryを
+ * **同時に**編成したときにだけ現れる性質（R-MEM-02の跨Memory解決順・
+ * 変換台帳としての宣言一致）で、どの単一定義にも帰属しない。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -230,102 +232,8 @@ function startWith(options: StartOptions) {
   };
 }
 
-function unitBy(units: readonly BattleUnit[], battleUnitId: string): BattleUnit {
-  const unit = units.find((candidate) => candidate.battleUnitId === battleUnitId);
-  if (unit === undefined) {
-    throw new Error(`no unit "${battleUnitId}"`);
-  }
-  return unit;
-}
-
-function allyBy(battle: { readonly allyUnits: readonly BattleUnit[] }, battleUnitId: string) {
-  return unitBy(battle.allyUnits, battleUnitId);
-}
-
 function unitSnapshotOf(state: BattleStateSnapshot, battleUnitId: string) {
   return state.units[createBattleUnitId(battleUnitId)];
-}
-
-/**
- * 「所属するキャラクターの攻撃力を250上昇させる」+「味方全体の◯◯を上昇させる」
- * という同型の6 Memory。所属側は`affiliationId`だけが異なり、味方全体側は
- * stat・valueType・値がMemoryごとに異なる。
- */
-const AFFILIATION_PAIR_MEMORIES = [
-  {
-    memoryDefinitionId: "MEM_CHAOS_MAIDEN",
-    memberBattleUnitId: "ally:chaos_maiden",
-    expectedMemberAttack: BASE_ATTACK + 250,
-    expectedOtherAttack: BASE_ATTACK,
-    partyWide: { stat: "DEFENSE", base: BASE_DEFENSE, expected: BASE_DEFENSE + 200 },
-  },
-  {
-    memoryDefinitionId: "MEM_COLORFUL_BOUQUET",
-    memberBattleUnitId: "ally:colorful_bouquet",
-    // 効果1（所属+250）と効果2（味方全体+250）が所属メンバーには重ね掛けされる。
-    expectedMemberAttack: BASE_ATTACK + 500,
-    expectedOtherAttack: BASE_ATTACK + 250,
-    partyWide: { stat: "ATTACK", base: BASE_ATTACK, expected: BASE_ATTACK + 250 },
-  },
-  {
-    memoryDefinitionId: "MEM_PYXIS_MA_SOEUR",
-    memberBattleUnitId: "ally:pyxis_ma_soeur",
-    expectedMemberAttack: BASE_ATTACK + 250,
-    expectedOtherAttack: BASE_ATTACK,
-    partyWide: { stat: "ACTION_SPEED", base: BASE_ACTION_SPEED, expected: BASE_ACTION_SPEED + 12 },
-  },
-  {
-    memoryDefinitionId: "MEM_SIRIUS_SUGAR",
-    memberBattleUnitId: "ally:sirius_sugar",
-    expectedMemberAttack: BASE_ATTACK + 250,
-    expectedOtherAttack: BASE_ATTACK,
-    partyWide: { stat: "MAXIMUM_HP", base: BASE_MAXIMUM_HP, expected: BASE_MAXIMUM_HP + 300 },
-  },
-  {
-    memoryDefinitionId: "MEM_TREBLE_QUINTET",
-    memberBattleUnitId: "ally:treble_quintet",
-    expectedMemberAttack: BASE_ATTACK + 250,
-    expectedOtherAttack: BASE_ATTACK,
-    // 「会心率を1%上昇」は`MEM_WALK_TOGETHER`（Issue #47）以来の変換慣習どおり
-    // `valueType: RATIO`（基礎値に対する割合）で表す。
-    partyWide: {
-      stat: "CRITICAL_RATE",
-      base: BASE_CRITICAL_RATE,
-      expected: BASE_CRITICAL_RATE * 1.01,
-    },
-  },
-  {
-    memoryDefinitionId: "MEM_TRINITY_JEWEL",
-    memberBattleUnitId: "ally:trinity_jewel",
-    expectedMemberAttack: BASE_ATTACK + 250,
-    expectedOtherAttack: BASE_ATTACK,
-    partyWide: { stat: "DEFENSE", base: BASE_DEFENSE, expected: BASE_DEFENSE + 200 },
-  },
-] as const satisfies readonly {
-  memoryDefinitionId: string;
-  memberBattleUnitId: string;
-  expectedMemberAttack: number;
-  expectedOtherAttack: number;
-  partyWide: { stat: StatKind; base: number; expected: number };
-}[];
-
-function statOf(unit: BattleUnit, stat: StatKind): number {
-  switch (stat) {
-    case "MAXIMUM_HP":
-      return unit.combatStats.maximumHp;
-    case "ATTACK":
-      return unit.combatStats.attack;
-    case "DEFENSE":
-      return unit.combatStats.defense;
-    case "CRITICAL_RATE":
-      return unit.combatStats.criticalRate;
-    case "CRITICAL_DAMAGE_BONUS":
-      return unit.combatStats.criticalDamageBonus;
-    case "AFFINITY_BONUS":
-      return unit.combatStats.affinityBonus;
-    case "ACTION_SPEED":
-      return unit.combatStats.actionSpeed;
-  }
 }
 
 /**
@@ -1069,41 +977,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
 ];
 
 describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Issue #176)", () => {
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-001: the six affiliation-pair Memories raise ATTACK by 250 only for their own affiliation members and apply their party-wide buff to every ally, never to the enemy party", () => {
-    for (const expectation of AFFILIATION_PAIR_MEMORIES) {
-      const { battle } = startWith({
-        allyMemoryDefinitionIds: [expectation.memoryDefinitionId],
-      });
-
-      for (const member of ALLY_MEMBERS) {
-        const unit = allyBy(battle, member.battleUnitId);
-        const isMember = member.battleUnitId === expectation.memberBattleUnitId;
-        // 効果1: 所属するキャラクターだけ攻撃力+250。
-        expect(unit.combatStats.attack).toBeCloseTo(
-          isMember ? expectation.expectedMemberAttack : expectation.expectedOtherAttack,
-          6,
-        );
-        // 効果2: 味方全体（ATTACK対象のMemoryは上の行が既に重ね掛けを確認している）。
-        if (expectation.partyWide.stat !== "ATTACK") {
-          expect(statOf(unit, expectation.partyWide.stat)).toBeCloseTo(
-            expectation.partyWide.expected,
-            6,
-          );
-        }
-      }
-
-      // R-MEM-04のsource side: 敵は同じ所属に属していても一切影響を受けない。
-      for (const enemy of battle.enemyUnits) {
-        expect(enemy.appliedEffects).toHaveLength(0);
-        expect(enemy.combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-        expect(statOf(enemy, expectation.partyWide.stat)).toBeCloseTo(
-          expectation.partyWide.base,
-          6,
-        );
-      }
-    }
-  });
-
   it("IT-CAP-MEMORY-DYNAMIC-PROD-006: M7-008 Memories emit MemoryTriggered/MemoryResolved with a sourceSide instead of a granter unit, and their StateDeltas alone reconstruct the started battle", () => {
     const { created, battle, recorder } = startWith({
       allyMemoryDefinitionIds: ORDERING_MEMORY_IDS,
