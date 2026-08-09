@@ -14,6 +14,10 @@ import {
 import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activation-condition-evaluator.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import {
+  resolveChargeRelease,
+  resolveChargeStart,
+} from "../../domain/battle/lifecycle/action-charge-resolver.js";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
@@ -333,6 +337,12 @@ export interface SkillUseObservation {
   readonly markers?: readonly ObservedMarker[];
   readonly resources?: readonly ObservedResource[];
   readonly cooldowns?: readonly ObservedCooldown[];
+  /**
+   * チャージ状態（R-SKL-05）の変化。開始で保持スキルIDが、解放で `null` が現れる。
+   * `resolution.kind: CHARGE` のスキルは開始と解放で別々の行動になるため、
+   * どちらを観測したのかがこの欄だけで読める。
+   */
+  readonly charge?: string | null;
 }
 
 export type SkillUse =
@@ -340,6 +350,16 @@ export type SkillUse =
       readonly kind: "ACTIVE";
       readonly skillDefinitionId: string;
       readonly actionType?: "AS" | "EX";
+    }
+  | {
+      /**
+       * `resolution.kind: CHARGE` のスキル。`START` はチャージ開始の行動だけを、
+       * `RELEASE` は開始を基準線へ繰り込んだうえで `chargeRelease` EffectSequence
+       * だけを観測する（実戦闘でも両者は別の行動であり、同じ観測には載らない）。
+       */
+      readonly kind: "CHARGE";
+      readonly skillDefinitionId: string;
+      readonly phase: "START" | "RELEASE";
     }
   | {
       readonly kind: "PASSIVE";
@@ -771,6 +791,56 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     );
     after = result.units;
     events = recorder.getEvents();
+  } else if (options.use.kind === "CHARGE") {
+    // チャージ開始も1つの行動選択を通る（AP・クールタイム・`activationCondition`）。
+    const usable =
+      selectAsCandidate(
+        [skill],
+        subjectOf(baseline, board.subject.battleUnitId),
+        baseline,
+        board.definitions.unitDefinitions,
+        evaluateActivationCondition,
+      ).kind === "SKILL";
+    if (!usable) {
+      return { activated: false };
+    }
+    const recorder = new EventRecorder(createBattleId("B_BEHAVIOUR"));
+    const started = resolveChargeStart(
+      subjectOf(baseline, board.subject.battleUnitId),
+      skill,
+      "AS",
+      "AS",
+      baseline,
+      board.definitions,
+      random,
+      recorder,
+      1,
+      0,
+      createActionId("B_BEHAVIOUR:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+    if (options.use.phase === "START") {
+      after = started.units;
+      events = recorder.getEvents();
+    } else {
+      // 開始の行動そのものは基準線へ繰り込み、解放が起こしたことだけを残す。
+      baseline = started.units;
+      const releaseRecorder = new EventRecorder(createBattleId("B_BEHAVIOUR_RELEASE"));
+      const released = resolveChargeRelease(
+        subjectOf(baseline, board.subject.battleUnitId),
+        "AS",
+        baseline,
+        board.definitions,
+        random,
+        releaseRecorder,
+        1,
+        1,
+        createActionId("B_BEHAVIOUR_RELEASE:action:1"),
+        releaseRecorder.nextResolutionScopeId(),
+      );
+      after = released.units;
+      events = releaseRecorder.getEvents();
+    }
   } else {
     const trigger = options.use.trigger;
     const isRealDamage = (candidate: typeof trigger): candidate is RealDamageTrigger =>
@@ -831,8 +901,15 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
   const markers = differenceOf(markerSummaries(after), markerSummaries(baseline));
   const resources = resourceDeltas(after, baseline);
   const cooldowns = differenceOf(cooldownEntries(after), cooldownEntries(baseline));
+  const chargeBefore = beforeById.get(board.subject.battleUnitId)?.charge;
+  const chargeAfter = subjectOf(after, board.subject.battleUnitId).charge;
+  const chargeChanged =
+    chargeBefore?.skill.skillDefinitionId !== chargeAfter?.skill.skillDefinitionId;
 
   return {
+    ...(chargeChanged
+      ? { charge: (chargeAfter?.skill.skillDefinitionId as string | undefined) ?? null }
+      : {}),
     ...(actions.length === 0 ? {} : { actions }),
     ...(Object.keys(hpDeltas).length === 0 ? {} : { hpDeltas }),
     ...(effectsApplied.length === 0 ? {} : { effectsApplied }),

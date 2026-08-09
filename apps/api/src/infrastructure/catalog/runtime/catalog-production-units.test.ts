@@ -413,7 +413,20 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 絶対値Formula（`CURRENT_HP_RATIO`）で、実測値が割合ではなく -3000 だった。
     // (7) `ACT_KATE_PALADIN_AS1_SELF_HEAL_100`（原文「与えたダメージの100%分」）は
     // 4ヒット攻撃の最終ヒット分（`LAST_DAMAGE_DEALT`）だけを読んでいた。
-    expect(catalog.catalogRevision).toBe("2026-08-08.5");
+    // `2026-08-09.1` は REF-030（Issue #360）の第6バッチが検出した原文との不一致。
+    // (1) 「自身がアクティブスキルで攻撃する前／した直後に発動」を `targetSelector: SELF`
+    // で表し一度も候補化されない3件（`SKL_NOEL_RUMBLE_PS1`・`SKL_RAMI_NEWYEAR_PS1`・
+    // `SKL_RAMI_UNYIELDING_PS3`）は `ANY` へ直した（`2026-08-08.5` の(2)と同型）。
+    // (2) `SKL_RAMI_UNYIELDING_PS1`（原文「自身のHPが30%以下になった際」）は
+    // `HitPointReduced`＋`sourceSelector: SELF` で、HPを削るのは通常敵であるため
+    // 被弾では成立しなかった。発生源を問わない `ANY` へ直した。
+    // (3) `SKL_SENKA_CHRISTMAS_PS2`（原文「自身の攻撃が会心攻撃になるたびに発動」）は
+    // `CriticalCheckResolved` の条件が `TRUE` で、会心しなかった攻撃でも発動していた。
+    // 他の会心契機PSと同じ `EVENT_PAYLOAD result EQ true` へ直した。
+    // `2026-08-09.2` は同じ `SKL_SENKA_CHRISTMAS_PS2` の `targetSelector: ENEMY`。
+    // 原文は解除先を「自身が攻撃した対象」としか言わず陣営を限定しないため、混乱
+    // （R-CFS-01）で対象が味方側へ反転した会心攻撃を取りこぼしていた。`ANY` へ直した。
+    expect(catalog.catalogRevision).toBe("2026-08-09.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

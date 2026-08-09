@@ -10094,7 +10094,7 @@
         "eventType": "SkillUseCompleted",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -10616,7 +10616,7 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -10727,7 +10727,7 @@
       {
         "eventType": "HitPointReduced",
         "category": "FACT",
-        "sourceSelector": "SELF",
+        "sourceSelector": "ANY",
         "targetSelector": "SELF",
         "condition": {
           "kind": "AND",
@@ -10825,7 +10825,7 @@
         "eventType": "SkillUseStarting",
         "category": "TIMING",
         "sourceSelector": "SELF",
-        "targetSelector": "SELF",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }
     ]
@@ -11820,8 +11820,8 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY",
-        "condition": { "kind": "TRUE" }
+        "targetSelector": "ANY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
       }
     ]
   },
