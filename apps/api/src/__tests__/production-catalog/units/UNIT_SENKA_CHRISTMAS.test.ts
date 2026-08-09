@@ -16,6 +16,7 @@ import {
   criticalCheckResolved,
   realDamage,
 } from "../../../testing/production-unit/trigger-events.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
 /**
  * `UNIT_SENKA_CHRISTMAS`(【クリスマスコーデの参謀】姫川泉花)のユニット単位production
@@ -29,7 +30,16 @@ import {
 
 const UNIT_DEFINITION_ID = "UNIT_SENKA_CHRISTMAS";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+// 混乱（R-CFS-01）を付与するproduction定義は `ACT_OLGA_VETERAN_EX_CONFUSION` の1件だけ。
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
+
+/** 会心を必ず発生させる抽選列。PS2の契機は会心が出た `CriticalCheckResolved` に限る。 */
+function critical(): SequenceRandomSource {
+  return new SequenceRandomSource(new Array<number>(64).fill(0));
+}
 
 /** 1撃ではHP50%を割り込まない敵。AS1の被ダメージ減少分岐の不成立側を作る。 */
 const ENEMY_AT_FULL_HP: readonly BoardUnitSpec[] = [
@@ -308,16 +318,76 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",
-    intent: "(不成立): 味方への会心判定では発動しない(「自身が攻撃した対象」に限る)",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、自身の攻撃が会心になった事実は変わらず発動し、その反転先のバフを解除する",
+    // 原文は解除先を「自身が攻撃した対象」としか言わず陣営を限定しない。実混乱経路を
+    // 通すことで、契機の `targetSelector` が陣営で絞られていないことを回帰から守る。
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SENKA_CHRISTMAS_AS1" },
+    board: { combatStats: { criticalRate: 1 } },
+    random: critical,
+    // 反転先（自身）に解除対象のバフを載せ、混乱そのものも実 production 定義で作る。
+    precedingActions: [
+      { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+      { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS2_DEF_UP", target: "SELF" },
+    ],
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
+          targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN", targets: ["ally:subject"] },
+      ],
+      // 702（威力140.4%）に会心（基本1.5倍＋会心ダメージ+50%）が乗って1404、
+      // さらに混乱の被ダメージ30%減少が掛かって982（切り捨て）。
+      hpDeltas: { "ally:subject": -982 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN",
+          magnitude: -0.2,
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+        },
+      ],
+      // 混乱はその行動の `DAMAGE` で消費され、防御力上昇はPS2が解除する。
+      effectsRemoved: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1 },
+          statusKind: "CONFUSION",
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS2_DEF_UP",
+          magnitude: 0.35,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_SENKA_CHRISTMAS_AS1", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",
+    intent: "(不成立): 他の味方の会心では発動しない(「自身の攻撃が」に限る)",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",
       trigger: criticalCheckResolved({
-        source: "ally:subject",
-        target: "ally:front",
+        source: "ally:front",
+        target: "enemy:front",
         result: true,
       }),
-      triggeredBy: "ally:subject",
+      triggeredBy: "ally:front",
     },
     expected: { activated: false },
   },

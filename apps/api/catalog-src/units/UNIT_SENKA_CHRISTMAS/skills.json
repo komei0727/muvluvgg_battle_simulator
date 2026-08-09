@@ -166,7 +166,7 @@
         "eventType": "CriticalCheckResolved",
         "category": "FACT",
         "sourceSelector": "SELF",
-        "targetSelector": "ENEMY",
+        "targetSelector": "ANY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
       }
     ]

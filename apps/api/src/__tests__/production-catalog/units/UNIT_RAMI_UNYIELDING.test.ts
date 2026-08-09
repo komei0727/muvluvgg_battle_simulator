@@ -30,7 +30,11 @@ import { realDamage, skillUseStarting } from "../../../testing/production-unit/t
 
 const UNIT_DEFINITION_ID = "UNIT_RAMI_UNYIELDING";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+// 混乱（R-CFS-01）を付与するproduction定義は `ACT_OLGA_VETERAN_EX_CONFUSION` の1件だけ。
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
 
 /** 既定対象の敵だけがEXの1撃で落ちる残HP。「敵を倒した場合」の成立側を作る。 */
 const ENEMY_FRONT_ALMOST_DEAD: readonly BoardUnitSpec[] = [
@@ -55,6 +59,26 @@ const PS1_ALREADY_ACTIVATED = {
     },
   },
 };
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない（契機の `targetSelector` を陣営で絞れない理由）。
+ * 前提は実 production 定義で作る。
+ */
+const CONFUSED = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+] as const;
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
+} as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -349,6 +373,30 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       triggeredBy: "ally:subject",
     },
     expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_RAMI_UNYIELDING_PS3",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃する事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAMI_UNYIELDING_AS1" },
+    precedingActions: CONFUSED,
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_PS3_DMG_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_AS1_DAMAGE", targets: ["ally:subject"] },
+      ],
+      // PS3の+50%が乗った1391に、混乱の被ダメージ30%減少が掛かって973。
+      hpDeltas: { "ally:subject": -973 },
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_RAMI_UNYIELDING_PS3", remaining: 1 },
+      ],
+    },
   },
 ];
 

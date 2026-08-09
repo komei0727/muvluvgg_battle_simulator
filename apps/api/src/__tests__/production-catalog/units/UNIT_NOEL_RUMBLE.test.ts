@@ -26,7 +26,11 @@ import { skillUseCompleted, turnStarted } from "../../../testing/production-unit
 
 const UNIT_DEFINITION_ID = "UNIT_NOEL_RUMBLE";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+// 混乱（R-CFS-01）を付与するproduction定義は `ACT_OLGA_VETERAN_EX_CONFUSION` の1件だけ。
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
 
 /** 最も近い敵だけがEX1撃目で落ちる残HP。生存分岐の不成立側を作る。 */
 const NEAREST_ENEMY_ALMOST_DEAD: readonly BoardUnitSpec[] = [
@@ -34,6 +38,26 @@ const NEAREST_ENEMY_ALMOST_DEAD: readonly BoardUnitSpec[] = [
   { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
 ];
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない（契機の `targetSelector` を陣営で絞れない理由）。
+ * 前提は実 production 定義で作る。
+ */
+const CONFUSED = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+] as const;
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
+} as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -287,6 +311,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       triggeredBy: "ally:subject",
     },
     expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_NOEL_RUMBLE_PS1",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃した事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NOEL_RUMBLE_AS2" },
+    precedingActions: CONFUSED,
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_AS2_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN", targets: ["ally:subject"] },
+      ],
+      // 1060（威力212%）に混乱の被ダメージ30%減少が掛かって742。
+      hpDeltas: { "ally:subject": -742 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_ATK_UP",
+          magnitude: 0.18,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS1_DMG_DOWN",
+          magnitude: -0.15,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+      ],
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+    },
   },
 ];
 

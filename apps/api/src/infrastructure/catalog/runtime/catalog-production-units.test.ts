@@ -423,7 +423,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (3) `SKL_SENKA_CHRISTMAS_PS2`（原文「自身の攻撃が会心攻撃になるたびに発動」）は
     // `CriticalCheckResolved` の条件が `TRUE` で、会心しなかった攻撃でも発動していた。
     // 他の会心契機PSと同じ `EVENT_PAYLOAD result EQ true` へ直した。
-    expect(catalog.catalogRevision).toBe("2026-08-09.1");
+    // `2026-08-09.2` は同じ `SKL_SENKA_CHRISTMAS_PS2` の `targetSelector: ENEMY`。
+    // 原文は解除先を「自身が攻撃した対象」としか言わず陣営を限定しないため、混乱
+    // （R-CFS-01）で対象が味方側へ反転した会心攻撃を取りこぼしていた。`ANY` へ直した。
+    expect(catalog.catalogRevision).toBe("2026-08-09.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

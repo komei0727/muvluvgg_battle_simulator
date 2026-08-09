@@ -26,7 +26,11 @@ import { SequenceRandomSource } from "../../../testing/random/sequence-random-so
 
 const UNIT_DEFINITION_ID = "UNIT_RAMI_NEWYEAR";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+// 混乱（R-CFS-01）を付与するproduction定義は `ACT_OLGA_VETERAN_EX_CONFUSION` の1件だけ。
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_OLGA_VETERAN",
+]);
 
 /** PS1は自身のHPが50%以下では発動しない。既定盤面はちょうど50%のため引き上げる。 */
 const PS1_READY = { subject: { state: { currentHp: 8000 } } };
@@ -39,6 +43,26 @@ const PS1_READY = { subject: { state: { currentHp: 8000 } } };
 function omikuji(roll: number): () => SequenceRandomSource {
   return () => new SequenceRandomSource(new Array<number>(64).fill(roll));
 }
+
+/**
+ * 混乱（R-CFS-01）はASの`DAMAGE` stepのTargetSelectorを反転させ、
+ * `SkillUseStarting`/`SkillUseCompleted.targetUnitIds` にも反転後の味方が入る。
+ * 「自身がアクティブスキルで攻撃する」ことは変わらないため、この経路でもPSは
+ * 発動しなければならない（契機の `targetSelector` を陣営で絞れない理由）。
+ * 前提は実 production 定義で作る。
+ */
+const CONFUSED = [
+  { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+] as const;
+
+/** 混乱はその行動の`DAMAGE`で消費され、観測では解除として現れる。 */
+const CONFUSION_CONSUMED = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+  magnitude: 0,
+  timeLimit: { unit: "ACTION", count: 1 },
+  statusKind: "CONFUSION",
+} as const;
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -373,6 +397,33 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     board: PS1_READY,
     expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
+    intent:
+      "(発動): 混乱で攻撃対象が味方側へ反転しても、アクティブスキルで攻撃する事実は変わらず発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3" },
+    board: PS1_READY,
+    precedingActions: CONFUSED,
+    expected: {
+      // 既定の抽選列（0.99）ではおみくじは末吉へ倒れる。
+      actions: [
+        { effectActionDefinitionId: "ACT_RAMI_NEWYEAR_PS1_DMG_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_RAMI_NEWYEAR_PS1_ATK_UP_5", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_RAMI_NEWYEAR_AS3_DAMAGE", targets: ["ally:subject"] },
+      ],
+      // PS1の与ダメージ+20%と攻撃力+5%が乗った848に、混乱の30%減少が掛かって783。
+      hpDeltas: { "ally:subject": -783 },
+      effectsRemoved: [CONFUSION_CONSUMED],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 3 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1", remaining: 1 },
+      ],
+    },
   },
 ];
 
