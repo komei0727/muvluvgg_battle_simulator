@@ -4,6 +4,8 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import { reduceStateDeltas } from "./state-delta-reducer.js";
+import { initialSnapshotFor } from "../../../testing/fixtures/index.js";
 import { createActionId } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
@@ -304,6 +306,110 @@ function passiveSkillOnDamageApplied(id: string): SkillDefinition {
   };
 }
 
+/** 1ヒットで使用者自身を確実に倒す自傷DAMAGE（`unit()`の最大HP100・防御10に対し威力十分）。 */
+function selfDestructEffectAction(id: string): EffectActionDefinition {
+  return {
+    kind: "DAMAGE",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "CONSTANT", value: 1000 },
+      hitCount: 1,
+      critical: { mode: "PREVENTED" },
+      accuracy: { mode: "GUARANTEED" },
+      piercing: { defenseIgnoreRate: 1, shieldIgnoreRate: 1, damageReductionIgnoreRate: 1 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+}
+
+/**
+ * 1つ目のstepで自分を倒し、2つ目のstepが未解決のまま残るチャージ解放スキル。
+ * `EffectSequenceOutcome.status` を `INTERRUPTED` にするための最小構成。
+ */
+function selfDestructChargeReleaseSkill(
+  selfDamageActionId: string,
+  enemyDamageActionId: string,
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId("SKL_CHARGE"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [
+              { effectActionDefinitionId: createEffectActionDefinitionId(selfDamageActionId) },
+            ],
+          },
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [
+              { effectActionDefinitionId: createEffectActionDefinitionId(enemyDamageActionId) },
+            ],
+          },
+        ],
+      },
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: "Charge", tags: [] },
+  };
+}
+
+/** `ChargeReleaseCompleted` を契機に持つPS。中断時に候補化されないことの確認用。 */
+function passiveSkillOnChargeReleaseCompleted(id: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [
+      {
+        eventType: "ChargeReleaseCompleted",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "ANY",
+        condition: { kind: "TRUE" },
+      },
+    ],
+    counterUpdates: [],
+    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
 function definitionsOf(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>,
@@ -499,5 +605,132 @@ describe("resolveChargeRelease", () => {
       before: 0,
       after: 1,
     });
+  });
+
+  it("the charge termination StateDelta belongs to ChargeReleaseCompleted, so replaying deltas up to that event already shows the charge as ended (it is not deferred to ActionCompleting)", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_CHARGE_HIT");
+    const chargeSkill = chargeReleaseSkill("ACT_CHARGE_HIT");
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const completedIndex = events.findIndex((e) => e.eventType === "ChargeReleaseCompleted");
+    expect(completedIndex).toBeGreaterThanOrEqual(0);
+
+    // 契機イベントまでの公開差分だけを当て直した時点で、既にチャージは終わっている。
+    const upToCompleted = reduceStateDeltas(
+      initialSnapshotFor([charger, enemy], { include: ["effects", "markers", "charge"] }),
+      events
+        .slice(0, completedIndex + 1)
+        .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+    );
+    expect(upToCompleted.units[charger.battleUnitId]?.charge).toBeUndefined();
+
+    // 二重適用防止: チャージ終了差分を持つイベントはこの1件だけで、
+    // `ActionCompleting` はもう所有していない。
+    const chargeDeltaOwners = events.filter(
+      (event) => event.stateDelta?.units?.[charger.battleUnitId]?.charge !== undefined,
+    );
+    expect(chargeDeltaOwners.map((event) => event.eventType)).toEqual(["ChargeReleaseCompleted"]);
+  });
+
+  it("a charge release interrupted by the actor's own death emits ChargeReleaseInterrupted (not ChargeReleaseCompleted), and a PS triggered by ChargeReleaseCompleted is never a candidate", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const psOwnerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const selfDamage = selfDestructEffectAction("ACT_SELF_DAMAGE");
+    const enemyDamage = damageEffectAction("ACT_ENEMY_DAMAGE");
+    const psSkill = passiveSkillOnChargeReleaseCompleted("SKL_PS_ON_RELEASE");
+    const chargeSkill = selfDestructChargeReleaseSkill("ACT_SELF_DAMAGE", "ACT_ENEMY_DAMAGE");
+
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    const psOwner = unit("PS_OWNER", "ALLY", {
+      unitDefinitionId: psOwnerUnitDefinitionId,
+      currentPp: 3,
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [
+          psOwnerUnitDefinitionId,
+          unitDefinitionOf(psOwnerUnitDefinitionId, [psSkill.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([[psSkill.skillDefinitionId, psSkill]]),
+      new Map([
+        [selfDamage.effectActionDefinitionId, selfDamage],
+        [enemyDamage.effectActionDefinitionId, enemyDamage],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const result = resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, psOwner, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    expect(events.some((e) => e.eventType === "ChargeReleaseCompleted")).toBe(false);
+    const interrupted = events.find((e) => e.eventType === "ChargeReleaseInterrupted");
+    expect(interrupted).toBeDefined();
+    expect(interrupted!.payload).toMatchObject({
+      actorUnitId: charger.battleUnitId,
+      skillDefinitionId: chargeSkill.skillDefinitionId,
+      reason: "ACTOR_DEFEATED",
+    });
+
+    // 未完了の解放は「攻撃した後」のPSの契機にならない。
+    expect(events.some((e) => e.eventType === "PassiveActivated")).toBe(false);
+    expect(result.units.find((u) => u.battleUnitId === psOwner.battleUnitId)!.currentPp).toBe(3);
+
+    // 中断でもチャージ状態は終わり、その差分は中断イベントが所有する。
+    expect(
+      result.units.find((u) => u.battleUnitId === charger.battleUnitId)!.charge,
+    ).toBeUndefined();
+    expect(
+      events
+        .filter((event) => event.stateDelta?.units?.[charger.battleUnitId]?.charge !== undefined)
+        .map((event) => event.eventType),
+    ).toEqual(["ChargeReleaseInterrupted"]);
   });
 });

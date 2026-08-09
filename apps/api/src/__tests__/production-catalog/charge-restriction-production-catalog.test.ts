@@ -612,7 +612,7 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
     expect(unitIn(idleUnits, siena).currentPp).toBeLessThan(siena.currentPp);
   });
 
-  it("IT-CAP-CHARGE-RESTRICTION-PROD-005 (R-SKL-05/R-PS-04 boundary): completing the real SKL_SIENA_OFFSTAGE_AS1 charge release clears the charge on the units, on the ActionCompleting StateDelta and on an independent Reducer replay, and the R-PS-04 restriction lifts on the very same candidate", () => {
+  it("IT-CAP-CHARGE-RESTRICTION-PROD-005 (R-SKL-05/R-PS-04 boundary): completing the real SKL_SIENA_OFFSTAGE_AS1 charge release clears the charge on the units, on the ChargeReleaseCompleted StateDelta and on an independent Reducer replay, and the R-PS-04 restriction lifts on the very same candidate", () => {
     const { definitions, recorder, skillOf } = fixture([SIENA_UNIT_ID]);
     const chargeSkill = skillOf(SIENA_CHARGE_SKILL_ID);
 
@@ -666,7 +666,10 @@ describe("production Catalog CAP_CHARGE_RESTRICTION (M7-016, Issue #270, R-SKL-0
           e.stateDelta?.units?.[siena.battleUnitId]?.charge?.after === undefined &&
           e.stateDelta?.units?.[siena.battleUnitId]?.charge !== undefined,
       );
-    expect(chargeClearing.map((e) => e.eventType)).toEqual(["ActionCompleting"]);
+    // 「チャージ効果発動」#5 の `ChargeReleaseCompleted` が終了差分を所有する
+    // （後続の `ActionCompleting` へ持たせると、独立Reducerでは完了イベントの
+    // 時点でまだチャージ中に見えてしまう）。
+    expect(chargeClearing.map((e) => e.eventType)).toEqual(["ChargeReleaseCompleted"]);
     expect(
       reconstruct(initialSnapshot, recorder).units[siena.battleUnitId]!.charge,
     ).toBeUndefined();

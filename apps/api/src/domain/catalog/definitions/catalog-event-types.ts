@@ -45,6 +45,7 @@ export const EVENT_TYPE_CATEGORIES: Readonly<Record<string, EventCategory>> = {
   ChargeReleaseReady: "FACT",
   ChargeReleased: "FACT",
   ChargeReleaseCompleted: "FACT",
+  ChargeReleaseInterrupted: "FACT",
   ChargeCancelled: "FACT",
   ChargeHeldByFreeze: "FACT",
   // PSイベント

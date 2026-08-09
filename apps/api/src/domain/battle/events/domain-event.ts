@@ -872,6 +872,21 @@ export interface BattleDomainEventPayloadMap {
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
   };
+  /**
+   * R-SKL-05/Q-SKL-03: チャージ効果の解決が使用者の戦闘不能で打ち切られた後。
+   * `ChargeReleaseCompleted`との選択は`EffectSequenceOutcome.status`だけから決まる
+   * （AS/EX経路の`SkillUseCompleted`/`SkillUseInterrupted`と同じ規則）。無条件に
+   * 完了イベントを出すと、中断された解放を契機に「攻撃した後」のPSが候補化される。
+   */
+  readonly ChargeReleaseInterrupted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly chargeStartActionId: ActionId;
+    readonly releaseActionId: ActionId;
+    readonly reason: "ACTOR_DEFEATED";
+    readonly resolvedEffectCount: number;
+    readonly unresolvedEffectCount: number;
+  };
   /** R-SKL-05/R-STS-02: 気絶付与時、発動待ちのチャージを維持せずキャンセルした後（`08_ドメインイベント.md`「チャージイベント」）。 */
   readonly ChargeCancelled: {
     readonly actorUnitId: BattleUnitId;

@@ -61,6 +61,7 @@ export const SUMMARY_EVENT_TYPE_INCLUSION: Readonly<Record<BattleDomainEventType
   ChargeStarted: false,
   ChargeReleased: false,
   ChargeReleaseCompleted: false,
+  ChargeReleaseInterrupted: false,
   ChargeCancelled: false,
   ChargeHeldByFreeze: false,
   TurnCompleting: false,

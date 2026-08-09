@@ -1149,6 +1149,33 @@ const chargeReleaseCompletedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `ChargeReleaseInterrupted`（R-SKL-05/Q-SKL-03）。チャージ効果の解決が使用者の
+ * 戦闘不能で打ち切られた後に発行する。AS/EX経路の `SKILL_USE_INTERRUPTED` に相当する。
+ */
+const chargeReleaseInterruptedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "actorUnitId",
+    "skillDefinitionId",
+    "chargeStartActionId",
+    "releaseActionId",
+    "reason",
+    "resolvedEffectCount",
+    "unresolvedEffectCount",
+  ],
+  properties: {
+    actorUnitId: { type: "string" },
+    skillDefinitionId: { type: "string" },
+    chargeStartActionId: { type: "string" },
+    releaseActionId: { type: "string" },
+    reason: { type: "string" },
+    resolvedEffectCount: { type: "integer", minimum: 0 },
+    unresolvedEffectCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 /** `ChargeCancelled`（R-SKL-05/R-STS-02、Issue #180）。気絶付与時にチャージをキャンセルした後に発行する。 */
 const chargeCancelledDetailsSchema = {
   type: "object",
@@ -2190,6 +2217,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   CHARGE_STARTED: chargeStartedDetailsSchema,
   CHARGE_RELEASED: chargeReleasedDetailsSchema,
   CHARGE_RELEASE_COMPLETED: chargeReleaseCompletedDetailsSchema,
+  CHARGE_RELEASE_INTERRUPTED: chargeReleaseInterruptedDetailsSchema,
   CHARGE_CANCELLED: chargeCancelledDetailsSchema,
   CHARGE_HELD_BY_FREEZE: chargeHeldByFreezeDetailsSchema,
   TURN_COMPLETING: turnNumberOnlyDetailsSchema,
