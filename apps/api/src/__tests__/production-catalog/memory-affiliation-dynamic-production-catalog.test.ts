@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { advanceBattle, createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
+import { createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
@@ -36,9 +36,8 @@ import {
  *
  * - `AFFILIATION` TargetFilter（`18_Affiliation台帳.md`の `AFF_*`）が、Memory由来の
  *   EffectSequenceでも `metadata.affiliations` を引いて実際に効くこと。
- * - `side: "ENEMY"` の効果が、そのMemoryを編成した陣営から見た相対陣営へ解決すること。
- * - `TurnStarted` 発動の triggeredEffect が実 `advanceBattle` でターンごとに発動し、
- *   `BattleStarted` 発動の triggeredEffect は戦闘開始時の1回だけであること。
+ * - `TurnStarted` 発動の triggeredEffect が `BattleStarted` では候補にならず、
+ *   R-MEM-02の解決順から飛ばされること。
  *
  * `APPLY_DAMAGE_MOD` を含む9件は `CAP_DAMAGE_MOD` が `PLANNED` の間 preflight で
  * 弾かれていたが、`DMG-002`（Issue #192）が同Capabilityを `IMPLEMENTED` にしたため
@@ -47,6 +46,11 @@ import {
  * ここではCatalog上の変換が近似なしであることと、20件すべてが編成可能であることを
  * 固定する（API公開形そのものは
  * `memory-granted-marker-api-production-catalog.test.ts`が担う）。
+ *
+ * 単一Memoryへ閉じていた5件（旧 `-002`〜`-005`／`-007`）は、対象Memoryが
+ * ユニット効果軸へ載った時点で `memories/<MEM_ID>.test.ts` へ移して retire した
+ * （`12_テスト戦略.md`「`IT-CAP-*` の retire 基準」）。残る3件は複数Memoryを
+ * 跨ぐ検証で、まだ allowlist に残るMemoryの定義も併せて参照している。
  */
 
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
@@ -164,62 +168,8 @@ const ENEMY_MEMBERS = [
   },
 ] as const satisfies readonly RosterMember[];
 
-/** `AFF_FUUKI_IINKAI`のメンバー1体と、どの所属にも属さない1体。 */
-const FUUKI_ALLY_MEMBERS = [
-  {
-    battleUnitId: "ally:fuuki_iinkai",
-    unitDefinitionId: "UNIT_MAO_COMMITTEE", // ENERGY / EN_ATTACKER / AFF_FUUKI_IINKAI
-    attribute: "COMICAL",
-    position: { row: "FRONT", column: "LEFT" },
-  },
-  {
-    battleUnitId: "ally:unaffiliated",
-    unitDefinitionId: "UNIT_KEI_JACKKNIFE", // 所属なし
-    attribute: "AGGRESSIVE",
-    position: { row: "BACK", column: "LEFT" },
-  },
-] as const satisfies readonly RosterMember[];
-
-/**
- * `advanceBattle`はAP/PPを回復させるため、production UnitのPSが実際に発動しうる
- * （`startBattle`だけを使うテストと違い、UT-BATTLE-017の「PPが0のまま」という
- * 前提が成り立たない）。TurnStarted検証はMemoryだけの効果を見たいので、
- * `triggers`を1件も持たないPSだけのUnit（`UNIT_MAIA_LAZY`）で編成する。
- */
-const TURN_ALLY_MEMBERS = [
-  {
-    battleUnitId: "ally:turn_front",
-    unitDefinitionId: "UNIT_MAIA_LAZY",
-    attribute: "SHY",
-    position: { row: "FRONT", column: "LEFT" },
-  },
-  {
-    battleUnitId: "ally:turn_back",
-    unitDefinitionId: "UNIT_MAIA_LAZY",
-    attribute: "SHY",
-    position: { row: "BACK", column: "LEFT" },
-  },
-] as const satisfies readonly RosterMember[];
-
-const TURN_ENEMY_MEMBERS = [
-  {
-    battleUnitId: "enemy:turn_front",
-    unitDefinitionId: "UNIT_MAIA_LAZY",
-    attribute: "SHY",
-    position: { row: "FRONT", column: "CENTER" },
-  },
-] as const satisfies readonly RosterMember[];
-
 const UNIT_DEFINITION_IDS = [
-  ...new Set(
-    [
-      ...ALLY_MEMBERS,
-      ...ENEMY_MEMBERS,
-      ...FUUKI_ALLY_MEMBERS,
-      ...TURN_ALLY_MEMBERS,
-      ...TURN_ENEMY_MEMBERS,
-    ].map((member) => member.unitDefinitionId),
-  ),
+  ...new Set([...ALLY_MEMBERS, ...ENEMY_MEMBERS].map((member) => member.unitDefinitionId)),
 ];
 
 const snapshot = loadProductionSnapshot(CATALOG_DIR, UNIT_DEFINITION_IDS, M7_008_MEMORY_IDS);
@@ -254,25 +204,21 @@ function battleUnitOf(member: RosterMember, side: Side): BattleUnit {
 }
 
 interface StartOptions {
-  readonly allyMemoryDefinitionIds?: readonly string[];
-  readonly enemyMemoryDefinitionIds?: readonly string[];
-  readonly allyMembers?: readonly RosterMember[];
-  readonly enemyMembers?: readonly RosterMember[];
-  readonly turnLimit?: number;
+  readonly allyMemoryDefinitionIds: readonly string[];
 }
 
 function startWith(options: StartOptions) {
   const recorder = new EventRecorder(createBattleId("B_1"));
   const created = createBattle(
     createBattleId("B_1"),
-    (options.allyMembers ?? ALLY_MEMBERS).map((member) => battleUnitOf(member, "ALLY")),
-    (options.enemyMembers ?? ENEMY_MEMBERS).map((member) => battleUnitOf(member, "ENEMY")),
-    createTurnLimit(options.turnLimit ?? 3),
+    ALLY_MEMBERS.map((member) => battleUnitOf(member, "ALLY")),
+    ENEMY_MEMBERS.map((member) => battleUnitOf(member, "ENEMY")),
+    createTurnLimit(3),
     definitionsWith(snapshot, {
       overrides: {
         memoriesBySide: {
-          ALLY: (options.allyMemoryDefinitionIds ?? []).map((id) => memoryFrom(snapshot, id)),
-          ENEMY: (options.enemyMemoryDefinitionIds ?? []).map((id) => memoryFrom(snapshot, id)),
+          ALLY: options.allyMemoryDefinitionIds.map((id) => memoryFrom(snapshot, id)),
+          ENEMY: [],
         },
       },
     }),
@@ -294,10 +240,6 @@ function unitBy(units: readonly BattleUnit[], battleUnitId: string): BattleUnit 
 
 function allyBy(battle: { readonly allyUnits: readonly BattleUnit[] }, battleUnitId: string) {
   return unitBy(battle.allyUnits, battleUnitId);
-}
-
-function enemyBy(battle: { readonly enemyUnits: readonly BattleUnit[] }, battleUnitId: string) {
-  return unitBy(battle.enemyUnits, battleUnitId);
 }
 
 function unitSnapshotOf(state: BattleStateSnapshot, battleUnitId: string) {
@@ -1162,164 +1104,6 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     }
   });
 
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-002: MEM_FUUKI_IINKAI raises ATTACK only for its AFF_FUUKI_IINKAI member, and its affiliation triggeredEffect emits no MemoryTriggered at all when the party has no member", () => {
-    const withMember = startWith({
-      allyMemoryDefinitionIds: ["MEM_FUUKI_IINKAI"],
-      allyMembers: FUUKI_ALLY_MEMBERS,
-    });
-
-    expect(allyBy(withMember.battle, "ally:fuuki_iinkai").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK + 250,
-      6,
-    );
-    expect(allyBy(withMember.battle, "ally:unaffiliated").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK,
-      6,
-    );
-    // 効果2「味方全体の行動速度を12上昇」は所属に関係なく両方へ乗る。
-    for (const member of FUUKI_ALLY_MEMBERS) {
-      expect(allyBy(withMember.battle, member.battleUnitId).combatStats.actionSpeed).toBeCloseTo(
-        BASE_ACTION_SPEED + 12,
-        6,
-      );
-    }
-    expect(
-      withMember.recorder
-        .getEvents()
-        .filter((event) => event.eventType === "MemoryTriggered")
-        .map((event) => (event.payload as { triggeredEffectIndex: number }).triggeredEffectIndex),
-    ).toEqual([0, 1]);
-
-    // 境界: 誰も所属していない編成では、対象0件の効果1は`MemoryTriggered`自体を
-    // 発行しない（`08_ドメインイベント.md`「発動直前の再確認」）。効果2は発動する。
-    const withoutMember = startWith({ allyMemoryDefinitionIds: ["MEM_FUUKI_IINKAI"] });
-    expect(
-      withoutMember.recorder
-        .getEvents()
-        .filter((event) => event.eventType === "MemoryTriggered")
-        .map((event) => (event.payload as { triggeredEffectIndex: number }).triggeredEffectIndex),
-    ).toEqual([1]);
-    for (const member of ALLY_MEMBERS) {
-      expect(allyBy(withoutMember.battle, member.battleUnitId).combatStats.attack).toBeCloseTo(
-        BASE_ATTACK,
-        6,
-      );
-      expect(allyBy(withoutMember.battle, member.battleUnitId).combatStats.actionSpeed).toBeCloseTo(
-        BASE_ACTION_SPEED + 12,
-        6,
-      );
-    }
-  });
-
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-003: MEM_INCOGNITO_SISTER_ADVENTURE combines an AFFILIATION-filtered fixed DEFENSE buff with a ROLE-filtered ratio ATTACK buff over disjoint ally sets", () => {
-    const { battle } = startWith({
-      allyMemoryDefinitionIds: ["MEM_INCOGNITO_SISTER_ADVENTURE"],
-    });
-
-    // 効果1「ピクシス・マスールに所属するキャラクターの防御力を800上昇」
-    expect(allyBy(battle, "ally:pyxis_ma_soeur").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE + 800,
-      6,
-    );
-    expect(allyBy(battle, "ally:chaos_maiden").combatStats.defense).toBeCloseTo(BASE_DEFENSE, 6);
-    // 効果2「物理アタッカーの攻撃力を2.5％上昇」— TANKのPyxisメンバーには乗らない
-    expect(allyBy(battle, "ally:chaos_maiden").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK * 1.025,
-      6,
-    );
-    expect(allyBy(battle, "ally:pyxis_ma_soeur").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-    expect(allyBy(battle, "ally:pyxis_ma_soeur").appliedEffects).toHaveLength(1);
-    expect(allyBy(battle, "ally:chaos_maiden").appliedEffects).toHaveLength(1);
-    expect(allyBy(battle, "ally:sirius_sugar").appliedEffects).toHaveLength(0);
-    // 敵側の`AFF_PYXIS_MA_SOEUR`メンバーには適用されない。
-    expect(enemyBy(battle, "enemy:pyxis_ma_soeur").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE,
-      6,
-    );
-  });
-
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-004: MEM_CURIOUS_EQUIPMENT buffs its own party's MAXIMUM_HP and debuffs only the opposing FRONT row, resolving side: ENEMY relative to the party that equipped it", () => {
-    const equippedByAlly = startWith({ allyMemoryDefinitionIds: ["MEM_CURIOUS_EQUIPMENT"] });
-
-    for (const member of ALLY_MEMBERS) {
-      expect(allyBy(equippedByAlly.battle, member.battleUnitId).combatStats.maximumHp).toBeCloseTo(
-        BASE_MAXIMUM_HP + 2500,
-        6,
-      );
-    }
-    // 効果2「敵前衛の防御力を1％下降」— 敵の前衛だけ、味方の前衛には乗らない。
-    expect(enemyBy(equippedByAlly.battle, "enemy:front").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE * 0.99,
-      6,
-    );
-    expect(enemyBy(equippedByAlly.battle, "enemy:pyxis_ma_soeur").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE,
-      6,
-    );
-    expect(enemyBy(equippedByAlly.battle, "enemy:front").combatStats.maximumHp).toBeCloseTo(
-      BASE_MAXIMUM_HP,
-      6,
-    );
-    expect(allyBy(equippedByAlly.battle, "ally:chaos_maiden").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE,
-      6,
-    );
-
-    // 同じMemoryを敵陣営が指定した場合、`side: ENEMY`は味方陣営へ解決する。
-    const equippedByEnemy = startWith({ enemyMemoryDefinitionIds: ["MEM_CURIOUS_EQUIPMENT"] });
-    for (const enemy of equippedByEnemy.battle.enemyUnits) {
-      expect(enemy.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP + 2500, 6);
-    }
-    expect(allyBy(equippedByEnemy.battle, "ally:chaos_maiden").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE * 0.99,
-      6,
-    );
-    expect(allyBy(equippedByEnemy.battle, "ally:sirius_sugar").combatStats.defense).toBeCloseTo(
-      BASE_DEFENSE,
-      6,
-    );
-  });
-
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-005: MEM_DISCONTENT_AND_ANXIETY applies its BattleStarted back-row buff exactly once and re-applies its TurnStarted front-row buff on every turn", () => {
-    const { battle, recorder } = startWith({
-      allyMemoryDefinitionIds: ["MEM_DISCONTENT_AND_ANXIETY"],
-      allyMembers: TURN_ALLY_MEMBERS,
-      enemyMembers: TURN_ENEMY_MEMBERS,
-      turnLimit: 3,
-    });
-
-    // 戦闘開始時点: 効果2（後衛HP+1500）だけが適用され、効果1はまだ発動しない。
-    expect(allyBy(battle, "ally:turn_back").combatStats.maximumHp).toBeCloseTo(
-      BASE_MAXIMUM_HP + 1500,
-      6,
-    );
-    expect(allyBy(battle, "ally:turn_front").combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP, 6);
-    expect(allyBy(battle, "ally:turn_front").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-
-    const afterTurn1 = advanceBattle(battle, new SequenceRandomSource([]), recorder);
-    expect(allyBy(afterTurn1, "ally:turn_front").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK * 1.01,
-      6,
-    );
-    expect(allyBy(afterTurn1, "ally:turn_back").combatStats.attack).toBeCloseTo(BASE_ATTACK, 6);
-
-    const afterTurn2 = advanceBattle(afterTurn1, new SequenceRandomSource([]), recorder);
-    // 「ターン開始時に発動」は毎ターン重ねて付与される（raw原文に期間の指定はない）。
-    expect(allyBy(afterTurn2, "ally:turn_front").appliedEffects).toHaveLength(2);
-    expect(allyBy(afterTurn2, "ally:turn_front").combatStats.attack).toBeCloseTo(
-      BASE_ATTACK * 1.02,
-      6,
-    );
-    // 効果2は`BattleStarted`のみ — ターンが進んでも増えない。
-    expect(allyBy(afterTurn2, "ally:turn_back").appliedEffects).toHaveLength(1);
-    expect(allyBy(afterTurn2, "ally:turn_back").combatStats.maximumHp).toBeCloseTo(
-      BASE_MAXIMUM_HP + 1500,
-      6,
-    );
-    // 敵前衛はMemoryを指定していないので一切影響を受けない。
-    expect(enemyBy(afterTurn2, "enemy:turn_front").appliedEffects).toHaveLength(0);
-  });
-
   it("IT-CAP-MEMORY-DYNAMIC-PROD-006: M7-008 Memories emit MemoryTriggered/MemoryResolved with a sourceSide instead of a granter unit, and their StateDeltas alone reconstruct the started battle", () => {
     const { created, battle, recorder } = startWith({
       allyMemoryDefinitionIds: ORDERING_MEMORY_IDS,
@@ -1389,63 +1173,6 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     const restoredEnemyFront = unitSnapshotOf(reconstructed, "enemy:front");
     expect(restoredEnemyFront?.effects).toHaveLength(1);
     expect(restoredEnemyFront?.combatStats.defense).toBeCloseTo(BASE_DEFENSE * 0.99, 6);
-  });
-
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-007: MEM_ALWAYS_PICO_BESIDE_YOU grants the BACK CENTER ally a one-action ATTACK buff and the 三ツ星 Marker with a sourceSide and no granter unit (R-MEM-04), and its StateDeltas alone reconstruct that Marker", () => {
-    const { created, battle, recorder } = startWith({
-      allyMemoryDefinitionIds: ["MEM_ALWAYS_PICO_BESIDE_YOU"],
-    });
-
-    // 効果1「中央列後衛の味方の攻撃力を1行動の間3000上昇させる。さらに「三ツ星」を付与する」
-    const backCenter = allyBy(battle, "ally:treble_quintet");
-    expect(backCenter.combatStats.attack).toBeCloseTo(BASE_ATTACK + 3000, 6);
-    expect(backCenter.markerStates).toHaveLength(1);
-    const marker = backCenter.markerStates[0]!;
-    expect(marker.markerId).toBe(PICO_MARKER_ID);
-    expect(marker.stackCount).toBe(1);
-    expect(marker.sourceUnitId).toBeUndefined();
-    expect(marker.sourceSide).toBe("ALLY");
-    // raw原文の「1行動の間」は攻撃力バフだけに掛かる修飾で、「三ツ星」自体には
-    // 期間の指定がないため戦闘終了まで残る。
-    expect(marker.duration.definition.timeLimit).toEqual({ unit: "BATTLE", count: 1 });
-    // 攻撃力バフ側は保持者自身の1行動で減算する（Memoryは付与者ユニットを持たないため
-    // `timeLimit.owner`は`EFFECT_TARGET`）。
-    const attackBuff = backCenter.appliedEffects.find(
-      (effect) =>
-        effect.effectActionDefinitionId === "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_BACK_CENTER_ATK_UP",
-    );
-    expect(attackBuff?.duration.timeLimitRemaining).toBe(1);
-
-    // 効果2「味方のHPと防御力を300上昇させる」は味方全体、Markerは中央列後衛だけ。
-    for (const member of ALLY_MEMBERS) {
-      const ally = allyBy(battle, member.battleUnitId);
-      expect(ally.combatStats.maximumHp).toBeCloseTo(BASE_MAXIMUM_HP + 300, 6);
-      expect(ally.combatStats.defense).toBeCloseTo(BASE_DEFENSE + 300, 6);
-      expect(ally.markerStates).toHaveLength(member.battleUnitId === "ally:treble_quintet" ? 1 : 0);
-    }
-    for (const enemy of battle.enemyUnits) {
-      expect(enemy.markerStates).toHaveLength(0);
-      expect(enemy.appliedEffects).toHaveLength(0);
-    }
-
-    const applied = recorder.getEvents().filter((event) => event.eventType === "MarkerApplied");
-    expect(applied).toHaveLength(1);
-    expect(applied[0]!.sourceUnitId).toBeUndefined();
-    expect(applied[0]!.sourceSide).toBe("ALLY");
-
-    const before = captureBattleState(created);
-    const after = captureBattleState(battle);
-    const deltas = recorder
-      .getEvents()
-      .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta]));
-    const reconstructed = reduceStateDeltas(before, deltas);
-
-    expect(reconstructed).toEqual(after);
-    const restored = unitSnapshotOf(reconstructed, "ally:treble_quintet");
-    expect(restored?.markers).toHaveLength(1);
-    expect(restored?.markers?.[0]?.markerId).toBe(PICO_MARKER_ID);
-    expect(restored?.markers?.[0]?.sourceUnitId).toBeUndefined();
-    expect(restored?.markers?.[0]?.sourceSide).toBe("ALLY");
   });
 
   it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and none of them stays gated by an unimplemented Capability", () => {
