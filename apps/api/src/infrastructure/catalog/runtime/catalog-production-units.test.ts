@@ -56,7 +56,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (`effect-step-condition-evaluator.ts`'s `EffectStepTargetContext`,
     // `skill-resolution-service.ts`'s `buildEffectStepPerTargetFilter`), wiring
     // the real lifecycle for `SKL_AOI_ELEGANT_EX`/`SKL_LUCIE_MAID_AS1`/
-    // `SKL_LUCIE_MAID_PS2`/`SKL_ROSIE_ARTIST_PS2` (`IT-CAP-EFFSTEP-001〜004`).
+    // `SKL_LUCIE_MAID_PS2`/`SKL_ROSIE_ARTIST_PS2` (originally `IT-CAP-EFFSTEP-001〜004`,
+    // migrated to the unit-effect axis by REF-036/Issue #383 —
+    // `IT-UNIT-AOI-ELEGANT-005`/`IT-UNIT-LUCIE-MAID-006`/`007`, and the
+    // `SKL_ROSIE_ARTIST_PS2` split is carried by `IT-UNIT-ROSIE-ARTIST-001`).
     // This capability's completion boundary is
     // narrowed to exclude "集合条件" (set-threshold) — no ConditionKind exists
     // for it yet, so it isn't part of what `IMPLEMENTED` claims here. It becomes

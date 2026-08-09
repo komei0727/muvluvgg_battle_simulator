@@ -13,6 +13,7 @@ import {
   collectedExecutedActionIds,
   observeSkillUse,
   resetExecutedActionIds,
+  selectedActiveSkill,
   type BoardUnitSpec,
   type PrecedingAction,
   type SkillBehaviourCase,
@@ -491,5 +492,23 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-LYDIA-GENIUS-004 (R-ACT-02): AS1の実 TARGET_SET_COUNT は行動選択層で評価され、右列にも左列にも敵が居ない盤面ではAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
+    // 既定盤面は左列に敵が居るため集合が1体以上ある。
+    expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
+      "SKL_LYDIA_GENIUS_AS1",
+    );
+
+    // `TARGET_SET_COUNT` が見る `TGT_COLUMNS` はこのスキル自身のbindingでもあるため、
+    // 集合が空になる不成立はR-TGT-01 #4（空bindingは常に発動不能）とも重なる。
+    // 条件評価パイプラインがそこでスローせず候補除外として扱われることの証跡。
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { enemies: CENTER_ONLY_ENEMIES },
+      }),
+    ).toBe("SKL_LYDIA_GENIUS_AS2");
   });
 });

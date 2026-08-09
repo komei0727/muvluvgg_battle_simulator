@@ -547,4 +547,50 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       initialSnapshotFor([holder], { include: ["effects", "markers"] }).units[holder.battleUnitId],
     );
   });
+
+  it("IT-UNIT-AOI-ELEGANT-005 (R-SKL-06): EXの対象別条件 `TARGET_HAS_MARKER(「浮足」)` は対象ごとに評価され、同じ前後列でも「浮足」を持つ敵だけが攻撃力低下を受ける（攻撃は両方が受ける）", () => {
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_AOI_ELEGANT_EX" },
+        // 基準敵は「浮足」の数が最も多い敵。その前後列（LEFT列）へ未所持の敵を置く。
+        board: {
+          enemies: [
+            {
+              id: "enemy:marked",
+              position: { column: "LEFT", row: "FRONT" },
+              markers: [{ markerId: UKIASHI }],
+            },
+            { id: "enemy:unmarked", position: { column: "LEFT", row: "BACK" } },
+            { id: "enemy:other", position: { column: "CENTER", row: "FRONT" } },
+          ],
+        },
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_EX_DAMAGE", targets: ["enemy:marked"] },
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_EX_DAMAGE", targets: ["enemy:unmarked"] },
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_EX_ATK_DOWN", targets: ["enemy:marked"] },
+        // リセットはPS1がクールタイム中でなければ何も動かさない（no-op）。
+        {
+          effectActionDefinitionId: "ACT_AOI_ELEGANT_EX_CD_RESET",
+          targets: ["ally:subject"],
+          resultKind: "SKIPPED",
+        },
+      ],
+      hpDeltas: {
+        "enemy:marked": -901,
+        "enemy:unmarked": -901,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:marked",
+          effectActionDefinitionId: "ACT_AOI_ELEGANT_EX_ATK_DOWN",
+          magnitude: -0.15,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+    });
+  });
 });

@@ -35,6 +35,16 @@ const ENERGY_ENEMIES: readonly BoardUnitSpec[] = [
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" }, unitType: "ENERGY" },
 ];
 
+/**
+ * 同じ「敵前後列」（CENTER列）に物理型とEN型が混ざる盤面。対象別条件が対象ごとに
+ * 評価されることは、集合が同じ型で揃っていると当たり外れの差として現れない。
+ */
+const MIXED_TYPE_ENEMIES: readonly BoardUnitSpec[] = [
+  { id: "enemy:front", position: { column: "CENTER", row: "FRONT" }, unitType: "PHYSICAL" },
+  { id: "enemy:left", position: { column: "LEFT", row: "FRONT" }, unitType: "ENERGY" },
+  { id: "enemy:back", position: { column: "CENTER", row: "BACK" }, unitType: "ENERGY" },
+];
+
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
@@ -384,5 +394,88 @@ describe("production Catalog UNIT_LUCIE_MAID (【忠義の狂犬メイド】リ�
     expect(guardedBy(attackerOfType("PHYSICAL"))).toBe(true);
     expect(guardedBy(attackerOfType("AGILE"))).toBe(true);
     expect(guardedBy(attackerOfType("ENERGY"))).toBe(false);
+  });
+
+  it("IT-UNIT-LUCIE-MAID-006 (R-SKL-06): AS1の対象別条件 `OR(UNIT_TYPE PHYSICAL, AGILE)` は同じ対象集合の中で対象ごとに評価され、混在した列では物理型だけが気絶を受け取る（速度低下は全員が受ける）", () => {
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_LUCIE_MAID_AS1" },
+        board: { enemies: MIXED_TYPE_ENEMIES },
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_SPEED_DOWN", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_SPEED_DOWN", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_STUN", targets: ["enemy:front"] },
+      ],
+      hpDeltas: {
+        "enemy:front": -953,
+        "enemy:back": -953,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_SPEED_DOWN",
+          magnitude: -150,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_STUN",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1 },
+          statusKind: "STUN",
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_SPEED_DOWN",
+          magnitude: -150,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_LUCIE_MAID_AS1", remaining: 2 },
+      ],
+    });
+  });
+
+  it("IT-UNIT-LUCIE-MAID-007 (R-SKL-06): PS2の同じ対象別条件も対象ごとに評価され、混在した列では物理型のPPだけが削られる（攻撃は全員が受ける）", () => {
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: {
+          kind: "PASSIVE",
+          skillDefinitionId: "SKL_LUCIE_MAID_PS2",
+          trigger: turnStarted({ turnNumber: 2 }),
+          triggeredBy: "ally:subject",
+          turnNumber: 2,
+        },
+        board: { enemies: MIXED_TYPE_ENEMIES },
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_PS2_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_PS2_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_LUCIE_MAID_PS2_PP_DOWN", targets: ["enemy:front"] },
+      ],
+      hpDeltas: {
+        "enemy:front": -848,
+        "enemy:back": -848,
+      },
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+        { unitId: "enemy:front", resource: "PP", delta: -1 },
+      ],
+    });
   });
 });

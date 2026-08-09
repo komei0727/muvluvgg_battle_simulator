@@ -49,6 +49,7 @@ import {
   testUnitDefinition,
   effectActionGroupContext,
   seedRecorder,
+  unitFrom,
   type SeededRecorder,
 } from "../fixtures/index.js";
 import {
@@ -979,6 +980,40 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     ...(resources.length === 0 ? {} : { resources }),
     ...(cooldowns.length === 0 ? {} : { cooldowns }),
   };
+}
+
+export interface SelectActiveSkillOptions {
+  readonly snapshot: BattleCatalogSnapshot;
+  readonly unitDefinitionId: string;
+  readonly board?: BoardOverrides;
+}
+
+/**
+ * 実 `UnitDefinition` が宣言する順のASを行動選択層（R-ACT-02）へ丸ごと通し、
+ * 選ばれたスキルIDを返す（使用可能なASが1つも無ければ `"WAIT"`）。
+ *
+ * `activationCondition` は行動選択層が評価するため、`resolveSkillUse` を直接
+ * 呼ぶだけでは発動可否を見られない。さらに「条件が不成立のASを候補から外して
+ * **宣言順の次のAS**へ送る」という R-ACT-02 の送り先は、1スキルだけを渡す
+ * 観測（`observeSkillUse` の `activated: false`）には現れない — 宣言順の全ASを
+ * 渡すこの経路にしか現れない。
+ */
+export function selectedActiveSkill(options: SelectActiveSkillOptions): string {
+  const board = productionBoard(options.snapshot, options.unitDefinitionId, options.board);
+  const declared = unitFrom(
+    options.snapshot,
+    options.unitDefinitionId,
+  ).activeSkillDefinitionIds.map((skillDefinitionId) =>
+    skillFrom(options.snapshot, skillDefinitionId),
+  );
+  const selected = selectAsCandidate(
+    declared,
+    board.subject,
+    board.units,
+    board.definitions.unitDefinitions,
+    evaluateActivationCondition,
+  );
+  return selected.kind === "SKILL" ? selected.skill.skillDefinitionId : "WAIT";
 }
 
 /**

@@ -375,11 +375,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACT-02-010",
       "UT-R-ACT-02-011",
       "UT-R-ACT-02-012",
-      "IT-CAP-ACTION-ACTIVATION-CONDITION-001",
-      "IT-CAP-ACTION-ACTIVATION-CONDITION-002",
-      "IT-CAP-ACTION-ACTIVATION-CONDITION-003",
-      "IT-CAP-ACTION-ACTIVATION-CONDITION-004",
-      "IT-CAP-ACTION-ACTIVATION-CONDITION-005",
+      "IT-UNIT-ELENA-MOODMAKER-009",
+      "IT-UNIT-LYDIA-GENIUS-004",
+      "IT-UNIT-LILY-HERO-004",
+      "IT-UNIT-MAO-COMMITTEE-006",
+      "IT-UNIT-TATIANA-SAGE-007",
       "SCN-BTL-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
@@ -700,7 +700,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 自体はIssue #230で削除し、対応する`UT-R-SKL-06-013`〜015も除去した）と
   // production Catalog検証
   // （`IT-CAP-EFFSTEP-001`〜004）を追加した（他の条件kind・「集合条件」は
-  // 引き続き対象外）。Issue #171で、対象別条件を常に
+  // 引き続き対象外）。REF-036（Issue #383）でその機能軸をユニット効果軸
+  // （`IT-UNIT-AOI-ELEGANT-005`・`IT-UNIT-LUCIE-MAID-006`/`007`）へ移送した。
+  // Issue #171で、対象別条件を常に
   // `DeferredStepPlan`へ回し（`isEagerActionStep`）、`EffectStepStarting`由来の
   // 連鎖が確定した後の最新`box.units`で再評価する経路（`resolveAfterTiming`）へ
   // 修正し、先行stepおよび同stepの連鎖によるMarker変更を正しく反映することを
@@ -741,7 +743,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // へ広げ、`BRANCH`自身の`condition`（同じ理由で対象ごとの文脈を持たない）も
   // 対象に含めた。Issue #225（RES-004、親#171）で、raw原文取得により
   // `SKL_TATIANA_SAGE_EX`の「凶兆」2つ以上／未満の対象別分岐条件
-  // （`TARGET_HAS_MARKER`/`NOT(...)`、`IT-CAP-EFFSTEP-005`）を近似なしへ更新した。
+  // （`TARGET_HAS_MARKER`/`NOT(...)`、`IT-CAP-EFFSTEP-005`。REF-036／Issue #383 で
+  // `IT-UNIT-TATIANA-SAGE-008` へ移送した）を近似なしへ更新した。
   // デバフ本体（`APPLY_DAMAGE_MOD`）の実行時解決は`CAP_DAMAGE_MOD`（`DMG-002`、
   // Issue #192）待ちのため、`EffectSequencePlan`レベルの振り分け検証に留め、
   // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残していた。
@@ -773,7 +776,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `resolveRawStep`）をたどることを`UT-R-SKL-06-049`〜`051`で追加検証した。
   // 既存の対象別条件・
   // `TARGET_SET_COUNT`単体のテスト（`UT-R-SKL-06-016`〜`039`、
-  // `IT-CAP-EFFSTEP-001`〜`005`）は`stepCondition`/`targetCondition`への
+  // 当時の`IT-CAP-EFFSTEP-001`〜`005`）は`stepCondition`/`targetCondition`への
   // 機械的な読み替えのみで、検証内容自体は変えていない。
   // Issue #230: `resolveBranchStep`が常に`targetContext: undefined`で
   // `evaluateEffectStepCondition`を呼ぶため、production Catalogに既に存在した
@@ -905,13 +908,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001",
       "IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002",
       "IT-UNIT-TARISA-TROUBLEMAKER-006",
-      "IT-CAP-EFFSTEP-001",
-      "IT-CAP-EFFSTEP-002",
-      "IT-CAP-EFFSTEP-003",
-      "IT-CAP-EFFSTEP-004",
-      "IT-CAP-EFFSTEP-005",
+      "IT-UNIT-AOI-ELEGANT-005",
+      "IT-UNIT-LUCIE-MAID-006",
+      "IT-UNIT-LUCIE-MAID-007",
       "IT-UNIT-TATIANA-SAGE-004",
       "IT-UNIT-TATIANA-SAGE-006",
+      "IT-UNIT-TATIANA-SAGE-008",
       "UT-R-SKL-06-056",
       "UT-R-SKL-06-057",
       "UT-R-SKL-06-058",
