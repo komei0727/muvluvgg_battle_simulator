@@ -1152,7 +1152,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-CAP-TRIGGER-PAYLOAD-PROD-006",
       "IT-CAP-TRIGGER-PAYLOAD-PROD-007",
       "IT-CAT-PROD-013",
-      "IT-CAT-PROD-016",
+      // ターン境界は`sourceUnitId`/`targetUnitIds`を持たないグローバルイベントで、
+      // production Catalogの`SELF`/`SELF`はその帰属先不在に依拠して成立する。
+      "IT-UNIT-KARINA-DOWNER-004",
       "UT-R-PS-01-055",
       "UT-R-PS-01-056",
       "UT-R-PS-01-057",

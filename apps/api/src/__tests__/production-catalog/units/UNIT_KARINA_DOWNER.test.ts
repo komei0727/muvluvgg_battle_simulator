@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
+  activatedPassiveSkillIds,
+  openPassiveChain,
+} from "../../../testing/production-unit/passive-activation.js";
+import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -358,7 +363,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_KARINA_DOWNER_PS2",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { enemies: ENEMIES_BY_HP_RATIO },
@@ -468,5 +473,33 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-KARINA-DOWNER-004 (R-PS-01): PS2の実 `TurnCompleting` SELF/SELF trigger は、`battle.ts` の発行どおり `sourceUnitId`/`targetUnitIds` を持たないターン境界イベントに対して保持者自身で成立する", () => {
+    // `TurnStarted`/`TurnCompleting` は特定のBattleUnitに帰属しないグローバル
+    // イベントで、`battle.ts` はどちらの欄も設定せずに発行する。production Catalog
+    // はそれでも「自身のターン終了時」を `SELF`/`SELF` で表す（`TurnStarted` 27件・
+    // `TurnCompleting` 12件）ため、契機イベントに保持者を帰属させた形で候補検出を
+    // 通すと、この39行が実戦闘では候補化されない状態を見逃す。
+    const trigger = skillFrom(snapshot, "SKL_KARINA_DOWNER_PS2").triggers[0];
+    expect(trigger).toMatchObject({
+      eventType: "TurnCompleting",
+      sourceSelector: "SELF",
+      targetSelector: "SELF",
+    });
+
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_KARINA_TURN_END",
+    });
+    chain.fire(turnCompleting({ turnNumber: 1 }), board.units);
+
+    const recorded = chain.eventsOfType("TurnCompleting")[0];
+    expect(recorded).toBeDefined();
+    expect(recorded!.sourceUnitId).toBeUndefined();
+    expect(recorded!.targetUnitIds).toBeUndefined();
+    expect(activatedPassiveSkillIds(chain)).toContain("SKL_KARINA_DOWNER_PS2");
   });
 });

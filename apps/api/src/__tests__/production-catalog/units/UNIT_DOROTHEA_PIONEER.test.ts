@@ -201,7 +201,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_DOROTHEA_PIONEER_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {
@@ -241,7 +241,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_DOROTHEA_PIONEER_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
@@ -255,7 +255,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_DOROTHEA_PIONEER_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 2 }),
+      trigger: turnStarted({ turnNumber: 2 }),
       triggeredBy: "ally:subject",
       turnNumber: 2,
     },

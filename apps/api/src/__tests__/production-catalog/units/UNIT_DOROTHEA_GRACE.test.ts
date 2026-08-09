@@ -193,7 +193,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_DOROTHEA_GRACE_PS2",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: {
@@ -289,7 +289,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_DOROTHEA_GRACE_PS2",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: {

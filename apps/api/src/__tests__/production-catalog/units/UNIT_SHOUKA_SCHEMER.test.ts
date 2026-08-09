@@ -245,7 +245,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SHOUKA_SCHEMER_PS1",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 2 }),
+      trigger: turnCompleting({ turnNumber: 2 }),
       triggeredBy: "ally:subject",
       turnNumber: 2,
     },
@@ -276,7 +276,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SHOUKA_SCHEMER_PS1",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { enemies: ENEMIES_WITH_EX },
