@@ -39,12 +39,7 @@ import {
  * - `TurnStarted` 発動の triggeredEffect が `BattleStarted` では候補にならず、
  *   R-MEM-02の解決順から飛ばされること。
  *
- * `APPLY_DAMAGE_MOD` を含む9件は `CAP_DAMAGE_MOD` が `PLANNED` の間 preflight で
- * 弾かれていたが、`DMG-002`（Issue #192）が同Capabilityを `IMPLEMENTED` にしたため
- * 編成可能になった。Memory由来Markerを持つ `MEM_ALWAYS_PICO_BESIDE_YOU` も、v1 API契約が
- * 付与元なしMarkerを表現できるようになった `REL-008`（Issue #263）で編成可能になった。
- * ここではCatalog上の変換が近似なしであることと、20件すべてが編成可能であることを
- * 固定する（API公開形そのものは
+ * ここではCatalog上の変換が近似なしであることを固定する（API公開形そのものは
  * `memory-granted-marker-api-production-catalog.test.ts`が担う）。
  *
  * 単一Memoryへ閉じていた5件（旧 `-002`〜`-005`／`-007`）と、6 Memoryを1件ずつ
@@ -83,7 +78,7 @@ const M7_008_MEMORY_IDS = [
 
 /**
  * R-MEM-02の順序・`sourceSide`・StateDelta復元をまとめて見るための編成。
- * Capability preflightを通る10件のうち、`SimulationExecutionGuard`の
+ * `SimulationExecutionGuard`の
  * 「1解決スコープ内の効果解決数」上限（50件、`passive-activation-service.ts`）に
  * 収まる6件を、興味のある性質（所属フィルタ・対象0件のskip・ROLEフィルタ・
  * `TurnStarted`のskip・敵側対象）が全部揃うように選ぶ。
@@ -238,9 +233,8 @@ function unitSnapshotOf(state: BattleStateSnapshot, battleUnitId: string) {
 
 /**
  * 変換の「近似なし」を1行ずつ固定するための、raw原文→定義の対応表。
- * `APPLY_DAMAGE_MOD`を含む9件は`DMG-002`（Issue #192）以降Capability preflightを
- * 通る（実ライフサイクルでの与ダメージ補正の適用そのものは
- * `damage-modifier-policy.ts`側テストが担う）。Domain解決を完走できる各件についても、
+ * 実ライフサイクルでの与ダメージ補正の適用そのものは
+ * `damage-modifier-policy.ts`側テストが担う。Domain解決を完走できる各件についても、
  * 実行結果の期待値がraw原文のどこ由来かをここで固定する。
  */
 interface ActionExpectation {
@@ -279,11 +273,6 @@ interface TriggeredEffectExpectation {
 interface MemoryExpectation {
   readonly memoryDefinitionId: string;
   readonly displayName: string;
-  /**
-   * Capability preflightがこのMemoryを編成不可として弾く原因のCapability。
-   * 空配列なら編成可能で、現在は20件すべてが空である。
-   */
-  readonly gatedBy: readonly string[];
   readonly triggeredEffects: readonly TriggeredEffectExpectation[];
 }
 
@@ -299,7 +288,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の防御力を200上昇させる」
     memoryDefinitionId: "MEM_CHAOS_MAIDEN",
     displayName: "Chaos Maiden",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -332,7 +320,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の攻撃力を250上昇させる」
     memoryDefinitionId: "MEM_COLORFUL_BOUQUET",
     displayName: "Colorful Bouquet",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -365,7 +352,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の行動速度を12上昇させる」
     memoryDefinitionId: "MEM_PYXIS_MA_SOEUR",
     displayName: "Pyxis Ma Soeur",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -398,7 +384,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体のHPを300上昇させる」
     memoryDefinitionId: "MEM_SIRIUS_SUGAR",
     displayName: "Sirius Sugar",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -431,7 +416,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の会心率を1%上昇させる」
     memoryDefinitionId: "MEM_TREBLE_QUINTET",
     displayName: "Treble Quintet",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -464,7 +448,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の防御力を200上昇させる」
     memoryDefinitionId: "MEM_TRINITY_JEWEL",
     displayName: "Trinity Jewel",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -497,7 +480,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の行動速度を12上昇させる」
     memoryDefinitionId: "MEM_FUUKI_IINKAI",
     displayName: "風紀委員会",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -530,7 +512,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：物理アタッカーの攻撃力を2.5％上昇させる」
     memoryDefinitionId: "MEM_INCOGNITO_SISTER_ADVENTURE",
     displayName: "お忍びシスターの冒険",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -563,7 +544,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：コントロールの味方全員の攻撃力を1250上昇させる」
     memoryDefinitionId: "MEM_SHAPING_FAMILY",
     displayName: "家族のかたちを象りながら",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -596,7 +576,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方前衛の防御力を2.5％上昇させる」
     memoryDefinitionId: "MEM_TENT_COMMOTION",
     displayName: "密着！？テントの中の珍騒動",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -629,7 +608,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：敵後衛の行動速度を70下降させる」
     memoryDefinitionId: "MEM_ELOPEMENT_FULL_THROTTLE",
     displayName: "駆け落ちフルスロットル！",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -662,7 +640,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：タンクの防御力を1000上昇させる」
     memoryDefinitionId: "MEM_NAUGHTY_PENALTY_GAME",
     displayName: "エッ◯な罰ゲームやってみた",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -695,7 +672,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：左列後衛の味方の攻撃力を1行動の間2500上昇させる」
     memoryDefinitionId: "MEM_SOOTHING_SCENT",
     displayName: "安心する香り",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -732,7 +708,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の会心率を1％上昇させる」
     memoryDefinitionId: "MEM_ENCOUNTER_WITH_GIRLS",
     displayName: "少女たちとの邂逅",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -765,7 +740,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方全体の攻撃力を250上昇させる」
     memoryDefinitionId: "MEM_NEW_YEAR_GREETING",
     displayName: "新年のご挨拶",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -798,7 +772,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：味方前衛のHPを1500上昇させる」
     memoryDefinitionId: "MEM_CATS_AND_DOGS_BOND",
     displayName: "腐れ縁で犬猿の仲？",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -831,7 +804,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：戦闘開始時に発動。味方後衛のHPを1500上昇させる」
     memoryDefinitionId: "MEM_DISCONTENT_AND_ANXIETY",
     displayName: "不満と不安",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "TurnStarted",
@@ -864,7 +836,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：戦闘開始時に発動。味方後衛の防御力を1000上昇させる」
     memoryDefinitionId: "MEM_BUSY_DAY_SLUMBER",
     displayName: "忙しい時のまどろみ",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "TurnStarted",
@@ -901,7 +872,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     memoryDefinitionId: "MEM_ALWAYS_PICO_BESIDE_YOU",
     displayName: "お傍にいるのはいつでもピコですよ♪",
     // `CAP_MEMORY_GRANTED_MARKER`はREL-008（Issue #263）でv1契約へ公開済み。
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -946,7 +916,6 @@ const MEMORY_EXPECTATIONS: readonly MemoryExpectation[] = [
     //   効果２：敵前衛の防御力を1％下降させる」
     memoryDefinitionId: "MEM_CURIOUS_EQUIPMENT",
     displayName: "気になる装備",
-    gatedBy: [],
     triggeredEffects: [
       {
         eventType: "BattleStarted",
@@ -1048,7 +1017,7 @@ describe("production Catalog M7-008 affiliation / dynamic Memory conversions (Is
     expect(restoredEnemyFront?.combatStats.defense).toBeCloseTo(BASE_DEFENSE * 0.99, 6);
   });
 
-  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation, and none of them stays gated by an unimplemented Capability", () => {
+  it("IT-CAP-MEMORY-DYNAMIC-PROD-008: every M7-008 Memory converts each raw filter, trigger timing and magnitude without approximation", () => {
     expect(MEMORY_EXPECTATIONS.map((expectation) => expectation.memoryDefinitionId)).toEqual([
       ...M7_008_MEMORY_IDS,
     ]);

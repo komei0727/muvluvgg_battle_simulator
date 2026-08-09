@@ -1,16 +1,16 @@
 /**
  * production Catalog 全ID網羅監査のallowlist台帳。
  *
- * 全Unit・Memoryは最終的に `src/__tests__/production-catalog/units/<UNIT_ID>.test.ts`
+ * 全Unit・Memoryは `src/__tests__/production-catalog/units/<UNIT_ID>.test.ts`
  * ／`memories/<MEM_ID>.test.ts` のユニット単位結合テストで全Skill・全EffectActionの
- * 効果発現が検証される（`12_テスト戦略.md`）。この台帳は移行が完了していない定義を
+ * 効果発現が検証される（`12_テスト戦略.md`）。この台帳はまだ載っていない定義を
  * 明示的に列挙する。掲載中の定義には対応テストファイルが存在してはならず
- * （カバー済みの残留を禁止し、バッチごとの縮小を強制する）、掲載外の定義には
- * 全ID参照を含むテストファイルが存在しなければならない。検証は
- * {@link ./production-id-coverage.test.ts} が行う。
+ * （カバー済みの残留を禁止する）、掲載外の定義には全ID参照を含むテストファイルが
+ * 存在しなければならない。検証は {@link ./production-id-coverage.test.ts} が行う。
  *
- * 台帳はIDを增やす方向へ編集してはならない。新規Unit・Memoryを追加する場合は
- * 同一PRでユニット単位結合テストを書く。
+ * **両台帳は現在空である。** 機構自体は将来のUnit・Memory追加へ備えて存置するが、
+ * 台帳はIDを増やす方向へ編集してはならないため、追加分をここへ載せて先送りすることは
+ * できない — 新規Unit・Memoryは同一PRでユニット単位結合テストを書く。
  */
 
 /**

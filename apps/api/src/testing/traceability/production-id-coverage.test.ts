@@ -176,11 +176,23 @@ describe("Production ID coverage audit", () => {
     ).toEqual([]);
   });
 
+  it("UT-AUDIT-UNITCOV-005: both allowlists are empty", () => {
+    // 001〜003は「allowlistに載っている定義」を検査の対象外へ落とすため、
+    // **新規**定義をCatalogへ足してallowlistへも足し、テストファイルを作らない変更を
+    // 3つとも通してしまう（001は対象外、002はファイルが無いので成功、003は分割が成立）。
+    // allowlistが空であること自体をここで固定して、この抜け道を塞ぐ。
+    expect(
+      { units: UNCOVERED_UNIT_IDS, memories: UNCOVERED_MEMORY_IDS },
+      "新規Unit・Memoryはallowlistへ載せて先送りできない（`12_テスト戦略.md`「production 全ID網羅監査」）。" +
+        "同一PRで `production-catalog/units/<UNIT_ID>.test.ts` ／ `memories/<MEM_ID>.test.ts` を書くこと。",
+    ).toEqual({ units: [], memories: [] });
+  });
+
   it("UT-AUDIT-UNITCOV-004: ID matching is word-bounded so a longer ID does not vouch for its prefix", () => {
-    // 監査001の本体（allowlist外の定義に対する照合）は、allowlistが全件である間は
-    // 一度も実行されない。照合の取りこぼしがバッチ移行の最初のPRまで露見しないため、
-    // 判定関数自体をここで直接検証する。production Catalogには一方が他方の接頭辞に
+    // 判定関数自体を直接検証する。production Catalogには一方が他方の接頭辞に
     // なるIDが43組実在し、そのうち34ユニット分は同一ユニットのrequiredIds内に同居する。
+    // 監査001は照合が緩んでも「全ID参照済み」と読めてしまうため、緩んでいないことを
+    // 001とは独立に押さえる。
     const source = ['effectActionFrom(snapshot, "ACT_FEE_BATH_EX_DAMAGE_BOOSTED")'].join("\n");
     expect(unreferencedIds(source, ["ACT_FEE_BATH_EX_DAMAGE"])).toEqual(["ACT_FEE_BATH_EX_DAMAGE"]);
     expect(unreferencedIds(source, ["ACT_FEE_BATH_EX_DAMAGE_BOOSTED"])).toEqual([]);
