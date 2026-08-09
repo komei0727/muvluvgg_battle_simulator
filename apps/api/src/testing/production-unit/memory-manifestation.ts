@@ -16,6 +16,7 @@ import type {
   StatKind,
   UnitType,
 } from "../../domain/catalog/definitions/catalog-enums.js";
+import type { TargetFilterDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../random/sequence-random-source.js";
@@ -235,6 +236,12 @@ export interface MemoryMarkerGrant {
  * 引かない）では、`count: "ALL"` が `count: 1` へ退行しても `unitIds` が変わらない。
  * 対象集合の宣言そのものを観測へ載せてこの死角を塞ぐ。
  *
+ * `filters` も同じ理由で持つ。当たったスロットが1体だけの行では**別の絞り込みへ
+ * 差し替えても同じ1体を引く**（`MEM_ABSOLUTE_ORDER` の `ROLE: PHYSICAL_ATTACKER` を
+ * `POSITION_ROW: FRONT`＋`POSITION_COLUMN: LEFT` にしても固定盤面では同じ
+ * `ally:FRONT_LEFT` が当たる）ため、`unitIds` では原文の「物理アタッカーの味方全員」
+ * という契約の退行を検出できない。
+ *
  * `triggeredEffect` 1件につき `targetBindings` 1件が定義順に並ぶため、binding が
  * 増減した場合も表の行数が変わって落ちる。
  */
@@ -247,6 +254,8 @@ export interface MemoryTargetSelection {
    */
   readonly side?: SelectorSide;
   readonly count?: number | "ALL";
+  /** 絞り込み。空配列は「陣営全体から絞り込まない」という宣言そのもの。 */
+  readonly filters: readonly TargetFilterDefinition[];
 }
 
 /**
@@ -456,6 +465,7 @@ function targetSelectionsOf(
         kind: binding.selector.kind,
         ...(binding.selector.side === undefined ? {} : { side: binding.selector.side }),
         ...(binding.selector.count === undefined ? {} : { count: binding.selector.count }),
+        filters: binding.selector.filters ?? [],
       })),
   );
 }

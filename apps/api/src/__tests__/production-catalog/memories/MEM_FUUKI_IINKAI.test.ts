@@ -70,11 +70,17 @@ describe("production Catalog MEM_FUUKI_IINKAI (風紀委員会)", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", BOARD);
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
     // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
-    // なる陣営全員）が `count: 1` へ退行しても `unitIds` は変わらないため、宣言
-    // そのものを固定する。
+    // なる陣営全員）が `count: 1` へ退行しても、絞り込みを同じ1体を引く別の
+    // `filters` へ差し替えても `unitIds` は変わらない。宣言そのものを固定する。
     expect(observed.targetSelections).toEqual([
-      { triggeredEffectIndex: 0, kind: "SELECT", side: "ALLY", count: "ALL" },
-      { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL" },
+      {
+        triggeredEffectIndex: 0,
+        kind: "SELECT",
+        side: "ALLY",
+        count: "ALL",
+        filters: [{ kind: "AFFILIATION", affiliationId: "AFF_FUUKI_IINKAI" }],
+      },
+      { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL", filters: [] },
     ]);
     expect(observed.markers).toEqual([]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
