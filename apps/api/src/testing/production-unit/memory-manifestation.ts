@@ -259,12 +259,35 @@ export interface MemoryTargetSelection {
 }
 
 /**
+ * 発動した`triggeredEffect` 1件が、EffectActionを**実際に発行した順**。
+ *
+ * `grants`はEffectAction ID順、`markers`は別配列、`executedActionIds`は集合なので、
+ * どれも適用順を表さない。しかしR-MEM-04が委譲するR-SKL-06 #4は同じACTION stepの
+ * `actions`を**定義順**に適用する契約で、順序が入れ替わると
+ * `EffectApplied`／`MarkerApplied`の発行順が変わり、各イベントを契機にする
+ * PS・Memory連鎖の観測が変わり得る（`MEM_ALWAYS_PICO_BESIDE_YOU#0` の
+ * 「攻撃力バフ → 三ツ星Marker」など）。宣言ではなく実発行順を観測して固定する。
+ */
+export interface MemoryActionOrder {
+  readonly triggeredEffectIndex: number;
+  /**
+   * `EffectActionCompleted` が最初に発行された順のEffectAction ID。対象ごとの
+   * 繰り返しは畳む（下記 {@link actionOrderOf}）。production Memoryはどの
+   * `triggeredEffect` も同じEffectActionを2度宣言しないため、これは宣言された
+   * `actions` の並びと1対1に対応する。
+   */
+  readonly actionIds: readonly string[];
+}
+
+/**
  * 実`catalog/`のMemoryを片陣営が宣言した状態で`startBattle`を通し、
  * `BattleStarted`から配られた効果をEffectAction単位で観測する。
  * 効果を1件も受け取らなかったユニットは結果に現れない。
  */
 export interface MemoryObservation {
   readonly grants: readonly MemoryGrant[];
+  /** 発動した`triggeredEffect`ごとの、EffectActionの実発行順。 */
+  readonly actionOrder: readonly MemoryActionOrder[];
   /**
    * 全`triggeredEffect`の対象集合の宣言（定義順）。発動しなかった
    * `triggeredEffect`（`TurnStarted`発動・対象0件）の分も含む。
@@ -454,6 +477,39 @@ function sortedById<T extends { readonly effectActionDefinitionId: string }>(
   );
 }
 
+/**
+ * `MemoryTriggered` から次の `MemoryTriggered` までに発行された
+ * `EffectActionCompleted` を、その `triggeredEffect` の適用順として拾う。
+ * 解決スコープIDに依存しないため、`BattleStarted`・`TurnStarted` のどちらでも同じ形で読める。
+ */
+function actionOrderOf(events: readonly BattleDomainEvent[]): readonly MemoryActionOrder[] {
+  const order: { triggeredEffectIndex: number; actionIds: string[] }[] = [];
+  for (const event of events) {
+    if (event.eventType === "MemoryTriggered") {
+      const payload = event.payload as { readonly triggeredEffectIndex: number };
+      order.push({ triggeredEffectIndex: payload.triggeredEffectIndex, actionIds: [] });
+      continue;
+    }
+    if (event.eventType !== "EffectActionCompleted") {
+      continue;
+    }
+    const current = order[order.length - 1];
+    if (current === undefined) {
+      continue;
+    }
+    const payload = event.payload as { readonly effectActionDefinitionId: string };
+    // `EffectActionCompleted`は**対象1体につき1件**発行され、対象が複数ある
+    // ACTION stepでは対象ごとに`actions`を一巡する（`MEM_ALWAYS_PICO_BESIDE_YOU#1`は
+    // 6スロット×2アクションで12件になる）。ここで見たいのはEffectAction同士の
+    // 前後関係なので初回の実行位置だけを残す — 何体へ当たったかは`grants.unitIds`が持つ。
+    if (current.actionIds.includes(payload.effectActionDefinitionId)) {
+      continue;
+    }
+    current.actionIds.push(payload.effectActionDefinitionId);
+  }
+  return order;
+}
+
 function targetSelectionsOf(
   snapshot: BattleCatalogSnapshot,
   memoryDefinitionId: string,
@@ -554,6 +610,7 @@ export function observeMemory(
   const units = [...started.allyUnits, ...started.enemyUnits];
   return {
     grants: grantsOf(units, snapshot),
+    actionOrder: actionOrderOf(recorder.getEvents()),
     targetSelections: targetSelectionsOf(snapshot, memoryDefinitionId),
     markers: markersOf(units),
     triggeredOrder: triggeredOrderOf(recorder.getEvents()),

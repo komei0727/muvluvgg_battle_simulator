@@ -69,6 +69,13 @@ describe("production Catalog MEM_HEART_COLOR (心の色)", () => {
       },
       { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL", filters: [] },
     ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_HEART_COLOR_FRONT_CRIT_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_HEART_COLOR_ALL_CRIT_DMG_UP"] },
+    ]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([
       `${MEMORY_DEFINITION_ID}#0`,

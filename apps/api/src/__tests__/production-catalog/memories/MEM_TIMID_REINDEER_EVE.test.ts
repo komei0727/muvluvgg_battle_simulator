@@ -68,6 +68,13 @@ describe("production Catalog MEM_TIMID_REINDEER_EVE (臆病トナカイの聖夜
       },
       { triggeredEffectIndex: 1, kind: "SELECT", side: "ALLY", count: "ALL", filters: [] },
     ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_TIMID_REINDEER_EVE_BACK_CRIT_DMG_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_TIMID_REINDEER_EVE_ALL_CRIT_UP"] },
+    ]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([
       `${MEMORY_DEFINITION_ID}#0`,

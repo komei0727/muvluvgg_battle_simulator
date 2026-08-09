@@ -72,6 +72,13 @@ describe("production Catalog MEM_CURIOUS_EQUIPMENT (気になる装備)", () => 
         filters: [{ kind: "POSITION_ROW", row: "FRONT" }],
       },
     ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 0, actionIds: ["ACT_MEM_CURIOUS_EQUIPMENT_ALL_HP_UP"] },
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_CURIOUS_EQUIPMENT_ENEMY_FRONT_DEF_DOWN"] },
+    ]);
     expect(observed.markers).toEqual([]);
     // R-MEM-02: `triggeredEffects` は定義順に、1件も飛ばさず解決される。
     expect(observed.triggeredOrder).toEqual([

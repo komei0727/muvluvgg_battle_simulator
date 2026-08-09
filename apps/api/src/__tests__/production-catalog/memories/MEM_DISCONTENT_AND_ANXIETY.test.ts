@@ -83,6 +83,13 @@ describe("production Catalog MEM_DISCONTENT_AND_ANXIETY (不満と不安)", () =
         filters: [{ kind: "POSITION_ROW", row: "BACK" }],
       },
     ]);
+    // R-SKL-06 #4: 同じACTION stepの`actions`は定義順に適用される。`grants`はID順、
+    // `markers`は別配列なので適用順を表さないが、順序が入れ替わると
+    // `EffectApplied`／`MarkerApplied`の発行順が変わり、それを契機にする連鎖が変わる。
+    // 効果1は`TurnStarted`発動なので、`BattleStarted`では`MemoryTriggered`ごと現れない。
+    expect(observed.actionOrder).toEqual([
+      { triggeredEffectIndex: 1, actionIds: ["ACT_MEM_DISCONTENT_AND_ANXIETY_BACK_HP_UP"] },
+    ]);
     expect(observed.markers).toEqual([]);
     // R-MEM-02: `triggeredEffects` は定義順に解決されるが、`TurnStarted` 発動の
     // 効果1（index 0）は`BattleStarted`では候補にならず、飛ばされる。
