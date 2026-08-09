@@ -293,7 +293,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_JULIE_SNOW_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {
@@ -321,7 +321,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_JULIE_SNOW_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { subject: { state: { currentHp: 3000 } } },

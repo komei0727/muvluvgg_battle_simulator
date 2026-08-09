@@ -310,7 +310,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_HARRIET_SAGE_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {

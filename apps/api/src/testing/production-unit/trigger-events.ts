@@ -28,7 +28,7 @@ import type { PassiveTriggerEvent } from "./passive-activation.js";
  * 実イベントとの差: ターン境界（`TurnStarted`/`TurnCompleting`）は本来 `actionId` を
  * 持たない行動外のトップレベルイベントだが、このハーネスは行動envelopeの中で
  * 発行する。行動単位期間の初回減算除外（R-EFF-04）の扱いだけが実戦闘と異なり得る。
- * 発行地点そのものの検証は機能軸（`turn-boundary-self-selector`）が持つ。
+ * payload と発生源・対象の帰属は `battle.ts` の発行地点と同じ形に揃えてある。
  */
 
 const SYNTHETIC_CAUSE_EVENT_ID = createDomainEventId("B_BEHAVIOUR:cause");
@@ -139,30 +139,31 @@ export function chargeStarted(options: {
   };
 }
 
-/** ターン開始。`sourceSelector: SELF` のPSは保持者自身を発生源として受け取る。 */
+/**
+ * ターン開始。`battle.ts` の発行地点と同じく `sourceUnitId`/`targetUnitIds` を
+ * 持たない — ターン境界は特定のBattleUnitに帰属しないグローバルイベントである。
+ * production Catalog の `sourceSelector`/`targetSelector: SELF` は「帰属先が
+ * 存在しないため所有者自身の視点で成立する」ものとして候補化される
+ * （`trigger-selector-evaluator.ts`）。保持者を帰属させた形を組み立てると、
+ * 実戦闘では成立しない `ALLY`/`ENEMY`/`OTHER_ALLY` の契機表現を見逃す。
+ */
 export function turnStarted(options: {
-  readonly unit: string;
   readonly turnNumber: number;
 }): PassiveTriggerEvent<"TurnStarted"> {
   return {
     eventType: "TurnStarted",
     category: "FACT",
-    sourceUnitId: createBattleUnitId(options.unit),
-    targetUnitIds: [createBattleUnitId(options.unit)],
     payload: { turnNumber: options.turnNumber },
   };
 }
 
-/** ターン終了直前。 */
+/** ターン終了直前。{@link turnStarted} と同じく帰属先を持たない。 */
 export function turnCompleting(options: {
-  readonly unit: string;
   readonly turnNumber: number;
 }): PassiveTriggerEvent<"TurnCompleting"> {
   return {
     eventType: "TurnCompleting",
     category: "TIMING",
-    sourceUnitId: createBattleUnitId(options.unit),
-    targetUnitIds: [createBattleUnitId(options.unit)],
     payload: { turnNumber: options.turnNumber },
   };
 }

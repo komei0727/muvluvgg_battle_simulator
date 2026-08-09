@@ -204,7 +204,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SHIRANA_LUCKY_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {
@@ -241,17 +241,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { unitId: "ally:subject", skillDefinitionId: "SKL_SHIRANA_LUCKY_PS2", remaining: 99 },
       ],
     },
-  },
-  {
-    skillDefinitionId: "SKL_SHIRANA_LUCKY_PS2",
-    intent: "(不成立): 契機は自身のターン開始であり、敵のターン開始では発動しない",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_SHIRANA_LUCKY_PS2",
-      trigger: turnStarted({ unit: "enemy:front", turnNumber: 1 }),
-      triggeredBy: "enemy:front",
-    },
-    expected: { activated: false },
   },
 ];
 

@@ -296,7 +296,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MAO_COMMITTEE_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     // 解除対象を実 production 定義（EXの与ダメージ減少デバフ）で用意する。
@@ -352,7 +352,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MAO_COMMITTEE_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { allies: [] },
@@ -486,10 +486,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
       actorUnitId: "ally:subject",
       battleId: "B_MAO_STEALTH",
     });
-    const afterStealth = chain.fire(
-      turnStarted({ unit: "ally:subject", turnNumber: 1 }),
-      board.units,
-    );
+    const afterStealth = chain.fire(turnStarted({ turnNumber: 1 }), board.units);
     const stealthed = afterStealth.find((unit) => unit.battleUnitId === "ally:subject")!;
     expect(
       stealthed.appliedEffects.filter((effect) => effect.statusKind === "STEALTH"),
@@ -547,7 +544,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
       actorUnitId: "ally:subject",
       battleId: "B_MAO_STEALTH_GRANT",
     });
-    const after = chain.fire(turnStarted({ unit: "ally:subject", turnNumber: 1 }), board.units);
+    const after = chain.fire(turnStarted({ turnNumber: 1 }), board.units);
 
     const stealth = after
       .find((unit) => unit.battleUnitId === "ally:subject")!

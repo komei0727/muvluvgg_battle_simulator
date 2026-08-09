@@ -196,7 +196,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SIENA_OFFSTAGE_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: PHYSICAL_TARGET,
@@ -233,7 +233,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SIENA_OFFSTAGE_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: NON_PHYSICAL_TARGET,
@@ -256,17 +256,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { unitId: "enemy:front", resource: "EX_GAUGE", delta: -1 },
       ],
     },
-  },
-  {
-    skillDefinitionId: "SKL_SIENA_OFFSTAGE_PS1",
-    intent: "(不成立): 契機は自身のターン開始であり、敵のターン開始では発動しない",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_SIENA_OFFSTAGE_PS1",
-      trigger: turnStarted({ unit: "enemy:front", turnNumber: 1 }),
-      triggeredBy: "enemy:front",
-    },
-    expected: { activated: false },
   },
   {
     skillDefinitionId: "SKL_SIENA_OFFSTAGE_PS2",

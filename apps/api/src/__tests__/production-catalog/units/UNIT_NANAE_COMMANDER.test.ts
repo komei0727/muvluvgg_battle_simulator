@@ -199,7 +199,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_NANAE_COMMANDER_PS1",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {
@@ -250,7 +250,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_NANAE_COMMANDER_PS1",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     // 状態異常は炎上で作る（R-STS-01の状態異常はデバフの一種で、炎上・毒もそこに

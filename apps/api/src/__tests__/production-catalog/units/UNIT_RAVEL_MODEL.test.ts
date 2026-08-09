@@ -318,7 +318,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_RAVEL_MODEL_PS2",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { enemies: MARKED_ENEMIES_WITH_EX },

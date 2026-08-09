@@ -215,7 +215,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_HIIRO_LONEWOLF_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: DISTINCT_ATTACK_ENEMIES,
@@ -240,7 +240,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_HIIRO_LONEWOLF_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 2 }),
+      trigger: turnStarted({ turnNumber: 2 }),
       triggeredBy: "ally:subject",
       turnNumber: 2,
     },

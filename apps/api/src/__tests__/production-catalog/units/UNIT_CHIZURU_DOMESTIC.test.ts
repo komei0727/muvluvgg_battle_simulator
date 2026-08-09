@@ -139,7 +139,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     board: { enemies: LOWEST_MAX_HP_BACK },
@@ -178,7 +178,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS1",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 2 }),
+      trigger: turnStarted({ turnNumber: 2 }),
       triggeredBy: "ally:subject",
       turnNumber: 2,
     },

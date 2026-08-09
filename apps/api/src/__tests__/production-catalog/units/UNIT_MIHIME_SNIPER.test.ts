@@ -195,7 +195,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_MIHIME_SNIPER_PS1",
-      trigger: turnCompleting({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnCompleting({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     // 解除対象を実 production 定義（AS1の自己行動速度低下）で用意する。

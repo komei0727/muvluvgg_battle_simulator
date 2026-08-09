@@ -290,7 +290,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_ANIS_TROUBLEMAKER_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 2 }),
+      trigger: turnStarted({ turnNumber: 2 }),
       triggeredBy: "ally:subject",
       turnNumber: 2,
     },
@@ -358,7 +358,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_ANIS_TROUBLEMAKER_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {

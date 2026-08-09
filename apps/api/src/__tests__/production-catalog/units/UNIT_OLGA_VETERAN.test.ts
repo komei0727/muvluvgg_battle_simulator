@@ -290,7 +290,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_VETERAN_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 1 }),
+      trigger: turnStarted({ turnNumber: 1 }),
       triggeredBy: "ally:subject",
     },
     expected: {
@@ -346,7 +346,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_VETERAN_PS2",
-      trigger: turnStarted({ unit: "ally:subject", turnNumber: 2 }),
+      trigger: turnStarted({ turnNumber: 2 }),
       triggeredBy: "ally:subject",
       turnNumber: 2,
     },
