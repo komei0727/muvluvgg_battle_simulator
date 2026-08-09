@@ -1,5 +1,7 @@
-import { createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
+import { advanceBattle, createBattle, startBattle } from "../../domain/battle/lifecycle/battle.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
+import type { Battle } from "../../domain/battle/lifecycle/battle.js";
 import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
@@ -82,7 +84,8 @@ export const MEMORY_SLOTS: readonly MemorySlot[] = [
   },
 ];
 
-const MEMORY_COMBAT_STATS: CombatStats = {
+/** 全スロット共通の基礎値。重ね掛けを実効値で確かめる`-00N`が基準として読む。 */
+export const MEMORY_COMBAT_STATS: CombatStats = {
   maximumHp: 10000,
   attack: 1000,
   defense: 500,
@@ -103,11 +106,26 @@ function slotUnitDefinitionId(slot: MemorySlot): string {
   return `UNIT_TEST_MEMORY_${slot.key}`;
 }
 
-function slotUnitDefinition(slot: MemorySlot): UnitDefinition {
+/**
+ * 盤面の既定（`MEMORY_SLOTS`）から、そのMemoryの検証に必要な軸だけを動かす上書き。
+ *
+ * `AFFILIATION` TargetFilterは静的Catalogの`UnitDefinition.metadata.affiliations`を
+ * 引くため、既定の「所属なし」6スロットのままでは対象0件になり、効果が一度も
+ * 発現しない。所属は`18_Affiliation台帳.md`の`AFF_*`ごとに異なり、全所属を6スロットへ
+ * 常設することはできないため、Memoryごとに「どのスロットが名乗るか」を宣言する。
+ */
+export interface MemoryBoardOverrides {
+  /** スロットキー → そのスロットのUnitDefinitionが名乗る所属ID。 */
+  readonly affiliationsBySlot?: Readonly<Record<string, readonly string[]>>;
+}
+
+function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): UnitDefinition {
+  const affiliations = overrides.affiliationsBySlot?.[slot.key];
   return testUnitDefinition(slotUnitDefinitionId(slot), {
     role: slot.role,
     unitType: slot.unitType,
     positionAptitudes: ["FRONT", "BACK"],
+    ...(affiliations === undefined ? {} : { metadata: { affiliations } }),
   });
 }
 
@@ -136,12 +154,27 @@ export interface MemoryGrant {
 }
 
 /**
+ * Memory 1件が配ったMarkerを、Marker単位でまとめた観測結果。Markerは
+ * `appliedEffects`ではなく`markerStates`へ載るため、`MemoryGrant`とは別に持つ。
+ */
+export interface MemoryMarkerGrant {
+  readonly markerId: string;
+  /** Markerを受け取った戦闘ユニットID（保持順）。 */
+  readonly unitIds: readonly string[];
+  readonly stackCount: number;
+  /** R-MEM-04: `MemoryGrant.sourceSide`と同じ規約。 */
+  readonly sourceSide: Side;
+}
+
+/**
  * 実`catalog/`のMemoryを片陣営が宣言した状態で`startBattle`を通し、
  * `BattleStarted`から配られた効果をEffectAction単位で観測する。
  * 効果を1件も受け取らなかったユニットは結果に現れない。
  */
 export interface MemoryObservation {
   readonly grants: readonly MemoryGrant[];
+  /** 付与されたMarker（Marker ID順）。1件も無ければ空配列。 */
+  readonly markers: readonly MemoryMarkerGrant[];
   /**
    * `MemoryTriggered` の発火順（`<memoryDefinitionId>#<triggeredEffectIndex>`）。
    * R-MEM-02の解決順（API宣言順 → `triggeredEffects` 定義順）が、対象0件の
@@ -150,17 +183,32 @@ export interface MemoryObservation {
   readonly triggeredOrder: readonly string[];
   /** 実際に実行されたEffectAction ID（実行ベース網羅監査が使う）。 */
   readonly executedActionIds: readonly string[];
+  /** 追加の機構検証（付与効果の期間・StateDelta復元）が使う、開始前後の戦闘と記録。 */
+  readonly created: Battle;
+  readonly started: Battle;
+  readonly recorder: EventRecorder;
 }
 
 /** 付与結果だけが要る呼び出し向けの薄い入口。 */
 export function observeMemoryGrants(
   memoryDefinitionId: string,
   side: Side,
+  overrides: MemoryBoardOverrides = {},
 ): readonly MemoryGrant[] {
-  return observeMemory(memoryDefinitionId, side).grants;
+  return observeMemory(memoryDefinitionId, side, overrides).grants;
 }
 
-export function observeMemory(memoryDefinitionId: string, side: Side): MemoryObservation {
+interface MemoryBattle {
+  readonly created: Battle;
+  readonly recorder: EventRecorder;
+}
+
+function createMemoryBattle(
+  memoryDefinitionId: string,
+  side: Side,
+  overrides: MemoryBoardOverrides,
+  turnLimit: number,
+): MemoryBattle {
   const snapshot: BattleCatalogSnapshot = loadProductionSnapshot(
     PRODUCTION_CATALOG_DIR,
     [],
@@ -168,25 +216,28 @@ export function observeMemory(memoryDefinitionId: string, side: Side): MemoryObs
   );
   const memory = memoryFrom(snapshot, memoryDefinitionId);
   const battleId = createBattleId("B_MEMORY");
-  const battle = createBattle(
-    battleId,
-    MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ALLY")),
-    MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ENEMY")),
-    createTurnLimit(1),
-    definitionsWith(snapshot, {
-      units: MEMORY_SLOTS.map(slotUnitDefinition),
-      overrides: {
-        memoriesBySide: {
-          ALLY: side === "ALLY" ? [memory] : [],
-          ENEMY: side === "ENEMY" ? [memory] : [],
+  return {
+    created: createBattle(
+      battleId,
+      MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ALLY")),
+      MEMORY_SLOTS.map((slot) => slotBattleUnit(slot, "ENEMY")),
+      createTurnLimit(turnLimit),
+      definitionsWith(snapshot, {
+        units: MEMORY_SLOTS.map((slot) => slotUnitDefinition(slot, overrides)),
+        overrides: {
+          memoriesBySide: {
+            ALLY: side === "ALLY" ? [memory] : [],
+            ENEMY: side === "ENEMY" ? [memory] : [],
+          },
         },
-      },
-    }),
-  );
-  const recorder = new EventRecorder(battleId);
-  const started = startBattle(battle, new SequenceRandomSource([]), recorder);
-  const triggeredOrder = recorder
-    .getEvents()
+      }),
+    ),
+    recorder: new EventRecorder(battleId),
+  };
+}
+
+function triggeredOrderOf(events: readonly BattleDomainEvent[]): readonly string[] {
+  return events
     .filter((event) => event.eventType === "MemoryTriggered")
     .map((event) => {
       const payload = event.payload as {
@@ -195,21 +246,46 @@ export function observeMemory(memoryDefinitionId: string, side: Side): MemoryObs
       };
       return `${payload.memoryDefinitionId}#${payload.triggeredEffectIndex}`;
     });
-  const executedActionIds = [
+}
+
+/**
+ * 実行ベース網羅監査（`-003`）が数える集合。ユニット効果軸と同じく、
+ * `SKIPPED`/`MISSED`/`REJECTED`/`INTERRUPTED` は効果が一度も発現していないため
+ * 数えない — 数えるとその定義やresolverが壊れていても監査を通してしまう。
+ */
+function executedActionIdsOf(events: readonly BattleDomainEvent[]): readonly string[] {
+  return [
     ...new Set(
-      recorder
-        .getEvents()
-        .filter((event) => event.eventType === "EffectActionCompleted")
-        .map(
-          (event) =>
-            (event.payload as { readonly effectActionDefinitionId: string })
-              .effectActionDefinitionId,
-        ),
+      events.flatMap((event) => {
+        if (event.eventType !== "EffectActionCompleted") {
+          return [];
+        }
+        const payload = event.payload as {
+          readonly effectActionDefinitionId: string;
+          readonly resultKind: string;
+        };
+        return payload.resultKind === "APPLIED" ? [payload.effectActionDefinitionId] : [];
+      }),
     ),
   ].sort();
+}
 
+/**
+ * EffectAction IDで整列する。付与順はどちらの陣営がMemoryを宣言したかで
+ * 入れ替わるため（宣言側から見た`ALLY`は反対陣営の走査で先に現れる）、
+ * 表とミラー比較を順序に依存させない。
+ */
+function sortedById<T extends { readonly effectActionDefinitionId: string }>(
+  grants: readonly T[],
+): readonly T[] {
+  return [...grants].sort((left, right) =>
+    left.effectActionDefinitionId.localeCompare(right.effectActionDefinitionId),
+  );
+}
+
+function grantsOf(units: readonly BattleUnit[]): readonly MemoryGrant[] {
   const grants = new Map<string, { unitIds: string[]; magnitude: number; sourceSide: Side }>();
-  for (const unit of [...started.allyUnits, ...started.enemyUnits]) {
+  for (const unit of units) {
     for (const effect of unit.appliedEffects) {
       const id = effect.effectActionDefinitionId as string;
       if (effect.sourceSide === undefined) {
@@ -227,36 +303,177 @@ export function observeMemory(memoryDefinitionId: string, side: Side): MemoryObs
       existing.unitIds.push(unit.battleUnitId);
     }
   }
-  // EffectAction IDで整列する。付与順はどちらの陣営がMemoryを宣言したかで
-  // 入れ替わるため（宣言側から見た`ALLY`は反対陣営の走査で先に現れる）、
-  // 表と`-002`のミラー比較を順序に依存させない。
+  return sortedById(
+    [...grants].map(([effectActionDefinitionId, grant]) => ({
+      effectActionDefinitionId,
+      unitIds: grant.unitIds,
+      magnitude: grant.magnitude,
+      sourceSide: grant.sourceSide,
+    })),
+  );
+}
+
+function markersOf(units: readonly BattleUnit[]): readonly MemoryMarkerGrant[] {
+  const markers = new Map<string, { unitIds: string[]; stackCount: number; sourceSide: Side }>();
+  for (const unit of units) {
+    for (const marker of unit.markerStates) {
+      const id = marker.markerId as string;
+      if (marker.sourceSide === undefined) {
+        throw new Error(`memory-derived marker "${id}" has no sourceSide (R-MEM-04)`);
+      }
+      const existing = markers.get(id);
+      if (existing === undefined) {
+        markers.set(id, {
+          unitIds: [unit.battleUnitId],
+          stackCount: marker.stackCount,
+          sourceSide: marker.sourceSide,
+        });
+        continue;
+      }
+      existing.unitIds.push(unit.battleUnitId);
+    }
+  }
+  return [...markers]
+    .map(([markerId, marker]) => ({
+      markerId,
+      unitIds: marker.unitIds,
+      stackCount: marker.stackCount,
+      sourceSide: marker.sourceSide,
+    }))
+    .sort((left, right) => left.markerId.localeCompare(right.markerId));
+}
+
+export function observeMemory(
+  memoryDefinitionId: string,
+  side: Side,
+  overrides: MemoryBoardOverrides = {},
+): MemoryObservation {
+  const { created, recorder } = createMemoryBattle(memoryDefinitionId, side, overrides, 1);
+  const started = startBattle(created, new SequenceRandomSource([]), recorder);
+  const units = [...started.allyUnits, ...started.enemyUnits];
   return {
-    grants: [...grants]
-      .map(([effectActionDefinitionId, grant]) => ({
-        effectActionDefinitionId,
-        unitIds: grant.unitIds,
-        magnitude: grant.magnitude,
-        sourceSide: grant.sourceSide,
-      }))
-      .sort((left, right) =>
-        left.effectActionDefinitionId.localeCompare(right.effectActionDefinitionId),
-      ),
-    triggeredOrder,
-    executedActionIds,
+    grants: grantsOf(units),
+    markers: markersOf(units),
+    triggeredOrder: triggeredOrderOf(recorder.getEvents()),
+    executedActionIds: executedActionIdsOf(recorder.getEvents()),
+    created,
+    started,
+    recorder,
   };
+}
+
+/** `advanceBattle` のターン開始解決スコープ1つ分だけを切り出した観測。 */
+export interface MemoryTurnStartObservation {
+  readonly turnNumber: number;
+  readonly grants: readonly MemoryGrant[];
+  readonly triggeredOrder: readonly string[];
+  readonly executedActionIds: readonly string[];
+}
+
+export interface MemoryTurnObservation {
+  /** ターンごとの、ターン開始解決スコープだけの観測（進めた順）。 */
+  readonly turnStarts: readonly MemoryTurnStartObservation[];
+  /** 全ターンを進めきったあとの戦闘。積み上がりを実効値で見るために使う。 */
+  readonly battle: Battle;
+}
+
+/**
+ * `TurnStarted` 発動の `triggeredEffect` を、実 `advanceBattle` を `turns` ターン
+ * 回して観測する。
+ *
+ * `turnStarts` は**ターン開始の解決スコープへ閉じる** — `advanceBattle` は同じ
+ * 呼び出しの中で行動フェーズまで進めるため、最終的なユニット状態を見ると
+ * 行動フェーズの被弾で消費された効果（`consumption: NEXT_INCOMING_ATTACK` など）が
+ * 消えており、「ターン開始時に何が配られたか」を表せない。`TurnStarted` イベント
+ * 自身の `resolutionScopeId` に属する `EffectApplied` だけを拾うことで、
+ * 配られた事実を行動フェーズの結果から切り離す。
+ */
+export function observeMemoryTurnStarts(
+  memoryDefinitionId: string,
+  side: Side,
+  turns: number,
+  overrides: MemoryBoardOverrides = {},
+): MemoryTurnObservation {
+  const { created, recorder } = createMemoryBattle(memoryDefinitionId, side, overrides, turns);
+  let battle = startBattle(created, new SequenceRandomSource([]), recorder);
+  for (let turn = 0; turn < turns; turn += 1) {
+    battle = advanceBattle(battle, new SequenceRandomSource([]), recorder);
+  }
+  const turnStarts = recorder
+    .getEvents()
+    .filter((event) => event.eventType === "TurnStarted")
+    .map((turnStarted) => {
+      const scoped = recorder
+        .getEvents()
+        .filter((event) => event.resolutionScopeId === turnStarted.resolutionScopeId);
+      const grants = new Map<string, { unitIds: string[]; magnitude: number; sourceSide: Side }>();
+      for (const event of scoped) {
+        if (event.eventType !== "EffectApplied") {
+          continue;
+        }
+        const payload = event.payload as {
+          readonly effectActionDefinitionId: string;
+          readonly targetUnitId: string;
+          readonly magnitude: number;
+          readonly sourceSide?: Side;
+        };
+        if (payload.sourceSide === undefined) {
+          throw new Error(
+            `memory-derived effect "${payload.effectActionDefinitionId}" has no sourceSide (R-MEM-04)`,
+          );
+        }
+        const existing = grants.get(payload.effectActionDefinitionId);
+        if (existing === undefined) {
+          grants.set(payload.effectActionDefinitionId, {
+            unitIds: [payload.targetUnitId],
+            magnitude: payload.magnitude,
+            sourceSide: payload.sourceSide,
+          });
+          continue;
+        }
+        existing.unitIds.push(payload.targetUnitId);
+      }
+      return {
+        turnNumber: turnStarted.turnNumber,
+        grants: sortedById(
+          [...grants].map(([effectActionDefinitionId, grant]) => ({
+            effectActionDefinitionId,
+            unitIds: grant.unitIds,
+            magnitude: grant.magnitude,
+            sourceSide: grant.sourceSide,
+          })),
+        ),
+        triggeredOrder: triggeredOrderOf(scoped),
+        executedActionIds: executedActionIdsOf(scoped),
+      };
+    });
+  return { turnStarts, battle };
+}
+
+function flipSlotOwner(unitId: string): string {
+  return unitId.startsWith("ally:")
+    ? `enemy:${unitId.slice("ally:".length)}`
+    : `ally:${unitId.slice("enemy:".length)}`;
 }
 
 /** ALLY宣言時の観測を、ENEMY宣言時に期待される観測（陣営を入れ替えたもの）へ写す。 */
 export function mirroredForEnemyDeclaration(
   grants: readonly MemoryGrant[],
 ): readonly MemoryGrant[] {
-  const flip = (unitId: string): string =>
-    unitId.startsWith("ally:")
-      ? `enemy:${unitId.slice("ally:".length)}`
-      : `ally:${unitId.slice("enemy:".length)}`;
   return grants.map((grant) => ({
     ...grant,
-    unitIds: grant.unitIds.map(flip),
+    unitIds: grant.unitIds.map(flipSlotOwner),
+    sourceSide: "ENEMY",
+  }));
+}
+
+/** Marker側の同じ写像。 */
+export function mirroredMarkersForEnemyDeclaration(
+  markers: readonly MemoryMarkerGrant[],
+): readonly MemoryMarkerGrant[] {
+  return markers.map((marker) => ({
+    ...marker,
+    unitIds: marker.unitIds.map(flipSlotOwner),
     sourceSide: "ENEMY",
   }));
 }
