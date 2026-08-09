@@ -41,6 +41,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_BUSY_DAY_SLUMBER_BACK_DEF_UP",
     unitIds: BACK_ALLY_SLOTS,
     magnitude: 1000,
+    statMod: { stat: "DEFENSE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -51,6 +52,9 @@ const EXPECTED_TURN_START_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_BUSY_DAY_SLUMBER_BACK_DMG_DOWN",
     unitIds: BACK_ALLY_SLOTS,
     magnitude: -0.05,
+    damageMod: { direction: "INCOMING", damageType: null },
+    timeLimit: null,
+    consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
     sourceSide: "ALLY",
   },
 ];

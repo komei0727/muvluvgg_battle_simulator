@@ -32,6 +32,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_OJOSAMA_MANNERS_ENEMY_DMG_UP",
     unitIds: ["enemy:FRONT_LEFT", "enemy:FRONT_CENTER", "enemy:FRONT_RIGHT"],
     magnitude: 0.075,
+    damageMod: { direction: "INCOMING", damageType: null },
     sourceSide: "ALLY",
   },
   {
@@ -45,6 +46,8 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 80,
+    statMod: { stat: "ACTION_SPEED", valueType: "FIXED" },
+    timeLimit: { unit: "ACTION", count: 1 },
     sourceSide: "ALLY",
   },
 ];

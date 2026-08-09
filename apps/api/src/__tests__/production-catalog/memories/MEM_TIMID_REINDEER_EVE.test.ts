@@ -39,12 +39,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 0.05,
+    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_TIMID_REINDEER_EVE_BACK_CRIT_DMG_UP",
     unitIds: ["ally:BACK_LEFT", "ally:BACK_CENTER", "ally:BACK_RIGHT"],
     magnitude: 0.15,
+    statMod: { stat: "CRITICAL_DAMAGE_BONUS", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
 ];

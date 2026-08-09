@@ -44,6 +44,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_COLORFUL_BOUQUET_AFFILIATION_ATK_UP",
     unitIds: ["ally:FRONT_RIGHT"],
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
@@ -57,6 +58,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

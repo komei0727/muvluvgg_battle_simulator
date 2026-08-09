@@ -45,6 +45,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_ELOPEMENT_FULL_THROTTLE_AFFILIATION_DMG_UP",
     unitIds: ["ally:FRONT_LEFT"],
     magnitude: 0.025,
+    damageMod: { direction: "OUTGOING", damageType: null },
     sourceSide: "ALLY",
   },
   {
@@ -52,6 +53,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_ELOPEMENT_FULL_THROTTLE_ENEMY_BACK_SPEED_DOWN",
     unitIds: ["enemy:BACK_LEFT", "enemy:BACK_CENTER", "enemy:BACK_RIGHT"],
     magnitude: -70,
+    statMod: { stat: "ACTION_SPEED", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

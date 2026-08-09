@@ -42,12 +42,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_ENCOUNTER_WITH_GIRLS_ALL_CRIT_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 0.01,
+    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_ENCOUNTER_WITH_GIRLS_ALL_DMG_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 0.02,
+    damageMod: { direction: "OUTGOING", damageType: null },
     sourceSide: "ALLY",
   },
 ];

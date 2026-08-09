@@ -52,12 +52,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_SIRIUS_SUGAR_AFFILIATION_ATK_UP",
     unitIds: ["ally:FRONT_CENTER"],
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_SIRIUS_SUGAR_ALL_HP_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 300,
+    statMod: { stat: "MAXIMUM_HP", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

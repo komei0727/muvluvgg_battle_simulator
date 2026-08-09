@@ -47,12 +47,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_TENT_COMMOTION_AFFILIATION_DMG_UP",
     unitIds: ["ally:BACK_RIGHT"],
     magnitude: 0.025,
+    damageMod: { direction: "OUTGOING", damageType: null },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_TENT_COMMOTION_FRONT_DEF_UP",
     unitIds: FRONT_ALLY_SLOTS,
     magnitude: 0.025,
+    statMod: { stat: "DEFENSE", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
 ];
@@ -104,6 +106,7 @@ describe("production Catalog MEM_TENT_COMMOTION (密着！？テントの中の�
         effectActionDefinitionId: "ACT_MEM_TENT_COMMOTION_FRONT_DEF_UP",
         unitIds: FRONT_ALLY_SLOTS,
         magnitude: 0.025,
+        statMod: { stat: "DEFENSE", valueType: "RATIO" },
         sourceSide: "ALLY",
       },
     ]);

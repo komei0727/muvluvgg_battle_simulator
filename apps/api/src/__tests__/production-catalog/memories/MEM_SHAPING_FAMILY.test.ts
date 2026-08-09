@@ -44,12 +44,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_SHAPING_FAMILY_AFFILIATION_DMG_UP",
     unitIds: ["ally:BACK_CENTER"],
     magnitude: 0.025,
+    damageMod: { direction: "OUTGOING", damageType: null },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_SHAPING_FAMILY_CONTROL_ATK_UP",
     unitIds: ["ally:BACK_RIGHT"],
     magnitude: 1250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -101,6 +103,7 @@ describe("production Catalog MEM_SHAPING_FAMILY (家族のかたちを象りな�
         effectActionDefinitionId: "ACT_MEM_SHAPING_FAMILY_CONTROL_ATK_UP",
         unitIds: ["ally:BACK_RIGHT"],
         magnitude: 1250,
+        statMod: { stat: "ATTACK", valueType: "FIXED" },
         sourceSide: "ALLY",
       },
     ]);

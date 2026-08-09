@@ -35,12 +35,15 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_SOOTHING_SCENT_BACK_LEFT_ATK_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 2500,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
+    timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_SOOTHING_SCENT_EN_ATTACKER_EN_DMG_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 0.035,
+    damageMod: { direction: "OUTGOING", damageType: "EN" },
     sourceSide: "ALLY",
   },
 ];

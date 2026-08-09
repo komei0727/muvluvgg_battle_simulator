@@ -39,12 +39,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 0.01,
+    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_WALK_TOGETHER_PHYSICAL_DMG_UP",
     unitIds: ["ally:FRONT_LEFT", "ally:FRONT_RIGHT"],
     magnitude: 0.042,
+    damageMod: { direction: "OUTGOING", damageType: "PHYSICAL" },
     sourceSide: "ALLY",
   },
 ];

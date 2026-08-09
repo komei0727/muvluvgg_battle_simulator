@@ -7,6 +7,7 @@ import {
   MEMORY_COMBAT_STATS,
   type MemoryGrant,
   mirroredForEnemyDeclaration,
+  observeCoDeclaredMemories,
   observeMemory,
   observeMemoryGrants,
 } from "../../../testing/production-unit/memory-manifestation.js";
@@ -35,12 +36,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_PANTS_STRAY_CAT_EN_ATTACKER_DEF_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 1000,
+    statMod: { stat: "DEFENSE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_PANTS_STRAY_CAT_ENERGY_ATK_UP",
     unitIds: ["ally:FRONT_RIGHT", "ally:BACK_LEFT"],
     magnitude: 1250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -82,5 +85,46 @@ describe("production Catalog MEM_PANTS_STRAY_CAT (おパンツ咥えたドラネ
         new Set(observeMemory(MEMORY_DEFINITION_ID, "ALLY").executedActionIds),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-MEM-PANTS-STRAY-CAT-004 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+    // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
+    // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
+    const observed = observeCoDeclaredMemories({
+      ALLY: [MEMORY_DEFINITION_ID, "MEM_HARD_WARMUP"],
+      ENEMY: ["MEM_STRANGERS"],
+    });
+
+    // R-MEM-02: API指定順 → 同一Memory内の`triggeredEffects`定義順。ALLY候補を
+    // すべて解決してからENEMY候補へ進む。
+    expect(observed.triggeredOrder).toEqual([
+      `${MEMORY_DEFINITION_ID}#0`,
+      `${MEMORY_DEFINITION_ID}#1`,
+      "MEM_HARD_WARMUP#0",
+      "MEM_HARD_WARMUP#1",
+      "MEM_STRANGERS#0",
+      "MEM_STRANGERS#1",
+    ]);
+    // 宣言順を入れ替えると解決順も入れ替わる（ID順でも定義順でもなくAPI指定順である）。
+    expect(
+      observeCoDeclaredMemories({
+        ALLY: ["MEM_HARD_WARMUP", MEMORY_DEFINITION_ID],
+        ENEMY: ["MEM_STRANGERS"],
+      }).triggeredOrder,
+    ).toEqual([
+      "MEM_HARD_WARMUP#0",
+      "MEM_HARD_WARMUP#1",
+      `${MEMORY_DEFINITION_ID}#0`,
+      `${MEMORY_DEFINITION_ID}#1`,
+      "MEM_STRANGERS#0",
+      "MEM_STRANGERS#1",
+    ]);
+
+    // 自MemoryのENERGY攻撃力+1250とEN_ATTACKER防御力+1000に、ハードな準備運動……？の後衛+2.5%（1000→1025）が乗る。
+    expect(observed.statChanges["ally:BACK_LEFT"]).toEqual({ attack: 2275, defense: 1500 });
+
+    // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
+    expect(observed.stateFromDeltas).toEqual(observed.stateAfter);
+    expect(observed.stateBefore).not.toEqual(observed.stateAfter);
   });
 });

@@ -34,12 +34,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_NAUGHTY_PENALTY_GAME_CONTROL_PHYSICAL_DMG_UP",
     unitIds: ["ally:BACK_RIGHT"],
     magnitude: 0.035,
+    damageMod: { direction: "OUTGOING", damageType: "PHYSICAL" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_NAUGHTY_PENALTY_GAME_TANK_DEF_UP",
     unitIds: ["ally:FRONT_CENTER"],
     magnitude: 1000,
+    statMod: { stat: "DEFENSE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

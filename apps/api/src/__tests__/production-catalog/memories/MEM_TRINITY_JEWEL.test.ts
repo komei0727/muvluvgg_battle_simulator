@@ -52,12 +52,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_TRINITY_JEWEL_AFFILIATION_ATK_UP",
     unitIds: ["ally:BACK_CENTER"],
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_TRINITY_JEWEL_ALL_DEF_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 200,
+    statMod: { stat: "DEFENSE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

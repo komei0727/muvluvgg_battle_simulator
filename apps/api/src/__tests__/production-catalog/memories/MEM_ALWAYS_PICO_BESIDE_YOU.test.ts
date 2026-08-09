@@ -48,18 +48,22 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_DEF_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 300,
+    statMod: { stat: "DEFENSE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_ALL_HP_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 300,
+    statMod: { stat: "MAXIMUM_HP", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_ALWAYS_PICO_BESIDE_YOU_BACK_CENTER_ATK_UP",
     unitIds: ["ally:BACK_CENTER"],
     magnitude: 3000,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
+    timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
     sourceSide: "ALLY",
   },
 ];
@@ -70,6 +74,8 @@ const EXPECTED_MARKERS: readonly MemoryMarkerGrant[] = [
     markerId: MARKER_ID,
     unitIds: ["ally:BACK_CENTER"],
     stackCount: 1,
+    // 原文は段数上限を書いていない（`stack.max: null`）。1回の付与では出ない宣言。
+    stackMax: null,
     sourceSide: "ALLY",
   },
 ];

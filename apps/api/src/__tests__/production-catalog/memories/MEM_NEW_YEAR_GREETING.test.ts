@@ -42,12 +42,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_NEW_YEAR_GREETING_ALL_ATK_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_NEW_YEAR_GREETING_ALL_EN_DMG_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 0.0175,
+    damageMod: { direction: "OUTGOING", damageType: "EN" },
     sourceSide: "ALLY",
   },
 ];

@@ -32,12 +32,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_CATS_AND_DOGS_BOND_FRONT_HP_UP",
     unitIds: ["ally:FRONT_LEFT", "ally:FRONT_CENTER", "ally:FRONT_RIGHT"],
     magnitude: 1500,
+    statMod: { stat: "MAXIMUM_HP", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_CATS_AND_DOGS_BOND_FRONT_PHYSICAL_DMG_UP",
     unitIds: ["ally:FRONT_LEFT", "ally:FRONT_CENTER", "ally:FRONT_RIGHT"],
     magnitude: 0.03,
+    damageMod: { direction: "OUTGOING", damageType: "PHYSICAL" },
     sourceSide: "ALLY",
   },
 ];

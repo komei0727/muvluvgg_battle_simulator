@@ -52,12 +52,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_PYXIS_MA_SOEUR_AFFILIATION_ATK_UP",
     unitIds: ["ally:FRONT_RIGHT"],
     magnitude: 250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_PYXIS_MA_SOEUR_ALL_SPEED_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 12,
+    statMod: { stat: "ACTION_SPEED", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

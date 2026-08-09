@@ -44,12 +44,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_THREE_MAIDS_HOSPITALITY_CUTE_DMG_UP",
     unitIds: ["ally:FRONT_LEFT"],
     magnitude: 0.025,
+    damageMod: { direction: "OUTGOING", damageType: null },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_THREE_MAIDS_HOSPITALITY_SMART_ATK_UP",
     unitIds: ["ally:BACK_RIGHT"],
     magnitude: 1250,
+    statMod: { stat: "ATTACK", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

@@ -32,12 +32,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_ATTACKER_DMG_UP",
     unitIds: ["ally:FRONT_LEFT"],
     magnitude: 0.025,
+    damageMod: { direction: "OUTGOING", damageType: "PHYSICAL" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_CRIT_UP",
     unitIds: ["ally:FRONT_LEFT", "ally:BACK_CENTER"],
     magnitude: 0.05,
+    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
     sourceSide: "ALLY",
   },
 ];
