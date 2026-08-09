@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import {
+  resolveChargeRelease,
+  resolveChargeStart,
+} from "../../../domain/battle/lifecycle/action-charge-resolver.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId } from "../../../domain/shared/ids.js";
+import {
+  loadProductionSnapshot,
+  noMissNoCrit,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -8,6 +20,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -102,13 +115,36 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     intent: "次に自身の行動順が巡ってきた際、敵全体に威力212でEN攻撃する",
     use: { kind: "CHARGE", skillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1", phase: "RELEASE" },
     expected: {
+      // チャージ解放も「自身がアクティブスキルで攻撃した後」に当たるため、解放効果の
+      // 解決とチャージ状態終了の後（`ChargeReleaseCompleted`）にPS2が連鎖する。
+      // 与ダメージバフは解放攻撃自身には乗らない（3体とも素の1060のまま）。
       charge: null,
       actions: [
         { effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_AS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_AS1_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_AS1_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_PS2_SPEED_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_PS2_DMG_UP", targets: ["ally:subject"] },
       ],
       hpDeltas: { "enemy:front": -1060, "enemy:left": -1060, "enemy:back": -1060 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_PS2_SPEED_UP",
+          magnitude: 50,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SIENA_OFFSTAGE_PS2_DMG_UP",
+          magnitude: 0.2,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
       // 解放も自身の1行動であるため、開始時に置かれた自分のクールタイムが1つ減る。
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1", remaining: 1 },
@@ -338,5 +374,65 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-SIENA-OFFSTAGE-004 (R-SKL-05/R-PS-01): チャージ解放でもPS2が連鎖する。契機の `ChargeReleaseCompleted` は解放攻撃が全て確定しチャージ状態が終わった後に発行されるため、PS2の与ダメージバフはその攻撃自身には乗らない", () => {
+    // `-001` の表は「何が起きたか」を見る。ここは発行順そのもの — 攻撃3件が確定した
+    // 後に契機が出て、PS2の付与がさらにその後に来る — を固定する。順序が崩れると
+    // 与ダメージバフが解放攻撃へ乗り、原文の「攻撃した後」に反する。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const recorder = new EventRecorder(createBattleId("B_SIENA_CHARGE"));
+    const started = resolveChargeStart(
+      board.subject,
+      skillFrom(snapshot, "SKL_SIENA_OFFSTAGE_AS1"),
+      "AS",
+      "AS",
+      board.units,
+      board.definitions,
+      noMissNoCrit(),
+      recorder,
+      1,
+      0,
+      createActionId("B_SIENA_CHARGE:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const releaseRecorder = new EventRecorder(createBattleId("B_SIENA_RELEASE"));
+    const released = resolveChargeRelease(
+      started.units.find((unit) => unit.battleUnitId === "ally:subject")!,
+      "AS",
+      started.units,
+      board.definitions,
+      noMissNoCrit(),
+      releaseRecorder,
+      1,
+      1,
+      createActionId("B_SIENA_RELEASE:action:1"),
+      releaseRecorder.nextResolutionScopeId(),
+    );
+    const events = releaseRecorder.getEvents();
+
+    const damageIndices = events.flatMap((event, index) =>
+      event.eventType === "DamageApplied" ? [index] : [],
+    );
+    const completedIndex = events.findIndex(
+      (event) => event.eventType === "ChargeReleaseCompleted",
+    );
+    const buffIndex = events.findIndex(
+      (event) =>
+        event.eventType === "EffectApplied" &&
+        event.payload.effectActionDefinitionId === "ACT_SIENA_OFFSTAGE_PS2_DMG_UP",
+    );
+    expect(damageIndices).toHaveLength(3);
+    expect(completedIndex).toBeGreaterThan(Math.max(...damageIndices));
+    expect(buffIndex).toBeGreaterThan(completedIndex);
+
+    // 契機はチャージ状態の終了後に出る（`passive-trigger-matcher.ts` は
+    // 「チャージ中は自身のパッシブスキルが使用できない」として保持者のPSを外すため、
+    // 終了前に発行するとPS2は一度も候補化されない）。
+    expect(
+      released.units.find((unit) => unit.battleUnitId === "ally:subject")!.charge,
+    ).toBeUndefined();
+    expect(events.some((event) => event.eventType === "PassiveActivated")).toBe(true);
   });
 });

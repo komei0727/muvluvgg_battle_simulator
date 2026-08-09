@@ -232,7 +232,8 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Bumped again by RES-004-TATIANA-EX (Issue #225): `CAP_DAMAGE_MOD`と
     // `CAP_EFFECT_STEP_CONDITION`の`verification.testCaseIds`へ
     // `IT-CAP-TATIANA-OMEN-PROD-001`〜`005`（`SKL_TATIANA_SAGE_EX`の「凶兆」
-    // しきい値分岐の実ライフサイクル検証）を追加した。Unit・Skill・Effectの
+    // しきい値分岐の実ライフサイクル検証。REF-031／Issue #361 でユニット効果軸
+    // `IT-UNIT-TATIANA-SAGE-004`〜`006` へ移送済み）を追加した。Unit・Skill・Effectの
     // 定義自体は変えていないため期待値は据え置き。
     // Bumped again by M7-015 (Issue #269): `CAP_MARKER_STACK_FORMULA`を
     // `IMPLEMENTED`へ更新し、`verification`へ`MARKER_COUNT_SCALE`の実ライフ

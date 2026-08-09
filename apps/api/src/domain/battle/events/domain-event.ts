@@ -852,6 +852,26 @@ export interface BattleDomainEventPayloadMap {
     readonly chargeStartActionId: ActionId;
     readonly releaseActionId: ActionId;
   };
+  /**
+   * R-SKL-05: チャージ効果のEffectSequenceとそのPS/Memory連鎖が解決し終わった後。
+   *
+   * `ChargeReleased`は解決**開始**のトリガーであり、「攻撃した後に発動」を表す
+   * triggerの契機にはできない（解決前なので、その攻撃自身へ与ダメージバフが
+   * 乗ってしまう）。チャージ経路は`SkillUseStarting`/`SkillUseCompleted`を
+   * 一切発行しないため、`resolution.kind: CHARGE` のスキルには「使用し終えた」
+   * ことを表すFACTイベントがどこにも無かった。`SkillUseCompleted`と同じ欄
+   * （`skillDefinitionId`/`skillType`/`resolvedStepCount`/`targetUnitIds`）を
+   * 持たせ、trigger条件を書き分けずに済むようにする。
+   */
+  readonly ChargeReleaseCompleted: {
+    readonly actorUnitId: BattleUnitId;
+    readonly skillDefinitionId: SkillDefinitionId;
+    readonly skillType: SkillType;
+    readonly chargeStartActionId: ActionId;
+    readonly releaseActionId: ActionId;
+    readonly resolvedStepCount: number;
+    readonly targetUnitIds: readonly BattleUnitId[];
+  };
   /** R-SKL-05/R-STS-02: 気絶付与時、発動待ちのチャージを維持せずキャンセルした後（`08_ドメインイベント.md`「チャージイベント」）。 */
   readonly ChargeCancelled: {
     readonly actorUnitId: BattleUnitId;

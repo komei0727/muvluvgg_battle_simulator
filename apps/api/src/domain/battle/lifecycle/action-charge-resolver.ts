@@ -523,6 +523,44 @@ export function resolveChargeRelease(
     return withoutCharge;
   });
 
+  // 「チャージ効果発動」#4の後に、解決し終えたことを表すFACTイベントを発行する。
+  // AS/EX経路の`SkillUseCompleted`に相当する — チャージ経路は`SkillUseStarting`/
+  // `SkillUseCompleted`を一切発行しないため、これが無いと「自身がアクティブスキルで
+  // 攻撃した後に発動」を表すtriggerが `resolution.kind: CHARGE` のスキルからは
+  // 一度も成立しない（`SKL_SIENA_OFFSTAGE_PS2`）。
+  //
+  // 発行位置が #1（`ChargeReleased`）でも #2〜#3の途中でもなく**#4の後**なのは、
+  // 前2者ではどちらもPSが連鎖できないか、連鎖しても意味が変わるためである:
+  // - #1で発行すると、PSが付ける与ダメージバフが解放攻撃自身へ乗ってしまう
+  //   （原文の「攻撃した後」に反する）。
+  // - #2〜#3の間はまだチャージ状態が残っており、`passive-trigger-matcher.ts` が
+  //   「チャージ中は自身のパッシブスキルが使用できない」（R-SKL-05）として保持者の
+  //   PSを候補から外すため、一度も発動しない。
+  const chargeReleaseCompleted = recorder.record({
+    eventType: "ChargeReleaseCompleted",
+    category: "FACT",
+    turnNumber,
+    cycleNumber,
+    actionId,
+    skillUseId,
+    resolutionScopeId: actionScope,
+    parentEventId: chargeReleased.eventId,
+    rootEventId: actionStarted.eventId,
+    sourceUnitId: actorUnitId,
+    targetUnitIds,
+    payload: {
+      actorUnitId,
+      skillDefinitionId: skill.skillDefinitionId,
+      skillType: skill.skillType,
+      chargeStartActionId: charge.startedActionId,
+      releaseActionId: actionId,
+      resolvedStepCount:
+        skill.resolution.kind === "CHARGE" ? skill.resolution.chargeRelease.steps.length : 0,
+      targetUnitIds,
+    },
+  });
+  working = passiveRuntime.onFactEvent(chargeReleaseCompleted, working).units;
+
   const completion = recordActionCompletion(
     recorder,
     {
