@@ -3,6 +3,7 @@ import { applyMarker } from "./marker-apply-service.js";
 import {
   emitMarkerDurationChangedEvents,
   reduceMarkerStack,
+  reduceMarkerStackSteps,
   removeMarkers,
   type MarkerRemovalSeed,
 } from "./marker-removal-service.js";
@@ -716,6 +717,119 @@ describe("removeMarkers", () => {
     // 子の`EffectExpired`が親の`MarkerRemoved`より前に通知される（`combatStats`は
     // このユニットでは付与時に加算していないため`CombatStatChanged`は発生しない）。
     expect(observations.map((o) => o.eventType)).toEqual(["EffectExpired", "MarkerRemoved"]);
+  });
+
+  it("UT-R-EFF-09-025 (R-EFF-09 通知順序): reduceMarkerStackSteps yields one step per removed member, so a caller without a callback (a PS resolving its own EffectSequence) can drive the same granularity", () => {
+    // R-EFF-09「この規約は評価経路を問わない」: 同期callbackを渡せない呼び出し側
+    // （進行中の`resolvePassiveChain`の内側）は、ステップごとの`yield`から同じ粒度を
+    // 得る。`count`指定の部分解除も残スタックが0以下になればカスケードへ入る。
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const definition = statModDefinition("ACT_CHILD_ATK_UP");
+    const childEffect = linkedEffect("child-1", target, definition.effectActionDefinitionId);
+    const parentMarkerId = createMarkerId("MARKER_PARENT");
+
+    const granted = applyMarker(
+      context,
+      [source, { ...target, appliedEffects: [childEffect] }],
+      {
+        markerId: parentMarkerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: {
+          dispellable: true,
+          linkedEffectGroupId: "GROUP_1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+      rootEventId,
+    );
+
+    const steps = reduceMarkerStackSteps(
+      context,
+      granted.units,
+      target.battleUnitId,
+      parentMarkerId,
+      1,
+      new Map([[definition.effectActionDefinitionId, definition]]),
+      granted.lastEventId,
+    );
+    const observed: { eventTypes: string[]; parentMarkerPresent: boolean }[] = [];
+    let step = steps.next();
+    while (!step.done) {
+      observed.push({
+        eventTypes: step.value.events.map((event) => event.eventType),
+        parentMarkerPresent: step.value.units.some((u) =>
+          u.markerStates.some((m) => m.markerId === parentMarkerId),
+        ),
+      });
+      step = steps.next(step.value.units);
+    }
+
+    // 子の`EffectExpired`は独立したstepとしてyieldされ、その時点で親Markerは健在。
+    expect(observed.map((entry) => entry.eventTypes)).toEqual([
+      ["EffectExpired"],
+      ["MarkerRemoved"],
+    ]);
+    expect(observed.map((entry) => entry.parentMarkerPresent)).toEqual([true, false]);
+    expect(step.value.changed).toBe(true);
+  });
+
+  it("UT-R-EFF-09-026 (R-EFF-09 通知順序): reduceMarkerStackSteps yields the stack-reduction MarkerUpdated too, so no event of that branch is dropped from the chain", () => {
+    // 残スタックが正のまま終わる分岐にはカスケードが無いが、この`MarkerUpdated`も
+    // 1ステップとしてyieldしないと、除去分だけをyieldする呼び出し側から連鎖が落ちる。
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_STACKED");
+    let units: readonly BattleUnit[] = [source, target];
+    let lastEventId = rootEventId;
+    for (let index = 0; index < 3; index += 1) {
+      const granted = applyMarker(
+        context,
+        units,
+        {
+          markerId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: target.battleUnitId,
+          stackPolicy: "ADD",
+          stackMax: null,
+          durationDefinition: { dispellable: true, linkedEffectGroupId: null },
+        },
+        lastEventId,
+      );
+      units = granted.units;
+      lastEventId = granted.lastEventId;
+    }
+
+    const steps = reduceMarkerStackSteps(
+      context,
+      units,
+      target.battleUnitId,
+      markerId,
+      1,
+      NO_EFFECT_ACTIONS,
+      lastEventId,
+    );
+    const observed: string[][] = [];
+    let step = steps.next();
+    while (!step.done) {
+      observed.push(step.value.events.map((event) => event.eventType));
+      step = steps.next(step.value.units);
+    }
+
+    expect(observed).toEqual([["MarkerUpdated"]]);
+    expect(step.value.changed).toBe(true);
+    expect(
+      step.value.units
+        .find((u) => u.battleUnitId === target.battleUnitId)!
+        .markerStates.map((m) => m.stackCount),
+    ).toEqual([2]);
   });
 });
 

@@ -7,6 +7,7 @@ import type { StatusKind } from "../../../catalog/definitions/catalog-enums.js";
 import type { AppliedEffect } from "../../model/applied-effect.js";
 import type { DomainEventId } from "../../../shared/event-ids.js";
 import {
+  driveRemovalSteps,
   findImmunityBlock,
   recordImmunityRejection,
   settledOutcome,
@@ -116,25 +117,8 @@ function* rejectStatusApplication(
   // 消費より前に記録済みの`EffectApplicationRejected`は状態変更前に通知しておく。
   cursor.notifyPending();
 
-  // 消費失効はステップ単位のgeneratorのため、ここでも1ステップずつ駆動する —
-  // callbackがあればそのステップのイベントをその場で通知し、無ければ
-  // `EFFECT_RESOLVED`としてyieldしてdriverへ委ねる。
-  const callback = context.onFactEventForPassiveChain;
-  let consumptionStep = consumptionGen.next();
-  while (!consumptionStep.done) {
-    box.units = consumptionStep.value.units;
-    if (callback !== undefined) {
-      for (const event of consumptionStep.value.events) {
-        box.units = callback(event, box.units);
-      }
-      cursor.consumeNotifiedByCallee();
-    } else {
-      yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
-    }
-    consumptionStep = consumptionGen.next(box.units);
-  }
-  const consumption = consumptionStep.value;
-  box.units = consumption.units;
+  // 消費失効はステップ単位のgeneratorのため、ここでも1ステップずつ駆動する。
+  const consumption = yield* driveRemovalSteps(input, consumptionGen);
   return settledOutcome(input, consumption.lastEventId, "REJECTED");
 }
 

@@ -2359,7 +2359,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 再計算（`effect-removal-service.ts`）と実ライフサイクル配線
   // （`effect-action-group-resolver.ts`のREMOVE_EFFECTS branch、REMOVE_MARKERのcount）。
   // REMOVE_BUFF_CATEGORY・REMOVE_EFFECTS_COUNT_LIMITを実production Catalog
-  // （Mihime/Lily/Mao）に対して`IT-REMOVE-EFFECTS-PROD-001/002`が検証する。
+  // （Mihime/Lily/Mao）に対して`IT-UNIT-MIHIME-SNIPER-004`／`IT-UNIT-LILY-SINGER-005`
+  // （`maxRemovals` 3／5の頭打ち）と`IT-UNIT-MAO-COMMITTEE-008`（BUFF+DEBUFFの2カテゴリ・
+  // SHIELDは巻き込まない・解除の公開差分だけからの独立Reducer復元）が検証する。
   // 状態異常種別限定免疫（R-EFF-03、`CAP_SPECIFIC_IMMUNITY`）はM7-001B（Issue #243）で完了した。
   // M7-001A（Issue #242、`REMOVE_EFFECTS_CATEGORY_GAP`）: SHIELD/SUBUNITカテゴリの
   // 実行時拒否を解除した。DMG-004（`CAP_SHIELD`）/DMG-005（`CAP_SUBUNIT`）が
@@ -2368,15 +2370,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // できる（プール・耐久力はインスタンス集合からの導出値）。`UT-R-EFF-02-024/025`が
   // シールド・サブユニットの非負`magnitude`が`BUFF`へ落ちないこと（`REMOVE_EFFECTS`の
   // BUFF解除に巻き込まれない）を分類元で固定し、`UT-R-EFF-02-022/023`が実resolver経路の
-  // 解除を、`IT-REMOVE-EFFECTS-PROD-008/009`がYui EX（敵単体のシールド全解除→防御力
-  // デバフ→攻撃の順序）とOlga PS1（自身のシールド・サブユニット全解除→同じstepでの
-  // 3体付与）をproduction Catalog定義に対して検証する。
+  // 解除を、`IT-UNIT-YUI-HEIR-005`がYui EX（敵単体のシールド全解除→防御力デバフ→
+  // 攻撃の順序、無属性・EN属性の両プール）と`IT-UNIT-OLGA-VETERAN-006`がOlga PS1
+  // （自身のシールド・サブユニット全解除→同じstepでの3体付与）をproduction Catalog
+  // 定義に対して検証する。
   // M7-001C（Issue #244）: 残りのREMOVE_BUFF_CATEGORY対象（Noel PS2・Shouka EX/AS3・
-  // Senka PS2）をcategories:["BUFF"]へ変換した。`IT-REMOVE-EFFECTS-PROD-004/005`が
-  // `removeEffects`実行器レベルでcategories/maxRemovalsを検証し、`IT-REMOVE-EFFECTS-
-  // PROD-006/007`がShouka EX/AS3の対象選択（ENEMY、SELFではない）・Senka PS2の
-  // TRIGGER_TARGET配線（実際に攻撃した敵のみ、傍観者やSenka自身は対象外）を
-  // resolveSkillUse/PassiveActivationRuntime経由の実resolverで検証する。
+  // Senka PS2）をcategories:["BUFF"]へ変換した。`IT-UNIT-SHOUKA-SCHEMER-005`が
+  // EX 3件／AS3 1件の`maxRemovals`と対象選択（ENEMY、SELFではない）を、
+  // `IT-UNIT-NOEL-RUMBLE-005`が上限なしの全解除とバフ／デバフの向きによる分岐を、
+  // `IT-UNIT-SENKA-CHRISTMAS-004`がTRIGGER_TARGET配線（契機の対象だけ、傍観者の敵は
+  // 対象外）を、いずれもresolveSkillUse/PassiveActivationRuntime経由の実resolverで
+  // 検証する。
   // Tarisa PS1の条件付きREMOVE_MARKER（与ダメージ<=10で3つ解除）は、トリガーイベント
   // payloadをresolution.stepsで参照する手段が未実装のため対象外（新機能実装が必要な
   // ため、監査専用のM7-010ではなく専用task M7-001D、Issue #247へ引き継ぐ）。
@@ -2412,15 +2416,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-027",
       "IT-CAP-CRITICAL-CONTROL-PROD-005",
       "IT-CAP-CRITICAL-CONTROL-PROD-006",
-      "IT-REMOVE-EFFECTS-PROD-001",
-      "IT-REMOVE-EFFECTS-PROD-002",
-      "IT-REMOVE-EFFECTS-PROD-003",
-      "IT-REMOVE-EFFECTS-PROD-004",
-      "IT-REMOVE-EFFECTS-PROD-005",
-      "IT-REMOVE-EFFECTS-PROD-006",
-      "IT-REMOVE-EFFECTS-PROD-007",
-      "IT-REMOVE-EFFECTS-PROD-008",
-      "IT-REMOVE-EFFECTS-PROD-009",
+      // REF-042（Issue #389）でユニット効果軸へ移送した。
+      "IT-UNIT-MIHIME-SNIPER-004",
+      "IT-UNIT-LILY-SINGER-005",
+      "IT-UNIT-MAO-COMMITTEE-008",
+      "IT-UNIT-SHOUKA-SCHEMER-005",
+      "IT-UNIT-NOEL-RUMBLE-005",
+      "IT-UNIT-SENKA-CHRISTMAS-004",
+      "IT-UNIT-YUI-HEIR-005",
+      "IT-UNIT-OLGA-VETERAN-006",
       "UT-CAT-COND-037",
       "UT-CAT-COND-038",
       "UT-CAT-COND-039",
@@ -2660,8 +2664,31 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`notifyRemovalStep`。まとめて最後に通知すると、子の`EffectExpired`を
   // triggerにするPSがイベント順ではまだ存在する親Marker／親効果を除去済みとして
   // 観測し、`08_ドメインイベント.md`の「各イベントに対応するPS/Memory候補を
-  // 直ちに解決する」契約を破る。`UT-R-EFF-09-020`／
-  // `IT-LINKED-GROUP-CROSS-TYPE-PROD-005`が固定）。
+  // 直ちに解決する」契約を破る。`UT-R-EFF-09-020`が固定）。
+  //
+  // REF-042（Issue #389）: この粒度は**評価経路を問わない**（R-EFF-09）が、
+  // `REMOVE_MARKER`／`REMOVE_EFFECTS`のEffectActionハンドラだけは同期版の
+  // `removeMarkers`／`reduceMarkerStack`／`removeEffects`を直接呼んでいたため、
+  // 同期callbackを持たない経路——PS自身のEffectSequence解決——では通知が
+  // EffectAction 1件ぶんにまとまっていた。実 `catalog/` で連動グループの親Markerを
+  // 外す2定義（`ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER`・
+  // `ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU`）はどちらもPS経路にしか現れないため、
+  // 実データでは規約が一度も守られていなかった。`removeEffectsSteps`／
+  // `reduceMarkerStackSteps`を追加し、両ハンドラを`SteppedEffectActionHandler`へ変えて
+  // 共通driver（`driveRemovalSteps`）から1除去ごとに駆動する — callbackがあれば
+  // その場で通知し、無ければ`EFFECT_RESOLVED`としてdriverへ`yield`する。
+  // `UT-R-EFF-09-025`〜`027`がgenerator側を、`IT-UNIT-TARISA-TROUBLEMAKER-008`が
+  // 実 production 経路（子の失効 → watcher PSの発動 → 親Markerの除去）を固定する。
+  //
+  // 同時に、`yield`から再開する側の契約も要る（`consumeResolvedByDriver`）。
+  // `takePending`が捕捉位置を進めるのは`yield`直前のrecorder末尾までで、driverが
+  // その`yield`を処理する間に子連鎖が積んだイベントはその後ろへ入る。再開時に
+  // 捨てないと次stepの`takePending`／EffectAction完了時の`innerEvents`が拾い直し、
+  // 同じイベントが2度`resolveEvent`へ渡る（PSは発動済みGuardで覆い隠れるが、
+  // Memoryやイベントごとに走るRuntimeCounter更新は二重に実行される）。同じ形で
+  // `yield`していたDAMAGE・HEALのハンドラにも同じ欠落があった。
+  // `UT-R-EFF-09-028`（複数インスタンスの`REMOVE_EFFECTS`）・`UT-R-EFF-09-029`
+  // （多段DAMAGE）が、子連鎖のイベントが一度もdriverへ返らないことを固定する。
   // (2) カスケード対象の並びを`linkedEffectGroupRole`（`CHILD`→ロールなし→
   // `PARENT`）を第1キーに変更した（スキーマが禁じていない「同一グループに複数の
   // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
@@ -2724,15 +2751,24 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-022",
       "UT-R-EFF-09-023",
       "UT-R-EFF-09-024",
+      // REF-042（Issue #389）: 同期callbackを持たない経路のためのステップ版と、
+      // その経路が`yield`中に発生した子連鎖のイベントを再通知しないこと。
+      "UT-R-EFF-09-025",
+      "UT-R-EFF-09-026",
+      "UT-R-EFF-09-027",
+      "UT-R-EFF-09-028",
+      "UT-R-EFF-09-029",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-UNIT-HARRIET-SAGE-004",
       "IT-UNIT-HARRIET-SAGE-005",
-      "IT-LINKED-GROUP-CROSS-TYPE-PROD-001",
-      "IT-LINKED-GROUP-CROSS-TYPE-PROD-002",
-      "IT-LINKED-GROUP-CROSS-TYPE-PROD-003",
-      "IT-LINKED-GROUP-CROSS-TYPE-PROD-004",
-      "IT-LINKED-GROUP-CROSS-TYPE-PROD-005",
+      // REF-042（Issue #389）でユニット効果軸へ移送した。cross-typeカスケードの
+      // production 2グループは`IT-UNIT-TARISA-TROUBLEMAKER-007`（「負けん気」、
+      // 独立Reducer復元を含む）と`IT-UNIT-AOI-ELEGANT-007`（「高揚」、実 `REMOVE_MARKER`）
+      // が持ち、通知粒度は`IT-UNIT-TARISA-TROUBLEMAKER-008`が記録する。
+      "IT-UNIT-TARISA-TROUBLEMAKER-007",
+      "IT-UNIT-TARISA-TROUBLEMAKER-008",
+      "IT-UNIT-AOI-ELEGANT-007",
       // M7-020（Issue #279）: 付与者戦闘不能によるMarker解除も、他の3経路と同じく
       // 単一の除去バッチとしてR-EFF-09のcross-typeカスケード・role順を通る。
       // PS連鎖内部経路でも「各インスタンスの失効イベントは

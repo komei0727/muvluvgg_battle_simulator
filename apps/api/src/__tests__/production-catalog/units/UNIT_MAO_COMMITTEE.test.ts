@@ -13,7 +13,10 @@ import {
 } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import {
+  applyStateDelta,
+  reduceStateDeltas,
+} from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import {
   definitionsWith,
   initialSnapshotFor,
@@ -29,6 +32,7 @@ import { observeDamageProbe } from "../../../testing/production-unit/damage-prob
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -51,7 +55,20 @@ import { skillUseCompleted, turnStarted } from "../../../testing/production-unit
 
 const UNIT_DEFINITION_ID = "UNIT_MAO_COMMITTEE";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * PS2の「全てのバフ・デバフを解除」がカテゴリごとに分かれることの対照。茉莉花自身は
+ * 攻撃力へ効くバフもデバフも配らないため、実効値の巻き戻しまで見える実 production の
+ * 攻撃力補正を1件ずつ併せて読み込む。どちらも `timeLimit: BATTLE` にする —
+ * `ACTION` 単位は保持者の行動で失効し得るため、解除されたことの証拠にならない。
+ */
+const CLEANSED_BUFF_ACTION_ID = "ACT_NOEL_RUMBLE_PS1_ATK_UP";
+const CLEANSED_DEBUFF_ACTION_ID = "ACT_SHOUKA_SCHEMER_PS1_ATK_DOWN";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_NOEL_RUMBLE",
+  "UNIT_SHOUKA_SCHEMER",
+]);
 
 const DISCIPLINE = "MARKER_MAO_COMMITTEE_DISCIPLINE";
 
@@ -661,5 +678,66 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
       preTruncationDamage: 500,
       finalDamage: 500,
     });
+  });
+
+  it("IT-UNIT-MAO-COMMITTEE-008 (R-EFF-02): PS2の解除は `categories: [BUFF, DEBUFF]` の2カテゴリだけを取り、シールドは残る。解除が出す `EffectRemoved`／`CombatStatChanged` の公開差分だけからも実効値まで復元できる", () => {
+    // `-001` のPS2行は解除対象をデバフ1件しか持たないため、2カテゴリのうち
+    // `BUFF` 側が本当に取られているか・`SHIELD` が巻き込まれていないかは現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const baseline = applyPrecedingActions(board, [
+      { effectActionDefinitionId: CLEANSED_BUFF_ACTION_ID, target: "SELF" },
+      { effectActionDefinitionId: CLEANSED_DEBUFF_ACTION_ID, target: "SELF" },
+      { effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_SHIELD", target: "SELF" },
+    ]);
+    const before = baseline.find((unit) => unit.battleUnitId === "ally:subject")!;
+    expect(
+      before.appliedEffects.map((effect) => [
+        effect.effectActionDefinitionId,
+        [...effect.categories],
+      ]),
+    ).toEqual([
+      [CLEANSED_BUFF_ACTION_ID, ["BUFF"]],
+      [CLEANSED_DEBUFF_ACTION_ID, ["DEBUFF"]],
+      ["ACT_MAO_COMMITTEE_AS1_SHIELD", ["SHIELD"]],
+    ]);
+    // 攻撃力1000に+18%と-3.5%が合成された実効値。解除で1000へ戻るところまで見る。
+    expect(before.combatStats.attack).toBe(1145);
+
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_MAO_CLEANSE",
+    });
+    const initial = initialSnapshotFor(baseline, { include: ["effects"] });
+    const eventsBefore = chain.recorder.getEvents().length;
+    const after = chain.fire(turnStarted({ turnNumber: 1 }), baseline);
+
+    const holder = after.find((unit) => unit.battleUnitId === "ally:subject")!;
+    // バフもデバフも消え、シールドだけが解除の前から残っている。以降はPS2自身の付与。
+    expect(holder.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_MAO_COMMITTEE_AS1_SHIELD",
+      "ACT_MAO_COMMITTEE_PS2_STEALTH",
+      "ACT_MAO_COMMITTEE_PS2_HEAL",
+      "ACT_MAO_COMMITTEE_PS2_DMG_DOWN",
+    ]);
+    expect(holder.combatStats.attack).toBe(1000);
+
+    // 解除は1インスタンスにつき `EffectRemoved` と実効値の `CombatStatChanged` を出す。
+    const emitted = chain.recorder.getEvents().slice(eventsBefore);
+    expect(
+      emitted
+        .filter(
+          (event) => event.eventType === "EffectRemoved" || event.eventType === "CombatStatChanged",
+        )
+        .map((event) => event.eventType),
+    ).toEqual(["EffectRemoved", "CombatStatChanged", "EffectRemoved", "CombatStatChanged"]);
+
+    // 独立Reducer復元: 解除も付与も公開差分だけで同じ最終状態へ届く。
+    expect(
+      reduceStateDeltas(
+        initial,
+        emitted.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(after, { include: ["effects"] }));
   });
 });

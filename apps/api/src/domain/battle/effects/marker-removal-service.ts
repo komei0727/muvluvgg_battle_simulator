@@ -1,6 +1,5 @@
 import {
   cascadedOnlyRemovals,
-  notifyRemovalStep,
   orderGroupRemovals,
   removeGroupMembers,
   removeGroupMembersSteps,
@@ -242,6 +241,43 @@ export function reduceMarkerStack(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ReduceMarkerStackResult {
+  const steps = reduceMarkerStackSteps(
+    context,
+    units,
+    targetUnitId,
+    markerId,
+    count,
+    effectActions,
+    parentEventId,
+  );
+  let step = steps.next();
+  while (!step.done) {
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
+  }
+  return step.value;
+}
+
+/**
+ * `removeMarkersSteps`と同じ役割の`count`指定版。スタック減算だけで終わる分岐も
+ * その`MarkerUpdated`を1ステップとして`yield`する — `removeMarkers`経路と同じ粒度で
+ * PS/Memory連鎖へ渡さないと、呼び出し側が「除去は内部で通知済み」を前提に
+ * イベント列を切り詰めた際にこの1件が連鎖から落ちる。
+ */
+export function* reduceMarkerStackSteps(
+  context: RemoveMarkersContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  markerId: MarkerId,
+  count: number,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): Generator<LinkedGroupCascadeStep, ReduceMarkerStackResult, readonly BattleUnit[] | undefined> {
   const target = requireUnit(units, targetUnitId);
   const existing = target.markerStates.find((marker) => marker.markerId === markerId);
   if (existing === undefined) {
@@ -250,7 +286,7 @@ export function reduceMarkerStack(
 
   const stackAfter = existing.stackCount - count;
   if (stackAfter <= 0) {
-    const result = removeMarkers(
+    const result = yield* removeMarkersSteps(
       context,
       units,
       [
@@ -313,12 +349,12 @@ export function reduceMarkerStack(
       },
     },
   });
-  // `removeMarkers`経路と同じ粒度で、スタック減算だけの
-  // `MarkerUpdated`もその場でPS/Memory連鎖へ通知する（呼び出し側が
-  // 「除去は内部で通知済み」を前提にイベント列を切り詰めるため、
-  // ここで通知しないとこの1件が連鎖から落ちる）。
+  const injected = yield {
+    events: context.recorder.getEvents().slice(stackReductionEventsStart),
+    units: nextUnits,
+  };
   return {
-    units: notifyRemovalStep(context, nextUnits, stackReductionEventsStart),
+    units: injected ?? nextUnits,
     lastEventId: updated.eventId,
     changed: true,
   };

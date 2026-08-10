@@ -3,6 +3,8 @@ import {
   cascadedOnlyRemovals,
   orderGroupRemovals,
   removeGroupMembers,
+  removeGroupMembersSteps,
+  type LinkedGroupCascadeStep,
   type LinkedGroupRemoval,
 } from "./linked-group-cascade.js";
 import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
@@ -101,6 +103,71 @@ export function removeEffects(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): RemoveEffectsResult {
+  const batch = planRemovalBatch(units, targetUnitId, criteria, effectActions);
+  if (batch === undefined) {
+    return { units, lastEventId: parentEventId, removedCount: 0 };
+  }
+  const removed = removeGroupMembers(
+    context,
+    units,
+    batch.removals,
+    effectActions,
+    parentEventId,
+    "EffectRemoved",
+  );
+  // 「解除数」は直接一致で解除したインスタンス数（cascadeで巻き込んだ子効果は含めない）。
+  return {
+    units: removed.units,
+    lastEventId: removed.lastEventId,
+    removedCount: batch.removedCount,
+  };
+}
+
+/**
+ * `marker-removal-service.ts`の`removeMarkersSteps`と同じ役割の`REMOVE_EFFECTS`版:
+ * `removeEffects`と同じ除去バッチを、1メンバーの除去ごとに`yield`するgeneratorとして
+ * 返す。R-EFF-09の「各インスタンスの失効イベントは次のインスタンスへ進む前に
+ * PS/Memoryの即時連鎖へ渡す」を、`onFactEventForPassiveChain`を使えない呼び出し側
+ * （進行中の`resolvePassiveChain`の内側 — 新しい`resolvePassiveChain`を起こすと
+ * guard/stackを上書きしてしまう）が満たすために必要になる。
+ */
+export function* removeEffectsSteps(
+  context: RemoveEffectsContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  criteria: EffectRemovalCriteria,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): Generator<LinkedGroupCascadeStep, RemoveEffectsResult, readonly BattleUnit[] | undefined> {
+  const batch = planRemovalBatch(units, targetUnitId, criteria, effectActions);
+  if (batch === undefined) {
+    return { units, lastEventId: parentEventId, removedCount: 0 };
+  }
+  const removed = yield* removeGroupMembersSteps(
+    context,
+    units,
+    batch.removals,
+    effectActions,
+    parentEventId,
+    "EffectRemoved",
+  );
+  return {
+    units: removed.units,
+    lastEventId: removed.lastEventId,
+    removedCount: batch.removedCount,
+  };
+}
+
+/**
+ * 解除対象の抽出（#1〜#3）とR-EFF-09の除去バッチ整列。一致0件なら`undefined`を返す。
+ * 同期版・ステップ版のどちらから駆動しても同じバッチになるよう、両者で共有する。
+ */
+function planRemovalBatch(
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  criteria: EffectRemovalCriteria,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): { readonly removals: readonly LinkedGroupRemoval[]; readonly removedCount: number } | undefined {
   const target = requireUnit(units, targetUnitId);
 
   // #1〜#3: 一致する効果を付与順で抽出し、maxRemovalsで解除数を制限する。
@@ -118,7 +185,7 @@ export function removeEffects(
     criteria.maxRemovals !== undefined ? matched.slice(0, criteria.maxRemovals) : matched;
 
   if (capped.length === 0) {
-    return { units, lastEventId: parentEventId, removedCount: 0 };
+    return undefined;
   }
 
   // R-EFF-09: 親子の両方が解除カテゴリへ一致した場合、子を独立seedと
@@ -162,15 +229,5 @@ export function removeEffects(
       }),
     ),
   ]);
-  const removed = removeGroupMembers(
-    context,
-    units,
-    removals,
-    effectActions,
-    parentEventId,
-    "EffectRemoved",
-  );
-
-  // 「解除数」は直接一致で解除したインスタンス数（cascadeで巻き込んだ子効果は含めない）。
-  return { units: removed.units, lastEventId: removed.lastEventId, removedCount: capped.length };
+  return { removals, removedCount: capped.length };
 }

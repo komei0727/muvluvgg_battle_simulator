@@ -1,14 +1,17 @@
 import { applyMarker } from "../../effects/marker-apply-service.js";
-import { removeMarkers, reduceMarkerStack } from "../../effects/marker-removal-service.js";
+import {
+  reduceMarkerStackSteps,
+  removeMarkersSteps,
+} from "../../effects/marker-removal-service.js";
 import { requireUnit } from "../action-resolution-shared.js";
-import type { EffectActionResultKind } from "../../events/domain-event.js";
-import type { DomainEventId } from "../../../shared/event-ids.js";
 import {
   completeGrant,
+  driveRemovalSteps,
   rejectIfImmune,
   settledOutcome,
   type EffectActionHandler,
   type EffectActionOutcome,
+  type SteppedEffectActionHandler,
 } from "./effect-action-handler.js";
 import { eventContextOf, requireMarkerSource } from "./effect-action-group-context.js";
 
@@ -53,23 +56,17 @@ export const resolveApplyMarker: EffectActionHandler<"APPLY_MARKER"> = (
  *
  * R-EFF-09のカスケードは1インスタンスの除去ごとにPS/Memory連鎖へ通知する必要がある
  * （子の`EffectExpired`をtriggerにするPSが親Markerを既に除去済みとして観測しないように）。
- * `removeMarkers`/`reduceMarkerStack`へcallbackを渡し、そこで通知済みになった分は
- * 一括捕捉から除く（`applyDamageActionSteps`の凍結カスケードと同じ二重処理防止）。
- * callback未指定（PS自身のEffectSequence解決）の経路では従来どおり`innerEvents`が
- * driverへ一括で渡す。
+ * この規約は**評価経路を問わない**ため、除去はどちらの経路でもステップ単位のgeneratorで
+ * 駆動する — callbackがあればそのステップのイベントをその場で通知し、無ければ
+ * （PS自身のEffectSequence解決）`EFFECT_RESOLVED`としてyieldしてdriverへ委ねる。
+ * まとめて除去してからイベント列を渡すと、経路によって同じ除去でPSが発動したり
+ * しなかったりする差が生まれる。
  */
-export const resolveRemoveMarker: EffectActionHandler<"REMOVE_MARKER"> = (
-  input,
-): EffectActionOutcome => {
+export const resolveRemoveMarker: SteppedEffectActionHandler<"REMOVE_MARKER"> = function* (input) {
   const { context, box, application, effectAction, startingEventId, cursor } = input;
-  const removalContext = {
-    ...eventContextOf(context),
-    ...(context.onFactEventForPassiveChain !== undefined
-      ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-      : {}),
-  };
-  // callbackを渡す場合、除去より前に記録済みのイベントは状態を書き換える前に通知して
-  // おく — 除去内部の通知より後にすると、発行順と連鎖解決順が食い違う。
+  const removalContext = eventContextOf(context);
+  // 除去より前に記録済みのイベントは状態を書き換える前に通知しておく — 除去内部の
+  // 通知より後にすると、発行順と連鎖解決順が食い違う。
   cursor.notifyPending();
 
   // 所持判定は先行イベントのPS連鎖を反映した`box.units`から取る — 上の通知で対象の
@@ -78,46 +75,40 @@ export const resolveRemoveMarker: EffectActionHandler<"REMOVE_MARKER"> = (
   const existingMarker = target.markerStates.find(
     (marker) => marker.markerId === effectAction.payload.markerId,
   );
-
-  let lastEventId: DomainEventId;
-  let resultKind: EffectActionResultKind;
   if (existingMarker === undefined) {
-    lastEventId = startingEventId;
-    resultKind = "SKIPPED";
-  } else if (effectAction.payload.count !== undefined) {
-    // M7-001（`REMOVE_EFFECTS_COUNT_LIMIT`）: 指定スタック数だけ部分解除。
-    const reduction = reduceMarkerStack(
-      removalContext,
-      box.units,
-      application.targetUnitId,
-      effectAction.payload.markerId,
-      effectAction.payload.count,
-      context.definitions.effectActions,
-      startingEventId,
-    );
-    box.units = reduction.units;
-    lastEventId = reduction.lastEventId;
-    resultKind = reduction.changed ? "APPLIED" : "SKIPPED";
-    cursor.consumeNotifiedByCallee();
-  } else {
-    const removalResult = removeMarkers(
-      removalContext,
-      box.units,
-      [
-        {
-          battleUnitId: application.targetUnitId,
-          markerInstanceId: existingMarker.markerInstanceId,
-          reason: "REMOVED",
-        },
-      ],
-      context.definitions.effectActions,
-      startingEventId,
-    );
-    box.units = removalResult.units;
-    lastEventId = removalResult.lastEventId;
-    resultKind = "APPLIED";
-    cursor.consumeNotifiedByCallee();
+    return settledOutcome(input, startingEventId, "SKIPPED");
   }
+
+  // M7-001（`REMOVE_EFFECTS_COUNT_LIMIT`）: `count`があれば指定スタック数だけ部分解除。
+  const removalGen =
+    effectAction.payload.count !== undefined
+      ? reduceMarkerStackSteps(
+          removalContext,
+          box.units,
+          application.targetUnitId,
+          effectAction.payload.markerId,
+          effectAction.payload.count,
+          context.definitions.effectActions,
+          startingEventId,
+        )
+      : removeMarkersSteps(
+          removalContext,
+          box.units,
+          [
+            {
+              battleUnitId: application.targetUnitId,
+              markerInstanceId: existingMarker.markerInstanceId,
+              reason: "REMOVED",
+            },
+          ],
+          context.definitions.effectActions,
+          startingEventId,
+        );
+  const removal = yield* driveRemovalSteps(input, removalGen);
   cursor.notifyPending();
-  return settledOutcome(input, lastEventId, resultKind);
+  return settledOutcome(
+    input,
+    removal.lastEventId,
+    "changed" in removal && !removal.changed ? "SKIPPED" : "APPLIED",
+  );
 };

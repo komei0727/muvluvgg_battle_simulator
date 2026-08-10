@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  effectActionFrom,
   initialSnapshotFor,
   loadProductionSnapshot,
   unitFrom,
@@ -40,10 +41,25 @@ import {
 
 const UNIT_DEFINITION_ID = "UNIT_AOI_ELEGANT";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * 「会心率デバフと継続ダメージデバフは解除不可」の対照に使う、デバフを全解除する
+ * 実 production 定義。葵自身は解除を持たないため、1ユニットだけ併せて読み込む。
+ */
+const DISPEL_DEBUFFS_ACTION_ID = "ACT_MEIYA_FATED_PS1_REMOVE_DEBUFF";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_MEIYA_FATED",
+]);
 
 const UKIASHI = "MARKER_AOI_ELEGANT_UKIASHI";
 const KOUYOU = "MARKER_AOI_ELEGANT_KOUYOU";
+const KOUYOU_LINK = "AOI_ELEGANT_AS1_KOUYOU_LINK";
+const KOUYOU_MARKER_ACTION_ID = "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU";
+const KOUYOU_CHILD_ACTION_IDS = [
+  "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN",
+  "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
+] as const;
 
 /** 会心率デバフの効きを観測するための基礎会心率（既定盤面は0で差が出ない）。 */
 const BASE_CRITICAL_RATE = 0.5;
@@ -687,6 +703,98 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       damageReductionIgnoreRate: 0,
       preTruncationDamage: 300,
       finalDamage: 300,
+    });
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-007 (R-EFF-09第1項): 「高揚」の子効果は `REMOVE_EFFECTS` では解除できないが、PS2の実 `REMOVE_MARKER` で親が外れると同時に失効する", () => {
+    // raw原文「会心率デバフと継続ダメージデバフは解除不可だが、「高揚」が解除されると
+    // 同時に解除される」。`dispellable: false` と `linkedEffectGroupId` の両方を宣言
+    // することで両立する（R-EFF-09）。`-004` は同じグループを**付与者の戦闘不能**
+    // （R-EFF-10）で外す経路を持つ。ここは失効理由が違うもう一方の経路。
+    const durationOf = (effectActionDefinitionId: string): unknown =>
+      (effectActionFrom(snapshot, effectActionDefinitionId) as { payload: { duration: unknown } })
+        .payload.duration;
+    expect(durationOf(KOUYOU_MARKER_ACTION_ID)).toMatchObject({
+      linkedEffectGroupId: KOUYOU_LINK,
+      linkedEffectGroupRole: "PARENT",
+    });
+    for (const childId of KOUYOU_CHILD_ACTION_IDS) {
+      expect(durationOf(childId)).toMatchObject({
+        linkedEffectGroupId: KOUYOU_LINK,
+        linkedEffectGroupRole: "CHILD",
+        dispellable: false,
+      });
+    }
+
+    // 会心率デバフが実効値へ効いたことを見るため、基礎会心率を0以外へ置く。前提は
+    // 実 production 定義で作る（盤面の `markers` は `linkedEffectGroupId` を持たない
+    // 素のMarkerになるため、カスケードの前提にはできない）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: BASE_CRITICAL_RATE },
+    });
+    const baseline = applyPrecedingActions(board, [
+      { effectActionDefinitionId: KOUYOU_MARKER_ACTION_ID, target: "ENEMY" },
+      ...KOUYOU_CHILD_ACTION_IDS.map((id) => ({
+        effectActionDefinitionId: id,
+        target: "ENEMY" as const,
+      })),
+      // PS2の解除条件は「「高揚」を2つ以上所持している敵」。
+      { effectActionDefinitionId: KOUYOU_MARKER_ACTION_ID, target: "ENEMY" },
+      // 「解除不可」側: デバフを全解除する実 production 定義を通しても1件も落ちない。
+      { effectActionDefinitionId: DISPEL_DEBUFFS_ACTION_ID, target: "ENEMY" },
+    ]);
+    const holderBefore = baseline.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(holderBefore.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
+      ...KOUYOU_CHILD_ACTION_IDS,
+    ]);
+    expect(holderBefore.markerStates.map((marker) => [marker.markerId, marker.stackCount])).toEqual(
+      [[KOUYOU, 2]],
+    );
+    expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE * (1 - 0.25), 9);
+
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_AOI_CLEAR_KOUYOU",
+    });
+    const eventsBefore = chain.recorder.getEvents().length;
+    const after = chain.fire(turnStarted({ turnNumber: 1 }), baseline);
+
+    const holder = after.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(holder.markerStates.map((marker) => marker.markerId)).toEqual([UKIASHI]);
+    // 残るのはPS2自身が同じ発動で配ったデバフ2件だけ。
+    expect(holder.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN",
+      "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN",
+    ]);
+    // 会心率デバフの失効が実効値の再計算まで通る（-25%が外れ、PS2の-7.5%だけが残る）。
+    expect(holder.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE * (1 - 0.075), 9);
+
+    const cascade = chain.recorder
+      .getEvents()
+      .slice(eventsBefore)
+      .filter(
+        (event) => event.eventType === "EffectExpired" || event.eventType === "MarkerRemoved",
+      );
+    // R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」。
+    expect(cascade.map((event) => event.eventType)).toEqual([
+      "EffectExpired",
+      "EffectExpired",
+      "MarkerRemoved",
+    ]);
+    KOUYOU_CHILD_ACTION_IDS.forEach((childId, index) => {
+      expect(cascade[index]!.payload).toMatchObject({
+        effectActionDefinitionId: childId,
+        reason: "LINKED_GROUP_CASCADE",
+        linkedEffectGroupId: KOUYOU_LINK,
+        cascaded: true,
+      });
+    });
+    expect(cascade[2]!.payload).toMatchObject({
+      markerId: KOUYOU,
+      reason: "REMOVED",
+      linkedEffectGroupId: KOUYOU_LINK,
+      cascaded: false,
     });
   });
 });

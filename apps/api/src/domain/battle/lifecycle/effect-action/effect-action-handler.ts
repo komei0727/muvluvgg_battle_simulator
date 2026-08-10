@@ -79,6 +79,18 @@ export interface EffectActionEventCursor {
   consumeNotifiedByCallee(): void;
   /** 未通知イベント列を取り出し、捕捉位置を前進させる（driverへ`yield`する経路用）。 */
   takePending(): readonly BattleDomainEvent[];
+  /**
+   * `yield`から再開した直後に、driverがその`yield`を処理する間にrecorderへ積んだ
+   * イベント（＝既に候補解決まで済んでいる子連鎖）を一括捕捉から除く。
+   *
+   * `takePending`が捕捉位置を進めるのは`yield`**直前**のrecorder末尾までなので、
+   * これを呼ばずに次のstepへ進むと、次の`takePending`または
+   * {@link innerEvents}が子連鎖のイベントを拾い直し、同じイベントが2度
+   * `resolveEvent`へ渡る。PS自身は発動済みGuard（R-PS-07）で表面化しないことが
+   * あるが、1解決スコープ1回制限を持たないMemoryやイベントごとに走る
+   * RuntimeCounter更新は二重に実行される。
+   */
+  consumeResolvedByDriver(): void;
   /** `EffectActionCompleted`と同じstepへ含める内部イベント（callback経路では常に空）。 */
   innerEvents(): readonly BattleDomainEvent[];
 }
@@ -113,6 +125,7 @@ export function createEffectActionEventCursor(
       consume();
       return pending;
     },
+    consumeResolvedByDriver: consume,
     innerEvents: () =>
       context.onFactEventForPassiveChain === undefined
         ? context.recorder.getEvents().slice(start)
@@ -176,6 +189,47 @@ export type EffectActionHandler<TKind extends EffectActionKind> = (
 export type SteppedEffectActionHandler<TKind extends EffectActionKind> = (
   input: EffectActionHandlerInput<TKind>,
 ) => EffectActionResolution;
+
+/**
+ * R-EFF-09「各インスタンスの失効イベントは次のインスタンスへ進む前にPS/Memoryの
+ * 即時連鎖へ渡す」を、**評価経路を問わず**同じ粒度で満たす共通driver。
+ *
+ * callbackがある経路（AS/EX・チャージ解放）はそのステップのイベントをその場で
+ * 同期通知し、無い経路（PS自身のEffectSequence解決）は`EFFECT_RESOLVED`として
+ * driverへ`yield`する — 後者は新しい`resolvePassiveChain`を起こせない（進行中の
+ * guard/stackを上書きしてしまう）ため、`resolvePassiveChain`自身に1ステップずつ
+ * 解決させる。まとめて除去してからイベント列を渡すと、経路によって同じ除去で
+ * PSが発動したりしなかったりする差が生まれる。
+ */
+export function* driveRemovalSteps<TResult extends { readonly units: readonly BattleUnit[] }>(
+  input: EffectActionApplicationInput,
+  steps: Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    TResult,
+    readonly BattleUnit[] | undefined
+  >,
+): Generator<EffectResolutionStep, TResult, void> {
+  const { context, box, cursor } = input;
+  const callback = context.onFactEventForPassiveChain;
+  let step = steps.next();
+  while (!step.done) {
+    box.units = step.value.units;
+    if (callback !== undefined) {
+      for (const event of step.value.events) {
+        box.units = callback(event, box.units);
+      }
+      cursor.consumeNotifiedByCallee();
+    } else {
+      yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
+      // 再開時点のrecorder末尾までは、driverがこの`yield`で既に解決した子連鎖。
+      // 次stepの`takePending`／EffectAction終了時の`innerEvents`が拾い直さないよう捨てる。
+      cursor.consumeResolvedByDriver();
+    }
+    step = steps.next(box.units);
+  }
+  box.units = step.value.units;
+  return step.value;
+}
 
 /**
  * 中断を起こさないkindの共通結果。これらは`application.hits`の全件を処理し切る

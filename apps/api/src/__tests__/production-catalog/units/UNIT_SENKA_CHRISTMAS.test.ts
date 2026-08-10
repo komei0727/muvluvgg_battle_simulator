@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { removalDeclarationOf } from "../../../testing/production-unit/removal-declaration.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -440,5 +441,73 @@ describe("production Catalog UNIT_SENKA_CHRISTMAS (【クリスマスコーデ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-SENKA-CHRISTMAS-004 (R-EFF-02): PS2の「バフを全て解除」は件数上限を持たず、解除先は契機の対象（`TGT_TRIGGER_TARGET`）だけ — 攻撃していない敵のバフは同じ盤面に残る", () => {
+    // `-001` のPS2行は解除対象を1つしか持たないため「全て」は現れない。また
+    // 契機の対象が誰であっても最も近い敵を剥がす実装だと、`-001` の行（契機の
+    // 対象＝最も近い敵）では区別が付かない。契機の対象だけを敵前列から敵左列へ
+    // 動かし、バフを持つ敵前列が**傍観者として無傷で残る**ことを対照に置く。
+    // 契機イベントそのものを実ダメージpipelineに出させる経路は `-001` の混乱行が持つ。
+    // 「すべて」は上限の**不在**であり、実行結果からは「上限がたまたま投入件数と
+    // 同じ」と区別できない。宣言そのものを固定して、`maxRemovals` の混入を落とす。
+    expect(removalDeclarationOf(snapshot, "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF")).toEqual({
+      categories: ["BUFF"],
+      maxRemovals: null,
+    });
+
+    const observePs2 = (triggerTarget: string) =>
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: {
+          kind: "PASSIVE",
+          skillDefinitionId: "SKL_SENKA_CHRISTMAS_PS2",
+          trigger: criticalCheckResolved({
+            source: "ally:subject",
+            target: triggerTarget,
+            result: true,
+          }),
+          triggeredBy: "ally:subject",
+        },
+        // 解除対象のバフは最も近い敵（敵前列）へ3つ積む。
+        precedingActions: Array.from({ length: 3 }, () => ({
+          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS2_DEF_UP",
+          target: "ENEMY" as const,
+        })),
+      });
+    const spentResources = [
+      { unitId: "ally:subject", resource: "PP", delta: -1 },
+      { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+    ];
+
+    expect(observePs2("enemy:front")).toEqual({
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
+          targets: ["enemy:front"],
+        },
+      ],
+      effectsRemoved: Array.from({ length: 3 }, () => ({
+        unitId: "enemy:front",
+        effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS2_DEF_UP",
+        magnitude: 0.35,
+        timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+      })),
+      resources: spentResources,
+    });
+
+    // 契機の対象は解除できるバフを持たないため解除自体が起きず、バフを持つ
+    // 敵前列には一切触れない（`effectsRemoved` がキーごと落ちる）。
+    expect(observePs2("enemy:left")).toEqual({
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
+          targets: ["enemy:left"],
+          resultKind: "SKIPPED",
+        },
+      ],
+      resources: spentResources,
+    });
   });
 });
