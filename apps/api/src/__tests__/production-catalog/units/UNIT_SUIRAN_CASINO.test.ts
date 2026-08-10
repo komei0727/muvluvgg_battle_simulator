@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  noMissNoCrit,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { decrementActionEffectDurations } from "../../../domain/battle/model/applied-effect-duration.js";
+import { expireEffects } from "../../../domain/battle/effects/duration-expiry-service.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -8,8 +24,10 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
+  type ProductionBoard,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { realDamage } from "../../../testing/production-unit/trigger-events.js";
@@ -407,5 +425,186 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  /** 実AS1を実ライフサイクルへ通し、味方全体がダメージリンクを保持した状態を作る。 */
+  function grantDamageLink(battleId: string): {
+    readonly board: ProductionBoard;
+    readonly recorder: EventRecorder;
+    readonly units: readonly BattleUnit[];
+  } {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const recorder = new EventRecorder(createBattleId(battleId));
+    const resolved = resolveSkillUse(
+      board.subject,
+      skillFrom(snapshot, "SKL_SUIRAN_CASINO_AS1"),
+      "AS",
+      "AS",
+      board.units,
+      board.definitions,
+      noMissNoCrit(),
+      recorder,
+      1,
+      0,
+      createActionId(`${battleId}:action:1`),
+      recorder.nextResolutionScopeId(),
+    );
+    return { board, recorder, units: resolved.units };
+  }
+
+  it("IT-UNIT-SUIRAN-CASINO-004 (R-LNK-01/02/03): AS1が配る実ダメージリンクは、味方が受けたダメージの50%を**追加で**劉翠蘭へ発生させる。元ダメージは減らず、リンクダメージは `isLinkedDamage` を持ち、リンク先自身のシールドで受ける", () => {
+    // `-001` のAS1行は付与そのもの（`linkTo: SELF`の解決先・50%・期間の所有者）を持つが、
+    // 転送は**別のスキル使用**である被弾でしか起きないため表の外にある。
+    const { board, recorder, units } = grantDamageLink("B_SUIRAN_LINK");
+    const link = units
+      .find((unit) => unit.battleUnitId === "ally:front")!
+      .appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+      )!;
+    // 付与時点で `linkTo: SELF` は使用者（劉翠蘭）へ解決して焼き込む。
+    expect(link.damageLink).toEqual({
+      linkToUnitId: createBattleUnitId("ally:subject"),
+      linkRate: 0.5,
+    });
+
+    // 公開差分だけを開始前スナップショットへ当てても、焼き込んだリンク先ごと復元される。
+    const applied = recorder
+      .getEvents()
+      .find(
+        (event): event is Extract<BattleDomainEvent, { eventType: "EffectApplied" }> =>
+          event.eventType === "EffectApplied" &&
+          event.payload.effectActionDefinitionId === "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK" &&
+          event.payload.targetUnitId === createBattleUnitId("ally:front"),
+      )!;
+    expect(applied.payload.effectKind).toBe("APPLY_DAMAGE_LINK");
+    expect(
+      applyStateDelta(initialSnapshotFor(board.units, { status: "READY" }), applied.stateDelta!)
+        .units[createBattleUnitId("ally:front")]!.effects![0],
+    ).toMatchObject({
+      effectDefinitionId: "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+      damageLink: { linkToUnitId: "ally:subject", linkRate: 0.5 },
+    });
+
+    const hit = observeDamageProbe({
+      units,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      battleId: "B_SUIRAN_LINK_HIT",
+    });
+    expect(hit.linked).toEqual([
+      {
+        effectActionDefinitionId: "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+        linkedFromUnitId: "ally:front",
+        linkToUnitId: "ally:subject",
+        sourceDamage: 500,
+        linkRate: 0.5,
+        linkedDamage: 250,
+        damageType: "PHYSICAL",
+        shieldApplicable: true,
+      },
+    ]);
+    // R-LNK-01: 元ダメージは減らず、リンクは**追加で**発生する。
+    // R-LNK-02第4項: リンク先自身のシールド（AS1が劉翠蘭へ張った1枚目）が250を吸収する。
+    expect(hit.applications).toEqual([
+      {
+        targetUnitId: "ally:front",
+        calculatedDamage: 500,
+        hitPointDamage: 500,
+        untypedShieldAbsorbed: 0,
+        isLinkedDamage: false,
+      },
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 250,
+        hitPointDamage: 0,
+        untypedShieldAbsorbed: 250,
+        isLinkedDamage: true,
+      },
+    ]);
+    expect(hit.hpDeltas).toEqual({ "ally:front": -500 });
+  });
+
+  it("IT-UNIT-SUIRAN-CASINO-005 (R-EFF-01): 味方が保持するリンクの「2行動」は付与者（劉翠蘭）の時計で減る。素早い味方が2回行動してもリンクは残り、劉翠蘭が2回行動して初めて親の2枚目シールドと同時に失効する", () => {
+    // `-001` のAS1行は `timeLimit: { unit: ACTION, count: 2, owner: EFFECT_SOURCE }` を
+    // 宣言として持つが、**誰の行動で減るか**は行動を跨がないと現れない。
+    const { recorder, units: granted } = grantDamageLink("B_SUIRAN_LINK_CLOCK");
+    let units = granted;
+    const linkOf = (all: readonly BattleUnit[]) =>
+      all
+        .find((unit) => unit.battleUnitId === "ally:front")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+        );
+    expect(linkOf(units)?.duration.timeLimitRemaining).toBe(2);
+
+    for (const sequence of [2, 3]) {
+      const decrement = decrementActionEffectDurations(
+        units,
+        createBattleUnitId("ally:front"),
+        createActionId(`B_SUIRAN_LINK_CLOCK:action:${sequence}`),
+      );
+      units = decrement.units;
+      expect(decrement.changes).toEqual([]);
+    }
+    expect(linkOf(units)?.duration.timeLimitRemaining).toBe(2);
+
+    const expiredDefinitionIdsPerAction: string[][] = [];
+    for (const sequence of [4, 5]) {
+      const currentActionId = createActionId(`B_SUIRAN_LINK_CLOCK:action:${sequence}`);
+      const decrement = decrementActionEffectDurations(
+        units,
+        createBattleUnitId("ally:subject"),
+        currentActionId,
+      );
+      const seeds = decrement.changes
+        .filter((change) => change.after === 0)
+        .map((change) => ({
+          battleUnitId: change.battleUnitId,
+          effectInstanceId: change.effectInstanceId,
+          reason: "TIME_LIMIT" as const,
+        }));
+      expiredDefinitionIdsPerAction.push(
+        units
+          .flatMap((unit) => unit.appliedEffects)
+          .filter((effect) =>
+            seeds.some((seed) => seed.effectInstanceId === effect.effectInstanceId),
+          )
+          .map((effect) => effect.effectActionDefinitionId)
+          .sort(),
+      );
+      units = decrement.units;
+      if (seeds.length === 0) {
+        continue;
+      }
+      units = expireEffects(
+        {
+          recorder,
+          turnNumber: 1,
+          cycleNumber: 1,
+          actionId: currentActionId,
+          resolutionScopeId: recorder.nextResolutionScopeId(),
+          rootEventId: recorder.getEvents()[0]!.eventId,
+        },
+        units,
+        seeds,
+        snapshot.effectActions,
+        recorder.getEvents()[recorder.getEvents().length - 1]!.eventId,
+      ).units;
+    }
+
+    // 1行動目では1件も落ちない。2行動目で、親（2枚目シールド）と同じ時計を共有する
+    // 全インスタンスが揃って失効する — 味方2体ぶんと劉翠蘭自身の自己リンク、
+    // それに同じ2行動のシールド2枚。
+    expect(expiredDefinitionIdsPerAction).toEqual([
+      [],
+      [
+        "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+        "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+        "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
+        "ACT_SUIRAN_CASINO_AS1_SHIELD1",
+        "ACT_SUIRAN_CASINO_AS1_SHIELD2",
+      ],
+    ]);
+    expect(linkOf(units)).toBeUndefined();
   });
 });

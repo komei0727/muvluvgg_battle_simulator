@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../../domain/catalog/definitions/skill-definition.js";
 import {
@@ -24,6 +25,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -604,5 +606,60 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
         board: { subject: { state: { currentHp: 5999 } } },
       }),
     ).toBe("SKL_MAO_COMMITTEE_AS2");
+  });
+
+  it("IT-UNIT-MAO-COMMITTEE-007 (R-DMG-03, R-DMG-04): PS2の実 被ダメージ補正は付与時のHP割合で焼き込まれ、以後の被弾で被ダメージ倍率へ合成される。攻撃側の `damageReductionIgnoreRate` はその負の補正だけを割合で無視する", () => {
+    // `-001` のPS2行は付与時点の `magnitude`（HP50%で-0.25）までを持つが、その効果が
+    // **別のスキル使用**である被弾でどう効くかは表の外にある。
+    const grantAt = (currentHp: number): readonly BattleUnit[] => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp } },
+      });
+      return openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "ally:subject",
+        battleId: `B_MAO_DMG_MOD_${currentHp}`,
+      }).fire(turnStarted({ turnNumber: 1 }), board.units);
+    };
+    const probe = (units: readonly BattleUnit[], damageReductionIgnoreRate: number) =>
+      observeDamageProbe({
+        units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        piercing: { damageReductionIgnoreRate },
+      });
+
+    // 付与時にHPが満タンなら上限の-50%。素通し500が250になる。
+    const atFullHp = grantAt(10000);
+    expect(
+      atFullHp
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_MAO_COMMITTEE_PS2_DMG_DOWN",
+        )!.damageModifier,
+    ).toEqual({ direction: "INCOMING", damageType: null });
+    expect(probe(atFullHp, 0).calculated).toEqual({
+      outgoingDamageMultiplier: 1,
+      incomingDamageMultiplier: 0.5,
+      shieldIgnoreRate: 0,
+      damageReductionIgnoreRate: 0,
+      preTruncationDamage: 250,
+      finalDamage: 250,
+    });
+
+    // 付与時のHPが半分なら逓減して-25%。同じ被弾が375になる（付与時点の1点で決まり、
+    // 被弾時のHP割合では動かない）。
+    expect(probe(grantAt(5000), 0).calculated.incomingDamageMultiplier).toBeCloseTo(0.75);
+
+    // R-DMG-03: 攻撃側が無視するのは負の被ダメージ補正だけで、割合ぶん効きが薄れる。
+    expect(probe(atFullHp, 0.5).calculated.incomingDamageMultiplier).toBeCloseTo(0.75);
+    expect(probe(atFullHp, 1).calculated).toEqual({
+      outgoingDamageMultiplier: 1,
+      incomingDamageMultiplier: 1,
+      shieldIgnoreRate: 0,
+      damageReductionIgnoreRate: 1,
+      preTruncationDamage: 500,
+      finalDamage: 500,
+    });
   });
 });

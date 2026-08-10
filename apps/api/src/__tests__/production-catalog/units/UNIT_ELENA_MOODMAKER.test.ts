@@ -48,6 +48,7 @@ import {
   skillFrom,
   testBattleUnit,
 } from "../../../testing/fixtures/index.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { STAND_IN_UNIT_ID } from "../../../testing/production-unit/skill-behaviour.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
@@ -931,7 +932,11 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
    * `HIGHEST_ATTACK`/`LOWEST_ATTACK` の双方がエレーナへ解決し、追加ダメージを2つ
    * 受け取ってしまうため。
    */
-  function grantBonusToElena(): { readonly holder: BattleUnit; readonly enemy: BattleUnit } {
+  function grantBonusToElena(): {
+    readonly holder: BattleUnit;
+    readonly enemy: BattleUnit;
+    readonly units: readonly BattleUnit[];
+  } {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, BONUS_BOARD);
     const recorder = new EventRecorder(createBattleId("B_ELENA_BONUS"));
     const resolved = resolveSkillUse(
@@ -951,6 +956,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     return {
       holder: unitOf(resolved.units, board.subject.battleUnitId),
       enemy: unitOf(resolved.units, "enemy:front"),
+      units: resolved.units,
     };
   }
 
@@ -1047,5 +1053,43 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
         board: { allies: [] },
       }),
     ).toBe("SKL_ELENA_MOODMAKER_AS2");
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-010 (R-DMG-04, R-DMG-03): EXが配る実 与ダメージ補正は、以後のヒットの `DamageCalculated` へ与ダメージ倍率として現れる。被ダメージ倍率・貫通2割合も同じpayloadが実値で運ぶ", () => {
+    // `-001` のEX行は付与そのものと `magnitude`（+0.1）を持つが、集計結果を運ぶ
+    // `DamageCalculated` payload（R-DMG-04）はスキル使用1回の観測の外にある。
+    const { holder, units } = grantBonusToElena();
+    const withoutDamageMod: BattleUnit = {
+      ...holder,
+      appliedEffects: holder.appliedEffects.filter(
+        (effect) => effect.effectActionDefinitionId !== "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW",
+      ),
+    };
+    const probe = (attacker: BattleUnit) =>
+      observeDamageProbe({
+        units: units.map((unit) => (unit.battleUnitId === attacker.battleUnitId ? attacker : unit)),
+        attackerUnitId: holder.battleUnitId,
+        targetUnitId: "enemy:front",
+        // 0でない貫通を宣言して、payloadの2欄が定数ではなく宣言を運ぶことを見る。
+        piercing: { shieldIgnoreRate: 0.25, damageReductionIgnoreRate: 0.5 },
+        battleId: "B_ELENA_DMG_MOD",
+      }).calculated;
+
+    // 与ダメージ補正を持つのはこの1件だけ（攻撃力バフ・追加ダメージは別枠であり、
+    // 倍率ではなく切り捨て前ダメージへ効く — その配線は `-007`／`-008` が持つ）。
+    const boosted = probe(holder);
+    const plain = probe(withoutDamageMod);
+    expect(boosted.outgoingDamageMultiplier).toBeCloseTo(1.1);
+    expect(plain.outgoingDamageMultiplier).toBe(1);
+    // 敵側は被ダメージ補正を1つも持たないため被ダメージ倍率は1。
+    expect(boosted.incomingDamageMultiplier).toBe(1);
+    expect(boosted.shieldIgnoreRate).toBe(0.25);
+    expect(boosted.damageReductionIgnoreRate).toBe(0.5);
+    // 与ダメージ倍率が掛かるのは攻撃力由来の850（1000×1.35 - 500）までで、追加ダメージ
+    // 202.5はその後に足される（Q-DMG-01「切り捨て前の値へ加算する」）。両者の差は
+    // 850×10%＝85であり、追加ダメージまで一緒に1.1倍された値にはならない。
+    expect(plain.preTruncationDamage).toBe(850 + 202.5);
+    expect(boosted.preTruncationDamage).toBe(850 * 1.1 + 202.5);
+    expect(boosted.finalDamage).toBe(1137);
   });
 });

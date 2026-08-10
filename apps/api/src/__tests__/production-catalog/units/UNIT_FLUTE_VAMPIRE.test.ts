@@ -19,6 +19,7 @@ import { observeActivationCounters } from "../../../testing/production-unit/runt
 import { recoverTurnResources } from "../../../domain/battle/model/battle-unit.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
+  BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
@@ -176,6 +177,34 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: {
         "ally:subject": -1250,
         "enemy:front": -429,
+      },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1",
+    intent:
+      "(境界): 消費するのは「自身の現在HPの25%」であり、攻撃力を上げても消費量は動かない（同じ使用の攻撃側だけが増える）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1" },
+    board: {
+      ...IN_KYOKUGEN,
+      subject: {
+        ...IN_KYOKUGEN.subject,
+        state: { combatStats: { ...BOARD_COMBAT_STATS, attack: 3000 } },
+      },
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_HP_COST", targets: ["ally:subject"] },
+      ],
+      hpDeltas: {
+        // 消費は現在HP5000×25%のまま。攻撃側だけ(3000-500)×85.8%＝2145へ増える。
+        "ally:subject": -1250,
+        "enemy:front": -2145,
       },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },

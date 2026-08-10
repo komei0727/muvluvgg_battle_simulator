@@ -49,6 +49,21 @@ function rolls(...draws: readonly number[]): () => SequenceRandomSource {
   return () => new SequenceRandomSource([...draws, ...new Array<number>(64).fill(0.99)]);
 }
 
+/**
+ * PS1の攻撃力バフ（`ALIVE_UNIT_COUNT_SCALE`、1体1.75%・上限7%）の頭打ちを測る味方数。
+ * 母数は自身を含む生存味方なので、味方3体で4体ちょうど＝上限、4体で5体＝上限超過になる。
+ */
+const FOUR_ALIVE_ALLIES = [
+  { id: "ally:front", position: { column: "LEFT", row: "FRONT" } },
+  { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+  { id: "ally:right", position: { column: "RIGHT", row: "BACK" } },
+] as const;
+
+const FIVE_ALIVE_ALLIES = [
+  ...FOUR_ALIVE_ALLIES,
+  { id: "ally:left", position: { column: "LEFT", row: "BACK" } },
+] as const;
+
 /** 自身のAS使用開始。PS1の契機。 */
 const OWN_AS_STARTING = skillUseStarting({
   actor: "ally:subject",
@@ -112,6 +127,51 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_AS1_DAMAGE", targets: ["enemy:front"] },
       ],
       hpDeltas: { "enemy:front": -468 },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1",
+    intent:
+      "(境界): PS1の攻撃力バフは生存している味方1体につき1.75%で、4体ちょうどで上限の7%に届く",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1" },
+    board: { allies: FOUR_ALIVE_ALLIES },
+    expected: {
+      // 攻撃力1000×1.07から防御500を引いた570に威力84.8%で483（切り捨て）。
+      actions: [
+        { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_AS1_DAMAGE", targets: ["enemy:front"] },
+      ],
+      hpDeltas: { "enemy:front": -483 },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS1", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1",
+    intent: "(境界): 「最高7%」の頭打ち — 味方が5体でも8.75%にはならず7%のまま",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LAURA_MOUNTAIN_AS1" },
+    board: { allies: FIVE_ALIVE_ALLIES },
+    expected: {
+      // 頭打ちが効かなければ攻撃力1000×1.0875で498になる。
+      actions: [
+        { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_AS1_DAMAGE", targets: ["enemy:front"] },
+      ],
+      hpDeltas: { "enemy:front": -483 },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "PP", delta: -1 },

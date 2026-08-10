@@ -1745,7 +1745,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-03-002",
       "UT-R-DMG-03-003",
       "UT-R-DMG-03-004",
-      "IT-CAP-DAMAGE-MOD-PROD-001",
+      // REF-039（Issue #386）: `IT-CAP-DAMAGE-MOD-PROD-001` の移送先。実PS2が付けた
+      // 被ダメージ補正に対して、攻撃側の`damageReductionIgnoreRate`が負の補正だけを
+      // 割合で無視することを実ダメージpipelineで見る。
+      "IT-UNIT-MAO-COMMITTEE-007",
       // DMG-003（Issue #196、TEMP_PIERCING_GRANT）: 静的な`DamagePayload.piercing`
       // と`APPLY_PIERCING_MOD`由来の一時貫通を「無視されずに残る割合の積」で
       // 合成する（`combat/piercing-policy.ts`）。
@@ -1779,10 +1782,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DMG-04-011",
       "UT-R-DMG-04-012",
       "UT-R-DMG-04-013",
-      "IT-CAP-DAMAGE-MOD-PROD-002",
-      "IT-CAP-DAMAGE-MOD-PROD-003",
-      "IT-CAP-DAMAGE-MOD-PROD-004",
-      "IT-CAP-DAMAGE-MOD-PROD-005",
+      // REF-039（Issue #386）: `IT-CAP-DAMAGE-MOD-PROD-002`〜`005` の移送先。
+      // 動的条件付き補正がヒットごとに評価されること（`HP_RATIO_COMPARISON`／
+      // `UNIT_HAS_MARKER`／`UNIT_STATE`）と、集計結果が`DamageCalculated`へ
+      // 実値で載ることを、実 production 定義の付与から通して見る。
+      "IT-UNIT-KOTOHA-REBEL-005",
+      "IT-UNIT-AOI-ELEGANT-006",
+      "IT-UNIT-ELENA-MOODMAKER-010",
+      "IT-UNIT-KEI-JACKKNIFE-006",
       "UT-R-DMG-04-014",
       "UT-R-DMG-04-015",
       // RES-004-TATIANA-EX（Issue #225）: `SKL_TATIANA_SAGE_EX`の
@@ -2073,9 +2080,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-LNK-01-003",
       "UT-R-LNK-01-010",
       "UT-R-LNK-01-011",
-      "IT-CAP-DAMAGE-LINK-STATE-PROD-001",
-      "IT-CAP-DAMAGE-LINK-STATE-PROD-002",
-      "IT-CAP-DAMAGE-LINK-STATE-PROD-003",
+      // REF-039（Issue #386）: `IT-CAP-DAMAGE-LINK-STATE-PROD-001`〜`003` の移送先。
+      // `linkTo: SELF`／`linkTo: BINDING` の焼き込みと転送、元ダメージが減らないこと、
+      // 期間の減算主体が付与者であることを、実 production スキルの使用から通して見る。
+      "IT-UNIT-SUIRAN-CASINO-004",
+      "IT-UNIT-SUIRAN-CASINO-005",
+      "IT-UNIT-CHIZURU-DOMESTIC-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
