@@ -28,6 +28,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeContinuousDamage } from "../../../testing/production-unit/continuous-damage.js";
 import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
@@ -739,5 +740,93 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
         emitted.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
       ),
     ).toEqual(initialSnapshotFor(after, { include: ["effects"] }));
+  });
+  it("IT-UNIT-MAO-COMMITTEE-009 (R-DOT-02): AS2が配る固定継続ダメージは保持者自身の行動開始でENダメージとして発生し、炎上・毒と違って**シールドで受けられる**。シールドを削り切った分だけHPへ抜け、枯渇したシールドはその場で失効する", () => {
+    // `-001` のAS2行は付与そのもの（付与時攻撃力×20%＝200のsnapshotと3行動）までを
+    // 固定する。R-DOT-02の適用順（タイプありシールド → タイプなしシールド → HP）は
+    // 保持者の以後の行動に属し、スキル使用1回の観測には載らない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      // 実 `ACT_MAO_COMMITTEE_AS1_SHIELD` は使用者の現在HP×6.25%。2回の発生で
+      // ちょうど削り切れる300にするため、使用者のHPを4800に置く。
+      subject: { state: { currentHp: 4800 } },
+    });
+    // 前提アクションは既定順の最も近い敵（enemy:front）だけへ入る。
+    const debuffed = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_SHIELD", target: "ENEMY" },
+    ]);
+
+    const observed = observeContinuousDamage({
+      units: debuffed,
+      definitions: board.definitions,
+      // 3行動のデバフに対し、保持者の行動開始を2回通す。
+      actors: ["enemy:front", "enemy:front"],
+      battleId: "B_MAO_FIXED_DOT",
+    });
+
+    expect(observed.steps).toEqual([
+      {
+        step: "ACTION_START(enemy:front)",
+        ticks: [
+          {
+            unitId: "enemy:front",
+            effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF",
+            // 炎上でも毒でもない固定継続ダメージ。
+            continuousDamageKind: "FIXED",
+            damageType: "EN",
+            snapshotAttack: 1000,
+            formulaResult: 200,
+            // R-DOT-03の2倍は炎上だけ、R-DOT-04の上限は毒だけの規則。
+            burnStackMultiplier: 1,
+            cappedBySnapshotAttack: false,
+            calculatedDamage: 200,
+            // タイプなしシールド300が全量を受け、HPへは1も届かない。
+            typedShieldAbsorbed: 0,
+            untypedShieldAbsorbed: 200,
+            subUnitAbsorbed: 0,
+            discardedDamage: 0,
+            hitPointDamage: 0,
+          },
+        ],
+        hpDeltas: {},
+      },
+      {
+        step: "ACTION_START(enemy:front)",
+        ticks: [
+          {
+            unitId: "enemy:front",
+            effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS2_DMG_DEBUFF",
+            continuousDamageKind: "FIXED",
+            damageType: "EN",
+            snapshotAttack: 1000,
+            formulaResult: 200,
+            burnStackMultiplier: 1,
+            cappedBySnapshotAttack: false,
+            calculatedDamage: 200,
+            // 残り100を吸ってから、残余100がHPへ抜ける。
+            typedShieldAbsorbed: 0,
+            untypedShieldAbsorbed: 100,
+            subUnitAbsorbed: 0,
+            discardedDamage: 0,
+            hitPointDamage: 100,
+          },
+        ],
+        // R-SHD-01第3項: 残量0になったシールドインスタンスはその場で失効する。
+        expired: ["ACT_MAO_COMMITTEE_AS1_SHIELD"],
+        hpDeltas: { "enemy:front": -100 },
+      },
+    ]);
+
+    // 公開差分だけを当て直した状態を、スナップショット全体で突き合わせる。
+    // 吸収量・失効イベント・HP変化が合っていても、`ShieldConsumed` や
+    // `EffectExpired` のStateDeltaが欠ければここで落ちる。
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(debuffed, { include: ["effects"] }),
+        observed.recorder
+          .getEvents()
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(observed.units, { include: ["effects"] }));
   });
 });

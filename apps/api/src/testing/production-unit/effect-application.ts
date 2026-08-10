@@ -76,13 +76,18 @@ function unitOf(units: readonly BattleUnit[], battleUnitId: string): BattleUnit 
   return found;
 }
 
-export function applyProductionEffect(
-  options: ApplyProductionEffectOptions,
-): ProductionEffectApplication {
-  const source = unitOf(options.units, options.from);
-  const target = unitOf(options.units, options.to);
+/**
+ * 名指しした1体だけを対象に取り、`effectActionDefinitionIds` を**同じACTION step**へ
+ * 定義順に並べた合成スキル。同じstepに置くことで「同じ行動で配られた効果」という
+ * 前提（免疫が一方だけを弾く形）を実 resolver の上で作れる。
+ */
+function singleTargetSkill(
+  source: BattleUnit,
+  target: BattleUnit,
+  effectActionDefinitionIds: readonly string[],
+): SkillDefinition {
   const binding = createTargetBindingId(APPLY_BINDING_ID);
-  const skill: SkillDefinition = {
+  return {
     skillDefinitionId: createSkillDefinitionId(APPLY_SKILL_ID),
     skillType: "AS",
     cost: { resource: "AP", amount: 0 },
@@ -112,13 +117,9 @@ export function applyProductionEffect(
           stepCondition: { kind: "TRUE" },
           targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: binding },
-          actions: [
-            {
-              effectActionDefinitionId: createEffectActionDefinitionId(
-                options.effectActionDefinitionId,
-              ),
-            },
-          ],
+          actions: effectActionDefinitionIds.map((id) => ({
+            effectActionDefinitionId: createEffectActionDefinitionId(id),
+          })),
         },
       ],
     },
@@ -132,6 +133,14 @@ export function applyProductionEffect(
     },
     metadata: { displayName: APPLY_SKILL_ID, tags: [] },
   };
+}
+
+export function applyProductionEffect(
+  options: ApplyProductionEffectOptions,
+): ProductionEffectApplication {
+  const source = unitOf(options.units, options.from);
+  const target = unitOf(options.units, options.to);
+  const skill = singleTargetSkill(source, target, [options.effectActionDefinitionId]);
   const definitions: BattleDefinitions = {
     ...options.definitions,
     skillDefinitions: new Map(options.definitions.skillDefinitions).set(
@@ -186,6 +195,147 @@ export function applyProductionEffect(
       ...(payload.statusKind === undefined ? {} : { statusKind: payload.statusKind }),
     },
     eventsAfter: options.chain.recorder.getEvents().length,
+  };
+}
+
+/** `EffectApplicationRejected` payload のうち、拒否の意味を決める欄だけ。 */
+export interface ObservedRejection {
+  readonly unitId: string;
+  readonly effectActionDefinitionId: string;
+  readonly reason: string;
+  /** `APPLY_STATUS` 由来の拒否だけが持つ（`EffectApplied` と同じ規約）。 */
+  readonly statusKind?: string;
+  /** 拒否したインスタンスの由来定義。免疫が**どの付与由来か**をIDで名指しする。 */
+  readonly blockedBy: string;
+}
+
+export interface EffectImmunityObservation {
+  /** 実際に付与された効果（`EffectApplied` の発行順）。 */
+  readonly applied: readonly string[];
+  /** 免疫が拒否した効果（`EffectApplicationRejected` の発行順）。 */
+  readonly rejected: readonly ObservedRejection[];
+  /**
+   * 観測後の免疫インスタンス自身の状態。`blockedCount` は拒否のたびに増え、
+   * `maxBlocks` に達すると以後は拒否しなくなる（`duration` の失効とは独立）。
+   */
+  readonly immunity: {
+    readonly categories: readonly string[];
+    readonly statusKinds?: readonly string[];
+    readonly blockedCount: number;
+    readonly maxBlocks: number | null;
+  };
+  readonly units: readonly BattleUnit[];
+}
+
+/**
+ * 免疫を持つユニットへ、実 production の EffectAction 群を**同じ1行動**で配り、
+ * 通ったものと弾かれたものを分けて返す（R-EFF-03）。
+ *
+ * 種別限定免疫（`EFFECT_IMMUNITY.statusKinds`）の完了境界は「カテゴリ全体ではなく
+ * 指定した種別だけを拒否する」ことなので、**拒否される側と拒否されない側を同じ
+ * 免疫へ両方通さないと**カテゴリ丸ごとの免疫と区別がつかない。`-001` の振る舞い表は
+ * 付与そのもの（`magnitude`・期間）までしか持てず、以後の攻撃で何が弾かれるかは
+ * 別のスキル使用に属するため、この観測が引き受ける。
+ */
+export function observeEffectImmunity(options: {
+  readonly definitions: BattleDefinitions;
+  readonly units: readonly BattleUnit[];
+  /** 免疫の保持者。 */
+  readonly holder: string;
+  /** 効果を配る側。 */
+  readonly from: string;
+  /** 同じACTION stepへ定義順に並べる production EffectAction。 */
+  readonly effectActionDefinitionIds: readonly string[];
+  /** 観測対象の免疫インスタンスの由来定義。 */
+  readonly immunityEffectActionDefinitionId: string;
+  readonly battleId?: string;
+}): EffectImmunityObservation {
+  const chain = openPassiveChain({
+    definitions: options.definitions,
+    actorUnitId: options.from,
+    battleId: options.battleId ?? "B_IMMUNITY",
+  });
+  const source = unitOf(options.units, options.from);
+  const target = unitOf(options.units, options.holder);
+  const immunityBefore = target.appliedEffects.find(
+    (effect) => effect.effectActionDefinitionId === options.immunityEffectActionDefinitionId,
+  );
+  if (immunityBefore?.immunity === undefined) {
+    throw new Error(
+      `"${options.holder}" holds no immunity from "${options.immunityEffectActionDefinitionId}"`,
+    );
+  }
+  const skill = singleTargetSkill(source, target, options.effectActionDefinitionIds);
+  const definitions: BattleDefinitions = {
+    ...options.definitions,
+    skillDefinitions: new Map(options.definitions.skillDefinitions).set(
+      skill.skillDefinitionId,
+      skill,
+    ),
+  };
+  const plan = resolveSkillOrder(
+    skill,
+    source,
+    options.units,
+    definitions.effectActions,
+    undefined,
+    definitions.unitDefinitions,
+  );
+  if (plan.targetUnitIds.length !== 1 || plan.targetUnitIds[0] !== options.holder) {
+    throw new Error(
+      `the slot filter resolved to [${plan.targetUnitIds.join(", ")}] instead of "${options.holder}"`,
+    );
+  }
+  const eventsBefore = chain.recorder.getEvents().length;
+  const resolved = applyEffectActionGroups(
+    plan,
+    options.units,
+    effectActionGroupContext({
+      actor: source,
+      skillId: APPLY_SKILL_ID,
+      definitions,
+      recorder: chain.recorder,
+      rootEventId: chain.rootEventId,
+      extras: { actionId: chain.actionId, actionScope: chain.resolutionScopeId },
+    }),
+  );
+  const emitted = chain.recorder.getEvents().slice(eventsBefore);
+  const holderAfter = unitOf(resolved.units, options.holder);
+  const immunityAfter = holderAfter.appliedEffects.find(
+    (effect) => effect.effectInstanceId === immunityBefore.effectInstanceId,
+  );
+
+  return {
+    applied: emitted
+      .filter((event) => event.eventType === "EffectApplied")
+      .map((event) =>
+        String((event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId),
+      ),
+    rejected: emitted
+      .filter(
+        (event): event is Extract<BattleDomainEvent, { eventType: "EffectApplicationRejected" }> =>
+          event.eventType === "EffectApplicationRejected",
+      )
+      .map((event) => ({
+        unitId: String(event.payload.battleUnitId),
+        effectActionDefinitionId: String(event.payload.effectActionDefinitionId),
+        reason: event.payload.reason,
+        ...(event.payload.statusKind === undefined ? {} : { statusKind: event.payload.statusKind }),
+        blockedBy: String(
+          holderAfter.appliedEffects.find(
+            (effect) => effect.effectInstanceId === event.payload.blockingEffectInstanceId,
+          )?.effectActionDefinitionId ?? event.payload.blockingEffectInstanceId,
+        ),
+      })),
+    immunity: {
+      categories: [...(immunityAfter?.immunity?.categories ?? [])],
+      ...(immunityAfter?.immunity?.statusKinds === undefined
+        ? {}
+        : { statusKinds: [...immunityAfter.immunity.statusKinds] }),
+      blockedCount: immunityAfter?.immunity?.blockedCount ?? 0,
+      maxBlocks: immunityAfter?.immunity?.maxBlocks ?? null,
+    },
+    units: resolved.units,
   };
 }
 

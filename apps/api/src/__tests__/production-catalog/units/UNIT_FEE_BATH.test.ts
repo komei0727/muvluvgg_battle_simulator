@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -8,10 +20,12 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { realDamage, turnCompleting } from "../../../testing/production-unit/trigger-events.js";
 
 /**
@@ -203,6 +217,30 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
+    skillDefinitionId: "SKL_FEE_BATH_AS2",
+    intent:
+      "(境界): 「ほてり」1つにつき20%増加する（最大5つまで）— 7つ持っていても増加は5つぶん（＋100%）で頭打ちになる",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FEE_BATH_AS2" },
+    board: { enemies: enemiesWithFlush("enemy:front", 7) },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_FEE_BATH_AS2_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_FEE_BATH_AS2_MARKER", targets: ["enemy:front"] },
+      ],
+      // 5つ分＝100%増で頭打ち。1ヒット468（234×2.0）×3ヒット。3ヒットとも、この
+      // スキル自身の `ACT_FEE_BATH_AS2_MARKER` が後段で1つ足す前の7つを読む。
+      hpDeltas: {
+        "enemy:front": -1404,
+      },
+      // 「ほてり」自身は `stack.max: null` なので8つまで増える（上限はFormula側だけが持つ）。
+      markers: [{ unitId: "enemy:front", markerId: FLUSH, stackCount: 8 }],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
     skillDefinitionId: "SKL_FEE_BATH_PS1",
     intent:
       "自身がアクティブスキルで攻撃された後に発動。攻撃してきた敵単体の攻撃力を1行動の間25%低下させる（重複可）",
@@ -332,5 +370,87 @@ describe("production Catalog UNIT_FEE_BATH (【自己に揺れる白湯気】フ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-FEE-BATH-004 (R-DMG-01/R-NUM-04): AS2の3ヒットはいずれも、このスキル自身の `APPLY_MARKER` が1つ足す前の「ほてり」を同じ倍率として読む。倍率はR-DMG-01のAction内追加ダメージ倍率として `DamageCalculated` に載り、解決全体は1つの根と単調な `stateVersion` に閉じる", () => {
+    // `-001` の行は「所持数がいくつなら合計いくら減るか」までを固定する。ここが
+    // 引き受けるのは (1) 倍率そのものが `DamageCalculated` の集計欄へ載ること、
+    // (2) 3ヒットが**同じ**所持数を読むこと（後段の付与を読み込んで段階的に
+    // 増えないこと）、(3) 因果木・`stateVersion`・独立Reducer復元で、いずれも
+    // hpDeltas の合計値だけからは区別できない。
+    const useAgainst = (stackCount: number) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        enemies: enemiesWithFlush("enemy:front", stackCount),
+      });
+      const recorder = new EventRecorder(createBattleId("B_FEE_FLUSH"));
+      const result = resolveSkillUse(
+        board.subject,
+        skillFrom(snapshot, "SKL_FEE_BATH_AS2"),
+        "AS",
+        "AS",
+        board.units,
+        board.definitions,
+        new SequenceRandomSource(new Array<number>(32).fill(0.99)),
+        recorder,
+        1,
+        1,
+        createActionId("B_FEE_FLUSH:action:1"),
+        recorder.nextResolutionScopeId(),
+      );
+      return { board, recorder, result, events: recorder.getEvents() };
+    };
+    const multipliersOf = (events: readonly BattleDomainEvent[]): readonly number[] =>
+      events
+        .filter(
+          (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
+            event.eventType === "DamageCalculated",
+        )
+        .map((event) => event.payload.actionDamageMultiplier);
+
+    // 上限（5つ相当＝+100%）に届かない2つでは 1 + 0.2×2。3ヒットとも同じ値になる。
+    const belowCap = useAgainst(2);
+    expect(multipliersOf(belowCap.events)).toEqual([1.4, 1.4, 1.4]);
+    // 7つは `0.2 × 7 = 1.4` がFormulaの `max: 1.0` で頭打ちになる側の境界。
+    const aboveCap = useAgainst(7);
+    expect(multipliersOf(aboveCap.events)).toEqual([2, 2, 2]);
+    expect(aboveCap.events.filter((event) => event.eventType === "DamageApplied")).toHaveLength(3);
+
+    // 同じ解決スコープ・同じ根の因果木に属する。
+    const root = belowCap.events[0]!;
+    expect(root.parentEventId).toBeUndefined();
+    for (const event of belowCap.events) {
+      expect(event.resolutionScopeId).toBe(root.resolutionScopeId);
+      expect(event.rootEventId).toBe(root.eventId);
+      if (event !== root) {
+        expect(event.parentEventId).toBeDefined();
+      }
+    }
+
+    // `stateVersion` はStateDeltaを伴うイベントでだけ1増える。
+    let expectedVersion = root.stateVersionBefore;
+    for (const event of belowCap.events) {
+      expect(event.stateVersionBefore).toBe(expectedVersion);
+      expectedVersion = event.stateDelta === undefined ? expectedVersion : expectedVersion + 1;
+      expect(event.stateVersionAfter).toBe(expectedVersion);
+    }
+
+    // 公開差分だけを当て直した状態を、**スナップショット全体**で突き合わせる。
+    // 個別のフィールドだけを見ると、いずれかのStateDeltaが欠けても
+    // 見ている欄さえ合っていれば通ってしまう。
+    const snapshotOf = (units: readonly BattleUnit[]) =>
+      initialSnapshotFor(units, { include: ["cooldowns", "effects", "markers"] });
+    const restored = reduceStateDeltas(
+      snapshotOf(aboveCap.board.units),
+      aboveCap.events.flatMap((event) =>
+        event.stateDelta === undefined ? [] : [event.stateDelta],
+      ),
+    );
+    expect(restored).toEqual(snapshotOf(aboveCap.result.units));
+    // 増加後の所持数（7 + 1）が復元後も生きていることは名指しで残す。
+    expect(
+      restored.units[createBattleUnitId("enemy:front")]?.markers?.find(
+        (marker) => marker.markerId === FLUSH,
+      )?.stackCount,
+    ).toBe(8);
   });
 });

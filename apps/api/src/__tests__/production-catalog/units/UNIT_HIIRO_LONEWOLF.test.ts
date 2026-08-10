@@ -15,10 +15,12 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeEffectImmunity } from "../../../testing/production-unit/effect-application.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -40,7 +42,21 @@ import { turnStarted, unitDefeated } from "../../../testing/production-unit/trig
 
 const UNIT_DEFINITION_ID = "UNIT_HIIRO_LONEWOLF";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * PS2が配るのは「気絶無効」——`categories: [STATUS]` を種別 `STUN` だけへ絞った免疫
+ * （R-EFF-03）である。絞り込みが効いていることは**弾かれる種別と弾かれない種別を
+ * 同じ免疫へ通して**初めて分かるため、ヒイロ自身が配らない状態異常を実 production
+ * 定義で用意できるよう、供給元のユニットだけを併せて読み込む。`-002`／`-003` はこの
+ * ユニットのSkill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const STUN_SOURCE_UNIT_ID = "UNIT_LILY_HERO";
+const FREEZE_SOURCE_UNIT_ID = "UNIT_NANAE_COMMANDER";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  STUN_SOURCE_UNIT_ID,
+  FREEZE_SOURCE_UNIT_ID,
+]);
 
 /**
  * 攻撃力が最も高い敵を一意にし（`HIGHEST_ATTACK` の解決先を固定する）、EXゲージを
@@ -451,5 +467,61 @@ describe("production Catalog UNIT_HIIRO_LONEWOLF (【緋色の一匹狼】榊野
     });
     second.fire(turnStarted({ turnNumber: 2 }), afterFirst);
     expect(second.eventsOfType("PassiveActivated")).toEqual([]);
+  });
+
+  it("IT-UNIT-HIIRO-LONEWOLF-006 (R-EFF-03): PS2が配る「気絶無効」も `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
+    // `-001` のPS2行は実 `UnitDefeated` 契機での付与（`consumption: INCOMING_HIT(3)`）
+    // までを固定する。`statusKinds` の絞り込みは**以後に飛んでくる付与**を弾くか
+    // 通すかにしか現れず、これは別のスキル使用に属する。葵（`maxBlocks: null` +
+    // 2行動期間）とヒイロ（被ヒット3回消費）は宣言の形が違うため、種別限定が
+    // 宣言の形に依らないことは2件を並べて初めて固定される。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const guarded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_PS2_STUN_IMMUNITY", target: "SELF" },
+    ]);
+    const screen = (effectActionDefinitionIds: readonly string[], battleId: string) => {
+      const { applied, rejected, immunity } = observeEffectImmunity({
+        definitions: board.definitions,
+        units: guarded,
+        holder: "ally:subject",
+        from: "enemy:front",
+        effectActionDefinitionIds,
+        immunityEffectActionDefinitionId: "ACT_HIIRO_LONEWOLF_PS2_STUN_IMMUNITY",
+        battleId,
+      });
+      return { applied, rejected, immunity };
+    };
+
+    expect(
+      screen(["ACT_LILY_HERO_AS2_STUN", "ACT_LILY_HERO_AS2_SPEED_DOWN"], "B_HIIRO_STUN"),
+    ).toEqual({
+      applied: ["ACT_LILY_HERO_AS2_SPEED_DOWN"],
+      rejected: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_LILY_HERO_AS2_STUN",
+          reason: "IMMUNITY",
+          statusKind: "STUN",
+          blockedBy: "ACT_HIIRO_LONEWOLF_PS2_STUN_IMMUNITY",
+        },
+      ],
+      immunity: {
+        categories: ["STATUS"],
+        statusKinds: ["STUN"],
+        blockedCount: 1,
+        maxBlocks: null,
+      },
+    });
+
+    expect(screen(["ACT_NANAE_COMMANDER_EX_FREEZE"], "B_HIIRO_FREEZE")).toEqual({
+      applied: ["ACT_NANAE_COMMANDER_EX_FREEZE"],
+      rejected: [],
+      immunity: {
+        categories: ["STATUS"],
+        statusKinds: ["STUN"],
+        blockedCount: 0,
+        maxBlocks: null,
+      },
+    });
   });
 });

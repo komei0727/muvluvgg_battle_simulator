@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import {
+  applyStateDelta,
+  reduceStateDeltas,
+} from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
@@ -19,8 +22,10 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeContinuousDamage } from "../../../testing/production-unit/continuous-damage.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -46,7 +51,18 @@ import { skillUseCompleted } from "../../../testing/production-unit/trigger-even
 
 const UNIT_DEFINITION_ID = "UNIT_LUCIE_COMPANION";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * 毒はシールドで受けない（R-DOT-04第2項・R-SUB-01）。シールドが1枚も無い盤面では
+ * この主張が空振りするため、リュシー自身が配らないシールドを実 production 定義で
+ * 用意できるよう、供給元のユニットだけを併せて読み込む。`-002`／`-003` はこの
+ * ユニットのSkill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const SHIELD_SOURCE_UNIT_ID = "UNIT_AOI_GUARDIAN";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  SHIELD_SOURCE_UNIT_ID,
+]);
 
 /** 後列の味方だけHP割合を下げた配置（`LOWEST_HP_RATIO`が自身以外を選ぶ）。 */
 const LOW_HP_BACK_ALLY: BoardOverrides = {
@@ -461,5 +477,106 @@ describe("production Catalog UNIT_LUCIE_COMPANION (【連れ添い歩む傍ら�
       effectDefinitionId: "ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL",
       duration: { unit: "ACTION", remaining: 2 },
     });
+  });
+  it("IT-UNIT-LUCIE-COMPANION-006 (R-DOT-04): EXが配る毒は発火のたびに保持者の**現在**HPを読み直し、付与時攻撃力×100%で頭打ちになる。シールドが張ってあっても吸われない", () => {
+    // `-001` のEX行は付与そのもの（付与時点の現在HP×20%＝400のsnapshotと1行動）
+    // までを固定する。R-DOT-04の本体——発火時点のHPで評価し直すこと・上限で
+    // 頭打ちになること・シールドを素通りすること——は保持者の以後の行動に属し、
+    // スキル使用1回の観測には載らない。
+    const poisonedEnemy = (currentHp: number, battleId: string) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        enemies: [
+          { id: "enemy:front", position: { column: "CENTER", row: "FRONT" }, state: { currentHp } },
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+        ],
+      });
+      // 前提アクションは既定順の最も近い敵（enemy:front）だけへ入る。毒 → 実AS1の
+      // 一撃（429）→ シールド の順に並べ、**付与後・発火前にHPが動いた**状態と、
+      // 毒が素通りするシールド（攻撃力×120%＝1200）を同時に用意する。
+      const baseline = applyPrecedingActions(board, [
+        { effectActionDefinitionId: "ACT_LUCIE_COMPANION_EX_POISON", target: "ENEMY" },
+        { effectActionDefinitionId: "ACT_LUCIE_COMPANION_AS1_DAMAGE", target: "ENEMY" },
+        { effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_SHIELD", target: "ENEMY" },
+      ]);
+      return {
+        baseline,
+        observation: observeContinuousDamage({
+          units: baseline,
+          definitions: board.definitions,
+          actors: ["enemy:front"],
+          battleId,
+        }),
+      };
+    };
+
+    // 上限に届かない側: 付与時は3000の20%＝600をsnapshotするが、発火時点のHPは
+    // 一撃ぶん減った2571なので、実際に発生するのはその20%＝514（切り捨て）。
+    const belowCap = poisonedEnemy(3000, "B_LUCIE_POISON_BELOW");
+    expect(
+      belowCap.baseline
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_LUCIE_COMPANION_EX_POISON",
+        )!.magnitude,
+    ).toBe(600);
+    expect(belowCap.observation.steps).toEqual([
+      {
+        step: "ACTION_START(enemy:front)",
+        ticks: [
+          {
+            unitId: "enemy:front",
+            effectActionDefinitionId: "ACT_LUCIE_COMPANION_EX_POISON",
+            continuousDamageKind: "POISON",
+            damageType: "PHYSICAL",
+            // R-DOT-04の上限＝付与時攻撃力×100%。リュシーの攻撃力1000。
+            snapshotAttack: 1000,
+            formulaResult: 514.2,
+            burnStackMultiplier: 1,
+            cappedBySnapshotAttack: false,
+            calculatedDamage: 514,
+            // R-DOT-04第2項／R-SUB-01: 1200のシールドが張ってあっても毒は素通りする。
+            typedShieldAbsorbed: 0,
+            untypedShieldAbsorbed: 0,
+            subUnitAbsorbed: 0,
+            discardedDamage: 0,
+            hitPointDamage: 514,
+          },
+        ],
+        hpDeltas: { "enemy:front": -514 },
+      },
+    ]);
+    // 公開差分だけを当て直した状態を、スナップショット全体で突き合わせる。
+    // 発生量が合っていても、`ContinuousDamageApplied` のStateDeltaが欠ければここで落ちる。
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(belowCap.baseline, { include: ["effects"] }),
+        belowCap.observation.recorder
+          .getEvents()
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(belowCap.observation.units, { include: ["effects"] }));
+
+    // 上限側: 満HP10000から一撃ぶん減った9571の20%＝1914.2は上限1000を超えるため、
+    // 発生するのは1000で頭打ちになる。
+    const capped = poisonedEnemy(10000, "B_LUCIE_POISON_CAPPED");
+    expect(capped.observation.steps[0]!.ticks).toEqual([
+      {
+        unitId: "enemy:front",
+        effectActionDefinitionId: "ACT_LUCIE_COMPANION_EX_POISON",
+        continuousDamageKind: "POISON",
+        damageType: "PHYSICAL",
+        snapshotAttack: 1000,
+        formulaResult: 1914.2,
+        burnStackMultiplier: 1,
+        cappedBySnapshotAttack: true,
+        calculatedDamage: 1000,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        discardedDamage: 0,
+        hitPointDamage: 1000,
+      },
+    ]);
   });
 });

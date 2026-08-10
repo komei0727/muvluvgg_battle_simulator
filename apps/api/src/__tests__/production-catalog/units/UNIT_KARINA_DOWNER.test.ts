@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId } from "../../../domain/shared/ids.js";
 import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -40,6 +45,9 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION
 
 const KEIBO = "MARKER_KEIBO";
 
+/** 「警棒」ではない実在のMarker。`MARKER_COUNT_SCALE` が `markerId` を見ている対照。 */
+const OTHER_MARKER = "MARKER_FEE_BATH_FLUSH";
+
 /** EXゲージを持つ敵。0のままでは「EXゲージを1削る」が下限で消えて観測に載らない。 */
 const ENEMIES_WITH_EX_GAUGE: readonly BoardUnitSpec[] = [
   {
@@ -55,7 +63,10 @@ const ENEMIES_WITH_EX_GAUGE: readonly BoardUnitSpec[] = [
   },
 ];
 
-/** 「警棒」の所持数だけを変えた敵。増加率が段数に比例し3つで頭打ちになることを見る。 */
+/**
+ * 「警棒」の所持数だけを変えた敵。増加率が段数に比例し3つで頭打ちになること、
+ * および**別のMarkerは何段持っていても寄与しない**ことを見る。
+ */
 const ENEMIES_WITH_KEIBO: readonly BoardUnitSpec[] = [
   {
     id: "enemy:front",
@@ -67,7 +78,11 @@ const ENEMIES_WITH_KEIBO: readonly BoardUnitSpec[] = [
     position: { column: "LEFT", row: "FRONT" },
     markers: [{ markerId: KEIBO, stackCount: 5 }],
   },
-  { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+  {
+    id: "enemy:back",
+    position: { column: "CENTER", row: "BACK" },
+    markers: [{ markerId: OTHER_MARKER, stackCount: 3 }],
+  },
 ];
 
 /** HP割合だけを変えた敵。「HPが多いほど高い効果」が線形に効くことを見る。 */
@@ -201,7 +216,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           resultKind: "SKIPPED",
         },
       ],
-      // 265 の +30%（2つ）／+45%（5つは3つで頭打ち）／増加なし。
+      // 265 の +30%（2つ）／+45%（5つは3つで頭打ち）／別Markerを3つ持つ敵は増加なし。
       hpDeltas: {
         "enemy:front": -344,
         "enemy:left": -384,
@@ -627,5 +642,62 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
         remaining: { "enemy:back/ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN": 2 },
       },
     ]);
+  });
+
+  it("IT-UNIT-KARINA-DOWNER-007 (R-DMG-01/R-NUM-04): AS1の1回のAOE解決は、対象ごとに**その対象自身**の「警棒」所持数からAction内追加ダメージ倍率を決める。`DamageCalculated` の集計欄が対象別に分かれ、別Markerは何段持っていても寄与しない", () => {
+    // `-001` の行は所持数ごとのHP減少（265／344／384）までを固定する。R-DMG-01が
+    // 定める倍率そのもの（`1 + 補正合計`）は `DamageCalculated` の集計欄にしかなく、
+    // 「同じ1回の解決の中で対象ごとに分かれる」ことも合計値だけからは
+    // 全員一律の倍率と区別できない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      enemies: [
+        { id: "enemy:none", position: { column: "CENTER", row: "FRONT" } },
+        {
+          id: "enemy:two",
+          position: { column: "LEFT", row: "FRONT" },
+          markers: [{ markerId: KEIBO, stackCount: 2 }],
+        },
+        {
+          id: "enemy:five",
+          position: { column: "RIGHT", row: "FRONT" },
+          markers: [{ markerId: KEIBO, stackCount: 5 }],
+        },
+        {
+          id: "enemy:other",
+          position: { column: "CENTER", row: "BACK" },
+          markers: [{ markerId: OTHER_MARKER, stackCount: 3 }],
+        },
+      ],
+    });
+    const recorder = new EventRecorder(createBattleId("B_KARINA_KEIBO"));
+    resolveSkillUse(
+      board.subject,
+      skillFrom(snapshot, "SKL_KARINA_DOWNER_AS1"),
+      "AS",
+      "AS",
+      board.units,
+      board.definitions,
+      new SequenceRandomSource(new Array<number>(32).fill(0.99)),
+      recorder,
+      1,
+      1,
+      createActionId("B_KARINA_KEIBO:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const multiplierByTarget: Record<string, number> = {};
+    for (const event of recorder.getEvents()) {
+      if (event.eventType !== "DamageCalculated") {
+        continue;
+      }
+      multiplierByTarget[event.payload.targetUnitId] = event.payload.actionDamageMultiplier;
+    }
+    // raw原文「対象に付与されている「警棒」1つにつき15%増加する(最大3つまで)」。
+    expect(multiplierByTarget).toEqual({
+      "enemy:none": 1,
+      "enemy:two": 1.3,
+      "enemy:five": 1.45,
+      "enemy:other": 1,
+    });
   });
 });
