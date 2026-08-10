@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { removalDeclarationOf } from "../../../testing/production-unit/removal-declaration.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -448,6 +449,13 @@ describe("production Catalog UNIT_SENKA_CHRISTMAS (【クリスマスコーデ�
     // 対象＝最も近い敵）では区別が付かない。契機の対象だけを敵前列から敵左列へ
     // 動かし、バフを持つ敵前列が**傍観者として無傷で残る**ことを対照に置く。
     // 契機イベントそのものを実ダメージpipelineに出させる経路は `-001` の混乱行が持つ。
+    // 「すべて」は上限の**不在**であり、実行結果からは「上限がたまたま投入件数と
+    // 同じ」と区別できない。宣言そのものを固定して、`maxRemovals` の混入を落とす。
+    expect(removalDeclarationOf(snapshot, "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF")).toEqual({
+      categories: ["BUFF"],
+      maxRemovals: null,
+    });
+
     const observePs2 = (triggerTarget: string) =>
       observeSkillUse({
         snapshot,

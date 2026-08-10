@@ -686,96 +686,81 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(subject.combatStats.attack).toBe(1000);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-008 (R-EFF-09 通知順序): PS自身のEffectSequenceから走る `REMOVE_MARKER` では、子の `EffectExpired` は親の `MarkerRemoved` より前に**発行**されるが、PS/Memory連鎖への**通知**はEffectAction 1件ぶんまとめて行われる", () => {
-    // 発行順（子→親）はR-EFF-09の規定どおりで、この経路でも守られている。
-    // 一方、通知の粒度は経路で分かれる。同期callback（`onFactEventForPassiveChain`）を
-    // 持つAS/EX・チャージ解放・ダメージpipeline・付与者戦闘不能の各経路は1インスタンスの
-    // 除去ごとに通知するが、PS自身のEffectSequence解決はそのcallbackを持たず、
-    // `EFFECT_RESOLVED`（EffectAction 1件＋その事後イベント列）としてdriverへ渡す
-    // ——効果解決数Guardを連鎖の深さから独立させるための意図的な契約
-    // （`triggering/resolve-passive-chain.ts`）。
-    // 実 `catalog/` で連動グループの親Markerを外す定義は
-    // `ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER` と `ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU`
-    // の2件だけで、どちらもこのPS経路にしか現れない。したがって「子の失効を契機に
-    // まだ親を所持している状態を観測できる」ことは実データでは成立しない。
-    const observeWatcher = (watcher: SkillDefinition) => {
-      const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
-      const tarisaDefinitionId = createUnitDefinitionId(UNIT_DEFINITION_ID);
-      const tarisaDefinition = board.definitions.unitDefinitions.get(tarisaDefinitionId)!;
-      const definitions = {
-        ...board.definitions,
-        skillDefinitions: new Map(board.definitions.skillDefinitions).set(
-          watcher.skillDefinitionId,
-          watcher,
-        ),
-        unitDefinitions: new Map(board.definitions.unitDefinitions).set(tarisaDefinitionId, {
-          ...tarisaDefinition,
-          passiveSkillDefinitionIds: [
-            ...tarisaDefinition.passiveSkillDefinitionIds,
-            watcher.skillDefinitionId,
-          ],
-        }),
-      };
-      // 「負けん気」2段だけを前提に置く。発動で3段目とその攻撃力バフ1件が入り、
-      // `count: 3` の解除でそのバフ1件だけがカスケードで失効する。
-      const baseline = applyPrecedingActions({ ...board, definitions }, [
-        { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
-        { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
-      ]);
-      const chain = openPassiveChain({
-        definitions,
-        actorUnitId: "ally:subject",
-        battleId: `B_TARISA_NOTIFY_${String(watcher.skillDefinitionId)}`,
-        damageResults: new Map(),
-      });
-      const struck = strikeForCondition(chain, baseline, 0.02, 10);
-      const eventsBefore = chain.recorder.getEvents().length;
-      chain.fireRecorded(struck.triggerEvent, struck.units);
-      return chain.recorder.getEvents().slice(eventsBefore);
+  it("IT-UNIT-TARISA-TROUBLEMAKER-008 (R-EFF-09 通知順序): カスケードで巻き込まれた子の `EffectExpired` を契機にするPSは、その時点でまだ親の「負けん気」を所持している状態で発動する", () => {
+    // R-EFF-09「各インスタンスの失効イベントは、次のインスタンスへ進む前にPS/Memoryの
+    // 即時連鎖へ渡す」。この規約は**評価経路を問わない** — 実 `catalog/` で連動グループの
+    // 親Markerを外す2定義（`ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER`・
+    // `ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU`）はどちらもPS自身のEffectSequenceからしか
+    // 走らないため、この経路で粒度が崩れると実データでは規約が一度も守られない。
+    // まとめて通知していると、このPSは親Markerが既に消えた状態を観測して発動しない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const tarisaDefinitionId = createUnitDefinitionId(UNIT_DEFINITION_ID);
+    const tarisaDefinition = board.definitions.unitDefinitions.get(tarisaDefinitionId)!;
+    const definitions = {
+      ...board.definitions,
+      skillDefinitions: new Map(board.definitions.skillDefinitions).set(
+        markerWatcher.skillDefinitionId,
+        markerWatcher,
+      ),
+      unitDefinitions: new Map(board.definitions.unitDefinitions).set(tarisaDefinitionId, {
+        ...tarisaDefinition,
+        passiveSkillDefinitionIds: [
+          ...tarisaDefinition.passiveSkillDefinitionIds,
+          markerWatcher.skillDefinitionId,
+        ],
+      }),
     };
 
-    const unconditional = observeWatcher({
-      ...markerWatcher,
-      skillDefinitionId: createSkillDefinitionId("SKL_TEST_TARISA_EXPIRY_WATCHER"),
-      activationCondition: { kind: "TRUE" },
+    // 「負けん気」2段だけを前提に置く。発動で3段目とその攻撃力バフ1件が入り、
+    // `count: 3` の解除でそのバフ1件だけがカスケードで失効する。
+    const baseline = applyPrecedingActions({ ...board, definitions }, [
+      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+    ]);
+    const chain = openPassiveChain({
+      definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_TARISA_CASCADE_NOTIFY",
+      damageResults: new Map(),
     });
-    const indexOf = (
-      events: readonly BattleDomainEvent[],
-      predicate: (event: BattleDomainEvent) => boolean,
-    ) => events.findIndex(predicate);
+    const struck = strikeForCondition(chain, baseline, 0.02, 10);
+    const eventsBefore = chain.recorder.getEvents().length;
+    const after = chain.fireRecorded(struck.triggerEvent, struck.units);
+
+    const emitted = chain.recorder.getEvents().slice(eventsBefore);
+    const indexOf = (predicate: (event: BattleDomainEvent) => boolean) =>
+      emitted.findIndex(predicate);
     const childExpired = indexOf(
-      unconditional,
       (event) =>
         event.eventType === "EffectExpired" &&
         (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
           PS1_ATK_UP,
     );
-    const markerRemoved = indexOf(unconditional, (event) => event.eventType === "MarkerRemoved");
-    const removalCompleted = indexOf(
-      unconditional,
-      (event) =>
-        event.eventType === "EffectActionCompleted" &&
-        (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
-          "ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER",
-    );
     const watcherActivated = indexOf(
-      unconditional,
       (event) =>
         event.eventType === "PassiveActivated" &&
-        event.payload.skillDefinitionId === "SKL_TEST_TARISA_EXPIRY_WATCHER",
+        event.payload.skillDefinitionId === markerWatcher.skillDefinitionId,
     );
-    // 発行順は子→親。通知（＝候補解決）はその両方を含むEffectActionの完了後。
-    expect(childExpired).toBeGreaterThanOrEqual(0);
-    expect(markerRemoved).toBeGreaterThan(childExpired);
-    expect(watcherActivated).toBeGreaterThan(removalCompleted);
+    const markerRemoved = indexOf((event) => event.eventType === "MarkerRemoved");
 
-    // そのため、親Markerの所持を発動条件にするPSはこの経路では発動しない。
+    // 本命: 子の失効 → watcher PSの発動 → 親Markerの除去、の順。watcher が
+    // `MarkerRemoved` より後ろへ回ると `TARGET_HAS_MARKER` は成立しない。
+    expect(childExpired).toBeGreaterThanOrEqual(0);
+    expect(watcherActivated).toBeGreaterThan(childExpired);
+    expect(markerRemoved).toBeGreaterThan(watcherActivated);
     expect(
-      observeWatcher(markerWatcher).filter(
+      emitted.filter(
         (event) =>
           event.eventType === "PassiveActivated" &&
           event.payload.skillDefinitionId === markerWatcher.skillDefinitionId,
       ),
-    ).toEqual([]);
+    ).toHaveLength(1);
+    // watcher が付けたのは連動グループ外の効果なので、続く親Markerの除去には
+    // 巻き込まれず残る（カスケードが無差別に消していないことの対照）。
+    expect(
+      after
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).toEqual([WATCHER_EFFECT_ID]);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { removalDeclarationOf } from "../../../testing/production-unit/removal-declaration.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -463,6 +464,13 @@ describe("production Catalog UNIT_YUI_HEIR (【譜代武家・篁家次期当主
     // 同じ観測になる。プールを2種・3インスタンスに増やし、吸収総量5500が
     // 1件も残らないこと（残っていれば威力243.8の一撃は全部食われてHPが動かない）を
     // 解除→防御力デバフ→攻撃の実行順ごと固定する。
+    // 「全て」は上限の**不在**であり、実行結果からは「上限がたまたま投入件数と
+    // 同じ」と区別できない。宣言そのものを固定して、`maxRemovals` の混入を落とす。
+    expect(removalDeclarationOf(snapshot, "ACT_YUI_HEIR_EX_REMOVE_SHIELD")).toEqual({
+      categories: ["SHIELD"],
+      maxRemovals: null,
+    });
+
     const shields: readonly PrecedingAction[] = [
       { effectActionDefinitionId: "ACT_YUI_HEIR_PS2_SHIELD", target: "ENEMY" },
       { effectActionDefinitionId: "ACT_YUI_HEIR_PS2_SHIELD", target: "ENEMY" },

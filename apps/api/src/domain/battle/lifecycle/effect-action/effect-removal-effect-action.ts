@@ -1,8 +1,8 @@
-import { removeEffects } from "../../effects/effect-removal-service.js";
+import { removeEffectsSteps } from "../../effects/effect-removal-service.js";
 import {
+  driveRemovalSteps,
   settledOutcome,
-  type EffectActionHandler,
-  type EffectActionOutcome,
+  type SteppedEffectActionHandler,
 } from "./effect-action-handler.js";
 import { eventContextOf } from "./effect-action-group-context.js";
 
@@ -21,36 +21,32 @@ import { eventContextOf } from "./effect-action-group-context.js";
  * （`APPLY_SHIELD`→`SHIELD`、`APPLY_SUBUNIT`→`SUBUNIT`）ただ1つを正本とする。
  *
  * REMOVE_MARKERと同じ理由で、除去より前に記録済みの`EffectActionStarting`を先に通知し、
- * 以降のインスタンス単位の通知は`removeEffects`内部（R-EFF-09カスケード分＋seed分）へ委ねる。
+ * 以降はインスタンス単位で`driveRemovalSteps`が通知する（R-EFF-09、評価経路を問わない）。
  */
-export const resolveRemoveEffects: EffectActionHandler<"REMOVE_EFFECTS"> = (
+export const resolveRemoveEffects: SteppedEffectActionHandler<"REMOVE_EFFECTS"> = function* (
   input,
-): EffectActionOutcome => {
+) {
   const { context, box, application, effectAction, startingEventId, cursor } = input;
   cursor.notifyPending();
-  const removal = removeEffects(
-    {
-      ...eventContextOf(context),
-      ...(context.onFactEventForPassiveChain !== undefined
-        ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-        : {}),
-    },
-    box.units,
-    application.targetUnitId,
-    {
-      categories: effectAction.payload.categories,
-      ...(effectAction.payload.effectActionDefinitionIds !== undefined
-        ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
-        : {}),
-      ...(effectAction.payload.maxRemovals !== undefined
-        ? { maxRemovals: effectAction.payload.maxRemovals }
-        : {}),
-    },
-    context.definitions.effectActions,
-    startingEventId,
+  const removal = yield* driveRemovalSteps(
+    input,
+    removeEffectsSteps(
+      eventContextOf(context),
+      box.units,
+      application.targetUnitId,
+      {
+        categories: effectAction.payload.categories,
+        ...(effectAction.payload.effectActionDefinitionIds !== undefined
+          ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
+          : {}),
+        ...(effectAction.payload.maxRemovals !== undefined
+          ? { maxRemovals: effectAction.payload.maxRemovals }
+          : {}),
+      },
+      context.definitions.effectActions,
+      startingEventId,
+    ),
   );
-  box.units = removal.units;
-  cursor.consumeNotifiedByCallee();
   return settledOutcome(
     input,
     removal.lastEventId,

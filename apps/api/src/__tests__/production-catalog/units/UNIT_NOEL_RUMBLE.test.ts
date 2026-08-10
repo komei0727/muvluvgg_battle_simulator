@@ -10,6 +10,7 @@ import {
   skillFrom,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
+import { removalDeclarationOf } from "../../../testing/production-unit/removal-declaration.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -486,6 +487,13 @@ describe("production Catalog UNIT_NOEL_RUMBLE (【体育祭の暴れん坊】ノ
     // 同じ観測になる。上限が無いことは複数件でしか現れない。あわせて負の
     // `magnitude` を持つ被ダメージ**減少**（`direction: INCOMING`＝保持者に有利
     // ＝バフ）が解除され、同じく負の攻撃力デバフは残ることを1つの観測で並べる。
+    // 「すべて」は上限の**不在**であり、実行結果からは「上限がたまたま投入件数と
+    // 同じ」と区別できない。宣言そのものを固定して、`maxRemovals` の混入を落とす。
+    expect(removalDeclarationOf(snapshot, "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF")).toEqual({
+      categories: ["BUFF"],
+      maxRemovals: null,
+    });
+
     const grant = (effectActionDefinitionId: string) => ({
       effectActionDefinitionId,
       target: "SELF" as const,

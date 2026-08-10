@@ -6,6 +6,7 @@ import {
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { removalDeclarationOf } from "../../../testing/production-unit/removal-declaration.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -578,6 +579,13 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
     // `SHIELD` 側が働いているかは現れない。シールドと旧サブユニット2体を実 production
     // 定義で積み、解除が両方を空にしたうえで新しい3体だけが残ることを固定する
     // （解除が付与より後ろに置かれていれば、その3体が自分の解除に巻き込まれる）。
+    // 「すべて」は上限の**不在**であり、実行結果からは「上限がたまたま投入件数と
+    // 同じ」と区別できない。宣言そのものを固定して、`maxRemovals` の混入を落とす。
+    expect(removalDeclarationOf(snapshot, "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT")).toEqual({
+      categories: ["SHIELD", "SUBUNIT"],
+      maxRemovals: null,
+    });
+
     const shieldAndSubUnits: readonly PrecedingAction[] = [
       { effectActionDefinitionId: SHIELD_ACTION_ID, target: "SELF" },
       { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT", target: "SELF" },

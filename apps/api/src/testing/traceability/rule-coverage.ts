@@ -2664,14 +2664,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`notifyRemovalStep`。まとめて最後に通知すると、子の`EffectExpired`を
   // triggerにするPSがイベント順ではまだ存在する親Marker／親効果を除去済みとして
   // 観測し、`08_ドメインイベント.md`の「各イベントに対応するPS/Memory候補を
-  // 直ちに解決する」契約を破る。`UT-R-EFF-09-020`が固定）。ただしこの粒度が働くのは
-  // 同期callback（`onFactEventForPassiveChain`）を持つ経路——AS/EX・チャージ解放・
-  // ダメージpipeline・付与者戦闘不能——に限られる。PS自身のEffectSequence解決は
-  // callbackを持たず`EFFECT_RESOLVED`（EffectAction 1件＋事後イベント列）で
-  // driverへ渡すため通知はまとまる（効果解決数Guardを連鎖の深さから独立させる
-  // ための意図的な契約。`triggering/resolve-passive-chain.ts`）。実 `catalog/` で
-  // 連動グループの親Markerを外す2定義はどちらもPS経路にしか現れないため、実データ
-  // での挙動は`IT-UNIT-TARISA-TROUBLEMAKER-008`が記録する。
+  // 直ちに解決する」契約を破る。`UT-R-EFF-09-020`が固定）。
+  //
+  // REF-042（Issue #389）: この粒度は**評価経路を問わない**（R-EFF-09）が、
+  // `REMOVE_MARKER`／`REMOVE_EFFECTS`のEffectActionハンドラだけは同期版の
+  // `removeMarkers`／`reduceMarkerStack`／`removeEffects`を直接呼んでいたため、
+  // 同期callbackを持たない経路——PS自身のEffectSequence解決——では通知が
+  // EffectAction 1件ぶんにまとまっていた。実 `catalog/` で連動グループの親Markerを
+  // 外す2定義（`ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER`・
+  // `ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU`）はどちらもPS経路にしか現れないため、
+  // 実データでは規約が一度も守られていなかった。`removeEffectsSteps`／
+  // `reduceMarkerStackSteps`を追加し、両ハンドラを`SteppedEffectActionHandler`へ変えて
+  // 共通driver（`driveRemovalSteps`）から1除去ごとに駆動する — callbackがあれば
+  // その場で通知し、無ければ`EFFECT_RESOLVED`としてdriverへ`yield`する。
+  // `UT-R-EFF-09-025`〜`027`がgenerator側を、`IT-UNIT-TARISA-TROUBLEMAKER-008`が
+  // 実 production 経路（子の失効 → watcher PSの発動 → 親Markerの除去）を固定する。
   // (2) カスケード対象の並びを`linkedEffectGroupRole`（`CHILD`→ロールなし→
   // `PARENT`）を第1キーに変更した（スキーマが禁じていない「同一グループに複数の
   // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
@@ -2734,6 +2741,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-022",
       "UT-R-EFF-09-023",
       "UT-R-EFF-09-024",
+      // REF-042（Issue #389）: 同期callbackを持たない経路のためのステップ版。
+      "UT-R-EFF-09-025",
+      "UT-R-EFF-09-026",
+      "UT-R-EFF-09-027",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-UNIT-HARRIET-SAGE-004",

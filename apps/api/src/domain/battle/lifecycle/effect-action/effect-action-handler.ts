@@ -178,6 +178,44 @@ export type SteppedEffectActionHandler<TKind extends EffectActionKind> = (
 ) => EffectActionResolution;
 
 /**
+ * R-EFF-09「各インスタンスの失効イベントは次のインスタンスへ進む前にPS/Memoryの
+ * 即時連鎖へ渡す」を、**評価経路を問わず**同じ粒度で満たす共通driver。
+ *
+ * callbackがある経路（AS/EX・チャージ解放）はそのステップのイベントをその場で
+ * 同期通知し、無い経路（PS自身のEffectSequence解決）は`EFFECT_RESOLVED`として
+ * driverへ`yield`する — 後者は新しい`resolvePassiveChain`を起こせない（進行中の
+ * guard/stackを上書きしてしまう）ため、`resolvePassiveChain`自身に1ステップずつ
+ * 解決させる。まとめて除去してからイベント列を渡すと、経路によって同じ除去で
+ * PSが発動したりしなかったりする差が生まれる。
+ */
+export function* driveRemovalSteps<TResult extends { readonly units: readonly BattleUnit[] }>(
+  input: EffectActionApplicationInput,
+  steps: Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    TResult,
+    readonly BattleUnit[] | undefined
+  >,
+): Generator<EffectResolutionStep, TResult, void> {
+  const { context, box, cursor } = input;
+  const callback = context.onFactEventForPassiveChain;
+  let step = steps.next();
+  while (!step.done) {
+    box.units = step.value.units;
+    if (callback !== undefined) {
+      for (const event of step.value.events) {
+        box.units = callback(event, box.units);
+      }
+      cursor.consumeNotifiedByCallee();
+    } else {
+      yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
+    }
+    step = steps.next(box.units);
+  }
+  box.units = step.value.units;
+  return step.value;
+}
+
+/**
  * 中断を起こさないkindの共通結果。これらは`application.hits`の全件を処理し切る
  * （非DAMAGEのapplicationは常に`hits.length === 1`）。
  */
