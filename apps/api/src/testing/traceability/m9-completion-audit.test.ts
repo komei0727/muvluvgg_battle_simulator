@@ -135,6 +135,64 @@ const RULES_DEFERRED_BEYOND_M9: readonly { readonly ruleId: string; readonly tas
   })),
 ];
 
+/**
+ * 範囲表記（`R-TEX-01`〜`10`）では先頭IDだけが完全な形で書かれるため、族ごとに
+ * **最初の**IDを設計書へ要求する。
+ */
+const DEFERRED_RULE_FAMILY_LEADS: readonly string[] = (() => {
+  const leads: string[] = [];
+  const seen = new Set<string>();
+  for (const { ruleId } of RULES_DEFERRED_BEYOND_M9) {
+    const family = ruleId.slice(0, "R-XXX".length);
+    if (!seen.has(family)) {
+      seen.add(family);
+      leads.push(ruleId);
+    }
+  }
+  return leads;
+})();
+
+/** 目印を含む1行だけを返す（表の1行・箇条書き1項目を切り出す）。 */
+function lineContaining(document: string, marker: string): string {
+  return document.split("\n").find((line) => line.includes(marker)) ?? "";
+}
+
+/** 目印から次の空行までを返す（1段落を切り出す）。 */
+function paragraphStartingWith(document: string, marker: string): string {
+  const start = document.indexOf(marker);
+  if (start === -1) {
+    return "";
+  }
+  const end = document.indexOf("\n\n", start);
+  return document.slice(start, end === -1 ? undefined : end);
+}
+
+/**
+ * 繰り越し分を説明している設計書の**該当箇所**。文書全体ではなくここだけを見る。
+ */
+const DOCUMENTED_DEFERRAL_REGIONS: readonly {
+  readonly path: string;
+  readonly label: string;
+  readonly region: (document: string) => string;
+}[] = [
+  {
+    path: "docs/ddd/12_テスト戦略.md",
+    label: "the quality-gate rationale",
+    region: (document) =>
+      paragraphStartingWith(document, "「テスト対応率100%」を無条件の必須にしない理由は"),
+  },
+  {
+    path: "docs/ddd/13_実装計画.md",
+    label: "the M9 completion condition",
+    region: (document) => lineContaining(document, "- M9スコープの全ルールに実行テストが対応する"),
+  },
+  {
+    path: "docs/ddd/13_実装計画.md",
+    label: "the REL-003 completion note",
+    region: (document) => lineContaining(document, "| `REL-003` |"),
+  },
+];
+
 describe("M9 completion audit (REL-003)", () => {
   it("UT-AUDIT-M9-001: every baseline scenario M9 committed to exists as an executable test, and the retired ID stays a gap", () => {
     const manifest = readManifest();
@@ -224,28 +282,17 @@ describe("M9 completion audit (REL-003)", () => {
         .map((assignment) => `${assignment.taskId} -> ${assignment.theme}`),
     ).toEqual([]);
 
-    // 繰り越し分は「監査側の列挙」「品質ゲートの根拠」「M9完了記述」の3箇所へ現れる。
-    // 後続マイルストーンがルールを増やすと監査側だけが更新されて説明が取り残される
-    // （実際にENH-001の取り込みで起きた）ため、設計書側が全件に言及していることを
-    // 機械で縛る。範囲表記（`R-TEX-01`〜`10`）で書けるよう、先頭と末尾のIDだけを要求する。
-    const documentedRuleMentions: readonly { readonly path: string; readonly label: string }[] = [
-      { path: "docs/ddd/12_テスト戦略.md", label: "the quality-gate rationale" },
-      { path: "docs/ddd/13_実装計画.md", label: "the REL-003 completion note" },
-    ];
-    // 範囲表記は先頭IDだけを完全な形で書く（`R-TEX-01`〜`10`）ため、族ごとに
-    // **最初の**IDを要求する。
-    const mustBeMentioned: string[] = [];
-    const seenFamilies = new Set<string>();
-    for (const { ruleId } of RULES_DEFERRED_BEYOND_M9) {
-      const family = ruleId.slice(0, "R-XXX".length);
-      if (!seenFamilies.has(family)) {
-        seenFamilies.add(family);
-        mustBeMentioned.push(ruleId);
-      }
-    }
-    for (const { path, label } of documentedRuleMentions) {
-      const document = readRepositoryFile(path);
-      const unmentioned = mustBeMentioned.filter((ruleId) => !document.includes(ruleId));
+    // 繰り越し分は「監査側の列挙」と設計書の3つの記述へ現れる。後続マイルストーンが
+    // ルールを増やすと監査側だけが更新されて説明が取り残される（実際にENH-001の
+    // 取り込みで起きた）ため、設計書側が全件に言及していることを機械で縛る。
+    //
+    // **文書全体ではなく該当の節・行だけを切り出して見る。** 文書全体を検索すると、
+    // 例えば `13_実装計画.md` はM11の計画節が `R-ENH-01` を何度も書いているため、
+    // REL-003の記述からIDが消えても検査が成立してしまう（＝空振り）。
+    for (const { path, label, region } of DOCUMENTED_DEFERRAL_REGIONS) {
+      const excerpt = region(readRepositoryFile(path));
+      expect(excerpt, `${label} (${path}) must be locatable`).not.toBe("");
+      const unmentioned = DEFERRED_RULE_FAMILY_LEADS.filter((ruleId) => !excerpt.includes(ruleId));
       expect(
         unmentioned,
         `${label} (${path}) must name every rule family deferred beyond M9`,
