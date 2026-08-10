@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import {
+  completedTargetIdsOf,
+  effectActionGroupContext,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -397,5 +409,70 @@ describe("production Catalog UNIT_NOEL_RUMBLE (【体育祭の暴れん坊】ノ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-NOEL-RUMBLE-004 (R-EFF-02/R-SKL-07): AS1の炎上判定は単一BRANCHで一度だけ確定するため、強化ダメージの着弾と同時に連鎖が炎上を解除しても通常版は走らない", () => {
+    const skillId = "SKL_NOEL_RUMBLE_AS1";
+    const skill = skillFrom(snapshot, skillId);
+    // 「条件」と「NOT(条件)」を2つのACTION stepへ分けると、`targetCondition`は各stepの
+    // 連鎖の後に再評価されるため、強化版の適用中に条件が崩れると通常版まで走ってしまう。
+    // 単一BRANCHにはその経路が構造的に存在しない。
+    const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
+    expect(steps.map((step) => step.kind)).toEqual(["BRANCH"]);
+
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    // 炎上は実 production 定義（EXが配る炎上）で用意する。
+    const baseline = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_NOEL_RUMBLE_EX_BURN", target: "ENEMY" },
+    ]);
+    const actor = baseline.find((unit) => unit.battleUnitId === "ally:subject")!;
+
+    // 強化ダメージが着弾した瞬間に、PS連鎖が炎上を解除した状況を模す。
+    const stripBurnOnDamage = (
+      event: { readonly eventType: string },
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] =>
+      event.eventType === "DamageApplied"
+        ? units.map((unit) =>
+            unit.battleUnitId === "enemy:front" ? { ...unit, appliedEffects: [] } : unit,
+          )
+        : units;
+
+    expect(
+      baseline
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).toEqual(["ACT_NOEL_RUMBLE_EX_BURN"]);
+
+    const { recorder, rootEventId } = seedRecorder("B_NOEL_BRANCH");
+    const result = applyEffectActionGroups(
+      resolveSkillOrder(
+        skill,
+        actor,
+        baseline,
+        board.definitions.effectActions,
+        undefined,
+        board.definitions.unitDefinitions,
+      ),
+      baseline,
+      effectActionGroupContext({
+        actor,
+        skillId,
+        definitions: board.definitions,
+        recorder,
+        rootEventId,
+        extras: { onFactEventForPassiveChain: stripBurnOnDamage },
+      }),
+    );
+
+    // 連鎖が実際に炎上を剥がしたことまで見ないと、フックが一度も呼ばれていない場合も
+    // 「通常版が走らない」だけは成り立ってしまい、この検証が空振りする。
+    expect(
+      result.units.find((unit) => unit.battleUnitId === "enemy:front")!.appliedEffects,
+    ).toEqual([]);
+    expect(completedTargetIdsOf(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE_VS_BURNING")).toEqual([
+      "enemy:front",
+    ]);
+    expect(completedTargetIdsOf(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE")).toEqual([]);
   });
 });

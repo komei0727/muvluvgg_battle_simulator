@@ -29,11 +29,13 @@ const UNIT_DEFINITION_ID = "UNIT_MERU_FLATSPIN";
 
 /**
  * 「対象が状態異常だった場合」の分岐を実 production 定義で作るため、気絶を配る
- * `UNIT_LUCIE_MAID` を併せて読み込む（手組みの`AppliedEffect`を使わない）。
+ * `UNIT_LUCIE_MAID` と、`APPLY_CONTINUOUS_DAMAGE` 側の状態異常（毒）を配る
+ * `UNIT_CHIYURU_MAZE` を併せて読み込む（手組みの`AppliedEffect`を使わない）。
  */
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   "UNIT_LUCIE_MAID",
+  "UNIT_CHIYURU_MAZE",
   "UNIT_OLGA_VETERAN",
 ]);
 
@@ -439,5 +441,40 @@ describe("production Catalog UNIT_MERU_FLATSPIN (【蒼き穹舞うフラット�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-MERU-FLATSPIN-004 (R-SKL-06): AS2の総称「対象が状態異常だった場合」は `categories: [STATUS]` 一本で照会するため、`APPLY_STATUS` の気絶だけでなく `APPLY_CONTINUOUS_DAMAGE` の毒でも成立し、状態異常ではない単なるデバフでは成立しない", () => {
+    const extraAttackTargets = (precedingActions: readonly PrecedingAction[]): readonly string[] =>
+      (
+        observeSkillUse({
+          snapshot,
+          unitDefinitionId: UNIT_DEFINITION_ID,
+          use: { kind: "ACTIVE", skillDefinitionId: "SKL_MERU_FLATSPIN_AS2" },
+          board: { enemies: SINGLE_ENEMY },
+          precedingActions,
+        }).actions ?? []
+      )
+        .filter(
+          (action) =>
+            action.effectActionDefinitionId === "ACT_MERU_FLATSPIN_AS2_DAMAGE_EXTRA" &&
+            action.resultKind === undefined,
+        )
+        .flatMap((action) => action.targets);
+
+    // 毒（継続ダメージ側の状態異常）でも成立する — 気絶・凍結・暗闇の3項ORでは漏れていた。
+    expect(
+      extraAttackTargets([
+        { effectActionDefinitionId: "ACT_CHIYURU_MAZE_AS1_POISON", target: "ENEMY" },
+      ]),
+    ).toEqual(["enemy:front"]);
+    expect(extraAttackTargets(STUNNED_ENEMY)).toEqual(["enemy:front"]);
+
+    // 状態異常ではないデバフでは不成立（「何らかのデバフ」への近似ではない）。
+    expect(
+      extraAttackTargets([
+        { effectActionDefinitionId: "ACT_MERU_FLATSPIN_AS3_DMG_DOWN", target: "ENEMY" },
+      ]),
+    ).toEqual([]);
+    expect(extraAttackTargets([])).toEqual([]);
   });
 });
