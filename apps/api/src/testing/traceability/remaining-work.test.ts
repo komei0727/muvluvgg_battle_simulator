@@ -10,7 +10,7 @@ import { collectTestCaseDefinitionsFromSource } from "./test-case-definitions.js
  * `15_Unit_Memory変換台帳.md`であり、台帳の件数・割当が Catalog 実データと
  * Capability レジストリに一致し続けることを機械照合する。
  */
-type Milestone = "M7" | "M8" | "M9";
+type Milestone = "M7" | "M8" | "M9" | "M10";
 
 interface RemainingWorkManifest {
   readonly schemaVersion: 1;
@@ -130,7 +130,7 @@ function parseUnconvertedMemoryNames(): string[] {
 }
 
 describe("remaining work manifest (PLAN-001)", () => {
-  it("UT-PLAN-001-001: assigns every currently uncompleted M7/M8 rule exactly once", () => {
+  it("UT-PLAN-001-001: assigns every currently uncompleted rule exactly once", () => {
     const manifest = readManifest();
     const assigned = manifest.ruleAssignments.flatMap((assignment) => assignment.ruleIds).sort();
     const uncompleted = RULE_COVERAGE.filter((coverage) => coverage.testCaseIds.length === 0)
@@ -203,10 +203,12 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(new Set(taskIds).size).toBe(taskIds.length);
     expect(new Set(manifest.tasks.map((task) => task.issue)).size).toBe(manifest.tasks.length);
     expect(referencedTaskIds.every((taskId) => taskIds.includes(taskId))).toBe(true);
+    // Rule割当の許容milestoneはRuleを持つ実装マイルストーンに限る。M10は
+    // TEX-001（Issue #402、戦術演習）の設計時新設Rule（R-TEX-01〜10）が加わり許容へ追加した。
     expect(
       manifest.ruleAssignments.every((assignment) => {
         const milestone = taskById.get(assignment.taskId)?.milestone;
-        return milestone === "M7" || milestone === "M8";
+        return milestone === "M7" || milestone === "M8" || milestone === "M10";
       }),
     ).toBe(true);
     expect(

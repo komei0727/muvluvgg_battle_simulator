@@ -55,7 +55,20 @@ Accept: application/json
 X-Request-Id: ui-<UUID>
 ```
 
-### 2.3 共通リクエスト方針
+### 2.3 戦術演習
+
+```http
+POST {VITE_API_BASE_URL}/api/v1/tactical-exercises
+Content-Type: application/json
+Accept: application/json
+X-Request-Id: ui-<UUID>
+```
+
+リクエストは戦闘シミュレーションと同じ`FormationRequest`構造を再利用するが、`turnLimit`を持たず、`enemyFormation.units`はちょうど1件、`enemyFormation.memoryDefinitionIds`は空配列とする。UIは送信前検証でこの制約を強制する。
+
+成功レスポンスは`result`だけが演習結果（`completionReason`、`completedTurn`、`totalScore`、`breakCount`、`breaks[]`）となり、`initialState`／`finalState`／`events`／`stateTransitions`は戦闘シミュレーションと同じ構造を共有する。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseRequest」「TacticalExerciseResponse」とする。
+
+### 2.4 共通リクエスト方針
 
 - `Content-Type`と`Accept`を明示する。
 - UIでUUIDを生成できる場合は `X-Request-Id` を付ける。生成失敗時は省略し、サーバー生成に任せる。
@@ -496,3 +509,6 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-011`: 一覧APIからUnit・Memory、選択可否、Catalog revisionを取得する。
 - `UI-API-012`: 一覧APIのETagを使った条件付きGETと304を扱える。
 - `UI-API-013`: 一覧API契約違反時に編成・戦闘送信を有効化しない。
+- `UI-API-014`: 戦術演習リクエストへ`turnLimit`を含めず、敵1体・敵メモリー0件を送信前に強制する。
+- `UI-API-015`: 戦術演習レスポンスの`result`（総スコア、ブレイク回数、ブレイク履歴）を実行時shape検証し、契約違反を`RESPONSE_CONTRACT_MISMATCH`として扱う。
+- `UI-API-016`: 演習イベント（スコア加算、ブレイク、復活）を詳細表示に残し、未知イベントと同じ許容規則で扱う。
