@@ -1,13 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import {
+  createEffectActionDefinitionId,
+  createRuntimeCounterId,
+  createSkillDefinitionId,
+} from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeCumulativeThresholdCounter } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type PrecedingAction,
@@ -450,5 +465,150 @@ describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーン�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-MIKOTO-SURVIVOR-004 (R-EFF-11): PS1 の累計ダメージ閾値counterは、閾値に届かない被弾では carry だけを動かし、実 catalog/ の trigger 条件がその RuntimeCounterChanged を valueChanged で弾く。ちょうど閾値・閾値2つぶんの被弾では公開値が動き、条件が成立する", () => {
+    // `RuntimeCounterChanged` は carry だけが動いた被弾でも追跡のために発行される
+    // （`14_Catalog定義スキーマ.md`「counterUpdates」）。条件側で判別できないと、
+    // 閾値に達していない被弾のたびにPSが発動してしまう。
+    expect(
+      observeCumulativeThresholdCounter(snapshot, UNIT_DEFINITION_ID, "SKL_MIKOTO_SURVIVOR_PS1"),
+    ).toEqual({
+      declaration: {
+        counter: "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
+        scope: "SKILL_RUNTIME",
+        maxHpRatio: 0.1,
+      },
+      triggerEventType: "RuntimeCounterChanged",
+      subThreshold: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS1",
+            counter: "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
+            before: 0,
+            after: 0,
+            valueChanged: false,
+          },
+        ],
+        triggerMatched: false,
+      },
+      atThreshold: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS1",
+            counter: "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+        triggerMatched: true,
+      },
+      crossing: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS1",
+            counter: "SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO",
+            before: 0,
+            after: 2,
+            valueChanged: true,
+          },
+        ],
+        triggerMatched: true,
+      },
+    });
+  });
+
+  it("IT-UNIT-MIKOTO-SURVIVOR-005 (R-EFF-11): 閾値に届かない被弾はcarryだけを進めて RuntimeCounterChanged を valueChanged: false で残し、2発目で公開値が動く。carryは公開差分に載らず、独立Reducerはcounterの公開値だけを復元する", () => {
+    // `-001` のPS1行は「1発で閾値へ届く被弾」と「届かない被弾」を持つが、**複数発に
+    // 分かれた被弾が積み上がって跨ぐ**ことは表せない。契機の `DamageApplied` は
+    // 積み上がりを刻むために手組みする（実pipelineを通した形そのものは
+    // `-001` の `realDamage` 行が持つ）。
+    const skillDefinitionId = createSkillDefinitionId("SKL_MIKOTO_SURVIVOR_PS1");
+    const counterId = createRuntimeCounterId("SKL_MIKOTO_SURVIVOR_PS1_CUMULATIVE_DAMAGE_RATIO");
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const initial = initialSnapshotFor(board.units);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_MIKOTO_CUMULATIVE",
+    });
+    // 閾値（最大HP×10%）のちょうど半分。2発で初めて跨ぐ。
+    const hitPointDamage = board.subject.combatStats.maximumHp * 0.05;
+
+    const damageApplied = (hpBefore: number) =>
+      chain.recorder.record({
+        eventType: "DamageApplied",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: chain.actionId,
+        resolutionScopeId: chain.resolutionScopeId,
+        parentEventId: chain.rootEventId,
+        rootEventId: chain.rootEventId,
+        sourceUnitId: createBattleUnitId("enemy:front"),
+        targetUnitIds: [createBattleUnitId("ally:subject")],
+        payload: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEST_CUMULATIVE_HIT"),
+          hitIndex: 1,
+          targetUnitId: createBattleUnitId("ally:subject"),
+          calculatedDamage: hitPointDamage,
+          // シールド未所持の対象なので全量がHPへ向かう（R-SHD-02/03）。
+          hpDirectDamage: 0,
+          typedShieldAbsorbed: 0,
+          untypedShieldAbsorbed: 0,
+          subUnitAbsorbed: 0,
+          discardedDamage: 0,
+          hitPointDamage,
+          hpBefore,
+          hpAfter: hpBefore - hitPointDamage,
+          defeated: false,
+        },
+        stateDelta: {
+          units: {
+            [createBattleUnitId("ally:subject")]: {
+              hp: { before: hpBefore, after: hpBefore - hitPointDamage },
+            },
+          },
+        },
+      });
+
+    const damaged = (units: readonly BattleUnit[]) =>
+      units.map((unit) =>
+        unit.battleUnitId === "ally:subject"
+          ? { ...unit, currentHp: unit.currentHp - hitPointDamage }
+          : unit,
+      );
+
+    const afterFirst = chain.fireRecorded(
+      damageApplied(board.subject.currentHp),
+      damaged(board.units),
+    );
+    const hpBeforeSecond = afterFirst.find(
+      (unit) => unit.battleUnitId === "ally:subject",
+    )!.currentHp;
+    const afterSecond = chain.fireRecorded(damageApplied(hpBeforeSecond), damaged(afterFirst));
+    const subject = afterSecond.find((unit) => unit.battleUnitId === "ally:subject")!;
+
+    expect(chain.eventsOfType("RuntimeCounterChanged").map((event) => event.payload)).toMatchObject(
+      [
+        { counter: counterId, before: 0, after: 0, valueChanged: false },
+        { counter: counterId, before: 0, after: 1, valueChanged: true },
+      ],
+    );
+    expect(
+      chain.eventsOfType("PassiveActivated").map((event) => event.payload.skillDefinitionId),
+    ).toEqual([skillDefinitionId]);
+    expect(subject.skillCounters?.[skillDefinitionId]?.[counterId]).toEqual({ value: 1, carry: 0 });
+
+    const reconstructed = reconstruct(initial, chain.recorder);
+    expect(reconstructed.units[createBattleUnitId("ally:subject")]).toMatchObject({
+      hp: subject.currentHp,
+      skillCounters: { [skillDefinitionId]: { [counterId]: 1 } },
+    });
+    // carryは内部状態であり公開差分には載らない。
+    expect(
+      reconstructed.units[createBattleUnitId("ally:subject")]?.skillCounterCarry,
+    ).toBeUndefined();
   });
 });

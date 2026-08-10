@@ -10,10 +10,12 @@ import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { observeChargeEvasion } from "../../../testing/production-unit/charge-restriction.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import { recoverTurnResources } from "../../../domain/battle/model/battle-unit.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
@@ -42,6 +44,16 @@ import {
  */
 
 const UNIT_DEFINITION_ID = "UNIT_FLUTE_VAMPIRE";
+
+/**
+ * 「チャージ中は回避しない」（`R-HIT-04`）は抑止する側（チャージAS）と抑止される側
+ * （このユニットが配る `HIT_EVASION`）が別ユニットにあるため、チャージ定義の供給元
+ * だけをsnapshotへ併読する。どちらの定義も未改変のまま使う。
+ */
+const WITH_CHARGE_SOURCE = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_SIENA_OFFSTAGE",
+]);
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
@@ -472,5 +484,77 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
     expect(restored.units[subject.battleUnitId]!.maximumAp).toBe(subject.maximumAp);
     expect(restored.units[subject.battleUnitId]!.ap).toBe(subject.currentAp);
     expect(restored.units[subject.battleUnitId]!.hp).toBe(subject.currentHp);
+  });
+
+  it("IT-UNIT-FLUTE-VAMPIRE-006 (R-HIT-04): PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION は、受け取った味方がチャージ中だと発動せず、回避が成立しなかった被ヒットでその被ヒット消費も減らさない", () => {
+    // この機構は**どの単一定義にも帰属しない** — 抑止するのはチャージ側のスキルで、
+    // 抑止されるのはこのユニットの `HIT_EVASION` である。`12_テスト戦略.md`
+    // 「`IT-CAP-*` の retire 基準」3に従い、チャージ側（`IT-UNIT-SIENA-OFFSTAGE-007`）と
+    // 同じ観測を回避効果側のここにも複製する（重複を受け入れる）。
+    const options = {
+      snapshot: WITH_CHARGE_SOURCE,
+      chargerUnitDefinitionId: "UNIT_SIENA_OFFSTAGE",
+      chargeSkillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+      evasionEffectActionId: "ACT_FLUTE_VAMPIRE_PS2_EVASION",
+    };
+
+    expect(observeChargeEvasion({ ...options, charging: true })).toEqual({
+      charge: "SKL_SIENA_OFFSTAGE_AS1",
+      heldEvasion: { statusKind: "HIT_EVASION", probability: 1, consumptionRemaining: 1 },
+      evasionActivated: 0,
+      hitConfirmed: 2,
+      damaged: true,
+    });
+
+    expect(observeChargeEvasion({ ...options, charging: false })).toEqual({
+      charge: null,
+      heldEvasion: null,
+      evasionActivated: 1,
+      hitConfirmed: 1,
+      damaged: true,
+    });
+  });
+
+  it("IT-UNIT-FLUTE-VAMPIRE-007 (R-EFF-11): PS1・PS3 が宣言する発動回数counterは、自分自身の PassiveActivated でだけ増える。同じユニットの別PSの発動でも、このユニットのものではないPSの発動でも動かない", () => {
+    // counterの増減は `-001` の振る舞い表の観測に載らない（表はスキル使用1回が
+    // 起こしたことを見るもので、`RuntimeCounterChanged` は契機イベントから
+    // `detectRuntimeCounterUpdates` が独立に起こす）。
+    expect(observeActivationCounters(snapshot, UNIT_DEFINITION_ID)).toEqual({
+      declarations: [
+        {
+          skillDefinitionId: "SKL_FLUTE_VAMPIRE_PS1",
+          counter: "SKL_FLUTE_VAMPIRE_PS1_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+        {
+          skillDefinitionId: "SKL_FLUTE_VAMPIRE_PS3",
+          counter: "SKL_FLUTE_VAMPIRE_PS3_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+      ],
+      changesByActivatedSkill: {
+        SKL_FLUTE_VAMPIRE_PS1: [
+          {
+            skillDefinitionId: "SKL_FLUTE_VAMPIRE_PS1",
+            counter: "SKL_FLUTE_VAMPIRE_PS1_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+        SKL_FLUTE_VAMPIRE_PS3: [
+          {
+            skillDefinitionId: "SKL_FLUTE_VAMPIRE_PS3",
+            counter: "SKL_FLUTE_VAMPIRE_PS3_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+      },
+      changesOnUnrelatedSkill: [],
+    });
   });
 });

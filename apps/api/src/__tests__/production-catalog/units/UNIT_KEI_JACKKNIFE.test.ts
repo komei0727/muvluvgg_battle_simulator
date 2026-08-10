@@ -20,6 +20,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
@@ -408,5 +409,34 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
       const updated = result.units.find((unit) => unit.battleUnitId === battleUnitId)!;
       expect(reconstructed.units[battleUnitId]?.hp).toBe(updated.currentHp);
     }
+  });
+
+  it("IT-UNIT-KEI-JACKKNIFE-005 (R-EFF-11): PS1 が宣言する発動回数counterは、自分自身の PassiveActivated でだけ増える。このユニットのものではないPSの発動では動かない", () => {
+    // counterの増減は `-001` の振る舞い表の観測に載らない（表はスキル使用1回が
+    // 起こしたことを見るもので、`RuntimeCounterChanged` は契機イベントから
+    // `detectRuntimeCounterUpdates` が独立に起こす）。宣言は実 `catalog/` の
+    // ユニット定義から導くため、counterを持つPSが増えれば行が増えて落ちる。
+    expect(observeActivationCounters(snapshot, UNIT_DEFINITION_ID)).toEqual({
+      declarations: [
+        {
+          skillDefinitionId: "SKL_KEI_JACKKNIFE_PS1",
+          counter: "SKL_KEI_JACKKNIFE_PS1_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+      ],
+      changesByActivatedSkill: {
+        SKL_KEI_JACKKNIFE_PS1: [
+          {
+            skillDefinitionId: "SKL_KEI_JACKKNIFE_PS1",
+            counter: "SKL_KEI_JACKKNIFE_PS1_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+      },
+      changesOnUnrelatedSkill: [],
+    });
   });
 });

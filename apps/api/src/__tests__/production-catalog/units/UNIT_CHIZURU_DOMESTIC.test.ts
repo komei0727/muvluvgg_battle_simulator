@@ -9,6 +9,10 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
+  observeActivationCounters,
+  observeCumulativeThresholdCounter,
+} from "../../../testing/production-unit/runtime-counter.js";
+import {
   BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
@@ -383,5 +387,101 @@ describe("production Catalog UNIT_CHIZURU_DOMESTIC (【ドメスティックな�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-CHIZURU-DOMESTIC-004 (R-EFF-11): PS1・PS2 が宣言する発動回数counterは、自分自身の PassiveActivated でだけ増える。同じユニットの別PSの発動でも、このユニットのものではないPSの発動でも動かない", () => {
+    // counterの増減は `-001` の振る舞い表の観測に載らない（表はスキル使用1回が
+    // 起こしたことを見るもので、`RuntimeCounterChanged` は契機イベントから
+    // `detectRuntimeCounterUpdates` が独立に起こす）。宣言は実 `catalog/` の
+    // ユニット定義から導くため、counterを持つPSが増えれば行が増えて落ちる。
+    expect(observeActivationCounters(snapshot, UNIT_DEFINITION_ID)).toEqual({
+      declarations: [
+        {
+          skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS1",
+          counter: "SKL_CHIZURU_DOMESTIC_PS1_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+        {
+          skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS2",
+          counter: "SKL_CHIZURU_DOMESTIC_PS2_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+      ],
+      changesByActivatedSkill: {
+        SKL_CHIZURU_DOMESTIC_PS1: [
+          {
+            skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS1",
+            counter: "SKL_CHIZURU_DOMESTIC_PS1_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+        SKL_CHIZURU_DOMESTIC_PS2: [
+          {
+            skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS2",
+            counter: "SKL_CHIZURU_DOMESTIC_PS2_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+      },
+      changesOnUnrelatedSkill: [],
+    });
+  });
+
+  it("IT-UNIT-CHIZURU-DOMESTIC-005 (R-EFF-11): PS3 の累計ダメージ閾値counterは、閾値に届かない被弾では carry だけを動かし、実 catalog/ の trigger 条件がその RuntimeCounterChanged を valueChanged で弾く。ちょうど閾値・閾値2つぶんの被弾では公開値が動き、条件が成立する", () => {
+    // `RuntimeCounterChanged` は carry だけが動いた被弾でも追跡のために発行される
+    // （`14_Catalog定義スキーマ.md`「counterUpdates」）。条件側で判別できないと、
+    // 閾値に達していない被弾のたびにPSが発動してしまう。
+    expect(
+      observeCumulativeThresholdCounter(snapshot, UNIT_DEFINITION_ID, "SKL_CHIZURU_DOMESTIC_PS3"),
+    ).toEqual({
+      declaration: {
+        counter: "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT",
+        scope: "SKILL_RUNTIME",
+        maxHpRatio: 0.85,
+      },
+      triggerEventType: "RuntimeCounterChanged",
+      subThreshold: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS3",
+            counter: "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT",
+            before: 0,
+            after: 0,
+            valueChanged: false,
+          },
+        ],
+        triggerMatched: false,
+      },
+      atThreshold: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS3",
+            counter: "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+        triggerMatched: true,
+      },
+      crossing: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_CHIZURU_DOMESTIC_PS3",
+            counter: "SKL_CHIZURU_DOMESTIC_PS3_THRESHOLD_COUNT",
+            before: 0,
+            after: 2,
+            valueChanged: true,
+          },
+        ],
+        triggerMatched: true,
+      },
+    });
   });
 });

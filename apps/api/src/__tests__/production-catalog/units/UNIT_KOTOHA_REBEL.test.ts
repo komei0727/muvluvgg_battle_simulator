@@ -8,6 +8,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
@@ -596,5 +597,34 @@ describe("production Catalog UNIT_KOTOHA_REBEL (【世界への反逆者】コ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-KOTOHA-REBEL-004 (R-EFF-11): PS2 が宣言する発動回数counterは、自分自身の PassiveActivated でだけ増える。このユニットのものではないPSの発動では動かない", () => {
+    // counterの増減は `-001` の振る舞い表の観測に載らない（表はスキル使用1回が
+    // 起こしたことを見るもので、`RuntimeCounterChanged` は契機イベントから
+    // `detectRuntimeCounterUpdates` が独立に起こす）。宣言は実 `catalog/` の
+    // ユニット定義から導くため、counterを持つPSが増えれば行が増えて落ちる。
+    expect(observeActivationCounters(snapshot, UNIT_DEFINITION_ID)).toEqual({
+      declarations: [
+        {
+          skillDefinitionId: "SKL_KOTOHA_REBEL_PS2",
+          counter: "SKL_KOTOHA_REBEL_PS2_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+      ],
+      changesByActivatedSkill: {
+        SKL_KOTOHA_REBEL_PS2: [
+          {
+            skillDefinitionId: "SKL_KOTOHA_REBEL_PS2",
+            counter: "SKL_KOTOHA_REBEL_PS2_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+      },
+      changesOnUnrelatedSkill: [],
+    });
   });
 });

@@ -3,16 +3,25 @@ import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -358,5 +367,89 @@ describe("production Catalog UNIT_HIIRO_LONEWOLF (【緋色の一匹狼】榊野
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-HIIRO-LONEWOLF-004 (R-EFF-11): PS1 が宣言する発動回数counterは、自分自身の PassiveActivated でだけ増える。このユニットのものではないPSの発動では動かない", () => {
+    // counterの増減は `-001` の振る舞い表の観測に載らない（表はスキル使用1回が
+    // 起こしたことを見るもので、`RuntimeCounterChanged` は契機イベントから
+    // `detectRuntimeCounterUpdates` が独立に起こす）。宣言は実 `catalog/` の
+    // ユニット定義から導くため、counterを持つPSが増えれば行が増えて落ちる。
+    expect(observeActivationCounters(snapshot, UNIT_DEFINITION_ID)).toEqual({
+      declarations: [
+        {
+          skillDefinitionId: "SKL_HIIRO_LONEWOLF_PS1",
+          counter: "SKL_HIIRO_LONEWOLF_PS1_ACTIVATIONS",
+          scope: "SKILL_RUNTIME",
+          amount: 1,
+        },
+      ],
+      changesByActivatedSkill: {
+        SKL_HIIRO_LONEWOLF_PS1: [
+          {
+            skillDefinitionId: "SKL_HIIRO_LONEWOLF_PS1",
+            counter: "SKL_HIIRO_LONEWOLF_PS1_ACTIVATIONS",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+      },
+      changesOnUnrelatedSkill: [],
+    });
+  });
+
+  it("IT-UNIT-HIIRO-LONEWOLF-005 (R-EFF-11): SKL_HIIRO_LONEWOLF_PS1 の発動は RuntimeCounterChanged を PassiveActivated の子として発行し、書き込まれたcounterまで独立Reducerで復元できる。そのcounterがそのまま次のターン開始での発動を止める", () => {
+    // `-001` の「一度しか発動しない」行は counter を盤面の前提として置いたもので、
+    // 「発動が実際に counter を書き込む」ことは見ていない。ここは1回目の発動が
+    // 残した状態をそのまま2回目の契機へ渡し、書き込み側と読み取り側を繋ぐ。
+    const skillDefinitionId = createSkillDefinitionId("SKL_HIIRO_LONEWOLF_PS1");
+    const counterId = createRuntimeCounterId("SKL_HIIRO_LONEWOLF_PS1_ACTIVATIONS");
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, DISTINCT_ATTACK_ENEMIES);
+    const initial = initialSnapshotFor(board.units);
+
+    const first = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_HIIRO_COUNTER",
+      turnNumber: 1,
+    });
+    const afterFirst = first.fire(turnStarted({ turnNumber: 1 }), board.units);
+    const subject = afterFirst.find((unit) => unit.battleUnitId === "ally:subject")!;
+
+    const passiveActivated = first.eventsOfType("PassiveActivated");
+    const counterChanged = first.eventsOfType("RuntimeCounterChanged");
+    expect(passiveActivated.map((event) => event.payload.skillDefinitionId)).toEqual([
+      skillDefinitionId,
+    ]);
+    // counterの記録はPS発動の結果であり、因果木でも発動イベントの子になる。
+    expect(counterChanged.map((event) => event.parentEventId)).toEqual([
+      passiveActivated[0]!.eventId,
+    ]);
+    expect(counterChanged.map((event) => event.payload)).toMatchObject([
+      { skillDefinitionId, counter: counterId, before: 0, after: 1, valueChanged: true },
+    ]);
+    expect(subject.skillCounters?.[skillDefinitionId]?.[counterId]).toEqual({
+      value: 1,
+      carry: 0,
+    });
+
+    // 開始前スナップショットへ公開差分だけを当て直しても同じcounterへ復元できる。
+    expect(
+      reconstruct(initial, first.recorder).units[createBattleUnitId("ally:subject")],
+    ).toMatchObject({
+      pp: subject.currentPp,
+      extraGauge: subject.currentExtraGauge,
+      skillCounters: { [skillDefinitionId]: { [counterId]: 1 } },
+    });
+
+    // 2ターン目の契機を、1回目が残した状態のまま流す（前提を置き直さない）。
+    const second = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_HIIRO_COUNTER_SECOND",
+      turnNumber: 2,
+    });
+    second.fire(turnStarted({ turnNumber: 2 }), afterFirst);
+    expect(second.eventsOfType("PassiveActivated")).toEqual([]);
   });
 });

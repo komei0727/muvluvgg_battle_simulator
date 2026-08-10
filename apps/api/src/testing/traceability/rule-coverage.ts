@@ -678,14 +678,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   {
     ruleId: "R-SKL-05",
     testCaseIds: [
-      // M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）: 実`catalog/`のCHARGE定義2件で
-      // チャージ開始→保留中→解放の一巡を通し、`ChargeStarted`／`ActionCompleting`の
-      // StateDeltaと独立Reducer復元まで固定する。`006`は、
-      // R-SKL-05が効果解決の手順を持たない（`resolveChargeStart`が開始側stepを
-      // 一つも解決しない）ことと、Catalog側の開始側`steps`が空であることの一致を見る。
-      "IT-CAP-CHARGE-RESTRICTION-PROD-001",
-      "IT-CAP-CHARGE-RESTRICTION-PROD-005",
-      "IT-CAP-CHARGE-RESTRICTION-PROD-006",
+      // 実`catalog/`のCHARGE定義2件で、チャージ開始→保留中→解放の一巡を通し、
+      // `ChargeStarted`／`ChargeReleaseCompleted`のStateDeltaと独立Reducer復元まで
+      // 固定する。R-SKL-05が効果解決の手順を持たない（`resolveChargeStart`が開始側
+      // stepを一つも解決しない）ことと、Catalog側の開始側`steps`が空であることの
+      // 一致も同じ観測が見る。
+      "IT-UNIT-MIRIAM-MAGE-004",
+      "IT-UNIT-SIENA-OFFSTAGE-005",
       "UT-ACTION-PHASE-012",
       "UT-ACTION-PHASE-013",
       "UT-ACTION-PHASE-014",
@@ -1227,12 +1226,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-04-016",
       "UT-R-PS-04-017",
       "UT-R-PS-04-018",
-      // M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）: 「所有者がチャージ中でない」
-      // を実`catalog/`のPS（`SKL_SIENA_OFFSTAGE_PS1`）と実CHARGE定義
-      // （`SKL_SIENA_OFFSTAGE_AS1`）で固定する。004は候補判定（R-PS-01）側の除外と
-      // 直前確認の`OWNER_CHARGING`を、005はチャージ解放後に制限が解けることを見る。
-      "IT-CAP-CHARGE-RESTRICTION-PROD-004",
-      "IT-CAP-CHARGE-RESTRICTION-PROD-005",
+      // 「所有者がチャージ中でない」を実`catalog/`のPS（`SKL_SIENA_OFFSTAGE_PS1`）と
+      // 実CHARGE定義（`SKL_SIENA_OFFSTAGE_AS1`）で固定する。候補判定（R-PS-01）側の
+      // 除外・直前確認の`OWNER_CHARGING`・解放後に制限が解けることを一度に見る。
+      "IT-UNIT-SIENA-OFFSTAGE-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -1511,18 +1508,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-HIT-01-001", "UT-R-HIT-01-002"],
     kinds: ["POSITIVE"],
   },
-  // M7-016（Issue #270、`CAP_CHARGE_RESTRICTION`）で「対象がチャージ中なら自身の
-  // 回避効果を発動させない」のproduction証跡を追加した。`resolveEvasion`の
-  // `target.charge`早期returnは既にあったが、実`catalog/`のCHARGE定義
+  // 「対象がチャージ中なら自身の回避効果を発動させない」は、実`catalog/`のCHARGE定義
   // （`SKL_MIRIAM_MAGE_AS2`）で作ったチャージ状態と実production回避効果
-  // （`ACT_ANIS_TROUBLEMAKER_EX_EVASION`）を実ライフサイクルで突き合わせた検証が
-  // 無かった。`IT-CAP-CHARGE-RESTRICTION-PROD-002`はチャージなしの対照として、
-  // 不発の原因がチャージ状態だけであることを固定する。
+  // （`ACT_ANIS_TROUBLEMAKER_EX_EVASION`）を実ライフサイクルで突き合わせて固定する。
+  // 抑止する側と抑止される側が別ユニットにあるため、両ユニットのファイルへ同じ観測を
+  // 複製してある（`12_テスト戦略.md`「`IT-CAP-*` の retire 基準」3）。どちらも
+  // チャージなしの対照を併せ持ち、不発の原因がチャージ状態だけであることを固定する。
   {
     ruleId: "R-HIT-02",
     testCaseIds: [
-      "IT-CAP-CHARGE-RESTRICTION-PROD-001",
-      "IT-CAP-CHARGE-RESTRICTION-PROD-002",
+      "IT-UNIT-MIRIAM-MAGE-005",
+      "IT-UNIT-ANIS-TROUBLEMAKER-004",
       "UT-R-HIT-02-001",
       "UT-R-HIT-02-002",
       "UT-R-HIT-02-003",
@@ -1580,9 +1576,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HIT-04-011",
       "IT-CAP-HIT-EVASION-PROD-001",
       "IT-CAP-HIT-EVASION-PROD-002",
-      // M7-016（Issue #270）: 「チャージ中で発動しなかった場合」も被ヒット消費を
-      // 減らさない、という本ルール固有の境界をproduction定義で固定する。
-      "IT-CAP-CHARGE-RESTRICTION-PROD-003",
+      // 「チャージ中で発動しなかった場合」も被ヒット消費を減らさない、という本ルール
+      // 固有の境界をproduction定義で固定する。抑止する側（チャージ）と抑止される側
+      // （`HIT_EVASION`）が別ユニットにあるため両ユニットへ複製してある。
+      "IT-UNIT-SIENA-OFFSTAGE-007",
+      "IT-UNIT-FLUTE-VAMPIRE-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2817,7 +2815,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `Battle`／`BattleUnit`スコープは利用するproduction定義が存在しないため
   // Feature Complete必須対象に含めず、Catalogロード時点で明示的に拒否する
   // （`UT-CAT-RCU-011`）。`SkillRuntime`スコープは production Catalog上の
-  // 発動回数・累計ダメージ閾値counterで検証済み（`IT-CAP-SKILL-RUNTIME-003/004`）。
+  // 発動回数・累計ダメージ閾値counterで検証済み
+  // （`IT-UNIT-HIIRO-LONEWOLF-005`／`IT-UNIT-MIKOTO-SURVIVOR-005`）。
   // `AppliedEffect`／`EffectSequence`スコープは利用するproduction定義が現状
   // 存在しないため、明示的Scenarioで検証した
   // （`passive-activation-service.test.ts`のRuntimeCounter APPLIED_EFFECT/
@@ -2925,8 +2924,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-11-024",
       "UT-R-EFF-11-025",
       "UT-R-EFF-11-027",
-      "IT-CAP-SKILL-RUNTIME-003",
-      "IT-CAP-SKILL-RUNTIME-004",
+      // 発動回数counterの書き込みと、それを読む次の発動の阻止。
+      "IT-UNIT-HIIRO-LONEWOLF-005",
+      // 累計ダメージ閾値counterのcarry・閾値跨ぎ・公開差分（carryは載らない）。
+      "IT-UNIT-MIKOTO-SURVIVOR-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

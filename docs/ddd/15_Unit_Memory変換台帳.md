@@ -25,7 +25,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 `catalog-src/units/UNIT_CI_SMOKE_TEST/` は `raw/units/` のキャラクター変換ではなかった。追加時点では`capabilities.json`の30件中29件が`PLANNED`であり、実在キャラクターUnitは1件も`selectable`にならず、Cloud Run CI/CDのpost-deploy simulation smoke test（`docs/運用手順.md`「Cloud Run deploy」）が実行不能だった問題への対応として、未実装Capabilityを参照しない合成Unit（Active 1・EX 1・Passive 1、`metadata.tags: ["INTERNAL","SMOKE_TEST","TEMPORARY"]`）を追加した（2026-07-15）。
 
-削除の前提条件「実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になること」は`DMG-006`（Issue #188）で実在Unit全69件が`selectable`になり成立したため、`REL-002`（Issue #199）がこのUnitと専用fixtureを削除しCatalog revisionを再生成した（`2026-08-07.1`）。deploy smoke testは`buildSimulationSmokeRequest`が一覧の先頭の`selectable`Unitを動的に選ぶため、削除だけで実在Unitへ切り替わる。Issue #166がこのUnitへ置いていた`CAP_SKILL_RUNTIME_COUNTER`のproduction lifecycle証跡（`TurnStarted`→`PassiveActivated`→counter更新→StateDelta replay→次回発動抑止）は、同じ構造を持つ実在Unitの`SKL_HIIRO_LONEWOLF_PS1`が引き継いだ（`IT-CAP-SKILL-RUNTIME-003`）。
+削除の前提条件「実在キャラクターUnitが`IMPLEMENTED`済みcapabilityだけで`selectable`になること」は`DMG-006`（Issue #188）で実在Unit全69件が`selectable`になり成立したため、`REL-002`（Issue #199）がこのUnitと専用fixtureを削除しCatalog revisionを再生成した（`2026-08-07.1`）。deploy smoke testは`buildSimulationSmokeRequest`が一覧の先頭の`selectable`Unitを動的に選ぶため、削除だけで実在Unitへ切り替わる。Issue #166がこのUnitへ置いていた`CAP_SKILL_RUNTIME_COUNTER`のproduction lifecycle証跡（`TurnStarted`→`PassiveActivated`→counter更新→StateDelta replay→次回発動抑止）は、同じ構造を持つ実在Unitの`SKL_HIIRO_LONEWOLF_PS1`が引き継いだ（`REF-038`／Issue #385 でユニット効果軸へ移送し、現在は`IT-UNIT-HIIRO-LONEWOLF-005`が持つ）。
 
 以後 `catalog-src/` のunit directory総数はこの台帳の69件（`raw/units/`変換）と一致する。合成Unitの計数は`unit.json`の`INTERNAL`タグから導出しており（`remaining-work.test.ts`・`m7-completion-audit.test.ts`）、再び合成Unitを足す場合は`17_残作業対応表.json`の`syntheticUnits`を更新しないとCIが失敗する。
 
