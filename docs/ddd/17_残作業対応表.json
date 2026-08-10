@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 0,
-      "incompleteConversionRows": 1
+      "incompleteConversionRows": 0
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -560,14 +560,7 @@
       ]
     }
   ],
-  "conversionThemeAssignments": [
-    {
-      "milestone": "M9",
-      "theme": "UNREACHABLE_BRANCH_BY_RAW_DATA",
-      "rowCount": 1,
-      "taskId": "REL-003"
-    }
-  ],
+  "conversionThemeAssignments": [],
   "unconvertedMemoryAssignments": [],
   "m8Audit": {
     "auditDate": "2026-08-02",

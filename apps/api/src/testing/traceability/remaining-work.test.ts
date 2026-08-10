@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
@@ -234,6 +234,46 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(baseline.unitCatalog.convertedProductionUnits).toBeGreaterThan(0);
     expect(baseline.unitCatalog.syntheticUnits).toBeGreaterThanOrEqual(0);
     expect(baseline.unitCatalog.incompleteConversionRows).toBeGreaterThanOrEqual(0);
+  });
+
+  it("UT-PLAN-001-008 (REL-003, Issue #200): no production definition anywhere in catalog-src grants a marker that could stand for 「ワンペア」, so SKL_SUIRAN_CASINO_AS1's 2-target branch stays unreachable", () => {
+    // `UNREACHABLE_BRANCH_BY_RAW_DATA`（`15_Unit_Memory変換台帳.md`）は「実装できない
+    // ギャップ」ではなく**到達不能という判断**であり、その判断が最終承認時点でも
+    // 維持されているかを確認して初めて台帳から除去できる（Issue #200「M7-010からの
+    // 引継ぎ」）。`REL-003` で確認して行を除去したため、以後はこのテストが
+    // 「到達手段が現れていない」ことの常設の見張りになる。
+    //
+    // Markerは `markerId` しか持たず表示名を持たないため、原文語「ワンペア」との
+    // 対応は**ID表記**でしか機械判定できない。ローマ字化の揺れを拾うため
+    // `PAIR` を含むIDを全面的に禁じ、併せて劉翠蘭自身が配るMarkerが
+    // 「スリーカード」1種のままであることを固定する。どちらかが変われば、
+    // `SKL_SUIRAN_CASINO_AS1` の対象拡張を近似なしへ実装し直す必要がある。
+    const grantedMarkerIds = (directory: string): readonly string[] => {
+      const root = `${repositoryRoot}/apps/api/catalog-src/${directory}`;
+      return readdirSync(root)
+        .flatMap((entry) =>
+          readdirSync(`${root}/${entry}`)
+            .filter((file) => file.endsWith(".json"))
+            .map((file) => readFileSync(`${root}/${entry}/${file}`, "utf8")),
+        )
+        .flatMap((source) => [...source.matchAll(/"markerId":\s*"([A-Z0-9_]+)"/g)])
+        .map((match) => match[1]!);
+    };
+    const allMarkerIds = [...grantedMarkerIds("units"), ...grantedMarkerIds("memories")];
+
+    // 空振り防止: 走査がMarkerを1件も拾えていないなら、下の2つの不在は無意味になる。
+    expect(allMarkerIds.length).toBeGreaterThan(0);
+    expect(allMarkerIds.filter((markerId) => markerId.includes("PAIR"))).toEqual([]);
+    expect([...new Set(grantedMarkerIds("units").filter((id) => id.includes("SUIRAN_CASINO")))]) //
+      .toEqual(["MARKER_SUIRAN_CASINO_THREE_CARD"]);
+
+    // 到達不能判断を維持したので、台帳側の該当テーマも残っていてはならない。
+    const { conversionThemeAssignments } = readManifest();
+    expect(
+      conversionThemeAssignments.filter(
+        (assignment) => assignment.theme === "UNREACHABLE_BRANCH_BY_RAW_DATA",
+      ),
+    ).toEqual([]);
   });
 
   it("UT-PLAN-001-007: counts only test titles and preserves duplicate definitions", () => {
