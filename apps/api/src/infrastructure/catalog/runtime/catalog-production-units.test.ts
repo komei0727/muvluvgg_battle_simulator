@@ -250,7 +250,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 定義自体は変えていないため期待値は据え置き。
     // Bumped again by M7-015 (Issue #269): `CAP_MARKER_STACK_FORMULA`を
     // `IMPLEMENTED`へ更新し、`verification`へ`MARKER_COUNT_SCALE`の実ライフ
-    // サイクル検証（`IT-CAP-MARKER-STACK-PROD-001`〜`006`）を登録した。
+    // サイクル検証（`IT-CAP-MARKER-STACK-PROD-001`〜`006`。REF-043／Issue #390 で
+    // ユニット効果軸 `IT-UNIT-CHIYURU-NEWYEAR-005`・`IT-UNIT-KARINA-DOWNER-007`・
+    // `IT-UNIT-FEE-BATH-004` ほかへ移送済み）を登録した。
     // `.11`は同Capabilityの説明のselectable記述を
     // 監査時点の値から本PR後の実測（`UNIT_CHIYURU_NEWYEAR`・`UNIT_FEE_BATH`が
     // selectable）へ訂正した分。Unit・Skill・Effectの定義自体は変えていない

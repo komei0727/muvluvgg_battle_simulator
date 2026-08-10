@@ -4,10 +4,13 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeEffectImmunity } from "../../../testing/production-unit/effect-application.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -25,7 +28,21 @@ import { realDamage, skillUseStarting } from "../../../testing/production-unit/t
 
 const UNIT_DEFINITION_ID = "UNIT_AOI_GUARDIAN";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * EXが配るのは「気絶無効」——`categories: [STATUS]` を種別 `STUN` だけへ絞った免疫
+ * （R-EFF-03）である。絞り込みが効いていることは**弾かれる種別と弾かれない種別を
+ * 同じ免疫へ通して**初めて分かるため、葵自身が配らない状態異常を実 production 定義で
+ * 用意できるよう、供給元のユニットだけを併せて読み込む。`-002`／`-003` はこの
+ * ユニットのSkill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const STUN_SOURCE_UNIT_ID = "UNIT_LILY_HERO";
+const FREEZE_SOURCE_UNIT_ID = "UNIT_NANAE_COMMANDER";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  STUN_SOURCE_UNIT_ID,
+  FREEZE_SOURCE_UNIT_ID,
+]);
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -483,5 +500,65 @@ describe("production Catalog UNIT_AOI_GUARDIAN (【厳格な規律の守護者�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-AOI-GUARDIAN-004 (R-EFF-03): EXが配る「気絶無効」は `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
+    // `-001` のEX行は付与そのもの（`magnitude: 0`・2行動）までを固定する。
+    // `EFFECT_IMMUNITY.statusKinds` の絞り込みは**以後に飛んでくる付与**を弾くか
+    // 通すかにしか現れず、これは別のスキル使用に属する。弾かれる側だけを見ても
+    // カテゴリ丸ごとの免疫と区別がつかないため、両側を同じ免疫へ通す。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const guarded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_AOI_GUARDIAN_EX_STUN_IMMUNITY", target: "SELF" },
+    ]);
+    const screen = (effectActionDefinitionIds: readonly string[], battleId: string) => {
+      const { applied, rejected, immunity } = observeEffectImmunity({
+        definitions: board.definitions,
+        units: guarded,
+        holder: "ally:subject",
+        from: "enemy:front",
+        effectActionDefinitionIds,
+        immunityEffectActionDefinitionId: "ACT_AOI_GUARDIAN_EX_STUN_IMMUNITY",
+        battleId,
+      });
+      return { applied, rejected, immunity };
+    };
+
+    // 指定した種別（気絶）は拒否され、同じ行動で配られたstat debuffは通る。
+    expect(
+      screen(["ACT_LILY_HERO_AS2_STUN", "ACT_LILY_HERO_AS2_SPEED_DOWN"], "B_AOI_STUN"),
+    ).toEqual({
+      applied: ["ACT_LILY_HERO_AS2_SPEED_DOWN"],
+      rejected: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_LILY_HERO_AS2_STUN",
+          reason: "IMMUNITY",
+          statusKind: "STUN",
+          // 拒否したのは実EXが配ったそのインスタンスである。
+          blockedBy: "ACT_AOI_GUARDIAN_EX_STUN_IMMUNITY",
+        },
+      ],
+      // 免疫自身は拒否回数を数える（`maxBlocks: null` なので失効はしない）。
+      immunity: {
+        categories: ["STATUS"],
+        statusKinds: ["STUN"],
+        blockedCount: 1,
+        maxBlocks: null,
+      },
+    });
+
+    // 同じ `STATUS` カテゴリでも種別が違えば通る。ここが無いとカテゴリ丸ごとの
+    // 免疫との区別がつかない。
+    expect(screen(["ACT_NANAE_COMMANDER_EX_FREEZE"], "B_AOI_FREEZE")).toEqual({
+      applied: ["ACT_NANAE_COMMANDER_EX_FREEZE"],
+      rejected: [],
+      immunity: {
+        categories: ["STATUS"],
+        statusKinds: ["STUN"],
+        blockedCount: 0,
+        maxBlocks: null,
+      },
+    });
   });
 });

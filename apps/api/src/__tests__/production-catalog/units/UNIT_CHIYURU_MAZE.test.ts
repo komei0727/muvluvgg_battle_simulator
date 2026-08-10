@@ -16,6 +16,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeContinuousDamage } from "../../../testing/production-unit/continuous-damage.js";
 import {
   PRODUCTION_CATALOG_DIR,
   applyPrecedingActions,
@@ -511,5 +512,81 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
       "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP",
       "ACT_CHIYURU_MAZE_EX_STUN",
     ]);
+  });
+  it("IT-UNIT-CHIYURU-MAZE-005 (R-DOT-01/R-DOT-04): PS1・PS2が配る毒は、保持者**自身**の行動開始でだけ発生し、発火のたびにその時点の現在HPを読み直す。同じ保持者への毒の再付与はインスタンスを増やさない", () => {
+    // `-001` のPS1・PS2行は付与そのもの（付与時点の現在HP×10%のsnapshotと2行動）
+    // までを固定する。R-DOT-01「付与対象の行動開始時に発生する」は保持者の以後の
+    // 行動に属するため、スキル使用1回の観測には載らない — 他のユニットの行動開始で
+    // 発火しないことも、同じ観測の中に対照として置いて初めて固定される。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    // 前提アクションは既定順の最も近い敵（enemy:front、現在HP5000）だけへ入る。
+    const poisonedBy = (effectActionDefinitionId: string, battleId: string) =>
+      observeContinuousDamage({
+        units: applyPrecedingActions(board, [{ effectActionDefinitionId, target: "ENEMY" }]),
+        definitions: board.definitions,
+        // 保持者ではない敵の行動開始 → 保持者自身の行動開始2回、の順。
+        actors: ["enemy:left", "enemy:front", "enemy:front"],
+        battleId,
+      });
+    const tick = (effectActionDefinitionId: string, currentHp: number) => ({
+      unitId: "enemy:front",
+      effectActionDefinitionId,
+      continuousDamageKind: "POISON",
+      damageType: "PHYSICAL",
+      // R-DOT-04の上限は付与時攻撃力×100%＝1000。10%側はそこへ届かない。
+      snapshotAttack: 1000,
+      formulaResult: currentHp * 0.1,
+      burnStackMultiplier: 1,
+      cappedBySnapshotAttack: false,
+      calculatedDamage: currentHp * 0.1,
+      typedShieldAbsorbed: 0,
+      untypedShieldAbsorbed: 0,
+      subUnitAbsorbed: 0,
+      discardedDamage: 0,
+      hitPointDamage: currentHp * 0.1,
+    });
+
+    // 2つのPSはどちらも同じ形（現在HP×10%、2行動）を配る。実 `catalog/` の
+    // `timing` が保持者の `ActionStarted` 以外を指していると、この表の2行目・3行目が
+    // 空になって落ちる。
+    for (const [effectActionDefinitionId, battleId] of [
+      ["ACT_CHIYURU_MAZE_PS1_POISON", "B_CHIYURU_MAZE_PS1_POISON"],
+      ["ACT_CHIYURU_MAZE_PS2_POISON", "B_CHIYURU_MAZE_PS2_POISON"],
+    ] as const) {
+      expect(poisonedBy(effectActionDefinitionId, battleId).steps).toEqual([
+        { step: "ACTION_START(enemy:left)", ticks: [], hpDeltas: {} },
+        {
+          step: "ACTION_START(enemy:front)",
+          ticks: [tick(effectActionDefinitionId, 5000)],
+          hpDeltas: { "enemy:front": -500 },
+        },
+        {
+          // 2回目は1回目が削った後の4500を読み直す（付与時のsnapshotを使い回さない）。
+          step: "ACTION_START(enemy:front)",
+          ticks: [tick(effectActionDefinitionId, 4500)],
+          hpDeltas: { "enemy:front": -450 },
+        },
+      ]);
+    }
+
+    // R-DOT-04「毒を再度付与された場合、効果量が大きい方に統合する」。PS1の毒を
+    // 持つ相手へPS2の毒が入っても、インスタンスは増えず発生も1回のままになる。
+    const reGranted = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS1_POISON", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_POISON", target: "ENEMY" },
+    ]);
+    expect(
+      reGranted
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .appliedEffects.filter((effect) => effect.continuousDamage !== undefined),
+    ).toHaveLength(1);
+    expect(
+      observeContinuousDamage({
+        units: reGranted,
+        definitions: board.definitions,
+        actors: ["enemy:front"],
+        battleId: "B_CHIYURU_MAZE_POISON_REGRANT",
+      }).steps[0]!.ticks,
+    ).toEqual([tick("ACT_CHIYURU_MAZE_PS1_POISON", 5000)]);
   });
 });

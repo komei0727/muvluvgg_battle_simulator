@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import {
   unexecutedEffectActionIds,
@@ -10,11 +20,13 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type BoardUnitSpec,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { realDamage, unitDefeated } from "../../../testing/production-unit/trigger-events.js";
 
 /**
@@ -148,6 +160,130 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
           magnitude: 0.12,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+          magnitude: -1,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+          magnitude: -1,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_CHIYURU_NEWYEAR_AS1", remaining: 99 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_CHIYURU_NEWYEAR_AS1",
+    intent:
+      "(境界): 「お餅」を1つも持たないとき、攻撃力・防御力の上昇は0になる（`MARKER_COUNT_SCALE`は所持数0で不成立）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_CHIYURU_NEWYEAR_AS1" },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+          targets: ["enemy:front"],
+        },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK", targets: ["enemy:left"] },
+        {
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_SELF",
+          targets: ["ally:subject"],
+        },
+      ],
+      // 上昇なしの1000から1ヒット195（(1000-500)×39%）×3ヒット。回復は合計1170の25%。
+      hpDeltas: {
+        "ally:subject": 292,
+        "enemy:front": -585,
+        "enemy:left": -585,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+          magnitude: -1,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+          magnitude: -1,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_CHIYURU_NEWYEAR_AS1", remaining: 99 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_CHIYURU_NEWYEAR_AS1",
+    intent: "(境界): 「お餅」6つで上昇率が頭打ちになる（最大6つまで＝攻撃力18%・防御力36%）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_CHIYURU_NEWYEAR_AS1" },
+    board: { subject: { markers: [{ markerId: MOCHI, stackCount: 6 }] } },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+          targets: ["enemy:front"],
+        },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK", targets: ["enemy:left"] },
+        {
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_HEAL_SELF",
+          targets: ["ally:subject"],
+        },
+      ],
+      // 攻撃力バフ後の1000×1.18から1ヒット265（(1180-500)×39%）×3ヒット。
+      hpDeltas: {
+        "ally:subject": 397,
+        "enemy:front": -795,
+        "enemy:left": -795,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP",
+          magnitude: 0.18,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
+          magnitude: 0.36,
           timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET" },
         },
         {
@@ -395,5 +531,63 @@ describe("production Catalog UNIT_CHIYURU_NEWYEAR (【新春のメイズ研究�
         triggerMatched: true,
       },
     });
+  });
+
+  it("IT-UNIT-CHIYURU-NEWYEAR-005 (R-NUM-04): AS1の `MARKER_COUNT_SCALE`（`target: SKILL_SOURCE`）が評価した効果量は `AppliedEffect.magnitude` に留まらず実CombatStatへ届き、公開差分だけを当て直しても同じ効果量・同じ所持数へ復元できる", () => {
+    // `-001` の各行は「所持数がいくつなら効果量がいくつか」（0・2・6）と、その
+    // 効果量が乗った与ダメージまでを固定する。ここが引き受けるのは、評価結果が
+    // **どこへ届いたか**の2点 — 実 `CombatStats` の再計算と、StateDelta だけを
+    // 独立Reducerへ当てた復元である。どちらもスキル使用1回の観測の外にある。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      subject: { markers: [{ markerId: MOCHI, stackCount: 4 }] },
+    });
+    const initial = initialSnapshotFor(board.units, { include: ["effects", "markers"] });
+    const recorder = new EventRecorder(createBattleId("B_CHIYURU_MOCHI"));
+    const result = resolveSkillUse(
+      board.subject,
+      skillFrom(snapshot, "SKL_CHIYURU_NEWYEAR_AS1"),
+      "AS",
+      "AS",
+      board.units,
+      board.definitions,
+      new SequenceRandomSource(new Array<number>(32).fill(0.99)),
+      recorder,
+      1,
+      1,
+      createActionId("B_CHIYURU_MOCHI:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    // 「お餅」4つ＝攻撃力+12%・防御力+24%。R-NUM-02の整数化はダメージ側の責務で
+    // CombatStat自体は丸めないため近似比較にする（`500 × 1.24` は倍精度で
+    // 619.9999999999999になる）。
+    const actor = result.units.find((unit) => unit.battleUnitId === "ally:subject")!;
+    expect(actor.combatStats.attack).toBeCloseTo(1120, 10);
+    expect(actor.combatStats.defense).toBeCloseTo(620, 10);
+
+    const restored = reduceStateDeltas(
+      initial,
+      recorder
+        .getEvents()
+        .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+    );
+    const restoredSubject = restored.units[createBattleUnitId("ally:subject")];
+    expect(
+      restoredSubject?.effects?.find(
+        (effect) => effect.effectDefinitionId === "ACT_CHIYURU_NEWYEAR_AS1_ATK_UP",
+      )?.magnitude,
+    ).toBeCloseTo(0.12, 10);
+    expect(
+      restoredSubject?.effects?.find(
+        (effect) => effect.effectDefinitionId === "ACT_CHIYURU_NEWYEAR_AS1_DEF_UP",
+      )?.magnitude,
+    ).toBeCloseTo(0.24, 10);
+    // 参照元の所持数は攻撃では動かない（Formulaは読むだけで消費しない）。
+    expect(restoredSubject?.markers?.find((marker) => marker.markerId === MOCHI)?.stackCount).toBe(
+      4,
+    );
+    for (const unit of result.units) {
+      expect(restored.units[unit.battleUnitId]!.hp).toBe(unit.currentHp);
+    }
   });
 });

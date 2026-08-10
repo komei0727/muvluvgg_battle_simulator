@@ -16,8 +16,10 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeContinuousDamage } from "../../../testing/production-unit/continuous-damage.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -39,7 +41,18 @@ import { realDamage, unitDefeated } from "../../../testing/production-unit/trigg
 
 const UNIT_DEFINITION_ID = "UNIT_SENKA_SCHEMER";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * 炎上はシールドで受けない（R-DOT-04第2項・R-SUB-01・R-LNK-02）。シールドが1枚も
+ * 無い盤面ではこの主張が空振りするため、泉花自身が配らないシールドを実 production
+ * 定義で用意できるよう、供給元のユニットだけを併せて読み込む。`-002`／`-003` は
+ * このユニットのSkill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const SHIELD_SOURCE_UNIT_ID = "UNIT_AOI_GUARDIAN";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  SHIELD_SOURCE_UNIT_ID,
+]);
 
 /** HP割合が1体だけ低い敵陣。EXの `LOWEST_HP_RATIO` の判別用。 */
 const ENEMY_LEFT_LOWEST_HP: readonly BoardUnitSpec[] = [
@@ -352,6 +365,95 @@ describe("production Catalog UNIT_SENKA_SCHEMER (【自称腹黒の深謀策士�
     for (const battleUnitId of ["enemy:front", "enemy:left"].map((id) => createBattleUnitId(id))) {
       const updated = result.units.find((unit) => unit.battleUnitId === battleUnitId)!;
       expect(reconstructed.units[battleUnitId]?.hp).toBe(updated.currentHp);
+    }
+  });
+  it("IT-UNIT-SENKA-SCHEMER-005 (R-DOT-01/R-DOT-03): AS1が配る炎上は保持者自身の行動開始で発生し、付与時攻撃力×30%をシールドに一切吸われずHPへ通す。3つ重なった保持者では各インスタンスが2倍になる", () => {
+    // `-001` のAS1行は付与そのもの（`magnitude: 300`・3行動）までを固定する。
+    // **発生**は保持者の以後の行動に属するためスキル使用1回の観測には載らない。
+    // ここが引き受けるのは (1) 発生の契機が保持者自身の行動開始であること、
+    // (2) 炎上はシールドで受けないこと（R-DOT-04第2項・R-SUB-01）、
+    // (3) R-DOT-03の3つ重複での2倍、(4) 公開差分だけからの復元である。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    // 前提アクションは既定順の最も近い敵（enemy:front）だけへ入る。実 production の
+    // シールド（攻撃力×120%＝1200）を同じ相手へ張り、炎上が素通りする対照にする。
+    const burning = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_SHIELD", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_SENKA_SCHEMER_AS1_BURN", target: "ENEMY" },
+    ]);
+    const single = observeContinuousDamage({
+      units: burning,
+      definitions: board.definitions,
+      // 保持者の行動開始と、炎上を持たない別の敵の行動開始を並べる。
+      actors: ["enemy:front", "enemy:left"],
+      battleId: "B_SENKA_BURN",
+    });
+
+    expect(single.steps).toEqual([
+      {
+        step: "ACTION_START(enemy:front)",
+        ticks: [
+          {
+            unitId: "enemy:front",
+            effectActionDefinitionId: "ACT_SENKA_SCHEMER_AS1_BURN",
+            continuousDamageKind: "BURN",
+            damageType: "PHYSICAL",
+            // R-DOT-01: 付与時の付与者攻撃力スナップショット。
+            snapshotAttack: 1000,
+            formulaResult: 300,
+            burnStackMultiplier: 1,
+            cappedBySnapshotAttack: false,
+            calculatedDamage: 300,
+            // R-DOT-04第2項／R-SUB-01: 1200のシールドが張ってあっても炎上は素通りする。
+            typedShieldAbsorbed: 0,
+            untypedShieldAbsorbed: 0,
+            subUnitAbsorbed: 0,
+            discardedDamage: 0,
+            hitPointDamage: 300,
+          },
+        ],
+        hpDeltas: { "enemy:front": -300 },
+      },
+      // 炎上を持たない敵の行動開始では何も起きない。
+      { step: "ACTION_START(enemy:left)", ticks: [], hpDeltas: {} },
+    ]);
+    // シールドは1点も減っていない（吸収0の裏づけ）。
+    expect(
+      single.units
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_AOI_GUARDIAN_AS1_SHIELD",
+        )!.shield?.remaining,
+    ).toBe(1200);
+
+    // R-DOT-03「炎上は最大3つまで保持し、3つ保持している場合は各インスタンスの
+    // ダメージをそれぞれ2倍にする」。合計を後から2倍にするのではないため、
+    // 3件が600ずつ発生する。
+    const tripled = observeContinuousDamage({
+      units: applyPrecedingActions(board, [
+        { effectActionDefinitionId: "ACT_SENKA_SCHEMER_AS1_BURN", target: "ENEMY" },
+        { effectActionDefinitionId: "ACT_SENKA_SCHEMER_AS1_BURN", target: "ENEMY" },
+        { effectActionDefinitionId: "ACT_SENKA_SCHEMER_AS1_BURN", target: "ENEMY" },
+      ]),
+      definitions: board.definitions,
+      actors: ["enemy:front"],
+      battleId: "B_SENKA_BURN_TRIPLE",
+    });
+    expect(
+      tripled.steps[0]!.ticks.map((tick) => ({
+        burnStackMultiplier: tick.burnStackMultiplier,
+        calculatedDamage: tick.calculatedDamage,
+      })),
+    ).toEqual([
+      { burnStackMultiplier: 2, calculatedDamage: 600 },
+      { burnStackMultiplier: 2, calculatedDamage: 600 },
+      { burnStackMultiplier: 2, calculatedDamage: 600 },
+    ]);
+    expect(tripled.steps[0]!.hpDeltas).toEqual({ "enemy:front": -1800 });
+
+    // 公開差分だけを当て直しても同じHPへ復元できる。
+    const reconstructed = reconstruct(initialSnapshotFor(burning), single.recorder);
+    for (const unit of single.units) {
+      expect(reconstructed.units[unit.battleUnitId]?.hp).toBe(unit.currentHp);
     }
   });
 });

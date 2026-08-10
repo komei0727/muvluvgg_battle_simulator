@@ -92,15 +92,16 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // Marker本体だけを実装してcloseし、M7-010／Issue #177の監査が所有者不在を
       // 検出した）。`UT-R-NUM-04-032`/`033`はこのFormulaを使う定義に
       // `CAP_MARKER_STACK_FORMULA`宣言を必須とするCatalog検証、
-      // `IT-CAP-MARKER-STACK-PROD-001`〜`006`は実`catalog/`の
+      // ユニット効果軸の3件（REF-043／Issue #390 で移送）が実`catalog/`の
       // `APPLY_STAT_MOD.formula`（`target: SKILL_SOURCE`）と
-      // `DAMAGE.damageModifiers`（`target: TARGET`）の両経路を実`resolveSkillUse`で
-      // 通した所持数0・比例・`max`頭打ち・別markerId非寄与の実測である。
+      // `DAMAGE.damageModifiers`（`target: TARGET`）の両経路の実測である。
+      // 所持数0・比例・`max`頭打ち・別markerId非寄与は各ユニットの`-001`
+      // 振る舞い表が行として持ち、`-004`以降は評価結果の届き先
+      // （CombatStat再計算・`DamageCalculated`の集計欄・独立Reducer復元）を持つ。
       "UT-R-NUM-04-032",
-      "IT-CAP-MARKER-STACK-PROD-001",
-      "IT-CAP-MARKER-STACK-PROD-002",
-      "IT-CAP-MARKER-STACK-PROD-003",
-      "IT-CAP-MARKER-STACK-PROD-006",
+      "IT-UNIT-CHIYURU-NEWYEAR-005",
+      "IT-UNIT-KARINA-DOWNER-007",
+      "IT-UNIT-FEE-BATH-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -1711,9 +1712,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // production定義（`ACT_KARINA_DOWNER_AS1_DAMAGE`／`ACT_FEE_BATH_AS2_DAMAGE`の
       // `damageModifiers`）が実際に使う`MARKER_COUNT_SCALE`で実測した。同一AOE解決の
       // 対象ごとに倍率が分かれること、複数ヒットが同じ所持数を読むことを含む。
-      "IT-CAP-MARKER-STACK-PROD-002",
-      "IT-CAP-MARKER-STACK-PROD-003",
-      "IT-CAP-MARKER-STACK-PROD-004",
+      // REF-043（Issue #390）でユニット効果軸へ移送した。
+      "IT-UNIT-KARINA-DOWNER-007",
+      "IT-UNIT-FEE-BATH-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
@@ -2126,6 +2127,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
 
   // DOT: 継続ダメージ
   // DMG-008（Issue #189）: 継続ダメージ・炎上・毒を実ライフサイクルへ配線した。
+  // REF-043（Issue #390）でユニット効果軸へ移送し、実 production の付与を
+  // 保持者自身の行動開始（`fireContinuousHealsOnActionStart`）へ通した発生量・
+  // シールドへの振り分け・独立Reducer復元として検証する。
   {
     ruleId: "R-DOT-01",
     testCaseIds: [
@@ -2135,7 +2139,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DOT-01-004",
       "UT-R-DOT-01-005",
       "UT-R-DOT-01-006",
-      "IT-CAP-CONTINUOUS-DAMAGE-PROD-001",
+      "IT-UNIT-SENKA-SCHEMER-005",
+      "IT-UNIT-CHIYURU-MAZE-005",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2145,7 +2150,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DOT-02-001",
       "UT-R-DOT-02-002",
       "UT-R-DOT-01-005",
-      "IT-CAP-CONTINUOUS-DAMAGE-PROD-003",
+      "IT-UNIT-MAO-COMMITTEE-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
@@ -2155,7 +2160,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DOT-03-001",
       "UT-R-DOT-03-002",
       "UT-R-DOT-03-003",
-      "IT-CAP-CONTINUOUS-DAMAGE-PROD-001",
+      "IT-UNIT-SENKA-SCHEMER-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2173,7 +2178,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DOT-04-009",
       "UT-R-DOT-04-010",
       "UT-R-DOT-04-011",
-      "IT-CAP-CONTINUOUS-DAMAGE-PROD-002",
+      "IT-UNIT-LUCIE-COMPANION-006",
+      "IT-UNIT-CHIYURU-MAZE-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2480,6 +2486,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // DMG-003A（Issue #295）: 会心不可が`DEBUFF`免疫で
       // 実際に付与拒否されることをproduction定義で固定する。
       "IT-CAP-CRITICAL-CONTROL-PROD-005",
+      // M7-001B（Issue #243、`CAP_SPECIFIC_IMMUNITY`）の`statusKinds`（種別限定
+      // 免疫）は、REF-043（Issue #390）でユニット効果軸へ移送した。production
+      // 代表2件それぞれで、指定種別（気絶）が拒否され、同じ行動のstat debuffと
+      // 別種別（凍結）は通ることを実 resolver で固定する。
+      "IT-UNIT-AOI-GUARDIAN-004",
+      "IT-UNIT-HIIRO-LONEWOLF-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2787,8 +2799,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // Duration失効（`marker-duration.ts`、`action-completion.ts`/`battle.ts`への
   // 実ライフサイクル配線）を実装した。`MarkerState.stackCount`を**読む**側は
   // それぞれ別タスクのスコープとして残した — `MARKER_COUNT_SCALE`Formula評価は
-  // M7-015（Issue #269）が実ライフサイクル検証
-  // （`IT-CAP-MARKER-STACK-PROD-001`〜`006`、R-NUM-04側で計上）まで通して完了させ、
+  // M7-015（Issue #269）が実ライフサイクル検証（R-NUM-04側で計上。REF-043／
+  // Issue #390 でユニット効果軸へ移送済み）まで通して完了させ、
   // `TARGET_HAS_MARKER`Condition評価はRES-004（Issue #171）、`HAS_MARKER`
   // TargetSelector評価はTGT-002（Issue #169）が担当する。
   // `AppliedEffect`をまたぐlinkedEffectGroup
