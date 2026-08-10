@@ -3,6 +3,7 @@ import type { BattleDomainEvent } from "../../../domain/battle/events/domain-eve
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
@@ -433,20 +434,23 @@ describe("production Catalog UNIT_FEE_BATH (【自己に揺れる白湯気】フ
       expect(event.stateVersionAfter).toBe(expectedVersion);
     }
 
-    // 公開差分だけを当て直しても、増加後の所持数（7 + 1）とHPへ復元できる。
+    // 公開差分だけを当て直した状態を、**スナップショット全体**で突き合わせる。
+    // 個別のフィールドだけを見ると、いずれかのStateDeltaが欠けても
+    // 見ている欄さえ合っていれば通ってしまう。
+    const snapshotOf = (units: readonly BattleUnit[]) =>
+      initialSnapshotFor(units, { include: ["cooldowns", "effects", "markers"] });
     const restored = reduceStateDeltas(
-      initialSnapshotFor(aboveCap.board.units, { include: ["effects", "markers"] }),
+      snapshotOf(aboveCap.board.units),
       aboveCap.events.flatMap((event) =>
         event.stateDelta === undefined ? [] : [event.stateDelta],
       ),
     );
+    expect(restored).toEqual(snapshotOf(aboveCap.result.units));
+    // 増加後の所持数（7 + 1）が復元後も生きていることは名指しで残す。
     expect(
       restored.units[createBattleUnitId("enemy:front")]?.markers?.find(
         (marker) => marker.markerId === FLUSH,
       )?.stackCount,
     ).toBe(8);
-    for (const unit of aboveCap.result.units) {
-      expect(restored.units[unit.battleUnitId]!.hp).toBe(unit.currentHp);
-    }
   });
 });

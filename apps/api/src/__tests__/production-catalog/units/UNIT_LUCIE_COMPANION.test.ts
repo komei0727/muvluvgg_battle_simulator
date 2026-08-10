@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import {
+  applyStateDelta,
+  reduceStateDeltas,
+} from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
@@ -543,11 +546,21 @@ describe("production Catalog UNIT_LUCIE_COMPANION (【連れ添い歩む傍ら�
         hpDeltas: { "enemy:front": -514 },
       },
     ]);
+    // 公開差分だけを当て直した状態を、スナップショット全体で突き合わせる。
+    // 発生量が合っていても、`ContinuousDamageApplied` のStateDeltaが欠ければここで落ちる。
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(belowCap.baseline, { include: ["effects"] }),
+        belowCap.observation.recorder
+          .getEvents()
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(belowCap.observation.units, { include: ["effects"] }));
 
     // 上限側: 満HP10000から一撃ぶん減った9571の20%＝1914.2は上限1000を超えるため、
     // 発生するのは1000で頭打ちになる。
-    const cappedTicks = poisonedEnemy(10000, "B_LUCIE_POISON_CAPPED").observation.steps[0]!.ticks;
-    expect(cappedTicks).toEqual([
+    const capped = poisonedEnemy(10000, "B_LUCIE_POISON_CAPPED");
+    expect(capped.observation.steps[0]!.ticks).toEqual([
       {
         unitId: "enemy:front",
         effectActionDefinitionId: "ACT_LUCIE_COMPANION_EX_POISON",

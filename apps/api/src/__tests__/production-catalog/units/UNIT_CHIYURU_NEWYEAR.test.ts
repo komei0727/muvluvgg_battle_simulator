@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
@@ -541,7 +542,11 @@ describe("production Catalog UNIT_CHIYURU_NEWYEAR (【新春のメイズ研究�
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       subject: { markers: [{ markerId: MOCHI, stackCount: 4 }] },
     });
-    const initial = initialSnapshotFor(board.units, { include: ["effects", "markers"] });
+    // `SKL_CHIYURU_NEWYEAR_AS1` はクールタイム99ターンを持つため `cooldowns` まで
+    // 射影に含める（`CooldownStarted` のStateDeltaがこれを復元する）。
+    const snapshotOf = (units: readonly BattleUnit[]) =>
+      initialSnapshotFor(units, { include: ["cooldowns", "effects", "markers"] });
+    const initial = snapshotOf(board.units);
     const recorder = new EventRecorder(createBattleId("B_CHIYURU_MOCHI"));
     const result = resolveSkillUse(
       board.subject,
@@ -571,6 +576,13 @@ describe("production Catalog UNIT_CHIYURU_NEWYEAR (【新春のメイズ研究�
         .getEvents()
         .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
     );
+    // 復元先は**スナップショット全体**で突き合わせる。個別のフィールドだけを見ると、
+    // `CombatStatChanged` や `CooldownStarted` のStateDeltaが欠けても
+    // 集約側の実測（上のCombatStat検証）が通ってしまい、公開差分の欠落を見逃す。
+    expect(restored).toEqual(snapshotOf(result.units));
+
+    // そのうえで、スケール済みの効果量と参照元の所持数が復元後も生きていることを
+    // 名指しで残す（この`-005`が何を主張しているかを全体一致の中に埋もれさせない）。
     const restoredSubject = restored.units[createBattleUnitId("ally:subject")];
     expect(
       restoredSubject?.effects?.find(
@@ -586,8 +598,5 @@ describe("production Catalog UNIT_CHIYURU_NEWYEAR (【新春のメイズ研究�
     expect(restoredSubject?.markers?.find((marker) => marker.markerId === MOCHI)?.stackCount).toBe(
       4,
     );
-    for (const unit of result.units) {
-      expect(restored.units[unit.battleUnitId]!.hp).toBe(unit.currentHp);
-    }
   });
 });

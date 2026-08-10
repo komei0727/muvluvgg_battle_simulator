@@ -756,15 +756,15 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
       { effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_SHIELD", target: "ENEMY" },
     ]);
 
-    expect(
-      observeContinuousDamage({
-        units: debuffed,
-        definitions: board.definitions,
-        // 3行動のデバフに対し、保持者の行動開始を2回通す。
-        actors: ["enemy:front", "enemy:front"],
-        battleId: "B_MAO_FIXED_DOT",
-      }).steps,
-    ).toEqual([
+    const observed = observeContinuousDamage({
+      units: debuffed,
+      definitions: board.definitions,
+      // 3行動のデバフに対し、保持者の行動開始を2回通す。
+      actors: ["enemy:front", "enemy:front"],
+      battleId: "B_MAO_FIXED_DOT",
+    });
+
+    expect(observed.steps).toEqual([
       {
         step: "ACTION_START(enemy:front)",
         ticks: [
@@ -816,5 +816,17 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
         hpDeltas: { "enemy:front": -100 },
       },
     ]);
+
+    // 公開差分だけを当て直した状態を、スナップショット全体で突き合わせる。
+    // 吸収量・失効イベント・HP変化が合っていても、`ShieldConsumed` や
+    // `EffectExpired` のStateDeltaが欠ければここで落ちる。
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(debuffed, { include: ["effects"] }),
+        observed.recorder
+          .getEvents()
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(observed.units, { include: ["effects"] }));
   });
 });

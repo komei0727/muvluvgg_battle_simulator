@@ -450,10 +450,11 @@ describe("production Catalog UNIT_SENKA_SCHEMER (【自称腹黒の深謀策士�
     ]);
     expect(tripled.steps[0]!.hpDeltas).toEqual({ "enemy:front": -1800 });
 
-    // 公開差分だけを当て直しても同じHPへ復元できる。
-    const reconstructed = reconstruct(initialSnapshotFor(burning), single.recorder);
-    for (const unit of single.units) {
-      expect(reconstructed.units[unit.battleUnitId]?.hp).toBe(unit.currentHp);
-    }
+    // 公開差分だけを当て直した状態を、**スナップショット全体**で突き合わせる。
+    // HPだけを見ると、シールドの残量（`effects`）が動いていないことも、
+    // 発生に伴う他の差分が欠けていないことも確かめられない。
+    expect(
+      reconstruct(initialSnapshotFor(burning, { include: ["effects"] }), single.recorder),
+    ).toEqual(initialSnapshotFor(single.units, { include: ["effects"] }));
   });
 });
