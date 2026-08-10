@@ -4,6 +4,9 @@ import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -17,6 +20,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -483,5 +487,69 @@ describe("production Catalog UNIT_CHIZURU_DOMESTIC (【ドメスティックな�
         triggerMatched: true,
       },
     });
+  });
+
+  it("IT-UNIT-CHIZURU-DOMESTIC-006 (R-LNK-01/02/03): PS1が配る実ダメージリンクは `linkTo: BINDING` の解決先（最大HPが最も低い敵）を付与時点で焼き込み、以後に自身が受けたダメージの35%をそこへ送る。転送量はR-DMG-02で切り捨てられ、自身の被ダメージは減らない", () => {
+    // `-001` のPS1行は付与そのもの（0.35・1ターン）を持つが、`linkTo` がどの敵へ
+    // 解決したかと転送そのものは、**別のスキル使用**である被弾でしか現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, { enemies: LOWEST_MAX_HP_BACK });
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_CHIZURU_LINK",
+    }).fire(turnStarted({ turnNumber: 1 }), board.units);
+
+    const link = granted
+      .find((unit) => unit.battleUnitId === "ally:subject")!
+      .appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK",
+      )!;
+    // 既定順の先頭は敵前列だが、bindingは `LOWEST_MAX_HP` なので敵後列が焼き込まれる。
+    expect(link.damageLink).toEqual({
+      linkToUnitId: createBattleUnitId("enemy:back"),
+      linkRate: 0.35,
+    });
+    // 自身の被ダメージを敵へ送るこのリンクは保持者を利するため `polarity: BUFF` で、
+    // デバフ解除・デバフ無効の対象にならない。
+    expect([...link.categories]).toEqual(["BUFF"]);
+
+    // 威力1.01で505ダメージ。505×35%＝176.75がR-DMG-02の切り捨てで176になる。
+    const hit = observeDamageProbe({
+      units: granted,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      power: 1.01,
+      battleId: "B_CHIZURU_LINK_HIT",
+    });
+    expect(hit.linked).toEqual([
+      {
+        effectActionDefinitionId: "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK",
+        linkedFromUnitId: "ally:subject",
+        linkToUnitId: "enemy:back",
+        sourceDamage: 505,
+        linkRate: 0.35,
+        linkedDamage: 176,
+        damageType: "PHYSICAL",
+        shieldApplicable: true,
+      },
+    ]);
+    expect(hit.applications).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 505,
+        hitPointDamage: 505,
+        untypedShieldAbsorbed: 0,
+        isLinkedDamage: false,
+      },
+      {
+        targetUnitId: "enemy:back",
+        calculatedDamage: 176,
+        hitPointDamage: 176,
+        untypedShieldAbsorbed: 0,
+        isLinkedDamage: true,
+      },
+    ]);
+    // 元ダメージは減らず、リンク先へ**追加で**発生する。
+    expect(hit.hpDeltas).toEqual({ "ally:subject": -505, "enemy:back": -176 });
   });
 });

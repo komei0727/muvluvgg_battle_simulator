@@ -29,7 +29,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `IT-MARKER-PROD-001〜002` は REF-025／Issue #354 で retire した).
     // RES-001 (Issue #175):
     // `CAP_FORMULA` flipped to IMPLEMENTED once the general FormulaEvaluator
-    // wired the real lifecycle (`IT-CAP-FORMULA-PROD-001〜004`). Issue #217:
+    // wired the real lifecycle (当時の証跡だった `IT-CAP-FORMULA-PROD-001〜004` は
+    // REF-039／Issue #386 でユニット効果軸へ移送して retire した。実データ経路は
+    // `IT-UNIT-FLUTE-VAMPIRE-001`・`IT-UNIT-AOI-ELEGANT-001`・
+    // `IT-UNIT-LAURA-MOUNTAIN-001`・`IT-UNIT-AOI-GUARDIAN-001`・
+    // `IT-UNIT-STELLA-STATUE-001`). Issue #217:
     // `SKL_JULIE_SNOW_PS2`/`SKL_MAO_COMMITTEE_PS1` corrected from a misused
     // `LAST_ACTION_TARGETS` (no preceding EffectAction result in their own
     // EffectSequence, R-SKL-08) to `TRIGGER_TARGET` (the actually-intended

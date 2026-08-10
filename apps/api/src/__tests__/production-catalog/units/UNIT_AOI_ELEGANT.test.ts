@@ -10,6 +10,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -257,6 +258,47 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: {
         "enemy:front": -424,
         "enemy:back": -924,
+      },
+      markers: [
+        { unitId: "enemy:front", markerId: UKIASHI, stackCount: 1 },
+        { unitId: "enemy:back", markerId: UKIASHI, stackCount: 2 },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_AOI_ELEGANT_AS2",
+    intent:
+      "(境界): 追加ダメージは対象の現在HP×20%と自身の攻撃力×50%の小さい方であり、対象のHPが低ければ上限側ではなくHP側が選ばれる",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_AOI_ELEGANT_AS2" },
+    board: {
+      enemies: [
+        { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        {
+          id: "enemy:back",
+          position: { column: "CENTER", row: "BACK" },
+          markers: [{ markerId: UKIASHI }],
+          state: { currentHp: 2000 },
+        },
+      ],
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_MARKER", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_MARKER", targets: ["enemy:front"] },
+      ],
+      // 追加ダメージは本体の攻撃の**後**に解決されるため、現在HPは既に424減った1576。
+      // その20%＝315.2（切り捨てで315）が、攻撃力1000×50%＝500より小さいので選ばれる。
+      hpDeltas: {
+        "enemy:front": -424,
+        "enemy:back": -739,
       },
       markers: [
         { unitId: "enemy:front", markerId: UKIASHI, stackCount: 1 },
@@ -591,6 +633,60 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
           timeLimit: { unit: "ACTION", count: 2 },
         },
       ],
+    });
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-006 (R-DMG-04): PS2の実 被ダメージ補正が持つ `UNIT_HAS_MARKER(OPPONENT)` 条件はヒットごとに攻撃側を見て評価され、同じ1回の付与でも「浮足」を持つ敵からの攻撃だけが40%減る", () => {
+    // PS2は同じ解決の中で敵単体へ「浮足」を、自身へこの被ダメージ補正を配る。
+    // 条件が見るのは**攻撃してきた相手**なので、付与時点では成立も不成立も決まらない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_AOI_SELF_DMG_MOD",
+    }).fire(turnStarted({ turnNumber: 1 }), board.units);
+
+    expect(
+      granted
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
+        )!.damageModifier,
+    ).toEqual({
+      direction: "INCOMING",
+      damageType: null,
+      condition: { kind: "UNIT_HAS_MARKER", unit: "OPPONENT", markerId: UKIASHI },
+    });
+    // 「浮足」を受け取ったのは既定順の先頭である敵前列だけ。
+    expect(
+      granted
+        .filter((unit) => unit.markerStates.some((marker) => marker.markerId === UKIASHI))
+        .map((unit) => unit.battleUnitId),
+    ).toEqual(["enemy:front"]);
+
+    const from = (attackerUnitId: string) =>
+      observeDamageProbe({
+        units: granted,
+        attackerUnitId,
+        targetUnitId: "ally:subject",
+        battleId: `B_AOI_SELF_DMG_MOD_${attackerUnitId}`,
+      }).calculated;
+
+    expect(from("enemy:left")).toEqual({
+      outgoingDamageMultiplier: 1,
+      incomingDamageMultiplier: 1,
+      shieldIgnoreRate: 0,
+      damageReductionIgnoreRate: 0,
+      preTruncationDamage: 500,
+      finalDamage: 500,
+    });
+    expect(from("enemy:front")).toEqual({
+      outgoingDamageMultiplier: 1,
+      incomingDamageMultiplier: 0.6,
+      shieldIgnoreRate: 0,
+      damageReductionIgnoreRate: 0,
+      preTruncationDamage: 300,
+      finalDamage: 300,
     });
   });
 });

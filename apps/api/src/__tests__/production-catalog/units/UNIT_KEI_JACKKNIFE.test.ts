@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
 import {
@@ -20,6 +21,8 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -438,5 +441,74 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
       },
       changesOnUnrelatedSkill: [],
     });
+  });
+
+  it("IT-UNIT-KEI-JACKKNIFE-006 (R-ACTN-03, R-DMG-04): PS1の実 被ダメージ補正は `direction`／`damageType`／`UNIT_STATE` 条件を持ったまま `EffectApplied` の StateDelta へ載り、独立Reducerが同じ形を復元する。条件は被弾ごとに評価され、HP割合が65%を下回ると効かなくなる", () => {
+    // PS1は同じ解決で最大HPを20%上げるため、条件が見る割合の分母は12000になる。
+    // `-001` のPS1行は付与時点の `magnitude`（-0.3）までを持つが、`damageModifier` の
+    // 中身と、それが**別のスキル使用**である被弾でどう効くかは表の外にある。
+    const grantAt = (currentHp: number) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp } },
+      });
+      const chain = openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "ally:subject",
+        battleId: `B_KEI_DMG_DOWN_${currentHp}`,
+      });
+      return { board, chain, units: chain.fire(turnStarted({ turnNumber: 1 }), board.units) };
+    };
+
+    const damageModifier = {
+      direction: "INCOMING",
+      damageType: null,
+      condition: {
+        kind: "UNIT_STATE",
+        unit: "EFFECT_OWNER",
+        field: "HP_RATIO",
+        op: "GTE",
+        value: 0.65,
+      },
+    };
+
+    const above = grantAt(9000);
+    expect(
+      above.units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+        )!.damageModifier,
+    ).toEqual(damageModifier);
+
+    // 公開差分だけを開始前スナップショットへ当てても、補正メタデータごと復元される。
+    const applied = above.chain
+      .eventsOfType("EffectApplied")
+      .find(
+        (event) => event.payload.effectActionDefinitionId === "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+      )!;
+    const reduced = applyStateDelta(
+      initialSnapshotFor(above.board.units, { status: "READY" }),
+      applied.stateDelta!,
+    );
+    expect(
+      reduced.units[createBattleUnitId("ally:subject")]!.effects!.find(
+        (effect) => effect.effectDefinitionId === "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN",
+      ),
+    ).toMatchObject({ magnitude: -0.3, damageModifier });
+
+    const incomingMultiplierAt = (currentHp: number): number =>
+      observeDamageProbe({
+        units: grantAt(currentHp).units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        battleId: `B_KEI_DMG_DOWN_HIT_${currentHp}`,
+      }).calculated.incomingDamageMultiplier;
+
+    // 9000/12000＝75%は成立、7800/12000＝65%ちょうども `GTE` に当たる（境界）。
+    expect(incomingMultiplierAt(9000)).toBeCloseTo(0.7);
+    expect(incomingMultiplierAt(7800)).toBeCloseTo(0.7);
+    expect(incomingMultiplierAt(7799)).toBe(1);
+    // 既定盤面の5000は最大HP上昇後の割合が41.6%で、同じ効果を持っていても効かない。
+    expect(incomingMultiplierAt(5000)).toBe(1);
   });
 });

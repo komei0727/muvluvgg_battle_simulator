@@ -8,11 +8,14 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -625,6 +628,74 @@ describe("production Catalog UNIT_KOTOHA_REBEL (【世界への反逆者】コ�
         ],
       },
       changesOnUnrelatedSkill: [],
+    });
+  });
+
+  it("IT-UNIT-KOTOHA-REBEL-005 (R-DMG-04): PS2の実 与ダメージ補正が持つ `HP_RATIO_COMPARISON` 条件は付与時ではなくヒットごとに評価され、同じ `AppliedEffect` が相手のHP割合次第で効いたり効かなかったりする", () => {
+    // `-001` のPS2行は付与時点の `magnitude`（+0.1）までを持つが、`damageModifier` の
+    // `direction`／`condition` と、それが**別のスキル使用**である攻撃でどう効くかは
+    // 表の外にある。同じ盤面・同じ1回の付与から2発撃ち分けて、差が相手のHP割合
+    // だけで生まれることを固定する。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      // 敵前列だけHP割合を下げる（自身は既定の50%）。
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 4000 },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    });
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_KOTOHA_DMG_UP",
+    }).fire(turnStarted({ turnNumber: 1 }), board.units);
+
+    expect(
+      granted
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_KOTOHA_REBEL_PS2_DMG_UP",
+        )!.damageModifier,
+    ).toEqual({
+      direction: "OUTGOING",
+      damageType: null,
+      condition: {
+        kind: "HP_RATIO_COMPARISON",
+        left: "OPPONENT",
+        op: "LT",
+        right: "EFFECT_OWNER",
+      },
+    });
+
+    const against = (targetUnitId: string) =>
+      observeDamageProbe({
+        units: granted,
+        attackerUnitId: "ally:subject",
+        targetUnitId,
+        battleId: `B_KOTOHA_DMG_UP_${targetUnitId}`,
+      }).calculated;
+
+    // 自身と互角のHP割合（50%）では `LT` が成立せず、素通しの500のまま。
+    expect(against("enemy:left")).toEqual({
+      outgoingDamageMultiplier: 1,
+      incomingDamageMultiplier: 1,
+      shieldIgnoreRate: 0,
+      damageReductionIgnoreRate: 0,
+      preTruncationDamage: 500,
+      finalDamage: 500,
+    });
+    // HP割合が自身より低い敵（40%）に対してだけ+10%が乗る。
+    expect(against("enemy:front")).toEqual({
+      outgoingDamageMultiplier: 1.1,
+      incomingDamageMultiplier: 1,
+      shieldIgnoreRate: 0,
+      damageReductionIgnoreRate: 0,
+      preTruncationDamage: 550,
+      finalDamage: 550,
     });
   });
 });
