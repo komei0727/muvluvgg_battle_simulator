@@ -301,7 +301,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       skillDefinitionId: "SKL_NADYA_SUCCESSOR_PS1",
       // 契機の状態異常は炎上（`APPLY_CONTINUOUS_DAMAGE`）にする。気絶・凍結を
       // 使うと実戦闘では所有者自身がその状態になるため、R-STS-02/R-STS-03により
-      // 発動直前の再確認で必ず捨てられる（`IT-UNIT-NADYA-SUCCESSOR-004` が実経路で
+      // 発動直前の再確認で必ず捨てられる（`IT-UNIT-NADYA-SUCCESSOR-005` が実経路で
       // その帰結を固定する）。この行が見たいのは発動後に何が起きるかである。
       trigger: effectApplied({
         source: "enemy:front",
@@ -534,7 +534,7 @@ describe("production Catalog UNIT_NADYA_SUCCESSOR (【輝ける次代の娘】�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-NADYA-SUCCESSOR-004 (R-PS-01/R-STS-01/R-STS-02): PS1の「自身に状態異常」とPS2の「敵に気絶」は実 resolver が載せた分類・`statusKind` と帰属で分かれるが、自身への**気絶**はR-STS-02がPS1を発動直前に捨てるため炎上でしか成立しない", () => {
+  it("IT-UNIT-NADYA-SUCCESSOR-005 (R-PS-01/R-STS-01/R-STS-02): PS1の「自身に状態異常」とPS2の「敵に気絶」は実 resolver が載せた分類・`statusKind` と帰属で分かれるが、自身への**気絶**はR-STS-02がPS1を発動直前に捨てるため炎上でしか成立しない", () => {
     // `-001` のPS1／PS2行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `categories`／`statusKind` はテスト側の宣言でしかない。**実装がその効果を
     // どう分類したか**と、**その効果を実際に保持した所有者がPSを撃てるか**は、

@@ -1159,7 +1159,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // ユニット効果軸へ移送し、契機は実 resolver が発行した `EffectApplied` から取る。
       "IT-UNIT-KEI-JACKKNIFE-007",
       "IT-UNIT-SIENA-DIVA-007",
-      "IT-UNIT-NADYA-SUCCESSOR-004",
+      "IT-UNIT-NADYA-SUCCESSOR-005",
       "IT-UNIT-KATE-PALADIN-005",
       "IT-UNIT-LILY-SINGER-004",
       "IT-UNIT-MEIYA-FATED-004",
