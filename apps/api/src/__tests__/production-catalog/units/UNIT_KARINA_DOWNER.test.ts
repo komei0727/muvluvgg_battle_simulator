@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleId } from "../../../domain/shared/ids.js";
 import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
@@ -15,8 +16,10 @@ import {
   activatedPassiveSkillIds,
   openPassiveChain,
 } from "../../../testing/production-unit/passive-activation.js";
+import { observeExGaugeGain } from "../../../testing/production-unit/resource-gain.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -41,7 +44,23 @@ import {
 
 const UNIT_DEFINITION_ID = "UNIT_KARINA_DOWNER";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * PS2が配る獲得量増加が効いたかどうかは、**補正を受けた味方が自分の行動で得る
+ * EXゲージ**にしか現れない。基礎量はR-ACT-03より消費APと同量なので、AP2消費の実AS
+ * （`SKL_SENKA_SCHEMER_AS1`）を持つユニットだけを併せて読み込み、+50%が切り捨てで
+ * 消えない大きさにする。`-002`／`-003` はこのユニットのSkill・EffectAction閉包だけを
+ * 見るため、閉包の判定には影響しない。
+ */
+const EX_EARNER_UNIT_ID = "UNIT_SENKA_SCHEMER";
+const EX_EARNER_AS_ID = "SKL_SENKA_SCHEMER_AS1";
+/** 実 `catalog/` の消費AP。そのまま基礎EXゲージ獲得量になる。 */
+const EX_EARNER_AS_COST = 2;
+const EX_GAIN_UP = "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  EX_EARNER_UNIT_ID,
+]);
 
 const KEIBO = "MARKER_KEIBO";
 
@@ -698,6 +717,42 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
       "enemy:two": 1.3,
       "enemy:five": 1.45,
       "enemy:other": 1,
+    });
+  });
+
+  it("IT-UNIT-KARINA-DOWNER-008 (R-ACT-03/G-05): PS2が配るEXゲージ獲得量増加は、**保持している味方の以後の行動**が得るEXゲージを1.5倍にする。基礎量そのもの（消費APと同量）は動かない", () => {
+    // `-001` のPS2行は付与そのもの（`magnitude: 0.5`・1行動・味方全体）までを
+    // 固定する。「獲得量が変わる」のは保持者の**次の行動**に属し、スキル使用1回の
+    // 観測には載らない（`ActionStarted` を出すのは保持者自身の行動である）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const earn = (units: readonly BattleUnit[], battleId: string) => {
+      const observed = observeExGaugeGain({
+        units,
+        definitions: board.definitions,
+        skill: skillFrom(snapshot, EX_EARNER_AS_ID),
+        actorUnitId: "ally:front",
+        battleId,
+      });
+      return { gain: observed.gain, published: observed.published, modifiers: observed.modifiers };
+    };
+
+    // 補正を持たない同じASは消費AP分（2）をそのまま得る（R-ACT-03）。差の原因が
+    // 獲得量増加だけであることは、この対照が無いと分からない。
+    expect(earn(board.units, "B_KARINA_EX_GAIN_BASE")).toEqual({
+      gain: { before: 0, after: EX_EARNER_AS_COST, gained: EX_EARNER_AS_COST },
+      published: { baseDelta: EX_EARNER_AS_COST, delta: EX_EARNER_AS_COST, before: 0, after: 2 },
+      modifiers: [],
+    });
+
+    // 前提アクションは使用者自身を除く最も近い味方（ally:front）へ入る。
+    const buffed = applyPrecedingActions(board, [
+      { effectActionDefinitionId: EX_GAIN_UP, target: "ALLY" },
+    ]);
+    expect(earn(buffed, "B_KARINA_EX_GAIN_UP")).toEqual({
+      gain: { before: 0, after: 3, gained: 3 },
+      // 基礎量は消費APのままで、公開される `delta` だけが1.5倍になる。
+      published: { baseDelta: EX_EARNER_AS_COST, delta: 3, before: 0, after: 3 },
+      modifiers: [{ effectActionDefinitionId: EX_GAIN_UP, magnitude: 0.5, instances: 1 }],
     });
   });
 });

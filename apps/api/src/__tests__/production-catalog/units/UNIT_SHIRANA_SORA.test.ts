@@ -1,17 +1,28 @@
 import { describe, expect, it } from "vitest";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import type { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type BoardUnitSpec,
@@ -343,6 +354,48 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
  */
 const UNREACHABLE_EFFECT_ACTION_IDS: readonly string[] = ["ACT_SHIRANA_SORA_PS2_GUARD"];
 
+const EX_SUBUNIT = "ACT_SHIRANA_SORA_EX_SUBUNIT";
+const AS1_SUBUNIT = "ACT_SHIRANA_SORA_AS1_SUBUNIT";
+const AS1_SUBUNIT_SPEED_DOWN = "ACT_SHIRANA_SORA_AS1_SUBUNIT_SPEED_DOWN";
+
+/** `SubUnitDamaged` payload のうち、R-SUB-01の吸収の意味を決める欄だけ。 */
+function subUnitDamageOf(recorder: EventRecorder) {
+  return recorder
+    .getEvents()
+    .filter(
+      (event): event is Extract<BattleDomainEvent, { eventType: "SubUnitDamaged" }> =>
+        event.eventType === "SubUnitDamaged",
+    )
+    .map((event) => ({
+      unitId: String(event.payload.battleUnitId),
+      subUnitDefinitionId: String(event.payload.subUnitDefinitionId),
+      reason: event.payload.reason,
+      before: event.payload.before,
+      after: event.payload.after,
+      absorbed: event.payload.absorbed,
+    }));
+}
+
+/** ヒットごとの `DamageCalculated`。追加ダメージは自分の定義IDで1件ずつ現れる。 */
+function damageCalculationsOf(recorder: EventRecorder) {
+  return recorder
+    .getEvents()
+    .filter(
+      (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
+        event.eventType === "DamageCalculated",
+    )
+    .map((event) => ({
+      effectActionDefinitionId: String(event.payload.effectActionDefinitionId),
+      damageType: event.payload.damageType,
+      skillPower: event.payload.skillPower,
+      finalDamage: event.payload.finalDamage,
+    }));
+}
+
+function unitIn(units: readonly BattleUnit[], battleUnitId: string): BattleUnit {
+  return units.find((unit) => unit.battleUnitId === battleUnitId)!;
+}
+
 describe("production Catalog UNIT_SHIRANA_SORA (【期待応える輝きの穹】一条白奈)", () => {
   it.each(BEHAVIOURS)(
     "IT-UNIT-SHIRANA-SORA-001: $skillDefinitionId — $intent",
@@ -391,5 +444,143 @@ describe("production Catalog UNIT_SHIRANA_SORA (【期待応える輝きの穹�
         UNREACHABLE_EFFECT_ACTION_IDS,
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-SHIRANA-SORA-004 (R-SUB-01/R-SHD-03): EXが配る「子機Ⅱ」は**以後に飛んでくる攻撃**を耐久力で吸収し、シールドの後・HPの前に入る。振り分け5欄の合計は常に計算ダメージと一致し、耐久力を超えた分だけがHPへ抜けて枯渇したインスタンスはその場で失効する", () => {
+    // `-001` のEX行は付与そのもの（`magnitude: 3500`＝最大HP×35%・3行動）までを
+    // 固定する。吸収は別のスキル使用（＝相手の攻撃）に属するため、スキル使用1回の
+    // 観測には載らない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const guarded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: EX_SUBUNIT, target: "SELF" },
+    ]);
+    const strike = (units: readonly BattleUnit[], power: number, battleId: string) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        power,
+        battleId,
+      });
+
+    // 攻撃力1000 - 防御力500 = 500。耐久力3500が全量を受け、HPは1点も減らない。
+    const absorbed = strike(guarded, 1, "B_SHIRANA_SUBUNIT_ABSORB");
+    expect(absorbed.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 500,
+        hitPointDamage: 0,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(absorbed.hpDeltas).toEqual({});
+    // 減少はインスタンス単位で通知され、`absorbed` は `before - after` と一致する。
+    expect(subUnitDamageOf(absorbed.recorder)).toEqual([
+      {
+        unitId: "ally:subject",
+        subUnitDefinitionId: EX_SUBUNIT,
+        reason: "DAMAGE_ABSORPTION",
+        before: 3500,
+        after: 3000,
+        absorbed: 500,
+      },
+    ]);
+
+    // 残り3000を超える一撃（500×8＝4000）は、3000を吸って残り1000がHPへ抜ける。
+    const overflowed = strike(absorbed.units, 8, "B_SHIRANA_SUBUNIT_OVERFLOW");
+    expect(overflowed.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 4000,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 3000,
+        hitPointDamage: 1000,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(overflowed.hpDeltas).toEqual({ "ally:subject": -1000 });
+    expect(overflowed.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: EX_SUBUNIT,
+        reason: "SUBUNIT_DEPLETED",
+        cascaded: false,
+      },
+    ]);
+    expect(
+      unitIn(overflowed.units, "ally:subject").appliedEffects.filter(
+        (effect) => effect.effectActionDefinitionId === EX_SUBUNIT,
+      ),
+    ).toEqual([]);
+
+    // 公開差分だけを当て直した状態を、スナップショット全体で突き合わせる。残耐久力
+    // （`EffectSnapshot.subUnit`）のStateDeltaが欠ければここで落ちる。
+    expect(
+      reconstruct(
+        initialSnapshotFor(absorbed.units, { include: ["effects"] }),
+        overflowed.recorder,
+      ),
+    ).toEqual(initialSnapshotFor(overflowed.units, { include: ["effects"] }));
+  });
+
+  it("IT-UNIT-SHIRANA-SORA-005 (R-SUB-02): AS1が配る「子機Ⅰ」は**以後の自分の攻撃**へ保持数ぶんの追加ENダメージを1ヒットずつ足し、対象へ行動速度デバフを重ねて付与する（重複可）。追加ダメージのタイプは契機の攻撃ではなく定義の宣言で決まる", () => {
+    // `-001` のPS1行（子機Ⅰ保持下）は1つ保持での追加ダメージと1件のデバフまでを
+    // 固定する。**保持数だけ追加ヒットが増えること**と、そのデバフが `STACKABLE`
+    // （原文「重複可」）であることは、2つ保持した1発でしか差が出ない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const armed = applyPrecedingActions(board, [
+      { effectActionDefinitionId: AS1_SUBUNIT, target: "SELF" },
+      { effectActionDefinitionId: AS1_SUBUNIT, target: "SELF" },
+    ]);
+    const observed = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: armed,
+      attackerUnitId: "ally:subject",
+      targetUnitId: "enemy:front",
+      power: 1,
+      // 追加ダメージが契機の攻撃タイプを引き継ぐのではなく、定義の `EN` を使うこと
+      // を見るため、契機側は既定の `PHYSICAL` のままにする。
+      battleId: "B_SHIRANA_SUBUNIT_ADDITIONAL",
+    });
+
+    // 追加ダメージ = 所持者の攻撃力1000 + 付与者の付与時攻撃力1000 × 31.2%
+    //              - 対象の防御力500 = 812（防御力減衰を経由しない）。
+    expect(damageCalculationsOf(observed.recorder)).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        damageType: "PHYSICAL",
+        skillPower: 1,
+        finalDamage: 500,
+      },
+      {
+        effectActionDefinitionId: AS1_SUBUNIT,
+        damageType: "EN",
+        skillPower: 812,
+        finalDamage: 812,
+      },
+      {
+        effectActionDefinitionId: AS1_SUBUNIT,
+        damageType: "EN",
+        skillPower: 812,
+        finalDamage: 812,
+      },
+    ]);
+    expect(observed.hpDeltas).toEqual({ "enemy:front": -(500 + 812 + 812) });
+
+    // 付随デバフはEffectAction群の解決器ではなく付与フックから直接適用されるため、
+    // `STACKABLE` なら保持数ぶんのインスタンスが並ぶ。
+    const struck = unitIn(observed.units, "enemy:front");
+    expect(
+      struck.appliedEffects
+        .filter((effect) => effect.effectActionDefinitionId === AS1_SUBUNIT_SPEED_DOWN)
+        .map((effect) => effect.magnitude),
+    ).toEqual([-20, -20]);
+    // 実効行動速度にも2件ぶんが乗る（盤面既定の100から-40）。
+    expect(struck.combatStats.actionSpeed).toBe(60);
   });
 });

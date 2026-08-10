@@ -17,6 +17,7 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeContinuousDamage } from "../../../testing/production-unit/continuous-damage.js";
+import { observeExGaugeGain } from "../../../testing/production-unit/resource-gain.js";
 import {
   PRODUCTION_CATALOG_DIR,
   applyPrecedingActions,
@@ -49,9 +50,24 @@ const UNIT_DEFINITION_ID = "UNIT_SENKA_SCHEMER";
  */
 const SHIELD_SOURCE_UNIT_ID = "UNIT_AOI_GUARDIAN";
 
+/**
+ * EXゲージ獲得量補正（`APPLY_RESOURCE_GAIN_MOD`）を配るproduction定義は舞亜（-50%）と
+ * カリナ（+50%）の2件しかない。泉花はそれを配る側ではなく**受ける側**（AP2消費のAS1が
+ * R-ACT-03の基礎量2を作る）なので、供給元の2ユニットを併せて読み込む。
+ * `-002`／`-003` はこのユニットのSkill・EffectAction閉包だけを見るため、閉包の判定には
+ * 影響しない。
+ */
+const EX_GAIN_DOWN_SOURCE_UNIT_ID = "UNIT_MAIA_SALON";
+const EX_GAIN_UP_SOURCE_UNIT_ID = "UNIT_KARINA_DOWNER";
+const EX_GAIN_DOWN = "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN";
+const EX_GAIN_UP = "ACT_KARINA_DOWNER_PS2_EX_GAIN_UP";
+const AS1_AP_COST = 2;
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   SHIELD_SOURCE_UNIT_ID,
+  EX_GAIN_DOWN_SOURCE_UNIT_ID,
+  EX_GAIN_UP_SOURCE_UNIT_ID,
 ]);
 
 /** HP割合が1体だけ低い敵陣。EXの `LOWEST_HP_RATIO` の判別用。 */
@@ -456,5 +472,64 @@ describe("production Catalog UNIT_SENKA_SCHEMER (【自称腹黒の深謀策士�
     expect(
       reconstruct(initialSnapshotFor(burning, { include: ["effects"] }), single.recorder),
     ).toEqual(initialSnapshotFor(single.units, { include: ["effects"] }));
+  });
+
+  it("IT-UNIT-SENKA-SCHEMER-006 (R-ACT-03/G-05): AS1が得るEXゲージの基礎量は消費APと同量で、保持中の獲得量補正がその一点だけを増減させる（-50%で1、+50%で3）", () => {
+    // 獲得量補正は「抑止する側」（舞亜・カリナの定義）と「抑止される側」（AP2消費の
+    // 実AS1を持つこのユニット）が別ユニットにあるためどの単一定義にも帰属しない。
+    // retire基準3に従い、供給側（`IT-UNIT-MAIA-SALON-004`／`IT-UNIT-KARINA-DOWNER-008`）と
+    // 同じ観測をここへ複製する。こちら側の主張は「基礎量が消費APと同量である」点で、
+    // 補正を受けても `baseDelta` は動かない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const earn = (effectActionDefinitionIds: readonly string[], battleId: string) => {
+      const observed = observeExGaugeGain({
+        units: applyPrecedingActions(
+          board,
+          effectActionDefinitionIds.map((effectActionDefinitionId) => ({
+            effectActionDefinitionId,
+            target: "SELF" as const,
+          })),
+        ),
+        definitions: board.definitions,
+        skill: skillFrom(snapshot, "SKL_SENKA_SCHEMER_AS1"),
+        actorUnitId: "ally:subject",
+        battleId,
+      });
+      return { gain: observed.gain, published: observed.published, modifiers: observed.modifiers };
+    };
+
+    expect(skillFrom(snapshot, "SKL_SENKA_SCHEMER_AS1").cost).toEqual({
+      resource: "AP",
+      amount: AS1_AP_COST,
+    });
+
+    expect(earn([], "B_SENKA_EX_GAIN_BASE")).toEqual({
+      gain: { before: 0, after: AS1_AP_COST, gained: AS1_AP_COST },
+      published: { baseDelta: AS1_AP_COST, delta: AS1_AP_COST, before: 0, after: 2 },
+      modifiers: [],
+    });
+
+    expect(earn([EX_GAIN_DOWN], "B_SENKA_EX_GAIN_DOWN")).toEqual({
+      gain: { before: 0, after: 1, gained: 1 },
+      published: { baseDelta: AS1_AP_COST, delta: 1, before: 0, after: 1 },
+      modifiers: [{ effectActionDefinitionId: EX_GAIN_DOWN, magnitude: -0.5, instances: 1 }],
+    });
+
+    expect(earn([EX_GAIN_UP], "B_SENKA_EX_GAIN_UP")).toEqual({
+      gain: { before: 0, after: 3, gained: 3 },
+      published: { baseDelta: AS1_AP_COST, delta: 3, before: 0, after: 3 },
+      modifiers: [{ effectActionDefinitionId: EX_GAIN_UP, magnitude: 0.5, instances: 1 }],
+    });
+
+    // 向きの違う補正を同時に保持すると合算されて相殺する（G-05は`resource`が
+    // 一致する全インスタンスの `rateDelta` を足すだけで、符号で分けない）。
+    expect(earn([EX_GAIN_DOWN, EX_GAIN_UP], "B_SENKA_EX_GAIN_BOTH")).toEqual({
+      gain: { before: 0, after: AS1_AP_COST, gained: AS1_AP_COST },
+      published: { baseDelta: AS1_AP_COST, delta: AS1_AP_COST, before: 0, after: 2 },
+      modifiers: [
+        { effectActionDefinitionId: EX_GAIN_DOWN, magnitude: -0.5, instances: 1 },
+        { effectActionDefinitionId: EX_GAIN_UP, magnitude: 0.5, instances: 1 },
+      ],
+    });
   });
 });
