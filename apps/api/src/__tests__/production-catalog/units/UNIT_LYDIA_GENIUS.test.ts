@@ -43,6 +43,13 @@ const CENTER_ONLY_ENEMIES: readonly BoardUnitSpec[] = [
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
 ];
 
+/** 左右両方の列に敵が居る盤面。右列の1体は後列でもある（2つのbindingが重なる）。 */
+const BOTH_COLUMNS_ENEMIES: readonly BoardUnitSpec[] = [
+  { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+  { id: "enemy:right", position: { column: "RIGHT", row: "BACK" } },
+  { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
+];
+
 /** PS1は自身のAS完了そのものを契機に持つため、攻撃ASの観測には必ず連鎖が含まれる。 */
 const PS1_CHAIN_ACTIONS = [
   { effectActionDefinitionId: "ACT_LYDIA_GENIUS_PS1_SHIELD_BUFF", targets: ["ally:subject"] },
@@ -510,5 +517,55 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
         board: { enemies: CENTER_ONLY_ENEMIES },
       }),
     ).toBe("SKL_LYDIA_GENIUS_AS2");
+  });
+
+  it("IT-UNIT-LYDIA-GENIUS-005 (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右に敵が居なければ非空filtersは候補0件になり `fallback` が対象を供給する", () => {
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+        board: { enemies: BOTH_COLUMNS_ENEMIES },
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:right"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
+          targets: ["enemy:right"],
+        },
+      ],
+      // 中央列の敵はどちらのbindingにも入らない。右列後段の敵だけが列への一撃
+      // （568）と後列への会心攻撃（1137）を重ねて受ける。
+      hpDeltas: {
+        "enemy:left": -568,
+        "enemy:right": -1705,
+      },
+    });
+
+    // 候補0件でも `TGT_COLUMNS` は空にならず、`fallback` の
+    // `NEAREST/FRONT_ROW/LEFT_TO_RIGHT` が最も近い敵を供給する。`TGT_BACK_ROW` は
+    // fallbackを持たないため、後列の敵はそのまま拾われる。
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+        board: { enemies: CENTER_ONLY_ENEMIES },
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
+          targets: ["enemy:back"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -568,
+        "enemy:back": -1137,
+      },
+    });
   });
 });

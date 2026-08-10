@@ -542,16 +542,23 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // UT-CAP-TRIGGER-CONTEXT-004〜008、production統合はIT-UNIT-SUIRAN-CHAOS-004）。
   // R-TGT-09は`kind→includeDefeated→filters→area→order→count→fallback`の全7段階を
   // 規定する単一ルールであり、TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）で
-  // 残っていた#3（非空filters）を実装し、production統合（IT-CAP-TARGET-FILTER-ORDER-PROD-001
-  // 〜006、`SKL_LYDIA_GENIUS_EX`のOR/POSITION_COLUMN filter・`SKL_CLARA_SANTA_AS2`の
-  // MARKER_IN_AREA filterなど）まで揃ったため、全7段階が揃い完了とする。
+  // 残っていた#3（非空filters）を実装し、production統合まで揃ったため、全7段階が
+  // 揃い完了とする。production側の証跡はREF-037（Issue #384）でユニット効果軸へ
+  // 移送した — `SKL_LYDIA_GENIUS_EX`のOR/POSITION_COLUMN filterは
+  // IT-UNIT-LYDIA-GENIUS-005、`SKL_CLARA_SANTA_AS2`のMARKER_IN_AREA filterは
+  // IT-UNIT-CLARA-SANTA-004が持つ。MARKER_COUNT順・EXCLUDE_RESOLVED_UNIT・
+  // UNIT_TYPE_PRIORITY+SELF_LOWEST_PRIORITYは、それぞれ
+  // IT-UNIT-DOROTHEA-PIONEER-001・IT-UNIT-MIHIME-SNIPER-001・
+  // IT-UNIT-SHIRANA-SORA-001の振る舞い表が実行結果まで固定している（`it.each`のため
+  // ここからは参照できない）。
   {
     ruleId: "R-TGT-09",
     testCaseIds: [
       "UT-R-TGT-09-001",
       "IT-UNIT-LUCIE-MAID-004",
       "UT-TGT-002-001",
-      "IT-CAP-TARGET-FILTER-ORDER-PROD-001",
+      "IT-UNIT-LYDIA-GENIUS-005",
+      "IT-UNIT-CLARA-SANTA-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
@@ -570,16 +577,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 実ライフサイクル配線は揃っていたが、production Catalogの`fallback`使用例
   // （`SKL_CLARA_SANTA_AS2`/`SKL_LYDIA_GENIUS_EX`）はいずれも非空`filters`を伴うため、
   // 無改変のproduction Catalogでfallback経路を通すproduction統合テストが必要だった。
-  // TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）でfiltersを実装し、
-  // IT-CAP-TARGET-FILTER-ORDER-PROD-002/003（両スキルのfallback+filters経路）を
-  // 追加したことで、production経路が揃い完了とする。
+  // TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）でfiltersを実装し、両スキルの
+  // fallback+filters経路を追加したことで、production経路が揃い完了とする。REF-037
+  // （Issue #384）でユニット効果軸へ移送し、IT-UNIT-LYDIA-GENIUS-005が
+  // 左右列に敵が居ない盤面のfallbackを、IT-UNIT-CLARA-SANTA-004が
+  // 「サンタタグ」を持つ敵が居ない盤面のfallbackを binding 単位で持つ。
   {
     ruleId: "R-TGT-10",
     testCaseIds: [
       "UT-R-TGT-10-009",
       "UT-R-TGT-10-001",
-      "IT-CAP-TARGET-FILTER-ORDER-PROD-002",
-      "IT-CAP-TARGET-FILTER-ORDER-PROD-003",
+      "IT-UNIT-LYDIA-GENIUS-005",
+      "IT-UNIT-CLARA-SANTA-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
@@ -830,13 +839,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 再確認（`reconfirm-passive-candidate.ts`）の両方へ通して解決する（`UT-R-PS-01-055`）。
   // 変換台帳の対象5行（`SKL_CHIYURU_MAZE_AS1`/`SKL_FLUTE_INFLUENCER_PS2`/
   // `SKL_MAIA_LAZY_AS1`/`SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`）を近似なしへ
-  // 更新し、`IT-CAP-TARGET-EFFECT-QUERY-PROD-001`〜`005`で実ライフサイクル検証した。
+  // 更新し、実ライフサイクルで検証した（REF-037／Issue #384でユニット効果軸へ移送し、
+  // 5スキルとも各ユニットの`-001`振る舞い表が成立側と不成立側を1行ずつ持つ）。
   // `SKL_SHOUKA_SCHEMER_AS3`の「対象の攻撃力がデバフ」は`statKinds`で、
   // `SKL_CHIYURU_MAZE_AS1`/`SKL_NOEL_RUMBLE_AS1`の毒・炎上は`continuousDamageKinds`で
   // 絞り込む — どちらも無ければ「何らかのデバフ」への近似が残っていた。
   // 「条件」と「NOT(条件)」を2つのACTION stepへ分けると、`targetCondition`は各stepの
   // PS/Memory連鎖の後に再評価されるため、強化版の適用中に条件が崩れると通常版まで
-  // 走ってしまう（`IT-CAP-TARGET-EFFECT-QUERY-PROD-006`が
+  // 走ってしまう（`IT-UNIT-NOEL-RUMBLE-004`が
   // 旧構造で実際に両方の実行を検出する）。分岐の選択は`BRANCH`で一度だけ確定させ、
   // BRANCHで参照できない`TRIGGER_TARGET`（`SKL_FLUTE_INFLUENCER_PS2`）は
   // 「基本回復は無条件、増加分だけ条件付き」の加算形にした。AS/EXの`activationCondition`も
@@ -927,12 +937,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-06-066",
       // RES-004-STATUS-CONDITION（Issue #224）: 「対象が状態異常にある場合」を
       // 単一の分類元（`AppliedEffect.categories`の`STATUS`）で照会し、AOEの
-      // 対象ごとに評価する（`SKL_CHIYURU_MAZE_EX`）。
+      // 対象ごとに評価する（`SKL_CHIYURU_MAZE_EX`）。同じ総称照会へ寄せた
+      // `SKL_NANAE_COMMANDER_PS1`は`IT-UNIT-NANAE-COMMANDER-001`の振る舞い表が
+      // 成立側と不成立側を持つ（`it.each`のためここからは参照できない）。
       "UT-R-SKL-06-067",
       "UT-R-SKL-06-068",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-008",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-009",
+      "IT-UNIT-CHIYURU-MAZE-004",
+      "IT-UNIT-MERU-FLATSPIN-004",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2176,7 +2187,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-02-007",
       "UT-R-EFF-02-008",
       "UT-R-EFF-02-009",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-007",
+      "IT-UNIT-CHIYURU-MAZE-004",
       // 公開API（`EffectStateResponse.category`）も同じ分類元
       // （`EffectSnapshot.categories`）を読む。継続ダメージは`magnitude`が正値のため、
       // 符号から導くと毒・炎上がAPI上だけ`BUFF`になりR-STS-01と矛盾していた。
@@ -2401,12 +2412,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-COND-041",
       "UT-CAT-COND-042",
       "UT-CAT-COND-043",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-001",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-002",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-003",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-004",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-005",
-      "IT-CAP-TARGET-EFFECT-QUERY-PROD-006",
+      // REF-037（Issue #384）でユニット効果軸へ移送した。`statKinds`の絞り込みは
+      // IT-UNIT-SHOUKA-SCHEMER-004、単一BRANCHが分岐を一度だけ確定することは
+      // IT-UNIT-NOEL-RUMBLE-004が持つ。`SKL_CHIYURU_MAZE_AS1`（毒）・
+      // `SKL_FLUTE_INFLUENCER_PS2`（デバフ）・`SKL_MAIA_LAZY_AS1`（バフ）・
+      // `SKL_NOEL_RUMBLE_AS1`（炎上）の成立／不成立は、それぞれのユニットの`-001`
+      // 振る舞い表が実行結果まで固定している（`it.each`のためここからは参照できない）。
+      "IT-UNIT-SHOUKA-SCHEMER-004",
+      "IT-UNIT-NOEL-RUMBLE-004",
       "UT-CAT-IDX-092",
       "UT-CAT-IDX-093",
       "UT-CAT-IDX-094",

@@ -27,7 +27,19 @@ import { turnCompleting } from "../../../testing/production-unit/trigger-events.
 
 const UNIT_DEFINITION_ID = "UNIT_SHOUKA_SCHEMER";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * AS3の分岐は「攻撃力の」デバフだけを見る。小花自身は防御力デバフを配らないため、
+ * 不成立側を手組みの`AppliedEffect`ではなく実 production 定義で作れるよう、防御力
+ * デバフ源となる別ユニットの定義だけを併せて読み込む。`-002`／`-003` はこのユニットの
+ * Skill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const DEFENSE_DEBUFF_SOURCE_UNIT_ID = "UNIT_CHIYURU_MAZE";
+const DEFENSE_DEBUFF_ACTION_ID = "ACT_CHIYURU_MAZE_AS1_DEF_DOWN";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  DEFENSE_DEBUFF_SOURCE_UNIT_ID,
+]);
 
 /** 解除対象のバフを最も近い敵へ実 production 定義で用意する。 */
 const ENEMY_HAS_BUFF: readonly PrecedingAction[] = [
@@ -331,5 +343,48 @@ describe("production Catalog UNIT_SHOUKA_SCHEMER (【風紀委員会の策謀家
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-SHOUKA-SCHEMER-004 (R-EFF-02): AS3の分岐は `statKinds: [ATTACK]` で絞り込むため、防御力デバフを持つ対象では40%増加せず通常版が走る（絞り込みが無ければ「何らかのデバフ」への近似が残る）", () => {
+    const observe = (precedingActions: readonly PrecedingAction[]) =>
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_SCHEMER_AS3" },
+        precedingActions,
+      });
+
+    // 攻撃力デバフ: 増加版（威力174.72）が選ばれる。
+    expect(observe(ENEMY_HAS_ATTACK_DEBUFF).actions).toEqual([
+      {
+        effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF",
+        targets: ["enemy:front"],
+      },
+      {
+        effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
+        targets: ["enemy:front"],
+        resultKind: "SKIPPED",
+      },
+    ]);
+
+    // 防御力デバフ: 同じ `DEBUFF` カテゴリでも通常版（威力124.8）のまま。
+    // 防御力が500→400へ下がっている分だけダメージは増えるが、腕は切り替わらない。
+    expect(
+      observe([{ effectActionDefinitionId: DEFENSE_DEBUFF_ACTION_ID, target: "ENEMY" }]),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS3_DAMAGE", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
+          targets: ["enemy:front"],
+          resultKind: "SKIPPED",
+        },
+      ],
+      hpDeltas: { "enemy:front": -748 },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    });
   });
 });

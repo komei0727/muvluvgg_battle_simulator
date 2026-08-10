@@ -1,15 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import {
+  completedTargetIdsOf,
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  effectActionGroupContext,
+  seedRecorder,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
+  type PrecedingAction,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import {
@@ -388,5 +403,87 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-CHIYURU-MAZE-004 (R-SKL-06/R-STS-01): EXの `categories: [STATUS]` 照会はAOEの対象ごとに評価され、状態異常ではない単なるデバフでは成立しない。成立した付与は `stateDelta` だけからも独立Reducerが同じ最終状態へ復元する", () => {
+    const skillId = "SKL_CHIYURU_MAZE_EX";
+    const skill = skillFrom(snapshot, skillId);
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const ALL_ENEMIES = ["enemy:back", "enemy:front", "enemy:left"] as const;
+
+    const useEx = (precedingActions: readonly PrecedingAction[]) => {
+      const baseline = applyPrecedingActions(board, precedingActions);
+      const actor = baseline.find((unit) => unit.battleUnitId === "ally:subject")!;
+      const { recorder, rootEventId } = seedRecorder("B_CHIYURU_EX");
+      const result = applyEffectActionGroups(
+        resolveSkillOrder(
+          skill,
+          actor,
+          baseline,
+          board.definitions.effectActions,
+          undefined,
+          board.definitions.unitDefinitions,
+        ),
+        baseline,
+        effectActionGroupContext({
+          actor,
+          skillId,
+          definitions: board.definitions,
+          recorder,
+          rootEventId,
+        }),
+      );
+      return { baseline, recorder, units: result.units };
+    };
+
+    // 前提アクションは既定順の最も近い敵（enemy:front）だけへ入る。
+    const poisoned = useEx([
+      { effectActionDefinitionId: "ACT_CHIYURU_MAZE_AS1_POISON", target: "ENEMY" },
+    ]);
+    // 攻撃自体は敵全体へ入り、条件付きの2効果は状態異常を持つ1体だけへ入る。
+    expect(
+      [...completedTargetIdsOf(poisoned.recorder, "ACT_CHIYURU_MAZE_EX_DAMAGE")].sort(),
+    ).toEqual([...ALL_ENEMIES]);
+    for (const actionId of ["ACT_CHIYURU_MAZE_EX_STUN", "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP"]) {
+      expect(completedTargetIdsOf(poisoned.recorder, actionId)).toEqual(["enemy:front"]);
+    }
+
+    // 状態異常ではない単なるデバフ（防御力低下）だけを持つ対象では不成立 —
+    // `DEBUFF` への近似ではなく `STATUS` そのものを見ている。
+    const debuffed = useEx([
+      { effectActionDefinitionId: "ACT_CHIYURU_MAZE_AS1_DEF_DOWN", target: "ENEMY" },
+    ]);
+    expect(
+      [...completedTargetIdsOf(debuffed.recorder, "ACT_CHIYURU_MAZE_EX_DAMAGE")].sort(),
+    ).toEqual([...ALL_ENEMIES]);
+    for (const actionId of ["ACT_CHIYURU_MAZE_EX_STUN", "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP"]) {
+      expect(completedTargetIdsOf(debuffed.recorder, actionId)).toEqual([]);
+    }
+
+    // Domain Event（`EffectApplied`）・StateDelta・独立Reducer復元:
+    // 使用前を基準線にして `stateDelta` だけから再構成した最終状態が、集約側と一致する。
+    const reconstructed = reconstruct(
+      initialSnapshotFor(poisoned.baseline, { include: ["effects"] }),
+      poisoned.recorder,
+    );
+    for (const enemyId of ALL_ENEMIES) {
+      const aggregate = poisoned.units.find((unit) => unit.battleUnitId === enemyId)!;
+      const restored = reconstructed.units[createBattleUnitId(enemyId)];
+      expect((restored?.effects ?? []).map((effect) => effect.effectDefinitionId).sort()).toEqual(
+        aggregate.appliedEffects.map((effect) => String(effect.effectActionDefinitionId)).sort(),
+      );
+      expect(restored?.hp).toBe(aggregate.currentHp);
+    }
+    // 成立した対象にだけ、EXが配る2効果が毒と並んで残る。
+    expect(
+      poisoned.units
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .appliedEffects.map((effect) => String(effect.effectActionDefinitionId))
+        .sort(),
+    ).toEqual([
+      "ACT_CHIYURU_MAZE_AS1_POISON",
+      "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP",
+      "ACT_CHIYURU_MAZE_EX_STUN",
+    ]);
   });
 });

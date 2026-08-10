@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
+import { resolveBindingSelections } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -12,6 +13,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type BoardUnitSpec,
@@ -53,6 +55,17 @@ const LOW_HP_LEFT: readonly BoardUnitSpec[] = [
   { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
   { id: "enemy:left", position: { column: "LEFT", row: "FRONT" }, state: { currentHp: 2000 } },
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+];
+
+/** 「サンタタグ」を後列に置き、同じ列の前列に未所持の敵を並べた盤面。 */
+const TAG_ON_BACK_OF_LEFT_COLUMN: readonly BoardUnitSpec[] = [
+  {
+    id: "enemy:tagged",
+    position: { column: "LEFT", row: "BACK" },
+    markers: [{ markerId: TAG }],
+  },
+  { id: "enemy:untagged", position: { column: "LEFT", row: "FRONT" } },
+  { id: "enemy:other", position: { column: "CENTER", row: "FRONT" } },
 ];
 
 /** アクティブスキルを2回使い終えた局面（次の1回で「3回使用するたびに」が成立する）。 */
@@ -334,5 +347,92 @@ describe("production Catalog UNIT_CLARA_SANTA (【聖夜のサンタシンガー
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-CLARA-SANTA-004 (R-TGT-09/R-TGT-10): AS2の実 `MARKER_IN_AREA` は候補自身の列に「サンタタグ」が在るかを見るため基準敵はタグ保持者とは限らず、タグを持つ敵が居なければ非空filtersが候補0件になり `fallback` が基準を供給する", () => {
+    const skill = skillFrom(snapshot, "SKL_CLARA_SANTA_AS2");
+    const targetBindings =
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];
+
+    // 基準敵（`TGT_BASE`）はどのACTION stepの対象でもなく、列（`TGT_COLUMN`）を
+    // 導くためだけに解決される。振る舞い表は列全体しか見えないため、基準敵が誰かは
+    // 実 resolver（`resolveSkillUse` と同じ `resolveBindingSelections`）でしか見えない。
+    const tagged = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      enemies: TAG_ON_BACK_OF_LEFT_COLUMN,
+    });
+    const taggedSelections = resolveBindingSelections(targetBindings, tagged.subject, tagged.units);
+    const selectionOf = (
+      selections: ReturnType<typeof resolveBindingSelections>,
+      targetBindingId: string,
+    ): readonly string[] =>
+      [
+        ...(selections.find((s) => s.targetBindingId === targetBindingId)?.selectedTargetUnitIds ??
+          []),
+      ]
+        .map(String)
+        .sort();
+
+    // タグは後列の敵が持つが、`SAME_COLUMN_AS_BASE` の所在判定は候補自身の列を見る
+    // ため前列の未所持の敵も候補になり、既定順ではそちらが基準になる。
+    expect(selectionOf(taggedSelections, "TGT_BASE")).toEqual(["enemy:untagged"]);
+    expect(selectionOf(taggedSelections, "TGT_COLUMN")).toEqual(["enemy:tagged", "enemy:untagged"]);
+
+    // タグを持つ敵が1体も居なければ候補は0件になり、`fallback` の既定順が基準を出す。
+    const untagged = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    expect(
+      selectionOf(
+        resolveBindingSelections(targetBindings, untagged.subject, untagged.units),
+        "TGT_BASE",
+      ),
+    ).toEqual(["enemy:front"]);
+
+    // 端から端まで: 攻撃とデバフは列全体（タグ未所持の前列も含む）へ入り、
+    // 既定順なら選ばれていたはずの中央列の敵には何も入らない。
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_CLARA_SANTA_AS2" },
+        board: { enemies: TAG_ON_BACK_OF_LEFT_COLUMN },
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_CLARA_SANTA_AS2_DAMAGE", targets: ["enemy:untagged"] },
+        {
+          effectActionDefinitionId: "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN",
+          targets: ["enemy:untagged"],
+        },
+        { effectActionDefinitionId: "ACT_CLARA_SANTA_AS2_DAMAGE", targets: ["enemy:tagged"] },
+        {
+          effectActionDefinitionId: "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN",
+          targets: ["enemy:tagged"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:untagged": -585,
+        "enemy:tagged": -585,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:tagged",
+          effectActionDefinitionId: "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "enemy:untagged",
+          effectActionDefinitionId: "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_CLARA_SANTA_AS2", remaining: 1 },
+      ],
+    });
   });
 });
