@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -7,8 +8,10 @@ import {
 import { observeCumulativeThresholdCounter } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type PrecedingAction,
@@ -29,7 +32,17 @@ import { SequenceRandomSource } from "../../../testing/random/sequence-random-so
 
 const UNIT_DEFINITION_ID = "UNIT_YUI_HEIR";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * 唯依自身のシールドは無属性1種だけなので、「シールドを**全て**解除」が属性付き
+ * プールも取ることは自前の定義では作れない。EN属性の実 production シールドを
+ * 1件だけ併せて読み込む。
+ */
+const TYPED_SHIELD_ACTION_ID = "ACT_LILY_SINGER_PS2_SHIELD";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_LILY_SINGER",
+]);
 
 const KENKI = "MARKER_YUI_HEIR_KENKI";
 
@@ -442,6 +455,70 @@ describe("production Catalog UNIT_YUI_HEIR (【譜代武家・篁家次期当主
         ],
         triggerMatched: true,
       },
+    });
+  });
+
+  it("IT-UNIT-YUI-HEIR-005 (R-EFF-02): EXの「シールドを全て解除」は件数上限も属性の別も持たず、無属性・EN属性の全プールを空にしてから自分の攻撃を撃つ", () => {
+    // `-001` のEX行は解除対象を無属性1件しか持たないため、「全て」も「1つまで」も
+    // 同じ観測になる。プールを2種・3インスタンスに増やし、吸収総量5500が
+    // 1件も残らないこと（残っていれば威力243.8の一撃は全部食われてHPが動かない）を
+    // 解除→防御力デバフ→攻撃の実行順ごと固定する。
+    const shields: readonly PrecedingAction[] = [
+      { effectActionDefinitionId: "ACT_YUI_HEIR_PS2_SHIELD", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_YUI_HEIR_PS2_SHIELD", target: "ENEMY" },
+      { effectActionDefinitionId: TYPED_SHIELD_ACTION_ID, target: "ENEMY" },
+    ];
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    expect(
+      shieldPoolsOf(
+        applyPrecedingActions(board, shields).find((unit) => unit.battleUnitId === "enemy:front")!
+          .appliedEffects,
+      ),
+    ).toEqual({ physical: 0, energy: 2500, untyped: 3000 });
+
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_YUI_HEIR_EX" },
+        precedingActions: shields,
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_YUI_HEIR_EX_REMOVE_SHIELD", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_YUI_HEIR_EX_DEF_DOWN", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_YUI_HEIR_EX_DAMAGE", targets: ["enemy:front"] },
+      ],
+      // `-001` のEX行と同じ 1523。吸収体を3件へ増やしてもHPへ届く量が変わらない。
+      hpDeltas: { "enemy:front": -1523 },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_YUI_HEIR_EX_DEF_DOWN",
+          magnitude: -0.25,
+          timeLimit: { unit: "SKILL_USE", count: 1 },
+        },
+      ],
+      effectsRemoved: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_YUI_HEIR_PS2_SHIELD",
+          magnitude: 1500,
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_YUI_HEIR_PS2_SHIELD",
+          magnitude: 1500,
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: TYPED_SHIELD_ACTION_ID,
+          magnitude: 2500,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
     });
   });
 });

@@ -28,6 +28,9 @@ const UNIT_DEFINITION_ID = "UNIT_MIHIME_SNIPER";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
+/** raw原文「自身にかけられたデバフを3つまで解除し」。`ACT_MIHIME_SNIPER_PS1_REMOVE_DEBUFF.maxRemovals`。 */
+const MAX_REMOVALS = 3;
+
 /** HP割合が1位・2位で分かれる敵陣。「最も低い敵」と「もう1体」を判別する。 */
 const ENEMIES_BY_HP_RANK: readonly BoardUnitSpec[] = [
   { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
@@ -332,5 +335,49 @@ describe("production Catalog UNIT_MIHIME_SNIPER (【稀代の狙撃手】珠瀬�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-MIHIME-SNIPER-004 (R-EFF-02): PS1の「デバフを3つまで解除」は `maxRemovals` で頭打ちになる — 4つ持っていても3つしか解除されず、4つ目は残る", () => {
+    // `-001` のPS1行は解除対象を1つしか持たないため、上限そのものは現れない
+    // （上限が無くても、上限が10でも同じ観測になる）。上限より1つ多い前提を
+    // 実 production 定義で積んで、解除件数が3で止まることを固定する。
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_MIHIME_SNIPER_PS1",
+        trigger: turnCompleting({ turnNumber: 1 }),
+        triggeredBy: "ally:subject",
+      },
+      precedingActions: Array.from({ length: MAX_REMOVALS + 1 }, () => ({
+        effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
+        target: "SELF" as const,
+      })),
+    });
+
+    expect(observation.effectsRemoved).toEqual(
+      Array.from({ length: MAX_REMOVALS }, () => ({
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
+        magnitude: -35,
+        timeLimit: { unit: "ACTION", count: 1 },
+      })),
+    );
+    // 解除されなかった1件は行動速度へ効いたままになる（実効値まで戻らない）。
+    expect(observation.effectsApplied).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MIHIME_SNIPER_PS1_CRIT_UP",
+        magnitude: 0.3,
+        timeLimit: { unit: "ACTION", count: 1 },
+      },
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MIHIME_SNIPER_PS1_DMG_DOWN",
+        magnitude: -0.05,
+        timeLimit: { unit: "BATTLE", count: 1 },
+      },
+    ]);
   });
 });

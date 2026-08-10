@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
+import { subUnitDurabilityTotal } from "../../../domain/battle/combat/sub-unit-policy.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -35,7 +37,17 @@ import { skillUseCompleted, turnStarted } from "../../../testing/production-unit
 
 const UNIT_DEFINITION_ID = "UNIT_OLGA_VETERAN";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * オルガ自身はシールドを配らないため、PS1の解除が宣言する2カテゴリのうち
+ * `SHIELD` 側は自前の定義では前提を作れない。実 production のシールドを1件だけ
+ * 併せて読み込む。
+ */
+const SHIELD_ACTION_ID = "ACT_MEIYA_FATED_PS1_SHIELD";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_MEIYA_FATED",
+]);
 
 const VIGILANCE = "MARKER_OLGA_VETERAN_VIGILANCE";
 
@@ -559,5 +571,95 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
     // 攻撃力×10%＝100へ差し替わり、混乱倍率0.7で70。差し替えが無ければ差分0 →
     // R-DMG-02の最低1ダメージになる。
     expect(against("enemy:left").calculated.finalDamage).toBe(70);
+  });
+
+  it("IT-UNIT-OLGA-VETERAN-006 (R-EFF-02): PS1の解除は `SHIELD` と `SUBUNIT` の2カテゴリを取り、同じstepで付与される「カムラッドⅡ」3体より前に走る", () => {
+    // `-001` のPS1行は前提にサブユニット1体しか置かないため、宣言の2カテゴリのうち
+    // `SHIELD` 側が働いているかは現れない。シールドと旧サブユニット2体を実 production
+    // 定義で積み、解除が両方を空にしたうえで新しい3体だけが残ることを固定する
+    // （解除が付与より後ろに置かれていれば、その3体が自分の解除に巻き込まれる）。
+    const shieldAndSubUnits: readonly PrecedingAction[] = [
+      { effectActionDefinitionId: SHIELD_ACTION_ID, target: "SELF" },
+      { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT", target: "SELF" },
+      { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT", target: "SELF" },
+    ];
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, PS1_COUNTER_AT_THREE);
+    const held = applyPrecedingActions(board, shieldAndSubUnits).find(
+      (unit) => unit.battleUnitId === "ally:subject",
+    )!;
+    expect(shieldPoolsOf(held.appliedEffects)).toEqual({
+      physical: 0,
+      energy: 0,
+      untyped: 550,
+    });
+    expect(subUnitDurabilityTotal(held.appliedEffects)).toBe(3000);
+
+    const grantedSubUnit = {
+      unitId: "ally:subject",
+      effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT",
+      magnitude: 1500,
+      timeLimit: { unit: "ACTION", count: 2 },
+    };
+    const removedSubUnit = {
+      unitId: "ally:subject",
+      effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT",
+      magnitude: 1500,
+    };
+
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: {
+          kind: "PASSIVE",
+          skillDefinitionId: "SKL_OLGA_VETERAN_PS1",
+          trigger: skillUseCompleted({
+            actor: "ally:subject",
+            targets: ["enemy:front"],
+            skillType: "AS",
+            skillDefinitionId: "SKL_OLGA_VETERAN_AS2",
+          }),
+          triggeredBy: "ally:subject",
+        },
+        board: PS1_COUNTER_AT_THREE,
+        precedingActions: shieldAndSubUnits,
+      }),
+    ).toEqual({
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_REMOVE_SHIELD_SUBUNIT",
+          targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT", targets: ["ally:subject"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_ATK_UP",
+          magnitude: 0.3,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        grantedSubUnit,
+        grantedSubUnit,
+        grantedSubUnit,
+      ],
+      effectsRemoved: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: SHIELD_ACTION_ID,
+          magnitude: 550,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        removedSubUnit,
+        removedSubUnit,
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+    });
   });
 });
