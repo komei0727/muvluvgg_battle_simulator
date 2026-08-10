@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import type { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import type { DamageType } from "../../../domain/catalog/definitions/catalog-enums.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -37,6 +42,33 @@ import {
 const UNIT_DEFINITION_ID = "UNIT_NADYA_SUCCESSOR";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+/**
+ * 4種の「ドルズィヤ」と、raw原文が書く追加ダメージの倍率
+ * （Ⅳ(EX)・Ⅰ(AS1)が攻撃力×23.4%、Ⅱ(PS1)が31.2%、Ⅲ(PS2)が42.4%）。
+ */
+const SUBUNIT_MULTIPLIERS = [
+  { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_EX_SUBUNIT", skillMultiplier: 0.234 },
+  { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_AS1_SUBUNIT", skillMultiplier: 0.234 },
+  { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS1_SUBUNIT", skillMultiplier: 0.312 },
+  { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT", skillMultiplier: 0.424 },
+] as const;
+
+/** ヒットごとの `DamageCalculated`。追加ダメージは自分の定義IDで1件ずつ現れる。 */
+function damageCalculationsOf(recorder: EventRecorder) {
+  return recorder
+    .getEvents()
+    .filter(
+      (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
+        event.eventType === "DamageCalculated",
+    )
+    .map((event) => ({
+      effectActionDefinitionId: String(event.payload.effectActionDefinitionId),
+      damageType: event.payload.damageType,
+      skillPower: event.payload.skillPower,
+      finalDamage: event.payload.finalDamage,
+    }));
+}
 
 const TRAINING = "MARKER_NADYA_SUCCESSOR_TRAINING";
 const MARK = "MARKER_NADYA_SUCCESSOR_MARK";
@@ -532,6 +564,60 @@ describe("production Catalog UNIT_NADYA_SUCCESSOR (【輝ける次代の娘】�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-NADYA-SUCCESSOR-004 (R-SUB-02): 4種の「ドルズィヤ」はどれもダメージタイプを宣言しないため、追加ダメージは**契機になった攻撃のタイプを引き継ぐ**。保持している数だけ1ヒットずつ、それぞれ自分の倍率で加わる", () => {
+    // `-001` の各行は付与そのもの（耐久力と存続期間 — EXが2行動、AS1/PS1/PS2が
+    // 1行動）までを固定する。追加ダメージは**以後の自分の攻撃**に属し、しかも
+    // 「引き継ぐ」かどうかはタイプの違う2発を撃たないと「常に物理」と区別できない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const armed = applyPrecedingActions(
+      board,
+      SUBUNIT_MULTIPLIERS.map(({ effectActionDefinitionId }) => ({
+        effectActionDefinitionId,
+        target: "SELF" as const,
+      })),
+    );
+    const strike = (damageType: DamageType) =>
+      damageCalculationsOf(
+        observeLifecycleDamageProbe({
+          definitions: board.definitions,
+          units: armed,
+          attackerUnitId: "ally:subject",
+          targetUnitId: "enemy:front",
+          power: 1,
+          damageType,
+          battleId: `B_NADYA_SUBUNIT_${damageType}`,
+        }).recorder,
+      );
+
+    // 契機の一撃（攻撃力1000 - 防御力500 = 500）に続いて、保持順に4件の追加ヒット。
+    // 各追加ダメージ = 所持者の攻撃力1000 + 付与者の付与時攻撃力1000 × 倍率
+    //                - 対象の防御力500（防御力減衰を経由しない）。
+    const additional = SUBUNIT_MULTIPLIERS.map(({ effectActionDefinitionId, skillMultiplier }) => ({
+      effectActionDefinitionId,
+      skillPower: 1000 + 1000 * skillMultiplier - 500,
+      finalDamage: Math.floor(1000 + 1000 * skillMultiplier - 500),
+    }));
+    expect(strike("PHYSICAL")).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        damageType: "PHYSICAL",
+        skillPower: 1,
+        finalDamage: 500,
+      },
+      ...additional.map((entry) => ({ ...entry, damageType: "PHYSICAL" })),
+    ]);
+    // 同じ保持のまま契機だけをENへ変えると、追加ダメージも揃ってENになる。
+    expect(strike("EN")).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        damageType: "EN",
+        skillPower: 1,
+        finalDamage: 500,
+      },
+      ...additional.map((entry) => ({ ...entry, damageType: "EN" })),
+    ]);
   });
 
   it("IT-UNIT-NADYA-SUCCESSOR-005 (R-PS-01/R-STS-01/R-STS-02): PS1の「自身に状態異常」とPS2の「敵に気絶」は実 resolver が載せた分類・`statusKind` と帰属で分かれるが、自身への**気絶**はR-STS-02がPS1を発動直前に捨てるため炎上でしか成立しない", () => {

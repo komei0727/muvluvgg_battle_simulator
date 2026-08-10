@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
 import { subUnitDurabilityTotal } from "../../../domain/battle/combat/sub-unit-policy.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -11,7 +12,11 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
-import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import {
+  observeDamageProbe,
+  observeLifecycleDamageProbe,
+} from "../../../testing/production-unit/damage-probe.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -669,5 +674,112 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
     });
+  });
+
+  it("IT-UNIT-OLGA-VETERAN-007 (R-SUB-01/R-SUB-02): 「3つ付与する」カムラッドⅠは**以後の自分の攻撃**へ3ヒットぶんの追加ENダメージを足し、存続期間を書かないため行動終了を跨いでも失効しない。2行動のカムラッドⅡだけが2回目の行動終了で揃って失効する", () => {
+    // `-001` のPS1／PS2行は付与そのもの（耐久力1500の3件と、カムラッドⅡだけが持つ
+    // 2行動）までを固定する。ここが引き受けるのは (a) 保持数だけ追加ヒットが増える
+    // こと（R-SUB-02第2項）と (b) 存続期間を持たないインスタンスが行動終了で減らない
+    // ことで、どちらも別の行動を跨がないと現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const camrad1 = (count: number): readonly PrecedingAction[] =>
+      Array.from({ length: count }, () => ({
+        effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT",
+        target: "SELF" as const,
+      }));
+    const strike = (precedingActions: readonly PrecedingAction[], battleId: string) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: applyPrecedingActions(board, precedingActions),
+        attackerUnitId: "ally:subject",
+        targetUnitId: "enemy:front",
+        power: 1,
+        battleId,
+      });
+    const damageTypes = (recorder: { getEvents: () => readonly BattleDomainEvent[] }) =>
+      recorder
+        .getEvents()
+        .filter(
+          (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
+            event.eventType === "DamageCalculated",
+        )
+        .map((event) => ({
+          effectActionDefinitionId: String(event.payload.effectActionDefinitionId),
+          damageType: event.payload.damageType,
+          finalDamage: event.payload.finalDamage,
+        }));
+
+    // 追加ダメージ = 所持者の攻撃力1000 + 付与者の付与時攻撃力1000 × 5.46%
+    //              - 対象の防御力500 = 554.6 → 切り捨てて554（R-DMG-02）。
+    const additional = {
+      effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT",
+      damageType: "EN",
+      finalDamage: 554,
+    };
+    // 契機の一撃（攻撃力1000 - 防御力500 = 500）だけの対照。
+    expect(damageTypes(strike([], "B_OLGA_SUBUNIT_NONE").recorder)).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        damageType: "PHYSICAL",
+        finalDamage: 500,
+      },
+    ]);
+    const armed = strike(camrad1(3), "B_OLGA_SUBUNIT_THREE");
+    expect(damageTypes(armed.recorder)).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        damageType: "PHYSICAL",
+        finalDamage: 500,
+      },
+      additional,
+      additional,
+      additional,
+    ]);
+    expect(armed.hpDeltas).toEqual({ "enemy:front": -(500 + 554 * 3) });
+
+    // 期間を書くカムラッドⅡ3件と、書かないカムラッドⅠ3件を同じ保持者へ並べる。
+    const both = applyPrecedingActions(board, [
+      ...camrad1(3),
+      ...Array.from({ length: 3 }, () => ({
+        effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT",
+        target: "SELF" as const,
+      })),
+    ]);
+    const expired = {
+      unitId: "ally:subject",
+      effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT",
+      reason: "TIME_LIMIT",
+      cascaded: false,
+    };
+    const observed = observeEffectExpiry({
+      units: both,
+      definitions: board.definitions,
+      steps: [
+        { kind: "ACTION_END", actor: "ally:subject" },
+        { kind: "ACTION_END", actor: "ally:subject" },
+      ],
+      battleId: "B_OLGA_SUBUNIT_EXPIRY",
+    });
+    // 存続期間を持たないカムラッドⅠは `remaining` にキーごと現れない。
+    expect(observed.steps).toEqual([
+      {
+        step: "ACTION_END(ally:subject)",
+        remaining: {
+          "ally:subject/ACT_OLGA_VETERAN_PS1_SUBUNIT": 1,
+          "ally:subject/ACT_OLGA_VETERAN_PS1_SUBUNIT#2": 1,
+          "ally:subject/ACT_OLGA_VETERAN_PS1_SUBUNIT#3": 1,
+        },
+      },
+      { step: "ACTION_END(ally:subject)", remaining: {}, expired: [expired, expired, expired] },
+    ]);
+    // カムラッドⅠは耐久力が尽きるまで存続する（2回の行動終了を跨いで3件のまま）。
+    expect(
+      observed.units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.filter(
+          (effect) => effect.effectActionDefinitionId === "ACT_OLGA_VETERAN_PS2_SUBUNIT",
+        )
+        .map((effect) => effect.subUnit?.durability),
+    ).toEqual([1500, 1500, 1500]);
   });
 });

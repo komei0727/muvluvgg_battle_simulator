@@ -431,6 +431,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACT-04-012",
       "UT-R-ACT-04-013",
       "UT-R-ACT-04-014",
+      // REF-045（Issue #392）でユニット効果軸へ移送した。実 production の獲得量
+      // 補正が保持者の以後の行動でのEXゲージ獲得量だけを増減させ、基礎量
+      // （消費APと同量）は動かないこと。-100%を下回る重複では0で打ち止まる。
+      "IT-UNIT-MAIA-SALON-004",
+      "IT-UNIT-KARINA-DOWNER-008",
+      "IT-UNIT-SENKA-SCHEMER-006",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
@@ -1448,6 +1454,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACTN-02-009",
       "UT-R-ACTN-02-010",
       "UT-R-ACTN-02-011",
+      // REF-045（Issue #392）でユニット効果軸へ移送した。実 production のHP支払いが
+      // 公開差分を持ち独立Reducerで復元できること・残HPが支払い額に満たない場合に
+      // `bounds.min: 0` で0止まりになること。
+      "IT-UNIT-LILY-HERO-005",
       // 第4項 `DISTRIBUTE`の分配規約（総量の等分・端数切り捨て・参照ごとに独立）。
       "UT-R-ACTN-02-012",
       "UT-R-ACTN-02-014",
@@ -2007,9 +2017,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SUB-01-009",
       "UT-R-SUB-01-010",
       "UT-R-SUB-01-011",
-      "IT-CAP-SUBUNIT-PROD-001",
-      "IT-CAP-SUBUNIT-PROD-003",
-      "IT-CAP-SUBUNIT-PROD-004",
+      // REF-045（Issue #392）でユニット効果軸へ移送した。実 production の
+      // サブユニットが被ダメージを吸収し、耐久力を超えた分だけHPへ抜けて枯渇時に
+      // 失効すること・存続期間を書かないインスタンスが行動終了で減らないこと。
+      "IT-UNIT-SHIRANA-SORA-004",
+      "IT-UNIT-OLGA-VETERAN-007",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -2032,7 +2044,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SUB-02-014",
       "UT-R-SUB-02-015",
       "UT-R-SUB-02-016",
-      "IT-CAP-SUBUNIT-PROD-002",
+      // REF-045（Issue #392）でユニット効果軸へ移送した。保持数だけ追加ヒットが
+      // 増えること・付随デバフが重複して積まれること・追加ダメージのタイプが
+      // 定義の宣言（EN）で決まるか契機の攻撃から引き継がれるか。
+      "IT-UNIT-SHIRANA-SORA-005",
+      "IT-UNIT-NADYA-SUCCESSOR-004",
+      "IT-UNIT-OLGA-VETERAN-007",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },

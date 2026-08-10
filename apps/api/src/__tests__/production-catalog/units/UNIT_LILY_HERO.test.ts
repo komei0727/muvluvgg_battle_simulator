@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  seedRecorder,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   selectedActiveSkill,
   type SkillBehaviourCase,
@@ -269,5 +278,57 @@ describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリ�
         board: { subject: { state: { currentHp: 1999 } } },
       }),
     ).toBe("SKL_LILY_HERO_AS2");
+  });
+
+  it("IT-UNIT-LILY-HERO-005 (R-ACTN-02): AS1のHP支払いは公開差分を持つ `ResourceChanged` として現れ、開始前スナップショットへそれだけを当て直すと同じHPへ復元できる。残HPが支払い額に満たない場合は `bounds.min: 0` で0止まりになり、負のHPにはならない", () => {
+    // `-001` のAS1行は支払い額そのもの（最大HP10000の10%＝1000。現在HP5000基準では
+    // ないこと）を `hpDeltas` で固定する。ここが引き受けるのはその外側の2点 —
+    // 支払いが「イベントに出ない副作用」になっていないことと、`bounds.min` の境界で
+    // ある。境界側はAS1の発動条件（HP20%未満では発動しない）より下のHPでしか
+    // 起こせないため、スキル使用ではなく実 `MODIFY_RESOURCE` 定義を直接通す。
+    const payFrom = (currentHp: number, battleId: string) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp } },
+      });
+      const seeded = seedRecorder(battleId);
+      const after = applyPrecedingActions(
+        board,
+        [{ effectActionDefinitionId: "ACT_LILY_HERO_AS1_HP_COST", target: "SELF" }],
+        { recorder: seeded },
+      );
+      const paid = seeded.recorder
+        .getEvents()
+        .filter(
+          (event): event is Extract<BattleDomainEvent, { eventType: "ResourceChanged" }> =>
+            event.eventType === "ResourceChanged" &&
+            event.payload.resource === "HP" &&
+            event.payload.battleUnitId === "ally:subject",
+        )
+        .map((event) => ({
+          reason: event.payload.reason,
+          before: event.payload.before,
+          after: event.payload.after,
+          delta: event.payload.delta,
+        }));
+      return { board, after, paid, recorder: seeded.recorder };
+    };
+
+    // 既定盤面（現在HP5000・最大HP10000）。`MAX_HP_RATIO` なので支払いは1000。
+    const full = payFrom(5000, "B_LILY_HP_COST");
+    expect(full.paid).toEqual([
+      { reason: "EFFECT_ACTION", before: 5000, after: 4000, delta: -1000 },
+    ]);
+    // 公開差分だけを当て直した状態を、スナップショット全体で突き合わせる。HPだけを
+    // 名指しで比べると、支払いに伴う他の差分が欠けていても通ってしまう。
+    expect(reconstruct(initialSnapshotFor(full.board.units), full.recorder)).toEqual(
+      initialSnapshotFor(full.after),
+    );
+
+    // 支払い額（1000）より残HPが少ない状態。`bounds.min: 0` が下限で打ち止める。
+    const floored = payFrom(400, "B_LILY_HP_COST_FLOOR");
+    expect(floored.paid).toEqual([{ reason: "EFFECT_ACTION", before: 400, after: 0, delta: -400 }]);
+    expect(reconstruct(initialSnapshotFor(floored.board.units), floored.recorder)).toEqual(
+      initialSnapshotFor(floored.after),
+    );
   });
 });

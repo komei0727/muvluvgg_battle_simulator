@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeExGaugeGain } from "../../../testing/production-unit/resource-gain.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   confusionStatus,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type BoardUnitSpec,
@@ -29,7 +32,29 @@ import { realDamage, skillUseStarting } from "../../../testing/production-unit/t
 
 const UNIT_DEFINITION_ID = "UNIT_MAIA_SALON";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * AS2が配る獲得量減少が効いたかどうかは、**補正を受けた側が自分の行動で得る
+ * EXゲージ**にしか現れない。基礎量はR-ACT-03より消費APと同量なので、AP2消費の実AS
+ * （`SKL_SENKA_SCHEMER_AS1`）を持つユニットだけを併せて読み込み、-50%が切り捨てで
+ * 消えない大きさにする。`-002`／`-003` はこのユニットのSkill・EffectAction閉包だけを
+ * 見るため、閉包の判定には影響しない。
+ */
+const EX_EARNER_UNIT_ID = "UNIT_SENKA_SCHEMER";
+const EX_EARNER_AS_ID = "SKL_SENKA_SCHEMER_AS1";
+/** 実 `catalog/` の消費AP。そのまま基礎EXゲージ獲得量になる。 */
+const EX_EARNER_AS_COST = 2;
+const EX_GAIN_DOWN = "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN";
+/**
+ * 合成rateがちょうど-100%になる2体では要求量そのものが0になり、0で打ち止める処理を
+ * 通らない。**下回る**編成でしか、負の要求量が実際に発生してclampが働くかは分からない。
+ * R-FRM-06は同一UnitDefinitionの複数編成を許すため、この3体編成はproductionで組める。
+ */
+const STACK_BELOW_FULL_REDUCTION = 3;
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  EX_EARNER_UNIT_ID,
+]);
 
 const RANCHOU = "MARKER_MAIA_SALON_RANCHOU";
 const HANAMAI = "MARKER_MAIA_SALON_HANAMAI";
@@ -541,5 +566,77 @@ describe("production Catalog UNIT_MAIA_SALON (【眠れる社交界の淑女】�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-MAIA-SALON-004 (R-ACT-03/G-05): AS2が配るEXゲージ獲得量減少は、**保持者自身の以後の行動**が得るEXゲージを半減させる。重複して-100%を下回っても獲得量が0で止まるだけで、既に保持しているゲージは減らない", () => {
+    // `-001` のAS2行は付与そのもの（`magnitude: -0.5`・1行動）までを固定する。
+    // 「獲得量が変わる」のは保持者の**次の行動**に属し、スキル使用1回の観測には
+    // 載らない（`ActionStarted` を出すのは保持者自身の行動である）。
+    const boardHolding = (extraGauge: number) =>
+      productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        enemies: [
+          {
+            id: "enemy:front",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { currentExtraGauge: extraGauge },
+          },
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+        ],
+      });
+    const earn = (board: ReturnType<typeof boardHolding>, stack: number, battleId: string) => {
+      const observed = observeExGaugeGain({
+        // 前提アクションは既定順の最も近い敵（enemy:front）だけへ入る。
+        units: applyPrecedingActions(
+          board,
+          Array.from({ length: stack }, () => ({
+            effectActionDefinitionId: EX_GAIN_DOWN,
+            target: "ENEMY" as const,
+          })),
+        ),
+        definitions: board.definitions,
+        skill: skillFrom(snapshot, EX_EARNER_AS_ID),
+        actorUnitId: "enemy:front",
+        battleId,
+      });
+      return { gain: observed.gain, published: observed.published, modifiers: observed.modifiers };
+    };
+
+    // 補正を持たない同じASは消費AP分（2）をそのまま得る（R-ACT-03）。差の原因が
+    // 獲得量減少だけであることは、この対照が無いと分からない。
+    expect(earn(boardHolding(0), 0, "B_MAIA_EX_GAIN_BASE")).toEqual({
+      gain: { before: 0, after: EX_EARNER_AS_COST, gained: EX_EARNER_AS_COST },
+      published: { baseDelta: EX_EARNER_AS_COST, delta: EX_EARNER_AS_COST, before: 0, after: 2 },
+      modifiers: [],
+    });
+
+    // -50%。基礎量そのものは動かず、公開される `delta` だけが半分になる。
+    expect(earn(boardHolding(0), 1, "B_MAIA_EX_GAIN_DOWN")).toEqual({
+      gain: { before: 0, after: 1, gained: 1 },
+      published: { baseDelta: EX_EARNER_AS_COST, delta: 1, before: 0, after: 1 },
+      modifiers: [{ effectActionDefinitionId: EX_GAIN_DOWN, magnitude: -0.5, instances: 1 }],
+    });
+
+    // -50% × 3 = -150%。`STACKABLE` は保持中の全インスタンスを合算する。
+    const clamped = earn(
+      boardHolding(3),
+      STACK_BELOW_FULL_REDUCTION,
+      "B_MAIA_EX_GAIN_DOWN_CLAMPED",
+    );
+    expect(EX_EARNER_AS_COST * (1 + -0.5 * STACK_BELOW_FULL_REDUCTION)).toBeLessThan(0);
+    expect(clamped).toEqual({
+      // このAPIは「EXゲージ増加」であり、Modifierは増加量を0まで減衰させられるが、
+      // 既に保持しているゲージを減らす経路ではない。
+      gain: { before: 3, after: 3, gained: 0 },
+      // 増加が0の行動は `ResourceChanged` を発行しない。
+      published: null,
+      modifiers: [
+        {
+          effectActionDefinitionId: EX_GAIN_DOWN,
+          magnitude: -0.5,
+          instances: STACK_BELOW_FULL_REDUCTION,
+        },
+      ],
+    });
   });
 });
