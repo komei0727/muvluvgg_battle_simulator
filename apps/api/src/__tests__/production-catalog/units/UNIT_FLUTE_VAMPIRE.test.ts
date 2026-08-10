@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   initialSnapshotFor,
   loadProductionSnapshot,
+  reconstruct,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
@@ -11,6 +12,7 @@ import {
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { observeChargeEvasion } from "../../../testing/production-unit/charge-restriction.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -21,6 +23,7 @@ import { openPassiveChain } from "../../../testing/production-unit/passive-activ
 import {
   BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -56,7 +59,20 @@ const WITH_CHARGE_SOURCE = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_SIENA_OFFSTAGE",
 ]);
 
+/**
+ * R-HIT-05の必中付与もどの単一定義にも帰属しない — 貫通する側（`GUARANTEED_HIT`）と
+ * 貫通される側（このユニットが配る `HIT_EVASION`）が別ユニットにある。必中定義の
+ * 供給元だけをsnapshotへ併読する。
+ */
+const WITH_GUARANTEED_HIT_SOURCE = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_LAYLA_ENTREPRENEUR",
+]);
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+const PS2_EVASION = "ACT_FLUTE_VAMPIRE_PS2_EVASION";
+const GUARANTEED_HIT = "ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT";
 
 const KYOKUGEN = "MARKER_KYOKUGEN";
 
@@ -585,5 +601,106 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
       },
       changesOnUnrelatedSkill: [],
     });
+  });
+
+  it("IT-UNIT-FLUTE-VAMPIRE-008 (R-HIT-04): PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION は被ヒット1回ぶんだけ回避する — 同じ2ヒット攻撃の1ヒット目を回避してその被ヒットで消費し切って失効し、2ヒット目はそのまま命中する。公開差分だけからも同じ状態へ復元できる", () => {
+    // `-001` のPS2行は付与そのもの（`ACTION(1)` + `INCOMING_HIT(1)`）までを固定する。
+    // 「Nヒット回避のNが1である」ことは、回避したヒットと命中したヒットが**同じ攻撃の
+    // 中で分かれる**ことでしか現れず、これは保持者以外の別のスキル使用に属する。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const holding = applyPrecedingActions(board, [
+      { effectActionDefinitionId: PS2_EVASION, target: "SELF" },
+    ]);
+    const attacked = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: holding,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      hitCount: 2,
+      accuracy: "NORMAL",
+      battleId: "B_FLUTE_EVASION",
+    });
+
+    expect(attacked.hits).toEqual([
+      { hitIndex: 1, result: "EVADED", evadedBy: PS2_EVASION },
+      { hitIndex: 2, result: "CONFIRMED" },
+    ]);
+    // 消費は回避を成立させたそのインスタンスへ限定される（R-HIT-04第3項）。
+    expect(attacked.consumptions).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: PS2_EVASION,
+        kind: "INCOMING_HIT",
+        before: 1,
+        after: 0,
+      },
+    ]);
+    expect(attacked.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: PS2_EVASION,
+        reason: "CONSUMPTION",
+        cascaded: false,
+      },
+    ]);
+    // 攻撃力1000 - 防御力500 = 500 の1ヒットぶんだけがHPへ届く。
+    expect(attacked.hpDeltas).toEqual({ "ally:subject": -500 });
+
+    // 回避効果を抜いた対照。同じ2ヒットが両方とも命中する。
+    const control = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: board.units,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      hitCount: 2,
+      accuracy: "NORMAL",
+      battleId: "B_FLUTE_NO_EVASION",
+    });
+    expect(control.hits).toEqual([
+      { hitIndex: 1, result: "CONFIRMED" },
+      { hitIndex: 2, result: "CONFIRMED" },
+    ]);
+    expect(control.hpDeltas).toEqual({ "ally:subject": -1000 });
+
+    // 開始前スナップショットへ公開差分だけを当てた結果を、**スナップショット全体**で
+    // 突き合わせる。HPだけを見ると、消費と失効のStateDeltaが欠けても通ってしまう。
+    expect(
+      reconstruct(initialSnapshotFor(holding, { include: ["effects"] }), attacked.recorder),
+    ).toEqual(initialSnapshotFor(attacked.units, { include: ["effects"] }));
+  });
+
+  it("IT-UNIT-FLUTE-VAMPIRE-009 (R-HIT-05): 実 ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT を保持する攻撃側は、PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION を貫通して2ヒットとも当てる", () => {
+    // この機構も**どの単一定義にも帰属しない** — 貫通するのはレイラの必中バフで、
+    // 貫通されるのはこのユニットの `HIT_EVASION` である。`12_テスト戦略.md`
+    // 「`IT-CAP-*` の retire 基準」3に従い、必中側（`IT-UNIT-LAYLA-ENTREPRENEUR-005`）と
+    // 同じ観測を回避効果側のここにも複製する（重複を受け入れる）。
+    const board = productionBoard(WITH_GUARANTEED_HIT_SOURCE, UNIT_DEFINITION_ID);
+    const staged = applyPrecedingActions(board, [
+      { effectActionDefinitionId: PS2_EVASION, target: "SELF" },
+      { effectActionDefinitionId: GUARANTEED_HIT, target: "ENEMY" },
+    ]);
+    const attacked = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: staged,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      hitCount: 2,
+      accuracy: "NORMAL",
+      battleId: "B_FLUTE_GUARANTEED_HIT",
+    });
+
+    expect(attacked.hits).toEqual([
+      { hitIndex: 1, result: "CONFIRMED" },
+      { hitIndex: 2, result: "CONFIRMED" },
+    ]);
+    expect(attacked.hpDeltas).toEqual({ "ally:subject": -1000 });
+    // 回避が一度も成立していないため、被ヒット消費も進まない（回避成立時だけの
+    // 消費であることの対照は `-008` が持つ）。
+    expect(attacked.consumptions).toEqual([]);
+    expect(
+      attacked.units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.map((effect) => effect.duration.consumptionRemaining),
+    ).toEqual([1]);
   });
 });

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
@@ -7,6 +10,7 @@ import {
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -31,6 +35,13 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION
 
 /** raw原文「対象の味方単体にかけられたデバフを5個解除し」。`ACT_LILY_SINGER_PS1_REMOVE_DEBUFF.maxRemovals`。 */
 const MAX_REMOVALS = 5;
+
+const PS2_SHIELD = "ACT_LILY_SINGER_PS2_SHIELD";
+const PS2_ATK_UP = "ACT_LILY_SINGER_PS2_ATK_UP";
+
+function subjectIn(units: readonly BattleUnit[]): BattleUnit {
+  return units.find((unit) => unit.battleUnitId === "ally:subject")!;
+}
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -423,5 +434,89 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
         consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
       },
     ]);
+  });
+
+  it("IT-UNIT-LILY-SINGER-006 (R-SHD-01/R-EFF-09): PS2が配る実シールドは `EN` プールで、EN攻撃だけを受けて物理攻撃は素通りさせる。EN攻撃で削り切ると枯渇失効し、同じ連動グループの攻撃力バフも巻き添えで消える", () => {
+    // `-001` のPS2行は付与そのもの（`magnitude: 2500`＝自身の最大HP×25%・2行動）
+    // までを固定するが、観測は `shieldType` も `linkedEffectGroupId` も持たない。
+    // どちらも**以後に飛んでくる攻撃**で初めて差が出る（タイプなしプールでも同じ
+    // 2500が付き、連動していなくても同じ2行動で消える）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const shielded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: PS2_SHIELD, target: "SELF" },
+      { effectActionDefinitionId: PS2_ATK_UP, target: "SELF" },
+    ]);
+    // 連動グループの子（攻撃力+15%）が効いている状態から始める。
+    expect(subjectIn(shielded).combatStats.attack).toBe(1150);
+
+    const strike = (
+      units: readonly BattleUnit[],
+      damageType: "EN" | "PHYSICAL",
+      power: number,
+      battleId: string,
+    ) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        damageType,
+        power,
+        battleId,
+      });
+
+    // EN攻撃（攻撃力1000 - 防御力500 = 500）は `EN` プールが受ける。
+    const byEn = strike(shielded, "EN", 1, "B_LILY_SHIELD_EN");
+    expect(byEn.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        typedShieldAbsorbed: 500,
+        untypedShieldAbsorbed: 0,
+        hitPointDamage: 0,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(shieldPoolsOf(subjectIn(byEn.units).appliedEffects)).toEqual({
+      physical: 0,
+      energy: 2000,
+      untyped: 0,
+    });
+
+    // 物理攻撃は同じプールに届かず、全量がHPへ抜ける。タイプなしシールドとの
+    // 違いはここにしか現れない。
+    const byPhysical = strike(byEn.units, "PHYSICAL", 1, "B_LILY_SHIELD_PHYSICAL");
+    expect(byPhysical.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        hitPointDamage: 500,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(shieldPoolsOf(subjectIn(byPhysical.units).appliedEffects).energy).toBe(2000);
+
+    // 残量2000をちょうど削り切るEN攻撃。枯渇でシールドが失効し、連動グループの子
+    // （攻撃力バフ）も同時に消えて攻撃力が素の1000へ戻る（R-EFF-09）。
+    const depleting = strike(byPhysical.units, "EN", 4, "B_LILY_SHIELD_DEPLETED");
+    // 巻き添えの子は親より**先**に通知される（R-EFF-09の通知順序）。
+    expect(depleting.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: PS2_ATK_UP,
+        reason: "LINKED_GROUP_CASCADE",
+        cascaded: true,
+      },
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: PS2_SHIELD,
+        reason: "SHIELD_DEPLETED",
+        cascaded: false,
+      },
+    ]);
+    expect(subjectIn(depleting.units).appliedEffects).toEqual([]);
+    expect(subjectIn(depleting.units).combatStats.attack).toBe(1000);
   });
 });

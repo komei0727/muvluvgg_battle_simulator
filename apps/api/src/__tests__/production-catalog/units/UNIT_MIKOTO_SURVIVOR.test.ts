@@ -3,8 +3,10 @@ import {
   initialSnapshotFor,
   loadProductionSnapshot,
   reconstruct,
+  seedRecorder,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {
   createEffectActionDefinitionId,
@@ -18,8 +20,11 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeCumulativeThresholdCounter } from "../../../testing/production-unit/runtime-counter.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -42,9 +47,23 @@ import { realDamage, skillUseCompleted } from "../../../testing/production-unit/
 
 const UNIT_DEFINITION_ID = "UNIT_MIKOTO_SURVIVOR";
 
+/**
+ * 「会心保証」がバフに分類されることは、**バフ解除で消えてデバフ解除では残る**
+ * ことでしか振る舞いとして固定できない。美琴自身は `REMOVE_EFFECTS` を持たない
+ * ため、対照に使う実 production の解除定義の供給元だけを併せて読み込む。
+ * `-002`／`-003` はこのユニットのSkill・EffectAction閉包だけを見るため、閉包の
+ * 判定には影響しない。
+ */
+const BUFF_CLEANSE = "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF";
+const DEBUFF_CLEANSE = "ACT_MEIYA_FATED_PS1_REMOVE_DEBUFF";
+
+const CRIT_GUARANTEE = "ACT_MIKOTO_SURVIVOR_EX_CRIT_GUARANTEE";
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   "UNIT_OLGA_VETERAN",
+  "UNIT_NOEL_RUMBLE",
+  "UNIT_MEIYA_FATED",
 ]);
 
 /** HP割合が最も低い敵を1体だけ作る（EXの対象選択を判別可能にする）。 */
@@ -610,5 +629,97 @@ describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーン�
     expect(
       reconstructed.units[createBattleUnitId("ally:subject")]?.skillCounterCarry,
     ).toBeUndefined();
+  });
+
+  it("IT-UNIT-MIKOTO-SURVIVOR-006 (R-CRT-03 #2): EXが配る実「会心保証」は、以後の攻撃の実効会心モードを `GUARANTEED` へ倒す — 会心率0%の盤面でも会心し、R-CRT-01の確率判定でRandomSourceを消費しない", () => {
+    // `-001` のEX行は付与そのもの（`magnitude: 0`・2行動・`CRITICAL_GUARANTEE`）までを
+    // 固定する。会心保証が効くのは**以後の攻撃**＝別のスキル使用であり、スキル使用1回の
+    // 観測には構造的に載らない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const guarded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: CRIT_GUARANTEE, target: "SELF" },
+    ]);
+
+    // 空の抽選列で撃ち切れること自体が「確率判定を行っていない」の証跡になる。
+    const random = new SequenceRandomSource([]);
+    const buffed = observeDamageProbe({
+      units: guarded,
+      attackerUnitId: "ally:subject",
+      targetUnitId: "enemy:front",
+      critical: "NORMAL",
+      random,
+      battleId: "B_MIKOTO_CRIT_GUARANTEED",
+    });
+    random.assertFullyConsumed();
+    expect(buffed.criticals).toEqual([
+      { mode: "GUARANTEED", baseCriticalRate: 0, effectiveCriticalRate: 0, result: true },
+    ]);
+    // 攻撃力1000 - 防御力500 = 500 に会心倍率2.0（150% + 会心ダメージボーナス50%）。
+    expect(buffed.hpDeltas).toEqual({ "enemy:front": -1000 });
+
+    // 会心保証を抜いた対照。同じ一撃が `NORMAL` のまま抽選を1つ消費し、会心率0%で外す。
+    const controlRandom = new SequenceRandomSource([0.5]);
+    const plain = observeDamageProbe({
+      units: board.units,
+      attackerUnitId: "ally:subject",
+      targetUnitId: "enemy:front",
+      critical: "NORMAL",
+      random: controlRandom,
+      battleId: "B_MIKOTO_CRIT_NORMAL",
+    });
+    controlRandom.assertFullyConsumed();
+    expect(plain.criticals).toEqual([
+      { mode: "NORMAL", baseCriticalRate: 0, effectiveCriticalRate: 0, result: false },
+    ]);
+    expect(plain.hpDeltas).toEqual({ "enemy:front": -500 });
+  });
+
+  it("IT-UNIT-MIKOTO-SURVIVOR-007 (R-EFF-02/R-ACTN-03): EXが配る実「会心保証」はバフに分類される — 実 resolver の分類が `BUFF` で、実 production のバフ解除で消え、デバフ解除では残る。公開差分だけからも同じ状態へ復元できる", () => {
+    // `-001` の観測は分類欄（`categories`）を持たないため、`CRITICAL_GUARANTEE` が
+    // 保持者に有利な効果として `BUFF` へ落ちること（対になる `CRITICAL_PREVENTION` の
+    // `DEBUFF` と逆であること）は表からは読めない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    expect(
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId: CRIT_GUARANTEE,
+        from: "ally:subject",
+        to: "ally:subject",
+        battleId: "B_MIKOTO_CRIT_CLASSIFY",
+      }),
+    ).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["BUFF"],
+        statusKind: "CRITICAL_GUARANTEE",
+      },
+      // 分類そのものを契機にするPSを美琴は持たない。
+      activated: [],
+    });
+
+    // 分類は解除の当たり外れにしか現れない。対照は実 production の解除定義で作る。
+    const afterCleanse = (cleanseEffectActionDefinitionId: string): readonly string[] =>
+      applyPrecedingActions(board, [
+        { effectActionDefinitionId: CRIT_GUARANTEE, target: "SELF" },
+        { effectActionDefinitionId: cleanseEffectActionDefinitionId, target: "SELF" },
+      ])
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.map((effect) => String(effect.effectActionDefinitionId));
+    expect(afterCleanse(BUFF_CLEANSE)).toEqual([]);
+    expect(afterCleanse(DEBUFF_CLEANSE)).toEqual([CRIT_GUARANTEE]);
+
+    // 開始前スナップショットへ公開差分だけを当てた結果を、**スナップショット全体**で
+    // 突き合わせる。付与インスタンスだけを名指しで比べると、`EffectApplied` の
+    // StateDelta が期間欄を落としていても通ってしまう。
+    const recorder = seedRecorder("B_MIKOTO_CRIT_DELTA");
+    const granted = applyPrecedingActions(
+      board,
+      [{ effectActionDefinitionId: CRIT_GUARANTEE, target: "SELF" }],
+      { recorder },
+    );
+    expect(
+      reconstruct(initialSnapshotFor(board.units, { include: ["effects"] }), recorder.recorder),
+    ).toEqual(initialSnapshotFor(granted, { include: ["effects"] }));
   });
 });

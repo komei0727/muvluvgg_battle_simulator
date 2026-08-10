@@ -64,6 +64,12 @@ export interface ObservedExpiryStep {
   readonly expired?: readonly ObservedExpiry[];
   /** `watch` した CombatStat のうち、直前の step から変化したものだけ。 */
   readonly stats?: Readonly<Record<string, number>>;
+  /**
+   * `watchShields` を渡したときだけ現れる、シールド残量（`<unitId>/<ACT_ID>`）。
+   * `APPLY_SHIELD.decay`（R-SHD-01第3項）の漸減は `duration` を一切動かさないため
+   * `remaining` には現れず、枯渇して失効した瞬間にキーごと落ちる。
+   */
+  readonly shields?: Readonly<Record<string, number>>;
 }
 
 export interface EffectExpiryOptions {
@@ -75,6 +81,8 @@ export interface EffectExpiryOptions {
    * 変化した step でだけ観測へ現れる。
    */
   readonly watch?: readonly { readonly unitId: string; readonly stat: keyof CombatStats }[];
+  /** シールド残量を step ごとに観測するユニット。省略すると `shields` は現れない。 */
+  readonly watchShields?: readonly string[];
   readonly battleId?: string;
 }
 
@@ -102,6 +110,27 @@ function remainingOf(units: readonly BattleUnit[]): Record<string, number> {
     }
   }
   return remaining;
+}
+
+/** 指定ユニットが保持するシールドの残量を `<unitId>/<ACT_ID>` の表にする。 */
+function shieldsOf(
+  units: readonly BattleUnit[],
+  watchShields: EffectExpiryOptions["watchShields"],
+): Record<string, number> {
+  const shields: Record<string, number> = {};
+  for (const unitId of watchShields ?? []) {
+    const unit = units.find((candidate) => candidate.battleUnitId === unitId);
+    if (unit === undefined) {
+      throw new Error(`no unit "${unitId}" on the board`);
+    }
+    for (const effect of unit.appliedEffects) {
+      if (effect.shield === undefined) {
+        continue;
+      }
+      shields[`${unitId}/${effect.effectActionDefinitionId}`] = effect.shield.remaining;
+    }
+  }
+  return shields;
 }
 
 function statsOf(
@@ -252,6 +281,9 @@ export function observeEffectExpiry(options: EffectExpiryOptions): EffectExpiryO
       remaining: remainingOf(units),
       ...(expired.length === 0 ? {} : { expired }),
       ...(Object.keys(changed).length === 0 ? {} : { stats: changed }),
+      ...(options.watchShields === undefined
+        ? {}
+        : { shields: shieldsOf(units, options.watchShields) }),
     });
   }
 
