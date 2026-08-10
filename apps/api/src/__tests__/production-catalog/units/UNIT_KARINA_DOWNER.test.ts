@@ -5,6 +5,7 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import {
   activatedPassiveSkillIds,
   openPassiveChain,
@@ -554,5 +555,77 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     // 名指しした ally:front には1ダメージも入らない。攻撃力はPS1が同じ行動内で
     // 掛けた -25%（攻撃してきた敵）と -10%（後列の敵）ぶん下がっている。
     expect(hit.hpDeltas).toEqual({ "ally:subject": -150 });
+  });
+
+  it("IT-UNIT-KARINA-DOWNER-006 (R-EFF-04): PS1の「1行動の間」4件は`owner: BATTLE`で、保持者でも付与者でもない誰か1体の行動終了で揃って失効する。同じPSが配る`owner`省略の3行動デバフはその行動終了では動かない", () => {
+    // 付与と `timeLimit: { unit: ACTION, count: 1, owner: BATTLE }` の宣言は
+    // `-001` のPS1行が持つ。`BATTLE` は「誰の行動終了でも減る」ことでしか
+    // `EFFECT_TARGET`／`EFFECT_SOURCE` と区別できず、それは保持者・付与者の
+    // どちらでもないユニットの行動を跨がないと現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:back",
+      battleId: "B_KARINA_BATTLE_OWNER",
+    });
+    const granted = chain.fire(
+      unitBeingAttacked({ source: "enemy:back", target: "ally:front", skillType: "AS" }),
+      board.units,
+    );
+    expect(activatedPassiveSkillIds(chain)).toContain("SKL_KARINA_DOWNER_PS1");
+
+    expect(
+      observeEffectExpiry({
+        units: granted,
+        definitions: board.definitions,
+        // 保持者は ally:subject と enemy:back、付与者はカリナ（ally:subject）。
+        // ally:front はそのいずれでもない。
+        steps: [
+          { kind: "ACTION_END", actor: "ally:front" },
+          { kind: "ACTION_END", actor: "enemy:back" },
+        ],
+        watch: [{ unitId: "enemy:back", stat: "attack" }],
+      }).steps,
+    ).toEqual([
+      {
+        step: "ACTION_END(ally:front)",
+        // 「後列の敵の攻撃力を3行動の間10%低下」だけは `owner` を省略した
+        // 既定の `EFFECT_TARGET` なので、保持者以外の行動終了では減らない。
+        remaining: { "enemy:back/ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN": 3 },
+        expired: [
+          {
+            unitId: "ally:subject",
+            effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_SELF_IMMUNITY",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+          {
+            unitId: "enemy:back",
+            effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+          {
+            unitId: "enemy:back",
+            effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_REDIRECT",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+          {
+            unitId: "enemy:back",
+            effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_COVER",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+        ],
+        // -25%（攻撃してきた敵）だけが巻き戻り、-10%（後列の敵）は残る（650 → 900）。
+        stats: { "enemy:back/attack": 900 },
+      },
+      // 保持者自身の行動終了では既定 owner のデバフも減る。
+      {
+        step: "ACTION_END(enemy:back)",
+        remaining: { "enemy:back/ACT_KARINA_DOWNER_PS1_BACKROW_ATKDOWN": 2 },
+      },
+    ]);
   });
 });

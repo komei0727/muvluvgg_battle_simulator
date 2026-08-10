@@ -11,6 +11,7 @@ import {
   skillFrom,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -512,5 +513,49 @@ describe("production Catalog UNIT_KATE_PALADIN (【人見知りの聖騎士】�
     for (const unit of hit5.result.units) {
       expect(restored.units[unit.battleUnitId]!.hp).toBe(unit.currentHp);
     }
+  });
+
+  it("IT-UNIT-KATE-PALADIN-005 (R-PS-01/R-STS-01): PS1の「敵に凍結が付与された際」は、実 resolver が `EffectApplied` へ載せた `statusKind` で判定される — 気絶でも有利な `APPLY_STATUS` でも発動しない", () => {
+    // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `statusKind` はテスト側の宣言でしかない。**実装がその欄を載せているか**は
+    // 実 resolver に発行させたイベントにしか現れない（この trigger は M7-011 以前、
+    // payload に存在しない欄を参照していて一度も成立しなかった）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string, from: string, to: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from,
+        to,
+        battleId: `B_KATE_CLASSIFY_${effectActionDefinitionId}`,
+      });
+
+    expect(trigger("ACT_KATE_PALADIN_EX_FREEZE", "ally:subject", "enemy:front")).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["DEBUFF", "STATUS"],
+        statusKind: "FREEZE",
+      },
+      activated: ["SKL_KATE_PALADIN_PS1"],
+    });
+    // 同じ状態異常カテゴリでも種別が違えば発動しない。
+    expect(trigger("ACT_KATE_PALADIN_AS2_STUN_TARGET", "ally:subject", "enemy:front")).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["DEBUFF", "STATUS"],
+        statusKind: "STUN",
+      },
+      activated: [],
+    });
+    // 回避は `APPLY_STATUS` だが保持者に有利なので状態異常ではない。
+    expect(trigger("ACT_KATE_PALADIN_AS2_SELF_EVASION", "enemy:front", "enemy:front")).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["BUFF"],
+        statusKind: "EVASION",
+      },
+      activated: [],
+    });
   });
 });

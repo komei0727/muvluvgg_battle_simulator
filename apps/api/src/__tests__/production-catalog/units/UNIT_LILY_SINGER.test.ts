@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -8,6 +9,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -341,5 +343,40 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-LILY-SINGER-004 (R-PS-01): PS1の「他の味方にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類で判定される — 被ダメージ補正のバフ／デバフは`magnitude`の符号ではなく`direction`で決まる", () => {
+    // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
+    // 実 resolver に発行させたイベントにしか現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string, from: string, to: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from,
+        to,
+        battleId: `B_LILY_CLASSIFY_${effectActionDefinitionId}_${to}`,
+      });
+
+    expect(trigger("ACT_LILY_SINGER_AS1_ATK_DOWN", "enemy:front", "ally:front")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: ["SKL_LILY_SINGER_PS1"],
+    });
+    // `OTHER_ALLY` は所有者自身を含まない（同じデバフでも自分への付与では発動しない）。
+    expect(trigger("ACT_LILY_SINGER_AS1_ATK_DOWN", "enemy:front", "ally:subject")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: [],
+    });
+    expect(trigger("ACT_LILY_SINGER_PS2_ATK_UP", "enemy:front", "ally:front")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["BUFF"] },
+      activated: [],
+    });
+    // 被ダメージ**増加**は `magnitude` が正でも保持者を弱化するのでデバフ。
+    expect(trigger("ACT_LILY_SINGER_PS2_SELF_EN_VULN", "enemy:front", "ally:front")).toEqual({
+      classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["DAMAGE_MOD", "DEBUFF"] },
+      activated: ["SKL_LILY_SINGER_PS1"],
+    });
   });
 });

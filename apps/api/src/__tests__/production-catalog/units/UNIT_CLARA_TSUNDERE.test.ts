@@ -5,10 +5,13 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -464,5 +467,53 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-CLARA-TSUNDERE-004 (R-EFF-04): PS1の防御力低下は`owner: EFFECT_SOURCE`なので、効果を保持している敵ではなく**付与したクララ自身**の行動終了で減り、0で失効して防御力が戻る", () => {
+    // 付与そのものと `timeLimit: { unit: ACTION, count: 1, owner: EFFECT_SOURCE }`
+    // の宣言は `-001` のAS1行が持つ。ここが引き受けるのは、その `owner` が実際に
+    // 誰の行動終了を指すか — `EFFECT_TARGET`（既定）との差は保持者以外の行動を
+    // 跨がないと現れない（`IT-UNIT-DOROTHEA-PIONEER-005` が既定側を持つ）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN", target: "ENEMY" },
+    ]);
+
+    expect(
+      observeEffectExpiry({
+        units: granted,
+        definitions: board.definitions,
+        steps: [
+          { kind: "ACTION_END", actor: "enemy:front" },
+          { kind: "ACTION_END", actor: "enemy:left" },
+          { kind: "ACTION_END", actor: "ally:subject" },
+        ],
+        watch: [{ unitId: "enemy:front", stat: "defense" }],
+      }).steps,
+    ).toEqual([
+      // 保持者自身の行動終了では減らない（既定の `EFFECT_TARGET` ならここで失効する）。
+      {
+        step: "ACTION_END(enemy:front)",
+        remaining: { "enemy:front/ACT_CLARA_TSUNDERE_PS1_DEF_DOWN": 1 },
+      },
+      {
+        step: "ACTION_END(enemy:left)",
+        remaining: { "enemy:front/ACT_CLARA_TSUNDERE_PS1_DEF_DOWN": 1 },
+      },
+      {
+        step: "ACTION_END(ally:subject)",
+        remaining: {},
+        expired: [
+          {
+            unitId: "enemy:front",
+            effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+        ],
+        // 30%低下が巻き戻る（350 → 500）。
+        stats: { "enemy:front/defense": 500 },
+      },
+    ]);
   });
 });

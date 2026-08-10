@@ -22,6 +22,7 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
@@ -510,5 +511,59 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
     expect(incomingMultiplierAt(7799)).toBe(1);
     // 既定盤面の5000は最大HP上昇後の割合が41.6%で、同じ効果を持っていても効かない。
     expect(incomingMultiplierAt(5000)).toBe(1);
+  });
+
+  it("IT-UNIT-KEI-JACKKNIFE-007 (R-PS-01/R-STS-01): PS2の「敵にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類だけで判定される — 状態異常はデバフを兼ね、被ダメージ補正は`magnitude`の符号ではなく`direction`で分かれる", () => {
+    // `-001` のPS2行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
+    // 実 resolver に発行させたイベントにしか現れない。
+    //
+    // 慧自身は状態異常を1つも配らないため、気絶だけは供給元ユニットを併読する。
+    const withStunSupplier = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_SIENA_DIVA",
+    ]);
+    const board = productionBoard(withStunSupplier, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string, from: string, to: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from,
+        to,
+        battleId: `B_KEI_CLASSIFY_${effectActionDefinitionId}`,
+      });
+
+    // 行動速度低下（負の `APPLY_STAT_MOD`）はデバフ。
+    expect(trigger("ACT_KEI_JACKKNIFE_EX_SPEED_DOWN", "ally:subject", "enemy:left")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: ["SKL_KEI_JACKKNIFE_PS2"],
+    });
+    // 最大HP上昇（正の `APPLY_STAT_MOD`）はバフ。
+    expect(trigger("ACT_KEI_JACKKNIFE_PS1_MAXHP_UP", "enemy:front", "enemy:left")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["BUFF"] },
+      activated: [],
+    });
+    // 気絶は `STATUS` と `DEBUFF` の両方を受け取る（R-STS-01「状態異常はデバフの
+    // 一種」）ため、`DEBUFF` しか要求しないPS2の契機にもなる。
+    expect(trigger("ACT_SIENA_DIVA_PS1_STUN", "ally:subject", "enemy:left")).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["DEBUFF", "STATUS"],
+        statusKind: "STUN",
+      },
+      activated: ["SKL_KEI_JACKKNIFE_PS2"],
+    });
+    // 被ダメージ30%減少は `magnitude` が負でも保持者を**利する**のでバフ。
+    // 符号だけで分類していた頃はこれがPS2の契機になっていた。
+    expect(trigger("ACT_KEI_JACKKNIFE_PS1_DMG_DOWN", "enemy:front", "enemy:left")).toEqual({
+      classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["BUFF", "DAMAGE_MOD"] },
+      activated: [],
+    });
+    // 味方への付与は `targetSelector: ENEMY` に当たらない（分類は同じデバフ）。
+    expect(trigger("ACT_KEI_JACKKNIFE_EX_SPEED_DOWN", "enemy:front", "ally:front")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: [],
+    });
   });
 });

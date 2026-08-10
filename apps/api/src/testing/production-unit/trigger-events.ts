@@ -317,6 +317,37 @@ export function realDamage(options: Omit<RealDamageTrigger, "kind">): RealDamage
   return { kind: "REAL_DAMAGE", ...options };
 }
 
+/**
+ * 効果の付与を契機とするPSも、{@link RealDamageTrigger} と同じ理由で**契機イベントを
+ * 合成せず実 EffectAction 解決に出させる**。`EffectApplied` payload の
+ * `effectKind`／`categories`／`statusKind` は付与サービスが分類器を通して初めて
+ * 載る欄であり、{@link effectApplied} の手組み payload では「実装が実際にどう
+ * 分類したか」を確かめられない — 状態異常が `DEBUFF` と `STATUS` の**両方**を
+ * 受け取ること（R-STS-01）や、`APPLY_STATUS` でも有利な効果（ステルス）は
+ * `STATUS` を受け取らないことは、この欄にしか現れない。
+ *
+ * 付与は実 production の `EffectActionDefinition` を実 resolver
+ * （`applyEffectActionGroups`）へ通すため、`APPLY_STATUS` の気絶・凍結が専用の
+ * 付与サービスへ分岐することも含めて実戦闘と同じ経路になる。契機の付与自身が
+ * 起こした変化は観測の基準線へ繰り込む（PSが起こした変化と混ざらない）。
+ */
+export interface RealEffectApplicationTrigger {
+  readonly kind: "REAL_EFFECT_APPLICATION";
+  /** 付与する production EffectAction。効果量は実 Formula 評価に任せる。 */
+  readonly effectActionDefinitionId: string;
+  /** 付与する側。`EffectApplied.sourceUnitId` になり `sourceSelector` が読む。 */
+  readonly from: string;
+  /** 付与される側。`targetSelector` が読む。 */
+  readonly to: string;
+}
+
+/** 実 EffectAction 解決が発行する `EffectApplied` を契機にする。 */
+export function realEffectApplication(
+  options: Omit<RealEffectApplicationTrigger, "kind">,
+): RealEffectApplicationTrigger {
+  return { kind: "REAL_EFFECT_APPLICATION", ...options };
+}
+
 /** HP減少。HP割合を条件に読むPSの契機。 */
 export function hitPointReduced(options: {
   readonly source: string;

@@ -5,7 +5,7 @@ import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-ac
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
-import type { DamageType } from "../../domain/catalog/definitions/catalog-enums.js";
+import type { CriticalMode, DamageType } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
@@ -14,6 +14,7 @@ import {
   createSkillDefinitionId,
   createTargetBindingId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { RandomSource } from "../../domain/ports/random-source.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { effectActionGroupContext, noMissNoCrit, seedRecorder } from "../fixtures/index.js";
 
@@ -56,6 +57,13 @@ export interface DamageProbeOptions {
     readonly shieldIgnoreRate?: number;
     readonly damageReductionIgnoreRate?: number;
   };
+  /**
+   * 既定は `PREVENTED`（会心を観測から外す）。**会心率へ働く効果**が本当にその1発へ
+   * 乗ったかを見たい場合だけ `NORMAL` にして、`random` で抽選値を挟む。
+   */
+  readonly critical?: CriticalMode;
+  /** 既定は「命中・非会心」へ倒す固定列。`critical: NORMAL` のときだけ意味を持つ。 */
+  readonly random?: RandomSource;
   readonly battleId?: string;
 }
 
@@ -187,7 +195,7 @@ function probeAction(
       damageType: options.damageType ?? "PHYSICAL",
       formula: { kind: "SKILL_POWER", power: options.power ?? 1 },
       hitCount: 1,
-      critical: { mode: "PREVENTED" },
+      critical: { mode: options.critical ?? "PREVENTED" },
       accuracy: { mode: "GUARANTEED" },
       piercing: {
         defenseIgnoreRate: options.piercing?.defenseIgnoreRate ?? 0,
@@ -248,7 +256,7 @@ export function observeDamageProbe(options: DamageProbeOptions): DamageProbeObse
     ],
     action,
     options.units,
-    noMissNoCrit(),
+    options.random ?? noMissNoCrit(),
     {
       recorder,
       turnNumber: 1,
@@ -519,6 +527,7 @@ export function observeLifecycleDamageProbe(
       definitions,
       recorder,
       rootEventId,
+      ...(options.random === undefined ? {} : { random: options.random }),
     }),
   );
   return probeObservation(recorder, eventsBefore, options.units, result.units);

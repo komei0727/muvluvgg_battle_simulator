@@ -4,6 +4,7 @@ import {
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -13,6 +14,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -297,12 +299,15 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_NADYA_SUCCESSOR_PS1",
+      // 契機の状態異常は炎上（`APPLY_CONTINUOUS_DAMAGE`）にする。気絶・凍結を
+      // 使うと実戦闘では所有者自身がその状態になるため、R-STS-02/R-STS-03により
+      // 発動直前の再確認で必ず捨てられる（`IT-UNIT-NADYA-SUCCESSOR-005` が実経路で
+      // その帰結を固定する）。この行が見たいのは発動後に何が起きるかである。
       trigger: effectApplied({
         source: "enemy:front",
         target: "ally:subject",
-        effectKind: "APPLY_STATUS",
-        categories: ["STATUS"],
-        statusKind: "STUN",
+        effectKind: "APPLY_CONTINUOUS_DAMAGE",
+        categories: ["DEBUFF", "STATUS"],
       }),
     },
     expected: {
@@ -337,9 +342,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       trigger: effectApplied({
         source: "enemy:front",
         target: "ally:front",
-        effectKind: "APPLY_STATUS",
-        categories: ["STATUS"],
-        statusKind: "STUN",
+        effectKind: "APPLY_CONTINUOUS_DAMAGE",
+        categories: ["DEBUFF", "STATUS"],
       }),
     },
     expected: { activated: false },
@@ -355,7 +359,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         source: "ally:subject",
         target: "enemy:left",
         effectKind: "APPLY_STATUS",
-        categories: ["STATUS"],
+        categories: ["DEBUFF", "STATUS"],
         statusKind: "STUN",
       }),
       triggeredBy: "ally:subject",
@@ -395,7 +399,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         source: "ally:subject",
         target: "enemy:left",
         effectKind: "APPLY_STATUS",
-        categories: ["STATUS"],
+        categories: ["DEBUFF", "STATUS"],
         statusKind: "FREEZE",
       }),
       triggeredBy: "ally:subject",
@@ -528,5 +532,57 @@ describe("production Catalog UNIT_NADYA_SUCCESSOR (【輝ける次代の娘】�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-NADYA-SUCCESSOR-005 (R-PS-01/R-STS-01/R-STS-02): PS1の「自身に状態異常」とPS2の「敵に気絶」は実 resolver が載せた分類・`statusKind` と帰属で分かれるが、自身への**気絶**はR-STS-02がPS1を発動直前に捨てるため炎上でしか成立しない", () => {
+    // `-001` のPS1／PS2行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `categories`／`statusKind` はテスト側の宣言でしかない。**実装がその効果を
+    // どう分類したか**と、**その効果を実際に保持した所有者がPSを撃てるか**は、
+    // 実 resolver に付与させたこの経路にしか現れない。
+    //
+    // ナージャは炎上を配らないため、状態異常のもう一方の系統だけ供給元を併読する。
+    const withBurnSupplier = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_FEE_ACTOR",
+    ]);
+    const board = productionBoard(withBurnSupplier, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string, from: string, to: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from,
+        to,
+        battleId: `B_NADYA_CLASSIFY_${effectActionDefinitionId}_${to}`,
+      });
+
+    const stunClassification = {
+      effectKind: "APPLY_STATUS",
+      categories: ["DEBUFF", "STATUS"],
+      statusKind: "STUN",
+    };
+    // 敵への気絶はPS2（`targetSelector: ENEMY` ＋ `statusKind: STUN`）だけを呼ぶ。
+    expect(trigger("ACT_NADYA_SUCCESSOR_EX_STUN", "ally:subject", "enemy:front")).toEqual({
+      classification: stunClassification,
+      activated: ["SKL_NADYA_SUCCESSOR_PS2"],
+    });
+    // 自身への気絶は分類上PS1の契機を満たすが、その気絶を受けたのはPS1の所有者
+    // 自身なので、R-STS-02「気絶中はAS・PS・EXを新たに使用できない」により発動
+    // 直前の再確認（R-PS-04）で捨てられる。凍結（R-STS-03）も同じ帰結になる。
+    expect(trigger("ACT_NADYA_SUCCESSOR_EX_STUN", "enemy:front", "ally:subject")).toEqual({
+      classification: stunClassification,
+      activated: [],
+    });
+    // 行動を止めない状態異常（炎上）でなら、同じ `targetSelector: SELF` ＋ `STATUS`
+    // でPS1が実際に発動する。
+    expect(trigger("ACT_FEE_ACTOR_EX_BURN", "enemy:front", "ally:subject")).toEqual({
+      classification: { effectKind: "APPLY_CONTINUOUS_DAMAGE", categories: ["DEBUFF", "STATUS"] },
+      activated: ["SKL_NADYA_SUCCESSOR_PS1"],
+    });
+    // 自身へのデバフは状態異常ではないためPS1を呼ばない（`STATUS` はデバフより狭い）。
+    expect(trigger("ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN", "enemy:front", "ally:subject")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: [],
+    });
   });
 });

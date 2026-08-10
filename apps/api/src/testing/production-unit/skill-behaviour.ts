@@ -52,12 +52,13 @@ import {
   unitFrom,
   type SeededRecorder,
 } from "../fixtures/index.js";
+import { applyProductionEffect } from "./effect-application.js";
 import {
   openPassiveChain,
   type PassiveChain,
   type PassiveTriggerEvent,
 } from "./passive-activation.js";
-import type { RealDamageTrigger } from "./trigger-events.js";
+import type { RealDamageTrigger, RealEffectApplicationTrigger } from "./trigger-events.js";
 
 /**
  * ユニット単位production結合テスト（`__tests__/production-catalog/units/`）の
@@ -388,10 +389,14 @@ export type SkillUse =
       readonly skillDefinitionId: string;
       /**
        * 契機イベント。PSは実際に発行されたイベントからしか発動しない。
-       * {@link RealDamageTrigger} を渡した場合は実ダメージpipelineが発行した
-       * イベントをそのまま契機に使う（payload欄の欠落まで検出できる）。
+       * {@link RealDamageTrigger}／{@link RealEffectApplicationTrigger} を渡した
+       * 場合は実pipeline・実 resolver が発行したイベントをそのまま契機に使う
+       * （payload欄の欠落や、実装が載せた分類そのものまで検出できる）。
        */
-      readonly trigger: PassiveTriggerEvent<BattleDomainEventType> | RealDamageTrigger;
+      readonly trigger:
+        | PassiveTriggerEvent<BattleDomainEventType>
+        | RealDamageTrigger
+        | RealEffectApplicationTrigger;
       /** 契機イベントの発行元（`ActionStarted` のactor）。既定は敵前列。 */
       readonly triggeredBy?: string;
       /** `TURN_NUMBER` を読む条件のための評価ターン。既定は1。 */
@@ -792,6 +797,9 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
 
   let after: readonly BattleUnit[];
   let events: readonly BattleDomainEvent[];
+  // 契機を実経路に出させる場合、その発行が済んだ位置から先だけを観測に載せる
+  // （契機自身が出したイベントは「観測対象のスキル使用が起こしたこと」ではない）。
+  let eventsFrom = 0;
 
   if (options.use.kind === "ACTIVE") {
     const actionType = options.use.actionType ?? (skill.skillType === "EX" ? "EX" : "AS");
@@ -889,6 +897,10 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     const trigger = options.use.trigger;
     const isRealDamage = (candidate: typeof trigger): candidate is RealDamageTrigger =>
       "kind" in candidate && candidate.kind === "REAL_DAMAGE";
+    const isRealApplication = (
+      candidate: typeof trigger,
+    ): candidate is RealEffectApplicationTrigger =>
+      "kind" in candidate && candidate.kind === "REAL_EFFECT_APPLICATION";
     // R-SKL-08の「同じ解決スコープ内で直前に確定したDAMAGE結果」は実行時registryが
     // 持つ。契機を作る実ダメージとPS連鎖が同じスコープに居ることを表すため、
     // 両者へ同じMapを渡す（反撃系の`DAMAGE_RECEIVED_RATIO`はこれを読む）。
@@ -896,7 +908,8 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     const chain = openPassiveChain({
       definitions: board.definitions,
       actorUnitId:
-        options.use.triggeredBy ?? (isRealDamage(trigger) ? trigger.from : "enemy:front"),
+        options.use.triggeredBy ??
+        (isRealDamage(trigger) || isRealApplication(trigger) ? trigger.from : "enemy:front"),
       random,
       battleId: "B_BEHAVIOUR",
       damageResults,
@@ -908,10 +921,24 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
       const struck = strikeForTrigger(chain, trigger, baseline, damageResults);
       baseline = struck.units;
       after = chain.fireRecorded(struck.triggerEvent, struck.units);
+    } else if (isRealApplication(trigger)) {
+      // 契機の付与そのもの（効果・イベント）は基準線へ繰り込み、PSが起こした
+      // ことだけを残す。実ダメージ契機がHP減少を基準線へ入れるのと同じ扱い。
+      const granted = applyProductionEffect({
+        chain,
+        definitions: board.definitions,
+        units: baseline,
+        effectActionDefinitionId: trigger.effectActionDefinitionId,
+        from: trigger.from,
+        to: trigger.to,
+      });
+      baseline = granted.units;
+      eventsFrom = granted.eventsAfter;
+      after = chain.fireRecorded(granted.event, granted.units);
     } else {
       after = chain.fire(trigger, baseline);
     }
-    events = chain.recorder.getEvents();
+    events = chain.recorder.getEvents().slice(eventsFrom);
     const activated = events.some(
       (event) =>
         event.eventType === "PassiveActivated" &&
