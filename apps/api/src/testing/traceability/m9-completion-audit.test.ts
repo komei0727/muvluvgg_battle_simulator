@@ -86,18 +86,56 @@ function baselineScenarioIdsFromSpec(): readonly string[] {
  */
 const M9_LAST_SCENARIO_NUMBER = 23;
 
+/**
+ * 欠番のまま残すシナリオID。**監査側で固定する**のが要点で、台帳の
+ * `retiredScenarioIds` をそのまま期待集合の除外条件に使うと、台帳を書き換えるだけで
+ * 「別のシナリオを退役させて `022` を復活させる」形が22件のまま通ってしまう
+ * （台帳は監査対象であって、監査の正本ではない）。台帳側は下でこの定数と
+ * 一致することだけを確かめる。
+ *
+ * `SCN-BTL-022`（未実装Capabilityの拒否）は `REF-023`（Issue #352）がCapability概念
+ * ごと廃止したため、検証対象そのものが存在しない。
+ */
+const RETIRED_SCENARIO_IDS: readonly string[] = ["SCN-BTL-022"];
+
 function scenarioNumber(scenarioId: string): number {
   return Number(scenarioId.slice("SCN-BTL-".length));
 }
+
+/**
+ * M9の完了時点でCoverageを持たないことを許すルールと、その引き取り先。
+ * **監査側で列挙する**のが要点で、「M9以外のOPEN Taskが所有していれば通す」だけの
+ * 条件にすると、後から生まれた未被覆ルールが所有者を付けるだけで黙って増えてしまう。
+ * ここに無い未被覆ルールは、所有者が居ても落とす。
+ *
+ * どちらもM9の責務ではない。`R-TGT-06` は前後列優先（`FRONT_ROW`/`BACK_ROW`）だけが
+ * 実装済みで `UT-R-TGT-06-001`〜`003` が回帰検証しているが、同じルールが含む
+ * 「左右列指定時の指定列からの列距離順」に production 需要が無く、ルール全体としては
+ * 完了計上できない（`rule-coverage.ts` の `R-TGT-06` 注記）。`M7-019`（Issue #273）が
+ * 「対象を必要とする production 定義が現れた時点」を着手トリガーとして追跡している。
+ */
+const RULES_DEFERRED_BEYOND_M9: readonly { readonly ruleId: string; readonly taskId: string }[] = [
+  { ruleId: "R-TGT-06", taskId: "M7-019" },
+  ...Array.from({ length: 10 }, (_unused, index) => ({
+    ruleId: `R-TEX-${String(index + 1).padStart(2, "0")}`,
+    taskId: "TEX-001",
+  })),
+];
 
 describe("M9 completion audit (REL-003)", () => {
   it("UT-AUDIT-M9-001: every baseline scenario M9 committed to exists as an executable test, and the retired ID stays a gap", () => {
     const manifest = readManifest();
     const declared = baselineScenarioIdsFromSpec();
-    const retired = new Set(manifest.m9Audit.retiredScenarioIds);
+
+    // 台帳が記録する退役IDは、監査側で固定した集合と一致していなければならない
+    // （台帳を書き換えて退役先を差し替える逃げ道を塞ぐ）。
+    expect([...manifest.m9Audit.retiredScenarioIds].sort()).toEqual(
+      [...RETIRED_SCENARIO_IDS].sort(),
+    );
 
     // 表そのものが監査対象の母数になる。表から消えた／増えたシナリオは
-    // 台帳との突き合わせで落ちる。
+    // 台帳との突き合わせで落ちる。除外は監査側の固定集合だけで行う。
+    const retired = new Set(RETIRED_SCENARIO_IDS);
     const expected = declared.filter(
       (scenarioId) =>
         scenarioNumber(scenarioId) <= M9_LAST_SCENARIO_NUMBER && !retired.has(scenarioId),
@@ -145,26 +183,23 @@ describe("M9 completion audit (REL-003)", () => {
       ),
     );
 
-    // 未完了ルールは残っていてよいが、**M9が所有していてはならない**。M9の完了は
-    // 「M9が引き受けた責務を全部果たした」ことであって「全ルールが完成した」ことでは
-    // ない（`R-TGT-06` は production需要待ち、`R-TEX-*` はM10の設計時新設）。
-    const strandedOnM9 = uncovered.filter((ruleId) => {
-      const owner = ownerByRuleId.get(ruleId);
-      return owner === undefined || taskById.get(owner)?.milestone === "M9";
-    });
+    // Coverageを持たないルールは、監査側で列挙した繰り越し分と**完全に一致**して
+    // いなければならない。「M9以外のOPEN Taskが所有していれば通す」だけにすると、
+    // 後から生まれた未被覆ルールが所有者を付けるだけで黙って増える。
     expect(
-      strandedOnM9,
-      `rules without coverage that M9 still owns (or that nobody owns): ${JSON.stringify(strandedOnM9)}`,
-    ).toEqual([]);
+      [...uncovered].sort(),
+      "rules without executable coverage must be exactly the ones deferred beyond M9",
+    ).toEqual([...RULES_DEFERRED_BEYOND_M9.map((entry) => entry.ruleId)].sort());
 
-    // 引き取り先は実在するOPEN Taskでなければならない（closeしたIssueへ残作業を
-    // 預けたまま完了扱いにする「所有者不在」を防ぐ。`m7-completion-audit` と同趣旨）。
-    for (const ruleId of uncovered) {
-      const owner = taskById.get(ownerByRuleId.get(ruleId)!);
-      expect(owner, `${ruleId} must be owned by a registered task`).toBeDefined();
-      expect(owner!.status, `${ruleId} is owned by ${owner!.taskId}, which must stay OPEN`).toBe(
-        "OPEN",
-      );
+    // 引き取り先は宣言どおりで、M9以外の実在するOPEN Taskでなければならない
+    // （closeしたIssueへ残作業を預けたまま完了扱いにする「所有者不在」を防ぐ。
+    // `m7-completion-audit` と同趣旨）。
+    for (const { ruleId, taskId } of RULES_DEFERRED_BEYOND_M9) {
+      expect(ownerByRuleId.get(ruleId), `${ruleId} must stay assigned to ${taskId}`).toBe(taskId);
+      const owner = taskById.get(taskId);
+      expect(owner, `${taskId} must be a registered task`).toBeDefined();
+      expect(owner!.status, `${taskId} must stay OPEN while it owns ${ruleId}`).toBe("OPEN");
+      expect(owner!.milestone, `${taskId} must not be an M9 task`).not.toBe("M9");
     }
 
     const m9TaskIds = new Set(
