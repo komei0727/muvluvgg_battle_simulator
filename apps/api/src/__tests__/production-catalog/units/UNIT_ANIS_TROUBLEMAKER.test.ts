@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {} from "../../../domain/catalog/definitions/catalog-ids.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeChargeEvasion } from "../../../testing/production-unit/charge-restriction.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -30,6 +31,16 @@ import { turnStarted, unitBeingAttacked } from "../../../testing/production-unit
 const UNIT_DEFINITION_ID = "UNIT_ANIS_TROUBLEMAKER";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+/**
+ * 「チャージ中は回避しない」（`R-HIT-02`）は抑止する側（チャージAS）と抑止される側
+ * （このユニットが配る回避効果）が別ユニットにあるため、チャージ定義の供給元だけを
+ * snapshotへ併読する。どちらの定義も未改変のまま使う。
+ */
+const WITH_CHARGE_SOURCE = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_MIRIAM_MAGE",
+]);
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -500,5 +511,35 @@ describe("production Catalog UNIT_ANIS_TROUBLEMAKER (【愛を求めるトラブ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-ANIS-TROUBLEMAKER-004 (R-HIT-02): EXが味方全体へ配る実 ACT_ANIS_TROUBLEMAKER_EX_EVASION は、受け取った味方がチャージ中だと発動しない。チャージ開始だけを抜いた対照では同じ回避が1ヒット目を回避する", () => {
+    // この機構は**どの単一定義にも帰属しない** — 抑止するのはチャージ側のスキルで、
+    // 抑止されるのはこのユニットの回避効果である。`12_テスト戦略.md`「`IT-CAP-*` の
+    // retire 基準」3に従い、チャージ側（`IT-UNIT-MIRIAM-MAGE-005`）と同じ観測を
+    // 回避効果側のここにも複製する（重複を受け入れる）。
+    const options = {
+      snapshot: WITH_CHARGE_SOURCE,
+      chargerUnitDefinitionId: "UNIT_MIRIAM_MAGE",
+      chargeSkillDefinitionId: "SKL_MIRIAM_MAGE_AS2",
+      evasionEffectActionId: "ACT_ANIS_TROUBLEMAKER_EX_EVASION",
+    };
+
+    expect(observeChargeEvasion({ ...options, charging: true })).toEqual({
+      charge: "SKL_MIRIAM_MAGE_AS2",
+      // 発動しなかっただけで、確率1の `EVASION` は保持したまま残っている。
+      heldEvasion: { statusKind: "EVASION", probability: 1, consumptionRemaining: 1 },
+      evasionActivated: 0,
+      hitConfirmed: 2,
+      damaged: true,
+    });
+
+    expect(observeChargeEvasion({ ...options, charging: false })).toEqual({
+      charge: null,
+      heldEvasion: null,
+      evasionActivated: 1,
+      hitConfirmed: 1,
+      damaged: true,
+    });
   });
 });

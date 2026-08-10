@@ -25,6 +25,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeCumulativeThresholdCounter } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
@@ -816,6 +817,58 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
         { unitId: "enemy:none", markerId: OMEN, stackCount: 1 },
         { unitId: "enemy:below", markerId: OMEN, stackCount: 2 },
       ],
+    });
+  });
+
+  it("IT-UNIT-TATIANA-SAGE-009 (R-EFF-11): PS1 の累計ダメージ閾値counterは、閾値に届かない被弾では carry だけを動かし、実 catalog/ の trigger 条件がその RuntimeCounterChanged を valueChanged で弾く。ちょうど閾値・閾値2つぶんの被弾では公開値が動き、条件が成立する", () => {
+    // `RuntimeCounterChanged` は carry だけが動いた被弾でも追跡のために発行される
+    // （`14_Catalog定義スキーマ.md`「counterUpdates」）。条件側で判別できないと、
+    // 閾値に達していない被弾のたびにPSが発動してしまう。
+    expect(
+      observeCumulativeThresholdCounter(snapshot, UNIT_DEFINITION_ID, "SKL_TATIANA_SAGE_PS1"),
+    ).toEqual({
+      declaration: {
+        counter: "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT",
+        scope: "SKILL_RUNTIME",
+        maxHpRatio: 0.2,
+      },
+      triggerEventType: "RuntimeCounterChanged",
+      subThreshold: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_TATIANA_SAGE_PS1",
+            counter: "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT",
+            before: 0,
+            after: 0,
+            valueChanged: false,
+          },
+        ],
+        triggerMatched: false,
+      },
+      atThreshold: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_TATIANA_SAGE_PS1",
+            counter: "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT",
+            before: 0,
+            after: 1,
+            valueChanged: true,
+          },
+        ],
+        triggerMatched: true,
+      },
+      crossing: {
+        changes: [
+          {
+            skillDefinitionId: "SKL_TATIANA_SAGE_PS1",
+            counter: "SKL_TATIANA_SAGE_PS1_THRESHOLD_COUNT",
+            before: 0,
+            after: 2,
+            valueChanged: true,
+          },
+        ],
+        triggerMatched: true,
+      },
     });
   });
 });

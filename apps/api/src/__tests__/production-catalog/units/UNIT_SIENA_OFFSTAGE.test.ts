@@ -13,6 +13,11 @@ import {
   unitFrom,
 } from "../../../testing/fixtures/index.js";
 import {
+  observeChargeEvasion,
+  observeChargeLifecycle,
+  observeOwnerCharging,
+} from "../../../testing/production-unit/charge-restriction.js";
+import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
@@ -40,6 +45,16 @@ import { skillUseCompleted, turnStarted } from "../../../testing/production-unit
 const UNIT_DEFINITION_ID = "UNIT_SIENA_OFFSTAGE";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+/**
+ * 「チャージ中は回避しない」（`R-HIT-04`）は抑止する側（このユニットのチャージAS）と
+ * 抑止される側（`HIT_EVASION` を配るスキル）が別ユニットにあるため、回避効果の
+ * 供給元だけをsnapshotへ併読する。どちらの定義も未改変のまま使う。
+ */
+const WITH_EVASION_SOURCE = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_FLUTE_VAMPIRE",
+]);
 
 /** PS1のBRANCHが `elseSteps` を選ぶ盤面（対象が物理タイプでない）。 */
 const NON_PHYSICAL_TARGET: BoardOverrides = {
@@ -423,5 +438,97 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
       released.units.find((unit) => unit.battleUnitId === "ally:subject")!.charge,
     ).toBeUndefined();
     expect(events.some((event) => event.eventType === "PassiveActivated")).toBe(true);
+  });
+
+  it("IT-UNIT-SIENA-OFFSTAGE-005 (R-SKL-05): 実 SKL_SIENA_OFFSTAGE_AS1 のチャージ開始はEffectSequenceを一つも解決せず、チャージ状態だけを ChargeStarted の StateDelta へ載せる。終了差分は ChargeReleaseCompleted が単独で所有し、開始直後・解放後のどちらも独立Reducerで復元できる", () => {
+    // `-001` の CHARGE 行は `charge`／消費／クールタイムまでを持つが、`StateDelta` の
+    // 所有者と独立Reducer復元、Catalog契約（開始側 `steps` が空であること）は
+    // スキル使用1回の観測の外にある。
+    expect(
+      observeChargeLifecycle({
+        snapshot,
+        chargerUnitDefinitionId: UNIT_DEFINITION_ID,
+        chargeSkillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+      }),
+    ).toEqual({
+      // 開始側は EffectSequence を持たない（`targetBindings` だけが
+      // `activationCondition` のスコープとして意味を持つ）。解放側は必ず持つ。
+      startSteps: 0,
+      releaseSteps: 1,
+      // 「チャージ中」を表す `APPLY_MARKER` は `charge` 状態と重複するため除去済み。
+      chargeMarkerEffectActionIds: [],
+      afterStart: { charge: "SKL_SIENA_OFFSTAGE_AS1", markerStates: 0, appliedEffects: 0 },
+      startEventTypes: [
+        "ActionStarted",
+        "CooldownStarted",
+        "ChargeStarted",
+        "ActionCompleting",
+        "ActionCompleted",
+      ],
+      chargeStarted: {
+        skillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+        chargeDelta: {
+          before: undefined,
+          after: {
+            skillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+            startedActionId: "B_CHARGE:action:1",
+          },
+        },
+      },
+      replayedChargeAfterStart: {
+        skillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+        startedActionId: "B_CHARGE:action:1",
+      },
+      chargeAfterRelease: null,
+      // 終了差分を後続の `ActionCompleting` へ持たせると、独立Reducerでは完了イベントの
+      // 時点でまだチャージ中に見えてしまう。
+      chargeClearingEventTypes: ["ChargeReleaseCompleted"],
+      replayedChargeAfterRelease: null,
+    });
+  });
+
+  it("IT-UNIT-SIENA-OFFSTAGE-006 (R-PS-04): SKL_SIENA_OFFSTAGE_AS1 でチャージ中は自身の SKL_SIENA_OFFSTAGE_PS1 が候補にならず、候補化済みの同じ候補も発動直前確認で OWNER_CHARGING として破棄される。解放でこの制限は解ける", () => {
+    // `-001` のPS行は「発動して何が起きたか」を見るもので、チャージ中の破棄理由も、
+    // 候補判定（R-PS-01）と発動直前確認（R-PS-04）のどちらで落ちたのかも表せない。
+    expect(
+      observeOwnerCharging({
+        snapshot,
+        chargerUnitDefinitionId: UNIT_DEFINITION_ID,
+        chargeSkillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+        passiveSkillDefinitionId: "SKL_SIENA_OFFSTAGE_PS1",
+      }),
+    ).toEqual({
+      idle: { candidates: 1, reconfirm: { ok: true } },
+      charging: { candidates: 0, reconfirm: { ok: false, reason: "OWNER_CHARGING" } },
+      afterRelease: { candidates: 1, reconfirm: { ok: true } },
+      runtimeActivated: { idle: true, charging: false },
+    });
+  });
+
+  it("IT-UNIT-SIENA-OFFSTAGE-007 (R-HIT-04): SKL_SIENA_OFFSTAGE_AS1 でチャージ中のシエナは、保持している実 ACT_FLUTE_VAMPIRE_PS2_EVASION を発動させず、回避が成立しなかった被ヒットでその被ヒット消費も減らさない", () => {
+    const options = {
+      snapshot: WITH_EVASION_SOURCE,
+      chargerUnitDefinitionId: UNIT_DEFINITION_ID,
+      chargeSkillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1",
+      evasionEffectActionId: "ACT_FLUTE_VAMPIRE_PS2_EVASION",
+    };
+
+    expect(observeChargeEvasion({ ...options, charging: true })).toEqual({
+      charge: "SKL_SIENA_OFFSTAGE_AS1",
+      // 2ヒットとも命中しているのに `consumptionRemaining` が初期値のまま残る。
+      heldEvasion: { statusKind: "HIT_EVASION", probability: 1, consumptionRemaining: 1 },
+      evasionActivated: 0,
+      hitConfirmed: 2,
+      damaged: true,
+    });
+
+    // 対照: チャージしていなければ1ヒット目を回避し、その被ヒットで消費が尽きる。
+    expect(observeChargeEvasion({ ...options, charging: false })).toEqual({
+      charge: null,
+      heldEvasion: null,
+      evasionActivated: 1,
+      hitConfirmed: 1,
+      damaged: true,
+    });
   });
 });

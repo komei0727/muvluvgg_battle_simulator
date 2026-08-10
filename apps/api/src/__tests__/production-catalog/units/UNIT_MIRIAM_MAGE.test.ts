@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
+  observeChargeEvasion,
+  observeChargeLifecycle,
+} from "../../../testing/production-unit/charge-restriction.js";
+import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
@@ -31,6 +35,16 @@ import {
 const UNIT_DEFINITION_ID = "UNIT_MIRIAM_MAGE";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+/**
+ * 「チャージ中は回避しない」（`R-HIT-02`）は抑止する側（このユニットのチャージAS）と
+ * 抑止される側（回避効果）が別ユニットにあるため、回避効果の供給元だけをsnapshotへ
+ * 併読する。回避効果そのものは未改変の実 production 定義を使う。
+ */
+const WITH_EVASION_SOURCE = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_ANIS_TROUBLEMAKER",
+]);
 
 /** 後列の敵だけがHP30%。EXの凍結が「HPが30%以下の敵」だけへ入ることを判別する。 */
 const ENEMY_WITH_LOW_HP: readonly BoardUnitSpec[] = [
@@ -318,5 +332,76 @@ describe("production Catalog UNIT_MIRIAM_MAGE (【元気印の大魔導士】ミ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-MIRIAM-MAGE-004 (R-SKL-05): 実 SKL_MIRIAM_MAGE_AS2 のチャージ開始はEffectSequenceを一つも解決せず、チャージ状態だけを ChargeStarted の StateDelta へ載せる。終了差分は ChargeReleaseCompleted が単独で所有し、開始直後・解放後のどちらも独立Reducerで復元できる", () => {
+    // `-001` の CHARGE 行は `charge`／消費／クールタイムまでを持つが、`StateDelta` の
+    // 所有者と独立Reducer復元、Catalog契約（開始側 `steps` が空であること）は
+    // スキル使用1回の観測の外にある。
+    expect(
+      observeChargeLifecycle({
+        snapshot,
+        chargerUnitDefinitionId: UNIT_DEFINITION_ID,
+        chargeSkillDefinitionId: "SKL_MIRIAM_MAGE_AS2",
+      }),
+    ).toEqual({
+      // 開始側は EffectSequence を持たない（`targetBindings` だけが
+      // `activationCondition` のスコープとして意味を持つ）。解放側は必ず持つ。
+      startSteps: 0,
+      releaseSteps: 1,
+      // 「チャージ中」を表す `APPLY_MARKER` は `charge` 状態と重複するため除去済み。
+      chargeMarkerEffectActionIds: [],
+      afterStart: { charge: "SKL_MIRIAM_MAGE_AS2", markerStates: 0, appliedEffects: 0 },
+      startEventTypes: [
+        "ActionStarted",
+        "CooldownStarted",
+        "ChargeStarted",
+        "ActionCompleting",
+        "ActionCompleted",
+      ],
+      chargeStarted: {
+        skillDefinitionId: "SKL_MIRIAM_MAGE_AS2",
+        chargeDelta: {
+          before: undefined,
+          after: {
+            skillDefinitionId: "SKL_MIRIAM_MAGE_AS2",
+            startedActionId: "B_CHARGE:action:1",
+          },
+        },
+      },
+      replayedChargeAfterStart: {
+        skillDefinitionId: "SKL_MIRIAM_MAGE_AS2",
+        startedActionId: "B_CHARGE:action:1",
+      },
+      chargeAfterRelease: null,
+      chargeClearingEventTypes: ["ChargeReleaseCompleted"],
+      replayedChargeAfterRelease: null,
+    });
+  });
+
+  it("IT-UNIT-MIRIAM-MAGE-005 (R-HIT-02): SKL_MIRIAM_MAGE_AS2 でチャージ中のミリアムは、保持している実 ACT_ANIS_TROUBLEMAKER_EX_EVASION を発動させず2ヒットとも命中する。チャージ開始だけを抜いた対照では同じ回避が1ヒット目を回避するため、不発の原因はチャージ状態だけである", () => {
+    const options = {
+      snapshot: WITH_EVASION_SOURCE,
+      chargerUnitDefinitionId: UNIT_DEFINITION_ID,
+      chargeSkillDefinitionId: "SKL_MIRIAM_MAGE_AS2",
+      evasionEffectActionId: "ACT_ANIS_TROUBLEMAKER_EX_EVASION",
+    };
+
+    // 回避効果は攻撃後も保持したまま（未付与や失効による不発ではない）。
+    expect(observeChargeEvasion({ ...options, charging: true })).toEqual({
+      charge: "SKL_MIRIAM_MAGE_AS2",
+      heldEvasion: { statusKind: "EVASION", probability: 1, consumptionRemaining: 1 },
+      evasionActivated: 0,
+      hitConfirmed: 2,
+      damaged: true,
+    });
+
+    expect(observeChargeEvasion({ ...options, charging: false })).toEqual({
+      charge: null,
+      heldEvasion: null,
+      evasionActivated: 1,
+      hitConfirmed: 1,
+      damaged: true,
+    });
   });
 });
