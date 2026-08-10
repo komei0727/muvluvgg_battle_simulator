@@ -1983,7 +1983,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SHD-03-003",
       "PROP-SHD-03-001",
       "PROP-SHD-03-002",
-      // REF-044（Issue #391）でユニット効果軸へ移送した。振り分け4欄の合計が
+      // REF-044（Issue #391）でユニット効果軸へ移送した。振り分け5欄の合計が
       // 計算ダメージと一致することを実 production 定義で固定する。
       "IT-UNIT-AOI-GUARDIAN-005",
     ],

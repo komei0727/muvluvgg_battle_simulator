@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  seedRecorder,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
@@ -436,18 +443,43 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
     ]);
   });
 
-  it("IT-UNIT-LILY-SINGER-006 (R-SHD-01/R-EFF-09): PS2が配る実シールドは `EN` プールで、EN攻撃だけを受けて物理攻撃は素通りさせる。EN攻撃で削り切ると枯渇失効し、同じ連動グループの攻撃力バフも巻き添えで消える", () => {
+  it("IT-UNIT-LILY-SINGER-006 (R-SHD-01/R-EFF-09): PS2が配る実シールドは `EN` プールで、EN攻撃だけを受けて物理攻撃は素通りさせる。EN攻撃で削り切ると枯渇失効し、同じ連動グループの攻撃力バフも巻き添えで消える。付与の公開差分だけからも `EN` シールドを含む状態を復元できる", () => {
     // `-001` のPS2行は付与そのもの（`magnitude: 2500`＝自身の最大HP×25%・2行動）
     // までを固定するが、観測は `shieldType` も `linkedEffectGroupId` も持たない。
     // どちらも**以後に飛んでくる攻撃**で初めて差が出る（タイプなしプールでも同じ
     // 2500が付き、連動していなくても同じ2行動で消える）。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
-    const shielded = applyPrecedingActions(board, [
-      { effectActionDefinitionId: PS2_SHIELD, target: "SELF" },
-      { effectActionDefinitionId: PS2_ATK_UP, target: "SELF" },
-    ]);
+    const grantRecorder = seedRecorder("B_LILY_SHIELD_GRANT");
+    const shielded = applyPrecedingActions(
+      board,
+      [
+        { effectActionDefinitionId: PS2_SHIELD, target: "SELF" },
+        { effectActionDefinitionId: PS2_ATK_UP, target: "SELF" },
+      ],
+      { recorder: grantRecorder },
+    );
     // 連動グループの子（攻撃力+15%）が効いている状態から始める。
     expect(subjectIn(shielded).combatStats.attack).toBe(1150);
+
+    // 付与前スナップショットへ `EffectApplied` の公開差分だけを当てた結果を、
+    // **スナップショット全体**で突き合わせる。`EffectSnapshot.shield.shieldType` が
+    // 公開差分から落ちる回帰は、以下の実Domain状態に対する検証では捕まらない。
+    const restored = reconstruct(
+      initialSnapshotFor(board.units, { include: ["effects"] }),
+      grantRecorder.recorder,
+    );
+    expect(restored).toEqual(initialSnapshotFor(shielded, { include: ["effects"] }));
+    // 復元結果が実際に `EN` プールのシールドを含んでいること（上の全体比較が
+    // 「どちらにもシールドが無い」で成立していないことの確認）。
+    expect(
+      restored.units[createBattleUnitId("ally:subject")]!.effects!.map((effect) => [
+        effect.effectDefinitionId,
+        effect.shield?.shieldType ?? null,
+      ]),
+    ).toEqual([
+      [PS2_SHIELD, "EN"],
+      [PS2_ATK_UP, null],
+    ]);
 
     const strike = (
       units: readonly BattleUnit[],
@@ -473,6 +505,7 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
         calculatedDamage: 500,
         typedShieldAbsorbed: 500,
         untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
         hitPointDamage: 0,
         discardedDamage: 0,
       },
@@ -492,6 +525,7 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
         calculatedDamage: 500,
         typedShieldAbsorbed: 0,
         untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
         hitPointDamage: 500,
         discardedDamage: 0,
       },

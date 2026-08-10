@@ -104,14 +104,17 @@ export interface ObservedDamageApplication {
 
 /**
  * R-SHD-03／`08_ドメインイベント.md`不変条件#6が成り立つことを見るための、
- * `DamageApplied` の振り分け内訳。4欄の合計が `calculatedDamage` と一致する。
- * `applications` と別欄にするのは、既存の突き合わせを壊さないため。
+ * `DamageApplied` の振り分け内訳。**5欄**の合計が `calculatedDamage` と一致する。
+ * サブユニット（R-SUB-01）も独立した適用先なので、欠けると吸収された分だけ合計が
+ * 計算ダメージに届かず保存則を検証できない。`applications` と別欄にするのは、
+ * 既存の突き合わせを壊さないため。
  */
 export interface ObservedDamageDistribution {
   readonly targetUnitId: string;
   readonly calculatedDamage: number;
   readonly typedShieldAbsorbed: number;
   readonly untypedShieldAbsorbed: number;
+  readonly subUnitAbsorbed: number;
   readonly hitPointDamage: number;
   readonly discardedDamage: number;
 }
@@ -439,6 +442,7 @@ function probeObservation(
         calculatedDamage: event.payload.calculatedDamage,
         typedShieldAbsorbed: event.payload.typedShieldAbsorbed,
         untypedShieldAbsorbed: event.payload.untypedShieldAbsorbed,
+        subUnitAbsorbed: event.payload.subUnitAbsorbed,
         hitPointDamage: event.payload.hitPointDamage,
         discardedDamage: event.payload.discardedDamage,
       })),
