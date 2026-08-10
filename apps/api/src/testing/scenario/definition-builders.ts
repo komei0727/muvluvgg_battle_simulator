@@ -303,12 +303,18 @@ export function statModEffectAction(
 
 /**
  * 使用者の現在HPに比例したステータス補正を付与するEffectAction。**同じ定義から
- * 効果量の違うインスタンスを作れる**唯一の形として、`R-EFF-05` の重複なし検証で使う
- * （`EffectKindKey` は定義IDそのものなので、別定義2件は「同種」にならない）。
+ * 効果量の違うインスタンスを作れる**唯一の形として、`R-EFF-05` の重複あり／重複なし
+ * 検証で使う。`EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、
+ * 別定義2件は「同種」にならず `stacking.mode` の違いが観測に一切現れない —
+ * 同種であることを担保できるのは同じ定義を2回適用する形だけである。
  */
 export function hpScaledStatModEffectAction(
   id: string,
-  overrides: { readonly ratio?: number; readonly count?: number } = {},
+  overrides: {
+    readonly ratio?: number;
+    readonly count?: number;
+    readonly stackingMode?: "STACKABLE" | "NON_STACKABLE";
+  } = {},
 ): EffectActionDefinition {
   return {
     kind: "APPLY_STAT_MOD",
@@ -322,7 +328,7 @@ export function hpScaledStatModEffectAction(
         source: { kind: "SKILL_SOURCE" },
         ratio: overrides.ratio ?? 0.1,
       },
-      stacking: { mode: "NON_STACKABLE", max: null },
+      stacking: { mode: overrides.stackingMode ?? "NON_STACKABLE", max: null },
       duration: {
         timeLimit: { unit: "ACTION", count: overrides.count ?? 2 },
         dispellable: true,

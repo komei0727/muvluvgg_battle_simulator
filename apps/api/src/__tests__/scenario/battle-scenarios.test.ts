@@ -823,26 +823,35 @@ describe("battle scenarios (harness)", () => {
       assertBattleInvariants(result);
     });
 
-    it("SCN-BTL-013 (R-EFF-05): two STACKABLE instances of the same effect are held separately with their own remaining counts, both contribute to the effective stat, and each expires on its own schedule", () => {
-      // 1回のスキル使用で残り回数の違う2件を配る（同じ `EffectKindKey` の別インスタンス）。
+    it("SCN-BTL-013 (R-EFF-05): two STACKABLE instances of the same effect kind are held separately with their own remaining counts, both contribute to the effective stat at once, and each expires on its own schedule", () => {
+      // `EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、**同じ定義を
+      // 2回**適用しないと「同種」にならない。別定義2件では `stacking.mode` を
+      // `NON_STACKABLE` へ取り違えても両方が加算されてしまい、重複ありの検証にならない。
+      //
+      // 盤面・スキル・行動列は `SCN-BTL-014` と同一で、違いは `stacking.mode` だけに
+      // してある。2つのシナリオが互いの対照になり、モードの取り違えはどちらかで必ず落ちる。
       const catalog = new CatalogBuilder()
         .withUnit(
           unitDefinition("UNIT_BUFFER", {
-            baseStats: { maximumAp: 3 },
+            // 4行動ぶんのAP。クールタイム1行動と合わせて「付与 → 待機 → 付与 → 待機」になる。
+            baseStats: { maximumHp: 100, maximumAp: 4 },
             activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SELF_BUFF")],
           }),
           unitDefinition("UNIT_BYSTANDER", { baseStats: { maximumHp: 1000, maximumAp: 0 } }),
         )
-        .withSkill(buffSkill("SKL_SELF_BUFF", ["ACT_ATK_UP_SHORT", "ACT_ATK_UP_LONG"]))
+        .withSkill({
+          ...selfEffectSkill("SKL_SELF_BUFF", ["ACT_ATK_UP", "ACT_HP_COST"]),
+          cooldown: { unit: "ACTION", count: 1 },
+        })
         .withEffectAction(
-          statModEffectAction("ACT_ATK_UP_SHORT", {
-            value: 3,
-            timeLimit: { unit: "ACTION", count: 1 },
+          // 効果量に差を付けるため、付与額を使用者の現在HPに比例させ、同じスキルの
+          // 中でHPを半分支払わせる（付与 → 支払いの順）。1件目は+10、2件目は+5。
+          hpScaledStatModEffectAction("ACT_ATK_UP", {
+            ratio: 0.1,
+            count: 2,
+            stackingMode: "STACKABLE",
           }),
-          statModEffectAction("ACT_ATK_UP_LONG", {
-            value: 7,
-            timeLimit: { unit: "ACTION", count: 2 },
-          }),
+          hpCostEffectAction("ACT_HP_COST", 0.5),
         )
         .build();
 
@@ -856,26 +865,32 @@ describe("battle scenarios (harness)", () => {
       });
 
       expect(durationTimeline(result)).toEqual([
+        // HP100で1件目（+10）。付与後にHPを50へ落とす。
         "ACTION(ally:1, AS)",
-        "APPLIED(ACT_ATK_UP_SHORT)",
-        "APPLIED(ACT_ATK_UP_LONG)",
+        "APPLIED(ACT_ATK_UP)",
         // 残り回数はインスタンスごとに独立して減る。
         "ACTION(ally:1, WAIT)",
-        "REDUCED(ACT_ATK_UP_SHORT, 1->0)",
-        "REDUCED(ACT_ATK_UP_LONG, 2->1)",
-        "EXPIRED(ACT_ATK_UP_SHORT, TIME_LIMIT)",
+        "REDUCED(ACT_ATK_UP, 2->1)",
+        // HP50で2件目（+5）。同種2件を同時に保持する。
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        "REDUCED(ACT_ATK_UP, 1->0)",
+        "EXPIRED(ACT_ATK_UP, TIME_LIMIT)",
+        // 残った2件目だけが自分の予定で減り続ける。
         "ACTION(ally:1, WAIT)",
-        "REDUCED(ACT_ATK_UP_LONG, 1->0)",
-        "EXPIRED(ACT_ATK_UP_LONG, TIME_LIMIT)",
+        "REDUCED(ACT_ATK_UP, 2->1)",
         "TURN_COMPLETING(1)",
       ]);
 
-      // 重複ありは全インスタンスが加算される（10 → +3+7 → 20 → 短い方の失効で17 → 10）。
+      // 重複ありは保持中の全インスタンスが加算される。2件を同時に持つ間だけ+15になり
+      // （10 → 20 → 25）、1件目が失効すると2件目のぶんだけが残る（→ 15）。
+      // 同じ行動列を `NON_STACKABLE` で回す `SCN-BTL-014` は 20 → 15 にしかならない。
       expect(
         result.events
           .filter((event) => event.type === "COMBAT_STAT_CHANGED")
           .map((event) => (event.details as Record<string, unknown>)["after"]),
-      ).toEqual([13, 20, 17, 10]);
+      ).toEqual([20, 25, 15]);
+      expect(result.finalState.units[createBattleUnitId("ally:1")]!.combatStats.attack).toBe(15);
       assertBattleInvariants(result);
     });
 
