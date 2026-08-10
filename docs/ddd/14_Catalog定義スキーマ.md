@@ -173,6 +173,11 @@ baseStats:
   actionSpeed: 780
   maximumAp: 4
   maximumPp: 4
+levelGrowth:
+  hp: 255
+  attack: 209
+  defense: 106
+  actionSpeed: 2
 extraGaugeMaximum: 7
 activeSkillDefinitionIds:
   - SKL_001_AS1
@@ -208,6 +213,11 @@ metadata:
 | `baseStats.actionSpeed`         | integer  | ✓    | >= 0                                                                 |
 | `baseStats.maximumAp`           | integer  | ✓    | >= 1                                                                 |
 | `baseStats.maximumPp`           | integer  | ✓    | >= 1                                                                 |
+| `levelGrowth`                   | object   |      | 任意。レベル1あたりの成長値（R-ENH-05）。下4行はobject内で必須       |
+| `levelGrowth.hp`                | integer  | ✓    | >= 0                                                                 |
+| `levelGrowth.attack`            | integer  | ✓    | >= 0                                                                 |
+| `levelGrowth.defense`           | integer  | ✓    | >= 0                                                                 |
+| `levelGrowth.actionSpeed`       | integer  | ✓    | >= 0                                                                 |
 | `extraGaugeMaximum`             | integer  | ✓    | >= 1。Catalog作成時はEXスキル `cost.amount` と同値で生成             |
 | `activeSkillDefinitionIds`      | string[] | ✓    | AS選択優先順                                                         |
 | `passiveSkillDefinitionIds`     | string[] | ✓    | 0件可。PSタイブレーカー順                                            |
@@ -234,6 +244,15 @@ metadata:
 | `tags`          | string[] | ✓    | 任意タグ。空配列可           |
 
 `affiliations` は Memory の所属フィルタで使用する。所属不明の場合は空配列にし、所属フィルタを必要とする Memory の Catalog 化時に補完する。`affiliationId`（`AFF_*`）の確定済み一覧・採番方針・Unit metadata 更新方針は [`18_Affiliation台帳.md`](./18_Affiliation台帳.md) を参照。表示名の字面一致のみでは補完しない。
+
+### levelGrowth の仮値
+
+成長値の実測データが存在しないため、初期投入では仮値を使用する（Q-ENH-07）。
+
+- `hp`／`attack`／`defense`: 対応する `baseStats` の200レベル値 × 0.9% を四捨五入した整数
+- `actionSpeed`: 2（実ゲームではユニットに応じて2または3）
+
+仮値は生成スクリプトで注入せず、`catalog-src/units/<id>/unit.json` へ明示的に保持する。目視確認した実測値でこの実データを直接上書きし、更新の要否をdiffで追跡できるようにする。`levelGrowth` を持たないユニットへ現在レベル200以外を指定したAPIリクエストは、アプリケーション検証で拒否される（R-ENH-05）。
 
 ---
 

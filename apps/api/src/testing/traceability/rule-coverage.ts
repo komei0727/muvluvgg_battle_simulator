@@ -3105,6 +3105,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   // TEX: 戦術演習（M10設計時新設。実装はTEX-001／Issue #402が所有し、
   // testCaseIdsは各フェーズの実装PRで登録する）
+  // ENH: 基本ステータス強化（ENH-001／Issue #409の設計時新設。実装前のためカバレッジは空）
+  { ruleId: "R-ENH-01", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ENH-02", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ENH-03", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ENH-04", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ENH-05", testCaseIds: [], kinds: [] },
+  { ruleId: "R-ENH-06", testCaseIds: [], kinds: [] },
   { ruleId: "R-TEX-01", testCaseIds: [], kinds: [] },
   { ruleId: "R-TEX-02", testCaseIds: [], kinds: [] },
   { ruleId: "R-TEX-03", testCaseIds: [], kinds: [] },

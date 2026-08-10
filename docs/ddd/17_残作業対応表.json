@@ -25,9 +25,9 @@
   },
   "current": {
     "rules": {
-      "total": 127,
+      "total": 133,
       "completed": 116,
-      "remaining": 11
+      "remaining": 17
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -537,6 +537,48 @@
       "phase": 5,
       "milestone": "M10",
       "status": "OPEN"
+    },
+    {
+      "taskId": "ENH-001",
+      "issue": 409,
+      "phase": 5,
+      "milestone": "M11",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "ENH-002",
+      "issue": 411,
+      "phase": 5,
+      "milestone": "M11",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "ENH-003",
+      "issue": 412,
+      "phase": 5,
+      "milestone": "M11",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "ENH-004",
+      "issue": 413,
+      "phase": 5,
+      "milestone": "M11",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "ENH-005",
+      "issue": 414,
+      "phase": 5,
+      "milestone": "M11",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "ENH-006",
+      "issue": 415,
+      "phase": 5,
+      "milestone": "M11",
+      "status": "OPEN"
     }
   ],
   "ruleAssignments": [
@@ -558,6 +600,10 @@
         "R-TEX-09",
         "R-TEX-10"
       ]
+    },
+    {
+      "taskId": "ENH-001",
+      "ruleIds": ["R-ENH-01", "R-ENH-02", "R-ENH-03", "R-ENH-04", "R-ENH-05", "R-ENH-06"]
     }
   ],
   "conversionThemeAssignments": [

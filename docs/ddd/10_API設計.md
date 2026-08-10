@@ -220,10 +220,20 @@ GET /health/ready
         "position": {
           "column": 0,
           "row": "FRONT"
+        },
+        "enhancement": {
+          "level": 220,
+          "gears": [{ "stat": "ATTACK", "tier": "III", "grade": "S" }]
         }
       }
     ],
-    "memoryDefinitionIds": ["memory-001"]
+    "memoryDefinitionIds": ["memory-001"],
+    "enhancement": {
+      "academyLevels": {
+        "unitTypes": { "PHYSICAL": 50 },
+        "attributes": { "AGGRESSIVE": 50 }
+      }
+    }
   },
   "enemyFormation": {
     "units": [
@@ -257,23 +267,59 @@ GET /health/ready
 
 ### FormationRequest
 
-| プロパティ            | 型                       | 必須 | 制約     |
-| --------------------- | ------------------------ | ---- | -------- |
-| `units`               | `FormationUnitRequest[]` | 必須 | 1～5件。 |
-| `memoryDefinitionIds` | string[]                 | 必須 | 0～6件。 |
+| プロパティ            | 型                            | 必須 | 制約                    |
+| --------------------- | ----------------------------- | ---- | ----------------------- |
+| `units`               | `FormationUnitRequest[]`      | 必須 | 1～5件。                |
+| `memoryDefinitionIds` | string[]                      | 必須 | 0～6件。                |
+| `enhancement`         | `FormationEnhancementRequest` | 任意 | 陣営の強化指定（M11）。 |
 
 同じ `unitDefinitionId` を複数指定できる。それぞれ別の参加枠として扱う。
 
 メモリーIDの重複可否は現仕様で制限されていないため、API境界では拒否しない。同じメモリーを複数装備できるかなどのCatalog定義上の制約が追加された場合は、アプリケーション検証へ追加する。
 
+### FormationEnhancementRequest
+
+陣営の強化指定（R-ENH-01。M11で追加）。指定した陣営の全ユニットが強化計算の対象になり、タイプ装備・モジュールが常時適用される。省略した陣営は従来どおりユニット定義の基本ステータスを使用する。
+
+| プロパティ      | 型                     | 必須 | 制約                                      |
+| --------------- | ---------------------- | ---- | ----------------------------------------- |
+| `academyLevels` | `AcademyLevelsRequest` | 任意 | 学園レベル。省略時は全系統1（加算なし）。 |
+
+### AcademyLevelsRequest
+
+| プロパティ   | 型     | 必須 | 制約                                                                                                 |
+| ------------ | ------ | ---- | ---------------------------------------------------------------------------------------------------- |
+| `unitTypes`  | object | 任意 | キーは `PHYSICAL`、`ENERGY`、`AGILE`。値は1以上の整数（上限なし）。省略したキーは1。                 |
+| `attributes` | object | 任意 | キーは `AGGRESSIVE`、`SHY`、`CUTE`、`SMART`、`COMICAL`、`CLEVER`。値は1以上の整数。省略したキーは1。 |
+
 ### FormationUnitRequest
 
-| プロパティ         | 型                         | 必須 | 制約                     |
-| ------------------ | -------------------------- | ---- | ------------------------ |
-| `unitDefinitionId` | string                     | 必須 | 空でない不透明な定義ID。 |
-| `position`         | `FormationPositionRequest` | 必須 | 陣営内の配置。           |
+| プロパティ         | 型                         | 必須 | 制約                        |
+| ------------------ | -------------------------- | ---- | --------------------------- |
+| `unitDefinitionId` | string                     | 必須 | 空でない不透明な定義ID。    |
+| `position`         | `FormationPositionRequest` | 必須 | 陣営内の配置。              |
+| `enhancement`      | `UnitEnhancementRequest`   | 任意 | ユニットの強化指定（M11）。 |
 
 定義IDはクライアントが解析しない不透明な文字列として扱う。大文字小文字を区別し、前後の空白を自動除去しない。
+
+`enhancement` は所属する `FormationRequest` に `enhancement` があるときだけ指定できる。陣営の指定なしにユニットの `enhancement` を指定した場合は、アプリケーション検証の `422` として拒否する（黙って無視して既定動作へ変えない）。
+
+### UnitEnhancementRequest
+
+| プロパティ | 型              | 必須 | 制約                                                                                                                         |
+| ---------- | --------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `level`    | integer         | 任意 | 1以上（上限なし）。省略時は200。`levelGrowth` を持たないユニットへの200以外の指定はアプリケーション検証の `422` として拒否。 |
+| `gears`    | `GearRequest[]` | 任意 | 0～9件。省略時は0件。                                                                                                        |
+
+### GearRequest
+
+| プロパティ | 型     | 必須 | 制約                                                                                                            |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------- |
+| `stat`     | string | 必須 | `MAXIMUM_HP`、`ATTACK`、`DEFENSE`、`ACTION_SPEED`、`CRITICAL_RATE`、`CRITICAL_DAMAGE_BONUS`、`AFFINITY_BONUS`。 |
+| `tier`     | string | 必須 | `II` または `III`。                                                                                             |
+| `grade`    | string | 必須 | `D`、`C`、`B`、`A`、`S`。                                                                                       |
+
+同じ `stat` のギアを複数指定できる。補正割合は効果表（R-ENH-04）に従い単純加算する。
 
 ### FormationPositionRequest
 
@@ -328,15 +374,17 @@ GET /health/ready
 
 Inbound Adapterは外部DTOを次のようにCommandへ変換する。
 
-| API DTO                | Application Command      |
-| ---------------------- | ------------------------ |
-| `allyFormation.units`  | `allyFormation.slots`    |
-| `enemyFormation.units` | `enemyFormation.slots`   |
-| `unitDefinitionId`     | `UnitDefinitionId`       |
-| `{ column, row }`      | `FormationPositionInput` |
-| `memoryDefinitionIds`  | `MemoryDefinitionId[]`   |
-| `turnLimit`            | `turnLimit`              |
-| `options.logLevel`     | `logLevel`               |
+| API DTO                 | Application Command         |
+| ----------------------- | --------------------------- |
+| `allyFormation.units`   | `allyFormation.slots`       |
+| `enemyFormation.units`  | `enemyFormation.slots`      |
+| `unitDefinitionId`      | `UnitDefinitionId`          |
+| `{ column, row }`       | `FormationPositionInput`    |
+| `memoryDefinitionIds`   | `MemoryDefinitionId[]`      |
+| `*.enhancement`（陣営） | `FormationEnhancementInput` |
+| `units[].enhancement`   | `UnitEnhancementInput`      |
+| `turnLimit`             | `turnLimit`                 |
+| `options.logLevel`      | `logLevel`                  |
 
 DTOの構造検証に成功しても、IDの存在、配置重複、未対応ルールなどはアプリケーション層で検証する。Inbound AdapterはCatalogを直接参照しない。
 
