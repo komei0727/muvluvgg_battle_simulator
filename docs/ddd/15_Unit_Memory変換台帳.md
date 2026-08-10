@@ -107,7 +107,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 上表で「※不完全変換あり」と記載した50ユニット（#41/#46代表10ユニット3 + Issue #47先行バッチ6 + Issue #55 Batch A 7 + Issue #59 Batch B 8 + Issue #57 Batch C 6 + Issue #56 Batch D 8 + Issue #58 Batch E 5 + Issue #60 Batch F 7）について、raw記載の効果のうちCatalog v2の現行スキーマでは表現しきれず、近似または省略した箇所を一覧化する。いずれもM2の基礎Catalog項目（Unit ID・属性・タイプ・ロール・配置適性・基礎ステータス・AP/PP/EX関連値）には影響しない。スキル効果の完全表現は本Issueのスコープ外（Issue本文の「Out of scope」参照）であり、対応する`EffectActionDefinition`/`ConditionDefinition`/`TriggerDefinition`拡張が実装されるまで、後続Issueで解消する。
 
-各行の `対応予定`（解消可能になる最初のマイルストーン）・`対応テーマ`（横断修正用の分類名）の定義とルールは [`16_不完全変換対応予定方針.md`](./16_不完全変換対応予定方針.md) を参照。
+各行の `対応予定`（解消可能になる最初のマイルストーン）・`対応テーマ`（横断修正用の分類名）の定義とルールは [`16_不完全変換対応予定方針.md`](./archive/16_不完全変換対応予定方針.md) を参照。
 
 不完全変換行と実装Taskの機械可読な対応は [`17_残作業対応表.json`](./17_残作業対応表.json) を正とする（`baseline`が2026-07-20時点の全96行〈M7相当62行、M8相当34行〉を不変スナップショットとして保存し、現在の残行数は`current`が保持する）。台帳の行を追加・除去・再分類するPRは同JSONも更新し、`remaining-work.test.ts`で件数とテーマの一致を検証する。
 
@@ -148,7 +148,7 @@ M7-001D（Issue #247）では、`resolution.steps`（`ACTION.stepCondition`/`ACT
 - `TRIGGER_EXCLUSION_TIMING`（3行）・`TRIGGER_PAYLOAD_FILTER`（2行）：Condition APIはIssue #144で実装済み。`RES-005`（Issue #172）が`EffectApplied`/`UnitBeingAttacked`/`HitPointReduced`の実行時発行と`TRIGGER_TARGET`/`TRIGGER_SOURCE`解決を実装したが、対象行の真のブロッカーはこれらとは別の未実装ギャップ（`EffectApplied`のpayloadに`category`/`effectKind`分類フィールドが存在しない）と判明したため、担当は`M7-010`（Issue #177、監査）へ引き継ぐ
 - `DAMAGE_MOD_KIND_UNIMPLEMENTED`（2行）：`DMG-002`（Issue #192）
 
-M7-010（Issue #177、M7完了監査）は、引き継いだこの5行が「`EffectApplied`のpayloadに`category`/`effectKind`分類フィールドが存在しない」という**単一の原因**へ完全に収束していることを確認した。除外タイミング側（「戦闘開始時・ターン開始時・ターン終了時には発動しない」）は`RESOLUTION_PHASE`で表現済み・実行時評価済みで、`SKL_SIENA_DIVA_PS1`は実際に`negate: true`の`RESOLUTION_PHASE`条件を3つ宣言している。テーマ名`TRIGGER_EXCLUSION_TIMING`／`TRIGGER_PAYLOAD_FILTER`はもはや実際のブロッカーを指していないため、「同じ原因は同じ対応テーマに寄せる」という[`16_不完全変換対応予定方針.md`](./16_不完全変換対応予定方針.md)の運用ルールに従い、5行を新テーマ`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`（`M7`）へ統合し、専用Task`M7-011`（Issue #265）へ引き継いだ。監査Issueは「新機能実装は含めない」ため、payload拡張自体は本監査では実装しない。
+M7-010（Issue #177、M7完了監査）は、引き継いだこの5行が「`EffectApplied`のpayloadに`category`/`effectKind`分類フィールドが存在しない」という**単一の原因**へ完全に収束していることを確認した。除外タイミング側（「戦闘開始時・ターン開始時・ターン終了時には発動しない」）は`RESOLUTION_PHASE`で表現済み・実行時評価済みで、`SKL_SIENA_DIVA_PS1`は実際に`negate: true`の`RESOLUTION_PHASE`条件を3つ宣言している。テーマ名`TRIGGER_EXCLUSION_TIMING`／`TRIGGER_PAYLOAD_FILTER`はもはや実際のブロッカーを指していないため、「同じ原因は同じ対応テーマに寄せる」という[`16_不完全変換対応予定方針.md`](./archive/16_不完全変換対応予定方針.md)の運用ルールに従い、5行を新テーマ`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`（`M7`）へ統合し、専用Task`M7-011`（Issue #265）へ引き継いだ。監査Issueは「新機能実装は含めない」ため、payload拡張自体は本監査では実装しない。
 
 M7-011（Issue #265）は、その単一原因である分類payloadを`EffectApplied`へ追加し、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`の5行すべてを近似なしへ解消して下表から除去した。`effect-grant-service.ts`は付与時に`EffectActionDefinition`そのものを受け取り、効果の種類（`effectKind`）と、解除・免疫判定の正本である`effect-category-classifier.ts`が導く分類集合（`categories`、R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ配列）をpayloadへ載せる。trigger側は`categories`を`op: CONTAINS`で判定する。変換は`SKL_KEI_JACKKNIFE_PS2`・`SKL_LILY_SINGER_PS1`（`categories CONTAINS DEBUFF`）、`SKL_SIENA_DIVA_PS1`・`SKL_NADYA_SUCCESSOR_PS1`（`categories CONTAINS STATUS`。「状態異常」はSTEALTH等の有利な`APPLY_STATUS`を含まないため`effectKind: APPLY_STATUS`では広すぎる）、`SKL_URUU_TIMID_PS3`（`categories CONTAINS DEBUFF`）、`SKL_NADYA_SUCCESSOR_PS2`（`statusKind EQ STUN`）で、`SKL_NADYA_SUCCESSOR_PS1`/`PS2`にはraw原文が併記する除外タイミング（`RESOLUTION_PHASE`の`negate: true`3件）も併せて宣言した。`SKL_NADYA_SUCCESSOR_PS2`の`sourceSelector`はraw原文が付与者を限定していない（「敵に気絶が付与された際に発動」）ため`SELF`→`ANY`へ訂正した — 同じ形の`SKL_KEI_JACKKNIFE_PS2`/`SKL_SIENA_DIVA_PS1`/`SKL_KATE_PALADIN_PS1`はいずれも`ANY`である。実ライフサイクル（実カタログ→実付与サービスが発行した`EffectApplied`→候補検出→PS発動）での確認は`IT-UNIT-KEI-JACKKNIFE-007`・`IT-UNIT-SIENA-DIVA-007`・`IT-UNIT-NADYA-SUCCESSOR-005`・`IT-UNIT-KATE-PALADIN-005`・`IT-UNIT-LILY-SINGER-004`・`IT-UNIT-MEIYA-FATED-004`・`IT-UNIT-URUU-TIMID-004`（`REF-041`／Issue #388でユニット効果軸へ移送。それ以前は`IT-CAP-TRIGGER-PAYLOAD-PROD-001`〜`007`）、Catalog定義の固定は`IT-CAT-PROD-013`。`CAP_DAMAGE_MOD`（M8/`DMG-002`）・`CAP_SUBUNIT`（M8/`DMG-005`）へ依存する`SKL_LILY_SINGER_PS1`/`SKL_URUU_TIMID_PS3`/`SKL_NADYA_SUCCESSOR_PS1`/`PS2`は、EffectSequenceの完全解決だけが別テーマ・別行として残る（本テーマのtrigger側ギャップは解消済み）。
 
@@ -233,9 +233,11 @@ DMG-003（Issue #196）は`POST_DAMAGE_CRITICAL_BRANCH`（6行）・`POST_DAMAGE
 
 `DMG-009`（Issue #193）は`R-CFS-01`（混乱の対象振り替え）・`R-CFS-02`（混乱時のダメージ）・`R-DTH-01`（幻惑）を新設し、`APPLY_STATUS`の`status`へ`CONFUSION`と`DAMAGE_TO_HEAL`を追加して、`CONFUSION_OR_DAMAGE_TO_HEAL`テーマの2行をどちらも近似なしへ更新した。`UNIT_OLGA_VETERAN`のEXは識別用Marker（`ACT_OLGA_VETERAN_EX_CONFUSION_MARKER`）を`ACT_OLGA_VETERAN_EX_CONFUSION`へ置き換え、raw原文の3要素（逆陣営への攻撃振り替え・ダメージ30%減少・攻撃力が防御力以下のときの`攻撃力×10%`）を`confusion.damageReductionRate`／`lowAttackBaseDamageRate`と`skill-resolution-service.ts`のbinding側反転で表現した。`UNIT_TATIANA_SAGE`のAS1は省略していた「幻惑」を`ACT_TATIANA_SAGE_AS1_DAZZLE`（`damageToHeal.healRate: 0.7`）として復元し、`damage-application-service.ts`が`DamageApplied`の代わりに`DamageConvertedToHeal`を発行する。どちらも`戦闘システム.md`が列挙する定義済み状態異常ではないため`STATUS`カテゴリを持たず`DEBUFF`だけに分類する（`R-CRT-03`の会心不可と同じ扱い）。混乱の振り替えは陣営を指す規定であり、反転後の対象順は`R-TGT-01`／`R-TGT-02`がそのまま決めるため、単体攻撃は距離0の使用者自身へ向かう。
 
-| unitDefinitionId     | 該当スキル                              | 変換できなかった内容                                      | 原因                                                                                              | 対応予定 | 対応テーマ                       |
-| -------------------- | --------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- | -------------------------------- |
-| `UNIT_SUIRAN_CASINO` | `SKL_SUIRAN_CASINO_AS1`（ショーダウン） | 「自身が『ワンペア』所持時は敵2体」への対象拡張を省略した | 支給された5スキルの中に「ワンペア」を付与する手段が存在せず、到達不能な分岐のため実装対象外とした | `M9`     | `UNREACHABLE_BRANCH_BY_RAW_DATA` |
+**不完全変換一覧は空である**（`REL-003`／Issue #200、M9最終承認）。最後まで残っていた `UNREACHABLE_BRANCH_BY_RAW_DATA` 1行（`UNIT_SUIRAN_CASINO`／`SKL_SUIRAN_CASINO_AS1`「自身が『ワンペア』所持時は敵2体」への対象拡張）は、実装できないギャップではなく**到達不能という判断**だったため、判断が最終承認時点でも維持されているかを確認したうえで除去した。
+
+確認方法と結果（`REL-003`）: `catalog-src/units/` 全69件と `catalog-src/memories/` 全32件のJSONを走査し、`APPLY_MARKER` が配る `markerId` を全件収集した。「ワンペア」に対応し得るID（`PAIR` を含むもの）は**0件**で、`UNIT_SUIRAN_CASINO` が配るMarkerは `MARKER_SUIRAN_CASINO_THREE_CARD`（スリーカード）**1種のみ**だった。したがって敵2体への対象拡張は現行 production Catalog から依然として到達できない。この走査は `UT-PLAN-001-008`（`remaining-work.test.ts`）として常設し、`PAIR` を含むMarkerが現れるか劉翠蘭のMarkerが増えた時点でCIが落ちる — その時は近似の再検討（`SKL_SUIRAN_CASINO_AS1` の対象拡張の実装）が必要になる。Markerは `markerId` だけで表示名を持たないため、原文語との対応をID表記で判定している点がこの検査の限界である。
+
+`SKL_SUIRAN_CASINO_AS1` の現在の振る舞い（「スリーカード」所持時は最大HPが高い順の敵3体、非所持時は既定の対象）は `IT-UNIT-SUIRAN-CASINO-001` の振る舞い表が固定している。
 
 ## Memory 変換台帳
 
@@ -353,6 +355,6 @@ Issue #47先行バッチで変換した6 Memory（`MEM_HARD_WARMUP`、`MEM_STRAN
 
 ## 後続バッチへの申し送り（履歴）
 
-Issue #60（Batch F）で`raw/units/`全69件、Issue #176（M7-008）で`raw/memories/`全32件の変換が完了したため、後続バッチへの申し送りは役目を終えた。各バッチが確認した表現ギャップの追跡は[`16_不完全変換対応予定方針.md`](./16_不完全変換対応予定方針.md)の対応テーマと[`17_残作業対応表.json`](./17_残作業対応表.json)の割当へ引き継ぎ済みであり、バッチ時点の申し送り本文は本書のgit履歴を参照する（REF-005／Issue #308で除去）。
+Issue #60（Batch F）で`raw/units/`全69件、Issue #176（M7-008）で`raw/memories/`全32件の変換が完了したため、後続バッチへの申し送りは役目を終えた。各バッチが確認した表現ギャップの追跡は[`16_不完全変換対応予定方針.md`](./archive/16_不完全変換対応予定方針.md)の対応テーマと[`17_残作業対応表.json`](./17_残作業対応表.json)の割当へ引き継ぎ済みであり、バッチ時点の申し送り本文は本書のgit履歴を参照する（REF-005／Issue #308で除去）。
 
 運用上の注意として残す事実は1点だけである: 【理解深き老成の智者】タチアナ・ドロズドヴァは、スクレイピング時点の`raw/units/`ファイルがステータス・スキル名・威力のみを収録しスキル効果本文が空欄だったため、効果文を`raw/`と数値が完全一致する外部Wiki（kamigame.jp、Lv.15/MAX表記）で補完して変換した。他ユニットのように`raw/`単体では変換できないため、将来`raw/units/`のタチアナ・ファイルを更新する場合は本台帳とcatalog-srcとの整合を再確認すること（スキル1「静かな時を」の原文はIssue #225の節の逐語引用を参照）。
