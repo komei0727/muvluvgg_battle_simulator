@@ -29,6 +29,9 @@ const UNIT_DEFINITION_ID = "UNIT_LILY_SINGER";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
+/** raw原文「対象の味方単体にかけられたデバフを5個解除し」。`ACT_LILY_SINGER_PS1_REMOVE_DEBUFF.maxRemovals`。 */
+const MAX_REMOVALS = 5;
+
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
@@ -378,5 +381,47 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
       classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["DAMAGE_MOD", "DEBUFF"] },
       activated: ["SKL_LILY_SINGER_PS1"],
     });
+  });
+
+  it("IT-UNIT-LILY-SINGER-005 (R-EFF-02): PS1の「デバフを5個解除」は `maxRemovals` で頭打ちになる — 6つ持っていても5つしか解除されず、6つ目は残る", () => {
+    // `-001` のPS1行は解除対象を1つしか持たないため、上限そのものは現れない
+    // （上限が無くても、上限が10でも同じ観測になる）。上限より1つ多い前提を
+    // 実 production 定義で積んで、解除件数が5で止まることを固定する。
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_LILY_SINGER_PS1",
+        trigger: effectApplied({
+          source: "enemy:front",
+          target: "ally:front",
+          effectKind: "APPLY_STAT_MOD",
+          categories: ["DEBUFF"],
+        }),
+        triggeredBy: "enemy:front",
+      },
+      precedingActions: Array.from({ length: MAX_REMOVALS + 1 }, () => ({
+        effectActionDefinitionId: "ACT_LILY_SINGER_AS1_ATK_DOWN",
+        target: "ALLY" as const,
+      })),
+    });
+
+    expect(observation.effectsRemoved).toEqual(
+      Array.from({ length: MAX_REMOVALS }, () => ({
+        unitId: "ally:front",
+        effectActionDefinitionId: "ACT_LILY_SINGER_AS1_ATK_DOWN",
+        magnitude: -0.3,
+        timeLimit: { unit: "ACTION", count: 1 },
+      })),
+    );
+    expect(observation.effectsApplied).toEqual([
+      {
+        unitId: "ally:front",
+        effectActionDefinitionId: "ACT_LILY_SINGER_PS1_EN_DAMAGE_DOWN",
+        magnitude: -0.25,
+        consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+      },
+    ]);
   });
 });

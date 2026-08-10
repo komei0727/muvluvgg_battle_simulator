@@ -55,6 +55,9 @@ export const resolveHeal: SteppedEffectActionHandler<"HEAL"> = function* (input)
   while (!healStep.done) {
     box.units = healStep.value.units;
     yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
+    // 再開時点のrecorder末尾までは、driverがこの`yield`で既に解決した子連鎖。
+    // 拾い直すと同じイベントが2度`resolveEvent`へ渡る（`consumeResolvedByDriver`）。
+    cursor.consumeResolvedByDriver();
     // 子PS連鎖（あれば）が`box.units`を書き換えている可能性があるため、一時停止していた
     // generatorを再開する前に取り込む（sync-in）。
     healStep = healGen.next(box.units);

@@ -67,9 +67,9 @@ export function* resolveEffectActionByKind(
     case "APPLY_MARKER":
       return resolveApplyMarker({ ...input, effectAction });
     case "REMOVE_MARKER":
-      return resolveRemoveMarker({ ...input, effectAction });
+      return yield* resolveRemoveMarker({ ...input, effectAction });
     case "REMOVE_EFFECTS":
-      return resolveRemoveEffects({ ...input, effectAction });
+      return yield* resolveRemoveEffects({ ...input, effectAction });
     case "EFFECT_IMMUNITY":
       return resolveEffectImmunity({ ...input, effectAction });
     case "APPLY_SHIELD":

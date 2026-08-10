@@ -36,9 +36,19 @@ const UNIT_DEFINITION_ID = "UNIT_SHOUKA_SCHEMER";
 const DEFENSE_DEBUFF_SOURCE_UNIT_ID = "UNIT_CHIYURU_MAZE";
 const DEFENSE_DEBUFF_ACTION_ID = "ACT_CHIYURU_MAZE_AS1_DEF_DOWN";
 
+/**
+ * 使用者自身のバフが解除されないことの対照に使う定義。小花のバフはいずれも
+ * `timeLimit: ACTION(1)` で、**自身が行動すればその行動の終わりに必ず失効する**
+ * （R-EFF-06）ため、解除されなかったことの証拠にならない。戦闘終了まで残る
+ * 実 production のバフを1件だけ併せて読み込む。
+ */
+const SELF_BUFF_SOURCE_UNIT_ID = "UNIT_NOEL_RUMBLE";
+const SELF_BUFF_ACTION_ID = "ACT_NOEL_RUMBLE_PS1_ATK_UP";
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   DEFENSE_DEBUFF_SOURCE_UNIT_ID,
+  SELF_BUFF_SOURCE_UNIT_ID,
 ]);
 
 /** 解除対象のバフを最も近い敵へ実 production 定義で用意する。 */
@@ -386,5 +396,37 @@ describe("production Catalog UNIT_SHOUKA_SCHEMER (【風紀委員会の策謀家
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
     });
+  });
+
+  it("IT-UNIT-SHOUKA-SCHEMER-005 (R-EFF-02): EXは「3つまで」・AS3は「1つ」で解除件数が頭打ちになり、どちらも対象は敵であって使用者自身のバフには触れない", () => {
+    // `-001` のEX／AS3行は解除対象を敵1体につき1つしか持たないため、上限そのものは
+    // 現れない（上限が無くても同じ観測になる）。上限より多い前提を実 production 定義で
+    // 積み、あわせて同じバフを使用者自身にも持たせて、対象束縛が `SELF` へ倒れていない
+    // ことを解除件数と同じ観測の中で固定する。
+    const enemyBuffs: readonly PrecedingAction[] = Array.from({ length: 4 }, () => ({
+      effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
+      target: "ENEMY" as const,
+    }));
+    const removedDefUp = (count: number) =>
+      Array.from({ length: count }, () => ({
+        unitId: "enemy:front",
+        effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
+        magnitude: 0.05,
+        timeLimit: { unit: "ACTION", count: 1 },
+      }));
+    const removedBy = (skillDefinitionId: string) =>
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId },
+        precedingActions: [
+          ...enemyBuffs,
+          { effectActionDefinitionId: SELF_BUFF_ACTION_ID, target: "SELF" },
+        ],
+      }).effectsRemoved;
+
+    // 敵の4つのうち3つだけが解除され、4つ目と使用者自身のバフは残る。
+    expect(removedBy("SKL_SHOUKA_SCHEMER_EX")).toEqual(removedDefUp(3));
+    expect(removedBy("SKL_SHOUKA_SCHEMER_AS3")).toEqual(removedDefUp(1));
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { removeEffects } from "./effect-removal-service.js";
+import { removeEffects, removeEffectsSteps } from "./effect-removal-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
@@ -388,5 +388,66 @@ describe("removeEffects (R-EFF-02)", () => {
       reason: "REMOVED",
       cascaded: false,
     });
+  });
+
+  it("UT-R-EFF-09-027 (R-EFF-09 通知順序): removeEffectsSteps yields one step per removed member, so a caller without a callback (a PS resolving its own EffectSequence) can drive the same granularity", () => {
+    // R-EFF-09「この規約は評価経路を問わない」: 同期callbackを渡せない呼び出し側
+    // （進行中の`resolvePassiveChain`の内側）は、ステップごとの`yield`から同じ粒度を
+    // 得る。子を観測する時点で親がまだ残っていることが規約の要点。
+    const buffDef = statModDefinition("ACT_ATK_UP");
+    const target = unit("target-1");
+    const parent = effect("parent", target.battleUnitId, buffDef.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "G1",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+    const childMarker: MarkerState = {
+      markerInstanceId: createMarkerInstanceId("marker-child"),
+      markerId: createMarkerId("MARKER_CHILD"),
+      sourceUnitId: target.battleUnitId,
+      targetUnitId: target.battleUnitId,
+      stackCount: 1,
+      stackMax: null,
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: "G1",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    };
+    const withBoth = { ...target, appliedEffects: [parent], markerStates: [childMarker] };
+    const { recorder, rootEventId } = createRoot();
+
+    const steps = removeEffectsSteps(
+      context(recorder, rootEventId),
+      [withBoth],
+      target.battleUnitId,
+      { categories: ["BUFF"] },
+      new Map([[buffDef.effectActionDefinitionId, buffDef]]),
+      rootEventId,
+    );
+    const observed: { eventTypes: string[]; parentPresent: boolean }[] = [];
+    let step = steps.next();
+    while (!step.done) {
+      observed.push({
+        eventTypes: step.value.events.map((event) => event.eventType),
+        parentPresent: step.value.units.some((u) =>
+          u.appliedEffects.some((e) => e.effectInstanceId === parent.effectInstanceId),
+        ),
+      });
+      step = steps.next(step.value.units);
+    }
+
+    expect(observed.map((entry) => entry.eventTypes)).toEqual([
+      ["MarkerRemoved"],
+      ["EffectRemoved"],
+    ]);
+    expect(observed.map((entry) => entry.parentPresent)).toEqual([true, false]);
+    expect(step.value.removedCount).toBe(1);
   });
 });

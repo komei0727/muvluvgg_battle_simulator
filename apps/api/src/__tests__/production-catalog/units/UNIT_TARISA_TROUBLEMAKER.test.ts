@@ -4,8 +4,11 @@ import type { BattleDomainEvent } from "../../../domain/battle/events/domain-eve
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
+  createUnitDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import type { SkillDefinition } from "../../../domain/catalog/definitions/skill-definition.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
   effectActionFrom,
@@ -53,13 +56,79 @@ import { realDamage } from "../../../testing/production-unit/trigger-events.js";
 
 const UNIT_DEFINITION_ID = "UNIT_TARISA_TROUBLEMAKER";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * 「攻撃力バフは解除不可」の対照に使う、バフを全解除する実 production 定義。
+ * タリサ自身は解除を持たないため、1ユニットだけ併せて読み込む。
+ */
+const DISPEL_BUFFS_ACTION_ID = "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_NOEL_RUMBLE",
+]);
 
 const FIGHTING_SPIRIT = "MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT";
 const PS1_ATK_UP = "ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP";
 const PS1_MARKER = "ACT_TARISA_TROUBLEMAKER_PS1_MARKER";
+const PS1_LINK = "TARISA_TROUBLEMAKER_PS1_LINK";
+/** 連動グループ外の実定義。カスケードに巻き込まれない可視効果として使う。 */
+const WATCHER_EFFECT_ID = "ACT_TARISA_TROUBLEMAKER_EX_ATK_UP";
 /** raw原文の上限。攻撃力バフ側もMarker「負けん気」と同じ14個で止まる。 */
 const STACK_MAX = 14;
+
+function durationOf(effectActionDefinitionId: string): unknown {
+  return (
+    effectActionFrom(snapshot, effectActionDefinitionId) as { payload: { duration: unknown } }
+  ).payload.duration;
+}
+
+/**
+ * カスケードで巻き込まれた子の `EffectExpired` を契機にし、その時点で親Markerを
+ * 所持しているかを `TARGET_HAS_MARKER` で判定するPS。通知がインスタンス単位でなく
+ * バッチだと、親Markerが既に除去された状態を観測して発動しない。
+ */
+const markerWatcher: SkillDefinition = {
+  skillDefinitionId: createSkillDefinitionId("SKL_TEST_TARISA_MARKER_WATCHER"),
+  skillType: "PS",
+  cost: { resource: "PP", amount: 1 },
+  activationCondition: {
+    kind: "TARGET_HAS_MARKER",
+    target: { kind: "SELF" },
+    markerId: createMarkerId(FIGHTING_SPIRIT),
+  },
+  triggers: [
+    {
+      eventType: "EffectExpired",
+      category: "FACT",
+      sourceSelector: "SELF",
+      targetSelector: "SELF",
+      condition: { kind: "TRUE" },
+    },
+  ],
+  counterUpdates: [],
+  resolution: {
+    kind: "IMMEDIATE",
+    targetBindings: [],
+    steps: [
+      {
+        kind: "ACTION",
+        stepCondition: { kind: "TRUE" },
+        targetCondition: { kind: "TRUE" },
+        target: { kind: "SELF" },
+        actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(WATCHER_EFFECT_ID) }],
+      },
+    ],
+  },
+  cooldown: { unit: "ACTION", count: 0 },
+  traits: {
+    priorityAttack: false,
+    simultaneousActivationLimited: false,
+    exclusiveActivationGroupId: null,
+    accuracy: { guaranteedHit: false },
+    piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+  },
+  metadata: { displayName: "SKL_TEST_TARISA_MARKER_WATCHER", tags: [] },
+};
 
 /** PS1が連鎖して自身へ入る、1回分の「負けん気」と攻撃力バフ。 */
 const PS1_SELF_BUFF = [
@@ -317,10 +386,16 @@ function grantAtkUp(count: number): readonly PrecedingAction[] {
 const PROBE_ACTION_ID = "ACT_TEST_TARISA_TEN_DAMAGE";
 
 /**
- * PS1の条件付きstepが読む `calculatedDamage` をちょうど10にする、自身からの
- * 実攻撃。契機イベントは合成せず実ダメージpipelineに出させる。
+ * PS1の条件付きstep（`calculatedDamage <= 10`）を成立させる、自身からの実攻撃。
+ * 契機イベントは合成せず実ダメージpipelineに出させる。威力を引数に取るのは、
+ * 前提として攻撃力バフを積むと同じ威力でも与ダメージが10を超えてしまうため。
  */
-function strikeForCondition(chain: PassiveChain, units: readonly BattleUnit[]) {
+function strikeForCondition(
+  chain: PassiveChain,
+  units: readonly BattleUnit[],
+  power: number,
+  expectedDamage: number,
+) {
   const attacker = units.find((unit) => unit.battleUnitId === "ally:subject")!;
   const struck = applyDamageAction(
     attacker,
@@ -337,8 +412,7 @@ function strikeForCondition(chain: PassiveChain, units: readonly BattleUnit[]) {
       metadata: { tags: [] },
       payload: {
         damageType: "PHYSICAL",
-        // 攻撃力1000・防御力500の盤面で威力2%＝10ダメージ。
-        formula: { kind: "SKILL_POWER", power: 0.02 },
+        formula: { kind: "SKILL_POWER", power },
         hitCount: 1,
         critical: { mode: "PREVENTED" },
         accuracy: { mode: "GUARANTEED" },
@@ -364,7 +438,7 @@ function strikeForCondition(chain: PassiveChain, units: readonly BattleUnit[]) {
     },
   );
   const triggerEvent = chain.eventsOfType("DamageApplied").at(-1)!;
-  expect(triggerEvent.payload.calculatedDamage).toBe(10);
+  expect(triggerEvent.payload.calculatedDamage).toBe(expectedDamage);
   return { units: struck.units, triggerEvent };
 }
 
@@ -477,7 +551,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
       damageResults: new Map(),
     });
     // 攻撃力1000・防御力500の盤面で威力2%＝ちょうど10ダメージ（条件は `LTE 10`）。
-    const struck = strikeForCondition(chain, board.units);
+    const struck = strikeForCondition(chain, board.units, 0.02, 10);
     const after = chain.fireRecorded(struck.triggerEvent, struck.units);
 
     const markerUpdates = chain.recorder
@@ -524,5 +598,169 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(subject.combatStats.attack).toBe(
       units.find((unit) => unit.battleUnitId === "ally:subject")!.combatStats.attack,
     );
+  });
+
+  it("IT-UNIT-TARISA-TROUBLEMAKER-007 (R-EFF-09第1項): 攻撃力バフは `REMOVE_EFFECTS` では解除できないが、親の「負けん気」が実 `REMOVE_MARKER` で無くなると同時に全インスタンスが失効する。公開差分だけからも同じ状態へ復元できる", () => {
+    // raw原文「攻撃力バフは解除不可だが、「負けん気」が解除されると同時に解除される」。
+    // 定義は `dispellable: false` と `linkedEffectGroupId` の両方を宣言しており、
+    // 「解除できない」と「連動して消える」は両立する（R-EFF-09）。
+    expect(durationOf(PS1_MARKER)).toMatchObject({
+      linkedEffectGroupId: PS1_LINK,
+      linkedEffectGroupRole: "PARENT",
+    });
+    expect(durationOf(PS1_ATK_UP)).toMatchObject({
+      linkedEffectGroupId: PS1_LINK,
+      linkedEffectGroupRole: "CHILD",
+      dispellable: false,
+    });
+
+    // 前提は実 production 定義で作る。盤面の `markers` は `linkedEffectGroupId` を
+    // 持たない素のMarkerになるため、カスケードの前提にはできない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const baseline = applyPrecedingActions(board, [
+      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+      { effectActionDefinitionId: PS1_ATK_UP, target: "SELF" },
+      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+      { effectActionDefinitionId: PS1_ATK_UP, target: "SELF" },
+      // 「解除不可」側: バフを全解除する実 production 定義を通しても1件も落ちない。
+      { effectActionDefinitionId: DISPEL_BUFFS_ACTION_ID, target: "SELF" },
+    ]);
+    const before = baseline.find((unit) => unit.battleUnitId === "ally:subject")!;
+    expect(atkUpsOf(baseline)).toHaveLength(2);
+    expect(before.markerStates.map((marker) => marker.stackCount)).toEqual([2]);
+    expect(before.combatStats.attack).toBeCloseTo(1000 * (1 + 0.025 * 2), 9);
+
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_TARISA_CASCADE",
+      damageResults: new Map(),
+    });
+    // 攻撃力が+5%されているため、威力1%で 550 × 1% ＝ 5ダメージ（条件は `LTE 10`）。
+    const struck = strikeForCondition(chain, baseline, 0.01, 5);
+    const eventsBefore = chain.recorder.getEvents().length;
+    const after = chain.fireRecorded(struck.triggerEvent, struck.units);
+
+    // 発動で「負けん気」は2→3になり、`REMOVE_MARKER` の `count: 3` が保持ごと消す。
+    // 巻き込まれるのは前提の2件＋この発動が付けた1件。
+    const holder = after.find((unit) => unit.battleUnitId === "ally:subject")!;
+    expect(holder.markerStates).toEqual([]);
+    expect(holder.appliedEffects).toEqual([]);
+    expect(holder.combatStats.attack).toBe(1000);
+
+    const cascade = chain.recorder
+      .getEvents()
+      .slice(eventsBefore)
+      .filter(
+        (event) => event.eventType === "EffectExpired" || event.eventType === "MarkerRemoved",
+      );
+    // R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」。
+    expect(cascade.map((event) => event.eventType)).toEqual([
+      "EffectExpired",
+      "EffectExpired",
+      "EffectExpired",
+      "MarkerRemoved",
+    ]);
+    for (const expired of cascade.slice(0, 3)) {
+      expect(expired.payload).toMatchObject({
+        effectActionDefinitionId: PS1_ATK_UP,
+        reason: "LINKED_GROUP_CASCADE",
+        linkedEffectGroupId: PS1_LINK,
+        cascaded: true,
+      });
+    }
+    expect(cascade[3]!.payload).toMatchObject({
+      markerId: FIGHTING_SPIRIT,
+      reason: "REMOVED",
+      linkedEffectGroupId: PS1_LINK,
+      cascaded: false,
+    });
+
+    const restored = reconstruct(
+      initialSnapshotFor(baseline, { include: ["effects", "markers"] }),
+      chain.recorder,
+    );
+    const subject = restored.units[createBattleUnitId("ally:subject")]!;
+    expect(subject.effects ?? []).toHaveLength(0);
+    expect(subject.markers ?? []).toHaveLength(0);
+    expect(subject.combatStats.attack).toBe(1000);
+  });
+
+  it("IT-UNIT-TARISA-TROUBLEMAKER-008 (R-EFF-09 通知順序): カスケードで巻き込まれた子の `EffectExpired` を契機にするPSは、その時点でまだ親の「負けん気」を所持している状態で発動する", () => {
+    // R-EFF-09「各インスタンスの失効イベントは、次のインスタンスへ進む前にPS/Memoryの
+    // 即時連鎖へ渡す」。この規約は**評価経路を問わない** — 実 `catalog/` で連動グループの
+    // 親Markerを外す2定義（`ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER`・
+    // `ACT_AOI_ELEGANT_PS2_CLEAR_KOUYOU`）はどちらもPS自身のEffectSequenceからしか
+    // 走らないため、この経路で粒度が崩れると実データでは規約が一度も守られない。
+    // まとめて通知していると、このPSは親Markerが既に消えた状態を観測して発動しない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const tarisaDefinitionId = createUnitDefinitionId(UNIT_DEFINITION_ID);
+    const tarisaDefinition = board.definitions.unitDefinitions.get(tarisaDefinitionId)!;
+    const definitions = {
+      ...board.definitions,
+      skillDefinitions: new Map(board.definitions.skillDefinitions).set(
+        markerWatcher.skillDefinitionId,
+        markerWatcher,
+      ),
+      unitDefinitions: new Map(board.definitions.unitDefinitions).set(tarisaDefinitionId, {
+        ...tarisaDefinition,
+        passiveSkillDefinitionIds: [
+          ...tarisaDefinition.passiveSkillDefinitionIds,
+          markerWatcher.skillDefinitionId,
+        ],
+      }),
+    };
+
+    // 「負けん気」2段だけを前提に置く。発動で3段目とその攻撃力バフ1件が入り、
+    // `count: 3` の解除でそのバフ1件だけがカスケードで失効する。
+    const baseline = applyPrecedingActions({ ...board, definitions }, [
+      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+    ]);
+    const chain = openPassiveChain({
+      definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_TARISA_CASCADE_NOTIFY",
+      damageResults: new Map(),
+    });
+    const struck = strikeForCondition(chain, baseline, 0.02, 10);
+    const eventsBefore = chain.recorder.getEvents().length;
+    const after = chain.fireRecorded(struck.triggerEvent, struck.units);
+
+    const emitted = chain.recorder.getEvents().slice(eventsBefore);
+    const indexOf = (predicate: (event: BattleDomainEvent) => boolean) =>
+      emitted.findIndex(predicate);
+    const childExpired = indexOf(
+      (event) =>
+        event.eventType === "EffectExpired" &&
+        (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+          PS1_ATK_UP,
+    );
+    const watcherActivated = indexOf(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        event.payload.skillDefinitionId === markerWatcher.skillDefinitionId,
+    );
+    const markerRemoved = indexOf((event) => event.eventType === "MarkerRemoved");
+
+    // 本命: 子の失効 → watcher PSの発動 → 親Markerの除去、の順。watcher が
+    // `MarkerRemoved` より後ろへ回ると `TARGET_HAS_MARKER` は成立しない。
+    expect(childExpired).toBeGreaterThanOrEqual(0);
+    expect(watcherActivated).toBeGreaterThan(childExpired);
+    expect(markerRemoved).toBeGreaterThan(watcherActivated);
+    expect(
+      emitted.filter(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          event.payload.skillDefinitionId === markerWatcher.skillDefinitionId,
+      ),
+    ).toHaveLength(1);
+    // watcher が付けたのは連動グループ外の効果なので、続く親Markerの除去には
+    // 巻き込まれず残る（カスケードが無差別に消していないことの対照）。
+    expect(
+      after
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).toEqual([WATCHER_EFFECT_ID]);
   });
 });

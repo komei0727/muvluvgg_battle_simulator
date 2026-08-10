@@ -10,6 +10,7 @@ import {
   skillFrom,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
+import { removalDeclarationOf } from "../../../testing/production-unit/removal-declaration.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -39,9 +40,14 @@ import { skillUseCompleted, turnStarted } from "../../../testing/production-unit
 const UNIT_DEFINITION_ID = "UNIT_NOEL_RUMBLE";
 
 // 混乱（R-CFS-01）を付与するproduction定義は `ACT_OLGA_VETERAN_EX_CONFUSION` の1件だけ。
+// ノエル自身は自分にデバフを配らないため、PS2の「バフを**すべて**解除」が
+// デバフを巻き込まないことの対照になる実 production のデバフを1件併せて読み込む
+// （戦闘終了まで残るものにする — `timeLimit: ACTION` は保持者の行動で失効し得る）。
+const SELF_DEBUFF_ACTION_ID = "ACT_SHOUKA_SCHEMER_PS1_ATK_DOWN";
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   "UNIT_OLGA_VETERAN",
+  "UNIT_SHOUKA_SCHEMER",
 ]);
 
 /** 最も近い敵だけがEX1撃目で落ちる残HP。生存分岐の不成立側を作る。 */
@@ -474,5 +480,67 @@ describe("production Catalog UNIT_NOEL_RUMBLE (【体育祭の暴れん坊】ノ
       "enemy:front",
     ]);
     expect(completedTargetIdsOf(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE")).toEqual([]);
+  });
+
+  it("IT-UNIT-NOEL-RUMBLE-005 (R-EFF-02): PS2の「バフをすべて解除」は件数上限を持たず、バフ／デバフの別は `magnitude` の符号ではなく被ダメージ補正の向きで決まる", () => {
+    // `-001` のPS2行は解除対象を1つしか持たないため、「すべて」も「1つまで」も
+    // 同じ観測になる。上限が無いことは複数件でしか現れない。あわせて負の
+    // `magnitude` を持つ被ダメージ**減少**（`direction: INCOMING`＝保持者に有利
+    // ＝バフ）が解除され、同じく負の攻撃力デバフは残ることを1つの観測で並べる。
+    // 「すべて」は上限の**不在**であり、実行結果からは「上限がたまたま投入件数と
+    // 同じ」と区別できない。宣言そのものを固定して、`maxRemovals` の混入を落とす。
+    expect(removalDeclarationOf(snapshot, "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF")).toEqual({
+      categories: ["BUFF"],
+      maxRemovals: null,
+    });
+
+    const grant = (effectActionDefinitionId: string) => ({
+      effectActionDefinitionId,
+      target: "SELF" as const,
+    });
+    const removedSelfEffect = (effectActionDefinitionId: string, magnitude: number) => ({
+      unitId: "ally:subject",
+      effectActionDefinitionId,
+      magnitude,
+      timeLimit: { unit: "BATTLE", count: 1 },
+    });
+
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: {
+          kind: "PASSIVE",
+          skillDefinitionId: "SKL_NOEL_RUMBLE_PS2",
+          trigger: turnStarted({ turnNumber: 2 }),
+          triggeredBy: "ally:subject",
+          turnNumber: 2,
+        },
+        precedingActions: [
+          grant("ACT_NOEL_RUMBLE_PS1_ATK_UP"),
+          grant("ACT_NOEL_RUMBLE_PS1_ATK_UP"),
+          grant("ACT_NOEL_RUMBLE_PS1_DMG_DOWN"),
+          grant("ACT_NOEL_RUMBLE_PS1_DMG_DOWN"),
+          grant(SELF_DEBUFF_ACTION_ID),
+        ],
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_NOEL_RUMBLE_PS2_HEAL", targets: ["ally:subject"] },
+      ],
+      // 回復は威力50%。残った攻撃力デバフ-3.5%の分だけ 500 から 482 へ落ちる。
+      hpDeltas: { "ally:subject": 482 },
+      effectsRemoved: [
+        removedSelfEffect("ACT_NOEL_RUMBLE_PS1_ATK_UP", 0.18),
+        removedSelfEffect("ACT_NOEL_RUMBLE_PS1_ATK_UP", 0.18),
+        removedSelfEffect("ACT_NOEL_RUMBLE_PS1_DMG_DOWN", -0.15),
+        removedSelfEffect("ACT_NOEL_RUMBLE_PS1_DMG_DOWN", -0.15),
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    });
   });
 });
