@@ -2679,6 +2679,16 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // その場で通知し、無ければ`EFFECT_RESOLVED`としてdriverへ`yield`する。
   // `UT-R-EFF-09-025`〜`027`がgenerator側を、`IT-UNIT-TARISA-TROUBLEMAKER-008`が
   // 実 production 経路（子の失効 → watcher PSの発動 → 親Markerの除去）を固定する。
+  //
+  // 同時に、`yield`から再開する側の契約も要る（`consumeResolvedByDriver`）。
+  // `takePending`が捕捉位置を進めるのは`yield`直前のrecorder末尾までで、driverが
+  // その`yield`を処理する間に子連鎖が積んだイベントはその後ろへ入る。再開時に
+  // 捨てないと次stepの`takePending`／EffectAction完了時の`innerEvents`が拾い直し、
+  // 同じイベントが2度`resolveEvent`へ渡る（PSは発動済みGuardで覆い隠れるが、
+  // Memoryやイベントごとに走るRuntimeCounter更新は二重に実行される）。同じ形で
+  // `yield`していたDAMAGE・HEALのハンドラにも同じ欠落があった。
+  // `UT-R-EFF-09-028`（複数インスタンスの`REMOVE_EFFECTS`）・`UT-R-EFF-09-029`
+  // （多段DAMAGE）が、子連鎖のイベントが一度もdriverへ返らないことを固定する。
   // (2) カスケード対象の並びを`linkedEffectGroupRole`（`CHILD`→ロールなし→
   // `PARENT`）を第1キーに変更した（スキーマが禁じていない「同一グループに複数の
   // `PARENT`」で、カスケードされた`PARENT`が同グループの`CHILD`より先に失効し得た。
@@ -2741,10 +2751,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-022",
       "UT-R-EFF-09-023",
       "UT-R-EFF-09-024",
-      // REF-042（Issue #389）: 同期callbackを持たない経路のためのステップ版。
+      // REF-042（Issue #389）: 同期callbackを持たない経路のためのステップ版と、
+      // その経路が`yield`中に発生した子連鎖のイベントを再通知しないこと。
       "UT-R-EFF-09-025",
       "UT-R-EFF-09-026",
       "UT-R-EFF-09-027",
+      "UT-R-EFF-09-028",
+      "UT-R-EFF-09-029",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-UNIT-HARRIET-SAGE-004",

@@ -334,6 +334,9 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
     // この時点の正しい中間状態を参照できる。
     box.units = damageStep.value.units;
     yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
+    // 再開時点のrecorder末尾までは、driverがこの`yield`で既に解決した子連鎖。
+    // 拾い直すと同じイベントが2度`resolveEvent`へ渡る（`consumeResolvedByDriver`）。
+    cursor.consumeResolvedByDriver();
     // 子PS連鎖（あれば）が`box.units`を書き換えている可能性があるため、一時停止していた
     // generatorを再開する前に取り込む（sync-in）。
     damageStep = damageGen.next(box.units);

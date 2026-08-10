@@ -79,6 +79,18 @@ export interface EffectActionEventCursor {
   consumeNotifiedByCallee(): void;
   /** 未通知イベント列を取り出し、捕捉位置を前進させる（driverへ`yield`する経路用）。 */
   takePending(): readonly BattleDomainEvent[];
+  /**
+   * `yield`から再開した直後に、driverがその`yield`を処理する間にrecorderへ積んだ
+   * イベント（＝既に候補解決まで済んでいる子連鎖）を一括捕捉から除く。
+   *
+   * `takePending`が捕捉位置を進めるのは`yield`**直前**のrecorder末尾までなので、
+   * これを呼ばずに次のstepへ進むと、次の`takePending`または
+   * {@link innerEvents}が子連鎖のイベントを拾い直し、同じイベントが2度
+   * `resolveEvent`へ渡る。PS自身は発動済みGuard（R-PS-07）で表面化しないことが
+   * あるが、1解決スコープ1回制限を持たないMemoryやイベントごとに走る
+   * RuntimeCounter更新は二重に実行される。
+   */
+  consumeResolvedByDriver(): void;
   /** `EffectActionCompleted`と同じstepへ含める内部イベント（callback経路では常に空）。 */
   innerEvents(): readonly BattleDomainEvent[];
 }
@@ -113,6 +125,7 @@ export function createEffectActionEventCursor(
       consume();
       return pending;
     },
+    consumeResolvedByDriver: consume,
     innerEvents: () =>
       context.onFactEventForPassiveChain === undefined
         ? context.recorder.getEvents().slice(start)
@@ -208,6 +221,9 @@ export function* driveRemovalSteps<TResult extends { readonly units: readonly Ba
       cursor.consumeNotifiedByCallee();
     } else {
       yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
+      // 再開時点のrecorder末尾までは、driverがこの`yield`で既に解決した子連鎖。
+      // 次stepの`takePending`／EffectAction終了時の`innerEvents`が拾い直さないよう捨てる。
+      cursor.consumeResolvedByDriver();
     }
     step = steps.next(box.units);
   }
