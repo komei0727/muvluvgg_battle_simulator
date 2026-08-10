@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   confusionStatus,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -450,5 +457,50 @@ describe("production Catalog UNIT_LAURA_MOUNTAIN (【みんなを見守る山ガ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-LAURA-MOUNTAIN-004 (R-PS-03/R-PS-07): PS2の実 ALIVE_UNIT_COUNT 発動は `PassiveActivated` のPP収支まで載り、その公開差分だけで復元でき、次の解決スコープでは再び発動する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const initial = initialSnapshotFor(board.units, { include: ["effects"] });
+
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_LAURA_PS2",
+    });
+    const after = chain.fire(turnStarted({ turnNumber: 1 }), board.units);
+
+    const activations = chain
+      .eventsOfType("PassiveActivated")
+      .filter((event) => event.payload.skillDefinitionId === "SKL_LAURA_MOUNTAIN_PS2");
+    expect(activations).toHaveLength(1);
+    expect(activations[0]!.payload).toMatchObject({
+      actorUnitId: "ally:subject",
+      skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS2",
+      ppBefore: 4,
+      ppAfter: 3,
+    });
+    const subject = after.find((unit) => unit.battleUnitId === "ally:subject")!;
+    expect(subject.currentPp).toBe(3);
+
+    // 開始前スナップショットへStateDeltaだけを当てると、PP収支も付与された
+    // 会心バフも独立Reducerだけで復元できる。
+    expect(reconstruct(initial, chain.recorder)).toEqual(
+      initialSnapshotFor(after, { include: ["effects"] }),
+    );
+
+    // R-PS-07「同じ解決スコープでは1回だけ」。スコープが変われば同じPSが再び発動する。
+    const nextScope = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_LAURA_PS2_NEXT",
+      turnNumber: 2,
+    });
+    nextScope.fire(turnStarted({ turnNumber: 2 }), after);
+    expect(
+      nextScope
+        .eventsOfType("PassiveActivated")
+        .map((event) => event.payload.skillDefinitionId as string),
+    ).toEqual(["SKL_LAURA_MOUNTAIN_PS2"]);
   });
 });

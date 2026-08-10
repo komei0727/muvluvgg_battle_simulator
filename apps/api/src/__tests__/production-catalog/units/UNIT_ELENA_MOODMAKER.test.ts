@@ -15,6 +15,7 @@ import {
   observeSkillUse,
   productionBoard,
   resetExecutedActionIds,
+  selectedActiveSkill,
   type BoardOverrides,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -994,5 +995,57 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(
       preTruncationDamageOf(strengthened, enemy) - preTruncationDamageOf(withoutBonus, enemy),
     ).toBeCloseTo(magnitude, 6);
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-009 (R-ACT-02): AS1の実 AND(TARGET_SET_COUNT×2, TARGET_STATE) は行動選択層で評価され、いずれか1つでも崩れるとAS1は候補から外れて宣言順の次のAS2が選ばれる", () => {
+    // 既定盤面は3つの条件がすべて成立する（味方は全員HP半減＝70%未満、自身以外の
+    // 味方が2体、自身のHP割合50%≧40%）。
+    expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
+      "SKL_ELENA_MOODMAKER_AS1",
+    );
+
+    // HPが70%未満の味方がいない（自身もALLY側の母数に入るため満タンにする）。
+    // 2つの `TARGET_SET_COUNT` はどちらもこのスキル自身のbindingを見るため、
+    // 集合が空になる不成立はR-TGT-01 #4（空bindingは常に発動不能）とも重なる。
+    // 条件評価パイプラインがそこでスローせず候補除外として扱われることの証跡。
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: {
+          subject: { state: { currentHp: 10000 } },
+          allies: [
+            {
+              id: "ally:front",
+              position: { column: "LEFT", row: "FRONT" },
+              state: { currentHp: 10000 },
+            },
+            {
+              id: "ally:back",
+              position: { column: "CENTER", row: "BACK" },
+              state: { currentHp: 10000 },
+            },
+          ],
+        },
+      }),
+    ).toBe("SKL_ELENA_MOODMAKER_AS2");
+
+    // 自身のHP割合が40%未満。
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { subject: { state: { currentHp: 3000 } } },
+      }),
+    ).toBe("SKL_ELENA_MOODMAKER_AS2");
+
+    // 自身以外に生存している味方がいない（`TGT_OTHER_ALLIES` が空になる）。
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { allies: [] },
+      }),
+    ).toBe("SKL_ELENA_MOODMAKER_AS2");
   });
 });

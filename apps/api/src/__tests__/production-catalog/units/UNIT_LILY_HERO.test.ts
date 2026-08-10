@@ -9,6 +9,7 @@ import {
   collectedExecutedActionIds,
   observeSkillUse,
   resetExecutedActionIds,
+  selectedActiveSkill,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnCompleting, unitDefeated } from "../../../testing/production-unit/trigger-events.js";
@@ -244,5 +245,29 @@ describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-LILY-HERO-004 (R-ACT-02): AS1の実 NOT(TARGET_STATE HP_RATIO LT 0.2) は行動選択層で評価され、HP20%未満ではAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
+    // 既定盤面のHP割合は50%。
+    expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
+      "SKL_LILY_HERO_AS1",
+    );
+
+    // 20%ちょうどは `LT 0.2` に当たらないため、まだAS1が選ばれる（境界）。
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { subject: { state: { currentHp: 2000 } } },
+      }),
+    ).toBe("SKL_LILY_HERO_AS1");
+
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { subject: { state: { currentHp: 1999 } } },
+      }),
+    ).toBe("SKL_LILY_HERO_AS2");
   });
 });

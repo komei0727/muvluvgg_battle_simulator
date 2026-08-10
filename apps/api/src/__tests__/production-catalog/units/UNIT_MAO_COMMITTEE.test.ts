@@ -31,6 +31,7 @@ import {
   observeSkillUse,
   productionBoard,
   resetExecutedActionIds,
+  selectedActiveSkill,
   type BoardUnitSpec,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -582,5 +583,26 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
       statusKind: "STEALTH",
       duration: { unit: "SKILL_USE", remaining: 3 },
     });
+  });
+
+  it("IT-UNIT-MAO-COMMITTEE-006 (R-ACT-02): AS1の実 TARGET_STATE(HP_RATIO GTE 0.6) は行動選択層で評価され、HPが60%未満だとAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
+    // 既定盤面のHP割合は50%で不成立。60%ちょうどは `GTE 0.6` に当たる（境界）。
+    expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
+      "SKL_MAO_COMMITTEE_AS2",
+    );
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { subject: { state: { currentHp: 6000 } } },
+      }),
+    ).toBe("SKL_MAO_COMMITTEE_AS1");
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { subject: { state: { currentHp: 5999 } } },
+      }),
+    ).toBe("SKL_MAO_COMMITTEE_AS2");
   });
 });

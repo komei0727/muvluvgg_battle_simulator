@@ -31,6 +31,7 @@ import {
   observeSkillUse,
   productionBoard,
   resetExecutedActionIds,
+  selectedActiveSkill,
   type BoardOverrides,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -721,5 +722,100 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
         (marker) => marker.markerId === OMEN,
       )?.stackCount,
     ).toBe(1);
+  });
+
+  it("IT-UNIT-TATIANA-SAGE-007 (R-ACT-02): AS2の実 NOT(TARGET_HAS_MARKER「深慮」) は行動選択層で評価され、「深慮」を持つとAS2が候補から外れて宣言順の次のAS3が選ばれる", () => {
+    // 宣言順の先頭はAS1なので、AS2の発動条件が選択に効く局面はAS1が使えないとき。
+    // クールタイム中（R-ACT-02の別条件）にして、その次のASから評価させる。
+    const AS1_COOLING: BoardOverrides = {
+      subject: {
+        state: {
+          cooldowns: {
+            [createSkillDefinitionId("SKL_TATIANA_SAGE_AS1")]: { unit: "TURN", remaining: 1 },
+          },
+        },
+      },
+    };
+    expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
+      "SKL_TATIANA_SAGE_AS1",
+    );
+    expect(
+      selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID, board: AS1_COOLING }),
+    ).toBe("SKL_TATIANA_SAGE_AS2");
+
+    expect(
+      selectedActiveSkill({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        board: { ...AS1_COOLING, subject: { ...AS1_COOLING.subject, ...HOLDS_PRUDENCE.subject } },
+      }),
+    ).toBe("SKL_TATIANA_SAGE_AS3");
+  });
+
+  it("IT-UNIT-TATIANA-SAGE-008 (BOUNDARY, R-SKL-06): EXの対象別条件 `TARGET_HAS_MARKER(「凶兆」GTE 2)` としきい値未満の補集合は、同じ1回の使用の中で0個・1個・2個・3個の対象を取り違えずに振り分ける", () => {
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_TATIANA_SAGE_EX" },
+        board: {
+          enemies: [
+            { id: "enemy:none", position: { column: "CENTER", row: "FRONT" } },
+            {
+              id: "enemy:below",
+              position: { column: "LEFT", row: "FRONT" },
+              markers: [{ markerId: OMEN, stackCount: 1 }],
+            },
+            {
+              id: "enemy:at",
+              position: { column: "CENTER", row: "BACK" },
+              markers: [{ markerId: OMEN, stackCount: 2 }],
+            },
+            {
+              id: "enemy:above",
+              position: { column: "LEFT", row: "BACK" },
+              markers: [{ markerId: OMEN, stackCount: 3 }],
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      // 攻撃は敵全体へ無条件。デバフはしきい値以上の2体、「凶兆」付与は未満の2体で、
+      // 1個所持（しきい値未満）が付与側へ落ちることがこの行の境界。
+      actions: [
+        { effectActionDefinitionId: "ACT_TATIANA_SAGE_EX_DAMAGE", targets: ["enemy:none"] },
+        { effectActionDefinitionId: "ACT_TATIANA_SAGE_EX_DAMAGE", targets: ["enemy:below"] },
+        { effectActionDefinitionId: "ACT_TATIANA_SAGE_EX_DAMAGE", targets: ["enemy:at"] },
+        { effectActionDefinitionId: "ACT_TATIANA_SAGE_EX_DAMAGE", targets: ["enemy:above"] },
+        { effectActionDefinitionId: EX_DEBUFF, targets: ["enemy:at"] },
+        { effectActionDefinitionId: EX_DEBUFF, targets: ["enemy:above"] },
+        { effectActionDefinitionId: "ACT_TATIANA_SAGE_EX_MARK", targets: ["enemy:none"] },
+        { effectActionDefinitionId: "ACT_TATIANA_SAGE_EX_MARK", targets: ["enemy:below"] },
+      ],
+      hpDeltas: {
+        "enemy:none": -848,
+        "enemy:below": -848,
+        "enemy:at": -848,
+        "enemy:above": -848,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:at",
+          effectActionDefinitionId: EX_DEBUFF,
+          magnitude: -1,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+        {
+          unitId: "enemy:above",
+          effectActionDefinitionId: EX_DEBUFF,
+          magnitude: -1,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
+      markers: [
+        { unitId: "enemy:none", markerId: OMEN, stackCount: 1 },
+        { unitId: "enemy:below", markerId: OMEN, stackCount: 2 },
+      ],
+    });
   });
 });
