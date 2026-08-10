@@ -23,6 +23,12 @@ import {
   openPassiveChain,
   type PassiveChain,
 } from "../../../testing/production-unit/passive-activation.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import {
+  observeClassificationTrigger,
+  observeEffectImmunity,
+} from "../../../testing/production-unit/effect-application.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -62,10 +68,21 @@ const UNIT_DEFINITION_ID = "UNIT_TARISA_TROUBLEMAKER";
  */
 const DISPEL_BUFFS_ACTION_ID = "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF";
 
+/**
+ * 「会心不可はデバフである」の対照に使う、デバフを全解除する実 production 定義。
+ * 解除の当たり外れは分類そのものを問う唯一の振る舞いなので、バフ解除と対にして
+ * 両側を通す。
+ */
+const DISPEL_DEBUFFS_ACTION_ID = "ACT_MEIYA_FATED_PS1_REMOVE_DEBUFF";
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   "UNIT_NOEL_RUMBLE",
+  "UNIT_MEIYA_FATED",
 ]);
+
+const AS1_CRIT_PREVENTION = "ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION";
+const EX_DEBUFF_IMMUNITY = "ACT_TARISA_TROUBLEMAKER_EX_IMMUNITY";
 
 const FIGHTING_SPIRIT = "MARKER_TARISA_TROUBLEMAKER_FIGHTING_SPIRIT";
 const PS1_ATK_UP = "ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP";
@@ -762,5 +779,133 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
         .find((unit) => unit.battleUnitId === "ally:subject")!
         .appliedEffects.map((effect) => effect.effectActionDefinitionId),
     ).toEqual([WATCHER_EFFECT_ID]);
+  });
+
+  it("IT-UNIT-TARISA-TROUBLEMAKER-009 (R-CRT-03 #1): AS1が配る実「会心不可」は保持者自身の攻撃だけを会心させない — 同じデバフを防御側が持っていても、攻撃側の会心は止まらない", () => {
+    // `-001` のAS1行は付与そのもの（`magnitude: 0`・1行動・`CRITICAL_PREVENTION`）
+    // までを固定する。会心不可が効くのは**保持者の以後の攻撃**＝別のスキル使用で、
+    // 「保持者側にしか働かない」という向きはそこにしか現れない。
+    // 会心率100%の盤面。会心不可を保持していない限り必ず会心する。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: 1 },
+    });
+    const strike = (units: readonly BattleUnit[], random: SequenceRandomSource, battleId: string) =>
+      observeDamageProbe({
+        units,
+        attackerUnitId: "ally:subject",
+        targetUnitId: "enemy:front",
+        critical: "NORMAL",
+        random,
+        battleId,
+      });
+
+    // 保持者が攻撃側: 実効モードが `PREVENTED` へ倒れ、抽選そのものを行わない。
+    const onAttacker = new SequenceRandomSource([]);
+    const prevented = strike(
+      applyPrecedingActions(board, [
+        { effectActionDefinitionId: AS1_CRIT_PREVENTION, target: "SELF" },
+      ]),
+      onAttacker,
+      "B_TARISA_CRIT_ON_ATTACKER",
+    );
+    onAttacker.assertFullyConsumed();
+    expect(prevented.criticals).toEqual([
+      { mode: "PREVENTED", baseCriticalRate: 1, effectiveCriticalRate: 1, result: false },
+    ]);
+    // 攻撃力1000 - 防御力500 = 500、会心倍率は掛からない。
+    expect(prevented.hpDeltas).toEqual({ "enemy:front": -500 });
+
+    // 保持者が防御側（＝実 production の付与先）: 実効モードは `NORMAL` のままで
+    // 抽選を1つ消費し、会心率100%どおり会心する。
+    const onDefender = new SequenceRandomSource([0.999999]);
+    const critical = strike(
+      applyPrecedingActions(board, [
+        { effectActionDefinitionId: AS1_CRIT_PREVENTION, target: "ENEMY" },
+      ]),
+      onDefender,
+      "B_TARISA_CRIT_ON_DEFENDER",
+    );
+    onDefender.assertFullyConsumed();
+    expect(critical.criticals).toEqual([
+      { mode: "NORMAL", baseCriticalRate: 1, effectiveCriticalRate: 1, result: true },
+    ]);
+    expect(critical.hpDeltas).toEqual({ "enemy:front": -1000 });
+  });
+
+  it("IT-UNIT-TARISA-TROUBLEMAKER-010 (R-EFF-02/R-EFF-03): AS1が配る実「会心不可」はデバフであって定義済み状態異常ではない — 実 resolver の分類が `DEBUFF` だけで、デバフ解除で消え、バフ解除では残り、EXが配る実デバフ免疫が付与そのものを弾く。公開差分だけからも同じ状態へ復元できる", () => {
+    // `-001` の観測は分類欄（`categories`）を持たないため、`APPLY_STATUS` 由来でも
+    // `STATUS` を受け取らないこと（R-STS-01の総称照会に載らないこと）は表から読めない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    expect(
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId: AS1_CRIT_PREVENTION,
+        from: "ally:subject",
+        to: "enemy:front",
+        battleId: "B_TARISA_CRIT_CLASSIFY",
+      }),
+    ).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["DEBUFF"],
+        statusKind: "CRITICAL_PREVENTION",
+      },
+      activated: [],
+    });
+
+    const afterCleanse = (cleanseEffectActionDefinitionId: string): readonly string[] =>
+      applyPrecedingActions(board, [
+        { effectActionDefinitionId: AS1_CRIT_PREVENTION, target: "ENEMY" },
+        { effectActionDefinitionId: cleanseEffectActionDefinitionId, target: "ENEMY" },
+      ])
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .appliedEffects.map((effect) => String(effect.effectActionDefinitionId));
+    expect(afterCleanse(DISPEL_DEBUFFS_ACTION_ID)).toEqual([]);
+    expect(afterCleanse(DISPEL_BUFFS_ACTION_ID)).toEqual([AS1_CRIT_PREVENTION]);
+
+    // EXが配る実デバフ免疫は付与そのものを拒否する。同じ行動で配られたバフは通る —
+    // ここが無いと「何でも弾く免疫」と区別がつかない。
+    const guarded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: EX_DEBUFF_IMMUNITY, target: "SELF" },
+    ]);
+    const {
+      applied: immuneApplied,
+      rejected,
+      immunity,
+    } = observeEffectImmunity({
+      definitions: board.definitions,
+      units: guarded,
+      holder: "ally:subject",
+      from: "enemy:front",
+      effectActionDefinitionIds: [AS1_CRIT_PREVENTION, WATCHER_EFFECT_ID],
+      immunityEffectActionDefinitionId: EX_DEBUFF_IMMUNITY,
+      battleId: "B_TARISA_CRIT_IMMUNITY",
+    });
+    expect({ applied: immuneApplied, rejected, immunity }).toEqual({
+      applied: [WATCHER_EFFECT_ID],
+      rejected: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: AS1_CRIT_PREVENTION,
+          reason: "IMMUNITY",
+          statusKind: "CRITICAL_PREVENTION",
+          blockedBy: EX_DEBUFF_IMMUNITY,
+        },
+      ],
+      immunity: { categories: ["DEBUFF"], blockedCount: 1, maxBlocks: null },
+    });
+
+    // 開始前スナップショットへ公開差分だけを当てた結果を、**スナップショット全体**で
+    // 突き合わせる。
+    const recorder = seedRecorder("B_TARISA_CRIT_DELTA");
+    const applied = applyPrecedingActions(
+      board,
+      [{ effectActionDefinitionId: AS1_CRIT_PREVENTION, target: "ENEMY" }],
+      { recorder },
+    );
+    expect(
+      reconstruct(initialSnapshotFor(board.units, { include: ["effects"] }), recorder.recorder),
+    ).toEqual(initialSnapshotFor(applied, { include: ["effects"] }));
   });
 });

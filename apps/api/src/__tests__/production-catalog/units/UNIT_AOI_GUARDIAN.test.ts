@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  reconstruct,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -43,6 +52,12 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   STUN_SOURCE_UNIT_ID,
   FREEZE_SOURCE_UNIT_ID,
 ]);
+
+const AS1_SHIELD = "ACT_AOI_GUARDIAN_AS1_SHIELD";
+
+function unitIn(units: readonly BattleUnit[]): BattleUnit {
+  return units.find((unit) => unit.battleUnitId === "ally:subject")!;
+}
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
@@ -560,5 +575,100 @@ describe("production Catalog UNIT_AOI_GUARDIAN (【厳格な規律の守護者�
         maxBlocks: null,
       },
     });
+  });
+
+  it("IT-UNIT-AOI-GUARDIAN-005 (R-SHD-02/R-SHD-03): AS1が配る実シールドはタイプなしプールとして被ダメージを吸収し、プールを超えた分だけがHPへ抜ける。1ヒットの振り分け（シールド吸収・HPダメージ・超過破棄）の合計は常に計算ダメージと一致する", () => {
+    // `-001` のAS1行は付与そのもの（`magnitude: 1200`＝攻撃力×120%・戦闘終了まで）
+    // までを固定する。吸収は**以後に飛んでくる攻撃**＝別のスキル使用に属するため、
+    // スキル使用1回の観測には載らない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const shielded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: AS1_SHIELD, target: "SELF" },
+    ]);
+    const strike = (units: readonly BattleUnit[], power: number, battleId: string) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        power,
+        battleId,
+      });
+
+    // 攻撃力1000 - 防御力500 = 500。シールド1200が全量を受け、HPは1点も減らない。
+    const absorbed = strike(shielded, 1, "B_AOI_SHIELD_ABSORB");
+    expect(absorbed.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 500,
+        subUnitAbsorbed: 0,
+        hitPointDamage: 0,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(absorbed.hpDeltas).toEqual({});
+    expect(shieldPoolsOf(unitIn(absorbed.units).appliedEffects)).toEqual({
+      physical: 0,
+      energy: 0,
+      untyped: 700,
+    });
+
+    // 残量700を超える一撃（500×3＝1500）は、700をシールドが受けて残り800がHPへ抜ける。
+    const overflowed = strike(absorbed.units, 3, "B_AOI_SHIELD_OVERFLOW");
+    expect(overflowed.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 1500,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 700,
+        subUnitAbsorbed: 0,
+        hitPointDamage: 800,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(overflowed.hpDeltas).toEqual({ "ally:subject": -800 });
+    // 枯渇したインスタンスはその場で失効する（R-SHD-01第3項）。
+    expect(overflowed.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: AS1_SHIELD,
+        reason: "SHIELD_DEPLETED",
+        cascaded: false,
+      },
+    ]);
+
+    // `shieldType` を宣言しない定義なので、消費はタイプなしプールとして通知される。
+    expect(
+      [absorbed, overflowed].flatMap((observation) =>
+        observation.recorder
+          .getEvents()
+          .filter(
+            (event): event is Extract<BattleDomainEvent, { eventType: "ShieldConsumed" }> =>
+              event.eventType === "ShieldConsumed",
+          )
+          .map((event) => ({
+            reason: event.payload.reason,
+            shieldType: event.payload.shieldType,
+            before: event.payload.before,
+            after: event.payload.after,
+            absorbed: event.payload.absorbed,
+          })),
+      ),
+    ).toEqual([
+      { reason: "DAMAGE_ABSORPTION", shieldType: null, before: 1200, after: 700, absorbed: 500 },
+      { reason: "DAMAGE_ABSORPTION", shieldType: null, before: 700, after: 0, absorbed: 700 },
+    ]);
+
+    // 開始前スナップショットへ公開差分だけを当てた結果を、**スナップショット全体**で
+    // 突き合わせる。HPだけを見るとシールド残量（`EffectSnapshot.shield`）の差分が
+    // 欠けていても通ってしまう。
+    expect(
+      reconstruct(
+        initialSnapshotFor(absorbed.units, { include: ["effects"] }),
+        overflowed.recorder,
+      ),
+    ).toEqual(initialSnapshotFor(overflowed.units, { include: ["effects"] }));
   });
 });

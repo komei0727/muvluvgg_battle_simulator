@@ -4,10 +4,14 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  SUBJECT_ID,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -27,6 +31,8 @@ import { realDamage, turnStarted } from "../../../testing/production-unit/trigge
 const UNIT_DEFINITION_ID = "UNIT_SHIRANA_LUCKY";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+const EX_SHIELD = "ACT_SHIRANA_LUCKY_EX_SHIELD";
 
 /**
  * PS1の `ATTRIBUTE: SMART` フィルタを判別できる盤面。「自身を含む」を観測するため
@@ -291,5 +297,60 @@ describe("production Catalog UNIT_SHIRANA_LUCKY (【純白のラッキーガー�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-SHIRANA-LUCKY-004 (R-SHD-01第3項): EXが配る実シールドは1行動につき付与最大値の25%ずつ減り、4行動目でちょうど枯渇して `SHIELD_DEPLETED` で失効する。期間宣言を一切持たないため、漸減そのものが消滅契機になる", () => {
+    // `-001` のEX行は付与そのもの（`magnitude: 10000`＝最大HP×100%）までを固定し、
+    // `timeLimit` を持たないことも `toEqual` の完全一致で表している。**漸減は以後の
+    // 行動ごとに起きる**ためスキル使用1回の観測には載らず、`duration` を一切動かさない
+    // ので期間の残り回数にも現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const shielded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: EX_SHIELD, target: "SELF" },
+    ]);
+
+    const observation = observeEffectExpiry({
+      units: shielded,
+      definitions: board.definitions,
+      // 保持者自身が4回行動する。`decay.unit: ACTION` の漸減は実 `recordActionCompletion`
+      // が行動完了のたびに駆動する。
+      steps: Array.from({ length: 4 }, () => ({ kind: "ACTION_END" as const, actor: SUBJECT_ID })),
+      watchShields: [SUBJECT_ID],
+      battleId: "B_SHIRANA_SHIELD_DECAY",
+    });
+
+    const maximum = board.subject.combatStats.maximumHp;
+    expect(observation.steps).toEqual([
+      {
+        step: `ACTION_END(${SUBJECT_ID})`,
+        remaining: {},
+        shields: { [`${SUBJECT_ID}/${EX_SHIELD}`]: maximum * 0.75 },
+      },
+      {
+        step: `ACTION_END(${SUBJECT_ID})`,
+        remaining: {},
+        shields: { [`${SUBJECT_ID}/${EX_SHIELD}`]: maximum * 0.5 },
+      },
+      {
+        step: `ACTION_END(${SUBJECT_ID})`,
+        remaining: {},
+        shields: { [`${SUBJECT_ID}/${EX_SHIELD}`]: maximum * 0.25 },
+      },
+      // 4行動目で0になり、その場で失効する（インスタンスごと消えるため
+      // `shields` からもキーが落ちる）。
+      {
+        step: `ACTION_END(${SUBJECT_ID})`,
+        remaining: {},
+        expired: [
+          {
+            unitId: SUBJECT_ID,
+            effectActionDefinitionId: EX_SHIELD,
+            reason: "SHIELD_DEPLETED",
+            cascaded: false,
+          },
+        ],
+        shields: {},
+      },
+    ]);
   });
 });

@@ -1576,8 +1576,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-HIT-04-009",
       "UT-R-HIT-04-010",
       "UT-R-HIT-04-011",
-      "IT-CAP-HIT-EVASION-PROD-001",
-      "IT-CAP-HIT-EVASION-PROD-002",
+      // REF-044（Issue #391）でユニット効果軸へ移送した。実 `HIT_EVASION` が同じ
+      // 2ヒット攻撃の1ヒット目だけを回避し、その被ヒットで消費し切って失効し、
+      // 2ヒット目はそのまま命中することを実 resolver で固定する。
+      "IT-UNIT-FLUTE-VAMPIRE-008",
       // 「チャージ中で発動しなかった場合」も被ヒット消費を減らさない、という本ルール
       // 固有の境界をproduction定義で固定する。抑止する側（チャージ）と抑止される側
       // （`HIT_EVASION`）が別ユニットにあるため両ユニットへ複製してある。
@@ -1605,8 +1607,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // DMG-003A（Issue #295）で除去した。最後の未配線だったCRITICAL_GUARANTEE/
       // CRITICAL_PREVENTIONがR-CRT-03として配線され、resolverの許可リストが
       // `StatusKind`の全値を網羅した時点で、この境界自体が存在しなくなったため。
-      "IT-CAP-GUARANTEED-HIT-PROD-001",
-      "IT-CAP-GUARANTEED-HIT-PROD-002",
+      // REF-044（Issue #391）でユニット効果軸へ移送した。貫通する側（必中バフ）と
+      // 貫通される側（回避効果）が別ユニットにあるため、retire基準3に従って両ユニット
+      // へ同じ観測を複製してある。
+      "IT-UNIT-LAYLA-ENTREPRENEUR-005",
+      "IT-UNIT-FLUTE-VAMPIRE-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1634,7 +1639,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`効果を攻撃側定義の`critical.mode`へ
   // 畳み込んだ実効会心モード（`PREVENTED` > `GUARANTEED` > `NORMAL`）で会心判定を
   // 行うことを規定する。どちらの効果も保持者自身の攻撃に働き、防御側の保持は
-  // 参照しない（`UT-R-CRT-03-015`/`IT-CAP-CRITICAL-CONTROL-PROD-004`がこの向きを
+  // 参照しない（`UT-R-CRT-03-015`/`IT-UNIT-TARISA-TROUBLEMAKER-009`がこの向きを
   // 固定する）。会心不可が会心保証に勝つ順序は、サブユニット追加ダメージの
   // `PREVENTED`固定（R-SUB-02）が使用者の会心保証で破られないことも同時に守る
   // （`UT-R-CRT-03-007`）。
@@ -1656,10 +1661,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-CRT-03-013",
       "UT-R-CRT-03-014",
       "UT-R-CRT-03-015",
-      "IT-CAP-CRITICAL-CONTROL-PROD-001",
-      "IT-CAP-CRITICAL-CONTROL-PROD-002",
-      "IT-CAP-CRITICAL-CONTROL-PROD-003",
-      "IT-CAP-CRITICAL-CONTROL-PROD-004",
+      // REF-044（Issue #391）でユニット効果軸へ移送した。会心保証が実効モードを
+      // `GUARANTEED` へ倒して確率判定を行わないことは `IT-UNIT-MIKOTO-SURVIVOR-006`、
+      // 会心不可が保持者側にしか働かないことは `IT-UNIT-TARISA-TROUBLEMAKER-009` が
+      // 持つ。付与そのもの（`statusKind`・期間）は各ユニットの `-001` 振る舞い表が
+      // 固定している（`it.each` のためここからは参照できない）。
+      "IT-UNIT-MIKOTO-SURVIVOR-006",
+      "IT-UNIT-TARISA-TROUBLEMAKER-009",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -1942,8 +1950,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SHD-01-019",
       "UT-R-SHD-01-020",
       "UT-R-SHD-01-021",
-      "IT-CAP-SHIELD-PROD-002",
-      "IT-CAP-SHIELD-PROD-003",
+      // REF-044（Issue #391）でユニット効果軸へ移送した。`shieldType: EN` の
+      // タイプ別プール（EN攻撃だけを受け物理は素通りさせる）と枯渇失効に伴う
+      // R-EFF-09カスケードは `IT-UNIT-LILY-SINGER-006`、`decay` の行動ごとの漸減と
+      // 4行動での枯渇失効は `IT-UNIT-SHIRANA-LUCKY-004` が持つ。
+      "IT-UNIT-LILY-SINGER-006",
+      "IT-UNIT-SHIRANA-LUCKY-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -1957,6 +1969,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SHD-02-005",
       "UT-R-SHD-02-006",
       "UT-R-SHD-02-007",
+      // REF-044（Issue #391）: プールを超えた分だけがHPへ抜けることを実 production
+      // 定義で固定する。
+      "IT-UNIT-AOI-GUARDIAN-005",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -1968,7 +1983,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SHD-03-003",
       "PROP-SHD-03-001",
       "PROP-SHD-03-002",
-      "IT-CAP-SHIELD-PROD-001",
+      // REF-044（Issue #391）でユニット効果軸へ移送した。振り分け5欄の合計が
+      // 計算ダメージと一致することを実 production 定義で固定する。
+      "IT-UNIT-AOI-GUARDIAN-005",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
@@ -2420,8 +2437,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // `CRITICAL_GUARANTEE`は`BUFF`のまま。
       "UT-R-EFF-02-026",
       "UT-R-EFF-02-027",
-      "IT-CAP-CRITICAL-CONTROL-PROD-005",
-      "IT-CAP-CRITICAL-CONTROL-PROD-006",
+      // REF-044（Issue #391）でユニット効果軸へ移送した。実 resolver の分類と、
+      // バフ解除／デバフ解除のどちらに当たるかを production 定義で固定する。
+      "IT-UNIT-TARISA-TROUBLEMAKER-010",
+      "IT-UNIT-MIKOTO-SURVIVOR-007",
       // REF-042（Issue #389）でユニット効果軸へ移送した。
       "IT-UNIT-MIHIME-SNIPER-004",
       "IT-UNIT-LILY-SINGER-005",
@@ -2483,9 +2502,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-03-016",
       "UT-R-EFF-03-017",
       "UT-R-EFF-03-018",
-      // DMG-003A（Issue #295）: 会心不可が`DEBUFF`免疫で
-      // 実際に付与拒否されることをproduction定義で固定する。
-      "IT-CAP-CRITICAL-CONTROL-PROD-005",
+      // DMG-003A（Issue #295）: 会心不可が`DEBUFF`免疫で実際に付与拒否されることを
+      // production定義で固定する。REF-044（Issue #391）でユニット効果軸へ移送し、
+      // 免疫も合成ではなく実 `ACT_TARISA_TROUBLEMAKER_EX_IMMUNITY` を使う形になった。
+      "IT-UNIT-TARISA-TROUBLEMAKER-010",
       // M7-001B（Issue #243、`CAP_SPECIFIC_IMMUNITY`）の`statusKinds`（種別限定
       // 免疫）は、REF-043（Issue #390）でユニット効果軸へ移送した。production
       // 代表2件それぞれで、指定種別（気絶）が拒否され、同じ行動のstat debuffと

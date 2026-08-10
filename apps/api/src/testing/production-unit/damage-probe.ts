@@ -5,7 +5,11 @@ import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-ac
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
-import type { CriticalMode, DamageType } from "../../domain/catalog/definitions/catalog-enums.js";
+import type {
+  AccuracyMode,
+  CriticalMode,
+  DamageType,
+} from "../../domain/catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
@@ -49,6 +53,18 @@ export interface DamageProbeOptions {
   readonly targetUnitId: string;
   /** `SKILL_POWER` の威力。既定1。 */
   readonly power?: number;
+  /**
+   * ヒット数。既定1。R-HIT-04のNヒット回避は「回避した1ヒット」と「そのまま
+   * 命中する次のヒット」を同じ1発の中に持たないと表せないため、2以上を渡す。
+   * 2以上のとき `calculated`／`effectiveDefense`／`confusionDamageMultiplier` は
+   * **最初の** `DamageCalculated` を表す（ヒットごとの結果は `hits` が持つ）。
+   */
+  readonly hitCount?: number;
+  /**
+   * 既定 `GUARANTEED`（回避を観測から外す）。**回避効果・必中効果**が本当にその
+   * 攻撃へ働いたかを見たい場合だけ `NORMAL` にする。
+   */
+  readonly accuracy?: AccuracyMode;
   /** 既定 `PHYSICAL`。盤面の属性相性は0のため倍率は常に1になる。 */
   readonly damageType?: DamageType;
   /** R-DMG-03の貫通3割合。既定はすべて0。 */
@@ -84,6 +100,61 @@ export interface ObservedDamageApplication {
   readonly hitPointDamage: number;
   readonly untypedShieldAbsorbed: number;
   readonly isLinkedDamage: boolean;
+}
+
+/**
+ * R-SHD-03／`08_ドメインイベント.md`不変条件#6が成り立つことを見るための、
+ * `DamageApplied` の振り分け内訳。**5欄**の合計が `calculatedDamage` と一致する。
+ * サブユニット（R-SUB-01）も独立した適用先なので、欠けると吸収された分だけ合計が
+ * 計算ダメージに届かず保存則を検証できない。`applications` と別欄にするのは、
+ * 既存の突き合わせを壊さないため。
+ */
+export interface ObservedDamageDistribution {
+  readonly targetUnitId: string;
+  readonly calculatedDamage: number;
+  readonly typedShieldAbsorbed: number;
+  readonly untypedShieldAbsorbed: number;
+  readonly subUnitAbsorbed: number;
+  readonly hitPointDamage: number;
+  readonly discardedDamage: number;
+}
+
+/** `CriticalCheckResolved` payload（R-CRT-01/R-CRT-03の**実効値**）をヒット順に。 */
+export interface ObservedCritical {
+  /** 実効会心モード。定義の宣言値ではなく、会心状態効果を畳み込んだ後の値。 */
+  readonly mode: string;
+  readonly baseCriticalRate: number;
+  readonly effectiveCriticalRate: number;
+  readonly result: boolean;
+}
+
+/**
+ * 1ヒットの命中結果。R-HIT-04の「Nヒット回避のN」は、回避したヒットと命中した
+ * ヒットが同じ攻撃の中で分かれることでしか固定できない。
+ */
+export interface ObservedHit {
+  readonly hitIndex: number;
+  readonly result: "CONFIRMED" | "EVADED";
+  /** 回避を成立させたインスタンスの由来定義（`EVADED` のときだけ）。 */
+  readonly evadedBy?: string;
+}
+
+/** `EffectConsumptionChanged` payload（`effectInstanceId` を由来定義へ置き換えたもの）。 */
+export interface ObservedConsumption {
+  readonly unitId: string;
+  readonly effectActionDefinitionId: string;
+  readonly kind: string;
+  readonly before: number;
+  readonly after: number;
+}
+
+/** `EffectExpired` payload のうち、失効の意味を決める欄だけ。 */
+export interface ObservedExpiration {
+  readonly unitId: string;
+  readonly effectActionDefinitionId: string;
+  readonly reason: string;
+  /** linkedEffectGroup の巻き添えで失効した子効果だけが `true`。 */
+  readonly cascaded: boolean;
 }
 
 /**
@@ -168,6 +239,16 @@ export interface DamageProbeObservation {
   readonly confusionDamageMultiplier: number;
   /** 元ダメージと、そこから派生したリンクダメージの適用を発生順に並べたもの。 */
   readonly applications: readonly ObservedDamageApplication[];
+  /** R-SHD-02/03: 同じ `DamageApplied` の振り分け内訳（保存則の突き合わせ用）。 */
+  readonly distributions: readonly ObservedDamageDistribution[];
+  /** R-CRT-01/03: ヒットごとの会心判定結果。 */
+  readonly criticals: readonly ObservedCritical[];
+  /** R-HIT-04/05: ヒットごとの命中結果（回避されたヒットを含む）。 */
+  readonly hits: readonly ObservedHit[];
+  /** R-EFF-07: このヒットで進んだ消費（`observeLifecycleDamageProbe` 経路だけで起きる）。 */
+  readonly consumptions: readonly ObservedConsumption[];
+  /** R-EFF-06/07/09: このヒットで失効した効果。 */
+  readonly expirations: readonly ObservedExpiration[];
   readonly linked: readonly ObservedLinkedDamage[];
   /** R-INT-01/02: このヒットの防御側が差し替わった記録を発生順に並べたもの。 */
   readonly redirects: readonly ObservedRedirect[];
@@ -194,9 +275,9 @@ function probeAction(
     payload: {
       damageType: options.damageType ?? "PHYSICAL",
       formula: { kind: "SKILL_POWER", power: options.power ?? 1 },
-      hitCount: 1,
+      hitCount: options.hitCount ?? 1,
       critical: { mode: options.critical ?? "PREVENTED" },
-      accuracy: { mode: "GUARANTEED" },
+      accuracy: { mode: options.accuracy ?? "GUARANTEED" },
       piercing: {
         defenseIgnoreRate: options.piercing?.defenseIgnoreRate ?? 0,
         shieldIgnoreRate: options.piercing?.shieldIgnoreRate ?? 0,
@@ -247,13 +328,11 @@ export function observeDamageProbe(options: DamageProbeOptions): DamageProbeObse
   const eventsBefore = recorder.getEvents().length;
   const result = applyDamageAction(
     attacker,
-    [
-      {
-        targetUnitId: createBattleUnitId(options.targetUnitId),
-        effectActionDefinitionId: action.effectActionDefinitionId,
-        hitIndex: 1,
-      },
-    ],
+    Array.from({ length: options.hitCount ?? 1 }, (_unused, index) => ({
+      targetUnitId: createBattleUnitId(options.targetUnitId),
+      effectActionDefinitionId: action.effectActionDefinitionId,
+      hitIndex: index + 1,
+    })),
     action,
     options.units,
     options.random ?? noMissNoCrit(),
@@ -293,6 +372,29 @@ function probeObservation(
     throw new Error("the probe hit produced no DamageCalculated");
   }
 
+  // 消費・失効イベントは効果インスタンスIDしか持たないため、観測では**由来定義**へ
+  // 置き換える。インスタンスIDは発番順に依存し、テストの期待値には書けない。
+  const definitionOfInstance = new Map(
+    before.flatMap((unit) =>
+      unit.appliedEffects.map(
+        (effect) =>
+          [String(effect.effectInstanceId), String(effect.effectActionDefinitionId)] as const,
+      ),
+    ),
+  );
+  const hits: ObservedHit[] = [];
+  for (const event of emitted) {
+    if (event.eventType === "HitConfirmed") {
+      hits.push({ hitIndex: event.payload.hitIndex, result: "CONFIRMED" });
+    } else if (event.eventType === "EvasionActivated") {
+      hits.push({
+        hitIndex: event.payload.hitIndex,
+        result: "EVADED",
+        evadedBy: String(event.payload.effectActionDefinitionId),
+      });
+    }
+  }
+
   const hpBefore = new Map(before.map((unit) => [unit.battleUnitId, unit.currentHp]));
   const hpDeltas: Record<string, number> = {};
   for (const unit of after) {
@@ -329,6 +431,57 @@ function probeObservation(
         hitPointDamage: event.payload.hitPointDamage,
         untypedShieldAbsorbed: event.payload.untypedShieldAbsorbed,
         isLinkedDamage: event.payload.isLinkedDamage === true,
+      })),
+    distributions: emitted
+      .filter(
+        (event): event is Extract<BattleDomainEvent, { eventType: "DamageApplied" }> =>
+          event.eventType === "DamageApplied",
+      )
+      .map((event) => ({
+        targetUnitId: event.payload.targetUnitId,
+        calculatedDamage: event.payload.calculatedDamage,
+        typedShieldAbsorbed: event.payload.typedShieldAbsorbed,
+        untypedShieldAbsorbed: event.payload.untypedShieldAbsorbed,
+        subUnitAbsorbed: event.payload.subUnitAbsorbed,
+        hitPointDamage: event.payload.hitPointDamage,
+        discardedDamage: event.payload.discardedDamage,
+      })),
+    criticals: emitted
+      .filter(
+        (event): event is Extract<BattleDomainEvent, { eventType: "CriticalCheckResolved" }> =>
+          event.eventType === "CriticalCheckResolved",
+      )
+      .map((event) => ({
+        mode: event.payload.mode,
+        baseCriticalRate: event.payload.baseCriticalRate,
+        effectiveCriticalRate: event.payload.effectiveCriticalRate,
+        result: event.payload.result,
+      })),
+    hits,
+    consumptions: emitted
+      .filter(
+        (event): event is Extract<BattleDomainEvent, { eventType: "EffectConsumptionChanged" }> =>
+          event.eventType === "EffectConsumptionChanged",
+      )
+      .map((event) => ({
+        unitId: String(event.payload.battleUnitId),
+        effectActionDefinitionId:
+          definitionOfInstance.get(String(event.payload.effectInstanceId)) ??
+          String(event.payload.effectInstanceId),
+        kind: event.payload.kind,
+        before: event.payload.before,
+        after: event.payload.after,
+      })),
+    expirations: emitted
+      .filter(
+        (event): event is Extract<BattleDomainEvent, { eventType: "EffectExpired" }> =>
+          event.eventType === "EffectExpired",
+      )
+      .map((event) => ({
+        unitId: String(event.payload.battleUnitId),
+        effectActionDefinitionId: String(event.payload.effectActionDefinitionId),
+        reason: event.payload.reason,
+        cascaded: event.payload.cascaded === true,
       })),
     linked: emitted
       .filter(
