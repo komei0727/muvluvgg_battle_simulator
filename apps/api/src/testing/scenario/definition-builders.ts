@@ -110,8 +110,15 @@ export function exSkillDefinition(id: string = DEFAULT_EX_SKILL_ID): SkillDefini
   };
 }
 
-/** 敵全体に1つのEffectActionを適用する最小のASスキル。 */
-export function attackSkill(id: string, effectActionId: string): SkillDefinition {
+/**
+ * 敵全体に1つのEffectActionを適用する最小のASスキル。`guaranteedHit` は
+ * R-STS-04（暗闇は必中を無視してMISS判定を行う）を検証するときだけ立てる。
+ */
+export function attackSkill(
+  id: string,
+  effectActionId: string,
+  options: { readonly guaranteedHit?: boolean } = {},
+): SkillDefinition {
   return {
     skillDefinitionId: createSkillDefinitionId(id),
     skillType: "AS",
@@ -137,7 +144,7 @@ export function attackSkill(id: string, effectActionId: string): SkillDefinition
       priorityAttack: false,
       simultaneousActivationLimited: false,
       exclusiveActivationGroupId: null,
-      accuracy: { guaranteedHit: false },
+      accuracy: { guaranteedHit: options.guaranteedHit ?? false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
     metadata: { displayName: "Attack", tags: [] },
@@ -170,6 +177,195 @@ export function damageEffectAction(
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       damageModifiers: [],
       link: { enabled: false },
+    },
+  };
+}
+
+/**
+ * 自分以外の味方1体を対象にするセレクタ。味方が使用者だけの盤面では候補0体になり、
+ * `R-TGT-01` #4 によりそのスキルは発動不能になる（`Q-BTL-06`「EXを使用できない場合」の
+ * 前提を、戦闘不能者を用意せずに作れる唯一の形）。
+ */
+export const OTHER_ALLY_ONE: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ALLY",
+  count: 1,
+  filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
+/** 使用者自身へEffectActionを1件だけ適用する最小のASスキル。 */
+export function selfEffectSkill(
+  id: string,
+  effectActionIds: readonly string[],
+  overrides: { readonly apCost?: number } = {},
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "AS",
+    cost: { resource: "AP", amount: overrides.apCost ?? 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: effectActionIds.map((effectActionId) => ({
+            effectActionDefinitionId: createEffectActionDefinitionId(effectActionId),
+          })),
+        },
+      ],
+    },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
+/**
+ * 敵全体へ1つのEffectActionを適用する `resolution.kind: CHARGE` のスキル
+ * （`R-SKL-05`）。開始側の `steps` は空にする — 「チャージ開始側はEffectSequenceを
+ * 一つも解決しない」という契約そのものをシナリオから観測できるようにするため。
+ */
+export function chargeSkill(id: string, releaseEffectActionId: string): SkillDefinition {
+  const binding = createTargetBindingId("TGT_CHARGE");
+  return {
+    ...selfEffectSkill(id, []),
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      chargeRelease: {
+        targetBindings: [{ targetBindingId: binding, selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: binding },
+            actions: [
+              {
+                effectActionDefinitionId: createEffectActionDefinitionId(releaseEffectActionId),
+              },
+            ],
+          },
+        ],
+      },
+    },
+  };
+}
+
+export interface StatModOverrides {
+  readonly stat?: "ATTACK" | "DEFENSE" | "ACTION_SPEED" | "CRITICAL_RATE";
+  readonly value?: number;
+  readonly stackingMode?: "STACKABLE" | "NON_STACKABLE";
+  readonly timeLimit?: { readonly unit: "ACTION" | "TURN" | "BATTLE"; readonly count: number };
+}
+
+/**
+ * 固定値のステータス補正を付与する最小のEffectAction。効果量を `FIXED` にするのは、
+ * 期間・重複の検証で「実効値が何件ぶん乗っているか」を割合合成なしに読めるようにするため。
+ */
+export function statModEffectAction(
+  id: string,
+  overrides: StatModOverrides = {},
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    metadata: { tags: [] },
+    payload: {
+      stat: overrides.stat ?? "ATTACK",
+      valueType: "FIXED",
+      formula: { kind: "CONSTANT", value: overrides.value ?? 5 },
+      stacking: { mode: overrides.stackingMode ?? "STACKABLE", max: null },
+      duration: {
+        timeLimit: overrides.timeLimit ?? { unit: "ACTION", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
+/**
+ * 使用者の現在HPに比例したステータス補正を付与するEffectAction。**同じ定義から
+ * 効果量の違うインスタンスを作れる**唯一の形として、`R-EFF-05` の重複なし検証で使う
+ * （`EffectKindKey` は定義IDそのものなので、別定義2件は「同種」にならない）。
+ */
+export function hpScaledStatModEffectAction(
+  id: string,
+  overrides: { readonly ratio?: number; readonly count?: number } = {},
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    metadata: { tags: [] },
+    payload: {
+      stat: "ATTACK",
+      valueType: "FIXED",
+      formula: {
+        kind: "CURRENT_HP_RATIO",
+        source: { kind: "SKILL_SOURCE" },
+        ratio: overrides.ratio ?? 0.1,
+      },
+      stacking: { mode: "NON_STACKABLE", max: null },
+      duration: {
+        timeLimit: { unit: "ACTION", count: overrides.count ?? 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
+/** 使用者の現在HPを割合で支払うEffectAction（`R-ACTN-02`、`bounds.min: 0`）。 */
+export function hpCostEffectAction(id: string, ratio = 0.5): EffectActionDefinition {
+  return {
+    kind: "MODIFY_RESOURCE",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    metadata: { tags: [] },
+    payload: {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CURRENT_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: -ratio },
+      bounds: { min: 0, max: "CURRENT_MAX" },
+    },
+  };
+}
+
+/** 状態異常を付与する最小のEffectAction（`R-STS-02`〜`R-STS-04`）。 */
+export function statusEffectAction(
+  id: string,
+  status: "STUN" | "FREEZE" | "BLIND",
+  count = 1,
+  probability?: number,
+): EffectActionDefinition {
+  return {
+    kind: "APPLY_STATUS",
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    metadata: { tags: [] },
+    payload: {
+      status,
+      duration: {
+        timeLimit: { unit: "ACTION", count },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      ...(probability === undefined ? {} : { probability }),
     },
   };
 }
