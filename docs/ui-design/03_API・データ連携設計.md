@@ -104,6 +104,43 @@ interface BattleDraft {
 
 `slotKey`はUI DOMと編集状態の安定キーであり、APIへ送らない。
 
+### 3.1 強化入力（M11、`ENH-001`で追加予定）
+
+```ts
+type EnhancementUnitType = "PHYSICAL" | "ENERGY" | "AGILE";
+type EnhancementAttribute = "AGGRESSIVE" | "SHY" | "CUTE" | "SMART" | "COMICAL" | "CLEVER";
+type GearStat =
+  | "MAXIMUM_HP"
+  | "ATTACK"
+  | "DEFENSE"
+  | "ACTION_SPEED"
+  | "CRITICAL_RATE"
+  | "CRITICAL_DAMAGE_BONUS"
+  | "AFFINITY_BONUS";
+
+interface GearInput {
+  readonly stat: GearStat;
+  readonly tier: "II" | "III";
+  readonly grade: "D" | "C" | "B" | "A" | "S";
+}
+
+interface UnitEnhancementInput {
+  readonly level: number | ""; // 既定200
+  readonly gears: readonly (GearInput | undefined)[]; // 常に9枠。空枠可
+}
+
+interface SideEnhancementInput {
+  readonly enabled: boolean; // 既定false
+  readonly academyLevels: {
+    readonly unitTypes: Readonly<Record<EnhancementUnitType, number | "">>; // 既定1
+    readonly attributes: Readonly<Record<EnhancementAttribute, number | "">>; // 既定1
+  };
+}
+```
+
+- `FormationSlotInput`へ `enhancement?: UnitEnhancementInput` を、`BattleDraft`へ `allyEnhancement`／`enemyEnhancement`（`SideEnhancementInput`）を追加する。
+- `enabled: false`（既定）の陣営では、学園レベルとユニット単位の入力値を保持したまま送信対象から外す。
+
 ## 4. 座標変換
 
 画面とAPIの対応は次で固定する。
@@ -187,6 +224,32 @@ interface FormationRequest {
 }
 ```
 
+### 5.1 強化指定（M11、`ENH-001`で追加予定）
+
+`FormationRequest`と`FormationRequest.units[]`へ任意の`enhancement`を追加する。
+
+```ts
+interface FormationEnhancementRequest {
+  readonly academyLevels: {
+    readonly unitTypes: Readonly<Record<EnhancementUnitType, number>>;
+    readonly attributes: Readonly<Record<EnhancementAttribute, number>>;
+  };
+}
+
+interface UnitEnhancementRequest {
+  readonly level: number;
+  readonly gears: readonly GearInput[]; // 0～9件
+}
+```
+
+変換規則：
+
+1. 強化トグルOFF（`enabled: false`）の陣営では、陣営・ユニットとも`enhancement`プロパティ自体を出力しない。既存契約と同一のペイロードとする。
+2. 強化トグルONの陣営では学園レベル9キーをすべて出力する。既定値1も省略しない。
+3. ユニットのギアは空枠を除外し、0～9件の配列として枠順のまま出力する。
+4. レベル200かつギア0件のユニットは`enhancement`を出力しない。省略時の既定と同値のため。
+5. ユニット単位の`enhancement`は陣営の`enhancement`があるときだけ出力する。陣営指定なしのユニット指定はAPIが422で拒否する。
+
 ## 6. クライアント検証
 
 送信前に全違反を収集し、一度に表示する。
@@ -199,6 +262,17 @@ interface FormationRequest {
 | `/*/memoryDefinitionIds` | 0～6件        | メモリーは6件まで設定できます。              |
 | `/turnLimit`             | integer 1～99 | ターン上限は1～99の整数で入力してください。  |
 | `/options/logLevel`      | 許容列挙値    | ログレベルを選択してください。               |
+
+M11（`ENH-001`）で次を追加する。
+
+| Path                             | 規則          | UIメッセージ                                    |
+| -------------------------------- | ------------- | ----------------------------------------------- |
+| `/*/enhancement/academyLevels/*` | integer 1以上 | 学園レベルは1以上の整数で入力してください。     |
+| `/*/units/*/enhancement/level`   | integer 1以上 | ユニットレベルは1以上の整数で入力してください。 |
+| `/*/units/*/enhancement/gears`   | 0～9件        | ギアは9枠まで設定できます。                     |
+
+- 陣営の強化トグルOFF時はユニット強化の編集自体を無効化するため、「陣営指定なしのユニット指定」はUI操作からは発生しない。draft操作以外の経路に備え、送信前検証でも同条件を検査する。
+- 成長値（levelGrowth）を持たないユニットへの200以外のレベル指定は事前検証しない。UIはユニット定義の成長値を持たず、APIの422を通常の入力エラーとして該当入力へ表示する。
 
 クライアント検証を通過してもサーバー検証を省略できない。Catalog revision差、UI生成の不具合、直接HTTP呼び出しがあるため、APIの422を通常の入力エラーとして扱う。
 
@@ -469,11 +543,13 @@ type UiApiErrorKind =
 - `/allyFormation/units/{n}/unitDefinitionId`
 - `/allyFormation/units/{n}/position`
 - `/allyFormation/memoryDefinitionIds/{n}`
+- `/allyFormation/enhancement/academyLevels/...`（M11）
+- `/allyFormation/units/{n}/enhancement/level`／`/allyFormation/units/{n}/enhancement/gears/{m}`（M11）
 - `/enemyFormation/...`
 - `/turnLimit`
 - `/options/logLevel`
 
-送信DTOの `units[n]` と元の `slotKey` の対応表をrequest生成時に保持する。sort後の配列indexから画面slotを逆引きし、誤った枠を強調しない。
+送信DTOの `units[n]` と元の `slotKey` の対応表をrequest生成時に保持する。sort後の配列indexから画面slotを逆引きし、誤った枠を強調しない。M11のギアも同様に、空枠を除外した送信配列の `gears[m]` から元のギア枠indexへの対応表を保持する。
 
 ## 14. CORS要件
 
@@ -512,3 +588,6 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-014`: 戦術演習リクエストへ`turnLimit`を含めず、敵1体・敵メモリー0件を送信前に強制する。
 - `UI-API-015`: 戦術演習レスポンスの`result`（総スコア、ブレイク回数、ブレイク履歴）を実行時shape検証し、契約違反を`RESPONSE_CONTRACT_MISMATCH`として扱う。
 - `UI-API-016`: 演習イベント（スコア加算、ブレイク、復活）を詳細表示に残し、未知イベントと同じ許容規則で扱う。
+- `UI-API-017`: 強化トグルOFFの陣営では`enhancement`プロパティを出力せず、既存契約と同一のリクエストを送る。
+- `UI-API-018`: 強化トグルONの陣営で学園レベル9キーを`enhancement.academyLevels`へ変換し、ユニットのギアを空枠を除外した0～9件の配列として送る。
+- `UI-API-019`: `enhancement`配下の422 JSON Pointer（学園レベル・レベル・ギア）を該当入力へ対応づける。成長値を持たないユニットのレベル違反を含む。
