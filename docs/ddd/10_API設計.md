@@ -59,6 +59,26 @@ POST /api/v1/battle-simulations
 
 新しい永続リソースを作成しないため `201 Created` は使用しない。途中処理を非同期ジョブとして受け付けるAPIではないため `202 Accepted` も使用しない。
 
+### 戦術演習をシミュレーションする
+
+```http
+POST /api/v1/tactical-exercises
+```
+
+味方編成と敵ユニット1体で戦術演習（UC-03）を最後まで実行し、スコアとブレイク履歴を含む演習結果を返す。
+
+| 項目                   | 値                                               |
+| ---------------------- | ------------------------------------------------ |
+| 認証                   | なし。戦闘シミュレーションと同じ公開条件とする。 |
+| リクエストContent-Type | `application/json`                               |
+| レスポンスContent-Type | `application/json; charset=utf-8`                |
+| 成功ステータス         | `200 OK`                                         |
+| 永続化                 | しない                                           |
+| 冪等性                 | 保証しない                                       |
+| 既定ログレベル         | `DETAILED`                                       |
+
+既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
+
 ### 戦闘シミュレーション用Catalogを取得する
 
 ```http
@@ -283,6 +303,18 @@ GET /health/ready
 
 `DIAGNOSTIC` は内部判定情報を多く含み、レスポンスも大きくなる。初期APIでは定義済みの選択肢として受理する。将来、公開環境で利用を制限する場合は、認可規則とエラーコードをAPI契約へ明示し、黙って `DETAILED` へ落とさない。
 
+### TacticalExerciseRequest
+
+`POST /api/v1/tactical-exercises` のリクエスト本文。
+
+| プロパティ       | 型                  | 必須 | 制約                                                    |
+| ---------------- | ------------------- | ---- | ------------------------------------------------------- |
+| `allyFormation`  | `FormationRequest`  | 必須 | 味方陣営の編成。`BattleSimulationRequest` と同じ制約。  |
+| `enemyFormation` | `FormationRequest`  | 必須 | `units` はちょうど1件、`memoryDefinitionIds` は空配列。 |
+| `options`        | `SimulationOptions` | 任意 | 省略時は既定値を使用する。                              |
+
+`turnLimit` は持たない。未定義のトップレベルプロパティ（`turnLimit` を含む）は拒否する。敵編成のユニット数・メモリー数の違反は、他の値域違反と同様にアプリケーション検証の `422` として返す。
+
 ### null・省略・空配列
 
 - 必須プロパティへ `null` を指定できない。
@@ -351,6 +383,41 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `completedTurn`    | integer | 戦闘が終了したターン。1～規定ターン数。                                          |
 
 `SIMULTANEOUS_DEFEAT` の `outcome` は仕様に従い `ALLY_WIN` とする。
+
+### TacticalExerciseResponse
+
+`POST /api/v1/tactical-exercises` の成功レスポンス。`BattleSimulationResponse` と同じ構造を再利用し、`result` だけを演習結果へ差し替える。
+
+| プロパティ         | 型                          | 説明                                                 |
+| ------------------ | --------------------------- | ---------------------------------------------------- |
+| `schemaVersion`    | integer                     | レスポンス本文スキーマのバージョン。初期値は1。      |
+| `battleId`         | string                      | 今回の実行を識別するID。                             |
+| `catalogRevision`  | string                      | 今回使用したCatalogスナップショットの版。            |
+| `result`           | `ExerciseResultResponse`    | 確定した演習結果。                                   |
+| `initialState`     | `BattleStateResponse`       | `READY` 時点の状態。                                 |
+| `finalState`       | `BattleStateResponse`       | `COMPLETED` 時点の状態。                             |
+| `events`           | `BattleLogEventResponse[]`  | 指定された公開レベルのイベント。演習イベントを含む。 |
+| `stateTransitions` | `StateTransitionResponse[]` | 全状態変更。公開レベルに依存して間引かない。         |
+
+### ExerciseResultResponse
+
+| プロパティ         | 型                        | 値                                                    |
+| ------------------ | ------------------------- | ----------------------------------------------------- |
+| `completionReason` | string                    | `TURN_LIMIT_REACHED` または `ALLY_DEFEATED`。         |
+| `completedTurn`    | integer                   | 演習が終了したターン。1～5。                          |
+| `totalScore`       | integer                   | 総スコア（R-TEX-02）。0以上。                         |
+| `breakCount`       | integer                   | ブレイク回数。0以上。                                 |
+| `breaks`           | `ExerciseBreakResponse[]` | ブレイク履歴。発生順。`breakCount` と件数が一致する。 |
+
+### ExerciseBreakResponse
+
+| プロパティ               | 型      | 値                         |
+| ------------------------ | ------- | -------------------------- |
+| `breakNumber`            | integer | 1から始まるブレイク番号。  |
+| `turnNumber`             | integer | ブレイクが発生したターン。 |
+| `cumulativeScoreAtBreak` | integer | ブレイク時点の累計スコア。 |
+
+勝敗（`outcome`）は含めない。
 
 ## 戦闘状態
 
@@ -714,6 +781,7 @@ BattleStateDeltaResponse {
   battle?
   units?
   actionQueue?
+  exercise?
 }
 ```
 
@@ -724,6 +792,15 @@ battle: {
   cycleNumber?: ValueChange
 }
 
+exercise: {
+  totalScore?: ValueChange
+  breakCount?: ValueChange
+}
+```
+
+`exercise` は戦術演習だけで現れる（R-TEX-02／03）。
+
+```text
 units: {
   [battleUnitId]: UnitStateDeltaResponse
 }
@@ -764,8 +841,13 @@ UnitStateDeltaResponse {
   markers?: EntityCollectionDelta
   cooldowns?: EntityCollectionDelta
   charge?: ValueChange
+  baseCombatStats?: {
+    [statName]: ValueChange
+  }
 }
 ```
+
+`baseCombatStats` は戦術演習のブレイク強化（R-TEX-04、`UnitRevived` が所有）だけで現れる基礎戦闘ステータスの書き換え差分であり、通常戦闘では発生しない。
 
 `resources` は `BattleUnitStateResponse.resources.{ap,pp,extraGauge}.current`（現在値）の差分、`resourceMaximums` は同じゲージの `.maximum`（上限）の差分であり、互いに独立に変化する（G-09／M7-002A・Issue #255、`MODIFY_RESOURCE_CAPACITY`）。
 
@@ -1035,6 +1117,8 @@ GitHub Pages UIから別originのAPIを呼ぶため、M4.5でCORSをAPI契約へ
 - CORS preflightと公開header
 
 ドメインクラスからOpenAPIスキーマを直接生成しない。外部DTOの変更がドメインモデルへ波及しない境界を維持する。
+
+戦術演習エンドポイントの追加は既存契約への加算的変更とする。実装時にはOpenAPI baseline（`apps/api/openapi/v1-baseline.json`）を再生成し、互換性検査で破壊的変更が検出されないことを確認する。
 
 ## 次の設計への申し送り
 

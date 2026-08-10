@@ -25,9 +25,9 @@
   },
   "current": {
     "rules": {
-      "total": 117,
+      "total": 127,
       "completed": 116,
-      "remaining": 1
+      "remaining": 11
     },
     "unitCatalog": {
       "convertedProductionUnits": 69,
@@ -530,12 +530,34 @@
       "phase": 4,
       "milestone": "M9",
       "status": "CLOSED"
+    },
+    {
+      "taskId": "TEX-001",
+      "issue": 402,
+      "phase": 5,
+      "milestone": "M10",
+      "status": "OPEN"
     }
   ],
   "ruleAssignments": [
     {
       "taskId": "M7-019",
       "ruleIds": ["R-TGT-06"]
+    },
+    {
+      "taskId": "TEX-001",
+      "ruleIds": [
+        "R-TEX-01",
+        "R-TEX-02",
+        "R-TEX-03",
+        "R-TEX-04",
+        "R-TEX-05",
+        "R-TEX-06",
+        "R-TEX-07",
+        "R-TEX-08",
+        "R-TEX-09",
+        "R-TEX-10"
+      ]
     }
   ],
   "conversionThemeAssignments": [
