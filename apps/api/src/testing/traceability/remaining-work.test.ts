@@ -10,7 +10,7 @@ import { collectTestCaseDefinitionsFromSource } from "./test-case-definitions.js
  * `15_Unit_Memory変換台帳.md`であり、台帳の件数・割当が Catalog 実データと
  * Capability レジストリに一致し続けることを機械照合する。
  */
-type Milestone = "M7" | "M8" | "M9" | "M10";
+type Milestone = "M7" | "M8" | "M9" | "M10" | "M11";
 
 interface RemainingWorkManifest {
   readonly schemaVersion: 1;
@@ -204,11 +204,15 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(new Set(manifest.tasks.map((task) => task.issue)).size).toBe(manifest.tasks.length);
     expect(referencedTaskIds.every((taskId) => taskIds.includes(taskId))).toBe(true);
     // Rule割当の許容milestoneはRuleを持つ実装マイルストーンに限る。M10は
-    // TEX-001（Issue #402、戦術演習）の設計時新設Rule（R-TEX-01〜10）が加わり許容へ追加した。
+    // TEX-001（Issue #402、戦術演習）の設計時新設Rule（R-TEX-01〜10）が、M11は
+    // ENH-001（Issue #409、基本ステータス強化）の設計時新設Rule（R-ENH-01〜06）が
+    // 加わり許容へ追加した。
     expect(
       manifest.ruleAssignments.every((assignment) => {
         const milestone = taskById.get(assignment.taskId)?.milestone;
-        return milestone === "M7" || milestone === "M8" || milestone === "M10";
+        return (
+          milestone === "M7" || milestone === "M8" || milestone === "M10" || milestone === "M11"
+        );
       }),
     ).toBe(true);
     expect(
