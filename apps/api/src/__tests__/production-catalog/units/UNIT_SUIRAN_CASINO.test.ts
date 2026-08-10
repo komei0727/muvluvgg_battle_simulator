@@ -466,6 +466,13 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
       linkToUnitId: createBattleUnitId("ally:subject"),
       linkRate: 0.5,
     });
+    // raw原文「（解除不可）」。味方へ配る自陣向けのリンクは `polarity: BUFF` でもあり、
+    // デバフ解除・デバフ無効のどちらの対象にもならない（`-001` の観測は期間の
+    // `unit`／`count`／`owner` までしか載せないため、この2つは表に現れない）。
+    expect(link.duration.definition).toMatchObject({ dispellable: false });
+    expect([...link.categories]).toEqual(["BUFF"]);
+    // 重複あり（味方3体ぶんのインスタンスがそれぞれ計算に有効）。
+    expect(link.duplicate).toBe(true);
 
     // 公開差分だけを開始前スナップショットへ当てても、焼き込んだリンク先ごと復元される。
     const applied = recorder
