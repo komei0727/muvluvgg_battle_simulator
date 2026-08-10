@@ -110,17 +110,28 @@ function scenarioNumber(scenarioId: string): number {
  * 条件にすると、後から生まれた未被覆ルールが所有者を付けるだけで黙って増えてしまう。
  * ここに無い未被覆ルールは、所有者が居ても落とす。
  *
- * どちらもM9の責務ではない。`R-TGT-06` は前後列優先（`FRONT_ROW`/`BACK_ROW`）だけが
- * 実装済みで `UT-R-TGT-06-001`〜`003` が回帰検証しているが、同じルールが含む
- * 「左右列指定時の指定列からの列距離順」に production 需要が無く、ルール全体としては
- * 完了計上できない（`rule-coverage.ts` の `R-TGT-06` 注記）。`M7-019`（Issue #273）が
- * 「対象を必要とする production 定義が現れた時点」を着手トリガーとして追跡している。
+ * いずれもM9の責務ではなく、Issue #200 の「スコープ変更履歴」が記録した2類型に当たる。
+ *
+ * - `R-TGT-06`: **部分実装**。前後列優先（`FRONT_ROW`/`BACK_ROW`）は実装済みで
+ *   `UT-R-TGT-06-001`〜`003` が回帰検証しているが、同じルールが含む「左右列指定時の
+ *   指定列からの列距離順」に production 需要が無く、ルール全体としては完了計上できない
+ *   （`rule-coverage.ts` の `R-TGT-06` 注記）。`M7-019`（Issue #273）が「対象を必要と
+ *   する production 定義が現れた時点」を着手トリガーとして追跡する
+ * - `R-TEX-*`（`TEX-001`／Issue #402、M10）・`R-ENH-*`（`ENH-001`／Issue #409、M11）:
+ *   **後続マイルストーンの設計時新設**。Issue #200 起票時のルール集合に含まれない
+ *
+ * 後続マイルストーンが設計を進めるたびにこの表は伸びる。伸ばすこと自体は正しいが、
+ * **伸ばした事実が必ずこの差分に現れる**（＝レビューを通る）ことがこの列挙の目的である。
  */
 const RULES_DEFERRED_BEYOND_M9: readonly { readonly ruleId: string; readonly taskId: string }[] = [
   { ruleId: "R-TGT-06", taskId: "M7-019" },
   ...Array.from({ length: 10 }, (_unused, index) => ({
     ruleId: `R-TEX-${String(index + 1).padStart(2, "0")}`,
     taskId: "TEX-001",
+  })),
+  ...Array.from({ length: 6 }, (_unused, index) => ({
+    ruleId: `R-ENH-${String(index + 1).padStart(2, "0")}`,
+    taskId: "ENH-001",
   })),
 ];
 
