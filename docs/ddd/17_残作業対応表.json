@@ -494,7 +494,7 @@
       "issue": 200,
       "phase": 4,
       "milestone": "M9",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "REL-004",
@@ -638,5 +638,35 @@
     "resolvedConversionRows": 34,
     "completedByAudit": ["R-ACTN-02", "R-DMG-05"],
     "addedScenarioIds": ["SCN-BTL-015", "SCN-BTL-016", "SCN-BTL-017"]
+  },
+  "m9Audit": {
+    "auditDate": "2026-08-11",
+    "auditIssue": 200,
+    "catalogRevision": "2026-08-09.3",
+    "scenarioIds": [
+      "SCN-BTL-001",
+      "SCN-BTL-002",
+      "SCN-BTL-003",
+      "SCN-BTL-004",
+      "SCN-BTL-005",
+      "SCN-BTL-006",
+      "SCN-BTL-007",
+      "SCN-BTL-008",
+      "SCN-BTL-009",
+      "SCN-BTL-010",
+      "SCN-BTL-011",
+      "SCN-BTL-012",
+      "SCN-BTL-013",
+      "SCN-BTL-014",
+      "SCN-BTL-015",
+      "SCN-BTL-016",
+      "SCN-BTL-017",
+      "SCN-BTL-018",
+      "SCN-BTL-019",
+      "SCN-BTL-020",
+      "SCN-BTL-021",
+      "SCN-BTL-023"
+    ],
+    "retiredScenarioIds": ["SCN-BTL-022"]
   }
 }

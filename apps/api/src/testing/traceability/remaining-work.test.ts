@@ -56,6 +56,7 @@ interface RemainingWorkManifest {
     readonly issue: number;
     readonly phase: number;
     readonly milestone: Milestone;
+    readonly status: "OPEN" | "CLOSED";
   }[];
   readonly ruleAssignments: readonly {
     readonly taskId: string;
@@ -238,6 +239,36 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(baseline.unitCatalog.convertedProductionUnits).toBeGreaterThan(0);
     expect(baseline.unitCatalog.syntheticUnits).toBeGreaterThanOrEqual(0);
     expect(baseline.unitCatalog.incompleteConversionRows).toBeGreaterThanOrEqual(0);
+  });
+
+  it("UT-PLAN-001-009: every rule without executable coverage is owned by a registered task that is still OPEN", () => {
+    // `UT-PLAN-001-001` は「未被覆ルールが台帳へ一意に割り当てられている」ことまでを
+    // 見る。ここはその割当先が**まだ生きている**ことを足す — closeしたTaskへ残作業を
+    // 預けたまま完了扱いにする「所有者不在」（`m7-completion-audit` が検出した形）を
+    // 防ぐ。マイルストーンに依存しない継続的な検査なので、特定マイルストーンの
+    // 完了監査（`m9-completion-audit.test.ts`）ではなくここに置く。正本は台帳
+    // （`ruleAssignments`）であり、監査側へルールIDを書き写さない。
+    const manifest = readManifest();
+    const taskById = new Map(manifest.tasks.map((task) => [task.taskId, task]));
+    const ownerByRuleId = new Map(
+      manifest.ruleAssignments.flatMap((assignment) =>
+        assignment.ruleIds.map((ruleId) => [ruleId, assignment.taskId] as const),
+      ),
+    );
+    const uncovered = RULE_COVERAGE.filter((coverage) => coverage.testCaseIds.length === 0).map(
+      (coverage) => coverage.ruleId,
+    );
+
+    const stranded = uncovered.filter((ruleId) => {
+      const owner = taskById.get(ownerByRuleId.get(ruleId) ?? "");
+      return owner === undefined || owner.status !== "OPEN";
+    });
+    expect(
+      stranded,
+      `rules without coverage whose owner is missing or already CLOSED: ${JSON.stringify(
+        stranded.map((ruleId) => `${ruleId} -> ${ownerByRuleId.get(ruleId) ?? "(unassigned)"}`),
+      )}`,
+    ).toEqual([]);
   });
 
   it("UT-PLAN-001-008 (REL-003, Issue #200): no production definition anywhere in catalog-src grants a marker that could stand for 「ワンペア」, so SKL_SUIRAN_CASINO_AS1's 2-target branch stays unreachable", () => {
