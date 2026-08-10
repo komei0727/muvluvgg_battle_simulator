@@ -737,6 +737,26 @@ function isConfused(actor: BattleUnit): boolean {
 }
 
 /**
+ * 1つのselectorが `base` として指す TargetBinding のidを、`fallback` ツリーまで
+ * 降りて集める。`invertSelectorSide` は `fallback` を再帰的に反転するため、base の
+ * 追随も同じ深さまで及ばないと、fallbackへ降りた瞬間に基準だけが元の陣営に残る。
+ */
+function collectDerivedBaseBindingIds(
+  selector: TargetSelectorDefinition,
+  collected: Set<TargetBindingId>,
+): void {
+  if (selector.kind === "BINDING_DERIVED") {
+    const base = selector.base as TargetReference;
+    if (base.kind === "BINDING") {
+      collected.add(base.targetBindingId as TargetBindingId);
+    }
+  }
+  if (selector.fallback !== undefined) {
+    collectDerivedBaseBindingIds(selector.fallback, collected);
+  }
+}
+
+/**
  * R-CFS-01「反転する selector が `kind: BINDING_DERIVED` で `base` が別の
  * TargetBinding を指す場合、その base binding の selector も同じ規則で再帰的に
  * 反転する」: 反転対象の集合を `base` 参照に沿って推移的に閉じる。
@@ -758,17 +778,16 @@ function closeOverDerivedBases(
   const pending = [...seed];
   while (pending.length > 0) {
     const selector = selectorById.get(pending.pop()!);
-    if (selector?.kind !== "BINDING_DERIVED") {
+    if (selector === undefined) {
       continue;
     }
-    const base = selector.base as TargetReference;
-    if (base.kind !== "BINDING") {
-      continue;
-    }
-    const baseBindingId = base.targetBindingId as TargetBindingId;
-    if (!closed.has(baseBindingId)) {
-      closed.add(baseBindingId);
-      pending.push(baseBindingId);
+    const bases = new Set<TargetBindingId>();
+    collectDerivedBaseBindingIds(selector, bases);
+    for (const baseBindingId of bases) {
+      if (!closed.has(baseBindingId)) {
+        closed.add(baseBindingId);
+        pending.push(baseBindingId);
+      }
     }
   }
   return closed;

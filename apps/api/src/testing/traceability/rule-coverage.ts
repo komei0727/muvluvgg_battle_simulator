@@ -2268,8 +2268,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-CFS-01-007",
       "UT-R-CFS-01-008",
       // `BINDING_DERIVED` の `base` binding まで再帰的に反転すること（REF-040で
-      // 是正）。base を残すと `area` の同陣営絞りで候補が0件になる。
+      // 是正）。base を残すと `area` の同陣営絞りで候補が0件になる。binding直下だけ
+      // でなく `fallback` ツリー内の `BINDING_DERIVED` も同じ深さまで追随する。
       "UT-R-CFS-01-009",
+      "UT-R-CFS-01-010",
       "IT-UNIT-OLGA-VETERAN-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
