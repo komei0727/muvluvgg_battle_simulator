@@ -223,6 +223,34 @@ describe("M9 completion audit (REL-003)", () => {
         .filter((assignment) => m9TaskIds.has(assignment.taskId) || assignment.milestone === "M9")
         .map((assignment) => `${assignment.taskId} -> ${assignment.theme}`),
     ).toEqual([]);
+
+    // 繰り越し分は「監査側の列挙」「品質ゲートの根拠」「M9完了記述」の3箇所へ現れる。
+    // 後続マイルストーンがルールを増やすと監査側だけが更新されて説明が取り残される
+    // （実際にENH-001の取り込みで起きた）ため、設計書側が全件に言及していることを
+    // 機械で縛る。範囲表記（`R-TEX-01`〜`10`）で書けるよう、先頭と末尾のIDだけを要求する。
+    const documentedRuleMentions: readonly { readonly path: string; readonly label: string }[] = [
+      { path: "docs/ddd/12_テスト戦略.md", label: "the quality-gate rationale" },
+      { path: "docs/ddd/13_実装計画.md", label: "the REL-003 completion note" },
+    ];
+    // 範囲表記は先頭IDだけを完全な形で書く（`R-TEX-01`〜`10`）ため、族ごとに
+    // **最初の**IDを要求する。
+    const mustBeMentioned: string[] = [];
+    const seenFamilies = new Set<string>();
+    for (const { ruleId } of RULES_DEFERRED_BEYOND_M9) {
+      const family = ruleId.slice(0, "R-XXX".length);
+      if (!seenFamilies.has(family)) {
+        seenFamilies.add(family);
+        mustBeMentioned.push(ruleId);
+      }
+    }
+    for (const { path, label } of documentedRuleMentions) {
+      const document = readRepositoryFile(path);
+      const unmentioned = mustBeMentioned.filter((ruleId) => !document.includes(ruleId));
+      expect(
+        unmentioned,
+        `${label} (${path}) must name every rule family deferred beyond M9`,
+      ).toEqual([]);
+    }
   });
 
   it("UT-AUDIT-M9-003: the catalogRevision recorded as release evidence is the revision actually shipped", () => {
