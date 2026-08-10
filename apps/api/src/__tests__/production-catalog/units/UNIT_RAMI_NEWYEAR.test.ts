@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -474,5 +478,69 @@ describe("production Catalog UNIT_RAMI_NEWYEAR (【大吉ハッピーニュー�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-RAMI-NEWYEAR-004 (R-DMG-03): PS1の大吉が配る一時貫通は、以後の1発の**確定計算**で相手の防御力を半分無視する。同じPS1から貫通インスタンス1件だけを取り除いた対照では静的値のまま", () => {
+    // 「後続の自身の攻撃へ一時的にpiercingを付与する」機構は、付与とそれが効く攻撃が
+    // 別のスキル使用である。`-001` のPS1行は付与（どの腕が選ばれたか・消費条件）までを
+    // 持つが、`APPLY_PIERCING_MOD` の `defenseIgnoreRate` は `magnitude` に載らないため
+    // 率そのものも、それが効いた結果も表せない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, PS1_READY);
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_RAMI_DAIKICHI",
+      random: omikuji(0)(),
+    }).fire(
+      skillUseStarting({
+        actor: "ally:subject",
+        targets: ["enemy:front"],
+        skillType: "AS",
+        skillDefinitionId: "SKL_RAMI_NEWYEAR_AS3",
+      }),
+      board.units,
+    );
+
+    const holder = granted.find((unit) => unit.battleUnitId === "ally:subject")!;
+    expect(
+      holder.appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI",
+      )!.piercing,
+    ).toEqual({ defenseIgnoreRate: 0.5, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 });
+
+    // 対照は「PS1を走らせたか」ではなく「一時貫通が残っているか」だけで切り替える。
+    // 同じPS1はどの腕でも与ダメージ+20%（`ACT_RAMI_NEWYEAR_PS1_DMG_UP`）を必ず付けるため、
+    // PS1の実行そのものを対照にすると、貫通が一切効いていなくてもダメージ差が出て
+    // しまい配線漏れを検出できない。
+    const withoutPiercing = granted.map((unit) =>
+      unit.battleUnitId === holder.battleUnitId
+        ? {
+            ...unit,
+            appliedEffects: unit.appliedEffects.filter(
+              (effect) =>
+                effect.effectActionDefinitionId !== "ACT_RAMI_NEWYEAR_PS1_PIERCE_DAIKICHI",
+            ),
+          }
+        : unit,
+    );
+    const strike = (units: readonly BattleUnit[], battleId: string) =>
+      observeDamageProbe({
+        units,
+        attackerUnitId: "ally:subject",
+        targetUnitId: "enemy:front",
+        battleId,
+      });
+
+    // 防御力500の半分が無視され、実効防御250。素の500に与ダメージ+20%が乗って900。
+    const pierced = strike(granted, "B_RAMI_PIERCE_ON");
+    expect(pierced.effectiveDefense).toEqual({ defenseIgnoreRate: 0.5, effectiveDefense: 250 });
+    expect(pierced.calculated.finalDamage).toBe(900);
+    // 対照は静的値（貫通なし）のまま。与ダメージ+20%は両側に等しく乗っている。
+    const control = strike(withoutPiercing, "B_RAMI_PIERCE_OFF");
+    expect(control.effectiveDefense).toEqual({ defenseIgnoreRate: 0, effectiveDefense: 500 });
+    expect(control.calculated).toMatchObject({
+      outgoingDamageMultiplier: pierced.calculated.outgoingDamageMultiplier,
+      finalDamage: 600,
+    });
   });
 });

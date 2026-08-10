@@ -25,9 +25,11 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { observeCumulativeThresholdCounter } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -870,5 +872,55 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
         triggerMatched: true,
       },
     });
+  });
+
+  it("IT-UNIT-TATIANA-SAGE-010 (R-DTH-01): AS1が付けた幻惑は、以後その敵が放つ攻撃を production の `healRate: 0.7` でタチアナへの回復へ変換する。HP変化のStateDeltaはこのイベントだけが持つ", () => {
+    // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` の振る舞い表は
+    // 前者しか表せない。`statusKind: DAMAGE_TO_HEAL` までは `-001` が持つが、
+    // `healRate` と「ダメージが一切入らず回復になる」ことは持てない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const dazzled = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_TATIANA_SAGE_AS1_DAZZLE", target: "ENEMY" },
+    ]);
+    expect(
+      unitOf(dazzled, "enemy:front").appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_TATIANA_SAGE_AS1_DAZZLE",
+      )!.statusDetails?.damageToHeal,
+    ).toEqual({ healRate: 0.7 });
+
+    const hit = observeDamageProbe({
+      units: dazzled,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      battleId: "B_TATIANA_DAZZLE_HIT",
+    });
+
+    // 攻撃力1000 - 防御力500 = 500 のダメージが floor(500 x 0.7) = 350 の回復になる。
+    expect(hit.convertedToHeal).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        healRate: 0.7,
+        healAmount: 350,
+        appliedHeal: 350,
+        hpBefore: 5000,
+        hpAfter: 5350,
+      },
+    ]);
+    // ダメージとしては1も適用されない（`DamageApplied` が一度も出ない）。
+    expect(hit.applications).toEqual([]);
+    expect(hit.hpDeltas).toEqual({ "ally:subject": 350 });
+
+    // HP変化のStateDeltaは `DamageConvertedToHeal` だけが持ち、開始前スナップショットへ
+    // それを当て直すだけで同じHPへ復元できる。
+    const converted = hit.recorder
+      .getEvents()
+      .find((event) => event.eventType === "DamageConvertedToHeal")!;
+    expect(
+      reduceStateDeltas(initialSnapshotFor(dazzled), [converted.stateDelta!]).units[
+        createBattleUnitId("ally:subject")
+      ]!.hp,
+    ).toBe(5350);
   });
 });

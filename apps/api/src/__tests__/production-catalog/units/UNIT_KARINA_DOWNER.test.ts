@@ -4,6 +4,7 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   activatedPassiveSkillIds,
   openPassiveChain,
@@ -501,5 +502,57 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     expect(recorded!.sourceUnitId).toBeUndefined();
     expect(recorded!.targetUnitIds).toBeUndefined();
     expect(activatedPassiveSkillIds(chain)).toContain("SKL_KARINA_DOWNER_PS2");
+  });
+
+  it("IT-UNIT-KARINA-DOWNER-005 (R-INT-01 #1/#2): PS1が攻撃者へ付けた引き寄せは付与時点でカリナ自身へ焼き込まれ、その攻撃者が別の味方を名指しで殴っても防御側がカリナへ差し替わる", () => {
+    // 引き寄せ・肩代わりは**付与とその効果が働く攻撃が別のスキル使用**である。
+    // `-001` の振る舞い表はスキル使用1回を単位に取るため、付与された
+    // `AppliedEffect` の `magnitude` までしか表せず、`redirectTo: SELF` が誰へ
+    // 解決されたか・以後の1発がどこへ着弾するかを持てない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:back",
+      battleId: "B_KARINA_REDIRECT",
+    });
+    const granted = chain.fire(
+      unitBeingAttacked({ source: "enemy:back", target: "ally:front", skillType: "AS" }),
+      board.units,
+    );
+    expect(activatedPassiveSkillIds(chain)).toContain("SKL_KARINA_DOWNER_PS1");
+
+    // `redirectTo: SELF` は付与時点で使用者（カリナ）へ解決して焼き込む。
+    const attacker = granted.find((unit) => unit.battleUnitId === "enemy:back")!;
+    const redirect = attacker.appliedEffects.find(
+      (effect) => effect.effectActionDefinitionId === "ACT_KARINA_DOWNER_PS1_REDIRECT",
+    )!;
+    expect(redirect.targetRedirect).toEqual({
+      redirectToUnitId: "ally:subject",
+      actionKinds: ["DAMAGE"],
+    });
+    // R-INT-01/02: 攻撃側が保持する介入状態はデバフに分類する。
+    expect([...redirect.categories]).toEqual(["DEBUFF"]);
+
+    const hit = observeDamageProbe({
+      units: granted,
+      attackerUnitId: "enemy:back",
+      targetUnitId: "ally:front",
+      battleId: "B_KARINA_REDIRECT_HIT",
+    });
+
+    // R-INT-01: 引き寄せ→肩代わりの順に評価する。肩代わりはredirect後の対象に対して
+    // 評価するため、肩代わり者が引き寄せ先と同じカリナで `guardRate: 0` の
+    // `ACT_KARINA_DOWNER_PS1_COVER` は防御側も量も動かさず、イベントも出さない。
+    expect(hit.redirects).toEqual([
+      {
+        reason: "TARGET_REDIRECT",
+        originalTargetUnitId: "ally:front",
+        newTargetUnitId: "ally:subject",
+        causeEffectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_REDIRECT",
+      },
+    ]);
+    // 名指しした ally:front には1ダメージも入らない。攻撃力はPS1が同じ行動内で
+    // 掛けた -25%（攻撃してきた敵）と -10%（後列の敵）ぶん下がっている。
+    expect(hit.hpDeltas).toEqual({ "ally:subject": -150 });
   });
 });

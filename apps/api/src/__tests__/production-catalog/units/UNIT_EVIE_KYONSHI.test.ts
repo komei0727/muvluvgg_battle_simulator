@@ -338,4 +338,70 @@ describe("production Catalog UNIT_EVIE_KYONSHI (【キョンシーハッカー�
       ),
     ).toEqual([]);
   });
+
+  it("IT-UNIT-EVIE-KYONSHI-004 (R-DMG-03): EXの静的貫通は防御力だけでなくシールドも半分無視する — シールドを張った敵だけがHPへちょうど半分を受ける", () => {
+    // `-001` のEX行は「防御力50%無視で実効防御250」までを hpDeltas で固定するが、
+    // 盤面に吸収体が無いため `shieldIgnoreRate: 0.5` は一切現れない。シールドは実
+    // production 定義（ルナのEXが配る最大HP×40%）で用意し、シールドを持たない
+    // 2体を同じ1回の使用の中の対照として置く。
+    const withShieldSource = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_LUNA_HUNGRY",
+    ]);
+    expect(
+      observeSkillUse({
+        snapshot: withShieldSource,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_EVIE_KYONSHI_EX" },
+        // 既定の `ENEMY` 対象解決は最も近い敵（enemy:front）1体を選ぶ。
+        precedingActions: [
+          { effectActionDefinitionId: "ACT_LUNA_HUNGRY_EX_SHIELD", target: "ENEMY" },
+        ],
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DEBUFF", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DAMAGE", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DEBUFF", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DEBUFF", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_SELF_BUFF", targets: ["ally:subject"] },
+      ],
+      // シールド未所持の2体は1ヒット257×5ヒットをHPで受ける。シールド所持者は
+      // 1ヒットにつき floor(257 × 50%) = 128 だけがHPへ抜け、残りは4000のシールドが
+      // 吸収する（枯渇しないため失効も起きない）。
+      hpDeltas: {
+        "enemy:front": -640,
+        "enemy:left": -1285,
+        "enemy:back": -1285,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_SELF_BUFF",
+          magnitude: 0.1,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DEBUFF",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DEBUFF",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_DEBUFF",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+      ],
+    });
+  });
 });

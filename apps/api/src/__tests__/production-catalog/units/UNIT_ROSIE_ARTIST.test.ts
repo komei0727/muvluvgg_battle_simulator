@@ -472,4 +472,95 @@ describe("production Catalog UNIT_ROSIE_ARTIST (【空想造形アーティス�
       ),
     ).toEqual([]);
   });
+
+  it("IT-UNIT-ROSIE-ARTIST-004 (R-SKL-08): AS1の会心分岐が読む `LAST_RESULT.criticalHitCount` は直前のACTION step全体のスコープを持つ — 横一列2体のうち1体だけが会心した回でも、追撃は2体ともへ入る", () => {
+    // `-001` の会心行は会心率を0/1へ倒して表を決定的にするため、step内の全ヒットが
+    // 揃って会心するか揃って非会心かのどちらかにしかならず、「最後に処理した対象1体が
+    // 会心したか」との違いが差として現れない。会心率を0.5に置き、抽選列で1発目だけを
+    // 非会心・2発目だけを会心へ倒すと、この2つの読み方が初めて分かれる。
+    const partialCritical = () =>
+      new SequenceRandomSource([0.99, 0, ...new Array<number>(62).fill(0.99)]);
+
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_ROSIE_ARTIST_AS1" },
+        board: { ...FULL_HEALTH_ENEMIES, combatStats: { criticalRate: 0.5 } },
+        random: partialCritical(),
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DAMAGE", targets: ["enemy:left"] },
+        // 会心したのは enemy:left の1発だけだが、追撃は横一列の2体ともへ入る。
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DMG_UP", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+          targets: ["ally:back"],
+        },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
+      ],
+      // enemy:front は非会心の585 + 追撃195 + PS3の追撃273（`ACT_ROSIE_ARTIST_AS1_DMG_UP`
+      // の+25%を消費した218）。enemy:left は会心の1170（会心倍率2.0）+ 追撃195。
+      hpDeltas: {
+        "enemy:front": -1053,
+        "enemy:left": -1365,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+          magnitude: 0.6,
+          timeLimit: { unit: "ACTION", count: 5 },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+          magnitude: 0.6,
+          timeLimit: { unit: "ACTION", count: 5 },
+        },
+        {
+          unitId: "ally:back",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
+          magnitude: 0.6,
+          timeLimit: { unit: "ACTION", count: 5 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 4 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS2", remaining: 2 },
+        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
+      ],
+    });
+
+    // 対照: 会心率は同じ0.5のまま、どのヒットも会心しない抽選列では分岐が閉じたままで
+    // 追撃も与ダメージバフも一切現れない（差は会心が出たか出ないかだけである）。
+    const noCritical = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_ROSIE_ARTIST_AS1" },
+      board: { ...FULL_HEALTH_ENEMIES, combatStats: { criticalRate: 0.5 } },
+      random: new SequenceRandomSource(new Array<number>(64).fill(0.99)),
+    });
+    expect(noCritical.actions?.map((action) => action.effectActionDefinitionId)).not.toContain(
+      "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT",
+    );
+    expect(noCritical.hpDeltas).toEqual({ "enemy:front": -803, "enemy:left": -585 });
+  });
 });

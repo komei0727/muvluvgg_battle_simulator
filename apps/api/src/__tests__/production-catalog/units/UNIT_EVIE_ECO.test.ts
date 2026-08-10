@@ -8,11 +8,17 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import {
+  activatedPassiveSkillIds,
+  openPassiveChain,
+} from "../../../testing/production-unit/passive-activation.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -326,5 +332,69 @@ describe("production Catalog UNIT_EVIE_ECO (【省エネ主義の天才ハッカ
       },
       changesOnUnrelatedSkill: [],
     });
+  });
+
+  it("IT-UNIT-EVIE-ECO-005 (R-INT-01 #1/#2, R-INT-02): PS1が攻撃者へ付けた引き寄せ＋肩代わりは、以後の1発を味方からエヴィへ移したうえで production の `guardRate: 0.5` ぶんだけ軽減する", () => {
+    // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` の振る舞い表は
+    // 前者しか表せない。`damageShareRate`（＝`magnitude`）までは `-001` が持つが、
+    // 「誰が肩代わり者として焼き込まれたか」と「軽減率が実際に効く量」は持てない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_EVIE_ECO_COVER",
+    });
+    const granted = chain.fire(
+      unitBeingAttacked({ source: "enemy:front", target: "ally:front" }),
+      board.units,
+    );
+    expect(activatedPassiveSkillIds(chain)).toContain("SKL_EVIE_ECO_PS1");
+
+    // `redirectTo: SELF`／`coverer: SELF` はどちらも付与時点でエヴィへ解決して焼き込む。
+    const attacker = granted.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(
+      attacker.appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_EVIE_ECO_PS1_REDIRECT",
+      )!.targetRedirect,
+    ).toEqual({ redirectToUnitId: "ally:subject", actionKinds: ["DAMAGE"] });
+    expect(
+      attacker.appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_EVIE_ECO_PS1_COVER",
+      )!.cover,
+    ).toEqual({
+      covererUnitId: "ally:subject",
+      damageShareRate: 1,
+      guardRate: 0.5,
+      actionKinds: ["DAMAGE"],
+    });
+
+    const hit = observeDamageProbe({
+      units: granted,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      battleId: "B_EVIE_ECO_COVER_HIT",
+    });
+
+    // R-INT-01: 引き寄せ→肩代わりの順。肩代わり者は引き寄せ先と同じエヴィのため
+    // 防御側は変わらず、`guardRate: 0.5` の軽減だけが効く。
+    expect(hit.redirects).toEqual([
+      {
+        reason: "TARGET_REDIRECT",
+        originalTargetUnitId: "ally:front",
+        newTargetUnitId: "ally:subject",
+        causeEffectActionDefinitionId: "ACT_EVIE_ECO_PS1_REDIRECT",
+      },
+      {
+        reason: "COVER",
+        originalTargetUnitId: "ally:subject",
+        newTargetUnitId: "ally:subject",
+        causeEffectActionDefinitionId: "ACT_EVIE_ECO_PS1_COVER",
+        damageShareRate: 1,
+        guardRate: 0.5,
+      },
+    ]);
+    // 攻撃力1000 - 防御力500 = 500 を50%ガードして250。名指しした味方は無傷。
+    expect(hit.calculated.finalDamage).toBe(250);
+    expect(hit.hpDeltas).toEqual({ "ally:subject": -250 });
   });
 });

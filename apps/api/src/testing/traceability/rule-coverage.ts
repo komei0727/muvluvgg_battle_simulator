@@ -1014,9 +1014,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-SKL-08-021",
       "UT-R-SKL-08-022",
       "UT-R-SKL-08-023",
-      "IT-CAP-POST-DAMAGE-BRANCH-PROD-001",
-      "IT-CAP-POST-DAMAGE-BRANCH-PROD-002",
-      "IT-CAP-POST-DAMAGE-BRANCH-PROD-003",
+      // step-wideスコープ（横一列2体のうち1体だけが会心した回でも追撃が2体へ入る）を
+      // production定義の形のまま固定する。
+      "IT-UNIT-ROSIE-ARTIST-004",
       "UT-CAT-IDX-042",
       "UT-CAT-IDX-043",
       "UT-CAT-IDX-044",
@@ -1760,9 +1760,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // なく確定計算（`DamageCalculated`の`effectiveDefense`）まで届くことを
       // 直接固定する（合成関数そのものではなく配線の回帰テスト）。
       "UT-R-DMG-03-024",
-      "IT-CAP-PARTIAL-PIERCING-PROD-001",
-      "IT-CAP-PARTIAL-PIERCING-PROD-002",
-      "IT-CAP-PARTIAL-PIERCING-PROD-003",
+      // 一時貫通（`APPLY_PIERCING_MOD`）と静的貫通（`DamagePayload.piercing`）を
+      // production定義のまま実ダメージpipelineで見る。
+      "IT-UNIT-RAMI-NEWYEAR-004",
+      "IT-UNIT-EVIE-KYONSHI-004",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
@@ -2037,9 +2038,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-INT-01-012",
       "UT-R-INT-01-013",
       "UT-R-INT-01-014",
-      "IT-CAP-TARGET-REDIRECT-PROD-001",
-      "IT-CAP-TARGET-REDIRECT-PROD-002",
-      "IT-CAP-DEATH-SURVIVAL-PROD-001",
+      // 引き寄せ（#1）・肩代わり（#2）・反射（#4）・致死耐え（#5）をproduction定義の
+      // ままそれぞれの保持者側で見る。
+      "IT-UNIT-KARINA-DOWNER-005",
+      "IT-UNIT-EVIE-ECO-005",
+      "IT-UNIT-LUNA-HUNGRY-004",
+      "IT-UNIT-KOTOHA-REBEL-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -2053,7 +2057,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-INT-02-005",
       "UT-R-INT-02-010",
       "UT-R-INT-02-011",
-      "IT-CAP-COVER-DAMAGE-PROD-001",
+      "IT-UNIT-EVIE-ECO-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -2065,7 +2069,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-INT-03-010",
       "UT-R-INT-03-011",
       "UT-R-INT-03-012",
-      "IT-CAP-REFLECT-DAMAGE-PROD-001",
+      "IT-UNIT-LUNA-HUNGRY-004",
     ],
     kinds: ["POSITIVE", "NEGATIVE"],
   },
@@ -2263,7 +2267,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-CFS-01-006",
       "UT-R-CFS-01-007",
       "UT-R-CFS-01-008",
-      "IT-CAP-CONFUSION-PROD-002",
+      // `BINDING_DERIVED` の `base` binding まで再帰的に反転すること（REF-040で
+      // 是正）。base を残すと `area` の同陣営絞りで候補が0件になる。binding直下だけ
+      // でなく `fallback` ツリー内の `BINDING_DERIVED` も同じ深さまで追随する。
+      "UT-R-CFS-01-009",
+      "UT-R-CFS-01-010",
+      "IT-UNIT-OLGA-VETERAN-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
@@ -2279,8 +2288,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-CFS-02-101",
       "UT-R-CFS-02-102",
       "UT-R-CFS-02-103",
-      "IT-CAP-CONFUSION-PROD-002",
-      "IT-CAP-CONFUSION-PROD-003",
+      "IT-UNIT-OLGA-VETERAN-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2292,8 +2300,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-DTH-01-003",
       "UT-R-DTH-01-004",
       "UT-R-EFF-02-028",
-      "IT-CAP-DAMAGE-TO-HEAL-PROD-001",
-      "IT-CAP-DAMAGE-TO-HEAL-PROD-002",
+      "IT-UNIT-TATIANA-SAGE-010",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
