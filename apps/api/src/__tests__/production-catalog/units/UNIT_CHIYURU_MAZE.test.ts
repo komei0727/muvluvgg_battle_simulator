@@ -44,7 +44,19 @@ import {
 
 const UNIT_DEFINITION_ID = "UNIT_CHIYURU_MAZE";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * EXの総称 `STATUS` 照会は継続ダメージ側（毒）と状態側（気絶）の2系統をまとめて
+ * 拾う。ちゆる自身は `APPLY_STATUS` の状態異常を配らないため、状態側の成立を
+ * 手組みの`AppliedEffect`ではなく実 production 定義で作れるよう、気絶を配る別ユニット
+ * の定義だけを併せて読み込む。`-002`／`-003` はこのユニットのSkill・EffectAction閉包
+ * だけを見るため、閉包の判定には影響しない。
+ */
+const STUN_SOURCE_UNIT_ID = "UNIT_LUCIE_MAID";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  STUN_SOURCE_UNIT_ID,
+]);
 
 /** 契機を出す味方の属性・タイプを差し替えた味方配置（PSの発動条件の作り分け）。 */
 function alliesWith(overrides: Partial<BoardUnitSpec>): readonly BoardUnitSpec[] {
@@ -405,7 +417,7 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-CHIYURU-MAZE-004 (R-SKL-06/R-STS-01): EXの `categories: [STATUS]` 照会はAOEの対象ごとに評価され、状態異常ではない単なるデバフでは成立しない。成立した付与は `stateDelta` だけからも独立Reducerが同じ最終状態へ復元する", () => {
+  it("IT-UNIT-CHIYURU-MAZE-004 (R-SKL-06/R-STS-01): EXの `categories: [STATUS]` 照会はAOEの対象ごとに評価され、`APPLY_CONTINUOUS_DAMAGE` の毒でも `APPLY_STATUS` の気絶でも成立し、状態異常ではない単なるデバフでは成立しない。成立した付与は `stateDelta` だけからも独立Reducerが同じ最終状態へ復元する", () => {
     const skillId = "SKL_CHIYURU_MAZE_EX";
     const skill = skillFrom(snapshot, skillId);
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
@@ -446,6 +458,20 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
     ).toEqual([...ALL_ENEMIES]);
     for (const actionId of ["ACT_CHIYURU_MAZE_EX_STUN", "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP"]) {
       expect(completedTargetIdsOf(poisoned.recorder, actionId)).toEqual(["enemy:front"]);
+    }
+
+    // `APPLY_STATUS` 側の状態異常（気絶）でも同じく成立する。ここが無いと、Catalogの
+    // 条件を `continuousDamageKinds: ["POISON"]` へ絞る誤変更を検出できない —
+    // R-STS-01が定める2系統（継続ダメージ・状態）を1つの `STATUS` で総称照会する契約は、
+    // 両系統を1つのスキルへ通して初めて固定される。
+    const stunned = useEx([
+      { effectActionDefinitionId: "ACT_LUCIE_MAID_AS1_STUN", target: "ENEMY" },
+    ]);
+    expect(
+      [...completedTargetIdsOf(stunned.recorder, "ACT_CHIYURU_MAZE_EX_DAMAGE")].sort(),
+    ).toEqual([...ALL_ENEMIES]);
+    for (const actionId of ["ACT_CHIYURU_MAZE_EX_STUN", "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP"]) {
+      expect(completedTargetIdsOf(stunned.recorder, actionId)).toEqual(["enemy:front"]);
     }
 
     // 状態異常ではない単なるデバフ（防御力低下）だけを持つ対象では不成立 —
