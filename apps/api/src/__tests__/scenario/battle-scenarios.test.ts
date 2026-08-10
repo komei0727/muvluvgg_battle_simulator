@@ -13,20 +13,27 @@ import { CatalogBuilder } from "../../testing/scenario/catalog-builder.js";
 import {
   attackSkill,
   battleCommand,
+  chargeSkill,
   damageEffectAction,
   ENEMY_ALL,
   formationSlot,
+  hpCostEffectAction,
+  hpScaledStatModEffectAction,
+  OTHER_ALLY_ONE,
+  selfEffectSkill,
+  statModEffectAction,
+  statusEffectAction,
   unitDefinition,
 } from "../../testing/scenario/definition-builders.js";
-import { runScenario } from "../../testing/scenario/run-scenario.js";
+import { assertBattleInvariants, runScenario } from "../../testing/scenario/run-scenario.js";
 
 /**
  * harness ベースの Battle シナリオ（`12_テスト戦略.md`「基準シナリオ」）。散在する既存の
  * `SCN-BTL-*` とは別に、`runScenario` + `CatalogBuilder` を実運用へ載せる集約先。
  * SCN-BTL-015〜017（シールド/サブユニット・リンク・継続ダメージ）は `DMG-011`
- * （Issue #186、M8完了監査）が該当ルールの実装完了を確認して追加した。SCN-BTL-018
- * （状態異常）は R-STS-01〜04 完了済みのため実装可能であり、REL-003（Issue #200、M9）
- * で追加する。
+ * （Issue #186、M8完了監査）が該当ルールの実装完了を確認して追加した。残っていた
+ * SCN-BTL-004・005・009〜014・018 の9件は `REL-003`（Issue #200、M9）が追加し、
+ * `TEX-001`（M10）が担当する 024〜028 を除く主要22シナリオが揃った。
  */
 describe("battle scenarios (harness)", () => {
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
@@ -500,6 +507,816 @@ describe("battle scenarios (harness)", () => {
    * 個々の実装Task（`DMG-004`〜`DMG-008`）はいずれもunit levelとproduction定義
    * 単位の検証で完了していた。完了監査の一部としてここで harness へ載せる。
    */
+  describe("M9 action queue and resources (REL-003)", () => {
+    /** 敵をキュー生成対象から外す（AP0・EXゲージ上限で満タンにならない）。行動者を1体に絞る。 */
+    const inertEnemy = (id: string) =>
+      unitDefinition(id, { baseStats: { maximumHp: 100000, maximumAp: 0 }, extraGaugeMaximum: 99 });
+
+    it("SCN-BTL-004 (R-ORD-01/R-ACT-01): filling the EX gauge during a cycle does not rewrite the reservation already made — the current queue stays AS and only the next queue reserves EX", () => {
+      // `06_戦闘状態遷移.md`「キュー生成」#3 は**生成時点の**EXゲージを読む。ASの
+      // 使用でゲージが満タンになっても、その周回の予約はASのまま実行される。
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_FILLER", {
+            // AS1回でちょうど満タンになる大きさにして、周回ごとにAS→EXが交互になる。
+            baseStats: { maximumAp: 2 },
+            extraGaugeMaximum: 1,
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_ATTACK")],
+          }),
+          inertEnemy("UNIT_WALL"),
+        )
+        .withSkill(attackSkill("SKL_ATTACK", "ACT_ATTACK"))
+        .withEffectAction(damageEffectAction("ACT_ATTACK", 1, "PREVENTED"))
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_FILLER", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_WALL", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+      });
+
+      const actor = createBattleUnitId("ally:1");
+      // 周回ごとの予約種別。AP2で始まりASのたびにゲージが満タンになるため、
+      // AS（AP消費・ゲージ充填）→ EX（ゲージ全量消費）が交互に並ぶ。
+      expect(
+        result.events
+          .filter((event) => event.type === "ACTION_QUEUE_CREATED")
+          .map((event) => {
+            const details = event.details as {
+              cycleNumber: number;
+              reservations: readonly { battleUnitId: string; reservedActionKind: string }[];
+            };
+            return {
+              cycle: details.cycleNumber,
+              reserved: details.reservations.map((entry) => entry.reservedActionKind),
+            };
+          }),
+      ).toEqual([
+        { cycle: 1, reserved: ["AS"] },
+        { cycle: 2, reserved: ["EX"] },
+        { cycle: 3, reserved: ["AS"] },
+        { cycle: 4, reserved: ["EX"] },
+      ]);
+
+      // 予約どおりの実効行動が実行され、AS周回ではゲージが満タンへ、EX周回では
+      // 全量消費で0へ戻る（`R-ACT-03`「EX: EXゲージ全量、APは消費しない」）。
+      expect(
+        result.events
+          .filter((event) => event.type === "ACTION_STARTED")
+          .map((event) => event.details as Record<string, unknown>)
+          .map((details) => ({
+            reserved: details["reservedActionType"],
+            effective: details["effectiveActionType"],
+            apBefore: details["apBefore"],
+            apAfter: details["apAfter"],
+            exBefore: details["exBefore"],
+            exAfter: details["exAfter"],
+          })),
+      ).toEqual([
+        { reserved: "AS", effective: "AS", apBefore: 2, apAfter: 1, exBefore: 0, exAfter: 1 },
+        { reserved: "EX", effective: "EX", apBefore: 1, apAfter: 1, exBefore: 1, exAfter: 0 },
+        { reserved: "AS", effective: "AS", apBefore: 1, apAfter: 0, exBefore: 0, exAfter: 1 },
+        { reserved: "EX", effective: "EX", apBefore: 0, apAfter: 0, exBefore: 1, exAfter: 0 },
+      ]);
+
+      expect(result.finalState.units[actor]!.extraGauge).toBe(0);
+      expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
+      assertBattleInvariants(result);
+    });
+
+    it("SCN-BTL-005 (Q-BTL-06/R-ACT-03): a unit that is out of AP with a full EX gauge but no usable action drains the whole gauge to WAIT and gains nothing back", () => {
+      // 通常の待機はAP1消費＋EXゲージ+1。AP0・EX満タンで行動不能になった待機だけが
+      // 「EXゲージ全量消費・増加なし」へ切り替わる（`R-ACT-03` 最終行）。
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          // ASを持たないため常に待機する。EXは「自分以外の味方」を要求するので、
+          // 単騎編成では対象候補0体（`R-TGT-01` #4）となり使用できない。
+          unitDefinition("UNIT_IDLER", {
+            baseStats: { maximumAp: 2 },
+            extraGaugeMaximum: 2,
+            extraSkillDefinitionId: createSkillDefinitionId("SKL_EX_NEEDS_ALLY"),
+          }),
+          inertEnemy("UNIT_WALL"),
+        )
+        .withSkill({
+          ...selfEffectSkill("SKL_EX_NEEDS_ALLY", []),
+          skillType: "EX",
+          cost: { resource: "EX_GAUGE", amount: 2 },
+          resolution: {
+            kind: "IMMEDIATE",
+            targetBindings: [
+              { targetBindingId: createTargetBindingId("TGT_ALLY"), selector: OTHER_ALLY_ONE },
+            ],
+            steps: [],
+          },
+        })
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_IDLER", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_WALL", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+      });
+
+      expect(
+        result.events
+          .filter((event) => event.type === "ACTION_WAITED")
+          .map((event) => event.details as Record<string, unknown>)
+          .map((details) => ({
+            waitReason: details["waitReason"],
+            consumedResource: details["consumedResource"],
+            consumedAmount: details["consumedAmount"],
+          })),
+      ).toEqual([
+        // AP が残っている間は通常の待機（AP1消費）。
+        { waitReason: "NO_USABLE_ACTIVE_SKILL", consumedResource: "AP", consumedAmount: 1 },
+        { waitReason: "NO_USABLE_ACTIVE_SKILL", consumedResource: "AP", consumedAmount: 1 },
+        // AP0・EX満タン。予約はEXになるが使用できないため、ゲージ全量を消費して待機する。
+        { waitReason: "EX_UNUSABLE", consumedResource: "EX_GAUGE", consumedAmount: 2 },
+      ]);
+
+      // 通常の待機はEXゲージを+1し、全量消費の待機は増やさない（`R-ACT-03`）。
+      expect(
+        result.events
+          .filter((event) => event.type === "ACTION_STARTED")
+          .map((event) => event.details as Record<string, unknown>)
+          .map((details) => ({
+            effective: details["effectiveActionType"],
+            apBefore: details["apBefore"],
+            apAfter: details["apAfter"],
+            exBefore: details["exBefore"],
+            exAfter: details["exAfter"],
+          })),
+      ).toEqual([
+        { effective: "WAIT", apBefore: 2, apAfter: 1, exBefore: 0, exAfter: 1 },
+        { effective: "WAIT", apBefore: 1, apAfter: 0, exBefore: 1, exAfter: 2 },
+        { effective: "WAIT", apBefore: 0, apAfter: 0, exBefore: 2, exAfter: 0 },
+      ]);
+
+      const actor = createBattleUnitId("ally:1");
+      expect(result.finalState.units[actor]!.ap).toBe(0);
+      expect(result.finalState.units[actor]!.extraGauge).toBe(0);
+      assertBattleInvariants(result);
+    });
+  });
+
+  describe("M9 effect duration and stacking (REL-003)", () => {
+    /**
+     * 効果期間のシナリオは「誰の行動／どのターンで減るか」だけを見たい。バフを配る
+     * ASはクールタイムで1回に限定し、以降の行動機会は待機へ落とす（待機も1行動として
+     * `R-EFF-04` の減算契機になるため、対照として必要）。
+     */
+    const buffSkill = (id: string, effectActionIds: readonly string[]): SkillDefinition => ({
+      ...selfEffectSkill(id, effectActionIds),
+      cooldown: { unit: "TURN", count: 9 },
+    });
+
+    /**
+     * 期間・重複の観測に必要な公開イベントだけを、発生順の読める形へ落とす。
+     * `EFFECT_DURATION_REDUCED` は効果インスタンスIDしか持たないため、`EFFECT_APPLIED`
+     * が公開する対応関係で由来定義へ引き直す（インスタンスIDは発番順に依存し、
+     * 期待値には書けない）。
+     */
+    const durationTimeline = (result: ReturnType<typeof runScenario>) => {
+      const definitionOfInstance = new Map<string, string>();
+      for (const event of result.events) {
+        if (event.type !== "EFFECT_APPLIED") {
+          continue;
+        }
+        const details = event.details as Record<string, unknown>;
+        definitionOfInstance.set(
+          String(details["effectInstanceId"]),
+          String(details["effectActionDefinitionId"]),
+        );
+      }
+      return result.events
+        .filter((event) =>
+          [
+            "ACTION_STARTED",
+            "TURN_COMPLETING",
+            "EFFECT_APPLIED",
+            "EFFECT_DURATION_REDUCED",
+            "EFFECT_EXPIRED",
+          ].includes(event.type),
+        )
+        .map((event) => {
+          const details = event.details as Record<string, unknown>;
+          switch (event.type) {
+            case "ACTION_STARTED":
+              return `ACTION(${String(details["actorUnitId"])}, ${String(details["effectiveActionType"])})`;
+            case "TURN_COMPLETING":
+              return `TURN_COMPLETING(${String(details["turnNumber"])})`;
+            case "EFFECT_DURATION_REDUCED": {
+              const definitionId =
+                definitionOfInstance.get(String(details["effectInstanceId"])) ??
+                String(details["effectInstanceId"]);
+              return `REDUCED(${definitionId}, ${String(details["before"])}->${String(details["after"])})`;
+            }
+            case "EFFECT_EXPIRED":
+              return `EXPIRED(${String(details["effectActionDefinitionId"])}, ${String(details["reason"])})`;
+            default:
+              return `APPLIED(${String(details["effectActionDefinitionId"])})`;
+          }
+        });
+    };
+
+    it("SCN-BTL-011 (R-EFF-04): an ACTION-scoped effect is not decremented by the action that granted it, nor by anyone else's action — only the holder's own next action end reduces it to zero and expires it", () => {
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_BUFFER", {
+            // 2周回だけ行動させる（1周目でバフ付与、2周目の待機で失効させる）。
+            baseStats: { maximumAp: 2 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SELF_BUFF")],
+          }),
+          // ASを持たない敵。待機するだけで、保持者以外の行動が減算しないことの対照になる。
+          unitDefinition("UNIT_BYSTANDER", { baseStats: { maximumHp: 1000, maximumAp: 2 } }),
+        )
+        .withSkill(buffSkill("SKL_SELF_BUFF", ["ACT_ATK_UP"]))
+        .withEffectAction(
+          statModEffectAction("ACT_ATK_UP", { value: 5, timeLimit: { unit: "ACTION", count: 1 } }),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_BUFFER", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_BYSTANDER", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+      });
+
+      expect(durationTimeline(result)).toEqual([
+        // #2 付与した当の行動では減らさない。
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        // #4 対象以外のユニットの行動では減らさない。
+        "ACTION(enemy:1, WAIT)",
+        // #3/#5 保持者自身の次の行動終了で1減り、0になった時点で即時失効する。
+        "ACTION(ally:1, WAIT)",
+        "REDUCED(ACT_ATK_UP, 1->0)",
+        "EXPIRED(ACT_ATK_UP, TIME_LIMIT)",
+        "ACTION(enemy:1, WAIT)",
+        "TURN_COMPLETING(1)",
+      ]);
+
+      // #6 失効後に実効ステータスが戻る（付与中は15、戦闘終了時点では基礎値10）。
+      expect(
+        result.events
+          .filter((event) => event.type === "COMBAT_STAT_CHANGED")
+          .map((event) => {
+            const details = event.details as Record<string, unknown>;
+            return { stat: details["stat"], before: details["before"], after: details["after"] };
+          }),
+      ).toEqual([
+        { stat: "ATTACK", before: 10, after: 15 },
+        { stat: "ATTACK", before: 15, after: 10 },
+      ]);
+      expect(result.finalState.units[createBattleUnitId("ally:1")]!.combatStats.attack).toBe(10);
+      assertBattleInvariants(result);
+    });
+
+    it("SCN-BTL-012 (R-EFF-06): a TURN-scoped effect is not decremented by the turn that granted it — it survives every action of that turn and expires at the end of the following turn", () => {
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_BUFFER", {
+            baseStats: { maximumAp: 1 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SELF_BUFF")],
+          }),
+          unitDefinition("UNIT_BYSTANDER", { baseStats: { maximumHp: 1000, maximumAp: 1 } }),
+        )
+        .withSkill(buffSkill("SKL_SELF_BUFF", ["ACT_ATK_UP"]))
+        .withEffectAction(
+          statModEffectAction("ACT_ATK_UP", { value: 5, timeLimit: { unit: "TURN", count: 1 } }),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_BUFFER", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_BYSTANDER", 0)], memoryDefinitionIds: [] },
+          turnLimit: 2,
+        }),
+      });
+
+      expect(durationTimeline(result)).toEqual([
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        "ACTION(enemy:1, WAIT)",
+        // #2 付与ターンの終了では減らさない（行動単位と違い、保持者の行動でも減らない）。
+        "TURN_COMPLETING(1)",
+        "ACTION(ally:1, WAIT)",
+        "ACTION(enemy:1, WAIT)",
+        // #3/#4 次のターン終了から減り、0で即時失効する。
+        "TURN_COMPLETING(2)",
+        "REDUCED(ACT_ATK_UP, 1->0)",
+        "EXPIRED(ACT_ATK_UP, TIME_LIMIT)",
+      ]);
+      expect(result.finalState.units[createBattleUnitId("ally:1")]!.combatStats.attack).toBe(10);
+      assertBattleInvariants(result);
+    });
+
+    it("SCN-BTL-013 (R-EFF-05): two STACKABLE instances of the same effect kind are held separately with their own remaining counts, both contribute to the effective stat at once, and each expires on its own schedule", () => {
+      // `EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、**同じ定義を
+      // 2回**適用しないと「同種」にならない。別定義2件では `stacking.mode` を
+      // `NON_STACKABLE` へ取り違えても両方が加算されてしまい、重複ありの検証にならない。
+      //
+      // 盤面・スキル・行動列は `SCN-BTL-014` と同一で、違いは `stacking.mode` だけに
+      // してある。2つのシナリオが互いの対照になり、モードの取り違えはどちらかで必ず落ちる。
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_BUFFER", {
+            // 4行動ぶんのAP。クールタイム1行動と合わせて「付与 → 待機 → 付与 → 待機」になる。
+            baseStats: { maximumHp: 100, maximumAp: 4 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SELF_BUFF")],
+          }),
+          unitDefinition("UNIT_BYSTANDER", { baseStats: { maximumHp: 1000, maximumAp: 0 } }),
+        )
+        .withSkill({
+          ...selfEffectSkill("SKL_SELF_BUFF", ["ACT_ATK_UP", "ACT_HP_COST"]),
+          cooldown: { unit: "ACTION", count: 1 },
+        })
+        .withEffectAction(
+          // 効果量に差を付けるため、付与額を使用者の現在HPに比例させ、同じスキルの
+          // 中でHPを半分支払わせる（付与 → 支払いの順）。1件目は+10、2件目は+5。
+          hpScaledStatModEffectAction("ACT_ATK_UP", {
+            ratio: 0.1,
+            count: 2,
+            stackingMode: "STACKABLE",
+          }),
+          hpCostEffectAction("ACT_HP_COST", 0.5),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_BUFFER", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_BYSTANDER", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+      });
+
+      expect(durationTimeline(result)).toEqual([
+        // HP100で1件目（+10）。付与後にHPを50へ落とす。
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        // 残り回数はインスタンスごとに独立して減る。
+        "ACTION(ally:1, WAIT)",
+        "REDUCED(ACT_ATK_UP, 2->1)",
+        // HP50で2件目（+5）。同種2件を同時に保持する。
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        "REDUCED(ACT_ATK_UP, 1->0)",
+        "EXPIRED(ACT_ATK_UP, TIME_LIMIT)",
+        // 残った2件目だけが自分の予定で減り続ける。
+        "ACTION(ally:1, WAIT)",
+        "REDUCED(ACT_ATK_UP, 2->1)",
+        "TURN_COMPLETING(1)",
+      ]);
+
+      // 重複ありは保持中の全インスタンスが加算される。2件を同時に持つ間だけ+15になり
+      // （10 → 20 → 25）、1件目が失効すると2件目のぶんだけが残る（→ 15）。
+      // 同じ行動列を `NON_STACKABLE` で回す `SCN-BTL-014` は 20 → 15 にしかならない。
+      expect(
+        result.events
+          .filter((event) => event.type === "COMBAT_STAT_CHANGED")
+          .map((event) => (event.details as Record<string, unknown>)["after"]),
+      ).toEqual([20, 25, 15]);
+      expect(result.finalState.units[createBattleUnitId("ally:1")]!.combatStats.attack).toBe(15);
+      assertBattleInvariants(result);
+    });
+
+    it("SCN-BTL-014 (R-EFF-05): NON_STACKABLE instances of the same effect kind are all held individually but only the strongest counts — the dormant one keeps ticking, and it is promoted the moment the strongest expires", () => {
+      // `EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、「同種」を作るには
+      // **同じ定義を2回**適用するしかない。効果量に差を付けるため、付与額を使用者の
+      // 現在HPに比例させ、同じスキルの中でHPを半分支払わせる（付与 → 支払いの順）。
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_BUFFER", {
+            // 4行動ぶんのAP。クールタイム1行動と合わせて「付与 → 待機 → 付与 → 待機」になる。
+            baseStats: { maximumHp: 100, maximumAp: 4 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_SELF_BUFF")],
+          }),
+          unitDefinition("UNIT_BYSTANDER", { baseStats: { maximumHp: 1000, maximumAp: 0 } }),
+        )
+        .withSkill({
+          ...selfEffectSkill("SKL_SELF_BUFF", ["ACT_ATK_UP", "ACT_HP_COST"]),
+          cooldown: { unit: "ACTION", count: 1 },
+        })
+        .withEffectAction(
+          hpScaledStatModEffectAction("ACT_ATK_UP", { ratio: 0.1, count: 2 }),
+          hpCostEffectAction("ACT_HP_COST", 0.5),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_BUFFER", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_BYSTANDER", 0)], memoryDefinitionIds: [] },
+          turnLimit: 1,
+        }),
+      });
+
+      expect(durationTimeline(result)).toEqual([
+        // HP100で1件目（+10）。付与後にHPを50へ落とす。
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        // クールタイム中の待機。非採用インスタンスはまだ無く、1件目だけが減る。
+        "ACTION(ally:1, WAIT)",
+        "REDUCED(ACT_ATK_UP, 2->1)",
+        // HP50で2件目（+5）。同種なので保持は2件になるが、採用は依然として+10の方。
+        // 減算・失効はこの行動の**終了時**なので、付与の後に並ぶ。
+        "ACTION(ally:1, AS)",
+        "APPLIED(ACT_ATK_UP)",
+        "REDUCED(ACT_ATK_UP, 1->0)",
+        "EXPIRED(ACT_ATK_UP, TIME_LIMIT)",
+        // 「次点効果の残り期間は、非採用中も通常どおり個別に減算する」。
+        "ACTION(ally:1, WAIT)",
+        "REDUCED(ACT_ATK_UP, 2->1)",
+        "TURN_COMPLETING(1)",
+      ]);
+
+      // 重複なしは最強1件だけを計算へ採用する。2件保持しても+10と+5は加算されず、
+      // 最強が失効した瞬間に次点（+5）へ繰り上がって15になる（基礎値10へは戻らない）。
+      expect(
+        result.events
+          .filter((event) => event.type === "COMBAT_STAT_CHANGED")
+          .map((event) => (event.details as Record<string, unknown>)["after"]),
+      ).toEqual([20, 15]);
+      expect(result.finalState.units[createBattleUnitId("ally:1")]!.combatStats.attack).toBe(15);
+      assertBattleInvariants(result);
+    });
+  });
+
+  describe("M9 interruption, charge and status ailments (REL-003)", () => {
+    /**
+     * 実効行動の並び（誰が・何をしたか・待機理由）。行動レベルの契約を1行で読む。
+     * `ACTION_WAITED` は同じ行動の中で `ACTION_STARTED` の後に出るため、直前の
+     * `ACTION_STARTED` へ結び付ける（親子関係は解決スコープ側を指すので使えない）。
+     */
+    const actionTimeline = (result: ReturnType<typeof runScenario>) => {
+      const timeline: string[] = [];
+      for (const event of result.events) {
+        if (event.type === "ACTION_STARTED") {
+          const details = event.details as Record<string, unknown>;
+          timeline.push(
+            `${String(details["actorUnitId"])}:${String(details["effectiveActionType"])}`,
+          );
+        } else if (event.type === "ACTION_WAITED" && timeline.length > 0) {
+          const reason = String((event.details as Record<string, unknown>)["waitReason"]);
+          timeline[timeline.length - 1] = `${timeline[timeline.length - 1]!}(${reason})`;
+        }
+      }
+      return timeline;
+    };
+
+    /** 敵全体へ1つのEffectActionを撃つPS。契機イベントの種別だけを差し替えて使う。 */
+    const reactionSkill = (id: string, effectActionId: string): SkillDefinition => ({
+      skillDefinitionId: createSkillDefinitionId(id),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_REACT"), selector: ENEMY_ALL },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_REACT") },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: true },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: id, tags: [] },
+    });
+
+    it("SCN-BTL-009 (R-SKL-01): when the user is defeated by a reaction chain in the middle of its own skill, the remaining steps are interrupted — the later step's EffectAction never runs and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
+      const twoStepSkill: SkillDefinition = {
+        ...selfEffectSkill("SKL_TWO_STEPS", []),
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+              actions: [{ effectActionDefinitionId: createEffectActionDefinitionId("ACT_POKE") }],
+            },
+            // 2番目のstepは使用者自身へのバフ。中断されれば `EFFECT_APPLIED` が
+            // 1件も出ないため、「走らなかった」ことを不在で固定できる。
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATK_UP") }],
+            },
+          ],
+        },
+      };
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          // 反撃の一撃で確実に倒れる薄さにする。
+          unitDefinition("UNIT_FRAGILE", {
+            baseStats: { maximumHp: 10, defense: 0, maximumAp: 1 },
+            activeSkillDefinitionIds: [createSkillDefinitionId("SKL_TWO_STEPS")],
+          }),
+          unitDefinition("UNIT_COUNTER", {
+            baseStats: { maximumHp: 1000, attack: 999, defense: 0, maximumAp: 0 },
+            passiveSkillDefinitionIds: [createSkillDefinitionId("SKL_COUNTER")],
+          }),
+        )
+        .withSkill(twoStepSkill, reactionSkill("SKL_COUNTER", "ACT_LETHAL"))
+        .withEffectAction(
+          damageEffectAction("ACT_POKE", 1, "PREVENTED"),
+          damageEffectAction("ACT_LETHAL", 1, "PREVENTED"),
+          statModEffectAction("ACT_ATK_UP"),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: { slots: [formationSlot("UNIT_FRAGILE", 0)], memoryDefinitionIds: [] },
+          enemyFormation: { slots: [formationSlot("UNIT_COUNTER", 0)], memoryDefinitionIds: [] },
+          turnLimit: 3,
+        }),
+        randomValues: Array.from({ length: 20 }, () => 0.99),
+      });
+
+      const types = result.events.map((event) => event.type);
+      // 使用者は自分のスキル解決の途中で倒れる。
+      expect(
+        result.events
+          .filter((event) => event.type === "SKILL_USE_INTERRUPTED")
+          .map((event) => (event.details as Record<string, unknown>)["skillDefinitionId"]),
+      ).toEqual(["SKL_TWO_STEPS"]);
+      expect(types).not.toContain("SKILL_USE_COMPLETED");
+      // 実行されたEffectActionは1番目のstep（と反撃PS）だけで、2番目のstepの
+      // `ACT_ATK_UP` は一度も走らない。反撃PSは `ACT_POKE` の `DamageApplied` を契機に
+      // その場で解決される（`R-SKL-01`「イベントに反応したPS連鎖を直ちに解決してから
+      // 次のstepへ進む」）ため、`ACT_LETHAL` の完了が先に確定する。
+      expect(
+        result.events
+          .filter((event) => event.type === "EFFECT_ACTION_COMPLETED")
+          .map((event) => (event.details as Record<string, unknown>)["effectActionDefinitionId"]),
+      ).toEqual(["ACT_LETHAL", "ACT_POKE"]);
+      expect(types).not.toContain("EFFECT_APPLIED");
+
+      // 解決済みの効果は巻き戻さない（1番目のstepのダメージは残る）。
+      expect(result.finalState.units[createBattleUnitId("enemy:1")]!.hp).toBe(990);
+      expect(result.outcome).toBe("ALLY_LOSE");
+      expect(result.completionReason).toBe("ALLY_DEFEATED");
+      assertBattleInvariants(result);
+    });
+
+    it("SCN-BTL-010 (R-SKL-05/R-ACT-01): a charge occupies two actions, a STUN applied while charging cancels it, and a FREEZE keeps it so the release lands on the action after the freeze ends", () => {
+      // 3つの分岐を同じ定義から作り、違いを「チャージ中に何が飛んでくるか」だけにする。
+      /** 妨害は1回だけにする（毎周回の再付与でチャージ側の観測が埋まらないように）。 */
+      const ONCE_PER_BATTLE = { unit: "TURN", count: 9 } as const;
+      const chargeBattle = (
+        interrupt: readonly EffectActionDefinition[],
+        enemySkills: readonly SkillDefinition[],
+        enemyActiveSkillIds: readonly string[],
+      ) => {
+        const catalog = new CatalogBuilder()
+          .withUnit(
+            unitDefinition("UNIT_CHARGER", {
+              // 先手でチャージを始め、次の行動機会に妨害が届いている形を作る。
+              // AP2で「開始 → （妨害があれば待機／無ければ発動）」まで届く。
+              baseStats: { maximumHp: 1000, defense: 0, maximumAp: 2, actionSpeed: 99 },
+              activeSkillDefinitionIds: [createSkillDefinitionId("SKL_CHARGE")],
+            }),
+            unitDefinition("UNIT_HECKLER", {
+              baseStats: { maximumHp: 1000, defense: 0, maximumAp: 3, actionSpeed: 1 },
+              activeSkillDefinitionIds: enemyActiveSkillIds.map((id) =>
+                createSkillDefinitionId(id),
+              ),
+            }),
+          )
+          .withSkill(
+            // チャージは戦闘中1回だけにして、周回ごとの再チャージを観測から外す。
+            { ...chargeSkill("SKL_CHARGE", "ACT_BLAST"), cooldown: { unit: "TURN", count: 9 } },
+            ...enemySkills,
+          )
+          .withEffectAction(damageEffectAction("ACT_BLAST", 5, "PREVENTED"), ...interrupt)
+          .build();
+        return runScenario({
+          catalog,
+          command: battleCommand({
+            allyFormation: { slots: [formationSlot("UNIT_CHARGER", 0)], memoryDefinitionIds: [] },
+            enemyFormation: { slots: [formationSlot("UNIT_HECKLER", 0)], memoryDefinitionIds: [] },
+            turnLimit: 1,
+          }),
+          randomValues: Array.from({ length: 20 }, () => 0.99),
+        });
+      };
+
+      // (a) 妨害なし: チャージ開始と発動は別々の行動になり、発動側でAPを消費しない。
+      const plain = chargeBattle([], [], []);
+      expect(actionTimeline(plain)).toEqual([
+        "ally:1:AS",
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+        // 次の行動機会でAS/EX予約より優先してチャージ効果を発動する。
+        "ally:1:CHARGE_RELEASE",
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+        "ally:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+      ]);
+      const plainCharger = plain.events
+        .filter((event) => event.type === "ACTION_STARTED")
+        .map((event) => event.details as Record<string, unknown>)
+        .filter((details) => details["actorUnitId"] === createBattleUnitId("ally:1"));
+      // 開始側でASのコスト（AP1）を払い、発動側では払わない（`R-ACT-03`）。
+      expect(plainCharger[0]).toMatchObject({ apBefore: 2, apAfter: 1 });
+      expect(plainCharger[1]).toMatchObject({ apBefore: 1, apAfter: 1 });
+      // 発動側だけがダメージを出す（開始側の `steps` は空）。
+      expect(plain.finalState.units[createBattleUnitId("enemy:1")]!.hp).toBe(950);
+
+      // (b) 気絶: チャージ中に付与されるとチャージをキャンセルする（`R-STS-02`）。
+      const stunned = chargeBattle(
+        [statusEffectAction("ACT_STUN", "STUN", 1)],
+        [
+          {
+            ...attackSkill("SKL_STUN", "ACT_STUN", { guaranteedHit: true }),
+            cooldown: ONCE_PER_BATTLE,
+          },
+        ],
+        ["SKL_STUN"],
+      );
+      expect(stunned.events.map((event) => event.type)).toContain("CHARGE_CANCELLED");
+      // キャンセル後は解放が起きず、敵はダメージを受けない。
+      expect(stunned.finalState.units[createBattleUnitId("enemy:1")]!.hp).toBe(1000);
+      expect(actionTimeline(stunned)).toEqual([
+        "ally:1:AS",
+        "enemy:1:AS",
+        // 気絶付与でチャージはキャンセル済み。気絶中の行動機会は待機になる。
+        "ally:1:WAIT(STUNNED)",
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+        // チャージが残っていないため、気絶が明けても発動する行動は無い。
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+      ]);
+
+      // (c) 凍結: チャージを維持し、解除後の次の行動機会に発動する（`R-STS-03`）。
+      const frozen = chargeBattle(
+        [statusEffectAction("ACT_FREEZE", "FREEZE", 1)],
+        [
+          {
+            ...attackSkill("SKL_FREEZE", "ACT_FREEZE", { guaranteedHit: true }),
+            cooldown: ONCE_PER_BATTLE,
+          },
+        ],
+        ["SKL_FREEZE"],
+      );
+      expect(frozen.events.map((event) => event.type)).not.toContain("CHARGE_CANCELLED");
+      expect(actionTimeline(frozen)).toEqual([
+        "ally:1:AS",
+        "enemy:1:AS",
+        // 凍結中は待機。チャージは保持されたままである（`R-ACT-01` #2）。
+        "ally:1:WAIT(FROZEN)",
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+        // 凍結が明けた次の行動機会でチャージ効果を発動する。APは残っていない。
+        "ally:1:CHARGE_RELEASE",
+        "enemy:1:WAIT(NO_USABLE_ACTIVE_SKILL)",
+      ]);
+      expect(frozen.finalState.units[createBattleUnitId("enemy:1")]!.hp).toBe(950);
+    });
+
+    it("SCN-BTL-018 (R-STS-02/03/04): STUN and FREEZE both force a WAIT with their own reason, an attack thaws FREEZE with the +50% amplification, and BLIND makes even a guaranteed-hit skill MISS", () => {
+      // 状態異常を配る側は先手・1回だけ。以降の行動機会は素の攻撃（`SKL_STRIKE`）へ回り、
+      // 「状態異常を受けた側がその行動機会に何をするか」だけが観測に残る。
+      const ailmentBattle = (
+        statusActionId: string,
+        status: "STUN" | "FREEZE" | "BLIND",
+        count: number,
+      ) => {
+        const catalog = new CatalogBuilder()
+          .withUnit(
+            unitDefinition("UNIT_AILER", {
+              baseStats: { maximumHp: 1000, defense: 0, maximumAp: 2, actionSpeed: 99 },
+              activeSkillDefinitionIds: [
+                createSkillDefinitionId("SKL_AIL"),
+                createSkillDefinitionId("SKL_STRIKE"),
+              ],
+            }),
+            unitDefinition("UNIT_VICTIM", {
+              baseStats: { maximumHp: 1000, defense: 0, maximumAp: 2, actionSpeed: 1 },
+              activeSkillDefinitionIds: [createSkillDefinitionId("SKL_STRIKE")],
+            }),
+          )
+          .withSkill(
+            {
+              ...attackSkill("SKL_AIL", statusActionId, { guaranteedHit: true }),
+              cooldown: { unit: "TURN", count: 9 },
+            },
+            attackSkill("SKL_STRIKE", "ACT_STRIKE", { guaranteedHit: true }),
+          )
+          .withEffectAction(
+            statusEffectAction(statusActionId, status, count),
+            damageEffectAction("ACT_STRIKE", 1, "PREVENTED"),
+          )
+          .build();
+        return runScenario({
+          catalog,
+          command: battleCommand({
+            allyFormation: { slots: [formationSlot("UNIT_AILER", 0)], memoryDefinitionIds: [] },
+            enemyFormation: { slots: [formationSlot("UNIT_VICTIM", 0)], memoryDefinitionIds: [] },
+            turnLimit: 1,
+          }),
+          randomValues: Array.from({ length: 40 }, () => 0.99),
+        });
+      };
+
+      // R-STS-02: 気絶中はAS/PS/EXを新たに使用できず、行動機会を待機で消化する。
+      // 1行動ぶんの気絶なので、その待機自体が残り回数を消化して次の機会には戻る。
+      const stun = ailmentBattle("ACT_STUN", "STUN", 1);
+      expect(actionTimeline(stun)).toEqual([
+        "ally:1:AS",
+        "enemy:1:WAIT(STUNNED)",
+        "ally:1:AS",
+        "enemy:1:AS",
+      ]);
+
+      // R-STS-03: 凍結も行動機会を待機させるが、待機理由が別であること、そして
+      // 「新たな攻撃スキルによるダメージで解除する」ことが気絶との違いになる。
+      const freeze = ailmentBattle("ACT_FREEZE", "FREEZE", 2);
+      expect(actionTimeline(freeze)).toEqual([
+        "ally:1:AS",
+        "enemy:1:WAIT(FROZEN)",
+        // 2行動ぶんの凍結なので待機1回では明けない。ここで攻撃が届いて解除される。
+        "ally:1:AS",
+        "enemy:1:AS",
+      ]);
+      // 解除契機となったダメージは凍結の増幅率（既定 +50%）だけ増える。
+      // 攻撃力10 - 防御力0 = 10 が 15 になる。
+      expect(
+        freeze.events
+          .filter((event) => event.type === "DAMAGE_APPLIED")
+          .map((event) => (event.details as Record<string, unknown>)["calculatedDamage"]),
+      ).toEqual([15, 10]);
+      // 解除そのものは `FreezeRemoved` が単独で持つ（期間切れの `EffectExpired` とは別）。
+      expect(
+        freeze.events
+          .filter((event) => event.type === "FREEZE_REMOVED")
+          .map((event) => (event.details as Record<string, unknown>)["battleUnitId"]),
+      ).toEqual([createBattleUnitId("enemy:1")]);
+
+      // R-STS-04: 暗闇は必中（`traits.accuracy.guaranteedHit: true`）を無視してMISSさせる。
+      const blind = ailmentBattle("ACT_BLIND", "BLIND", 2);
+      // 暗闇の保持者が使ったスキルだけが、`EffectSequence` を一切解決せずMISSになる。
+      expect(
+        blind.events
+          .filter((event) => event.type === "SKILL_MISSED")
+          .map((event) => ({
+            skill: (event.details as Record<string, unknown>)["skillDefinitionId"],
+            actor: event.sourceUnitId,
+          })),
+      ).toEqual([
+        { skill: "SKL_STRIKE", actor: createBattleUnitId("enemy:1") },
+        { skill: "SKL_STRIKE", actor: createBattleUnitId("enemy:1") },
+      ]);
+      // MISSした攻撃はダメージを一切通さない（暗闇の保持者だけが外す）。
+      expect(blind.finalState.units[createBattleUnitId("ally:1")]!.hp).toBe(1000);
+      // 対照: 暗闇を持たない側（暗闇を配った当人）の攻撃は通常どおり命中している。
+      expect(blind.finalState.units[createBattleUnitId("enemy:1")]!.hp).toBe(990);
+    });
+  });
+
   describe("M8 advanced damage (DMG-011)", () => {
     const untypedShield = (id: string, amount: number): EffectActionDefinition => ({
       kind: "APPLY_SHIELD",
