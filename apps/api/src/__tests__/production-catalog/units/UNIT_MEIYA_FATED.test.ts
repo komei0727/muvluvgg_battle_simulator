@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -8,6 +9,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type PrecedingAction,
   type SkillBehaviourCase,
@@ -453,5 +455,41 @@ describe("production Catalog UNIT_MEIYA_FATED (【天命を受けし剣術乙女
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-MEIYA-FATED-004 (R-PS-01): PS1の「自身にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類で判定される — 同じ負の`magnitude`でも与ダメージ低下はデバフ、被ダメージ低下はバフになる", () => {
+    // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
+    // 実 resolver に発行させたイベントにしか現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from: "enemy:front",
+        to: "ally:subject",
+        battleId: `B_MEIYA_CLASSIFY_${effectActionDefinitionId}`,
+      });
+
+    expect(trigger("ACT_MEIYA_FATED_AS1_SPD_DOWN")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: ["SKL_MEIYA_FATED_PS1"],
+    });
+    expect(trigger("ACT_MEIYA_FATED_AS2_ATK_UP")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["BUFF"] },
+      activated: [],
+    });
+    // `direction: OUTGOING` の -20% は与ダメージが下がるのでデバフ。
+    expect(trigger("ACT_MEIYA_FATED_AS1_DMG_DOWN")).toEqual({
+      classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["DAMAGE_MOD", "DEBUFF"] },
+      activated: ["SKL_MEIYA_FATED_PS1"],
+    });
+    // `direction: INCOMING` の -75% は受けるダメージが下がるのでバフ。符号だけで
+    // 分類していた頃は、冥夜自身の防御バフがこのPS1を呼んでいた。
+    expect(trigger("ACT_MEIYA_FATED_EX_DMG_REDUCTION")).toEqual({
+      classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["BUFF", "DAMAGE_MOD"] },
+      activated: [],
+    });
   });
 });

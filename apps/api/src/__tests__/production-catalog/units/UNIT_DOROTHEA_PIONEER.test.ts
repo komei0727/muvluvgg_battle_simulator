@@ -8,11 +8,14 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type BoardUnitSpec,
@@ -434,5 +437,57 @@ describe("production Catalog UNIT_DOROTHEA_PIONEER (【新たなる時代の導�
       },
       changesOnUnrelatedSkill: [],
     });
+  });
+
+  it("IT-UNIT-DOROTHEA-PIONEER-005 (R-EFF-04): AS2の「2行動の間」は`owner`を省略した既定の`EFFECT_TARGET`で、保持者である敵自身の行動終了でだけ減り、0で失効して防御力が戻る", () => {
+    // 付与そのものと `timeLimit: { unit: ACTION, count: 2 }` の宣言は `-001` の
+    // AS2行が持つ。ここが引き受けるのは、**別の行動を跨いで**残り回数がどう動くか。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN", target: "ENEMY" },
+    ]);
+
+    expect(
+      observeEffectExpiry({
+        units: granted,
+        definitions: board.definitions,
+        steps: [
+          { kind: "ACTION_END", actor: "ally:subject" },
+          { kind: "ACTION_END", actor: "enemy:front" },
+          { kind: "ACTION_END", actor: "enemy:left" },
+          { kind: "ACTION_END", actor: "enemy:front" },
+        ],
+        watch: [{ unitId: "enemy:front", stat: "defense" }],
+      }).steps,
+    ).toEqual([
+      // 付与した側（ドロテア）の行動終了では減らない — 期間の所有者は保持者自身。
+      {
+        step: "ACTION_END(ally:subject)",
+        remaining: { "enemy:front/ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN": 2 },
+      },
+      {
+        step: "ACTION_END(enemy:front)",
+        remaining: { "enemy:front/ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN": 1 },
+      },
+      // 同じ陣営でも保持者以外の行動終了では減らない。
+      {
+        step: "ACTION_END(enemy:left)",
+        remaining: { "enemy:front/ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN": 1 },
+      },
+      {
+        step: "ACTION_END(enemy:front)",
+        remaining: {},
+        expired: [
+          {
+            unitId: "enemy:front",
+            effectActionDefinitionId: "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+        ],
+        // 失効で `recalculateCombatStats` が5%低下を巻き戻す（475 → 500）。
+        stats: { "enemy:front/defense": 500 },
+      },
+    ]);
   });
 });

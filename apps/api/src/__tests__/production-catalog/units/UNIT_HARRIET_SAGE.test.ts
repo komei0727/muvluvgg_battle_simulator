@@ -4,10 +4,14 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { expireInstance } from "../../../testing/production-unit/effect-expiry.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -461,5 +465,122 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-HARRIET-SAGE-004 (R-EFF-09): AS1の攻撃力低下と与ダメージ低下は`HARRIET_CURSE_LINK`で連動し、片方が失効するともう片方も巻き添えで失効する", () => {
+    // どちらも `timeLimit: { unit: BATTLE, count: 1 }` かつ `dispellable: false` で、
+    // 実戦闘には失効させる契機が存在しない。連動そのものを見るために、片方1件だけを
+    // 名指しで失効させる（契機の側は R-EFF-04/06/07・R-EFF-02 が持つ責務）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN", target: "ENEMY" },
+    ]);
+    // 攻撃力7.5%低下が乗った状態（1000 → 925）。
+    expect(granted.find((unit) => unit.battleUnitId === "enemy:front")!.combatStats.attack).toBe(
+      925,
+    );
+
+    const expiry = expireInstance({
+      units: granted,
+      definitions: board.definitions,
+      unitId: "enemy:front",
+      effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+      reason: "TIME_LIMIT",
+      battleId: "B_HARRIET_CURSE_LINK",
+    });
+
+    // 子を先に、親を後に発行する（`08_ドメインイベント.md`「EffectExpiredの順序」）。
+    expect(expiry.expired).toEqual([
+      {
+        unitId: "enemy:front",
+        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+        reason: "LINKED_GROUP_CASCADE",
+        cascaded: true,
+      },
+      {
+        unitId: "enemy:front",
+        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+        reason: "TIME_LIMIT",
+        cascaded: false,
+      },
+    ]);
+    const after = expiry.units.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(after.appliedEffects).toEqual([]);
+    expect(after.combatStats.attack).toBe(1000);
+  });
+
+  it("IT-UNIT-HARRIET-SAGE-005 (R-EFF-09/R-EFF-07): AS2のダメージ無効が実被弾2回で消費し切って失効すると、`HARRIET_BARRIER`の子である継続回復も巻き添えで失効する — カスケードは親の失効理由に依存しない", () => {
+    // `-004` の親は `TIME_LIMIT` で失効させたが、こちらの親は実ダメージpipelineの
+    // 被弾で `CONSUMPTION` として失効する。カスケードの成立が親の失効理由に依らない
+    // ことは、この2件を並べて初めて固定される。
+    //
+    // 誰が保持者になるか（最もHP割合の低い味方）は `-001` のAS2行が持つ責務なので、
+    // ここは既定盤面のまま前提アクションが選ぶ味方をそのまま保持者にする。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    let units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS2_IMMUNITY", target: "ALLY" },
+      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL", target: "ALLY" },
+    ]);
+    const HOLDER = "ally:front";
+    expect(
+      units
+        .find((unit) => unit.battleUnitId === HOLDER)!
+        .appliedEffects.map((effect) => [
+          effect.effectActionDefinitionId,
+          effect.duration.consumptionRemaining,
+        ]),
+    ).toEqual([
+      ["ACT_HARRIET_SAGE_AS2_IMMUNITY", 2],
+      ["ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL", undefined],
+    ]);
+
+    const expired: unknown[] = [];
+    for (const hit of [1, 2]) {
+      const probe = observeLifecycleDamageProbe({
+        units,
+        definitions: board.definitions,
+        attackerUnitId: "enemy:front",
+        targetUnitId: HOLDER,
+        battleId: `B_HARRIET_BARRIER_HIT_${hit}`,
+      });
+      units = probe.units;
+      expired.push(
+        ...probe.recorder
+          .getEvents()
+          .filter((event) => event.eventType === "EffectExpired")
+          .map((event) => ({
+            unitId: event.payload.battleUnitId,
+            effectActionDefinitionId: event.payload.effectActionDefinitionId,
+            reason: event.payload.reason,
+            cascaded: event.payload.cascaded === true,
+          })),
+      );
+      // 1発目では消費が1残るだけで、どちらも失効しない。
+      if (hit === 1) {
+        expect(
+          units
+            .find((unit) => unit.battleUnitId === HOLDER)!
+            .appliedEffects.map((effect) => effect.duration.consumptionRemaining),
+        ).toEqual([1, undefined]);
+        expect(expired).toEqual([]);
+      }
+    }
+
+    expect(expired).toEqual([
+      {
+        unitId: HOLDER,
+        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS2_CONTINUOUS_HEAL",
+        reason: "LINKED_GROUP_CASCADE",
+        cascaded: true,
+      },
+      {
+        unitId: HOLDER,
+        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS2_IMMUNITY",
+        reason: "CONSUMPTION",
+        cascaded: false,
+      },
+    ]);
+    expect(units.find((unit) => unit.battleUnitId === HOLDER)!.appliedEffects).toEqual([]);
   });
 });

@@ -1155,14 +1155,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-053",
       "UT-R-PS-01-054",
       // M7-011（Issue #265、EFFECT_APPLIED_CLASSIFICATION_PAYLOAD）: 「敵にデバフが
-      // 付与された際」等、付与された効果の分類を発動契機にするPSの候補検出。
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-001",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-002",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-003",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-004",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-005",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-006",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-007",
+      // 付与された際」等、付与された効果の分類を発動契機にするPS。REF-041（Issue #388）で
+      // ユニット効果軸へ移送し、契機は実 resolver が発行した `EffectApplied` から取る。
+      "IT-UNIT-KEI-JACKKNIFE-007",
+      "IT-UNIT-SIENA-DIVA-007",
+      "IT-UNIT-NADYA-SUCCESSOR-004",
+      "IT-UNIT-KATE-PALADIN-005",
+      "IT-UNIT-LILY-SINGER-004",
+      "IT-UNIT-MEIYA-FATED-004",
+      "IT-UNIT-URUU-TIMID-004",
       "IT-CAT-PROD-013",
       // ターン境界は`sourceUnitId`/`targetUnitIds`を持たないグローバルイベントで、
       // production Catalogの`SELF`/`SELF`はその帰属先不在に依拠して成立する。
@@ -2185,8 +2186,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // `DEBUFF`の両方を与え、STEALTH等の有利な`APPLY_STATUS`には与えない。
       "UT-R-EFF-01-061",
       "UT-R-EFF-01-062",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-003",
-      "IT-CAP-TRIGGER-PAYLOAD-PROD-004",
+      "IT-UNIT-KEI-JACKKNIFE-007",
+      "IT-UNIT-SIENA-DIVA-007",
       "UT-CAT-ACT-075",
       "UT-R-EFF-02-004",
       "UT-R-EFF-02-013",
@@ -2481,8 +2482,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // R-EFF-04: EFF-003（Issue #159）。行動単位期間の減算・失効
   // （`applied-effect-duration.ts`のowner解決、`duration-expiry-service.ts`の
   // cascade・CombatStat再計算、`action-completion.ts`への実ライフサイクル
-  // 配線）。`IT-CAP-COMPLEX-EXPIRATION-PROD-001`がEFFECT_TARGET/EFFECT_SOURCE/
-  // BATTLEの3種類のownerを実production Catalogデータで検証する。
+  // 配線）。REF-041（Issue #388）でユニット効果軸へ移送し、EFFECT_TARGET/
+  // EFFECT_SOURCE/BATTLEの3種類のownerを1件ずつ、実 `recordActionCompletion` を
+  // 通した行動終了の列として検証する。
   {
     ruleId: "R-EFF-04",
     testCaseIds: [
@@ -2503,7 +2505,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-04-015",
       "UT-R-EFF-04-016",
       "UT-R-EFF-04-017",
-      "IT-CAP-COMPLEX-EXPIRATION-PROD-001",
+      "IT-UNIT-DOROTHEA-PIONEER-005",
+      "IT-UNIT-CLARA-TSUNDERE-004",
+      "IT-UNIT-KARINA-DOWNER-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -2568,8 +2572,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
   // R-EFF-06: EFF-003。ターン単位期間の減算・失効（`battle.ts`のTURN_ENDING
-  // 配線）。`IT-CAP-COMPLEX-EXPIRATION-PROD-002`が実production Catalogの
-  // TURN単位`duration`で検証する。
+  // 配線）。REF-041（Issue #388）でユニット効果軸へ移送し、`IT-UNIT-SIENA-DIVA-006`が
+  // 実production CatalogのTURN単位`duration`で、行動終了では減らないことと併せて検証する。
   {
     ruleId: "R-EFF-06",
     testCaseIds: [
@@ -2580,15 +2584,16 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-06-005",
       "UT-R-EFF-06-006",
       "UT-R-EFF-06-007",
-      "IT-CAP-COMPLEX-EXPIRATION-PROD-002",
+      "IT-UNIT-SIENA-DIVA-006",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
   // R-EFF-07: EFF-003。消費条件（NEXT_OUTGOING_ATTACK/NEXT_INCOMING_ATTACK/
   // OUTGOING_HIT/INCOMING_HIT、`damage-application-service.ts`への実
   // ライフサイクル配線）。`STATUS_BLOCKED`は状態付与無効化の仕組み自体が
-  // 未実装（M7-001）のため到達不能のまま残す。`IT-CAP-COMPLEX-EXPIRATION-
-  // PROD-003`が実production CatalogのNEXT_OUTGOING_ATTACK消費で検証する。
+  // 未実装（M7-001）のため到達不能のまま残す。REF-041（Issue #388）でユニット効果軸へ
+  // 移送し、`IT-UNIT-FEE-ACTOR-005`が実production CatalogのNEXT_OUTGOING_ATTACK消費を
+  // 実ダメージpipelineで検証する（消費させた一撃自身に効果が乗る遅延失効を含む）。
   {
     ruleId: "R-EFF-07",
     testCaseIds: [
@@ -2603,7 +2608,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-07-009",
       "UT-R-EFF-07-014",
       "UT-R-EFF-07-015",
-      "IT-CAP-COMPLEX-EXPIRATION-PROD-003",
+      "IT-UNIT-FEE-ACTOR-005",
       "IT-UNIT-TATIANA-SAGE-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
@@ -2628,9 +2633,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   // R-EFF-09: linkedEffectGroupの親子連動カスケード。EFF-003（Issue #159）が
   // `AppliedEffect`同士、EFF-004（Issue #160）が`MarkerState`同士を種別ごとに
-  // 実装し、`UT-R-EFF-09-001`〜`008`と`IT-CAP-COMPLEX-EXPIRATION-PROD-004`
-  // （UNIT_HARRIET_SAGEの実`linkedEffectGroupId` `HARRIET_CURSE_LINK`）が
-  // 検証していた。
+  // 実装し、`UT-R-EFF-09-001`〜`008`と`IT-UNIT-HARRIET-SAGE-004`／`005`
+  // （UNIT_HARRIET_SAGEの実`linkedEffectGroupId` `HARRIET_CURSE_LINK`／
+  // `HARRIET_BARRIER`。REF-041／Issue #388でユニット効果軸へ移送）が検証している。
   //
   // M7-010（Issue #177、監査）: しかしR-EFF-09の第1項「同じ
   // `linkedEffectGroupId`を持つ`AppliedEffect`**と**`MarkerState`は親子連動
@@ -2721,7 +2726,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-024",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
-      "IT-CAP-COMPLEX-EXPIRATION-PROD-004",
+      "IT-UNIT-HARRIET-SAGE-004",
+      "IT-UNIT-HARRIET-SAGE-005",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-001",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-002",
       "IT-LINKED-GROUP-CROSS-TYPE-PROD-003",

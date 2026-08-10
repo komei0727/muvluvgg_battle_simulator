@@ -11,6 +11,8 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -56,7 +58,7 @@ const STATUS_APPLIED_TO_FRONT_ENEMY = effectApplied({
   source: "ally:subject",
   target: "enemy:front",
   effectKind: "APPLY_STATUS",
-  categories: ["STATUS"],
+  categories: ["DEBUFF", "STATUS"],
   statusKind: "STUN",
 });
 
@@ -453,5 +455,107 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     expect(stuns[0]!.duration.timeLimitRemaining).toBe(2);
     // 上書きが累積して延び続けることはない。
     expect(stunDurationChanges(events)).toEqual([]);
+  });
+
+  it("IT-UNIT-SIENA-DIVA-006 (R-EFF-06): PS2の「1ターンの間」会心率上昇は行動終了では減らず、ターン終了で減って0で失効し、会心率が戻る", () => {
+    // 付与そのものと `timeLimit: { unit: TURN, count: 1 }` の宣言は `-001` の
+    // PS2行が持つ。ターン単位期間は**行動単位期間と減る契機が違う**ことでしか
+    // 区別できず、それは行動終了とターン終了の両方を跨がないと現れない。
+    // 会心率は `RATIO` で基礎値に掛かるため、盤面既定の0のままでは上昇も失効も
+    // 実効値に現れない。基礎値だけを0.2へ置く（この観測は攻撃を1発も撃たない）。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: 0.2 },
+    });
+    const granted = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP", target: "SELF" },
+    ]);
+    expect(
+      granted.find((unit) => unit.battleUnitId === "ally:subject")!.combatStats.criticalRate,
+    ).toBeCloseTo(0.23);
+
+    expect(
+      observeEffectExpiry({
+        units: granted,
+        definitions: board.definitions,
+        steps: [
+          { kind: "ACTION_END", actor: "ally:subject" },
+          { kind: "ACTION_END", actor: "enemy:front" },
+          { kind: "TURN_END" },
+        ],
+        watch: [{ unitId: "ally:subject", stat: "criticalRate" }],
+      }).steps,
+    ).toEqual([
+      // 保持者自身の行動が終わっても、ターン単位期間は1つも減らない。
+      {
+        step: "ACTION_END(ally:subject)",
+        remaining: { "ally:subject/ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP": 1 },
+      },
+      {
+        step: "ACTION_END(enemy:front)",
+        remaining: { "ally:subject/ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP": 1 },
+      },
+      {
+        step: "TURN_END(2)",
+        remaining: {},
+        expired: [
+          {
+            unitId: "ally:subject",
+            effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+        ],
+        // 15%上昇が巻き戻り、基礎値0.2へ戻る。
+        stats: { "ally:subject/criticalRate": 0.2 },
+      },
+    ]);
+  });
+
+  it("IT-UNIT-SIENA-DIVA-007 (R-PS-01/R-STS-01): PS1の「敵に状態異常が付与された際」は、実 resolver が `EffectApplied` へ載せた分類だけで判定される — `STATUS` は `APPLY_STATUS` より狭く、デバフより狭い", () => {
+    // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
+    // 実 resolver に発行させたイベントにしか現れない。
+    //
+    // シエナは有利な `APPLY_STATUS` を1つも配らないため、ステルスだけは供給元
+    // ユニットを併読する。
+    const withStealthSupplier = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_MAO_COMMITTEE",
+    ]);
+    const board = productionBoard(withStealthSupplier, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string, from: string, to: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from,
+        to,
+        battleId: `B_SIENA_CLASSIFY_${effectActionDefinitionId}`,
+      });
+
+    // 気絶は定義済みの状態異常なので `STATUS` を受け取る（`DEBUFF` も兼ねる）。
+    expect(trigger("ACT_SIENA_DIVA_EX_STUN", "ally:subject", "enemy:front")).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["DEBUFF", "STATUS"],
+        statusKind: "STUN",
+      },
+      activated: ["SKL_SIENA_DIVA_PS1"],
+    });
+    // ステルスは同じ `APPLY_STATUS` でも保持者に有利なので状態異常ではない。
+    // `effectKind` で判定していたらここで誤発動する。
+    expect(trigger("ACT_MAO_COMMITTEE_PS2_STEALTH", "enemy:front", "enemy:front")).toEqual({
+      classification: {
+        effectKind: "APPLY_STATUS",
+        categories: ["BUFF"],
+        statusKind: "STEALTH",
+      },
+      activated: [],
+    });
+    // 与ダメージ低下は紛れもないデバフだが状態異常ではない（`STATUS` はデバフより狭い）。
+    expect(trigger("ACT_SIENA_DIVA_AS1_DMG_DOWN", "ally:subject", "enemy:front")).toEqual({
+      classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["DAMAGE_MOD", "DEBUFF"] },
+      activated: [],
+    });
   });
 });

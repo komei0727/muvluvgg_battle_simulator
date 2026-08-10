@@ -21,8 +21,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Issue #159 (EFF-003): `CAP_STAT_MOD`/`CAP_COMPLEX_EXPIRATION` flipped to
     // IMPLEMENTED once ACTION/TURN duration decrement, consumption, special
     // expiration, and linkedEffectGroup cascade (R-EFF-04/06/07/08/09) wired
-    // the real lifecycle (`capabilities.json`, production integration tests
-    // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003`). Issue #160 (EFF-004):
+    // the real lifecycle (`capabilities.json`; 実データ経路は
+    // `IT-UNIT-DOROTHEA-PIONEER-005`／`IT-UNIT-CLARA-TSUNDERE-004`／
+    // `IT-UNIT-KARINA-DOWNER-006`／`IT-UNIT-SIENA-DIVA-006`／`IT-UNIT-FEE-ACTOR-005`／
+    // `IT-UNIT-HARRIET-SAGE-004`〜`005`。当時の証跡だった
+    // `IT-CAP-COMPLEX-EXPIRATION-PROD-001〜003` は REF-041／Issue #388 で retire した).
+    // Issue #160 (EFF-004):
     // `CAP_MARKER` flipped to IMPLEMENTED once MarkerState stack policies and
     // ACTION/TURN duration expiration (R-EFF-10) wired the real lifecycle
     // (`UT-R-EFF-10-*`; 実データ経路は `IT-UNIT-AOI-ELEGANT-004`。当時の証跡だった

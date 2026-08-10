@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { observeClassificationTrigger } from "../../../testing/production-unit/effect-application.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -9,6 +10,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -561,5 +563,40 @@ describe("production Catalog UNIT_URUU_TIMID (【臆病な褒められたがり�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-URUU-TIMID-004 (R-PS-01): PS3の「敵から自身にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類と発生源の帰属で判定される", () => {
+    // `-001` のPS3行が使う契機イベントはハーネスが組み立てたもので、payload の
+    // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
+    // 実 resolver に発行させたイベントにしか現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const trigger = (effectActionDefinitionId: string, from: string) =>
+      observeClassificationTrigger({
+        definitions: board.definitions,
+        units: board.units,
+        effectActionDefinitionId,
+        from,
+        to: "ally:subject",
+        battleId: `B_URUU_CLASSIFY_${effectActionDefinitionId}_${from}`,
+      });
+
+    expect(trigger("ACT_URUU_TIMID_AS1_CRIT_DOWN", "enemy:front")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: ["SKL_URUU_TIMID_PS3"],
+    });
+    // 同じデバフでも味方が付けたものは `sourceSelector: ENEMY` に当たらない。
+    expect(trigger("ACT_URUU_TIMID_AS1_CRIT_DOWN", "ally:front")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
+      activated: [],
+    });
+    expect(trigger("ACT_URUU_TIMID_PS2_ATK_UP", "enemy:front")).toEqual({
+      classification: { effectKind: "APPLY_STAT_MOD", categories: ["BUFF"] },
+      activated: [],
+    });
+    // 被ダメージ**増加**は `magnitude` が正でも保持者を弱化するのでデバフ。
+    expect(trigger("ACT_URUU_TIMID_AS1_DMG_TAKEN_UP", "enemy:front")).toEqual({
+      classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["DAMAGE_MOD", "DEBUFF"] },
+      activated: ["SKL_URUU_TIMID_PS3"],
+    });
   });
 });

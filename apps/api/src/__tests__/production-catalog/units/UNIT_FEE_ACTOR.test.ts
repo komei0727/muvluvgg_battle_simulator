@@ -8,11 +8,15 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -393,5 +397,72 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
       },
       changesOnUnrelatedSkill: [],
     });
+  });
+
+  it("IT-UNIT-FEE-ACTOR-005 (R-EFF-07): PS1の会心率上昇は「次に行う攻撃」で消費されるが、失効はその攻撃の解決後まで遅らせるため、**消費させた当の一撃自身が会心する**", () => {
+    // 付与そのものと `consumption: { kind: NEXT_OUTGOING_ATTACK, maxCount: 1 }` の
+    // 宣言は `-001` のPS1行が持つ。消費は**以後の別の攻撃**でしか起きないため、
+    // 「いつ消費され、いつ失効し、その1発に効果が乗っているか」は表に現れない。
+    //
+    // 会心率は `RATIO` で基礎値に掛かるため基礎値を0.5へ置く。抽選値0.6は
+    // 素の0.5では会心せず、上昇後の 0.5 × 1.3 = 0.65 でだけ会心する。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: 0.5 },
+    });
+    const granted = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_CRIT_UP", target: "ALLY" },
+    ]);
+    const holder = granted.find((unit) => unit.battleUnitId === "ally:front")!;
+    expect(holder.combatStats.criticalRate).toBeCloseTo(0.65);
+
+    const probe = observeLifecycleDamageProbe({
+      units: granted,
+      definitions: board.definitions,
+      attackerUnitId: "ally:front",
+      targetUnitId: "enemy:front",
+      critical: "NORMAL",
+      random: new SequenceRandomSource(new Array<number>(8).fill(0.6)),
+      battleId: "B_FEE_CONSUME",
+    });
+
+    // 攻撃力1000 - 防御力500 = 500 に会心倍率（R-CRT-02: 150% + 会心ダメージ50%）が乗る。
+    expect(probe.hpDeltas).toEqual({ "enemy:front": -1000 });
+    // 消費が0まで進み、その攻撃の解決後に失効する（`CONSUMPTION`）。
+    expect(
+      probe.recorder
+        .getEvents()
+        .filter((event) => event.eventType === "EffectConsumptionChanged")
+        .map((event) => event.payload),
+    ).toMatchObject([
+      { battleUnitId: "ally:front", kind: "NEXT_OUTGOING_ATTACK", before: 1, after: 0 },
+    ]);
+    expect(
+      probe.recorder
+        .getEvents()
+        .filter((event) => event.eventType === "EffectExpired")
+        .map((event) => event.payload),
+    ).toMatchObject([
+      {
+        battleUnitId: "ally:front",
+        effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_CRIT_UP",
+        reason: "CONSUMPTION",
+        cascaded: false,
+      },
+    ]);
+    const after = probe.units.find((unit) => unit.battleUnitId === "ally:front")!;
+    expect(after.appliedEffects).toEqual([]);
+    expect(after.combatStats.criticalRate).toBeCloseTo(0.5);
+
+    // 対照: 同じ抽選値でも上昇を持たない攻撃は会心しない（0.6 ≧ 0.5）。
+    const withoutBuff = observeLifecycleDamageProbe({
+      units: board.units,
+      definitions: board.definitions,
+      attackerUnitId: "ally:front",
+      targetUnitId: "enemy:front",
+      critical: "NORMAL",
+      random: new SequenceRandomSource(new Array<number>(8).fill(0.6)),
+      battleId: "B_FEE_NO_BUFF",
+    });
+    expect(withoutBuff.hpDeltas).toEqual({ "enemy:front": -500 });
   });
 });
