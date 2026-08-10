@@ -317,7 +317,7 @@ export interface ApplyHealingLinkPayload {
 
 /**
  * ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: 対象の攻撃を起点に追加
- * ダメージを発生させる汎用バフ（`docs/ddd/16_不完全変換対応予定方針.md`が
+ * ダメージを発生させる汎用バフ（`docs/ddd/archive/16_不完全変換対応予定方針.md`が
  * 追跡していた欠落EffectAction、production例: `SKL_ELENA_MOODMAKER_EX`の
  * 「攻撃時に攻撃力×15%のダメージを追加するバフ」）。`formula`は付与時点で
  * 評価し、結果を`AppliedEffect.attackDamageBonus.magnitude`として保持する

@@ -32,7 +32,7 @@
     "unitCatalog": {
       "convertedProductionUnits": 69,
       "syntheticUnits": 0,
-      "incompleteConversionRows": 1
+      "incompleteConversionRows": 0
     },
     "memoryCatalog": {
       "sourceTotal": 32,
@@ -606,14 +606,7 @@
       "ruleIds": ["R-ENH-01", "R-ENH-02", "R-ENH-03", "R-ENH-04", "R-ENH-05", "R-ENH-06"]
     }
   ],
-  "conversionThemeAssignments": [
-    {
-      "milestone": "M9",
-      "theme": "UNREACHABLE_BRANCH_BY_RAW_DATA",
-      "rowCount": 1,
-      "taskId": "REL-003"
-    }
-  ],
+  "conversionThemeAssignments": [],
   "unconvertedMemoryAssignments": [],
   "m8Audit": {
     "auditDate": "2026-08-02",
