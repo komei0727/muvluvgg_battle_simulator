@@ -446,10 +446,48 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
       { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
     ];
 
-    // R-CFS-01: `DAMAGE` が対象に取るbindingの `side: ENEMY` が反転し、AS2の
-    // 「敵単体」が自陣営の1体になる。R-TGT-02のデフォルト順は使用者からの
-    // マンハッタン距離が昇順のため、距離0の使用者自身が選ばれる。同じbindingを
-    // 見る「警戒」の付与も反転後の対象（＝自身）へ行く。
+    // R-CFS-01: `DAMAGE` が対象に取るbindingが `BINDING_DERIVED` の場合、その
+    // `base` binding も再帰的に反転する。AS1の「敵横一列」は基準（`TGT_BASE`）から
+    // 導く `SAME_ROW_AS_BASE` であり、基準を敵陣営に残すと `area` が基準と同じ陣営
+    // だけを採るため候補が0件になり、混乱中のAS1が一切ダメージを与えなくなる。
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_OLGA_VETERAN_AS1" },
+        precedingActions: CONFUSED,
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS1_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS1_DAMAGE", targets: ["ally:front"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS1_HEAL", targets: ["ally:subject"] },
+      ],
+      // 基準は反転後の陣営から選び直されて距離0の自身になり、その横一列（自身と
+      // ally:front）へ入る。通常の858（威力171.6%）に混乱倍率0.7が掛かって600、
+      // 自身は与えた合計1200の12.5%＝150を同じ行動の中で回復して差し引き-450。
+      hpDeltas: { "ally:subject": -450, "ally:front": -600 },
+      effectsRemoved: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1 },
+          statusKind: "CONFUSION",
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_OLGA_VETERAN_AS1", remaining: 3 },
+      ],
+    });
+
+    // 単独の `SELECT` binding でも同じ反転が働く。AS2の「敵単体」が自陣営の1体に
+    // なり、R-TGT-02のデフォルト順（使用者からのマンハッタン距離が昇順）で距離0の
+    // 使用者自身が選ばれる。同じbindingを見る「警戒」の付与も反転後の対象へ行く。
     expect(
       observeSkillUse({
         snapshot,

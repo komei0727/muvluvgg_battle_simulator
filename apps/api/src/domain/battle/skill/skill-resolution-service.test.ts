@@ -1328,4 +1328,69 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
       createBattleUnitId("ALLY_1"),
     ]);
   });
+
+  it("UT-R-CFS-01-009: a BINDING_DERIVED damage binding inverts its base binding too — leaving the base on the original side would make the area select nobody", () => {
+    // `area` は基準ユニットと同じ陣営の候補だけを採る（`u.side === base.side`）。
+    // base を元の陣営に残すと反転後の候補が常に0件になり、そのASは一切ダメージを
+    // 与えなくなる。base binding はどのstepの対象でもないため、`DAMAGE` stepの
+    // 対象集合だけを見る収集では拾えない。
+    const actor = confusedActor();
+    const allySameRow = unit("ALLY_1", "ALLY", { column: "CENTER", row: "FRONT" });
+    const allyOtherRow = unit("ALLY_2", "ALLY", { column: "CENTER", row: "BACK" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const enemyOtherRow = unit("ENEMY_2", "ENEMY", { column: "LEFT", row: "BACK" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        // どのstepの対象でもなく、`TGT_ROW` の基準を供給するためだけに解決される。
+        {
+          targetBindingId: createTargetBindingId("TGT_BASE"),
+          selector: { ...ENEMY_ALL_SELECTOR, count: 1, order: ["DEFAULT"] },
+        },
+        {
+          targetBindingId: createTargetBindingId("TGT_ROW"),
+          selector: {
+            kind: "BINDING_DERIVED",
+            side: "ENEMY",
+            base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BASE") },
+            area: { kind: "SAME_ROW_AS_BASE", includeBase: true },
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ROW") },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const units = [actor, allySameRow, allyOtherRow, enemy, enemyOtherRow];
+
+    // 基準は反転後の陣営から選び直され（距離0の使用者自身）、横一列も自陣営の前列になる。
+    expect(
+      resolveSkillOrder(skill, actor, units, effectActions)
+        .resolvedBindings.get(createTargetBindingId("TGT_ROW"))!
+        .units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("ACTOR"), createBattleUnitId("ALLY_1")]);
+
+    // 混乱していなければ宣言どおり敵前列のまま。
+    expect(
+      resolveSkillOrder(
+        skill,
+        unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }),
+        units,
+        effectActions,
+      )
+        .resolvedBindings.get(createTargetBindingId("TGT_ROW"))!
+        .units.map((u) => u.battleUnitId),
+    ).toEqual([createBattleUnitId("ENEMY_1")]);
+  });
 });

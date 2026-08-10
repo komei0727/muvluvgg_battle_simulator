@@ -17,6 +17,7 @@ import type {
   EffectActionReference,
   EffectSequence,
   EffectStepDefinition,
+  TargetBindingDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
@@ -736,9 +737,48 @@ function isConfused(actor: BattleUnit): boolean {
 }
 
 /**
+ * R-CFS-01「反転する selector が `kind: BINDING_DERIVED` で `base` が別の
+ * TargetBinding を指す場合、その base binding の selector も同じ規則で再帰的に
+ * 反転する」: 反転対象の集合を `base` 参照に沿って推移的に閉じる。
+ *
+ * `area`（`SAME_ROW_AS_BASE`等）は基準ユニットと**同じ陣営**の候補だけを採る
+ * （`target-selection-policy.ts`の`u.side === base.side`）。base を元の陣営に
+ * 残すと反転後の候補が常に0件になり、そのASは一切ダメージを与えなくなる。
+ *
+ * 既に集合へ入ったidは再訪しないため、定義が相互参照していても停止する。
+ */
+function closeOverDerivedBases(
+  bindings: readonly TargetBindingDefinition[],
+  seed: ReadonlySet<TargetBindingId>,
+): ReadonlySet<TargetBindingId> {
+  const selectorById = new Map(
+    bindings.map((binding) => [binding.targetBindingId, binding.selector]),
+  );
+  const closed = new Set<TargetBindingId>(seed);
+  const pending = [...seed];
+  while (pending.length > 0) {
+    const selector = selectorById.get(pending.pop()!);
+    if (selector?.kind !== "BINDING_DERIVED") {
+      continue;
+    }
+    const base = selector.base as TargetReference;
+    if (base.kind !== "BINDING") {
+      continue;
+    }
+    const baseBindingId = base.targetBindingId as TargetBindingId;
+    if (!closed.has(baseBindingId)) {
+      closed.add(baseBindingId);
+      pending.push(baseBindingId);
+    }
+  }
+  return closed;
+}
+
+/**
  * R-CFS-01: 混乱を保持するユニットがASを使用する場合に限り、`DAMAGE`が対象に
- * 取るTargetBindingのselectorだけを反転した`EffectSequence`へ差し替える。それ以外は
- * 元の定義をそのまま返す（オブジェクトの同一性も保つ）。
+ * 取るTargetBinding（と、それが `BINDING_DERIVED` で辿る `base` binding）の
+ * selectorだけを反転した`EffectSequence`へ差し替える。それ以外は元の定義を
+ * そのまま返す（オブジェクトの同一性も保つ）。
  *
  * 反転はここ（binding評価の入口）で一度だけ行う — R-SKL-01 #1が「binding は
  * sequence 開始時に一度だけ評価する」と定める以上、対象集合の確定より後に
@@ -758,10 +798,11 @@ function applyConfusionTargetRedirect(
   if (damageBindingIds.size === 0) {
     return sequence;
   }
+  const invertedBindingIds = closeOverDerivedBases(sequence.targetBindings, damageBindingIds);
   return {
     ...sequence,
     targetBindings: sequence.targetBindings.map((binding) =>
-      damageBindingIds.has(binding.targetBindingId)
+      invertedBindingIds.has(binding.targetBindingId)
         ? { ...binding, selector: invertSelectorSide(binding.selector) }
         : binding,
     ),
