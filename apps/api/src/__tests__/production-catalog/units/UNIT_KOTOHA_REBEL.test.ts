@@ -8,7 +8,10 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
-import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import {
+  observeDamageProbe,
+  observeLifecycleDamageProbe,
+} from "../../../testing/production-unit/damage-probe.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
@@ -697,5 +700,58 @@ describe("production Catalog UNIT_KOTOHA_REBEL (【世界への反逆者】コ�
       preTruncationDamage: 550,
       finalDamage: 550,
     });
+  });
+
+  it("IT-UNIT-KOTOHA-REBEL-006 (R-INT-01 #5, R-EFF-07): PS2が張った致死耐えは、後の致死ヒットをHP1で止めて `UnitDefeated` を出させず、最大HPの65%を回復したうえで自インスタンスの `LETHAL_DAMAGE` を1消費して失効する", () => {
+    // `-001` のPS2行は付与時点の `consumption` 宣言までしか持てない。「致死かどうか」は
+    // HPへ適用する量が確定して初めて決まるため、成立とその後始末は必ず**別のスキル
+    // 使用**である被弾側の1発で起きる。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_KOTOHA_SURVIVAL",
+    }).fire(turnStarted({ turnNumber: 1 }), board.units);
+
+    // 消費・失効と `healAfterSurvival` は `lifecycle/` が注入するhookに委ねられており、
+    // `applyDamageAction` 直呼びの観測では呼ばれない。
+    const hit = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: granted,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      // 攻撃力1000 - 防御力500 = 500 の12倍。現在HP5000を超える致死量にする。
+      power: 12,
+      battleId: "B_KOTOHA_SURVIVAL_HIT",
+    });
+
+    expect(hit.survived).toEqual([
+      {
+        effectActionDefinitionId: "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL",
+        battleUnitId: "ally:subject",
+        lethalDamage: 6000,
+        hpBefore: 5000,
+        survivalHp: 1,
+      },
+    ]);
+    // R-INT-01 #5: `LethalDamageSurvived` と `UnitDefeated` は排他である。
+    expect(hit.defeated).toEqual([]);
+    // `healAfterSurvival`（最大HP10000の65% = 6500）をR-HEAL-01の手順で適用する。
+    expect(hit.heals).toEqual([
+      {
+        effectActionDefinitionId: "ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL",
+        targetUnitId: "ally:subject",
+        healAmount: 6500,
+        hpBefore: 1,
+        hpAfter: 6501,
+      },
+    ]);
+    expect(hit.hpDeltas).toEqual({ "ally:subject": 1501 });
+    // R-EFF-07: 耐えたインスタンス自身の `LETHAL_DAMAGE` を1消費して失効する。
+    expect(
+      hit.units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).not.toContain("ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL");
   });
 });

@@ -8,13 +8,17 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
+  type PrecedingAction,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { skillUseCompleted, turnStarted } from "../../../testing/production-unit/trigger-events.js";
@@ -432,5 +436,90 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
       },
       changesOnUnrelatedSkill: [],
     });
+  });
+
+  it("IT-UNIT-OLGA-VETERAN-005 (R-CFS-01/R-CFS-02, BOUNDARY): EXが配る混乱は、保持者がアクティブスキルで攻撃する行動でTargetSelectorの陣営を反転させ、そのダメージを30%減らす。攻撃力が実効防御力以下の相手には攻撃力×10%へ差し替わる", () => {
+    // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` のEX行は付与しか
+    // 表せない。混乱を保持したユニットが実際に攻撃する場面は、そのユニットの
+    // スキル構成に依存するため、混乱を配る当のオルガ自身へ実定義で付けて観測する。
+    const CONFUSED: readonly PrecedingAction[] = [
+      { effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION", target: "SELF" },
+    ];
+
+    // R-CFS-01: `DAMAGE` が対象に取るbindingの `side: ENEMY` が反転し、AS2の
+    // 「敵単体」が自陣営の1体になる。R-TGT-02のデフォルト順は使用者からの
+    // マンハッタン距離が昇順のため、距離0の使用者自身が選ばれる。同じbindingを
+    // 見る「警戒」の付与も反転後の対象（＝自身）へ行く。
+    expect(
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_OLGA_VETERAN_AS2" },
+        precedingActions: CONFUSED,
+      }),
+    ).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS2_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS2_HEAL", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS2_MARKER", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS2_DMG_DOWN", targets: ["ally:subject"] },
+      ],
+      // 通常の1060（威力212%）に混乱倍率0.7が掛かって742。自傷の17.5%＝129を
+      // 同じ行動の中で回復するため差し引き-613になる。
+      hpDeltas: { "ally:subject": -613 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_OLGA_VETERAN_AS2_DMG_DOWN",
+          magnitude: -0.35,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      // 1行動の混乱はこの攻撃で消費されて失効する。
+      effectsRemoved: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_OLGA_VETERAN_EX_CONFUSION",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1 },
+          statusKind: "CONFUSION",
+        },
+      ],
+      markers: [{ unitId: "ally:subject", markerId: VIGILANCE, stackCount: 1 }],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    });
+
+    // R-CFS-02の境界は対象選択とは独立に効く。実効防御力を攻撃力と同値に置いた
+    // 相手を1体だけ混ぜ、同じ1回の付与から2発撃ち分ける。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      enemies: [
+        { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+        {
+          id: "enemy:left",
+          position: { column: "LEFT", row: "FRONT" },
+          combatStats: { defense: 1000 },
+        },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    });
+    const confused = applyPrecedingActions(board, CONFUSED);
+    const against = (targetUnitId: string) =>
+      observeDamageProbe({
+        units: confused,
+        attackerUnitId: "ally:subject",
+        targetUnitId,
+        battleId: `B_OLGA_CONFUSION_${targetUnitId}`,
+      });
+
+    // 防御力500: 差分500がそのまま基礎ダメージ。混乱倍率0.7で350。
+    expect(against("enemy:front").confusionDamageMultiplier).toBe(0.7);
+    expect(against("enemy:front").calculated.finalDamage).toBe(350);
+    // 防御力1000 = 攻撃力1000（R-CFS-02は「以下」で差し替える）: 基礎ダメージは
+    // 攻撃力×10%＝100へ差し替わり、混乱倍率0.7で70。差し替えが無ければ差分0 →
+    // R-DMG-02の最低1ダメージになる。
+    expect(against("enemy:left").calculated.finalDamage).toBe(70);
   });
 });

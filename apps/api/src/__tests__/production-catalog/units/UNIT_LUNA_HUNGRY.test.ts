@@ -4,10 +4,16 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import {
+  activatedPassiveSkillIds,
+  openPassiveChain,
+} from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -290,5 +296,66 @@ describe("production Catalog UNIT_LUNA_HUNGRY (【博識なハングリーガー
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-LUNA-HUNGRY-004 (R-INT-01 #1/#2/#4, R-INT-03): PS1が張った引き寄せ・肩代わり・反射は、以後の1発を味方からルナへ移して受けさせ、受けた量の75%を攻撃者へ返す（元ダメージは巻き戻さない）", () => {
+    // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` の振る舞い表は
+    // 前者しか表せない。反射は「直前に受けたダメージ」から反射のたびに評価し直すため
+    // 付与時の `magnitude` は0のままで、率も反射先も `-001` には現れない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_LUNA_REFLECT",
+    });
+    const granted = chain.fire(
+      unitBeingAttacked({ source: "enemy:front", target: "ally:front" }),
+      board.units,
+    );
+    expect(activatedPassiveSkillIds(chain)).toContain("SKL_LUNA_HUNGRY_PS1");
+
+    // 反射はルナ自身が保持し、率と再帰可否はproduction定義そのままで焼き込まれる。
+    expect(
+      granted
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_LUNA_HUNGRY_PS1_REFLECT",
+        )!.reflect,
+    ).toEqual({
+      formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 0.75 },
+      allowRecursiveReflect: false,
+    });
+
+    const hit = observeDamageProbe({
+      units: granted,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      battleId: "B_LUNA_REFLECT_HIT",
+    });
+
+    // 肩代わり者が引き寄せ先と同じルナで `guardRate: 0` のため、
+    // `ACT_LUNA_HUNGRY_PS1_COVER` は防御側も量も動かさずイベントも出さない。
+    expect(hit.redirects).toEqual([
+      {
+        reason: "TARGET_REDIRECT",
+        originalTargetUnitId: "ally:front",
+        newTargetUnitId: "ally:subject",
+        causeEffectActionDefinitionId: "ACT_LUNA_HUNGRY_PS1_REDIRECT",
+      },
+    ]);
+    // R-INT-01 #4: 反射は最終的な防御側（＝引き寄せ先のルナ）が保持する分を採る。
+    expect(hit.reflected).toEqual([
+      {
+        effectActionDefinitionId: "ACT_LUNA_HUNGRY_PS1_REFLECT",
+        reflectedByUnitId: "ally:subject",
+        reflectToUnitId: "enemy:front",
+        sourceDamage: 500,
+        // 500 × 75% = 375。
+        reflectedDamage: 375,
+        damageType: "PHYSICAL",
+      },
+    ]);
+    // R-INT-03第1項: 元ダメージは巻き戻さない — ルナは500を受けたままである。
+    expect(hit.hpDeltas).toEqual({ "ally:subject": -500, "enemy:front": -375 });
   });
 });
