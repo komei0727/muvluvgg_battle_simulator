@@ -501,7 +501,9 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
       idle: { candidates: 1, reconfirm: { ok: true } },
       charging: { candidates: 0, reconfirm: { ok: false, reason: "OWNER_CHARGING" } },
       afterRelease: { candidates: 1, reconfirm: { ok: true } },
-      runtimeActivated: { idle: true, charging: false },
+      // 実 `PassiveActivationRuntime` でも同じ結論になる（`PassiveActivated` が
+      // 出たかどうかではなく、PS1が発動したかどうかで見る）。
+      runtimeActivated: { idle: true, charging: false, afterRelease: true },
     });
   });
 

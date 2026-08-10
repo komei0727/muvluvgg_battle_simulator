@@ -547,8 +547,16 @@ export interface OwnerChargingObservation {
   readonly charging: { readonly candidates: number; readonly reconfirm: unknown };
   /** チャージ解放後に制限が解けること。 */
   readonly afterRelease: { readonly candidates: number; readonly reconfirm: unknown };
-  /** 実 `PassiveActivationRuntime` を通したときに `PassiveActivated` が出たか。 */
-  readonly runtimeActivated: { readonly idle: boolean; readonly charging: boolean };
+  /**
+   * 実 `PassiveActivationRuntime` を通したときに**そのPSが**発動したか。
+   * 任意の `PassiveActivated` ではなく `passiveSkillDefinitionId` で絞る — 同じ
+   * 契機で別のPSが発動しただけの状態を「発動した」と読んではいけない。
+   */
+  readonly runtimeActivated: {
+    readonly idle: boolean;
+    readonly charging: boolean;
+    readonly afterRelease: boolean;
+  };
 }
 
 export interface ObserveOwnerChargingOptions {
@@ -608,11 +616,13 @@ export function observeOwnerCharging(
   ).units;
   const releasedOwner = unitIn(released, owner);
 
+  // `battle.ts` が実際に発行する `TurnStarted` は特定のBattleUnitに帰属しない
+  // グローバルイベントで、`sourceUnitId`／`targetUnitIds` のどちらも持たない
+  // （`12_テスト戦略.md`「ハーネスの契機イベントは発行地点と同じ形にする」）。
+  // ここで所有者を補うと、実イベント形では成立しない候補化を見逃す。
   const turnStartedEvent: TriggerCandidateEvent = {
     eventType: "TurnStarted",
     category: "FACT",
-    sourceUnitId: owner.battleUnitId,
-    targetUnitIds: [owner.battleUnitId],
     payload: { turnNumber: 2 },
   };
   const guard = createEmptyPassiveActivationGuard();
@@ -647,16 +657,28 @@ export function observeOwnerCharging(
       reconfirm: reconfirmWith(releasedOwner),
     },
     runtimeActivated: {
-      idle: runtimeEmitsPassiveActivated(definitions, owner, enemy),
-      charging: runtimeEmitsPassiveActivated(definitions, chargingOwner, enemy),
+      idle: runtimeActivates(definitions, owner, enemy, options.passiveSkillDefinitionId),
+      charging: runtimeActivates(
+        definitions,
+        chargingOwner,
+        enemy,
+        options.passiveSkillDefinitionId,
+      ),
+      afterRelease: runtimeActivates(
+        definitions,
+        releasedOwner,
+        enemy,
+        options.passiveSkillDefinitionId,
+      ),
     },
   };
 }
 
-function runtimeEmitsPassiveActivated(
+function runtimeActivates(
   definitions: BattleDefinitions,
   owner: BattleUnit,
   enemy: BattleUnit,
+  passiveSkillDefinitionId: string,
 ): boolean {
   const recorder = new EventRecorder(createBattleId("B_CHARGE_PS"));
   const turnStarted = recorder.record({
@@ -679,5 +701,11 @@ function runtimeEmitsPassiveActivated(
     },
     [owner, enemy],
   ).onFactEvent(turnStarted, [owner, enemy]);
-  return recorder.getEvents().some((event) => event.eventType === "PassiveActivated");
+  return recorder
+    .getEvents()
+    .some(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        event.payload.skillDefinitionId === passiveSkillDefinitionId,
+    );
 }
