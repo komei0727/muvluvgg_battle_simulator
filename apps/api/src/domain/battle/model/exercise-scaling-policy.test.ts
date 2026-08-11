@@ -4,7 +4,8 @@ import {
   exerciseScalingFactors,
   EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT,
 } from "./exercise-scaling-policy.js";
-import type { CombatStats } from "./starting-combat-stats.js";
+import { calculateStartingCombatStats, type CombatStats } from "./starting-combat-stats.js";
+import { createPercentage } from "../../shared/percentage.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { fc, PROPERTY_ASSERT_CONFIG } from "../../../testing/property/index.js";
 
@@ -144,6 +145,93 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
           expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
           expect(enhanced.defense).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
+          expect(enhanced.actionSpeed).toBe(exact(5 * breakCount));
+        },
+      ),
+      PROPERTY_ASSERT_CONFIG,
+    );
+  });
+
+  it("UT-R-TEX-04-011: a fractional original base produced by the real starting-stats path is not dropped by one either", () => {
+    // R-STA-01の実経路: 基本値136へ適性ペナルティ5%を適用した原基準値は129.2（全精度で保持）。
+    const original = calculateStartingCombatStats({
+      baseStats: {
+        maximumHp: 136,
+        attack: 136,
+        defense: 136,
+        criticalRate: 0,
+        actionSpeed: 136,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0,
+        maximumAp: 3,
+        maximumPp: 3,
+      },
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: {
+        attackBonus: createPercentage(0),
+        hpBonus: createPercentage(0),
+        defenseBonus: createPercentage(0),
+        criticalRateBonus: createPercentage(0),
+      },
+    });
+    expect(original.attack).toBe(129.2);
+
+    // 7ブレイクは累計150pp（×2.50）。129.2 × 2.5 は数学上ちょうど323。
+    const enhanced = applyExerciseScaling(original, 7);
+    expect(enhanced.maximumHp).toBe(323);
+    expect(enhanced.attack).toBe(323);
+    expect(enhanced.defense).toBe(323);
+  });
+
+  it("UT-R-TEX-04-012: every aptitude-penalised base and break count in a dense grid matches the exact decimal value, so a one-off truncation drift cannot slip through", () => {
+    // 誤差で1小さくなる組み合わせは全体の0.06%程度しかなく、乱択200件では取りこぼす。
+    // 実データが取りうる範囲を決定的に総当たりして、この欠陥種別を確実に捕まえる。
+    const mismatches: string[] = [];
+    for (let baseStatValue = 1; baseStatValue <= 1_200; baseStatValue++) {
+      const penalised = baseStatValue * (1 - 0.05);
+      for (let breakCount = 0; breakCount <= 40; breakCount++) {
+        const enhanced = applyExerciseScaling(
+          { ...ORIGINAL, attack: penalised, defense: penalised },
+          breakCount,
+        );
+        const points = 100 + cumulativeIncrement(Math.min(breakCount, 20));
+        const exact = Number((BigInt(baseStatValue) * 95n * BigInt(points)) / 10_000n);
+        if (enhanced.attack !== exact) {
+          mismatches.push(
+            `base=${baseStatValue} breaks=${breakCount}: ${enhanced.attack}≠${exact}`,
+          );
+        }
+      }
+    }
+
+    expect(mismatches.slice(0, 5)).toEqual([]);
+  });
+
+  it("PROP-TEX-005: a fractional original base (aptitude-penalised) still yields the exactly-truncated decimal value", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 0, max: 60 }),
+        (baseStatValue, breakCount) => {
+          // 適性ペナルティ5%後の原基準値は `baseStatValue × 95 / 100`（小数第2位まで）。
+          const penalised = baseStatValue * (1 - 0.05);
+          const enhanced = applyExerciseScaling(
+            {
+              ...ORIGINAL,
+              maximumHp: penalised,
+              attack: penalised,
+              defense: penalised,
+              actionSpeed: penalised,
+            },
+            breakCount,
+          );
+          // 期待値は10進の厳密値: `baseStatValue × 95 × (100 + pp) / (100 × 100)`。
+          const exact = (points: number): number =>
+            Number((BigInt(baseStatValue) * 95n * BigInt(100 + points)) / 10_000n);
+
+          expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
+          expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
           expect(enhanced.actionSpeed).toBe(exact(5 * breakCount));
         },
       ),

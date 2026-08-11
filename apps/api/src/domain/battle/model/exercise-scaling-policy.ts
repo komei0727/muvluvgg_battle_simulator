@@ -108,13 +108,29 @@ function scalingPoints(breakCount: number): ExerciseScalingPoints {
 }
 
 /**
- * 原基準値へパーセントポイントの強化量を適用する。倍率（`points / 100`）を先に作って
- * 掛けると、二進浮動小数で表せない倍率（1.4など）が誤差を持ち、数学上は整数になる積が
- * わずかに下回って切り捨てで1小さくなる（45 × 1.4 = 62.99999999999999 → 62）。
- * 先に整数のppを掛けてから100で割ることで、原基準値が整数である限り誤差なく求まる。
+ * 切り捨て前に丸めて誤差だけを落とす小数位。原基準値は基本値（整数）へ編成補正・
+ * 適性補正（パーセント）を掛けた全精度値（R-STA-01／R-NUM-01）であり、強化倍率も
+ * パーセントポイント単位のため、数学上の積は小数第6位より細かい桁を持たない。
+ * したがってこの位で丸めても、意味のある端数は失われない。
+ */
+const SCALED_STAT_ROUNDING_SCALE = 1_000_000;
+
+/**
+ * 原基準値へパーセントポイントの強化量を適用する。
+ *
+ * 二進浮動小数では、数学上ちょうど整数になる積がその整数のわずかに下へずれる
+ * （原基準値45・2ブレイクの `45 × 140 / 100`、原基準値129.2・7ブレイクの
+ * `129.2 × 250 / 100`）。そのまま切り捨てると強化後ステータスが1小さくなるため、
+ * 切り捨て前に小数第6位で丸めて誤差だけを落とす。
+ *
+ * 倍率（`points / 100`）を先に作らないのも同じ理由である — 1.4のように二進で
+ * 表せない倍率を経由すると、丸めで落とせる範囲を超えて誤差が積む場合がある。
  */
 function scaleByPoints(baseValue: number, points: number): number {
-  return truncateFraction((baseValue * points) / 100);
+  const scaled = (baseValue * points) / 100;
+  return truncateFraction(
+    Math.round(scaled * SCALED_STAT_ROUNDING_SCALE) / SCALED_STAT_ROUNDING_SCALE,
+  );
 }
 
 /**
