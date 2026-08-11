@@ -81,6 +81,18 @@ export const unitDefinitionSchema = {
         maximumPp: { type: "integer", minimum: 1 },
       },
     },
+    /** R-ENH-05: 任意。持つ場合は4ステータスすべてを非負整数で埋める。 */
+    levelGrowth: {
+      type: "object",
+      additionalProperties: false,
+      required: ["hp", "attack", "defense", "actionSpeed"],
+      properties: {
+        hp: { type: "integer", minimum: 0 },
+        attack: { type: "integer", minimum: 0 },
+        defense: { type: "integer", minimum: 0 },
+        actionSpeed: { type: "integer", minimum: 0 },
+      },
+    },
     extraGaugeMaximum: { type: "integer", minimum: 1 },
     activeSkillDefinitionIds: { type: "array", items: idSchema("SKL_") },
     passiveSkillDefinitionIds: { type: "array", items: idSchema("SKL_") },

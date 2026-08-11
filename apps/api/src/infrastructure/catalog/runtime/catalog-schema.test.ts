@@ -5,6 +5,32 @@ import {
   validateUnitDefinitionDto,
 } from "./catalog-schema.js";
 
+/** 構造的に妥当なUnitDefinition DTO（`levelGrowth`込み）。 */
+function unitDto() {
+  return {
+    unitDefinitionId: "UNIT_001",
+    attribute: "COMICAL",
+    unitType: "AGILE",
+    role: "CONTROL",
+    positionAptitudes: ["FRONT"],
+    baseStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0.1,
+      actionSpeed: 100,
+      maximumAp: 4,
+      maximumPp: 4,
+    },
+    levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+    extraGaugeMaximum: 5,
+    activeSkillDefinitionIds: ["SKL_001_AS1"],
+    passiveSkillDefinitionIds: [],
+    extraSkillDefinitionId: "SKL_001_EX",
+    metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
+  };
+}
+
 describe("Catalog v2 DTO JSON Schema", () => {
   it("UT-INFRA-SCHEMA-001: accepts a structurally valid UnitDefinition DTO", () => {
     const valid = validateUnitDefinitionDto({
@@ -220,5 +246,35 @@ describe("Catalog v2 DTO JSON Schema", () => {
       metadata: { displayName: "Test", characterName: "Test", characterId: "CHAR_TEST" },
     });
     expect(valid).toBe(false);
+  });
+
+  it("UT-INFRA-SCHEMA-014: accepts a UnitDefinition DTO carrying levelGrowth, and still accepts one without it", () => {
+    expect(validateUnitDefinitionDto(unitDto())).toBe(true);
+    const { levelGrowth: _omitted, ...withoutLevelGrowth } = unitDto();
+    expect(validateUnitDefinitionDto(withoutLevelGrowth)).toBe(true);
+  });
+
+  it("UT-INFRA-SCHEMA-015: rejects a levelGrowth that is negative, fractional, incomplete, or carries an unknown stat", () => {
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        levelGrowth: { hp: -1, attack: 0, defense: 0, actionSpeed: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        levelGrowth: { hp: 0.5, attack: 0, defense: 0, actionSpeed: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({ ...unitDto(), levelGrowth: { hp: 1, attack: 1, defense: 1 } }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        levelGrowth: { hp: 1, attack: 1, defense: 1, actionSpeed: 2, criticalRate: 1 },
+      }),
+    ).toBe(false);
   });
 });
