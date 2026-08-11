@@ -3,7 +3,11 @@ import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import { recordResourceChangeIfAny } from "./action-resolution-shared.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleStatus } from "../model/battle-status.js";
-import { ExerciseRuntime, type BattleMode } from "../model/exercise-runtime.js";
+import {
+  EXERCISE_TURN_LIMIT,
+  ExerciseRuntime,
+  type BattleMode,
+} from "../model/exercise-runtime.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
 import { decrementTurnCooldowns } from "../model/cooldown-state.js";
 import { decrementTurnEffectDurations } from "../model/applied-effect-duration.js";
@@ -71,6 +75,9 @@ export function createBattle(
   if (enemyUnits.length === 0) {
     throw new DomainValidationError("battle.enemyUnits", "must contain at least one BattleUnit");
   }
+  if (mode === "TACTICAL_EXERCISE") {
+    assertExerciseInvariants(enemyUnits, turnLimit, definitions);
+  }
   return {
     battleId,
     status: "READY",
@@ -79,8 +86,43 @@ export function createBattle(
     allyUnits,
     enemyUnits,
     definitions,
-    ...(mode === "TACTICAL_EXERCISE" ? { exercise: new ExerciseRuntime() } : {}),
+    ...(mode === "TACTICAL_EXERCISE"
+      ? { exercise: new ExerciseRuntime(enemyUnits[0]!.baseCombatStats) }
+      : {}),
   };
+}
+
+/**
+ * `05_ドメインモデル.md`「不変条件 > 戦術演習」/ R-TEX-01: 演習の編成条件と規定
+ * ターン数を集約の生成時点で拒否する。リクエスト不備としての検出（422）は
+ * アプリケーション層が別途行うが（R-TEX-01 #3）、集約側でも成立させることで、
+ * 経路を問わず「敵ちょうど1体・敵メモリーなし・5ターン」を満たさない演習Battleを
+ * 存在させない。
+ */
+function assertExerciseInvariants(
+  enemyUnits: readonly BattleUnit[],
+  turnLimit: TurnLimit,
+  definitions: BattleDefinitions,
+): void {
+  if (enemyUnits.length !== 1) {
+    throw new DomainValidationError(
+      "battle.enemyUnits",
+      `must contain exactly one BattleUnit in a tactical exercise (received ${enemyUnits.length})`,
+    );
+  }
+  const enemyMemories = definitions.memoriesBySide?.ENEMY ?? [];
+  if (enemyMemories.length > 0) {
+    throw new DomainValidationError(
+      "battle.definitions.memoriesBySide.ENEMY",
+      `must be empty in a tactical exercise (received ${enemyMemories.length})`,
+    );
+  }
+  if (turnLimit !== EXERCISE_TURN_LIMIT) {
+    throw new DomainValidationError(
+      "battle.turnLimit",
+      `must be ${EXERCISE_TURN_LIMIT} in a tactical exercise (received ${turnLimit})`,
+    );
+  }
 }
 
 /**

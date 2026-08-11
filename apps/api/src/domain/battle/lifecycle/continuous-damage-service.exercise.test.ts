@@ -118,6 +118,11 @@ function shieldEffect(amount: number): AppliedEffect {
   };
 }
 
+/** 演習状態は原基準値スナップショットを必ず持つ（R-TEX-04）。スコア計上の検証では値自体は使わない。 */
+function exerciseRuntime(): ExerciseRuntime {
+  return new ExerciseRuntime(enemy(1000, []).baseCombatStats);
+}
+
 function seedRecorder(): { recorder: EventRecorder; rootEventId: DomainEventId } {
   const recorder = new EventRecorder(createBattleId("B_1"));
   const seed = recorder.record({
@@ -169,7 +174,7 @@ function tick(
 
 describe("continuous damage exercise score accumulation (R-TEX-02)", () => {
   it("UT-R-TEX-02-012: counts the continuous damage that reached the enemy's HP, excluding the shield-absorbed portion", () => {
-    const exercise = new ExerciseRuntime();
+    const exercise = exerciseRuntime();
     const { recorder } = tick(enemy(500, [shieldEffect(30), dotEffect()]), exercise);
 
     const applied = recorder.getEvents().find((e) => e.eventType === "ContinuousDamageApplied")!;
@@ -182,7 +187,7 @@ describe("continuous damage exercise score accumulation (R-TEX-02)", () => {
   });
 
   it("UT-R-TEX-02-013: counts the overkill of a lethal continuous damage in full", () => {
-    const exercise = new ExerciseRuntime();
+    const exercise = exerciseRuntime();
     const { recorder } = tick(enemy(40, [dotEffect()]), exercise);
 
     const applied = recorder.getEvents().find((e) => e.eventType === "ContinuousDamageApplied")!;

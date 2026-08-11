@@ -1,4 +1,5 @@
 import { truncateFraction } from "./resource-gauge.js";
+import type { CombatStats } from "./starting-combat-stats.js";
 
 /**
  * `05_ドメインモデル.md`「集約が所有する状態」の戦闘モード。`TACTICAL_EXERCISE`の
@@ -6,6 +7,13 @@ import { truncateFraction } from "./resource-gauge.js";
  * （`07_戦闘ルール詳細.md`「戦術演習（スコアアタック）」前文）。
  */
 export type BattleMode = "NORMAL" | "TACTICAL_EXERCISE";
+
+/**
+ * R-TEX-01 #4: 戦術演習の規定ターン数は5で固定であり、APIリクエストでは指定できない。
+ * `09_アプリケーション設計.md`の`EXERCISE_TURN_LIMIT`と同じ値を、集約の生成時
+ * 不変条件（`createBattle`）が参照できるようDomain側の正本として持つ。
+ */
+export const EXERCISE_TURN_LIMIT = 5;
 
 /** `BattleStateSnapshot`へ射影する、演習状態の不変な写し（R-TEX-02／R-TEX-10）。 */
 export interface ExerciseStateSnapshot {
@@ -32,6 +40,17 @@ export interface ExerciseScoreAccumulation {
 export class ExerciseRuntime {
   private total = 0;
   private breaks = 0;
+
+  /**
+   * R-TEX-04 #4: ブレイク強化が毎回そこから再計算する原基準値（複利にしない）。
+   * 戦闘開始時の敵ユニットの基礎戦闘ステータス（編成補正・適性補正適用後）であり、
+   * これを書き換えるのはブレイク強化だけであるため、生成時の値をそのまま保持する。
+   */
+  readonly originalEnemyBaseCombatStats: CombatStats;
+
+  constructor(originalEnemyBaseCombatStats: CombatStats) {
+    this.originalEnemyBaseCombatStats = originalEnemyBaseCombatStats;
+  }
 
   get totalScore(): number {
     return this.total;

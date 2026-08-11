@@ -10,11 +10,14 @@ import {
 import { createTurnLimit } from "../model/turn-limit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
+import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
+import { DomainValidationError } from "../../shared/errors.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createMemoryDefinitionId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
@@ -57,6 +60,14 @@ function unit(id: string, side: Side, unitDefinitionId = "UNIT_001"): BattleUnit
   return createBattleUnit(member, side, LIMITS);
 }
 
+function memoryDefinition(): MemoryDefinition {
+  return {
+    memoryDefinitionId: createMemoryDefinitionId("MEM_TEST"),
+    triggeredEffects: [],
+    metadata: { displayName: "Test Memory", tags: [] },
+  };
+}
+
 function battleOf(mode?: "NORMAL" | "TACTICAL_EXERCISE") {
   return createBattle(
     createBattleId("B_1"),
@@ -83,6 +94,86 @@ describe("Battle mode and exercise state (R-TEX-01)", () => {
     expect(battle.mode).toBe("TACTICAL_EXERCISE");
     expect(battle.exercise?.snapshot()).toEqual({ totalScore: 0, breakCount: 0 });
     expect(captureBattleState(battle).exercise).toEqual({ totalScore: 0, breakCount: 0 });
+  });
+
+  it("UT-R-TEX-01-003: a tactical exercise rejects an enemy side that is not exactly one unit, while a normal battle keeps accepting it", () => {
+    const twoEnemies = [unit("enemy:1", "ENEMY"), unit("enemy:2", "ENEMY")];
+
+    expect(() =>
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        twoEnemies,
+        createTurnLimit(5),
+        NO_SKILLS,
+        "TACTICAL_EXERCISE",
+      ),
+    ).toThrow(DomainValidationError);
+    expect(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        twoEnemies,
+        createTurnLimit(5),
+        NO_SKILLS,
+      ).enemyUnits,
+    ).toHaveLength(2);
+  });
+
+  it("UT-R-TEX-01-004: a tactical exercise rejects enemy-side memories", () => {
+    const definitions: BattleDefinitions = {
+      ...NO_SKILLS,
+      memoriesBySide: { ALLY: [], ENEMY: [memoryDefinition()] },
+    };
+
+    expect(() =>
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        definitions,
+        "TACTICAL_EXERCISE",
+      ),
+    ).toThrow(DomainValidationError);
+    // 味方のメモリーはR-FRM-01〜05のままなので受理する。
+    expect(
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(5),
+        { ...NO_SKILLS, memoriesBySide: { ALLY: [memoryDefinition()], ENEMY: [] } },
+        "TACTICAL_EXERCISE",
+      ).mode,
+    ).toBe("TACTICAL_EXERCISE");
+  });
+
+  it("UT-R-TEX-01-005: a tactical exercise rejects a turn limit other than the fixed five", () => {
+    expect(() =>
+      createBattle(
+        createBattleId("B_1"),
+        [unit("ally:1", "ALLY")],
+        [unit("enemy:1", "ENEMY")],
+        createTurnLimit(4),
+        NO_SKILLS,
+        "TACTICAL_EXERCISE",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TEX-01-006: the exercise state captures the enemy's base combat stats at creation, which is the origin the break scaling recomputes from (R-TEX-04)", () => {
+    const enemy = unit("enemy:1", "ENEMY");
+    const battle = createBattle(
+      createBattleId("B_1"),
+      [unit("ally:1", "ALLY")],
+      [enemy],
+      createTurnLimit(5),
+      NO_SKILLS,
+      "TACTICAL_EXERCISE",
+    );
+
+    expect(battle.exercise?.originalEnemyBaseCombatStats).toEqual(enemy.baseCombatStats);
   });
 });
 
