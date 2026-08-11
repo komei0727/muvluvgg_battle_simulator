@@ -5,6 +5,7 @@ import {
   EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT,
 } from "./exercise-scaling-policy.js";
 import { calculateStartingCombatStats, type CombatStats } from "./starting-combat-stats.js";
+import { calculateEnhancedBaseStats } from "./enhanced-base-stats-calculator.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { fc, PROPERTY_ASSERT_CONFIG } from "../../../testing/property/index.js";
@@ -182,6 +183,46 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(enhanced.maximumHp).toBe(323);
     expect(enhanced.attack).toBe(323);
     expect(enhanced.defense).toBe(323);
+  });
+
+  it("UT-R-TEX-04-013: a meaningful fraction produced by the enhanced-base-stats path is truncated, not rounded up (R-NUM-02)", () => {
+    // R-ENH-06 → R-STA-01 → R-TEX-04 の実経路。ギア強化値は小数第2位のパーセント
+    // ポイント（ギアII・C の攻撃は+1.18pp）を持つため、強化後の積は小数第6位より
+    // 細かい端数を持ちうる。誤差ではない端数まで整数へ吸着させてはならない。
+    const enhancedBase = calculateEnhancedBaseStats(
+      {
+        attribute: "AGGRESSIVE",
+        unitType: "PHYSICAL",
+        // 加算前基準値57283 = 40222 + タイプ装備14340 + モジュール固定2721。
+        baseStats: {
+          maximumHp: 1,
+          attack: 40_222,
+          defense: 0,
+          criticalRate: 0,
+          actionSpeed: 0,
+          criticalDamageBonus: 0,
+          affinityBonus: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+        },
+      },
+      { gears: [{ stat: "ATTACK", tier: "II", grade: "C" }] },
+    );
+    const original = calculateStartingCombatStats({
+      baseStats: enhancedBase,
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: {
+        attackBonus: createPercentage(0.1),
+        hpBonus: createPercentage(0),
+        defenseBonus: createPercentage(0),
+        criticalRateBonus: createPercentage(0),
+      },
+    });
+
+    // 57283 × (1 + 9% + 1.18%) × (1 + 10% − 5%) × 385% = 255139.9999995。
+    // 端数0.9999995は誤差ではなく実際の値であり、R-NUM-02の切り捨てで255139になる。
+    expect(applyExerciseScaling(original, 12).attack).toBe(255_139);
   });
 
   it("UT-R-TEX-04-012: every aptitude-penalised base and break count in a dense grid matches the exact decimal value, so a one-off truncation drift cannot slip through", () => {

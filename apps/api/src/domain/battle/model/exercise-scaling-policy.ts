@@ -108,12 +108,27 @@ function scalingPoints(breakCount: number): ExerciseScalingPoints {
 }
 
 /**
- * 切り捨て前に丸めて誤差だけを落とす小数位。原基準値は基本値（整数）へ編成補正・
- * 適性補正（パーセント）を掛けた全精度値（R-STA-01／R-NUM-01）であり、強化倍率も
- * パーセントポイント単位のため、数学上の積は小数第6位より細かい桁を持たない。
- * したがってこの位で丸めても、意味のある端数は失われない。
+ * 整数へ吸着させる許容幅（ULP単位）。実測の誤差は1 ULP（原基準値129.2・7ブレイクの
+ * `129.2 × 250 / 100 = 322.99999999999994`）であり、その手前の演算が積む分を見込んで
+ * 余裕を取っている。
+ *
+ * 固定小数桁で丸めてはならない — 強化後基本ステータス（R-ENH-04のギア効果表は
+ * 小数第2位のパーセントポイントを持つ）と編成・適性補正を経た値は、数学上も
+ * 小数第6位より細かい端数を持ちうる（`57283 × 110.18% × 105% × 385% =
+ * 255139.9999995`）。その端数はR-NUM-02が切り捨てるべき実際の値であって誤差ではない。
  */
-const SCALED_STAT_ROUNDING_SCALE = 1_000_000;
+const INTEGER_SNAP_TOLERANCE_ULPS = 16;
+
+/**
+ * 二進浮動小数の丸め誤差で整数からわずかにずれた値を、その整数へ戻す。
+ * 誤差と呼べる範囲（ULPの定数倍）だけを対象にし、意味のある端数は変えない。
+ * `Math.abs(value) * Number.EPSILON` は正規化数の1 ULP に相当する。
+ */
+function snapAwayFloatingPointDrift(value: number): number {
+  const nearest = Math.round(value);
+  const tolerance = INTEGER_SNAP_TOLERANCE_ULPS * Math.abs(value) * Number.EPSILON;
+  return Math.abs(value - nearest) <= tolerance ? nearest : value;
+}
 
 /**
  * 原基準値へパーセントポイントの強化量を適用する。
@@ -121,16 +136,13 @@ const SCALED_STAT_ROUNDING_SCALE = 1_000_000;
  * 二進浮動小数では、数学上ちょうど整数になる積がその整数のわずかに下へずれる
  * （原基準値45・2ブレイクの `45 × 140 / 100`、原基準値129.2・7ブレイクの
  * `129.2 × 250 / 100`）。そのまま切り捨てると強化後ステータスが1小さくなるため、
- * 切り捨て前に小数第6位で丸めて誤差だけを落とす。
+ * 切り捨て前に誤差分だけを整数へ吸着させる。
  *
  * 倍率（`points / 100`）を先に作らないのも同じ理由である — 1.4のように二進で
- * 表せない倍率を経由すると、丸めで落とせる範囲を超えて誤差が積む場合がある。
+ * 表せない倍率を経由すると、原基準値が整数のケースでも誤差が入る。
  */
 function scaleByPoints(baseValue: number, points: number): number {
-  const scaled = (baseValue * points) / 100;
-  return truncateFraction(
-    Math.round(scaled * SCALED_STAT_ROUNDING_SCALE) / SCALED_STAT_ROUNDING_SCALE,
-  );
+  return truncateFraction(snapAwayFloatingPointDrift((baseValue * points) / 100));
 }
 
 /**
