@@ -7,6 +7,7 @@ import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-
 import { loadBattleCatalogDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
 import { GetBattleSimulationCatalogUseCase } from "../application/catalog/get-battle-simulation-catalog-use-case.js";
+import { PreviewFormationStatsUseCase } from "../application/simulation/preview-formation-stats-use-case.js";
 import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
 import { loadConfig } from "./config.js";
 
@@ -59,8 +60,15 @@ export async function bootstrap(): Promise<FastifyInstance> {
   // `manifest.catalogRevision`と同じ値になる。読み込みが失敗すれば
   // （破損Catalogなど）ここで例外を送出し、`listen`へ到達しない
   // （Worker初期化失敗時と同じ「ポートを公開しない」契約）。
+  const battleCatalogDirectory = loadBattleCatalogDirectory(catalogDir);
   const getBattleSimulationCatalogUseCase = new GetBattleSimulationCatalogUseCase({
-    battleCatalogDirectory: loadBattleCatalogDirectory(catalogDir),
+    battleCatalogDirectory,
+  });
+  // 編成ステータスプレビュー（`09_アプリケーション設計.md`
+  // 「PreviewFormationStatsUseCase」）は戦闘を実行しないため、Worker Poolでは
+  // なくメインスレッドで一覧APIと同じ検証済みCatalogスナップショットを共有する。
+  const previewFormationStatsUseCase = new PreviewFormationStatsUseCase({
+    battleCatalogDirectory,
   });
 
   const pool = await SimulationWorkerPool.create({
@@ -83,6 +91,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     readiness,
     shutdownGate: shutdownState,
     catalogUseCase: getBattleSimulationCatalogUseCase,
+    previewUseCase: previewFormationStatsUseCase,
     docsEnabled,
     corsAllowedOrigins,
   });

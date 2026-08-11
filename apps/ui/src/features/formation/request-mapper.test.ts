@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildBattleSimulationRequest } from "./request-mapper.js";
+import {
+  buildBattleSimulationRequest,
+  buildFormationStatPreviewRequest,
+} from "./request-mapper.js";
 import { createInitialDraft, enhancementForSide, memorySlotKeyOf, slotKeyOf } from "./types.js";
 import type { UnitEnhancementInput } from "./types.js";
 import type { BattleDraft } from "./types.js";
@@ -374,5 +377,46 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
       },
     );
     expect(buildBattleSimulationRequest(blankUnitLevel).ok).toBe(false);
+  });
+});
+
+describe("buildFormationStatPreviewRequest (UI-UT-REQ-008)", () => {
+  it("sends the same formations and enhancement as the battle request, without turnLimit or options", () => {
+    const draft = enabledSide(baseDraft(), "ally");
+    const battle = buildBattleSimulationRequest(draft);
+    const preview = buildFormationStatPreviewRequest(draft);
+
+    expect(battle.ok).toBe(true);
+    expect(preview.ok).toBe(true);
+    if (!battle.ok || !preview.ok) return;
+    expect(preview.request).toEqual({
+      allyFormation: battle.request.allyFormation,
+      enemyFormation: battle.request.enemyFormation,
+    });
+  });
+
+  it("keeps the per-side slot key tables so response entries can be mapped back to slots", () => {
+    let draft = baseDraft();
+    draft = withUnit(draft, "ally", "REAR", 2, "UNIT_ALLY_2");
+
+    const preview = buildFormationStatPreviewRequest(draft);
+
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+    expect(preview.allyUnitSlotKeys).toEqual([
+      slotKeyOf("ally", "FRONT", 0),
+      slotKeyOf("ally", "REAR", 2),
+    ]);
+    expect(preview.enemyUnitSlotKeys).toEqual([slotKeyOf("enemy", "FRONT", 0)]);
+  });
+
+  it("builds even when the turn limit is blank, because the preview does not run a battle", () => {
+    const preview = buildFormationStatPreviewRequest({ ...baseDraft(), turnLimit: "" });
+
+    expect(preview.ok).toBe(true);
+  });
+
+  it("refuses to build when no unit is placed, so an empty formation is not sent to the server", () => {
+    expect(buildFormationStatPreviewRequest(createInitialDraft()).ok).toBe(false);
   });
 });

@@ -61,9 +61,17 @@ export interface FormationInput {
 export const LOG_LEVELS = ["SUMMARY", "DETAILED", "DIAGNOSTIC"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
-export interface SimulateBattleCommand {
+/**
+ * 両陣営の編成だけを持つCommandの共通部分。戦闘実行（`SimulateBattleCommand`）と
+ * 開始時ステータスのプレビュー（`PreviewFormationStatsCommand`）が同じ編成検証・
+ * 参照検証を共有するための最小の形。
+ */
+export interface FormationPairCommand {
   readonly allyFormation: FormationInput;
   readonly enemyFormation: FormationInput;
+}
+
+export interface SimulateBattleCommand extends FormationPairCommand {
   readonly turnLimit: number;
   readonly logLevel: LogLevel;
 }
@@ -175,6 +183,18 @@ function validateSlotEnhancement(
     }
     gears.forEach((gear, index) => validateGear(gear, `${path}.gears[${index}]`, violations));
   }
+}
+
+/**
+ * 1陣営ぶんの編成検証。`turnLimit`・`logLevel`を持たないCommand
+ * （`PreviewFormationStatsCommand`）からも同じ規則を使えるよう公開する
+ * ——編成の受理条件が経路ごとにずれると、プレビューできた編成で戦闘が
+ * 実行できない（またはその逆）状態が生まれるため。
+ */
+export function validateFormationShape(formation: FormationInput, path: string): Violation[] {
+  const violations: Violation[] = [];
+  validateFormation(formation, path, violations);
+  return violations;
 }
 
 function validateFormation(formation: FormationInput, path: string, violations: Violation[]): void {

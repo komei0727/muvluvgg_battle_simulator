@@ -65,7 +65,13 @@ function toFormationEnhancementInput(
   };
 }
 
-function toFormationInput(formation: FormationRequestBody): SimulateBattleCommand["allyFormation"] {
+/**
+ * 1陣営ぶんのDTO→Command変換。編成ステータスプレビュー
+ * （`preview-formation-stats-request-mapper.ts`）とも共有する。
+ */
+export function toFormationInput(
+  formation: FormationRequestBody,
+): SimulateBattleCommand["allyFormation"] {
   return {
     slots: formation.units.map((unit) => ({
       unitDefinitionId: toUnitDefinitionId(unit.unitDefinitionId),

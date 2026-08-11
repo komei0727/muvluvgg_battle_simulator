@@ -1,6 +1,8 @@
+import { useId, useState } from "react";
 import { DefinitionImage } from "../../components/DefinitionImage.js";
-import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogUnitSummary, FormationStatPreviewUnit } from "../simulation/api-contract.js";
 import type { UiColumn, UiRow } from "./types.js";
+import { UnitStatPreview } from "./UnitStatPreview.js";
 import styles from "./UnitSlot.module.css";
 
 export interface UnitSlotProps {
@@ -16,6 +18,9 @@ export interface UnitSlotProps {
   readonly onOpenEnhancement?: () => void;
   /** M11: 陣営の強化トグル。OFFの間は編集させない（UI-AC-026）。 */
   readonly enhancementEnabled?: boolean;
+  /** UI-AC-027: 開始時ステータスの取得状態。 */
+  readonly statPreviewStatus?: "unavailable" | "loading" | "failed" | "ready";
+  readonly statPreview?: FormationStatPreviewUnit;
 }
 
 function rowLabelJa(row: UiRow): string {
@@ -35,7 +40,14 @@ export function UnitSlot({
   onOpen,
   onOpenEnhancement,
   enhancementEnabled = false,
+  statPreviewStatus = "unavailable",
+  statPreview,
 }: UnitSlotProps) {
+  const previewId = useId();
+  // UI-CMP-017: 表示のON/OFFだけをlocal stateで持つ（値はpropsで受け取る）。
+  const [previewShown, setPreviewShown] = useState(false);
+  // 空き枠には算出対象が無いため出さない。
+  const showsPreview = unit !== undefined && previewShown;
   const positionLabel = `${rowLabelJa(row)}${column + 1}`;
   const baseName =
     unit === undefined
@@ -56,6 +68,21 @@ export function UnitSlot({
       onClick={onOpen}
       disabled={disabled}
       aria-label={accessibleName}
+      // UI-AC-027: マウスを持たない利用者へも同じ情報を届けるため、hoverと
+      // focusの両方で表示し、slot buttonから説明として関連づける。
+      {...(showsPreview ? { "aria-describedby": previewId } : {})}
+      onMouseEnter={() => {
+        setPreviewShown(true);
+      }}
+      onMouseLeave={() => {
+        setPreviewShown(false);
+      }}
+      onFocus={() => {
+        setPreviewShown(true);
+      }}
+      onBlur={() => {
+        setPreviewShown(false);
+      }}
     >
       {unit === undefined ? (
         <span className={styles["empty"]}>
@@ -94,13 +121,27 @@ export function UnitSlot({
   // wrapperはユニットの有無に関わらず常に描画する — 空↔選択済みで要素の
   // 階層が変わるとReactがslot buttonを作り直し、選択直後のfocus復帰
   // （UI-CT-004）が失われるため。
+  const preview = showsPreview ? (
+    <UnitStatPreview
+      id={previewId}
+      status={statPreviewStatus}
+      {...(statPreview !== undefined ? { unit: statPreview } : {})}
+    />
+  ) : null;
+
   if (onOpenEnhancement === undefined) {
-    return slotButton;
+    return (
+      <div className={styles["slotWithEnhancement"]}>
+        {slotButton}
+        {preview}
+      </div>
+    );
   }
 
   return (
     <div className={styles["slotWithEnhancement"]}>
       {slotButton}
+      {preview}
       {unit === undefined ? null : (
         <button
           type="button"

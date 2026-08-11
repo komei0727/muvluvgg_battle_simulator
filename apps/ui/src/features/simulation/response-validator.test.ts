@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { validateCatalogResponse } from "./response-validator.js";
+import {
+  validateCatalogResponse,
+  validateFormationStatPreviewResponse,
+} from "./response-validator.js";
 
 function validUnit(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -136,5 +139,59 @@ describe("validateCatalogResponse", () => {
     if (!result.ok) {
       expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
     }
+  });
+});
+
+// docs/ui-design/03_API・データ連携設計.md §9.1: プレビューレスポンスの検証.
+describe("validateFormationStatPreviewResponse (UI-UT-API-009)", () => {
+  const previewUnit = {
+    side: "ALLY",
+    unitDefinitionId: "UNIT_ALLY",
+    formationPosition: { column: 0, row: "FRONT" },
+    maximumHp: 1000.5,
+    combatStats: {
+      attack: 100,
+      defense: 50,
+      criticalRate: 12.5,
+      actionSpeed: 12,
+      affinityBonus: 25,
+      criticalDamageBonus: 50,
+    },
+  };
+  const previewBody = { schemaVersion: 1, catalogRevision: "rev-1", units: [previewUnit] };
+
+  it("accepts a well-formed body and keeps unknown optional properties", () => {
+    const result = validateFormationStatPreviewResponse({ ...previewBody, futureField: 1 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.units[0]?.maximumHp).toBe(1000.5);
+    expect(result.response.catalogRevision).toBe("rev-1");
+  });
+
+  it("rejects a unit missing a combatStats member as a contract mismatch", () => {
+    const { criticalRate: _dropped, ...withoutCriticalRate } = previewUnit.combatStats;
+
+    const result = validateFormationStatPreviewResponse({
+      ...previewBody,
+      units: [{ ...previewUnit, combatStats: withoutCriticalRate }],
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+  });
+
+  it("rejects a non-finite maximumHp, so NaN never reaches the display", () => {
+    const result = validateFormationStatPreviewResponse({
+      ...previewBody,
+      units: [{ ...previewUnit, maximumHp: Number.NaN }],
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a body whose units is not an array", () => {
+    expect(validateFormationStatPreviewResponse({ ...previewBody, units: {} }).ok).toBe(false);
   });
 });

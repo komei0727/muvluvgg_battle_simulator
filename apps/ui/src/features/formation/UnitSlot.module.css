@@ -87,7 +87,10 @@
 
 /* 強化ボタンはスロットbuttonの入れ子にできないため、枠を包むwrapperの
    兄弟として重ねる（docs/ui-design/01_UI要求・画面設計.md §5.7）。 */
+/* UnitStatPreviewをこの枠の直下へ絶対配置するための位置基準
+   （枠の高さを変えずに重ねる）。 */
 .slotWithEnhancement {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;

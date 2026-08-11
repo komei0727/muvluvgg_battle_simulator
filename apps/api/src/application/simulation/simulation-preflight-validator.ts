@@ -1,5 +1,5 @@
 import { ApplicationError, type Violation } from "../contracts/application-error.js";
-import type { FormationInput, SimulateBattleCommand } from "./simulate-battle-command.js";
+import type { FormationInput, FormationPairCommand } from "./simulate-battle-command.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { DEFAULT_UNIT_LEVEL } from "../../domain/battle/model/enhanced-base-stats-calculator.js";
 
@@ -9,7 +9,7 @@ const FORMATIONS: readonly ["allyFormation", "enemyFormation"] = [
 ];
 
 function validateReferences(
-  command: SimulateBattleCommand,
+  command: FormationPairCommand,
   snapshot: BattleCatalogSnapshot,
 ): Violation[] {
   const violations: Violation[] = [];
@@ -46,7 +46,7 @@ function validateReferences(
  * （`09_アプリケーション設計.md`「Command検証」末尾）。
  */
 function validateLevelGrowth(
-  command: SimulateBattleCommand,
+  command: FormationPairCommand,
   snapshot: BattleCatalogSnapshot,
 ): Violation[] {
   const violations: Violation[] = [];
@@ -77,10 +77,7 @@ function validateLevelGrowth(
  * 行う（Command検証はUseCaseが `validateCommandShape` を直接呼ぶため、
  * ここでは扱わない）。
  */
-export function runPreflight(
-  command: SimulateBattleCommand,
-  snapshot: BattleCatalogSnapshot,
-): void {
+export function runPreflight(command: FormationPairCommand, snapshot: BattleCatalogSnapshot): void {
   const referenceViolations = validateReferences(command, snapshot);
   if (referenceViolations.length > 0) {
     // 未解決の参照を先に返す。`levelGrowth`検査は解決済み定義を前提にするため、

@@ -77,6 +77,23 @@ X-Request-Id: ui-<UUID>
 - 自動retryしない。戦闘は冪等ではなく、同じ条件でも別結果になり得る。
 - 一覧GETの失敗にも自動無限retryを行わず、利用者の手動再読込を提供する。
 
+### 2.5 編成ステータスプレビュー
+
+```http
+POST {VITE_API_BASE_URL}/api/v1/formation-stat-previews
+Content-Type: application/json
+Accept: application/json
+X-Request-Id: ui-<UUID>
+```
+
+リクエストは戦闘シミュレーションの`allyFormation`／`enemyFormation`だけを持ち、`turnLimit`と`options`を持たない。強化指定（`enhancement`）は§5.1の変換規則をそのまま適用する — 戦闘実行時と同じペイロードから同じ開始時ステータスが得られなければ、プレビューの意味がないため。
+
+成功レスポンスは`units[]`（`side`、`unitDefinitionId`、`formationPosition`、`maximumHp`、`combatStats`）だけを持つ。`units`は味方→敵の順で、各陣営内はリクエストの`units`配列と同じ順序である。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「FormationStatPreviewRequest」「FormationStatPreviewResponse」とする。
+
+戦闘POSTと同じく`cache: "no-store"`・`credentials: "omit"`とし、自動retryしない。編成・強化指定が変わるたびに送り直し、直前の実行中リクエストはabortする。プレビューは戦闘実行とは別の`AbortController`を使い、実行中の戦闘をプレビューの再取得で中断させない。
+
+プレビューの失敗（ネットワーク・422・500のいずれも）は戦闘実行の可否へ影響させない。送信前検証にもプレビュー結果を使わない — サーバーが同じ検証を戦闘POSTでも行うため、プレビューを実行の前提条件にすると、プレビューだけが落ちた状態で戦闘を実行できなくなる。
+
 ## 3. UI入力モデル
 
 ```ts
@@ -291,6 +308,11 @@ interface SimulationApiClient {
     request: BattleSimulationRequest,
     options: { readonly signal: AbortSignal; readonly requestId?: string },
   ): Promise<SimulationApiResult>;
+
+  previewFormationStats(
+    request: FormationStatPreviewRequest,
+    options: { readonly signal: AbortSignal; readonly requestId?: string },
+  ): Promise<FormationStatPreviewApiResult>;
 }
 
 type CatalogApiResult =
@@ -325,6 +347,19 @@ type SimulationApiResult =
       readonly error: UiApiError;
       readonly requestId?: string;
       readonly retryAfterSeconds?: number;
+    };
+
+type FormationStatPreviewApiResult =
+  | {
+      readonly ok: true;
+      readonly response: FormationStatPreviewResponse;
+      readonly requestId?: string;
+    }
+  | {
+      readonly ok: false;
+      readonly status?: number;
+      readonly error: UiApiError;
+      readonly requestId?: string;
     };
 ```
 
@@ -364,6 +399,16 @@ type SimulationApiResult =
 - 各unitに `battleUnitId`、`unitDefinitionId`、`side`、HP、combatStatusがある
 
 未知の任意プロパティ、イベントtype、列挙値は許容する。必須shape欠落時は部分表示で誤解を招かず、`RESPONSE_CONTRACT_MISMATCH`として失敗扱いにする。検証ライブラリを使う場合も、OpenAPI全体を厳格に再実装して将来の追加を拒否しない。
+
+### 9.1 プレビューレスポンスの検証
+
+最低限、次を実行時検証する。
+
+- `schemaVersion`がnumber、`catalogRevision`がstring
+- `units`がarray
+- 各unitに `side`、`unitDefinitionId`、`formationPosition`、有限numberの`maximumHp`、`combatStats`の6項目（`attack`、`defense`、`criticalRate`、`actionSpeed`、`affinityBonus`、`criticalDamageBonus`）がある
+
+契約違反は`RESPONSE_CONTRACT_MISMATCH`として扱うが、他のレスポンス検証と違い戦闘実行を止めない（§2.5）。プレビュー表示だけを取り下げる。
 
 ## 10. 表示用Roster
 
@@ -592,3 +637,5 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-017`: 強化トグルOFFの陣営では`enhancement`プロパティを出力せず、既存契約と同一のリクエストを送る。
 - `UI-API-018`: 強化トグルONの陣営で学園レベル9キーを`enhancement.academyLevels`へ変換し、ユニットのギアを空枠を除外した0～9件の配列として送る。
 - `UI-API-019`: `enhancement`配下の422 JSON Pointer（学園レベル・レベル・ギア）を該当入力へ対応づける。成長値を持たないユニットのレベル違反を含む。
+- `UI-API-020`: 編成ステータスプレビューへ、戦闘POSTと同じ編成・強化指定（`turnLimit`・`options`を除く）を送り、応答の`units`を陣営ごとの並び順で編成枠へ対応づける。
+- `UI-API-021`: プレビューの失敗（ネットワーク・HTTPエラー・契約違反）を戦闘実行の可否と送信前検証へ波及させない。

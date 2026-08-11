@@ -198,6 +198,55 @@ function buildFormation(
   };
 }
 
+/** docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは編成部分だけを送る。 */
+export interface FormationStatPreviewRequest {
+  readonly allyFormation: FormationRequest;
+  readonly enemyFormation: FormationRequest;
+}
+
+export type PreviewRequestBuildResult =
+  | {
+      readonly ok: true;
+      readonly request: FormationStatPreviewRequest;
+      readonly allyUnitSlotKeys: readonly string[];
+      readonly enemyUnitSlotKeys: readonly string[];
+    }
+  | { readonly ok: false };
+
+/**
+ * UI-API-020: 戦闘リクエストと同じ`buildFormation`で編成部分を組み立てる。
+ * `turnLimit`は見ない — プレビューは戦闘を実行せず、ターン上限が未入力でも
+ * ステータスは確定するため、ここで止めると編集途中に表示が消える。
+ * 空編成（ユニット0体）は送らず、UIは未取得として扱う。
+ */
+export function buildFormationStatPreviewRequest(draft: BattleDraft): PreviewRequestBuildResult {
+  const ally = buildFormation(
+    "ally",
+    draft.allySlots,
+    draft.allyMemoryDefinitionIds,
+    enhancementForSide(draft, "ally"),
+  );
+  const enemy = buildFormation(
+    "enemy",
+    draft.enemySlots,
+    draft.enemyMemoryDefinitionIds,
+    enhancementForSide(draft, "enemy"),
+  );
+  if (ally === undefined || enemy === undefined) {
+    return { ok: false };
+  }
+  if (ally.formation.units.length === 0 && enemy.formation.units.length === 0) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    request: { allyFormation: ally.formation, enemyFormation: enemy.formation },
+    allyUnitSlotKeys: ally.unitSlotKeys,
+    enemyUnitSlotKeys: enemy.unitSlotKeys,
+  };
+}
+
 export function buildBattleSimulationRequest(draft: BattleDraft): RequestBuildResult {
   if (draft.turnLimit === "" || !Number.isInteger(draft.turnLimit)) {
     return { ok: false };
