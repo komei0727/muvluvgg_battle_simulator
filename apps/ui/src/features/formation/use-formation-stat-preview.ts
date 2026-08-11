@@ -17,11 +17,38 @@ export type FormationStatPreviewState =
 
 type PreviewFormationStatsFn = typeof defaultPreviewFormationStats;
 
+/** 応答の1件を突き合わせる相手。リクエストへ実際に載せた枠そのもの。 */
+interface PreviewSlot {
+  readonly slotKey: string;
+  readonly side: "ALLY" | "ENEMY";
+  readonly unitDefinitionId: string;
+  readonly column: number;
+  readonly row: string;
+}
+
 /** effectへ直列化して渡す、1回ぶんの取得に必要な値。 */
 interface PreviewPayload {
   readonly request: FormationStatPreviewRequest;
-  /** 味方→敵の順に連結した枠キー。応答の`units`と同じ並びになる。 */
-  readonly slotKeys: readonly string[];
+  readonly slots: readonly PreviewSlot[];
+}
+
+/** 陣営内で一意な配置（Command検証が重複を弾く）を突き合わせの鍵にする。 */
+function positionKey(side: string, column: number, row: string): string {
+  return `${side}:${row}:${String(column)}`;
+}
+
+function toPreviewSlots(
+  formation: FormationStatPreviewRequest["allyFormation"],
+  side: "ALLY" | "ENEMY",
+  slotKeys: readonly string[],
+): PreviewSlot[] {
+  return formation.units.map((unit, index) => ({
+    slotKey: slotKeys[index] ?? "",
+    side,
+    unitDefinitionId: unit.unitDefinitionId,
+    column: unit.position.column,
+    row: unit.position.row,
+  }));
 }
 
 export interface UseFormationStatPreviewOptions {
@@ -55,12 +82,19 @@ export function useFormationStatPreview(
   const payloadKey = build.ok
     ? JSON.stringify({
         request: build.request,
-        slotKeys: [...build.allyUnitSlotKeys, ...build.enemyUnitSlotKeys],
-      })
+        slots: [
+          ...toPreviewSlots(build.request.allyFormation, "ALLY", build.allyUnitSlotKeys),
+          ...toPreviewSlots(build.request.enemyFormation, "ENEMY", build.enemyUnitSlotKeys),
+        ],
+      } satisfies PreviewPayload)
     : "";
 
   useEffect(() => {
     abortControllerRef.current?.abort();
+    // 送信できる編成が無くなった場合もtokenを進める。abortは既に解決済みのPromiseを
+    // 取り消せないため、ここで進めておかないと、中断と競合して完了した古い結果が
+    // この後の`unavailable`を上書きし、現在のdraftと異なるステータスを表示し得る。
+    const token = ++requestTokenRef.current;
     if (payloadKey === "") {
       setState({ status: "unavailable" });
       return;
@@ -69,7 +103,6 @@ export function useFormationStatPreview(
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    const token = ++requestTokenRef.current;
     setState({ status: "loading" });
 
     void previewImpl(payload.request, { baseUrl, signal: controller.signal }).then((result) => {
@@ -80,10 +113,10 @@ export function useFormationStatPreview(
         setState({ status: "failed" });
         return;
       }
-      setState({
-        status: "ready",
-        bySlotKey: toBySlotKey(result.response.units, payload.slotKeys),
-      });
+      const bySlotKey = toBySlotKey(result.response.units, payload.slots);
+      // 契約違反はプレビュー全体を失敗にする。一部だけ対応づけて表示すると、
+      // どの枠の値が信用できるのか画面から区別できない。
+      setState(bySlotKey === undefined ? { status: "failed" } : { status: "ready", bySlotKey });
     });
 
     return () => {
@@ -95,17 +128,31 @@ export function useFormationStatPreview(
 }
 
 /**
- * UI-API-020: 応答の`units`は味方→敵の順、各陣営内はリクエストの`units`と同じ
- * 並びである。プレビューは戦闘を実行しないため`battleUnitId`が存在せず、
- * この並び順だけが枠との対応の根拠になる。件数が食い違う応答は対応づけを
- * 諦める（部分的にずれた値を枠へ出さない）。
+ * UI-API-020: 応答の各要素を`side`＋`formationPosition`でリクエストの枠へ突き合わせる。
+ * プレビューは戦闘を実行しないため`battleUnitId`が無く、契約上は「味方→敵、各陣営内は
+ * リクエスト順」だが、並び順だけを信じると同数のまま順序が入れ替わった応答で他の枠の
+ * ステータスをその枠へ表示してしまう。位置と`unitDefinitionId`まで一致を要求し、
+ * 1件でも食い違えば`undefined`を返してプレビュー全体を失敗させる。
  */
 function toBySlotKey(
   units: readonly FormationStatPreviewUnit[],
-  orderedSlotKeys: readonly string[],
-): ReadonlyMap<string, FormationStatPreviewUnit> {
-  if (orderedSlotKeys.length !== units.length) {
-    return new Map();
+  slots: readonly PreviewSlot[],
+): ReadonlyMap<string, FormationStatPreviewUnit> | undefined {
+  if (units.length !== slots.length) {
+    return undefined;
   }
-  return new Map(orderedSlotKeys.map((slotKey, index) => [slotKey, units[index]!]));
+  const unmatched = new Map(
+    slots.map((slot) => [positionKey(slot.side, slot.column, slot.row), slot]),
+  );
+  const bySlotKey = new Map<string, FormationStatPreviewUnit>();
+  for (const unit of units) {
+    const key = positionKey(unit.side, unit.formationPosition.column, unit.formationPosition.row);
+    const slot = unmatched.get(key);
+    if (slot === undefined || slot.unitDefinitionId !== unit.unitDefinitionId) {
+      return undefined;
+    }
+    unmatched.delete(key);
+    bySlotKey.set(slot.slotKey, unit);
+  }
+  return bySlotKey;
 }

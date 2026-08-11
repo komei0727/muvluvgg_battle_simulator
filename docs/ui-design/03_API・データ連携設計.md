@@ -412,6 +412,8 @@ type FormationStatPreviewApiResult =
 
 契約違反は`RESPONSE_CONTRACT_MISMATCH`として扱うが、他のレスポンス検証と違い戦闘実行を止めない（§2.5）。プレビュー表示だけを取り下げる。
 
+shape検証に加えて、応答の各`units[]`がリクエストへ載せた枠と`side`・`formationPosition`・`unitDefinitionId`で一致することも確かめる。1件でも食い違えば、対応づかない枠だけを落とさずプレビュー全体を失敗扱いにする — どの枠の値が信用できるのか画面から区別できないため。
+
 ## 10. 表示用Roster
 
 同一性は `battleUnitId` を使用する。
