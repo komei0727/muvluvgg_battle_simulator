@@ -14306,7 +14306,13 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["schemaVersion", "catalogRevision", "units", "memories"],
+                  "required": [
+                    "schemaVersion",
+                    "catalogRevision",
+                    "units",
+                    "memories",
+                    "gearEffects"
+                  ],
                   "properties": {
                     "schemaVersion": {
                       "type": "integer"
@@ -14370,6 +14376,42 @@
                           },
                           "displayName": {
                             "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "gearEffects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["stat", "application", "values"],
+                        "properties": {
+                          "stat": {
+                            "type": "string"
+                          },
+                          "application": {
+                            "type": "string",
+                            "enum": ["RATIO", "POINT"]
+                          },
+                          "values": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["tier", "grade", "percentagePoints"],
+                              "properties": {
+                                "tier": {
+                                  "type": "string"
+                                },
+                                "grade": {
+                                  "type": "string"
+                                },
+                                "percentagePoints": {
+                                  "type": "number"
+                                }
+                              }
+                            }
                           }
                         }
                       }

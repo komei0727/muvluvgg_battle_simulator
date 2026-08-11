@@ -49,6 +49,48 @@ describe("validateCatalogResponse", () => {
     expect(result.ok).toBe(false);
   });
 
+  // UI-UT-CAT-010 (Issue #423): ギア効果表は加算的に追加された任意項目.
+  it("carries a well-formed gearEffects table through", () => {
+    const gearEffects = [
+      {
+        stat: "MAXIMUM_HP",
+        application: "RATIO",
+        values: [{ tier: "III", grade: "S", percentagePoints: 3.33 }],
+      },
+    ];
+
+    const result = validateCatalogResponse(validResponse({ gearEffects }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.gearEffects).toEqual(gearEffects);
+  });
+
+  it("accepts a response from an older API that does not publish gearEffects at all", () => {
+    const result = validateCatalogResponse(validResponse());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.gearEffects).toBeUndefined();
+  });
+
+  it("rejects a malformed gearEffects entry rather than showing a half-read table", () => {
+    for (const gearEffects of [
+      {},
+      [{ stat: "MAXIMUM_HP", application: "RATIO" }],
+      [{ stat: "", application: "RATIO", values: [] }],
+      [
+        {
+          stat: "MAXIMUM_HP",
+          application: "RATIO",
+          values: [{ tier: "III", grade: "S", percentagePoints: "3.33" }],
+        },
+      ],
+    ]) {
+      expect(validateCatalogResponse(validResponse({ gearEffects })).ok).toBe(false);
+    }
+  });
+
   it("rejects schemaVersion other than 1", () => {
     const result = validateCatalogResponse(validResponse({ schemaVersion: 2 }));
 

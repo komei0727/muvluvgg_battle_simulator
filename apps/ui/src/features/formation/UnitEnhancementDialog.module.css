@@ -5,6 +5,13 @@
   padding: 16px;
 }
 
+.gearNotation {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .gears {
   display: flex;
   flex-direction: column;

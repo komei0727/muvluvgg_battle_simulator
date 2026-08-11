@@ -5,6 +5,11 @@ import {
   type EnhancementTarget,
   type UnitEnhancement,
 } from "./enhanced-base-stats-calculator.js";
+import {
+  GEAR_EFFECT_PERCENTAGE_POINTS,
+  GEAR_STAT_APPLICATIONS,
+} from "./gear-customization-policy.js";
+import { STAT_KINDS, type StatKind } from "../../catalog/definitions/catalog-enums.js";
 import type { BaseStats, LevelGrowth } from "../../catalog/definitions/unit-definition.js";
 import { fc, PROPERTY_ASSERT_CONFIG } from "../../../testing/property/index.js";
 
@@ -121,6 +126,60 @@ describe("calculateEnhancedBaseStats — R-ENH-06 強化後基本ステータス
     const stats = calculateEnhancedBaseStats(target(), ACADEMY_LEVEL_50);
     expect(Number.isInteger(stats.maximumHp)).toBe(false);
     expect(Number.isInteger(stats.attack)).toBe(false);
+  });
+
+  /**
+   * `GEAR_STAT_APPLICATIONS`はギア効果の意味（割合補正かポイント加算か）を外部へ
+   * 公開するための分類であり、算出式そのものではない。分類と式が別々に動くと
+   * 表示だけが静かにずれるため、「割合補正なら上昇量が基本値に依存し、ポイント
+   * 加算なら基本値に依存せず表のパーセント値そのもの」という観測可能な差で
+   * 機械検証する。
+   */
+  it("UT-R-ENH-06-009: every stat's declared gear application matches how the formula actually applies the gear", () => {
+    const STAT_FIELDS: Readonly<Record<StatKind, keyof BaseStats>> = {
+      MAXIMUM_HP: "maximumHp",
+      ATTACK: "attack",
+      DEFENSE: "defense",
+      ACTION_SPEED: "actionSpeed",
+      CRITICAL_RATE: "criticalRate",
+      CRITICAL_DAMAGE_BONUS: "criticalDamageBonus",
+      AFFINITY_BONUS: "affinityBonus",
+    };
+
+    for (const stat of STAT_KINDS) {
+      const field = STAT_FIELDS[stat];
+      const gears = [{ stat, tier: "III", grade: "S" }] as const;
+      const doubled: BaseStats = {
+        ...BASE_STATS,
+        maximumHp: BASE_STATS.maximumHp * 2,
+        attack: BASE_STATS.attack * 2,
+        defense: BASE_STATS.defense * 2,
+        actionSpeed: BASE_STATS.actionSpeed * 2,
+        criticalRate: BASE_STATS.criticalRate * 2,
+        criticalDamageBonus: BASE_STATS.criticalDamageBonus * 2,
+        affinityBonus: BASE_STATS.affinityBonus * 2,
+      };
+      const delta = (baseStats: BaseStats): number =>
+        calculateEnhancedBaseStats(target({ baseStats }), { gears })[field] -
+        calculateEnhancedBaseStats(target({ baseStats }), {})[field];
+
+      const points = GEAR_EFFECT_PERCENTAGE_POINTS[stat].III.S;
+      if (GEAR_STAT_APPLICATIONS[stat] === "POINT") {
+        expect(delta(BASE_STATS), `${stat} must add the table value itself`).toBeCloseTo(
+          points / 100,
+          12,
+        );
+        expect(delta(doubled), `${stat} must not depend on the base value`).toBeCloseTo(
+          delta(BASE_STATS),
+          12,
+        );
+      } else {
+        expect(delta(doubled), `${stat} must scale with the base value`).not.toBeCloseTo(
+          delta(BASE_STATS),
+          6,
+        );
+      }
+    }
   });
 
   it("UT-R-ENH-06-006: boundary — clamps every stat at 0 and maximum HP at 1", () => {

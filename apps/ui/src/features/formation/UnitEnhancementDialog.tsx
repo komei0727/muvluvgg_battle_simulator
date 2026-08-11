@@ -3,6 +3,7 @@ import { Dialog } from "../../components/Dialog.js";
 import type { UiViolation } from "./draft-validation.js";
 import { GEAR_GRADES, GEAR_STATS, GEAR_TIERS } from "./types.js";
 import type { GearGrade, GearInput, GearStat, GearTier, UnitEnhancementInput } from "./types.js";
+import type { CatalogGearEffect } from "../simulation/api-contract.js";
 import styles from "./UnitEnhancementDialog.module.css";
 
 export interface UnitEnhancementDialogProps {
@@ -10,6 +11,12 @@ export interface UnitEnhancementDialogProps {
   readonly slotKey: string;
   readonly enhancement: UnitEnhancementInput;
   readonly violations: readonly UiViolation[];
+  /**
+   * Catalog応答が公開するギア効果表（R-ENH-04 #3）。UIは表を持たず、届いた値を
+   * 表示するだけにする——効果表の正本はAPI側にあり、二重管理は静かにずれるため。
+   * 公開しない旧APIと組み合わせたときはランク名だけの表示へフォールバックする。
+   */
+  readonly gearEffects?: readonly CatalogGearEffect[];
   readonly onLevelChange: (value: number | "") => void;
   readonly onGearChange: (gearIndex: number, gear?: GearInput) => void;
   readonly onClose: () => void;
@@ -64,6 +71,55 @@ function gearMessages(
   );
 }
 
+/**
+ * R-ENH-06: 割合補正（HP・攻撃力・防御力・行動速度）とポイント加算（会心率・
+ * 会心ダメージ・属性相性）は同じ数値でも意味が違うため、単位で区別する。
+ * 種別は応答の`application`をそのまま使い、UI側で分類を持たない。
+ */
+const GEAR_APPLICATION_UNITS: Readonly<Record<string, string>> = {
+  RATIO: "%",
+  POINT: "%pt",
+};
+
+/** 表の値をそのまま出す（丸めない）。`0.75` → `+0.75%`、`1〜3.33` → `+1〜3.33%`。 */
+function formatIncrease(points: readonly number[], application: string): string | undefined {
+  const unit = GEAR_APPLICATION_UNITS[application];
+  if (unit === undefined || points.length === 0) {
+    return undefined;
+  }
+  const minimum = Math.min(...points);
+  const maximum = Math.max(...points);
+  const value = minimum === maximum ? String(minimum) : `${String(minimum)}〜${String(maximum)}`;
+  return `+${value}${unit}`;
+}
+
+/**
+ * 選択済みのstatに対応する行だけを引く。tier・gradeの片方が未選択の間は、
+ * もう一方の軸を跨いだ範囲を示す——組み合わせが確定していない段階でも
+ * 「どのランクがどれだけ上がるのか」を読み取れるようにするため。
+ */
+function gearOptionLabels(
+  effect: CatalogGearEffect | undefined,
+  axis: "tier" | "grade",
+  fixed: string | undefined,
+): Readonly<Record<string, string | undefined>> {
+  if (effect === undefined) {
+    return {};
+  }
+  const other = axis === "tier" ? "grade" : "tier";
+  const byKey = new Map<string, number[]>();
+  for (const value of effect.values) {
+    if (fixed !== undefined && value[other] !== fixed) {
+      continue;
+    }
+    const key = value[axis];
+    byKey.set(key, [...(byKey.get(key) ?? []), value.percentagePoints]);
+  }
+  return Object.fromEntries(
+    [...byKey].map(([key, points]) => [key, formatIncrease(points, effect.application)]),
+  );
+}
+
 /** 選択途中のギア。3つ揃うまで確定させないため、各項目が未設定になり得る。 */
 interface GearSelection {
   readonly stat?: GearStat | undefined;
@@ -76,6 +132,7 @@ interface GearSlotFieldsProps {
   readonly gear: GearInput | undefined;
   readonly invalid: boolean;
   readonly errorId: string | undefined;
+  readonly gearEffects: readonly CatalogGearEffect[] | undefined;
   readonly onChange: (gear?: GearInput) => void;
 }
 
@@ -83,7 +140,14 @@ interface GearSlotFieldsProps {
  * UI-AC-025: 空枠を許容するため、stat・tier・gradeが揃ったときだけギアとして
  * 確定させる。途中の選択は枠を空のまま扱い、リクエストへ出さない。
  */
-function GearSlotFields({ gearIndex, gear, invalid, errorId, onChange }: GearSlotFieldsProps) {
+function GearSlotFields({
+  gearIndex,
+  gear,
+  invalid,
+  errorId,
+  gearEffects,
+  onChange,
+}: GearSlotFieldsProps) {
   const statId = useId();
   const tierId = useId();
   const gradeId = useId();
@@ -114,6 +178,10 @@ function GearSlotFields({ gearIndex, gear, invalid, errorId, onChange }: GearSlo
     }
     onChange({ stat, tier, grade });
   }
+
+  const effect = gearEffects?.find((candidate) => candidate.stat === selection.stat);
+  const tierLabels = gearOptionLabels(effect, "tier", selection.grade);
+  const gradeLabels = gearOptionLabels(effect, "grade", selection.tier);
 
   return (
     <div className={styles["gearSlot"]}>
@@ -155,6 +223,7 @@ function GearSlotFields({ gearIndex, gear, invalid, errorId, onChange }: GearSlo
             {GEAR_TIERS.map((tier) => (
               <option key={tier} value={tier}>
                 ギア{tier}
+                {tierLabels[tier] === undefined ? "" : `（${tierLabels[tier]}）`}
               </option>
             ))}
           </select>
@@ -175,6 +244,7 @@ function GearSlotFields({ gearIndex, gear, invalid, errorId, onChange }: GearSlo
             {GEAR_GRADES.map((grade) => (
               <option key={grade} value={grade}>
                 {grade}
+                {gradeLabels[grade] === undefined ? "" : `（${gradeLabels[grade]}）`}
               </option>
             ))}
           </select>
@@ -196,6 +266,7 @@ export function UnitEnhancementDialog({
   slotKey,
   enhancement,
   violations,
+  gearEffects,
   onLevelChange,
   onGearChange,
   onClose,
@@ -230,6 +301,12 @@ export function UnitEnhancementDialog({
           ) : null}
         </div>
 
+        {gearEffects === undefined ? null : (
+          <p className={styles["gearNotation"]}>
+            %は基本値への割合補正、%ptは値そのものへの加算です。
+          </p>
+        )}
+
         <div className={styles["gears"]}>
           {enhancement.gears.map((gear, gearIndex) => {
             const messages = gearMessages(violations, slotKey, gearIndex);
@@ -241,6 +318,7 @@ export function UnitEnhancementDialog({
                   gear={gear}
                   invalid={messages.length > 0}
                   errorId={messages.length > 0 ? errorId : undefined}
+                  gearEffects={gearEffects}
                   onChange={(next) => {
                     onGearChange(gearIndex, next);
                   }}

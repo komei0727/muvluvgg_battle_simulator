@@ -28,5 +28,15 @@ export function toBattleSimulationCatalogResponseBody(
       memoryDefinitionId: memory.memoryDefinitionId,
       displayName: memory.displayName,
     })),
+    // R-ENH-04 #3の効果表はパーセントポイントのまま公開する（`gear-effect-catalog.ts`）。
+    gearEffects: result.gearEffects.map((effect) => ({
+      stat: effect.stat,
+      application: effect.application,
+      values: effect.values.map((value) => ({
+        tier: value.tier,
+        grade: value.grade,
+        percentagePoints: value.percentagePoints,
+      })),
+    })),
   };
 }

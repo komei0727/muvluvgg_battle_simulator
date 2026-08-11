@@ -10,6 +10,11 @@ import type {
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import {
+  buildGearEffects,
+  gearEffectsFingerprint,
+  type BattleSimulationGearEffect,
+} from "./gear-effect-catalog.js";
 import type { BattleCatalogDirectory } from "../../domain/ports/battle-catalog-directory.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { deepFreeze } from "../../domain/shared/deep-freeze.js";
@@ -33,6 +38,14 @@ export interface BattleSimulationCatalogResult {
   readonly catalogRevision: string;
   readonly units: readonly BattleSimulationUnitSummary[];
   readonly memories: readonly BattleSimulationMemorySummary[];
+  /** R-ENH-04 #3のギア効果表。クライアントが表を持たずに上昇値を表示するために公開する。 */
+  readonly gearEffects: readonly BattleSimulationGearEffect[];
+  /**
+   * このread model全体の版。ETagの導出元であり、Catalogファイル由来の
+   * `catalogRevision`とコード定数由来の効果表fingerprintの両方を含む
+   * （`10_API設計.md`「ETag」。効果表だけを変えたデプロイでもETagが変わる）。
+   */
+  readonly representationRevision: string;
 }
 
 export interface GetBattleSimulationCatalogUseCaseDependencies {
@@ -67,7 +80,15 @@ function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogRe
     .map(projectMemory)
     .sort((a, b) => a.memoryDefinitionId.localeCompare(b.memoryDefinitionId));
 
-  return deepFreeze({ catalogRevision: snapshot.catalogRevision, units, memories });
+  const gearEffects = buildGearEffects();
+
+  return deepFreeze({
+    catalogRevision: snapshot.catalogRevision,
+    units,
+    memories,
+    gearEffects,
+    representationRevision: `${snapshot.catalogRevision}+gear.${gearEffectsFingerprint(gearEffects)}`,
+  });
 }
 
 /**

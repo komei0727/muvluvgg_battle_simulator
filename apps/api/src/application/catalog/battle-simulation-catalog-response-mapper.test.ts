@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toBattleSimulationCatalogResponseBody } from "./battle-simulation-catalog-response-mapper.js";
 import type { BattleSimulationCatalogResult } from "./get-battle-simulation-catalog-use-case.js";
+import { buildGearEffects } from "./gear-effect-catalog.js";
 
 function result(
   overrides: Partial<BattleSimulationCatalogResult> = {},
@@ -9,6 +10,8 @@ function result(
     catalogRevision: "rev-1",
     units: [],
     memories: [],
+    gearEffects: buildGearEffects(),
+    representationRevision: "rev-1+gear.0000000000000000",
     ...overrides,
   };
 }
@@ -50,6 +53,36 @@ describe("toBattleSimulationCatalogResponseBody", () => {
         positionAptitudes: ["FRONT"],
       },
     ]);
+  });
+
+  it("APP-CATALOG-MAP-004 (10_API設計.md「CatalogGearEffectResponse」, R-ENH-04 #3/R-ENH-06): maps the gear effect table through unchanged, keeping percentage points and the application kind", () => {
+    const body = toBattleSimulationCatalogResponseBody(
+      result({
+        gearEffects: [
+          {
+            stat: "CRITICAL_RATE",
+            application: "POINT",
+            values: [{ tier: "III", grade: "S", percentagePoints: 7 }],
+          },
+        ],
+      }),
+    );
+
+    expect(body.gearEffects).toEqual([
+      {
+        stat: "CRITICAL_RATE",
+        application: "POINT",
+        values: [{ tier: "III", grade: "S", percentagePoints: 7 }],
+      },
+    ]);
+  });
+
+  it("APP-CATALOG-MAP-005: does not publish representationRevision — it is the ETag's derivation source, not part of the response body", () => {
+    const body = toBattleSimulationCatalogResponseBody(result());
+
+    expect(Object.keys(body).sort()).toEqual(
+      ["schemaVersion", "catalogRevision", "units", "memories", "gearEffects"].sort(),
+    );
   });
 
   it("APP-CATALOG-MAP-003 (10_API設計.md「CatalogMemorySummaryResponse」): maps every Memory summary field", () => {

@@ -17,11 +17,28 @@ export interface CatalogMemorySummary {
   readonly displayName: string;
 }
 
+// docs/ddd/10_API設計.md「CatalogGearEffectResponse」(R-ENH-04 #3 の効果表)。
+// `percentagePoints` はパーセントポイントのまま届く（内部表現の小数ではない）。
+export interface CatalogGearEffectValue {
+  readonly tier: string;
+  readonly grade: string;
+  readonly percentagePoints: number;
+}
+
+export interface CatalogGearEffect {
+  readonly stat: string;
+  /** R-ENH-06: `RATIO` は基本値への割合補正、`POINT` は値そのものへの加算。 */
+  readonly application: string;
+  readonly values: readonly CatalogGearEffectValue[];
+}
+
 export interface BattleSimulationCatalogResponse {
   readonly schemaVersion: 1;
   readonly catalogRevision: string;
   readonly units: readonly CatalogUnitSummary[];
   readonly memories: readonly CatalogMemorySummary[];
+  /** 効果表を公開しない旧APIと組み合わせても壊さないため任意項目にする。 */
+  readonly gearEffects?: readonly CatalogGearEffect[];
 }
 
 export interface ViolationResponseBody {

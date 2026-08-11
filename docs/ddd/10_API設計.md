@@ -162,7 +162,9 @@ GET /health/ready
 
 戦闘には乱数が含まれ、同一リクエストの同一結果を保証しないため、共有キャッシュへ保存させない。
 
-`Cache-Control: no-store`は戦闘シミュレーションPOSTとエラーレスポンスへ適用する。Catalog一覧GETの200応答は不変の `catalogRevision` をETagとして使い、`Cache-Control: public, max-age=300` を返す。`If-None-Match`が現在のETagと一致する場合は本文なしの304を返す。Catalog更新は新しいapplication deploymentであり、同一revisionの内容を稼働中に変更しない。
+`Cache-Control: no-store`は戦闘シミュレーションPOSTとエラーレスポンスへ適用する。Catalog一覧GETの200応答は不変のrepresentation版をETagとして使い、`Cache-Control: public, max-age=300` を返す。`If-None-Match`が現在のETagと一致する場合は本文なしの304を返す。Catalog更新は新しいapplication deploymentであり、同一revisionの内容を稼働中に変更しない。
+
+ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfingerprintの両方から導出する。効果表はCatalog定義ファイルではなくコード定数であり `catalogRevision` に紐づかないため、`catalogRevision` だけを導出元にすると、効果表だけを変更したデプロイでETagが変わらず、クライアントが古い表を304で保持し続ける。ETagは不透明な文字列であり、導出元を増やしてもクライアント契約（比較して一致するかだけを見る）は変わらない。
 
 ## 戦闘シミュレーション用Catalogレスポンス
 
@@ -188,18 +190,37 @@ GET /health/ready
       "memoryDefinitionId": "MEM_HEART_COLOR",
       "displayName": "心の色"
     }
+  ],
+  "gearEffects": [
+    {
+      "stat": "MAXIMUM_HP",
+      "application": "RATIO",
+      "values": [
+        { "tier": "II", "grade": "D", "percentagePoints": 0.75 },
+        { "tier": "III", "grade": "S", "percentagePoints": 3.33 }
+      ]
+    },
+    {
+      "stat": "CRITICAL_RATE",
+      "application": "POINT",
+      "values": [
+        { "tier": "II", "grade": "D", "percentagePoints": 1.5 },
+        { "tier": "III", "grade": "S", "percentagePoints": 7 }
+      ]
+    }
   ]
 }
 ```
 
 ### BattleSimulationCatalogResponse
 
-| プロパティ        | 型                               | 説明                                    |
-| ----------------- | -------------------------------- | --------------------------------------- |
-| `schemaVersion`   | integer                          | response schema版。初期値1。            |
-| `catalogRevision` | string                           | 一覧と戦闘事前検証が使用するCatalog版。 |
-| `units`           | `CatalogUnitSummaryResponse[]`   | 全Unit。`unitDefinitionId`昇順。        |
-| `memories`        | `CatalogMemorySummaryResponse[]` | 全Memory。`memoryDefinitionId`昇順。    |
+| プロパティ        | 型                               | 説明                                     |
+| ----------------- | -------------------------------- | ---------------------------------------- |
+| `schemaVersion`   | integer                          | response schema版。初期値1。             |
+| `catalogRevision` | string                           | 一覧と戦闘事前検証が使用するCatalog版。  |
+| `units`           | `CatalogUnitSummaryResponse[]`   | 全Unit。`unitDefinitionId`昇順。         |
+| `memories`        | `CatalogMemorySummaryResponse[]` | 全Memory。`memoryDefinitionId`昇順。     |
+| `gearEffects`     | `CatalogGearEffectResponse[]`    | R-ENH-04 #3のギア効果表。7ステータス分。 |
 
 ### CatalogUnitSummaryResponse
 
@@ -219,6 +240,24 @@ GET /health/ready
 | -------------------- | ------ | ---- | -------------------------- |
 | `memoryDefinitionId` | string | 必須 | 不透明なMemory定義ID。     |
 | `displayName`        | string | 必須 | Catalog metadataの表示名。 |
+
+### CatalogGearEffectResponse
+
+| プロパティ    | 型                                 | 必須 | 説明                                                                     |
+| ------------- | ---------------------------------- | ---- | ------------------------------------------------------------------------ |
+| `stat`        | string                             | 必須 | 対象ステータス（R-ENH-01の7種）。未知の将来値を許容する。                |
+| `application` | string                             | 必須 | `RATIO`（基本値への割合補正）、`POINT`（値そのものへの加算）。R-ENH-06。 |
+| `values`      | `CatalogGearEffectValueResponse[]` | 必須 | 種別×ランクの全組み合わせ。                                              |
+
+### CatalogGearEffectValueResponse
+
+| プロパティ         | 型     | 必須 | 説明                                                                  |
+| ------------------ | ------ | ---- | --------------------------------------------------------------------- |
+| `tier`             | string | 必須 | ギアの種別（`II`／`III`）。未知の将来値を許容する。                   |
+| `grade`            | string | 必須 | ギアのランク（`D`〜`S`）。未知の将来値を許容する。                    |
+| `percentagePoints` | number | 必須 | R-ENH-04 #3の表の値。パーセントポイント表記のまま返し、`/100`しない。 |
+
+効果表を公開するのは、クライアントが選択肢の上昇値を表示するために表を持たなくて済むようにするためである。クライアントは値を再計算せず、`application`で表記（割合か加算か）だけを切り替える。
 
 ### 情報公開境界
 

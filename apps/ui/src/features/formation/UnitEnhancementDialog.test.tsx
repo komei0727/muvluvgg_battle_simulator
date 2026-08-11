@@ -1,15 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
 import type { UiViolation } from "./draft-validation.js";
 import { createInitialUnitEnhancement } from "./types.js";
 import type { GearInput, UnitEnhancementInput } from "./types.js";
+import type { CatalogGearEffect } from "../simulation/api-contract.js";
 
 function renderDialog(
   overrides: {
     readonly enhancement?: UnitEnhancementInput;
     readonly violations?: readonly UiViolation[];
+    readonly gearEffects?: readonly CatalogGearEffect[];
     readonly onLevelChange?: (value: number | "") => void;
     readonly onGearChange?: (gearIndex: number, gear?: GearInput) => void;
     readonly onClose?: () => void;
@@ -24,6 +26,7 @@ function renderDialog(
       slotKey="ally:FRONT:0"
       enhancement={overrides.enhancement ?? createInitialUnitEnhancement()}
       violations={overrides.violations ?? []}
+      {...(overrides.gearEffects !== undefined ? { gearEffects: overrides.gearEffects } : {})}
       onLevelChange={onLevelChange}
       onGearChange={onGearChange}
       onClose={onClose}
@@ -31,6 +34,30 @@ function renderDialog(
   );
   return { onLevelChange, onGearChange, onClose };
 }
+
+/** APIが公開する効果表（R-ENH-04 #3）のうち、このテストが使う2ステータス分。 */
+const GEAR_EFFECTS: readonly CatalogGearEffect[] = [
+  {
+    stat: "ATTACK",
+    application: "RATIO",
+    values: [
+      { tier: "II", grade: "D", percentagePoints: 0.75 },
+      { tier: "II", grade: "S", percentagePoints: 2.49 },
+      { tier: "III", grade: "D", percentagePoints: 1 },
+      { tier: "III", grade: "S", percentagePoints: 3.33 },
+    ],
+  },
+  {
+    stat: "CRITICAL_RATE",
+    application: "POINT",
+    values: [
+      { tier: "II", grade: "D", percentagePoints: 1.5 },
+      { tier: "II", grade: "S", percentagePoints: 5.25 },
+      { tier: "III", grade: "D", percentagePoints: 2 },
+      { tier: "III", grade: "S", percentagePoints: 7 },
+    ],
+  },
+];
 
 describe("UnitEnhancementDialog (UI-CMP-015)", () => {
   it("UI-CT-035: opens on the unit with a level input defaulted to 200 and nine gear slots", () => {
@@ -159,6 +186,68 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     await user.click(screen.getByRole("button", { name: "閉じる" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("UI-CT-041: annotates the tier and grade options with the increase the chosen combination gives, using % for a ratio stat", () => {
+    const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
+    renderDialog({
+      gearEffects: GEAR_EFFECTS,
+      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+    });
+
+    const tier = within(screen.getByLabelText("ギア1 の種別"));
+    // ランクSが選ばれているので、種別の選択肢はそのランクでの上昇値を示す。
+    expect(tier.getByRole("option", { name: "ギアII（+2.49%）" })).toBeInTheDocument();
+    expect(tier.getByRole("option", { name: "ギアIII（+3.33%）" })).toBeInTheDocument();
+
+    const grade = within(screen.getByLabelText("ギア1 のランク"));
+    expect(grade.getByRole("option", { name: "D（+1%）" })).toBeInTheDocument();
+    expect(grade.getByRole("option", { name: "S（+3.33%）" })).toBeInTheDocument();
+  });
+
+  it("UI-CT-041: distinguishes a point addition from a ratio correction in the notation (R-ENH-06)", () => {
+    const gear: GearInput = { stat: "CRITICAL_RATE", tier: "III", grade: "S" };
+    renderDialog({
+      gearEffects: GEAR_EFFECTS,
+      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+    });
+
+    const grade = within(screen.getByLabelText("ギア1 のランク"));
+    expect(grade.getByRole("option", { name: "D（+2%pt）" })).toBeInTheDocument();
+    expect(grade.getByRole("option", { name: "S（+7%pt）" })).toBeInTheDocument();
+  });
+
+  it("UI-CT-042: shows the range across the other axis while only the stat is chosen", () => {
+    const gear = { stat: "ATTACK" } as unknown as GearInput;
+    renderDialog({
+      gearEffects: GEAR_EFFECTS,
+      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+    });
+
+    const tier = within(screen.getByLabelText("ギア1 の種別"));
+    expect(tier.getByRole("option", { name: "ギアIII（+1〜3.33%）" })).toBeInTheDocument();
+  });
+
+  it("UI-CT-043: falls back to plain rank names when the response carries no gear effect table", () => {
+    const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
+    renderDialog({
+      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+    });
+
+    const grade = within(screen.getByLabelText("ギア1 のランク"));
+    expect(grade.getByRole("option", { name: "S" })).toBeInTheDocument();
+    expect(screen.queryByText(/%pt/)).not.toBeInTheDocument();
+  });
+
+  it("UI-CT-043: falls back to plain names for a stat the published table does not cover", () => {
+    const gear: GearInput = { stat: "DEFENSE", tier: "III", grade: "S" };
+    renderDialog({
+      gearEffects: GEAR_EFFECTS,
+      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+    });
+
+    const grade = within(screen.getByLabelText("ギア1 のランク"));
+    expect(grade.getByRole("option", { name: "S" })).toBeInTheDocument();
   });
 
   it("clears the gear when its tier is emptied, instead of keeping the previous tier", async () => {

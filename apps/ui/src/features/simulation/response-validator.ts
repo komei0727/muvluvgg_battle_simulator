@@ -53,6 +53,33 @@ function isValidMemory(value: unknown): value is CatalogMemorySummary {
   return isNonEmptyString(value["memoryDefinitionId"]) && isNonEmptyString(value["displayName"]);
 }
 
+// apps/api/.../catalog-schema.ts の catalogGearEffectResponseSchema。効果表を
+// 公開しない旧APIとも組み合わせられるよう不在は許すが、届いた表が壊れている
+// 場合は表示側でギア選択肢の一部だけが数値を失うため契約違反として扱う。
+function isValidGearEffectValue(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["tier"]) &&
+    isNonEmptyString(value["grade"]) &&
+    typeof value["percentagePoints"] === "number" &&
+    Number.isFinite(value["percentagePoints"])
+  );
+}
+
+function isValidGearEffect(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["stat"]) &&
+    isNonEmptyString(value["application"]) &&
+    Array.isArray(value["values"]) &&
+    value["values"].every(isValidGearEffectValue)
+  );
+}
+
 function hasDuplicateIds(ids: readonly string[]): boolean {
   return new Set(ids).size !== ids.length;
 }
@@ -100,6 +127,13 @@ export function validateCatalogResponse(body: unknown): CatalogValidationResult 
     return mismatch("Catalog response contains duplicate memoryDefinitionId values.");
   }
 
+  const gearEffects = body["gearEffects"];
+  if (gearEffects !== undefined) {
+    if (!Array.isArray(gearEffects) || !gearEffects.every(isValidGearEffect)) {
+      return mismatch("Catalog response gearEffects is malformed.");
+    }
+  }
+
   return {
     ok: true,
     response: {
@@ -107,6 +141,7 @@ export function validateCatalogResponse(body: unknown): CatalogValidationResult 
       catalogRevision: body["catalogRevision"],
       units,
       memories,
+      ...(gearEffects === undefined ? {} : { gearEffects }),
     },
   };
 }
