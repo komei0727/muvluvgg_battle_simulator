@@ -50,8 +50,8 @@ describe("Rule coverage ledger", () => {
     // `ruleAssignments`でTEX-001が完了責任を持つ）。
     // ENH-001（Issue #409、2026-08-11）の基本ステータス強化設計でR-ENH-01〜06を新設し
     // 127→133 — 学園レベル・タイプ装備・モジュール・ギアカスタム・レベル増加で
-    // 強化後基本ステータスを算出する新領域で、実装前の設計時新設のためtestCaseIdsは空
-    // （`17_残作業対応表.json`の`ruleAssignments`でENH-001が完了責任を持つ）。
+    // 強化後基本ステータスを算出する新領域で、ENH-006（Issue #415）が6件すべてを
+    // 完了計上した（総数は変わらない）。
     // 実装中に新しいRuleを発見した場合はここと`17_残作業対応表.json`の
     // `current.rules`を同じPRで更新する（`baseline`は履歴として変更しない）。
     expect(RULE_COVERAGE).toHaveLength(133);
