@@ -353,28 +353,36 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
     );
   });
 
-  it("rejects a unit enhancement whose own side has no enhancement toggle on (R-ENH-01 #3)", () => {
+  it("UI-CMP-014: keeps a submit valid after the toggle goes back off, even though the edited unit enhancement is still in the draft", () => {
+    // トグルOFFへ戻しても入力値はdraftへ保持し、送信対象からだけ外す
+    // （request-mapperがOFF側のユニット強化を出力しない）。保持しているだけの
+    // 値で送信を止めてはならない。
     const base = draftWithAllyCount(1);
     const slotKey = slotKeyOf("ally", "FRONT", 0);
     const draft: BattleDraft = {
       ...base,
       allySlots: base.allySlots.map((slot) =>
         slot.slotKey === slotKey
-          ? { ...slot, enhancement: { level: 220, gears: Array(9).fill(undefined) } }
+          ? { ...slot, enhancement: { level: 220, gears: Array<undefined>(9).fill(undefined) } }
           : slot,
       ),
     };
 
-    // UI操作では起きない（トグルOFF時はダイアログを開けない）が、draft操作以外の
-    // 経路に備えて送信前検証でも同条件を検査する（03_API・データ連携設計.md §6）。
-    const violations = validateDraft(draft, catalog);
+    expect(validateDraft(draft, catalog)).toEqual([]);
+  });
 
-    expect(violations).toContainEqual(
-      expect.objectContaining({
-        path: "/allyFormation/units/enhancement",
-        slotKey,
-        severity: "error",
-      }),
-    );
+  it("UI-CMP-014: does not validate a retained unit level that is blank while the side's toggle is off", () => {
+    const base = draftWithAllyCount(1);
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const draft: BattleDraft = {
+      ...base,
+      allySlots: base.allySlots.map((slot) =>
+        slot.slotKey === slotKey
+          ? { ...slot, enhancement: { level: "", gears: Array<undefined>(9).fill(undefined) } }
+          : slot,
+      ),
+    };
+
+    expect(validateDraft(draft, catalog)).toEqual([]);
   });
 });

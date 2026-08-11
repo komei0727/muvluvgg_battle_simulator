@@ -753,4 +753,40 @@ describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
     expect(dialog.getByLabelText("現在レベル")).toHaveAttribute("aria-invalid", "true");
     expect(dialog.getByText(/declares no levelGrowth/)).toBeInTheDocument();
   });
+
+  it("UI-CT-033/UI-CMP-014: turning the toggle back off after editing a unit level keeps the submit available and sends no enhancement", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    const allyToggle = screen.getAllByRole("checkbox", { name: /強化/ })[0]!;
+    await user.click(allyToggle);
+    await user.click(screen.getAllByRole("button", { name: /の強化を編集/ })[0]!);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    // draftへ残ったLv220は、トグルOFFでは送信対象から外れるだけで送信を妨げない。
+    await user.click(allyToggle);
+
+    expect(
+      screen.queryByText("ユニット強化は陣営の強化をONにしてから設定してください。"),
+    ).not.toBeInTheDocument();
+    const submit = screen.getByRole("button", { name: "戦闘を開始" });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(JSON.stringify(sentRequest)).not.toContain("enhancement");
+  });
 });

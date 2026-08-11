@@ -223,27 +223,25 @@ function validateAcademyLevels(side: Side, enhancement: SideEnhancementInput): U
  * 固定文字列にし、ダイアログ側はslotKeyとpathの末尾で入力を対応づける
  * （サーバー違反のpathは`units/{n}/...`のindex付きになるため、
  * 表示側はどちらでも一致するsuffix照合を使う）。
+ *
+ * UI-CMP-014: トグルOFFの陣営は検証しない。OFFでも入力値をdraftへ保持するのが
+ * 要件であり、`request-mapper.ts`がOFF側のユニット強化を出力しない以上、
+ * 保持しているだけの値は送信内容に影響しない。ここで検証すると「編集後にOFFへ
+ * 戻した」だけで送信が止まる（R-ENH-01 #3の「陣営指定なしのユニット指定」は
+ * 送信ペイロード上に表現し得ないため、mapper側の構造で保証する）。
  */
 function validateUnitEnhancements(
   side: Side,
   slots: readonly FormationSlotInput[],
   enhancement: SideEnhancementInput,
 ): UiViolation[] {
+  if (!enhancement.enabled) {
+    return [];
+  }
   const violations: UiViolation[] = [];
   for (const slot of slots) {
     const unitEnhancement = slot.enhancement;
     if (unitEnhancement === undefined) {
-      continue;
-    }
-    if (!enhancement.enabled) {
-      // R-ENH-01 #3: 陣営指定なしのユニット指定はAPIが422で拒否する。
-      violations.push({
-        path: `${formationPath(side)}/units/enhancement`,
-        slotKey: slot.slotKey,
-        code: "UNIT_ENHANCEMENT_WITHOUT_SIDE",
-        message: "ユニット強化は陣営の強化をONにしてから設定してください。",
-        severity: "error",
-      });
       continue;
     }
     if (!isPositiveInteger(unitEnhancement.level)) {
