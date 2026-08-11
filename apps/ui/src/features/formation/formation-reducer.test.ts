@@ -284,3 +284,174 @@ describe("formationReducer — 強化入力 (M11)", () => {
     });
   });
 });
+
+describe("formationReducer — unitMoved (UI-AC-029)", () => {
+  function stateWithAllyUnit(slotKey: string, unitDefinitionId: string): FormationState {
+    return formationReducer(createInitialFormationState(), {
+      type: "unitSelected",
+      slotKey,
+      unitDefinitionId,
+    });
+  }
+
+  it("moves a unit and its enhancement to an empty same-side slot, emptying the source", () => {
+    const fromKey = slotKeyOf("ally", "FRONT", 0);
+    const toKey = slotKeyOf("ally", "REAR", 1);
+    let state = stateWithAllyUnit(fromKey, "UNIT_A");
+    state = formationReducer(state, {
+      type: "unitEnhancementLevelChanged",
+      slotKey: fromKey,
+      value: 220,
+    });
+
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: fromKey,
+      toSlotKey: toKey,
+    });
+
+    const from = next.draft.allySlots.find((s) => s.slotKey === fromKey)!;
+    const to = next.draft.allySlots.find((s) => s.slotKey === toKey)!;
+    expect(to.unitDefinitionId).toBe("UNIT_A");
+    expect(to.enhancement?.level).toBe(220);
+    expect("unitDefinitionId" in from).toBe(false);
+    expect("enhancement" in from).toBe(false);
+  });
+
+  it("swaps two filled slots including asymmetric enhancements", () => {
+    const frontKey = slotKeyOf("ally", "FRONT", 0);
+    const rearKey = slotKeyOf("ally", "REAR", 2);
+    let state = stateWithAllyUnit(frontKey, "UNIT_A");
+    state = formationReducer(state, {
+      type: "unitSelected",
+      slotKey: rearKey,
+      unitDefinitionId: "UNIT_B",
+    });
+    state = formationReducer(state, {
+      type: "unitEnhancementGearChanged",
+      slotKey: frontKey,
+      gearIndex: 0,
+      gear: { stat: "ATTACK", tier: "III", grade: "S" },
+    });
+
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: frontKey,
+      toSlotKey: rearKey,
+    });
+
+    const front = next.draft.allySlots.find((s) => s.slotKey === frontKey)!;
+    const rear = next.draft.allySlots.find((s) => s.slotKey === rearKey)!;
+    expect(front.unitDefinitionId).toBe("UNIT_B");
+    expect(rear.unitDefinitionId).toBe("UNIT_A");
+    expect(rear.enhancement?.gears[0]).toEqual({ stat: "ATTACK", tier: "III", grade: "S" });
+    expect("enhancement" in front).toBe(false);
+  });
+
+  it("ignores a move whose source slot is empty", () => {
+    const state = stateWithAllyUnit(slotKeyOf("ally", "FRONT", 0), "UNIT_A");
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: slotKeyOf("ally", "REAR", 0),
+      toSlotKey: slotKeyOf("ally", "REAR", 1),
+    });
+    expect(next).toBe(state);
+  });
+
+  it("ignores a move onto the same slot", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const state = stateWithAllyUnit(slotKey, "UNIT_A");
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: slotKey,
+      toSlotKey: slotKey,
+    });
+    expect(next).toBe(state);
+  });
+
+  it("ignores unknown slot keys on either end", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const state = stateWithAllyUnit(slotKey, "UNIT_A");
+
+    expect(
+      formationReducer(state, {
+        type: "unitMoved",
+        fromSlotKey: "not-a-slot",
+        toSlotKey: slotKey,
+      }),
+    ).toBe(state);
+    expect(
+      formationReducer(state, {
+        type: "unitMoved",
+        fromSlotKey: slotKey,
+        toSlotKey: "not-a-slot",
+      }),
+    ).toBe(state);
+  });
+
+  it("ignores a cross-side move", () => {
+    const state = stateWithAllyUnit(slotKeyOf("ally", "FRONT", 0), "UNIT_A");
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: slotKeyOf("ally", "FRONT", 0),
+      toSlotKey: slotKeyOf("enemy", "FRONT", 0),
+    });
+    expect(next).toBe(state);
+  });
+
+  it("does not touch the selection dialog, memories, other slots, or the other side", () => {
+    const fromKey = slotKeyOf("ally", "FRONT", 0);
+    let state = stateWithAllyUnit(fromKey, "UNIT_A");
+    state = formationReducer(state, {
+      type: "unitSelected",
+      slotKey: slotKeyOf("ally", "FRONT", 1),
+      unitDefinitionId: "UNIT_KEEP",
+    });
+    state = formationReducer(state, {
+      type: "memorySelected",
+      side: "ally",
+      index: 0,
+      memoryDefinitionId: "MEM_A",
+    });
+    state = formationReducer(state, {
+      type: "selectionOpened",
+      selection: { kind: "unit", slotKey: slotKeyOf("enemy", "FRONT", 0) },
+    });
+
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: fromKey,
+      toSlotKey: slotKeyOf("ally", "REAR", 0),
+    });
+
+    expect(next.selectionDialog).toEqual(state.selectionDialog);
+    expect(next.draft.allyMemoryDefinitionIds).toEqual(state.draft.allyMemoryDefinitionIds);
+    expect(
+      next.draft.allySlots.find((s) => s.slotKey === slotKeyOf("ally", "FRONT", 1))
+        ?.unitDefinitionId,
+    ).toBe("UNIT_KEEP");
+    expect(next.draft.enemySlots).toBe(state.draft.enemySlots);
+  });
+
+  it("swaps freely while the side is at the 5-unit capacity", () => {
+    const state = fillAllySlots(createInitialFormationState(), MAX_UNITS_PER_SIDE);
+    const firstKey = state.draft.allySlots[0]!.slotKey;
+    const secondKey = state.draft.allySlots[1]!.slotKey;
+
+    const next = formationReducer(state, {
+      type: "unitMoved",
+      fromSlotKey: firstKey,
+      toSlotKey: secondKey,
+    });
+
+    expect(next.draft.allySlots.find((s) => s.slotKey === firstKey)?.unitDefinitionId).toBe(
+      "UNIT_1",
+    );
+    expect(next.draft.allySlots.find((s) => s.slotKey === secondKey)?.unitDefinitionId).toBe(
+      "UNIT_0",
+    );
+    expect(next.draft.allySlots.filter((s) => s.unitDefinitionId !== undefined)).toHaveLength(
+      MAX_UNITS_PER_SIDE,
+    );
+  });
+});

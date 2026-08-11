@@ -156,3 +156,38 @@ test("switches between the event, transition, and JSON tabs and copies the JSON"
   const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboardText).toContain('"battleId": "battle-e2e-001"');
 });
+
+// UI-E2E-011: drag&dropで同陣営内の移動・入れ替えができ、陣営を跨ぐdropは
+// 編成を変更しない(UI-AC-029)。ally/enemyのslotは同じaccessible nameを持つ
+// ため、fillMinimalFormationと同じく「埋まると名前が変わる」性質で先頭
+// matchをally側として特定する。
+test("moves and swaps units within a side via drag and drop, rejecting cross-side drops", async ({
+  page,
+}) => {
+  await page.goto("./");
+
+  // ally前衛1へ配置し、空のally後衛1へdragで移動する。
+  await page.getByRole("button", { name: "前衛1にユニットを追加" }).first().click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  const allyFrontFilled = page.getByRole("button", { name: "前衛1: アライアルファを変更" });
+  await allyFrontFilled.dragTo(page.getByRole("button", { name: "後衛1にユニットを追加" }).first());
+
+  const allyRearFilled = page.getByRole("button", { name: "後衛1: アライアルファを変更" });
+  await expect(allyRearFilled).toBeVisible();
+
+  // 空いたally前衛1へ2体目を配置し、後衛1とdragで入れ替える。
+  await page.getByRole("button", { name: "前衛1にユニットを追加" }).first().click();
+  await page.getByRole("button", { name: "エネミーアルファを選択" }).click();
+  await page.getByRole("button", { name: "前衛1: エネミーアルファを変更" }).dragTo(allyRearFilled);
+
+  await expect(page.getByRole("button", { name: "前衛1: アライアルファを変更" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "後衛1: エネミーアルファを変更" })).toBeVisible();
+
+  // 陣営を跨ぐdropは無効: enemy前衛1へdragしても双方が変わらない。
+  await page
+    .getByRole("button", { name: "前衛1: アライアルファを変更" })
+    .dragTo(page.getByRole("button", { name: "前衛1にユニットを追加" }));
+
+  await expect(page.getByRole("button", { name: "前衛1: アライアルファを変更" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "前衛1にユニットを追加" })).toBeVisible();
+});

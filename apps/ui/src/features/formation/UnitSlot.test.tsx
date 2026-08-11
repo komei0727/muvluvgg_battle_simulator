@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { CatalogUnitSummary } from "../simulation/api-contract.js";
@@ -295,5 +295,205 @@ describe("UnitSlot — ステータスプレビュー (UI-CT-038)", () => {
     await user.hover(screen.getByRole("button"));
 
     expect(screen.queryByText("開始時ステータス")).not.toBeInTheDocument();
+  });
+});
+
+describe("UnitSlot — ユニット移動 (UI-CT-044/045)", () => {
+  // jsdomはDataTransferを実装しないため、drag系イベントへはスタブを渡す。
+  function dataTransferStub() {
+    return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+  }
+
+  function renderMovableSlot(
+    overrides: Partial<Parameters<typeof UnitSlot>[0]> = {},
+  ): ReturnType<typeof render> {
+    return render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        onMoveStart={vi.fn()}
+        onMoveCancel={vi.fn()}
+        onMovePlace={vi.fn()}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("marks only a filled, enabled slot as draggable", () => {
+    renderMovableSlot();
+    expect(screen.getByRole("button", { name: "前衛1: アルファを変更" })).toHaveAttribute(
+      "draggable",
+      "true",
+    );
+  });
+
+  it("does not mark an empty slot as draggable (drop target only)", () => {
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        onMoveStart={vi.fn()}
+        onMoveCancel={vi.fn()}
+        onMovePlace={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /前衛1/ })).toHaveAttribute("draggable", "false");
+  });
+
+  it("does not mark a disabled slot as draggable and disables the move button", () => {
+    renderMovableSlot({ disabled: true });
+    expect(screen.getByRole("button", { name: "前衛1: アルファを変更" })).toHaveAttribute(
+      "draggable",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "前衛1: アルファを移動" })).toBeDisabled();
+  });
+
+  it("starts a move on dragstart and hides a shown stat preview", () => {
+    const onMoveStart = vi.fn();
+    renderMovableSlot({
+      onMoveStart,
+      statPreviewStatus: "ready",
+      statPreview: {
+        side: "ALLY",
+        unitDefinitionId: "UNIT_A",
+        formationPosition: { column: 0, row: "FRONT" },
+        maximumHp: 100,
+        combatStats: {
+          attack: 1,
+          defense: 1,
+          criticalRate: 1,
+          actionSpeed: 1,
+          affinityBonus: 1,
+          criticalDamageBonus: 1,
+        },
+      },
+    });
+    const slot = screen.getByRole("button", { name: "前衛1: アルファを変更" });
+
+    fireEvent.mouseEnter(slot);
+    expect(screen.getByText("開始時ステータス")).toBeInTheDocument();
+
+    const dataTransfer = dataTransferStub();
+    fireEvent.dragStart(slot, { dataTransfer });
+
+    expect(onMoveStart).toHaveBeenCalledTimes(1);
+    expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", expect.any(String));
+    expect(screen.queryByText("開始時ステータス")).not.toBeInTheDocument();
+  });
+
+  it("cancels the move on dragend", () => {
+    const onMoveCancel = vi.fn();
+    renderMovableSlot({ onMoveCancel });
+    const slot = screen.getByRole("button", { name: "前衛1: アルファを変更" });
+
+    fireEvent.dragStart(slot, { dataTransfer: dataTransferStub() });
+    fireEvent.dragEnd(slot, { dataTransfer: dataTransferStub() });
+
+    expect(onMoveCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a drop while it is a valid move target", () => {
+    const onMovePlace = vi.fn();
+    renderMovableSlot({ moveTarget: true, onMovePlace });
+    const slot = screen.getByRole("button", { name: "前衛1: アルファを変更" });
+
+    const prevented = !fireEvent.dragOver(slot, { dataTransfer: dataTransferStub() });
+    fireEvent.drop(slot, { dataTransfer: dataTransferStub() });
+
+    expect(prevented).toBe(true);
+    expect(onMovePlace).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a drop while it is not a move target (cross-side or the source itself)", () => {
+    const onMovePlace = vi.fn();
+    renderMovableSlot({ moveTarget: false, onMovePlace });
+    const slot = screen.getByRole("button", { name: "前衛1: アルファを変更" });
+
+    const prevented = !fireEvent.dragOver(slot, { dataTransfer: dataTransferStub() });
+    fireEvent.drop(slot, { dataTransfer: dataTransferStub() });
+
+    expect(prevented).toBe(false);
+    expect(onMovePlace).not.toHaveBeenCalled();
+  });
+
+  it("offers a move button only for a filled slot, toggling between start and cancel", async () => {
+    const user = userEvent.setup();
+    const onMoveStart = vi.fn();
+    const { rerender } = renderMovableSlot({ onMoveStart });
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを移動" }));
+    expect(onMoveStart).toHaveBeenCalledTimes(1);
+
+    const onMoveCancel = vi.fn();
+    rerender(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        moveSource
+        onMoveStart={vi.fn()}
+        onMoveCancel={onMoveCancel}
+        onMovePlace={vi.fn()}
+      />,
+    );
+    const cancelButton = screen.getByRole("button", {
+      name: "前衛1: アルファの移動をキャンセル",
+    });
+    expect(cancelButton).toHaveAttribute("aria-pressed", "true");
+    await user.click(cancelButton);
+    expect(onMoveCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer a move button for an empty slot", () => {
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        onMoveStart={vi.fn()}
+        onMoveCancel={vi.fn()}
+        onMovePlace={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /を移動/ })).not.toBeInTheDocument();
+  });
+
+  it("cancels an in-progress move with Escape from the slot button", async () => {
+    const user = userEvent.setup();
+    const onMoveCancel = vi.fn();
+    renderMovableSlot({ moveTarget: true, onMoveCancel });
+
+    await user.tab();
+    await user.keyboard("{Escape}");
+
+    expect(onMoveCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cancel on Escape while no move is in progress", async () => {
+    const user = userEvent.setup();
+    const onMoveCancel = vi.fn();
+    renderMovableSlot({ onMoveCancel });
+
+    await user.tab();
+    await user.keyboard("{Escape}");
+
+    expect(onMoveCancel).not.toHaveBeenCalled();
   });
 });

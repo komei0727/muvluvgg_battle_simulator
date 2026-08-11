@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import type { UiViolation } from "./draft-validation.js";
 import { EnhancementPanel } from "./EnhancementPanel.js";
 import { MemorySlot } from "./MemorySlot.js";
@@ -29,6 +29,8 @@ export interface FormationEditorProps {
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onOpenMemorySelection: (side: Side, index: number) => void;
   readonly onOpenUnitEnhancement: (slotKey: string) => void;
+  /** UI-AC-029: 同一陣営内のユニット移動・入れ替えintent。 */
+  readonly onMoveUnit: (fromSlotKey: string, toSlotKey: string) => void;
   readonly onEnhancementToggle: (side: Side, enabled: boolean) => void;
   readonly onAcademyLevelChange: (
     side: Side,
@@ -82,11 +84,45 @@ export function FormationEditor({
   onOpenUnitEnhancement,
   onEnhancementToggle,
   onAcademyLevelChange,
+  onMoveUnit,
 }: FormationEditorProps) {
   const headingId = useId();
   const sideLabelEn = side === "ally" ? "ALLY" : "ENEMY";
   const sideLabelJa = side === "ally" ? "味方" : "敵";
   const sideClass = side === "ally" ? styles["ally"] : styles["enemy"];
+
+  // UI-AC-029: 移動元slotKey。dragとキーボード移動モードで共用する。
+  // stateが陣営別のeditorインスタンスに閉じているため、反対陣営のslotは
+  // 配置先にならない（同一陣営制約の実体）。
+  const [moveSourceSlotKey, setMoveSourceSlotKey] = useState<string | null>(null);
+
+  // 実行開始（disabled化）で移動モードが宙に残らないよう解除する。
+  useEffect(() => {
+    if (disabled) {
+      setMoveSourceSlotKey(null);
+    }
+  }, [disabled]);
+
+  const placeMove = (targetSlotKey: string): void => {
+    if (moveSourceSlotKey !== null && moveSourceSlotKey !== targetSlotKey) {
+      onMoveUnit(moveSourceSlotKey, targetSlotKey);
+    }
+    setMoveSourceSlotKey(null);
+  };
+
+  const moveSourceSlot =
+    moveSourceSlotKey !== null
+      ? slots.find((slot) => slot.slotKey === moveSourceSlotKey)
+      : undefined;
+  const moveSourceUnit =
+    moveSourceSlot !== undefined
+      ? catalog.units.find((u) => u.unitDefinitionId === moveSourceSlot.unitDefinitionId)
+      : undefined;
+  const moveAnnouncement =
+    moveSourceSlot !== undefined && moveSourceUnit !== undefined
+      ? `${moveSourceSlot.row === "FRONT" ? "前衛" : "後衛"}${moveSourceSlot.column + 1}の` +
+        `${moveSourceUnit.displayName}を移動中。移動先の枠を選ぶか、Escapeで中止できます`
+      : "";
 
   return (
     <section className={`${styles["side"] ?? ""} ${sideClass ?? ""}`} aria-labelledby={headingId}>
@@ -96,6 +132,11 @@ export function FormationEditor({
         </h3>
         <span className={styles["badge"]}>{sideLabelJa}</span>
       </div>
+
+      {/* 移動モードの進行状態を読み上げへ届ける（UI-CT-046）。 */}
+      <p aria-live="polite" className={styles["visuallyHidden"]}>
+        {moveAnnouncement}
+      </p>
 
       <div className={styles["grid"]}>
         {ROWS.map((row) => (
@@ -121,10 +162,31 @@ export function FormationEditor({
                     disabled={disabled}
                     {...(imageMap !== undefined ? { imageMap } : {})}
                     onOpen={() => {
-                      onOpenUnitSelection(slot.slotKey);
+                      // 移動モード中はslot起動を「この枠へ配置」に読み替え、
+                      // 移動元自身の起動は中止として扱う（UI-AC-029）。
+                      if (moveSourceSlotKey === null) {
+                        onOpenUnitSelection(slot.slotKey);
+                      } else if (moveSourceSlotKey === slot.slotKey) {
+                        setMoveSourceSlotKey(null);
+                      } else {
+                        placeMove(slot.slotKey);
+                      }
                     }}
                     onOpenEnhancement={() => {
                       onOpenUnitEnhancement(slot.slotKey);
+                    }}
+                    moveSource={moveSourceSlotKey === slot.slotKey}
+                    moveTarget={
+                      moveSourceSlotKey !== null && moveSourceSlotKey !== slot.slotKey && !disabled
+                    }
+                    onMoveStart={() => {
+                      setMoveSourceSlotKey(slot.slotKey);
+                    }}
+                    onMoveCancel={() => {
+                      setMoveSourceSlotKey(null);
+                    }}
+                    onMovePlace={() => {
+                      placeMove(slot.slotKey);
                     }}
                     enhancementEnabled={enhancement.enabled}
                     statPreviewStatus={statPreview.status}

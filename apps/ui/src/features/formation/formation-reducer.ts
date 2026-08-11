@@ -66,7 +66,8 @@ export type FormationAction =
       readonly type: "selectionOpened";
       readonly selection: Exclude<SelectionDialogState, { kind: "closed" }>;
     }
-  | { readonly type: "selectionClosed" };
+  | { readonly type: "selectionClosed" }
+  | { readonly type: "unitMoved"; readonly fromSlotKey: string; readonly toSlotKey: string };
 
 export function createInitialFormationState(): FormationState {
   return { draft: createInitialDraft(), selectionDialog: { kind: "closed" } };
@@ -103,6 +104,31 @@ function withSlotUnit(
   return side === "ally"
     ? { ...draft, allySlots: replaceSlotUnit(draft.allySlots, slotKey, unitDefinitionId) }
     : { ...draft, enemySlots: replaceSlotUnit(draft.enemySlots, slotKey, unitDefinitionId) };
+}
+
+/**
+ * 移動・入れ替えではユニットIDとユニット単位の強化入力を一体で運ぶ
+ * （UI-AC-029: 強化はユニットに追随する）。`undefined`はキーごと落とし、
+ * 空き枠に残キーが生まれないようにする。
+ */
+function withSlotContents(
+  slots: readonly FormationSlotInput[],
+  slotKey: string,
+  contents: Pick<FormationSlotInput, "unitDefinitionId" | "enhancement">,
+): readonly FormationSlotInput[] {
+  return slots.map((slot) => {
+    if (slot.slotKey !== slotKey) {
+      return slot;
+    }
+    const { unitDefinitionId: _unit, enhancement: _enhancement, ...rest } = slot;
+    return {
+      ...rest,
+      ...(contents.unitDefinitionId !== undefined
+        ? { unitDefinitionId: contents.unitDefinitionId }
+        : {}),
+      ...(contents.enhancement !== undefined ? { enhancement: contents.enhancement } : {}),
+    };
+  });
 }
 
 function replaceMemory(
@@ -300,5 +326,28 @@ export function formationReducer(state: FormationState, action: FormationAction)
     }
     case "selectionClosed":
       return { ...state, selectionDialog: { kind: "closed" } };
+    case "unitMoved": {
+      const from = findSlot(state.draft, action.fromSlotKey);
+      const to = findSlot(state.draft, action.toSlotKey);
+      // 陣営を跨ぐ移動はUI側（陣営別のFormationEditor）でも防ぐが、
+      // reducerでも同じ制約を守る。同一陣営内の移動は選択数を変えない
+      // ため、容量チェックは不要。
+      if (
+        from === undefined ||
+        to === undefined ||
+        from.slotKey === to.slotKey ||
+        from.unitDefinitionId === undefined ||
+        from.side !== to.side
+      ) {
+        return state;
+      }
+      const swap = (slots: readonly FormationSlotInput[]): readonly FormationSlotInput[] =>
+        withSlotContents(withSlotContents(slots, from.slotKey, to), to.slotKey, from);
+      const draft: BattleDraft =
+        from.side === "ally"
+          ? { ...state.draft, allySlots: swap(state.draft.allySlots) }
+          : { ...state.draft, enemySlots: swap(state.draft.enemySlots) };
+      return { ...state, draft };
+    }
   }
 }

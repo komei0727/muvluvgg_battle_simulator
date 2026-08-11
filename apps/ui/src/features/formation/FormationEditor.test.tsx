@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
@@ -41,6 +41,7 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
@@ -68,6 +69,7 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
@@ -96,6 +98,7 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
@@ -120,6 +123,7 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
@@ -146,6 +150,7 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
@@ -170,6 +175,7 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
@@ -207,9 +213,122 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
       />,
     );
 
     expect(screen.getByText("適性外")).toBeInTheDocument();
+  });
+});
+
+describe("FormationEditor — ユニット移動 (UI-CT-044/045/046)", () => {
+  function dataTransferStub() {
+    return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
+  }
+
+  function renderWithFilledFront(
+    overrides: Partial<Parameters<typeof FormationEditor>[0]> = {},
+  ): ReturnType<typeof render> {
+    const draft = createInitialDraft();
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const slots = draft.allySlots.map((slot) =>
+      slot.slotKey === slotKey ? { ...slot, unitDefinitionId: "UNIT_A" } : slot,
+    );
+    return render(
+      <FormationEditor
+        side="ally"
+        slots={slots}
+        memoryDefinitionIds={draft.allyMemoryDefinitionIds}
+        catalog={catalog()}
+        violations={[]}
+        disabled={false}
+        enhancement={createInitialDraft().allyEnhancement}
+        onOpenUnitSelection={vi.fn()}
+        onOpenMemorySelection={vi.fn()}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
+        onMoveUnit={vi.fn()}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("emits onMoveUnit for a pointer drag from a filled slot onto another slot", () => {
+    const onMoveUnit = vi.fn();
+    renderWithFilledFront({ onMoveUnit });
+    const source = screen.getByRole("button", { name: "前衛1: アルファを変更" });
+    const target = screen.getByRole("button", { name: "後衛2にユニットを追加" });
+
+    fireEvent.dragStart(source, { dataTransfer: dataTransferStub() });
+    fireEvent.dragOver(target, { dataTransfer: dataTransferStub() });
+    fireEvent.drop(target, { dataTransfer: dataTransferStub() });
+    fireEvent.dragEnd(source, { dataTransfer: dataTransferStub() });
+
+    expect(onMoveUnit).toHaveBeenCalledTimes(1);
+    expect(onMoveUnit).toHaveBeenCalledWith(
+      slotKeyOf("ally", "FRONT", 0),
+      slotKeyOf("ally", "REAR", 1),
+    );
+  });
+
+  it("completes a keyboard move: move button → announcement → target slot places the unit", async () => {
+    const user = userEvent.setup();
+    const onMoveUnit = vi.fn();
+    const onOpenUnitSelection = vi.fn();
+    renderWithFilledFront({ onMoveUnit, onOpenUnitSelection });
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを移動" }));
+    expect(screen.getByText(/前衛1のアルファを移動中/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "後衛2にユニットを追加" }));
+
+    expect(onMoveUnit).toHaveBeenCalledTimes(1);
+    expect(onMoveUnit).toHaveBeenCalledWith(
+      slotKeyOf("ally", "FRONT", 0),
+      slotKeyOf("ally", "REAR", 1),
+    );
+    expect(onOpenUnitSelection).not.toHaveBeenCalled();
+    expect(screen.queryByText(/移動中/)).not.toBeInTheDocument();
+
+    // モード終了後は通常のダイアログ起動に戻る。
+    await user.click(screen.getByRole("button", { name: "後衛3にユニットを追加" }));
+    expect(onOpenUnitSelection).toHaveBeenCalledWith(slotKeyOf("ally", "REAR", 2));
+  });
+
+  it("cancels a keyboard move with Escape without emitting onMoveUnit", async () => {
+    const user = userEvent.setup();
+    const onMoveUnit = vi.fn();
+    renderWithFilledFront({ onMoveUnit });
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを移動" }));
+    await user.keyboard("{Escape}");
+
+    expect(onMoveUnit).not.toHaveBeenCalled();
+    expect(screen.queryByText(/移動中/)).not.toBeInTheDocument();
+  });
+
+  it("treats activating the source slot as a cancel, not a dialog open nor a self-move", async () => {
+    const user = userEvent.setup();
+    const onMoveUnit = vi.fn();
+    const onOpenUnitSelection = vi.fn();
+    renderWithFilledFront({ onMoveUnit, onOpenUnitSelection });
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを移動" }));
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを変更" }));
+
+    expect(onMoveUnit).not.toHaveBeenCalled();
+    expect(onOpenUnitSelection).not.toHaveBeenCalled();
+    expect(screen.queryByText(/移動中/)).not.toBeInTheDocument();
+  });
+
+  it("announces the move progress through a polite live region", async () => {
+    const user = userEvent.setup();
+    renderWithFilledFront();
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを移動" }));
+
+    const status = screen.getByText(/前衛1のアルファを移動中/);
+    expect(status.closest('[aria-live="polite"]')).not.toBeNull();
   });
 });
