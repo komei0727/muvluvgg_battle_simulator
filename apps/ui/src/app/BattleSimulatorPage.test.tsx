@@ -940,3 +940,272 @@ describe("BattleSimulatorPage — 編成ステータスプレビュー (UI-AC-02
     expect(within(allyRegion()).getByText("ステータスを取得できませんでした")).toBeInTheDocument();
   });
 });
+
+// 01_UI要求・画面設計.md §5.9 / UI-AC-029〜031.
+describe("BattleSimulatorPage — input persistence", () => {
+  function allyRegion() {
+    return screen.getByRole("region", { name: /ALLY FORMATION/ });
+  }
+
+  function enemyRegion() {
+    return screen.getByRole("region", { name: /ENEMY FORMATION/ });
+  }
+
+  function renderPage() {
+    return render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+  }
+
+  async function waitForCatalog() {
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /ALLY FORMATION/ })).toBeInTheDocument();
+    });
+  }
+
+  async function placeUnit(
+    user: ReturnType<typeof userEvent.setup>,
+    region: HTMLElement,
+    slotName: string,
+  ) {
+    await user.click(within(region).getByRole("button", { name: slotName }));
+    await user.click(screen.getByRole("button", { name: "アルファを選択" }));
+  }
+
+  async function openAllyEnhancementDialog(
+    user: ReturnType<typeof userEvent.setup>,
+    slotName: RegExp,
+  ) {
+    await user.click(within(allyRegion()).getByRole("button", { name: slotName }));
+  }
+
+  it("UI-CT-044: restores the previous session's formation, memories and turn limit after a remount", async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await waitForCatalog();
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await placeUnit(user, enemyRegion(), "後衛3にユニットを追加");
+    const turnLimit = screen.getByLabelText(/ターン上限/);
+    await user.clear(turnLimit);
+    await user.type(turnLimit, "42");
+    first.unmount();
+
+    renderPage();
+    await waitForCatalog();
+
+    expect(
+      within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(enemyRegion()).getByRole("button", { name: /後衛3: アルファを変更/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/ターン上限/)).toHaveValue(42);
+  });
+
+  it("UI-CT-045: clears only the slots whose definitions left the catalog", async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await waitForCatalog();
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await user.click(within(allyRegion()).getByRole("button", { name: "前衛2にユニットを追加" }));
+    await user.click(screen.getByRole("button", { name: "ロックを選択" }));
+    first.unmount();
+
+    // "UNIT_LOCKED" だけがCatalogから消えた版で起動し直す。
+    const shrunkCatalog = vi.fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>(() =>
+      Promise.resolve({
+        ok: true,
+        response: {
+          ...catalogResponse(),
+          catalogRevision: "rev-2",
+          units: catalogResponse().units.filter((unit) => unit.unitDefinitionId === "UNIT_A"),
+        },
+      }),
+    );
+    render(
+      <BattleSimulatorPage apiBaseUrl="https://api.example.com" getCatalogImpl={shrunkCatalog} />,
+    );
+    await waitForCatalog();
+
+    expect(
+      within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        within(allyRegion()).getByRole("button", { name: "前衛2にユニットを追加" }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Catalogに存在しない定義です。選択し直してください。")).toBeNull();
+  });
+
+  it("UI-CT-046: prefills a re-placed ally unit from the saved growth data, and never prefills the enemy side", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    await user.click(within(enemyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.selectOptions(screen.getByLabelText("ギア1 の対象ステータス"), "ATTACK");
+    await user.selectOptions(screen.getByLabelText("ギア1 の種別"), "III");
+    await user.selectOptions(screen.getByLabelText("ギア1 のランク"), "S");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    // 枠から外して別の枠へ置き直す（配置の入れ替え相当）。
+    await user.click(within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }));
+    await user.click(screen.getByRole("button", { name: "この枠を空にする" }));
+    await placeUnit(user, allyRegion(), "後衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /後衛1: アルファの強化を編集/);
+
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
+    expect(screen.getByLabelText("ギア1 の対象ステータス")).toHaveValue("ATTACK");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    await placeUnit(user, enemyRegion(), "前衛1にユニットを追加");
+    await user.click(
+      within(enemyRegion()).getByRole("button", { name: /前衛1: アルファの強化を編集/ }),
+    );
+
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(200);
+    expect(screen.getByLabelText("ギア1 の対象ステータス")).toHaveValue("");
+  });
+
+  it("UI-CT-049: keeps the edited growth data when the same unit occupies another ally slot", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    // 同じユニット定義を2枠へ配置する（01_UI要求・画面設計.md §5.1）。
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await placeUnit(user, allyRegion(), "後衛3にユニットを追加");
+
+    // 前方の枠だけを編集する。後方の枠は既定値のまま残る。
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    // 別の入力を動かして保存を1回走らせる。
+    const turnLimit = screen.getByLabelText(/ターン上限/);
+    await user.clear(turnLimit);
+    await user.type(turnLimit, "11");
+
+    // 編集した値が未編集の同一ユニット枠に潰されていない。
+    await placeUnit(user, allyRegion(), "後衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /後衛1: アルファの強化を編集/);
+
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
+  });
+
+  it("UI-CT-047: keeps working when every localStorage write fails", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("exceeded", "QuotaExceededError");
+    });
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    expect(simulateImpl).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.getByText(/戦闘が完了しました/)).toBeInTheDocument();
+    });
+    setItem.mockRestore();
+  });
+
+  it("UI-AC-031: falls back to an empty formation when the stored draft is corrupt", async () => {
+    window.localStorage.setItem("mlgg:last-draft", "{not json");
+    renderPage();
+    await waitForCatalog();
+
+    expect(
+      within(allyRegion()).getByRole("button", { name: "前衛1にユニットを追加" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/ターン上限/)).toHaveValue(10);
+  });
+
+  it("UI-AC-031: ignores a stored draft written by a different schema version", async () => {
+    window.localStorage.setItem(
+      "mlgg:last-draft",
+      JSON.stringify({ schemaVersion: 0, draft: { turnLimit: 77 } }),
+    );
+    renderPage();
+    await waitForCatalog();
+
+    expect(screen.getByLabelText(/ターン上限/)).toHaveValue(10);
+  });
+
+  it("prefills the ally academy levels from the saved growth data after clearing the formation", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    const physical = within(allyRegion()).getByLabelText("物理");
+    await user.clear(physical);
+    await user.type(physical, "50");
+
+    await user.click(screen.getByRole("button", { name: "編成をクリア" }));
+
+    expect(within(allyRegion()).getByLabelText("物理")).toHaveValue(50);
+    expect(within(enemyRegion()).getByLabelText("物理")).toHaveValue(1);
+  });
+
+  it("UI-CT-048: the two reset actions each clear only their own data", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await placeUnit(user, enemyRegion(), "前衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    await user.click(screen.getByRole("button", { name: "編成をクリア" }));
+
+    expect(
+      within(allyRegion()).getByRole("button", { name: "前衛1にユニットを追加" }),
+    ).toBeInTheDocument();
+    expect(
+      within(enemyRegion()).getByRole("button", { name: "前衛1にユニットを追加" }),
+    ).toBeInTheDocument();
+
+    // 手持ちデータは残っているので、置き直せばレベルが戻る。
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    await placeUnit(user, enemyRegion(), "前衛1にユニットを追加");
+    await user.click(screen.getByRole("button", { name: "保存した育成データをクリア" }));
+
+    // 配置と敵側の入力は残し、味方の育成入力だけが既定へ戻る。
+    expect(
+      within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(enemyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }),
+    ).toBeInTheDocument();
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(200);
+  });
+});

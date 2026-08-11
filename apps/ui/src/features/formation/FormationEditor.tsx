@@ -29,7 +29,7 @@ export interface FormationEditorProps {
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onOpenMemorySelection: (side: Side, index: number) => void;
   readonly onOpenUnitEnhancement: (slotKey: string) => void;
-  /** UI-AC-029: 同一陣営内のユニット移動・入れ替えintent。 */
+  /** UI-AC-032: 同一陣営内のユニット移動・入れ替えintent。 */
   readonly onMoveUnit: (fromSlotKey: string, toSlotKey: string) => void;
   readonly onEnhancementToggle: (side: Side, enabled: boolean) => void;
   readonly onAcademyLevelChange: (
@@ -91,7 +91,7 @@ export function FormationEditor({
   const sideLabelJa = side === "ally" ? "味方" : "敵";
   const sideClass = side === "ally" ? styles["ally"] : styles["enemy"];
 
-  // UI-AC-029: 移動元slotKey。dragとキーボード移動モードで共用する。
+  // UI-AC-032: 移動元slotKey。dragとキーボード移動モードで共用する。
   // stateが陣営別のeditorインスタンスに閉じているため、反対陣営のslotは
   // 配置先にならない（同一陣営制約の実体）。
   const [moveSourceSlotKey, setMoveSourceSlotKey] = useState<string | null>(null);
@@ -133,7 +133,7 @@ export function FormationEditor({
         <span className={styles["badge"]}>{sideLabelJa}</span>
       </div>
 
-      {/* 移動モードの進行状態を読み上げへ届ける（UI-CT-046）。 */}
+      {/* 移動モードの進行状態を読み上げへ届ける（UI-CT-052）。 */}
       <p aria-live="polite" className={styles["visuallyHidden"]}>
         {moveAnnouncement}
       </p>
@@ -163,7 +163,7 @@ export function FormationEditor({
                     {...(imageMap !== undefined ? { imageMap } : {})}
                     onOpen={() => {
                       // 移動モード中はslot起動を「この枠へ配置」に読み替え、
-                      // 移動元自身の起動は中止として扱う（UI-AC-029）。
+                      // 移動元自身の起動は中止として扱う（UI-AC-032）。
                       if (moveSourceSlotKey === null) {
                         onOpenUnitSelection(slot.slotKey);
                       } else if (moveSourceSlotKey === slot.slotKey) {

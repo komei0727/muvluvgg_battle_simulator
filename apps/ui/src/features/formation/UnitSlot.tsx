@@ -21,9 +21,9 @@ export interface UnitSlotProps {
   /** UI-AC-027: 開始時ステータスの取得状態。 */
   readonly statPreviewStatus?: "unavailable" | "loading" | "failed" | "ready";
   readonly statPreview?: FormationStatPreviewUnit;
-  /** UI-AC-029: この枠が移動元（drag中またはキーボード移動モード）。 */
+  /** UI-AC-032: この枠が移動元（drag中またはキーボード移動モード）。 */
   readonly moveSource?: boolean;
-  /** UI-AC-029: 同陣営の別枠から移動が進行中で、この枠が配置先になれる。 */
+  /** UI-AC-032: 同陣営の別枠から移動が進行中で、この枠が配置先になれる。 */
   readonly moveTarget?: boolean;
   readonly onMoveStart?: () => void;
   readonly onMoveCancel?: () => void;
@@ -119,7 +119,7 @@ export function UnitSlot({
       }}
       onDragOver={(event) => {
         // preventDefaultしない枠へはブラウザがdropを拒否する — これが
-        // 陣営跨ぎ・移動元自身・実行中への配置を防ぐ実体（UI-AC-029）。
+        // 陣営跨ぎ・移動元自身・実行中への配置を防ぐ実体（UI-AC-032）。
         if (moveTarget) {
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";

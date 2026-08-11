@@ -158,7 +158,7 @@ test("switches between the event, transition, and JSON tabs and copies the JSON"
 });
 
 // UI-E2E-011: drag&dropで同陣営内の移動・入れ替えができ、陣営を跨ぐdropは
-// 編成を変更しない(UI-AC-029)。ally/enemyのslotは同じaccessible nameを持つ
+// 編成を変更しない(UI-AC-032)。ally/enemyのslotは同じaccessible nameを持つ
 // ため、fillMinimalFormationと同じく「埋まると名前が変わる」性質で先頭
 // matchをally側として特定する。
 test("moves and swaps units within a side via drag and drop, rejecting cross-side drops", async ({

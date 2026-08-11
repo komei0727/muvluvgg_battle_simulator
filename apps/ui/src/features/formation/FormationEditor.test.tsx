@@ -221,7 +221,7 @@ describe("FormationEditor", () => {
   });
 });
 
-describe("FormationEditor — ユニット移動 (UI-CT-044/045/046)", () => {
+describe("FormationEditor — ユニット移動 (UI-CT-050/051/052)", () => {
   function dataTransferStub() {
     return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };
   }

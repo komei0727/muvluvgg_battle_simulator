@@ -90,7 +90,7 @@ test("reaches every step of unit selection through the details tabs via real Tab
 
 // UI-E2E-012 / UI-NFR-001: キーボードだけでユニット枠の移動ができる。
 // 「移動」buttonで移動モードへ入り、実Tab/Enterで配置先を選ぶ。Escapeでの
-// 中止も同じ実keystrokeで検証する(UI-AC-029)。
+// 中止も同じ実keystrokeで検証する(UI-AC-032)。
 test("moves a unit to another slot using only the keyboard, and cancels with Escape", async ({
   page,
 }) => {

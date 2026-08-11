@@ -11,7 +11,7 @@ import type {
   FormationAction,
   SelectionDialogState,
 } from "../features/formation/formation-reducer.js";
-import type { BattleDraft } from "../features/formation/types.js";
+import type { BattleDraft, Side, UnitEnhancementInput } from "../features/formation/types.js";
 import type { UiViolation } from "../features/formation/draft-validation.js";
 import type { BattleSimulationCatalogResponse } from "../features/simulation/api-contract.js";
 
@@ -22,6 +22,14 @@ export interface SelectionDialogsProps {
   readonly unitImageMap: Readonly<Record<string, string>>;
   readonly memoryImageMap: Readonly<Record<string, string>>;
   readonly violations: readonly UiViolation[];
+  /**
+   * 手持ちデータからのプリフィル値（01_UI要求・画面設計.md §5.9）。dispatch前に
+   * ストアを引き、actionのpayloadへ乗せる。敵枠は`undefined`を返す。
+   */
+  readonly prefillEnhancementFor: (
+    side: Side,
+    unitDefinitionId: string,
+  ) => UnitEnhancementInput | undefined;
   readonly dispatch: (action: FormationAction) => void;
 }
 
@@ -35,6 +43,7 @@ export function SelectionDialogs({
   unitImageMap,
   memoryImageMap,
   violations,
+  prefillEnhancementFor,
   dispatch,
 }: SelectionDialogsProps) {
   if (selectionDialog.kind === "unit") {
@@ -55,7 +64,13 @@ export function SelectionDialogs({
         atCapacity={atCapacity}
         imageMap={unitImageMap}
         onSelect={(unitDefinitionId) => {
-          dispatch({ type: "unitSelected", slotKey, unitDefinitionId });
+          const enhancement = prefillEnhancementFor(slot.side, unitDefinitionId);
+          dispatch({
+            type: "unitSelected",
+            slotKey,
+            unitDefinitionId,
+            ...(enhancement === undefined ? {} : { enhancement }),
+          });
         }}
         onRemove={() => {
           dispatch({ type: "unitRemoved", slotKey });

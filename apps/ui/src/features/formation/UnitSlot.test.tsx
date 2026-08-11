@@ -298,7 +298,7 @@ describe("UnitSlot — ステータスプレビュー (UI-CT-038)", () => {
   });
 });
 
-describe("UnitSlot — ユニット移動 (UI-CT-044/045)", () => {
+describe("UnitSlot — ユニット移動 (UI-CT-050/051)", () => {
   // jsdomはDataTransferを実装しないため、drag系イベントへはスタブを渡す。
   function dataTransferStub() {
     return { setData: vi.fn(), effectAllowed: "", dropEffect: "" };

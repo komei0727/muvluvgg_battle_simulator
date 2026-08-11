@@ -138,7 +138,14 @@ export function createInitialUnitEnhancement(): UnitEnhancementInput {
   };
 }
 
-export function createInitialDraft(): BattleDraft {
+/**
+ * `allyAcademyLevels`は手持ちデータ（`persistence.ts`）からのプリフィル値。
+ * 学園レベルはユニット定義に依存しないため、編成をクリアしても引き継ぐ。
+ */
+export function createInitialDraft(
+  allyAcademyLevels?: SideEnhancementInput["academyLevels"],
+): BattleDraft {
+  const allyEnhancement = createInitialSideEnhancement();
   return {
     allySlots: createSlots("ally"),
     enemySlots: createSlots("enemy"),
@@ -146,7 +153,10 @@ export function createInitialDraft(): BattleDraft {
     enemyMemoryDefinitionIds: createEmptyMemorySlots(),
     turnLimit: DEFAULT_TURN_LIMIT,
     logLevel: "DETAILED",
-    allyEnhancement: createInitialSideEnhancement(),
+    allyEnhancement:
+      allyAcademyLevels === undefined
+        ? allyEnhancement
+        : { ...allyEnhancement, academyLevels: allyAcademyLevels },
     enemyEnhancement: createInitialSideEnhancement(),
   };
 }
