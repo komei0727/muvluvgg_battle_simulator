@@ -20,11 +20,15 @@ const MODULE_RATIO = 0.09;
 /** R-ENH-05 #1: `baseStats`が表すレベル。指定が無いユニットはこのレベルとして扱う。 */
 export const DEFAULT_UNIT_LEVEL = 200;
 
-/** ユニット単位の強化指定と、陣営から降りてくる学園レベル（R-ENH-01 #1）。 */
+/**
+ * ユニット単位の強化指定と、陣営から降りてくる学園レベル（R-ENH-01 #1）。
+ * 各項目は「無指定＝既定値」であり、呼び出し側が任意フィールドを素通しで
+ * 組み立てられるよう明示的に`undefined`も受ける。
+ */
 export interface UnitEnhancement {
-  readonly academyLevels?: AcademyLevels;
-  readonly level?: number;
-  readonly gears?: readonly GearSpecification[];
+  readonly academyLevels?: AcademyLevels | undefined;
+  readonly level?: number | undefined;
+  readonly gears?: readonly GearSpecification[] | undefined;
 }
 
 /** 強化計算が参照するユニット定義の部分集合。 */

@@ -1715,4 +1715,89 @@ describe("battle scenarios (harness)", () => {
       expect(restored).toEqual(result.finalState);
     });
   });
+  describe("M11 base stat enhancement (ENH-003)", () => {
+    it("IT-ENH-001 (R-ENH-01/06): an enhanced side's starting combatStats are computed from the enhanced base stats, while the other side keeps its Unit definition's baseStats", () => {
+      const catalog = new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_ALLY", {
+            levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+          }),
+          unitDefinition("UNIT_ENEMY"),
+        )
+        .build();
+
+      const result = runScenario({
+        catalog,
+        command: battleCommand({
+          allyFormation: {
+            slots: [
+              {
+                ...formationSlot("UNIT_ALLY", 0),
+                enhancement: {
+                  level: 210,
+                  gears: [{ stat: "CRITICAL_RATE", tier: "II", grade: "S" }],
+                },
+              },
+            ],
+            memoryDefinitionIds: [],
+            enhancement: {
+              academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+            },
+          },
+          enemyFormation: {
+            slots: [formationSlot("UNIT_ENEMY", 0)],
+            memoryDefinitionIds: [],
+          },
+          turnLimit: 1,
+        }),
+      });
+
+      const ally = result.initialState.units[createBattleUnitId("ally:1")]!;
+      // HP     (100 + 2040 + 4080 + 19320 + 3628 + 10×255) × 1.09
+      // 攻撃力 (10 + 1440 + 2880 + 14340 + 2721 + 10×209) × 1.09
+      expect(ally.combatStats.maximumHp).toBeCloseTo(34572.62, 4);
+      expect(ally.combatStats.attack).toBeCloseTo(25594.29, 4);
+      // 会心率はギア合計割合の単純加算、行動速度はレベル増加のみ（R-ENH-06）。
+      expect(ally.combatStats.criticalRate).toBeCloseTo(0.1525, 12);
+      expect(ally.combatStats.actionSpeed).toBeCloseTo(30, 6);
+      // R-NUM-02: HPゲージの現在値は整数へ切り捨てる。
+      expect(ally.hp).toBe(34572);
+
+      // R-ENH-01 #6: 敵陣営は強化指定を持たないため従来どおり。
+      const enemy = result.initialState.units[createBattleUnitId("enemy:1")]!;
+      expect(enemy.combatStats.maximumHp).toBe(100);
+      expect(enemy.combatStats.attack).toBe(10);
+      expect(enemy.combatStats.criticalRate).toBeCloseTo(0.1, 12);
+      expect(enemy.hp).toBe(100);
+    });
+
+    it("IT-ENH-002 (backward compatibility): a request with no enhancement produces exactly the same battle as before the M11 fields existed", () => {
+      const catalog = new CatalogBuilder()
+        .withUnit(unitDefinition("UNIT_ALLY"), unitDefinition("UNIT_ENEMY"))
+        .build();
+      const command = battleCommand({ turnLimit: 2 });
+
+      const result = runScenario({ catalog, command });
+
+      const ally = result.initialState.units[createBattleUnitId("ally:1")]!;
+      expect(ally.combatStats).toMatchObject({
+        maximumHp: 100,
+        attack: 10,
+        defense: 10,
+        actionSpeed: 10,
+      });
+      // 対照条件: 同じ編成へ空の陣営強化を足すだけで結果が変わる。つまり上の
+      // 同一性は「強化経路が存在しない」からではなく「指定が無い」からである。
+      const enhanced = runScenario({
+        catalog,
+        command: {
+          ...command,
+          allyFormation: { ...command.allyFormation, enhancement: {} },
+        },
+      });
+      expect(
+        enhanced.initialState.units[createBattleUnitId("ally:1")]!.combatStats.attack,
+      ).toBeCloseTo(18607.39, 4);
+    });
+  });
 });

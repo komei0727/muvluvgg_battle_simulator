@@ -1,7 +1,8 @@
 import type { Attribute } from "../catalog/definitions/catalog-enums.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../catalog/definitions/catalog-ids.js";
 import type { MemoryDefinition } from "../catalog/definitions/memory-definition.js";
-import type { UnitDefinition } from "../catalog/definitions/unit-definition.js";
+import type { BaseStats, UnitDefinition } from "../catalog/definitions/unit-definition.js";
+import { calculateEnhancedBaseStats } from "../battle/model/enhanced-base-stats-calculator.js";
 import { DomainValidationError } from "../shared/errors.js";
 import type { BattleUnitId } from "../shared/ids.js";
 import type { BattleParty, BattlePartyMember } from "../battle/model/battle-party.js";
@@ -80,6 +81,27 @@ export function createBattleParty(
   const attributes: Attribute[] = slotUnits.map(({ unitDefinition }) => unitDefinition.attribute);
   const formationBonus: FormationBonus = calculateFormationBonus(attributes);
 
+  /**
+   * R-ENH-01 #2/R-ENH-06: 陣営の強化指定があるときだけ、R-STA-01の基本値を
+   * 強化後基本ステータスへ差し替える。指定が無い陣営は`baseStats`をそのまま使う
+   * （従来動作。既存リクエストの結果を変えない）。編成ボーナス・適性補正の
+   * 適用規則は差し替えの前後で変わらない。
+   */
+  function resolveBaseStats(
+    unitDefinition: UnitDefinition,
+    slot: FormationInput["slots"][number],
+  ): BaseStats {
+    const enhancement = formation.enhancement;
+    if (enhancement === undefined) {
+      return unitDefinition.baseStats;
+    }
+    return calculateEnhancedBaseStats(unitDefinition, {
+      academyLevels: enhancement.academyLevels,
+      level: slot.enhancement?.level,
+      gears: slot.enhancement?.gears,
+    });
+  }
+
   const members: BattlePartyMember[] = slotUnits.map(({ slot, unitDefinition }, index) => ({
     battleUnitId: battleUnitIds[index]!,
     unitDefinitionId: slot.unitDefinitionId,
@@ -87,7 +109,7 @@ export function createBattleParty(
     position: slot.position,
     globalCoordinate: toGlobalCoordinate(side, slot.position),
     combatStats: calculateStartingCombatStats({
-      baseStats: unitDefinition.baseStats,
+      baseStats: resolveBaseStats(unitDefinition, slot),
       positionAptitudes: unitDefinition.positionAptitudes,
       row: slot.position.row,
       formationBonus,

@@ -344,6 +344,94 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.json<ErrorResponseBody>().error.code).toBe("NOT_ACCEPTABLE");
   });
 
+  it("API-CONTRACT-028 (10_API設計.md「FormationEnhancementRequest」): accepts a request carrying formation-level and unit-level enhancement", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "UNIT_001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: { gears: [{ stat: "ATTACK", tier: "III", grade: "S" }] },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {
+            academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+          },
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("API-CONTRACT-029: returns 400 MALFORMED_REQUEST for a structurally invalid enhancement (unknown property, unknown academy system, wrong type)", async () => {
+    const payloads = [
+      { enhancement: { academyLevels: {}, unknownField: 1 } },
+      { enhancement: { academyLevels: { unitTypes: { PHYSICAL: 50, WATER: 3 } } } },
+      { enhancement: { academyLevels: { unitTypes: { PHYSICAL: "50" } } } },
+    ];
+
+    for (const enhancement of payloads) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody({
+          allyFormation: {
+            units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+            memoryDefinitionIds: [],
+            ...enhancement,
+          },
+        }),
+      });
+
+      expect(response.statusCode, JSON.stringify(enhancement)).toBe(400);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("MALFORMED_REQUEST");
+    }
+  });
+
+  it("API-CONTRACT-030 (R-ENH-01/02): returns 422 INVALID_COMMAND for enhancement values that are structurally fine but out of range", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+          enhancement: { academyLevels: { unitTypes: { PHYSICAL: 0 } } },
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("INVALID_COMMAND");
+  });
+
+  it("API-CONTRACT-031 (R-ENH-01 #3): returns 422 INVALID_COMMAND for a unit enhancement without its own formation enhancement", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "UNIT_001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: { gears: [] },
+            },
+          ],
+          memoryDefinitionIds: [],
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("INVALID_COMMAND");
+  });
+
   it("API-CONTRACT-016 (10_API設計.md「ErrorObject」diagnosticId): an unexpected exception (not an ApplicationError) returns 500 with a diagnosticId, without leaking the exception message", async () => {
     const throwingApp = await buildServer({
       execute: () => {

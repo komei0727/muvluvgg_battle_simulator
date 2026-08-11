@@ -44,6 +44,8 @@ export interface UnitDefinitionOverrides {
   readonly role?: UnitDefinition["role"];
   readonly positionAptitudes?: UnitDefinition["positionAptitudes"];
   readonly baseStats?: Partial<UnitDefinition["baseStats"]>;
+  /** R-ENH-05: 既定では持たない（成長値未投入のUnitが実在するため）。 */
+  readonly levelGrowth?: UnitDefinition["levelGrowth"];
   readonly extraGaugeMaximum?: number;
   readonly activeSkillDefinitionIds?: readonly SkillDefinitionId[];
   readonly passiveSkillDefinitionIds?: readonly SkillDefinitionId[];
@@ -73,6 +75,7 @@ export function unitDefinition(
       maximumPp: 3,
       ...overrides.baseStats,
     },
+    ...(overrides.levelGrowth === undefined ? {} : { levelGrowth: overrides.levelGrowth }),
     extraGaugeMaximum: overrides.extraGaugeMaximum ?? 100,
     activeSkillDefinitionIds: overrides.activeSkillDefinitionIds ?? [],
     passiveSkillDefinitionIds: overrides.passiveSkillDefinitionIds ?? [],

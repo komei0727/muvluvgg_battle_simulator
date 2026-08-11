@@ -1,4 +1,10 @@
-import type { FormationPositionInput, SimulateBattleCommand } from "./simulate-battle-command.js";
+import type {
+  FormationEnhancementInput,
+  FormationPositionInput,
+  GearInput,
+  SimulateBattleCommand,
+  UnitEnhancementInput,
+} from "./simulate-battle-command.js";
 import type { BattleSimulationRequestBody, FormationRequestBody } from "../contracts/request.js";
 import type {
   MemoryDefinitionId,
@@ -29,13 +35,49 @@ function toFormationPositionInput(
   return { column: position.column as 0 | 1 | 2, row: position.row as "FRONT" | "REAR" };
 }
 
+/**
+ * R-ENH-01 #1: ユニット単位の強化指定。列挙値・値域はここでは検査せず、
+ * `validateCommandShape`（`422 INVALID_COMMAND`）へ委ねる — 他の入力（`row`や
+ * `logLevel`）と同じく、Command検証で違反をまとめて収集するため。
+ */
+function toUnitEnhancementInput(
+  enhancement: NonNullable<FormationRequestBody["units"][number]["enhancement"]>,
+): UnitEnhancementInput {
+  return {
+    ...(enhancement.level === undefined ? {} : { level: enhancement.level }),
+    ...(enhancement.gears === undefined
+      ? {}
+      : { gears: enhancement.gears.map((gear) => gear as GearInput) }),
+  };
+}
+
+/**
+ * R-ENH-01 #2: 陣営の強化指定は「存在すること」自体が全ユニットを強化対象にする。
+ * `academyLevels`が無い空オブジェクトも意味を持つため、そのまま保持する。
+ */
+function toFormationEnhancementInput(
+  enhancement: NonNullable<FormationRequestBody["enhancement"]>,
+): FormationEnhancementInput {
+  return {
+    ...(enhancement.academyLevels === undefined
+      ? {}
+      : { academyLevels: enhancement.academyLevels }),
+  };
+}
+
 function toFormationInput(formation: FormationRequestBody): SimulateBattleCommand["allyFormation"] {
   return {
     slots: formation.units.map((unit) => ({
       unitDefinitionId: toUnitDefinitionId(unit.unitDefinitionId),
       position: toFormationPositionInput(unit.position),
+      ...(unit.enhancement === undefined
+        ? {}
+        : { enhancement: toUnitEnhancementInput(unit.enhancement) }),
     })),
     memoryDefinitionIds: formation.memoryDefinitionIds.map(toMemoryDefinitionId),
+    ...(formation.enhancement === undefined
+      ? {}
+      : { enhancement: toFormationEnhancementInput(formation.enhancement) }),
   };
 }
 

@@ -2,10 +2,15 @@ import { STAT_KINDS, type StatKind } from "../../catalog/definitions/catalog-enu
 import { createPercentage, type Percentage } from "../../shared/percentage.js";
 
 /** R-ENH-04 #2: ギアの種別（ギアⅡ／ギアⅢ）。 */
-export type GearTier = "II" | "III";
+export const GEAR_TIERS = ["II", "III"] as const;
+export type GearTier = (typeof GEAR_TIERS)[number];
 
 /** R-ENH-04 #2: ギアのランク。 */
-export type GearGrade = "D" | "C" | "B" | "A" | "S";
+export const GEAR_GRADES = ["D", "C", "B", "A", "S"] as const;
+export type GearGrade = (typeof GEAR_GRADES)[number];
+
+/** R-ENH-04 #1: 1ユニットへ指定できるギアの上限。 */
+export const MAX_GEARS_PER_UNIT = 9;
 
 /** ユニット単位で指定する1個のギア（R-ENH-01 #1）。対象は強化対象7ステータス。 */
 export interface GearSpecification {

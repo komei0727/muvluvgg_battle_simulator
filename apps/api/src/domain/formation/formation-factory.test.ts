@@ -322,6 +322,115 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.members[0]!.combatStats.attack).toBeCloseTo(10);
   });
 
+  it("UT-R-ENH-01-002 (R-ENH-01 #2/R-ENH-06): a side-level enhancement replaces the R-STA-01 base value for every unit of that side, including units with no enhancement of their own", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_002"),
+          position: { column: "CENTER", row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: {},
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1"), createBattleUnitId("BU_2")];
+    const units = unitsMap(
+      unitDefinition("UNIT_001", "AGGRESSIVE"),
+      unitDefinition("UNIT_002", "AGGRESSIVE"),
+    );
+
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
+
+    // タイプ装備・モジュールは強化対象へ常時適用される（R-ENH-03）:
+    // 攻撃力 (10 + 14340 + 2721) × 1.09、防御力 (10 + 7980 + 1515) × 1.09。
+    for (const member of party.members) {
+      expect(member.combatStats.attack).toBeCloseTo(18607.39, 4);
+      expect(member.combatStats.defense).toBeCloseTo(10360.45, 4);
+      expect(member.combatStats.actionSpeed).toBeCloseTo(10, 4);
+    }
+  });
+
+  it("UT-R-ENH-01-003 (backward compatibility): a formation without an enhancement keeps using the Unit definition's baseStats", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [],
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1")];
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
+
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
+
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(10, 6);
+    expect(party.members[0]!.combatStats.defense).toBeCloseTo(10, 6);
+  });
+
+  it("UT-R-ENH-06-007: composes academy levels, level growth and gears into the base value", () => {
+    const enhanced: UnitDefinition = {
+      ...unitDefinition("UNIT_001", "AGGRESSIVE"),
+      levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+    };
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+          enhancement: { level: 220, gears: [{ stat: "ATTACK", tier: "III", grade: "S" }] },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: {
+        academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+      },
+    };
+
+    const party = createBattleParty(
+      "ALLY",
+      formation,
+      [createBattleUnitId("BU_1")],
+      unitsMap(enhanced),
+      NO_MEMORIES,
+    );
+
+    // 攻撃力 (10 + 1440 + 2880 + 14340 + 2721 + 20×209) × (1 + 0.09 + 0.0333)
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(28723.9043, 4);
+    // 行動速度は学園レベル・タイプ装備・モジュールの対象外: (10 + 20×2) × 1
+    expect(party.members[0]!.combatStats.actionSpeed).toBeCloseTo(50, 6);
+  });
+
+  it("UT-R-ENH-06-008 (R-ENH-06): the aptitude penalty still applies on top of the enhanced base value", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "BACK" },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: {},
+    };
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE", ["FRONT"]));
+
+    const party = createBattleParty(
+      "ALLY",
+      formation,
+      [createBattleUnitId("BU_1")],
+      units,
+      NO_MEMORIES,
+    );
+
+    // 適正外配置の -5%（R-STA-01）が、強化後の攻撃力 18607.39 に対して掛かる。
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(17677.0205, 4);
+  });
+
   it("UT-R-FRM-FACTORY-008: rejects a formation referencing an unknown MemoryDefinitionId", () => {
     const formation: FormationInput = {
       slots: [
