@@ -107,56 +107,38 @@ function scalingPoints(breakCount: number): ExerciseScalingPoints {
 }
 
 /**
- * 原基準値を10進として読み直すときの有効桁数。倍精度浮動小数が一意に往復できる
- * 桁数であり、この桁数の10進表記は元のdoubleへ戻したときに必ず同じ値になる。
+ * doubleが保持している厳密な値を `numerator / denominator`（分母は2の冪）で表す。
+ * 2倍は浮動小数でも厳密なため、整数になるまで2倍する操作は値を変えない。
  */
-const BASE_VALUE_SIGNIFICANT_DIGITS = 15;
-
-/** `unscaled / 10^scale` で表す10進固定小数点値。 */
-interface DecimalValue {
-  readonly unscaled: bigint;
-  readonly scale: number;
-}
-
-/** `Number.prototype.toPrecision`が返す10進表記（指数表記を含む）を固定小数点へ分解する。 */
-function toDecimalValue(text: string): DecimalValue {
-  const [mantissa, exponentText] = text.split("e");
-  const exponent = exponentText === undefined ? 0 : Number(exponentText);
-  const negative = mantissa!.startsWith("-");
-  const digits = negative ? mantissa!.slice(1) : mantissa!;
-  const [integerPart, fractionPart = ""] = digits.split(".");
-  const unscaled = BigInt(integerPart! + fractionPart);
-  return {
-    unscaled: negative ? -unscaled : unscaled,
-    scale: fractionPart.length - exponent,
-  };
+function toExactRational(value: number): { numerator: bigint; denominator: bigint } {
+  let scaled = value;
+  let denominator = 1n;
+  while (!Number.isInteger(scaled)) {
+    scaled *= 2;
+    denominator *= 2n;
+  }
+  return { numerator: BigInt(scaled), denominator };
 }
 
 /**
  * 原基準値へパーセントポイントの強化量を適用し、R-NUM-02に従って切り捨てる。
  *
- * 二進浮動小数のまま掛けて切り捨てると、数学上ちょうど整数になる積が整数のわずか
- * 下へずれて1小さくなる（原基準値129.2・7ブレイクの `129.2 × 250 / 100` は
- * `322.99999999999994`）。一方、誤差として吸収する幅を設ける方式では、意味のある
- * 端数（`200057283 × 110.18% × 105% × 385% = 891060439.9999995`）まで吸着してしまう
- * — 許容幅を絶対値で決めても値の大きさで決めても、原基準値に上限が無い以上どこかの
- * 領域で必ず衝突する。
+ * 切り捨てる対象は、原基準値としてBattleが保持している**doubleの厳密な値**である。
+ * 浮動小数のまま掛けて切り捨てると、数学上ちょうど整数になる積が整数のわずか下へ
+ * ずれて1小さくなる（`45 × 140 / 100`）ため、乗算と除算をBigIntの厳密演算で行い、
+ * 0方向除算にそのまま切り捨てさせる。
  *
- * そこで浮動小数の推測をやめ、10進固定小数点の厳密演算で求める。原基準値は15有効桁の
- * 10進として読み直し（doubleが一意に往復できる桁数であり、そこから先の桁はdouble自身が
- * 保持していない）、パーセントポイントは整数のまま掛けて100で割る。除算の切り捨ては
- * BigIntの0方向除算がそのまま担う。
+ * 「doubleを10進として解釈し直す」推測は行わない。doubleは10進の意図を保持して
+ * おらず、後段でそれを復元しようとすると必ず破綻する — 誤差として吸収する幅を
+ * 設ける方式でも、有効桁数で丸め直す方式でも、原基準値に上限が無い以上、意味のある
+ * 端数（例: `200057283 × 110.18% × 105% × 385% = 891060439.9999995` は整数から
+ * わずか4 ULP下）と演算誤差（例: `129.2 × 250 / 100` は1 ULP下）を区別できない
+ * 領域が生じるためである。10進の意図が必要な場合は、原基準値の生成段階から
+ * 10進固定小数点で保持する（`CombatStats`の表現自体を変える）ほかない。
  */
 function scaleByPoints(baseValue: number, points: number): number {
-  const { unscaled, scale } = toDecimalValue(baseValue.toPrecision(BASE_VALUE_SIGNIFICANT_DIGITS));
-  let numerator = unscaled * BigInt(points);
-  let denominator = 100n;
-  if (scale >= 0) {
-    denominator *= 10n ** BigInt(scale);
-  } else {
-    numerator *= 10n ** BigInt(-scale);
-  }
-  return Number(numerator / denominator);
+  const { numerator, denominator } = toExactRational(baseValue);
+  return Number((numerator * BigInt(points)) / (100n * denominator));
 }
 
 /**

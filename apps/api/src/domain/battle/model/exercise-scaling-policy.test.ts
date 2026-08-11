@@ -24,6 +24,30 @@ function cumulativeIncrement(breakCount: number): number {
   return total;
 }
 
+/**
+ * doubleが保持する厳密な値を `numerator / denominator` で表す、production実装とは
+ * 独立した導出（IEEE754のビット列から直接組み立てる）。
+ */
+function exactRationalOf(value: number): { numerator: bigint; denominator: bigint } {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, value);
+  const bits = view.getBigUint64(0);
+  const negative = (bits >> 63n) & 1n;
+  const biasedExponent = Number((bits >> 52n) & 0x7ffn);
+  const fraction = bits & 0xf_ffff_ffff_ffffn;
+  const mantissa = biasedExponent === 0 ? fraction : fraction | (1n << 52n);
+  const exponent = (biasedExponent === 0 ? 1 : biasedExponent) - 1075;
+  const numerator = exponent >= 0 ? mantissa << BigInt(exponent) : mantissa;
+  const denominator = exponent >= 0 ? 1n : 1n << BigInt(-exponent);
+  return { numerator: negative === 1n ? -numerator : numerator, denominator };
+}
+
+/** R-NUM-02: 原基準値（doubleの厳密値）へppを掛けて100で割り、0方向へ切り捨てた値。 */
+function exactScaledStat(baseValue: number, points: number): number {
+  const { numerator, denominator } = exactRationalOf(baseValue);
+  return Number((numerator * BigInt(points)) / (100n * denominator));
+}
+
 const ORIGINAL: CombatStats = {
   maximumHp: 10_000,
   attack: 2_000,
@@ -117,7 +141,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
 
   it("UT-R-TEX-04-010: an enhanced quantity stat that is mathematically an integer is not dropped by one through floating-point drift", () => {
     // 45 × 1.40 は数学上ちょうど63。倍率を経由して掛けると 62.99999999999999 になり、
-    // 切り捨てが62へ落ちる。パーセントポイントの整数のまま適用して防ぐ。
+    // 切り捨てが62へ落ちる。原基準値の厳密値とppの整数で計算して防ぐ。
     const enhanced = applyExerciseScaling(
       { ...ORIGINAL, maximumHp: 45, attack: 45, defense: 45, actionSpeed: 45 },
       2,
@@ -140,8 +164,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
             { ...ORIGINAL, maximumHp: base, attack: base, defense: base, actionSpeed: base },
             breakCount,
           );
-          const exact = (points: number): number =>
-            Number((BigInt(base) * BigInt(100 + points)) / 100n);
+          const exact = (points: number): number => exactScaledStat(base, 100 + points);
 
           expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
           expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
@@ -178,11 +201,52 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     });
     expect(original.attack).toBe(129.2);
 
-    // 7ブレイクは累計150pp（×2.50）。129.2 × 2.5 は数学上ちょうど323。
+    // 7ブレイクは累計150pp（×2.50）。10進の129.2なら積はちょうど323だが、原基準値が
+    // 保持しているdoubleは129.2をわずかに下回る値であり、その厳密な積は323未満になる。
+    // R-NUM-02はBattleが保持している値を切り捨てる規則であり、10進の意図を復元しない。
     const enhanced = applyExerciseScaling(original, 7);
-    expect(enhanced.maximumHp).toBe(323);
-    expect(enhanced.attack).toBe(323);
-    expect(enhanced.defense).toBe(323);
+    expect(enhanced.maximumHp).toBe(322);
+    expect(enhanced.attack).toBe(322);
+    expect(enhanced.defense).toBe(322);
+    // 同じ理由で、HPゲージ境界（`createHitPoint`）が同じ原基準値を整数化した場合とも一致する。
+    expect(enhanced.attack).toBe(Math.trunc(exactScaledStat(original.attack, 250)));
+  });
+
+  it("UT-R-TEX-04-016: a large enhanced base keeps its meaningful fraction truncated, with no significant digits rounded away first", () => {
+    // 加算前基準値9,000,198,031 = 9,000,180,970 + タイプ装備14,340 + モジュール固定2,721。
+    // ギアII・Sの攻撃は+2.49pp。編成+10%・適性−5%で原基準値は10536036823.999995 相当。
+    const enhancedBase = calculateEnhancedBaseStats(
+      {
+        attribute: "AGGRESSIVE",
+        unitType: "PHYSICAL",
+        baseStats: {
+          maximumHp: 1,
+          attack: 9_000_180_970,
+          defense: 0,
+          criticalRate: 0,
+          actionSpeed: 0,
+          criticalDamageBonus: 0,
+          affinityBonus: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+        },
+      },
+      { gears: [{ stat: "ATTACK", tier: "II", grade: "S" }] },
+    );
+    const original = calculateStartingCombatStats({
+      baseStats: enhancedBase,
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: {
+        attackBonus: createPercentage(0.1),
+        hpBonus: createPercentage(0),
+        defenseBonus: createPercentage(0),
+        criticalRateBonus: createPercentage(0),
+      },
+    });
+
+    // 有効桁で丸め直す実装は、切り捨てる前にこの端数を消して10536036824を返していた。
+    expect(applyExerciseScaling(original, 0).attack).toBe(10_536_036_823);
   });
 
   it("UT-R-TEX-04-013: a meaningful fraction produced by the enhanced-base-stats path is truncated, not rounded up (R-NUM-02)", () => {
@@ -264,7 +328,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(applyExerciseScaling(original, 12).attack).toBe(891_060_439);
   });
 
-  it("UT-R-TEX-04-012: every aptitude-penalised base and break count in a dense grid matches the exact decimal value, so a one-off truncation drift cannot slip through", () => {
+  it("UT-R-TEX-04-012: every aptitude-penalised base and break count in a dense grid matches the exact truncation of the stored value, so a one-off drift cannot slip through", () => {
     // 誤差で1小さくなる組み合わせは全体の0.06%程度しかなく、乱択200件では取りこぼす。
     // 実データが取りうる範囲を決定的に総当たりして、この欠陥種別を確実に捕まえる。
     const mismatches: string[] = [];
@@ -276,7 +340,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           breakCount,
         );
         const points = 100 + cumulativeIncrement(Math.min(breakCount, 20));
-        const exact = Number((BigInt(baseStatValue) * 95n * BigInt(points)) / 10_000n);
+        const exact = exactScaledStat(penalised, points);
         if (enhanced.attack !== exact) {
           mismatches.push(
             `base=${baseStatValue} breaks=${breakCount}: ${enhanced.attack}≠${exact}`,
@@ -288,7 +352,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(mismatches.slice(0, 5)).toEqual([]);
   });
 
-  it("PROP-TEX-005: a fractional original base (aptitude-penalised) still yields the exactly-truncated decimal value", () => {
+  it("PROP-TEX-005: a fractional original base (aptitude-penalised) still yields the exact truncation of the stored value", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 1_000_000 }),
@@ -306,9 +370,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
             },
             breakCount,
           );
-          // 期待値は10進の厳密値: `baseStatValue × 95 × (100 + pp) / (100 × 100)`。
-          const exact = (points: number): number =>
-            Number((BigInt(baseStatValue) * 95n * BigInt(100 + points)) / 10_000n);
+          const exact = (points: number): number => exactScaledStat(penalised, 100 + points);
 
           expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
           expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
@@ -319,9 +381,8 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     );
   });
 
-  it("UT-R-TEX-04-015: base values that JavaScript prints in exponent notation are scaled correctly too", () => {
-    // `toPrecision`は|v| < 1e-6 と |v| >= 1e21 で指数表記へ切り替わる。10進読み直しが
-    // その表記でも成立することを固定する。
+  it("UT-R-TEX-04-015: extreme magnitudes are scaled without losing the truncation contract", () => {
+    // 2の冪へ寄せる厳密演算が、非正規化に近い微小値と2^53を超える巨大値でも成立することを固定する。
     const tiny = applyExerciseScaling({ ...ORIGINAL, attack: 1e-7 }, 2);
     expect(tiny.attack).toBe(0);
 
