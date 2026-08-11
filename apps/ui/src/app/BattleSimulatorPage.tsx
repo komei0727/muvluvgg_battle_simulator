@@ -138,6 +138,9 @@ export function BattleSimulatorPage({
                   onAcademyLevelChange={(side, group, key, value) => {
                     dispatch({ type: "academyLevelChanged", side, group, key, value });
                   }}
+                  onMoveUnit={(fromSlotKey, toSlotKey) => {
+                    dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
+                  }}
                 />
               }
               enemy={
@@ -171,6 +174,9 @@ export function BattleSimulatorPage({
                   }}
                   onAcademyLevelChange={(side, group, key, value) => {
                     dispatch({ type: "academyLevelChanged", side, group, key, value });
+                  }}
+                  onMoveUnit={(fromSlotKey, toSlotKey) => {
+                    dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
                   }}
                 />
               }
