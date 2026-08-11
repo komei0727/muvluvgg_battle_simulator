@@ -694,7 +694,7 @@
   "m9Audit": {
     "auditDate": "2026-08-11",
     "auditIssue": 200,
-    "catalogRevision": "2026-08-11.1",
+    "catalogRevision": "2026-08-11.3",
     "scenarioIds": [
       "SCN-BTL-001",
       "SCN-BTL-002",

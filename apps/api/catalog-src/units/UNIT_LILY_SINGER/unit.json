@@ -14,10 +14,10 @@
     "maximumPp": 4
   },
   "levelGrowth": {
-    "hp": 298,
-    "attack": 183,
+    "hp": 312,
+    "attack": 188,
     "defense": 100,
-    "actionSpeed": 2
+    "actionSpeed": 3
   },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_LILY_SINGER_AS1", "SKL_LILY_SINGER_AS2"],

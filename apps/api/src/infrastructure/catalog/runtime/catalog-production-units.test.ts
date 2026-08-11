@@ -454,7 +454,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-11.1` は ENH-004（Issue #413）の仮 `levelGrowth` 全69Unit投入。
     // 挙動の是正ではなくフィールドの追加であり、強化指定のないリクエストの結果は
     // 変わらない（R-ENH-01。`levelGrowth` は現在レベル指定時にだけ読まれる）。
-    expect(catalog.catalogRevision).toBe("2026-08-11.1");
+    // `2026-08-11.2` は仮 `levelGrowth` の実測値への差し替え（64Unit）。
+    // 併せて `UNIT_ELENA_MOODMAKER` の `baseStats`（`maximumHp`・`attack`・`defense`）も
+    // 実測値へ直した。仮値は `baseStats` から算出していたため、誤った `baseStats` が
+    // そのまま `levelGrowth` の桁違いを生んでいた。
+    // `2026-08-11.3` は同じ実測値差し替えの継続で、5Unit（`UNIT_ELENA_MOODMAKER`・
+    // `UNIT_KEI_JACKKNIFE`・`UNIT_MIKOTO_SURVIVOR`・`UNIT_SAYA_BUNNY`・
+    // `UNIT_SAYA_LONGING`）の `levelGrowth` を±1だけ寄せ直した。
+    expect(catalog.catalogRevision).toBe("2026-08-11.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -14,10 +14,10 @@
     "maximumPp": 4
   },
   "levelGrowth": {
-    "hp": 248,
-    "attack": 213,
+    "hp": 253,
+    "attack": 218,
     "defense": 106,
-    "actionSpeed": 2
+    "actionSpeed": 3
   },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_DOROTHEA_GRACE_AS1"],

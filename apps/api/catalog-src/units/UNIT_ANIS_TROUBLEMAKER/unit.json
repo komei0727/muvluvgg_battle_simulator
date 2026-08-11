@@ -15,9 +15,9 @@
   },
   "levelGrowth": {
     "hp": 212,
-    "attack": 195,
-    "defense": 102,
-    "actionSpeed": 2
+    "attack": 200,
+    "defense": 100,
+    "actionSpeed": 3
   },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_AS1", "SKL_ANIS_TROUBLEMAKER_AS2"],

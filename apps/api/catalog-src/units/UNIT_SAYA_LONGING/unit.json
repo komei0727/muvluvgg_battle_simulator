@@ -14,10 +14,10 @@
     "maximumPp": 4
   },
   "levelGrowth": {
-    "hp": 243,
-    "attack": 213,
-    "defense": 96,
-    "actionSpeed": 2
+    "hp": 247,
+    "attack": 218,
+    "defense": 94,
+    "actionSpeed": 3
   },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_SAYA_LONGING_AS1", "SKL_SAYA_LONGING_AS2"],
