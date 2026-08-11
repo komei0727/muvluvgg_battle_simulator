@@ -13329,7 +13329,7 @@
                             }
                           }
                         },
-                        "minItems": 1,
+                        "minItems": 0,
                         "maxItems": 5
                       },
                       "memoryDefinitionIds": {
@@ -13478,7 +13478,7 @@
                             }
                           }
                         },
-                        "minItems": 1,
+                        "minItems": 0,
                         "maxItems": 5
                       },
                       "memoryDefinitionIds": {

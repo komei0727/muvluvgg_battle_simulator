@@ -20,21 +20,39 @@ describe("PreviewFormationStatsCommand", () => {
     expect(validatePreviewFormationStatsCommandShape(command())).toEqual([]);
   });
 
-  it("UT-STAT-PREVIEW-002: applies the battle command's formation rules to both sides, so a preview cannot show stats for a formation the battle would reject", () => {
+  it("UT-STAT-PREVIEW-002: applies the battle command's formation rules to both sides, so a preview cannot show stats for a placement the battle would reject", () => {
     const violations = validatePreviewFormationStatsCommandShape(
       command({
-        allyFormation: { slots: [], memoryDefinitionIds: [] },
+        allyFormation: {
+          slots: [slot("UNIT_ALLY", 0), slot("UNIT_ALLY", 0)],
+          memoryDefinitionIds: [],
+        },
         enemyFormation: {
-          slots: [slot("UNIT_ENEMY", 0), slot("UNIT_ENEMY", 0)],
+          slots: [
+            slot("UNIT_ENEMY", 0),
+            slot("UNIT_ENEMY", 1),
+            slot("UNIT_ENEMY", 2),
+            slot("UNIT_ENEMY", 0, "REAR"),
+            slot("UNIT_ENEMY", 1, "REAR"),
+            slot("UNIT_ENEMY", 2, "REAR"),
+          ],
           memoryDefinitionIds: [],
         },
       }),
     );
 
     expect(violations.map((violation) => violation.path)).toEqual([
-      "allyFormation.slots",
-      "enemyFormation.slots[1].position",
+      "allyFormation.slots[1].position",
+      "enemyFormation.slots",
     ]);
+  });
+
+  it("UT-STAT-PREVIEW-004: accepts a side with no units, because each side's starting stats are computed independently and the formation is filled in one side at a time", () => {
+    expect(
+      validatePreviewFormationStatsCommandShape(
+        command({ enemyFormation: { slots: [], memoryDefinitionIds: [] } }),
+      ),
+    ).toEqual([]);
   });
 
   it("UT-STAT-PREVIEW-003 (R-ENH-01 #3): rejects a unit enhancement whose formation declares none, with the same path the battle command reports", () => {

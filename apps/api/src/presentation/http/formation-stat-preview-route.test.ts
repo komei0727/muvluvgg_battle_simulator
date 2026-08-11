@@ -149,6 +149,18 @@ describe("POST /api/v1/formation-stat-previews", () => {
     expect(response.json<{ error: { code: string } }>().error.code).toBe("DEFINITION_NOT_FOUND");
   });
 
+  it("API-STAT-PREVIEW-007 (10_API設計.md「FormationStatPreviewRequest」): accepts a formation pair whose other side is still empty, which is the state the formation screen is in while it is being filled in", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, { previewUseCase: previewUseCase() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: PREVIEW_PATH,
+      payload: { ...REQUEST_BODY, enemyFormation: { units: [], memoryDefinitionIds: [] } },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
   it("API-STAT-PREVIEW-005 (10_API設計.md「Cache-Control」「X-Request-Id」): the preview response is no-store and echoes the request ID", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, { previewUseCase: previewUseCase() });
 

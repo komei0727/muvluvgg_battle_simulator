@@ -185,23 +185,43 @@ function validateSlotEnhancement(
   }
 }
 
+export interface FormationShapeOptions {
+  /**
+   * 陣営あたりの最小ユニット数。戦闘実行は1（R-FRM-01）だが、開始時ステータスの
+   * プレビューは陣営ごとに独立して算出でき、片側だけ組みかけの編成にも意味が
+   * あるため0を渡す（`09_アプリケーション設計.md`「PreviewFormationStatsCommand」）。
+   */
+  readonly minimumSlots?: number;
+}
+
 /**
  * 1陣営ぶんの編成検証。`turnLimit`・`logLevel`を持たないCommand
  * （`PreviewFormationStatsCommand`）からも同じ規則を使えるよう公開する
- * ——編成の受理条件が経路ごとにずれると、プレビューできた編成で戦闘が
- * 実行できない（またはその逆）状態が生まれるため。
+ * ——最小人数以外の受理条件（上限5体、配置重複、メモリー件数、強化指定）が
+ * 経路ごとにずれると、プレビューできた編成で戦闘が実行できない（またはその逆）
+ * 状態が生まれるため。
  */
-export function validateFormationShape(formation: FormationInput, path: string): Violation[] {
+export function validateFormationShape(
+  formation: FormationInput,
+  path: string,
+  options: FormationShapeOptions = {},
+): Violation[] {
   const violations: Violation[] = [];
-  validateFormation(formation, path, violations);
+  validateFormation(formation, path, violations, options);
   return violations;
 }
 
-function validateFormation(formation: FormationInput, path: string, violations: Violation[]): void {
-  if (formation.slots.length < MIN_SLOTS || formation.slots.length > MAX_SLOTS) {
+function validateFormation(
+  formation: FormationInput,
+  path: string,
+  violations: Violation[],
+  options: FormationShapeOptions = {},
+): void {
+  const minimumSlots = options.minimumSlots ?? MIN_SLOTS;
+  if (formation.slots.length < minimumSlots || formation.slots.length > MAX_SLOTS) {
     violations.push({
       path: `${path}.slots`,
-      reason: `must contain between ${MIN_SLOTS} and ${MAX_SLOTS} units, got ${formation.slots.length}`,
+      reason: `must contain between ${minimumSlots} and ${MAX_SLOTS} units, got ${formation.slots.length}`,
     });
   }
 

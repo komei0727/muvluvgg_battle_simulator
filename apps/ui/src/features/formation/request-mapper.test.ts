@@ -420,3 +420,18 @@ describe("buildFormationStatPreviewRequest (UI-UT-REQ-008)", () => {
     expect(buildFormationStatPreviewRequest(createInitialDraft()).ok).toBe(false);
   });
 });
+
+describe("buildFormationStatPreviewRequest — 片側だけの編成 (UI-UT-REQ-008)", () => {
+  it("sends the side that is filled while the other one is still empty, which is the state the screen is in mid-edit", () => {
+    let draft = createInitialDraft();
+    draft = withUnit(draft, "ally", "FRONT", 0, "UNIT_ALLY");
+
+    const preview = buildFormationStatPreviewRequest(draft);
+
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+    expect(preview.request.allyFormation.units).toHaveLength(1);
+    expect(preview.request.enemyFormation.units).toEqual([]);
+    expect(preview.enemyUnitSlotKeys).toEqual([]);
+  });
+});

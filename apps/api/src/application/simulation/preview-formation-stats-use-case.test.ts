@@ -153,7 +153,7 @@ describe("PreviewFormationStatsUseCase", () => {
     expect(enhanced.units[1]!.combatStats).toEqual(plain.units[1]!.combatStats);
   });
 
-  it("UT-STAT-PREVIEW-012 (09_アプリケーション設計.md「Command検証」): rejects a formation the battle command would also reject, without touching the Catalog", () => {
+  it("UT-STAT-PREVIEW-012 (09_アプリケーション設計.md「Command検証」): rejects an invalid placement without touching the Catalog", () => {
     let loadCount = 0;
     const countingUseCase = new PreviewFormationStatsUseCase({
       battleCatalogDirectory: {
@@ -165,11 +165,18 @@ describe("PreviewFormationStatsUseCase", () => {
     });
 
     expect(() =>
-      countingUseCase.execute(command({ allyFormation: { slots: [], memoryDefinitionIds: [] } })),
+      countingUseCase.execute(
+        command({
+          allyFormation: {
+            slots: [slot("UNIT_ALLY", 0), slot("UNIT_ALLY", 0)],
+            memoryDefinitionIds: [],
+          },
+        }),
+      ),
     ).toThrow(
       expect.objectContaining({
         code: "INVALID_COMMAND",
-        violations: [expect.objectContaining({ path: "allyFormation.slots" })],
+        violations: [expect.objectContaining({ path: "allyFormation.slots[1].position" })],
       }),
     );
     expect(loadCount).toBe(0);
@@ -266,6 +273,15 @@ describe("PreviewFormationStatsUseCase", () => {
         };
       }),
     );
+  });
+
+  it("UT-STAT-PREVIEW-018: previews a formation whose other side is still empty, so stats are available while the formation is being filled in", () => {
+    const result = useCase().execute(
+      command({ enemyFormation: { slots: [], memoryDefinitionIds: [] } }),
+    );
+
+    expect(result.units.map((unit) => unit.side)).toEqual(["ALLY"]);
+    expect(result.units[0]!.combatStats.maximumHp).toBeGreaterThan(0);
   });
 
   it("UT-STAT-PREVIEW-016 (09_アプリケーション設計.md「PreviewFormationStatsUseCase」): is deterministic — the same command produces the same stats on every call", () => {

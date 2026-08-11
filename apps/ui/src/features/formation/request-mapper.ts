@@ -217,7 +217,8 @@ export type PreviewRequestBuildResult =
  * UI-API-020: 戦闘リクエストと同じ`buildFormation`で編成部分を組み立てる。
  * `turnLimit`は見ない — プレビューは戦闘を実行せず、ターン上限が未入力でも
  * ステータスは確定するため、ここで止めると編集途中に表示が消える。
- * 空編成（ユニット0体）は送らず、UIは未取得として扱う。
+ * 片側だけ埋まった編成もそのまま送る（APIは0体の陣営を受け付ける）。
+ * 両陣営とも0体のときだけ送らず、UIは未取得として扱う。
  */
 export function buildFormationStatPreviewRequest(draft: BattleDraft): PreviewRequestBuildResult {
   const ally = buildFormation(

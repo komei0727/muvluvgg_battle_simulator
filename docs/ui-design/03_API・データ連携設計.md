@@ -88,6 +88,8 @@ X-Request-Id: ui-<UUID>
 
 リクエストは戦闘シミュレーションの`allyFormation`／`enemyFormation`だけを持ち、`turnLimit`と`options`を持たない。強化指定（`enhancement`）は§5.1の変換規則をそのまま適用する — 戦闘実行時と同じペイロードから同じ開始時ステータスが得られなければ、プレビューの意味がないため。
 
+APIは0体の陣営を受け付けるため、片側だけ埋まった編集途中の状態でもそのまま送る（味方から順に置くので、両陣営が揃うまで待つと編集中はプレビューを出せない）。両陣営とも0体のときだけ送らず、未取得として扱う。
+
 成功レスポンスは`units[]`（`side`、`unitDefinitionId`、`formationPosition`、`maximumHp`、`combatStats`）だけを持つ。`units`は味方→敵の順で、各陣営内はリクエストの`units`配列と同じ順序である。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「FormationStatPreviewRequest」「FormationStatPreviewResponse」とする。
 
 戦闘POSTと同じく`cache: "no-store"`・`credentials: "omit"`とし、自動retryしない。編成・強化指定が変わるたびに送り直し、直前の実行中リクエストはabortする。プレビューは戦闘実行とは別の`AbortController`を使い、実行中の戦闘をプレビューの再取得で中断させない。

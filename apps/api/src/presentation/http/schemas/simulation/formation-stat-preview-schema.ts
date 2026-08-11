@@ -6,11 +6,26 @@ import {
 } from "./simulation-schema.js";
 
 /**
+ * 公開文書上の人数の下限だけを0へ緩めた編成schema。プレビューは陣営ごとに独立して
+ * 算出でき、片側だけ組みかけの編成にも意味がある（`10_API設計.md`
+ * 「FormationStatPreviewRequest」）。上限5件・メモリー0〜6件などの他の値域は
+ * 戦闘リクエストの公開schemaをそのまま引き継ぐ。
+ */
+const previewFormationRequestDocSchema = {
+  ...formationRequestDocSchema,
+  properties: {
+    ...formationRequestDocSchema.properties,
+    units: { ...formationRequestDocSchema.properties.units, minItems: 0 },
+  },
+} as const;
+
+/**
  * `POST /api/v1/formation-stat-previews`のJSON Schema。
  *
  * 編成部分は戦闘シミュレーションのschemaをそのまま再利用する
  * （`10_API設計.md`「編成部分は`BattleSimulationRequest`と同形にする」）——
- * 同じ編成JSONが片方のエンドポイントでだけ通る状態を作らないため。
+ * 同じ編成JSONが片方のエンドポイントでだけ通る状態を作らないため。人数の下限
+ * だけは公開文書側で0へ緩める（上の`previewFormationRequestDocSchema`参照）。
  * 実行時schemaが値域・列挙値を持たず公開文書側だけが持つ理由は
  * `simulation-schema.ts`冒頭の注記と同じ。
  */
@@ -29,8 +44,8 @@ export const formationStatPreviewRequestDocSchema = {
   additionalProperties: false,
   required: ["allyFormation", "enemyFormation"],
   properties: {
-    allyFormation: formationRequestDocSchema,
-    enemyFormation: formationRequestDocSchema,
+    allyFormation: previewFormationRequestDocSchema,
+    enemyFormation: previewFormationRequestDocSchema,
   },
 } as const;
 
