@@ -36,6 +36,12 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     setupFiles: [fileURLToPath(new URL("./src/test/setup.ts", import.meta.url))],
     css: true,
+    // ページ全体を描画するcomponentテストはCIランナー上で開発機の約10倍かかる
+    // （`UI-CT-035`はローカル0.5秒に対しCI 4.8〜5.0秒。1キーストロークごとに
+    // ページ再描画とステータスプレビュー再取得が走るため）。既定の5秒では
+    // 実装の退行ではなくランナーの負荷で落ちるので、ハングの検出力を残したまま
+    // 3倍の余裕を持たせる。
+    testTimeout: 15_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
