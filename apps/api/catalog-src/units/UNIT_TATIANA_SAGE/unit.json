@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 313,
+    "attack": 180,
+    "defense": 101,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": [
     "SKL_TATIANA_SAGE_AS1",

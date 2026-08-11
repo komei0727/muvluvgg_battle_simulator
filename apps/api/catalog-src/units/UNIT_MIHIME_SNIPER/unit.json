@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 260,
+    "attack": 201,
+    "defense": 101,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_MIHIME_SNIPER_AS1", "SKL_MIHIME_SNIPER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_MIHIME_SNIPER_PS1", "SKL_MIHIME_SNIPER_PS2"],

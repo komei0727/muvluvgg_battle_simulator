@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 212,
+    "attack": 195,
+    "defense": 96,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": [
     "SKL_SHOUKA_SCHEMER_AS1",

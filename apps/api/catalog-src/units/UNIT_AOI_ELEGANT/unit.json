@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 255,
+    "attack": 198,
+    "defense": 104,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_AOI_ELEGANT_AS1", "SKL_AOI_ELEGANT_AS2"],
   "passiveSkillDefinitionIds": ["SKL_AOI_ELEGANT_PS1", "SKL_AOI_ELEGANT_PS2"],

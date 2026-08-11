@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
+import { allProductionUnitIds } from "../../../testing/scenario/run-production-battle.js";
 
 /**
  * Issue #46: promotes the Issue #41/#44 pilot fixture (retired in the
@@ -450,7 +451,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (3) `SKL_STELLA_STATUE_PS1`（原文「「惑光」を所持している敵のHPが50%以下に
     // なった際」）の `sourceSelector: ENEMY` は、HPを削るのがこちら側であるため味方の
     // 攻撃では成立しなかった。`ANY` へ直した。
-    expect(catalog.catalogRevision).toBe("2026-08-09.3");
+    // `2026-08-11.1` は ENH-004（Issue #413）の仮 `levelGrowth` 全69Unit投入。
+    // 挙動の是正ではなくフィールドの追加であり、強化指定のないリクエストの結果は
+    // 変わらない（R-ENH-01。`levelGrowth` は現在レベル指定時にだけ読まれる）。
+    expect(catalog.catalogRevision).toBe("2026-08-11.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -880,4 +884,29 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expect(findConditionsOfKind(trigger?.condition, "EVENT_PAYLOAD")).toEqual(expected);
     },
   );
+  it("IT-CAT-PROD-014 (ENH-004, Issue #413, R-ENH-05 #2/Q-ENH-07): every production Unit declares a levelGrowth, so a current level other than 200 is usable for all of them", () => {
+    const catalog = loadCatalogFromDirectory(catalogPath());
+    const unitDefinitionIds = allProductionUnitIds(catalogPath());
+    expect(unitDefinitionIds.length).toBeGreaterThan(0);
+
+    const snapshot = catalog.loadSnapshot(unitDefinitionIds as never[], []);
+    const violations: string[] = [];
+    for (const unitDefinitionId of unitDefinitionIds) {
+      const growth = snapshot.units.get(unitDefinitionId as never)?.levelGrowth;
+      if (growth === undefined) {
+        violations.push(`${unitDefinitionId}: no levelGrowth`);
+        continue;
+      }
+      // 実測値へ差し替えていく前提のため、仮値の算式ではなく「4ステータスが
+      // 非負整数で揃っている」ことだけを縛る（`14_Catalog定義スキーマ.md`
+      // 「levelGrowth の仮値」の目視更新を将来この検査が妨げないように）。
+      for (const [stat, value] of Object.entries(growth)) {
+        if (!Number.isInteger(value) || value < 0) {
+          violations.push(`${unitDefinitionId}.${stat}: ${String(value)}`);
+        }
+      }
+    }
+
+    expect(violations, `Units without a usable levelGrowth: ${violations.join(", ")}`).toEqual([]);
+  });
 });

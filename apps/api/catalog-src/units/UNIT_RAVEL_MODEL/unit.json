@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 204,
+    "attack": 231,
+    "defense": 96,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_RAVEL_MODEL_AS1", "SKL_RAVEL_MODEL_AS2"],
   "passiveSkillDefinitionIds": ["SKL_RAVEL_MODEL_PS1", "SKL_RAVEL_MODEL_PS2"],

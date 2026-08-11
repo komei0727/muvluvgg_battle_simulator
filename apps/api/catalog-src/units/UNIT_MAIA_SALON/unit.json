@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 297,
+    "attack": 178,
+    "defense": 148,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_MAIA_SALON_AS1", "SKL_MAIA_SALON_AS2"],
   "passiveSkillDefinitionIds": ["SKL_MAIA_SALON_PS1", "SKL_MAIA_SALON_PS2"],

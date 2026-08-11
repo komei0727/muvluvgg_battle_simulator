@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 247,
+    "attack": 204,
+    "defense": 123,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_NANAE_COMMANDER_AS1", "SKL_NANAE_COMMANDER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_NANAE_COMMANDER_PS1", "SKL_NANAE_COMMANDER_PS2"],

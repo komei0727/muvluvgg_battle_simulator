@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 197,
+    "attack": 233,
+    "defense": 96,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_URUU_TIMID_AS1"],
   "passiveSkillDefinitionIds": ["SKL_URUU_TIMID_PS1", "SKL_URUU_TIMID_PS2", "SKL_URUU_TIMID_PS3"],

@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 248,
+    "attack": 183,
+    "defense": 103,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"],
   "passiveSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_PS1", "SKL_MIKOTO_SURVIVOR_PS2"],

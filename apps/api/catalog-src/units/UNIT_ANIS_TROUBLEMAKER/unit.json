@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 212,
+    "attack": 195,
+    "defense": 102,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_AS1", "SKL_ANIS_TROUBLEMAKER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_PS1", "SKL_ANIS_TROUBLEMAKER_PS2"],

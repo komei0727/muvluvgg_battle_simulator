@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 224,
+    "attack": 203,
+    "defense": 94,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_RAMI_UNYIELDING_AS1"],
   "passiveSkillDefinitionIds": [

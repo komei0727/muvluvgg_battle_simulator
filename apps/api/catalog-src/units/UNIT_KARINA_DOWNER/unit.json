@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 288,
+    "attack": 179,
+    "defense": 120,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_KARINA_DOWNER_AS1", "SKL_KARINA_DOWNER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_KARINA_DOWNER_PS1", "SKL_KARINA_DOWNER_PS2"],

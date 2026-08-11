@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 272,
+    "attack": 171,
+    "defense": 101,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_STELLA_STATUE_AS1", "SKL_STELLA_STATUE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_STELLA_STATUE_PS1", "SKL_STELLA_STATUE_PS2"],

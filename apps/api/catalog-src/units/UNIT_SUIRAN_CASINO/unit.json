@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 300,
+    "attack": 172,
+    "defense": 125,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": [
     "SKL_SUIRAN_CASINO_AS1",

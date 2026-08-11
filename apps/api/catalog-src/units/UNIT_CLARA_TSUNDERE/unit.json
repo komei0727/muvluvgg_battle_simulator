@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 193,
+    "attack": 233,
+    "defense": 94,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_AS1", "SKL_CLARA_TSUNDERE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_PS1", "SKL_CLARA_TSUNDERE_PS2"],

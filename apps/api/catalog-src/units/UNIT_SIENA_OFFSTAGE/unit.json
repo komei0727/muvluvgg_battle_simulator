@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 216,
+    "attack": 222,
+    "defense": 101,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_AS1", "SKL_SIENA_OFFSTAGE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_PS1", "SKL_SIENA_OFFSTAGE_PS2"],

@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 296,
+    "attack": 162,
+    "defense": 132,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_AS1", "SKL_SENKA_CHRISTMAS_AS2"],
   "passiveSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_PS1", "SKL_SENKA_CHRISTMAS_PS2"],

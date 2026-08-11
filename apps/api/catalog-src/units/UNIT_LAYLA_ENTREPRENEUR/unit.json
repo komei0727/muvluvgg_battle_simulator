@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 235,
+    "attack": 180,
+    "defense": 108,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_AS1", "SKL_LAYLA_ENTREPRENEUR_AS2"],
   "passiveSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_PS1", "SKL_LAYLA_ENTREPRENEUR_PS2"],

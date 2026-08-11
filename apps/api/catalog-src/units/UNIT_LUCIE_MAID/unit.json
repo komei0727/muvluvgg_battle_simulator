@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 288,
+    "attack": 182,
+    "defense": 94,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_LUCIE_MAID_AS1", "SKL_LUCIE_MAID_AS2"],
   "passiveSkillDefinitionIds": ["SKL_LUCIE_MAID_PS1", "SKL_LUCIE_MAID_PS2"],

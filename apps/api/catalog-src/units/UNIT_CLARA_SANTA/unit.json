@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 243,
+    "attack": 191,
+    "defense": 157,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 5,
   "activeSkillDefinitionIds": ["SKL_CLARA_SANTA_AS1", "SKL_CLARA_SANTA_AS2", "SKL_CLARA_SANTA_AS3"],
   "passiveSkillDefinitionIds": ["SKL_CLARA_SANTA_PS1"],

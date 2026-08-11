@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 258,
+    "attack": 194,
+    "defense": 95,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_HARRIET_SAGE_AS1", "SKL_HARRIET_SAGE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_HARRIET_SAGE_PS1", "SKL_HARRIET_SAGE_PS2"],

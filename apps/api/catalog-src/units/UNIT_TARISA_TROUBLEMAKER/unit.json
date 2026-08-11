@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 272,
+    "attack": 173,
+    "defense": 103,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": [
     "SKL_TARISA_TROUBLEMAKER_AS1",

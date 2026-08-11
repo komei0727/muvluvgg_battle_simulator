@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 292,
+    "attack": 172,
+    "defense": 103,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_YURIA_YUKATA_AS1", "SKL_YURIA_YUKATA_AS2"],
   "passiveSkillDefinitionIds": ["SKL_YURIA_YUKATA_PS1", "SKL_YURIA_YUKATA_PS2"],
