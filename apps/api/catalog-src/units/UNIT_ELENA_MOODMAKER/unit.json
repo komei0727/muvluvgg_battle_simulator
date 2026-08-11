@@ -5,18 +5,18 @@
   "role": "SUPPORT",
   "positionAptitudes": ["BACK"],
   "baseStats": {
-    "maximumHp": 66145,
-    "attack": 39772,
-    "defense": 25413,
+    "maximumHp": 35785,
+    "attack": 17422,
+    "defense": 12983,
     "criticalRate": 0.15,
     "actionSpeed": 652,
     "maximumAp": 4,
     "maximumPp": 4
   },
   "levelGrowth": {
-    "hp": 595,
-    "attack": 358,
-    "defense": 229,
+    "hp": 342,
+    "attack": 153,
+    "defense": 118,
     "actionSpeed": 2
   },
   "extraGaugeMaximum": 6,

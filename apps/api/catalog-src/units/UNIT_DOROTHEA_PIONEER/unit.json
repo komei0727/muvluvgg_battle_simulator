@@ -14,9 +14,9 @@
     "maximumPp": 4
   },
   "levelGrowth": {
-    "hp": 268,
-    "attack": 198,
-    "defense": 96,
+    "hp": 277,
+    "attack": 200,
+    "defense": 94,
     "actionSpeed": 2
   },
   "extraGaugeMaximum": 7,
