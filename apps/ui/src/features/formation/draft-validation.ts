@@ -227,8 +227,8 @@ function validateAcademyLevels(side: Side, enhancement: SideEnhancementInput): U
  * UI-CMP-014: トグルOFFの陣営は検証しない。OFFでも入力値をdraftへ保持するのが
  * 要件であり、`request-mapper.ts`がOFF側のユニット強化を出力しない以上、
  * 保持しているだけの値は送信内容に影響しない。ここで検証すると「編集後にOFFへ
- * 戻した」だけで送信が止まる（R-ENH-01 #3の「陣営指定なしのユニット指定」は
- * 送信ペイロード上に表現し得ないため、mapper側の構造で保証する）。
+ * 戻した」だけで送信が止まる。R-ENH-01 #3の「陣営指定なしのユニット指定」は
+ * リクエスト生成側の構造で保証する（`03_API・データ連携設計.md`§6）。
  */
 function validateUnitEnhancements(
   side: Side,
