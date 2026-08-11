@@ -446,3 +446,59 @@ describe("formationReducer — persistence actions", () => {
     expect(createInitialFormationState(restored).draft).toStrictEqual(restored);
   });
 });
+
+describe("formationReducer — lastEditedSlotKey", () => {
+  const allySlotKey = slotKeyOf("ally", "FRONT", 0);
+  const otherSlotKey = slotKeyOf("ally", "REAR", 2);
+
+  function withUnitsPlaced(): FormationState {
+    const first = formationReducer(createInitialFormationState(), {
+      type: "unitSelected",
+      slotKey: allySlotKey,
+      unitDefinitionId: "UNIT_A",
+    });
+    return formationReducer(first, {
+      type: "unitSelected",
+      slotKey: otherSlotKey,
+      unitDefinitionId: "UNIT_A",
+    });
+  }
+
+  it("is unset until an enhancement is edited", () => {
+    expect(withUnitsPlaced().lastEditedSlotKey).toBeUndefined();
+  });
+
+  it("names the slot whose level was edited", () => {
+    const next = formationReducer(withUnitsPlaced(), {
+      type: "unitEnhancementLevelChanged",
+      slotKey: otherSlotKey,
+      value: 220,
+    });
+
+    expect(next.lastEditedSlotKey).toBe(otherSlotKey);
+  });
+
+  it("names the slot whose gear was edited", () => {
+    const next = formationReducer(withUnitsPlaced(), {
+      type: "unitEnhancementGearChanged",
+      slotKey: allySlotKey,
+      gearIndex: 2,
+      gear: { stat: "ATTACK", tier: "III", grade: "S" },
+    });
+
+    expect(next.lastEditedSlotKey).toBe(allySlotKey);
+  });
+
+  it("is dropped by the reset actions", () => {
+    const edited = formationReducer(withUnitsPlaced(), {
+      type: "unitEnhancementLevelChanged",
+      slotKey: allySlotKey,
+      value: 220,
+    });
+
+    expect(formationReducer(edited, { type: "draftReset" }).lastEditedSlotKey).toBeUndefined();
+    expect(
+      formationReducer(edited, { type: "allyEnhancementCleared" }).lastEditedSlotKey,
+    ).toBeUndefined();
+  });
+});

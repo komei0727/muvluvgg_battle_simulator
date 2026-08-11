@@ -1076,6 +1076,33 @@ describe("BattleSimulatorPage — input persistence", () => {
     expect(screen.getByLabelText("ギア1 の対象ステータス")).toHaveValue("");
   });
 
+  it("UI-CT-049: keeps the edited growth data when the same unit occupies another ally slot", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    // 同じユニット定義を2枠へ配置する（01_UI要求・画面設計.md §5.1）。
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await placeUnit(user, allyRegion(), "後衛3にユニットを追加");
+
+    // 前方の枠だけを編集する。後方の枠は既定値のまま残る。
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    // 別の入力を動かして保存を1回走らせる。
+    const turnLimit = screen.getByLabelText(/ターン上限/);
+    await user.clear(turnLimit);
+    await user.type(turnLimit, "11");
+
+    // 編集した値が未編集の同一ユニット枠に潰されていない。
+    await placeUnit(user, allyRegion(), "後衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /後衛1: アルファの強化を編集/);
+
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
+  });
+
   it("UI-CT-047: keeps working when every localStorage write fails", async () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("exceeded", "QuotaExceededError");

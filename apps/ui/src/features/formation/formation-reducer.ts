@@ -30,6 +30,12 @@ export type SelectionDialogState =
 export interface FormationState {
   readonly draft: BattleDraft;
   readonly selectionDialog: SelectionDialogState;
+  /**
+   * 直近に強化入力を編集した枠。手持ちデータ（`persistence.ts`）はユニット定義ID
+   * 単位だが同じ定義を複数枠へ置けるため、どの枠の値を書き戻すかをこれで一意に
+   * 決める。draftの値ではないので、送信内容には影響しない。
+   */
+  readonly lastEditedSlotKey?: string;
 }
 
 export type FormationAction =
@@ -210,7 +216,7 @@ function editSlotEnhancement(
     slot.side === "ally"
       ? { ...state.draft, allySlots: replace(state.draft.allySlots) }
       : { ...state.draft, enemySlots: replace(state.draft.enemySlots) };
-  return { ...state, draft };
+  return { ...state, draft, lastEditedSlotKey: slotKey };
 }
 
 export function formationReducer(state: FormationState, action: FormationAction): FormationState {
@@ -353,8 +359,9 @@ export function formationReducer(state: FormationState, action: FormationAction)
       // 手持ちデータと味方の育成入力は同じ値の2つの置き場であり、片方だけ消しても
       // もう片方から書き戻されるため対で初期化する（01_UI要求・画面設計.md §5.9）。
       const initial = createInitialDraft();
+      const { lastEditedSlotKey: _discarded, ...rest } = state;
       return {
-        ...state,
+        ...rest,
         draft: {
           ...state.draft,
           allySlots: state.draft.allySlots.map(({ enhancement: _discarded, ...slot }) => slot),

@@ -154,6 +154,7 @@ describe("parsePlayerData", () => {
         level: 120,
         gears: gearsWith(GEAR, 8),
       }),
+      slotKeyOf("ally", "FRONT", 0),
     );
 
     const restored = parsePlayerData(
@@ -196,7 +197,11 @@ describe("mergePlayerDataFromDraft", () => {
       gears: gearsWith(GEAR, 0),
     });
 
-    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), draft);
+    const merged = mergePlayerDataFromDraft(
+      createEmptyPlayerData(),
+      draft,
+      slotKeyOf("ally", "FRONT", 0),
+    );
 
     expect(merged.units["UNIT_A"]).toStrictEqual({ level: 180, gears: gearsWith(GEAR, 0) });
   });
@@ -242,13 +247,14 @@ describe("mergePlayerDataFromDraft", () => {
         level: 180,
         gears: gearsWith(GEAR, 0),
       }),
+      slotKeyOf("ally", "FRONT", 0),
     );
     const draft = withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
       level: "",
       gears: gearsWith(GEAR, 1),
     });
 
-    const merged = mergePlayerDataFromDraft(previous, draft);
+    const merged = mergePlayerDataFromDraft(previous, draft, slotKeyOf("ally", "FRONT", 0));
 
     expect(merged.units["UNIT_A"]).toStrictEqual({ level: 180, gears: gearsWith(GEAR, 1) });
   });
@@ -279,7 +285,11 @@ describe("mergePlayerDataFromDraft", () => {
       },
     };
 
-    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), draft);
+    const merged = mergePlayerDataFromDraft(
+      createEmptyPlayerData(),
+      draft,
+      base.enemySlots[0]!.slotKey,
+    );
 
     expect(merged).toStrictEqual(createEmptyPlayerData());
   });
@@ -290,9 +300,10 @@ describe("mergePlayerDataFromDraft", () => {
       level: 180,
       gears: gearsWith(GEAR, 0),
     });
-    const first = mergePlayerDataFromDraft(createEmptyPlayerData(), draft);
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const first = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, slotKey);
 
-    expect(mergePlayerDataFromDraft(first, draft)).toBe(first);
+    expect(mergePlayerDataFromDraft(first, draft, slotKey)).toBe(first);
   });
 });
 
@@ -303,6 +314,7 @@ describe("prefillUnitEnhancement", () => {
     const data = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
       withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", enhancement),
+      slotKeyOf("ally", "FRONT", 0),
     );
 
     expect(prefillUnitEnhancement(data, "UNIT_A")).toStrictEqual(enhancement);
@@ -320,17 +332,19 @@ describe("prefillUnitEnhancement", () => {
 describe("prunePlayerData", () => {
   // UI-UT-PST-009
   it("drops only the entries missing from the catalog", () => {
+    const draft = withAllySlot(
+      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
+        level: 10,
+        gears: gearsWith(GEAR, 0),
+      }),
+      slotKeyOf("ally", "FRONT", 1),
+      "UNIT_GONE",
+      { level: 20, gears: gearsWith(GEAR, 1) },
+    );
     const data = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      withAllySlot(
-        withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-          level: 10,
-          gears: gearsWith(GEAR, 0),
-        }),
-        slotKeyOf("ally", "FRONT", 1),
-        "UNIT_GONE",
-        { level: 20, gears: gearsWith(GEAR, 1) },
-      ),
+      mergePlayerDataFromDraft(createEmptyPlayerData(), draft, slotKeyOf("ally", "FRONT", 0)),
+      draft,
+      slotKeyOf("ally", "FRONT", 1),
     );
 
     const pruned = prunePlayerData(data, ["UNIT_A"]);
@@ -347,6 +361,7 @@ describe("prunePlayerData", () => {
         level: 10,
         gears: gearsWith(GEAR, 0),
       }),
+      slotKeyOf("ally", "FRONT", 0),
     );
 
     expect(prunePlayerData(data, ["UNIT_A", "UNIT_B"])).toBe(data);
@@ -400,6 +415,7 @@ describe("isEmptyPlayerData", () => {
         level: 10,
         gears: gearsWith(GEAR, 0),
       }),
+      slotKeyOf("ally", "FRONT", 0),
     );
 
     expect(isEmptyPlayerData(data)).toBe(false);
@@ -419,5 +435,131 @@ describe("isEmptyPlayerData", () => {
     });
 
     expect(isEmptyPlayerData(data)).toBe(false);
+  });
+});
+
+describe("mergePlayerDataFromDraft — duplicate placement", () => {
+  const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
+  const secondSlotKey = slotKeyOf("ally", "REAR", 2);
+
+  /** 同じユニットを2枠へ置き、後方の枠だけ既定値のまま残した状態。 */
+  function draftWithDuplicate(editedLevel: number): BattleDraft {
+    return withAllySlot(
+      withAllySlot(createInitialDraft(), firstSlotKey, "UNIT_A", {
+        level: editedLevel,
+        gears: gearsWith(GEAR, 0),
+      }),
+      secondSlotKey,
+      "UNIT_A",
+      createInitialUnitEnhancement(),
+    );
+  }
+
+  // 同じ定義を複数枠へ配置できる（01_UI要求・画面設計.md §5.1）ため、
+  // 編集した枠の値が未編集の同一ユニット枠に上書きされてはならない。
+  it("records the edited slot even when a later slot holds the same unit", () => {
+    const merged = mergePlayerDataFromDraft(
+      createEmptyPlayerData(),
+      draftWithDuplicate(220),
+      firstSlotKey,
+    );
+
+    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 220, gears: gearsWith(GEAR, 0) });
+  });
+
+  it("keeps the recorded value stable across unrelated draft changes", () => {
+    const recorded = mergePlayerDataFromDraft(
+      createEmptyPlayerData(),
+      draftWithDuplicate(220),
+      firstSlotKey,
+    );
+
+    const next = mergePlayerDataFromDraft(
+      recorded,
+      { ...draftWithDuplicate(220), turnLimit: 7 },
+      firstSlotKey,
+    );
+
+    expect(next).toBe(recorded);
+  });
+
+  it("lets the most recently edited slot win", () => {
+    const first = mergePlayerDataFromDraft(
+      createEmptyPlayerData(),
+      draftWithDuplicate(220),
+      firstSlotKey,
+    );
+    const edited = withAllySlot(draftWithDuplicate(220), secondSlotKey, "UNIT_A", {
+      level: 150,
+      gears: gearsWith(GEAR, 3),
+    });
+
+    const merged = mergePlayerDataFromDraft(first, edited, secondSlotKey);
+
+    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 150, gears: gearsWith(GEAR, 3) });
+  });
+
+  it("records nothing for a slot key that no longer holds a unit", () => {
+    const recorded = mergePlayerDataFromDraft(
+      createEmptyPlayerData(),
+      draftWithDuplicate(220),
+      firstSlotKey,
+    );
+
+    const merged = mergePlayerDataFromDraft(recorded, createInitialDraft(), firstSlotKey);
+
+    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 220, gears: gearsWith(GEAR, 0) });
+  });
+
+  it("ignores an edited slot on the enemy side", () => {
+    const base = createInitialDraft();
+    const enemySlotKey = base.enemySlots[0]!.slotKey;
+    const draft: BattleDraft = {
+      ...base,
+      enemySlots: base.enemySlots.map((slot, index) =>
+        index === 0
+          ? {
+              ...slot,
+              unitDefinitionId: "UNIT_A",
+              enhancement: { level: 333, gears: gearsWith(GEAR, 0) },
+            }
+          : slot,
+      ),
+    };
+
+    expect(mergePlayerDataFromDraft(createEmptyPlayerData(), draft, enemySlotKey)).toStrictEqual(
+      createEmptyPlayerData(),
+    );
+  });
+});
+
+describe("parseStoredDraft — fixed-length arrays", () => {
+  function storedDraftWith(overrides: Record<string, unknown>): unknown {
+    const stored = toStoredDraft(createInitialDraft()) as { draft: Record<string, unknown> };
+    return { ...stored, draft: { ...stored.draft, ...overrides } };
+  }
+
+  // 「1項目でも契約から外れれば保存データ全体を破棄する」方針に合わせ、
+  // 固定長の配列は長さも契約として扱う。
+  it("rejects a gears array shorter than the fixed slot count", () => {
+    const base = createInitialDraft();
+    const stored = storedDraftWith({
+      allySlots: base.allySlots.map((slot, index) =>
+        index === 0 ? { ...slot, enhancement: { level: 1, gears: [] } } : slot,
+      ),
+    });
+
+    expect(parseStoredDraft(stored)).toBeUndefined();
+  });
+
+  it("rejects a memory array shorter than the fixed slot count", () => {
+    expect(parseStoredDraft(storedDraftWith({ allyMemoryDefinitionIds: [] }))).toBeUndefined();
+  });
+
+  it("rejects a slot array that does not cover every slot", () => {
+    const base = createInitialDraft();
+    expect(
+      parseStoredDraft(storedDraftWith({ allySlots: base.allySlots.slice(1) })),
+    ).toBeUndefined();
   });
 });

@@ -111,16 +111,13 @@ function unitEnhancementOf(value: unknown): UnitEnhancementInput {
   if (!isRecord(value)) {
     return fail();
   }
+  // 枠数は固定であり、長さも契約の一部として検証する（短い配列を空枠で
+  // 補うと、枠位置がずれた保存データを黙って受理してしまう）。
   const gears = value["gears"];
-  if (!Array.isArray(gears) || gears.length > GEAR_SLOT_COUNT) {
+  if (!Array.isArray(gears) || gears.length !== GEAR_SLOT_COUNT) {
     return fail();
   }
-  const parsed = gears.map((gear) => gearOf(gear));
-  return {
-    level: levelOf(value["level"]),
-    // 枠数は保存値ではなくUIの定数で決める（枠位置の意味はUIが持つ）。
-    gears: Array.from({ length: GEAR_SLOT_COUNT }, (_unused, index) => parsed[index]),
-  };
+  return { level: levelOf(value["level"]), gears: gears.map((gear) => gearOf(gear)) };
 }
 
 function sideEnhancementOf(value: unknown): SideEnhancementInput {
@@ -139,7 +136,9 @@ function slotsOf(
   skeleton: readonly FormationSlotInput[],
   value: unknown,
 ): readonly FormationSlotInput[] {
-  if (!Array.isArray(value)) {
+  // 枠数は固定。重複と未知のslotKeyを弾いたうえで長さが一致すれば、
+  // 保存データが全枠をちょうど1回ずつ覆っていることになる。
+  if (!Array.isArray(value) || value.length !== skeleton.length) {
     return fail();
   }
   const bySlotKey = new Map<string, Record<string, unknown>>();
@@ -175,14 +174,13 @@ function slotsOf(
 }
 
 function memoryIdsOf(value: unknown, length: number): readonly (string | undefined)[] {
-  if (!Array.isArray(value) || value.length > length) {
+  // 枠数は固定。空枠はJSON上`null`として並ぶ。
+  if (!Array.isArray(value) || value.length !== length) {
     return fail();
   }
-  const parsed = value.map((id) => (id === null || id === undefined ? undefined : stringOf(id)));
-  if (parsed.some((id, index) => id === undefined && value[index] != null)) {
-    return fail();
-  }
-  return Array.from({ length }, (_unused, index) => parsed[index]);
+  return value.map((id) =>
+    id === null || id === undefined ? undefined : (stringOf(id) ?? fail()),
+  );
 }
 
 function envelopeOf(value: unknown): Record<string, unknown> {
@@ -331,28 +329,45 @@ function mergedAcademyLevels(previous: AcademyLevels, next: AcademyLevels): Acad
 /**
  * 味方draftから手持ちデータを導出する。敵側は都度入力の方針なので読まない。
  * 変化が無ければ`previous`をそのまま返し、保存effectと再レンダーを起こさない。
+ *
+ * 手持ちデータはユニット定義ID単位だが、同じ定義は複数枠へ配置できる
+ * （01_UI要求・画面設計.md §5.1）。全枠を走査して上書きすると、編集した枠の値が
+ * 同じユニットを持つ未編集の枠の値で潰れる。書き戻す枠を`editedSlotKey`
+ * （直近に強化入力を編集した枠）だけに限定し、どの枠の値を残すかを一意に決める。
+ * 未指定・敵枠・ユニットが外れた枠では、ユニットの記録を変更しない。
  */
 export function mergePlayerDataFromDraft(
   previous: StoredPlayerData,
   draft: BattleDraft,
+  editedSlotKey?: string,
 ): StoredPlayerData {
-  const units: Record<string, UnitEnhancementInput> = { ...previous.units };
-  for (const slot of draft.allySlots) {
-    const { unitDefinitionId, enhancement } = slot;
-    if (unitDefinitionId === undefined || enhancement === undefined) {
-      continue;
-    }
-    const recordedLevel = units[unitDefinitionId]?.level ?? DEFAULT_UNIT_LEVEL;
-    units[unitDefinitionId] = {
-      level: enhancement.level === "" ? recordedLevel : enhancement.level,
-      gears: enhancement.gears,
-    };
-  }
   const next: StoredPlayerData = {
     academyLevels: mergedAcademyLevels(previous.academyLevels, draft.allyEnhancement.academyLevels),
-    units,
+    units: mergedUnits(previous.units, draft, editedSlotKey),
   };
   return isSamePlayerData(previous, next) ? previous : next;
+}
+
+function mergedUnits(
+  previous: StoredPlayerData["units"],
+  draft: BattleDraft,
+  editedSlotKey: string | undefined,
+): StoredPlayerData["units"] {
+  const slot = draft.allySlots.find((candidate) => candidate.slotKey === editedSlotKey);
+  const unitDefinitionId = slot?.unitDefinitionId;
+  const enhancement = slot?.enhancement;
+  if (unitDefinitionId === undefined || enhancement === undefined) {
+    return previous;
+  }
+  // 未入力（`""`）は「レベルを消した」ではなく入力途中なので、前回値を残す。
+  const recordedLevel = previous[unitDefinitionId]?.level ?? DEFAULT_UNIT_LEVEL;
+  return {
+    ...previous,
+    [unitDefinitionId]: {
+      level: enhancement.level === "" ? recordedLevel : enhancement.level,
+      gears: enhancement.gears,
+    },
+  };
 }
 
 /** 記録が無いユニットは既定値（レベル200・ギア9枠すべて空）を返す。 */

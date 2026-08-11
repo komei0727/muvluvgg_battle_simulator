@@ -41,6 +41,11 @@ function readPlayerData() {
 
 export interface UseFormationPersistenceInput {
   readonly draft: BattleDraft;
+  /**
+   * 直近に強化入力を編集した枠（`FormationState.lastEditedSlotKey`）。同じユニットを
+   * 複数枠へ置けるため、手持ちデータへ書き戻す枠をこれで一意に決める。
+   */
+  readonly lastEditedSlotKey?: string;
   readonly catalog: CatalogLoadState;
   /** `validateDraft`の結果。孤児IDの特定に`UNKNOWN_DEFINITION`だけを使う。 */
   readonly violations: readonly UiViolation[];
@@ -64,6 +69,7 @@ export interface FormationPersistence {
  */
 export function useFormationPersistence({
   draft,
+  lastEditedSlotKey,
   catalog,
   violations,
   dispatch,
@@ -75,8 +81,8 @@ export function useFormationPersistence({
   // 変わり、変化が無ければ`mergePlayerDataFromDraft`が同じ参照を返すので、ここが
   // 再レンダーのループになることはない。
   useEffect(() => {
-    setPlayerData((previous) => mergePlayerDataFromDraft(previous, draft));
-  }, [draft]);
+    setPlayerData((previous) => mergePlayerDataFromDraft(previous, draft, lastEditedSlotKey));
+  }, [draft, lastEditedSlotKey]);
 
   useEffect(() => {
     if (isEmptyPlayerData(playerData)) {

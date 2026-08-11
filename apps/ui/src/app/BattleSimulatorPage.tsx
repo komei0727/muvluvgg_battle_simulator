@@ -82,6 +82,9 @@ export function BattleSimulatorPage({
   // 画面へ出さず、保存以外の機能をそのまま続ける。
   const persistence = useFormationPersistence({
     draft: state.draft,
+    ...(state.lastEditedSlotKey === undefined
+      ? {}
+      : { lastEditedSlotKey: state.lastEditedSlotKey }),
     catalog,
     violations: view.violations,
     dispatch,
