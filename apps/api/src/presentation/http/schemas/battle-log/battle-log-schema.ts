@@ -1025,6 +1025,22 @@ const effectMergedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-02）。戦闘モードが
+ * `TACTICAL_EXERCISE`のレスポンスにだけ現れる。
+ */
+const exerciseScoreAccumulatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["targetUnitId", "amount", "totalScore", "causeEventId"],
+  properties: {
+    targetUnitId: { type: "string" },
+    amount: { type: "integer", minimum: 1 },
+    totalScore: { type: "integer", minimum: 1 },
+    causeEventId: { type: "string" },
+  },
+} as const;
+
 const unitDefeatedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -2209,6 +2225,7 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   HEALING_TRANSFERRED: healingTransferredDetailsSchema,
   CONTINUOUS_DAMAGE_APPLIED: continuousDamageAppliedDetailsSchema,
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
+  EXERCISE_SCORE_ACCUMULATED: exerciseScoreAccumulatedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
   ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
   COOLDOWN_STARTED: cooldownStartedDetailsSchema,

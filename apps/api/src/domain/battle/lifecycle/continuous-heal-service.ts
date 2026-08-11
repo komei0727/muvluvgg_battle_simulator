@@ -154,6 +154,10 @@ export function fireContinuousHealsOnActionStart(
           ...(context.continuousDamage.expireDepletedAbsorbers !== undefined
             ? { expireDepletedAbsorbers: context.continuousDamage.expireDepletedAbsorbers }
             : {}),
+          // R-TEX-02 #3: 継続ダメージの計上先。
+          ...(context.continuousDamage.exercise !== undefined
+            ? { exercise: context.continuousDamage.exercise }
+            : {}),
         },
         lastEventId,
         onFactEvent,

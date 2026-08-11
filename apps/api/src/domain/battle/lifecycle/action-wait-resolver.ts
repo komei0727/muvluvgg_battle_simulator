@@ -17,6 +17,7 @@ import {
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { expireEffectsSteps } from "../effects/duration-expiry-service.js";
 import type {
   ActionId,
@@ -75,6 +76,7 @@ export function resolveWait(
   cycleNumber: number,
   actionId: ActionId,
   actionScope: ResolutionScopeId,
+  exercise?: ExerciseRuntime,
   onWaitEstablished?: WaitEstablishedHook,
 ): ActionResolutionResult {
   const actorUnitId = actor.battleUnitId;
@@ -192,6 +194,7 @@ export function resolveWait(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       actionId,
+      ...(exercise !== undefined ? { exercise } : {}),
     },
     working,
   );
@@ -210,6 +213,8 @@ export function resolveWait(
       // `expireEffectsSteps`経由で行う（R-EFF-09カスケードとCombatStat再計算を共有する）。
       continuousDamage: {
         effectActions: definitions.effectActions,
+        // R-TEX-02 #3: 継続ダメージも敵HPへ向かう分をスコアへ計上する。
+        ...(exercise !== undefined ? { exercise } : {}),
         expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],

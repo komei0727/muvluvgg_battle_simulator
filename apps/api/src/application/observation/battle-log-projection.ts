@@ -93,6 +93,8 @@ export const SUMMARY_EVENT_TYPE_INCLUSION: Readonly<Record<BattleDomainEventType
   MarkerApplied: false,
   MarkerUpdated: false,
   MarkerRemoved: false,
+  // R-TEX-02／`08_ドメインイベント.md`「公開レベル」: スコア加算は`DETAILED`から。
+  ExerciseScoreAccumulated: false,
 };
 
 /**

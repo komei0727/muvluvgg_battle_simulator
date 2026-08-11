@@ -427,4 +427,15 @@ export interface StateDelta {
   readonly battleStatus?: ValueChange<BattleStatus>;
   /** 勝敗確定（`BattleCompleted`）のみが持つ。`before`は常に`undefined`（未確定）。 */
   readonly result?: ValueChange<BattleResultSnapshot | undefined>;
+  /**
+   * `08_ドメインイベント.md`「戦術演習イベント」の演習状態差分。戦闘モードが
+   * `TACTICAL_EXERCISE`のときだけ発生し、`ExerciseScoreAccumulated`が
+   * 累計スコア差分を単独で所有する（R-TEX-02 #4）。
+   */
+  readonly exercise?: ExerciseStateDelta;
+}
+
+/** 演習状態（累計スコア）の差分。通常戦闘では発生しない。 */
+export interface ExerciseStateDelta {
+  readonly totalScore?: ValueChange<number>;
 }

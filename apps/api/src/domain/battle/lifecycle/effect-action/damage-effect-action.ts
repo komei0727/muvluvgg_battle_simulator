@@ -239,6 +239,8 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       consumeEffectDuration,
       finalizeConsumedEffectDurations,
       includeDefeated: application.includeDefeated,
+      // R-TEX-02: 戦術演習の演習状態をダメージ適用の最深部まで運ぶ（通常戦闘では未指定）。
+      ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
       // R-STS-03＋R-EFF-09: `combat/`は`effects/`へ依存できないため、凍結解除の
       // linkedEffectGroupカスケード（`duration-expiry-service.ts`と同じ
       // `collectLinkedGroupCascade`）とCombatStat再計算をここから注入する。

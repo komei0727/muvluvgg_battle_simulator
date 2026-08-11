@@ -18,6 +18,7 @@ import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
 import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
 import {
@@ -95,6 +96,7 @@ export function resolveSkillUse(
   cycleNumber: number,
   actionId: ActionId,
   actionScope: ResolutionScopeId,
+  exercise?: ExerciseRuntime,
 ): ActionResolutionResult {
   const actorUnitId = actor.battleUnitId;
   // R-ACT-03: ASは消費APと同量、EXは増加なし。
@@ -149,6 +151,7 @@ export function resolveSkillUse(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       actionId,
+      ...(exercise !== undefined ? { exercise } : {}),
     },
     working,
   );
@@ -223,6 +226,8 @@ export function resolveSkillUse(
       // `expireEffectsSteps`経由で行う（R-EFF-09カスケードとCombatStat再計算を共有する）。
       continuousDamage: {
         effectActions: definitions.effectActions,
+        // R-TEX-02 #3: 継続ダメージも敵HPへ向かう分をスコアへ計上する。
+        ...(exercise !== undefined ? { exercise } : {}),
         expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],
@@ -418,6 +423,8 @@ export function resolveSkillUse(
     // このAS/EX自身のEffectSequenceにも使い回すことで、この行動内で発生した
     // DAMAGE結果をPS連鎖（カウンター等）からも同じ解決スコープ内として参照できる。
     damageResults: passiveRuntime.damageResultsRegistry,
+    // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
+    ...(exercise !== undefined ? { exercise } : {}),
   });
   // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
   // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま
