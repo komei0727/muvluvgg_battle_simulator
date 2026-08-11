@@ -10,7 +10,11 @@ import {
   formationReducer,
 } from "../features/formation/formation-reducer.js";
 import { SubmitControls } from "../features/formation/SubmitControls.js";
-import { memorySlotsForSide, slotsForSide } from "../features/formation/types.js";
+import {
+  enhancementForSide,
+  memorySlotsForSide,
+  slotsForSide,
+} from "../features/formation/types.js";
 import { ValidationSummary } from "../features/formation/ValidationSummary.js";
 import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
@@ -84,6 +88,7 @@ export function BattleSimulatorPage({
                   violations={displayedViolations}
                   disabled={view.formationDisabled}
                   imageMap={definitionImageMap}
+                  enhancement={enhancementForSide(state.draft, "ally")}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                   }}
@@ -92,6 +97,18 @@ export function BattleSimulatorPage({
                       type: "selectionOpened",
                       selection: { kind: "memory", side, index },
                     });
+                  }}
+                  onOpenUnitEnhancement={(slotKey) => {
+                    dispatch({
+                      type: "selectionOpened",
+                      selection: { kind: "unitEnhancement", slotKey },
+                    });
+                  }}
+                  onEnhancementToggle={(side, enabled) => {
+                    dispatch({ type: "enhancementToggled", side, enabled });
+                  }}
+                  onAcademyLevelChange={(side, group, key, value) => {
+                    dispatch({ type: "academyLevelChanged", side, group, key, value });
                   }}
                 />
               }
@@ -104,6 +121,7 @@ export function BattleSimulatorPage({
                   violations={displayedViolations}
                   disabled={view.formationDisabled}
                   imageMap={definitionImageMap}
+                  enhancement={enhancementForSide(state.draft, "enemy")}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                   }}
@@ -112,6 +130,18 @@ export function BattleSimulatorPage({
                       type: "selectionOpened",
                       selection: { kind: "memory", side, index },
                     });
+                  }}
+                  onOpenUnitEnhancement={(slotKey) => {
+                    dispatch({
+                      type: "selectionOpened",
+                      selection: { kind: "unitEnhancement", slotKey },
+                    });
+                  }}
+                  onEnhancementToggle={(side, enabled) => {
+                    dispatch({ type: "enhancementToggled", side, enabled });
+                  }}
+                  onAcademyLevelChange={(side, group, key, value) => {
+                    dispatch({ type: "academyLevelChanged", side, group, key, value });
                   }}
                 />
               }
@@ -144,6 +174,8 @@ export function BattleSimulatorPage({
                     enemyUnitSlotKeys: requestBuild.enemyUnitSlotKeys,
                     allyMemorySlotKeys: requestBuild.allyMemorySlotKeys,
                     enemyMemorySlotKeys: requestBuild.enemyMemorySlotKeys,
+                    allyGearSlotIndices: requestBuild.allyGearSlotIndices,
+                    enemyGearSlotIndices: requestBuild.enemyGearSlotIndices,
                   });
                 }
               }}
@@ -187,6 +219,7 @@ export function BattleSimulatorPage({
           catalog={catalog.response}
           unitImageMap={unitImageMap}
           memoryImageMap={memoryImageMap}
+          violations={displayedViolations}
           dispatch={dispatch}
         />
       ) : null}

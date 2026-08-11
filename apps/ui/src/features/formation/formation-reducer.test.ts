@@ -169,3 +169,118 @@ describe("formationReducer — selection dialog", () => {
     expect(opened.selectionDialog).toEqual({ kind: "memory", side: "ally", index: 3 });
   });
 });
+
+describe("formationReducer — 強化入力 (M11)", () => {
+  it("toggles a side's enhancement independently of the other side", () => {
+    const state = formationReducer(createInitialFormationState(), {
+      type: "enhancementToggled",
+      side: "ally",
+      enabled: true,
+    });
+
+    expect(state.draft.allyEnhancement.enabled).toBe(true);
+    expect(state.draft.enemyEnhancement.enabled).toBe(false);
+  });
+
+  it("changes one academy level without touching the other systems", () => {
+    const state = formationReducer(createInitialFormationState(), {
+      type: "academyLevelChanged",
+      side: "enemy",
+      group: "unitTypes",
+      key: "PHYSICAL",
+      value: 50,
+    });
+
+    expect(state.draft.enemyEnhancement.academyLevels.unitTypes.PHYSICAL).toBe(50);
+    expect(state.draft.enemyEnhancement.academyLevels.unitTypes.ENERGY).toBe(1);
+    expect(state.draft.enemyEnhancement.academyLevels.attributes.AGGRESSIVE).toBe(1);
+  });
+
+  it("keeps the enhancement inputs when the toggle goes back off (UI-CMP-014)", () => {
+    let state = formationReducer(createInitialFormationState(), {
+      type: "enhancementToggled",
+      side: "ally",
+      enabled: true,
+    });
+    state = formationReducer(state, {
+      type: "academyLevelChanged",
+      side: "ally",
+      group: "attributes",
+      key: "CLEVER",
+      value: 30,
+    });
+    state = formationReducer(state, { type: "enhancementToggled", side: "ally", enabled: false });
+
+    expect(state.draft.allyEnhancement.enabled).toBe(false);
+    expect(state.draft.allyEnhancement.academyLevels.attributes.CLEVER).toBe(30);
+  });
+
+  it("starts a slot's unit enhancement from the defaults on the first edit", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const state = formationReducer(createInitialFormationState(), {
+      type: "unitEnhancementLevelChanged",
+      slotKey,
+      value: 220,
+    });
+
+    const slot = state.draft.allySlots.find((s) => s.slotKey === slotKey);
+    expect(slot?.enhancement?.level).toBe(220);
+    expect(slot?.enhancement?.gears).toHaveLength(9);
+  });
+
+  it("sets and clears a single gear slot, leaving the others empty", () => {
+    const slotKey = slotKeyOf("enemy", "REAR", 2);
+    let state = formationReducer(createInitialFormationState(), {
+      type: "unitEnhancementGearChanged",
+      slotKey,
+      gearIndex: 3,
+      gear: { stat: "ATTACK", tier: "III", grade: "S" },
+    });
+    let slot = state.draft.enemySlots.find((s) => s.slotKey === slotKey);
+    expect(slot?.enhancement?.gears[3]).toEqual({ stat: "ATTACK", tier: "III", grade: "S" });
+    expect(slot?.enhancement?.gears.filter((gear) => gear !== undefined)).toHaveLength(1);
+
+    state = formationReducer(state, {
+      type: "unitEnhancementGearChanged",
+      slotKey,
+      gearIndex: 3,
+    });
+    slot = state.draft.enemySlots.find((s) => s.slotKey === slotKey);
+    expect(slot?.enhancement?.gears[3]).toBeUndefined();
+  });
+
+  it("ignores an edit addressed to an unknown slotKey", () => {
+    const initial = createInitialFormationState();
+
+    expect(
+      formationReducer(initial, {
+        type: "unitEnhancementLevelChanged",
+        slotKey: "ally:FRONT:9",
+        value: 5,
+      }),
+    ).toBe(initial);
+  });
+
+  it("ignores opening the unit enhancement dialog while that side's toggle is off (UI-CMP-015)", () => {
+    const initial = createInitialFormationState();
+    const blocked = formationReducer(initial, {
+      type: "selectionOpened",
+      selection: { kind: "unitEnhancement", slotKey: slotKeyOf("ally", "FRONT", 0) },
+    });
+    expect(blocked.selectionDialog).toEqual({ kind: "closed" });
+
+    const enabled = formationReducer(initial, {
+      type: "enhancementToggled",
+      side: "ally",
+      enabled: true,
+    });
+    const opened = formationReducer(enabled, {
+      type: "selectionOpened",
+      selection: { kind: "unitEnhancement", slotKey: slotKeyOf("ally", "FRONT", 0) },
+    });
+    expect(opened.selectionDialog).toEqual({
+      kind: "unitEnhancement",
+      slotKey: "ally:FRONT:0",
+    });
+  });
+});

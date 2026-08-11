@@ -29,6 +29,8 @@ function submitInput(overrides: Partial<BattleSimulationRequest> = {}): SubmitIn
     enemyUnitSlotKeys: ["enemy:FRONT:0"],
     allyMemorySlotKeys: [],
     enemyMemorySlotKeys: [],
+    allyGearSlotIndices: [],
+    enemyGearSlotIndices: [],
   };
 }
 

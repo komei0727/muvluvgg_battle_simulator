@@ -116,3 +116,81 @@ describe("UnitSlot — filled (UI-CT-002)", () => {
     expect(screen.getByRole("button")).toBeDisabled();
   });
 });
+
+describe("UnitSlot — ユニット強化の起動 (M11, UI-AC-025/026)", () => {
+  it("offers an enhancement button only for a filled slot", () => {
+    const { rerender } = render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        onOpenEnhancement={vi.fn()}
+        enhancementEnabled
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /強化/ })).not.toBeInTheDocument();
+
+    rerender(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        onOpenEnhancement={vi.fn()}
+        enhancementEnabled
+      />,
+    );
+    expect(screen.getByRole("button", { name: "前衛1: アルファの強化を編集" })).toBeEnabled();
+  });
+
+  it("UI-AC-026: disables the enhancement button while its side's toggle is off", async () => {
+    const user = userEvent.setup();
+    const onOpenEnhancement = vi.fn();
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        onOpenEnhancement={onOpenEnhancement}
+        enhancementEnabled={false}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: /強化を編集/ });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onOpenEnhancement).not.toHaveBeenCalled();
+  });
+
+  it("keeps opening the unit selection dialog from the slot itself", async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={onOpen}
+        onOpenEnhancement={vi.fn()}
+        enhancementEnabled
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを変更" }));
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+});

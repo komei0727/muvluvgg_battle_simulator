@@ -27,6 +27,8 @@ export type ExecutionState =
       readonly enemyUnitSlotKeys: readonly string[];
       readonly allyMemorySlotKeys: readonly string[];
       readonly enemyMemorySlotKeys: readonly string[];
+      readonly allyGearSlotIndices: readonly (readonly number[])[];
+      readonly enemyGearSlotIndices: readonly (readonly number[])[];
       readonly previousSuccess?: SuccessfulExecutionSnapshot;
     }
   | {
@@ -46,6 +48,8 @@ export type ExecutionState =
       readonly enemyUnitSlotKeys: readonly string[];
       readonly allyMemorySlotKeys: readonly string[];
       readonly enemyMemorySlotKeys: readonly string[];
+      readonly allyGearSlotIndices: readonly (readonly number[])[];
+      readonly enemyGearSlotIndices: readonly (readonly number[])[];
       readonly previousSuccess?: SuccessfulExecutionSnapshot;
     }
   | {
@@ -64,6 +68,8 @@ export type ExecutionAction =
       readonly enemyUnitSlotKeys: readonly string[];
       readonly allyMemorySlotKeys: readonly string[];
       readonly enemyMemorySlotKeys: readonly string[];
+      readonly allyGearSlotIndices: readonly (readonly number[])[];
+      readonly enemyGearSlotIndices: readonly (readonly number[])[];
     }
   | {
       readonly type: "submissionSucceeded";
@@ -118,6 +124,8 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
         enemyUnitSlotKeys: action.enemyUnitSlotKeys,
         allyMemorySlotKeys: action.allyMemorySlotKeys,
         enemyMemorySlotKeys: action.enemyMemorySlotKeys,
+        allyGearSlotIndices: action.allyGearSlotIndices,
+        enemyGearSlotIndices: action.enemyGearSlotIndices,
         ...(previousSuccess !== undefined ? { previousSuccess } : {}),
       };
     }
@@ -146,6 +154,8 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
         enemyUnitSlotKeys: state.enemyUnitSlotKeys,
         allyMemorySlotKeys: state.allyMemorySlotKeys,
         enemyMemorySlotKeys: state.enemyMemorySlotKeys,
+        allyGearSlotIndices: state.allyGearSlotIndices,
+        enemyGearSlotIndices: state.enemyGearSlotIndices,
         ...(action.requestId !== undefined ? { requestId: action.requestId } : {}),
         ...(state.previousSuccess !== undefined ? { previousSuccess: state.previousSuccess } : {}),
       };

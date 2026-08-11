@@ -1,9 +1,10 @@
 import { useId } from "react";
 import type { UiViolation } from "./draft-validation.js";
+import { EnhancementPanel } from "./EnhancementPanel.js";
 import { MemorySlot } from "./MemorySlot.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 import { memorySlotKeyOf } from "./types.js";
-import type { FormationSlotInput, Side, UiColumn, UiRow } from "./types.js";
+import type { FormationSlotInput, Side, SideEnhancementInput, UiColumn, UiRow } from "./types.js";
 import { UnitSlot } from "./UnitSlot.js";
 import styles from "./FormationEditor.module.css";
 
@@ -15,8 +16,17 @@ export interface FormationEditorProps {
   readonly violations: readonly UiViolation[];
   readonly disabled: boolean;
   readonly imageMap?: Readonly<Record<string, string>>;
+  readonly enhancement: SideEnhancementInput;
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onOpenMemorySelection: (side: Side, index: number) => void;
+  readonly onOpenUnitEnhancement: (slotKey: string) => void;
+  readonly onEnhancementToggle: (side: Side, enabled: boolean) => void;
+  readonly onAcademyLevelChange: (
+    side: Side,
+    group: "unitTypes" | "attributes",
+    key: string,
+    value: number | "",
+  ) => void;
 }
 
 const ROWS: readonly UiRow[] = ["FRONT", "REAR"];
@@ -51,8 +61,12 @@ export function FormationEditor({
   violations,
   disabled,
   imageMap,
+  enhancement,
   onOpenUnitSelection,
   onOpenMemorySelection,
+  onOpenUnitEnhancement,
+  onEnhancementToggle,
+  onAcademyLevelChange,
 }: FormationEditorProps) {
   const headingId = useId();
   const sideLabelEn = side === "ally" ? "ALLY" : "ENEMY";
@@ -94,6 +108,10 @@ export function FormationEditor({
                     onOpen={() => {
                       onOpenUnitSelection(slot.slotKey);
                     }}
+                    onOpenEnhancement={() => {
+                      onOpenUnitEnhancement(slot.slotKey);
+                    }}
+                    enhancementEnabled={enhancement.enabled}
                   />
                 );
               })}
@@ -126,6 +144,19 @@ export function FormationEditor({
           })}
         </div>
       </div>
+
+      <EnhancementPanel
+        side={side}
+        enhancement={enhancement}
+        violations={violations}
+        disabled={disabled}
+        onToggle={(enabled) => {
+          onEnhancementToggle(side, enabled);
+        }}
+        onAcademyLevelChange={(group, key, value) => {
+          onAcademyLevelChange(side, group, key, value);
+        }}
+      />
     </section>
   );
 }

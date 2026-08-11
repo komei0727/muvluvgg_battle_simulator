@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createInitialDraft, memorySlotsForSide, slotKeyOf, slotsForSide } from "./types.js";
+import {
+  createInitialDraft,
+  createInitialUnitEnhancement,
+  enhancementForSide,
+  memorySlotsForSide,
+  slotKeyOf,
+  slotsForSide,
+} from "./types.js";
 
 describe("slotKeyOf", () => {
   it("builds a stable key from side, row, and column", () => {
@@ -48,5 +55,50 @@ describe("slotsForSide / memorySlotsForSide", () => {
     expect(slotsForSide(draft, "enemy")).toBe(draft.enemySlots);
     expect(memorySlotsForSide(draft, "ally")).toBe(draft.allyMemoryDefinitionIds);
     expect(memorySlotsForSide(draft, "enemy")).toBe(draft.enemyMemoryDefinitionIds);
+  });
+});
+
+describe("createInitialDraft — 強化入力 (M11, UI-AC-023)", () => {
+  it("defaults both sides' enhancement toggle to off with every academy level at 1", () => {
+    const draft = createInitialDraft();
+
+    expect(draft.allyEnhancement.enabled).toBe(false);
+    expect(draft.enemyEnhancement.enabled).toBe(false);
+    expect(draft.allyEnhancement.academyLevels.unitTypes).toEqual({
+      PHYSICAL: 1,
+      ENERGY: 1,
+      AGILE: 1,
+    });
+    expect(draft.allyEnhancement.academyLevels.attributes).toEqual({
+      AGGRESSIVE: 1,
+      SHY: 1,
+      CUTE: 1,
+      SMART: 1,
+      COMICAL: 1,
+      CLEVER: 1,
+    });
+  });
+
+  it("leaves every unit slot without a unit enhancement until it is edited", () => {
+    const draft = createInitialDraft();
+
+    expect(draft.allySlots.every((slot) => slot.enhancement === undefined)).toBe(true);
+  });
+});
+
+describe("enhancementForSide / createInitialUnitEnhancement", () => {
+  it("selects the enhancement input matching the requested side", () => {
+    const draft = createInitialDraft();
+
+    expect(enhancementForSide(draft, "ally")).toBe(draft.allyEnhancement);
+    expect(enhancementForSide(draft, "enemy")).toBe(draft.enemyEnhancement);
+  });
+
+  it("starts a unit enhancement at level 200 with nine empty gear slots (UI-AC-025)", () => {
+    const enhancement = createInitialUnitEnhancement();
+
+    expect(enhancement.level).toBe(200);
+    expect(enhancement.gears).toHaveLength(9);
+    expect(enhancement.gears.every((gear) => gear === undefined)).toBe(true);
   });
 });
