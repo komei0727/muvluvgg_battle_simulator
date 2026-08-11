@@ -101,6 +101,7 @@ export function SelectionDialogs({
         slotKey={slotKey}
         enhancement={slot.enhancement ?? createInitialUnitEnhancement()}
         violations={violations}
+        {...(catalog.gearEffects !== undefined ? { gearEffects: catalog.gearEffects } : {})}
         onLevelChange={(value) => {
           dispatch({ type: "unitEnhancementLevelChanged", slotKey, value });
         }}

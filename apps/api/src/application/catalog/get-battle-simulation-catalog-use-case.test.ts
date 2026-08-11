@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GetBattleSimulationCatalogUseCase } from "./get-battle-simulation-catalog-use-case.js";
+import { buildGearEffects, gearEffectsFingerprint } from "./gear-effect-catalog.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import { createEffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition-factory.js";
 import {
@@ -170,6 +171,22 @@ describe("GetBattleSimulationCatalogUseCase", () => {
     expect(result.catalogRevision).toBe("rev-1");
     expect(result.units.map((u) => u.unitDefinitionId)).toEqual(["UNIT_A", "UNIT_B"]);
     expect(result.memories.map((m) => m.memoryDefinitionId)).toEqual(["MEM_A", "MEM_B"]);
+  });
+
+  it("publishes the gear effect table and derives representationRevision from the catalogRevision and that table", () => {
+    const snapshot = snapshotOf({ catalogRevision: "rev-1" });
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(snapshot),
+    });
+
+    const result = useCase.execute();
+
+    expect(result.gearEffects).toEqual(buildGearEffects());
+    // 効果表はコード定数でありCatalogファイルに紐づかないため、ETag導出元は
+    // `catalogRevision`だけでは足りない（10_API設計.md「ETag」）。
+    expect(result.representationRevision).toContain("rev-1");
+    expect(result.representationRevision).toContain(gearEffectsFingerprint(result.gearEffects));
+    expect(result.representationRevision).not.toBe("rev-1");
   });
 
   it("loads the snapshot and projects the read model only once, reusing it across repeated execute() calls", () => {

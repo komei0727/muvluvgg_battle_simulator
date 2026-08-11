@@ -47,7 +47,12 @@ export function registerCatalogRoute(
       // ETag比較で200/304を出し分けるだけ——Catalogファイルの読み込みや
       // projectionをリクエストごとに作り直さない。
       const result = catalogUseCase.execute();
-      const opaqueTag = toOpaqueEntityTag(result.catalogRevision);
+      // ETagは`catalogRevision`単独ではなくread model全体の版
+      // （`representationRevision`）から導出する——ギア効果表はCatalogファイルでは
+      // なくコード定数であり、表だけを変えたデプロイでETagが据え置かれると
+      // `If-None-Match`が一致し続けて古い表がクライアントに残るため
+      // （`10_API設計.md`「ETag」）。
+      const opaqueTag = toOpaqueEntityTag(result.representationRevision);
       const etag = `"${opaqueTag}"`;
       reply.header("ETag", etag);
       if (matchesIfNoneMatch(request.headers["if-none-match"], opaqueTag)) {

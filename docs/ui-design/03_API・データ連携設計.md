@@ -23,6 +23,22 @@ interface BattleSimulationCatalogResponse {
   readonly catalogRevision: string;
   readonly units: readonly CatalogUnitSummary[];
   readonly memories: readonly CatalogMemorySummary[];
+  // 効果表を公開しない旧APIと組み合わせても壊さないため任意項目として扱う。
+  readonly gearEffects?: readonly CatalogGearEffect[];
+}
+
+interface CatalogGearEffect {
+  readonly stat: string;
+  /** R-ENH-06: `RATIO` は基本値への割合補正、`POINT` は値そのものへの加算。 */
+  readonly application: string;
+  readonly values: readonly CatalogGearEffectValue[];
+}
+
+interface CatalogGearEffectValue {
+  readonly tier: string;
+  readonly grade: string;
+  /** R-ENH-04 #3の表の値。パーセントポイント表記のまま届く。 */
+  readonly percentagePoints: number;
 }
 
 interface CatalogUnitSummary {
@@ -42,6 +58,7 @@ interface CatalogMemorySummary {
 ```
 
 - Unit/Memory配列はdefinition ID昇順とし、UI側の表示sortに依存しない安定順を持つ。
+- `gearEffects`はギア選択肢の上昇値表示（`01_UI要求・画面設計.md` §5.7）にだけ使う。UIは値を再計算せず、効果表も換算式も持たない。
 - 画像URLはAPI契約に含めない。UIはdefinition IDに対応する任意のローカル画像mapを重ね、なければfallbackを使う。
 - Skill、EffectAction、Formula、Condition、triggeredEffectsの内容を返さない。
 - pagination、検索query、availability filterは初期契約に設けない。
@@ -386,6 +403,7 @@ type FormationStatPreviewApiResult =
 - `units`と`memories`がarray
 - 各定義IDが空でなく、配列内で重複しない
 - `displayName`と分類値が契約shapeを満たす
+- `gearEffects`は不在を許容する。届いた場合は各項目が`stat`・`application`・`values`を持ち、各値が`tier`・`grade`・有限数の`percentagePoints`を持つ
 
 契約違反時は編成を有効にせず `RESPONSE_CONTRACT_MISMATCH`を表示する。UIがCatalogファイルから欠損値を補完しない。
 
@@ -643,3 +661,4 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-019`: `enhancement`配下の422 JSON Pointer（学園レベル・レベル・ギア）を該当入力へ対応づける。成長値を持たないユニットのレベル違反を含む。
 - `UI-API-020`: 編成ステータスプレビューへ、戦闘POSTと同じ編成・強化指定（`turnLimit`・`options`を除く）を送り、応答の`units`を陣営ごとの並び順で編成枠へ対応づける。
 - `UI-API-021`: プレビューの失敗（ネットワーク・HTTPエラー・契約違反）を戦闘実行の可否と送信前検証へ波及させない。
+- `UI-API-022`: 一覧応答の`gearEffects`をそのままギア選択肢の表示へ渡し、不在時はランク名だけの表示へフォールバックする。UIは効果表を持たない。

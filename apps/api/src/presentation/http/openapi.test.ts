@@ -26,7 +26,9 @@ import {
 } from "./schemas/battle-log/battle-log-schema.js";
 import type { BattleLogEventResponseBody } from "../../application/contracts/battle-log.js";
 import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
+import { GEAR_STAT_APPLICATION_ENUM } from "./schemas/catalog/catalog-schema.js";
 import { SUMMARY_EVENT_TYPE_INCLUSION } from "../../application/observation/battle-log-projection.js";
+import { GEAR_STAT_APPLICATION_KINDS } from "../../domain/battle/model/gear-customization-policy.js";
 import { CONDITION_KINDS } from "../../domain/catalog/definitions/condition-definition.js";
 import { EFFECT_ACTION_KINDS } from "../../domain/catalog/definitions/effect-action-definition.js";
 import { STATUS_KINDS } from "../../domain/catalog/definitions/effect-action-payload.js";
@@ -1371,6 +1373,30 @@ describe("OpenAPI document", () => {
       );
     }
   });
+  it("API-OPENAPI-033 (Issue #423, R-ENH-06, 10_API設計.md「OpenAPIへの反映」「列挙値」): the published gear application enum lists exactly the kinds the Domain declares, and the catalog 200 documents gearEffects", () => {
+    // presentationはdomainを直接importできないため、`catalog-schema.ts`の
+    // `GEAR_STAT_APPLICATION_ENUM`はDomainの正本を手で写したものになる
+    // （API-OPENAPI-028と同じ形の写し漏れ検出）。
+    expect([...GEAR_STAT_APPLICATION_ENUM].sort()).toEqual([...GEAR_STAT_APPLICATION_KINDS].sort());
+
+    interface JsonSchemaObject {
+      readonly required?: readonly string[];
+      readonly items?: JsonSchemaObject;
+      readonly properties?: Readonly<Record<string, JsonSchemaObject>>;
+    }
+    const document = app.swagger() as unknown as OpenApiDocumentForTest;
+    const schema = document.paths?.[BATTLE_SIMULATION_CATALOG_PATH]?.["get"]?.responses?.["200"]
+      ?.content?.["application/json"]?.schema as JsonSchemaObject | undefined;
+
+    const gearEffects = schema?.properties?.["gearEffects"];
+    expect(gearEffects?.items?.required).toEqual(["stat", "application", "values"]);
+    expect(gearEffects?.items?.properties?.["values"]?.items?.required).toEqual([
+      "tier",
+      "grade",
+      "percentagePoints",
+    ]);
+  });
+
   it("API-OPENAPI-032 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」/10_API設計.md「編成の開始時ステータスをプレビューする」): documents POST /api/v1/formation-stat-previews with only the statuses it can return, and publishes the value ranges in the request schema", () => {
     interface JsonSchemaObject {
       readonly enum?: readonly unknown[];

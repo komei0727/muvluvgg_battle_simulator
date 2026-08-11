@@ -29,10 +29,25 @@ export interface CatalogMemorySummaryResponseBody {
   readonly displayName: string;
 }
 
+/** `10_API設計.md`「CatalogGearEffectValueResponse」。 */
+export interface CatalogGearEffectValueResponseBody {
+  readonly tier: string;
+  readonly grade: string;
+  readonly percentagePoints: number;
+}
+
+/** `10_API設計.md`「CatalogGearEffectResponse」。 */
+export interface CatalogGearEffectResponseBody {
+  readonly stat: string;
+  readonly application: string;
+  readonly values: readonly CatalogGearEffectValueResponseBody[];
+}
+
 /** `10_API設計.md`「BattleSimulationCatalogResponse」。 */
 export interface BattleSimulationCatalogResponseBody {
   readonly schemaVersion: number;
   readonly catalogRevision: string;
   readonly units: readonly CatalogUnitSummaryResponseBody[];
   readonly memories: readonly CatalogMemorySummaryResponseBody[];
+  readonly gearEffects: readonly CatalogGearEffectResponseBody[];
 }

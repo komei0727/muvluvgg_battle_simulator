@@ -27,7 +27,7 @@ export type GearRatios = Readonly<Record<StatKind, Percentage>>;
  * `/100` で変換する（R-ENH-04 #5）。表記のまま保持して変換を1か所に閉じることで、
  * 設計書の表とコードを字面で突き合わせられるようにする。
  */
-const EFFECT_TABLE_PERCENTAGE_POINTS: Readonly<
+export const GEAR_EFFECT_PERCENTAGE_POINTS: Readonly<
   Record<StatKind, Readonly<Record<GearTier, Readonly<Record<GearGrade, number>>>>>
 > = {
   MAXIMUM_HP: {
@@ -61,6 +61,29 @@ const EFFECT_TABLE_PERCENTAGE_POINTS: Readonly<
   },
 };
 
+/** R-ENH-06: 同じパーセント値でも、ステータスによって適用のされ方が異なる。 */
+export const GEAR_STAT_APPLICATION_KINDS = ["RATIO", "POINT"] as const;
+export type GearStatApplication = (typeof GEAR_STAT_APPLICATION_KINDS)[number];
+
+/**
+ * R-ENH-06: ギア合計割合の適用種別。HP・攻撃力・防御力・行動速度は基本値へ
+ * 掛かる割合補正（`RATIO`）、会心率・会心ダメージボーナス・属性相性ボーナスは
+ * 基本値（既に内部表現の割合）への単純加算（`POINT`）。
+ *
+ * 算出は`enhanced-base-stats-calculator.ts`が式として持ち、この表はその意味を
+ * 表示側へ公開するための分類である。両者が離れないことは
+ * `UT-R-ENH-06-009`が振る舞いから機械検証する。
+ */
+export const GEAR_STAT_APPLICATIONS: Readonly<Record<StatKind, GearStatApplication>> = {
+  MAXIMUM_HP: "RATIO",
+  ATTACK: "RATIO",
+  DEFENSE: "RATIO",
+  ACTION_SPEED: "RATIO",
+  CRITICAL_RATE: "POINT",
+  CRITICAL_DAMAGE_BONUS: "POINT",
+  AFFINITY_BONUS: "POINT",
+};
+
 /**
  * R-ENH-04 #4/#5: 同一ステータスのギアは単純加算し、合計パーセント値を100で割って
  * 内部表現の小数へ変換する。加算をパーセント値のまま行ってから1度だけ割ることで、
@@ -69,7 +92,7 @@ const EFFECT_TABLE_PERCENTAGE_POINTS: Readonly<
 export function calculateGearRatios(gears: readonly GearSpecification[] | undefined): GearRatios {
   const totals = new Map<StatKind, number>();
   for (const gear of gears ?? []) {
-    const points = EFFECT_TABLE_PERCENTAGE_POINTS[gear.stat][gear.tier][gear.grade];
+    const points = GEAR_EFFECT_PERCENTAGE_POINTS[gear.stat][gear.tier][gear.grade];
     totals.set(gear.stat, (totals.get(gear.stat) ?? 0) + points);
   }
   return Object.fromEntries(
