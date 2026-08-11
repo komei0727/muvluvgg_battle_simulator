@@ -23,6 +23,12 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
+import {
+  requireResolveBreak,
+  requiresBreakResolution,
+  type ResolveBreakHook,
+} from "../events/break-resolution.js";
 
 /**
  * `MODIFY_RESOURCE_CAPACITY`が上限を変更できるリソースのうち、ゲージ最大値を
@@ -159,6 +165,17 @@ export interface ResourceCapacityRecalculateContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * R-TEX-03 #1: `MAXIMUM_HP`上限の低下で現在HPが0へ切り下げられる経路も「到達経路を
+   * 問わない」HP0到達である。演習状態がある場合は戦闘不能ではなくブレイクとして解決する。
+   */
+  readonly exercise?: ExerciseRuntime;
+  /**
+   * `exercise`とセットで注入する`BreakResolutionService`。`effects/`同士の相互import
+   * （`break-resolution-service.ts`は`combat-stat-recalculation-service.ts`経由で
+   * このモジュールへ依存する）を避けるため、直接importせずhookとして受け取る。
+   */
+  readonly resolveBreak?: ResolveBreakHook;
 }
 
 export interface RecalculateResourceCapacitiesResult {
@@ -307,6 +324,21 @@ export function recalculateResourceCapacities(
   }
 
   if (!wasDefeated && isDefeated(updated)) {
+    // R-TEX-03: 演習の敵はここでも戦闘不能にならない。ブレイク解決が復活まで済ませた
+    // 状態をそのまま返す（`units`の差し替えも解決結果が持つ）。
+    if (requiresBreakResolution(context.exercise, updated)) {
+      const resolveBreak = requireResolveBreak(
+        context.resolveBreak,
+        "resourceCapacityRecalculateContext.resolveBreak",
+      );
+      const clamped = units.map((u) => (u.battleUnitId === targetUnitId ? updated : u));
+      const steps = resolveBreak(targetUnitId, clamped, lastEventId);
+      let step = steps.next();
+      while (!step.done) {
+        step = steps.next(step.value.units);
+      }
+      return { units: step.value.units, lastEventId: step.value.lastEventId };
+    }
     const event = context.recorder.record({
       eventType: "UnitDefeated",
       category: "FACT",

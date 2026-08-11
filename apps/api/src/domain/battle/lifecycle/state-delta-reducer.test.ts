@@ -44,6 +44,7 @@ function initialState(): BattleStateSnapshot {
         maximumPp: 3,
         maximumExtraGauge: 10,
         combatStats: COMBAT_STATS,
+        baseCombatStats: COMBAT_STATS,
       },
       [UNIT_B]: {
         hp: 100,
@@ -54,6 +55,7 @@ function initialState(): BattleStateSnapshot {
         maximumPp: 3,
         maximumExtraGauge: 10,
         combatStats: COMBAT_STATS,
+        baseCombatStats: COMBAT_STATS,
       },
     },
   };
@@ -91,6 +93,7 @@ describe("applyStateDelta", () => {
       maximumPp: 3,
       maximumExtraGauge: 10,
       combatStats: COMBAT_STATS,
+      baseCombatStats: COMBAT_STATS,
     });
     expect(next.units[UNIT_B]).toEqual({
       hp: 100,
@@ -101,6 +104,7 @@ describe("applyStateDelta", () => {
       maximumPp: 3,
       maximumExtraGauge: 10,
       combatStats: COMBAT_STATS,
+      baseCombatStats: COMBAT_STATS,
     });
   });
 
@@ -199,6 +203,60 @@ describe("applyStateDelta", () => {
 
   it("UT-R-TEX-02-006: throws when an exercise delta is applied to a state without exercise state (a normal battle can never own one)", () => {
     const delta: StateDelta = { exercise: { totalScore: { before: 0, after: 10 } } };
+
+    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TEX-03-002: applies an exercise.breakCount delta independently of the cumulative score", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 72, breakCount: 1 },
+    };
+    const delta: StateDelta = { exercise: { breakCount: { before: 1, after: 2 } } };
+
+    const next = applyStateDelta(exerciseState, delta);
+
+    expect(next.exercise).toEqual({ totalScore: 72, breakCount: 2 });
+  });
+
+  it("UT-R-TEX-03-003: throws when exercise.breakCount.before does not match the current break count", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 0, breakCount: 1 },
+    };
+    const delta: StateDelta = { exercise: { breakCount: { before: 0, after: 1 } } };
+
+    expect(() => applyStateDelta(exerciseState, delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TEX-04-017: applies a units.<id>.baseCombatStats delta for the break enhancement, leaving the battle-time combatStats to their own delta", () => {
+    const delta: StateDelta = {
+      units: {
+        [UNIT_A]: {
+          baseCombatStats: {
+            maximumHp: { before: 100, after: 120 },
+            attack: { before: 10, after: 12 },
+          },
+        },
+      },
+    };
+
+    const next = applyStateDelta(initialState(), delta);
+
+    expect(next.units[UNIT_A]!.baseCombatStats).toEqual({
+      ...COMBAT_STATS,
+      maximumHp: 120,
+      attack: 12,
+    });
+    // R-STA-04の2層構造: 基礎側の書き換えは戦闘中ステータスを直接動かさない
+    // （強化後の再計算は`CombatStatChanged`が自分の差分として運ぶ）。
+    expect(next.units[UNIT_A]!.combatStats).toEqual(COMBAT_STATS);
+  });
+
+  it("UT-R-TEX-04-018: throws when a baseCombatStats delta's before does not match the current base value", () => {
+    const delta: StateDelta = {
+      units: { [UNIT_A]: { baseCombatStats: { attack: { before: 99, after: 120 } } } },
+    };
 
     expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
   });
@@ -1052,6 +1110,7 @@ describe("reduceStateDeltas", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
         [UNIT_B]: {
           hp: 80,
@@ -1062,6 +1121,7 @@ describe("reduceStateDeltas", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     });

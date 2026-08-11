@@ -11,6 +11,7 @@ import {
   evaluateMemoryTargetSelector,
 } from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
+import { matchesTriggerEventType } from "./trigger-event-matching.js";
 
 /**
  * R-MEM-02 #1「APIリクエストで指定された Memory の順序」を保つため、両陣営の
@@ -71,7 +72,10 @@ function matchesMemoryTriggerWith(
   resolutionPhase: ResolutionPhase | undefined,
   turnNumber: number | undefined,
 ): boolean {
-  if (trigger.eventType !== event.eventType || trigger.category !== event.category) {
+  if (
+    !matchesTriggerEventType(trigger.eventType, event.eventType) ||
+    trigger.category !== event.category
+  ) {
     return false;
   }
   if (!evaluateMemorySourceSelector(trigger.sourceSelector, side, event, unitsById)) {

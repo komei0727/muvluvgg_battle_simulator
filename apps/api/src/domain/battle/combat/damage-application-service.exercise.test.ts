@@ -3,6 +3,7 @@ import { applyDamageAction } from "./damage-application-service.js";
 import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { BattleUnit } from "../model/battle-unit.js";
+import type { DamageEventContext } from "./damage-event-context.js";
 import {
   effectKindKeyFromDefinitionId,
   SUBUNIT_PROVIDER_ATTACK_KEY,
@@ -11,6 +12,7 @@ import {
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import { resolveBreakSteps } from "../effects/break-resolution-service.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
   unit,
@@ -132,16 +134,61 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
     });
   }
 
-  /** 演習状態は原基準値スナップショットを必ず持つ（R-TEX-04）。スコア計上の検証では値自体は使わない。 */
-  function exerciseRuntime(): ExerciseRuntime {
-    return new ExerciseRuntime(unit("TARGET", "ENEMY").baseCombatStats);
+  /** R-INT-01: 敵自身が保持する致死ダメージ耐え（R-TEX-08がブレイクより優先させる）。 */
+  function deathSurvivalEffect(id: string, holderId: string, survivalHp: number): AppliedEffect {
+    return interventionEffect(id, holderId, {
+      deathSurvival: {
+        survivalHp: { kind: "CONSTANT", value: survivalHp },
+        healAfterSurvival: null,
+      },
+    });
+  }
+
+  /**
+   * 演習状態は原基準値スナップショットを必ず持つ（R-TEX-04）。ブレイク強化を検証する
+   * テストでは対象ユニットとまったく同じ基準値で作る必要があるため、対象の生成に
+   * 使ったのと同じoverridesを渡す。
+   */
+  function exerciseRuntime(overrides: Parameters<typeof unit>[2] = {}): ExerciseRuntime {
+    return new ExerciseRuntime(unit("TARGET", "ENEMY", overrides).baseCombatStats);
+  }
+
+  /**
+   * `combat/`は`effects/`へ依存できないため、production経路（`damage-effect-action.ts`）と
+   * まったく同じく`BreakResolutionService`をhookとして注入する。fake実装にすると
+   * 「シームが呼ばれたか」しか検証できず、ブレイク解決の結果（復活後HP・強化）まで
+   * 通しで確認できない。
+   */
+  function exerciseDamageContext(exercise: ExerciseRuntime): DamageEventContext {
+    const base = damageEventContext({ exercise });
+    return {
+      ...base,
+      resolveBreak: (targetUnitId, units, causeEventId) =>
+        resolveBreakSteps(
+          {
+            recorder: base.recorder,
+            turnNumber: base.turnNumber,
+            cycleNumber: base.cycleNumber,
+            ...(base.actionId !== undefined ? { actionId: base.actionId } : {}),
+            skillUseId: base.skillUseId,
+            resolutionScopeId: base.resolutionScopeId,
+            rootEventId: base.rootEventId,
+            exercise,
+          },
+          units,
+          targetUnitId,
+          new Map(),
+          causeEventId,
+        ),
+    };
   }
 
   function attack(
     target: BattleUnit,
     exercise: ExerciseRuntime | undefined,
   ): ReturnType<typeof damageEventContext> {
-    const context = damageEventContext(exercise === undefined ? {} : { exercise });
+    const context =
+      exercise === undefined ? damageEventContext({}) : exerciseDamageContext(exercise);
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     applyDamageAction(
       attacker,
@@ -340,6 +387,86 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
       targetUnitId: createBattleUnitId("TARGET"),
       amount: 20,
     });
+  });
+
+  it("UT-R-TEX-03-005: resolves an exercise enemy's HP-0 arrival as a break — UnitBroken and UnitRevived instead of UnitDefeated, with the enemy never observable as DEFEATED", () => {
+    const enemyStats = { defense: 10, maximumHp: 15 };
+    const exercise = exerciseRuntime(enemyStats);
+    const target = unit("TARGET", "ENEMY", enemyStats);
+    const context = exerciseDamageContext(exercise);
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const types = context.recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).toContain("UnitRevived");
+    expect(types).not.toContain("UnitDefeated");
+    // R-TEX-02 #2: オーバーキル分（20 - 15）を含めて計上する。
+    expect(exercise.totalScore).toBe(20);
+    expect(exercise.breakCount).toBe(1);
+    // R-TEX-05 #3: 強化後の最大HP（15 × 1.20 = 18）まで全回復して復活する。
+    const revivedEnemy = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    expect(revivedEnemy.currentHp).toBe(18);
+  });
+
+  it("UT-R-TEX-06-002: leaves the remaining hits of a multi-hit skill to land on the revived enemy", () => {
+    const enemyStats = { defense: 10, maximumHp: 15 };
+    const exercise = exerciseRuntime(enemyStats);
+    const target = unit("TARGET", "ENEMY", enemyStats);
+    const context = exerciseDamageContext(exercise);
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 1ヒット目（30 - 10 = 20）でブレイク。2ヒット目は復活後（解除・強化適用後）の敵へ
+    // 命中するため、強化された防御力12で受けて18になり（30 - 12）、HP18を削り切って
+    // 再びブレイクする。どちらのヒットも解決され、中断されない（R-TEX-03 #3／R-TEX-06 #4）。
+    expect(result.hits.map((outcome) => outcome.applied)).toEqual([true, true]);
+    expect(result.interruptedCount).toBe(0);
+    expect(exercise.breakCount).toBe(2);
+    expect(exercise.totalScore).toBe(38);
+  });
+
+  it("UT-R-TEX-08-001: a death-survival on the enemy's own skill takes precedence over the break, counting the full damage without incrementing the break count (R-INT-01)", () => {
+    const enemyStats = { defense: 10, maximumHp: 15 };
+    const exercise = exerciseRuntime(enemyStats);
+    const target: BattleUnit = {
+      ...unit("TARGET", "ENEMY", enemyStats),
+      appliedEffects: [deathSurvivalEffect("SURVIVE", "TARGET", 3)],
+    };
+    const context = exerciseDamageContext(exercise);
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const types = context.recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("LethalDamageSurvived");
+    expect(types).not.toContain("UnitBroken");
+    expect(exercise.breakCount).toBe(0);
+    // R-TEX-08 #3: 耐えたダメージの全量を計上する。
+    expect(exercise.totalScore).toBe(20);
   });
 
   it("UT-R-TEX-02-024: does not count a hit converted into healing by dazzle, since no damage reaches the enemy's HP (R-DTH-01)", () => {

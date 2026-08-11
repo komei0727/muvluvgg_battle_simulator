@@ -26,6 +26,8 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
+import type { ResolveBreakHook } from "../events/break-resolution.js";
 import { createPercentage } from "../../shared/percentage.js";
 
 const ZERO_PERCENTAGE = createPercentage(0);
@@ -163,6 +165,13 @@ export interface RecalculateContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * R-TEX-03: 再計算の後段（`recalculateResourceCapacities`）がHP上限低下で現在HPを
+   * 0へ切り下げたときのブレイク解決に必要。この2つはここでは読まず、そのまま
+   * `ResourceCapacityRecalculateContext`へ渡すだけである。
+   */
+  readonly exercise?: ExerciseRuntime;
+  readonly resolveBreak?: ResolveBreakHook;
 }
 
 export interface RecalculateCombatStatsResult {

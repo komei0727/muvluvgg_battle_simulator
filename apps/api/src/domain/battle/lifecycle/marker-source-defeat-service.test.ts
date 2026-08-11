@@ -239,6 +239,33 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     ]);
   });
 
+  it("UT-R-TEX-07-002: a UnitBroken does not seed the source-defeat removal, so Markers the broken enemy granted to allies survive the break", () => {
+    const ally = unit("ally-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const granted = grantMarker({
+      sourceUnitId: "enemy-1",
+      targetUnitId: "ally-1",
+      durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+      units: [ally],
+      recorder,
+      rootEventId,
+    });
+
+    // R-TEX-07 #2: 発生源の戦闘不能を契機とする既存の解除規則はブレイクでは作動しない。
+    // ブレイクは`UnitDefeated`を発行しないため、この抽出器はそもそも成立しない
+    // （撃破トリガーの照合だけが`UnitBroken`を撃破として扱う、R-TEX-03 #2）。
+    expect(
+      findMarkersRemovedOnSourceDefeat(granted.units, {
+        eventType: "UnitBroken",
+        payload: { unitId: createBattleUnitId("enemy-1"), breakNumber: 1 },
+      }),
+    ).toEqual([]);
+    // 同じ状態で`UnitDefeated`なら従来どおり解除対象になる（対比）。
+    expect(findMarkersRemovedOnSourceDefeat(granted.units, defeatedEvent("enemy-1"))).toHaveLength(
+      1,
+    );
+  });
+
   it("UT-R-EFF-10-029 (R-EFF-10 M7-020 Issue #279): a self-applied Marker is seeded when its holder is the defeated granter", () => {
     const self = unit("self-1");
     const { recorder, rootEventId } = seedRecorder();

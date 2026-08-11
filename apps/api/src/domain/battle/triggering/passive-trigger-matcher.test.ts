@@ -128,6 +128,62 @@ const UNIT_DEF_A = createUnitDefinitionId("UNIT_A");
 const UNIT_DEF_B = createUnitDefinitionId("UNIT_B");
 
 describe("detectPassiveCandidates", () => {
+  it("UT-R-TEX-03-010: an existing eventType: UnitDefeated trigger also matches UnitBroken, so break counts as a defeat without changing any Catalog definition", () => {
+    const skill = passiveSkillOf("SKL_ON_DEFEAT", {
+      eventType: "UnitDefeated",
+      category: "FACT",
+      sourceSelector: "ANY",
+      targetSelector: "ANY",
+    });
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const candidates = detectPassiveCandidates({
+      event: {
+        eventType: "UnitBroken",
+        category: "FACT",
+        payload: { unitId: createBattleUnitId("ENEMY"), breakNumber: 1 },
+      },
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+      activationGuard: createEmptyPassiveActivationGuard(),
+    });
+
+    expect(candidates.map((c) => c.skillDefinition.skillDefinitionId)).toEqual([
+      skill.skillDefinitionId,
+    ]);
+  });
+
+  it("UT-R-TEX-03-011: the reverse does not hold — an eventType: UnitBroken trigger is not matched by UnitDefeated", () => {
+    const skill = passiveSkillOf("SKL_ON_BREAK", {
+      eventType: "UnitBroken",
+      category: "FACT",
+      sourceSelector: "ANY",
+      targetSelector: "ANY",
+    });
+    const owner = unit("OWNER", "ALLY", { column: "LEFT", row: "FRONT" }, UNIT_DEF_A);
+
+    const candidates = detectPassiveCandidates({
+      event: {
+        eventType: "UnitDefeated",
+        category: "FACT",
+        payload: { unitId: createBattleUnitId("ENEMY") },
+      },
+      units: [owner],
+      unitDefinitions: new Map([
+        [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+      ]),
+      skillDefinitions: new Map([[skill.skillDefinitionId, skill]]),
+      activationGuard: createEmptyPassiveActivationGuard(),
+    });
+
+    expect(candidates).toEqual([]);
+  });
+
   it("UT-R-PS-01-120: matches candidates by eventType/category/selectors/condition without any per-eventType branching", () => {
     const skillTurn = passiveSkillOf("SKL_TURN", {
       eventType: "TurnStarted",

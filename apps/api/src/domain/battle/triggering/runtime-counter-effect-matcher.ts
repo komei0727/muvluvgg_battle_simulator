@@ -8,6 +8,7 @@ import { applyUpdate } from "./runtime-counter-matcher.js";
 import { evaluateTriggerCondition } from "./trigger-condition-evaluator.js";
 import { evaluateSourceSelector, evaluateTargetSelector } from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
+import { matchesTriggerEventType } from "./trigger-event-matching.js";
 
 export interface EffectRuntimeCounterUpdateResult {
   readonly battleUnitId: BattleUnitId;
@@ -62,7 +63,7 @@ export function matchEffectRuntimeCounterUpdates(
         }
         const trigger = update.trigger;
         const matches =
-          trigger.eventType === event.eventType &&
+          matchesTriggerEventType(trigger.eventType, event.eventType) &&
           trigger.category === event.category &&
           evaluateSourceSelector(trigger.sourceSelector, holder, event, unitsById) &&
           evaluateTargetSelector(trigger.targetSelector, holder, event, unitsById) &&

@@ -414,6 +414,14 @@ export interface UnitStateDelta {
    * 項目だけを記録する」規約）。
    */
   readonly combatStats?: Readonly<Partial<Record<keyof CombatStats, ValueChange<number>>>>;
+  /**
+   * R-TEX-04: ブレイク強化が書き換えた**基礎**戦闘ステータスの差分（`UnitRevived`が
+   * 単独で所有する）。`combatStats`（戦闘中ステータス）とは別のキーにする —
+   * R-STA-04の2層構造で、基礎側の書き換えと、そこへ効果を合成し直した結果
+   * （`CombatStatChanged`が所有する`combatStats`差分）は独立に起きるためである。
+   * 通常戦闘では`baseCombatStats`が不変のため一切現れない。
+   */
+  readonly baseCombatStats?: Readonly<Partial<Record<keyof CombatStats, ValueChange<number>>>>;
 }
 
 /**
@@ -435,7 +443,9 @@ export interface StateDelta {
   readonly exercise?: ExerciseStateDelta;
 }
 
-/** 演習状態（累計スコア）の差分。通常戦闘では発生しない。 */
+/** 演習状態（累計スコア・ブレイク回数）の差分。通常戦闘では発生しない。 */
 export interface ExerciseStateDelta {
   readonly totalScore?: ValueChange<number>;
+  /** R-TEX-03 #4: ブレイク回数。`UnitBroken`が単独で所有する（累計スコアとは独立に変わる）。 */
+  readonly breakCount?: ValueChange<number>;
 }

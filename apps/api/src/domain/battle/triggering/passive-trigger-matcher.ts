@@ -13,6 +13,7 @@ import { hasActivated } from "./passive-activation-guard.js";
 import { evaluateTriggerCondition } from "./trigger-condition-evaluator.js";
 import { evaluateSourceSelector, evaluateTargetSelector } from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
+import { matchesTriggerEventType } from "./trigger-event-matching.js";
 
 export interface PassiveTriggerMatchInput {
   readonly event: TriggerCandidateEvent;
@@ -49,7 +50,7 @@ function findMatchingTrigger(
 ): TriggerDefinition | undefined {
   return skill.triggers.find(
     (trigger) =>
-      trigger.eventType === event.eventType &&
+      matchesTriggerEventType(trigger.eventType, event.eventType) &&
       trigger.category === event.category &&
       evaluateSourceSelector(trigger.sourceSelector, owner, event, unitsById) &&
       evaluateTargetSelector(trigger.targetSelector, owner, event, unitsById) &&

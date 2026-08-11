@@ -719,6 +719,7 @@ describe("resolveActionPhase", () => {
             maximumPp: 3,
             maximumExtraGauge: 10,
             combatStats: ally.combatStats,
+            baseCombatStats: ally.combatStats,
             effects: [toEffectSnapshot(hotEffect, true)],
           },
           [enemy.battleUnitId]: {
@@ -730,6 +731,7 @@ describe("resolveActionPhase", () => {
             maximumPp: 3,
             maximumExtraGauge: 10,
             combatStats: enemy.combatStats,
+            baseCombatStats: enemy.combatStats,
           },
         },
       },
@@ -979,6 +981,7 @@ describe("resolveActionPhase", () => {
             maximumPp: 3,
             maximumExtraGauge: 10,
             combatStats: ally.combatStats,
+            baseCombatStats: ally.combatStats,
             effects: [toEffectSnapshot(dotEffect, true)],
           },
           [enemy.battleUnitId]: {
@@ -990,6 +993,7 @@ describe("resolveActionPhase", () => {
             maximumPp: 3,
             maximumExtraGauge: 10,
             combatStats: enemy.combatStats,
+            baseCombatStats: enemy.combatStats,
           },
         },
       },
@@ -1598,6 +1602,7 @@ describe("resolveActionPhase", () => {
             maximumPp: 3,
             maximumExtraGauge: 10,
             combatStats: ally.combatStats,
+            baseCombatStats: ally.combatStats,
           },
           [enemy.battleUnitId]: {
             ap: 0,
@@ -1608,6 +1613,7 @@ describe("resolveActionPhase", () => {
             maximumPp: 3,
             maximumExtraGauge: 10,
             combatStats: enemy.combatStats,
+            baseCombatStats: enemy.combatStats,
           },
         },
       },
@@ -4395,6 +4401,7 @@ describe("resolveActionPhase", () => {
           maximumPp: ally.maximumPp,
           maximumExtraGauge: ally.maximumExtraGauge,
           combatStats: ally.combatStats,
+          baseCombatStats: ally.combatStats,
           cooldowns: { [targetSkillDefinitionId]: { unit: "ACTION", remaining: 3 } },
         },
         [enemy.battleUnitId]: {
@@ -4406,6 +4413,7 @@ describe("resolveActionPhase", () => {
           maximumPp: enemy.maximumPp,
           maximumExtraGauge: enemy.maximumExtraGauge,
           combatStats: enemy.combatStats,
+          baseCombatStats: enemy.combatStats,
         },
       },
     };

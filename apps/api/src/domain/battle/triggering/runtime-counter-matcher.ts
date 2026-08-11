@@ -17,6 +17,7 @@ import {
 import { evaluateTriggerCondition } from "./trigger-condition-evaluator.js";
 import { evaluateSourceSelector, evaluateTargetSelector } from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
+import { matchesTriggerEventType } from "./trigger-event-matching.js";
 
 export interface RuntimeCounterUpdateResult {
   readonly ownerUnitId: BattleUnitId;
@@ -54,7 +55,7 @@ function matchesUpdateTrigger(
 ): boolean {
   const trigger = update.trigger;
   return (
-    trigger.eventType === event.eventType &&
+    matchesTriggerEventType(trigger.eventType, event.eventType) &&
     trigger.category === event.category &&
     evaluateSourceSelector(trigger.sourceSelector, owner, event, unitsById) &&
     evaluateTargetSelector(trigger.targetSelector, owner, event, unitsById) &&

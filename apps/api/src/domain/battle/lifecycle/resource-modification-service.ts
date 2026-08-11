@@ -19,6 +19,12 @@ import type { BattleDomainEvent } from "../events/domain-event.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
+import {
+  requireResolveBreak,
+  requiresBreakResolution,
+  type ResolveBreakHook,
+} from "../events/break-resolution.js";
 
 export interface ModifyResourceEventContext extends ResourceChangeRecordContext {
   readonly parentEventId: DomainEventId;
@@ -28,6 +34,14 @@ export interface ModifyResourceEventContext extends ResourceChangeRecordContext 
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
+  /**
+   * R-TEX-03 #1: ブレイクの到達経路は「リソース操作等」を含む。演習状態がある場合、
+   * `MODIFY_RESOURCE(resource: HP)`で敵のHPが0へ落ちたときも戦闘不能ではなく
+   * ブレイクとして解決する。未指定なら通常戦闘。
+   */
+  readonly exercise?: ExerciseRuntime;
+  /** `exercise`とセットで注入する`BreakResolutionService`（`damage-event-context.ts`と同じ契約）。 */
+  readonly resolveBreak?: ResolveBreakHook;
 }
 
 export interface ApplyModifyResourceActionResult {
@@ -223,6 +237,33 @@ export function applyModifyResourceAction(
     chain(resourceChangedEvent);
 
     if (resource === "HP" && !wasDefeatedBefore && isDefeated(updatedTarget)) {
+      // R-TEX-03 #1: 到達経路を問わないため、リソース操作によるHP0もブレイクへ回す。
+      if (requiresBreakResolution(context.exercise, updatedTarget)) {
+        const resolveBreak = requireResolveBreak(
+          context.resolveBreak,
+          "modifyResourceEventContext.resolveBreak",
+        );
+        const steps = resolveBreak(
+          target.battleUnitId,
+          units.map((unit) => working.get(unit.battleUnitId)!),
+          lastEventId,
+        );
+        let step = steps.next();
+        while (!step.done) {
+          let stepUnits = step.value.units;
+          if (context.onFactEventForPassiveChain !== undefined) {
+            for (const event of step.value.events) {
+              stepUnits = context.onFactEventForPassiveChain(event, stepUnits);
+            }
+          }
+          step = steps.next(stepUnits);
+        }
+        for (const unit of step.value.units) {
+          working.set(unit.battleUnitId, unit);
+        }
+        lastEventId = step.value.lastEventId;
+        continue;
+      }
       const unitDefeated = context.recorder.record({
         eventType: "UnitDefeated",
         category: "FACT",

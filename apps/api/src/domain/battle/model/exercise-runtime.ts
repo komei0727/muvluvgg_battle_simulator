@@ -28,6 +28,14 @@ export interface ExerciseScoreAccumulation {
   readonly after: number;
 }
 
+/** `ExerciseRuntime.recordBreak`が返す、1増えたブレイク回数とその差分（R-TEX-03 #4）。 */
+export interface ExerciseBreakRecord {
+  /** 1から始まるブレイク番号。R-TEX-04の強化量を決める`n`そのもの。 */
+  readonly breakNumber: number;
+  readonly before: number;
+  readonly after: number;
+}
+
 /**
  * `05_ドメインモデル.md`「演習状態（戦術演習のみ）：累計スコア、ブレイク回数」を
  * 保持する、戦闘モードが`TACTICAL_EXERCISE`のときだけ生成される可変オブジェクト。
@@ -77,6 +85,19 @@ export class ExerciseRuntime {
     const before = this.total;
     this.total = before + accountable;
     return { amount: accountable, before, after: this.total };
+  }
+
+  /**
+   * R-TEX-03 #4: ブレイク回数を1増やし、そのブレイクの番号（1始まり）を返す。
+   *
+   * 返す`breakNumber`はR-TEX-04が強化量を決める`n`と同一である — 強化は原基準値へ
+   * 毎回再計算するため（複利にしない、R-TEX-04 #4）、呼び出し側は増加後の累計回数
+   * だけを`applyExerciseScaling`へ渡せばよい。
+   */
+  recordBreak(): ExerciseBreakRecord {
+    const before = this.breaks;
+    this.breaks = before + 1;
+    return { breakNumber: this.breaks, before, after: this.breaks };
   }
 
   snapshot(): ExerciseStateSnapshot {

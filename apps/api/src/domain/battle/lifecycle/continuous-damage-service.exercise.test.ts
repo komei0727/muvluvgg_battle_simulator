@@ -195,6 +195,17 @@ describe("continuous damage exercise score accumulation (R-TEX-02)", () => {
     expect(exercise.totalScore).toBe(100);
   });
 
+  it("UT-R-TEX-03-006: resolves a lethal continuous damage on the exercise enemy as a break rather than a defeat", () => {
+    const exercise = exerciseRuntime();
+    const { recorder } = tick(enemy(40, [dotEffect()]), exercise);
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).toContain("UnitRevived");
+    expect(types).not.toContain("UnitDefeated");
+    expect(exercise.breakCount).toBe(1);
+  });
+
   it("UT-R-TEX-02-014: a normal battle (no exercise state) emits no ExerciseScoreAccumulated for continuous damage", () => {
     const { recorder } = tick(enemy(500, [dotEffect()]), undefined);
 

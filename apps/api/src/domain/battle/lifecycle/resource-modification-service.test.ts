@@ -13,6 +13,8 @@ import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
+import { resolveBreakSteps } from "../effects/break-resolution-service.js";
 
 function unit(
   id: string,
@@ -186,6 +188,54 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     );
 
     expect(recorder.getEvents().some((e) => e.eventType === "UnitDefeated")).toBe(true);
+  });
+
+  it("UT-R-TEX-03-007: in a tactical exercise, MODIFY_RESOURCE driving the enemy's HP to 0 resolves as a break instead of a defeat", () => {
+    const enemy = unit("ENEMY", "ENEMY", { currentHp: 100, maximumHp: 100 });
+    const action = modifyResourceAction("ACT_HP_COST", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CONSTANT", value: -100 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+    const exercise = new ExerciseRuntime(enemy.baseCombatStats);
+    const base = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetUnitId: enemy.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      enemy,
+      action,
+      [enemy],
+      {
+        ...base,
+        parentEventId: rootEventId,
+        sourceUnitId: enemy.battleUnitId,
+        exercise,
+        resolveBreak: (targetUnitId, units, causeEventId) =>
+          resolveBreakSteps({ ...base, exercise }, units, targetUnitId, new Map(), causeEventId),
+      },
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).toContain("UnitRevived");
+    expect(types).not.toContain("UnitDefeated");
+    expect(exercise.breakCount).toBe(1);
+    // R-TEX-02: MODIFY_RESOURCE によるHP減少は「ダメージ」ではないためスコアには入らない。
+    expect(exercise.totalScore).toBe(0);
+    expect(result.units[0]!.currentHp).toBe(120);
   });
 
   it("UT-R-ACTN-02-004: SET_TO_MAX ignores the (placeholder) formula and sets the resource to its current max", () => {

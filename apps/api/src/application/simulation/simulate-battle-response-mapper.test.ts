@@ -79,6 +79,7 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
           maximumPp: 2,
           maximumExtraGauge: 100,
           combatStats: ALLY_COMBAT_STATS,
+          baseCombatStats: ALLY_COMBAT_STATS,
         },
         [ENEMY_ID]: {
           hp: 100,
@@ -89,6 +90,7 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
           maximumPp: 2,
           maximumExtraGauge: 100,
           combatStats: ENEMY_COMBAT_STATS,
+          baseCombatStats: ENEMY_COMBAT_STATS,
         },
       },
     },
@@ -106,6 +108,7 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
           maximumPp: 2,
           maximumExtraGauge: 100,
           combatStats: ALLY_COMBAT_STATS,
+          baseCombatStats: ALLY_COMBAT_STATS,
         },
         [ENEMY_ID]: {
           hp: 0,
@@ -116,6 +119,7 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
           maximumPp: 2,
           maximumExtraGauge: 100,
           combatStats: ENEMY_COMBAT_STATS,
+          baseCombatStats: ENEMY_COMBAT_STATS,
         },
       },
     },
@@ -907,6 +911,7 @@ describe("toBattleSimulationResponseBody", () => {
               maximumPp: 2,
               maximumExtraGauge: 100,
               combatStats: ALLY_COMBAT_STATS,
+              baseCombatStats: ALLY_COMBAT_STATS,
               cooldowns: {
                 [SKL_A]: { unit: "ACTION", remaining: 2, setActionId: ACTION_1 },
                 [SKL_B]: { unit: "TURN", remaining: 1, setTurnNumber: 3 },
@@ -926,6 +931,7 @@ describe("toBattleSimulationResponseBody", () => {
               maximumPp: 2,
               maximumExtraGauge: 100,
               combatStats: ENEMY_COMBAT_STATS,
+              baseCombatStats: ENEMY_COMBAT_STATS,
             },
           },
         },
@@ -964,6 +970,7 @@ describe("toBattleSimulationResponseBody", () => {
               maximumPp: 2,
               maximumExtraGauge: 100,
               combatStats: ALLY_COMBAT_STATS,
+              baseCombatStats: ALLY_COMBAT_STATS,
               cooldowns: { [SKL_A]: { unit: "ACTION", remaining: 2 } },
             },
             [ENEMY_ID]: {
@@ -975,6 +982,7 @@ describe("toBattleSimulationResponseBody", () => {
               maximumPp: 2,
               maximumExtraGauge: 100,
               combatStats: ENEMY_COMBAT_STATS,
+              baseCombatStats: ENEMY_COMBAT_STATS,
             },
           },
         },
@@ -1006,6 +1014,7 @@ describe("toBattleSimulationResponseBody", () => {
                 maximumPp: 2,
                 maximumExtraGauge: 100,
                 combatStats: ALLY_COMBAT_STATS,
+                baseCombatStats: ALLY_COMBAT_STATS,
                 cooldowns: {
                   [SKL_A]: {
                     unit: "ACTION",
@@ -1024,6 +1033,7 @@ describe("toBattleSimulationResponseBody", () => {
                 maximumPp: 2,
                 maximumExtraGauge: 100,
                 combatStats: ENEMY_COMBAT_STATS,
+                baseCombatStats: ENEMY_COMBAT_STATS,
               },
             },
           },

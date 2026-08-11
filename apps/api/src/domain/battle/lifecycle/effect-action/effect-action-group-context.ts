@@ -1,5 +1,7 @@
 import type { BattleDefinitions } from "../../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../../model/exercise-runtime.js";
+import type { ResolveBreakHook } from "../../events/break-resolution.js";
+import { resolveBreakSteps } from "../../effects/break-resolution-service.js";
 import type { ResolvedBinding } from "../../skill/skill-resolution-service.js";
 import type {
   ActionId,
@@ -162,11 +164,26 @@ export interface EffectResolutionEventContext {
   readonly skillUseId: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /**
+   * R-TEX-03: 効果の付与・失効・解除に伴うR-STA-04再計算がHP上限を下げ、演習の敵の
+   * 現在HPが0へ切り下げられる経路（`resource-capacity-recalculation-service.ts`）用。
+   * `exercise`と`resolveBreak`は必ず組で運ぶ — 片方だけが伝播すると、その経路でだけ
+   * 敵が戦闘不能として観測される（`requireResolveBreak`が実行時に検出する）。
+   */
+  readonly exercise?: ExerciseRuntime;
+  readonly resolveBreak?: ResolveBreakHook;
 }
 
-/** PSがターン開始・終了など行動外から発動した場合は`actionId`自体を持たない。 */
+/**
+ * PSがターン開始・終了など行動外から発動した場合は`actionId`自体を持たない。
+ *
+ * R-TEX-03: 演習では`BreakResolutionService`のhookをここで**一度だけ**組み立てる。
+ * `effects/`の除去・再計算経路（`LinkedGroupCascadeContext`→`RecalculateContext`→
+ * `ResourceCapacityRecalculateContext`）はこのコンテキストを素通しで受け取るため、
+ * 個々の呼び出し側が配線を思い出す必要が無い。
+ */
 export function eventContextOf(context: EffectActionGroupContext): EffectResolutionEventContext {
-  return {
+  const base = {
     recorder: context.recorder,
     turnNumber: context.turnNumber,
     cycleNumber: context.cycleNumber,
@@ -174,6 +191,22 @@ export function eventContextOf(context: EffectActionGroupContext): EffectResolut
     skillUseId: context.skillUseId,
     resolutionScopeId: context.actionScope,
     rootEventId: context.rootEventId,
+  };
+  const exercise = context.exercise;
+  if (exercise === undefined) {
+    return base;
+  }
+  return {
+    ...base,
+    exercise,
+    resolveBreak: (targetUnitId, units, causeEventId) =>
+      resolveBreakSteps(
+        { ...base, exercise },
+        units,
+        targetUnitId,
+        context.definitions.effectActions,
+        causeEventId,
+      ),
   };
 }
 

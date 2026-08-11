@@ -346,6 +346,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -362,6 +363,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -428,6 +430,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -444,6 +447,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
           cooldowns: { [skillDefinitionId]: { unit: "ACTION" as const, remaining: 1 } },
         },
       },
@@ -497,6 +501,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -516,6 +521,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
           cooldowns: { [skillDefinitionId]: { unit: "ACTION" as const, remaining: 3 } },
         },
       },
@@ -586,6 +592,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -603,6 +610,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
           cooldowns: {
             [skillDefinitionId]: {
               unit: "ACTION" as const,
@@ -698,6 +706,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -717,6 +726,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -798,6 +808,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -817,6 +828,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -898,6 +910,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
         },
       },
     };
@@ -917,6 +930,7 @@ describe("assembleSimulationResult", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats: COMBAT_STATS,
+          baseCombatStats: COMBAT_STATS,
           markers: [
             { markerInstanceId, markerId, sourceUnitId: UNIT_A, stackCount: 2, stackMax: null },
           ],
