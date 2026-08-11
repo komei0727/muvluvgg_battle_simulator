@@ -434,6 +434,89 @@ describe("OpenAPI document", () => {
     expect(response.statusCode).toBe(422);
   });
 
+  it("API-OPENAPI-031 (10_API設計.md「FormationEnhancementRequest」ほか、R-ENH-01/02/04/05): the published request schema documents the enhancement value ranges and enums the runtime validator deliberately leaves to 422", async () => {
+    interface JsonSchemaObject {
+      readonly type?: string;
+      readonly minimum?: number;
+      readonly maxItems?: number;
+      readonly enum?: readonly unknown[];
+      readonly items?: JsonSchemaObject;
+      readonly properties?: Readonly<Record<string, JsonSchemaObject>>;
+    }
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly post?: {
+              readonly requestBody?: {
+                readonly content?: {
+                  readonly "application/json"?: { readonly schema?: JsonSchemaObject };
+                };
+              };
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const formationSchema =
+      document.paths?.["/api/v1/battle-simulations"]?.post?.requestBody?.content?.[
+        "application/json"
+      ]?.schema?.properties?.["allyFormation"];
+
+    const academyLevels =
+      formationSchema?.properties?.["enhancement"]?.properties?.["academyLevels"];
+    expect(academyLevels?.properties?.["unitTypes"]?.properties?.["PHYSICAL"]).toMatchObject({
+      minimum: 1,
+    });
+    expect(Object.keys(academyLevels?.properties?.["attributes"]?.properties ?? {})).toEqual([
+      "AGGRESSIVE",
+      "SHY",
+      "CUTE",
+      "SMART",
+      "COMICAL",
+      "CLEVER",
+    ]);
+
+    const unitEnhancement =
+      formationSchema?.properties?.["units"]?.items?.properties?.["enhancement"];
+    expect(unitEnhancement?.properties?.["level"]).toMatchObject({ minimum: 1 });
+    expect(unitEnhancement?.properties?.["gears"]?.maxItems).toBe(9);
+    const gear = unitEnhancement?.properties?.["gears"]?.items;
+    expect(gear?.properties?.["stat"]?.enum).toEqual([
+      "MAXIMUM_HP",
+      "ATTACK",
+      "DEFENSE",
+      "ACTION_SPEED",
+      "CRITICAL_RATE",
+      "CRITICAL_DAMAGE_BONUS",
+      "AFFINITY_BONUS",
+    ]);
+    expect(gear?.properties?.["tier"]?.enum).toEqual(["II", "III"]);
+    expect(gear?.properties?.["grade"]?.enum).toEqual(["D", "C", "B", "A", "S"]);
+
+    // 実行時validatorは緩いまま: 値域違反は400ではなく422 INVALID_COMMANDで返す。
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+          enhancement: { academyLevels: { unitTypes: { PHYSICAL: 0 } } },
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        turnLimit: 3,
+      },
+    });
+    expect(response.statusCode).toBe(422);
+  });
+
   it("API-OPENAPI-002: a representative 200 response body validates against the generated response schema (10_API設計.md/12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」)", async () => {
     const response = await app.inject({
       method: "POST",

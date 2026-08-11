@@ -3,6 +3,14 @@ import type {
   MemoryDefinitionId,
   UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
+import { STAT_KINDS } from "../../domain/catalog/definitions/catalog-enums.js";
+import type { AcademyLevels } from "../../domain/battle/model/academy-level-policy.js";
+import {
+  GEAR_GRADES,
+  GEAR_TIERS,
+  MAX_GEARS_PER_UNIT,
+  type GearSpecification,
+} from "../../domain/battle/model/gear-customization-policy.js";
 
 /**
  * `09_アプリケーション設計.md` の SimulateBattleCommand. `column`/`row` は
@@ -16,14 +24,38 @@ export interface FormationPositionInput {
   readonly row: "FRONT" | "REAR";
 }
 
+/**
+ * `10_API設計.md`「GearRequest」に対応するCommand入力（M11）。Domainのギア指定と
+ * 同形のため型を共有する（`stat`/`tier`/`grade`の列挙値の実検証は
+ * `validateCommandShape`が行い、`422 INVALID_COMMAND`として返す）。
+ */
+export type GearInput = GearSpecification;
+
+/** `10_API設計.md`「UnitEnhancementRequest」に対応するCommand入力（R-ENH-01 #1）。 */
+export interface UnitEnhancementInput {
+  readonly level?: number;
+  readonly gears?: readonly GearInput[];
+}
+
+/**
+ * `10_API設計.md`「FormationEnhancementRequest」に対応するCommand入力。
+ * 存在すること自体がその陣営を強化計算の対象にする（R-ENH-01 #2）ため、
+ * `academyLevels`を持たない空オブジェクトにも意味がある。
+ */
+export interface FormationEnhancementInput {
+  readonly academyLevels?: AcademyLevels;
+}
+
 export interface FormationSlotInput {
   readonly unitDefinitionId: UnitDefinitionId;
   readonly position: FormationPositionInput;
+  readonly enhancement?: UnitEnhancementInput;
 }
 
 export interface FormationInput {
   readonly slots: readonly FormationSlotInput[];
   readonly memoryDefinitionIds: readonly MemoryDefinitionId[];
+  readonly enhancement?: FormationEnhancementInput;
 }
 
 export const LOG_LEVELS = ["SUMMARY", "DETAILED", "DIAGNOSTIC"] as const;
@@ -66,6 +98,85 @@ function validatePosition(
   }
 }
 
+/** R-ENH-02 #1・R-ENH-05 #4: 学園レベル・現在レベルは1以上の整数で、上限を設けない。 */
+function validateEnhancementLevel(level: number, path: string, violations: Violation[]): void {
+  if (!Number.isInteger(level) || level < 1) {
+    violations.push({
+      path,
+      reason: `must be an integer of at least 1, got ${JSON.stringify(level)}`,
+    });
+  }
+}
+
+/** R-ENH-02 #1: タイプ3系統・属性6系統それぞれのレベルを検証する。省略した系統は1として扱う。 */
+function validateAcademyLevels(
+  academyLevels: AcademyLevels,
+  path: string,
+  violations: Violation[],
+): void {
+  for (const group of ["unitTypes", "attributes"] as const) {
+    const levels: Readonly<Record<string, number | undefined>> = academyLevels[group] ?? {};
+    for (const [system, level] of Object.entries(levels)) {
+      if (level !== undefined) {
+        validateEnhancementLevel(level, `${path}.${group}.${system}`, violations);
+      }
+    }
+  }
+}
+
+/** R-ENH-04 #2: 対象ステータス・種別・ランクは定義済みの列挙値だけを受け付ける。 */
+function validateGear(gear: GearInput, path: string, violations: Violation[]): void {
+  if (!STAT_KINDS.includes(gear.stat)) {
+    violations.push({
+      path: `${path}.stat`,
+      reason: `must be one of [${STAT_KINDS.join(", ")}], got ${JSON.stringify(gear.stat)}`,
+    });
+  }
+  if (!GEAR_TIERS.includes(gear.tier)) {
+    violations.push({
+      path: `${path}.tier`,
+      reason: `must be one of [${GEAR_TIERS.join(", ")}], got ${JSON.stringify(gear.tier)}`,
+    });
+  }
+  if (!GEAR_GRADES.includes(gear.grade)) {
+    violations.push({
+      path: `${path}.grade`,
+      reason: `must be one of [${GEAR_GRADES.join(", ")}], got ${JSON.stringify(gear.grade)}`,
+    });
+  }
+}
+
+/**
+ * R-ENH-01 #3: ユニット単位の強化指定は、その陣営の強化指定があるときだけ許可する。
+ * 陣営指定なしのユニット指定は黙って無視せず、リクエスト不備として拒否する。
+ */
+function validateSlotEnhancement(
+  enhancement: UnitEnhancementInput,
+  hasFormationEnhancement: boolean,
+  path: string,
+  violations: Violation[],
+): void {
+  if (!hasFormationEnhancement) {
+    violations.push({
+      path,
+      reason: "requires an enhancement specification on its own formation (R-ENH-01)",
+    });
+  }
+  if (enhancement.level !== undefined) {
+    validateEnhancementLevel(enhancement.level, `${path}.level`, violations);
+  }
+  const gears = enhancement.gears;
+  if (gears !== undefined) {
+    if (gears.length > MAX_GEARS_PER_UNIT) {
+      violations.push({
+        path: `${path}.gears`,
+        reason: `must contain at most ${MAX_GEARS_PER_UNIT} gears, got ${gears.length}`,
+      });
+    }
+    gears.forEach((gear, index) => validateGear(gear, `${path}.gears[${index}]`, violations));
+  }
+}
+
 function validateFormation(formation: FormationInput, path: string, violations: Violation[]): void {
   if (formation.slots.length < MIN_SLOTS || formation.slots.length > MAX_SLOTS) {
     violations.push({
@@ -74,9 +185,25 @@ function validateFormation(formation: FormationInput, path: string, violations: 
     });
   }
 
+  if (formation.enhancement?.academyLevels !== undefined) {
+    validateAcademyLevels(
+      formation.enhancement.academyLevels,
+      `${path}.enhancement.academyLevels`,
+      violations,
+    );
+  }
+
   const seenPositions = new Set<string>();
   formation.slots.forEach((slot, index) => {
     validatePosition(slot.position, `${path}.slots[${index}].position`, violations);
+    if (slot.enhancement !== undefined) {
+      validateSlotEnhancement(
+        slot.enhancement,
+        formation.enhancement !== undefined,
+        `${path}.slots[${index}].enhancement`,
+        violations,
+      );
+    }
 
     const key = positionKey(slot.position);
     if (seenPositions.has(key)) {

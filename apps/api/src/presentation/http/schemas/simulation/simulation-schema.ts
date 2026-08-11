@@ -29,6 +29,61 @@ const formationPositionRequestSchema = {
   },
 } as const;
 
+/**
+ * 学園レベルの系統キー（R-ENH-02 #1のタイプ3系統・属性6系統）。キー名の綴りは
+ * 構造の一部として`additionalProperties: false`で固定する — 未知の系統を黙って
+ * 無視すると「指定したのに効かない」になるため。レベルの値域（1以上）は
+ * 他の値域と同じく`422 INVALID_COMMAND`が担当する。
+ */
+const academyLevelMapSchema = (systems: readonly string[]) =>
+  ({
+    type: "object",
+    additionalProperties: false,
+    properties: Object.fromEntries(systems.map((system) => [system, { type: "integer" }])),
+  }) as const;
+
+const UNIT_TYPE_SYSTEMS = ["PHYSICAL", "ENERGY", "AGILE"] as const;
+const ATTRIBUTE_SYSTEMS = ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] as const;
+
+const academyLevelsRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    unitTypes: academyLevelMapSchema(UNIT_TYPE_SYSTEMS),
+    attributes: academyLevelMapSchema(ATTRIBUTE_SYSTEMS),
+  },
+} as const;
+
+/** `10_API設計.md`「FormationEnhancementRequest」（M11）。 */
+const formationEnhancementRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    academyLevels: academyLevelsRequestSchema,
+  },
+} as const;
+
+/** `10_API設計.md`「GearRequest」。列挙値は公開文書側だけが持つ（値域と同じ理由）。 */
+const gearRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stat", "tier", "grade"],
+  properties: {
+    stat: { type: "string" },
+    tier: { type: "string" },
+    grade: { type: "string" },
+  },
+} as const;
+
+const unitEnhancementRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    level: { type: "integer" },
+    gears: { type: "array", items: gearRequestSchema },
+  },
+} as const;
+
 const formationUnitRequestSchema = {
   type: "object",
   additionalProperties: false,
@@ -36,6 +91,7 @@ const formationUnitRequestSchema = {
   properties: {
     unitDefinitionId: { type: "string", minLength: 1, maxLength: 256 },
     position: formationPositionRequestSchema,
+    enhancement: unitEnhancementRequestSchema,
   },
 } as const;
 
@@ -46,6 +102,7 @@ const formationRequestSchema = {
   properties: {
     units: { type: "array", items: formationUnitRequestSchema },
     memoryDefinitionIds: { type: "array", items: { type: "string", minLength: 1, maxLength: 256 } },
+    enhancement: formationEnhancementRequestSchema,
   },
 } as const;
 
@@ -83,6 +140,66 @@ const formationPositionRequestDocSchema = {
   },
 } as const;
 
+/** R-ENH-02 #1: 各系統は1以上の整数で、上限を設けない。 */
+const academyLevelMapDocSchema = (systems: readonly string[]) =>
+  ({
+    type: "object",
+    additionalProperties: false,
+    properties: Object.fromEntries(
+      systems.map((system) => [system, { type: "integer", minimum: 1 }]),
+    ),
+  }) as const;
+
+const academyLevelsRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    unitTypes: academyLevelMapDocSchema(UNIT_TYPE_SYSTEMS),
+    attributes: academyLevelMapDocSchema(ATTRIBUTE_SYSTEMS),
+  },
+} as const;
+
+const formationEnhancementRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    academyLevels: academyLevelsRequestDocSchema,
+  },
+} as const;
+
+/** R-ENH-04 #2の効果表が定める対象ステータス7種・種別2種・ランク5種。 */
+const gearRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stat", "tier", "grade"],
+  properties: {
+    stat: {
+      type: "string",
+      enum: [
+        "MAXIMUM_HP",
+        "ATTACK",
+        "DEFENSE",
+        "ACTION_SPEED",
+        "CRITICAL_RATE",
+        "CRITICAL_DAMAGE_BONUS",
+        "AFFINITY_BONUS",
+      ],
+    },
+    tier: { type: "string", enum: ["II", "III"] },
+    grade: { type: "string", enum: ["D", "C", "B", "A", "S"] },
+  },
+} as const;
+
+/** R-ENH-04 #1: 最大9個。R-ENH-05 #4: 現在レベルは1以上の整数で上限なし。 */
+const unitEnhancementRequestDocSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    level: { type: "integer", minimum: 1 },
+    gears: { type: "array", items: gearRequestDocSchema, maxItems: 9 },
+  },
+} as const;
+
 const formationUnitRequestDocSchema = {
   type: "object",
   additionalProperties: false,
@@ -90,6 +207,7 @@ const formationUnitRequestDocSchema = {
   properties: {
     unitDefinitionId: { type: "string", minLength: 1, maxLength: 256 },
     position: formationPositionRequestDocSchema,
+    enhancement: unitEnhancementRequestDocSchema,
   },
 } as const;
 
@@ -104,6 +222,7 @@ const formationRequestDocSchema = {
       items: { type: "string", minLength: 1, maxLength: 256 },
       maxItems: 6,
     },
+    enhancement: formationEnhancementRequestDocSchema,
   },
 } as const;
 

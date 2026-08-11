@@ -661,6 +661,47 @@
                                   "enum": ["FRONT", "REAR"]
                                 }
                               }
+                            },
+                            "enhancement": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "level": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "gears": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["stat", "tier", "grade"],
+                                    "properties": {
+                                      "stat": {
+                                        "type": "string",
+                                        "enum": [
+                                          "MAXIMUM_HP",
+                                          "ATTACK",
+                                          "DEFENSE",
+                                          "ACTION_SPEED",
+                                          "CRITICAL_RATE",
+                                          "CRITICAL_DAMAGE_BONUS",
+                                          "AFFINITY_BONUS"
+                                        ]
+                                      },
+                                      "tier": {
+                                        "type": "string",
+                                        "enum": ["II", "III"]
+                                      },
+                                      "grade": {
+                                        "type": "string",
+                                        "enum": ["D", "C", "B", "A", "S"]
+                                      }
+                                    }
+                                  },
+                                  "maxItems": 9
+                                }
+                              }
                             }
                           }
                         },
@@ -675,6 +716,66 @@
                           "maxLength": 256
                         },
                         "maxItems": 6
+                      },
+                      "enhancement": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "academyLevels": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "unitTypes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "PHYSICAL": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "ENERGY": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "AGILE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
+                              },
+                              "attributes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "AGGRESSIVE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "SHY": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "CUTE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "SMART": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "COMICAL": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "CLEVER": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   },
@@ -709,6 +810,47 @@
                                   "enum": ["FRONT", "REAR"]
                                 }
                               }
+                            },
+                            "enhancement": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "level": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "gears": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["stat", "tier", "grade"],
+                                    "properties": {
+                                      "stat": {
+                                        "type": "string",
+                                        "enum": [
+                                          "MAXIMUM_HP",
+                                          "ATTACK",
+                                          "DEFENSE",
+                                          "ACTION_SPEED",
+                                          "CRITICAL_RATE",
+                                          "CRITICAL_DAMAGE_BONUS",
+                                          "AFFINITY_BONUS"
+                                        ]
+                                      },
+                                      "tier": {
+                                        "type": "string",
+                                        "enum": ["II", "III"]
+                                      },
+                                      "grade": {
+                                        "type": "string",
+                                        "enum": ["D", "C", "B", "A", "S"]
+                                      }
+                                    }
+                                  },
+                                  "maxItems": 9
+                                }
+                              }
                             }
                           }
                         },
@@ -723,6 +865,66 @@
                           "maxLength": 256
                         },
                         "maxItems": 6
+                      },
+                      "enhancement": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "academyLevels": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "unitTypes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "PHYSICAL": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "ENERGY": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "AGILE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
+                              },
+                              "attributes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "AGGRESSIVE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "SHY": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "CUTE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "SMART": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "COMICAL": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "CLEVER": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   },
@@ -3858,6 +4060,10 @@
                                   },
                                   "targetUnitId": {
                                     "type": "string"
+                                  },
+                                  "skillType": {
+                                    "type": "string",
+                                    "enum": ["AS", "PS", "EX"]
                                   }
                                 }
                               },
@@ -5129,6 +5335,10 @@
                                   },
                                   "targetUnitId": {
                                     "type": "string"
+                                  },
+                                  "skillType": {
+                                    "type": "string",
+                                    "enum": ["AS", "PS", "EX"]
                                   },
                                   "calculatedDamage": {
                                     "type": "integer",
@@ -7006,6 +7216,238 @@
                                   },
                                   "releaseActionId": {
                                     "type": "string"
+                                  }
+                                }
+                              },
+                              "stateVersionBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateVersionAfter": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateTransitionIndex": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "sequence",
+                              "type",
+                              "category",
+                              "turnNumber",
+                              "cycleNumber",
+                              "rootSequence",
+                              "targetUnitIds",
+                              "details",
+                              "stateVersionBefore",
+                              "stateVersionAfter"
+                            ],
+                            "properties": {
+                              "sequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "type": {
+                                "enum": ["CHARGE_RELEASE_COMPLETED"]
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
+                              },
+                              "turnNumber": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 99
+                              },
+                              "cycleNumber": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "skillUseId": {
+                                "type": "string"
+                              },
+                              "parentSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "rootSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "sourceUnitId": {
+                                "type": "string"
+                              },
+                              "sourceSide": {
+                                "type": "string",
+                                "enum": ["ALLY", "ENEMY"]
+                              },
+                              "targetUnitIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "actorUnitId",
+                                  "skillDefinitionId",
+                                  "skillType",
+                                  "chargeStartActionId",
+                                  "releaseActionId",
+                                  "resolvedStepCount",
+                                  "targetUnitIds"
+                                ],
+                                "properties": {
+                                  "actorUnitId": {
+                                    "type": "string"
+                                  },
+                                  "skillDefinitionId": {
+                                    "type": "string"
+                                  },
+                                  "skillType": {
+                                    "type": "string"
+                                  },
+                                  "chargeStartActionId": {
+                                    "type": "string"
+                                  },
+                                  "releaseActionId": {
+                                    "type": "string"
+                                  },
+                                  "resolvedStepCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "targetUnitIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "stateVersionBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateVersionAfter": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateTransitionIndex": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "sequence",
+                              "type",
+                              "category",
+                              "turnNumber",
+                              "cycleNumber",
+                              "rootSequence",
+                              "targetUnitIds",
+                              "details",
+                              "stateVersionBefore",
+                              "stateVersionAfter"
+                            ],
+                            "properties": {
+                              "sequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "type": {
+                                "enum": ["CHARGE_RELEASE_INTERRUPTED"]
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
+                              },
+                              "turnNumber": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 99
+                              },
+                              "cycleNumber": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "skillUseId": {
+                                "type": "string"
+                              },
+                              "parentSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "rootSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "sourceUnitId": {
+                                "type": "string"
+                              },
+                              "sourceSide": {
+                                "type": "string",
+                                "enum": ["ALLY", "ENEMY"]
+                              },
+                              "targetUnitIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "actorUnitId",
+                                  "skillDefinitionId",
+                                  "chargeStartActionId",
+                                  "releaseActionId",
+                                  "reason",
+                                  "resolvedEffectCount",
+                                  "unresolvedEffectCount"
+                                ],
+                                "properties": {
+                                  "actorUnitId": {
+                                    "type": "string"
+                                  },
+                                  "skillDefinitionId": {
+                                    "type": "string"
+                                  },
+                                  "chargeStartActionId": {
+                                    "type": "string"
+                                  },
+                                  "releaseActionId": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  },
+                                  "resolvedEffectCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "unresolvedEffectCount": {
+                                    "type": "integer",
+                                    "minimum": 0
                                   }
                                 }
                               },

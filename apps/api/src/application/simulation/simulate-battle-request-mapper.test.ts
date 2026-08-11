@@ -70,4 +70,57 @@ describe("toSimulateBattleCommand", () => {
     // constraint (10_API設計.md's own request example uses "unit-001").
     expect(() => toSimulateBattleCommand(requestBody())).not.toThrow();
   });
+
+  it("API-SIM-007: maps the formation-level and unit-level enhancement of the doc's request example (R-ENH-01)", () => {
+    const command = toSimulateBattleCommand(
+      requestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "unit-001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: {
+                level: 220,
+                gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {
+            academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+          },
+        },
+      }),
+    );
+
+    expect(command.allyFormation.enhancement).toEqual({
+      academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+    });
+    expect(command.allyFormation.slots[0]?.enhancement).toEqual({
+      level: 220,
+      gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+    });
+  });
+
+  it("API-SIM-008: leaves enhancement undefined on both levels when the request omits it (backward compatibility)", () => {
+    const command = toSimulateBattleCommand(requestBody());
+
+    expect(command.allyFormation.enhancement).toBeUndefined();
+    expect(command.allyFormation.slots[0]).not.toHaveProperty("enhancement");
+    expect(command.enemyFormation.enhancement).toBeUndefined();
+  });
+
+  it("API-SIM-009: keeps an empty formation enhancement object, since its presence alone puts the side under enhancement (R-ENH-01 #2)", () => {
+    const command = toSimulateBattleCommand(
+      requestBody({
+        enemyFormation: {
+          units: [{ unitDefinitionId: "unit-101", position: { column: 1, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    expect(command.enemyFormation.enhancement).toEqual({});
+  });
 });

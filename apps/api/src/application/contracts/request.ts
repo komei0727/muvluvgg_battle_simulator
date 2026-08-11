@@ -15,14 +15,43 @@ export interface FormationPositionRequestBody {
   readonly row: string;
 }
 
+/** `10_API設計.md`「GearRequest」。列挙値の検証は`validateCommandShape`（422）が行う。 */
+export interface GearRequestBody {
+  readonly stat: string;
+  readonly tier: string;
+  readonly grade: string;
+}
+
+/** `10_API設計.md`「UnitEnhancementRequest」（M11）。 */
+export interface UnitEnhancementRequestBody {
+  readonly level?: number;
+  readonly gears?: readonly GearRequestBody[];
+}
+
+/**
+ * `10_API設計.md`「AcademyLevelsRequest」（M11）。省略したキーはレベル1として扱う
+ * （R-ENH-02 #1）。キー集合はJSON Schemaが固定するため、ここでは任意の数値マップとする。
+ */
+export interface AcademyLevelsRequestBody {
+  readonly unitTypes?: Readonly<Record<string, number>>;
+  readonly attributes?: Readonly<Record<string, number>>;
+}
+
+/** `10_API設計.md`「FormationEnhancementRequest」（M11）。 */
+export interface FormationEnhancementRequestBody {
+  readonly academyLevels?: AcademyLevelsRequestBody;
+}
+
 export interface FormationUnitRequestBody {
   readonly unitDefinitionId: string;
   readonly position: FormationPositionRequestBody;
+  readonly enhancement?: UnitEnhancementRequestBody;
 }
 
 export interface FormationRequestBody {
   readonly units: readonly FormationUnitRequestBody[];
   readonly memoryDefinitionIds: readonly string[];
+  readonly enhancement?: FormationEnhancementRequestBody;
 }
 
 export interface SimulationOptionsRequestBody {

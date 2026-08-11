@@ -19,12 +19,19 @@ export function toDomainFormationPosition(position: FormationPositionInput): For
   };
 }
 
+/**
+ * R-ENH-01: 強化指定はCommandとDomainで同形のため、キーの有無だけを保つ。
+ * 「指定なし」と「空オブジェクトの指定」は意味が違う（後者は陣営を強化対象にする）
+ * ので、`undefined`を明示的に埋めずキーごと落とす。
+ */
 export function toDomainFormationInput(formation: FormationInput): DomainFormationInput {
   return {
     slots: formation.slots.map((slot) => ({
       unitDefinitionId: slot.unitDefinitionId,
       position: toDomainFormationPosition(slot.position),
+      ...(slot.enhancement === undefined ? {} : { enhancement: slot.enhancement }),
     })),
     memoryDefinitionIds: formation.memoryDefinitionIds,
+    ...(formation.enhancement === undefined ? {} : { enhancement: formation.enhancement }),
   };
 }

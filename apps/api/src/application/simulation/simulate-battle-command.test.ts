@@ -148,4 +148,162 @@ describe("validateCommandShape", () => {
     );
     expect(violations.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("UT-CMD-014 (R-ENH-01/02/04): accepts a fully specified enhancement", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            {
+              ...slot(0),
+              enhancement: {
+                level: 220,
+                gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {
+            academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+          },
+        },
+      }),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("UT-CMD-015 (R-ENH-01 #4): accepts the defaults spelled out explicitly", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { level: 200, gears: [] } }],
+          memoryDefinitionIds: [],
+          enhancement: { academyLevels: { unitTypes: { PHYSICAL: 1 }, attributes: {} } },
+        },
+      }),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("UT-CMD-016 (R-ENH-02 #1): rejects an academy level below 1 or non-integer", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [slot(0)],
+          memoryDefinitionIds: [],
+          enhancement: {
+            academyLevels: { unitTypes: { PHYSICAL: 0 }, attributes: { CLEVER: 2.5 } },
+          },
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "allyFormation.enhancement.academyLevels.unitTypes.PHYSICAL",
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "allyFormation.enhancement.academyLevels.attributes.CLEVER",
+      }),
+    );
+  });
+
+  it("UT-CMD-017 (R-ENH-05 #4): rejects a unit level below 1 or non-integer", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        enemyFormation: {
+          slots: [{ ...slot(1), enhancement: { level: 0 } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "enemyFormation.slots[0].enhancement.level" }),
+    );
+  });
+
+  it("UT-CMD-018 (R-ENH-04 #1): rejects more than 9 gears on one unit", () => {
+    const gears = Array.from({ length: 10 }, () => ({
+      stat: "MAXIMUM_HP" as const,
+      tier: "II" as const,
+      grade: "D" as const,
+    }));
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { gears } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement.gears" }),
+    );
+  });
+
+  it("UT-CMD-019 (R-ENH-04 #2): rejects a gear whose stat, tier or grade is not a defined enum value", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            {
+              ...slot(0),
+              enhancement: {
+                gears: [
+                  // @ts-expect-error deliberately invalid for the test
+                  { stat: "MAXIMUM_AP", tier: "II", grade: "D" },
+                  // @ts-expect-error deliberately invalid for the test
+                  { stat: "ATTACK", tier: "IV", grade: "D" },
+                  // @ts-expect-error deliberately invalid for the test
+                  { stat: "ATTACK", tier: "II", grade: "SS" },
+                ],
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement.gears[0].stat" }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement.gears[1].tier" }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement.gears[2].grade" }),
+    );
+  });
+
+  it("UT-CMD-020 (R-ENH-01 #3): rejects a unit enhancement when its own side has no formation enhancement", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { level: 220 } }],
+          memoryDefinitionIds: [],
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement" }),
+    );
+  });
+
+  it("UT-CMD-021 (R-ENH-01 #6): the two sides' enhancement specifications are independent", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [slot(0)],
+          memoryDefinitionIds: [],
+          enhancement: { academyLevels: { unitTypes: { PHYSICAL: 50 } } },
+        },
+        enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+      }),
+    );
+    expect(violations).toEqual([]);
+  });
 });

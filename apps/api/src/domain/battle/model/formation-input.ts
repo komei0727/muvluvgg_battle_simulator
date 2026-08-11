@@ -5,6 +5,8 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { assertEnumValue } from "../../shared/validate.js";
+import type { AcademyLevels } from "./academy-level-policy.js";
+import type { GearSpecification } from "./gear-customization-policy.js";
 
 const MIN_SLOTS = 1;
 const MAX_SLOTS = 5;
@@ -17,14 +19,34 @@ export interface FormationPosition {
   readonly row: PositionRow;
 }
 
+/**
+ * R-ENH-01 #1: ユニット単位の強化指定（現在レベル・ギアカスタム）。
+ * 値域はCommand検証が保証済みの前提で、`FormationFactory`は算出にだけ使う。
+ */
+export interface SlotEnhancement {
+  readonly level?: number;
+  readonly gears?: readonly GearSpecification[];
+}
+
+/**
+ * R-ENH-01 #1/#2: 陣営単位の強化指定（学園レベル）。この指定が**存在すること**が
+ * その陣営の全ユニットを強化計算の対象にする条件であり、`academyLevels`を持たない
+ * 空オブジェクトでもタイプ装備・モジュール（R-ENH-03）は適用される。
+ */
+export interface FormationEnhancement {
+  readonly academyLevels?: AcademyLevels;
+}
+
 export interface FormationSlotInput {
   readonly unitDefinitionId: UnitDefinitionId;
   readonly position: FormationPosition;
+  readonly enhancement?: SlotEnhancement;
 }
 
 export interface FormationInput {
   readonly slots: readonly FormationSlotInput[];
   readonly memoryDefinitionIds: readonly MemoryDefinitionId[];
+  readonly enhancement?: FormationEnhancement;
 }
 
 function positionKey(position: FormationPosition): string {

@@ -56,4 +56,39 @@ describe("toDomainFormationInput", () => {
       memoryDefinitionIds: [createMemoryDefinitionId("MEM_001")],
     });
   });
+
+  it("UT-FORMATION-MAPPER-005 (R-ENH-01): carries the formation-level and unit-level enhancement into the Domain input", () => {
+    const result = toDomainFormationInput({
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: 0, row: "FRONT" },
+          enhancement: { level: 220, gears: [{ stat: "ATTACK", tier: "III", grade: "S" }] },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: { academyLevels: { unitTypes: { PHYSICAL: 50 } } },
+    });
+
+    expect(result.enhancement).toEqual({ academyLevels: { unitTypes: { PHYSICAL: 50 } } });
+    expect(result.slots[0]?.enhancement).toEqual({
+      level: 220,
+      gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+    });
+  });
+
+  it("UT-FORMATION-MAPPER-006: leaves the Domain input free of enhancement keys when the Command has none", () => {
+    const result = toDomainFormationInput({
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: 0, row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [],
+    });
+
+    expect(result).not.toHaveProperty("enhancement");
+    expect(result.slots[0]).not.toHaveProperty("enhancement");
+  });
 });
