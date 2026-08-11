@@ -103,6 +103,23 @@ export function FormationEditor({
     }
   }, [disabled]);
 
+  // Escapeによる中止はフォーカス位置で限定しない（強化button・メモリー枠・
+  // 学園レベル入力などへ移った後でも効く）ため、documentレベルで捕捉する。
+  useEffect(() => {
+    if (moveSourceSlotKey === null) {
+      return undefined;
+    }
+    const cancelOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setMoveSourceSlotKey(null);
+      }
+    };
+    document.addEventListener("keydown", cancelOnEscape);
+    return () => {
+      document.removeEventListener("keydown", cancelOnEscape);
+    };
+  }, [moveSourceSlotKey]);
+
   const placeMove = (targetSlotKey: string): void => {
     if (moveSourceSlotKey !== null && moveSourceSlotKey !== targetSlotKey) {
       onMoveUnit(moveSourceSlotKey, targetSlotKey);

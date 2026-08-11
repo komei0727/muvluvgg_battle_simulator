@@ -70,15 +70,10 @@ export function UnitSlot({
   const accessibleName = hasError ? `${baseName}、入力エラーがあります` : baseName;
 
   // 空き枠は配置先にだけなれる（drag元にならない）。実行中はdrag不可。
+  // Escapeによる中止はフォーカス位置に依存させないため、FormationEditorが
+  // documentレベルで捕捉する（このcomponentはkeydownを持たない）。
   const draggable = unit !== undefined && !disabled && onMoveStart !== undefined;
-  const moveInProgress = moveSource || moveTarget;
   const isDragOver = dragOverDepth > 0 && moveTarget;
-
-  const cancelOnEscape = (event: React.KeyboardEvent) => {
-    if (event.key === "Escape" && moveInProgress) {
-      onMoveCancel?.();
-    }
-  };
 
   const slotButton = (
     <button
@@ -132,7 +127,6 @@ export function UnitSlot({
           onMovePlace?.();
         }
       }}
-      onKeyDown={cancelOnEscape}
       // UI-AC-027: マウスを持たない利用者へも同じ情報を届けるため、hoverと
       // focusの両方で表示し、slot buttonから説明として関連づける。
       {...(showsPreview ? { "aria-describedby": previewId } : {})}
@@ -219,7 +213,6 @@ export function UnitSlot({
             onMoveStart();
           }
         }}
-        onKeyDown={cancelOnEscape}
         disabled={disabled}
         aria-pressed={moveSource}
         aria-label={

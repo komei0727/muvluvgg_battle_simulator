@@ -308,6 +308,22 @@ describe("FormationEditor — ユニット移動 (UI-CT-050/051/052)", () => {
     expect(screen.queryByText(/移動中/)).not.toBeInTheDocument();
   });
 
+  it("cancels with Escape even after focus leaves the unit slots (document-level capture)", async () => {
+    const user = userEvent.setup();
+    const onMoveUnit = vi.fn();
+    renderWithFilledFront({ onMoveUnit });
+
+    await user.click(screen.getByRole("button", { name: "前衛1: アルファを移動" }));
+    expect(screen.getByText(/前衛1のアルファを移動中/)).toBeInTheDocument();
+
+    // メモリー枠（ユニット枠外）へフォーカスを移してもEscapeが効く。
+    await user.click(screen.getByRole("button", { name: "メモリー1を追加" }));
+    await user.keyboard("{Escape}");
+
+    expect(onMoveUnit).not.toHaveBeenCalled();
+    expect(screen.queryByText(/移動中/)).not.toBeInTheDocument();
+  });
+
   it("treats activating the source slot as a cancel, not a dialog open nor a self-move", async () => {
     const user = userEvent.setup();
     const onMoveUnit = vi.fn();

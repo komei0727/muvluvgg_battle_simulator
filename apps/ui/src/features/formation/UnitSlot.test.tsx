@@ -474,26 +474,4 @@ describe("UnitSlot — ユニット移動 (UI-CT-050/051)", () => {
     );
     expect(screen.queryByRole("button", { name: /を移動/ })).not.toBeInTheDocument();
   });
-
-  it("cancels an in-progress move with Escape from the slot button", async () => {
-    const user = userEvent.setup();
-    const onMoveCancel = vi.fn();
-    renderMovableSlot({ moveTarget: true, onMoveCancel });
-
-    await user.tab();
-    await user.keyboard("{Escape}");
-
-    expect(onMoveCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not cancel on Escape while no move is in progress", async () => {
-    const user = userEvent.setup();
-    const onMoveCancel = vi.fn();
-    renderMovableSlot({ onMoveCancel });
-
-    await user.tab();
-    await user.keyboard("{Escape}");
-
-    expect(onMoveCancel).not.toHaveBeenCalled();
-  });
 });
