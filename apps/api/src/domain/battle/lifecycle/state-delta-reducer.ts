@@ -3,11 +3,13 @@ import type {
   ChargeState,
   CooldownState,
   EffectSnapshot,
+  ExerciseStateDelta,
   MarkerSnapshot,
   StateDelta,
   UnitStateDelta,
   ValueChange,
 } from "../events/state-delta.js";
+import type { ExerciseStateSnapshot } from "../model/exercise-runtime.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -718,12 +720,38 @@ export function applyStateDelta(
     assertBeforeMatches("delta.result", state.result, delta.result);
   }
   const nextResult = delta.result !== undefined ? delta.result.after : state.result;
+  const nextExercise = applyExerciseDelta(state.exercise, delta.exercise);
   return {
     status: delta.battleStatus?.after ?? state.status,
     currentTurn: delta.turnNumber?.after ?? state.currentTurn,
     units,
     ...(nextResult !== undefined ? { result: nextResult } : {}),
+    ...(nextExercise !== undefined ? { exercise: nextExercise } : {}),
   };
+}
+
+/**
+ * R-TEX-02: 演習状態の差分を適用する。演習状態を持たない状態（通常戦闘）へ演習差分が
+ * 来ることは、モードの取り違えか差分の混線を意味するため、黙って作らずに拒否する。
+ */
+function applyExerciseDelta(
+  current: ExerciseStateSnapshot | undefined,
+  delta: ExerciseStateDelta | undefined,
+): ExerciseStateSnapshot | undefined {
+  if (delta === undefined) {
+    return current;
+  }
+  if (current === undefined) {
+    throw new DomainValidationError(
+      "delta.exercise",
+      "references exercise state absent from the current state; only a TACTICAL_EXERCISE battle owns one",
+    );
+  }
+  if (delta.totalScore === undefined) {
+    return current;
+  }
+  assertBeforeMatches("delta.exercise.totalScore", current.totalScore, delta.totalScore);
+  return { ...current, totalScore: delta.totalScore.after };
 }
 
 /** `stateAt(sequence N) = initialState + delta(1) + delta(2) + ... + delta(N)` (`08_ドメインイベント.md`「状態復元」)。 */

@@ -1,4 +1,5 @@
 import type { BattleDefinitions } from "../../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../../model/exercise-runtime.js";
 import type { ResolvedBinding } from "../../skill/skill-resolution-service.js";
 import type {
   ActionId,
@@ -85,6 +86,12 @@ export interface EffectActionGroupContext {
    * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
    */
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * R-TEX-02: Battleが所有する演習状態。戦闘モードが`TACTICAL_EXERCISE`のときだけ
+   * 呼び出し側（行動resolver・`PassiveActivationRuntime`）が渡し、DAMAGE経路が
+   * `DamageEventContext.exercise`としてダメージ適用の最深部まで運ぶ。
+   */
+  readonly exercise?: ExerciseRuntime;
   /**
    * R-LNK-01/02（DMG-007）: このEffectSequenceが解決済みの
    * TargetBinding。`APPLY_DAMAGE_LINK.linkTo`の`BINDING`をリンク先ユニットへ

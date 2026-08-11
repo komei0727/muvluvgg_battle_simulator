@@ -35,6 +35,7 @@ import { selectEffectiveInstances } from "../model/effective-effect-selector.js"
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import { NO_MEMORIES, type BattleDefinitions } from "../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { ResolutionResult } from "./resolution-result.js";
 import type { EventRecorder } from "../events/event-recorder.js";
@@ -136,6 +137,11 @@ export interface PassiveActivationRuntimeContext {
   /** 行動外のトップレベルイベント（ターン開始・終了など）から発動する場合は`undefined`。 */
   readonly actionId?: ActionId;
   readonly limits?: PassiveChainLimits;
+  /**
+   * R-TEX-02: Battleが所有する演習状態。PS/Memoryの連鎖が与えるダメージも
+   * 同じ規則で計上するため、解決する`EffectActionGroupContext`へそのまま渡す。
+   */
+  readonly exercise?: ExerciseRuntime;
   /**
    * `RESOLUTION_PHASE`（TRIGGER_EXCLUSION_TIMING）が参照する、この
    * 解決スコープのroot事象が属するBattle/Turn phase。呼び出し側（`battle.ts`の
@@ -1442,6 +1448,7 @@ export class PassiveActivationRuntime {
       rootEventId: this.context.rootEventId,
       parentEventId: memoryTriggered.eventId,
       damageResults: this.damageResults,
+      ...(this.context.exercise !== undefined ? { exercise: this.context.exercise } : {}),
       ...triggerContext,
     };
     const box: UnitsBox = { units: this.units };
@@ -1733,6 +1740,7 @@ export class PassiveActivationRuntime {
       parentEventId: lastEventId,
       skillDefinitionId: skill.skillDefinitionId,
       damageResults: this.damageResults,
+      ...(this.context.exercise !== undefined ? { exercise: this.context.exercise } : {}),
       ...triggerContext,
     };
     // EFF-006: このPS自身のEffectSequence解決を開始する前に登録する

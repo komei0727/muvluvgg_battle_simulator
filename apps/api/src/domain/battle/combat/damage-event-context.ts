@@ -1,4 +1,5 @@
 import type { BattleUnit } from "../model/battle-unit.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import type {
   DomainEventId,
@@ -151,6 +152,13 @@ export interface DamageEventContext {
    * 明確な例外で拒否する。
    */
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * R-TEX-02: 戦闘モードが`TACTICAL_EXERCISE`のときだけ呼び出し側（`lifecycle/`）が
+   * 渡す、Battleが所有する演習状態。HPへ向かったダメージ量をここへ計上し
+   * `ExerciseScoreAccumulated`を発行する。未指定なら通常戦闘であり、スコア計上も
+   * イベント発行も一切行わない。
+   */
+  readonly exercise?: ExerciseRuntime;
   /**
    * R-ACTN-01 #2: このヒット列を解決した対象が`TargetSelectorDefinition.includeDefeated:
    * true`で選択された場合`true`。未指定（`false`扱い）なら、これまでどおり参照時点で既に

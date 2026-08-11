@@ -3,6 +3,7 @@ import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import { recordResourceChangeIfAny } from "./action-resolution-shared.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleStatus } from "../model/battle-status.js";
+import { ExerciseRuntime, type BattleMode } from "../model/exercise-runtime.js";
 import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
 import { decrementTurnCooldowns } from "../model/cooldown-state.js";
 import { decrementTurnEffectDurations } from "../model/applied-effect-duration.js";
@@ -40,11 +41,19 @@ export type BattleResult = VictoryResult & { readonly completedTurn: number };
 export interface Battle {
   readonly battleId: BattleId;
   readonly status: BattleStatus;
+  /** `05_ドメインモデル.md`「集約が所有する状態」の戦闘モード（R-TEX-01）。 */
+  readonly mode: BattleMode;
   readonly turnState: TurnState;
   readonly allyUnits: readonly BattleUnit[];
   readonly enemyUnits: readonly BattleUnit[];
   readonly definitions: BattleDefinitions;
   readonly result?: BattleResult;
+  /**
+   * 戦術演習だけが持つ演習状態（累計スコア、ブレイク回数）。可変オブジェクトを
+   * 参照で保持する — スコアはダメージ適用の最深部で積み上がる一方、集約状態としては
+   * Battleが所有するため、両者が同じ実体を指す必要がある（`ExerciseRuntime`の説明）。
+   */
+  readonly exercise?: ExerciseRuntime;
 }
 
 /** Battle集約の主要操作: create（05_ドメインモデル.md）。 */
@@ -54,6 +63,7 @@ export function createBattle(
   enemyUnits: readonly BattleUnit[],
   turnLimit: TurnLimit,
   definitions: BattleDefinitions,
+  mode: BattleMode = "NORMAL",
 ): Battle {
   if (allyUnits.length === 0) {
     throw new DomainValidationError("battle.allyUnits", "must contain at least one BattleUnit");
@@ -64,10 +74,12 @@ export function createBattle(
   return {
     battleId,
     status: "READY",
+    mode,
     turnState: createTurnState(turnLimit),
     allyUnits,
     enemyUnits,
     definitions,
+    ...(mode === "TACTICAL_EXERCISE" ? { exercise: new ExerciseRuntime() } : {}),
   };
 }
 
@@ -109,6 +121,7 @@ export function startBattle(battle: Battle, random: RandomSource, recorder: Even
       resolutionScopeId: battleScope,
       rootEventId: battleStarted.eventId,
       resolutionPhase: "BATTLE_START",
+      ...(battle.exercise !== undefined ? { exercise: battle.exercise } : {}),
     },
     [...battle.allyUnits, ...battle.enemyUnits],
   );
@@ -330,6 +343,7 @@ export function advanceBattle(
       resolutionScopeId: turnScope,
       rootEventId: turnStarted.eventId,
       resolutionPhase: "TURN_START",
+      ...(battle.exercise !== undefined ? { exercise: battle.exercise } : {}),
     },
     [...recoveredAllyUnits, ...recoveredEnemyUnits],
   );
@@ -362,6 +376,7 @@ export function advanceBattle(
     nextTurnNumber,
     turnStarted.eventId,
     resourcesRecovered.eventId,
+    battle.exercise,
   );
   const progressed: Battle = {
     ...started,
@@ -396,6 +411,7 @@ export function advanceBattle(
       resolutionScopeId: turnEndScope,
       rootEventId: turnCompleting.eventId,
       resolutionPhase: "TURN_END",
+      ...(battle.exercise !== undefined ? { exercise: battle.exercise } : {}),
     },
     [...actionPhase.allyUnits, ...actionPhase.enemyUnits],
   );

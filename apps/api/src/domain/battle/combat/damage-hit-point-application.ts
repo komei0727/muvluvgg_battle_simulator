@@ -4,6 +4,7 @@ import { selectDeathSurvival } from "./defensive-intervention-policy.js";
 import { evaluateFormula, recordDamageResult } from "../skill/formula-evaluator.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
+import { recordExerciseScoreIfAny } from "../events/exercise-score-recording.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
 import { absorbBeforeHitPointsSteps } from "./damage-absorption.js";
@@ -239,9 +240,21 @@ export function* applyConfirmedDamageSteps(
   // `UnitDefeated`は「HPが0へ遷移した」ヒットだけが発行する — `includeDefeated: true`では
   // 既に戦闘不能な対象へもヒットが続くため、判定基準は吸収連鎖の解決後
   // （`targetAfterAbsorption`）の状態にする。
-  lastEventId = damageApplied.eventId;
+  // R-TEX-02: HPへ向かった量（オーバーキル・致死耐えで適用されなかった分を含む
+  // `hitPointDamage`）を、ブレイク解決（R-TEX-03、`UnitDefeated`相当の位置）より前に
+  // 計上する — `UnitBroken`が「その時点の累計スコア」を運ぶためである。計上が
+  // 発生しなければ`damageApplied.eventId`がそのまま返る。
+  lastEventId = recordExerciseScoreIfAny(
+    context.exercise,
+    context,
+    targetAfterAbsorption,
+    hitPointDamage,
+    damageApplied.eventId,
+  );
   // `FreezeRemoved`（と、あればそのカスケード）と吸収イベント（およびその枯渇失効）は
   // このヒットのHP適用より前に既に連鎖通知済みのため含めない。
+  // `ExerciseScoreAccumulated`はPS/Memory連鎖へ通知しない — 契機にできる
+  // `TriggerDefinition`が存在しない観測専用のイベントだからである。
   const factEvents: BattleDomainEvent[] = [hitPointReduced, damageApplied];
   if (!isDefeated(targetAfterAbsorption) && isDefeated(updatedTarget)) {
     const unitDefeated = context.recorder.record({

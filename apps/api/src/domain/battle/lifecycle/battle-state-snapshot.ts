@@ -8,6 +8,7 @@ import {
   type MarkerSnapshot,
 } from "../events/state-delta.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
+import type { ExerciseStateSnapshot } from "../model/exercise-runtime.js";
 import type { Battle } from "./battle.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import type { FormationPosition } from "../model/formation-input.js";
@@ -88,6 +89,8 @@ export interface BattleStateSnapshot {
   readonly currentTurn: number;
   readonly units: Readonly<Record<BattleUnitId, BattleUnitSnapshot>>;
   readonly result?: BattleResultSnapshot;
+  /** 戦術演習だけが持つ演習状態（R-TEX-02／R-TEX-10）。通常戦闘ではキー自体を持たない。 */
+  readonly exercise?: ExerciseStateSnapshot;
 }
 
 /** Battle集約から状態差分の対象になりうる可変状態だけを射影する。 */
@@ -192,6 +195,7 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
     currentTurn: battle.turnState.currentTurn,
     units,
     ...(battle.result !== undefined ? { result: battle.result } : {}),
+    ...(battle.exercise !== undefined ? { exercise: battle.exercise.snapshot() } : {}),
   };
 }
 

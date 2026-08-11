@@ -17,7 +17,9 @@ import { absorbFromShieldPool, emitShieldConsumed } from "../combat/shield-polic
 import { absorbFromNextSubUnit, emitSubUnitDamaged } from "../combat/sub-unit-policy.js";
 import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
+import { recordExerciseScoreIfAny } from "../events/exercise-score-recording.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
@@ -70,6 +72,12 @@ export interface ContinuousDamageEventContext {
   readonly rootEventId: DomainEventId;
   /** 発火するインスタンスの`APPLY_CONTINUOUS_DAMAGE`定義（毒のFormula再評価に使う）。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
+  /**
+   * R-TEX-02: 戦術演習だけが持つ演習状態。継続ダメージはダメージpipelineの外に
+   * あるが、敵HPへ向かう量は同じ規則で計上する（R-TEX-02 #3）。未指定なら
+   * 通常戦闘であり、計上もイベント発行も行わない。
+   */
+  readonly exercise?: ExerciseRuntime;
   /**
    * R-SHD-01第3項（DMG-004、Issue #194）／R-SUB-01（DMG-005、Issue #190）:
    * 残量が0になったシールドインスタンス、または耐久力が0になったサブユニット
@@ -487,7 +495,15 @@ export function applyOneContinuousDamage(
       units: { [holder.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
     },
   });
-  lastEventId = applied.eventId;
+  // R-TEX-02 #3: 継続ダメージのうちHPへ向かった量（オーバーキル分を含む）を計上する。
+  // 計上が発生しなければ`applied.eventId`がそのまま返る。
+  lastEventId = recordExerciseScoreIfAny(
+    context.exercise,
+    context,
+    targetBeforeHp,
+    hitPointDamage,
+    applied.eventId,
+  );
 
   if (!isDefeated(targetBeforeHp) && isDefeated(updatedTarget)) {
     const defeated = context.recorder.record({

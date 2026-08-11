@@ -175,6 +175,34 @@ describe("applyStateDelta", () => {
     expect(() => applyStateDelta(alreadyCompleted, delta)).toThrow(DomainValidationError);
   });
 
+  it("UT-R-TEX-02-004: applies an exercise.totalScore delta, leaving the rest of the exercise state untouched", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 30, breakCount: 0 },
+    };
+    const delta: StateDelta = { exercise: { totalScore: { before: 30, after: 72 } } };
+
+    const next = applyStateDelta(exerciseState, delta);
+
+    expect(next.exercise).toEqual({ totalScore: 72, breakCount: 0 });
+  });
+
+  it("UT-R-TEX-02-005: throws when exercise.totalScore.before does not match the current cumulative score (dropped or reordered delta)", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 30, breakCount: 0 },
+    };
+    const delta: StateDelta = { exercise: { totalScore: { before: 0, after: 42 } } };
+
+    expect(() => applyStateDelta(exerciseState, delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TEX-02-006: throws when an exercise delta is applied to a state without exercise state (a normal battle can never own one)", () => {
+    const delta: StateDelta = { exercise: { totalScore: { before: 0, after: 10 } } };
+
+    expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
+  });
+
   it("UT-STATE-REDUCER-017 (R-SKL-05 regression): a ChargeStarted->ChargeReleased StateDelta pair restores correctly even though `before`/`after` are structurally-equal but distinct ChargeState object instances (as real events produce, since each event builds its own payload object)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
     const startedActionId = createActionId("battle-1:action:1");
