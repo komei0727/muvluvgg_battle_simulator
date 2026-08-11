@@ -3,14 +3,20 @@
 
 import { aptitudeMatches } from "../../lib/aptitude.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
-import { memorySlotKeyOf } from "./types.js";
-import type { BattleDraft, FormationSlotInput, Side } from "./types.js";
+import { enhancementForSide, memorySlotKeyOf } from "./types.js";
+import type { BattleDraft, FormationSlotInput, Side, SideEnhancementInput } from "./types.js";
 
 export type UiViolationSeverity = "error" | "warning";
 
 export interface UiViolation {
   readonly path: string;
   readonly slotKey?: string;
+  /**
+   * M11: ギア違反が指すUIのギア枠index（03_API・データ連携設計.md §13）。
+   * 送信配列は空枠を除外するため、サーバーの`gears[m]`をそのまま枠番号として
+   * 使えない。`slotKey`と対で、ユニット強化ダイアログの該当selectへ表示する。
+   */
+  readonly gearIndex?: number;
   readonly code: string;
   readonly message: string;
   readonly severity: UiViolationSeverity;
@@ -21,6 +27,7 @@ const MAX_UNITS_PER_SIDE = 5;
 const MAX_MEMORIES_PER_SIDE = 6;
 const MIN_TURN_LIMIT = 1;
 const MAX_TURN_LIMIT = 99;
+const MAX_GEARS_PER_UNIT = 9;
 
 function unitsPath(side: Side): string {
   return side === "ally" ? "/allyFormation/units" : "/enemyFormation/units";
@@ -179,6 +186,89 @@ function validateAptitudeWarnings(
   return violations;
 }
 
+function formationPath(side: Side): string {
+  return side === "ally" ? "/allyFormation" : "/enemyFormation";
+}
+
+function isPositiveInteger(value: number | ""): boolean {
+  return value !== "" && Number.isInteger(value) && value >= 1;
+}
+
+/**
+ * UI-AC-024: 学園レベル9項目は1以上の整数。トグルOFFの陣営は送信対象から
+ * 外れる（値は保持する）ため検証しない。
+ */
+function validateAcademyLevels(side: Side, enhancement: SideEnhancementInput): UiViolation[] {
+  if (!enhancement.enabled) {
+    return [];
+  }
+  const violations: UiViolation[] = [];
+  for (const group of ["unitTypes", "attributes"] as const) {
+    for (const [key, level] of Object.entries(enhancement.academyLevels[group])) {
+      if (!isPositiveInteger(level)) {
+        violations.push({
+          path: `${formationPath(side)}/enhancement/academyLevels/${group}/${key}`,
+          code: "ACADEMY_LEVEL_INVALID",
+          message: "学園レベルは1以上の整数で入力してください。",
+          severity: "error",
+        });
+      }
+    }
+  }
+  return violations;
+}
+
+/**
+ * ユニット強化の違反はslotKeyで枠を特定する。pathは送信DTOのindexを持たない
+ * 固定文字列にし、ダイアログ側はslotKeyとpathの末尾で入力を対応づける
+ * （サーバー違反のpathは`units/{n}/...`のindex付きになるため、
+ * 表示側はどちらでも一致するsuffix照合を使う）。
+ */
+function validateUnitEnhancements(
+  side: Side,
+  slots: readonly FormationSlotInput[],
+  enhancement: SideEnhancementInput,
+): UiViolation[] {
+  const violations: UiViolation[] = [];
+  for (const slot of slots) {
+    const unitEnhancement = slot.enhancement;
+    if (unitEnhancement === undefined) {
+      continue;
+    }
+    if (!enhancement.enabled) {
+      // R-ENH-01 #3: 陣営指定なしのユニット指定はAPIが422で拒否する。
+      violations.push({
+        path: `${formationPath(side)}/units/enhancement`,
+        slotKey: slot.slotKey,
+        code: "UNIT_ENHANCEMENT_WITHOUT_SIDE",
+        message: "ユニット強化は陣営の強化をONにしてから設定してください。",
+        severity: "error",
+      });
+      continue;
+    }
+    if (!isPositiveInteger(unitEnhancement.level)) {
+      violations.push({
+        path: `${formationPath(side)}/units/enhancement/level`,
+        slotKey: slot.slotKey,
+        code: "UNIT_LEVEL_INVALID",
+        message: "ユニットレベルは1以上の整数で入力してください。",
+        severity: "error",
+      });
+    }
+    const gearCount = unitEnhancement.gears.filter((gear) => gear !== undefined).length;
+    if (gearCount > MAX_GEARS_PER_UNIT) {
+      violations.push({
+        path: `${formationPath(side)}/units/enhancement/gears`,
+        slotKey: slot.slotKey,
+        code: "GEAR_COUNT_OUT_OF_RANGE",
+        message: "ギアは9枠まで設定できます。",
+        severity: "error",
+      });
+    }
+  }
+  return violations;
+}
+
 export function validateDraft(
   draft: BattleDraft,
   catalog: BattleSimulationCatalogResponse,
@@ -197,6 +287,10 @@ export function validateDraft(
     ...validateMemoryExistence("enemy", draft.enemyMemoryDefinitionIds, catalog),
     ...validateAptitudeWarnings("ally", draft.allySlots, catalog),
     ...validateAptitudeWarnings("enemy", draft.enemySlots, catalog),
+    ...validateAcademyLevels("ally", enhancementForSide(draft, "ally")),
+    ...validateAcademyLevels("enemy", enhancementForSide(draft, "enemy")),
+    ...validateUnitEnhancements("ally", draft.allySlots, enhancementForSide(draft, "ally")),
+    ...validateUnitEnhancements("enemy", draft.enemySlots, enhancementForSide(draft, "enemy")),
   ];
 }
 

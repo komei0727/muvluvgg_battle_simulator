@@ -234,3 +234,147 @@ describe("selectCanSubmit", () => {
     expect(selectCanSubmit([])).toBe(true);
   });
 });
+
+describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
+  const catalog = catalogWith([catalogUnit("UNIT_A")]);
+
+  function enabledAllyDraft(overrides: Partial<BattleDraft> = {}): BattleDraft {
+    const base = draftWithAllyCount(1);
+    return {
+      ...base,
+      allyEnhancement: { ...base.allyEnhancement, enabled: true },
+      ...overrides,
+    };
+  }
+
+  it("accepts an enabled side whose nine academy levels are all at the default", () => {
+    expect(validateDraft(enabledAllyDraft(), catalog)).toEqual([]);
+  });
+
+  it("rejects a blank, zero or fractional academy level with the field's own path", () => {
+    const base = enabledAllyDraft();
+    const draft: BattleDraft = {
+      ...base,
+      allyEnhancement: {
+        ...base.allyEnhancement,
+        academyLevels: {
+          unitTypes: { PHYSICAL: 0, ENERGY: "", AGILE: 1 },
+          attributes: { ...base.allyEnhancement.academyLevels.attributes, CLEVER: 2.5 },
+        },
+      },
+    };
+
+    const violations = validateDraft(draft, catalog);
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "/allyFormation/enhancement/academyLevels/unitTypes/PHYSICAL",
+        message: "学園レベルは1以上の整数で入力してください。",
+        severity: "error",
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "/allyFormation/enhancement/academyLevels/unitTypes/ENERGY",
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "/allyFormation/enhancement/academyLevels/attributes/CLEVER",
+      }),
+    );
+    expect(violations.filter((violation) => violation.path.includes("academyLevels"))).toHaveLength(
+      3,
+    );
+  });
+
+  it("ignores academy levels of a side whose toggle is off (values are kept, not sent)", () => {
+    const base = draftWithAllyCount(1);
+    const draft: BattleDraft = {
+      ...base,
+      allyEnhancement: {
+        enabled: false,
+        academyLevels: {
+          ...base.allyEnhancement.academyLevels,
+          unitTypes: { PHYSICAL: 0, ENERGY: "", AGILE: 1 },
+        },
+      },
+    };
+
+    expect(validateDraft(draft, catalog)).toEqual([]);
+  });
+
+  it("rejects a blank or non-positive unit level on the slot that carries it", () => {
+    const base = enabledAllyDraft();
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const draft: BattleDraft = {
+      ...base,
+      allySlots: base.allySlots.map((slot) =>
+        slot.slotKey === slotKey
+          ? { ...slot, enhancement: { level: 0, gears: Array(9).fill(undefined) } }
+          : slot,
+      ),
+    };
+
+    const violations = validateDraft(draft, catalog);
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "/allyFormation/units/enhancement/level",
+        slotKey,
+        message: "ユニットレベルは1以上の整数で入力してください。",
+        severity: "error",
+      }),
+    );
+  });
+
+  it("rejects more than nine gears on one unit", () => {
+    const base = enabledAllyDraft();
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const gear = { stat: "ATTACK", tier: "III", grade: "S" } as const;
+    const draft: BattleDraft = {
+      ...base,
+      allySlots: base.allySlots.map((slot) =>
+        slot.slotKey === slotKey
+          ? { ...slot, enhancement: { level: 200, gears: Array(10).fill(gear) } }
+          : slot,
+      ),
+    };
+
+    const violations = validateDraft(draft, catalog);
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "/allyFormation/units/enhancement/gears",
+        slotKey,
+        message: "ギアは9枠まで設定できます。",
+        severity: "error",
+      }),
+    );
+  });
+
+  it("rejects a unit enhancement whose own side has no enhancement toggle on (R-ENH-01 #3)", () => {
+    const base = draftWithAllyCount(1);
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const draft: BattleDraft = {
+      ...base,
+      allySlots: base.allySlots.map((slot) =>
+        slot.slotKey === slotKey
+          ? { ...slot, enhancement: { level: 220, gears: Array(9).fill(undefined) } }
+          : slot,
+      ),
+    };
+
+    // UI操作では起きない（トグルOFF時はダイアログを開けない）が、draft操作以外の
+    // 経路に備えて送信前検証でも同条件を検査する（03_API・データ連携設計.md §6）。
+    const violations = validateDraft(draft, catalog);
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "/allyFormation/units/enhancement",
+        slotKey,
+        severity: "error",
+      }),
+    );
+  });
+});

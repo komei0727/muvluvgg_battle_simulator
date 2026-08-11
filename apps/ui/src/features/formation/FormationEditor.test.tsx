@@ -35,8 +35,12 @@ describe("FormationEditor", () => {
         catalog={catalog()}
         violations={[]}
         disabled={false}
+        enhancement={createInitialDraft().allyEnhancement}
         onOpenUnitSelection={vi.fn()}
         onOpenMemorySelection={vi.fn()}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 
@@ -58,8 +62,12 @@ describe("FormationEditor", () => {
         catalog={catalog()}
         violations={[]}
         disabled={false}
+        enhancement={createInitialDraft().allyEnhancement}
         onOpenUnitSelection={vi.fn()}
         onOpenMemorySelection={vi.fn()}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 
@@ -82,12 +90,16 @@ describe("FormationEditor", () => {
         catalog={catalog()}
         violations={[]}
         disabled={false}
+        enhancement={createInitialDraft().allyEnhancement}
         onOpenUnitSelection={vi.fn()}
         onOpenMemorySelection={vi.fn()}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("button", { name: /アルファ/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "前衛1: アルファを変更" })).toBeInTheDocument();
   });
 
   it("calls onOpenUnitSelection with the slotKey when an empty unit slot is activated", async () => {
@@ -104,6 +116,10 @@ describe("FormationEditor", () => {
         disabled={false}
         onOpenUnitSelection={onOpenUnitSelection}
         onOpenMemorySelection={vi.fn()}
+        enhancement={createInitialDraft().allyEnhancement}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 
@@ -126,6 +142,10 @@ describe("FormationEditor", () => {
         disabled={false}
         onOpenUnitSelection={vi.fn()}
         onOpenMemorySelection={onOpenMemorySelection}
+        enhancement={createInitialDraft().allyEnhancement}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 
@@ -144,8 +164,12 @@ describe("FormationEditor", () => {
         catalog={catalog()}
         violations={[]}
         disabled={true}
+        enhancement={createInitialDraft().allyEnhancement}
         onOpenUnitSelection={vi.fn()}
         onOpenMemorySelection={vi.fn()}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 
@@ -177,8 +201,12 @@ describe("FormationEditor", () => {
           },
         ]}
         disabled={false}
+        enhancement={createInitialDraft().allyEnhancement}
         onOpenUnitSelection={vi.fn()}
         onOpenMemorySelection={vi.fn()}
+        onOpenUnitEnhancement={vi.fn()}
+        onEnhancementToggle={vi.fn()}
+        onAcademyLevelChange={vi.fn()}
       />,
     );
 

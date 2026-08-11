@@ -39,6 +39,8 @@ export interface SubmitInput {
   readonly enemyUnitSlotKeys: readonly string[];
   readonly allyMemorySlotKeys: readonly string[];
   readonly enemyMemorySlotKeys: readonly string[];
+  readonly allyGearSlotIndices: readonly (readonly number[])[];
+  readonly enemyGearSlotIndices: readonly (readonly number[])[];
 }
 
 export interface UseSimulationExecutionResult {
@@ -74,6 +76,8 @@ export function useSimulationExecution(
         enemyUnitSlotKeys: input.enemyUnitSlotKeys,
         allyMemorySlotKeys: input.allyMemorySlotKeys,
         enemyMemorySlotKeys: input.enemyMemorySlotKeys,
+        allyGearSlotIndices: input.allyGearSlotIndices,
+        enemyGearSlotIndices: input.enemyGearSlotIndices,
       });
 
       const requestId = generateRequestId();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildBattleSimulationRequest } from "./request-mapper.js";
-import { createInitialDraft, memorySlotKeyOf, slotKeyOf } from "./types.js";
+import { createInitialDraft, enhancementForSide, memorySlotKeyOf, slotKeyOf } from "./types.js";
+import type { UnitEnhancementInput } from "./types.js";
 import type { BattleDraft } from "./types.js";
 
 function withUnit(
@@ -228,5 +229,150 @@ describe("buildBattleSimulationRequest — invalid turnLimit", () => {
     const result = buildBattleSimulationRequest(draft);
 
     expect(result.ok).toBe(false);
+  });
+});
+
+function withSlotEnhancement(
+  draft: BattleDraft,
+  side: "ally" | "enemy",
+  row: "FRONT" | "REAR",
+  column: 0 | 1 | 2,
+  enhancement: UnitEnhancementInput,
+): BattleDraft {
+  const slotKey = slotKeyOf(side, row, column);
+  const replace = (slots: BattleDraft["allySlots"]) =>
+    slots.map((slot) => (slot.slotKey === slotKey ? { ...slot, enhancement } : slot));
+  return side === "ally"
+    ? { ...draft, allySlots: replace(draft.allySlots) }
+    : { ...draft, enemySlots: replace(draft.enemySlots) };
+}
+
+function enabledSide(draft: BattleDraft, side: "ally" | "enemy"): BattleDraft {
+  const enhancement = { ...enhancementForSide(draft, side), enabled: true };
+  return side === "ally"
+    ? { ...draft, allyEnhancement: enhancement }
+    : { ...draft, enemyEnhancement: enhancement };
+}
+
+describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () => {
+  it("UI-API-017: emits no enhancement property at all while both toggles are off, even after the inputs were edited", () => {
+    let draft = baseDraft();
+    draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
+      level: 220,
+      gears: [{ stat: "ATTACK", tier: "III", grade: "S" }, ...Array<undefined>(8).fill(undefined)],
+    });
+    draft = {
+      ...draft,
+      allyEnhancement: {
+        enabled: false,
+        academyLevels: {
+          ...draft.allyEnhancement.academyLevels,
+          unitTypes: { ...draft.allyEnhancement.academyLevels.unitTypes, PHYSICAL: 50 },
+        },
+      },
+    };
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation).not.toHaveProperty("enhancement");
+    expect(result.request.allyFormation.units[0]).not.toHaveProperty("enhancement");
+    expect(result.request.enemyFormation).not.toHaveProperty("enhancement");
+  });
+
+  it("UI-API-018: emits all nine academy levels, including the ones still at the default", () => {
+    const draft = enabledSide(baseDraft(), "ally");
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.enhancement).toEqual({
+      academyLevels: {
+        unitTypes: { PHYSICAL: 1, ENERGY: 1, AGILE: 1 },
+        attributes: { AGGRESSIVE: 1, SHY: 1, CUTE: 1, SMART: 1, COMICAL: 1, CLEVER: 1 },
+      },
+    });
+    // 敵陣営はトグルOFFのままなので独立して従来どおり。
+    expect(result.request.enemyFormation).not.toHaveProperty("enhancement");
+  });
+
+  it("UI-API-018: drops empty gear slots and keeps the remaining gears in slot order", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
+      level: 220,
+      gears: [
+        undefined,
+        { stat: "ATTACK", tier: "III", grade: "S" },
+        undefined,
+        { stat: "MAXIMUM_HP", tier: "II", grade: "D" },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ],
+    });
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
+      level: 220,
+      gears: [
+        { stat: "ATTACK", tier: "III", grade: "S" },
+        { stat: "MAXIMUM_HP", tier: "II", grade: "D" },
+      ],
+    });
+    // §13: 送信配列のgears[m]から元のギア枠indexを逆引きできる表を保持する。
+    expect(result.allyGearSlotIndices).toEqual([[1, 3]]);
+  });
+
+  it("omits a unit enhancement that is level 200 with no gears, since it equals the default", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
+      level: 200,
+      gears: Array(9).fill(undefined),
+    });
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]).not.toHaveProperty("enhancement");
+    expect(result.request.allyFormation).toHaveProperty("enhancement");
+    expect(result.allyGearSlotIndices).toEqual([[]]);
+  });
+
+  it("refuses to build while an enabled side has a blank academy level or unit level", () => {
+    const blankAcademyLevel = {
+      ...enabledSide(baseDraft(), "ally"),
+    };
+    expect(
+      buildBattleSimulationRequest({
+        ...blankAcademyLevel,
+        allyEnhancement: {
+          ...blankAcademyLevel.allyEnhancement,
+          academyLevels: {
+            ...blankAcademyLevel.allyEnhancement.academyLevels,
+            unitTypes: { ...blankAcademyLevel.allyEnhancement.academyLevels.unitTypes, AGILE: "" },
+          },
+        },
+      }).ok,
+    ).toBe(false);
+
+    const blankUnitLevel = withSlotEnhancement(
+      enabledSide(baseDraft(), "ally"),
+      "ally",
+      "FRONT",
+      0,
+      {
+        level: "",
+        gears: Array(9).fill(undefined),
+      },
+    );
+    expect(buildBattleSimulationRequest(blankUnitLevel).ok).toBe(false);
   });
 });

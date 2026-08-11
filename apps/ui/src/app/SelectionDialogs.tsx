@@ -1,12 +1,18 @@
 import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
 import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
 import { MAX_UNITS_PER_SIDE } from "../features/formation/formation-reducer.js";
-import { memorySlotsForSide, slotsForSide } from "../features/formation/types.js";
+import { UnitEnhancementDialog } from "../features/formation/UnitEnhancementDialog.js";
+import {
+  createInitialUnitEnhancement,
+  memorySlotsForSide,
+  slotsForSide,
+} from "../features/formation/types.js";
 import type {
   FormationAction,
   SelectionDialogState,
 } from "../features/formation/formation-reducer.js";
 import type { BattleDraft } from "../features/formation/types.js";
+import type { UiViolation } from "../features/formation/draft-validation.js";
 import type { BattleSimulationCatalogResponse } from "../features/simulation/api-contract.js";
 
 export interface SelectionDialogsProps {
@@ -15,6 +21,7 @@ export interface SelectionDialogsProps {
   readonly catalog: BattleSimulationCatalogResponse;
   readonly unitImageMap: Readonly<Record<string, string>>;
   readonly memoryImageMap: Readonly<Record<string, string>>;
+  readonly violations: readonly UiViolation[];
   readonly dispatch: (action: FormationAction) => void;
 }
 
@@ -27,6 +34,7 @@ export function SelectionDialogs({
   catalog,
   unitImageMap,
   memoryImageMap,
+  violations,
   dispatch,
 }: SelectionDialogsProps) {
   if (selectionDialog.kind === "unit") {
@@ -72,6 +80,37 @@ export function SelectionDialogs({
         }}
         onRemove={() => {
           dispatch({ type: "memoryRemoved", side, index });
+        }}
+        onClose={() => {
+          dispatch({ type: "selectionClosed" });
+        }}
+      />
+    );
+  }
+
+  if (selectionDialog.kind === "unitEnhancement") {
+    const slotKey = selectionDialog.slotKey;
+    const slot = [...draft.allySlots, ...draft.enemySlots].find((s) => s.slotKey === slotKey);
+    const unit = catalog.units.find((u) => u.unitDefinitionId === slot?.unitDefinitionId);
+    if (slot === undefined || unit === undefined) {
+      return null;
+    }
+    return (
+      <UnitEnhancementDialog
+        unitDisplayName={unit.displayName}
+        slotKey={slotKey}
+        enhancement={slot.enhancement ?? createInitialUnitEnhancement()}
+        violations={violations}
+        onLevelChange={(value) => {
+          dispatch({ type: "unitEnhancementLevelChanged", slotKey, value });
+        }}
+        onGearChange={(gearIndex, gear) => {
+          dispatch({
+            type: "unitEnhancementGearChanged",
+            slotKey,
+            gearIndex,
+            ...(gear === undefined ? {} : { gear }),
+          });
         }}
         onClose={() => {
           dispatch({ type: "selectionClosed" });

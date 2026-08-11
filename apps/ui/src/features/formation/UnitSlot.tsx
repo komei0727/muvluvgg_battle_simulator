@@ -12,6 +12,10 @@ export interface UnitSlotProps {
   readonly disabled: boolean;
   readonly imageMap?: Readonly<Record<string, string>>;
   readonly onOpen: () => void;
+  /** M11: 選択済み枠からユニット強化ダイアログを開く（UI-AC-025）。 */
+  readonly onOpenEnhancement?: () => void;
+  /** M11: 陣営の強化トグル。OFFの間は編集させない（UI-AC-026）。 */
+  readonly enhancementEnabled?: boolean;
 }
 
 function rowLabelJa(row: UiRow): string {
@@ -29,6 +33,8 @@ export function UnitSlot({
   disabled,
   imageMap,
   onOpen,
+  onOpenEnhancement,
+  enhancementEnabled = false,
 }: UnitSlotProps) {
   const positionLabel = `${rowLabelJa(row)}${column + 1}`;
   const baseName =
@@ -37,7 +43,7 @@ export function UnitSlot({
       : `${positionLabel}: ${unit.displayName}を変更`;
   const accessibleName = hasError ? `${baseName}、入力エラーがあります` : baseName;
 
-  return (
+  const slotButton = (
     <button
       type="button"
       className={[
@@ -81,5 +87,31 @@ export function UnitSlot({
         </>
       )}
     </button>
+  );
+
+  // 強化ボタンはスロットbuttonの入れ子にできないため、同じ枠を包むwrapperの
+  // 兄弟として置く（選択ダイアログの起動操作は従来どおりスロット全体）。
+  // wrapperはユニットの有無に関わらず常に描画する — 空↔選択済みで要素の
+  // 階層が変わるとReactがslot buttonを作り直し、選択直後のfocus復帰
+  // （UI-CT-004）が失われるため。
+  if (onOpenEnhancement === undefined) {
+    return slotButton;
+  }
+
+  return (
+    <div className={styles["slotWithEnhancement"]}>
+      {slotButton}
+      {unit === undefined ? null : (
+        <button
+          type="button"
+          className={styles["enhancementButton"]}
+          onClick={onOpenEnhancement}
+          disabled={disabled || !enhancementEnabled}
+          aria-label={`${positionLabel}: ${unit.displayName}の強化を編集`}
+        >
+          強化
+        </button>
+      )}
+    </div>
   );
 }

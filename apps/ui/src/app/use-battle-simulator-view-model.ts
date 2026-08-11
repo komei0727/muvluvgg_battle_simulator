@@ -61,6 +61,10 @@ export function useBattleSimulatorViewModel({
             execution.enemyUnitSlotKeys,
             execution.allyMemorySlotKeys,
             execution.enemyMemorySlotKeys,
+            {
+              ally: execution.allyGearSlotIndices,
+              enemy: execution.enemyGearSlotIndices,
+            },
           )
         : [],
     [execution],

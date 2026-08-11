@@ -60,6 +60,8 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -77,6 +79,8 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
       previousSuccess: successSnapshot(),
     };
     render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
@@ -146,6 +150,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -165,6 +171,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -182,6 +190,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
 
@@ -203,6 +213,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={onReloadCatalog} />);
 
@@ -221,6 +233,8 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
 
@@ -266,6 +280,8 @@ describe("SubmissionFeedback — Catalog revision mismatch (Issue #96 P1)", () =
       enemyUnitSlotKeys: [],
       allyMemorySlotKeys: [],
       enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
     };
     render(
       <SubmissionFeedback

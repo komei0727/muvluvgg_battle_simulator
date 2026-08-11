@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { SimulateOptions } from "../features/simulation/api-client.js";
@@ -579,5 +579,178 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     // and this also proves a subsequently-arriving CANCELLED result is a no-op.
     expect(capturedSignal?.aborted).toBe(true);
     expect(screen.getByText(/キャンセルを要求しました/)).toBeInTheDocument();
+  });
+});
+
+describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
+  async function submitWith(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+  }
+
+  it("UI-CT-033: a submit with the enhancement toggle off (default) sends no enhancement property at all", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await submitWith(user);
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(sentRequest.allyFormation).not.toHaveProperty("enhancement");
+    expect(sentRequest.enemyFormation).not.toHaveProperty("enhancement");
+    expect(sentRequest.allyFormation.units[0]).not.toHaveProperty("enhancement");
+    expect(JSON.stringify(sentRequest)).not.toContain("enhancement");
+  });
+
+  it("UI-CT-034: turning the toggle on sends the nine academy levels, and a blank level blocks the submit with a field error", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    const allyToggle = screen.getAllByRole("checkbox", { name: /強化/ })[0]!;
+    await user.click(allyToggle);
+    const physical = screen.getAllByLabelText("物理")[0]!;
+    await user.clear(physical);
+
+    expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeDisabled();
+    expect(
+      screen.getAllByText("学園レベルは1以上の整数で入力してください。").length,
+    ).toBeGreaterThan(0);
+
+    await user.type(physical, "50");
+    await submitWith(user);
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(sentRequest.allyFormation.enhancement).toEqual({
+      academyLevels: {
+        unitTypes: { PHYSICAL: 50, ENERGY: 1, AGILE: 1 },
+        attributes: { AGGRESSIVE: 1, SHY: 1, CUTE: 1, SMART: 1, COMICAL: 1, CLEVER: 1 },
+      },
+    });
+    expect(sentRequest.enemyFormation).not.toHaveProperty("enhancement");
+  });
+
+  it("UI-CT-036: the unit enhancement dialog stays closed while the side's toggle is off, and the screen says to turn it on", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    const enhancementButton = screen.getAllByRole("button", { name: /の強化を編集/ })[0]!;
+    expect(enhancementButton).toBeDisabled();
+    await user.click(enhancementButton);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText("強化をONにすると、ユニットごとのレベル・ギアを編集できます。").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("UI-CT-035: with the toggle on, the dialog edits the level and a gear, and the submit carries them", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getAllByRole("checkbox", { name: /強化/ })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /の強化を編集/ })[0]!);
+
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.selectOptions(screen.getByLabelText("ギア3 の対象ステータス"), "ATTACK");
+    await user.selectOptions(screen.getByLabelText("ギア3 の種別"), "III");
+    await user.selectOptions(screen.getByLabelText("ギア3 のランク"), "S");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    await submitWith(user);
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(sentRequest.allyFormation.units[0]?.enhancement).toEqual({
+      level: 220,
+      gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+    });
+  });
+
+  it("UI-CT-037: a 422 violation under enhancement is shown on the input it came from", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        error: {
+          kind: "VALIDATION",
+          code: "INVALID_COMMAND",
+          message: "リクエストに不備があります。",
+          violations: [
+            {
+              path: "/allyFormation/units/0/enhancement/level",
+              message: 'must be 200 because "UNIT_A" declares no levelGrowth, got 220',
+            },
+            {
+              path: "/allyFormation/enhancement/academyLevels/unitTypes/PHYSICAL",
+              message: "must be an integer of at least 1, got 0",
+            },
+          ],
+        },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    await user.click(screen.getAllByRole("checkbox", { name: /強化/ })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /の強化を編集/ })[0]!);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "220");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    await submitWith(user);
+
+    await waitFor(() => {
+      expect(screen.getAllByLabelText("物理")[0]).toHaveAttribute("aria-invalid", "true");
+    });
+
+    // 成長値を持たないユニットのレベル違反はダイアログ内の該当入力へ表示する。
+    await user.click(screen.getAllByRole("button", { name: /の強化を編集/ })[0]!);
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByLabelText("現在レベル")).toHaveAttribute("aria-invalid", "true");
+    expect(dialog.getByText(/declares no levelGrowth/)).toBeInTheDocument();
   });
 });

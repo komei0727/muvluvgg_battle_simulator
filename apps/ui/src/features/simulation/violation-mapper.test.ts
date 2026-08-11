@@ -145,4 +145,51 @@ describe("mapServerViolationsToUiViolations (UI-API-004)", () => {
     expect(result[0]?.slotKey).toBeUndefined();
     expect(result[0]?.path).toBe("/options/logLevel");
   });
+
+  it("UI-API-019: maps an academyLevels violation to its own field, without a slotKey", () => {
+    const result = map([
+      {
+        path: "/allyFormation/enhancement/academyLevels/unitTypes/PHYSICAL",
+        message: "must be an integer of at least 1, got 0",
+      },
+    ]);
+
+    expect(result[0]?.slotKey).toBeUndefined();
+    expect(result[0]?.path).toBe("/allyFormation/enhancement/academyLevels/unitTypes/PHYSICAL");
+  });
+
+  it("UI-API-019: maps a unit enhancement level violation back to its original slotKey", () => {
+    const result = map([
+      {
+        path: "/allyFormation/units/1/enhancement/level",
+        message: 'must be 200 because "UNIT_X" declares no levelGrowth, got 220',
+      },
+    ]);
+
+    expect(result[0]?.slotKey).toBe("ally:FRONT:2");
+  });
+
+  it("UI-API-019: maps a gears[m] violation back to the original gear slot index (empty slots were dropped on send)", () => {
+    const result = mapServerViolationsToUiViolations(
+      [{ path: "/allyFormation/units/0/enhancement/gears/1/tier", message: "Unknown tier." }],
+      allySlotKeys,
+      enemySlotKeys,
+      allyMemorySlotKeys,
+      enemyMemorySlotKeys,
+      // UI枠 1 と 3 だけが埋まっていた編成。送信配列の gears[1] は元の枠 3。
+      { ally: [[1, 3]], enemy: [] },
+    );
+
+    expect(result[0]?.slotKey).toBe("ally:FRONT:0");
+    expect(result[0]?.gearIndex).toBe(3);
+  });
+
+  it("omits gearIndex when no gear map was captured for that unit", () => {
+    const result = map([
+      { path: "/allyFormation/units/0/enhancement/gears/0/stat", message: "Unknown stat." },
+    ]);
+
+    expect(result[0]?.slotKey).toBe("ally:FRONT:0");
+    expect(result[0]?.gearIndex).toBeUndefined();
+  });
 });
