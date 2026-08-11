@@ -17,6 +17,10 @@ const CRITICAL_RATE_INCREMENT_POINTS = 1;
 /**
  * R-TEX-04が算出する、ブレイク回数に対応する強化量。倍率・加算値のいずれも
  * R-NUM-01に従い丸めずに保持する（整数化は強化後ステータスを求める時点で行う）。
+ *
+ * 強化後ステータスを求める用途では倍率を経由せず`applyExerciseScaling`を使うこと。
+ * 二進浮動小数で表せない倍率（1.4など）を掛けると、数学上は整数になる積がわずかに
+ * 下回り、切り捨てで1小さくなる。
  */
 export interface ExerciseScalingFactors {
   /** 原基準値の最大HPに掛ける累計倍率。上限なし。 */
@@ -69,16 +73,48 @@ function assertBreakCount(breakCount: number): void {
  * 重ねて適用してはならない。
  */
 export function exerciseScalingFactors(breakCount: number): ExerciseScalingFactors {
-  assertBreakCount(breakCount);
-  const attackDefensePoints = cumulativeIncrementPoints(
-    Math.min(breakCount, EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT),
-  );
+  const points = scalingPoints(breakCount);
   return {
-    hpMultiplier: 1 + cumulativeIncrementPoints(breakCount) / 100,
-    attackDefenseMultiplier: 1 + attackDefensePoints / 100,
-    actionSpeedMultiplier: 1 + (ACTION_SPEED_INCREMENT_POINTS * breakCount) / 100,
-    criticalRateAddition: (CRITICAL_RATE_INCREMENT_POINTS * breakCount) / 100,
+    hpMultiplier: points.hp / 100,
+    attackDefenseMultiplier: points.attackDefense / 100,
+    actionSpeedMultiplier: points.actionSpeed / 100,
+    criticalRateAddition: points.criticalRate / 100,
   };
+}
+
+/**
+ * 各ステータスの強化量をパーセントポイントの整数で表したもの。倍率側は原基準値そのもの
+ * （100pp）を含む累計であり、会心率側は加算するpp数だけを持つ。
+ */
+interface ExerciseScalingPoints {
+  readonly hp: number;
+  readonly attackDefense: number;
+  readonly actionSpeed: number;
+  readonly criticalRate: number;
+}
+
+function scalingPoints(breakCount: number): ExerciseScalingPoints {
+  assertBreakCount(breakCount);
+  return {
+    hp: 100 + cumulativeIncrementPoints(breakCount),
+    attackDefense:
+      100 +
+      cumulativeIncrementPoints(
+        Math.min(breakCount, EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT),
+      ),
+    actionSpeed: 100 + ACTION_SPEED_INCREMENT_POINTS * breakCount,
+    criticalRate: CRITICAL_RATE_INCREMENT_POINTS * breakCount,
+  };
+}
+
+/**
+ * 原基準値へパーセントポイントの強化量を適用する。倍率（`points / 100`）を先に作って
+ * 掛けると、二進浮動小数で表せない倍率（1.4など）が誤差を持ち、数学上は整数になる積が
+ * わずかに下回って切り捨てで1小さくなる（45 × 1.4 = 62.99999999999999 → 62）。
+ * 先に整数のppを掛けてから100で割ることで、原基準値が整数である限り誤差なく求まる。
+ */
+function scaleByPoints(baseValue: number, points: number): number {
+  return truncateFraction((baseValue * points) / 100);
 }
 
 /**
@@ -95,13 +131,13 @@ export function exerciseScalingFactors(breakCount: number): ExerciseScalingFacto
  * （R-TEX-04 #3）。
  */
 export function applyExerciseScaling(original: CombatStats, breakCount: number): CombatStats {
-  const factors = exerciseScalingFactors(breakCount);
+  const points = scalingPoints(breakCount);
   return {
-    maximumHp: truncateFraction(original.maximumHp * factors.hpMultiplier),
-    attack: truncateFraction(original.attack * factors.attackDefenseMultiplier),
-    defense: truncateFraction(original.defense * factors.attackDefenseMultiplier),
-    criticalRate: original.criticalRate + factors.criticalRateAddition,
-    actionSpeed: truncateFraction(original.actionSpeed * factors.actionSpeedMultiplier),
+    maximumHp: scaleByPoints(original.maximumHp, points.hp),
+    attack: scaleByPoints(original.attack, points.attackDefense),
+    defense: scaleByPoints(original.defense, points.attackDefense),
+    criticalRate: original.criticalRate + points.criticalRate / 100,
+    actionSpeed: scaleByPoints(original.actionSpeed, points.actionSpeed),
     criticalDamageBonus: original.criticalDamageBonus,
     affinityBonus: original.affinityBonus,
   };

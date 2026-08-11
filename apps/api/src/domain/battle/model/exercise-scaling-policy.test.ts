@@ -113,6 +113,44 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(applyExerciseScaling(odd, 4).criticalRate).toBeCloseTo(0.195, 10);
   });
 
+  it("UT-R-TEX-04-010: an enhanced quantity stat that is mathematically an integer is not dropped by one through floating-point drift", () => {
+    // 45 × 1.40 は数学上ちょうど63。倍率を経由して掛けると 62.99999999999999 になり、
+    // 切り捨てが62へ落ちる。パーセントポイントの整数のまま適用して防ぐ。
+    const enhanced = applyExerciseScaling(
+      { ...ORIGINAL, maximumHp: 45, attack: 45, defense: 45, actionSpeed: 45 },
+      2,
+    );
+
+    expect(enhanced.maximumHp).toBe(63);
+    expect(enhanced.attack).toBe(63);
+    expect(enhanced.defense).toBe(63);
+    // 行動速度は ×1.10 で 49.5 → 49（こちらは数学上も端数を持つ）。
+    expect(enhanced.actionSpeed).toBe(49);
+  });
+
+  it("PROP-TEX-004: for integer base stats every enhanced quantity stat equals the exactly-truncated rational value computed in integer arithmetic", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 0, max: 60 }),
+        (base, breakCount) => {
+          const enhanced = applyExerciseScaling(
+            { ...ORIGINAL, maximumHp: base, attack: base, defense: base, actionSpeed: base },
+            breakCount,
+          );
+          const exact = (points: number): number =>
+            Number((BigInt(base) * BigInt(100 + points)) / 100n);
+
+          expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
+          expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
+          expect(enhanced.defense).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
+          expect(enhanced.actionSpeed).toBe(exact(5 * breakCount));
+        },
+      ),
+      PROPERTY_ASSERT_CONFIG,
+    );
+  });
+
   it("UT-R-TEX-04-009: a negative or non-integer break count is rejected instead of producing a silent factor", () => {
     expect(() => exerciseScalingFactors(-1)).toThrow(DomainValidationError);
     expect(() => exerciseScalingFactors(1.5)).toThrow(DomainValidationError);
