@@ -87,3 +87,38 @@ test("reaches every step of unit selection through the details tabs via real Tab
   await expect(eventsTab).toBeFocused();
   await expect(eventsTab).toHaveAttribute("aria-selected", "true");
 });
+
+// UI-E2E-012 / UI-NFR-001: キーボードだけでユニット枠の移動ができる。
+// 「移動」buttonで移動モードへ入り、実Tab/Enterで配置先を選ぶ。Escapeでの
+// 中止も同じ実keystrokeで検証する(UI-AC-032)。
+test("moves a unit to another slot using only the keyboard, and cancels with Escape", async ({
+  page,
+}) => {
+  await page.goto("./");
+
+  // 配置自体は既存テストで検証済みのためclickで準備する。
+  await page.getByRole("button", { name: "前衛1にユニットを追加" }).first().click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+
+  const moveButton = page.getByRole("button", { name: "前衛1: アライアルファを移動" });
+  await tabUntilFocused(page, moveButton);
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/前衛1のアライアルファを移動中/)).toBeAttached();
+
+  const allyRearSlot = page.getByRole("button", { name: "後衛1にユニットを追加" }).first();
+  await tabUntilFocused(page, allyRearSlot);
+  await page.keyboard.press("Enter");
+
+  const movedSlot = page.getByRole("button", { name: "後衛1: アライアルファを変更" });
+  await expect(movedSlot).toBeFocused();
+  await expect(page.getByText(/移動中/)).toHaveCount(0);
+
+  // Escapeでの中止: モードへ入り直してEscapeすると編成が変わらない。
+  const movedMoveButton = page.getByRole("button", { name: "後衛1: アライアルファを移動" });
+  await tabUntilFocused(page, movedMoveButton);
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/後衛1のアライアルファを移動中/)).toBeAttached();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText(/移動中/)).toHaveCount(0);
+  await expect(movedSlot).toBeVisible();
+});

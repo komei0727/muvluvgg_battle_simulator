@@ -91,3 +91,14 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* 読み上げ専用テキスト。display:noneでは通知されないため画面外へ逃がす。 */
+.visuallyHidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
