@@ -1,4 +1,3 @@
-import { truncateFraction } from "./resource-gauge.js";
 import type { CombatStats } from "./starting-combat-stats.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
@@ -108,41 +107,56 @@ function scalingPoints(breakCount: number): ExerciseScalingPoints {
 }
 
 /**
- * 整数へ吸着させる許容幅（ULP単位）。実測の誤差は1 ULP（原基準値129.2・7ブレイクの
- * `129.2 × 250 / 100 = 322.99999999999994`）であり、その手前の演算が積む分を見込んで
- * 余裕を取っている。
- *
- * 固定小数桁で丸めてはならない — 強化後基本ステータス（R-ENH-04のギア効果表は
- * 小数第2位のパーセントポイントを持つ）と編成・適性補正を経た値は、数学上も
- * 小数第6位より細かい端数を持ちうる（`57283 × 110.18% × 105% × 385% =
- * 255139.9999995`）。その端数はR-NUM-02が切り捨てるべき実際の値であって誤差ではない。
+ * 原基準値を10進として読み直すときの有効桁数。倍精度浮動小数が一意に往復できる
+ * 桁数であり、この桁数の10進表記は元のdoubleへ戻したときに必ず同じ値になる。
  */
-const INTEGER_SNAP_TOLERANCE_ULPS = 16;
+const BASE_VALUE_SIGNIFICANT_DIGITS = 15;
 
-/**
- * 二進浮動小数の丸め誤差で整数からわずかにずれた値を、その整数へ戻す。
- * 誤差と呼べる範囲（ULPの定数倍）だけを対象にし、意味のある端数は変えない。
- * `Math.abs(value) * Number.EPSILON` は正規化数の1 ULP に相当する。
- */
-function snapAwayFloatingPointDrift(value: number): number {
-  const nearest = Math.round(value);
-  const tolerance = INTEGER_SNAP_TOLERANCE_ULPS * Math.abs(value) * Number.EPSILON;
-  return Math.abs(value - nearest) <= tolerance ? nearest : value;
+/** `unscaled / 10^scale` で表す10進固定小数点値。 */
+interface DecimalValue {
+  readonly unscaled: bigint;
+  readonly scale: number;
+}
+
+/** `Number.prototype.toPrecision`が返す10進表記（指数表記を含む）を固定小数点へ分解する。 */
+function toDecimalValue(text: string): DecimalValue {
+  const [mantissa, exponentText] = text.split("e");
+  const exponent = exponentText === undefined ? 0 : Number(exponentText);
+  const negative = mantissa!.startsWith("-");
+  const digits = negative ? mantissa!.slice(1) : mantissa!;
+  const [integerPart, fractionPart = ""] = digits.split(".");
+  const unscaled = BigInt(integerPart! + fractionPart);
+  return {
+    unscaled: negative ? -unscaled : unscaled,
+    scale: fractionPart.length - exponent,
+  };
 }
 
 /**
- * 原基準値へパーセントポイントの強化量を適用する。
+ * 原基準値へパーセントポイントの強化量を適用し、R-NUM-02に従って切り捨てる。
  *
- * 二進浮動小数では、数学上ちょうど整数になる積がその整数のわずかに下へずれる
- * （原基準値45・2ブレイクの `45 × 140 / 100`、原基準値129.2・7ブレイクの
- * `129.2 × 250 / 100`）。そのまま切り捨てると強化後ステータスが1小さくなるため、
- * 切り捨て前に誤差分だけを整数へ吸着させる。
+ * 二進浮動小数のまま掛けて切り捨てると、数学上ちょうど整数になる積が整数のわずか
+ * 下へずれて1小さくなる（原基準値129.2・7ブレイクの `129.2 × 250 / 100` は
+ * `322.99999999999994`）。一方、誤差として吸収する幅を設ける方式では、意味のある
+ * 端数（`200057283 × 110.18% × 105% × 385% = 891060439.9999995`）まで吸着してしまう
+ * — 許容幅を絶対値で決めても値の大きさで決めても、原基準値に上限が無い以上どこかの
+ * 領域で必ず衝突する。
  *
- * 倍率（`points / 100`）を先に作らないのも同じ理由である — 1.4のように二進で
- * 表せない倍率を経由すると、原基準値が整数のケースでも誤差が入る。
+ * そこで浮動小数の推測をやめ、10進固定小数点の厳密演算で求める。原基準値は15有効桁の
+ * 10進として読み直し（doubleが一意に往復できる桁数であり、そこから先の桁はdouble自身が
+ * 保持していない）、パーセントポイントは整数のまま掛けて100で割る。除算の切り捨ては
+ * BigIntの0方向除算がそのまま担う。
  */
 function scaleByPoints(baseValue: number, points: number): number {
-  return truncateFraction(snapAwayFloatingPointDrift((baseValue * points) / 100));
+  const { unscaled, scale } = toDecimalValue(baseValue.toPrecision(BASE_VALUE_SIGNIFICANT_DIGITS));
+  let numerator = unscaled * BigInt(points);
+  let denominator = 100n;
+  if (scale >= 0) {
+    denominator *= 10n ** BigInt(scale);
+  } else {
+    numerator *= 10n ** BigInt(-scale);
+  }
+  return Number(numerator / denominator);
 }
 
 /**

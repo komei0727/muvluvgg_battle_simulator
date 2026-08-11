@@ -225,6 +225,45 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(applyExerciseScaling(original, 12).attack).toBe(255_139);
   });
 
+  it("UT-R-TEX-04-014: a meaningful fraction is truncated at a large magnitude too, where a relative (ULP-scaled) tolerance would have swallowed it", () => {
+    // 基本値・現在レベル・学園レベルに仕様上の上限が無いため、大きな原基準値も
+    // 入力領域に含まれる。許容幅を値の大きさへ比例させると、この領域で実端数を
+    // 吸着してしまう。
+    const enhancedBase = calculateEnhancedBaseStats(
+      {
+        attribute: "AGGRESSIVE",
+        unitType: "PHYSICAL",
+        // 加算前基準値200,057,283 = 200,040,222 + タイプ装備14,340 + モジュール固定2,721。
+        baseStats: {
+          maximumHp: 1,
+          attack: 200_040_222,
+          defense: 0,
+          criticalRate: 0,
+          actionSpeed: 0,
+          criticalDamageBonus: 0,
+          affinityBonus: 0,
+          maximumAp: 3,
+          maximumPp: 3,
+        },
+      },
+      { gears: [{ stat: "ATTACK", tier: "II", grade: "C" }] },
+    );
+    const original = calculateStartingCombatStats({
+      baseStats: enhancedBase,
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: {
+        attackBonus: createPercentage(0.1),
+        hpBonus: createPercentage(0),
+        defenseBonus: createPercentage(0),
+        criticalRateBonus: createPercentage(0),
+      },
+    });
+
+    // 200,057,283 × 110.18% × 105% × 385% = 891060439.9999995。
+    expect(applyExerciseScaling(original, 12).attack).toBe(891_060_439);
+  });
+
   it("UT-R-TEX-04-012: every aptitude-penalised base and break count in a dense grid matches the exact decimal value, so a one-off truncation drift cannot slip through", () => {
     // 誤差で1小さくなる組み合わせは全体の0.06%程度しかなく、乱択200件では取りこぼす。
     // 実データが取りうる範囲を決定的に総当たりして、この欠陥種別を確実に捕まえる。
@@ -278,6 +317,16 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       ),
       PROPERTY_ASSERT_CONFIG,
     );
+  });
+
+  it("UT-R-TEX-04-015: base values that JavaScript prints in exponent notation are scaled correctly too", () => {
+    // `toPrecision`は|v| < 1e-6 と |v| >= 1e21 で指数表記へ切り替わる。10進読み直しが
+    // その表記でも成立することを固定する。
+    const tiny = applyExerciseScaling({ ...ORIGINAL, attack: 1e-7 }, 2);
+    expect(tiny.attack).toBe(0);
+
+    const huge = applyExerciseScaling({ ...ORIGINAL, attack: 1e21 }, 2);
+    expect(huge.attack).toBe(1.4e21);
   });
 
   it("UT-R-TEX-04-009: a negative or non-integer break count is rejected instead of producing a silent factor", () => {
