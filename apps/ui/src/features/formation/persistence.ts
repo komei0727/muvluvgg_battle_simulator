@@ -1,0 +1,390 @@
+// docs/ui-design/01_UI要求・画面設計.md §5.9 と
+// docs/ui-design/04_コンポーネント・状態管理設計.md §4「永続化」の写像。
+//
+// 保存形式は送信DTO（`request-mapper.ts`）ではなくdraft型を写したものにする。
+// 送信DTOは空枠を圧縮するため、どの枠にどのユニットが居たかを復元できない。
+//
+// ここは純関数だけを置く。localStorageへの読み書きは `lib/storage.ts`、
+// stateの持ち回りは `use-formation-persistence.ts` が担う。
+
+import { isRecord, stringOf } from "../../lib/unknown-narrowing.js";
+import {
+  DEFAULT_UNIT_LEVEL,
+  ENHANCEMENT_ATTRIBUTES,
+  ENHANCEMENT_UNIT_TYPES,
+  GEAR_GRADES,
+  GEAR_SLOT_COUNT,
+  GEAR_STATS,
+  GEAR_TIERS,
+  createInitialDraft,
+  createInitialUnitEnhancement,
+} from "./types.js";
+import type {
+  BattleDraft,
+  FormationSlotInput,
+  GearInput,
+  LogLevel,
+  SideEnhancementInput,
+  UnitEnhancementInput,
+} from "./types.js";
+import type { UiViolation } from "./draft-validation.js";
+
+export const PLAYER_DATA_STORAGE_KEY = "mlgg:player-data";
+export const LAST_DRAFT_STORAGE_KEY = "mlgg:last-draft";
+
+/**
+ * 保存形式の版。draft型・手持ちデータの構造を変えたら上げる。異なる版の保存データは
+ * 移行せず破棄する（入力し直せる値であり、誤った移行で壊れた入力を復元するより安全）。
+ */
+export const PERSISTENCE_SCHEMA_VERSION = 1;
+
+export type AcademyLevels = SideEnhancementInput["academyLevels"];
+
+/** 長寿命の「手持ちデータ」。味方側の入力だけを記録する。 */
+export interface StoredPlayerData {
+  readonly academyLevels: AcademyLevels;
+  readonly units: Readonly<Record<string, UnitEnhancementInput>>;
+}
+
+const LOG_LEVELS: readonly LogLevel[] = ["SUMMARY", "DETAILED", "DIAGNOSTIC"];
+
+function isMemberOf<T extends string>(values: readonly T[], value: unknown): value is T {
+  return typeof value === "string" && (values as readonly string[]).includes(value);
+}
+
+/** 契約から外れた値は`undefined`ではなくthrowで伝える。部分的に信じないため。 */
+class StoredDataMismatch extends Error {}
+
+function fail(): never {
+  throw new StoredDataMismatch();
+}
+
+function levelOf(value: unknown): number | "" {
+  if (value === "") {
+    return "";
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  return fail();
+}
+
+function academyLevelsOf(value: unknown): AcademyLevels {
+  if (!isRecord(value)) {
+    return fail();
+  }
+  const unitTypes = value["unitTypes"];
+  const attributes = value["attributes"];
+  if (!isRecord(unitTypes) || !isRecord(attributes)) {
+    return fail();
+  }
+  return {
+    unitTypes: Object.fromEntries(
+      ENHANCEMENT_UNIT_TYPES.map((unitType) => [unitType, levelOf(unitTypes[unitType])]),
+    ) as AcademyLevels["unitTypes"],
+    attributes: Object.fromEntries(
+      ENHANCEMENT_ATTRIBUTES.map((attribute) => [attribute, levelOf(attributes[attribute])]),
+    ) as AcademyLevels["attributes"],
+  };
+}
+
+function gearOf(value: unknown): GearInput | undefined {
+  // JSONの配列は`undefined`を`null`へ落とすため、空枠は`null`として戻ってくる。
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    return fail();
+  }
+  const { stat, tier, grade } = value;
+  if (
+    !isMemberOf(GEAR_STATS, stat) ||
+    !isMemberOf(GEAR_TIERS, tier) ||
+    !isMemberOf(GEAR_GRADES, grade)
+  ) {
+    return fail();
+  }
+  return { stat, tier, grade };
+}
+
+function unitEnhancementOf(value: unknown): UnitEnhancementInput {
+  if (!isRecord(value)) {
+    return fail();
+  }
+  const gears = value["gears"];
+  if (!Array.isArray(gears) || gears.length > GEAR_SLOT_COUNT) {
+    return fail();
+  }
+  const parsed = gears.map((gear) => gearOf(gear));
+  return {
+    level: levelOf(value["level"]),
+    // 枠数は保存値ではなくUIの定数で決める（枠位置の意味はUIが持つ）。
+    gears: Array.from({ length: GEAR_SLOT_COUNT }, (_unused, index) => parsed[index]),
+  };
+}
+
+function sideEnhancementOf(value: unknown): SideEnhancementInput {
+  if (!isRecord(value) || typeof value["enabled"] !== "boolean") {
+    return fail();
+  }
+  return { enabled: value["enabled"], academyLevels: academyLevelsOf(value["academyLevels"]) };
+}
+
+/**
+ * 枠の骨格（slotKey・side・row・column）は保存値を信じず`createInitialDraft()`側を使い、
+ * 保存値からはユニットIDと強化入力だけを載せ替える。壊れた保存値が枠構造そのものを
+ * 変えてしまうと、以降の座標変換・違反対応づけが崩れるため。
+ */
+function slotsOf(
+  skeleton: readonly FormationSlotInput[],
+  value: unknown,
+): readonly FormationSlotInput[] {
+  if (!Array.isArray(value)) {
+    return fail();
+  }
+  const bySlotKey = new Map<string, Record<string, unknown>>();
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      return fail();
+    }
+    const slotKey = stringOf(entry["slotKey"]);
+    if (
+      slotKey === undefined ||
+      bySlotKey.has(slotKey) ||
+      !skeleton.some((slot) => slot.slotKey === slotKey)
+    ) {
+      return fail();
+    }
+    bySlotKey.set(slotKey, entry);
+  }
+  return skeleton.map((slot) => {
+    const stored = bySlotKey.get(slot.slotKey);
+    if (stored === undefined) {
+      return slot;
+    }
+    const unitDefinitionId = stored["unitDefinitionId"];
+    const enhancement = stored["enhancement"];
+    return {
+      ...slot,
+      ...(unitDefinitionId === undefined
+        ? {}
+        : { unitDefinitionId: stringOf(unitDefinitionId) ?? fail() }),
+      ...(enhancement === undefined ? {} : { enhancement: unitEnhancementOf(enhancement) }),
+    };
+  });
+}
+
+function memoryIdsOf(value: unknown, length: number): readonly (string | undefined)[] {
+  if (!Array.isArray(value) || value.length > length) {
+    return fail();
+  }
+  const parsed = value.map((id) => (id === null || id === undefined ? undefined : stringOf(id)));
+  if (parsed.some((id, index) => id === undefined && value[index] != null)) {
+    return fail();
+  }
+  return Array.from({ length }, (_unused, index) => parsed[index]);
+}
+
+function envelopeOf(value: unknown): Record<string, unknown> {
+  if (!isRecord(value) || value["schemaVersion"] !== PERSISTENCE_SCHEMA_VERSION) {
+    return fail();
+  }
+  return value;
+}
+
+/** 保存する`mlgg:last-draft`の中身。`catalogRevision`は診断用で、復元条件にはしない。 */
+export function toStoredDraft(draft: BattleDraft, catalogRevision?: string): unknown {
+  return {
+    schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+    ...(catalogRevision === undefined ? {} : { catalogRevision }),
+    draft,
+  };
+}
+
+/** 1項目でも契約から外れれば保存データ全体を破棄する（`undefined`を返す）。 */
+export function parseStoredDraft(value: unknown): BattleDraft | undefined {
+  try {
+    const stored = envelopeOf(value)["draft"];
+    if (!isRecord(stored)) {
+      return fail();
+    }
+    const skeleton = createInitialDraft();
+    const logLevel = stored["logLevel"];
+    if (!isMemberOf(LOG_LEVELS, logLevel)) {
+      return fail();
+    }
+    return {
+      allySlots: slotsOf(skeleton.allySlots, stored["allySlots"]),
+      enemySlots: slotsOf(skeleton.enemySlots, stored["enemySlots"]),
+      allyMemoryDefinitionIds: memoryIdsOf(
+        stored["allyMemoryDefinitionIds"],
+        skeleton.allyMemoryDefinitionIds.length,
+      ),
+      enemyMemoryDefinitionIds: memoryIdsOf(
+        stored["enemyMemoryDefinitionIds"],
+        skeleton.enemyMemoryDefinitionIds.length,
+      ),
+      turnLimit: levelOf(stored["turnLimit"]),
+      logLevel,
+      allyEnhancement: sideEnhancementOf(stored["allyEnhancement"]),
+      enemyEnhancement: sideEnhancementOf(stored["enemyEnhancement"]),
+    };
+  } catch (error) {
+    if (error instanceof StoredDataMismatch) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+export function toStoredPlayerData(data: StoredPlayerData): unknown {
+  return { schemaVersion: PERSISTENCE_SCHEMA_VERSION, ...data };
+}
+
+export function parsePlayerData(value: unknown): StoredPlayerData | undefined {
+  try {
+    const stored = envelopeOf(value);
+    const units = stored["units"];
+    if (!isRecord(units)) {
+      return fail();
+    }
+    return {
+      academyLevels: academyLevelsOf(stored["academyLevels"]),
+      units: Object.fromEntries(
+        Object.entries(units).map(([id, enhancement]) => [id, unitEnhancementOf(enhancement)]),
+      ),
+    };
+  } catch (error) {
+    if (error instanceof StoredDataMismatch) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+export function createEmptyPlayerData(): StoredPlayerData {
+  return { academyLevels: createInitialDraft().allyEnhancement.academyLevels, units: {} };
+}
+
+/** 既定値のままの手持ちデータは保存せずキー自体を消すため、「空」を判定する。 */
+export function isEmptyPlayerData(data: StoredPlayerData): boolean {
+  return (
+    Object.keys(data.units).length === 0 &&
+    isSameAcademyLevels(data.academyLevels, createEmptyPlayerData().academyLevels)
+  );
+}
+
+function isSameAcademyLevels(a: AcademyLevels, b: AcademyLevels): boolean {
+  return (
+    ENHANCEMENT_UNIT_TYPES.every((unitType) => a.unitTypes[unitType] === b.unitTypes[unitType]) &&
+    ENHANCEMENT_ATTRIBUTES.every((attribute) => a.attributes[attribute] === b.attributes[attribute])
+  );
+}
+
+function isSameEnhancement(a: UnitEnhancementInput, b: UnitEnhancementInput): boolean {
+  return (
+    a.level === b.level &&
+    a.gears.length === b.gears.length &&
+    a.gears.every((gear, index) => {
+      const other = b.gears[index];
+      if (gear === undefined || other === undefined) {
+        return gear === other;
+      }
+      return gear.stat === other.stat && gear.tier === other.tier && gear.grade === other.grade;
+    })
+  );
+}
+
+function isSamePlayerData(a: StoredPlayerData, b: StoredPlayerData): boolean {
+  const aIds = Object.keys(a.units);
+  return (
+    isSameAcademyLevels(a.academyLevels, b.academyLevels) &&
+    aIds.length === Object.keys(b.units).length &&
+    aIds.every((id) => {
+      const other = b.units[id];
+      const own = a.units[id];
+      return other !== undefined && own !== undefined && isSameEnhancement(own, other);
+    })
+  );
+}
+
+function mergedAcademyLevels(previous: AcademyLevels, next: AcademyLevels): AcademyLevels {
+  // 未入力（`""`）は「その項目を消した」ではなく入力途中なので、前回値を残す。
+  return {
+    unitTypes: Object.fromEntries(
+      ENHANCEMENT_UNIT_TYPES.map((unitType) => [
+        unitType,
+        next.unitTypes[unitType] === "" ? previous.unitTypes[unitType] : next.unitTypes[unitType],
+      ]),
+    ) as AcademyLevels["unitTypes"],
+    attributes: Object.fromEntries(
+      ENHANCEMENT_ATTRIBUTES.map((attribute) => [
+        attribute,
+        next.attributes[attribute] === ""
+          ? previous.attributes[attribute]
+          : next.attributes[attribute],
+      ]),
+    ) as AcademyLevels["attributes"],
+  };
+}
+
+/**
+ * 味方draftから手持ちデータを導出する。敵側は都度入力の方針なので読まない。
+ * 変化が無ければ`previous`をそのまま返し、保存effectと再レンダーを起こさない。
+ */
+export function mergePlayerDataFromDraft(
+  previous: StoredPlayerData,
+  draft: BattleDraft,
+): StoredPlayerData {
+  const units: Record<string, UnitEnhancementInput> = { ...previous.units };
+  for (const slot of draft.allySlots) {
+    const { unitDefinitionId, enhancement } = slot;
+    if (unitDefinitionId === undefined || enhancement === undefined) {
+      continue;
+    }
+    const recordedLevel = units[unitDefinitionId]?.level ?? DEFAULT_UNIT_LEVEL;
+    units[unitDefinitionId] = {
+      level: enhancement.level === "" ? recordedLevel : enhancement.level,
+      gears: enhancement.gears,
+    };
+  }
+  const next: StoredPlayerData = {
+    academyLevels: mergedAcademyLevels(previous.academyLevels, draft.allyEnhancement.academyLevels),
+    units,
+  };
+  return isSamePlayerData(previous, next) ? previous : next;
+}
+
+/** 記録が無いユニットは既定値（レベル200・ギア9枠すべて空）を返す。 */
+export function prefillUnitEnhancement(
+  data: StoredPlayerData,
+  unitDefinitionId: string,
+): UnitEnhancementInput {
+  return data.units[unitDefinitionId] ?? createInitialUnitEnhancement();
+}
+
+/** Catalogから消えたユニットのエントリだけを落とす。学園レベルは定義に依存しないため残す。 */
+export function prunePlayerData(
+  data: StoredPlayerData,
+  knownUnitDefinitionIds: Iterable<string>,
+): StoredPlayerData {
+  const known = new Set(knownUnitDefinitionIds);
+  const entries = Object.entries(data.units).filter(([id]) => known.has(id));
+  if (entries.length === Object.keys(data.units).length) {
+    return data;
+  }
+  return { ...data, units: Object.fromEntries(entries) };
+}
+
+/**
+ * 復元直後にCatalogから消えていた枠を特定する。判定は`validateDraft`の
+ * `UNKNOWN_DEFINITION`を流用し、この関数はCatalogを直接読まない。
+ */
+export function selectUnknownDefinitionSlotKeys(
+  violations: readonly UiViolation[],
+): readonly string[] {
+  return violations
+    .filter((violation) => violation.code === "UNKNOWN_DEFINITION")
+    .map((violation) => violation.slotKey)
+    .filter((slotKey): slotKey is string => slotKey !== undefined);
+}

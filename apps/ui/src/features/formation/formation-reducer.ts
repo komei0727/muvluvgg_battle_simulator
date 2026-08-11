@@ -6,6 +6,7 @@ import {
   createInitialDraft,
   createInitialUnitEnhancement,
   enhancementForSide,
+  memorySlotKeyOf,
   slotsForSide,
 } from "./types.js";
 import type {
@@ -32,7 +33,16 @@ export interface FormationState {
 }
 
 export type FormationAction =
-  | { readonly type: "unitSelected"; readonly slotKey: string; readonly unitDefinitionId: string }
+  | {
+      readonly type: "unitSelected";
+      readonly slotKey: string;
+      readonly unitDefinitionId: string;
+      /**
+       * 手持ちデータ由来のプリフィル値（`persistence.ts`）。味方枠への配置時だけ
+       * 載せる。伴わない場合は枠の入力を保持する（敵側は都度入力の方針）。
+       */
+      readonly enhancement?: UnitEnhancementInput;
+    }
   | { readonly type: "unitRemoved"; readonly slotKey: string }
   | {
       readonly type: "memorySelected";
@@ -66,10 +76,20 @@ export type FormationAction =
       readonly type: "selectionOpened";
       readonly selection: Exclude<SelectionDialogState, { kind: "closed" }>;
     }
-  | { readonly type: "selectionClosed" };
+  | { readonly type: "selectionClosed" }
+  // 「編成をクリア」。学園レベルだけ手持ちデータからプリフィルし直す。
+  | {
+      readonly type: "draftReset";
+      readonly allyAcademyLevels?: SideEnhancementInput["academyLevels"];
+    }
+  // 「保存した育成データをクリア」に伴う味方育成入力の初期化。
+  | { readonly type: "allyEnhancementCleared" }
+  // 復元直後にCatalogから消えていた定義の枠を空にする。
+  | { readonly type: "unknownDefinitionsCleared"; readonly slotKeys: readonly string[] };
 
-export function createInitialFormationState(): FormationState {
-  return { draft: createInitialDraft(), selectionDialog: { kind: "closed" } };
+/** `draft`は`mlgg:last-draft`から復元した値（`persistence.ts`）。 */
+export function createInitialFormationState(draft?: BattleDraft): FormationState {
+  return { draft: draft ?? createInitialDraft(), selectionDialog: { kind: "closed" } };
 }
 
 function filledCount(slots: readonly FormationSlotInput[]): number {
@@ -103,6 +123,25 @@ function withSlotUnit(
   return side === "ally"
     ? { ...draft, allySlots: replaceSlotUnit(draft.allySlots, slotKey, unitDefinitionId) }
     : { ...draft, enemySlots: replaceSlotUnit(draft.enemySlots, slotKey, unitDefinitionId) };
+}
+
+function withSlotEnhancement(
+  draft: BattleDraft,
+  side: Side,
+  slotKey: string,
+  enhancement: UnitEnhancementInput | undefined,
+): BattleDraft {
+  const replace = (slots: readonly FormationSlotInput[]): readonly FormationSlotInput[] =>
+    slots.map((slot) => {
+      if (slot.slotKey !== slotKey) {
+        return slot;
+      }
+      const { enhancement: _discarded, ...rest } = slot;
+      return enhancement === undefined ? rest : { ...rest, enhancement };
+    });
+  return side === "ally"
+    ? { ...draft, allySlots: replace(draft.allySlots) }
+    : { ...draft, enemySlots: replace(draft.enemySlots) };
 }
 
 function replaceMemory(
@@ -188,9 +227,13 @@ export function formationReducer(state: FormationState, action: FormationAction)
       ) {
         return state;
       }
+      const placed = withSlotUnit(state.draft, slot.side, action.slotKey, action.unitDefinitionId);
       return {
         ...state,
-        draft: withSlotUnit(state.draft, slot.side, action.slotKey, action.unitDefinitionId),
+        draft:
+          action.enhancement === undefined
+            ? placed
+            : withSlotEnhancement(placed, slot.side, action.slotKey, action.enhancement),
         selectionDialog: { kind: "closed" },
       };
     }
@@ -300,5 +343,58 @@ export function formationReducer(state: FormationState, action: FormationAction)
     }
     case "selectionClosed":
       return { ...state, selectionDialog: { kind: "closed" } };
+    case "draftReset":
+      // 実行状態と直近結果は別sliceが持つため、ここでは消さない（UI-CMP-020）。
+      return {
+        draft: createInitialDraft(action.allyAcademyLevels),
+        selectionDialog: { kind: "closed" },
+      };
+    case "allyEnhancementCleared": {
+      // 手持ちデータと味方の育成入力は同じ値の2つの置き場であり、片方だけ消しても
+      // もう片方から書き戻されるため対で初期化する（01_UI要求・画面設計.md §5.9）。
+      const initial = createInitialDraft();
+      return {
+        ...state,
+        draft: {
+          ...state.draft,
+          allySlots: state.draft.allySlots.map(({ enhancement: _discarded, ...slot }) => slot),
+          allyEnhancement: {
+            ...state.draft.allyEnhancement,
+            academyLevels: initial.allyEnhancement.academyLevels,
+          },
+        },
+      };
+    }
+    case "unknownDefinitionsCleared": {
+      const slotKeys = new Set(action.slotKeys);
+      if (slotKeys.size === 0) {
+        return state;
+      }
+      const clearSlots = (slots: readonly FormationSlotInput[]): readonly FormationSlotInput[] =>
+        slots.map(({ unitDefinitionId, enhancement, ...slot }) =>
+          slotKeys.has(slot.slotKey)
+            ? slot
+            : {
+                ...slot,
+                ...(unitDefinitionId === undefined ? {} : { unitDefinitionId }),
+                ...(enhancement === undefined ? {} : { enhancement }),
+              },
+        );
+      const clearMemories = (
+        side: Side,
+        ids: readonly (string | undefined)[],
+      ): readonly (string | undefined)[] =>
+        ids.map((id, index) => (slotKeys.has(memorySlotKeyOf(side, index)) ? undefined : id));
+      return {
+        ...state,
+        draft: {
+          ...state.draft,
+          allySlots: clearSlots(state.draft.allySlots),
+          enemySlots: clearSlots(state.draft.enemySlots),
+          allyMemoryDefinitionIds: clearMemories("ally", state.draft.allyMemoryDefinitionIds),
+          enemyMemoryDefinitionIds: clearMemories("enemy", state.draft.enemyMemoryDefinitionIds),
+        },
+      };
+    }
   }
 }

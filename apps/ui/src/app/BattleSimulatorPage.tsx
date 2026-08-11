@@ -5,10 +5,12 @@ import { BattleDetailsSection } from "../features/details/BattleDetailsSection.j
 import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
+import { FormationResetControls } from "../features/formation/FormationResetControls.js";
+import { formationReducer } from "../features/formation/formation-reducer.js";
 import {
-  createInitialFormationState,
-  formationReducer,
-} from "../features/formation/formation-reducer.js";
+  createPersistedInitialState,
+  useFormationPersistence,
+} from "../features/formation/use-formation-persistence.js";
 import { SubmitControls } from "../features/formation/SubmitControls.js";
 import type { UseFormationStatPreviewOptions } from "../features/formation/use-formation-stat-preview.js";
 import { useFormationStatPreview } from "../features/formation/use-formation-stat-preview.js";
@@ -53,7 +55,8 @@ export function BattleSimulatorPage({
     apiBaseUrl,
     getCatalogImpl !== undefined ? { getCatalogImpl } : {},
   );
-  const [state, dispatch] = useReducer(formationReducer, undefined, createInitialFormationState);
+  // UI-AC-029: 前回セッションのdraftはlazy initで復元する（reducerを不純にしない）。
+  const [state, dispatch] = useReducer(formationReducer, undefined, createPersistedInitialState);
   const catalog = catalogLoader.state;
   const execution = useSimulationExecution(
     apiBaseUrl,
@@ -74,6 +77,15 @@ export function BattleSimulatorPage({
     execution: execution.state,
   });
   const { displayedSuccess, displayedViolations, requestBuild } = view;
+
+  // 01_UI要求・画面設計.md §5.9: 入力の保存・復元・プリフィル。保存の失敗は
+  // 画面へ出さず、保存以外の機能をそのまま続ける。
+  const persistence = useFormationPersistence({
+    draft: state.draft,
+    catalog,
+    violations: view.violations,
+    dispatch,
+  });
 
   return (
     <AppShell {...(buildRevision !== undefined ? { buildRevision } : {})}>
@@ -195,6 +207,12 @@ export function BattleSimulatorPage({
               }}
               onCancel={execution.cancel}
             />
+
+            <FormationResetControls
+              disabled={view.formationDisabled}
+              onResetDraft={persistence.resetDraft}
+              onClearPlayerData={persistence.clearPlayerData}
+            />
           </>
         ) : null}
       </Panel>
@@ -234,6 +252,7 @@ export function BattleSimulatorPage({
           unitImageMap={unitImageMap}
           memoryImageMap={memoryImageMap}
           violations={displayedViolations}
+          prefillEnhancementFor={persistence.prefillEnhancementFor}
           dispatch={dispatch}
         />
       ) : null}
