@@ -90,4 +90,43 @@ describe("UnitDefinition", () => {
   });
 
   it("UT-CAT-UNIT-009: maps requiredCapabilities as branded CapabilityIds", () => {});
+
+  it("UT-CAT-UNIT-010: leaves levelGrowth undefined when the input omits it", () => {
+    const result = createUnitDefinition(minimalUnitInput());
+    expect(result.levelGrowth).toBeUndefined();
+  });
+
+  it("UT-CAT-UNIT-011: maps a levelGrowth with all four stats", () => {
+    const result = createUnitDefinition({
+      ...minimalUnitInput(),
+      levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+    });
+    expect(result.levelGrowth).toEqual({ hp: 255, attack: 209, defense: 106, actionSpeed: 2 });
+  });
+
+  it("UT-CAT-UNIT-012: accepts a levelGrowth of all zeros", () => {
+    const result = createUnitDefinition({
+      ...minimalUnitInput(),
+      levelGrowth: { hp: 0, attack: 0, defense: 0, actionSpeed: 0 },
+    });
+    expect(result.levelGrowth).toEqual({ hp: 0, attack: 0, defense: 0, actionSpeed: 0 });
+  });
+
+  it("UT-CAT-UNIT-013: rejects a negative levelGrowth stat", () => {
+    expect(() =>
+      createUnitDefinition({
+        ...minimalUnitInput(),
+        levelGrowth: { hp: -1, attack: 0, defense: 0, actionSpeed: 0 },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-UNIT-014: rejects a fractional levelGrowth stat", () => {
+    expect(() =>
+      createUnitDefinition({
+        ...minimalUnitInput(),
+        levelGrowth: { hp: 0, attack: 0, defense: 0, actionSpeed: 2.5 },
+      }),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -32,6 +32,17 @@ export interface BaseStats {
   readonly maximumPp: number;
 }
 
+/**
+ * R-ENH-05: レベル1あたりの上昇量。`baseStats`がレベル200時点の値であるため、
+ * 現在レベル`L`の指定時に`(L − 200) × 成長値`として加算・減算に使う。
+ */
+export interface LevelGrowth {
+  readonly hp: number;
+  readonly attack: number;
+  readonly defense: number;
+  readonly actionSpeed: number;
+}
+
 export interface UnitMetadata {
   readonly displayName: string;
   readonly characterName: string;
@@ -47,6 +58,8 @@ export interface UnitDefinition {
   readonly role: Role;
   readonly positionAptitudes: readonly PositionRow[];
   readonly baseStats: BaseStats;
+  /** R-ENH-05: 実測値が未投入のユニットが存在するため任意。 */
+  readonly levelGrowth?: LevelGrowth;
   readonly extraGaugeMaximum: number;
   readonly activeSkillDefinitionIds: readonly SkillDefinitionId[];
   readonly passiveSkillDefinitionIds: readonly SkillDefinitionId[];
@@ -81,6 +94,7 @@ export interface UnitDefinitionInput {
   readonly role: string;
   readonly positionAptitudes: readonly string[];
   readonly baseStats: BaseStatsInput;
+  readonly levelGrowth?: LevelGrowth;
   readonly extraGaugeMaximum: number;
   readonly activeSkillDefinitionIds: readonly string[];
   readonly passiveSkillDefinitionIds: readonly string[];
@@ -120,6 +134,20 @@ function createBaseStats(input: BaseStatsInput, path: string): BaseStats {
   };
 }
 
+function createLevelGrowth(input: LevelGrowth, path: string): LevelGrowth {
+  assertInteger(input.hp, `${path}.hp`, { min: 0 });
+  assertInteger(input.attack, `${path}.attack`, { min: 0 });
+  assertInteger(input.defense, `${path}.defense`, { min: 0 });
+  assertInteger(input.actionSpeed, `${path}.actionSpeed`, { min: 0 });
+
+  return {
+    hp: input.hp,
+    attack: input.attack,
+    defense: input.defense,
+    actionSpeed: input.actionSpeed,
+  };
+}
+
 export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"): UnitDefinition {
   const unitDefinitionId = createUnitDefinitionId(
     input.unitDefinitionId,
@@ -155,6 +183,9 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     role: input.role,
     positionAptitudes: input.positionAptitudes as readonly PositionRow[],
     baseStats: createBaseStats(input.baseStats, `${path}.baseStats`),
+    ...(input.levelGrowth === undefined
+      ? {}
+      : { levelGrowth: createLevelGrowth(input.levelGrowth, `${path}.levelGrowth`) }),
     extraGaugeMaximum: input.extraGaugeMaximum,
     activeSkillDefinitionIds,
     passiveSkillDefinitionIds,

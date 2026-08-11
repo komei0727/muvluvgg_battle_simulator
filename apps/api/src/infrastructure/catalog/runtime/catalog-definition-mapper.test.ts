@@ -359,4 +359,10 @@ describe("Catalog v2 definition mapper", () => {
       }),
     ).toThrow(CatalogShapeValidationError);
   });
+
+  it("UT-INFRA-MAP-030: carries levelGrowth through both stages, and leaves it undefined when the DTO omits it (R-ENH-05)", () => {
+    const growth = { hp: 255, attack: 209, defense: 106, actionSpeed: 2 };
+    expect(mapUnitDefinition({ ...unitDto, levelGrowth: growth }).levelGrowth).toEqual(growth);
+    expect(mapUnitDefinition(unitDto).levelGrowth).toBeUndefined();
+  });
 });
