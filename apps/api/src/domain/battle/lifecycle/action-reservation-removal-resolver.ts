@@ -3,6 +3,7 @@ import { isQueueEligible, type ActionReservation } from "../action/action-queue.
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ResolutionResult } from "./resolution-result.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
@@ -19,6 +20,8 @@ export interface ReservationRemovalContext {
   readonly parentEventId: DomainEventId;
   /** 除去群を引き起こした行動の`rootEventId`。除去群全体を通じて維持する（監査上の因果は「この行動が引き起こした」まま）。 */
   readonly rootEventId: DomainEventId;
+  /** R-TEX-02: 除去を契機に発動したPS/Memoryが与えるダメージもスコアへ計上するため運ぶ。 */
+  readonly exercise?: ExerciseRuntime;
 }
 
 export interface ReservationRemovalResult extends ResolutionResult {
@@ -80,7 +83,7 @@ export function resolveReservationRemovals(
   units: readonly BattleUnit[],
   context: ReservationRemovalContext,
 ): ReservationRemovalResult {
-  const { definitions, random, recorder, turnNumber, cycleNumber, rootEventId } = context;
+  const { definitions, random, recorder, turnNumber, cycleNumber, rootEventId, exercise } = context;
   let currentRemaining = remaining;
   let working = units;
   let lastEventId = context.parentEventId;
@@ -101,7 +104,16 @@ export function resolveReservationRemovals(
 
     const resolutionScopeId = recorder.nextResolutionScopeId();
     const passiveRuntime = new PassiveActivationRuntime(
-      { definitions, random, recorder, turnNumber, cycleNumber, resolutionScopeId, rootEventId },
+      {
+        definitions,
+        random,
+        recorder,
+        turnNumber,
+        cycleNumber,
+        resolutionScopeId,
+        rootEventId,
+        ...(exercise !== undefined ? { exercise } : {}),
+      },
       working,
     );
     const event = recorder.record({

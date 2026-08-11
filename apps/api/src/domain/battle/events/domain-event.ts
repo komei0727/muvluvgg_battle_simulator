@@ -1309,6 +1309,21 @@ export interface BattleDomainEventPayloadMap {
     readonly after: number;
     readonly reason: CombatStatChangeReason;
   };
+  /**
+   * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-02）: 戦闘モードが
+   * `TACTICAL_EXERCISE`のとき、敵ユニットのHPへ向かうダメージが確定するたびに
+   * 発行する。計上量0では発行しない（R-TEX-02 #4）。累計スコアの状態差分
+   * （`exercise.totalScore`）はこのイベントが単独で所有する。
+   */
+  readonly ExerciseScoreAccumulated: {
+    readonly targetUnitId: BattleUnitId;
+    /** このヒットで計上した量。シールド・サブユニット吸収分を除き、オーバーキル分を含む。 */
+    readonly amount: number;
+    /** 計上後の累計スコア。 */
+    readonly totalScore: number;
+    /** 計上の原因になったダメージイベント（`DamageApplied`／`ContinuousDamageApplied`）。 */
+    readonly causeEventId: DomainEventId;
+  };
 }
 
 /**

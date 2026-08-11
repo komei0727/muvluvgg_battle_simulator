@@ -16,6 +16,7 @@ import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { resolveChargeReleaseOrder } from "../skill/skill-resolution-service.js";
 import { expireEffectsSteps } from "../effects/duration-expiry-service.js";
 import type {
@@ -53,6 +54,7 @@ export function resolveChargeStart(
   cycleNumber: number,
   actionId: ActionId,
   actionScope: ResolutionScopeId,
+  exercise?: ExerciseRuntime,
 ): ActionResolutionResult {
   const actorUnitId = actor.battleUnitId;
   let working =
@@ -100,6 +102,7 @@ export function resolveChargeStart(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       actionId,
+      ...(exercise !== undefined ? { exercise } : {}),
     },
     working,
   );
@@ -120,6 +123,8 @@ export function resolveChargeStart(
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       continuousDamage: {
         effectActions: definitions.effectActions,
+        // R-TEX-02 #3: 継続ダメージも敵HPへ向かう分をスコアへ計上する。
+        ...(exercise !== undefined ? { exercise } : {}),
         expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],
@@ -275,6 +280,7 @@ export function resolveChargeRelease(
   cycleNumber: number,
   actionId: ActionId,
   actionScope: ResolutionScopeId,
+  exercise?: ExerciseRuntime,
 ): ActionResolutionResult {
   const actorUnitId = actor.battleUnitId;
   const charge = actor.charge;
@@ -321,6 +327,7 @@ export function resolveChargeRelease(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       actionId,
+      ...(exercise !== undefined ? { exercise } : {}),
     },
     units,
   );
@@ -342,6 +349,8 @@ export function resolveChargeRelease(
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       continuousDamage: {
         effectActions: definitions.effectActions,
+        // R-TEX-02 #3: 継続ダメージも敵HPへ向かう分をスコアへ計上する。
+        ...(exercise !== undefined ? { exercise } : {}),
         expireDepletedAbsorbers: (
           targetUnitId: BattleUnitId,
           depletedEffectInstanceIds: readonly EffectInstanceId[],
@@ -503,6 +512,8 @@ export function resolveChargeRelease(
     // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
     // 自身のEffectSequenceにも使い回す。
     damageResults: passiveRuntime.damageResultsRegistry,
+    // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
+    ...(exercise !== undefined ? { exercise } : {}),
   });
   // EFF-006/Issue #212: `applyEffectActionGroups`の戻り値は
   // `onFactEventForPassiveChain`経由で既に`passiveRuntime`（`this.units`）へ

@@ -11,6 +11,7 @@ import {
 import { isExUsable, selectAsCandidate } from "../action/action-selection-policy.js";
 import { evaluateActivationCondition } from "./activation-condition-evaluator.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import {
   activeStatusEffect,
   isDefeated,
@@ -78,6 +79,7 @@ function resolveOneAction(
   recorder: EventRecorder,
   turnNumber: number,
   cycleNumber: number,
+  exercise: ExerciseRuntime | undefined,
 ): ActionResolutionResult {
   const actor = requireUnit(units, actorUnitId);
   const actionId = recorder.nextActionId();
@@ -100,6 +102,7 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
+      exercise,
     );
   }
 
@@ -123,6 +126,7 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
+      exercise,
       (context) => {
         const currentActor = requireUnit(context.units, context.actorUnitId);
         const freezeEffect = activeStatusEffect(currentActor, "FREEZE");
@@ -164,6 +168,7 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
+      exercise,
     );
   }
 
@@ -193,6 +198,7 @@ function resolveOneAction(
         cycleNumber,
         actionId,
         actionScope,
+        exercise,
       );
     }
     if (exSkill.resolution.kind === "CHARGE") {
@@ -209,6 +215,7 @@ function resolveOneAction(
         cycleNumber,
         actionId,
         actionScope,
+        exercise,
       );
     }
     return resolveSkillUse(
@@ -224,6 +231,7 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
+      exercise,
     );
   }
 
@@ -250,6 +258,7 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
+      exercise,
     );
   }
 
@@ -267,6 +276,7 @@ function resolveOneAction(
       cycleNumber,
       actionId,
       actionScope,
+      exercise,
     );
   }
 
@@ -283,6 +293,7 @@ function resolveOneAction(
     cycleNumber,
     actionId,
     actionScope,
+    exercise,
   );
 }
 
@@ -303,6 +314,8 @@ export function resolveActionPhase(
   turnNumber: number,
   turnRootEventId: DomainEventId,
   turnScopeParentEventId: DomainEventId,
+  /** R-TEX-02: 戦術演習だけが持つ演習状態。未指定なら通常戦闘（スコア計上なし）。 */
+  exercise?: ExerciseRuntime,
 ): ActionPhaseResult {
   let units: readonly BattleUnit[] = [...allyUnits, ...enemyUnits];
   let cycleNumber = 0;
@@ -376,6 +389,7 @@ export function resolveActionPhase(
         recorder,
         turnNumber,
         cycleNumber,
+        exercise,
       );
       units = resolution.units;
 
@@ -392,6 +406,7 @@ export function resolveActionPhase(
         cycleNumber,
         parentEventId: resolution.completedEventId,
         rootEventId: resolution.rootEventId,
+        ...(exercise !== undefined ? { exercise } : {}),
       });
       remaining = removal.remaining;
       units = removal.units;

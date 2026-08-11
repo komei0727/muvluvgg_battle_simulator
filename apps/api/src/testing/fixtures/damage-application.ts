@@ -9,6 +9,7 @@ import {
   type StatusEffectDetails,
 } from "../../domain/battle/model/applied-effect.js";
 import { consumeEffectDurations } from "../../domain/battle/model/applied-effect-duration.js";
+import type { ExerciseRuntime } from "../../domain/battle/model/exercise-runtime.js";
 import {
   emitEffectConsumptionChangedEvents,
   expireEffectsSteps,
@@ -257,7 +258,9 @@ export function hit(targetUnitId: string, hitIndex: number): ResolvedEffectAppli
 }
 
 /** `applyDamageAction`は通常`ActionStarted`スコープ内、`SkillUseStarted`直後に呼ばれる。単体テストではその前提イベントを最小限再現する。 */
-export function damageEventContext(): DamageEventContext {
+export function damageEventContext(
+  options: { readonly exercise?: ExerciseRuntime } = {},
+): DamageEventContext {
   const recorder = new EventRecorder(createBattleId("B_1"));
   const actionId = recorder.nextActionId();
   const resolutionScopeId = recorder.nextResolutionScopeId();
@@ -288,6 +291,7 @@ export function damageEventContext(): DamageEventContext {
     rootEventId: actionStarted.eventId,
     parentEventId: actionStarted.eventId,
     skillDefinitionId: createSkillDefinitionId("SKL_ATTACK"),
+    ...(options.exercise !== undefined ? { exercise: options.exercise } : {}),
   };
 }
 
