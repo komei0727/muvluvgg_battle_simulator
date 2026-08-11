@@ -194,3 +194,106 @@ describe("UnitSlot — ユニット強化の起動 (M11, UI-AC-025/026)", () => 
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("UnitSlot — ステータスプレビュー (UI-CT-038)", () => {
+  const preview = {
+    side: "ALLY",
+    unitDefinitionId: "UNIT_A",
+    formationPosition: { column: 0, row: "FRONT" },
+    maximumHp: 12345.6,
+    combatStats: {
+      attack: 1000,
+      defense: 500,
+      criticalRate: 12.5,
+      actionSpeed: 120,
+      affinityBonus: 25,
+      criticalDamageBonus: 50,
+    },
+  };
+
+  function renderSlot() {
+    return render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        statPreviewStatus="ready"
+        statPreview={preview}
+      />,
+    );
+  }
+
+  it("shows the starting stats on hover and hides them again on unhover", async () => {
+    const user = userEvent.setup();
+    renderSlot();
+
+    expect(screen.queryByText("開始時ステータス")).not.toBeInTheDocument();
+
+    await user.hover(screen.getByRole("button", { name: /アルファ/ }));
+
+    expect(screen.getByText("開始時ステータス")).toBeInTheDocument();
+    expect(screen.getByText("12,345.6")).toBeInTheDocument();
+    expect(screen.getByText("12.5%")).toBeInTheDocument();
+
+    await user.unhover(screen.getByRole("button", { name: /アルファ/ }));
+
+    expect(screen.queryByText("開始時ステータス")).not.toBeInTheDocument();
+  });
+
+  it("shows the same stats on keyboard focus and links them to the slot with aria-describedby", async () => {
+    const user = userEvent.setup();
+    renderSlot();
+
+    await user.tab();
+
+    const slot = screen.getByRole("button", { name: /アルファ/ });
+    expect(slot).toHaveFocus();
+    const describedBy = slot.getAttribute("aria-describedby");
+    expect(describedBy).not.toBeNull();
+    expect(document.getElementById(describedBy!)).toHaveTextContent("開始時ステータス");
+  });
+
+  it("reports a failed preview as text without an alert, so it does not read as a blocked execution", async () => {
+    const user = userEvent.setup();
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        statPreviewStatus="failed"
+      />,
+    );
+
+    await user.hover(screen.getByRole("button", { name: /アルファ/ }));
+
+    expect(screen.getByText("ステータスを取得できませんでした")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows no preview for an empty slot, because there is nothing to compute stats for", async () => {
+    const user = userEvent.setup();
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        statPreviewStatus="ready"
+      />,
+    );
+
+    await user.hover(screen.getByRole("button"));
+
+    expect(screen.queryByText("開始時ステータス")).not.toBeInTheDocument();
+  });
+});

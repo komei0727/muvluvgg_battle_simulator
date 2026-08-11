@@ -1,0 +1,56 @@
+/* 枠の上に重ねて表示する。通常フローへ入れるとhover/focusのたびに
+   編成グリッドの高さが変わるため、absoluteで浮かせる
+   （docs/ui-design/05_非機能・アクセシビリティ設計.md §8「点滅を追加しない」）。 */
+.preview {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 168px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-strong);
+  padding: 8px 9px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.heading {
+  margin: 0 0 6px;
+  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.list {
+  display: flex;
+  margin: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.term {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.value {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.message {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}

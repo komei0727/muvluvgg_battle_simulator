@@ -19,6 +19,12 @@ import {
   type SimulateBattleUseCasePort,
   type ShutdownGatePort,
 } from "./routes/simulation-route.js";
+import {
+  registerFormationStatPreviewRoute,
+  FORMATION_STAT_PREVIEW_PATH,
+  type PreviewFormationStatsUseCasePort,
+} from "./routes/formation-stat-preview-route.js";
+import { formationStatPreviewRequestDocSchema } from "./schemas/simulation/formation-stat-preview-schema.js";
 import { errorResponseDocSchemaForStatus } from "./schemas/error/error-schema.js";
 import { registerErrorHandler } from "./protocol/error-response/register-error-handler.js";
 import { toErrorResponseBody } from "./protocol/error-response/error-response-mapper.js";
@@ -40,6 +46,7 @@ import {
 import { acceptsJson } from "./protocol/content-negotiation/content-negotiation.js";
 
 export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simulation-route.js";
+export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
 export type { GetBattleSimulationCatalogUseCasePort } from "./routes/catalog-route.js";
 
 const ALWAYS_READY: ReadinessPort = { isReady: () => true };
@@ -56,6 +63,14 @@ const EMPTY_CATALOG_RESULT: BattleSimulationCatalogResult = {
 };
 const NO_CATALOG: GetBattleSimulationCatalogUseCasePort = {
   execute: () => EMPTY_CATALOG_RESULT,
+};
+/**
+ * `previewUseCase`省略時の既定値。`NO_CATALOG`と同じく、`buildServer(useCase)`
+ * だけを渡す既存の呼び出し側・テストを壊さないためのno-op port
+ * ——`bootstrap/index.ts`は常に実`PreviewFormationStatsUseCase`を渡す。
+ */
+const NO_PREVIEW: PreviewFormationStatsUseCasePort = {
+  execute: () => ({ catalogRevision: "", units: [] }),
 };
 
 const DEFAULT_BODY_LIMIT_BYTES = 1_048_576; // 1 MiB。`10_API設計.md`「編成入力自体は小さい」ための暫定上限。
@@ -136,6 +151,7 @@ export interface BuildServerOptions {
   readonly readiness?: ReadinessPort;
   readonly shutdownGate?: ShutdownGatePort;
   readonly catalogUseCase?: GetBattleSimulationCatalogUseCasePort;
+  readonly previewUseCase?: PreviewFormationStatsUseCasePort;
   /**
    * `10_API設計.md`「CORS」「productionの許可originは`https://komei0727.github.io`を
    * 完全一致で設定する」。既定は空配列（全origin拒否）——`bootstrap/index.ts`が
@@ -194,6 +210,7 @@ export async function buildServer(
   const readiness = options.readiness ?? ALWAYS_READY;
   const shutdownGate = options.shutdownGate ?? NEVER_SHUTTING_DOWN;
   const catalogUseCase = options.catalogUseCase ?? NO_CATALOG;
+  const previewUseCase = options.previewUseCase ?? NO_PREVIEW;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
     // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
@@ -304,6 +321,20 @@ export async function buildServer(
           url,
         };
       }
+      if (url === FORMATION_STAT_PREVIEW_PATH) {
+        // 戦闘POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ
+        // 差し込む（実行時validationは`route.schema`のまま）。
+        return {
+          schema: {
+            ...schema,
+            ...(schema.body !== undefined ? { body: formationStatPreviewRequestDocSchema } : {}),
+            ...(schema.response !== undefined
+              ? { response: withResponseDoc({ ...schema.response }) }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url !== BATTLE_SIMULATIONS_PATH) {
         return { schema, url };
       }
@@ -368,8 +399,13 @@ export async function buildServer(
   registerErrorHandler(app);
 
   registerSimulationRoute(app, { useCase, shutdownGate, simulationTimeoutMs });
+  registerFormationStatPreviewRoute(app, previewUseCase);
   registerCatalogRoute(app, catalogUseCase);
-  registerCorsPreflightDocRoutes(app, [BATTLE_SIMULATIONS_PATH, BATTLE_SIMULATION_CATALOG_PATH]);
+  registerCorsPreflightDocRoutes(app, [
+    BATTLE_SIMULATIONS_PATH,
+    FORMATION_STAT_PREVIEW_PATH,
+    BATTLE_SIMULATION_CATALOG_PATH,
+  ]);
 
   app.get("/openapi.json", (_request, reply) => {
     void reply.send(app.swagger());

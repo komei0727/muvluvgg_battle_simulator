@@ -1,16 +1,20 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SimulateOptions } from "../features/simulation/api-client.js";
 import type { GetCatalogOptions } from "../features/simulation/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
   CatalogApiResult,
+  FormationStatPreviewApiResult,
   SimulationApiResult,
 } from "../features/simulation/api-contract.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
-import type { BattleSimulationRequest } from "../features/formation/request-mapper.js";
+import type {
+  BattleSimulationRequest,
+  FormationStatPreviewRequest,
+} from "../features/formation/request-mapper.js";
 
 // The real definition-image-map.ts globs locally-synced, gitignored assets
 // (apps/ui/scripts/sync-character-images.mjs) that are absent in CI. Mock it
@@ -22,6 +26,20 @@ vi.mock("../features/catalog-selection/definition-image-map.js", () => ({
   memoryImageMap: {},
   definitionImageMap: { UNIT_A: "/assets/unit-a.webp" },
 }));
+
+// 編成ステータスプレビューはpage自身が編成の変化に反応して取りに行くため、
+// `previewFormationStatsImpl`を渡さないテストでも呼ばれる。実fetchへ出さない
+// よう、既定ではnetwork失敗にしておく（プレビュー失敗は他の表示を変えない）。
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function catalogResponse(): BattleSimulationCatalogResponse {
   return {
@@ -788,5 +806,137 @@ describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
 
     const [sentRequest] = simulateImpl.mock.calls[0]!;
     expect(JSON.stringify(sentRequest)).not.toContain("enhancement");
+  });
+});
+
+describe("BattleSimulatorPage — 編成ステータスプレビュー (UI-AC-027)", () => {
+  function previewUnit(side: string, maximumHp: number) {
+    return {
+      side,
+      unitDefinitionId: "UNIT_A",
+      formationPosition: { column: 0, row: "FRONT" },
+      maximumHp,
+      combatStats: {
+        attack: 100,
+        defense: 50,
+        criticalRate: 12.5,
+        actionSpeed: 12,
+        affinityBonus: 25,
+        criticalDamageBonus: 50,
+      },
+    };
+  }
+
+  /**
+   * 応答は要求された枠数と同じ件数を返す（UI側の対応づけは並び順のため）。
+   * 味方の最大HPは強化指定の有無で変え、「強化を変えると表示が追随する」ことを
+   * 呼び出し回数に依存せず観測できるようにする。
+   */
+  function previewImplFor(allyEnhancedMaximumHp: number, allyPlainMaximumHp: number) {
+    return vi.fn<
+      (
+        request: FormationStatPreviewRequest,
+        options: SimulateOptions,
+      ) => Promise<FormationStatPreviewApiResult>
+    >((request) =>
+      Promise.resolve({
+        ok: true,
+        response: {
+          schemaVersion: 1,
+          catalogRevision: "rev-1",
+          units: [
+            ...request.allyFormation.units.map(() =>
+              previewUnit(
+                "ALLY",
+                request.allyFormation.enhancement === undefined
+                  ? allyPlainMaximumHp
+                  : allyEnhancedMaximumHp,
+              ),
+            ),
+            ...request.enemyFormation.units.map(() => previewUnit("ENEMY", 999)),
+          ],
+        },
+      }),
+    );
+  }
+
+  function allyRegion() {
+    return screen.getByRole("region", { name: /ALLY FORMATION/ });
+  }
+
+  it("UI-CT-039: refetches the preview when the enhancement changes, and the hovered slot shows the new values", async () => {
+    const user = userEvent.setup();
+    const previewFormationStatsImpl = previewImplFor(2500, 1000);
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        previewFormationStatsImpl={previewFormationStatsImpl}
+      />,
+    );
+
+    await setUpMinimalFormation(user);
+    await waitFor(() => {
+      expect(previewFormationStatsImpl).toHaveBeenCalled();
+    });
+    // 強化トグルOFFの陣営は強化なしの値を見ている。
+    const [firstRequest] = previewFormationStatsImpl.mock.calls[0]!;
+    expect(JSON.stringify(firstRequest)).not.toContain("enhancement");
+
+    const allySlot = within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ });
+    await user.hover(allySlot);
+    await waitFor(() => {
+      expect(within(allyRegion()).getByText("1,000")).toBeInTheDocument();
+    });
+    await user.unhover(allySlot);
+
+    const callsBeforeToggle = previewFormationStatsImpl.mock.calls.length;
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+
+    await waitFor(() => {
+      expect(previewFormationStatsImpl.mock.calls.length).toBeGreaterThan(callsBeforeToggle);
+    });
+    const [lastRequest] = previewFormationStatsImpl.mock.calls.at(-1)!;
+    expect(lastRequest.allyFormation.enhancement).toBeDefined();
+    expect(lastRequest.enemyFormation.enhancement).toBeUndefined();
+
+    await user.hover(within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }));
+    await waitFor(() => {
+      expect(within(allyRegion()).getByText("2,500")).toBeInTheDocument();
+    });
+  });
+
+  it("UI-CT-040: keeps the battle submittable when the preview request fails", async () => {
+    const user = userEvent.setup();
+    const previewFormationStatsImpl = vi.fn<
+      (
+        request: FormationStatPreviewRequest,
+        options: SimulateOptions,
+      ) => Promise<FormationStatPreviewApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        error: { kind: "SERVER", message: "boom" },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        previewFormationStatsImpl={previewFormationStatsImpl}
+      />,
+    );
+
+    await setUpMinimalFormation(user);
+    await waitFor(() => {
+      expect(previewFormationStatsImpl).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.hover(within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ }));
+    expect(within(allyRegion()).getByText("ステータスを取得できませんでした")).toBeInTheDocument();
   });
 });

@@ -179,7 +179,7 @@ describe("OpenAPI document", () => {
     );
   });
 
-  it("API-OPENAPI-007 (10_API設計.md「OpenAPIへの反映」「CORS preflightと公開header」): documents an OPTIONS preflight operation for both CORS-enabled routes", () => {
+  it("API-OPENAPI-007 (10_API設計.md「OpenAPIへの反映」「CORS preflightと公開header」): documents an OPTIONS preflight operation for every CORS-enabled route", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
         Record<
@@ -196,10 +196,11 @@ describe("OpenAPI document", () => {
     const document = app.swagger() as unknown as MinimalOpenApiV3Document;
 
     expect(document.paths?.["/api/v1/battle-simulations"]?.options).toBeDefined();
+    expect(document.paths?.["/api/v1/formation-stat-previews"]?.options).toBeDefined();
     expect(document.paths?.["/api/v1/battle-simulation-catalog"]?.options).toBeDefined();
   });
 
-  it("API-OPENAPI-008 (10_API設計.md「CORS」「公開response headerはX-Request-Id、Retry-After、ETag」): documents Access-Control-Allow-Origin and Access-Control-Expose-Headers on the successful responses of both CORS-enabled routes", () => {
+  it("API-OPENAPI-008 (10_API設計.md「CORS」「公開response headerはX-Request-Id、Retry-After、ETag」): documents Access-Control-Allow-Origin and Access-Control-Expose-Headers on the successful responses of every CORS-enabled route", () => {
     interface HeaderDoc {
       readonly schema?: { readonly type?: string };
     }
@@ -234,6 +235,11 @@ describe("OpenAPI document", () => {
       document.paths?.["/api/v1/battle-simulations"]?.post?.responses?.["200"]?.headers;
     expect(battleHeaders?.["Access-Control-Allow-Origin"]).toBeDefined();
     expect(battleHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
+
+    const previewHeaders =
+      document.paths?.["/api/v1/formation-stat-previews"]?.post?.responses?.["200"]?.headers;
+    expect(previewHeaders?.["Access-Control-Allow-Origin"]).toBeDefined();
+    expect(previewHeaders?.["Access-Control-Expose-Headers"]).toBeDefined();
   });
 
   it("API-OPENAPI-009: documents the preflight request headers (Origin, Access-Control-Request-Method, Access-Control-Request-Headers) as header parameters on the OPTIONS operation, with Origin and Access-Control-Request-Method marked required", () => {
@@ -1364,5 +1370,51 @@ describe("OpenAPI document", () => {
         [...domain].sort(),
       );
     }
+  });
+  it("API-OPENAPI-032 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」/10_API設計.md「編成の開始時ステータスをプレビューする」): documents POST /api/v1/formation-stat-previews with only the statuses it can return, and publishes the value ranges in the request schema", () => {
+    interface JsonSchemaObject {
+      readonly enum?: readonly unknown[];
+      readonly maxItems?: number;
+      readonly items?: JsonSchemaObject;
+      readonly properties?: Readonly<Record<string, JsonSchemaObject>>;
+    }
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly post?: {
+              readonly requestBody?: {
+                readonly content?: {
+                  readonly "application/json"?: { readonly schema?: JsonSchemaObject };
+                };
+              };
+              readonly responses?: Readonly<Record<string, unknown>>;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const operation = document.paths?.["/api/v1/formation-stat-previews"]?.post;
+    expect(operation).toBeDefined();
+
+    // 戦闘を実行しないため、Worker Pool容量・実行保護・期限の429/503/504は持たない。
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
+      ["200", "400", "406", "413", "415", "422", "500"].sort(),
+    );
+
+    const bodySchema = operation?.requestBody?.content?.["application/json"]?.schema;
+    expect(Object.keys(bodySchema?.properties ?? {}).sort()).toEqual([
+      "allyFormation",
+      "enemyFormation",
+    ]);
+    const positionSchema =
+      bodySchema?.properties?.["allyFormation"]?.properties?.["units"]?.items?.properties?.[
+        "position"
+      ];
+    expect(positionSchema?.properties?.["column"]?.enum).toEqual([0, 1, 2]);
+    expect(positionSchema?.properties?.["row"]?.enum).toEqual(["FRONT", "REAR"]);
   });
 });

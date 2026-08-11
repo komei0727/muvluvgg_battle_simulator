@@ -1,11 +1,23 @@
-import type { CatalogApiResult, SimulationApiResult, UiApiError } from "./api-contract.js";
+import type {
+  CatalogApiResult,
+  FormationStatPreviewApiResult,
+  SimulationApiResult,
+  UiApiError,
+} from "./api-contract.js";
 import {
   normalizeHttpErrorResponse,
   normalizeRequestException,
   parseRetryAfterSeconds,
 } from "./error-normalizer.js";
-import { validateCatalogResponse, validateSimulationResponse } from "./response-validator.js";
-import type { BattleSimulationRequest } from "../formation/request-mapper.js";
+import {
+  validateCatalogResponse,
+  validateFormationStatPreviewResponse,
+  validateSimulationResponse,
+} from "./response-validator.js";
+import type {
+  BattleSimulationRequest,
+  FormationStatPreviewRequest,
+} from "../formation/request-mapper.js";
 
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 // docs/ui-design/03_API・データ連携設計.md §7: 「一覧GETには10秒のUI待機上限を
@@ -15,6 +27,10 @@ const SIMULATION_PATH = "/api/v1/battle-simulations";
 // docs/ui-design/03_API・データ連携設計.md §7: 「UIは35秒を既定のクライアント
 // 待機上限とし、API側が構造化504を返す余地を残す」。
 const SIMULATION_DEFAULT_TIMEOUT_MS = 35_000;
+const PREVIEW_PATH = "/api/v1/formation-stat-previews";
+// docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは戦闘を実行せず
+// 同期的に返るため、戦闘POSTの35秒ではなく一覧GETと同じ待機上限で十分。
+const PREVIEW_DEFAULT_TIMEOUT_MS = 10_000;
 
 function isAbortError(error: unknown): boolean {
   return (
@@ -258,6 +274,49 @@ export async function simulate(
           ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
         }),
         ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+      };
+    },
+  );
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.5: プレビューPOSTは戦闘POSTと
+// 同じ cache/credentials 方針を使い、自動retryしない。失敗しても戦闘実行の
+// 可否へ波及させないのは呼び出し側（use-formation-stat-preview.ts）の責務。
+export async function previewFormationStats(
+  request: FormationStatPreviewRequest,
+  options: SimulateOptions,
+): Promise<FormationStatPreviewApiResult> {
+  return requestJson<FormationStatPreviewApiResult>(
+    {
+      url: `${options.baseUrl}${PREVIEW_PATH}`,
+      method: "POST",
+      headers: simulationRequestHeaders(options),
+      cache: "no-store",
+      body: JSON.stringify(request),
+      signal: options.signal,
+      timeoutMs: options.timeoutMs ?? PREVIEW_DEFAULT_TIMEOUT_MS,
+      fetchImpl: options.fetchImpl ?? fetch,
+    },
+    async ({ response, requestIdField, readBody, retryAfterSeconds }) => {
+      const body = await readBody();
+
+      if (response.status === 200) {
+        const validation = validateFormationStatPreviewResponse(body);
+        if (!validation.ok) {
+          return { ok: false, status: 200, ...requestIdField, error: validation.error };
+        }
+        return { ok: true, response: validation.response, ...requestIdField };
+      }
+
+      return {
+        ok: false,
+        status: response.status,
+        ...requestIdField,
+        error: normalizeHttpErrorResponse({
+          status: response.status,
+          body,
+          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+        }),
       };
     },
   );

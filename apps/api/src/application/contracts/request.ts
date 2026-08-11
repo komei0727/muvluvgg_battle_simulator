@@ -64,3 +64,13 @@ export interface BattleSimulationRequestBody {
   readonly turnLimit: number;
   readonly options?: SimulationOptionsRequestBody;
 }
+
+/**
+ * `10_API設計.md`「FormationStatPreviewRequest」。編成部分は戦闘リクエストと
+ * 同形にし、`turnLimit`・`options`を持たない（戦闘を実行しないため、どちらも
+ * 開始時ステータスへ影響しない）。
+ */
+export interface FormationStatPreviewRequestBody {
+  readonly allyFormation: FormationRequestBody;
+  readonly enemyFormation: FormationRequestBody;
+}

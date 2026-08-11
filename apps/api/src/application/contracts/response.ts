@@ -310,3 +310,23 @@ export interface BattleSimulationResponseBody {
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];
 }
+
+/**
+ * `10_API設計.md`「FormationStatPreviewUnitResponse」。`maximumHp`は
+ * `CombatStatsResponse`が持たない（公開上の置き場所が`hp.maximum`である）ため
+ * ユニット直下へ置き、`BattleUnitStateResponse.hp.maximum`と同じく丸めない。
+ */
+export interface FormationStatPreviewUnitResponseBody {
+  readonly side: string;
+  readonly unitDefinitionId: string;
+  readonly formationPosition: FormationPositionResponseBody;
+  readonly maximumHp: number;
+  readonly combatStats: CombatStatsResponseBody;
+}
+
+export interface FormationStatPreviewResponseBody {
+  readonly schemaVersion: number;
+  readonly catalogRevision: string;
+  /** 味方、敵の順。各陣営内はリクエストの`units`と同じ順序。 */
+  readonly units: readonly FormationStatPreviewUnitResponseBody[];
+}

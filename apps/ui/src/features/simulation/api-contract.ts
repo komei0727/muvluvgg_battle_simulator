@@ -144,3 +144,43 @@ export type SimulationApiResult =
       readonly requestId?: string;
       readonly retryAfterSeconds?: number;
     };
+
+// docs/ddd/10_API設計.md「FormationStatPreviewResponse」/
+// docs/ui-design/03_API・データ連携設計.md §2.5, §9.1.
+export interface FormationStatPreviewCombatStats {
+  readonly attack: number;
+  readonly defense: number;
+  readonly criticalRate: number;
+  readonly actionSpeed: number;
+  readonly affinityBonus: number;
+  readonly criticalDamageBonus: number;
+}
+
+export interface FormationStatPreviewUnit {
+  readonly side: string;
+  readonly unitDefinitionId: string;
+  readonly formationPosition: { readonly column: number; readonly row: string };
+  /** 戦闘の`initialState.units[].hp.maximum`と同じ、丸めていない最大HP。 */
+  readonly maximumHp: number;
+  readonly combatStats: FormationStatPreviewCombatStats;
+  readonly [key: string]: unknown;
+}
+
+export interface FormationStatPreviewResponse {
+  readonly schemaVersion: number;
+  readonly catalogRevision: string;
+  readonly units: readonly FormationStatPreviewUnit[];
+}
+
+export type FormationStatPreviewApiResult =
+  | {
+      readonly ok: true;
+      readonly response: FormationStatPreviewResponse;
+      readonly requestId?: string;
+    }
+  | {
+      readonly ok: false;
+      readonly status?: number;
+      readonly error: UiApiError;
+      readonly requestId?: string;
+    };

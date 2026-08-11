@@ -95,7 +95,7 @@ const formationUnitRequestSchema = {
   },
 } as const;
 
-const formationRequestSchema = {
+export const formationRequestSchema = {
   type: "object",
   additionalProperties: false,
   required: ["units", "memoryDefinitionIds"],
@@ -211,7 +211,7 @@ const formationUnitRequestDocSchema = {
   },
 } as const;
 
-const formationRequestDocSchema = {
+export const formationRequestDocSchema = {
   type: "object",
   additionalProperties: false,
   required: ["units", "memoryDefinitionIds"],
@@ -297,7 +297,7 @@ const valueChangeStringSchema = {
   },
 } as const;
 
-const formationPositionResponseSchema = {
+export const formationPositionResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: ["column", "row"],
@@ -329,7 +329,7 @@ const resourceStateResponseSchema = {
   },
 } as const;
 
-const combatStatsResponseSchema = {
+export const combatStatsResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: [

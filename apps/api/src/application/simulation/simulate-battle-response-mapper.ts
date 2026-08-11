@@ -9,9 +9,11 @@ import type {
   BattleStateResponseBody,
   BattleUnitStateResponseBody,
   ChargeStateResponseBody,
+  CombatStatsResponseBody,
   CooldownStateResponseBody,
   EffectStateResponseBody,
   EntityCollectionDeltaResponseBody,
+  FormationPositionResponseBody,
   MarkerStateResponseBody,
   SubUnitStateResponseBody,
   UnitStateDeltaResponseBody,
@@ -30,6 +32,8 @@ import type {
   StateDelta,
   UnitStateDelta,
 } from "../../domain/battle/events/state-delta.js";
+import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { PositionColumn } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
@@ -50,6 +54,35 @@ function combatStatusOf(hp: number): string {
  */
 function toPercentagePoints(ratio: number): number {
   return ratio * PERCENTAGE_POINT_SCALE;
+}
+
+/**
+ * `10_API設計.md`「FormationPositionRequest」の陣営内表現へ戻す。編成ステータス
+ * プレビュー（`preview-formation-stats-response-mapper.ts`）とも共有する ——
+ * 同じ配置を2つの表へ写す実装が並ぶと、片方だけ列の対応が変わっても気づけない。
+ */
+export function toFormationPositionResponseBody(
+  position: FormationPosition,
+): FormationPositionResponseBody {
+  return {
+    column: REVERSE_COLUMNS[position.column],
+    row: position.row === "FRONT" ? "FRONT" : "REAR",
+  };
+}
+
+/**
+ * `10_API設計.md`「CombatStatsResponse」: `maximumHp`を持たず、割合3項目だけを
+ * パーセントポイントへ直す公開形。戦闘状態とプレビューで共有する。
+ */
+export function toCombatStatsResponseBody(combatStats: CombatStats): CombatStatsResponseBody {
+  return {
+    attack: combatStats.attack,
+    defense: combatStats.defense,
+    criticalRate: toPercentagePoints(combatStats.criticalRate),
+    actionSpeed: combatStats.actionSpeed,
+    affinityBonus: toPercentagePoints(combatStats.affinityBonus),
+    criticalDamageBonus: toPercentagePoints(combatStats.criticalDamageBonus),
+  };
 }
 
 /**
@@ -224,10 +257,7 @@ function toUnitStateResponseBody(
     battleUnitId: roster.battleUnitId,
     unitDefinitionId: roster.unitDefinitionId,
     side: roster.side,
-    formationPosition: {
-      column: REVERSE_COLUMNS[roster.position.column],
-      row: roster.position.row === "FRONT" ? "FRONT" : "REAR",
-    },
+    formationPosition: toFormationPositionResponseBody(roster.position),
     coordinate: { x: roster.globalCoordinate.x, y: roster.globalCoordinate.y },
     combatStatus: combatStatusOf(snapshot.hp),
     hp: { current: snapshot.hp, maximum: snapshot.combatStats.maximumHp },
@@ -242,14 +272,7 @@ function toUnitStateResponseBody(
     // (`snapshot.combatStats`) を返す。`roster.combatStats`は編成補正・適性補正
     // だけを反映した開始時点の基準値であり、この応答が表す時点の実効値とは
     // 別物（`battle-state-snapshot.ts`のフィールドコメント参照）。
-    combatStats: {
-      attack: snapshot.combatStats.attack,
-      defense: snapshot.combatStats.defense,
-      criticalRate: toPercentagePoints(snapshot.combatStats.criticalRate),
-      actionSpeed: snapshot.combatStats.actionSpeed,
-      affinityBonus: toPercentagePoints(snapshot.combatStats.affinityBonus),
-      criticalDamageBonus: toPercentagePoints(snapshot.combatStats.criticalDamageBonus),
-    },
+    combatStats: toCombatStatsResponseBody(snapshot.combatStats),
     // `10_API設計.md`「ShieldStateResponse」: タイプ別プールは`APPLY_SHIELD`由来の
     // 効果インスタンス（R-SHD-01第3項）からの導出値であり、実体を別に持たない
     // （DMG-004、Issue #194）。

@@ -3,6 +3,7 @@ import type {
   BattleSimulationResponse,
   CatalogMemorySummary,
   CatalogUnitSummary,
+  FormationStatPreviewResponse,
   UiApiError,
 } from "./api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
@@ -231,4 +232,80 @@ export function validateSimulationResponse(body: unknown): SimulationValidationR
     ok: true,
     response: body as unknown as BattleSimulationResponse,
   };
+}
+
+// docs/ui-design/03_API・データ連携設計.md §9.1: プレビューレスポンスの検証。
+// 契約違反は`RESPONSE_CONTRACT_MISMATCH`として扱うが、戦闘実行は止めない
+// （§2.5。プレビュー表示だけを取り下げる）。
+
+export type FormationStatPreviewValidationResult =
+  | { readonly ok: true; readonly response: FormationStatPreviewResponse }
+  | { readonly ok: false; readonly error: UiApiError };
+
+const PREVIEW_COMBAT_STATS = [
+  "attack",
+  "defense",
+  "criticalRate",
+  "actionSpeed",
+  "affinityBonus",
+  "criticalDamageBonus",
+] as const;
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isValidPreviewCombatStats(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return PREVIEW_COMBAT_STATS.every((stat) => isFiniteNumber(value[stat]));
+}
+
+function isValidPreviewPosition(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value["column"] === "number" && isNonEmptyString(value["row"]);
+}
+
+function isValidPreviewUnit(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["side"]) &&
+    isNonEmptyString(value["unitDefinitionId"]) &&
+    isValidPreviewPosition(value["formationPosition"]) &&
+    isFiniteNumber(value["maximumHp"]) &&
+    isValidPreviewCombatStats(value["combatStats"])
+  );
+}
+
+export function validateFormationStatPreviewResponse(
+  body: unknown,
+): FormationStatPreviewValidationResult {
+  const previewMismatch = (message: string): FormationStatPreviewValidationResult => ({
+    ok: false,
+    error: { kind: "RESPONSE_CONTRACT_MISMATCH", message },
+  });
+
+  if (!isRecord(body)) {
+    return previewMismatch("Formation stat preview response body is not a JSON object.");
+  }
+  if (typeof body["schemaVersion"] !== "number") {
+    return previewMismatch("Formation stat preview response schemaVersion is not a number.");
+  }
+  if (!isNonEmptyString(body["catalogRevision"])) {
+    return previewMismatch("Formation stat preview response catalogRevision is missing or empty.");
+  }
+  const units = body["units"];
+  if (!Array.isArray(units)) {
+    return previewMismatch("Formation stat preview response units is not an array.");
+  }
+  if (!units.every(isValidPreviewUnit)) {
+    return previewMismatch("Formation stat preview response contains a malformed unit entry.");
+  }
+
+  return { ok: true, response: body as unknown as FormationStatPreviewResponse };
 }

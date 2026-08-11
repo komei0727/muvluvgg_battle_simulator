@@ -2,7 +2,10 @@ import { useId } from "react";
 import type { UiViolation } from "./draft-validation.js";
 import { EnhancementPanel } from "./EnhancementPanel.js";
 import { MemorySlot } from "./MemorySlot.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type {
+  BattleSimulationCatalogResponse,
+  FormationStatPreviewUnit,
+} from "../simulation/api-contract.js";
 import { memorySlotKeyOf } from "./types.js";
 import type { FormationSlotInput, Side, SideEnhancementInput, UiColumn, UiRow } from "./types.js";
 import { UnitSlot } from "./UnitSlot.js";
@@ -17,6 +20,12 @@ export interface FormationEditorProps {
   readonly disabled: boolean;
   readonly imageMap?: Readonly<Record<string, string>>;
   readonly enhancement: SideEnhancementInput;
+  /**
+   * UI-AC-027: 枠hover／focusで見せる開始時ステータス。値の算出はサーバー側。
+   * 省略時は未取得扱い —— プレビューは編成入力の付加情報であり、これが無くても
+   * 編成そのものは成立する。
+   */
+  readonly statPreview?: FormationStatPreviewView;
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onOpenMemorySelection: (side: Side, index: number) => void;
   readonly onOpenUnitEnhancement: (slotKey: string) => void;
@@ -27,6 +36,11 @@ export interface FormationEditorProps {
     key: string,
     value: number | "",
   ) => void;
+}
+
+export interface FormationStatPreviewView {
+  readonly status: "unavailable" | "loading" | "failed" | "ready";
+  readonly bySlotKey?: ReadonlyMap<string, FormationStatPreviewUnit>;
 }
 
 const ROWS: readonly UiRow[] = ["FRONT", "REAR"];
@@ -62,6 +76,7 @@ export function FormationEditor({
   disabled,
   imageMap,
   enhancement,
+  statPreview = { status: "unavailable" },
   onOpenUnitSelection,
   onOpenMemorySelection,
   onOpenUnitEnhancement,
@@ -112,6 +127,11 @@ export function FormationEditor({
                       onOpenUnitEnhancement(slot.slotKey);
                     }}
                     enhancementEnabled={enhancement.enabled}
+                    statPreviewStatus={statPreview.status}
+                    {...(() => {
+                      const preview = statPreview.bySlotKey?.get(slot.slotKey);
+                      return preview !== undefined ? { statPreview: preview } : {};
+                    })()}
                   />
                 );
               })}

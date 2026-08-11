@@ -10,6 +10,8 @@ import {
   formationReducer,
 } from "../features/formation/formation-reducer.js";
 import { SubmitControls } from "../features/formation/SubmitControls.js";
+import type { UseFormationStatPreviewOptions } from "../features/formation/use-formation-stat-preview.js";
+import { useFormationStatPreview } from "../features/formation/use-formation-stat-preview.js";
 import {
   enhancementForSide,
   memorySlotsForSide,
@@ -35,6 +37,7 @@ export interface BattleSimulatorPageProps {
   readonly buildRevision?: string;
   readonly getCatalogImpl?: UseCatalogLoaderOptions["getCatalogImpl"];
   readonly simulateImpl?: UseSimulationExecutionOptions["simulateImpl"];
+  readonly previewFormationStatsImpl?: UseFormationStatPreviewOptions["previewImpl"];
 }
 
 const SIMULATION_ENDPOINT = "POST /api/v1/battle-simulations";
@@ -44,6 +47,7 @@ export function BattleSimulatorPage({
   buildRevision,
   getCatalogImpl,
   simulateImpl,
+  previewFormationStatsImpl,
 }: BattleSimulatorPageProps) {
   const catalogLoader = useCatalogLoader(
     apiBaseUrl,
@@ -54,6 +58,14 @@ export function BattleSimulatorPage({
   const execution = useSimulationExecution(
     apiBaseUrl,
     simulateImpl !== undefined ? { simulateImpl } : {},
+  );
+
+  // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
+  // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
+  const statPreview = useFormationStatPreview(
+    apiBaseUrl,
+    state.draft,
+    previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {},
   );
 
   const view = useBattleSimulatorViewModel({
@@ -89,6 +101,7 @@ export function BattleSimulatorPage({
                   disabled={view.formationDisabled}
                   imageMap={definitionImageMap}
                   enhancement={enhancementForSide(state.draft, "ally")}
+                  statPreview={statPreview}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                   }}
@@ -122,6 +135,7 @@ export function BattleSimulatorPage({
                   disabled={view.formationDisabled}
                   imageMap={definitionImageMap}
                   enhancement={enhancementForSide(state.draft, "enemy")}
+                  statPreview={statPreview}
                   onOpenUnitSelection={(slotKey) => {
                     dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                   }}

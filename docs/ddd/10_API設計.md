@@ -79,6 +79,27 @@ POST /api/v1/tactical-exercises
 
 既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
 
+### 編成の開始時ステータスをプレビューする
+
+```http
+POST /api/v1/formation-stat-previews
+```
+
+両陣営の編成と強化指定を受け取り、各参加枠の開始時ステータス（`R-STA-01` 適用後の戦闘中ステータスと最大HP）だけを返す。戦闘は実行しない。
+
+| 項目                   | 値                                                   |
+| ---------------------- | ---------------------------------------------------- |
+| 認証                   | なし。戦闘シミュレーションと同じ公開条件とする。     |
+| リクエストContent-Type | `application/json`                                   |
+| レスポンスContent-Type | `application/json; charset=utf-8`                    |
+| 成功ステータス         | `200 OK`                                             |
+| 永続化                 | しない                                               |
+| 冪等性                 | 同一リクエストは同一結果を返す（乱数を伴わないため） |
+
+編成画面が強化指定の効果を実行前に確認するための読み取り専用エンドポイントである。算出の正本をDomainの1か所（`FormationFactory`）に保つためにサーバー側で計算し、クライアントへ `R-ENH-02`〜`06`・`R-BON-01`〜`03`・`R-STA-01` を再実装させない。
+
+戦闘を実行しないため、乱数・イベント・状態差分・Worker Poolを伴わない。したがって `429`・`503`・`504` を返さず、HTTPメインスレッドで同期的に応答する。既存の `POST /api/v1/battle-simulations` の契約は変更しない（加算的変更）。
+
 ### 戦闘シミュレーション用Catalogを取得する
 
 ```http
@@ -361,6 +382,21 @@ GET /health/ready
 
 `turnLimit` は持たない。未定義のトップレベルプロパティ（`turnLimit` を含む）は拒否する。敵編成のユニット数・メモリー数の違反は、他の値域違反と同様にアプリケーション検証の `422` として返す。
 
+### FormationStatPreviewRequest
+
+`POST /api/v1/formation-stat-previews` のリクエスト本文。編成部分は `BattleSimulationRequest` と同形にし、同じ `FormationRequest`（強化指定を含む）をそのまま送れるようにする。
+
+| プロパティ       | 型                 | 必須 | 制約                               |
+| ---------------- | ------------------ | ---- | ---------------------------------- |
+| `allyFormation`  | `FormationRequest` | 必須 | 味方陣営の編成。`units` は0～5件。 |
+| `enemyFormation` | `FormationRequest` | 必須 | 敵陣営の編成。`units` は0～5件。   |
+
+`turnLimit` と `options` は持たない。戦闘を実行せず、ターン上限もログ公開レベルも結果に影響しないためである。未定義のトップレベルプロパティ（`turnLimit`・`options` を含む）は拒否する。
+
+配置重複・値域・強化指定の検証、および定義IDの参照検証と `levelGrowth` 事前検証（`R-ENH-05` #5）は戦闘シミュレーションと同じ経路を再利用し、同じ `422` の `code`・`path` を返す。
+
+人数の**下限だけ**が戦闘シミュレーション（`R-FRM-01` の1～5体）と異なり、0体の陣営を受け付ける。開始時ステータスは陣営ごとに独立して決まり（編成ボーナスも配置適性も自陣営の情報だけで求まる）、編成画面は片側ずつ埋めていくため、両陣営が揃うまで拒否するとプレビューを見たい場面のほとんどで返せなくなる。上限5体・配置重複・メモリー0～6件は戦闘と同じである。
+
 ### null・省略・空配列
 
 - 必須プロパティへ `null` を指定できない。
@@ -387,6 +423,8 @@ Inbound Adapterは外部DTOを次のようにCommandへ変換する。
 | `options.logLevel`      | `logLevel`                  |
 
 DTOの構造検証に成功しても、IDの存在、配置重複、未対応ルールなどはアプリケーション層で検証する。Inbound AdapterはCatalogを直接参照しない。
+
+`FormationStatPreviewRequest` も同じ表に従って `PreviewFormationStatsCommand` の `allyFormation`／`enemyFormation` へ変換する（`turnLimit`・`options` の行だけ対象外）。
 
 ## 成功レスポンス
 
@@ -466,6 +504,55 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `cumulativeScoreAtBreak` | integer | ブレイク時点の累計スコア。 |
 
 勝敗（`outcome`）は含めない。
+
+### FormationStatPreviewResponse
+
+`POST /api/v1/formation-stat-previews` の成功レスポンス。
+
+```json
+{
+  "schemaVersion": 1,
+  "catalogRevision": "2026-06-28.1",
+  "units": [
+    {
+      "side": "ALLY",
+      "unitDefinitionId": "UNIT_MEIYA_FATED",
+      "formationPosition": { "column": 0, "row": "FRONT" },
+      "maximumHp": 12345,
+      "combatStats": {
+        "attack": 1234.5,
+        "defense": 678.9,
+        "criticalRate": 15,
+        "actionSpeed": 120,
+        "affinityBonus": 25,
+        "criticalDamageBonus": 50
+      }
+    }
+  ]
+}
+```
+
+| プロパティ        | 型                                   | 説明                                               |
+| ----------------- | ------------------------------------ | -------------------------------------------------- |
+| `schemaVersion`   | integer                              | レスポンス本文スキーマのバージョン。初期値は1。    |
+| `catalogRevision` | string                               | 算出に使用したCatalogスナップショットの版。        |
+| `units`           | `FormationStatPreviewUnitResponse[]` | 各参加枠の開始時ステータス。味方、敵の順に並べる。 |
+
+`units` は味方、敵の順に並べ、各陣営内はリクエストの `units` 配列と同じ順序とする。クライアントは配列位置でリクエストの枠と対応づけられる。
+
+### FormationStatPreviewUnitResponse
+
+| プロパティ          | 型                    | 説明                                                            |
+| ------------------- | --------------------- | --------------------------------------------------------------- |
+| `side`              | string                | `ALLY` または `ENEMY`。                                         |
+| `unitDefinitionId`  | string                | 元となるユニット定義ID。                                        |
+| `formationPosition` | object                | `{ column, row }`。リクエストと同じ陣営内表現。                 |
+| `maximumHp`         | number                | 開始時の最大HP。`BattleUnitStateResponse.hp.maximum` と同じ値。 |
+| `combatStats`       | `CombatStatsResponse` | 開始時の戦闘中ステータス（後述の戦闘状態と同じ形・同じ単位）。  |
+
+同じ編成・強化指定で `POST /api/v1/battle-simulations` を実行したときの `initialState.units[]` の `combatStats` と `hp.maximum` に一致する。プレビューは戦闘開始時の値だけを返し、`BattleStarted` で解決されるMemory由来の `triggeredEffects`（`R-MEM-03`）や戦闘中のバフ・デバフは含まない。
+
+`maximumHp` は `CombatStatsResponse` が `maximumHp` を持たない（公開上の置き場所が `hp.maximum` である）ため、ユニット直下へ置く。`R-NUM-01` に従い丸めない——`BattleUnitStateResponse.hp.maximum` も同じく丸めない全精度値であり、ここで整数へ落とすと両者が一致しなくなる。表示上の丸めはクライアントの責務とする。
 
 ## 戦闘状態
 
@@ -987,6 +1074,8 @@ reconstructedFinalState = apply(
 | `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。    |
 | `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。      |
 
+`POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`406`・`413`・`415`・`422`・`500` だけを返す。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
+
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 
 実装上、入力起因の違反はUseCaseが `DomainValidationError` を受けた時点で `INVALID_COMMAND` へ変換しており（`simulate-battle-use-case.ts`）、`DOMAIN_RULE_VIOLATION` を送出する経路は存在しない。HTTP境界の変換表（`error-response-mapper.ts`）はこのコードを `500 INTERNAL_INVARIANT_VIOLATION` と同じ扱いに固定した防御的なマッピングとして持つ。実経路が生まれた時点で 422 側の分岐を追加する（REL-004 / Issue #203）。
@@ -1166,7 +1255,7 @@ GitHub Pages UIから別originのAPIを呼ぶため、M4.5でCORSをAPI契約へ
 
 ドメインクラスからOpenAPIスキーマを直接生成しない。外部DTOの変更がドメインモデルへ波及しない境界を維持する。
 
-戦術演習エンドポイントの追加は既存契約への加算的変更とする。実装時にはOpenAPI baseline（`apps/api/openapi/v1-baseline.json`）を再生成し、互換性検査で破壊的変更が検出されないことを確認する。
+戦術演習エンドポイントの追加は既存契約への加算的変更とする。実装時にはOpenAPI baseline（`apps/api/openapi/v1-baseline.json`）を再生成し、互換性検査で破壊的変更が検出されないことを確認する。編成ステータスプレビューエンドポイントの追加も同じ扱いとする。
 
 ## 次の設計への申し送り
 
