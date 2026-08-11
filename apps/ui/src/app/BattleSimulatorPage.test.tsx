@@ -1103,6 +1103,36 @@ describe("BattleSimulatorPage — input persistence", () => {
     expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
   });
 
+  it("keeps the saved growth data when the edited slot is swapped with an unedited one (UI-CT-049 × unitMoved)", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await user.click(within(allyRegion()).getByRole("checkbox", { name: "強化を有効にする" }));
+    // 同じユニット定義を2枠へ配置し、前衛1だけを編集して保存値を250にする。
+    await placeUnit(user, allyRegion(), "前衛1にユニットを追加");
+    await placeUnit(user, allyRegion(), "後衛3にユニットを追加");
+    await openAllyEnhancementDialog(user, /前衛1: アルファの強化を編集/);
+    const level = screen.getByLabelText("現在レベル");
+    await user.clear(level);
+    await user.type(level, "250");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    // 編集済み枠（前衛1）と未編集枠（後衛3・既定値200）をキーボード移動で
+    // 入れ替える。移動で前衛1へ移ってきた未編集の値が保存対象になってはならない。
+    await user.click(within(allyRegion()).getByRole("button", { name: "前衛1: アルファを移動" }));
+    await user.click(within(allyRegion()).getByRole("button", { name: /後衛3: アルファを変更/ }));
+    // 別の入力を動かして保存をもう1回走らせる。
+    const turnLimit = screen.getByLabelText(/ターン上限/);
+    await user.clear(turnLimit);
+    await user.type(turnLimit, "12");
+
+    // 入れ替え後も保存済みの250が残り、新しい配置へプリフィルされる。
+    await placeUnit(user, allyRegion(), "後衛1にユニットを追加");
+    await openAllyEnhancementDialog(user, /後衛1: アルファの強化を編集/);
+
+    expect(screen.getByLabelText("現在レベル")).toHaveValue(250);
+  });
+
   it("UI-CT-047: keeps working when every localStorage write fails", async () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("exceeded", "QuotaExceededError");

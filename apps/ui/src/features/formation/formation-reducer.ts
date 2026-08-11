@@ -380,8 +380,7 @@ export function formationReducer(state: FormationState, action: FormationAction)
       const to = findSlot(state.draft, action.toSlotKey);
       // 陣営を跨ぐ移動はUI側（陣営別のFormationEditor）でも防ぐが、
       // reducerでも同じ制約を守る。同一陣営内の移動は選択数を変えない
-      // ため、容量チェックは不要。移動後も枠の（ユニット, 強化）ペアは
-      // 一体で保たれるため、`lastEditedSlotKey` 経由の書き戻しは壊れない。
+      // ため、容量チェックは不要。
       if (
         from === undefined ||
         to === undefined ||
@@ -397,7 +396,11 @@ export function formationReducer(state: FormationState, action: FormationAction)
         from.side === "ally"
           ? { ...state.draft, allySlots: swap(state.draft.allySlots) }
           : { ...state.draft, enemySlots: swap(state.draft.enemySlots) };
-      return { ...state, draft };
+      // 移動は編集ではないため`lastEditedSlotKey`を落とす。残すと入れ替えで
+      // 旧座標へ移ってきた未編集ユニットの値が手持ちデータを上書きする
+      // （UI-CT-049の退行）。
+      const { lastEditedSlotKey: _edited, ...rest } = state;
+      return { ...rest, draft };
     }
     case "draftReset":
       // 実行状態と直近結果は別sliceが持つため、ここでは消さない（UI-CMP-020）。

@@ -672,4 +672,20 @@ describe("formationReducer — lastEditedSlotKey", () => {
       formationReducer(edited, { type: "allyEnhancementCleared" }).lastEditedSlotKey,
     ).toBeUndefined();
   });
+
+  it("is dropped by unitMoved, so a swap does not write back an unedited slot's values", () => {
+    const edited = formationReducer(withUnitsPlaced(), {
+      type: "unitEnhancementLevelChanged",
+      slotKey: allySlotKey,
+      value: 250,
+    });
+
+    const moved = formationReducer(edited, {
+      type: "unitMoved",
+      fromSlotKey: allySlotKey,
+      toSlotKey: otherSlotKey,
+    });
+
+    expect(moved.lastEditedSlotKey).toBeUndefined();
+  });
 });
