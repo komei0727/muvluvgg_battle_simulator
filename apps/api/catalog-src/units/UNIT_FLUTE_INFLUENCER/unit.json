@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 288,
+    "attack": 172,
+    "defense": 102,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_AS1", "SKL_FLUTE_INFLUENCER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_PS1", "SKL_FLUTE_INFLUENCER_PS2"],

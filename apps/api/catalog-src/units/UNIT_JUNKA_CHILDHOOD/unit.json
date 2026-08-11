@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 300,
+    "attack": 178,
+    "defense": 104,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_AS1", "SKL_JUNKA_CHILDHOOD_AS2"],
   "passiveSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_PS1", "SKL_JUNKA_CHILDHOOD_PS2"],

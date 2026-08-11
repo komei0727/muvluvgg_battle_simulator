@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 272,
+    "attack": 194,
+    "defense": 100,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 5,
   "activeSkillDefinitionIds": [
     "SKL_MAIA_LAZY_AS1",

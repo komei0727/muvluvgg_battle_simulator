@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 252,
+    "attack": 194,
+    "defense": 99,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": [
     "SKL_LUCIE_COMPANION_AS1",

@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 235,
+    "attack": 209,
+    "defense": 103,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_FEE_ACTOR_AS1"],
   "passiveSkillDefinitionIds": ["SKL_FEE_ACTOR_PS1", "SKL_FEE_ACTOR_PS2", "SKL_FEE_ACTOR_PS3"],

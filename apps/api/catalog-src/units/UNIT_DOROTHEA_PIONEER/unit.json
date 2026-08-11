@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 268,
+    "attack": 198,
+    "defense": 96,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_AS1", "SKL_DOROTHEA_PIONEER_AS2"],
   "passiveSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_PS1", "SKL_DOROTHEA_PIONEER_PS2"],

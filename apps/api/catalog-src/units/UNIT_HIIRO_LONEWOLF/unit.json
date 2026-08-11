@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 260,
+    "attack": 192,
+    "defense": 104,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],
   "passiveSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_PS1", "SKL_HIIRO_LONEWOLF_PS2"],

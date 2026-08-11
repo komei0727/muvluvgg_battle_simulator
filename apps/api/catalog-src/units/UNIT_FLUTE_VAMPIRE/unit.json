@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 205,
+    "attack": 234,
+    "defense": 99,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_FLUTE_VAMPIRE_AS1"],
   "passiveSkillDefinitionIds": [

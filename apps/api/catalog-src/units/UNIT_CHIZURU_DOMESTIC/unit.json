@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 290,
+    "attack": 179,
+    "defense": 129,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_CHIZURU_DOMESTIC_AS1"],
   "passiveSkillDefinitionIds": [

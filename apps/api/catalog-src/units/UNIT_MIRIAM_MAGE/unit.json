@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 249,
+    "attack": 219,
+    "defense": 88,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_MIRIAM_MAGE_AS1", "SKL_MIRIAM_MAGE_AS2", "SKL_MIRIAM_MAGE_AS3"],
   "passiveSkillDefinitionIds": ["SKL_MIRIAM_MAGE_PS1"],

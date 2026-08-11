@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 220,
+    "attack": 208,
+    "defense": 95,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_CHIYURU_MAZE_AS1", "SKL_CHIYURU_MAZE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_CHIYURU_MAZE_PS1", "SKL_CHIYURU_MAZE_PS2"],

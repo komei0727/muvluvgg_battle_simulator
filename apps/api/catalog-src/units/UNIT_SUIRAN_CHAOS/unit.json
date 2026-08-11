@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 290,
+    "attack": 168,
+    "defense": 158,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_SUIRAN_CHAOS_AS1"],
   "passiveSkillDefinitionIds": [

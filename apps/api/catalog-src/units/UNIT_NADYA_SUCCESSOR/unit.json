@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 246,
+    "attack": 198,
+    "defense": 97,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_NADYA_SUCCESSOR_AS1"],
   "passiveSkillDefinitionIds": [

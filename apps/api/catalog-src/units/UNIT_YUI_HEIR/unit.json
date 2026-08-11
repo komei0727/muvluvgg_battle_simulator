@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 296,
+    "attack": 176,
+    "defense": 106,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_YUI_HEIR_AS1", "SKL_YUI_HEIR_AS2"],
   "passiveSkillDefinitionIds": ["SKL_YUI_HEIR_PS1", "SKL_YUI_HEIR_PS2"],

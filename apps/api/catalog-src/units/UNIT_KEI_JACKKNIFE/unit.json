@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 303,
+    "attack": 159,
+    "defense": 115,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_AS1", "SKL_KEI_JACKKNIFE_AS2"],
   "passiveSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_PS1", "SKL_KEI_JACKKNIFE_PS2"],

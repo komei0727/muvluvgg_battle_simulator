@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 291,
+    "attack": 172,
+    "defense": 147,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_SAYA_BUNNY_AS1", "SKL_SAYA_BUNNY_AS2", "SKL_SAYA_BUNNY_AS3"],
   "passiveSkillDefinitionIds": ["SKL_SAYA_BUNNY_PS1"],

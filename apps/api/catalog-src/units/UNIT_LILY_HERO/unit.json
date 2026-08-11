@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 269,
+    "attack": 168,
+    "defense": 103,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_LILY_HERO_AS1", "SKL_LILY_HERO_AS2"],
   "passiveSkillDefinitionIds": ["SKL_LILY_HERO_PS1", "SKL_LILY_HERO_PS2"],

@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 322,
+    "attack": 146,
+    "defense": 154,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 5,
   "activeSkillDefinitionIds": ["SKL_EVIE_ECO_AS1", "SKL_EVIE_ECO_AS2"],
   "passiveSkillDefinitionIds": ["SKL_EVIE_ECO_PS1", "SKL_EVIE_ECO_PS2"],

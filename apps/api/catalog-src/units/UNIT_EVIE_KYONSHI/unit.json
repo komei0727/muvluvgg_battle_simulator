@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 266,
+    "attack": 182,
+    "defense": 110,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"],
   "passiveSkillDefinitionIds": ["SKL_EVIE_KYONSHI_PS1", "SKL_EVIE_KYONSHI_PS2"],

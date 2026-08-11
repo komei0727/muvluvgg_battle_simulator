@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 272,
+    "attack": 176,
+    "defense": 106,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_AOI_GUARDIAN_AS1", "SKL_AOI_GUARDIAN_AS2"],
   "passiveSkillDefinitionIds": ["SKL_AOI_GUARDIAN_PS1", "SKL_AOI_GUARDIAN_PS2"],

@@ -14,6 +14,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 212, "attack": 195, "defense": 102, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_AS1", "SKL_ANIS_TROUBLEMAKER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_ANIS_TROUBLEMAKER_PS1", "SKL_ANIS_TROUBLEMAKER_PS2"],
@@ -41,6 +42,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 255, "attack": 198, "defense": 104, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_AOI_ELEGANT_AS1", "SKL_AOI_ELEGANT_AS2"],
     "passiveSkillDefinitionIds": ["SKL_AOI_ELEGANT_PS1", "SKL_AOI_ELEGANT_PS2"],
@@ -68,6 +70,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 272, "attack": 176, "defense": 106, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_AOI_GUARDIAN_AS1", "SKL_AOI_GUARDIAN_AS2"],
     "passiveSkillDefinitionIds": ["SKL_AOI_GUARDIAN_PS1", "SKL_AOI_GUARDIAN_PS2"],
@@ -95,6 +98,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 220, "attack": 208, "defense": 95, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_CHIYURU_MAZE_AS1", "SKL_CHIYURU_MAZE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CHIYURU_MAZE_PS1", "SKL_CHIYURU_MAZE_PS2"],
@@ -122,6 +126,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 298, "attack": 183, "defense": 102, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_AS1", "SKL_CHIYURU_NEWYEAR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CHIYURU_NEWYEAR_PS1", "SKL_CHIYURU_NEWYEAR_PS2"],
@@ -149,6 +154,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 290, "attack": 179, "defense": 129, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_CHIZURU_DOMESTIC_AS1"],
     "passiveSkillDefinitionIds": [
@@ -180,6 +186,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 243, "attack": 191, "defense": 157, "actionSpeed": 2 },
     "extraGaugeMaximum": 5,
     "activeSkillDefinitionIds": [
       "SKL_CLARA_SANTA_AS1",
@@ -211,6 +218,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 193, "attack": 233, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_AS1", "SKL_CLARA_TSUNDERE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CLARA_TSUNDERE_PS1", "SKL_CLARA_TSUNDERE_PS2"],
@@ -238,6 +246,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 248, "attack": 213, "defense": 106, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_DOROTHEA_GRACE_AS1"],
     "passiveSkillDefinitionIds": [
@@ -269,6 +278,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 268, "attack": 198, "defense": 96, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_AS1", "SKL_DOROTHEA_PIONEER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_DOROTHEA_PIONEER_PS1", "SKL_DOROTHEA_PIONEER_PS2"],
@@ -296,6 +306,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 595, "attack": 358, "defense": 229, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_AS1", "SKL_ELENA_MOODMAKER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_ELENA_MOODMAKER_PS1", "SKL_ELENA_MOODMAKER_PS2"],
@@ -323,6 +334,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 322, "attack": 146, "defense": 154, "actionSpeed": 2 },
     "extraGaugeMaximum": 5,
     "activeSkillDefinitionIds": ["SKL_EVIE_ECO_AS1", "SKL_EVIE_ECO_AS2"],
     "passiveSkillDefinitionIds": ["SKL_EVIE_ECO_PS1", "SKL_EVIE_ECO_PS2"],
@@ -350,6 +362,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 266, "attack": 182, "defense": 110, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_EVIE_KYONSHI_AS1", "SKL_EVIE_KYONSHI_AS2"],
     "passiveSkillDefinitionIds": ["SKL_EVIE_KYONSHI_PS1", "SKL_EVIE_KYONSHI_PS2"],
@@ -377,6 +390,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 235, "attack": 209, "defense": 103, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_FEE_ACTOR_AS1"],
     "passiveSkillDefinitionIds": ["SKL_FEE_ACTOR_PS1", "SKL_FEE_ACTOR_PS2", "SKL_FEE_ACTOR_PS3"],
@@ -404,6 +418,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 255, "attack": 190, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_FEE_BATH_AS1", "SKL_FEE_BATH_AS2"],
     "passiveSkillDefinitionIds": ["SKL_FEE_BATH_PS1", "SKL_FEE_BATH_PS2"],
@@ -431,6 +446,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 288, "attack": 172, "defense": 102, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_AS1", "SKL_FLUTE_INFLUENCER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_FLUTE_INFLUENCER_PS1", "SKL_FLUTE_INFLUENCER_PS2"],
@@ -458,6 +474,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 205, "attack": 234, "defense": 99, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_FLUTE_VAMPIRE_AS1"],
     "passiveSkillDefinitionIds": [
@@ -489,6 +506,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 258, "attack": 194, "defense": 95, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_HARRIET_SAGE_AS1", "SKL_HARRIET_SAGE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_HARRIET_SAGE_PS1", "SKL_HARRIET_SAGE_PS2"],
@@ -516,6 +534,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 260, "attack": 192, "defense": 104, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],
     "passiveSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_PS1", "SKL_HIIRO_LONEWOLF_PS2"],
@@ -543,6 +562,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 255, "attack": 176, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_JULIE_SNOW_AS1", "SKL_JULIE_SNOW_AS2"],
     "passiveSkillDefinitionIds": ["SKL_JULIE_SNOW_PS1", "SKL_JULIE_SNOW_PS2"],
@@ -570,6 +590,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 300, "attack": 178, "defense": 104, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_AS1", "SKL_JUNKA_CHILDHOOD_AS2"],
     "passiveSkillDefinitionIds": ["SKL_JUNKA_CHILDHOOD_PS1", "SKL_JUNKA_CHILDHOOD_PS2"],
@@ -597,6 +618,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 288, "attack": 179, "defense": 120, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_KARINA_DOWNER_AS1", "SKL_KARINA_DOWNER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KARINA_DOWNER_PS1", "SKL_KARINA_DOWNER_PS2"],
@@ -624,6 +646,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 240, "attack": 219, "defense": 97, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": [
       "SKL_KATE_PALADIN_AS1",
@@ -655,6 +678,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 303, "attack": 159, "defense": 115, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_AS1", "SKL_KEI_JACKKNIFE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KEI_JACKKNIFE_PS1", "SKL_KEI_JACKKNIFE_PS2"],
@@ -682,6 +706,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 240, "attack": 201, "defense": 100, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_KOKORO_SPORTSDAY_AS1"],
     "passiveSkillDefinitionIds": [
@@ -713,6 +738,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 255, "attack": 190, "defense": 114, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_KOTOHA_REBEL_AS1", "SKL_KOTOHA_REBEL_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KOTOHA_REBEL_PS1", "SKL_KOTOHA_REBEL_PS2"],
@@ -740,6 +766,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 201, "attack": 222, "defense": 92, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_LAURA_MOUNTAIN_AS1"],
     "passiveSkillDefinitionIds": [
@@ -771,6 +798,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 235, "attack": 180, "defense": 108, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_AS1", "SKL_LAYLA_ENTREPRENEUR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LAYLA_ENTREPRENEUR_PS1", "SKL_LAYLA_ENTREPRENEUR_PS2"],
@@ -798,6 +826,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 269, "attack": 168, "defense": 103, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_LILY_HERO_AS1", "SKL_LILY_HERO_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LILY_HERO_PS1", "SKL_LILY_HERO_PS2"],
@@ -825,6 +854,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 298, "attack": 183, "defense": 100, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_LILY_SINGER_AS1", "SKL_LILY_SINGER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LILY_SINGER_PS1", "SKL_LILY_SINGER_PS2"],
@@ -852,6 +882,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 252, "attack": 194, "defense": 99, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": [
       "SKL_LUCIE_COMPANION_AS1",
@@ -883,6 +914,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 288, "attack": 182, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_LUCIE_MAID_AS1", "SKL_LUCIE_MAID_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LUCIE_MAID_PS1", "SKL_LUCIE_MAID_PS2"],
@@ -910,6 +942,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 301, "attack": 165, "defense": 110, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_LUNA_HUNGRY_AS1"],
     "passiveSkillDefinitionIds": [
@@ -941,6 +974,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 255, "attack": 209, "defense": 106, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LYDIA_GENIUS_PS1", "SKL_LYDIA_GENIUS_PS2"],
@@ -968,6 +1002,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 272, "attack": 194, "defense": 100, "actionSpeed": 2 },
     "extraGaugeMaximum": 5,
     "activeSkillDefinitionIds": [
       "SKL_MAIA_LAZY_AS1",
@@ -1000,6 +1035,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 297, "attack": 178, "defense": 148, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_MAIA_SALON_AS1", "SKL_MAIA_SALON_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MAIA_SALON_PS1", "SKL_MAIA_SALON_PS2"],
@@ -1027,6 +1063,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 277, "attack": 209, "defense": 100, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_MAO_COMMITTEE_AS1", "SKL_MAO_COMMITTEE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MAO_COMMITTEE_PS1", "SKL_MAO_COMMITTEE_PS2"],
@@ -1054,6 +1091,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 237, "attack": 180, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_MEIYA_FATED_AS1", "SKL_MEIYA_FATED_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MEIYA_FATED_PS1", "SKL_MEIYA_FATED_PS2"],
@@ -1081,6 +1119,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 249, "attack": 220, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": [
       "SKL_MERU_FLATSPIN_AS1",
@@ -1112,6 +1151,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 220, "attack": 208, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_MERU_SIRIUS_AS1", "SKL_MERU_SIRIUS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MERU_SIRIUS_PS1", "SKL_MERU_SIRIUS_PS2"],
@@ -1139,6 +1179,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 260, "attack": 201, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_MIHIME_SNIPER_AS1", "SKL_MIHIME_SNIPER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MIHIME_SNIPER_PS1", "SKL_MIHIME_SNIPER_PS2"],
@@ -1166,6 +1207,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 248, "attack": 183, "defense": 103, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_AS1", "SKL_MIKOTO_SURVIVOR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_MIKOTO_SURVIVOR_PS1", "SKL_MIKOTO_SURVIVOR_PS2"],
@@ -1193,6 +1235,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 249, "attack": 219, "defense": 88, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": [
       "SKL_MIRIAM_MAGE_AS1",
@@ -1224,6 +1267,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 246, "attack": 198, "defense": 97, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_NADYA_SUCCESSOR_AS1"],
     "passiveSkillDefinitionIds": [
@@ -1255,6 +1299,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 247, "attack": 204, "defense": 123, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_NANAE_COMMANDER_AS1", "SKL_NANAE_COMMANDER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_NANAE_COMMANDER_PS1", "SKL_NANAE_COMMANDER_PS2"],
@@ -1282,6 +1327,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 301, "attack": 165, "defense": 144, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_NOEL_RUMBLE_AS1", "SKL_NOEL_RUMBLE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_NOEL_RUMBLE_PS1", "SKL_NOEL_RUMBLE_PS2"],
@@ -1309,6 +1355,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 283, "attack": 185, "defense": 111, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
     "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],
@@ -1336,6 +1383,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 272, "attack": 196, "defense": 104, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": [
       "SKL_RAMI_NEWYEAR_AS1",
@@ -1367,6 +1415,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 224, "attack": 203, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_RAMI_UNYIELDING_AS1"],
     "passiveSkillDefinitionIds": [
@@ -1398,6 +1447,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 204, "attack": 231, "defense": 96, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_RAVEL_MODEL_AS1", "SKL_RAVEL_MODEL_AS2"],
     "passiveSkillDefinitionIds": ["SKL_RAVEL_MODEL_PS1", "SKL_RAVEL_MODEL_PS2"],
@@ -1425,6 +1475,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 224, "attack": 205, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_ROSIE_ARTIST_AS1"],
     "passiveSkillDefinitionIds": [
@@ -1456,6 +1507,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 291, "attack": 172, "defense": 147, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_SAYA_BUNNY_AS1", "SKL_SAYA_BUNNY_AS2", "SKL_SAYA_BUNNY_AS3"],
     "passiveSkillDefinitionIds": ["SKL_SAYA_BUNNY_PS1"],
@@ -1483,6 +1535,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 243, "attack": 213, "defense": 96, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_SAYA_LONGING_AS1", "SKL_SAYA_LONGING_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SAYA_LONGING_PS1", "SKL_SAYA_LONGING_PS2"],
@@ -1510,6 +1563,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 296, "attack": 162, "defense": 132, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_AS1", "SKL_SENKA_CHRISTMAS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SENKA_CHRISTMAS_PS1", "SKL_SENKA_CHRISTMAS_PS2"],
@@ -1537,6 +1591,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 256, "attack": 190, "defense": 99, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_SENKA_SCHEMER_AS1", "SKL_SENKA_SCHEMER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SENKA_SCHEMER_PS1", "SKL_SENKA_SCHEMER_PS2"],
@@ -1564,6 +1619,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 293, "attack": 165, "defense": 134, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_AS1", "SKL_SHIRANA_LUCKY_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_PS1", "SKL_SHIRANA_LUCKY_PS2"],
@@ -1591,6 +1647,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 290, "attack": 200, "defense": 82, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_SHIRANA_SORA_AS1", "SKL_SHIRANA_SORA_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SHIRANA_SORA_PS1", "SKL_SHIRANA_SORA_PS2"],
@@ -1618,6 +1675,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 212, "attack": 195, "defense": 96, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": [
       "SKL_SHOUKA_SCHEMER_AS1",
@@ -1649,6 +1707,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 272, "attack": 198, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_SIENA_DIVA_AS1", "SKL_SIENA_DIVA_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SIENA_DIVA_PS1", "SKL_SIENA_DIVA_PS2"],
@@ -1676,6 +1735,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 216, "attack": 222, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_AS1", "SKL_SIENA_OFFSTAGE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SIENA_OFFSTAGE_PS1", "SKL_SIENA_OFFSTAGE_PS2"],
@@ -1703,6 +1763,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 272, "attack": 171, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_STELLA_STATUE_AS1", "SKL_STELLA_STATUE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_STELLA_STATUE_PS1", "SKL_STELLA_STATUE_PS2"],
@@ -1730,6 +1791,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 300, "attack": 172, "defense": 125, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": [
       "SKL_SUIRAN_CASINO_AS1",
@@ -1761,6 +1823,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 290, "attack": 168, "defense": 158, "actionSpeed": 2 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_SUIRAN_CHAOS_AS1"],
     "passiveSkillDefinitionIds": [
@@ -1792,6 +1855,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 272, "attack": 173, "defense": 103, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": [
       "SKL_TARISA_TROUBLEMAKER_AS1",
@@ -1823,6 +1887,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 313, "attack": 180, "defense": 101, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": [
       "SKL_TATIANA_SAGE_AS1",
@@ -1854,6 +1919,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 197, "attack": 233, "defense": 96, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_URUU_TIMID_AS1"],
     "passiveSkillDefinitionIds": ["SKL_URUU_TIMID_PS1", "SKL_URUU_TIMID_PS2", "SKL_URUU_TIMID_PS3"],
@@ -1881,6 +1947,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 296, "attack": 176, "defense": 106, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_YUI_HEIR_AS1", "SKL_YUI_HEIR_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YUI_HEIR_PS1", "SKL_YUI_HEIR_PS2"],
@@ -1908,6 +1975,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 291, "attack": 165, "defense": 114, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_YURIA_WILDCARD_AS1", "SKL_YURIA_WILDCARD_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YURIA_WILDCARD_PS1", "SKL_YURIA_WILDCARD_PS2"],
@@ -1935,6 +2003,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
+    "levelGrowth": { "hp": 292, "attack": 172, "defense": 103, "actionSpeed": 2 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_YURIA_YUKATA_AS1", "SKL_YURIA_YUKATA_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YURIA_YUKATA_PS1", "SKL_YURIA_YUKATA_PS2"],

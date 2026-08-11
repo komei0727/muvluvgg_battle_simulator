@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 291,
+    "attack": 165,
+    "defense": 114,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_YURIA_WILDCARD_AS1", "SKL_YURIA_WILDCARD_AS2"],
   "passiveSkillDefinitionIds": ["SKL_YURIA_WILDCARD_PS1", "SKL_YURIA_WILDCARD_PS2"],

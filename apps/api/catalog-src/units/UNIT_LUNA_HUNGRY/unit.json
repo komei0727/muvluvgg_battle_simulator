@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 301,
+    "attack": 165,
+    "defense": 110,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_LUNA_HUNGRY_AS1"],
   "passiveSkillDefinitionIds": [

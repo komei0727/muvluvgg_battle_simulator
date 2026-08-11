@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 201,
+    "attack": 222,
+    "defense": 92,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_LAURA_MOUNTAIN_AS1"],
   "passiveSkillDefinitionIds": [

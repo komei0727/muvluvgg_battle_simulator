@@ -13,6 +13,12 @@
     "maximumAp": 4,
     "maximumPp": 4
   },
+  "levelGrowth": {
+    "hp": 255,
+    "attack": 176,
+    "defense": 101,
+    "actionSpeed": 2
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_JULIE_SNOW_AS1", "SKL_JULIE_SNOW_AS2"],
   "passiveSkillDefinitionIds": ["SKL_JULIE_SNOW_PS1", "SKL_JULIE_SNOW_PS2"],
