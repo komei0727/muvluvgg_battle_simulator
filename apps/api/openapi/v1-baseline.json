@@ -6573,352 +6573,6 @@
                                 "minimum": 1
                               },
                               "type": {
-                                "enum": ["EXERCISE_SCORE_ACCUMULATED"]
-                              },
-                              "category": {
-                                "type": "string",
-                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
-                              },
-                              "turnNumber": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 99
-                              },
-                              "cycleNumber": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "actionId": {
-                                "type": "string"
-                              },
-                              "skillUseId": {
-                                "type": "string"
-                              },
-                              "parentSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "rootSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "sourceUnitId": {
-                                "type": "string"
-                              },
-                              "sourceSide": {
-                                "type": "string",
-                                "enum": ["ALLY", "ENEMY"]
-                              },
-                              "targetUnitIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "details": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": [
-                                  "targetUnitId",
-                                  "amount",
-                                  "totalScore",
-                                  "causeEventId"
-                                ],
-                                "properties": {
-                                  "targetUnitId": {
-                                    "type": "string"
-                                  },
-                                  "amount": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "totalScore": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "causeEventId": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "stateVersionBefore": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateVersionAfter": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateTransitionIndex": {
-                                "type": "integer",
-                                "minimum": 0
-                              }
-                            }
-                          },
-                          {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "type",
-                              "category",
-                              "turnNumber",
-                              "cycleNumber",
-                              "rootSequence",
-                              "targetUnitIds",
-                              "details",
-                              "stateVersionBefore",
-                              "stateVersionAfter"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "type": {
-                                "enum": ["UNIT_BROKEN"]
-                              },
-                              "category": {
-                                "type": "string",
-                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
-                              },
-                              "turnNumber": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 99
-                              },
-                              "cycleNumber": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "actionId": {
-                                "type": "string"
-                              },
-                              "skillUseId": {
-                                "type": "string"
-                              },
-                              "parentSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "rootSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "sourceUnitId": {
-                                "type": "string"
-                              },
-                              "sourceSide": {
-                                "type": "string",
-                                "enum": ["ALLY", "ENEMY"]
-                              },
-                              "targetUnitIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "details": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": [
-                                  "unitId",
-                                  "breakNumber",
-                                  "turnNumber",
-                                  "totalScore",
-                                  "causeEventId"
-                                ],
-                                "properties": {
-                                  "unitId": {
-                                    "type": "string"
-                                  },
-                                  "breakNumber": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "turnNumber": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "totalScore": {
-                                    "type": "integer",
-                                    "minimum": 0
-                                  },
-                                  "causeEventId": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "stateVersionBefore": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateVersionAfter": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateTransitionIndex": {
-                                "type": "integer",
-                                "minimum": 0
-                              }
-                            }
-                          },
-                          {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "type",
-                              "category",
-                              "turnNumber",
-                              "cycleNumber",
-                              "rootSequence",
-                              "targetUnitIds",
-                              "details",
-                              "stateVersionBefore",
-                              "stateVersionAfter"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "type": {
-                                "enum": ["UNIT_REVIVED"]
-                              },
-                              "category": {
-                                "type": "string",
-                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
-                              },
-                              "turnNumber": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 99
-                              },
-                              "cycleNumber": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "actionId": {
-                                "type": "string"
-                              },
-                              "skillUseId": {
-                                "type": "string"
-                              },
-                              "parentSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "rootSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "sourceUnitId": {
-                                "type": "string"
-                              },
-                              "sourceSide": {
-                                "type": "string",
-                                "enum": ["ALLY", "ENEMY"]
-                              },
-                              "targetUnitIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "details": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": ["unitId", "breakNumber", "hpAfter", "baseCombatStats"],
-                                "properties": {
-                                  "unitId": {
-                                    "type": "string"
-                                  },
-                                  "breakNumber": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "hpAfter": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "baseCombatStats": {
-                                    "type": "object",
-                                    "additionalProperties": false,
-                                    "required": [
-                                      "maximumHp",
-                                      "attack",
-                                      "defense",
-                                      "criticalRate",
-                                      "actionSpeed",
-                                      "criticalDamageBonus",
-                                      "affinityBonus"
-                                    ],
-                                    "properties": {
-                                      "maximumHp": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "attack": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "defense": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "criticalRate": {
-                                        "type": "number"
-                                      },
-                                      "actionSpeed": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "criticalDamageBonus": {
-                                        "type": "number"
-                                      },
-                                      "affinityBonus": {
-                                        "type": "number"
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              "stateVersionBefore": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateVersionAfter": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateTransitionIndex": {
-                                "type": "integer",
-                                "minimum": 0
-                              }
-                            }
-                          },
-                          {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "type",
-                              "category",
-                              "turnNumber",
-                              "cycleNumber",
-                              "rootSequence",
-                              "targetUnitIds",
-                              "details",
-                              "stateVersionBefore",
-                              "stateVersionAfter"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "type": {
                                 "enum": ["ACTION_COMPLETING"]
                               },
                               "category": {
@@ -10988,12 +10642,7 @@
                                   },
                                   "reason": {
                                     "type": "string",
-                                    "enum": [
-                                      "EFFECT_APPLIED",
-                                      "EFFECT_EXPIRED",
-                                      "EFFECT_REMOVED",
-                                      "BREAK_ENHANCEMENT"
-                                    ]
+                                    "enum": ["EFFECT_APPLIED", "EFFECT_EXPIRED", "EFFECT_REMOVED"]
                                   }
                                 }
                               },
@@ -11102,12 +10751,7 @@
                                   },
                                   "reason": {
                                     "type": "string",
-                                    "enum": [
-                                      "EFFECT_APPLIED",
-                                      "EFFECT_EXPIRED",
-                                      "EFFECT_REMOVED",
-                                      "BREAK_ENHANCEMENT"
-                                    ]
+                                    "enum": ["EFFECT_APPLIED", "EFFECT_EXPIRED", "EFFECT_REMOVED"]
                                   }
                                 }
                               },
@@ -19576,352 +19220,6 @@
                                 "minimum": 1
                               },
                               "type": {
-                                "enum": ["EXERCISE_SCORE_ACCUMULATED"]
-                              },
-                              "category": {
-                                "type": "string",
-                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
-                              },
-                              "turnNumber": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 99
-                              },
-                              "cycleNumber": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "actionId": {
-                                "type": "string"
-                              },
-                              "skillUseId": {
-                                "type": "string"
-                              },
-                              "parentSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "rootSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "sourceUnitId": {
-                                "type": "string"
-                              },
-                              "sourceSide": {
-                                "type": "string",
-                                "enum": ["ALLY", "ENEMY"]
-                              },
-                              "targetUnitIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "details": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": [
-                                  "targetUnitId",
-                                  "amount",
-                                  "totalScore",
-                                  "causeEventId"
-                                ],
-                                "properties": {
-                                  "targetUnitId": {
-                                    "type": "string"
-                                  },
-                                  "amount": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "totalScore": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "causeEventId": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "stateVersionBefore": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateVersionAfter": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateTransitionIndex": {
-                                "type": "integer",
-                                "minimum": 0
-                              }
-                            }
-                          },
-                          {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "type",
-                              "category",
-                              "turnNumber",
-                              "cycleNumber",
-                              "rootSequence",
-                              "targetUnitIds",
-                              "details",
-                              "stateVersionBefore",
-                              "stateVersionAfter"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "type": {
-                                "enum": ["UNIT_BROKEN"]
-                              },
-                              "category": {
-                                "type": "string",
-                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
-                              },
-                              "turnNumber": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 99
-                              },
-                              "cycleNumber": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "actionId": {
-                                "type": "string"
-                              },
-                              "skillUseId": {
-                                "type": "string"
-                              },
-                              "parentSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "rootSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "sourceUnitId": {
-                                "type": "string"
-                              },
-                              "sourceSide": {
-                                "type": "string",
-                                "enum": ["ALLY", "ENEMY"]
-                              },
-                              "targetUnitIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "details": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": [
-                                  "unitId",
-                                  "breakNumber",
-                                  "turnNumber",
-                                  "totalScore",
-                                  "causeEventId"
-                                ],
-                                "properties": {
-                                  "unitId": {
-                                    "type": "string"
-                                  },
-                                  "breakNumber": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "turnNumber": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "totalScore": {
-                                    "type": "integer",
-                                    "minimum": 0
-                                  },
-                                  "causeEventId": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "stateVersionBefore": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateVersionAfter": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateTransitionIndex": {
-                                "type": "integer",
-                                "minimum": 0
-                              }
-                            }
-                          },
-                          {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "type",
-                              "category",
-                              "turnNumber",
-                              "cycleNumber",
-                              "rootSequence",
-                              "targetUnitIds",
-                              "details",
-                              "stateVersionBefore",
-                              "stateVersionAfter"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "type": {
-                                "enum": ["UNIT_REVIVED"]
-                              },
-                              "category": {
-                                "type": "string",
-                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
-                              },
-                              "turnNumber": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 99
-                              },
-                              "cycleNumber": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "actionId": {
-                                "type": "string"
-                              },
-                              "skillUseId": {
-                                "type": "string"
-                              },
-                              "parentSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "rootSequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "sourceUnitId": {
-                                "type": "string"
-                              },
-                              "sourceSide": {
-                                "type": "string",
-                                "enum": ["ALLY", "ENEMY"]
-                              },
-                              "targetUnitIds": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "details": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": ["unitId", "breakNumber", "hpAfter", "baseCombatStats"],
-                                "properties": {
-                                  "unitId": {
-                                    "type": "string"
-                                  },
-                                  "breakNumber": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "hpAfter": {
-                                    "type": "integer",
-                                    "minimum": 1
-                                  },
-                                  "baseCombatStats": {
-                                    "type": "object",
-                                    "additionalProperties": false,
-                                    "required": [
-                                      "maximumHp",
-                                      "attack",
-                                      "defense",
-                                      "criticalRate",
-                                      "actionSpeed",
-                                      "criticalDamageBonus",
-                                      "affinityBonus"
-                                    ],
-                                    "properties": {
-                                      "maximumHp": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "attack": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "defense": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "criticalRate": {
-                                        "type": "number"
-                                      },
-                                      "actionSpeed": {
-                                        "type": "number",
-                                        "minimum": 0
-                                      },
-                                      "criticalDamageBonus": {
-                                        "type": "number"
-                                      },
-                                      "affinityBonus": {
-                                        "type": "number"
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              "stateVersionBefore": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateVersionAfter": {
-                                "type": "integer",
-                                "minimum": 0
-                              },
-                              "stateTransitionIndex": {
-                                "type": "integer",
-                                "minimum": 0
-                              }
-                            }
-                          },
-                          {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "type",
-                              "category",
-                              "turnNumber",
-                              "cycleNumber",
-                              "rootSequence",
-                              "targetUnitIds",
-                              "details",
-                              "stateVersionBefore",
-                              "stateVersionAfter"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "integer",
-                                "minimum": 1
-                              },
-                              "type": {
                                 "enum": ["ACTION_COMPLETING"]
                               },
                               "category": {
@@ -25187,6 +24485,352 @@
                                   },
                                   "cascaded": {
                                     "type": "boolean"
+                                  }
+                                }
+                              },
+                              "stateVersionBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateVersionAfter": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateTransitionIndex": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "sequence",
+                              "type",
+                              "category",
+                              "turnNumber",
+                              "cycleNumber",
+                              "rootSequence",
+                              "targetUnitIds",
+                              "details",
+                              "stateVersionBefore",
+                              "stateVersionAfter"
+                            ],
+                            "properties": {
+                              "sequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "type": {
+                                "enum": ["EXERCISE_SCORE_ACCUMULATED"]
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
+                              },
+                              "turnNumber": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 99
+                              },
+                              "cycleNumber": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "skillUseId": {
+                                "type": "string"
+                              },
+                              "parentSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "rootSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "sourceUnitId": {
+                                "type": "string"
+                              },
+                              "sourceSide": {
+                                "type": "string",
+                                "enum": ["ALLY", "ENEMY"]
+                              },
+                              "targetUnitIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "targetUnitId",
+                                  "amount",
+                                  "totalScore",
+                                  "causeEventId"
+                                ],
+                                "properties": {
+                                  "targetUnitId": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "totalScore": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "causeEventId": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "stateVersionBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateVersionAfter": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateTransitionIndex": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "sequence",
+                              "type",
+                              "category",
+                              "turnNumber",
+                              "cycleNumber",
+                              "rootSequence",
+                              "targetUnitIds",
+                              "details",
+                              "stateVersionBefore",
+                              "stateVersionAfter"
+                            ],
+                            "properties": {
+                              "sequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "type": {
+                                "enum": ["UNIT_BROKEN"]
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
+                              },
+                              "turnNumber": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 99
+                              },
+                              "cycleNumber": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "skillUseId": {
+                                "type": "string"
+                              },
+                              "parentSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "rootSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "sourceUnitId": {
+                                "type": "string"
+                              },
+                              "sourceSide": {
+                                "type": "string",
+                                "enum": ["ALLY", "ENEMY"]
+                              },
+                              "targetUnitIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "unitId",
+                                  "breakNumber",
+                                  "turnNumber",
+                                  "totalScore",
+                                  "causeEventId"
+                                ],
+                                "properties": {
+                                  "unitId": {
+                                    "type": "string"
+                                  },
+                                  "breakNumber": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "turnNumber": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "totalScore": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "causeEventId": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "stateVersionBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateVersionAfter": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateTransitionIndex": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "sequence",
+                              "type",
+                              "category",
+                              "turnNumber",
+                              "cycleNumber",
+                              "rootSequence",
+                              "targetUnitIds",
+                              "details",
+                              "stateVersionBefore",
+                              "stateVersionAfter"
+                            ],
+                            "properties": {
+                              "sequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "type": {
+                                "enum": ["UNIT_REVIVED"]
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
+                              },
+                              "turnNumber": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 99
+                              },
+                              "cycleNumber": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "skillUseId": {
+                                "type": "string"
+                              },
+                              "parentSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "rootSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "sourceUnitId": {
+                                "type": "string"
+                              },
+                              "sourceSide": {
+                                "type": "string",
+                                "enum": ["ALLY", "ENEMY"]
+                              },
+                              "targetUnitIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": ["unitId", "breakNumber", "hpAfter", "baseCombatStats"],
+                                "properties": {
+                                  "unitId": {
+                                    "type": "string"
+                                  },
+                                  "breakNumber": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "hpAfter": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "baseCombatStats": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "maximumHp",
+                                      "attack",
+                                      "defense",
+                                      "criticalRate",
+                                      "actionSpeed",
+                                      "criticalDamageBonus",
+                                      "affinityBonus"
+                                    ],
+                                    "properties": {
+                                      "maximumHp": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "attack": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "defense": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "criticalRate": {
+                                        "type": "number"
+                                      },
+                                      "actionSpeed": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "criticalDamageBonus": {
+                                        "type": "number"
+                                      },
+                                      "affinityBonus": {
+                                        "type": "number"
+                                      }
+                                    }
                                   }
                                 }
                               },

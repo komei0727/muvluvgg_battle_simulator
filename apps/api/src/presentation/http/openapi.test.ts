@@ -19,6 +19,8 @@ import {
 import {
   battleLogEventResponseDocSchema,
   battleLogEventResponseSchema,
+  exerciseBattleLogEventResponseDocSchema,
+  EXERCISE_ONLY_EVENT_TYPES,
   runtimeCounterChangedDetailsSchema,
   effectDurationReducedDetailsSchema,
   CONDITION_KIND_ENUM,
@@ -1027,7 +1029,7 @@ describe("OpenAPI document", () => {
     ).toBe(true);
   });
 
-  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
+  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): the exercise event union declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // `SUMMARY_EVENT_TYPE_INCLUSION` is a mapped type over `BattleDomainEventType`,
     // so it gains a compile error (missing or excess key) whenever
     // `BattleDomainEventPayloadMap` changes. Reusing it as the event-type roster
@@ -1039,14 +1041,73 @@ describe("OpenAPI document", () => {
       ),
     );
 
-    const declaredTypes = new Set(
-      battleLogEventResponseDocSchema.oneOf.map(
-        (variant) =>
-          (variant.properties as { readonly type: { readonly const: string } }).type.const,
+    const declaredTypesOf = (docSchema: {
+      readonly oneOf: readonly { readonly properties: object }[];
+    }): Set<string> =>
+      new Set(
+        docSchema.oneOf.map(
+          (variant) =>
+            (variant.properties as { readonly type: { readonly const: string } }).type.const,
+        ),
+      );
+
+    // 演習側のunionが全種別を持つ正本。
+    expect(declaredTypesOf(exerciseBattleLogEventResponseDocSchema)).toEqual(expectedTypes);
+
+    // 通常戦闘側は、そこから演習だけが発行する種別（R-TEX-02〜04）をちょうど除いた集合。
+    // `Q-TEX-08`「既存の`POST /api/v1/battle-simulations`の契約は変更しない」を、
+    // 「演習用variantが混ざっていない」と「他の種別は1つも落ちていない」の両方向で固定する。
+    const battleTypes = declaredTypesOf(battleLogEventResponseDocSchema);
+    expect(battleTypes).toEqual(
+      new Set(
+        [...expectedTypes].filter(
+          (type) => !(EXERCISE_ONLY_EVENT_TYPES as readonly string[]).includes(type),
+        ),
       ),
     );
+  });
 
-    expect(declaredTypes).toEqual(expectedTypes);
+  it("API-OPENAPI-036 (TEX-007、Q-TEX-08): the battle POST's published event union carries no exercise-only variant and no BREAK_ENHANCEMENT reason, while the exercise POST's does", () => {
+    const document = app.swagger() as unknown as OpenApiDocumentForTest;
+
+    const eventVariantsOf = (path: string, method: string): Record<string, unknown>[] => {
+      const schema = document.paths?.[path]?.[method]?.responses?.["200"]?.content?.[
+        "application/json"
+      ]?.schema as
+        | { readonly properties?: { readonly events?: { readonly items?: { oneOf?: unknown[] } } } }
+        | undefined;
+      const variants = schema?.properties?.events?.items?.oneOf;
+      expect(variants, `${method.toUpperCase()} ${path} publishes no event union`).toBeDefined();
+      return variants as Record<string, unknown>[];
+    };
+    const typesOf = (variants: Record<string, unknown>[]): string[] =>
+      variants.map(
+        (variant) =>
+          (variant["properties"] as { readonly type: { readonly enum?: readonly string[] } }).type
+            .enum?.[0] ?? "",
+      );
+    const reasonEnumOf = (variants: Record<string, unknown>[], type: string): string[] => {
+      const variant = variants.find(
+        (candidate) =>
+          (candidate["properties"] as { readonly type: { readonly enum?: readonly string[] } }).type
+            .enum?.[0] === type,
+      );
+      const details = (variant?.["properties"] as { readonly details?: unknown } | undefined)
+        ?.details as { readonly properties?: { readonly reason?: { readonly enum?: string[] } } };
+      return details?.properties?.reason?.enum ?? [];
+    };
+
+    const battleVariants = eventVariantsOf(BATTLE_SIMULATIONS_PATH, "post");
+    const exerciseVariants = eventVariantsOf(TACTICAL_EXERCISES_PATH, "post");
+
+    for (const type of EXERCISE_ONLY_EVENT_TYPES) {
+      expect(typesOf(battleVariants)).not.toContain(type);
+      expect(typesOf(exerciseVariants)).toContain(type);
+    }
+    for (const type of ["COMBAT_STAT_CHANGED", "RESOURCE_CAPACITY_CHANGED"]) {
+      expect(reasonEnumOf(battleVariants, type)).not.toContain("BREAK_ENHANCEMENT");
+      expect(reasonEnumOf(exerciseVariants, type)).toContain("BREAK_ENHANCEMENT");
+    }
   });
 
   it("API-OPENAPI-025: cooldownStateResponseSchema keeps the setting scope matched to the unit (10_API設計.md CooldownStateResponse) — it accepts the matching scope field or none at all, and rejects both present or a mismatched scope field", () => {
