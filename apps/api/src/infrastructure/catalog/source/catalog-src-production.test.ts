@@ -80,6 +80,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         // Issue #59 Batch B（複数バージョン整合性8件）
         "UNIT_AOI_ELEGANT",
         "UNIT_AOI_GUARDIAN",
+        // TEX-010（Issue #447）: 戦術演習専用ユニット（EXERCISE_ENEMY）
+        "UNIT_AOI_GUARDIAN_TEX",
         "UNIT_LILY_HERO",
         "UNIT_LILY_SINGER",
         "UNIT_SHIRANA_LUCKY",

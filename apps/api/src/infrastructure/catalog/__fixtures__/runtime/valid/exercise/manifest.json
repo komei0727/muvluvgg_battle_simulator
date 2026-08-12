@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 3,
+  "catalogRevision": "test-exercise.1",
+  "files": {
+    "units.json": "sha256:8d4aa7fe2c669d2e24fbab47cf07adb499e351b74c3dd249ac671cbac287c569",
+    "skills.json": "sha256:be261a76007adaa4f65d71b31f516a0e47f308ad3c9aea82dd54b542314b91e7",
+    "effects.json": "sha256:7ab3a55dfd0b523a0607ef52503fe7c4943b890be1ff2b65d8adeee4aff0dde6",
+    "memories.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  }
+}

@@ -98,6 +98,32 @@ describe("POST /api/v1/formation-stat-previews", () => {
     });
   });
 
+  it("API-STAT-PREVIEW-008 (R-TEX-11 #5): passes mode through to the use case, and omits it when the request omits it", async () => {
+    const commands: PreviewFormationStatsCommand[] = [];
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      previewUseCase: previewUseCase((command) => {
+        commands.push(command);
+        return RESULT;
+      }),
+    });
+
+    const withMode = await app.inject({
+      method: "POST",
+      url: PREVIEW_PATH,
+      payload: { ...REQUEST_BODY, mode: "TACTICAL_EXERCISE" },
+    });
+    const withoutMode = await app.inject({
+      method: "POST",
+      url: PREVIEW_PATH,
+      payload: REQUEST_BODY,
+    });
+
+    expect(withMode.statusCode).toBe(200);
+    expect(withoutMode.statusCode).toBe(200);
+    expect(commands[0]?.mode).toBe("TACTICAL_EXERCISE");
+    expect(commands[1] !== undefined && "mode" in commands[1]).toBe(false);
+  });
+
   it("API-STAT-PREVIEW-002 (10_API設計.md「FormationStatPreviewRequest」): rejects turnLimit and options with 400, instead of silently ignoring them", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, { previewUseCase: previewUseCase() });
 

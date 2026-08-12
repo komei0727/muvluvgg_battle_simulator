@@ -38,9 +38,14 @@ function accessControlHeaderKeys(headers: Record<string, unknown>): readonly str
   return Object.keys(headers).filter((key) => key.toLowerCase().startsWith("access-control-"));
 }
 
-function unitDefinition(id: string): UnitDefinition {
+function unitDefinition(
+  id: string,
+  category: UnitDefinition["category"] = "PLAYABLE",
+): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category,
+    ...(category === "EXERCISE_ENEMY" ? { exerciseActive: true } : {}),
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",
@@ -125,7 +130,11 @@ function buildTestUseCase(): SimulateBattleUseCasePort {
 
 /** 戦術演習POST（TEX-007）のCORS検証用。戦闘と同じ合成Catalogをメインスレッドで直接回す。 */
 function buildTestExerciseUseCase(): SimulateTacticalExerciseUseCasePort {
-  const units = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
+  // R-TEX-11: 演習の敵はEXERCISE_ENEMYユニットでなければ200に到達しない。
+  const units = new Map([
+    [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
+    [createUnitDefinitionId("UNIT_002"), unitDefinition("UNIT_002", "EXERCISE_ENEMY")],
+  ]);
   const useCase = new SimulateTacticalExerciseUseCase({
     battleCatalog: new FakeBattleCatalog(units),
     battleIdGenerator: new FixedBattleIdGenerator(["B_EX_1"]),
@@ -240,7 +249,7 @@ describe("CORS (10_API設計.md「CORS」、11_インフラストラクチャ設
           memoryDefinitionIds: [],
         },
         enemyFormation: {
-          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
           memoryDefinitionIds: [],
         },
       },

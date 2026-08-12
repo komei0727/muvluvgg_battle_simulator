@@ -1607,7 +1607,13 @@ describe("OpenAPI document", () => {
     expect(Object.keys(bodySchema?.properties ?? {}).sort()).toEqual([
       "allyFormation",
       "enemyFormation",
+      "mode",
     ]);
+    // R-TEX-11 #5: modeは列挙値つきの任意フィールドとして公開する。
+    expect(bodySchema?.properties?.["mode"]?.enum).toEqual(["NORMAL", "TACTICAL_EXERCISE"]);
+    expect(
+      (bodySchema as { required?: readonly string[] } | undefined)?.required ?? [],
+    ).not.toContain("mode");
     const positionSchema =
       bodySchema?.properties?.["allyFormation"]?.properties?.["units"]?.items?.properties?.[
         "position"

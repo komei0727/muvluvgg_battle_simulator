@@ -17,6 +17,10 @@ export interface CatalogUnitSummaryResponseBody {
   readonly unitDefinitionId: string;
   readonly displayName: string;
   readonly characterName: string;
+  /** R-TEX-11 #1: 編成プールの区分（`PLAYABLE`/`EXERCISE_ENEMY`）。 */
+  readonly category: string;
+  /** R-TEX-11 #4: 開催中バッジ用の表示情報。EXERCISE_ENEMYのときだけ存在する。 */
+  readonly exerciseActive?: boolean;
   readonly attribute: string;
   readonly unitType: string;
   readonly role: string;

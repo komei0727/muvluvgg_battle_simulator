@@ -277,4 +277,17 @@ describe("Catalog v2 DTO JSON Schema", () => {
       }),
     ).toBe(false);
   });
+
+  it("UT-INFRA-SCHEMA-016: accepts a UnitDefinition DTO carrying category and exerciseActive, and still accepts one without them", () => {
+    expect(
+      validateUnitDefinitionDto({ ...unitDto(), category: "EXERCISE_ENEMY", exerciseActive: true }),
+    ).toBe(true);
+    expect(validateUnitDefinitionDto({ ...unitDto(), category: "PLAYABLE" })).toBe(true);
+    expect(validateUnitDefinitionDto(unitDto())).toBe(true);
+  });
+
+  it("UT-INFRA-SCHEMA-017: rejects an unknown category and a non-boolean exerciseActive", () => {
+    expect(validateUnitDefinitionDto({ ...unitDto(), category: "BOSS" })).toBe(false);
+    expect(validateUnitDefinitionDto({ ...unitDto(), exerciseActive: "true" })).toBe(false);
+  });
 });

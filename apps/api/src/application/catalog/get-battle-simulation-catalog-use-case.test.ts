@@ -61,10 +61,14 @@ function unitDefinition(
   overrides: {
     requiredCapabilities?: readonly string[];
     activeSkillDefinitionIds?: readonly string[];
+    category?: string;
+    exerciseActive?: boolean;
   } = {},
 ): UnitDefinition {
   return createUnitDefinition({
     unitDefinitionId: id,
+    ...(overrides.category === undefined ? {} : { category: overrides.category }),
+    ...(overrides.exerciseActive === undefined ? {} : { exerciseActive: overrides.exerciseActive }),
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",
@@ -171,6 +175,31 @@ describe("GetBattleSimulationCatalogUseCase", () => {
     expect(result.catalogRevision).toBe("rev-1");
     expect(result.units.map((u) => u.unitDefinitionId)).toEqual(["UNIT_A", "UNIT_B"]);
     expect(result.memories.map((m) => m.memoryDefinitionId)).toEqual(["MEM_A", "MEM_B"]);
+  });
+
+  it("projects category and exerciseActive so clients can split unit pools (R-TEX-11 #1/#4)", () => {
+    const playable = unitDefinition("UNIT_A");
+    const exerciseEnemy = unitDefinition("UNIT_TEX", {
+      category: "EXERCISE_ENEMY",
+      exerciseActive: false,
+    });
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({ units: toMap([playable, exerciseEnemy], (u) => u.unitDefinitionId) }),
+      ),
+    });
+
+    const result = useCase.execute();
+
+    expect(result.units).toEqual([
+      expect.objectContaining({ unitDefinitionId: "UNIT_A", category: "PLAYABLE" }),
+      expect.objectContaining({
+        unitDefinitionId: "UNIT_TEX",
+        category: "EXERCISE_ENEMY",
+        exerciseActive: false,
+      }),
+    ]);
+    expect("exerciseActive" in (result.units[0] ?? {})).toBe(false);
   });
 
   it("publishes the gear effect table and derives representationRevision from the catalogRevision and that table", () => {

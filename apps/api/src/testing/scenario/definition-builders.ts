@@ -40,6 +40,9 @@ export const ENEMY_ALL: TargetSelectorDefinition = {
 };
 
 export interface UnitDefinitionOverrides {
+  /** R-TEX-11: 既定はPLAYABLE。演習の敵として使うテストだけEXERCISE_ENEMYを渡す。 */
+  readonly category?: UnitDefinition["category"];
+  readonly exerciseActive?: UnitDefinition["exerciseActive"];
   readonly attribute?: UnitDefinition["attribute"];
   readonly unitType?: UnitDefinition["unitType"];
   readonly role?: UnitDefinition["role"];
@@ -60,6 +63,8 @@ export function unitDefinition(
 ): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category: overrides.category ?? "PLAYABLE",
+    ...(overrides.exerciseActive === undefined ? {} : { exerciseActive: overrides.exerciseActive }),
     attribute: overrides.attribute ?? "AGGRESSIVE",
     unitType: overrides.unitType ?? "PHYSICAL",
     role: overrides.role ?? "PHYSICAL_ATTACKER",

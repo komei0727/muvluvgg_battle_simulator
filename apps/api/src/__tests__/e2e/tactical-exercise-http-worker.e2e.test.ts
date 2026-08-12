@@ -31,7 +31,9 @@ function fixturePath(...segments: string[]): string {
   );
 }
 
-const CATALOG_DIR = fixturePath("runtime", "valid", "minimal");
+// R-TEX-11: 演習の敵はEXERCISE_ENEMYユニットでなければならないため、
+// PLAYABLE 1体だけのminimalではなくUNIT_002（EXERCISE_ENEMY）入りのfixtureを使う。
+const CATALOG_DIR = fixturePath("runtime", "valid", "exercise");
 const CATALOG_REVISION = loadCatalogFromDirectory(CATALOG_DIR).catalogRevision;
 const TACTICAL_EXERCISES_PATH = "/api/v1/tactical-exercises";
 
@@ -40,7 +42,7 @@ const ALLY_FORMATION = {
   memoryDefinitionIds: [],
 };
 const ENEMY_FORMATION = {
-  units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+  units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
   memoryDefinitionIds: [],
 };
 

@@ -355,6 +355,7 @@ describe("startBattle", () => {
         unitDefinitionId,
         {
           unitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "SUPPORT",
@@ -862,6 +863,7 @@ describe("advanceBattle", () => {
         unitDefinitionId,
         {
           unitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "SUPPORT",
@@ -966,6 +968,7 @@ describe("advanceBattle", () => {
         unitDefinitionId,
         {
           unitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "SUPPORT",
@@ -1118,6 +1121,7 @@ describe("advanceBattle", () => {
         unitDefinitionId,
         {
           unitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "SUPPORT",
@@ -1235,6 +1239,7 @@ describe("advanceBattle", () => {
         unitDefinitionId,
         {
           unitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "SUPPORT",

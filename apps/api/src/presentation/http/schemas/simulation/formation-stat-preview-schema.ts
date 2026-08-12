@@ -36,6 +36,9 @@ export const formationStatPreviewRequestSchema = {
   properties: {
     allyFormation: formationRequestSchema,
     enemyFormation: formationRequestSchema,
+    // R-TEX-11 #5: 編成プール検証に使う戦闘モード。列挙値の検証は公開文書側と
+    // アプリケーション検証が持つ（simulation-schema.ts冒頭の注記と同じ分担）。
+    mode: { type: "string" },
   },
 } as const;
 
@@ -46,6 +49,7 @@ export const formationStatPreviewRequestDocSchema = {
   properties: {
     allyFormation: previewFormationRequestDocSchema,
     enemyFormation: previewFormationRequestDocSchema,
+    mode: { type: "string", enum: ["NORMAL", "TACTICAL_EXERCISE"] },
   },
 } as const;
 

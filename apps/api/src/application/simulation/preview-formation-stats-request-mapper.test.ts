@@ -46,4 +46,11 @@ describe("toPreviewFormationStatsCommand", () => {
 
     expect(Object.keys(command).toSorted()).toEqual(["allyFormation", "enemyFormation"]);
   });
+
+  it("UT-STAT-PREVIEW-023 (R-TEX-11 #5): passes mode through, and omits the key when the request omits it", () => {
+    expect(toPreviewFormationStatsCommand({ ...BODY, mode: "TACTICAL_EXERCISE" }).mode).toBe(
+      "TACTICAL_EXERCISE",
+    );
+    expect("mode" in toPreviewFormationStatsCommand(BODY)).toBe(false);
+  });
 });

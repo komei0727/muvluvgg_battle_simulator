@@ -12,6 +12,8 @@ function fixturePath(...segments: string[]): string {
 }
 
 const CATALOG_DIR = fixturePath("runtime", "valid", "minimal");
+// R-TEX-11: 演習を完走させるタスクはEXERCISE_ENEMYユニット（UNIT_002）入りのfixtureを使う。
+const EXERCISE_CATALOG_DIR = fixturePath("runtime", "valid", "exercise");
 
 function minimalRequest(overrides: Record<string, unknown> = {}) {
   return {
@@ -45,8 +47,9 @@ function buildTask(
 /** 敵ちょうど1体・メモリーなし・`turnLimit`を持たない演習タスク（R-TEX-01）。 */
 function buildExerciseTask(
   overrides: Partial<Extract<WorkerSimulationTask, { mode: "TACTICAL_EXERCISE" }>> = {},
+  catalogDir: string = CATALOG_DIR,
 ): WorkerSimulationTask {
-  const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+  const catalog = loadCatalogFromDirectory(catalogDir);
   const { turnLimit: _turnLimit, ...request } = minimalRequest();
   return {
     mode: "TACTICAL_EXERCISE",
@@ -161,14 +164,27 @@ describe("createSimulationTaskRunner", () => {
     }
   });
   it("UT-TASKRUNNER-006 (R-TEX-01 #4): dispatches a TACTICAL_EXERCISE task to the exercise use case and returns an exercise result tagged with the same mode", () => {
-    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const catalog = loadCatalogFromDirectory(EXERCISE_CATALOG_DIR);
     const runner = createSimulationTaskRunner(catalog, {
       battleIdGenerator: new FixedBattleIdGenerator(["B_EXERCISE"]),
       randomSourceFactory: new SequenceRandomSourceFactory(Array(500).fill(0.5) as number[]),
       clock: new ManualClock(Date.now()),
     });
 
-    const outcome = runner(buildExerciseTask());
+    const outcome = runner(
+      buildExerciseTask(
+        {
+          request: {
+            allyFormation: minimalRequest().allyFormation,
+            enemyFormation: {
+              units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+              memoryDefinitionIds: [],
+            },
+          },
+        },
+        EXERCISE_CATALOG_DIR,
+      ),
+    );
 
     expect(outcome.ok).toBe(true);
     if (outcome.ok && outcome.mode === "TACTICAL_EXERCISE") {

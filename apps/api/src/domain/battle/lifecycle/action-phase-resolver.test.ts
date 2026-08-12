@@ -2756,6 +2756,7 @@ describe("resolveActionPhase", () => {
         stunnerUnitDefinitionId,
         {
           unitDefinitionId: stunnerUnitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "PHYSICAL_ATTACKER",
@@ -3089,6 +3090,7 @@ describe("resolveActionPhase", () => {
         stunnerUnitDefinitionId,
         {
           unitDefinitionId: stunnerUnitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "PHYSICAL_ATTACKER",
@@ -3308,6 +3310,7 @@ describe("resolveActionPhase", () => {
           stunnerUnitDefinitionId,
           {
             unitDefinitionId: stunnerUnitDefinitionId,
+            category: "PLAYABLE",
             attribute: "AGGRESSIVE",
             unitType: "PHYSICAL",
             role: "PHYSICAL_ATTACKER",
@@ -3532,6 +3535,7 @@ describe("resolveActionPhase", () => {
           stunnerUnitDefinitionId,
           {
             unitDefinitionId: stunnerUnitDefinitionId,
+            category: "PLAYABLE",
             attribute: "AGGRESSIVE",
             unitType: "PHYSICAL",
             role: "PHYSICAL_ATTACKER",
@@ -3788,6 +3792,7 @@ describe("resolveActionPhase", () => {
           stunnerUnitDefinitionId,
           {
             unitDefinitionId: stunnerUnitDefinitionId,
+            category: "PLAYABLE",
             attribute: "AGGRESSIVE",
             unitType: "PHYSICAL",
             role: "PHYSICAL_ATTACKER",
@@ -4021,6 +4026,7 @@ describe("resolveActionPhase", () => {
           stunnerUnitDefinitionId,
           {
             unitDefinitionId: stunnerUnitDefinitionId,
+            category: "PLAYABLE",
             attribute: "AGGRESSIVE",
             unitType: "PHYSICAL",
             role: "PHYSICAL_ATTACKER",
@@ -4505,6 +4511,7 @@ describe("resolveActionPhase", () => {
         defenderUnitDefinitionId,
         {
           unitDefinitionId: defenderUnitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "TANK",
@@ -4622,6 +4629,7 @@ describe("resolveActionPhase", () => {
         attackerUnitDefinitionId,
         {
           unitDefinitionId: attackerUnitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "PHYSICAL_ATTACKER",
@@ -4736,6 +4744,7 @@ describe("resolveActionPhase", () => {
         unitDefinitionId,
         {
           unitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "PHYSICAL_ATTACKER",
@@ -4852,6 +4861,7 @@ describe("resolveActionPhase", () => {
         supporterUnitDefinitionId,
         {
           unitDefinitionId: supporterUnitDefinitionId,
+          category: "PLAYABLE",
           attribute: "AGGRESSIVE",
           unitType: "PHYSICAL",
           role: "PHYSICAL_ATTACKER",

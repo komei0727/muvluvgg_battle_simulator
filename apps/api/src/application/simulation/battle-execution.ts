@@ -204,7 +204,7 @@ export function executeBattleToCompletion(
   const { unitDefinitionIds, memoryDefinitionIds } = collectReferencedIds(command);
   const snapshot = dependencies.battleCatalog.loadSnapshot(unitDefinitionIds, memoryDefinitionIds);
 
-  runPreflight(command, snapshot);
+  runPreflight(command, snapshot, options.mode);
 
   try {
     const allyBattleUnitIds = assignBattleUnitIds("ally", command.allyFormation.slots.length);

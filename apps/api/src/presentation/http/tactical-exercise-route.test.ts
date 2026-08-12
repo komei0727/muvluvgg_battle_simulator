@@ -159,7 +159,11 @@ function buildRealExerciseUseCase(): SimulateTacticalExerciseUseCasePort {
         baseStats: { maximumAp: 1, attack: 100 },
         activeSkillDefinitionIds: [createSkillDefinitionId(EXERCISE_ATTACK_SKILL)],
       }),
-      unitDefinition("UNIT_ENEMY", { baseStats: { maximumHp: 100, defense: 0 } }),
+      unitDefinition("UNIT_ENEMY", {
+        category: "EXERCISE_ENEMY",
+        exerciseActive: true,
+        baseStats: { maximumHp: 100, defense: 0 },
+      }),
     )
     .withSkill(attackSkill(EXERCISE_ATTACK_SKILL, EXERCISE_ATTACK_ACTION))
     .withEffectAction(damageEffectAction(EXERCISE_ATTACK_ACTION))
@@ -293,6 +297,41 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     const validate = new Ajv({ strict: false }).compile(tacticalExerciseResponseDocSchema);
     const valid = validate(body);
     expect(valid, JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2)).toBe(true);
+  });
+
+  it("API-TEX-011 (R-TEX-11 #2): a PLAYABLE unit in the exercise enemy formation is rejected as 422 INVALID_COMMAND with the rule id", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      exerciseUseCase: buildRealExerciseUseCase(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: TACTICAL_EXERCISES_PATH,
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_ALLY", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          // PLAYABLEの味方ユニットを演習の敵に据える——R-TEX-11 #2の拒否経路。
+          units: [{ unitDefinitionId: "UNIT_ALLY", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    const error = response.json<{
+      error: { code: string; violations: { path: string; ruleId?: string }[] };
+    }>().error;
+    expect(error.code).toBe("INVALID_COMMAND");
+    expect(error.violations).toContainEqual(
+      expect.objectContaining({
+        path: "/enemyFormation/units/0/unitDefinitionId",
+        definitionId: "UNIT_ALLY",
+        ruleId: "R-TEX-11",
+      }),
+    );
   });
 
   it("API-TEX-004 (10_API設計.md「TacticalExerciseRequest」「`turnLimit`は持たない」): rejects turnLimit as an undefined top-level property (400 MALFORMED_REQUEST), instead of silently ignoring it and running the fixed 5 turns", async () => {

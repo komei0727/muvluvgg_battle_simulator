@@ -461,7 +461,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-11.3` は同じ実測値差し替えの継続で、5Unit（`UNIT_ELENA_MOODMAKER`・
     // `UNIT_KEI_JACKKNIFE`・`UNIT_MIKOTO_SURVIVOR`・`UNIT_SAYA_BUNNY`・
     // `UNIT_SAYA_LONGING`）の `levelGrowth` を±1だけ寄せ直した。
-    expect(catalog.catalogRevision).toBe("2026-08-11.3");
+    // `2026-08-12.1` は戦術演習専用ユニット `UNIT_AOI_GUARDIAN_TEX` の追加
+    // （TEX-010／Issue #447、R-TEX-11）。既存69Unitの定義は変えていない。
+    expect(catalog.catalogRevision).toBe("2026-08-12.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -891,7 +893,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expect(findConditionsOfKind(trigger?.condition, "EVENT_PAYLOAD")).toEqual(expected);
     },
   );
-  it("IT-CAT-PROD-014 (ENH-004, Issue #413, R-ENH-05 #2/Q-ENH-07): every production Unit declares a levelGrowth, so a current level other than 200 is usable for all of them", () => {
+  it("IT-CAT-PROD-014 (ENH-004, Issue #413, R-ENH-05 #2/Q-ENH-07): every playable production Unit declares a levelGrowth, so a current level other than 200 is usable for all of them", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
     const unitDefinitionIds = allProductionUnitIds(catalogPath());
     expect(unitDefinitionIds.length).toBeGreaterThan(0);

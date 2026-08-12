@@ -15,5 +15,6 @@ export function toPreviewFormationStatsCommand(
   return {
     allyFormation: toFormationInput(body.allyFormation),
     enemyFormation: toFormationInput(body.enemyFormation),
+    ...(body.mode === undefined ? {} : { mode: body.mode }),
   };
 }

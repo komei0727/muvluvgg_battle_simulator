@@ -1817,7 +1817,11 @@ describe("battle scenarios (harness)", () => {
             baseStats: { maximumAp: 1, attack: 100 },
             activeSkillDefinitionIds: [createSkillDefinitionId(EXERCISE_ATTACK_SKILL)],
           }),
-          unitDefinition("UNIT_ENEMY", { baseStats: { maximumHp: enemyMaximumHp, defense: 0 } }),
+          unitDefinition("UNIT_ENEMY", {
+            category: "EXERCISE_ENEMY",
+            exerciseActive: true,
+            baseStats: { maximumHp: enemyMaximumHp, defense: 0 },
+          }),
         )
         .withSkill(attackSkill(EXERCISE_ATTACK_SKILL, EXERCISE_ATTACK_ACTION))
         .withEffectAction(damageEffectAction(EXERCISE_ATTACK_ACTION))

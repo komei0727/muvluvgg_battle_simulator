@@ -29,6 +29,10 @@ function fixturePath(...segments: string[]): string {
 
 const CATALOG_DIR = fixturePath("runtime", "valid", "minimal");
 const CATALOG_REVISION = loadCatalogFromDirectory(CATALOG_DIR).catalogRevision;
+// R-TEX-11: 演習の敵はEXERCISE_ENEMYユニットでなければならないため、演習を流す
+// テストはUNIT_002（EXERCISE_ENEMY）入りのfixtureを使う。
+const EXERCISE_CATALOG_DIR = fixturePath("runtime", "valid", "exercise");
+const EXERCISE_CATALOG_REVISION = loadCatalogFromDirectory(EXERCISE_CATALOG_DIR).catalogRevision;
 const INVALID_CATALOG_DIR = fixturePath("runtime", "invalid", "dangling-reference");
 
 function minimalRequest(overrides: Record<string, unknown> = {}) {
@@ -91,19 +95,24 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
 
   it("INT-WORKER-006 (09_アプリケーション設計.md「実行境界」): a TACTICAL_EXERCISE task runs through the same compiled Worker Pool and returns an exercise result, while the battle task on the same pool keeps returning a battle result", async () => {
     pool = await SimulationWorkerPool.create({
-      catalogDir: CATALOG_DIR,
-      catalogRevision: CATALOG_REVISION,
+      catalogDir: EXERCISE_CATALOG_DIR,
+      catalogRevision: EXERCISE_CATALOG_REVISION,
       minThreads: 1,
       maxThreads: 1,
     });
 
-    const { turnLimit: _turnLimit, ...exerciseRequest } = minimalRequest();
+    const { turnLimit: _turnLimit, ...exerciseRequest } = minimalRequest({
+      enemyFormation: {
+        units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+        memoryDefinitionIds: [],
+      },
+    });
     const exercise = await pool.executeTacticalExercise(
       exerciseRequest,
       freshContext("req-exercise-1"),
     );
 
-    expect(exercise.catalogRevision).toBe(CATALOG_REVISION);
+    expect(exercise.catalogRevision).toBe(EXERCISE_CATALOG_REVISION);
     // R-TEX-09 #1 / R-TEX-10 #1: 演習は勝敗を持たず、5ターンを超えない。
     expect(exercise).not.toHaveProperty("outcome");
     expect(exercise.completedTurn).toBeLessThanOrEqual(5);

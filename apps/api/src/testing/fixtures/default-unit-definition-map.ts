@@ -15,6 +15,7 @@ import type { UnitDefinition } from "../../domain/catalog/definitions/unit-defin
 function defaultUnitDefinition(unitDefinitionId: UnitDefinitionId): UnitDefinition {
   return {
     unitDefinitionId,
+    category: "PLAYABLE",
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",

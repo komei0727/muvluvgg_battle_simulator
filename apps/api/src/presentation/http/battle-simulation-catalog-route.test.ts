@@ -40,6 +40,7 @@ function fakeCatalogResult(
         unitDefinitionId: "UNIT_MEIYA_FATED",
         displayName: "【天命を受けし剣術乙女】御剣冥夜",
         characterName: "御剣冥夜",
+        category: "PLAYABLE",
         attribute: "SHY",
         unitType: "PHYSICAL",
         role: "PHYSICAL_ATTACKER",
@@ -80,6 +81,43 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     const response = await app.inject({ method: "GET", url: CATALOG_PATH });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("HTTP-CATALOG-016 (R-TEX-11 #1/#4): exposes category on every unit and exerciseActive only on EXERCISE_ENEMY units", async () => {
+    const result = fakeCatalogResult({
+      units: [
+        {
+          unitDefinitionId: "UNIT_MEIYA_FATED",
+          displayName: "【天命を受けし剣術乙女】御剣冥夜",
+          characterName: "御剣冥夜",
+          category: "PLAYABLE",
+          attribute: "SHY",
+          unitType: "PHYSICAL",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT"],
+        },
+        {
+          unitDefinitionId: "UNIT_AOI_GUARDIAN_TEX",
+          displayName: "【厳格な規律の守護者】生駒葵",
+          characterName: "生駒葵",
+          category: "EXERCISE_ENEMY",
+          exerciseActive: true,
+          attribute: "CUTE",
+          unitType: "PHYSICAL",
+          role: "TANK",
+          positionAptitudes: ["FRONT"],
+        },
+      ] as unknown as BattleSimulationCatalogResult["units"],
+    });
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, { catalogUseCase: fakeCatalogUseCase(result) });
+
+    const response = await app.inject({ method: "GET", url: CATALOG_PATH });
+
+    expect(response.statusCode).toBe(200);
+    const units = response.json<{ units: Record<string, unknown>[] }>().units;
+    expect(units[0]).toMatchObject({ category: "PLAYABLE" });
+    expect(units[0] !== undefined && "exerciseActive" in units[0]).toBe(false);
+    expect(units[1]).toMatchObject({ category: "EXERCISE_ENEMY", exerciseActive: true });
   });
 
   it("HTTP-CATALOG-002 (10_API設計.md「HTTPヘッダー」「ETag」): 200 sets a representationRevision-derived ETag and Cache-Control: public, max-age=300", async () => {

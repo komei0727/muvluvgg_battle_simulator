@@ -133,6 +133,7 @@ describe("recoverTurnResources", () => {
 function unitDefinition(id: string, maximumAp: number, maximumPp: number): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category: "PLAYABLE",
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",

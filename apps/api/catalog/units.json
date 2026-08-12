@@ -84,6 +84,35 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_AOI_GUARDIAN_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "CUTE",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 375662,
+      "attack": 9547,
+      "defense": 5795,
+      "criticalRate": 0.18,
+      "actionSpeed": 598,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_AOI_GUARDIAN_TEX_AS1", "SKL_AOI_GUARDIAN_TEX_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_AOI_GUARDIAN_TEX_PS1", "SKL_AOI_GUARDIAN_TEX_PS2"],
+    "extraSkillDefinitionId": "SKL_AOI_GUARDIAN_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
+      "tags": [],
+      "displayName": "【厳格な規律の守護者】生駒葵",
+      "characterName": "生駒葵",
+      "characterId": "CHAR_AOI_IKOMA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_CHIYURU_MAZE",
     "attribute": "SHY",
     "unitType": "AGILE",

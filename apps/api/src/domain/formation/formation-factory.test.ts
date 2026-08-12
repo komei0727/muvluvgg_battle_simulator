@@ -24,6 +24,7 @@ function unitDefinition(
 ): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category: "PLAYABLE",
     attribute,
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",

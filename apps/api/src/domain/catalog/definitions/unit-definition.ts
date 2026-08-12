@@ -20,6 +20,13 @@ const UNIT_TYPES = ["PHYSICAL", "ENERGY", "AGILE"] as const;
 const ROLES = ["PHYSICAL_ATTACKER", "EN_ATTACKER", "TANK", "SUPPORT", "CONTROL"] as const;
 const POSITION_ROWS = ["FRONT", "BACK"] as const;
 
+/**
+ * R-TEX-11 #1: 編成プールの区分。`PLAYABLE`は通常戦闘・演習味方で編成でき、
+ * `EXERCISE_ENEMY`は戦術演習の敵としてのみ編成できる。
+ */
+export const UNIT_CATEGORIES = ["PLAYABLE", "EXERCISE_ENEMY"] as const;
+export type UnitCategory = (typeof UNIT_CATEGORIES)[number];
+
 export interface BaseStats {
   readonly maximumHp: number;
   readonly attack: number;
@@ -53,6 +60,13 @@ export interface UnitMetadata {
 
 export interface UnitDefinition {
   readonly unitDefinitionId: UnitDefinitionId;
+  /** R-TEX-11 #1: 編成プールの区分。定義書で省略された場合は`PLAYABLE`。 */
+  readonly category: UnitCategory;
+  /**
+   * R-TEX-11 #4: 現在開催中の演習ユニットか。表示専用でシミュレーション受理条件
+   * には影響しない。`EXERCISE_ENEMY`のときだけ存在する。
+   */
+  readonly exerciseActive?: boolean;
   readonly attribute: Attribute;
   readonly unitType: UnitType;
   readonly role: Role;
@@ -89,6 +103,8 @@ export interface UnitMetadataInput {
 
 export interface UnitDefinitionInput {
   readonly unitDefinitionId: string;
+  readonly category?: string;
+  readonly exerciseActive?: boolean;
   readonly attribute: string;
   readonly unitType: string;
   readonly role: string;
@@ -153,6 +169,23 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     input.unitDefinitionId,
     `${path}.unitDefinitionId`,
   );
+  const category = input.category ?? "PLAYABLE";
+  assertEnumValue(category, UNIT_CATEGORIES, `${path}.category`);
+  // R-TEX-11 #4: 開催中フラグはEXERCISE_ENEMY専用。EXERCISE_ENEMYでは開催状態の
+  // 判断を省略させないため必須とする。
+  if (category === "EXERCISE_ENEMY") {
+    if (typeof input.exerciseActive !== "boolean") {
+      throw new DomainValidationError(
+        `${path}.exerciseActive`,
+        "must be a boolean when category is EXERCISE_ENEMY",
+      );
+    }
+  } else if (input.exerciseActive !== undefined) {
+    throw new DomainValidationError(
+      `${path}.exerciseActive`,
+      "must be absent unless category is EXERCISE_ENEMY",
+    );
+  }
   assertEnumValue(input.attribute, ATTRIBUTES, `${path}.attribute`);
   assertEnumValue(input.unitType, UNIT_TYPES, `${path}.unitType`);
   assertEnumValue(input.role, ROLES, `${path}.role`);
@@ -178,6 +211,8 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
   );
   return deepFreeze({
     unitDefinitionId,
+    category,
+    ...(input.exerciseActive === undefined ? {} : { exerciseActive: input.exerciseActive }),
     attribute: input.attribute,
     unitType: input.unitType,
     role: input.role,

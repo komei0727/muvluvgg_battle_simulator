@@ -26,7 +26,11 @@ function exerciseCatalog(): TestBattleCatalog {
         baseStats: { maximumAp: 1 },
         activeSkillDefinitionIds: [createSkillDefinitionId(ATTACK_SKILL_ID)],
       }),
-      unitDefinition("UNIT_ENEMY", { baseStats: { maximumHp: 1000, defense: 0 } }),
+      unitDefinition("UNIT_ENEMY", {
+        category: "EXERCISE_ENEMY",
+        exerciseActive: true,
+        baseStats: { maximumHp: 1000, defense: 0 },
+      }),
     )
     .withSkill(attackSkill(ATTACK_SKILL_ID, ATTACK_ACTION_ID))
     .withEffectAction(damageEffectAction(ATTACK_ACTION_ID))

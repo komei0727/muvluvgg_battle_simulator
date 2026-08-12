@@ -25,8 +25,8 @@
   },
   "current": {
     "rules": {
-      "total": 133,
-      "completed": 122,
+      "total": 134,
+      "completed": 123,
       "remaining": 11
     },
     "unitCatalog": {
@@ -595,6 +595,20 @@
       "status": "OPEN"
     },
     {
+      "taskId": "TEX-010",
+      "issue": 447,
+      "phase": 5,
+      "milestone": "M10",
+      "status": "OPEN"
+    },
+    {
+      "taskId": "TEX-011",
+      "issue": 448,
+      "phase": 5,
+      "milestone": "M10",
+      "status": "OPEN"
+    },
+    {
       "taskId": "ENH-001",
       "issue": 409,
       "phase": 5,
@@ -694,7 +708,7 @@
   "m9Audit": {
     "auditDate": "2026-08-11",
     "auditIssue": 200,
-    "catalogRevision": "2026-08-11.3",
+    "catalogRevision": "2026-08-12.1",
     "scenarioIds": [
       "SCN-BTL-001",
       "SCN-BTL-002",
