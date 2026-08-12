@@ -268,4 +268,22 @@ describe("composeDamageModifiers (R-DMG-04, R-DMG-03)", () => {
     expect(compose(attacker, guarded).incomingMultiplier).toBeCloseTo(0.8);
     expect(compose(withCurrentHp(attacker, 10), guarded).incomingMultiplier).toBe(1);
   });
+
+  it("UT-R-DMG-07-002: a damageThreshold modifier is excluded from the R-DMG-04 composition (it applies as a separate post-calculation multiplier)", () => {
+    const defender = unitAt("U_DEF", "ENEMY");
+    const guarded = holding(
+      defender,
+      damageMod(defender, -0.5, {
+        direction: "INCOMING",
+        damageType: null,
+        damageThreshold: {
+          op: "GT",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+        },
+      }),
+      damageMod(defender, -0.1, { direction: "INCOMING", damageType: null }),
+    );
+    const result = compose(unitAt("U_ATK", "ALLY"), guarded);
+    expect(result.incomingMultiplier).toBeCloseTo(0.9);
+  });
 });

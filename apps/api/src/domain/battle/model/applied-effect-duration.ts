@@ -262,6 +262,17 @@ function isHitCountEvasionStatus(effect: AppliedEffect): boolean {
 }
 
 /**
+ * R-DMG-07: 閾値付き被ダメージ軽減も回避と同じ消費契機の反転を持つ —— 消費は
+ * 「命中確定した被ヒット」ではなく「自身が実際に軽減を適用したヒット」でだけ起きる
+ * （閾値未満のヒットで残数を失ってはならない）。適用時の消費は
+ * `damage-application-service.ts`が`effectInstanceId`を明示して行うため、
+ * インスタンス指定のない一括消費からは常に除外する。
+ */
+function isThresholdGatedDamageModifier(effect: AppliedEffect): boolean {
+  return effect.damageModifier?.damageThreshold !== undefined;
+}
+
+/**
  * R-EFF-07「消費条件」: `ownerUnitId`が`kind`に該当する事象（次の攻撃・被ヒット等）
  * に到達したときに呼ぶ。`consumption`は`timeLimit`と異なり、常に効果を保持する
  * ユニット自身（`effect.targetUnitId`、`AppliedEffect`は常に対象側の`appliedEffects`
@@ -296,7 +307,8 @@ export function consumeEffectDurations(
         consumption?.kind !== kind ||
         (effectInstanceId !== undefined
           ? effect.effectInstanceId !== effectInstanceId
-          : kind === "INCOMING_HIT" && isHitCountEvasionStatus(effect)) ||
+          : kind === "INCOMING_HIT" &&
+            (isHitCountEvasionStatus(effect) || isThresholdGatedDamageModifier(effect))) ||
         effect.duration.consumptionRemaining === undefined ||
         effect.duration.consumptionRemaining <= 0
       ) {

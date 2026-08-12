@@ -89,6 +89,12 @@ export interface DamageModifierState {
   readonly damageType: DamageType | null;
   /** 省略時は無条件。指定時は`damage-modifier-policy.ts`がヒットごとに評価する。 */
   readonly condition?: DamageModConditionDefinition;
+  /**
+   * R-DMG-07: 指定時、この補正はR-DMG-04の通常合成から外れ、確定した入射ダメージが
+   * 閾値比較で真になるヒットにだけ独立倍率として適用される
+   * （`threshold-damage-reduction-policy.ts`）。
+   */
+  readonly damageThreshold?: DamageThreshold;
 }
 
 /**

@@ -1223,4 +1223,78 @@ describe("evaluateTriggerCondition", () => {
       ).toThrow(DomainValidationError);
     });
   });
+
+  describe("DAMAGE_MAX_HP_RATIO (R-PS-01: 1ヒットの被弾量を最大HP比で照合する)", () => {
+    const condition: ConditionDefinition = {
+      kind: "DAMAGE_MAX_HP_RATIO",
+      field: "hitPointDamage",
+      op: "GTE",
+      value: 0.15,
+    };
+
+    it("UT-R-PS-01-138: compares the event's damage field against the TRIGGER_TARGET's maximum HP (GTE boundary is inclusive)", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      // maximumHp 100 (unitAt fixture): 15ダメージ = ちょうど15% -> 成立、14 -> 不成立。
+      const context = {
+        owner,
+        skillDefinitionId: SKILL_ID,
+        getUnit: () => owner,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hitPointDamage: 15 }, targetUnitIds: [owner.battleUnitId] },
+          context,
+        ),
+      ).toBe(true);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hitPointDamage: 14 }, targetUnitIds: [owner.battleUnitId] },
+          context,
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-139: a missing or non-number damage field and an unresolvable target are not matches", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const context = {
+        owner,
+        skillDefinitionId: SKILL_ID,
+        getUnit: () => owner,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {}, targetUnitIds: [owner.battleUnitId] },
+          context,
+        ),
+      ).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hitPointDamage: "15" }, targetUnitIds: [owner.battleUnitId] },
+          context,
+        ),
+      ).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hitPointDamage: 15 }, targetUnitIds: [] },
+          context,
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-140: throws when no context with a getUnit lookup is supplied", () => {
+      const owner = ownerWithCounter();
+      expect(() =>
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hitPointDamage: 15 }, targetUnitIds: [owner.battleUnitId] },
+          { owner, skillDefinitionId: SKILL_ID },
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
 });

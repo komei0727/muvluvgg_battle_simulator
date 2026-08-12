@@ -77,7 +77,10 @@ export function conditionContainsTargetSetCount(condition: ConditionDefinition):
  */
 export function conditionContainsEventPayload(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
+    // `DAMAGE_MAX_HP_RATIO`も発火イベントのpayloadを判定素材にするため、
+    // `EVENT_PAYLOAD`と同じ「PS Skillでだけ評価できる」制約に含める。
     case "EVENT_PAYLOAD":
+    case "DAMAGE_MAX_HP_RATIO":
       return true;
     case "AND":
     case "OR":

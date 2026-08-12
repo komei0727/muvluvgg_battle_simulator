@@ -2769,6 +2769,44 @@ describe("buildCatalogIndex", () => {
     },
   );
 
+  it.each([{ skillType: "AS" as const }, { skillType: "EX" as const }])(
+    "UT-CAT-IDX-101 (R-PS-01): rejects an EffectStep DAMAGE_MAX_HP_RATIO stepCondition on a $skillType skill — it reads the triggering event's payload, exactly like EVENT_PAYLOAD",
+    ({ skillType }) => {
+      const defs = baseDefinitions();
+      const skill = createSkillDefinition({
+        skillDefinitionId: "SKL_ACTIVE1",
+        skillType,
+        cost:
+          skillType === "AS" ? { resource: "AP", amount: 1 } : { resource: "EX_GAUGE", amount: 7 },
+        resolution: {
+          kind: "IMMEDIATE",
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: {
+                kind: "DAMAGE_MAX_HP_RATIO",
+                field: "hitPointDamage",
+                op: "GTE",
+                value: 0.15,
+              },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: skillType === "AS" ? 1 : 0 },
+        traits: {},
+        metadata: { displayName: `Damage-ratio-condition ${skillType}` },
+      });
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [skill, exSkill("SKL_EX1", 7)],
+        }),
+      ).toThrowError(/EVENT_PAYLOAD condition requires a PS Skill/);
+    },
+  );
+
   it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
     const defs = baseDefinitions();
     const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];

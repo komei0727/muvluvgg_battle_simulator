@@ -121,6 +121,51 @@ describe("APPLY_DAMAGE_MOD (R-DMG-03, R-DMG-04, DMG-002 Issue #192)", () => {
     ).toBe("APPLIED");
   });
 
+  it("UT-R-DMG-07-001 (full stack): an APPLY_DAMAGE_MOD with a damageThreshold bakes the threshold into the granted AppliedEffect", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const mod = damageModAction("ACT_THRESHOLD_GUARD", {
+      direction: "INCOMING",
+      damageType: null,
+      formula: { kind: "CONSTANT", value: -0.5 },
+      damageThreshold: {
+        op: "GT",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+      },
+      stacking: { mode: "STACKABLE" },
+      duration: {
+        ...BATTLE_LONG,
+        consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+      },
+    });
+    const effectActions = new Map([[mod.effectActionDefinitionId, mod]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, actor.battleUnitId, mod.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor], context);
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(1);
+    expect(updated.appliedEffects[0]).toMatchObject({
+      effectActionDefinitionId: mod.effectActionDefinitionId,
+      magnitude: -0.5,
+      damageModifier: {
+        direction: "INCOMING",
+        damageType: null,
+        damageThreshold: {
+          op: "GT",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+        },
+      },
+    });
+    expect(updated.appliedEffects[0]!.duration.consumptionRemaining).toBe(3);
+  });
+
   it("UT-R-DMG-04-011 (full stack): the attacker's OUTGOING and the defender's INCOMING modifiers both scale the damage of a later DAMAGE step", () => {
     const actor = unit("ACTOR", "ALLY");
     const target = unit("TARGET", "ENEMY");
@@ -277,5 +322,142 @@ describe("APPLY_DAMAGE_MOD (R-DMG-03, R-DMG-04, DMG-002 Issue #192)", () => {
     const calculated = recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!;
     expect(calculated.payload).toMatchObject({ incomingDamageMultiplier: 1, finalDamage: 10 });
     expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(90);
+  });
+});
+
+describe("APPLY_DAMAGE_MOD damageThreshold (R-DMG-07)", () => {
+  function damageModAction(
+    id: string,
+    payload: Extract<EffectActionDefinition, { kind: "APPLY_DAMAGE_MOD" }>["payload"],
+  ): EffectActionDefinition {
+    return {
+      kind: "APPLY_DAMAGE_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      metadata: { tags: [] },
+      payload,
+    };
+  }
+
+  function thresholdGuardAction(
+    id: string,
+    thresholdRatio: number,
+    maxCount: number,
+  ): EffectActionDefinition {
+    return damageModAction(id, {
+      direction: "INCOMING",
+      damageType: null,
+      formula: { kind: "CONSTANT", value: -0.5 },
+      damageThreshold: {
+        op: "GT",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: thresholdRatio },
+      },
+      stacking: { mode: "STACKABLE" },
+      duration: {
+        timeLimit: { unit: "BATTLE", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+        consumption: { kind: "INCOMING_HIT", maxCount },
+      },
+    });
+  }
+
+  function runGuardedAttack(
+    guard: EffectActionDefinition,
+    attack: EffectActionDefinition,
+    hitCount = 1,
+  ) {
+    const actor = unit("ACTOR", "ALLY");
+    const target = unit("TARGET", "ENEMY");
+    const effectActions = new Map([
+      [guard.effectActionDefinitionId, guard],
+      [attack.effectActionDefinitionId, attack],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, target.battleUnitId, guard.effectActionDefinitionId),
+        {
+          planKind: "ACTION_PLAN",
+          stepIndex: 1,
+          stepKind: "ACTION",
+          conditionKind: "TRUE",
+          satisfied: true,
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          applications: [
+            {
+              targetUnitId: target.battleUnitId,
+              effectActionDefinitionId: attack.effectActionDefinitionId,
+              includeDefeated: false,
+              hits: Array.from({ length: hitCount }, (_, index) => ({
+                targetUnitId: target.battleUnitId,
+                effectActionDefinitionId: attack.effectActionDefinitionId,
+                hitIndex: index + 1,
+              })),
+            },
+          ],
+        },
+      ],
+      targetUnitIds: [target.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+    const result = applyEffectActionGroups(plan, [actor, target], context);
+    return { recorder, result, target };
+  }
+
+  it("UT-R-DMG-07-008 (full stack, mirrors アニスPS3): a hit exceeding the threshold is reduced by the separate multiplier and consumes only the applied instance", () => {
+    // 基礎ダメージ = attack 20 - defense 10 = 10。閾値 = 現在HP100×5% = 5 < 10 -> 軽減成立。
+    const { recorder, result, target } = runGuardedAttack(
+      thresholdGuardAction("ACT_THRESHOLD_GUARD", 0.05, 3),
+      damageAction("ACT_ATTACK"),
+    );
+
+    const calculated = recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!;
+    expect(calculated.payload).toMatchObject({ incomingDamageMultiplier: 1, finalDamage: 5 });
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.currentHp).toBe(95);
+    const consumption = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "EffectConsumptionChanged");
+    expect(consumption).toHaveLength(1);
+    expect(consumption[0]!.payload).toMatchObject({ before: 3, after: 2 });
+    expect(updated.appliedEffects[0]!.duration.consumptionRemaining).toBe(2);
+  });
+
+  it("UT-R-DMG-07-009 (full stack, boundary): a hit at or below the threshold is untouched and consumes nothing", () => {
+    // 閾値 = 現在HP100×20% = 20 >= 10 -> 軽減も消費も起きない。
+    const { recorder, result, target } = runGuardedAttack(
+      thresholdGuardAction("ACT_THRESHOLD_GUARD", 0.2, 3),
+      damageAction("ACT_ATTACK"),
+    );
+
+    const calculated = recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!;
+    expect(calculated.payload).toMatchObject({ incomingDamageMultiplier: 1, finalDamage: 10 });
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.currentHp).toBe(90);
+    expect(
+      recorder.getEvents().filter((e) => e.eventType === "EffectConsumptionChanged"),
+    ).toHaveLength(0);
+    expect(updated.appliedEffects[0]!.duration.consumptionRemaining).toBe(3);
+  });
+
+  it("UT-R-DMG-07-010 (full stack): exhausting the consumption expires the guard mid-attack, so the next hit of the same multi-hit attack is unreduced", () => {
+    // maxCount 1、2ヒット攻撃: ヒット1は 10 > 5 で軽減(5)・消費0で失効、ヒット2は素通し(10)。
+    const { recorder, result, target } = runGuardedAttack(
+      thresholdGuardAction("ACT_THRESHOLD_GUARD", 0.05, 1),
+      damageAction("ACT_ATTACK", 2),
+      2,
+    );
+
+    const calculated = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "DamageCalculated")
+      .map((e) => e.payload.finalDamage);
+    expect(calculated).toEqual([5, 10]);
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.currentHp).toBe(85);
+    expect(recorder.getEvents().filter((e) => e.eventType === "EffectExpired")).toHaveLength(1);
+    expect(updated.appliedEffects).toHaveLength(0);
   });
 });

@@ -89,6 +89,7 @@ export const CONDITION_KINDS = [
   "TARGET_STATE",
   "TARGET_HAS_MARKER",
   "EVENT_PAYLOAD",
+  "DAMAGE_MAX_HP_RATIO",
   "LAST_RESULT",
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
@@ -275,6 +276,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   TARGET_STATE: ["kind", "target", "field", "op", "value"],
   TARGET_HAS_MARKER: ["kind", "target", "markerId", "countCondition"],
   EVENT_PAYLOAD: ["kind", "field", "op", "value"],
+  DAMAGE_MAX_HP_RATIO: ["kind", "field", "op", "value"],
   LAST_RESULT: ["kind", "field", "op", "value"],
   RUNTIME_COUNTER: ["kind", "counter", "op", "value", "modulo"],
   TURN_NUMBER: ["kind", "op", "value", "modulo"],
@@ -339,6 +341,18 @@ export type ConditionDefinition =
       readonly field: string;
       readonly op: ComparisonOperator;
       readonly value: JsonPrimitive;
+    }
+  | {
+      /**
+       * R-PS-01: イベントpayloadの被弾量field（例: `HitPointReduced`の
+       * `hitPointDamage`）を`TRIGGER_TARGET`（被弾ユニット）の最大HPで割った比率を
+       * `op`/`value`と比較する。`EVENT_PAYLOAD`のリテラル比較では最大HP相対の
+       * 「1ヒットで最大HP×N%以上」を表せないため、比率の算出を評価器が担う。
+       */
+      readonly kind: "DAMAGE_MAX_HP_RATIO";
+      readonly field: string;
+      readonly op: ComparisonOperator;
+      readonly value: number;
     }
   | {
       readonly kind: "LAST_RESULT";
@@ -617,6 +631,11 @@ export function createConditionDefinition(
       const field = requireField(input, "field", path);
       const value = requireField(input, "value", path);
       return { kind: input.kind, field, op: createOperator(input, path), value };
+    }
+    case "DAMAGE_MAX_HP_RATIO": {
+      const field = requireField(input, "field", path);
+      const value = requireNumberField(input, path);
+      return { kind: "DAMAGE_MAX_HP_RATIO", field, op: createOperator(input, path), value };
     }
     case "RUNTIME_COUNTER": {
       const counter = createRuntimeCounterId(

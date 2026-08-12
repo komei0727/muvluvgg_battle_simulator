@@ -518,6 +518,78 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-108 (R-DMG-07): maps APPLY_DAMAGE_MOD INCOMING with a damageThreshold (only large hits are reduced)", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+        kind: "APPLY_DAMAGE_MOD",
+        payload: {
+          direction: "INCOMING",
+          damageType: null,
+          formula: { kind: "CONSTANT", value: -0.5 },
+          stacking: { mode: "STACKABLE" },
+          duration: {
+            timeLimit: { unit: "BATTLE", count: 1 },
+            consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          },
+          damageThreshold: {
+            op: "GT",
+            formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+          },
+        },
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("APPLY_DAMAGE_MOD");
+    if (result.kind === "APPLY_DAMAGE_MOD") {
+      expect(result.payload.damageThreshold).toEqual({
+        op: "GT",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+      });
+    }
+  });
+
+  it("UT-CAT-ACT-109 (R-DMG-07): rejects damageThreshold on an OUTGOING damage modifier", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+          kind: "APPLY_DAMAGE_MOD",
+          payload: {
+            direction: "OUTGOING",
+            formula: { kind: "CONSTANT", value: 0.1 },
+            stacking: { mode: "STACKABLE" },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+            damageThreshold: {
+              op: "GT",
+              formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+            },
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-110 (R-DMG-07): rejects an APPLY_DAMAGE_MOD damageThreshold with an unknown op", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_MOD_1",
+          kind: "APPLY_DAMAGE_MOD",
+          payload: {
+            direction: "INCOMING",
+            formula: { kind: "CONSTANT", value: -0.5 },
+            stacking: { mode: "STACKABLE" },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+            damageThreshold: { op: "ALMOST", formula: { kind: "CONSTANT", value: 100 } },
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-086 (DMG-002, Issue #192): rejects an APPLY_DAMAGE_MOD UNIT_STATE field that damage-time resolution cannot evaluate", () => {
     expect(() =>
       createEffectActionDefinition(
