@@ -106,7 +106,7 @@ export const formationRequestSchema = {
   },
 } as const;
 
-const simulationOptionsRequestSchema = {
+export const simulationOptionsRequestSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -226,7 +226,7 @@ export const formationRequestDocSchema = {
   },
 } as const;
 
-const simulationOptionsRequestDocSchema = {
+export const simulationOptionsRequestDocSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -277,7 +277,7 @@ const currentMaximumIntegerValueSchema = {
   },
 } as const;
 
-const valueChangeNumberSchema = {
+export const valueChangeNumberSchema = {
   type: "object",
   additionalProperties: false,
   required: ["before", "after"],
@@ -569,7 +569,7 @@ const actionReservationResponseSchema = {
   },
 } as const;
 
-const battleStateResponseSchema = {
+export const battleStateResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: ["stateVersion", "battleStatus", "turnNumber", "cycleNumber", "units", "actionQueue"],
@@ -628,7 +628,7 @@ const entityCollectionDeltaResponseSchema = {
   },
 } as const;
 
-const unitStateDeltaResponseSchema = {
+export const unitStateDeltaResponseSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -685,7 +685,7 @@ const unitStateDeltaResponseSchema = {
   },
 } as const;
 
-const battleStateDeltaResponseSchema = {
+export const battleStateDeltaResponseSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -711,7 +711,7 @@ const battleStateDeltaResponseSchema = {
   },
 } as const;
 
-const stateTransitionResponseSchema = {
+export const stateTransitionResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: ["causedBySequence", "stateVersionBefore", "stateVersionAfter", "delta"],

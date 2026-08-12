@@ -15,6 +15,7 @@ import type {
   EntityCollectionDeltaResponseBody,
   FormationPositionResponseBody,
   MarkerStateResponseBody,
+  StateTransitionResponseBody,
   SubUnitStateResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
@@ -38,7 +39,8 @@ import type { PositionColumn } from "../../domain/catalog/definitions/catalog-en
 import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
 
-const SCHEMA_VERSION = 1;
+/** `10_API設計.md`「レスポンス本文スキーマのバージョン」。全成功レスポンスで同じ値を返す。 */
+export const SCHEMA_VERSION = 1;
 
 const REVERSE_COLUMNS: Record<PositionColumn, number> = { LEFT: 0, CENTER: 1, RIGHT: 2 };
 const PERCENTAGE_POINT_SCALE = 100;
@@ -290,7 +292,12 @@ function toUnitStateResponseBody(
   };
 }
 
-function toBattleStateResponseBody(
+/**
+ * 通常戦闘・戦術演習の両レスポンスが同じ`BattleStateResponse`を公開するため
+ * （`10_API設計.md`「TacticalExerciseResponse」「`BattleSimulationResponse`と同じ
+ * 構造を再利用し、`result`だけを演習結果へ差し替える」）、変換をここに一本化する。
+ */
+export function toBattleStateResponseBody(
   stateVersion: number,
   snapshot: SimulateBattleResult["initialState"],
   roster: readonly BattleUnitRosterEntry[],
@@ -317,7 +324,7 @@ function toBattleStateResponseBody(
   };
 }
 
-function toBattleLogEventResponseBody(event: BattleLogEvent): BattleLogEventResponseBody {
+export function toBattleLogEventResponseBody(event: BattleLogEvent): BattleLogEventResponseBody {
   return {
     sequence: event.sequence,
     type: event.type,
@@ -538,6 +545,23 @@ function toCombatStatsDeltaResponseBody(delta: UnitStateDelta["combatStats"]): {
 }
 
 /**
+ * R-TEX-04: `UnitRevived`が所有する**基礎**戦闘ステータスの差分。`combatStats`
+ * （実効値）と違い公開状態（`BattleUnitStateResponse`）に適用先を持たない監査用の
+ * 差分であるため、パーセントポイントへは直さず`UNIT_REVIVED.details.baseCombatStats`
+ * と同じ比率のまま運ぶ——単位を変えると同じ値が2つの表記で公開され、突き合わせ
+ * できなくなる。`maximumHp`も基礎値の一部なのでキーから外さない（`hpMaximum`が
+ * 運ぶのは実効値側のHP上限であり、こちらとは別物）。
+ */
+function toBaseCombatStatsDeltaResponseBody(
+  delta: UnitStateDelta["baseCombatStats"],
+): Readonly<Record<string, ValueChangeBody<number>>> | undefined {
+  if (delta === undefined) {
+    return undefined;
+  }
+  return { ...delta };
+}
+
+/**
  * `08_ドメインイベント.md`のフラットな`hp`/`ap`/`pp`/`extraGauge`を、
  * `10_API設計.md`「UnitStateDeltaResponse」の`hp`/`resources.{ap,pp,extraGauge}`
  * 形へ組み替える。`hp`が0を跨ぐ変化を伴う場合は、Domainが明示的には記録しない
@@ -579,6 +603,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
   const effects = toEffectEntityCollectionDeltaResponseBody(delta.effects);
   const charge = toChargeValueChangeResponseBody(delta.charge);
   const { hpMaximum, combatStats } = toCombatStatsDeltaResponseBody(delta.combatStats);
+  const baseCombatStats = toBaseCombatStatsDeltaResponseBody(delta.baseCombatStats);
 
   return {
     ...(delta.hp !== undefined ? { hp: delta.hp } : {}),
@@ -591,6 +616,7 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
     ...(markers !== undefined ? { markers } : {}),
     ...(effects !== undefined ? { effects } : {}),
     ...(charge !== undefined ? { charge } : {}),
+    ...(baseCombatStats !== undefined ? { baseCombatStats } : {}),
   };
 }
 
@@ -616,6 +642,9 @@ function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResp
   return {
     ...(battle !== undefined ? { battle } : {}),
     ...(units !== undefined ? { units } : {}),
+    // R-TEX-02／03: 戦術演習だけが持つ演習状態差分。通常戦闘の`StateDelta`には
+    // 現れないため、モードで分岐せず差分の有無だけで写す。
+    ...(delta.exercise !== undefined ? { exercise: delta.exercise } : {}),
   };
 }
 
@@ -623,7 +652,9 @@ function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResp
  * `10_API設計.md`「StateTransitionResponse」: `causedBySequence`/`stateVersion*`は
  * Applicationの`StateTransition`とそのまま同じ意味を持つため直接写す。
  */
-function toStateTransitionResponseBody(transition: StateTransition) {
+export function toStateTransitionResponseBody(
+  transition: StateTransition,
+): StateTransitionResponseBody {
   return {
     causedBySequence: transition.causedBySequence,
     stateVersionBefore: transition.stateVersionBefore,

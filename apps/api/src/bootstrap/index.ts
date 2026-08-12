@@ -92,6 +92,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
     shutdownGate: shutdownState,
     catalogUseCase: getBattleSimulationCatalogUseCase,
     previewUseCase: previewFormationStatsUseCase,
+    // 戦術演習（UC-03）は戦闘と同じWorker Pool（同じタイムアウト・容量制御・
+    // Catalogリビジョン検査）で実行する（`09_アプリケーション設計.md`「実行境界」）。
+    exerciseUseCase: pool,
     docsEnabled,
     corsAllowedOrigins,
   });

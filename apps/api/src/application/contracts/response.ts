@@ -274,6 +274,15 @@ export interface UnitStateDeltaResponseBody {
   readonly markers?: EntityCollectionDeltaResponseBody;
   readonly cooldowns?: EntityCollectionDeltaResponseBody;
   readonly charge?: ValueChangeBody<unknown>;
+  /**
+   * R-TEX-04のブレイク強化（`UnitRevived`が所有）が書き換えた**基礎**戦闘ステータスの
+   * 差分。戦術演習のレスポンスにだけ現れる（通常戦闘では基礎値が不変）。実効値の
+   * 差分（`combatStats`／`hpMaximum`）とは独立に起き、公開状態へ適用先を持たない
+   * 監査用の差分であるため、`UNIT_REVIVED.details.baseCombatStats`と同じく比率のまま
+   * 運ぶ（`CombatStatsResponse`のパーセントポイント表記へは直さない）。`maximumHp`も
+   * 基礎値の一部としてそのままキーに含む。
+   */
+  readonly baseCombatStats?: Readonly<Record<string, ValueChangeBody<number>>>;
 }
 
 export interface BattleDeltaResponseBody {
@@ -287,10 +296,20 @@ export interface ActionQueueDeltaResponseBody {
   readonly after: readonly ActionReservationResponseBody[];
 }
 
+/**
+ * `10_API設計.md`「BattleStateDeltaResponse」の`exercise`。戦術演習だけで現れる
+ * （R-TEX-02／03）。累計スコアとブレイク回数は別々のイベントが所有するため独立に変わる。
+ */
+export interface ExerciseDeltaResponseBody {
+  readonly totalScore?: ValueChangeBody<number>;
+  readonly breakCount?: ValueChangeBody<number>;
+}
+
 export interface BattleStateDeltaResponseBody {
   readonly battle?: BattleDeltaResponseBody;
   readonly units?: Readonly<Record<string, UnitStateDeltaResponseBody>>;
   readonly actionQueue?: ActionQueueDeltaResponseBody;
+  readonly exercise?: ExerciseDeltaResponseBody;
 }
 
 export interface StateTransitionResponseBody {
@@ -305,6 +324,40 @@ export interface BattleSimulationResponseBody {
   readonly battleId: string;
   readonly catalogRevision: string;
   readonly result: BattleResultResponseBody;
+  readonly initialState: BattleStateResponseBody;
+  readonly finalState: BattleStateResponseBody;
+  readonly events: readonly BattleLogEventResponseBody[];
+  readonly stateTransitions: readonly StateTransitionResponseBody[];
+}
+
+/** `10_API設計.md`「ExerciseBreakResponse」（R-TEX-10 #2）。 */
+export interface ExerciseBreakResponseBody {
+  readonly breakNumber: number;
+  readonly turnNumber: number;
+  readonly cumulativeScoreAtBreak: number;
+}
+
+/**
+ * `10_API設計.md`「ExerciseResultResponse」。勝敗（`outcome`）を持たない —
+ * 戦術演習は勝敗を確定しない（R-TEX-10 #1）。
+ */
+export interface ExerciseResultResponseBody {
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly totalScore: number;
+  readonly breakCount: number;
+  readonly breaks: readonly ExerciseBreakResponseBody[];
+}
+
+/**
+ * `10_API設計.md`「TacticalExerciseResponse」。`BattleSimulationResponse`と同じ構造を
+ * 再利用し、`result`だけを演習結果へ差し替える。
+ */
+export interface TacticalExerciseResponseBody {
+  readonly schemaVersion: number;
+  readonly battleId: string;
+  readonly catalogRevision: string;
+  readonly result: ExerciseResultResponseBody;
   readonly initialState: BattleStateResponseBody;
   readonly finalState: BattleStateResponseBody;
   readonly events: readonly BattleLogEventResponseBody[];

@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildServer, type SimulateBattleUseCasePort } from "./build-server.js";
+import {
+  buildServer,
+  type SimulateBattleUseCasePort,
+  type SimulateTacticalExerciseUseCasePort,
+} from "./build-server.js";
 import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import { toSimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-request-mapper.js";
+import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import {
   createSkillDefinitionId,
@@ -117,6 +123,21 @@ function buildTestUseCase(): SimulateBattleUseCasePort {
   );
 }
 
+/** 戦術演習POST（TEX-007）のCORS検証用。戦闘と同じ合成Catalogをメインスレッドで直接回す。 */
+function buildTestExerciseUseCase(): SimulateTacticalExerciseUseCasePort {
+  const units = new Map([[createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")]]);
+  const useCase = new SimulateTacticalExerciseUseCase({
+    battleCatalog: new FakeBattleCatalog(units),
+    battleIdGenerator: new FixedBattleIdGenerator(["B_EX_1"]),
+    randomSourceFactory: new SequenceRandomSourceFactory([]),
+    clock: new ManualClock(Date.now()),
+  });
+  return {
+    executeTacticalExercise: (request, context) =>
+      Promise.resolve(useCase.execute(toSimulateTacticalExerciseCommand(request), context)),
+  };
+}
+
 function validRequestBody() {
   return {
     allyFormation: {
@@ -183,6 +204,51 @@ describe("CORS (10_API設計.md「CORS」、11_インフラストラクチャ設
     expect(allowedMethods).toContain("GET");
     expect(allowedMethods).toContain("POST");
     expect(allowedMethods).toContain("OPTIONS");
+  });
+
+  it("API-CORS-011 (TEX-007): a preflight OPTIONS for the tactical-exercise POST succeeds from an allowed origin, so a browser can reach the new endpoint at all", async () => {
+    app = await buildServer(buildTestUseCase(), { corsAllowedOrigins: [ALLOWED_ORIGIN] });
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/tactical-exercises",
+      headers: {
+        origin: ALLOWED_ORIGIN,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(ALLOWED_ORIGIN);
+    expect(String(response.headers["access-control-allow-methods"])).toContain("POST");
+    expect(String(response.headers["access-control-allow-headers"])).toContain("Content-Type");
+  });
+
+  it("API-CORS-012 (TEX-007): a tactical-exercise POST from an allowed origin receives the matching Access-Control-Allow-Origin header", async () => {
+    app = await buildServer(buildTestUseCase(), {
+      corsAllowedOrigins: [ALLOWED_ORIGIN],
+      exerciseUseCase: buildTestExerciseUseCase(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/tactical-exercises",
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+      },
+      headers: { origin: ALLOWED_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBe(ALLOWED_ORIGIN);
   });
 
   it("API-CORS-004: a disallowed origin does not receive any Access-Control-* header on a normal request", async () => {
