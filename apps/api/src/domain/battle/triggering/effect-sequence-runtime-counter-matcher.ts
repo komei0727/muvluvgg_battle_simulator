@@ -8,6 +8,7 @@ import { applyUpdate } from "./runtime-counter-matcher.js";
 import { evaluateTriggerCondition } from "./trigger-condition-evaluator.js";
 import { evaluateSourceSelector, evaluateTargetSelector } from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
+import { matchesTriggerEventType } from "./trigger-event-matching.js";
 
 /**
  * `R-EFF-11`「`EffectSequence`スコープ」（EFF-006/Issue #212）: `EffectSequence`
@@ -73,7 +74,7 @@ export function matchEffectSequenceRuntimeCounterUpdates(
       }
       const trigger = update.trigger;
       const matches =
-        trigger.eventType === event.eventType &&
+        matchesTriggerEventType(trigger.eventType, event.eventType) &&
         trigger.category === event.category &&
         evaluateSourceSelector(trigger.sourceSelector, actor, event, unitsById) &&
         evaluateTargetSelector(trigger.targetSelector, actor, event, unitsById) &&

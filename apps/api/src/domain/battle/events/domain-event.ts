@@ -7,6 +7,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { StateDelta } from "./state-delta.js";
+import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { BattleOutcome, CompletionReason } from "../outcome/victory-policy.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
@@ -1324,6 +1325,43 @@ export interface BattleDomainEventPayloadMap {
     /** 計上の原因になったダメージイベント（`DamageApplied`／`ContinuousDamageApplied`）。 */
     readonly causeEventId: DomainEventId;
   };
+  /**
+   * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-03）: 演習中の敵ユニットの
+   * HPが0へ到達し、戦闘不能に代えてブレイクとして解決することが確定した直後に
+   * 発行する。`UnitDefeated`とは排他であり、同じHP0到達で両方が出ることはない。
+   *
+   * ブレイク回数差分（`exercise.breakCount`）を単独で所有し、撃破トリガー・
+   * 効果解除（`EffectRemoved`／`MarkerRemoved`）・復活（`UnitRevived`）の親になる。
+   */
+  readonly UnitBroken: {
+    readonly unitId: BattleUnitId;
+    /** 1から始まるブレイク番号（R-TEX-04が強化量を決める`n`と同じ値）。 */
+    readonly breakNumber: number;
+    /**
+     * ブレイクが発生したターン。エンベロープの`turnNumber`と同じ値だが、R-TEX-10 #2の
+     * ブレイク履歴はこのイベントのpayloadだけからの投影として定義されるため、
+     * 投影側がエンベロープへ降りずに済むよう明示的に運ぶ。
+     */
+    readonly turnNumber: number;
+    /** ブレイク確定時点の累計スコア（R-TEX-10 #2の`cumulativeScoreAtBreak`）。 */
+    readonly totalScore: number;
+    /** ブレイクに至ったHP0到達の原因イベント（`DamageApplied`／`ResourceChanged`等）。 */
+    readonly causeEventId: DomainEventId;
+  };
+  /**
+   * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-05 #5）: 解除・強化・全回復まで
+   * 完了して敵ユニットが復活した直後に発行する。HP差分と基礎戦闘ステータス差分
+   * （`units.<id>.baseCombatStats`）を所有する — 強化後の戦闘中ステータス再計算そのものは
+   * 既存の`CombatStatChanged`が表す。
+   */
+  readonly UnitRevived: {
+    readonly unitId: BattleUnitId;
+    readonly breakNumber: number;
+    /** 全回復後のHP（＝強化後の最大HP）。 */
+    readonly hpAfter: number;
+    /** 強化後の基礎戦闘ステータス（R-TEX-04の適用結果）。 */
+    readonly baseCombatStats: CombatStats;
+  };
 }
 
 /**
@@ -1332,7 +1370,16 @@ export interface BattleDomainEventPayloadMap {
  * 「メモリー効果の有効/無効条件の変化」はRES-005のスコープで到達可能になった
  * 時点で追加する。
  */
-export type CombatStatChangeReason = "EFFECT_APPLIED" | "EFFECT_EXPIRED" | "EFFECT_REMOVED";
+export type CombatStatChangeReason =
+  | "EFFECT_APPLIED"
+  | "EFFECT_EXPIRED"
+  | "EFFECT_REMOVED"
+  /**
+   * R-TEX-04（TEX-004、Issue #430）: 戦術演習のブレイク強化が`baseCombatStats`を
+   * 書き換えたことによる再計算。効果の増減を伴わない唯一の再計算契機であり、
+   * R-STA-04の2層構造で基礎側が動いた場合を表す。
+   */
+  | "BREAK_ENHANCEMENT";
 
 /**
  * G-09（M7-002A／Issue #255）: リソース上限の再計算契機。上限変更は

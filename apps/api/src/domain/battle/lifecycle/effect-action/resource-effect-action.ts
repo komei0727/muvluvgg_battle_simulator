@@ -1,12 +1,14 @@
 import { grantEffect } from "../../effects/effect-grant-service.js";
-import { recalculateCombatStats } from "../../effects/combat-stat-recalculation-service.js";
-import { applyModifyResourceAction } from "../resource-modification-service.js";
+import { recalculateCombatStatsSteps } from "../../effects/combat-stat-recalculation-service.js";
+import { applyModifyResourceActionSteps } from "../resource-modification-service.js";
 import {
   completeGrant,
+  driveRemovalSteps,
   evaluateGrantMagnitude,
   rejectIfImmune,
   type EffectActionHandler,
   type EffectActionOutcome,
+  type SteppedEffectActionHandler,
 } from "./effect-action-handler.js";
 import { eventContextOf, grantSourceOf, requireActorUnit } from "./effect-action-group-context.js";
 
@@ -20,30 +22,39 @@ import { eventContextOf, grantSourceOf, requireActorUnit } from "./effect-action
  * EffectActionが実際に適用される対象数、`resolveActionApplications`が算出）で
  * 総量を等分する。
  */
-export const resolveModifyResource: EffectActionHandler<"MODIFY_RESOURCE"> = (
+/**
+ * R-TEX-03 #2: 演習で敵のHPが0へ落ちるとブレイク解決がこのEffectActionの内側で
+ * 連鎖境界を作る（撃破トリガーを解除より前に完了させる必要がある）ため、DAMAGE・
+ * HEALと同じstepped handlerにして`driveRemovalSteps`へ委譲する。通常戦闘では
+ * generatorが一度も`yield`しないため、従来と同じ一括解決のままである。
+ */
+export const resolveModifyResource: SteppedEffectActionHandler<"MODIFY_RESOURCE"> = function* (
   input,
-): EffectActionOutcome => {
+) {
   const { context, box, application, effectAction, startingEventId, distributionShareCount } =
     input;
   const actor = requireActorUnit(context, box);
-  const modifyResult = applyModifyResourceAction(
-    application.hits,
-    actor,
-    effectAction,
-    box.units,
-    {
-      ...eventContextOf(context),
-      parentEventId: startingEventId,
-      // COOLDOWN_MANIPULATION/MODIFY_RESOURCE/HEALは発生源ユニットを前提とする
-      // （`CooldownManipulationEventContext`等の`sourceUnitId`は必須）。
-      // Memory由来の解決はR-MEM-04に従って拒否する。
-      sourceUnitId: actor.battleUnitId,
-      ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
-      ...(context.onFactEventForPassiveChain !== undefined
-        ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-        : {}),
-    },
-    distributionShareCount,
+  const modifyResult = yield* driveRemovalSteps(
+    input,
+    applyModifyResourceActionSteps(
+      application.hits,
+      actor,
+      effectAction,
+      box.units,
+      {
+        ...eventContextOf(context),
+        parentEventId: startingEventId,
+        // COOLDOWN_MANIPULATION/MODIFY_RESOURCE/HEALは発生源ユニットを前提とする
+        // （`CooldownManipulationEventContext`等の`sourceUnitId`は必須）。
+        // Memory由来の解決はR-MEM-04に従って拒否する。
+        sourceUnitId: actor.battleUnitId,
+        ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+        ...(context.onFactEventForPassiveChain !== undefined
+          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+          : {}),
+      },
+      distributionShareCount,
+    ),
   );
   box.units = modifyResult.units;
   return {
@@ -67,43 +78,45 @@ export const resolveModifyResource: EffectActionHandler<"MODIFY_RESOURCE"> = (
  * `payload`に`stacking`を持たないため、`APPLY_RESOURCE_GAIN_MOD`と同じく常に
  * 重複あり（`duplicate: true`）で付与する。
  */
-export const resolveModifyResourceCapacity: EffectActionHandler<"MODIFY_RESOURCE_CAPACITY"> = (
-  input,
-): EffectActionOutcome => {
-  const { context, box, application, effectAction, startingEventId } = input;
-  const magnitude = evaluateGrantMagnitude(input, effectAction.payload.formula);
-  const rejected = rejectIfImmune(input, magnitude);
-  if (rejected !== undefined) {
-    return rejected;
-  }
-  const beforeGrantUnits = box.units;
-  const grantResult = grantEffect(
-    eventContextOf(context),
-    box.units,
-    {
-      definition: effectAction,
-      ...grantSourceOf(context),
-      targetUnitId: application.targetUnitId,
-      duplicate: true,
-      magnitude,
-      durationDefinition: effectAction.payload.duration,
-    },
-    startingEventId,
-  );
-  box.units = grantResult.units;
-  return completeGrant(
-    input,
-    recalculateCombatStats(
+export const resolveModifyResourceCapacity: SteppedEffectActionHandler<"MODIFY_RESOURCE_CAPACITY"> =
+  function* (input) {
+    const { context, box, application, effectAction, startingEventId } = input;
+    const magnitude = evaluateGrantMagnitude(input, effectAction.payload.formula);
+    const rejected = rejectIfImmune(input, magnitude);
+    if (rejected !== undefined) {
+      return rejected;
+    }
+    const beforeGrantUnits = box.units;
+    const grantResult = grantEffect(
       eventContextOf(context),
-      beforeGrantUnits,
       box.units,
-      application.targetUnitId,
-      context.definitions.effectActions,
-      grantResult.lastEventId,
-      "EFFECT_APPLIED",
-    ),
-  );
-};
+      {
+        definition: effectAction,
+        ...grantSourceOf(context),
+        targetUnitId: application.targetUnitId,
+        duplicate: true,
+        magnitude,
+        durationDefinition: effectAction.payload.duration,
+      },
+      startingEventId,
+    );
+    box.units = grantResult.units;
+    return completeGrant(
+      input,
+      yield* driveRemovalSteps(
+        input,
+        recalculateCombatStatsSteps(
+          eventContextOf(context),
+          beforeGrantUnits,
+          box.units,
+          application.targetUnitId,
+          context.definitions.effectActions,
+          grantResult.lastEventId,
+          "EFFECT_APPLIED",
+        ),
+      ),
+    );
+  };
 
 /**
  * G-05（`14_Catalog定義スキーマ.md`、M7-002）: `APPLY_STAT_MOD`と同じ評価規約で

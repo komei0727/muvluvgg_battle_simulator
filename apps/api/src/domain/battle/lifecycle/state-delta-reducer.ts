@@ -548,6 +548,13 @@ function applyUnitDelta(
     unit.combatStats,
     delta.combatStats,
   );
+  // R-TEX-04: ブレイク強化（`UnitRevived`）だけが動かす基礎側。`combatStats`とは
+  // 独立の差分であり、同じイベントが両方を運ぶこともある。
+  const baseCombatStats = applyCombatStatsDelta(
+    `${path}.baseCombatStats`,
+    unit.baseCombatStats,
+    delta.baseCombatStats,
+  );
   return {
     hp: delta.hp?.after ?? unit.hp,
     ap: delta.ap?.after ?? unit.ap,
@@ -557,6 +564,7 @@ function applyUnitDelta(
     maximumPp: delta.maximumPp?.after ?? unit.maximumPp,
     maximumExtraGauge: delta.maximumExtraGauge?.after ?? unit.maximumExtraGauge,
     combatStats,
+    baseCombatStats,
     ...(cooldowns !== undefined ? { cooldowns } : {}),
     ...(nextCharge !== undefined ? { charge: nextCharge } : {}),
     ...(skillCounters !== undefined ? { skillCounters } : {}),
@@ -747,11 +755,16 @@ function applyExerciseDelta(
       "references exercise state absent from the current state; only a TACTICAL_EXERCISE battle owns one",
     );
   }
-  if (delta.totalScore === undefined) {
-    return current;
+  if (delta.totalScore !== undefined) {
+    assertBeforeMatches("delta.exercise.totalScore", current.totalScore, delta.totalScore);
   }
-  assertBeforeMatches("delta.exercise.totalScore", current.totalScore, delta.totalScore);
-  return { ...current, totalScore: delta.totalScore.after };
+  if (delta.breakCount !== undefined) {
+    assertBeforeMatches("delta.exercise.breakCount", current.breakCount, delta.breakCount);
+  }
+  return {
+    totalScore: delta.totalScore?.after ?? current.totalScore,
+    breakCount: delta.breakCount?.after ?? current.breakCount,
+  };
 }
 
 /** `stateAt(sequence N) = initialState + delta(1) + delta(2) + ... + delta(N)` (`08_ドメインイベント.md`「状態復元」)。 */

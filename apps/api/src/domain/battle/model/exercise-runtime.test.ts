@@ -43,6 +43,14 @@ describe("ExerciseRuntime (R-TEX-02 スコア定義)", () => {
     expect(exercise.totalScore).toBe(10);
   });
 
+  it("UT-R-TEX-03-001: counts each break, reporting the 1-based break number with the surrounding count delta", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+
+    expect(exercise.recordBreak()).toEqual({ breakNumber: 1, before: 0, after: 1 });
+    expect(exercise.recordBreak()).toEqual({ breakNumber: 2, before: 1, after: 2 });
+    expect(exercise.snapshot()).toEqual({ totalScore: 0, breakCount: 2 });
+  });
+
   it("PROP-TEX-001: the cumulative score never decreases and always equals the sum of the accountable amounts", () => {
     fc.assert(
       fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 40 }), (amounts) => {

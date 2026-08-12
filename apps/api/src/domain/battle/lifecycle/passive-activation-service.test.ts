@@ -2153,6 +2153,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           maximumPp: owner.maximumPp,
           maximumExtraGauge: owner.maximumExtraGauge,
           combatStats: owner.combatStats,
+          baseCombatStats: owner.combatStats,
           skillCounters: { [skill.skillDefinitionId]: { [counterId]: 1 } },
         },
       },
@@ -2413,6 +2414,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           maximumPp: owner.maximumPp,
           maximumExtraGauge: owner.maximumExtraGauge,
           combatStats: owner.combatStats,
+          baseCombatStats: owner.combatStats,
         },
       },
     };
@@ -2496,6 +2498,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       maximumPp: finalOwner.maximumPp,
       maximumExtraGauge: finalOwner.maximumExtraGauge,
       combatStats: finalOwner.combatStats,
+      baseCombatStats: finalOwner.combatStats,
       skillCounters: { [skill.skillDefinitionId]: {} },
     });
   });
@@ -4036,6 +4039,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
             maximumPp: holder.maximumPp,
             maximumExtraGauge: holder.maximumExtraGauge,
             combatStats: holder.combatStats,
+            baseCombatStats: holder.combatStats,
             effects: [
               {
                 effectInstanceId: curseEffect().effectInstanceId,
@@ -4566,6 +4570,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
             maximumPp: actor.maximumPp,
             maximumExtraGauge: actor.maximumExtraGauge,
             combatStats: actor.combatStats,
+            baseCombatStats: actor.combatStats,
             effectSequenceCounters: { [skillUseId]: { [hitCounterId]: 1 } },
           },
         },

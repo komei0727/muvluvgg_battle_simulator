@@ -41,6 +41,14 @@ export interface BattleUnitSnapshot {
   readonly maximumExtraGauge: number;
   /** R-STA-04: AppliedEffectの付与・失効・解除のたびに再計算される現在の実効値。常に存在する（`BattleUnitRosterEntry.combatStats`は不変な開始時点のスナップショット）。 */
   readonly combatStats: CombatStats;
+  /**
+   * R-STA-04の2層構造の基礎側（編成補正・適性補正だけを反映した基準値）。通常戦闘では
+   * 戦闘中不変だが、戦術演習のブレイク強化（R-TEX-04、`UnitRevived`が所有する
+   * `units.<id>.baseCombatStats`差分）だけがこれを書き換えるため、可変状態として
+   * 射影する — これが無いと独立Reducerが強化差分を適用する先を持たず、
+   * `initialState + 全差分 = finalState`が演習で成立しない。
+   */
+  readonly baseCombatStats: CombatStats;
   /** 空でない場合だけ持つ(`captureBattleState`はクールタイムが1件も無いユニットへ`{}`を書かない)。 */
   readonly cooldowns?: Readonly<Record<SkillDefinitionId, CooldownState>>;
   readonly charge?: ChargeState;
@@ -165,6 +173,7 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
       maximumPp: unit.maximumPp,
       maximumExtraGauge: unit.maximumExtraGauge,
       combatStats: unit.combatStats,
+      baseCombatStats: unit.baseCombatStats,
       ...(cooldownIds.length > 0 ? { cooldowns } : {}),
       ...(unit.charge !== undefined
         ? {

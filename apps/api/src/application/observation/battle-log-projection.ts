@@ -95,6 +95,10 @@ export const SUMMARY_EVENT_TYPE_INCLUSION: Readonly<Record<BattleDomainEventType
   MarkerRemoved: false,
   // R-TEX-02／`08_ドメインイベント.md`「公開レベル」: スコア加算は`DETAILED`から。
   ExerciseScoreAccumulated: false,
+  // R-TEX-03／05: ブレイクと復活は`UnitDefeated`と同じく戦闘の骨格を成す事実なので
+  // `SUMMARY`に含める（`08_ドメインイベント.md`「公開レベル」）。
+  UnitBroken: true,
+  UnitRevived: true,
 };
 
 /**

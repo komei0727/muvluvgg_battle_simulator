@@ -9,6 +9,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import type { ResolveBreakHook } from "../events/break-resolution.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { ConsumptionKind, SkillType } from "../../catalog/definitions/catalog-enums.js";
 import type {
@@ -159,6 +160,16 @@ export interface DamageEventContext {
    * イベント発行も一切行わない。
    */
   readonly exercise?: ExerciseRuntime;
+  /**
+   * R-TEX-03: 演習の敵ユニットのHPが0へ到達したとき、戦闘不能に代えてブレイク・復活を
+   * 解決する`BreakResolutionService`。`removeFreezeEffect`等とまったく同じ理由
+   * （`combat/`は`effects/`へ依存できない、module境界）で呼び出し側が注入する。
+   *
+   * `exercise`を指定しながらこれを省略した場合、敵のHP0到達は`UnitDefeated`へ
+   * 落ちる代わりに明確な例外になる（`requireResolveBreak`）— 配線漏れが
+   * 「その経路だけ演習が終了する」という形で潜伏しないようにするためである。
+   */
+  readonly resolveBreak?: ResolveBreakHook;
   /**
    * R-ACTN-01 #2: このヒット列を解決した対象が`TargetSelectorDefinition.includeDefeated:
    * true`で選択された場合`true`。未指定（`false`扱い）なら、これまでどおり参照時点で既に

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   composeResourceCapacity,
   computeResourceCapacities,
+  recalculateResourceCapacities,
 } from "./resource-capacity-recalculation-service.js";
+import { resolveBreakSteps } from "./break-resolution-service.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
+import { createHitPoint } from "../model/resource-gauge.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import { createBattleId } from "../../shared/ids.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -194,5 +200,102 @@ describe("computeResourceCapacities — G-09 MODIFY_RESOURCE_CAPACITYの上限�
     // HPは`combatStats.maximumHp`が上限であるため、`composeResourceCapacity`を
     // `computeCombatStats`のMAXIMUM_HP合成の最後段として使う（R-NUM-01の全精度保持）。
     expect(composeResourceCapacity(1000.5, target, "HP", definitions(def))).toBe(1500.5);
+  });
+});
+
+describe("recalculateResourceCapacities defeat detection (R-TEX-03)", () => {
+  function enemy(currentHp: number, maximumHp: number): BattleUnit {
+    const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+    const stats: CombatStats = { ...BASE_COMBAT_STATS, maximumHp };
+    const member: BattlePartyMember = {
+      battleUnitId: createBattleUnitId("BU_ENEMY"),
+      unitDefinitionId: createUnitDefinitionId("UNIT_A"),
+      attribute: "AGGRESSIVE",
+      position,
+      globalCoordinate: toGlobalCoordinate("ENEMY", position),
+      combatStats: stats,
+    };
+    const base = createBattleUnit(member, "ENEMY", {
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 10,
+    });
+    return { ...base, currentHp: createHitPoint(currentHp, maximumHp) };
+  }
+
+  it("UT-R-TEX-03-008: clamping the exercise enemy's HP to 0 after a MAXIMUM_HP capacity drop resolves as a break, not a defeat", () => {
+    // 上限が0へ落ちて現在値が可動域外になる状況を、`combatStats.maximumHp`を0にした
+    // ユニットで直接作る（`recalculateCombatStats`が既に合成を終えた後の状態）。
+    const target = enemy(100, 100);
+    const broken: BattleUnit = { ...target, combatStats: { ...target.combatStats, maximumHp: 0 } };
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const exercise = new ExerciseRuntime(target.baseCombatStats);
+    const base = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId: seed.eventId,
+    };
+
+    recalculateResourceCapacities(
+      {
+        ...base,
+        exercise,
+        resolveBreak: (targetUnitId, units, causeEventId) =>
+          resolveBreakSteps({ ...base, exercise }, units, targetUnitId, new Map(), causeEventId),
+      },
+      [broken],
+      broken.battleUnitId,
+      new Map(),
+      seed.eventId,
+      "EFFECT_APPLIED",
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).not.toContain("UnitDefeated");
+    expect(exercise.breakCount).toBe(1);
+  });
+
+  it("UT-R-TEX-03-009: the same clamp in a normal battle still emits UnitDefeated", () => {
+    const target = enemy(100, 100);
+    const broken: BattleUnit = { ...target, combatStats: { ...target.combatStats, maximumHp: 0 } };
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+
+    recalculateResourceCapacities(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+      },
+      [broken],
+      broken.battleUnitId,
+      new Map(),
+      seed.eventId,
+      "EFFECT_APPLIED",
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitDefeated");
+    expect(types).not.toContain("UnitBroken");
   });
 });

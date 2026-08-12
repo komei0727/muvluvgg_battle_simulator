@@ -38,6 +38,7 @@ export function initialSnapshotFor(
           maximumPp: unit.maximumPp,
           maximumExtraGauge: unit.maximumExtraGauge,
           combatStats: unit.combatStats,
+          baseCombatStats: unit.baseCombatStats,
           ...(include.has("cooldowns") && Object.keys(unit.cooldowns).length > 0
             ? { cooldowns: unit.cooldowns }
             : {}),

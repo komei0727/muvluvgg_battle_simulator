@@ -1,4 +1,4 @@
-import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
+import { recalculateCombatStatsSteps } from "./combat-stat-recalculation-service.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot, toMarkerSnapshot } from "../events/state-delta.js";
@@ -14,6 +14,8 @@ import type {
 } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
+import type { ResolveBreakHook } from "./../events/break-resolution.js";
 import type {
   ActionId,
   DomainEventId,
@@ -52,6 +54,12 @@ export interface LinkedGroupCascadeContext {
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
+  /**
+   * R-TEX-03: 除去に伴うCombatStat再計算がHP上限を下げ、現在HPが0へ切り下げられた
+   * 場合のブレイク解決。ここでは読まず`recalculateCombatStats`へそのまま渡す。
+   */
+  readonly exercise?: ExerciseRuntime;
+  readonly resolveBreak?: ResolveBreakHook;
 }
 
 /**
@@ -442,7 +450,7 @@ export function* removeGroupMembersSteps(
             });
       lastEventId = removed.eventId;
 
-      const recalculation = recalculateCombatStats(
+      const recalculation = yield* recalculateCombatStatsSteps(
         {
           recorder: context.recorder,
           turnNumber: context.turnNumber,
@@ -451,6 +459,8 @@ export function* removeGroupMembersSteps(
           ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
           resolutionScopeId: context.resolutionScopeId,
           rootEventId: context.rootEventId,
+          ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
+          ...(context.resolveBreak !== undefined ? { resolveBreak: context.resolveBreak } : {}),
         },
         beforeRemovalUnits,
         working,

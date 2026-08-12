@@ -1,6 +1,6 @@
 import { applyDamageActionSteps } from "../../combat/damage-application-service.js";
 import { grantEffect } from "../../effects/effect-grant-service.js";
-import { recalculateCombatStats } from "../../effects/combat-stat-recalculation-service.js";
+import { recalculateCombatStatsSteps } from "../../effects/combat-stat-recalculation-service.js";
 import {
   findBlockingImmunity,
   rejectEffectApplication,
@@ -164,7 +164,14 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
     },
     parentEventId,
   );
-  const recalculation = recalculateCombatStats(
+  // R-TEX-03 #2: 再計算がHP上限を下げて演習の敵をブレイクさせた場合、その中間stepを
+  // 連鎖driverへ返して撃破トリガーを解除より前に解決させる（同期wrapperを使うと
+  // 解除・強化・全回復まで済ませてからまとめて通知され、順序が逆転する）。
+  //
+  // 通常戦闘では`recalculateCombatStatsSteps`が一度も`yield`しないため、ループ本体は
+  // 実行されず、末尾の1回だけの通知（従来と同じ粒度）になる。
+  let cursor = eventsStart;
+  const recalculationSteps = recalculateCombatStatsSteps(
     eventContext,
     units,
     grantResult.units,
@@ -173,11 +180,22 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
     grantResult.lastEventId,
     "EFFECT_APPLIED",
   );
+  let step = recalculationSteps.next();
+  while (!step.done) {
+    // 記録済みで未通知のイベントをまとめて渡す（`step.value.events`はその部分集合）。
+    // cursorを進めることで、次のstepと末尾の通知が同じイベントを二度渡さない。
+    const injectedMidway = yield {
+      events: context.recorder.getEvents().slice(cursor),
+      units: step.value.units,
+    };
+    cursor = context.recorder.getEvents().length;
+    step = recalculationSteps.next(injectedMidway ?? step.value.units);
+  }
   const injected = yield {
-    events: context.recorder.getEvents().slice(eventsStart),
-    units: recalculation.units,
+    events: context.recorder.getEvents().slice(cursor),
+    units: step.value.units,
   };
-  return { units: injected ?? recalculation.units, lastEventId: recalculation.lastEventId };
+  return { units: injected ?? step.value.units, lastEventId: step.value.lastEventId };
 }
 
 /** R-SKL-06 #5: DAMAGE適用結果から`EffectActionCompleted`のresultKindを導く。 */
@@ -239,8 +257,8 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       consumeEffectDuration,
       finalizeConsumedEffectDurations,
       includeDefeated: application.includeDefeated,
-      // R-TEX-02: 戦術演習の演習状態をダメージ適用の最深部まで運ぶ（通常戦闘では未指定）。
-      ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
+      // R-TEX-02／R-TEX-03: 演習状態とブレイク解決hookは`eventContextOf`が組で載せる
+      // （上の spread に含まれる）。ここで個別に足すと片方だけ渡す配線ミスを許してしまう。
       // R-STS-03＋R-EFF-09: `combat/`は`effects/`へ依存できないため、凍結解除の
       // linkedEffectGroupカスケード（`duration-expiry-service.ts`と同じ
       // `collectLinkedGroupCascade`）とCombatStat再計算をここから注入する。

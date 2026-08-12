@@ -18,6 +18,8 @@ import { absorbFromNextSubUnit, emitSubUnitDamaged } from "../combat/sub-unit-po
 import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { recordExerciseScoreIfAny } from "../events/exercise-score-recording.js";
+import { requiresBreakResolution } from "../events/break-resolution.js";
+import { resolveBreakSteps } from "../effects/break-resolution-service.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -506,6 +508,45 @@ export function applyOneContinuousDamage(
   );
 
   if (!isDefeated(targetBeforeHp) && isDefeated(updatedTarget)) {
+    // R-TEX-03: 演習の敵は戦闘不能にならずブレイクとして解決する。到達経路を問わない
+    // （R-TEX-03 #1）ため、ダメージpipelineの外にある継続ダメージも同じシームを通す。
+    const exercise = context.exercise;
+    if (exercise !== undefined && requiresBreakResolution(exercise, updatedTarget)) {
+      // ブレイク解決自身が`UnitBroken`をPS/Memory連鎖へ渡すため、ここまでの
+      // `ContinuousDamageApplied`等を先に通知してから駆動する。
+      //
+      // R-TEX-03 #2の「撃破トリガーを解除より前に完了させる」は、以下のstepごとの
+      // `onFactEvent`通知が担う。継続ダメージのtickを起こす唯一のproduction経路
+      // （`continuous-heal-service.ts`）は常に`onFactEvent`を渡すため、この関数を
+      // generatorにせずとも順序が保てる — 渡さない呼び出し側を足す場合は、
+      // `resource-modification-service.ts`と同じくstepを駆動側へ返す形へ変える必要がある。
+      notify(factEventsStart);
+      const steps = resolveBreakSteps(
+        { ...context, exercise },
+        working,
+        holder.battleUnitId,
+        context.effectActions,
+        applied.eventId,
+        // この経路の`UnitDefeated`と同じ発生源（継続ダメージの付与者。メモリー由来なら
+        // `sourceSide`だけ、R-MEM-04）。
+        {
+          ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+          ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
+        },
+      );
+      let step = steps.next();
+      while (!step.done) {
+        let stepUnits = step.value.units;
+        if (onFactEvent !== undefined) {
+          for (const event of step.value.events) {
+            stepUnits = onFactEvent(event, stepUnits);
+          }
+        }
+        step = steps.next(stepUnits);
+      }
+      working = step.value.units;
+      return { units: working, lastEventId: step.value.lastEventId };
+    }
     const defeated = context.recorder.record({
       eventType: "UnitDefeated",
       category: "FACT",

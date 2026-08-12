@@ -101,6 +101,7 @@ describe("buildBattleObservation", () => {
           maximumPp: 3,
           maximumExtraGauge: 10,
           combatStats,
+          baseCombatStats: combatStats,
         },
       },
     };

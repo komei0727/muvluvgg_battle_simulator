@@ -5,6 +5,7 @@ import { reduceStateDeltas } from "./state-delta-reducer.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import {
   CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY,
+  SUBUNIT_PROVIDER_ATTACK_KEY,
   effectKindKeyFromDefinitionId,
 } from "../model/applied-effect.js";
 import { createTurnLimit } from "../model/turn-limit.js";
@@ -479,5 +480,780 @@ describe("exercise score accumulation across a resolved turn (R-TEX-02)", () => 
       [],
     );
     expect(recorder.getEvents().filter((e) => e.stateDelta?.exercise !== undefined)).toEqual([]);
+  });
+});
+
+/**
+ * ブレイク・復活パイプライン（TEX-004、R-TEX-03／05〜08）の通し検証。味方の`UNIT_001`だけが
+ * ASを持ち、`hitCount`と1ヒットあたりのダメージ量だけを差し替えて各シナリオを作る。
+ */
+function breakingAttackerDefinitions(options: {
+  readonly damagePerHit: number;
+  readonly hitCount: number;
+  readonly allyPassive?: SkillDefinition;
+  readonly extraEffectActions?: readonly EffectActionDefinition[];
+}): BattleDefinitions {
+  const effectActionDefinitionId = createEffectActionDefinitionId("ACT_BIG_ATTACK");
+  const effectAction: EffectActionDefinition = {
+    kind: "DAMAGE",
+    effectActionDefinitionId,
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      // 防御力の影響を受けない固定値にする — 強化後の防御力でヒットごとの量が変わると、
+      // ブレイク回数と強化倍率の検証がダメージ計算式の検証に化けてしまう。
+      formula: { kind: "CONSTANT", value: options.damagePerHit },
+      hitCount: options.hitCount,
+      critical: { mode: "PREVENTED" },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 1, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+  const skill: SkillDefinition = {
+    skillDefinitionId: createSkillDefinitionId("SKL_BIG_ATTACK"),
+    skillType: "AS",
+    cost: { resource: "AP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_1"),
+          selector: {
+            kind: "SELECT",
+            side: "ENEMY",
+            count: "ALL",
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId }],
+        },
+      ],
+    },
+    // 味方はAPの続く限り同じ行動を繰り返せるため、1ターンに1回だけ使えるようにする
+    // — ブレイク回数と強化倍率の対応を、行動回数に左右されずに検証するためである。
+    cooldown: { unit: "TURN", count: 5 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: "BigAttack", tags: [] },
+  };
+  const unitDefinitions = new DefaultUnitDefinitionMap();
+  const allyUnitDefinitionId = createUnitDefinitionId("UNIT_001");
+  if (options.allyPassive !== undefined) {
+    unitDefinitions.set(allyUnitDefinitionId, {
+      ...unitDefinitions.get(allyUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [options.allyPassive.skillDefinitionId],
+    });
+  }
+  const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+  if (options.allyPassive !== undefined) {
+    skillDefinitions.set(options.allyPassive.skillDefinitionId, options.allyPassive);
+  }
+  return {
+    activeSkillsByUnit: new Map<UnitDefinitionId, readonly SkillDefinition[]>([
+      [allyUnitDefinitionId, [skill]],
+    ]),
+    exSkillByUnit: new Map(),
+    effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+      [effectActionDefinitionId, effectAction],
+      ...(options.extraEffectActions ?? []).map(
+        (definition) => [definition.effectActionDefinitionId, definition] as const,
+      ),
+    ]),
+    unitDefinitions,
+    skillDefinitions,
+  };
+}
+
+function exerciseBattleWith(
+  definitions: BattleDefinitions,
+  enemyOverrides: Partial<BattleUnit> = {},
+) {
+  const enemy = { ...unit("enemy:1", "ENEMY", "UNIT_002"), ...enemyOverrides };
+  const battle = createBattle(
+    createBattleId("B_1"),
+    [unit("ally:1", "ALLY")],
+    [enemy],
+    createTurnLimit(5),
+    definitions,
+    "TACTICAL_EXERCISE",
+  );
+  const recorder = new EventRecorder(createBattleId("B_1"));
+  const random = new SequenceRandomSource([]);
+  const initialState = captureBattleState(battle);
+  const afterTurn = advanceBattle(startBattle(battle, random, recorder), random, recorder);
+  return { battle, recorder, afterTurn, initialState };
+}
+
+/** `initialState + 全stateDelta = finalState`（`08_ドメインイベント.md`「状態復元」）。 */
+function expectStateRestoration(
+  initialState: ReturnType<typeof captureBattleState>,
+  recorder: EventRecorder,
+  afterTurn: Parameters<typeof captureBattleState>[0],
+): void {
+  const deltas = recorder
+    .getEvents()
+    .filter((event) => event.stateDelta !== undefined)
+    .map((event) => event.stateDelta!);
+  expect(reduceStateDeltas(initialState, deltas)).toEqual(captureBattleState(afterTurn));
+}
+
+describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
+  it("SCN-BTL-025: a break applies the table's enhancement to the original baseline, fully heals to the enhanced maximum, and carries AP/PP/EX gauges, cooldowns and the action reservation across it", () => {
+    const enemyBefore = {
+      currentAp: 2,
+      currentPp: 1,
+      currentExtraGauge: 7,
+    } satisfies Partial<BattleUnit>;
+    const { recorder, afterTurn, initialState } = exerciseBattleWith(
+      breakingAttackerDefinitions({ damagePerHit: 150, hitCount: 1 }),
+      enemyBefore,
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).toContain("UnitRevived");
+    // R-TEX-03 #3／R-TEX-06 #1: 敵が`DEFEATED`として観測されるタイミングを作らない。
+    expect(types).not.toContain("UnitDefeated");
+    // R-TEX-03 #3: 行動順キューからの除去も起きない。
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "ActionReservationRemoved")
+        .map((event) => (event.payload as { battleUnitId?: string }).battleUnitId),
+    ).not.toContain("enemy:1");
+
+    const enemy = afterTurn.enemyUnits[0]!;
+    // R-TEX-04: 原基準値（HP100・攻撃10・防御10・速度10・会心率0）へ1ブレイク目の強化。
+    // HP／攻撃／防御は×1.20、速度は×1.05（10.5 → R-TEX-04 #5で切り捨て10）、
+    // 会心率は絶対値+1pp。会心ダメージ・属性相性は強化しない（同 #3）。
+    expect(enemy.baseCombatStats).toEqual({
+      maximumHp: 120,
+      attack: 12,
+      defense: 12,
+      criticalRate: 0.01,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0,
+    });
+    // R-TEX-05 #3: 強化後の最大HPまで全回復する。
+    expect(enemy.currentHp).toBe(120);
+    // R-TEX-06 #2／#3: ブレイク〜復活の区間が、AP・PP・EXゲージの現在値と上限、
+    // クールタイム、チャージ、RuntimeCounter、行動順予約を一切動かさないことを
+    // 差分の所有で確かめる（ターン開始の回復や敵自身の待機によるAP消費は同じ区間の
+    // 外で起きるため、ターン終了時点の値と比べると両者を取り違える）。
+    const events = recorder.getEvents();
+    const brokenIndex = events.findIndex((event) => event.eventType === "UnitBroken");
+    const revivedIndex = events.findIndex((event) => event.eventType === "UnitRevived");
+    const carriedOverFields = [
+      "ap",
+      "pp",
+      "extraGauge",
+      "maximumAp",
+      "maximumPp",
+      "maximumExtraGauge",
+      "cooldowns",
+      "charge",
+      "skillCounters",
+    ] as const;
+    const touched = events
+      .slice(brokenIndex, revivedIndex + 1)
+      .flatMap((event) =>
+        carriedOverFields.filter(
+          (field) => event.stateDelta?.units?.["enemy:1" as never]?.[field] !== undefined,
+        ),
+      );
+    expect(touched).toEqual([]);
+    expect(enemy.maximumAp).toBe(LIMITS.maximumAp);
+    expect(enemy.maximumExtraGauge).toBe(LIMITS.maximumExtraGauge);
+    // R-TEX-03 #4: ブレイク回数が1増える。R-TEX-02 #2: オーバーキル分も計上する。
+    expect(afterTurn.exercise?.breakCount).toBe(1);
+    expect(afterTurn.exercise?.totalScore).toBe(150);
+
+    expectStateRestoration(initialState, recorder, afterTurn);
+  });
+
+  it("SCN-BTL-026: a revival clears the enemy's unit-granted effects and markers while Memory-granted ones persist (R-TEX-05 #2 / R-MEM-04)", () => {
+    const buffDefinitionId = createEffectActionDefinitionId("ACT_ENEMY_ATK_UP");
+    const enemyId = createBattleUnitId("enemy:1");
+    const unitGranted = {
+      effectInstanceId: createEffectInstanceId("EFF_FROM_UNIT"),
+      effectActionDefinitionId: buffDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(buffDefinitionId),
+      duplicate: true,
+      sourceUnitId: enemyId,
+      targetUnitId: enemyId,
+      magnitude: 0.5,
+      categories: ["BUFF" as const],
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    // R-MEM-04: メモリー由来の付与は`sourceUnitId`のキー自体を持たず`sourceSide`だけを持つ。
+    const { sourceUnitId: _granterUnitId, ...withoutGranter } = unitGranted;
+    const memoryGranted = {
+      ...withoutGranter,
+      effectInstanceId: createEffectInstanceId("EFF_FROM_MEMORY"),
+      sourceSide: "ALLY" as const,
+    };
+
+    const definitions = breakingAttackerDefinitions({
+      damagePerHit: 150,
+      hitCount: 1,
+      extraEffectActions: [
+        {
+          effectActionDefinitionId: buffDefinitionId,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: 0 },
+            stacking: { mode: "STACKABLE", max: null },
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+          metadata: { tags: [] },
+        },
+      ],
+    });
+
+    const { recorder, afterTurn, initialState } = exerciseBattleWith(definitions, {
+      appliedEffects: [unitGranted, memoryGranted],
+    });
+
+    const enemy = afterTurn.enemyUnits[0]!;
+    expect(enemy.appliedEffects.map((effect) => effect.effectInstanceId)).toEqual([
+      "EFF_FROM_MEMORY",
+    ]);
+    // 解除は`UnitBroken`の子として発行され、`UnitRevived`より前に完了する。
+    const order = recorder
+      .getEvents()
+      .map((event) => event.eventType)
+      .filter(
+        (type) => type === "UnitBroken" || type === "EffectRemoved" || type === "UnitRevived",
+      );
+    expect(order).toEqual(["UnitBroken", "EffectRemoved", "UnitRevived"]);
+    // 残った効果（メモリー由来+50%）は強化後の基礎値12へ合成される（R-TEX-04 #4）。
+    expect(enemy.baseCombatStats.attack).toBe(12);
+    expect(enemy.combatStats.attack).toBe(18);
+
+    expectStateRestoration(initialState, recorder, afterTurn);
+  });
+
+  it("SCN-BTL-027: a break mid multi-hit counts the overkill, fires the defeat trigger, and lands the remaining hits on the revived enemy", () => {
+    const onDefeatDamageId = createEffectActionDefinitionId("ACT_ON_DEFEAT_MARK");
+    // R-TEX-03 #2: Catalog定義は`UnitDefeated`のままで、ブレイクでも発動する。
+    const onDefeatPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_ON_ENEMY_DEFEATED"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 0 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "UnitDefeated",
+          category: "FACT",
+          // production の `SKL_HIIRO_LONEWOLF_PS2`／`SKL_LILY_HERO_PS1`／
+          // `SKL_YURIA_WILDCARD_PS1`（いずれも「自身が敵を撃破した時」）と同じ形。
+          // `UnitBroken`が撃破元ではなくブレイク対象を発生源にすると、種別の照合に
+          // 成功してもここで脱落する。
+          sourceSelector: "SELF",
+          targetSelector: "ENEMY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_ENEMY"),
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: true,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ENEMY") },
+            actions: [{ effectActionDefinitionId: onDefeatDamageId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "OnEnemyDefeated", tags: [] },
+    };
+    const definitions = breakingAttackerDefinitions({
+      damagePerHit: 150,
+      hitCount: 2,
+      allyPassive: onDefeatPassive,
+      extraEffectActions: [
+        {
+          effectActionDefinitionId: onDefeatDamageId,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: 0.1 },
+            stacking: { mode: "STACKABLE", max: null },
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+          metadata: { tags: [] },
+        },
+      ],
+    });
+
+    const { recorder, afterTurn, initialState } = exerciseBattleWith(definitions);
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).not.toContain("UnitDefeated");
+    // R-TEX-03 #2: 「敵撃破時」契機のPSがブレイクでも発動する。
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "PassiveActivated")
+        .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId),
+    ).toContain("SKL_ON_ENEMY_DEFEATED");
+    // R-TEX-05 #2＋`06_戦闘状態遷移.md`の手順: 撃破トリガーは解除より**前**に完了する。
+    // そのトリガーが敵へ付与した非メモリー由来の効果は、続く解除で必ず消える。
+    expect(afterTurn.enemyUnits[0]!.appliedEffects).toEqual([]);
+    // R-TEX-06 #4: 2ヒット目も解決され、復活後の敵（HP120）を再び削り切る。
+    expect(afterTurn.exercise?.breakCount).toBe(2);
+    // R-TEX-02 #2: 各ヒットの計上量はオーバーキルを含む150。
+    expect(afterTurn.exercise?.totalScore).toBe(300);
+    expect(afterTurn.enemyUnits[0]!.currentHp).toBe(140);
+
+    expectStateRestoration(initialState, recorder, afterTurn);
+  });
+});
+
+/**
+ * `eventType`契機で1つのEffectActionを敵へ適用するだけのPS。ブレイクの通知順序
+ * （撃破トリガーが解除より前に完了するか）を、経路ごとに同じ形で確かめるために使う。
+ */
+function passiveOn(
+  id: string,
+  eventType: string,
+  effectActionDefinitionId: EffectActionDefinitionId,
+): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "PS",
+    cost: { resource: "PP", amount: 0 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [
+      {
+        eventType,
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "ANY",
+        condition: { kind: "TRUE" },
+      },
+    ],
+    counterUpdates: [],
+    resolution: {
+      kind: "IMMEDIATE",
+      targetBindings: [
+        {
+          targetBindingId: createTargetBindingId("TGT_ENEMY"),
+          selector: {
+            kind: "SELECT",
+            side: "ENEMY",
+            count: "ALL",
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: true,
+          },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ENEMY") },
+          actions: [{ effectActionDefinitionId }],
+        },
+      ],
+    },
+    cooldown: { unit: "TURN", count: 5 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
+/** 敵へ攻撃力バフを付与するだけの`APPLY_STAT_MOD`（撃破トリガーの痕跡として使う）。 */
+function enemyBuffAction(id: string): EffectActionDefinition {
+  return {
+    effectActionDefinitionId: createEffectActionDefinitionId(id),
+    kind: "APPLY_STAT_MOD",
+    payload: {
+      stat: "ATTACK",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: 0.1 },
+      stacking: { mode: "STACKABLE", max: null },
+      duration: { dispellable: true, linkedEffectGroupId: null },
+    },
+    metadata: { tags: [] },
+  };
+}
+
+/**
+ * R-TEX-03 #2＋R-TEX-05 #2（`06_戦闘状態遷移.md`の手順2→3）: 撃破トリガーはブレイクの
+ * 効果解除より**前**に完了しなければならない。順序が逆になると、撃破トリガーが敵へ
+ * 付与した非メモリー由来の効果が解除されずに残る。
+ *
+ * PS自身のEffectSequence解決経路（`onFactEventForPassiveChain`を持たない）でも同じ
+ * 順序になることを、HP0到達の経路ごとに固定する。
+ */
+describe("break resolution notifies the defeat trigger before the removal on every path (R-TEX-03 #2)", () => {
+  const HP_DRAIN = createEffectActionDefinitionId("ACT_HP_DRAIN");
+  const MAX_HP_DROP = createEffectActionDefinitionId("ACT_MAX_HP_DROP");
+  const ON_DEFEAT_BUFF = createEffectActionDefinitionId("ACT_ON_DEFEAT_BUFF");
+
+  function runWith(
+    killerAction: EffectActionDefinition,
+    killerPassive: SkillDefinition,
+  ): ReturnType<typeof exerciseBattleWith> {
+    const onDefeat = passiveOn("SKL_ON_DEFEAT_BUFF", "UnitDefeated", ON_DEFEAT_BUFF);
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    const allyUnitDefinitionId = createUnitDefinitionId("UNIT_001");
+    unitDefinitions.set(allyUnitDefinitionId, {
+      ...unitDefinitions.get(allyUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [killerPassive.skillDefinitionId, onDefeat.skillDefinitionId],
+    });
+    return exerciseBattleWith({
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+        [killerAction.effectActionDefinitionId, killerAction],
+        [ON_DEFEAT_BUFF, enemyBuffAction("ACT_ON_DEFEAT_BUFF")],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([
+        [killerPassive.skillDefinitionId, killerPassive],
+        [onDefeat.skillDefinitionId, onDefeat],
+      ]),
+    });
+  }
+
+  function expectTriggerRanBeforeRemoval(run: ReturnType<typeof exerciseBattleWith>): void {
+    const events = run.recorder.getEvents();
+    const types = events.map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).not.toContain("UnitDefeated");
+    // まず撃破トリガーが実際に発動していることを確かめる — 発動しないまま
+    // 「敵に効果が残っていない」ことを見ても、順序の検証にならない（空振り）。
+    expect(
+      events
+        .filter((event) => event.eventType === "PassiveActivated")
+        .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId),
+    ).toContain("SKL_ON_DEFEAT_BUFF");
+    const buffApplied = events.findIndex(
+      (event) =>
+        event.eventType === "EffectApplied" &&
+        (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+          ON_DEFEAT_BUFF,
+    );
+    expect(buffApplied).toBeGreaterThanOrEqual(0);
+    // その付与が、ブレイクの解除より前に起きている（＝トリガーが解除に先行した）。
+    const lastRemoval = types.lastIndexOf("EffectRemoved");
+    expect(lastRemoval).toBeGreaterThan(buffApplied);
+    // 結果として、撃破トリガーが敵へ付与した効果は解除で必ず消えている。
+    expect(run.afterTurn.enemyUnits[0]!.appliedEffects).toEqual([]);
+  }
+
+  it("UT-R-TEX-03-012 (MODIFY_RESOURCE path): a PS-driven MODIFY_RESOURCE(HP) break runs the defeat trigger before the removal", () => {
+    const drain: EffectActionDefinition = {
+      effectActionDefinitionId: HP_DRAIN,
+      kind: "MODIFY_RESOURCE",
+      payload: {
+        resource: "HP",
+        operation: "ADD",
+        formula: { kind: "CONSTANT", value: -1000 },
+      },
+      metadata: { tags: [] },
+    };
+    expectTriggerRanBeforeRemoval(runWith(drain, passiveOn("SKL_DRAIN", "TurnStarted", HP_DRAIN)));
+  });
+
+  it("UT-R-TEX-03-015: UnitBroken carries the actual breaker as its source, so a sourceSelector: SELF defeat trigger fires only on the ally that broke the enemy", () => {
+    // `trigger-selector-evaluator.ts`は発生源を持たないイベントを「特定ユニットへ
+    // 帰属しないグローバルイベント」とみなし、SELFを全員に成立させる。したがって
+    // 味方1体だけでは`UnitBroken.sourceUnitId`の欠落を検出できない — 撃破していない
+    // 味方が同じSELFトリガーで発動しないことまで見て初めて発生源を固定できる。
+    const selfDefeatTrigger = {
+      eventType: "UnitDefeated",
+      category: "FACT" as const,
+      sourceSelector: "SELF" as const,
+      targetSelector: "ENEMY" as const,
+      condition: { kind: "TRUE" as const },
+    };
+    const breakerPassive: SkillDefinition = {
+      ...passiveOn("SKL_BREAKER_ON_DEFEAT", "UnitDefeated", ON_DEFEAT_BUFF),
+      triggers: [selfDefeatTrigger],
+    };
+    const bystanderPassive: SkillDefinition = {
+      ...passiveOn("SKL_BYSTANDER_ON_DEFEAT", "UnitDefeated", ON_DEFEAT_BUFF),
+      triggers: [selfDefeatTrigger],
+    };
+    const attacker = breakingAttackerDefinitions({
+      damagePerHit: 150,
+      hitCount: 1,
+      allyPassive: breakerPassive,
+      extraEffectActions: [enemyBuffAction("ACT_ON_DEFEAT_BUFF")],
+    });
+    // 攻撃しない味方（UNIT_003）へ、まったく同じSELF撃破トリガーのPSを持たせる。
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(createUnitDefinitionId("UNIT_001"), {
+      ...unitDefinitions.get(createUnitDefinitionId("UNIT_001"))!,
+      passiveSkillDefinitionIds: [breakerPassive.skillDefinitionId],
+    });
+    unitDefinitions.set(createUnitDefinitionId("UNIT_003"), {
+      ...unitDefinitions.get(createUnitDefinitionId("UNIT_003"))!,
+      passiveSkillDefinitionIds: [bystanderPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      ...attacker,
+      unitDefinitions,
+      skillDefinitions: new Map([
+        ...attacker.skillDefinitions,
+        [bystanderPassive.skillDefinitionId, bystanderPassive],
+      ]),
+    };
+
+    const battle = createBattle(
+      createBattleId("B_1"),
+      [unit("ally:1", "ALLY"), unit("ally:2", "ALLY", "UNIT_003")],
+      [unit("enemy:1", "ENEMY", "UNIT_002")],
+      createTurnLimit(5),
+      definitions,
+      "TACTICAL_EXERCISE",
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const random = new SequenceRandomSource([]);
+    advanceBattle(startBattle(battle, random, recorder), random, recorder);
+
+    const broken = recorder.getEvents().find((event) => event.eventType === "UnitBroken")!;
+    // R-TEX-03 #2: この経路の`UnitDefeated`と同じ発生源（攻撃者）を運ぶ。
+    expect(broken.sourceUnitId).toBe(createBattleUnitId("ally:1"));
+    const activated = recorder
+      .getEvents()
+      .filter((event) => event.eventType === "PassiveActivated")
+      .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId);
+    // 実際に撃破した味方のSELFトリガーは発動する。
+    expect(activated).toContain("SKL_BREAKER_ON_DEFEAT");
+    // 撃破していない味方の同じSELFトリガーは発動しない。
+    expect(activated).not.toContain("SKL_BYSTANDER_ON_DEFEAT");
+  });
+
+  it("UT-R-TEX-03-016 (sub-unit additional-damage debuff path): a MAXIMUM_HP debuff that clamps the enemy to 0 runs the defeat trigger before the removal", () => {
+    // R-SUB-02第3項: サブユニットの追加ダメージに付随するデバフ。ここでは最大HPを
+    // -100%にして、追加ダメージそのものではなく再計算のHP clampでブレイクさせる。
+    const MAX_HP_DEBUFF = createEffectActionDefinitionId("ACT_SUBUNIT_MAX_HP_DEBUFF");
+    const SUBUNIT_ACTION = createEffectActionDefinitionId("ACT_SUBUNIT");
+    const onDefeat = passiveOn("SKL_ON_DEFEAT_BUFF", "UnitDefeated", ON_DEFEAT_BUFF);
+    const attacker = breakingAttackerDefinitions({
+      // 直撃ではブレイクさせない（敵の最大HPは100）。
+      damagePerHit: 10,
+      hitCount: 1,
+      extraEffectActions: [
+        enemyBuffAction("ACT_ON_DEFEAT_BUFF"),
+        {
+          effectActionDefinitionId: MAX_HP_DEBUFF,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "MAXIMUM_HP",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: -1 },
+            stacking: { mode: "STACKABLE", max: null },
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+          metadata: { tags: [] },
+        },
+      ],
+    });
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    const allyUnitDefinitionId = createUnitDefinitionId("UNIT_001");
+    unitDefinitions.set(allyUnitDefinitionId, {
+      ...unitDefinitions.get(allyUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [onDefeat.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      ...attacker,
+      unitDefinitions,
+      skillDefinitions: new Map([
+        ...attacker.skillDefinitions,
+        [onDefeat.skillDefinitionId, onDefeat],
+      ]),
+    };
+
+    const allyWithSubUnit: BattleUnit = {
+      ...unit("ally:1", "ALLY"),
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("EFFECT_SUBUNIT"),
+          effectActionDefinitionId: SUBUNIT_ACTION,
+          kindKey: effectKindKeyFromDefinitionId(SUBUNIT_ACTION),
+          categories: ["BUFF"],
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("ally:1"),
+          targetUnitId: createBattleUnitId("ally:1"),
+          magnitude: 50,
+          subUnit: {
+            durability: 50,
+            additionalDamage: {
+              formula: { kind: "CONSTANT", value: 1 },
+              debuff: { effectActionDefinitionId: MAX_HP_DEBUFF },
+            },
+          },
+          snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: 10 },
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const battle = createBattle(
+      createBattleId("B_1"),
+      [allyWithSubUnit],
+      [unit("enemy:1", "ENEMY", "UNIT_002")],
+      createTurnLimit(5),
+      definitions,
+      "TACTICAL_EXERCISE",
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const random = new SequenceRandomSource([]);
+    const initialState = captureBattleState(battle);
+    const afterTurn = advanceBattle(startBattle(battle, random, recorder), random, recorder);
+
+    expectTriggerRanBeforeRemoval({ battle, recorder, afterTurn, initialState });
+  });
+
+  it("UT-R-TEX-03-014 (continuous damage path): a lethal continuous damage tick runs the defeat trigger before the removal", () => {
+    const dotActionId = createEffectActionDefinitionId("ACT_LETHAL_DOT");
+    const dotDefinition: EffectActionDefinition = {
+      effectActionDefinitionId: dotActionId,
+      kind: "APPLY_CONTINUOUS_DAMAGE",
+      payload: {
+        continuousDamageKind: "FIXED",
+        damageType: "PHYSICAL",
+        formula: { kind: "CONSTANT", value: 500 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 3 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      metadata: { tags: [] },
+    };
+    const onDefeat = passiveOn("SKL_ON_DEFEAT_BUFF", "UnitDefeated", ON_DEFEAT_BUFF);
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    const allyUnitDefinitionId = createUnitDefinitionId("UNIT_001");
+    unitDefinitions.set(allyUnitDefinitionId, {
+      ...unitDefinitions.get(allyUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [onDefeat.skillDefinitionId],
+    });
+    // R-MEM-04: メモリー由来ではない（付与者ユニットを持つ）継続ダメージ。
+    const burningEnemy = {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("EFFECT_LETHAL_DOT"),
+          effectActionDefinitionId: dotActionId,
+          kindKey: effectKindKeyFromDefinitionId(dotActionId),
+          categories: ["DEBUFF" as const],
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("ally:1"),
+          targetUnitId: createBattleUnitId("enemy:1"),
+          magnitude: 500,
+          continuousDamage: {
+            continuousDamageKind: "FIXED" as const,
+            damageType: "PHYSICAL" as const,
+          },
+          snapshot: { [CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY]: 1000 },
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION" as const, count: 3 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 3,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const run = exerciseBattleWith(
+      {
+        activeSkillsByUnit: new Map(),
+        exSkillByUnit: new Map(),
+        effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+          [dotActionId, dotDefinition],
+          [ON_DEFEAT_BUFF, enemyBuffAction("ACT_ON_DEFEAT_BUFF")],
+        ]),
+        unitDefinitions,
+        skillDefinitions: new Map([[onDefeat.skillDefinitionId, onDefeat]]),
+      },
+      burningEnemy,
+    );
+
+    expectTriggerRanBeforeRemoval(run);
+    // 継続ダメージ自身は敵が保持する非メモリー由来の効果なので、解除で消える。
+    expect(run.afterTurn.exercise?.breakCount).toBeGreaterThan(0);
+  });
+
+  it("UT-R-TEX-03-013 (MODIFY_RESOURCE_CAPACITY path): a maximum-HP drop that clamps the enemy to 0 runs the defeat trigger before the removal", () => {
+    const capacityDrop: EffectActionDefinition = {
+      effectActionDefinitionId: MAX_HP_DROP,
+      kind: "MODIFY_RESOURCE_CAPACITY",
+      payload: {
+        resource: "HP",
+        operation: "SET",
+        formula: { kind: "CONSTANT", value: 0 },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+      metadata: { tags: [] },
+    };
+    expectTriggerRanBeforeRemoval(
+      runWith(capacityDrop, passiveOn("SKL_MAX_HP_DROP", "TurnStarted", MAX_HP_DROP)),
+    );
   });
 });

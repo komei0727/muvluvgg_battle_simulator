@@ -1041,6 +1041,59 @@ const exerciseScoreAccumulatedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-03）。演習の敵ユニットのHP0到達を
+ * 戦闘不能に代えて解決した事実。`UNIT_DEFEATED`とは排他で、演習のレスポンスにだけ現れる。
+ */
+const unitBrokenDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["unitId", "breakNumber", "turnNumber", "totalScore", "causeEventId"],
+  properties: {
+    unitId: { type: "string" },
+    breakNumber: { type: "integer", minimum: 1 },
+    turnNumber: { type: "integer", minimum: 1 },
+    totalScore: { type: "integer", minimum: 0 },
+    causeEventId: { type: "string" },
+  },
+} as const;
+
+/** `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-05 #5）。解除・強化・全回復の完了。 */
+const unitRevivedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["unitId", "breakNumber", "hpAfter", "baseCombatStats"],
+  properties: {
+    unitId: { type: "string" },
+    breakNumber: { type: "integer", minimum: 1 },
+    hpAfter: { type: "integer", minimum: 1 },
+    // R-TEX-04の強化後の基礎戦闘ステータス。R-NUM-01どおり割合は比率のまま運ぶため
+    // `CombatStatsResponse`（パーセントポイント表記）とはキー集合だけを共有する。
+    baseCombatStats: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "maximumHp",
+        "attack",
+        "defense",
+        "criticalRate",
+        "actionSpeed",
+        "criticalDamageBonus",
+        "affinityBonus",
+      ],
+      properties: {
+        maximumHp: { type: "number", minimum: 0 },
+        attack: { type: "number", minimum: 0 },
+        defense: { type: "number", minimum: 0 },
+        criticalRate: { type: "number" },
+        actionSpeed: { type: "number", minimum: 0 },
+        criticalDamageBonus: { type: "number" },
+        affinityBonus: { type: "number" },
+      },
+    },
+  },
+} as const;
+
 const unitDefeatedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -1922,6 +1975,9 @@ const COMBAT_STAT_CHANGE_REASON_ENUM = [
   "EFFECT_APPLIED",
   "EFFECT_EXPIRED",
   "EFFECT_REMOVED",
+  // R-TEX-04（TEX-004、Issue #430）: 戦術演習のブレイク強化による`baseCombatStats`の
+  // 書き換えを契機とする再計算。効果の増減を伴わない唯一の契機。
+  "BREAK_ENHANCEMENT",
 ] as const;
 
 /** `CombatStatChanged`（R-STA-04）。実際に値が変わったstatごとに発行する。 */
@@ -2226,6 +2282,8 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   CONTINUOUS_DAMAGE_APPLIED: continuousDamageAppliedDetailsSchema,
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
   EXERCISE_SCORE_ACCUMULATED: exerciseScoreAccumulatedDetailsSchema,
+  UNIT_BROKEN: unitBrokenDetailsSchema,
+  UNIT_REVIVED: unitRevivedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
   ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
   COOLDOWN_STARTED: cooldownStartedDetailsSchema,
