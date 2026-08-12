@@ -5,6 +5,7 @@ import { reduceStateDeltas } from "./state-delta-reducer.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import {
   CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY,
+  SUBUNIT_PROVIDER_ATTACK_KEY,
   effectKindKeyFromDefinitionId,
 } from "../model/applied-effect.js";
 import { createTurnLimit } from "../model/turn-limit.js";
@@ -1010,6 +1011,159 @@ describe("break resolution notifies the defeat trigger before the removal on eve
       metadata: { tags: [] },
     };
     expectTriggerRanBeforeRemoval(runWith(drain, passiveOn("SKL_DRAIN", "TurnStarted", HP_DRAIN)));
+  });
+
+  it("UT-R-TEX-03-015: UnitBroken carries the actual breaker as its source, so a sourceSelector: SELF defeat trigger fires only on the ally that broke the enemy", () => {
+    // `trigger-selector-evaluator.ts`は発生源を持たないイベントを「特定ユニットへ
+    // 帰属しないグローバルイベント」とみなし、SELFを全員に成立させる。したがって
+    // 味方1体だけでは`UnitBroken.sourceUnitId`の欠落を検出できない — 撃破していない
+    // 味方が同じSELFトリガーで発動しないことまで見て初めて発生源を固定できる。
+    const selfDefeatTrigger = {
+      eventType: "UnitDefeated",
+      category: "FACT" as const,
+      sourceSelector: "SELF" as const,
+      targetSelector: "ENEMY" as const,
+      condition: { kind: "TRUE" as const },
+    };
+    const breakerPassive: SkillDefinition = {
+      ...passiveOn("SKL_BREAKER_ON_DEFEAT", "UnitDefeated", ON_DEFEAT_BUFF),
+      triggers: [selfDefeatTrigger],
+    };
+    const bystanderPassive: SkillDefinition = {
+      ...passiveOn("SKL_BYSTANDER_ON_DEFEAT", "UnitDefeated", ON_DEFEAT_BUFF),
+      triggers: [selfDefeatTrigger],
+    };
+    const attacker = breakingAttackerDefinitions({
+      damagePerHit: 150,
+      hitCount: 1,
+      allyPassive: breakerPassive,
+      extraEffectActions: [enemyBuffAction("ACT_ON_DEFEAT_BUFF")],
+    });
+    // 攻撃しない味方（UNIT_003）へ、まったく同じSELF撃破トリガーのPSを持たせる。
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    unitDefinitions.set(createUnitDefinitionId("UNIT_001"), {
+      ...unitDefinitions.get(createUnitDefinitionId("UNIT_001"))!,
+      passiveSkillDefinitionIds: [breakerPassive.skillDefinitionId],
+    });
+    unitDefinitions.set(createUnitDefinitionId("UNIT_003"), {
+      ...unitDefinitions.get(createUnitDefinitionId("UNIT_003"))!,
+      passiveSkillDefinitionIds: [bystanderPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      ...attacker,
+      unitDefinitions,
+      skillDefinitions: new Map([
+        ...attacker.skillDefinitions,
+        [bystanderPassive.skillDefinitionId, bystanderPassive],
+      ]),
+    };
+
+    const battle = createBattle(
+      createBattleId("B_1"),
+      [unit("ally:1", "ALLY"), unit("ally:2", "ALLY", "UNIT_003")],
+      [unit("enemy:1", "ENEMY", "UNIT_002")],
+      createTurnLimit(5),
+      definitions,
+      "TACTICAL_EXERCISE",
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const random = new SequenceRandomSource([]);
+    advanceBattle(startBattle(battle, random, recorder), random, recorder);
+
+    const broken = recorder.getEvents().find((event) => event.eventType === "UnitBroken")!;
+    // R-TEX-03 #2: この経路の`UnitDefeated`と同じ発生源（攻撃者）を運ぶ。
+    expect(broken.sourceUnitId).toBe(createBattleUnitId("ally:1"));
+    const activated = recorder
+      .getEvents()
+      .filter((event) => event.eventType === "PassiveActivated")
+      .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId);
+    // 実際に撃破した味方のSELFトリガーは発動する。
+    expect(activated).toContain("SKL_BREAKER_ON_DEFEAT");
+    // 撃破していない味方の同じSELFトリガーは発動しない。
+    expect(activated).not.toContain("SKL_BYSTANDER_ON_DEFEAT");
+  });
+
+  it("UT-R-TEX-03-016 (sub-unit additional-damage debuff path): a MAXIMUM_HP debuff that clamps the enemy to 0 runs the defeat trigger before the removal", () => {
+    // R-SUB-02第3項: サブユニットの追加ダメージに付随するデバフ。ここでは最大HPを
+    // -100%にして、追加ダメージそのものではなく再計算のHP clampでブレイクさせる。
+    const MAX_HP_DEBUFF = createEffectActionDefinitionId("ACT_SUBUNIT_MAX_HP_DEBUFF");
+    const SUBUNIT_ACTION = createEffectActionDefinitionId("ACT_SUBUNIT");
+    const onDefeat = passiveOn("SKL_ON_DEFEAT_BUFF", "UnitDefeated", ON_DEFEAT_BUFF);
+    const attacker = breakingAttackerDefinitions({
+      // 直撃ではブレイクさせない（敵の最大HPは100）。
+      damagePerHit: 10,
+      hitCount: 1,
+      extraEffectActions: [
+        enemyBuffAction("ACT_ON_DEFEAT_BUFF"),
+        {
+          effectActionDefinitionId: MAX_HP_DEBUFF,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "MAXIMUM_HP",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: -1 },
+            stacking: { mode: "STACKABLE", max: null },
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+          metadata: { tags: [] },
+        },
+      ],
+    });
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    const allyUnitDefinitionId = createUnitDefinitionId("UNIT_001");
+    unitDefinitions.set(allyUnitDefinitionId, {
+      ...unitDefinitions.get(allyUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [onDefeat.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      ...attacker,
+      unitDefinitions,
+      skillDefinitions: new Map([
+        ...attacker.skillDefinitions,
+        [onDefeat.skillDefinitionId, onDefeat],
+      ]),
+    };
+
+    const allyWithSubUnit: BattleUnit = {
+      ...unit("ally:1", "ALLY"),
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("EFFECT_SUBUNIT"),
+          effectActionDefinitionId: SUBUNIT_ACTION,
+          kindKey: effectKindKeyFromDefinitionId(SUBUNIT_ACTION),
+          categories: ["BUFF"],
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("ally:1"),
+          targetUnitId: createBattleUnitId("ally:1"),
+          magnitude: 50,
+          subUnit: {
+            durability: 50,
+            additionalDamage: {
+              formula: { kind: "CONSTANT", value: 1 },
+              debuff: { effectActionDefinitionId: MAX_HP_DEBUFF },
+            },
+          },
+          snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: 10 },
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+
+    const battle = createBattle(
+      createBattleId("B_1"),
+      [allyWithSubUnit],
+      [unit("enemy:1", "ENEMY", "UNIT_002")],
+      createTurnLimit(5),
+      definitions,
+      "TACTICAL_EXERCISE",
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const random = new SequenceRandomSource([]);
+    const initialState = captureBattleState(battle);
+    const afterTurn = advanceBattle(startBattle(battle, random, recorder), random, recorder);
+
+    expectTriggerRanBeforeRemoval({ battle, recorder, afterTurn, initialState });
   });
 
   it("UT-R-TEX-03-014 (continuous damage path): a lethal continuous damage tick runs the defeat trigger before the removal", () => {

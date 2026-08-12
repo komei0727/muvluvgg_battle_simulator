@@ -199,13 +199,18 @@ export function eventContextOf(context: EffectActionGroupContext): EffectResolut
   return {
     ...base,
     exercise,
-    resolveBreak: (targetUnitId, units, causeEventId) =>
+    // R-TEX-03 #2: `defeatSource`（各シームが渡す「その経路の`UnitDefeated`と同じ
+    // 発生源」）を必ず転送する。落とすと`UnitBroken`が発生源を持たないイベントになり、
+    // `sourceSelector: SELF`の撃破トリガーが`isSourceUnattributed`のグローバル扱いで
+    // 撃破していない味方まで発動させてしまう（`trigger-selector-evaluator.ts`）。
+    resolveBreak: (targetUnitId, units, causeEventId, defeatSource) =>
       resolveBreakSteps(
         { ...base, exercise },
         units,
         targetUnitId,
         context.definitions.effectActions,
         causeEventId,
+        defeatSource,
       ),
   };
 }
