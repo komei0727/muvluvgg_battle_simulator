@@ -70,7 +70,7 @@ export function UnitSlot({
   const accessibleName = hasError ? `${baseName}、入力エラーがあります` : baseName;
 
   // 空き枠は配置先にだけなれる（drag元にならない）。実行中はdrag不可。
-  // Escapeによる中止はフォーカス位置に依存させないため、FormationEditorが
+  // Escapeによる中止はフォーカス位置に依存させないため、FormationGridが
   // documentレベルで捕捉する（このcomponentはkeydownを持たない）。
   const draggable = unit !== undefined && !disabled && onMoveStart !== undefined;
   const isDragOver = dragOverDepth > 0 && moveTarget;

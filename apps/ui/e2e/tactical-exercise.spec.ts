@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { exerciseSuccessFixture } from "./fixtures/exercise-success.js";
+import { TACTICAL_EXERCISE_URL } from "./support/constants.js";
 import { mockCatalog, mockTacticalExercise } from "./support/mock-api.js";
 import { openBattleMode } from "./support/formation.js";
 
@@ -106,6 +107,40 @@ test("centers the empty unit slot's placeholder in both modes", async ({ page })
       .getByRole("region", { name: /ENEMY FORMATION/ })
       .getByRole("button", { name: "前衛1にユニットを追加" }),
   );
+});
+
+// UI-E2E-014: UI-AC-019。演習の敵も2×3の盤面から配置枠を選べ、選んだ座標が
+// そのままリクエストへ載る。別の枠を選んでも2体目にはならず、1体が移る。
+test("places the exercise enemy in the chosen cell and posts that position", async ({ page }) => {
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
+
+  await page.getByRole("tab", { name: "戦術演習" }).click();
+
+  const ally = page.getByRole("region", { name: /ALLY FORMATION/ });
+  const enemy = page.getByRole("region", { name: /ENEMY FORMATION/ });
+  await ally.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
+
+  // 空いている別の枠で選び直すと、置いていた1体がその枠へ移る。
+  await enemy.getByRole("button", { name: "後衛3にユニットを追加" }).click();
+  await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
+  await expect(
+    enemy.getByRole("button", { name: "後衛3: エクササイズアルファを変更" }),
+  ).toBeVisible();
+  await expect(enemy.getByRole("button", { name: "前衛1にユニットを追加" })).toBeVisible();
+
+  const exerciseRequest = page.waitForRequest(TACTICAL_EXERCISE_URL);
+  await page.getByRole("button", { name: "戦術演習を開始" }).click();
+  const payload: unknown = JSON.parse((await exerciseRequest).postData() ?? "null");
+
+  expect(payload).toMatchObject({
+    enemyFormation: {
+      units: [{ unitDefinitionId: "UNIT_EXERCISE_A", position: { column: 2, row: "REAR" } }],
+    },
+  });
 });
 
 // 演習の敵はスコアを競う相手として定義どおりの1体（R-TEX-01 #1）。学園レベルは

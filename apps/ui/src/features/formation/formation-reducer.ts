@@ -48,6 +48,12 @@ export type FormationAction =
        * 載せる。伴わない場合は枠の入力を保持する（敵側は都度入力の方針）。
        */
       readonly enhancement?: UnitEnhancementInput;
+      /**
+       * その陣営へ1体しか置かない配置（戦術演習の敵、`R-TEX-01` #3）。空き枠を
+       * 選んだときは既存の1体を配置先へ移し替え、2体目にはしない。移動と選択を
+       * 別actionへ分けると、途中状態として2体並んだdraftが一瞬でも成立する。
+       */
+      readonly exclusiveForSide?: boolean;
     }
   | { readonly type: "unitRemoved"; readonly slotKey: string }
   | {
@@ -157,6 +163,25 @@ function withSlotContents(
   });
 }
 
+/**
+ * 1体だけを置く陣営（`exclusiveForSide`）で、配置先以外の枠を空にする。
+ * ユニット単位の強化入力は`unitRemoved`と同じく枠に残す（送信対象は
+ * ユニットが居る枠だけなので、残っていても送信内容は変わらない）。
+ */
+function withOnlySlotFilled(draft: BattleDraft, side: Side, slotKey: string): BattleDraft {
+  const clear = (slots: readonly FormationSlotInput[]): readonly FormationSlotInput[] =>
+    slots.reduce(
+      (current, slot) =>
+        slot.slotKey === slotKey || slot.unitDefinitionId === undefined
+          ? current
+          : replaceSlotUnit(current, slot.slotKey, undefined),
+      slots,
+    );
+  return side === "ally"
+    ? { ...draft, allySlots: clear(draft.allySlots) }
+    : { ...draft, enemySlots: clear(draft.enemySlots) };
+}
+
 function withSlotEnhancement(
   draft: BattleDraft,
   side: Side,
@@ -252,14 +277,21 @@ export function formationReducer(state: FormationState, action: FormationAction)
       if (slot === undefined) {
         return state;
       }
+      // 1体だけの陣営では他の枠を空にしてから置く。上限に達していても
+      // 「置けない」ではなく「その枠へ移る」ので、容量判定の対象外にする。
+      const base =
+        action.exclusiveForSide === true
+          ? withOnlySlotFilled(state.draft, slot.side, action.slotKey)
+          : state.draft;
       const isNewSelection = slot.unitDefinitionId === undefined;
       if (
+        action.exclusiveForSide !== true &&
         isNewSelection &&
         filledCount(slotsForSide(state.draft, slot.side)) >= MAX_UNITS_PER_SIDE
       ) {
         return state;
       }
-      const placed = withSlotUnit(state.draft, slot.side, action.slotKey, action.unitDefinitionId);
+      const placed = withSlotUnit(base, slot.side, action.slotKey, action.unitDefinitionId);
       return {
         ...state,
         draft:

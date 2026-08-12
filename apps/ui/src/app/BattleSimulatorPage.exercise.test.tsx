@@ -155,11 +155,18 @@ async function waitForCatalog() {
 }
 
 /** 指定陣営の前衛1へユニットを置く。枠は陣営のsectionへスコープして選ぶ。 */
-async function placeUnit(user: UserEvent, side: "ally" | "enemy", unitName: string) {
+async function placeUnit(
+  user: UserEvent,
+  side: "ally" | "enemy",
+  unitName: string,
+  positionLabel = "前衛1",
+) {
   const section = screen.getByRole("region", {
     name: side === "ally" ? /ALLY FORMATION/ : /ENEMY FORMATION/,
   });
-  await user.click(within(section).getByRole("button", { name: "前衛1にユニットを追加" }));
+  await user.click(
+    within(section).getByRole("button", { name: `${positionLabel}にユニットを追加` }),
+  );
   await user.click(screen.getByRole("button", { name: `${unitName}を選択` }));
 }
 
@@ -198,7 +205,7 @@ describe("BattleSimulatorPage — mode tabs (UI-CT-027)", () => {
 
 // UI-CT-028
 describe("BattleSimulatorPage — exercise formation constraints (UI-CT-028)", () => {
-  it("hides the enemy memory slots and the turn limit input, and offers only one enemy unit slot", async () => {
+  it("hides the enemy memory slots and the turn limit input", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -215,7 +222,7 @@ describe("BattleSimulatorPage — exercise formation constraints (UI-CT-028)", (
     expect(screen.getByText("ALLY MEMORY / 0-6")).toBeInTheDocument();
   });
 
-  it("cannot place a second enemy unit: only the FRONT 1 enemy slot exists", async () => {
+  it("cannot place a second enemy unit: choosing another slot moves the single enemy there", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -225,12 +232,19 @@ describe("BattleSimulatorPage — exercise formation constraints (UI-CT-028)", (
     );
     await waitForCatalog();
     await switchMode(user, "戦術演習");
+    const enemy = screen.getByRole("region", { name: /ENEMY FORMATION/ });
 
     await placeUnit(user, "enemy", "エクサ");
+    await placeUnit(user, "enemy", "エクサ旧", "後衛3");
 
-    // 味方側の空き枠は6枠、敵側は埋まった1枠だけ。敵の2体目を置く導線が存在しない。
-    expect(screen.getAllByRole("button", { name: /にユニットを追加/ })).toHaveLength(6);
-    expect(screen.getAllByRole("button", { name: /: エクサを変更/ })).toHaveLength(1);
+    // 敵陣営に居るのは常に1体。前衛1は空き枠へ戻り、選んだ枠だけが埋まる。
+    expect(within(enemy).getAllByRole("button", { name: /にユニットを追加/ })).toHaveLength(5);
+    expect(
+      within(enemy).getByRole("button", { name: "後衛3: エクサ旧を変更" }),
+    ).toBeInTheDocument();
+    expect(
+      within(enemy).getByRole("button", { name: "前衛1にユニットを追加" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -269,6 +283,40 @@ describe("BattleSimulatorPage — exercise request (UI-CT-029)", () => {
       memoryDefinitionIds: [],
     });
     expect(request.allyFormation.units).toHaveLength(1);
+  });
+
+  // UI-CT-060: 敵の配置座標はそのままリクエストへ載る（`POSITION_ROW`条件・
+  // 前後列優先の対象順が参照するため、敵1体でも配置で結果が変わる）。
+  it("posts the enemy position the user chose, not a fixed front-left one", async () => {
+    const user = userEvent.setup();
+    const simulateTacticalExerciseImpl = vi.fn<
+      (
+        request: TacticalExerciseRequest,
+        options: SimulateOptions,
+      ) => Promise<ExecutionApiResult<TacticalExerciseResponse>>
+    >(() => Promise.resolve({ ok: true, response: exerciseResponse() }));
+
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateTacticalExerciseImpl={simulateTacticalExerciseImpl}
+      />,
+    );
+    await waitForCatalog();
+    await switchMode(user, "戦術演習");
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ", "後衛3");
+
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+
+    await waitFor(() => {
+      expect(simulateTacticalExerciseImpl).toHaveBeenCalledTimes(1);
+    });
+    const request = simulateTacticalExerciseImpl.mock.calls[0]![0];
+    expect(request.enemyFormation.units).toEqual([
+      { unitDefinitionId: "UNIT_EX", position: { column: 2, row: "REAR" } },
+    ]);
   });
 
   it("keeps the exercise submit disabled until an enemy unit is chosen", async () => {
@@ -465,8 +513,8 @@ describe("BattleSimulatorPage — per-mode state isolation (UI-CT-032)", () => {
     });
 
     await switchMode(user, "戦術演習");
-    // 演習側のdraftは独立: 通常戦闘の編成を引き継がない。
-    expect(screen.getAllByRole("button", { name: /にユニットを追加/ })).toHaveLength(7);
+    // 演習側のdraftは独立: 通常戦闘の編成を引き継がない（味方6枠・敵6枠とも空）。
+    expect(screen.getAllByRole("button", { name: /にユニットを追加/ })).toHaveLength(12);
 
     await placeUnit(user, "ally", "アルファ");
     await placeUnit(user, "enemy", "エクサ");
