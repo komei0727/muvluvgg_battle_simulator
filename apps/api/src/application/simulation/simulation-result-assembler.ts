@@ -26,6 +26,7 @@ import type {
   CompletionReason,
 } from "../../domain/battle/outcome/victory-policy.js";
 import type { ExerciseCompletionReason } from "../../domain/battle/outcome/exercise-end-policy.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../../domain/shared/ids.js";
@@ -160,6 +161,16 @@ function markersEqual(
   return aMarkers.every((marker, index) => sameMarkerSnapshot(marker, bMarkers[index]));
 }
 
+/**
+ * R-STA-04の2層（実効値`combatStats`と基礎値`baseCombatStats`）をフィールド単位で
+ * 比較する。どちらも独立Reducerが差分から復元する可変状態であり、比較から外すと
+ * R-TEX-04のブレイク強化（`UnitRevived`が所有する`units.<id>.baseCombatStats`／
+ * `combatStats`差分）の欠落・誤更新を状態復元検証がすり抜ける。
+ */
+function combatStatsEqual(a: CombatStats, b: CombatStats): boolean {
+  return (Object.keys(a) as (keyof CombatStats)[]).every((field) => a[field] === b[field]);
+}
+
 function unitSnapshotsEqual(
   a: BattleStateSnapshot["units"][BattleUnitId],
   b: BattleStateSnapshot["units"][BattleUnitId],
@@ -169,6 +180,8 @@ function unitSnapshotsEqual(
     a.ap === b.ap &&
     a.pp === b.pp &&
     a.extraGauge === b.extraGauge &&
+    combatStatsEqual(a.combatStats, b.combatStats) &&
+    combatStatsEqual(a.baseCombatStats, b.baseCombatStats) &&
     cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
     sameChargeState(a.charge, b.charge) &&
     effectsEqual(a.effects, b.effects) &&

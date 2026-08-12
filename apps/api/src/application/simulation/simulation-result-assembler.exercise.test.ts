@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { assembleTacticalExerciseResult } from "./simulation-result-assembler.js";
+import { ApplicationError } from "../contracts/application-error.js";
 import type { LogLevel } from "./simulate-battle-command.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import { createDomainEventId } from "../../domain/shared/event-ids.js";
-import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
 
 const BATTLE_ID = createBattleId("battle-exercise-1");
 const ENEMY_ID = createBattleUnitId("enemy:1");
@@ -206,5 +207,147 @@ describe("assembleTacticalExerciseResult", () => {
 
     expect(result.finalState.exercise).toEqual({ totalScore: 60, breakCount: 1 });
     expect(result.totalScore).toBe(60);
+  });
+});
+
+describe("assembleTacticalExerciseResult break enhancement restoration (R-TEX-04)", () => {
+  const BASE_STATS = {
+    maximumHp: 100,
+    attack: 10,
+    defense: 10,
+    criticalRate: 0,
+    actionSpeed: 10,
+    criticalDamageBonus: 0.5,
+    affinityBonus: 0,
+  };
+  const ENHANCED_STATS = { ...BASE_STATS, maximumHp: 120, attack: 12 };
+
+  function enemySnapshot(
+    stats: typeof BASE_STATS,
+    hp: number,
+  ): BattleStateSnapshot["units"][BattleUnitId] {
+    return {
+      hp,
+      ap: 0,
+      pp: 0,
+      extraGauge: 0,
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 100,
+      combatStats: stats,
+      baseCombatStats: stats,
+    };
+  }
+
+  /**
+   * ブレイク→復活を1回だけ記録する。`omitStatsDelta`を立てると、`UnitRevived`が
+   * 所有すべき`units.<id>.baseCombatStats`／`combatStats`差分だけを落とす
+   * （＝強化を状態差分として運び忘れた実装のバグを再現する）。
+   */
+  function assembleRevival(options: { readonly omitStatsDelta?: boolean } = {}) {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recorder.record({
+      eventType: "UnitBroken",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: {
+        unitId: ENEMY_ID,
+        breakNumber: 1,
+        turnNumber: 1,
+        totalScore: 0,
+        causeEventId: CAUSE_EVENT_ID,
+      },
+      stateDelta: { exercise: { breakCount: { before: 0, after: 1 } } },
+    });
+    const statsDelta = {
+      baseCombatStats: {
+        maximumHp: { before: BASE_STATS.maximumHp, after: ENHANCED_STATS.maximumHp },
+        attack: { before: BASE_STATS.attack, after: ENHANCED_STATS.attack },
+      },
+      combatStats: {
+        maximumHp: { before: BASE_STATS.maximumHp, after: ENHANCED_STATS.maximumHp },
+        attack: { before: BASE_STATS.attack, after: ENHANCED_STATS.attack },
+      },
+    };
+    recorder.record({
+      eventType: "UnitRevived",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: {
+        unitId: ENEMY_ID,
+        breakNumber: 1,
+        hpAfter: ENHANCED_STATS.maximumHp,
+        baseCombatStats: ENHANCED_STATS,
+      },
+      stateDelta: {
+        units: {
+          [ENEMY_ID]: {
+            hp: { before: 0, after: ENHANCED_STATS.maximumHp },
+            ...(options.omitStatsDelta === true ? {} : statsDelta),
+          },
+        },
+      },
+    });
+
+    const result = {
+      completionReason: "TURN_LIMIT_REACHED" as const,
+      completedTurn: COMPLETED_TURN,
+      totalScore: 0,
+      breakCount: 1,
+    };
+    recorder.record({
+      eventType: "BattleCompleted",
+      category: "FACT",
+      turnNumber: COMPLETED_TURN,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: result,
+      stateDelta: {
+        battleStatus: { before: "RUNNING", after: "COMPLETED" },
+        result: { before: undefined, after: result },
+      },
+    });
+
+    return assembleTacticalExerciseResult({
+      battleId: BATTLE_ID,
+      catalogRevision: "rev-1",
+      logLevel: "DETAILED",
+      result,
+      // HP0到達（ダメージ側のイベントが所有する差分）まで進んだ地点から記録を
+      // 始める。ここで検証したいのは、そこから先の復活が運ぶ強化差分だけである。
+      initialState: {
+        ...INITIAL_STATE,
+        units: { [ENEMY_ID]: enemySnapshot(BASE_STATS, 0) },
+      },
+      finalState: {
+        status: "COMPLETED",
+        currentTurn: COMPLETED_TURN,
+        units: { [ENEMY_ID]: enemySnapshot(ENHANCED_STATS, ENHANCED_STATS.maximumHp) },
+        exercise: { totalScore: 0, breakCount: 1 },
+        result,
+      },
+      events: recorder.getEvents(),
+      unitRoster: [],
+    });
+  }
+
+  it("UT-TEXASSEMBLER-006 (R-TEX-04 #4): accepts a revival whose baseCombatStats/combatStats deltas restore the enhanced stats of finalState", () => {
+    const result = assembleRevival();
+
+    expect(result.finalState.units[ENEMY_ID]?.baseCombatStats).toEqual(ENHANCED_STATS);
+    expect(result.breaks).toEqual([{ breakNumber: 1, turnNumber: 1, cumulativeScoreAtBreak: 0 }]);
+  });
+
+  it("UT-TEXASSEMBLER-007 (R-TEX-04 #4): rejects a revival that changed the enhanced stats without carrying the baseCombatStats/combatStats deltas, because the restored state no longer matches finalState", () => {
+    expect(() => assembleRevival({ omitStatsDelta: true })).toThrow(ApplicationError);
+    try {
+      assembleRevival({ omitStatsDelta: true });
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
   });
 });
