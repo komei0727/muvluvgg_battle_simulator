@@ -777,6 +777,79 @@
     "metadata": { "displayName": "１日ユーロ・タワー体験", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_FANTASY_SCULPTOR_ROSIE",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_ROSIE_HUGHES_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_ROSIE_HUGHES" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_ROSIE_HUGHES_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_FANTASY_SCULPTOR_ROSIE_ROSIE_CRIT_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_FRONT_RIGHT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "FRONT" },
+                  { "kind": "POSITION_COLUMN", "column": "RIGHT" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_RIGHT_ALLIES" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MEM_FANTASY_SCULPTOR_ROSIE_FRONT_RIGHT_CRIT_DMG_UP"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "空想造形師ロージー", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_FUUKI_IINKAI",
     "triggeredEffects": [
       {
@@ -834,6 +907,74 @@
       }
     ],
     "metadata": { "displayName": "風紀委員会", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_GIDDY_CIRCUMSTANCES",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_AGGRESSIVE_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ATTRIBUTE", "attribute": "AGGRESSIVE" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_AGGRESSIVE_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_GIDDY_CIRCUMSTANCES_AGGRESSIVE_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_SMART_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ATTRIBUTE", "attribute": "SMART" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_SMART_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_GIDDY_CIRCUMSTANCES_SMART_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "浮かれた事情", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_HARD_WARMUP",
@@ -1029,6 +1170,147 @@
       }
     ],
     "metadata": { "displayName": "お忍びシスターの冒険", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_KOI",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_LYDIA_ELDRIDGE_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_LYDIA_ELDRIDGE" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_LYDIA_ELDRIDGE_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_KOI_LYDIA_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_CENTER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "BACK" },
+                  { "kind": "POSITION_COLUMN", "column": "CENTER" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_KOI_BACK_CENTER_PHYSICAL_DMG_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "『こい』", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_LIKE_FRIENDS",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_COMICAL_OR_CLEVER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  {
+                    "kind": "OR",
+                    "conditions": [
+                      { "kind": "ATTRIBUTE", "attribute": "COMICAL" },
+                      { "kind": "ATTRIBUTE", "attribute": "CLEVER" }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_COMICAL_OR_CLEVER_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_LIKE_FRIENDS_COMICAL_CLEVER_ATK_UP" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_LIKE_FRIENDS_BACK_DMG_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "友達みたいなこと", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_MOMOZONO_NEW_YEAR",

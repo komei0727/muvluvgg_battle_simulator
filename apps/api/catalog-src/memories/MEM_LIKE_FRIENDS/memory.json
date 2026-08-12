@@ -1,0 +1,74 @@
+{
+  "memoryDefinitionId": "MEM_LIKE_FRIENDS",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_COMICAL_OR_CLEVER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "OR",
+                  "conditions": [
+                    { "kind": "ATTRIBUTE", "attribute": "COMICAL" },
+                    { "kind": "ATTRIBUTE", "attribute": "CLEVER" }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_COMICAL_OR_CLEVER_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_LIKE_FRIENDS_COMICAL_CLEVER_ATK_UP" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_LIKE_FRIENDS_BACK_DMG_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "友達みたいなこと", "tags": [] }
+}

@@ -110,7 +110,7 @@ describe("Memory-granted Marker over the v1 API contract (REL-008)", () => {
     const pico = catalog.memories.find((memory) => memory.memoryDefinitionId === PICO_MEMORY_ID);
 
     expect(pico).toBeDefined();
-    // 実在Memory 32件すべてが編成可能になり、Capabilityにブロックされる定義が残らない。
+    // 実在Memory 36件すべてが編成可能になり、Capabilityにブロックされる定義が残らない。
   });
 
   it("IT-CAP-MEMORY-GRANTED-MARKER-PROD-002: returns the 三ツ星 Marker with sourceSide and without sourceUnitId through the real HTTP response, and the published body still satisfies the v1 response schema", async () => {

@@ -463,7 +463,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `UNIT_SAYA_LONGING`）の `levelGrowth` を±1だけ寄せ直した。
     // `2026-08-12.1` は戦術演習専用ユニット `UNIT_AOI_GUARDIAN_TEX` の追加
     // （TEX-010／Issue #447、R-TEX-11）。既存69Unitの定義は変えていない。
-    expect(catalog.catalogRevision).toBe("2026-08-12.1");
+    // `2026-08-12.2` は新規Memory 4件（`MEM_KOI`・`MEM_LIKE_FRIENDS`・
+    // `MEM_GIDDY_CIRCUMSTANCES`・`MEM_FANTASY_SCULPTOR_ROSIE`）の追加。
+    // Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-08-12.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
