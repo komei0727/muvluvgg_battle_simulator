@@ -103,6 +103,16 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | 【風紀委員会の策謀家】姜小花                         | `UNIT_SHOUKA_SCHEMER`      | `CHAR_SHOUKA_KYOU`       | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照                |
 | 【＃激カワ吸血鬼配信者♪】フルート・メルヴィル        | `UNIT_FLUTE_VAMPIRE`       | `CHAR_FLUTE_MELVILLE`    | 済み（#41/#46, 代表10ユニット）                                     |
 
+### 戦術演習ユニット（EXERCISE_ENEMY）
+
+戦術演習の敵専用ユニット（`category: EXERCISE_ENEMY`、R-TEX-11／Q-TEX-09）の台帳。プレイアブルユニットと同名でもステータス・スキル係数が異なる別ユニットであり、**原文は `raw/units/` のwiki転記ではなくゲーム内スクリーンショットからの転記**である。そのため上の件数サマリ（`raw/units/` 69件）には含めず、CI検証も `IT-CAT-INV-001`（変換済み69件）から除外して `IT-CAT-INV-003`（EXERCISE_ENEMY一覧）が別に数える。転記内容のレビュー接点は各ユニットのproduction結合テストの `intent`（例: `IT-UNIT-AOI-GUARDIAN-TEX-001`）に置く。
+
+| ユニット名（表示名は同名）                 | unitDefinitionId        | characterId      | プレイアブル版との差分                                                                                                                                 | 状態                        |
+| ------------------------------------------ | ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| 【厳格な規律の守護者】生駒葵（戦術演習版） | `UNIT_AOI_GUARDIAN_TEX` | `CHAR_AOI_IKOMA` | ステータス（Lv200: HP375662／攻撃9547／防御5795／会心18%／速度598）、EX回復 60%→3%、PS1回復 失HP50%→5%、PS2反撃 被ダメ100%→威力110、PS2名「捲土重来+」 | 済み（TEX-010／Issue #447） |
+
+開催期間の入れ替え（`exerciseActive` の切り替え）は `catalog-src/` の編集とカタログ再生成で行い、この台帳の行は増減しない（Q-TEX-10）。
+
 ### 不完全変換の詳細（※印のユニット）
 
 上表で「※不完全変換あり」と記載した50ユニット（#41/#46代表10ユニット3 + Issue #47先行バッチ6 + Issue #55 Batch A 7 + Issue #59 Batch B 8 + Issue #57 Batch C 6 + Issue #56 Batch D 8 + Issue #58 Batch E 5 + Issue #60 Batch F 7）について、raw記載の効果のうちCatalog v2の現行スキーマでは表現しきれず、近似または省略した箇所を一覧化する。いずれもM2の基礎Catalog項目（Unit ID・属性・タイプ・ロール・配置適性・基礎ステータス・AP/PP/EX関連値）には影響しない。スキル効果の完全表現は本Issueのスコープ外（Issue本文の「Out of scope」参照）であり、対応する`EffectActionDefinition`/`ConditionDefinition`/`TriggerDefinition`拡張が実装されるまで、後続Issueで解消する。

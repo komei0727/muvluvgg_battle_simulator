@@ -224,15 +224,17 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 ### CatalogUnitSummaryResponse
 
-| プロパティ          | 型       | 必須 | 説明                                                                 |
-| ------------------- | -------- | ---- | -------------------------------------------------------------------- |
-| `unitDefinitionId`  | string   | 必須 | 不透明なUnit定義ID。                                                 |
-| `displayName`       | string   | 必須 | Catalog metadataの表示名。                                           |
-| `characterName`     | string   | 必須 | Catalog metadataのキャラクター名。                                   |
-| `attribute`         | string   | 必須 | Unit属性。未知の将来値を許容する。                                   |
-| `unitType`          | string   | 必須 | `PHYSICAL`、`ENERGY`、`AGILE`。未知の将来値を許容する。              |
-| `role`              | string   | 必須 | Unit Role。将来追加を許容する。                                      |
-| `positionAptitudes` | string[] | 必須 | `FRONT`、`BACK`の1件以上。API編成入力の後衛 `REAR`とは名称が異なる。 |
+| プロパティ          | 型       | 必須 | 説明                                                                                    |
+| ------------------- | -------- | ---- | --------------------------------------------------------------------------------------- |
+| `unitDefinitionId`  | string   | 必須 | 不透明なUnit定義ID。                                                                    |
+| `displayName`       | string   | 必須 | Catalog metadataの表示名。                                                              |
+| `characterName`     | string   | 必須 | Catalog metadataのキャラクター名。                                                      |
+| `category`          | string   | 必須 | 編成プールの区分（`PLAYABLE`／`EXERCISE_ENEMY`、R-TEX-11 #1）。未知の将来値を許容する。 |
+| `exerciseActive`    | boolean  | 任意 | 開催中バッジ用の表示情報（R-TEX-11 #4）。`EXERCISE_ENEMY` のときだけ現れる。            |
+| `attribute`         | string   | 必須 | Unit属性。未知の将来値を許容する。                                                      |
+| `unitType`          | string   | 必須 | `PHYSICAL`、`ENERGY`、`AGILE`。未知の将来値を許容する。                                 |
+| `role`              | string   | 必須 | Unit Role。将来追加を許容する。                                                         |
+| `positionAptitudes` | string[] | 必須 | `FRONT`、`BACK`の1件以上。API編成入力の後衛 `REAR`とは名称が異なる。                    |
 
 ### CatalogMemorySummaryResponse
 
@@ -421,14 +423,17 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 `turnLimit` は持たない。未定義のトップレベルプロパティ（`turnLimit` を含む）は拒否する。敵編成のユニット数・メモリー数の違反は、他の値域違反と同様にアプリケーション検証の `422` として返す。
 
+編成プール（R-TEX-11: 味方は `PLAYABLE` のみ、敵は `EXERCISE_ENEMY` のみ）の違反も参照解決後のアプリケーション検証で `422`（`INVALID_COMMAND`）として返し、violation へ `ruleId: "R-TEX-11"` を載せる。通常戦闘 `POST /api/v1/battle-simulations` では両陣営とも `PLAYABLE` のみを受理する（同じ `ruleId` の `422`）。`exerciseActive` は受理条件に影響しない。
+
 ### FormationStatPreviewRequest
 
 `POST /api/v1/formation-stat-previews` のリクエスト本文。編成部分は `BattleSimulationRequest` と同形にし、同じ `FormationRequest`（強化指定を含む）をそのまま送れるようにする。
 
-| プロパティ       | 型                 | 必須 | 制約                               |
-| ---------------- | ------------------ | ---- | ---------------------------------- |
-| `allyFormation`  | `FormationRequest` | 必須 | 味方陣営の編成。`units` は0～5件。 |
-| `enemyFormation` | `FormationRequest` | 必須 | 敵陣営の編成。`units` は0～5件。   |
+| プロパティ       | 型                 | 必須 | 制約                                                                                                                  |
+| ---------------- | ------------------ | ---- | --------------------------------------------------------------------------------------------------------------------- |
+| `allyFormation`  | `FormationRequest` | 必須 | 味方陣営の編成。`units` は0～5件。                                                                                    |
+| `enemyFormation` | `FormationRequest` | 必須 | 敵陣営の編成。`units` は0～5件。                                                                                      |
+| `mode`           | string             | 任意 | `NORMAL`／`TACTICAL_EXERCISE`。省略時 `NORMAL`。R-TEX-11 #5の編成プール検証にだけ使い、ステータス計算へは影響しない。 |
 
 `turnLimit` と `options` は持たない。戦闘を実行せず、ターン上限もログ公開レベルも結果に影響しないためである。未定義のトップレベルプロパティ（`turnLimit`・`options` を含む）は拒否する。
 
@@ -463,7 +468,7 @@ Inbound Adapterは外部DTOを次のようにCommandへ変換する。
 
 DTOの構造検証に成功しても、IDの存在、配置重複、未対応ルールなどはアプリケーション層で検証する。Inbound AdapterはCatalogを直接参照しない。
 
-`FormationStatPreviewRequest` も同じ表に従って `PreviewFormationStatsCommand` の `allyFormation`／`enemyFormation` へ変換する（`turnLimit`・`options` の行だけ対象外）。
+`FormationStatPreviewRequest` も同じ表に従って `PreviewFormationStatsCommand` の `allyFormation`／`enemyFormation` へ変換する（`turnLimit`・`options` の行だけ対象外）。`mode` は指定があるときだけそのまま通す。
 
 ## 成功レスポンス
 

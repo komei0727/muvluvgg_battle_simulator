@@ -3206,4 +3206,30 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   { ruleId: "R-TEX-08", testCaseIds: [], kinds: [] },
   { ruleId: "R-TEX-09", testCaseIds: [], kinds: [] },
   { ruleId: "R-TEX-10", testCaseIds: [], kinds: [] },
+  // TEX-010（Issue #447）: 演習ユニットのカテゴリと編成プール。設計と同じPRで
+  // 実装・テスト登録まで完了している（ruleAssignmentsへの割当は不要）。
+  {
+    ruleId: "R-TEX-11",
+    testCaseIds: [
+      "UT-R-TEX-11-001",
+      "UT-R-TEX-11-002",
+      "UT-R-TEX-11-003",
+      "UT-R-TEX-11-004",
+      "UT-R-TEX-11-005",
+      "UT-R-TEX-11-006",
+      "UT-R-TEX-11-007",
+      "UT-CAT-UNIT-015",
+      "UT-CAT-UNIT-016",
+      "UT-CAT-UNIT-017",
+      "UT-CAT-UNIT-018",
+      "UT-CAT-UNIT-019",
+      "UT-STAT-PREVIEW-019",
+      "UT-STAT-PREVIEW-022",
+      "UT-STAT-PREVIEW-023",
+      "API-STAT-PREVIEW-008",
+      "API-TEX-011",
+      "IT-CAT-INV-003",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
 ];
