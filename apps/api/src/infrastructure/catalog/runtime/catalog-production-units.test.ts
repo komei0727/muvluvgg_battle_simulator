@@ -466,7 +466,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-12.2` は新規Memory 4件（`MEM_KOI`・`MEM_LIKE_FRIENDS`・
     // `MEM_GIDDY_CIRCUMSTANCES`・`MEM_FANTASY_SCULPTOR_ROSIE`）の追加。
     // Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-08-12.2");
+    // `2026-08-12.3` は夏バリアント3ユニット（`UNIT_URUU_SUMMER`・`UNIT_MAO_SUMMER`・
+    // `UNIT_SHOUKA_BEACH`、Issue #453）の追加。既存69Unitの定義は変えていない。
+    expect(catalog.catalogRevision).toBe("2026-08-12.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

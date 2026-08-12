@@ -1,0 +1,252 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_EX_MARKER_KAIHOUKAN",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_MAO_SUMMER_KAIHOUKAN",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
+        "linkedEffectGroupRole": "PARENT"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_EX_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_EX_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_EX_EX_GAIN_DOWN",
+    "kind": "APPLY_RESOURCE_GAIN_MOD",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "rateDelta": { "kind": "CONSTANT", "value": -1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_EX_DEATH_SURVIVAL",
+    "kind": "APPLY_DEATH_SURVIVAL",
+    "payload": {
+      "trigger": { "lethalDamageOnly": true },
+      "survivalHp": { "kind": "CONSTANT", "value": 1 },
+      "healAfterSurvival": null,
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "consumption": { "kind": "LETHAL_DAMAGE", "maxCount": 5 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.06 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_AS1_DAMAGE_BOOSTED",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.166 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_AS1_HP_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": 0.225
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_AS1_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.15
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.272 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_AS2_STUN",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STUN",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_PS1_EX_GAIN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_PS1_CRIT_RATE_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.025 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_PS1_CRIT_DAMAGE_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.0875 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_PS2_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.3
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_PS2_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": {
+        "kind": "CLAMP",
+        "formula": {
+          "kind": "HP_RATIO_SCALE",
+          "target": { "kind": "SKILL_SOURCE" },
+          "min": 0,
+          "max": -0.8333,
+          "direction": "LOWER_HP_IS_MAX"
+        },
+        "min": -0.5,
+        "max": 0
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MAO_SUMMER_PS2_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "condition": {
+        "kind": "HP_RATIO_COMPARISON",
+        "left": "OPPONENT",
+        "op": "GT",
+        "right": "EFFECT_OWNER"
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  }
+]

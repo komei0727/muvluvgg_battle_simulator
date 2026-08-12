@@ -1,0 +1,39 @@
+{
+  "unitDefinitionId": "UNIT_URUU_SUMMER",
+  "attribute": "COMICAL",
+  "unitType": "AGILE",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 28468,
+    "attack": 22281,
+    "defense": 11152,
+    "criticalRate": 0.2,
+    "criticalDamageBonus": 0.5,
+    "affinityBonus": 0.25,
+    "actionSpeed": 750,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 265,
+    "attack": 206,
+    "defense": 106,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_URUU_SUMMER_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_URUU_SUMMER_PS1",
+    "SKL_URUU_SUMMER_PS2",
+    "SKL_URUU_SUMMER_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_URUU_SUMMER_EX",
+  "metadata": {
+    "affiliations": ["AFF_COLORFUL_BOUQUET"],
+    "tags": [],
+    "displayName": "【夏色シャイガール】波瀬うるう",
+    "characterName": "波瀬うるう",
+    "characterId": "CHAR_URUU_HASE"
+  }
+}

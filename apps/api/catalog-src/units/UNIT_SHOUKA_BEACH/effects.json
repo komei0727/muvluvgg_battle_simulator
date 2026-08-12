@@ -1,0 +1,219 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": {
+        "kind": "MIN",
+        "formulas": [
+          { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.35 },
+          {
+            "kind": "STAT_RATIO",
+            "source": { "kind": "SKILL_SOURCE" },
+            "stat": "ATTACK",
+            "ratio": 0.75
+          }
+        ]
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_DAMAGE_LINK",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+      "linkRate": 0.25,
+      "polarity": "BUFF",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_AP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_AP_DRAIN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -2 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS1_REMOVE_DAMAGE_LINK",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["SPECIFIC_EFFECT"],
+      "effectActionDefinitionIds": ["ACT_SHOUKA_BEACH_EX_DAMAGE_LINK"]
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS1_MARKER_SHOKI",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_SHOUKA_BEACH_SHOKI",
+      "stack": { "policy": "KEEP_EXISTING", "max": null },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.1 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS2_FRONT_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 0.318 },
+      "hitCount": 5
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS2_DRAIN_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.4
+      },
+      "overheal": "DISCARD"
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_AS2_KILL_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.075 },
+      "overheal": "DISCARD"
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_PS1_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "HP_RATIO_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "min": 0,
+        "max": 0.17,
+        "direction": "HIGHER_HP_IS_MAX"
+      },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_PS2_MAX_HP_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "MAXIMUM_HP",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.8 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": { "kind": "SELF" },
+      "linkRate": 0.75,
+      "polarity": "BUFF",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  }
+]

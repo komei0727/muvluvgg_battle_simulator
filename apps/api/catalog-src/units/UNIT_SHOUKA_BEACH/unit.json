@@ -1,0 +1,35 @@
+{
+  "unitDefinitionId": "UNIT_SHOUKA_BEACH",
+  "attribute": "SMART",
+  "unitType": "ENERGY",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 38079,
+    "attack": 16474,
+    "defense": 15515,
+    "criticalRate": 0.15,
+    "criticalDamageBonus": 0.5,
+    "affinityBonus": 0.25,
+    "actionSpeed": 631,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 365,
+    "attack": 148,
+    "defense": 147,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 9,
+  "activeSkillDefinitionIds": ["SKL_SHOUKA_BEACH_AS1", "SKL_SHOUKA_BEACH_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_SHOUKA_BEACH_PS1", "SKL_SHOUKA_BEACH_PS2"],
+  "extraSkillDefinitionId": "SKL_SHOUKA_BEACH_EX",
+  "metadata": {
+    "affiliations": ["AFF_FUUKI_IINKAI"],
+    "tags": [],
+    "displayName": "【砂浜の策謀家】姜小花",
+    "characterName": "姜小花",
+    "characterId": "CHAR_SHOUKA_KYOU"
+  }
+}

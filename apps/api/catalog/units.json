@@ -1106,6 +1106,36 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MAO_SUMMER",
+    "attribute": "AGGRESSIVE",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28376,
+      "attack": 22040,
+      "defense": 10428,
+      "criticalRate": 0.2,
+      "criticalDamageBonus": 0.5,
+      "affinityBonus": 0.25,
+      "actionSpeed": 749,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 259, "attack": 206, "defense": 94, "actionSpeed": 2 },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_MAO_SUMMER_AS1", "SKL_MAO_SUMMER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MAO_SUMMER_PS1", "SKL_MAO_SUMMER_PS2"],
+    "extraSkillDefinitionId": "SKL_MAO_SUMMER_EX",
+    "metadata": {
+      "affiliations": ["AFF_FUUKI_IINKAI"],
+      "tags": [],
+      "displayName": "【真夏の風紀委員長】大賀真桜",
+      "characterName": "大賀真桜",
+      "characterId": "CHAR_MAO_OGA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MEIYA_FATED",
     "attribute": "SHY",
     "unitType": "PHYSICAL",
@@ -1690,6 +1720,36 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_SHOUKA_BEACH",
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 38079,
+      "attack": 16474,
+      "defense": 15515,
+      "criticalRate": 0.15,
+      "criticalDamageBonus": 0.5,
+      "affinityBonus": 0.25,
+      "actionSpeed": 631,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 365, "attack": 148, "defense": 147, "actionSpeed": 2 },
+    "extraGaugeMaximum": 9,
+    "activeSkillDefinitionIds": ["SKL_SHOUKA_BEACH_AS1", "SKL_SHOUKA_BEACH_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SHOUKA_BEACH_PS1", "SKL_SHOUKA_BEACH_PS2"],
+    "extraSkillDefinitionId": "SKL_SHOUKA_BEACH_EX",
+    "metadata": {
+      "affiliations": ["AFF_FUUKI_IINKAI"],
+      "tags": [],
+      "displayName": "【砂浜の策謀家】姜小花",
+      "characterName": "姜小花",
+      "characterId": "CHAR_SHOUKA_KYOU"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_SHOUKA_SCHEMER",
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
@@ -1931,6 +1991,40 @@
       "displayName": "【理解深き老成の智者】タチアナ・ドロズドヴァ",
       "characterName": "タチアナ・ドロズドヴァ",
       "characterId": "CHAR_TATIANA_DROZDOVA"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_URUU_SUMMER",
+    "attribute": "COMICAL",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28468,
+      "attack": 22281,
+      "defense": 11152,
+      "criticalRate": 0.2,
+      "criticalDamageBonus": 0.5,
+      "affinityBonus": 0.25,
+      "actionSpeed": 750,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 265, "attack": 206, "defense": 106, "actionSpeed": 2 },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_URUU_SUMMER_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_URUU_SUMMER_PS1",
+      "SKL_URUU_SUMMER_PS2",
+      "SKL_URUU_SUMMER_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_URUU_SUMMER_EX",
+    "metadata": {
+      "affiliations": ["AFF_COLORFUL_BOUQUET"],
+      "tags": [],
+      "displayName": "【夏色シャイガール】波瀬うるう",
+      "characterName": "波瀬うるう",
+      "characterId": "CHAR_URUU_HASE"
     }
   },
   {

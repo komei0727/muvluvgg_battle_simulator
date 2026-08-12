@@ -10,14 +10,14 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 ## 件数サマリ
 
-| 区分            | 総数 | 済み                                                                                                                                                                     | 未変換 |
-| --------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| `raw/units/`    | 69   | 69（代表10 + Issue #47先行バッチ12 + Issue #55 Batch A 8 + Issue #59 Batch B 8 + Issue #57 Batch C 8 + Issue #56 Batch D 8 + Issue #58 Batch E 8 + Issue #60 Batch F 7） | 0      |
-| `raw/memories/` | 36   | 36（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6 + Issue #176 M7-008 所属・動的効果バッチ20 + 2026-08-12 追加バッチ4）                                       | 0      |
+| 区分            | 総数 | 済み                                                                                                                                                                                                | 未変換 |
+| --------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `raw/units/`    | 72   | 72（代表10 + Issue #47先行バッチ12 + Issue #55 Batch A 8 + Issue #59 Batch B 8 + Issue #57 Batch C 8 + Issue #56 Batch D 8 + Issue #58 Batch E 8 + Issue #60 Batch F 7 + Issue #453 夏バリアント3） | 0      |
+| `raw/memories/` | 36   | 36（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6 + Issue #176 M7-008 所属・動的効果バッチ20 + 2026-08-12 追加バッチ4）                                                                  | 0      |
 
 代表10ユニットは Issue #41 / #46 で production Catalog（`catalog-src/units/`）へ昇格済み。Issue #47 では「先行バッチ」として指定された12ユニット・6 Memory を同水準（`unit.json`/`skills.json`/`effects.json` フル変換）で追加した。Issue #55（Issue #54 Batch A）では既存キャラクターの別バージョンを中心とした8ユニットを同水準で追加した。Issue #59（Issue #54 Batch B）では同一キャラクターの複数バージョン整合性に注意が必要な8ユニット（生駒葵・リリー・ラヴォア・一条白奈・綺羅クララの各2バージョン）を同水準で追加した。Issue #57（Issue #54 Batch C）では所属/チーム系Memoryとの将来整合性に注意が必要な8ユニット（桃園める・シエナ・クラーク・リュシー・ムーアクロフト・朽葉ラミの各2バージョン）を同水準で追加した。Issue #56（Issue #54 Batch D）では戦術/前衛寄りの8ユニット（御剣冥夜・篁唯依・オルガ・ヴォルコワ・榊野ヒイロ・珠瀬壬姫・ノエル・アルエ・タリサ・マナンダル・姜小花）を同水準で追加した。Issue #58（Issue #54 Batch E）では支援/制御/イベント色の強い8ユニット（鳴滝七彩・姫川泉花（クリスマスコーデの参謀）・姫川泉花（自称腹黒の深謀策士）・樋向心香・大賀真桜・榊千鶴・ミリアム・ヘイワード・ルナ・メロウ）を同水準で追加した。Issue #60（Issue #54 Batch F）では残っていた最後の7ユニット（エレーナ・パステルコワ・タチアナ・ドロズドヴァ・ロージー・ヒューズ・波瀬うるう・レイヴェル・ブライトリーフ・ナージャ・ヴォルコワ・ジュリー・ステイシー）を同水準で追加し、`raw/units/` の全件変換が完了した。いずれも本Issueで初変換のキャラクターのため、`characterId`・`unitDefinitionId` を新規採番した。ナージャ・ヴォルコワの `characterId`（`CHAR_NADYA_VOLKOVA`）は、姓を共有する既存ユニット `UNIT_OLGA_VETERAN`（`CHAR_OLGA_VOLKOVA`）とは別キャラクターとして区別した。
 
-`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・36）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・36メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
+`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（72・36）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（72ユニット・36メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
@@ -102,10 +102,28 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | 【雪山もこもこ少女】ジュリー・ステイシー             | `UNIT_JULIE_SNOW`          | `CHAR_JULIE_STACEY`      | 済み（本Issue #60 Batch F） ※不完全変換あり→下表参照                |
 | 【風紀委員会の策謀家】姜小花                         | `UNIT_SHOUKA_SCHEMER`      | `CHAR_SHOUKA_KYOU`       | 済み（本Issue #56 Batch D） ※不完全変換あり→下表参照                |
 | 【＃激カワ吸血鬼配信者♪】フルート・メルヴィル        | `UNIT_FLUTE_VAMPIRE`       | `CHAR_FLUTE_MELVILLE`    | 済み（#41/#46, 代表10ユニット）                                     |
+| 【夏色シャイガール】波瀬うるう                       | `UNIT_URUU_SUMMER`         | `CHAR_URUU_HASE`         | 済み（本Issue #453 夏バリアント）                                   |
+| 【真夏の風紀委員長】大賀真桜                         | `UNIT_MAO_SUMMER`          | `CHAR_MAO_OGA`           | 済み（本Issue #453 夏バリアント）                                   |
+| 【砂浜の策謀家】姜小花                               | `UNIT_SHOUKA_BEACH`        | `CHAR_SHOUKA_KYOU`       | 済み（本Issue #453 夏バリアント）                                   |
+
+### Issue #453: 夏バリアント3ユニット
+
+wiki 追加分の夏衣装3件（波瀬うるう・大賀真桜・姜小花）を既存バッチと同水準（`unit.json`/`skills.json`/`effects.json` フル変換 + ユニット効果軸の結合テスト）で追加した。3件とも既存キャラクターの新バージョンであり `characterId` を再利用する（`UNIT_URUU_TIMID`／`UNIT_MAO_COMMITTEE`／`UNIT_SHOUKA_SCHEMER` と同一）。`metadata.affiliations` も既存バージョンと同じ所属（`AFF_COLORFUL_BOUQUET`／`AFF_FUUKI_IINKAI`）を引き継ぐ。Catalog は `2026-08-12.3` として再生成しており、既存69ユニットの定義は1件も変えていない。raw原文の該当句は各ユニットのproduction結合テストの `intent`（`IT-UNIT-URUU-SUMMER-001`／`IT-UNIT-MAO-SUMMER-001`／`IT-UNIT-SHOUKA-BEACH-001`）が全スキル分を逐語で持ち、そこが転記のレビュー接点になる（`raw/units/` はgitignore対象でCIには存在しない）。
+
+不完全変換は0件で、下の「不完全変換の詳細」へ追加した行は無い。変換上の判断は次のとおり。
+
+- **うるうPS1「防御デバフは付与者が倒れると解除される」**: `duration.removeOnSourceDefeated` は `APPLY_MARKER` 専用（`AppliedEffect` 側に付与者の戦闘不能を判定する失効機構が無く、宣言しても静かに効かないため `effect-action-integrity.ts` が拒否する）。`ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU`（「高揚」）と同じ形で、`MARKER_URUU_SUMMER_PS1_DEF_DOWN` を `linkedEffectGroupRole: PARENT` ＋ `removeOnSourceDefeated: true` にし、防御デバフ本体を `CHILD` として R-EFF-09 のカスケードで連動失効させた。原文にMarker名は無いが、この機構でしか原文の挙動を再現できない（期間が `{ACTION 1, owner: EFFECT_SOURCE}` のため、付与者が倒れると減算契機が二度と来ず戦闘終了まで残ってしまう）。カスケードの実挙動は `IT-UNIT-URUU-SUMMER-004` が固定する。
+- **うるうAS「「潮騒」を所持している相手からの被ダメージを50%減少（解除不可）」**: `condition: {UNIT_HAS_MARKER, unit: OPPONENT}` ＋ `dispellable: false`（解除不可）で表す。`APPLY_DAMAGE_MOD.stacking` は `STACKABLE` しか受理しない（最強選択を行う合成経路が `APPLY_STAT_MOD` にしか無い）一方、この効果は期間が戦闘終了までかつASのクールタイムが0のため、素の `STACKABLE` だと2回使用で `-0.5` が2件残り、R-DMG-04の合成が被ダメージ100%減（`1 - 0.5 - 0.5 = 0`）になってしまう。付与stepを `BRANCH` の `NOT(TARGET_HAS_EFFECT{categories: [DAMAGE_MOD], effectActionDefinitionIds: [ACT_URUU_SUMMER_AS1_DMG_DOWN]})` で囲み、既に保持しているときは付与し直さないことで常に50%減へ留めた（Q-CAT-EFF-16）。再使用時の非重複は `IT-UNIT-URUU-SUMMER-005` が実経路の2回使用で固定する。
+- **うるうAS「ENアタッカーに対して優先して発動する」**: 限定ではなく優先のため、`filters: [ROLE: EN_ATTACKER]` ＋ フィルタ無しの `fallback` の2段で表した（`SKL_CLARA_SANTA_AS2` 前例）。
+- **うるうEX「対象に隣接する敵」**: `ADJACENT_ORTHOGONAL` は `includeBase` を解釈しない（`applyArea` は基準からの距離1だけを返す）ため、基準対象と隣接対象を別stepにして同じDAMAGEを適用する（`SKL_MAO_COMMITTEE_EX` 前例）。
+- **真桜AS1「自身の現在HPの15%を消費し、消費分HP×150%のENダメージ」**: ダメージ（`CURRENT_HP_RATIO(SELF) × 0.225`）を先・HPコスト（`-0.15`）を後に並べて等価表現にした（コスト先行だと消費後HPを基準にしてしまう）。同一キャラクターの `SKL_MAO_COMMITTEE_AS1` と同じ並びである。
+- **真桜PS2「HP40%地点で最高値50%となる被ダメージ減少」**: `CLAMP(HP_RATIO_SCALE{min: 0, max: -0.8333, LOWER_HP_IS_MAX}, -0.5, 0)` で線形部分とクランプを分けて表した。`-0.8333` は `-0.5 / 0.6` の有限小数近似で、HP40%地点の評価値は `-0.49998`（クランプ側の`-0.5`に事実上一致する）。
+- **小花AS1「自身に付与されているダメージリンクバフを全て解除」**: 小花自身が保持するダメージリンクはEX由来の1件（`ACT_SHOUKA_BEACH_EX_DAMAGE_LINK`、自身が受けたダメージの25%を対象へ送る）だけなので、`REMOVE_EFFECTS` の `categories: [SPECIFIC_EFFECT]` へそのIDを列挙した。PS2が配るリンクは**自身以外の味方**が保持する（保持者の被ダメージを小花へ転送する）ため、小花自身の解除対象には入らない。
+- **小花PS2「自身と自身以外の味方全体に対してダメージリンクを付与し」**: 転送の向きが「自身以外の味方が受けたダメージの75%を自身へ」であるため、`AppliedEffect` を保持するのは自身以外の味方だけとし（`linkTo: SELF` ＝付与者である小花）、小花自身へは付与しない。自身へ付けると自分の被ダメージを自分へ転送する定義になり、原文が意図する転送関係にならない。
 
 ### 戦術演習ユニット（EXERCISE_ENEMY）
 
-戦術演習の敵専用ユニット（`category: EXERCISE_ENEMY`、R-TEX-11／Q-TEX-09）の台帳。プレイアブルユニットと同名でもステータス・スキル係数が異なる別ユニットであり、**原文は `raw/units/` のwiki転記ではなくゲーム内スクリーンショットからの転記**である。そのため上の件数サマリ（`raw/units/` 69件）には含めず、CI検証も `IT-CAT-INV-001`（変換済み69件）から除外して `IT-CAT-INV-003`（EXERCISE_ENEMY一覧）が別に数える。転記内容のレビュー接点は各ユニットのproduction結合テストの `intent`（例: `IT-UNIT-AOI-GUARDIAN-TEX-001`）に置く。
+戦術演習の敵専用ユニット（`category: EXERCISE_ENEMY`、R-TEX-11／Q-TEX-09）の台帳。プレイアブルユニットと同名でもステータス・スキル係数が異なる別ユニットであり、**原文は `raw/units/` のwiki転記ではなくゲーム内スクリーンショットからの転記**である。そのため上の件数サマリ（`raw/units/` 72件）には含めず、CI検証も `IT-CAT-INV-001`（変換済み72件）から除外して `IT-CAT-INV-003`（EXERCISE_ENEMY一覧）が別に数える。転記内容のレビュー接点は各ユニットのproduction結合テストの `intent`（例: `IT-UNIT-AOI-GUARDIAN-TEX-001`）に置く。
 
 | ユニット名（表示名は同名）                 | unitDefinitionId        | characterId      | プレイアブル版との差分                                                                                                                                 | 状態                        |
 | ------------------------------------------ | ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
