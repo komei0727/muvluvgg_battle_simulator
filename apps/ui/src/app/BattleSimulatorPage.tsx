@@ -139,11 +139,10 @@ export function BattleSimulatorPage({
 
   // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
   // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
-  const statPreview = useFormationStatPreview(
-    apiBaseUrl,
-    formState.draft,
-    previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {},
-  );
+  const statPreview = useFormationStatPreview(apiBaseUrl, formState.draft, {
+    mode: isExercise ? "TACTICAL_EXERCISE" : "NORMAL",
+    ...(previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {}),
+  });
 
   // 01_UI要求・画面設計.md §5.9: 入力の保存・復元・プリフィル。保存の失敗は
   // 画面へ出さず、保存以外の機能をそのまま続ける。
@@ -438,6 +437,7 @@ export function BattleSimulatorPage({
         <SelectionDialogs
           selectionDialog={formState.selectionDialog}
           draft={formState.draft}
+          mode={mode}
           catalog={catalog.response}
           unitImageMap={unitImageMap}
           memoryImageMap={memoryImageMap}

@@ -31,7 +31,7 @@ export const exerciseSuccessFixture = {
       },
       {
         battleUnitId: "bu-enemy-1",
-        unitDefinitionId: "UNIT_ENEMY_A",
+        unitDefinitionId: "UNIT_EXERCISE_A",
         side: "ENEMY",
         combatStatus: "ACTIVE",
         hp: { current: 80, maximum: 80 },
@@ -53,7 +53,7 @@ export const exerciseSuccessFixture = {
       },
       {
         battleUnitId: "bu-enemy-1",
-        unitDefinitionId: "UNIT_ENEMY_A",
+        unitDefinitionId: "UNIT_EXERCISE_A",
         side: "ENEMY",
         combatStatus: "ACTIVE",
         hp: { current: 80, maximum: 80 },

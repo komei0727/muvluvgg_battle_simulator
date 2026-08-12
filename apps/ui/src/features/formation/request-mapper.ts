@@ -202,10 +202,15 @@ export function buildFormation(
   };
 }
 
+/** `10_API設計.md`「FormationStatPreviewRequest」の`mode`。省略時は`NORMAL`。 */
+export type FormationStatPreviewMode = "NORMAL" | "TACTICAL_EXERCISE";
+
 /** docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは編成部分だけを送る。 */
 export interface FormationStatPreviewRequest {
   readonly allyFormation: FormationRequest;
   readonly enemyFormation: FormationRequest;
+  /** R-TEX-11 #5: 編成プール検証にだけ使う。ステータス計算へは影響しない。 */
+  readonly mode?: FormationStatPreviewMode;
 }
 
 export type PreviewRequestBuildResult =
@@ -224,7 +229,10 @@ export type PreviewRequestBuildResult =
  * 片側だけ埋まった編成もそのまま送る（APIは0体の陣営を受け付ける）。
  * 両陣営とも0体のときだけ送らず、UIは未取得として扱う。
  */
-export function buildFormationStatPreviewRequest(draft: BattleDraft): PreviewRequestBuildResult {
+export function buildFormationStatPreviewRequest(
+  draft: BattleDraft,
+  mode: FormationStatPreviewMode = "NORMAL",
+): PreviewRequestBuildResult {
   const ally = buildFormation(
     "ally",
     draft.allySlots,
@@ -246,7 +254,13 @@ export function buildFormationStatPreviewRequest(draft: BattleDraft): PreviewReq
 
   return {
     ok: true,
-    request: { allyFormation: ally.formation, enemyFormation: enemy.formation },
+    request: {
+      allyFormation: ally.formation,
+      enemyFormation: enemy.formation,
+      // 既定と同じ`NORMAL`は送らない。この項目を知らない旧APIは
+      // `additionalProperties: false`で422にするため。
+      ...(mode === "NORMAL" ? {} : { mode }),
+    },
     allyUnitSlotKeys: ally.unitSlotKeys,
     enemyUnitSlotKeys: enemy.unitSlotKeys,
   };

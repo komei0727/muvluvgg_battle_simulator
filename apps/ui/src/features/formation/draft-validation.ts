@@ -2,6 +2,7 @@
 // and docs/ui-design/04_コンポーネント・状態管理設計.md §9 (UiViolation shape).
 
 import { aptitudeMatches } from "../../lib/aptitude.js";
+import { PLAYABLE_CATEGORY, unitCategoryOf } from "../catalog-selection/unit-pool.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 import { enhancementForSide, memorySlotKeyOf } from "./types.js";
 import type { BattleDraft, FormationSlotInput, Side, SideEnhancementInput } from "./types.js";
@@ -61,6 +62,8 @@ export interface DraftValidationRules {
   };
   readonly enemyMemoryCount: { readonly max: number; readonly message: string };
   readonly validatesTurnLimit: boolean;
+  /** R-TEX-11 #2 #3: 陣営ごとに受理するユニットカテゴリ。 */
+  readonly unitPools: { readonly ally: string; readonly enemy: string };
 }
 
 export const BATTLE_DRAFT_VALIDATION_RULES: DraftValidationRules = {
@@ -71,6 +74,7 @@ export const BATTLE_DRAFT_VALIDATION_RULES: DraftValidationRules = {
   },
   enemyMemoryCount: { max: MAX_MEMORIES_PER_SIDE, message: "メモリーは6件まで設定できます。" },
   validatesTurnLimit: true,
+  unitPools: { ally: PLAYABLE_CATEGORY, enemy: PLAYABLE_CATEGORY },
 };
 
 function validateUnitCount(
@@ -202,6 +206,40 @@ function validateMemoryExistence(
   return violations;
 }
 
+/**
+ * R-TEX-11 #2 #3: サーバーが422で弾く編成プール違反を送信前に止める。ダイアログの
+ * 候補を絞るだけでは、保存draftの復元やCatalog更新で誤プールのユニットが枠へ
+ * 残り得るため、送信経路にも同じ制約を置く。Catalogに無い定義は
+ * `UNKNOWN_DEFINITION`が指すので、ここでは重ねて報告しない。
+ */
+function validateUnitPools(
+  side: Side,
+  slots: readonly FormationSlotInput[],
+  catalog: BattleSimulationCatalogResponse,
+  allowedCategory: string,
+): UiViolation[] {
+  const violations: UiViolation[] = [];
+  for (const slot of filledSlots(slots)) {
+    const definition = catalog.units.find(
+      (unit) => unit.unitDefinitionId === slot.unitDefinitionId,
+    );
+    if (definition === undefined || unitCategoryOf(definition) === allowedCategory) {
+      continue;
+    }
+    violations.push({
+      path: unitsPath(side),
+      slotKey: slot.slotKey,
+      code: "UNIT_POOL_MISMATCH",
+      message:
+        allowedCategory === PLAYABLE_CATEGORY
+          ? "この枠には戦術演習専用ユニットを設定できません。選び直してください。"
+          : "この枠には戦術演習専用ユニットだけを設定できます。選び直してください。",
+      severity: "error",
+    });
+  }
+  return violations;
+}
+
 function validateAptitudeWarnings(
   side: Side,
   slots: readonly FormationSlotInput[],
@@ -329,6 +367,8 @@ export function validateDraftWithRules(
     ...validateUnitExistence("enemy", draft.enemySlots, catalog),
     ...validateMemoryExistence("ally", draft.allyMemoryDefinitionIds, catalog),
     ...validateMemoryExistence("enemy", draft.enemyMemoryDefinitionIds, catalog),
+    ...validateUnitPools("ally", draft.allySlots, catalog, rules.unitPools.ally),
+    ...validateUnitPools("enemy", draft.enemySlots, catalog, rules.unitPools.enemy),
     ...validateAptitudeWarnings("ally", draft.allySlots, catalog),
     ...validateAptitudeWarnings("enemy", draft.enemySlots, catalog),
     ...validateAcademyLevels("ally", enhancementForSide(draft, "ally")),

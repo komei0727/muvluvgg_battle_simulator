@@ -28,7 +28,7 @@ test("runs a tactical exercise from the mode tab to the score summary and break 
   await ally.getByRole("button", { name: "前衛1にユニットを追加" }).click();
   await page.getByRole("button", { name: "アライアルファを選択" }).click();
   await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
-  await page.getByRole("button", { name: "エネミーアルファを選択" }).click();
+  await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
 
   await page.getByRole("button", { name: "戦術演習を開始" }).click();
   await expect(page.getByText("戦術演習が完了しました。")).toBeVisible();
@@ -119,4 +119,46 @@ test("shows no enemy enhancement controls in the exercise mode", async ({ page }
   await expect(page.getByText("ENEMY ENHANCEMENT / 学園レベル")).toHaveCount(0);
   await expect(page.getByText("ALLY ENHANCEMENT / 学園レベル")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /強化/ })).toHaveCount(1);
+});
+
+// UI-E2E-013: R-TEX-11 #2 #3。演習の敵選択は演習専用ユニットだけを出し、開催中／
+// 開催終了をバッジで示す。通常戦闘・演習味方の選択にはプレイアブルだけが出る。
+test("separates the exercise enemy pool from the playable pool", async ({ page }) => {
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
+
+  // 通常戦闘: 両陣営とも演習専用ユニットを出さない。
+  await page
+    .getByRole("region", { name: /ENEMY FORMATION/ })
+    .getByRole("button", { name: "前衛1にユニットを追加" })
+    .click();
+  await expect(page.getByRole("button", { name: "エネミーアルファを選択" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "エクササイズアルファを選択" })).toHaveCount(0);
+  await page.getByRole("button", { name: "閉じる" }).click();
+
+  await page.getByRole("tab", { name: "戦術演習" }).click();
+
+  // 演習の味方: プレイアブルのみ。
+  await page
+    .getByRole("region", { name: /ALLY FORMATION/ })
+    .getByRole("button", { name: "前衛1にユニットを追加" })
+    .click();
+  await expect(page.getByRole("button", { name: "アライアルファを選択" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "エクササイズアルファを選択" })).toHaveCount(0);
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+
+  // 演習の敵: 演習専用ユニットのみ。開催終了も選べる。
+  await page
+    .getByRole("region", { name: /ENEMY FORMATION/ })
+    .getByRole("button", { name: "前衛1にユニットを追加" })
+    .click();
+  await expect(page.getByRole("button", { name: "エクササイズアルファを選択" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "エクササイズブラボーを選択" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "アライアルファを選択" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "エネミーアルファを選択" })).toHaveCount(0);
+  await expect(page.getByText("開催中")).toBeVisible();
+  await expect(page.getByText("開催終了")).toBeVisible();
+
+  await page.getByRole("button", { name: "エクササイズブラボーを選択" }).click();
+  await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
 });

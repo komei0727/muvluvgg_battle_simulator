@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { buildFormationStatPreviewRequest } from "./request-mapper.js";
-import type { FormationStatPreviewRequest } from "./request-mapper.js";
+import type { FormationStatPreviewMode, FormationStatPreviewRequest } from "./request-mapper.js";
 import type { BattleDraft } from "./types.js";
 import { previewFormationStats as defaultPreviewFormationStats } from "../simulation/api-client.js";
 import type { FormationStatPreviewUnit } from "../simulation/api-contract.js";
@@ -53,6 +53,11 @@ function toPreviewSlots(
 
 export interface UseFormationStatPreviewOptions {
   readonly previewImpl?: PreviewFormationStatsFn;
+  /**
+   * R-TEX-11 #5: プレビューにも編成プール検証が掛かる。演習で省略すると敵枠が
+   * `EXERCISE_ENEMY`である限り422になり、枠のステータス表示が落ちる。
+   */
+  readonly mode?: FormationStatPreviewMode;
 }
 
 /**
@@ -78,7 +83,7 @@ export function useFormationStatPreview(
   // 参照は毎レンダー変わり、レンダー中にrefへ写す方式は並行レンダリング下で
   // 書き込みが破棄され得るため（`catalog-loader.ts`の同じ注記を参照）、
   // 直列化した1つの文字列を唯一の依存にして、effect側で復元する。
-  const build = buildFormationStatPreviewRequest(draft);
+  const build = buildFormationStatPreviewRequest(draft, options.mode ?? "NORMAL");
   const payloadKey = build.ok
     ? JSON.stringify({
         request: build.request,

@@ -395,6 +395,21 @@ describe("buildFormationStatPreviewRequest (UI-UT-REQ-008)", () => {
     });
   });
 
+  // R-TEX-11 #5: プレビューも編成プール検証を受けるため、演習では戦闘モードを
+  // 明示する。省略時の`NORMAL`は送らない（サーバー既定と同じ意味になる）。
+  it("carries the tactical exercise mode and omits it for a normal battle", () => {
+    const draft = baseDraft();
+
+    const normal = buildFormationStatPreviewRequest(draft);
+    const exercise = buildFormationStatPreviewRequest(draft, "TACTICAL_EXERCISE");
+
+    expect(normal.ok).toBe(true);
+    expect(exercise.ok).toBe(true);
+    if (!normal.ok || !exercise.ok) return;
+    expect(normal.request).not.toHaveProperty("mode");
+    expect(exercise.request.mode).toBe("TACTICAL_EXERCISE");
+  });
+
   it("keeps the per-side slot key tables so response entries can be mapped back to slots", () => {
     let draft = baseDraft();
     draft = withUnit(draft, "ally", "REAR", 2, "UNIT_ALLY_2");

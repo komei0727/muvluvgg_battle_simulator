@@ -5,6 +5,7 @@ import { filterUnits } from "./catalog-filter.js";
 import type { UnitFilter } from "./catalog-filter.js";
 import { SelectionDialogList } from "./SelectionDialogList.js";
 import type { SelectionDialogItem } from "./SelectionDialogList.js";
+import { isExerciseEnemyUnit } from "./unit-pool.js";
 import styles from "./SelectionDialog.module.css";
 
 export interface UnitSelectionDialogProps {
@@ -18,6 +19,17 @@ export interface UnitSelectionDialogProps {
 }
 
 const INITIAL_FILTER: UnitFilter = { query: "" };
+
+/**
+ * R-TEX-11 #4: 開催中フラグは表示専用で、選択可否を変えない。演習専用ユニット
+ * だけに出す（プレイアブルはフラグ自体を持たない）。
+ */
+function exerciseBadgeOf(unit: CatalogUnitSummary): readonly string[] {
+  if (!isExerciseEnemyUnit(unit)) {
+    return [];
+  }
+  return [unit.exerciseActive === true ? "開催中" : "開催終了"];
+}
 
 // docs/ui-design/01_UI要求・画面設計.md §5.2, §5.1 (6枠目 capacity notice).
 export function UnitSelectionDialog({
@@ -52,7 +64,12 @@ export function UnitSelectionDialog({
           definitionId: unit.unitDefinitionId,
           displayName: unit.displayName,
           disabled: isEmptySlotAtCapacity && !isCurrent,
-          tags: [unit.attribute, unit.role, unit.positionAptitudes.join("/")],
+          tags: [
+            unit.attribute,
+            unit.role,
+            unit.positionAptitudes.join("/"),
+            ...exerciseBadgeOf(unit),
+          ],
         };
       }),
     [filtered, currentUnitDefinitionId, isEmptySlotAtCapacity],
