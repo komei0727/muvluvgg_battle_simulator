@@ -48,8 +48,15 @@ const MATCHUPS = PARTIES.map((ally, index) => ({
  * 例外を完走ケースの成功として飲み込まず、**既知の到達**として別のテストへ分離する。
  * ここが増減した場合はガードの水準か production 定義が変わったということなので、
  * どちらのテストも失敗してレビューに乗る。
+ *
+ * パーティは全ユニットIDをsortして5体ずつへ分割するため、**ユニットを1体足すと
+ * 以降の編成が繰り上がり、このindexも動く**。Issue #454 で `UNIT_ANIS_SWEETDEVIL`
+ * （`UNIT_ANIS_TROUBLEMAKER` の直後）が入ったことで、ガードへ到達する編成は
+ * index 3 から index 5（味方 `UNIT_KOKORO_SPORTSDAY`〜`UNIT_LILY_HERO` 対 敵
+ * `UNIT_LILY_SINGER`〜`UNIT_LYDIA_GENIUS`）へ繰り上がった。到達する編成が
+ * 1つだけである点は変わっていない。
  */
-const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [3];
+const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [5];
 
 const COMPLETING_MATCHUPS = MATCHUPS.filter(
   (matchup) => !GUARD_LIMITED_MATCHUP_INDICES.includes(matchup.index),

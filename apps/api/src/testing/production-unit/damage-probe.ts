@@ -18,6 +18,7 @@ import {
   createSkillDefinitionId,
   createTargetBindingId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { DamageResultRegistry } from "../../domain/battle/skill/formula-evaluator.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 import { effectActionGroupContext, noMissNoCrit, seedRecorder } from "../fixtures/index.js";
@@ -592,6 +593,12 @@ export interface LifecycleDamageProbeOptions extends DamageProbeOptions {
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
+  /**
+   * R-SKL-08の直前DAMAGE結果レジストリ。`openPassiveChain` へ渡すものと**同じMap**を
+   * 渡すと、この1発の結果をPS側の `DAMAGE_RECEIVED_RATIO`（反撃・吸収）が読める。
+   * 実戦闘では `action-skill-use-resolver` が1解決スコープにつき1つを通す。
+   */
+  readonly damageResults?: DamageResultRegistry;
 }
 
 /**
@@ -691,11 +698,12 @@ export function observeLifecycleDamageProbe(
       recorder,
       rootEventId,
       ...(options.random === undefined ? {} : { random: options.random }),
-      ...(options.onFactEventForPassiveChain === undefined
-        ? {}
-        : {
-            extras: { onFactEventForPassiveChain: options.onFactEventForPassiveChain },
-          }),
+      extras: {
+        ...(options.onFactEventForPassiveChain === undefined
+          ? {}
+          : { onFactEventForPassiveChain: options.onFactEventForPassiveChain }),
+        ...(options.damageResults === undefined ? {} : { damageResults: options.damageResults }),
+      },
     }),
   );
   return probeObservation(recorder, eventsBefore, options.units, result.units);

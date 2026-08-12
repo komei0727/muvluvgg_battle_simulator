@@ -127,6 +127,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_URUU_SUMMER",
         "UNIT_MAO_SUMMER",
         "UNIT_SHOUKA_BEACH",
+        // Issue #454 夏バリアント4体目（#452 のエンジン拡張に依存）
+        "UNIT_ANIS_SWEETDEVIL",
       ].sort(),
     );
   });

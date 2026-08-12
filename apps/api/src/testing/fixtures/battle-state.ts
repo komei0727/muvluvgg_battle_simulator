@@ -15,7 +15,7 @@ export interface InitialSnapshotOptions {
    * 「キーの有無」まで比較するため、既定では書かず（`captureBattleState` と
    * 同じく空のユニットへキーを書かない）、検証対象のテストだけが有効化する。
    */
-  readonly include?: readonly ("effects" | "markers" | "cooldowns" | "charge")[];
+  readonly include?: readonly ("effects" | "markers" | "cooldowns" | "charge" | "skillCounters")[];
 }
 
 /** 実行前の `BattleStateSnapshot`（独立Reducerによる `stateDelta` 復元の起点）。 */
@@ -51,6 +51,24 @@ export function initialSnapshotFor(
                   skillDefinitionId: unit.charge.skill.skillDefinitionId,
                   startedActionId: unit.charge.startedActionId,
                 },
+              }
+            : {}),
+          // `captureBattleState` と同じ射影（`value` だけを書き、`carry` は
+          // `skillCounterCarry` 側が持つ）。PS発動を数えるcounterのStateDeltaまで
+          // reducerで突き合わせるテストだけが有効化する。
+          ...(include.has("skillCounters") && Object.keys(unit.skillCounters ?? {}).length > 0
+            ? {
+                skillCounters: Object.fromEntries(
+                  Object.entries(unit.skillCounters ?? {}).map(([skillDefinitionId, counters]) => [
+                    skillDefinitionId,
+                    Object.fromEntries(
+                      Object.entries(counters).map(([counterId, state]) => [
+                        counterId,
+                        state.value,
+                      ]),
+                    ),
+                  ]),
+                ),
               }
             : {}),
           ...(include.has("effects") && unit.appliedEffects.length > 0

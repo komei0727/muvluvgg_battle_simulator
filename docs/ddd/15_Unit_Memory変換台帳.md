@@ -10,14 +10,14 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 
 ## 件数サマリ
 
-| 区分            | 総数 | 済み                                                                                                                                                                                                | 未変換 |
-| --------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `raw/units/`    | 72   | 72（代表10 + Issue #47先行バッチ12 + Issue #55 Batch A 8 + Issue #59 Batch B 8 + Issue #57 Batch C 8 + Issue #56 Batch D 8 + Issue #58 Batch E 8 + Issue #60 Batch F 7 + Issue #453 夏バリアント3） | 0      |
-| `raw/memories/` | 36   | 36（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6 + Issue #176 M7-008 所属・動的効果バッチ20 + 2026-08-12 追加バッチ4）                                                                  | 0      |
+| 区分            | 総数 | 済み                                                                                                                                                                                                                               | 未変換 |
+| --------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `raw/units/`    | 73   | 73（代表10 + Issue #47先行バッチ12 + Issue #55 Batch A 8 + Issue #59 Batch B 8 + Issue #57 Batch C 8 + Issue #56 Batch D 8 + Issue #58 Batch E 8 + Issue #60 Batch F 7 + Issue #453 夏バリアント3 + Issue #454 アニス・ベネット1） | 0      |
+| `raw/memories/` | 36   | 36（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6 + Issue #176 M7-008 所属・動的効果バッチ20 + 2026-08-12 追加バッチ4）                                                                                                 | 0      |
 
 代表10ユニットは Issue #41 / #46 で production Catalog（`catalog-src/units/`）へ昇格済み。Issue #47 では「先行バッチ」として指定された12ユニット・6 Memory を同水準（`unit.json`/`skills.json`/`effects.json` フル変換）で追加した。Issue #55（Issue #54 Batch A）では既存キャラクターの別バージョンを中心とした8ユニットを同水準で追加した。Issue #59（Issue #54 Batch B）では同一キャラクターの複数バージョン整合性に注意が必要な8ユニット（生駒葵・リリー・ラヴォア・一条白奈・綺羅クララの各2バージョン）を同水準で追加した。Issue #57（Issue #54 Batch C）では所属/チーム系Memoryとの将来整合性に注意が必要な8ユニット（桃園める・シエナ・クラーク・リュシー・ムーアクロフト・朽葉ラミの各2バージョン）を同水準で追加した。Issue #56（Issue #54 Batch D）では戦術/前衛寄りの8ユニット（御剣冥夜・篁唯依・オルガ・ヴォルコワ・榊野ヒイロ・珠瀬壬姫・ノエル・アルエ・タリサ・マナンダル・姜小花）を同水準で追加した。Issue #58（Issue #54 Batch E）では支援/制御/イベント色の強い8ユニット（鳴滝七彩・姫川泉花（クリスマスコーデの参謀）・姫川泉花（自称腹黒の深謀策士）・樋向心香・大賀真桜・榊千鶴・ミリアム・ヘイワード・ルナ・メロウ）を同水準で追加した。Issue #60（Issue #54 Batch F）では残っていた最後の7ユニット（エレーナ・パステルコワ・タチアナ・ドロズドヴァ・ロージー・ヒューズ・波瀬うるう・レイヴェル・ブライトリーフ・ナージャ・ヴォルコワ・ジュリー・ステイシー）を同水準で追加し、`raw/units/` の全件変換が完了した。いずれも本Issueで初変換のキャラクターのため、`characterId`・`unitDefinitionId` を新規採番した。ナージャ・ヴォルコワの `characterId`（`CHAR_NADYA_VOLKOVA`）は、姓を共有する既存ユニット `UNIT_OLGA_VETERAN`（`CHAR_OLGA_VOLKOVA`）とは別キャラクターとして区別した。
 
-`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（72・36）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（72ユニット・36メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
+`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（73・36）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（73ユニット・36メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
@@ -105,6 +105,7 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | 【夏色シャイガール】波瀬うるう                       | `UNIT_URUU_SUMMER`         | `CHAR_URUU_HASE`         | 済み（本Issue #453 夏バリアント）                                   |
 | 【真夏の風紀委員長】大賀真桜                         | `UNIT_MAO_SUMMER`          | `CHAR_MAO_OGA`           | 済み（本Issue #453 夏バリアント）                                   |
 | 【砂浜の策謀家】姜小花                               | `UNIT_SHOUKA_BEACH`        | `CHAR_SHOUKA_KYOU`       | 済み（本Issue #453 夏バリアント）                                   |
+| 【渚のスイートデビル】アニス・ベネット               | `UNIT_ANIS_SWEETDEVIL`     | `CHAR_ANIS_BENNETT`      | 済み（本Issue #454 夏バリアント）                                   |
 
 ### Issue #453: 夏バリアント3ユニット
 
@@ -121,9 +122,26 @@ wiki 追加分の夏衣装3件（波瀬うるう・大賀真桜・姜小花）�
 - **小花AS1「自身に付与されているダメージリンクバフを全て解除」**: 小花自身が保持するダメージリンクはEX由来の1件（`ACT_SHOUKA_BEACH_EX_DAMAGE_LINK`、自身が受けたダメージの25%を対象へ送る）だけなので、`REMOVE_EFFECTS` の `categories: [SPECIFIC_EFFECT]` へそのIDを列挙した。PS2が配るリンクは**自身以外の味方**が保持する（保持者の被ダメージを小花へ転送する）ため、小花自身の解除対象には入らない。
 - **小花PS2「自身と自身以外の味方全体に対してダメージリンクを付与し」**: 転送の向きが「自身以外の味方が受けたダメージの75%を自身へ」であるため、`AppliedEffect` を保持するのは自身以外の味方だけとし（`linkTo: SELF` ＝付与者である小花）、小花自身へは付与しない。自身へ付けると自分の被ダメージを自分へ転送する定義になり、原文が意図する転送関係にならない。
 
+### Issue #454: アニス・ベネット（夏バリアント4体目）
+
+夏バリアントの残り1件。PS1・PS3が `DMG-012`（Issue #452）のエンジン拡張を前提とするため、#453 の3体とは別Issueへ分けて #452 完了後に投入した。`characterId`（`CHAR_ANIS_BENNETT`）と所属（`AFF_CHAOS_MAIDEN`）は `UNIT_ANIS_TROUBLEMAKER` から引き継ぐ。Catalog は `2026-08-12.4` として再生成しており、既存72ユニットの定義は1件も変えていない。
+
+**`DMG-012` が追加した2機構の production 初使用**である。
+
+- PS1のtrigger条件 `DAMAGE_MAX_HP_RATIO`（`field: hitPointDamage`, `op: GTE`, `value: 0.15`）＝「1ヒットで最大HP×15%以上のダメージを負った際」。
+- PS3が配る `APPLY_DAMAGE_MOD.damageThreshold`（`op: GT`, `CURRENT_HP_RATIO(TARGET) × 0.2`）＋ `consumption {INCOMING_HIT, maxCount: 3}` ＝「現在HPの20%を超えるダメージのみ3ヒットまで50%減少」（`R-DMG-07`）。
+
+変換上の判断:
+
+- **EXの「ランダムに3回対象を抽出」**: `REPEAT count: 3` × `RANDOM_BRANCH`（`WEIGHTED_ONE`、味方側／敵側とも weight 1）で表した。対象そのものは抽選前に `TGT_ALLY`（`SELECT ALLY 1` ＋ `SELF_LOWEST_PRIORITY`）・`TGT_ENEMY`（`SELECT ENEMY 1` ＋ `NEAREST`）として束縛し、抽選は「どちらの腕を引くか」だけに閉じる。ランダム対象選択の機構は不要（Q-CAT-EFF-18）。
+- **PS1の「EXゲージの所持状況」を読む時点**: 分岐が読むのはPS使用のPP消費に伴うEX獲得（`R-ACT-03`、+1）の**後**の値である。`activationCondition`（EX≥1）は候補判定時＝消費前に評価されるため、発動した時点で分岐は必ずEX≥2を見る。結果として raw が記述しない「EXゲージがちょうど1」のケースは実戦闘に現れず、raw の2分岐（`2` と `3以上`）が全域を覆う（Q-CAT-EFF-19）。定義側の最終 `elseSteps` は到達しない防御的な空腕として残してある。
+- **PS1の回復量が参照する被ダメージ**: `DAMAGE_RECEIVED_RATIO` の `sourceResult` は `LAST_DAMAGE_RECEIVED`（契機になったヒット1件）とした。`SUM_DAMAGE_RECEIVED` は**1回の `EffectSequence` 解決**を集計単位にする（`SkillUseId` キー）ため、PS自身の解決スコープでは常に0になり「その行動内での被ダメージ分」を表せない（Q-CAT-EFF-20）。
+- **PS2の集計単位と回復対象**: `CUMULATIVE_DAMAGE_THRESHOLD` は `SKILL_RUNTIME` スコープしか受理しない（`BATTLE_UNIT` はロード時に拒否）ため、累計は「汐風」所持者ごとではなくアニス側の1カウンタへプールされる。回復・Marker解除の対象も、契機の `RuntimeCounterChanged` が被弾ユニットを持たない（payloadは `ownerUnitId` だけ）ため、`SELECT ALLY 1` ＋ `HAS_MARKER 汐風` ＋ `EXCLUDE_RESOLVED_UNIT SELF` ＋ `order: LOWEST_HP_RATIO`（最も削れている所持者）で選び直す。汐風の配布元であるPS3が隣接味方（最大2体）へしか配らないため、実戦闘での差は小さい（Q-CAT-EFF-21）。
+- **PS1とPS2の同時発動排他**: 「ヒートアップ・ラブと同じタイミングでは発動しない」は `exclusiveActivationGroupId` だけでは表せない。R-PS-03の同時発動制限グループは「**同じイベントで候補になった**PSだけ」を1グループにするため、PS1（`HitPointReduced`）とPS2（`RuntimeCounterChanged`）は決して同居せず、共通グループIDを与えても相互排他にならない（同一root actionでアニスが最大HP15%以上を被弾し、かつ汐風所持味方が累計30%を超えると両方発動しうる）。`resetScope: RESOLUTION_SCOPE` の `INCREMENT` counterを互いに1本ずつ宣言し（契機は相手スキルの `PassiveActivated`）、`activationCondition` で「この解決スコープで相手が発動していないこと」を要求して排他を作った。`activationCondition` へ置くのはR-PS-04の発動直前再確認を通すためで、trigger条件へ置くと候補検出後に相手が発動しても取り消せない。共通の `exclusiveActivationGroupId` は同一イベントで候補化し得る将来の変更に備えて残している。相互排他の実挙動は `IT-UNIT-ANIS-SWEETDEVIL-004` が、どちらの順番でも後発が落ちることとして固定する（`UNIT_STELLA_STATUE` の `STELLA_HP_REACTION` は同一イベント同士のため `exclusiveActivationGroupId` だけで足りる）。
+
 ### 戦術演習ユニット（EXERCISE_ENEMY）
 
-戦術演習の敵専用ユニット（`category: EXERCISE_ENEMY`、R-TEX-11／Q-TEX-09）の台帳。プレイアブルユニットと同名でもステータス・スキル係数が異なる別ユニットであり、**原文は `raw/units/` のwiki転記ではなくゲーム内スクリーンショットからの転記**である。そのため上の件数サマリ（`raw/units/` 72件）には含めず、CI検証も `IT-CAT-INV-001`（変換済み72件）から除外して `IT-CAT-INV-003`（EXERCISE_ENEMY一覧）が別に数える。転記内容のレビュー接点は各ユニットのproduction結合テストの `intent`（例: `IT-UNIT-AOI-GUARDIAN-TEX-001`）に置く。
+戦術演習の敵専用ユニット（`category: EXERCISE_ENEMY`、R-TEX-11／Q-TEX-09）の台帳。プレイアブルユニットと同名でもステータス・スキル係数が異なる別ユニットであり、**原文は `raw/units/` のwiki転記ではなくゲーム内スクリーンショットからの転記**である。そのため上の件数サマリ（`raw/units/` 73件）には含めず、CI検証も `IT-CAT-INV-001`（変換済み73件）から除外して `IT-CAT-INV-003`（EXERCISE_ENEMY一覧）が別に数える。転記内容のレビュー接点は各ユニットのproduction結合テストの `intent`（例: `IT-UNIT-AOI-GUARDIAN-TEX-001`）に置く。
 
 | ユニット名（表示名は同名）                 | unitDefinitionId        | characterId      | プレイアブル版との差分                                                                                                                                 | 状態                        |
 | ------------------------------------------ | ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
