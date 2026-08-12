@@ -35,6 +35,12 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * separate tally owned by `UT-PLAN-001-005`. Counting the directory total
  * instead would conflate the two: re-adding a synthetic unit would fail here
  * and invite editing the ledger's converted-unit constant to make it pass.
+ *
+ * TEX-010 (Issue #447) adds `EXERCISE_ENEMY` units — tactical-exercise-only
+ * enemies transcribed from in-game screenshots, not `raw/units/` conversions.
+ * They are tallied separately (`IT-CAT-INV-003`, ledger section
+ * 「戦術演習ユニット」in `15_Unit_Memory変換台帳.md`) and excluded from the
+ * converted-unit count for the same reason INTERNAL fixtures are.
  */
 
 function apiPackageRootPath(...segments: string[]): string {
@@ -48,7 +54,7 @@ describe("catalog-src/ inventory (Issue #47 ledger)", () => {
       (unit) =>
         !((unit as { metadata?: { tags?: readonly string[] } }).metadata?.tags ?? []).includes(
           "INTERNAL",
-        ),
+        ) && (unit as { category?: string }).category !== "EXERCISE_ENEMY",
     );
     expect(converted).toHaveLength(69);
   });
@@ -56,5 +62,14 @@ describe("catalog-src/ inventory (Issue #47 ledger)", () => {
   it("IT-CAT-INV-002: catalog-src/ has all 32 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007 + 20 from Issue #176 M7-008)", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     expect(source.memories.length).toBe(32);
+  });
+
+  it("IT-CAT-INV-003: catalog-src/ has exactly the EXERCISE_ENEMY units tallied in the ledger's 戦術演習ユニット section (TEX-010 / Issue #447)", () => {
+    const source = readCatalogSource(apiPackageRootPath("catalog-src"));
+    const exerciseEnemies = source.units
+      .filter((unit) => (unit as { category?: string }).category === "EXERCISE_ENEMY")
+      .map((unit) => (unit as { unitDefinitionId: string }).unitDefinitionId)
+      .sort();
+    expect(exerciseEnemies).toEqual(["UNIT_AOI_GUARDIAN_TEX"]);
   });
 });

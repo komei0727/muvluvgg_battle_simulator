@@ -24,6 +24,7 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 const UNIT_TEST_ID = createUnitDefinitionId("UNIT_TEST");
 const UNIT_TEST_DEFINITION: UnitDefinition = {
   unitDefinitionId: UNIT_TEST_ID,
+  category: "PLAYABLE",
   attribute: "AGGRESSIVE",
   unitType: "PHYSICAL",
   role: "PHYSICAL_ATTACKER",

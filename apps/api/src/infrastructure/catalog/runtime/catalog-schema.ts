@@ -49,6 +49,9 @@ export const unitDefinitionSchema = {
   ],
   properties: {
     unitDefinitionId: idSchema("UNIT_"),
+    // R-TEX-11: 省略時PLAYABLE。exerciseActiveとの相互制約はdomain factoryが検証する。
+    category: { enum: ["PLAYABLE", "EXERCISE_ENEMY"] },
+    exerciseActive: { type: "boolean" },
     attribute: { enum: ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] },
     unitType: { enum: ["PHYSICAL", "ENERGY", "AGILE"] },
     role: { enum: ["PHYSICAL_ATTACKER", "EN_ATTACKER", "TANK", "SUPPORT", "CONTROL"] },

@@ -6,7 +6,8 @@ import type { CombatStats } from "./starting-combat-stats.js";
  * ときだけR-TEX領域のルールを適用し、`NORMAL`の挙動と既存ルールは変更しない
  * （`07_戦闘ルール詳細.md`「戦術演習（スコアアタック）」前文）。
  */
-export type BattleMode = "NORMAL" | "TACTICAL_EXERCISE";
+export const BATTLE_MODES = ["NORMAL", "TACTICAL_EXERCISE"] as const;
+export type BattleMode = (typeof BATTLE_MODES)[number];
 
 /**
  * R-TEX-01 #4: 戦術演習の規定ターン数は5で固定であり、APIリクエストでは指定できない。

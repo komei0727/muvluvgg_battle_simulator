@@ -84,4 +84,6 @@ export interface TacticalExerciseRequestBody {
 export interface FormationStatPreviewRequestBody {
   readonly allyFormation: FormationRequestBody;
   readonly enemyFormation: FormationRequestBody;
+  /** R-TEX-11 #5: 編成プール検証に使う戦闘モード。省略時は`NORMAL`。 */
+  readonly mode?: "NORMAL" | "TACTICAL_EXERCISE";
 }

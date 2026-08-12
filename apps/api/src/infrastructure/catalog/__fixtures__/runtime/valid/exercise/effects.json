@@ -1,0 +1,16 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_DAMAGE_PHYSICAL_100",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  }
+]

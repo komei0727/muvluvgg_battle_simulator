@@ -97,7 +97,8 @@ export class PreviewFormationStatsUseCase {
     }
 
     const snapshot = this.battleCatalogDirectory.loadSnapshot();
-    runPreflight(command, snapshot);
+    // R-TEX-11 #5: プレビューにも編成プール検証を適用する（省略時はNORMAL扱い）。
+    runPreflight(command, snapshot, command.mode ?? "NORMAL");
 
     try {
       return {

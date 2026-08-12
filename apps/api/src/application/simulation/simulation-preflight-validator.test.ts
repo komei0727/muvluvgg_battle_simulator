@@ -14,9 +14,14 @@ import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-d
 import {} from "../../domain/catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
 
-function unitDefinition(id: string): UnitDefinition {
+function unitDefinition(
+  id: string,
+  overrides: Pick<Partial<UnitDefinition>, "category" | "exerciseActive"> = {},
+): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category: overrides.category ?? "PLAYABLE",
+    ...(overrides.exerciseActive === undefined ? {} : { exerciseActive: overrides.exerciseActive }),
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",
@@ -81,7 +86,7 @@ function command(overrides: Partial<SimulateBattleCommand> = {}): SimulateBattle
 
 describe("runPreflight", () => {
   it("UT-PREFLIGHT-001: passes when every referenced Unit exists and requires no Capability", () => {
-    expect(() => runPreflight(command(), snapshot())).not.toThrow();
+    expect(() => runPreflight(command(), snapshot(), "NORMAL")).not.toThrow();
   });
 
   it("UT-PREFLIGHT-002 (R-FRM-06): rejects with DEFINITION_NOT_FOUND when a Unit reference is unknown", () => {
@@ -98,7 +103,7 @@ describe("runPreflight", () => {
     });
 
     try {
-      runPreflight(cmd, snapshot());
+      runPreflight(cmd, snapshot(), "NORMAL");
       expect.fail("expected runPreflight to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(ApplicationError);
@@ -132,7 +137,7 @@ describe("runPreflight", () => {
     });
 
     try {
-      runPreflight(cmd, snapshot());
+      runPreflight(cmd, snapshot(), "NORMAL");
       expect.fail("expected runPreflight to throw");
     } catch (error) {
       const violations = (error as ApplicationError).violations;
@@ -154,7 +159,7 @@ describe("runPreflight", () => {
     });
 
     try {
-      runPreflight(cmd, snapshot());
+      runPreflight(cmd, snapshot(), "NORMAL");
       expect.fail("expected runPreflight to throw");
     } catch (error) {
       expect((error as ApplicationError).code).toBe("DEFINITION_NOT_FOUND");
@@ -180,7 +185,7 @@ describe("runPreflight", () => {
     });
 
     try {
-      runPreflight(cmd, snapshot());
+      runPreflight(cmd, snapshot(), "NORMAL");
       expect.fail("expected runPreflight to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(ApplicationError);
@@ -206,7 +211,7 @@ describe("runPreflight", () => {
       },
     });
 
-    expect(() => runPreflight(withDefaultLevel, snapshot())).not.toThrow();
+    expect(() => runPreflight(withDefaultLevel, snapshot(), "NORMAL")).not.toThrow();
   });
 
   it("UT-PREFLIGHT-009 (R-ENH-05 #2): a Unit that declares levelGrowth accepts any level", () => {
@@ -236,6 +241,7 @@ describe("runPreflight", () => {
             [createUnitDefinitionId("UNIT_001"), growingUnit],
           ]),
         }),
+        "NORMAL",
       ),
     ).not.toThrow();
   });
@@ -256,7 +262,127 @@ describe("runPreflight", () => {
     });
 
     try {
-      runPreflight(cmd, snapshot());
+      runPreflight(cmd, snapshot(), "NORMAL");
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("DEFINITION_NOT_FOUND");
+    }
+  });
+
+  /** UNIT_001=PLAYABLE と UNIT_TEX=EXERCISE_ENEMY（開催状態は引数で指定）の2体入りsnapshot。 */
+  function categorySnapshot(exerciseActive = true): BattleCatalogSnapshot {
+    return snapshot({
+      units: new Map<UnitDefinitionId, UnitDefinition>([
+        [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
+        [
+          createUnitDefinitionId("UNIT_TEX"),
+          unitDefinition("UNIT_TEX", { category: "EXERCISE_ENEMY", exerciseActive }),
+        ],
+      ]),
+    });
+  }
+
+  function formationOf(unitId: string) {
+    return {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId(unitId),
+          position: { column: 0 as const, row: "FRONT" as const },
+        },
+      ],
+      memoryDefinitionIds: [],
+    };
+  }
+
+  it("UT-R-TEX-11-001: NORMAL rejects an EXERCISE_ENEMY unit in the ally formation with INVALID_COMMAND and the rule id", () => {
+    const cmd = command({ allyFormation: formationOf("UNIT_TEX") });
+
+    try {
+      runPreflight(cmd, categorySnapshot(), "NORMAL");
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({
+          path: "allyFormation.slots[0].unitDefinitionId",
+          definitionId: "UNIT_TEX",
+          ruleId: "R-TEX-11",
+        }),
+      );
+    }
+  });
+
+  it("UT-R-TEX-11-002: NORMAL rejects an EXERCISE_ENEMY unit in the enemy formation", () => {
+    const cmd = command({ enemyFormation: formationOf("UNIT_TEX") });
+
+    try {
+      runPreflight(cmd, categorySnapshot(), "NORMAL");
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({
+          path: "enemyFormation.slots[0].unitDefinitionId",
+          ruleId: "R-TEX-11",
+        }),
+      );
+    }
+  });
+
+  it("UT-R-TEX-11-003: TACTICAL_EXERCISE rejects a PLAYABLE unit in the enemy formation", () => {
+    const cmd = command({ enemyFormation: formationOf("UNIT_001") });
+
+    try {
+      runPreflight(cmd, categorySnapshot(), "TACTICAL_EXERCISE");
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({
+          path: "enemyFormation.slots[0].unitDefinitionId",
+          ruleId: "R-TEX-11",
+        }),
+      );
+    }
+  });
+
+  it("UT-R-TEX-11-004: TACTICAL_EXERCISE rejects an EXERCISE_ENEMY unit in the ally formation", () => {
+    const cmd = command({
+      allyFormation: formationOf("UNIT_TEX"),
+      enemyFormation: formationOf("UNIT_TEX"),
+    });
+
+    try {
+      runPreflight(cmd, categorySnapshot(), "TACTICAL_EXERCISE");
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      const violations = (error as ApplicationError).violations;
+      expect(violations).toHaveLength(1);
+      expect(violations).toContainEqual(
+        expect.objectContaining({ path: "allyFormation.slots[0].unitDefinitionId" }),
+      );
+    }
+  });
+
+  it("UT-R-TEX-11-005: TACTICAL_EXERCISE accepts a PLAYABLE ally against an EXERCISE_ENEMY enemy", () => {
+    const cmd = command({ enemyFormation: formationOf("UNIT_TEX") });
+
+    expect(() => runPreflight(cmd, categorySnapshot(), "TACTICAL_EXERCISE")).not.toThrow();
+  });
+
+  it("UT-R-TEX-11-006: an inactive (exerciseActive: false) EXERCISE_ENEMY unit is still accepted — the flag is display-only", () => {
+    const cmd = command({ enemyFormation: formationOf("UNIT_TEX") });
+
+    expect(() => runPreflight(cmd, categorySnapshot(false), "TACTICAL_EXERCISE")).not.toThrow();
+  });
+
+  it("UT-R-TEX-11-007: an unknown reference still wins over the category check, since it needs a resolved definition", () => {
+    const cmd = command({ enemyFormation: formationOf("UNIT_MISSING") });
+
+    try {
+      runPreflight(cmd, categorySnapshot(), "TACTICAL_EXERCISE");
       expect.fail("expected runPreflight to throw");
     } catch (error) {
       expect((error as ApplicationError).code).toBe("DEFINITION_NOT_FOUND");

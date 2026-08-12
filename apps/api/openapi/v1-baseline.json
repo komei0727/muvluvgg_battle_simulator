@@ -26687,6 +26687,10 @@
                         }
                       }
                     }
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": ["NORMAL", "TACTICAL_EXERCISE"]
                   }
                 }
               }
@@ -27465,6 +27469,7 @@
                           "unitDefinitionId",
                           "displayName",
                           "characterName",
+                          "category",
                           "attribute",
                           "unitType",
                           "role",
@@ -27479,6 +27484,12 @@
                           },
                           "characterName": {
                             "type": "string"
+                          },
+                          "category": {
+                            "type": "string"
+                          },
+                          "exerciseActive": {
+                            "type": "boolean"
                           },
                           "attribute": {
                             "type": "string"

@@ -62,6 +62,7 @@ function unitDefinitionOf(
 ): UnitDefinition {
   return {
     unitDefinitionId: id,
+    category: "PLAYABLE",
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",

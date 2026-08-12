@@ -19,6 +19,8 @@ export function toBattleSimulationCatalogResponseBody(
       unitDefinitionId: unit.unitDefinitionId,
       displayName: unit.displayName,
       characterName: unit.characterName,
+      category: unit.category,
+      ...(unit.exerciseActive === undefined ? {} : { exerciseActive: unit.exerciseActive }),
       attribute: unit.attribute,
       unitType: unit.unitType,
       role: unit.role,

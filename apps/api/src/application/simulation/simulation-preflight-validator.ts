@@ -1,6 +1,8 @@
 import { ApplicationError, type Violation } from "../contracts/application-error.js";
 import type { FormationInput, FormationPairCommand } from "./simulate-battle-command.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
+import type { BattleMode } from "../../domain/battle/model/exercise-runtime.js";
+import type { UnitCategory } from "../../domain/catalog/definitions/unit-definition.js";
 import { DEFAULT_UNIT_LEVEL } from "../../domain/battle/model/enhanced-base-stats-calculator.js";
 
 const FORMATIONS: readonly ["allyFormation", "enemyFormation"] = [
@@ -73,20 +75,65 @@ function validateLevelGrowth(
 }
 
 /**
+ * R-TEX-11: 戦闘モードごとの編成プール。通常戦闘は両陣営とも`PLAYABLE`のみ、
+ * 戦術演習は味方`PLAYABLE`・敵`EXERCISE_ENEMY`のみを受理する。`exerciseActive`
+ * は表示専用の開催情報であり、ここでは参照しない（開催終了ユニットも受理する）。
+ */
+const ALLOWED_CATEGORIES: Readonly<
+  Record<BattleMode, Readonly<Record<(typeof FORMATIONS)[number], UnitCategory>>>
+> = {
+  NORMAL: { allyFormation: "PLAYABLE", enemyFormation: "PLAYABLE" },
+  TACTICAL_EXERCISE: { allyFormation: "PLAYABLE", enemyFormation: "EXERCISE_ENEMY" },
+};
+
+function validateUnitCategories(
+  command: FormationPairCommand,
+  snapshot: BattleCatalogSnapshot,
+  mode: BattleMode,
+): Violation[] {
+  const violations: Violation[] = [];
+
+  for (const key of FORMATIONS) {
+    const allowed = ALLOWED_CATEGORIES[mode][key];
+    const formation: FormationInput = command[key];
+    formation.slots.forEach((slot, index) => {
+      const unitDefinition = snapshot.units.get(slot.unitDefinitionId);
+      if (unitDefinition !== undefined && unitDefinition.category !== allowed) {
+        violations.push({
+          path: `${key}.slots[${index}].unitDefinitionId`,
+          definitionId: slot.unitDefinitionId,
+          ruleId: "R-TEX-11",
+          reason: `must reference a ${allowed} unit in ${key} of a ${mode} battle, but "${slot.unitDefinitionId}" is ${unitDefinition.category}`,
+        });
+      }
+    });
+  }
+
+  return violations;
+}
+
+/**
  * `09_アプリケーション設計.md` の SimulationPreflightValidator: 参照検証を
  * 行う（Command検証はUseCaseが `validateCommandShape` を直接呼ぶため、
  * ここでは扱わない）。
  */
-export function runPreflight(command: FormationPairCommand, snapshot: BattleCatalogSnapshot): void {
+export function runPreflight(
+  command: FormationPairCommand,
+  snapshot: BattleCatalogSnapshot,
+  mode: BattleMode,
+): void {
   const referenceViolations = validateReferences(command, snapshot);
   if (referenceViolations.length > 0) {
-    // 未解決の参照を先に返す。`levelGrowth`検査は解決済み定義を前提にするため、
-    // 存在しないユニットについては「成長値が無い」ではなく参照エラーが正しい。
+    // 未解決の参照を先に返す。`levelGrowth`・カテゴリ検査は解決済み定義を前提に
+    // するため、存在しないユニットについては参照エラーが正しい。
     throw new ApplicationError("DEFINITION_NOT_FOUND", referenceViolations);
   }
 
-  const levelGrowthViolations = validateLevelGrowth(command, snapshot);
-  if (levelGrowthViolations.length > 0) {
-    throw new ApplicationError("INVALID_COMMAND", levelGrowthViolations);
+  const commandViolations = [
+    ...validateLevelGrowth(command, snapshot),
+    ...validateUnitCategories(command, snapshot, mode),
+  ];
+  if (commandViolations.length > 0) {
+    throw new ApplicationError("INVALID_COMMAND", commandViolations);
   }
 }

@@ -9,7 +9,10 @@ import type {
   UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { MemoryDefinition } from "../../domain/catalog/definitions/memory-definition.js";
-import type { UnitDefinition } from "../../domain/catalog/definitions/unit-definition.js";
+import type {
+  UnitCategory,
+  UnitDefinition,
+} from "../../domain/catalog/definitions/unit-definition.js";
 import {
   buildGearEffects,
   gearEffectsFingerprint,
@@ -23,6 +26,10 @@ export interface BattleSimulationUnitSummary {
   readonly unitDefinitionId: UnitDefinitionId;
   readonly displayName: string;
   readonly characterName: string;
+  /** R-TEX-11 #1: クライアントが編成プールを分けるための区分。 */
+  readonly category: UnitCategory;
+  /** R-TEX-11 #4: 開催中バッジ用の表示情報。EXERCISE_ENEMYのときだけ存在する。 */
+  readonly exerciseActive?: boolean;
   readonly attribute: Attribute;
   readonly unitType: UnitType;
   readonly role: Role;
@@ -57,6 +64,8 @@ function projectUnit(unit: UnitDefinition): BattleSimulationUnitSummary {
     unitDefinitionId: unit.unitDefinitionId,
     displayName: unit.metadata.displayName,
     characterName: unit.metadata.characterName,
+    category: unit.category,
+    ...(unit.exerciseActive === undefined ? {} : { exerciseActive: unit.exerciseActive }),
     attribute: unit.attribute,
     unitType: unit.unitType,
     role: unit.role,

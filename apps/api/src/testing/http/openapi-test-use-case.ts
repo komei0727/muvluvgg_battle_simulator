@@ -25,6 +25,7 @@ import { SequenceRandomSourceFactory } from "../random/sequence-random-source-fa
 function unitDefinition(id: string): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category: "PLAYABLE",
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",

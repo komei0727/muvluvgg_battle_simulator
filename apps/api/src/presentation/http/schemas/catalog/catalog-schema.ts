@@ -6,6 +6,7 @@ const catalogUnitSummaryResponseSchema = {
     "unitDefinitionId",
     "displayName",
     "characterName",
+    "category",
     "attribute",
     "unitType",
     "role",
@@ -15,6 +16,10 @@ const catalogUnitSummaryResponseSchema = {
     unitDefinitionId: { type: "string" },
     displayName: { type: "string" },
     characterName: { type: "string" },
+    // R-TEX-11 #1: `attribute`等と同じく将来値を許容するため`enum`を持たない。
+    category: { type: "string" },
+    // R-TEX-11 #4: EXERCISE_ENEMYのときだけ現れる開催中フラグ。
+    exerciseActive: { type: "boolean" },
     attribute: { type: "string" },
     unitType: { type: "string" },
     role: { type: "string" },

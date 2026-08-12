@@ -105,6 +105,7 @@ function stealthEffect(targetUnitId: string, instanceSuffix = targetUnitId): App
 function unitDefinition(id: string, overrides: Partial<UnitDefinition> = {}): UnitDefinition {
   return {
     unitDefinitionId: createUnitDefinitionId(id),
+    category: "PLAYABLE",
     attribute: "AGGRESSIVE",
     unitType: "PHYSICAL",
     role: "PHYSICAL_ATTACKER",

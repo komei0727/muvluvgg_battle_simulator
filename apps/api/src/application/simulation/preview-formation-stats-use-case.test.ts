@@ -309,4 +309,43 @@ describe("PreviewFormationStatsUseCase", () => {
     expect(error).toBeInstanceOf(ApplicationError);
     expect((error as ApplicationError).code).toBe("DEFINITION_NOT_FOUND");
   });
+
+  it("UT-STAT-PREVIEW-019 (R-TEX-11 #5): mode TACTICAL_EXERCISE previews an EXERCISE_ENEMY enemy that the default NORMAL mode rejects", () => {
+    const exerciseEnemy = unitDefinition("UNIT_TEX", {
+      category: "EXERCISE_ENEMY",
+      exerciseActive: true,
+    });
+    const preview = useCase([ALLY, exerciseEnemy]);
+    const cmd = (mode?: PreviewFormationStatsCommand["mode"]) =>
+      command({
+        enemyFormation: { slots: [slot("UNIT_TEX", 0)], memoryDefinitionIds: [] },
+        ...(mode === undefined ? {} : { mode }),
+      });
+
+    expect(preview.execute(cmd("TACTICAL_EXERCISE")).units).toHaveLength(2);
+
+    try {
+      preview.execute(cmd());
+      expect.fail("expected the NORMAL-mode preview to reject the EXERCISE_ENEMY unit");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ ruleId: "R-TEX-11" }),
+      );
+    }
+  });
+
+  it("UT-STAT-PREVIEW-022: rejects an unknown mode as INVALID_COMMAND without touching the Catalog", () => {
+    try {
+      useCase().execute(command({ mode: "RANKED" as unknown as "NORMAL" }));
+      expect.fail("expected the preview to reject the unknown mode");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ path: "mode" }),
+      );
+    }
+  });
 });
