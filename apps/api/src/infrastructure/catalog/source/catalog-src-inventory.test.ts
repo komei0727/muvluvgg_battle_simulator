@@ -36,6 +36,11 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * instead would conflate the two: re-adding a synthetic unit would fail here
  * and invite editing the ledger's converted-unit constant to make it pass.
  *
+ * Issue #453 adds 3 more `raw/units/` conversions (`UNIT_URUU_SUMMER`,
+ * `UNIT_MAO_SUMMER`, `UNIT_SHOUKA_BEACH` — 夏バリアント。いずれも既存
+ * キャラクターの新衣装で `characterId` を再利用する), bringing the converted
+ * unit total to 72.
+ *
  * The 2026-08-12 memory batch adds 4 more `raw/memories/` conversions
  * (`MEM_KOI`, `MEM_LIKE_FRIENDS`, `MEM_GIDDY_CIRCUMSTANCES`,
  * `MEM_FANTASY_SCULPTOR_ROSIE`), bringing the memory total to 36.
@@ -52,7 +57,7 @@ function apiPackageRootPath(...segments: string[]): string {
 }
 
 describe("catalog-src/ inventory (Issue #47 ledger)", () => {
-  it("IT-CAT-INV-001: catalog-src/ has exactly the 69 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A + 8 from Issue #59 Batch B + 8 from Issue #57 Batch C + 8 from Issue #56 Batch D + 8 from Issue #58 Batch E + 7 from Issue #60 Batch F), excluding synthetic INTERNAL fixtures", () => {
+  it("IT-CAT-INV-001: catalog-src/ has exactly the 72 converted units tallied in the ledger (22 from Issue #47 + 8 from Issue #55 Batch A + 8 from Issue #59 Batch B + 8 from Issue #57 Batch C + 8 from Issue #56 Batch D + 8 from Issue #58 Batch E + 7 from Issue #60 Batch F + 3 from Issue #453 夏バリアント), excluding synthetic INTERNAL fixtures", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     const converted = source.units.filter(
       (unit) =>
@@ -60,7 +65,7 @@ describe("catalog-src/ inventory (Issue #47 ledger)", () => {
           "INTERNAL",
         ) && (unit as { category?: string }).category !== "EXERCISE_ENEMY",
     );
-    expect(converted).toHaveLength(69);
+    expect(converted).toHaveLength(72);
   });
 
   it("IT-CAT-INV-002: catalog-src/ has all 36 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007 + 20 from Issue #176 M7-008 + 4 from the 2026-08-12 追加バッチ)", () => {
