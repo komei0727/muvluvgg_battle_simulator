@@ -30,7 +30,7 @@
       "remaining": 11
     },
     "unitCatalog": {
-      "convertedProductionUnits": 72,
+      "convertedProductionUnits": 73,
       "syntheticUnits": 0,
       "incompleteConversionRows": 0
     },
@@ -708,7 +708,7 @@
   "m9Audit": {
     "auditDate": "2026-08-11",
     "auditIssue": 200,
-    "catalogRevision": "2026-08-12.3",
+    "catalogRevision": "2026-08-12.4",
     "scenarioIds": [
       "SCN-BTL-001",
       "SCN-BTL-002",

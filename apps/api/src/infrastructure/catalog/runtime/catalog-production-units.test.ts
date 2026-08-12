@@ -468,7 +468,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
     // `2026-08-12.3` は夏バリアント3ユニット（`UNIT_URUU_SUMMER`・`UNIT_MAO_SUMMER`・
     // `UNIT_SHOUKA_BEACH`、Issue #453）の追加。既存69Unitの定義は変えていない。
-    expect(catalog.catalogRevision).toBe("2026-08-12.3");
+    // `2026-08-12.4` は夏バリアント4体目 `UNIT_ANIS_SWEETDEVIL` の追加
+    // （Issue #454）。`DMG-012`（Issue #452）が追加した `DAMAGE_MAX_HP_RATIO` と
+    // `APPLY_DAMAGE_MOD.damageThreshold` の production 初使用である。
+    expect(catalog.catalogRevision).toBe("2026-08-12.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
