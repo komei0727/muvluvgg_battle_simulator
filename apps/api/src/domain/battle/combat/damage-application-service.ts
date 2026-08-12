@@ -11,7 +11,9 @@ import type {
   ApplyDamageActionResult,
   DamageEventContext,
   DamageHitOutcome,
+  DamageStep,
 } from "./damage-event-context.js";
+import type { DomainEventId } from "../../shared/event-ids.js";
 import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
 import { removeFreezeEffectSteps } from "./damage-effect-expiry.js";
 import { observeHitSteps } from "./damage-hit-observation.js";
@@ -423,17 +425,26 @@ export function* applyDamageActionSteps(
 
     // R-DMG-07: 軽減を実際に適用したインスタンスだけを、このヒットで`INCOMING_HIT`消費
     // する。一括消費（R-EFF-07、`applyConfirmedDamageSteps`末尾）は閾値付き補正を常に
-    // 除外するため、閾値未満のヒットで残数を失うことはない。
-    for (const applied of thresholdReduction.appliedEffects) {
-      lastEventIdBeforeHp = yield* consumeAndExpire(
-        context,
-        working,
-        targetBeforeDamage.battleUnitId,
-        "INCOMING_HIT",
-        lastEventIdBeforeHp,
-        applied.effectInstanceId,
-      );
-    }
+    // 除外するため、閾値未満のヒットで残数を失うことはない。消費（とそれを契機とする
+    // PS連鎖）は`DamageApplied`（幻惑時は`DamageConvertedToHeal`）の後 — 失効起点の
+    // 連鎖が付与するシールド・サブユニットが、計算済みのこのヒット自身の吸収先に
+    // なってはならない（R-EFF-07の一括消費と同じ順序）。
+    const consumeThresholdReductions = function* (
+      parentEventId: DomainEventId,
+    ): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+      let eventId = parentEventId;
+      for (const applied of thresholdReduction.appliedEffects) {
+        eventId = yield* consumeAndExpire(
+          context,
+          working,
+          targetBeforeDamage.battleUnitId,
+          "INCOMING_HIT",
+          eventId,
+          applied.effectInstanceId,
+        );
+      }
+      return eventId;
+    };
 
     // R-DTH-01（DMG-009）: 幻惑を保持する攻撃側のヒットは、ここまでのR-DMG-05 #1〜#6を
     // そのまま経たうえで#7の適用だけを回復へ差し替える。ダメージを適用しないため、
@@ -455,6 +466,7 @@ export function* applyDamageActionSteps(
         damageToHealRate,
         lastEventIdBeforeHp,
       );
+      lastEventId = yield* consumeThresholdReductions(lastEventId);
       // R-INT-02第2項と同じく、後続stepやR-SUB-02の追加ダメージが参照する対象は
       // 引き寄せ・肩代わり後の防御側にする。ダメージは与えていないため`damage`は0。
       outcomes.push({
@@ -522,6 +534,7 @@ export function* applyDamageActionSteps(
       outcomes.push(skip(hit));
       continue;
     }
+    lastEventId = yield* consumeThresholdReductions(lastEventId);
 
     // R-INT-01 #3／R-LNK-01〜03（DMG-007）: 元ダメージの確定後、反射より前に
     // リンク先ダメージを発生させる（R-INT-01の評価順 #3 → #4）。

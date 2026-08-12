@@ -747,6 +747,15 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
       .filter((event) => event.eventType === "EffectConsumptionChanged");
     expect(consumption).toHaveLength(1);
     expect(consumption[0]!.payload).toMatchObject({ before: 2, after: 1 });
+    // R-EFF-07の既存経路と同じく、消費は追加ヒットの`DamageApplied`より後。
+    const events = context.recorder.getEvents();
+    const additionalDamageAppliedIndex = events.findIndex(
+      (event) =>
+        event.eventType === "DamageApplied" &&
+        (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+          SUBUNIT_DEFINITION_ID,
+    );
+    expect(events.indexOf(consumption[0]!)).toBeGreaterThan(additionalDamageAppliedIndex);
     const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(
       updatedTarget.appliedEffects.find(

@@ -77,16 +77,34 @@ export function conditionContainsTargetSetCount(condition: ConditionDefinition):
  */
 export function conditionContainsEventPayload(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
-    // `DAMAGE_MAX_HP_RATIO`も発火イベントのpayloadを判定素材にするため、
-    // `EVENT_PAYLOAD`と同じ「PS Skillでだけ評価できる」制約に含める。
     case "EVENT_PAYLOAD":
-    case "DAMAGE_MAX_HP_RATIO":
       return true;
     case "AND":
     case "OR":
       return condition.conditions.some((c) => conditionContainsEventPayload(c));
     case "NOT":
       return conditionContainsEventPayload(condition.condition);
+    default:
+      return false;
+  }
+}
+
+/**
+ * R-PS-01: `condition`のどこかに`DAMAGE_MAX_HP_RATIO`が含まれるか。この kind は
+ * trigger条件（`TriggerDefinition.condition`）専用 — `EVENT_PAYLOAD`と違い
+ * `effect-step-condition-evaluator.ts`が処理しないため、PSのresolution stepに
+ * 置かれてもCatalogロードは通るのに発動中の解決が例外で失敗する。ロード時点で
+ * すべてのresolution step位置から拒否する。
+ */
+export function conditionContainsDamageMaxHpRatio(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "DAMAGE_MAX_HP_RATIO":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionContainsDamageMaxHpRatio(c));
+    case "NOT":
+      return conditionContainsDamageMaxHpRatio(condition.condition);
     default:
       return false;
   }

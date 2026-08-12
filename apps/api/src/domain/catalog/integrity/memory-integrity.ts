@@ -16,6 +16,7 @@ import {
 import { durationOf } from "./effect-action-inspection.js";
 import {
   collectStepConditionEffectActionReferences,
+  stepsContainDamageMaxHpRatioCondition,
   stepsContainTargetReferenceKinds,
   stepsSomeCondition,
 } from "./effect-step-inspection.js";
@@ -196,6 +197,15 @@ function validateMemorySourceUnitIndependence(
         rule: "MEMORY_REQUIRES_SOURCE_UNIT",
         message:
           "EffectStep condition needs an owner BattleUnit (POSITION_RELATION/RUNTIME_COUNTER/ALIVE_UNIT_COUNT excludeSelf/SELF reference), which Memory triggeredEffects do not have (R-MEM-04)",
+      });
+    }
+    // R-PS-01: `DAMAGE_MAX_HP_RATIO`はtrigger条件専用（`skill-integrity.ts`の
+    // 同名検査と同じ理由 — step評価器が処理しないため、ロードを通すと解決中に落ちる）。
+    if (stepsContainDamageMaxHpRatioCondition(sequence.steps)) {
+      violations.push({
+        targetId: memory.memoryDefinitionId,
+        rule: "DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER",
+        message: `a DAMAGE_MAX_HP_RATIO condition is trigger-scoped (TriggerDefinition.condition only) — the EffectStep evaluator cannot resolve it, so "${memory.memoryDefinitionId}" would fail at resolution time`,
       });
     }
     if (stepsContainTargetReferenceKinds(sequence.steps, SELF_TARGET_REFERENCE_KINDS)) {

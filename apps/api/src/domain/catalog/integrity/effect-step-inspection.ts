@@ -10,6 +10,7 @@ import type { TargetSelectorDefinition } from "../definitions/target-selector-de
 import {
   collectConditionEffectActionReferences,
   collectTargetStateOrMarkerReferences,
+  conditionContainsDamageMaxHpRatio,
   conditionContainsEventPayload,
   conditionContainsTargetReferenceKind,
   conditionContainsTargetSetCount,
@@ -90,6 +91,16 @@ export function stepsContainSetCondition(steps: readonly EffectStepDefinition[])
  */
 export function stepsContainEventPayloadCondition(steps: readonly EffectStepDefinition[]): boolean {
   return stepsSomeCondition(steps, conditionContainsEventPayload);
+}
+
+/**
+ * R-PS-01: `DAMAGE_MAX_HP_RATIO`はtrigger条件専用のため、skillTypeを問わず
+ * すべてのresolution step位置から拒否する（`conditionContainsDamageMaxHpRatio`参照）。
+ */
+export function stepsContainDamageMaxHpRatioCondition(
+  steps: readonly EffectStepDefinition[],
+): boolean {
+  return stepsSomeCondition(steps, conditionContainsDamageMaxHpRatio);
 }
 
 export function stepsUseGrantedBy(steps: readonly EffectStepDefinition[]): boolean {

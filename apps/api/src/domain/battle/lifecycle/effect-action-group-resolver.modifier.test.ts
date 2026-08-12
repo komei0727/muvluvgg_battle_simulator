@@ -423,6 +423,12 @@ describe("APPLY_DAMAGE_MOD damageThreshold (R-DMG-07)", () => {
     expect(consumption).toHaveLength(1);
     expect(consumption[0]!.payload).toMatchObject({ before: 3, after: 2 });
     expect(updated.appliedEffects[0]!.duration.consumptionRemaining).toBe(2);
+    // R-EFF-07の既存経路と同じく、消費（とそれを契機とするPS連鎖）はこのヒットの
+    // `DamageApplied`より後 — 失効起点の連鎖が計算済みヒットの適用前提を変えられない。
+    const eventTypes = recorder.getEvents().map((e) => e.eventType);
+    expect(eventTypes.indexOf("EffectConsumptionChanged")).toBeGreaterThan(
+      eventTypes.indexOf("DamageApplied"),
+    );
   });
 
   it("UT-R-DMG-07-009 (full stack, boundary): a hit at or below the threshold is untouched and consumes nothing", () => {

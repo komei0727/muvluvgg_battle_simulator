@@ -319,20 +319,6 @@ function* applyOneSubUnitAdditionalDamageSteps(
     },
   });
 
-  // R-DMG-07: 通常ヒットと同じく、軽減を実際に適用したインスタンスだけを
-  // `DamageCalculated`発行後にインスタンス指定で`INCOMING_HIT`消費する。
-  let consumptionEventId = damageCalculated.eventId;
-  for (const applied of thresholdReduction.appliedEffects) {
-    consumptionEventId = yield* consumeAndExpire(
-      context,
-      working,
-      target.battleUnitId,
-      "INCOMING_HIT",
-      consumptionEventId,
-      applied.effectInstanceId,
-    );
-  }
-
   const application = yield* applyConfirmedDamageSteps(
     context,
     working,
@@ -340,11 +326,26 @@ function* applyOneSubUnitAdditionalDamageSteps(
     target.battleUnitId,
     profile,
     finalDamage,
-    consumptionEventId,
+    damageCalculated.eventId,
   );
   let lastEventId = application.lastEventId;
   if (application.kind !== "APPLIED") {
     return { kind: application.kind, lastEventId };
+  }
+
+  // R-DMG-07: 通常ヒットと同じく、軽減を実際に適用したインスタンスだけをインスタンス
+  // 指定で`INCOMING_HIT`消費する。消費（とそれを契機とするPS連鎖）は`DamageApplied`の
+  // 後 — 失効起点の連鎖が付与するシールド・サブユニットが、計算済みのこの追加ヒット
+  // 自身の吸収先になってはならない（R-EFF-07の一括消費と同じ順序）。
+  for (const applied of thresholdReduction.appliedEffects) {
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      target.battleUnitId,
+      "INCOMING_HIT",
+      lastEventId,
+      applied.effectInstanceId,
+    );
   }
 
   // R-INT-01 #3／R-LNK-01〜03: 追加ヒットも確定後にリンクを発生させる（通常ヒットと同じ）。

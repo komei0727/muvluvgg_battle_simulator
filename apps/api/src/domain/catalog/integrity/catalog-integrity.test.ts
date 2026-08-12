@@ -2769,15 +2769,35 @@ describe("buildCatalogIndex", () => {
     },
   );
 
-  it.each([{ skillType: "AS" as const }, { skillType: "EX" as const }])(
-    "UT-CAT-IDX-101 (R-PS-01): rejects an EffectStep DAMAGE_MAX_HP_RATIO stepCondition on a $skillType skill — it reads the triggering event's payload, exactly like EVENT_PAYLOAD",
+  it.each([
+    { skillType: "AS" as const },
+    { skillType: "EX" as const },
+    { skillType: "PS" as const },
+  ])(
+    "UT-CAT-IDX-101 (R-PS-01): rejects an EffectStep DAMAGE_MAX_HP_RATIO stepCondition on a $skillType skill — the kind is trigger-scoped, and the step evaluator cannot resolve it even during a PS activation",
     ({ skillType }) => {
       const defs = baseDefinitions();
       const skill = createSkillDefinition({
-        skillDefinitionId: "SKL_ACTIVE1",
+        skillDefinitionId: skillType === "PS" ? "SKL_PS1" : "SKL_ACTIVE1",
         skillType,
         cost:
-          skillType === "AS" ? { resource: "AP", amount: 1 } : { resource: "EX_GAUGE", amount: 7 },
+          skillType === "AS"
+            ? { resource: "AP", amount: 1 }
+            : skillType === "EX"
+              ? { resource: "EX_GAUGE", amount: 7 }
+              : { resource: "PP", amount: 1 },
+        ...(skillType === "PS"
+          ? {
+              triggers: [
+                {
+                  eventType: "HitPointReduced",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                },
+              ],
+            }
+          : {}),
         resolution: {
           kind: "IMMEDIATE",
           steps: [
@@ -2798,14 +2818,64 @@ describe("buildCatalogIndex", () => {
         traits: {},
         metadata: { displayName: `Damage-ratio-condition ${skillType}` },
       });
+      const units =
+        skillType === "PS"
+          ? [unit("UNIT_001", { passive: ["SKL_PS1"] })]
+          : [unit("UNIT_001", { active: ["SKL_ACTIVE1"] })];
       expect(() =>
         buildCatalogIndex({
           ...defs,
-          skills: [skill, exSkill("SKL_EX1", 7)],
+          units,
+          skills: skillType === "PS" ? [...defs.skills, skill] : [skill, exSkill("SKL_EX1", 7)],
         }),
-      ).toThrowError(/EVENT_PAYLOAD condition requires a PS Skill/);
+      ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
     },
   );
+
+  it("UT-CAT-IDX-102 (R-PS-01): rejects a Memory EffectStep DAMAGE_MAX_HP_RATIO stepCondition — the step evaluator cannot resolve it in Memory resolution either", () => {
+    const defs = baseDefinitions();
+    const memory = createMemoryDefinition({
+      memoryDefinitionId: "MEM_DAMAGE_RATIO",
+      triggeredEffects: [
+        {
+          trigger: {
+            eventType: "HitPointReduced",
+            category: "FACT",
+            sourceSelector: "ANY",
+            targetSelector: "ANY",
+          },
+          effectSequence: {
+            targetBindings: [
+              {
+                targetBindingId: "TGT_ALL_ALLIES",
+                selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+              },
+            ],
+            steps: [
+              {
+                kind: "ACTION",
+                stepCondition: {
+                  kind: "DAMAGE_MAX_HP_RATIO",
+                  field: "hitPointDamage",
+                  op: "GTE",
+                  value: 0.15,
+                },
+                target: { kind: "BINDING", targetBindingId: "TGT_ALL_ALLIES" },
+                actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
+              },
+            ],
+          },
+        },
+      ],
+      metadata: { displayName: "MEM_DAMAGE_RATIO" },
+    });
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        memories: [memory],
+      }),
+    ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
+  });
 
   it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
     const defs = baseDefinitions();
