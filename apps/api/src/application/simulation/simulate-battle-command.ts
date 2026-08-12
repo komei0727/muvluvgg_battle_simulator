@@ -264,6 +264,19 @@ function validateFormation(
 }
 
 /**
+ * イベント公開レベルの受理値検証。戦闘実行と戦術演習
+ * （`simulate-tactical-exercise-command.ts`）が同じ列挙値を共有する。
+ */
+export function validateLogLevel(logLevel: LogLevel, violations: Violation[]): void {
+  if (!LOG_LEVELS.includes(logLevel)) {
+    violations.push({
+      path: "logLevel",
+      reason: `must be one of [${LOG_LEVELS.join(", ")}], got "${String(logLevel)}"`,
+    });
+  }
+}
+
+/**
  * `09_アプリケーション設計.md`「Command検証」段階: 人数、件数、値域、配置重複を
  * 可能な限りすべて収集して返す。Catalogへは一切アクセスしない
  * （ユニット・メモリーIDの存在確認は「参照検証」段階の責務）。
@@ -281,12 +294,7 @@ export function validateCommandShape(command: SimulateBattleCommand): Violation[
   validateFormation(command.allyFormation, "allyFormation", violations);
   validateFormation(command.enemyFormation, "enemyFormation", violations);
 
-  if (!LOG_LEVELS.includes(command.logLevel)) {
-    violations.push({
-      path: "logLevel",
-      reason: `must be one of [${LOG_LEVELS.join(", ")}], got "${String(command.logLevel)}"`,
-    });
-  }
+  validateLogLevel(command.logLevel, violations);
 
   return violations;
 }

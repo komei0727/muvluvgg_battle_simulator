@@ -7,6 +7,8 @@ import {
 import { ApplicationError } from "../../application/contracts/application-error.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import { toSimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-request-mapper.js";
+import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
 import type { Clock } from "../../domain/ports/clock.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
@@ -32,12 +34,14 @@ export function createSimulationTaskRunner(
   catalog: InMemoryBattleCatalog,
   dependencies: SimulationTaskRunnerDependencies,
 ): SimulationTaskRunner {
-  const useCase = new SimulateBattleUseCase({
+  const useCaseDependencies = {
     battleCatalog: catalog,
     battleIdGenerator: dependencies.battleIdGenerator,
     randomSourceFactory: dependencies.randomSourceFactory,
     clock: dependencies.clock,
-  });
+  };
+  const useCase = new SimulateBattleUseCase(useCaseDependencies);
+  const tacticalExerciseUseCase = new SimulateTacticalExerciseUseCase(useCaseDependencies);
 
   return function runSimulationTask(task: WorkerSimulationTask): WorkerSimulationResult {
     if (task.expectedCatalogRevision !== catalog.catalogRevision) {
@@ -57,12 +61,24 @@ export function createSimulationTaskRunner(
     }
 
     try {
-      const command = toSimulateBattleCommand(task.request);
-      const result = useCase.execute(command, {
-        requestId: task.requestId,
-        deadlineEpochMs: task.deadlineEpochMs,
-      });
-      return { ok: true, result };
+      // `09_アプリケーション設計.md`「実行境界」: モード判別子でユースケースを
+      // 振り分ける。Catalogリビジョン検査・期限・容量制御は上で共有済み。
+      const context = { requestId: task.requestId, deadlineEpochMs: task.deadlineEpochMs };
+      if (task.mode === "TACTICAL_EXERCISE") {
+        return {
+          ok: true,
+          mode: "TACTICAL_EXERCISE",
+          result: tacticalExerciseUseCase.execute(
+            toSimulateTacticalExerciseCommand(task.request),
+            context,
+          ),
+        };
+      }
+      return {
+        ok: true,
+        mode: "BATTLE_SIMULATION",
+        result: useCase.execute(toSimulateBattleCommand(task.request), context),
+      };
     } catch (error) {
       if (error instanceof ApplicationError) {
         return { ok: false, error: toSerializedApplicationError(error) };

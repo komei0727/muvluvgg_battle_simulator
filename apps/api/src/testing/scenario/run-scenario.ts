@@ -1,7 +1,12 @@
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import type { SimulateBattleCommand } from "../../application/simulation/simulate-battle-command.js";
+import type { SimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-command.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
-import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
+import type {
+  SimulateBattleResult,
+  SimulateTacticalExerciseResult,
+} from "../../application/simulation/simulation-result-assembler.js";
 import type { BattleCatalog } from "../../domain/ports/battle-catalog.js";
 import { ManualClock } from "../clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../id/fixed-battle-id-generator.js";
@@ -39,6 +44,40 @@ export function runScenario(options: RunScenarioOptions): SimulateBattleResult {
   });
 }
 
+export interface RunExerciseScenarioOptions extends Omit<RunScenarioOptions, "command"> {
+  readonly command: SimulateTacticalExerciseCommand;
+}
+
+/**
+ * 戦術演習（UC-03）版のHarness。`runScenario`と同じ決定的な乱数・時刻・IDのまま
+ * `SimulateTacticalExerciseUseCase`を通し、スコア・ブレイク履歴を含む演習結果に
+ * 対してassertできるようにする。
+ */
+export function runExerciseScenario(
+  options: RunExerciseScenarioOptions,
+): SimulateTacticalExerciseResult {
+  const useCase = new SimulateTacticalExerciseUseCase({
+    battleCatalog: options.catalog,
+    battleIdGenerator: new FixedBattleIdGenerator([...(options.battleIds ?? ["B_TEST"])]),
+    randomSourceFactory: new SequenceRandomSourceFactory([...(options.randomValues ?? [])]),
+    clock: new ManualClock(options.clockStartMs ?? 0),
+  });
+  return useCase.execute(options.command, {
+    requestId: "scenario-test",
+    deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+    ...options.context,
+  });
+}
+
+/**
+ * 不変条件の検査対象。通常戦闘・戦術演習のどちらの結果でも、勝敗以外の共通部分
+ * （イベント列・状態差分・最終状態）だけを見る。
+ */
+type BattleInvariantSubject = Pick<
+  SimulateBattleResult,
+  "events" | "stateTransitions" | "finalState"
+>;
+
 function assert(condition: boolean, message: string): void {
   if (!condition) {
     throw new Error(`Battle invariant violated: ${message}`);
@@ -46,7 +85,7 @@ function assert(condition: boolean, message: string): void {
 }
 
 /** 公開イベントの `sequence` が重複せず狭義単調増加すること。 */
-export function assertEventSequenceMonotonic(result: SimulateBattleResult): void {
+export function assertEventSequenceMonotonic(result: BattleInvariantSubject): void {
   const sequences = result.events.map((event) => event.sequence);
   for (let i = 1; i < sequences.length; i++) {
     assert(
@@ -57,7 +96,7 @@ export function assertEventSequenceMonotonic(result: SimulateBattleResult): void
 }
 
 /** `StateTransition` の `stateVersion` が連続すること（before(n) と after(n) が繋がる）。 */
-export function assertStateVersionsContiguous(result: SimulateBattleResult): void {
+export function assertStateVersionsContiguous(result: BattleInvariantSubject): void {
   let previousAfter: number | undefined;
   for (const transition of result.stateTransitions) {
     assert(
@@ -75,7 +114,7 @@ export function assertStateVersionsContiguous(result: SimulateBattleResult): voi
 }
 
 /** 最終状態の各ユニットの HP/AP/PP/EX が非負で、HPが最大HPを超えないこと。 */
-export function assertResourcesWithinBounds(result: SimulateBattleResult): void {
+export function assertResourcesWithinBounds(result: BattleInvariantSubject): void {
   for (const [unitId, unit] of Object.entries(result.finalState.units)) {
     assert(unit.hp >= 0, `${unitId} hp must be non-negative (got ${unit.hp})`);
     assert(
@@ -92,7 +131,7 @@ export function assertResourcesWithinBounds(result: SimulateBattleResult): void 
 }
 
 /** 上記の基本不変条件をまとめて検証する。 */
-export function assertBattleInvariants(result: SimulateBattleResult): void {
+export function assertBattleInvariants(result: BattleInvariantSubject): void {
   assertEventSequenceMonotonic(result);
   assertStateVersionsContiguous(result);
   assertResourcesWithinBounds(result);

@@ -23,9 +23,14 @@ import {
   selfEffectSkill,
   statModEffectAction,
   statusEffectAction,
+  tacticalExerciseCommand,
   unitDefinition,
 } from "../../testing/scenario/definition-builders.js";
-import { assertBattleInvariants, runScenario } from "../../testing/scenario/run-scenario.js";
+import {
+  assertBattleInvariants,
+  runExerciseScenario,
+  runScenario,
+} from "../../testing/scenario/run-scenario.js";
 
 /**
  * harness ベースの Battle シナリオ（`12_テスト戦略.md`「基準シナリオ」）。散在する既存の
@@ -1798,6 +1803,111 @@ describe("battle scenarios (harness)", () => {
       expect(
         enhanced.initialState.units[createBattleUnitId("ally:1")]!.combatStats.attack,
       ).toBeCloseTo(18607.39, 4);
+    });
+  });
+  describe("M10 tactical exercise (TEX-006)", () => {
+    const EXERCISE_ATTACK_SKILL = "SKL_EXERCISE_ATTACK";
+    const EXERCISE_ATTACK_ACTION = "ACT_EXERCISE_ATTACK";
+
+    /** 味方1体が毎ターン敵1体を殴るだけの、ブレイクを起こさない最小の演習Catalog。 */
+    function exerciseCatalog(enemyMaximumHp: number) {
+      return new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_ALLY", {
+            baseStats: { maximumAp: 1, attack: 100 },
+            activeSkillDefinitionIds: [createSkillDefinitionId(EXERCISE_ATTACK_SKILL)],
+          }),
+          unitDefinition("UNIT_ENEMY", { baseStats: { maximumHp: enemyMaximumHp, defense: 0 } }),
+        )
+        .withSkill(attackSkill(EXERCISE_ATTACK_SKILL, EXERCISE_ATTACK_ACTION))
+        .withEffectAction(damageEffectAction(EXERCISE_ATTACK_ACTION))
+        .build();
+    }
+
+    it("SCN-BTL-024 (R-TEX-01 #4 / R-TEX-09 #1 / R-TEX-10): a tactical exercise runs the full five turns, ends with TURN_LIMIT_REACHED and no outcome, and its totalScore equals the sum of every accumulated amount", () => {
+      const result = runExerciseScenario({
+        catalog: exerciseCatalog(100_000),
+        command: tacticalExerciseCommand(),
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+        battleIds: ["B_EXERCISE"],
+      });
+
+      assertBattleInvariants(result);
+
+      // 5ターン完走・TURN_LIMIT_REACHED・勝敗なし（R-TEX-09 #1、R-TEX-10 #1）。
+      expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
+      expect(result.completedTurn).toBe(5);
+      expect(result).not.toHaveProperty("outcome");
+      expect(result.finalState.result).not.toHaveProperty("outcome");
+
+      // スコア＝計上量合計（R-TEX-10 #3）。最終状態の累計スコアとも一致する。
+      const amounts = result.events
+        .filter((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")
+        .map((event) => (event.details as { readonly amount: number }).amount);
+      expect(amounts.length).toBeGreaterThan(0);
+      expect(result.totalScore).toBe(amounts.reduce((sum, amount) => sum + amount, 0));
+      expect(result.finalState.exercise?.totalScore).toBe(result.totalScore);
+
+      // 敵HPは削れているが、ブレイクは一度も起きていない。
+      const enemy = result.finalState.units[createBattleUnitId("enemy:1")]!;
+      expect(enemy.hp).toBe(100_000 - result.totalScore);
+      expect(result.breakCount).toBe(0);
+      expect(result.breaks).toEqual([]);
+
+      // SCN-BTL-021と同じ状態復元検証を、演習の差分種別を含めて成立させる。
+      expect(
+        reduceStateDeltas(
+          result.initialState,
+          result.stateTransitions.map((transition) => transition.stateDelta),
+        ),
+      ).toEqual(result.finalState);
+    });
+
+    it("IT-TEX-001 (R-TEX-10 #2, break history through the use case): the projected breaks match breakCount and stay in occurrence order with the cumulative score at each break", () => {
+      const result = runExerciseScenario({
+        catalog: exerciseCatalog(100),
+        command: tacticalExerciseCommand(),
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+        battleIds: ["B_EXERCISE"],
+      });
+
+      assertBattleInvariants(result);
+
+      expect(result.breakCount).toBeGreaterThan(0);
+      expect(result.breaks).toHaveLength(result.breakCount);
+      expect(result.breaks.map((entry) => entry.breakNumber)).toEqual(
+        result.breaks.map((_, index) => index + 1),
+      );
+      for (let index = 1; index < result.breaks.length; index++) {
+        expect(result.breaks[index]!.turnNumber).toBeGreaterThanOrEqual(
+          result.breaks[index - 1]!.turnNumber,
+        );
+        expect(result.breaks[index]!.cumulativeScoreAtBreak).toBeGreaterThanOrEqual(
+          result.breaks[index - 1]!.cumulativeScoreAtBreak,
+        );
+      }
+      expect(result.breaks.at(-1)!.cumulativeScoreAtBreak).toBeLessThanOrEqual(result.totalScore);
+    });
+
+    it("IT-TEX-002 (R-TEX-10 #2, break history under SUMMARY): a SUMMARY exercise keeps the full break history even though score events are filtered out of the public log", () => {
+      const command = tacticalExerciseCommand({ logLevel: "SUMMARY" });
+      const detailed = runExerciseScenario({
+        catalog: exerciseCatalog(100),
+        command: tacticalExerciseCommand(),
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+      });
+      const summary = runExerciseScenario({
+        catalog: exerciseCatalog(100),
+        command,
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+      });
+
+      expect(summary.events.some((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")).toBe(
+        false,
+      );
+      expect(summary.breaks).toEqual(detailed.breaks);
+      expect(summary.breaks).toHaveLength(summary.breakCount);
+      expect(summary.totalScore).toBe(detailed.totalScore);
     });
   });
 });

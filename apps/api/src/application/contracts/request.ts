@@ -66,6 +66,17 @@ export interface BattleSimulationRequestBody {
 }
 
 /**
+ * `10_API設計.md`「戦術演習をシミュレーションする」（`POST /api/v1/tactical-exercises`）の
+ * request body契約。編成部分は戦闘リクエストと同形で、`turnLimit`を持たない —
+ * 規定ターン数は5固定であり、リクエストで指定できない（R-TEX-01 #4）。
+ */
+export interface TacticalExerciseRequestBody {
+  readonly allyFormation: FormationRequestBody;
+  readonly enemyFormation: FormationRequestBody;
+  readonly options?: SimulationOptionsRequestBody;
+}
+
+/**
  * `10_API設計.md`「FormationStatPreviewRequest」。編成部分は戦闘リクエストと
  * 同形にし、`turnLimit`・`options`を持たない（戦闘を実行しないため、どちらも
  * 開始時ステータスへ影響しない）。

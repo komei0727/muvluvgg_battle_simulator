@@ -25,6 +25,8 @@ import type {
   BattleOutcome,
   CompletionReason,
 } from "../../domain/battle/outcome/victory-policy.js";
+import type { ExerciseCompletionReason } from "../../domain/battle/outcome/exercise-end-policy.js";
+import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../../domain/shared/ids.js";
@@ -44,19 +46,58 @@ export interface SimulateBattleResult {
   readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
 
-export interface AssembleSimulationResultInput {
+/** `09_アプリケーション設計.md`「SimulateTacticalExerciseResult」のブレイク履歴1件（R-TEX-10 #2）。 */
+export interface ExerciseBreak {
+  readonly breakNumber: number;
+  readonly turnNumber: number;
+  readonly cumulativeScoreAtBreak: number;
+}
+
+/**
+ * `09_アプリケーション設計.md`「SimulateTacticalExerciseResult」。勝敗（`outcome`）を
+ * 持たず、総スコア・ブレイク回数・ブレイク履歴を持つ（R-TEX-10 #1）。
+ */
+export interface SimulateTacticalExerciseResult {
+  readonly battleId: BattleId;
+  readonly catalogRevision: string;
+  readonly completionReason: ExerciseCompletionReason;
+  readonly completedTurn: number;
+  readonly totalScore: number;
+  readonly breakCount: number;
+  readonly breaks: readonly ExerciseBreak[];
+  readonly initialState: BattleStateSnapshot;
+  readonly finalState: BattleStateSnapshot;
+  readonly events: readonly BattleLogEvent[];
+  readonly stateTransitions: readonly StateTransition[];
+  /** `10_API設計.md`「BattleUnitStateResponse」の静的項目。Response Mapperが可変状態と合成する。 */
+  readonly unitRoster: readonly BattleUnitRosterEntry[];
+}
+
+interface AssembleResultInputBase {
   readonly battleId: BattleId;
   readonly catalogRevision: string;
   readonly logLevel: LogLevel;
+  readonly initialState: BattleStateSnapshot;
+  readonly finalState: BattleStateSnapshot;
+  readonly events: readonly BattleDomainEvent[];
+  readonly unitRoster: readonly BattleUnitRosterEntry[];
+}
+
+export interface AssembleSimulationResultInput extends AssembleResultInputBase {
   readonly result: {
     readonly outcome: BattleOutcome;
     readonly completionReason: CompletionReason;
     readonly completedTurn: number;
   };
-  readonly initialState: BattleStateSnapshot;
-  readonly finalState: BattleStateSnapshot;
-  readonly events: readonly BattleDomainEvent[];
-  readonly unitRoster: readonly BattleUnitRosterEntry[];
+}
+
+export interface AssembleTacticalExerciseResultInput extends AssembleResultInputBase {
+  readonly result: {
+    readonly completionReason: ExerciseCompletionReason;
+    readonly completedTurn: number;
+    readonly totalScore: number;
+    readonly breakCount: number;
+  };
 }
 
 /**
@@ -120,6 +161,16 @@ function markersEqual(
   return aMarkers.every((marker, index) => sameMarkerSnapshot(marker, bMarkers[index]));
 }
 
+/**
+ * R-STA-04の2層（実効値`combatStats`と基礎値`baseCombatStats`）をフィールド単位で
+ * 比較する。どちらも独立Reducerが差分から復元する可変状態であり、比較から外すと
+ * R-TEX-04のブレイク強化（`UnitRevived`が所有する`units.<id>.baseCombatStats`／
+ * `combatStats`差分）の欠落・誤更新を状態復元検証がすり抜ける。
+ */
+function combatStatsEqual(a: CombatStats, b: CombatStats): boolean {
+  return (Object.keys(a) as (keyof CombatStats)[]).every((field) => a[field] === b[field]);
+}
+
 function unitSnapshotsEqual(
   a: BattleStateSnapshot["units"][BattleUnitId],
   b: BattleStateSnapshot["units"][BattleUnitId],
@@ -129,6 +180,8 @@ function unitSnapshotsEqual(
     a.ap === b.ap &&
     a.pp === b.pp &&
     a.extraGauge === b.extraGauge &&
+    combatStatsEqual(a.combatStats, b.combatStats) &&
+    combatStatsEqual(a.baseCombatStats, b.baseCombatStats) &&
     cooldownStatesEqual(a.cooldowns, b.cooldowns) &&
     sameChargeState(a.charge, b.charge) &&
     effectsEqual(a.effects, b.effects) &&
@@ -254,6 +307,81 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
 export function assembleSimulationResult(
   input: AssembleSimulationResultInput,
 ): SimulateBattleResult {
+  const { observation, events } = buildVerifiedObservation(input);
+
+  return {
+    battleId: input.battleId,
+    catalogRevision: input.catalogRevision,
+    outcome: input.result.outcome,
+    completionReason: input.result.completionReason,
+    completedTurn: input.result.completedTurn,
+    initialState: observation.initialState,
+    finalState: observation.finalState,
+    events,
+    stateTransitions: observation.stateTransitions,
+    unitRoster: input.unitRoster,
+  };
+}
+
+/**
+ * R-TEX-10 #2: ブレイク履歴を`UnitBroken`イベントから投影する。集約は累計スコアと
+ * ブレイク回数だけを状態として持ち、履歴を保持しない。投影元は公開レベルによる
+ * 間引き**前**の全イベント（`observation.events`）とする — `logLevel`を下げただけで
+ * 演習結果のブレイク履歴が欠けることがあってはならないためである。
+ */
+function projectExerciseBreaks(events: readonly BattleDomainEvent[]): readonly ExerciseBreak[] {
+  const breaks: ExerciseBreak[] = [];
+  for (const event of events) {
+    if (event.eventType !== "UnitBroken") {
+      continue;
+    }
+    breaks.push({
+      breakNumber: event.payload.breakNumber,
+      turnNumber: event.payload.turnNumber,
+      cumulativeScoreAtBreak: event.payload.totalScore,
+    });
+  }
+  return breaks;
+}
+
+/**
+ * `09_アプリケーション設計.md`「SimulateTacticalExerciseResult」の組み立て。
+ * `assembleSimulationResult`と同じ検証（`stateVersion`連続性、独立Reducerによる
+ * `initialState` + 全差分 = `finalState`、イベント変換）を演習の差分種別
+ * （`exercise.totalScore`／`exercise.breakCount`／`units.<id>.baseCombatStats`）
+ * を含めて通したうえで、勝敗の代わりに総スコア・ブレイク回数・ブレイク履歴を返す。
+ */
+export function assembleTacticalExerciseResult(
+  input: AssembleTacticalExerciseResultInput,
+): SimulateTacticalExerciseResult {
+  const { observation, events } = buildVerifiedObservation(input);
+
+  return {
+    battleId: input.battleId,
+    catalogRevision: input.catalogRevision,
+    completionReason: input.result.completionReason,
+    completedTurn: input.result.completedTurn,
+    totalScore: input.result.totalScore,
+    breakCount: input.result.breakCount,
+    breaks: projectExerciseBreaks(observation.events),
+    initialState: observation.initialState,
+    finalState: observation.finalState,
+    events,
+    stateTransitions: observation.stateTransitions,
+    unitRoster: input.unitRoster,
+  };
+}
+
+/**
+ * 通常戦闘・戦術演習に共通する検証と変換。`stateVersion`の連続性を検証したうえで、
+ * 独立Reducerで`initialState + stateTransitions`を復元し、与えられた`finalState`と
+ * 一致することを検証する。`events`への変換（`parentSequence`/`rootSequence`解決）も
+ * 内部イベント間のダングリング参照を検出する。
+ */
+function buildVerifiedObservation(input: AssembleResultInputBase): {
+  readonly observation: ReturnType<typeof buildBattleObservation>;
+  readonly events: readonly BattleLogEvent[];
+} {
   const observation = buildBattleObservation({
     initialState: input.initialState,
     finalState: input.finalState,
@@ -280,13 +408,7 @@ export function assembleSimulationResult(
   }
 
   return {
-    battleId: input.battleId,
-    catalogRevision: input.catalogRevision,
-    outcome: input.result.outcome,
-    completionReason: input.result.completionReason,
-    completedTurn: input.result.completedTurn,
-    initialState: observation.initialState,
-    finalState: observation.finalState,
+    observation,
     events: runOrConvertToInternalInvariant(
       () =>
         toBattleLogEvents(
@@ -296,7 +418,5 @@ export function assembleSimulationResult(
         ),
       (message) => `BattleLogEvent conversion rejected the recorded events: ${message}`,
     ),
-    stateTransitions: observation.stateTransitions,
-    unitRoster: input.unitRoster,
   };
 }

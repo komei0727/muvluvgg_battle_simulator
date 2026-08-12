@@ -89,6 +89,32 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
     expect(result.initialState.currentTurn).toBe(0);
   });
 
+  it("INT-WORKER-006 (09_アプリケーション設計.md「実行境界」): a TACTICAL_EXERCISE task runs through the same compiled Worker Pool and returns an exercise result, while the battle task on the same pool keeps returning a battle result", async () => {
+    pool = await SimulationWorkerPool.create({
+      catalogDir: CATALOG_DIR,
+      catalogRevision: CATALOG_REVISION,
+      minThreads: 1,
+      maxThreads: 1,
+    });
+
+    const { turnLimit: _turnLimit, ...exerciseRequest } = minimalRequest();
+    const exercise = await pool.executeTacticalExercise(
+      exerciseRequest,
+      freshContext("req-exercise-1"),
+    );
+
+    expect(exercise.catalogRevision).toBe(CATALOG_REVISION);
+    // R-TEX-09 #1 / R-TEX-10 #1: 演習は勝敗を持たず、5ターンを超えない。
+    expect(exercise).not.toHaveProperty("outcome");
+    expect(exercise.completedTurn).toBeLessThanOrEqual(5);
+    expect(["TURN_LIMIT_REACHED", "ALLY_DEFEATED"]).toContain(exercise.completionReason);
+    expect(exercise.breaks).toHaveLength(exercise.breakCount);
+
+    const battle = await pool.execute(minimalRequest(), freshContext("req-battle-1"));
+    expect(battle.outcome).toEqual(expect.any(String));
+    expect(battle).not.toHaveProperty("totalScore");
+  });
+
   it("INT-WORKER-002 (11_インフラストラクチャ設計.md「必要数のワーカーを初期化できなければHTTP readinessも失敗させる」): create() rejects when the expected catalogRevision does not match the Worker's loaded Catalog, so the caller never obtains a usable pool", async () => {
     await expect(
       SimulationWorkerPool.create({

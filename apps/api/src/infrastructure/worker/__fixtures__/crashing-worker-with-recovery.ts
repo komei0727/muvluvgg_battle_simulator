@@ -18,7 +18,7 @@ export default function crashingWorkerWithRecoveryHandler(
   task: WorkerSimulationTask,
 ): WorkerSimulationResult {
   if (task.requestId === "warmup") {
-    return { ok: true, result: FAKE_RESULT };
+    return { ok: true, mode: "BATTLE_SIMULATION", result: FAKE_RESULT };
   }
   if (task.requestId.startsWith("recover-")) {
     return {
