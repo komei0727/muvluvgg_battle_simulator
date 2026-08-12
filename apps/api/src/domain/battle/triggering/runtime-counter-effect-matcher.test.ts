@@ -388,3 +388,45 @@ describe("detectEffectRuntimeCounterUpdates", () => {
     ).toThrow(DomainValidationError);
   });
 });
+
+describe("DAMAGE_MAX_HP_RATIO in APPLIED_EFFECT counterUpdates triggers (R-PS-01)", () => {
+  it("UT-RCOUNTER-EFF-011: resolves the damaged unit via getUnit and gates the match by the max-HP ratio", () => {
+    const enemy = unit("enemy-1", "ENEMY");
+    const holder = unit("holder-1", "ALLY");
+    const effect = effectWithCounterUpdates("effect-1", holder, [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_HIT_COUNT",
+        scope: "APPLIED_EFFECT",
+        trigger: {
+          ...incomingHitTrigger(),
+          condition: {
+            kind: "DAMAGE_MAX_HP_RATIO",
+            field: "hitPointDamage",
+            op: "GTE",
+            value: 0.15,
+          },
+        },
+        amount: 1,
+      },
+    ]);
+    const withEffect = { ...holder, appliedEffects: [effect] };
+    const bigHitEvent: TriggerCandidateEvent = {
+      eventType: "HitPointReduced",
+      category: "FACT",
+      sourceUnitId: enemy.battleUnitId,
+      targetUnitIds: [holder.battleUnitId],
+      // maximumHp 100の15% = 15 <= 20 -> 成立。
+      payload: { hitPointDamage: 20 },
+    };
+
+    const bigHit = matchEffectRuntimeCounterUpdates([enemy, withEffect], bigHitEvent);
+    expect(bigHit).toHaveLength(1);
+
+    const smallHit = matchEffectRuntimeCounterUpdates([enemy, withEffect], {
+      ...bigHitEvent,
+      payload: { hitPointDamage: 14 },
+    });
+    expect(smallHit).toHaveLength(0);
+  });
+});

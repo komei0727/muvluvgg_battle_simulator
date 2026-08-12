@@ -78,9 +78,12 @@ export function matchEffectSequenceRuntimeCounterUpdates(
         trigger.category === event.category &&
         evaluateSourceSelector(trigger.sourceSelector, actor, event, unitsById) &&
         evaluateTargetSelector(trigger.targetSelector, actor, event, unitsById) &&
+        // `getUnit`はevent由来のユニット参照（`DAMAGE_MAX_HP_RATIO`/`TARGET_STATE`等）の
+        // 解決に必要（`runtime-counter-matcher.ts`の同名配線と同じ理由）。
         evaluateTriggerCondition(trigger.condition, event, {
           owner: actor,
           effectCounters: actor.effectSequenceCounters?.[skillUseId] ?? {},
+          getUnit: (id) => unitsById.get(id),
         });
       if (!matches) {
         continue;

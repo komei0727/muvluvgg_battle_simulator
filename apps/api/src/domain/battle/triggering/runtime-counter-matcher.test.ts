@@ -823,3 +823,58 @@ describe("collectResolutionScopeResets", () => {
     expect(resets).toEqual([]);
   });
 });
+
+describe("DAMAGE_MAX_HP_RATIO in counterUpdates triggers (R-PS-01)", () => {
+  it("UT-RCOUNTER-M-015: resolves the damaged unit via getUnit and gates the increment by the max-HP ratio", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_BIG_HITS",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "HitPointReduced",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+          condition: {
+            kind: "DAMAGE_MAX_HP_RATIO",
+            field: "hitPointDamage",
+            op: "GTE",
+            value: 0.15,
+          },
+        },
+        amount: 1,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const bigHitEvent: TriggerCandidateEvent = {
+      eventType: "HitPointReduced",
+      category: "FACT",
+      sourceUnitId: owner.battleUnitId,
+      targetUnitIds: [owner.battleUnitId],
+      // maximumHp 100の15% = 15 <= 20 -> 成立。
+      payload: { hitPointDamage: 20 },
+    };
+
+    const bigHit = detectRuntimeCounterUpdates({
+      event: bigHitEvent,
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+    expect(bigHit.changes).toHaveLength(1);
+    expect(bigHit.changes[0]).toMatchObject({ counter: "RUNTIME_COUNTER_BIG_HITS", after: 1 });
+
+    const smallHit = detectRuntimeCounterUpdates({
+      event: { ...bigHitEvent, payload: { hitPointDamage: 14 } },
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+    expect(smallHit.changes).toHaveLength(0);
+  });
+});

@@ -59,7 +59,15 @@ function matchesUpdateTrigger(
     trigger.category === event.category &&
     evaluateSourceSelector(trigger.sourceSelector, owner, event, unitsById) &&
     evaluateTargetSelector(trigger.targetSelector, owner, event, unitsById) &&
-    evaluateTriggerCondition(trigger.condition, event, { owner, skillDefinitionId })
+    // `getUnit`はevent由来のユニット参照（`DAMAGE_MAX_HP_RATIO`/`TARGET_STATE`等）の
+    // 解決に必要 — counterUpdatesのtriggerもPS trigger（`passive-trigger-matcher.ts`）と
+    // 同じ`TriggerDefinition.condition`であり、同じ語彙を評価できなければ
+    // 「Catalogロードを通る正当な定義が対象イベントの処理時に落ちる」非対称ができる。
+    evaluateTriggerCondition(trigger.condition, event, {
+      owner,
+      skillDefinitionId,
+      getUnit: (id) => unitsById.get(id),
+    })
   );
 }
 
