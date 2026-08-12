@@ -9,6 +9,11 @@ export interface ExecutionParameterFormProps {
   readonly endpoint: string;
   readonly disabled: boolean;
   readonly violations?: readonly UiViolation[];
+  /**
+   * UI-AC-019: 戦術演習はターン上限を持たないため、入力の代わりに固定値を示す。
+   * 指定した場合`turnLimit`と`onTurnLimitChange`は使わない。
+   */
+  readonly fixedTurnLimit?: number;
   readonly onTurnLimitChange: (value: number | "") => void;
   readonly onLogLevelChange: (value: LogLevel) => void;
 }
@@ -34,6 +39,7 @@ export function ExecutionParameterForm({
   endpoint,
   disabled,
   violations = [],
+  fixedTurnLimit,
   onTurnLimitChange,
   onLogLevelChange,
 }: ExecutionParameterFormProps) {
@@ -48,28 +54,35 @@ export function ExecutionParameterForm({
 
   return (
     <div className={styles["parameters"]}>
-      <div className={styles["field"]}>
-        <label htmlFor={turnLimitId}>ターン上限</label>
-        <input
-          id={turnLimitId}
-          type="number"
-          min={1}
-          max={99}
-          value={turnLimit}
-          disabled={disabled}
-          aria-invalid={turnLimitMessages.length > 0}
-          aria-describedby={turnLimitMessages.length > 0 ? turnLimitErrorId : undefined}
-          onChange={(event) => {
-            const raw = event.target.value;
-            onTurnLimitChange(raw === "" ? "" : Number(raw));
-          }}
-        />
-        {turnLimitMessages.length > 0 ? (
-          <p id={turnLimitErrorId} className={styles["fieldError"]}>
-            {turnLimitMessages.join(" ")}
-          </p>
-        ) : null}
-      </div>
+      {fixedTurnLimit === undefined ? (
+        <div className={styles["field"]}>
+          <label htmlFor={turnLimitId}>ターン上限</label>
+          <input
+            id={turnLimitId}
+            type="number"
+            min={1}
+            max={99}
+            value={turnLimit}
+            disabled={disabled}
+            aria-invalid={turnLimitMessages.length > 0}
+            aria-describedby={turnLimitMessages.length > 0 ? turnLimitErrorId : undefined}
+            onChange={(event) => {
+              const raw = event.target.value;
+              onTurnLimitChange(raw === "" ? "" : Number(raw));
+            }}
+          />
+          {turnLimitMessages.length > 0 ? (
+            <p id={turnLimitErrorId} className={styles["fieldError"]}>
+              {turnLimitMessages.join(" ")}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className={styles["field"]}>
+          <span className={styles["endpointLabel"]}>ターン上限</span>
+          <div className={styles["endpoint"]}>{fixedTurnLimit}ターン固定</div>
+        </div>
+      )}
       <div className={styles["field"]}>
         <label htmlFor={logLevelId}>ログレベル</label>
         <select

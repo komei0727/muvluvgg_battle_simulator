@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { CATALOG_URL, SIMULATION_URL } from "./constants.js";
+import { CATALOG_URL, SIMULATION_URL, TACTICAL_EXERCISE_URL } from "./constants.js";
 
 export interface MockResponse {
   readonly status: number;
@@ -46,6 +46,18 @@ export async function mockSimulationSequence(
     if (response === undefined) {
       throw new Error("mockSimulationSequence requires at least one response.");
     }
+    await route.fulfill({
+      status: response.status,
+      contentType: "application/json",
+      headers: { "Access-Control-Expose-Headers": EXPOSED_HEADERS, ...response.headers },
+      body: JSON.stringify(response.body),
+    });
+  });
+}
+
+// 戦術演習POST（`POST /api/v1/tactical-exercises`）を戦闘POSTと同じ方針でmockする。
+export async function mockTacticalExercise(page: Page, response: MockResponse): Promise<void> {
+  await page.route(TACTICAL_EXERCISE_URL, async (route) => {
     await route.fulfill({
       status: response.status,
       contentType: "application/json",

@@ -81,7 +81,7 @@ Accept: application/json
 X-Request-Id: ui-<UUID>
 ```
 
-リクエストは戦闘シミュレーションと同じ`FormationRequest`構造を再利用するが、`turnLimit`を持たず、`enemyFormation.units`はちょうど1件、`enemyFormation.memoryDefinitionIds`は空配列とする。UIは送信前検証でこの制約を強制する。
+リクエストは戦闘シミュレーションと同じ`FormationRequest`構造を再利用するが、`turnLimit`を持たず、`enemyFormation.units`はちょうど1件、`enemyFormation.memoryDefinitionIds`は空配列とする。UIは送信前検証でこの制約を強制する。敵の強化はUIに入力を設けないため、`enemyFormation`は`enhancement`を持たない。
 
 成功レスポンスは`result`だけが演習結果（`completionReason`、`completedTurn`、`totalScore`、`breakCount`、`breaks[]`）となり、`initialState`／`finalState`／`events`／`stateTransitions`は戦闘シミュレーションと同じ構造を共有する。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseRequest」「TacticalExerciseResponse」とする。
 

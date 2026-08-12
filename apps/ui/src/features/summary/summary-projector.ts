@@ -6,10 +6,16 @@
 
 import type {
   BattleLogEventResponse,
+  BattleLogResponse,
+  BattleResultResponse,
   BattleSimulationCatalogResponse,
-  BattleSimulationResponse,
 } from "../simulation/api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
+
+/** `SubmissionFeedback`の1行要約。演習側の対応は`describeExerciseResult`。 */
+export function describeBattleResult(result: BattleResultResponse): string {
+  return `${result.outcome} / ${result.completionReason} (turn ${result.completedTurn})`;
+}
 
 export interface RosterEntry {
   readonly battleUnitId: string;
@@ -51,7 +57,7 @@ function isNonNegativeInteger(value: unknown): value is number {
 // initialState.units を入力順で走査し、Catalog未解決なら
 // displayName = unitDefinitionId とする。
 export function selectRoster(
-  response: BattleSimulationResponse,
+  response: BattleLogResponse,
   catalog: BattleSimulationCatalogResponse,
 ): readonly RosterEntry[] {
   const catalogByDefinitionId = new Map(
@@ -197,7 +203,7 @@ const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
 // validateSimulationResponse で検証し、execution状態をfailedへ遷移させる
 // (このプロジェクタへは既に対応関係が保証された response しか渡らない)。
 export function selectBattleSummary(
-  response: BattleSimulationResponse,
+  response: BattleLogResponse,
   catalog: BattleSimulationCatalogResponse,
 ): SummaryProjection {
   const roster = selectRoster(response, catalog);

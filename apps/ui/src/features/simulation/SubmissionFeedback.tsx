@@ -1,12 +1,26 @@
 import { Button } from "../../components/Button.js";
-import type { ExecutionState, SuccessfulExecutionSnapshot } from "./execution-reducer.js";
+import type {
+  ExecutionResponseLike,
+  ExecutionState,
+  SuccessfulExecutionSnapshot,
+} from "./execution-reducer.js";
 import { selectDisplayedSuccess } from "./execution-reducer.js";
 import type { UiApiError, UiApiErrorKind } from "./api-contract.js";
 import styles from "./SubmissionFeedback.module.css";
 
+type AnyExecutionState = ExecutionState<unknown, ExecutionResponseLike>;
+type AnySuccessSnapshot = SuccessfulExecutionSnapshot<unknown, ExecutionResponseLike>;
+
 export interface SubmissionFeedbackProps {
-  readonly state: ExecutionState;
+  readonly state: AnyExecutionState;
   readonly isDirty: boolean;
+  /** 実行完了の通知文。通常戦闘と戦術演習で言い換える。 */
+  readonly successMessage: string;
+  /**
+   * 表示中の成功結果の1行要約。結果DTOがモードで異なる（戦闘は勝敗、演習は
+   * スコア）ため、整形は呼び出し側が持つ。
+   */
+  readonly resultSummary: string;
   // 表示中の成功snapshotが、現在保持しているCatalog
   // とは異なるrevisionで実行された結果であることを示す(selectIsCatalogRevisionMismatch)。
   readonly catalogRevisionMismatch?: boolean;
@@ -37,16 +51,19 @@ function isCatalogRevisionMismatch(error: UiApiError): boolean {
 const CATALOG_REVISION_MISMATCH_MESSAGE =
   "Catalogが更新されたため、この結果は表示できません。再読込してユニット・Memoryの選択を確認してください。";
 
-function SuccessSummary({ snapshot }: { readonly snapshot: SuccessfulExecutionSnapshot }) {
+function SuccessSummary({
+  snapshot,
+  resultSummary,
+}: {
+  readonly snapshot: AnySuccessSnapshot;
+  readonly resultSummary: string;
+}) {
   const { response, requestId } = snapshot;
   return (
     <div className={styles["meta"]}>
       <span>Battle ID: {response.battleId}</span>
       <span>Catalog revision: {response.catalogRevision}</span>
-      <span>
-        {response.result.outcome} / {response.result.completionReason} (turn{" "}
-        {response.result.completedTurn})
-      </span>
+      <span>{resultSummary}</span>
       {requestId !== undefined ? <span>Request ID: {requestId}</span> : null}
     </div>
   );
@@ -64,12 +81,14 @@ function DisplayedSuccess({
   snapshot,
   isDirty,
   label,
+  resultSummary,
   catalogRevisionMismatch,
   onReloadCatalog,
 }: {
-  readonly snapshot: SuccessfulExecutionSnapshot;
+  readonly snapshot: AnySuccessSnapshot;
   readonly isDirty: boolean;
   readonly label?: string;
+  readonly resultSummary: string;
   readonly catalogRevisionMismatch: boolean;
   readonly onReloadCatalog: () => void;
 }) {
@@ -86,7 +105,7 @@ function DisplayedSuccess({
   return (
     <>
       {label !== undefined ? <p>{label}</p> : null}
-      <SuccessSummary snapshot={snapshot} />
+      <SuccessSummary snapshot={snapshot} resultSummary={resultSummary} />
       {isDirty ? <p className={styles["dirty"]}>この結果は変更前の条件です。</p> : null}
     </>
   );
@@ -130,6 +149,8 @@ function ErrorDetail({
 export function SubmissionFeedback({
   state,
   isDirty,
+  successMessage,
+  resultSummary,
   catalogRevisionMismatch = false,
   onReloadCatalog,
 }: SubmissionFeedbackProps) {
@@ -147,6 +168,7 @@ export function SubmissionFeedback({
           <DisplayedSuccess
             snapshot={displayedSuccess}
             isDirty={isDirty}
+            resultSummary={resultSummary}
             catalogRevisionMismatch={catalogRevisionMismatch}
             onReloadCatalog={onReloadCatalog}
           />
@@ -158,10 +180,11 @@ export function SubmissionFeedback({
   if (state.status === "succeeded") {
     return (
       <div className={`${styles["feedback"]} ${styles["succeeded"]}`} aria-live="polite">
-        <p>戦闘が完了しました。</p>
+        <p>{successMessage}</p>
         <DisplayedSuccess
           snapshot={{ ...state }}
           isDirty={isDirty}
+          resultSummary={resultSummary}
           catalogRevisionMismatch={catalogRevisionMismatch}
           onReloadCatalog={onReloadCatalog}
         />
@@ -178,6 +201,7 @@ export function SubmissionFeedback({
             snapshot={displayedSuccess}
             isDirty={isDirty}
             label="前回成功結果を保持しています。"
+            resultSummary={resultSummary}
             catalogRevisionMismatch={catalogRevisionMismatch}
             onReloadCatalog={onReloadCatalog}
           />
@@ -203,6 +227,7 @@ export function SubmissionFeedback({
           snapshot={displayedSuccess}
           isDirty={isDirty}
           label="前回成功結果を保持しています。"
+          resultSummary={resultSummary}
           catalogRevisionMismatch={catalogRevisionMismatch}
           onReloadCatalog={onReloadCatalog}
         />

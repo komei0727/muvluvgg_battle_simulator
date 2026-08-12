@@ -1,0 +1,40 @@
+.side {
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.headingText {
+  margin: 0;
+  color: var(--color-enemy);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.badge {
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--color-enemy);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* 敵は1枠だけなので、6枠のgridではなく単一枠を通常のslot幅で置く。 */
+.slot {
+  max-width: 220px;
+}
+
+.notice {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}

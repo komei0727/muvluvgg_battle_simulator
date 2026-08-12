@@ -4,6 +4,8 @@ import styles from "./SubmitControls.module.css";
 export interface SubmitControlsProps {
   readonly canSubmit: boolean;
   readonly isSubmitting: boolean;
+  /** モードごとの実行ラベル（通常戦闘／戦術演習）。 */
+  readonly submitLabel?: string;
   readonly onSubmit: () => void;
   readonly onCancel: () => void;
 }
@@ -13,13 +15,14 @@ export interface SubmitControlsProps {
 export function SubmitControls({
   canSubmit,
   isSubmitting,
+  submitLabel = "戦闘を開始",
   onSubmit,
   onCancel,
 }: SubmitControlsProps) {
   return (
     <div className={styles["controls"]}>
       <Button variant="primary" disabled={!canSubmit || isSubmitting} onClick={onSubmit}>
-        {isSubmitting ? "実行中…" : "戦闘を開始"}
+        {isSubmitting ? "実行中…" : submitLabel}
       </Button>
       {isSubmitting ? (
         <Button variant="secondary" onClick={onCancel}>

@@ -4,9 +4,11 @@ import type {
   CatalogMemorySummary,
   CatalogUnitSummary,
   FormationStatPreviewResponse,
+  TacticalExerciseResponse,
   UiApiError,
 } from "./api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
+import { EXERCISE_TURN_LIMIT } from "../exercise/exercise-draft-validation.js";
 
 // docs/ui-design/03_API・データ連携設計.md §8: 一覧レスポンスの検証.
 // 契約違反時は編成を有効にせず RESPONSE_CONTRACT_MISMATCH を返す。
@@ -228,44 +230,129 @@ function hasMatchingFinalStateUnits(initialState: unknown, finalState: unknown):
   });
 }
 
-export function validateSimulationResponse(body: unknown): SimulationValidationResult {
+// `result`以外は戦闘POSTと演習POSTで同一構造（10_API設計.md
+// 「TacticalExerciseResponse」）。ラベルだけを差し替えて両方から使う。
+type BattleLogStructuralResult =
+  | { readonly ok: true; readonly result: unknown }
+  | { readonly ok: false; readonly message: string };
+
+function structuralMismatch(message: string): BattleLogStructuralResult {
+  return { ok: false, message };
+}
+
+function validateBattleLogResponse(body: unknown, label: string): BattleLogStructuralResult {
   if (!isRecord(body)) {
-    return simulationMismatch("Simulation response body is not a JSON object.");
+    return structuralMismatch(`${label} response body is not a JSON object.`);
   }
 
   if (typeof body["schemaVersion"] !== "number") {
-    return simulationMismatch("Simulation response schemaVersion is not a number.");
+    return structuralMismatch(`${label} response schemaVersion is not a number.`);
   }
   if (!isNonEmptyString(body["battleId"])) {
-    return simulationMismatch("Simulation response battleId is missing or empty.");
+    return structuralMismatch(`${label} response battleId is missing or empty.`);
   }
   if (!isNonEmptyString(body["catalogRevision"])) {
-    return simulationMismatch("Simulation response catalogRevision is missing or empty.");
-  }
-  if (!isValidResult(body["result"])) {
-    return simulationMismatch("Simulation response result is malformed.");
+    return structuralMismatch(`${label} response catalogRevision is missing or empty.`);
   }
   if (!isValidBattleState(body["initialState"])) {
-    return simulationMismatch("Simulation response initialState.units is malformed.");
+    return structuralMismatch(`${label} response initialState.units is malformed.`);
   }
   if (!isValidBattleState(body["finalState"])) {
-    return simulationMismatch("Simulation response finalState.units is malformed.");
+    return structuralMismatch(`${label} response finalState.units is malformed.`);
   }
   if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
-    return simulationMismatch(
-      "Simulation response finalState is missing a battleUnitId present in initialState.",
+    return structuralMismatch(
+      `${label} response finalState is missing a battleUnitId present in initialState.`,
     );
   }
   if (!Array.isArray(body["events"])) {
-    return simulationMismatch("Simulation response events is not an array.");
+    return structuralMismatch(`${label} response events is not an array.`);
   }
   if (!Array.isArray(body["stateTransitions"])) {
-    return simulationMismatch("Simulation response stateTransitions is not an array.");
+    return structuralMismatch(`${label} response stateTransitions is not an array.`);
+  }
+  return { ok: true, result: body["result"] };
+}
+
+export function validateSimulationResponse(body: unknown): SimulationValidationResult {
+  const structural = validateBattleLogResponse(body, "Simulation");
+  if (!structural.ok) {
+    return simulationMismatch(structural.message);
+  }
+  if (!isValidResult(structural.result)) {
+    return simulationMismatch("Simulation response result is malformed.");
   }
 
   return {
     ok: true,
-    response: body as unknown as BattleSimulationResponse,
+    response: body as BattleSimulationResponse,
+  };
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.3 / UI-API-015: 演習の`result`だけを
+// 追加で検証する。総スコア・ブレイク回数・ブレイク履歴は整数であり、`breaks`の
+// 件数は`breakCount`と一致する（10_API設計.md「ExerciseResultResponse」）。
+//
+// 値域はサーバーのschema（apps/api/.../simulation/tactical-exercise-schema.ts）を
+// そのまま写す。ターン番号とブレイク番号は1始まりで、演習は5ターン固定
+// （`R-TEX-01` #4）であるため、0や上限超過はUIが表示してよい結果ではない。
+// UIが独自に厳しくしているのではなく、公開契約の値域に一致させている。
+
+export type TacticalExerciseValidationResult =
+  | { readonly ok: true; readonly response: TacticalExerciseResponse }
+  | { readonly ok: false; readonly error: UiApiError };
+
+function exerciseMismatch(message: string): TacticalExerciseValidationResult {
+  return { ok: false, error: { kind: "RESPONSE_CONTRACT_MISMATCH", message } };
+}
+
+function isIntegerInRange(value: unknown, minimum: number, maximum?: number): value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
+    return false;
+  }
+  return maximum === undefined || value <= maximum;
+}
+
+function isValidBreak(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    // breakNumberに上限は無い（1体を何度でもブレイクし得る）。
+    isIntegerInRange(value["breakNumber"], 1) &&
+    isIntegerInRange(value["turnNumber"], 1, EXERCISE_TURN_LIMIT) &&
+    isIntegerInRange(value["cumulativeScoreAtBreak"], 0)
+  );
+}
+
+function isValidExerciseResult(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const breaks = value["breaks"];
+  return (
+    isNonEmptyString(value["completionReason"]) &&
+    isIntegerInRange(value["completedTurn"], 1, EXERCISE_TURN_LIMIT) &&
+    isIntegerInRange(value["totalScore"], 0) &&
+    isIntegerInRange(value["breakCount"], 0) &&
+    Array.isArray(breaks) &&
+    breaks.every(isValidBreak) &&
+    breaks.length === value["breakCount"]
+  );
+}
+
+export function validateTacticalExerciseResponse(body: unknown): TacticalExerciseValidationResult {
+  const structural = validateBattleLogResponse(body, "Tactical exercise");
+  if (!structural.ok) {
+    return exerciseMismatch(structural.message);
+  }
+  if (!isValidExerciseResult(structural.result)) {
+    return exerciseMismatch("Tactical exercise response result is malformed.");
+  }
+
+  return {
+    ok: true,
+    response: body as TacticalExerciseResponse,
   };
 }
 

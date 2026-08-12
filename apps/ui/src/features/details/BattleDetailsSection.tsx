@@ -9,13 +9,13 @@ import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import { selectRoster } from "../summary/summary-projector.js";
 import type { LogLevel } from "../formation/types.js";
 import type {
+  BattleLogResponse,
   BattleSimulationCatalogResponse,
-  BattleSimulationResponse,
 } from "../simulation/api-contract.js";
 import styles from "./BattleDetailsSection.module.css";
 
 export interface BattleDetailsSectionProps {
-  readonly response: BattleSimulationResponse;
+  readonly response: BattleLogResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
   readonly logLevel: LogLevel;
 }

@@ -4,20 +4,34 @@
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 import type { BattleSimulationResponse, UiApiError } from "./api-contract.js";
 
-export interface SuccessfulExecutionSnapshot {
+// UI-CMP-013: 実行stateはモード（通常戦闘／戦術演習）ごとに分かれ、リクエストDTOも
+// レスポンスDTOも異なる。遷移規則自体はモードに依らないため、DTOだけを型引数にする。
+// 既定値は通常戦闘なので、既存の`ExecutionState`表記はそのまま通用する。
+export interface ExecutionResponseLike {
+  readonly battleId: string;
+  readonly catalogRevision: string;
+}
+
+export interface SuccessfulExecutionSnapshot<
+  TRequest = BattleSimulationRequest,
+  TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+> {
   readonly executionId: string;
-  readonly request: BattleSimulationRequest;
-  readonly response: BattleSimulationResponse;
+  readonly request: TRequest;
+  readonly response: TResponse;
   readonly requestId?: string;
   readonly completedAt: number;
 }
 
-export type ExecutionState =
+export type ExecutionState<
+  TRequest = BattleSimulationRequest,
+  TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+> =
   | { readonly status: "idle" }
   | {
       readonly status: "submitting";
       readonly executionId: string;
-      readonly request: BattleSimulationRequest;
+      readonly request: TRequest;
       readonly startedAt: number;
       // 送信時点のslot対応表(request-mapper.ts の allyUnitSlotKeys/
       // enemyUnitSlotKeys/allyMemorySlotKeys/enemyMemorySlotKeys)。failedへ
@@ -29,13 +43,13 @@ export type ExecutionState =
       readonly enemyMemorySlotKeys: readonly string[];
       readonly allyGearSlotIndices: readonly (readonly number[])[];
       readonly enemyGearSlotIndices: readonly (readonly number[])[];
-      readonly previousSuccess?: SuccessfulExecutionSnapshot;
+      readonly previousSuccess?: SuccessfulExecutionSnapshot<TRequest, TResponse>;
     }
   | {
       readonly status: "succeeded";
       readonly executionId: string;
-      readonly request: BattleSimulationRequest;
-      readonly response: BattleSimulationResponse;
+      readonly request: TRequest;
+      readonly response: TResponse;
       readonly requestId?: string;
       readonly completedAt: number;
     }
@@ -50,19 +64,22 @@ export type ExecutionState =
       readonly enemyMemorySlotKeys: readonly string[];
       readonly allyGearSlotIndices: readonly (readonly number[])[];
       readonly enemyGearSlotIndices: readonly (readonly number[])[];
-      readonly previousSuccess?: SuccessfulExecutionSnapshot;
+      readonly previousSuccess?: SuccessfulExecutionSnapshot<TRequest, TResponse>;
     }
   | {
       readonly status: "cancelled";
       readonly executionId: string;
-      readonly previousSuccess?: SuccessfulExecutionSnapshot;
+      readonly previousSuccess?: SuccessfulExecutionSnapshot<TRequest, TResponse>;
     };
 
-export type ExecutionAction =
+export type ExecutionAction<
+  TRequest = BattleSimulationRequest,
+  TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+> =
   | {
       readonly type: "submissionStarted";
       readonly executionId: string;
-      readonly request: BattleSimulationRequest;
+      readonly request: TRequest;
       readonly startedAt: number;
       readonly allyUnitSlotKeys: readonly string[];
       readonly enemyUnitSlotKeys: readonly string[];
@@ -74,7 +91,7 @@ export type ExecutionAction =
   | {
       readonly type: "submissionSucceeded";
       readonly executionId: string;
-      readonly response: BattleSimulationResponse;
+      readonly response: TResponse;
       readonly requestId?: string;
       readonly completedAt: number;
     }
@@ -86,13 +103,18 @@ export type ExecutionAction =
     }
   | { readonly type: "submissionCancelled"; readonly executionId: string };
 
-export function createInitialExecutionState(): ExecutionState {
+export function createInitialExecutionState<
+  TRequest,
+  TResponse extends ExecutionResponseLike,
+>(): ExecutionState<TRequest, TResponse> {
   return { status: "idle" };
 }
 
 // The snapshot currently on screen: a fresh success, or one carried forward
 // through a rerun that is submitting/failed/cancelled (UI-UC-005, UI-CMP-003).
-function currentSuccessSnapshot(state: ExecutionState): SuccessfulExecutionSnapshot | undefined {
+function currentSuccessSnapshot<TRequest, TResponse extends ExecutionResponseLike>(
+  state: ExecutionState<TRequest, TResponse>,
+): SuccessfulExecutionSnapshot<TRequest, TResponse> | undefined {
   switch (state.status) {
     case "succeeded":
       return {
@@ -111,7 +133,10 @@ function currentSuccessSnapshot(state: ExecutionState): SuccessfulExecutionSnaps
   }
 }
 
-export function executionReducer(state: ExecutionState, action: ExecutionAction): ExecutionState {
+export function executionReducer<TRequest, TResponse extends ExecutionResponseLike>(
+  state: ExecutionState<TRequest, TResponse>,
+  action: ExecutionAction<TRequest, TResponse>,
+): ExecutionState<TRequest, TResponse> {
   switch (action.type) {
     case "submissionStarted": {
       const previousSuccess = currentSuccessSnapshot(state);
@@ -173,18 +198,18 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
   }
 }
 
-export function selectDisplayedSuccess(
-  state: ExecutionState,
-): SuccessfulExecutionSnapshot | undefined {
+export function selectDisplayedSuccess<TRequest, TResponse extends ExecutionResponseLike>(
+  state: ExecutionState<TRequest, TResponse>,
+): SuccessfulExecutionSnapshot<TRequest, TResponse> | undefined {
   return currentSuccessSnapshot(state);
 }
 
 // Deep-equality on the wire request is sufficient: buildBattleSimulationRequest
 // produces stable key order and sorted arrays for the same draft
 // (request-mapper.ts), so JSON.stringify is a safe structural comparison.
-export function selectIsResultDirty(
-  latestRequest: BattleSimulationRequest,
-  displayedSuccessRequest: BattleSimulationRequest | undefined,
+export function selectIsResultDirty<TRequest>(
+  latestRequest: TRequest,
+  displayedSuccessRequest: TRequest | undefined,
 ): boolean {
   if (displayedSuccessRequest === undefined) {
     return false;
@@ -204,7 +229,7 @@ export function selectIsResultDirty(
 // 再読込がpending/failedの間だけ判定がfalseへ戻ると、確認が取れていない
 // 古い結果が一時的に再表示されてしまう。
 export function selectIsCatalogRevisionMismatch(
-  displayedSuccess: SuccessfulExecutionSnapshot | undefined,
+  displayedSuccess: { readonly response: ExecutionResponseLike } | undefined,
   catalogRevision: string | undefined,
 ): boolean {
   if (displayedSuccess === undefined) {
