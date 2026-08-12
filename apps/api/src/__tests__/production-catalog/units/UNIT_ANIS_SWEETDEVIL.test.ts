@@ -31,7 +31,11 @@ import {
   type BoardUnitSpec,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
-import { realDamage, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import {
+  hitPointReduced,
+  realDamage,
+  turnStarted,
+} from "../../../testing/production-unit/trigger-events.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
 /**
@@ -609,6 +613,69 @@ describe("production Catalog UNIT_ANIS_SWEETDEVIL (【渚のスイートデビ�
     expect(activatedPassiveSkillIds(chainB)).toEqual(["SKL_ANIS_SWEETDEVIL_PS1"]);
   });
 
+  it("IT-UNIT-ANIS-SWEETDEVIL-006 (R-PS-01, R-HEAL-01): PS1の被弾→発動→回復は公開差分だけで復元できる", () => {
+    // `-001` はHP差分の観測、`-004` は発動したスキルIDだけを見るため、どちらも
+    // `HealApplied` の `stateDelta` が欠落しても成功してしまう。被弾と回復の両区間を
+    // 独立Reducerで復元して、公開差分だけで同じ最終状態へ届くことを固定する。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      subject: { state: { currentHp: 10000, currentExtraGauge: 2 } },
+    });
+    const damageResults: DamageResultRegistry = new Map();
+
+    // 被弾区間: 最大HP×15%（1500）以上の一撃。PS連鎖はまだ挿さない。
+    const hit = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: board.units,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      power: 3,
+      damageResults,
+    });
+    expect(hit.hpDeltas["ally:subject"]).toBe(-1500);
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(board.units, { include: ["effects"] }),
+        hit.recorder
+          .getEvents()
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(hit.units, { include: ["effects"] }));
+
+    // 発動→回復区間: 同じ解決スコープの `HitPointReduced` からPS1を解決する。
+    // 直前DAMAGE結果レジストリを共有しているため `LAST_DAMAGE_RECEIVED` が引ける。
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_ANIS_PS1_HEAL",
+      damageResults,
+    });
+    const eventsBefore = chain.recorder.getEvents().length;
+    const healed = chain.fire(
+      hitPointReduced({
+        source: "enemy:front",
+        target: "ally:subject",
+        damage: 1500,
+        hpBefore: 10000,
+      }),
+      hit.units,
+    );
+    expect(activatedPassiveSkillIds(chain)).toEqual(["SKL_ANIS_SWEETDEVIL_PS1"]);
+    // EX3（盤面2＋PP消費分1）で「3以上」の腕を引き、被ダメージ1500の100%を回復する。
+    expect(healed.find((unit) => unit.battleUnitId === "ally:subject")!.currentHp).toBe(10000);
+    // PS使用はクールタイムと排他用counterも動かすため、射影に含めて突き合わせる
+    // （HP・効果だけを見ると、それらのStateDeltaが欠けても気付けない）。
+    const restorationProjection = { include: ["effects", "cooldowns", "skillCounters"] } as const;
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(hit.units, restorationProjection),
+        chain.recorder
+          .getEvents()
+          .slice(eventsBefore)
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(healed, restorationProjection));
+  });
+
   it("IT-UNIT-ANIS-SWEETDEVIL-005 (R-DMG-07): PS3の閾値付き軽減は現在HP20%を超えたヒットだけを50%減らし、そのヒットでだけ3回分を消費する", () => {
     // `-001` のPS3行は付与そのもの（`damageThreshold` と `consumption` の宣言）
     // までを固定する。閾値の比較演算子（`GT`）も、消費が「軽減を適用したヒット」
@@ -665,17 +732,28 @@ describe("production Catalog UNIT_ANIS_SWEETDEVIL (【渚のスイートデビ�
     expect(applied[3]).toBe(-2001);
     expect(reductionsOf(units)).toEqual([]);
 
-    // 独立Reducer復元: 軽減・消費・枯渇失効は公開差分（StateDelta）だけで同じ
-    // 最終状態へ届く。`EffectConsumptionChanged`／`EffectExpired` のStateDeltaが
-    // 欠ければここで落ちる。
-    const consumingHit = strike(guarded, 4.002);
+    // 独立Reducer復元は**枯渇するヒット**で取る。1発目（残数3→2）では
+    // `EffectExpired` が出ないため、失効差分の欠落を検出できない。2回消費済みの
+    // 状態から3回目の成立ヒットを与え、`EffectConsumptionChanged` と
+    // `EffectExpired` のStateDeltaだけで「効果が消えた最終状態」へ復元できることを見る。
+    let twiceConsumed = guarded;
+    for (let hit = 0; hit < 2; hit += 1) {
+      twiceConsumed = strike(twiceConsumed, 4.002).units;
+    }
+    expect(reductionsOf(twiceConsumed)).toHaveLength(1);
+
+    const depletingHit = strike(twiceConsumed, 4.002);
+    expect(reductionsOf(depletingHit.units)).toEqual([]);
+    expect(
+      depletingHit.expirations.map((expiration) => expiration.effectActionDefinitionId),
+    ).toContain("ACT_ANIS_SWEETDEVIL_PS3_THRESHOLD_DMG_DOWN");
     expect(
       reduceStateDeltas(
-        initialSnapshotFor(guarded, { include: ["effects"] }),
-        consumingHit.recorder
+        initialSnapshotFor(twiceConsumed, { include: ["effects"] }),
+        depletingHit.recorder
           .getEvents()
           .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
       ),
-    ).toEqual(initialSnapshotFor(consumingHit.units, { include: ["effects"] }));
+    ).toEqual(initialSnapshotFor(depletingHit.units, { include: ["effects"] }));
   });
 });
