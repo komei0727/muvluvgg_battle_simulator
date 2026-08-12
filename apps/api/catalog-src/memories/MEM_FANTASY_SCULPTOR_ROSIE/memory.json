@@ -1,0 +1,73 @@
+{
+  "memoryDefinitionId": "MEM_FANTASY_SCULPTOR_ROSIE",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CHAR_ROSIE_HUGHES_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_ROSIE_HUGHES" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_ROSIE_HUGHES_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_FANTASY_SCULPTOR_ROSIE_ROSIE_CRIT_UP" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_RIGHT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                { "kind": "POSITION_ROW", "row": "FRONT" },
+                { "kind": "POSITION_COLUMN", "column": "RIGHT" }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_RIGHT_ALLIES" },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_FANTASY_SCULPTOR_ROSIE_FRONT_RIGHT_CRIT_DMG_UP"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "空想造形師ロージー", "tags": [] }
+}

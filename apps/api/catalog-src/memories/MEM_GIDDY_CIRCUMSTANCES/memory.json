@@ -1,0 +1,66 @@
+{
+  "memoryDefinitionId": "MEM_GIDDY_CIRCUMSTANCES",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_AGGRESSIVE_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ATTRIBUTE", "attribute": "AGGRESSIVE" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_AGGRESSIVE_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_GIDDY_CIRCUMSTANCES_AGGRESSIVE_ATK_UP" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SMART_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "ATTRIBUTE", "attribute": "SMART" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_SMART_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_GIDDY_CIRCUMSTANCES_SMART_ATK_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "浮かれた事情", "tags": [] }
+}

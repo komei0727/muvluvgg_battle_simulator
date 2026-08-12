@@ -1,0 +1,26 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_KOI_LYDIA_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1000 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_KOI_BACK_CENTER_PHYSICAL_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CONSTANT", "value": 0.105 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  }
+]

@@ -36,6 +36,10 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * instead would conflate the two: re-adding a synthetic unit would fail here
  * and invite editing the ledger's converted-unit constant to make it pass.
  *
+ * The 2026-08-12 memory batch adds 4 more `raw/memories/` conversions
+ * (`MEM_KOI`, `MEM_LIKE_FRIENDS`, `MEM_GIDDY_CIRCUMSTANCES`,
+ * `MEM_FANTASY_SCULPTOR_ROSIE`), bringing the memory total to 36.
+ *
  * TEX-010 (Issue #447) adds `EXERCISE_ENEMY` units — tactical-exercise-only
  * enemies transcribed from in-game screenshots, not `raw/units/` conversions.
  * They are tallied separately (`IT-CAT-INV-003`, ledger section
@@ -59,9 +63,9 @@ describe("catalog-src/ inventory (Issue #47 ledger)", () => {
     expect(converted).toHaveLength(69);
   });
 
-  it("IT-CAT-INV-002: catalog-src/ has all 32 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007 + 20 from Issue #176 M7-008)", () => {
+  it("IT-CAT-INV-002: catalog-src/ has all 36 converted memories tallied in the ledger (6 from Issue #47 + 6 from Issue #178 M7-007 + 20 from Issue #176 M7-008 + 4 from the 2026-08-12 追加バッチ)", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
-    expect(source.memories.length).toBe(32);
+    expect(source.memories.length).toBe(36);
   });
 
   it("IT-CAT-INV-003: catalog-src/ has exactly the EXERCISE_ENEMY units tallied in the ledger's 戦術演習ユニット section (TEX-010 / Issue #447)", () => {

@@ -9330,6 +9330,30 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MEM_FANTASY_SCULPTOR_ROSIE_ROSIE_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.03 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FANTASY_SCULPTOR_ROSIE_FRONT_RIGHT_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.105 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MEM_FUUKI_IINKAI_AFFILIATION_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
@@ -9348,6 +9372,30 @@
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 12 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_GIDDY_CIRCUMSTANCES_AGGRESSIVE_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1500 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_GIDDY_CIRCUMSTANCES_SMART_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
@@ -9420,6 +9468,54 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.025 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_KOI_LYDIA_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1000 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_KOI_BACK_CENTER_PHYSICAL_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "CONSTANT", "value": 0.105 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_LIKE_FRIENDS_COMICAL_CLEVER_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1000 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_LIKE_FRIENDS_BACK_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.0125 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },

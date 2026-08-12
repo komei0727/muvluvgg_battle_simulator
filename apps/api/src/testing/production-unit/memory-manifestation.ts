@@ -139,15 +139,27 @@ export interface MemoryBoardOverrides {
    * opt-inに留める。
    */
   readonly attributesBySlot?: Readonly<Record<string, Attribute>>;
+  /**
+   * スロットキー → そのスロットのUnitDefinitionが名乗るキャラクターID。`CHARACTER`
+   * TargetFilterは`UnitDefinition.metadata.characterId`を引くが、既定は
+   * `testUnitDefinition`が付ける`CHAR_UNIT_TEST_MEMORY_<slot>`で実キャラクターIDと
+   * 一致しないため、所属と同じくMemoryごとに「どのスロットが名乗るか」を宣言する。
+   */
+  readonly charactersBySlot?: Readonly<Record<string, string>>;
 }
 
 function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): UnitDefinition {
   const affiliations = overrides.affiliationsBySlot?.[slot.key];
+  const characterId = overrides.charactersBySlot?.[slot.key];
+  const metadata = {
+    ...(affiliations === undefined ? {} : { affiliations }),
+    ...(characterId === undefined ? {} : { characterId }),
+  };
   return testUnitDefinition(slotUnitDefinitionId(slot), {
     role: slot.role,
     unitType: slot.unitType,
     positionAptitudes: ["FRONT", "BACK"],
-    ...(affiliations === undefined ? {} : { metadata: { affiliations } }),
+    ...(Object.keys(metadata).length === 0 ? {} : { metadata }),
   });
 }
 

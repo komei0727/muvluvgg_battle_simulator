@@ -21,7 +21,7 @@ import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
  * production結合テスト（`12_テスト戦略.md`「ユニット効果軸」）。
  *
  * 効果1は中央列後衛へ攻撃力+3000を**1行動の間**与え、さらに「三ツ星」Markerを付与する。
- * 効果2は陣営全体へHP+300と防御力+300。全32Memoryのうち Marker を配る唯一の定義であり、
+ * 効果2は陣営全体へHP+300と防御力+300。全36Memoryのうち Marker を配る唯一の定義であり、
  * その Marker は付与者ユニットを持たない（R-MEM-04）。
  *
  * 実`catalog/`の未改変定義を実`startBattle`（`BattleStarted`）から解決し、
