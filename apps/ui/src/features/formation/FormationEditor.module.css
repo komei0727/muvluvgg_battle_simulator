@@ -35,33 +35,6 @@
   color: var(--color-enemy);
 }
 
-.grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rowGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rowLabel {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.rowSlots {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
 .memoryArea {
   margin-top: 16px;
   border-top: 1px solid var(--color-border);
@@ -90,15 +63,4 @@
   .memoryGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-}
-
-/* 読み上げ専用テキスト。display:noneでは通知されないため画面外へ逃がす。 */
-.visuallyHidden {
-  position: absolute;
-  overflow: hidden;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  white-space: nowrap;
-  clip-path: inset(50%);
 }

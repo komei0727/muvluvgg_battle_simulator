@@ -1,15 +1,15 @@
-import { useEffect, useId, useState } from "react";
+import { useId } from "react";
 import type { UiViolation } from "./draft-validation.js";
 import { EnhancementPanel } from "./EnhancementPanel.js";
+import { FormationGrid } from "./FormationGrid.js";
+import type { FormationStatPreviewView } from "./FormationGrid.js";
 import { MemorySlot } from "./MemorySlot.js";
-import type {
-  BattleSimulationCatalogResponse,
-  FormationStatPreviewUnit,
-} from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 import { memorySlotKeyOf } from "./types.js";
-import type { FormationSlotInput, Side, SideEnhancementInput, UiColumn, UiRow } from "./types.js";
-import { UnitSlot } from "./UnitSlot.js";
+import type { FormationSlotInput, Side, SideEnhancementInput } from "./types.js";
 import styles from "./FormationEditor.module.css";
+
+export type { FormationStatPreviewView };
 
 export interface FormationEditorProps {
   readonly side: Side;
@@ -40,32 +40,8 @@ export interface FormationEditorProps {
   ) => void;
 }
 
-export interface FormationStatPreviewView {
-  readonly status: "unavailable" | "loading" | "failed" | "ready";
-  readonly bySlotKey?: ReadonlyMap<string, FormationStatPreviewUnit>;
-}
-
-const ROWS: readonly UiRow[] = ["FRONT", "REAR"];
-const COLUMNS: readonly UiColumn[] = [0, 1, 2];
-const ROW_LABELS: Readonly<Record<UiRow, string>> = {
-  FRONT: "FRONT / 前衛",
-  REAR: "REAR / 後衛",
-};
-
-function slotAt(
-  slots: readonly FormationSlotInput[],
-  row: UiRow,
-  column: UiColumn,
-): FormationSlotInput | undefined {
-  return slots.find((slot) => slot.row === row && slot.column === column);
-}
-
 function hasErrorFor(violations: readonly UiViolation[], slotKey: string): boolean {
   return violations.some((v) => v.slotKey === slotKey && v.severity === "error");
-}
-
-function hasAptitudeWarningFor(violations: readonly UiViolation[], slotKey: string): boolean {
-  return violations.some((v) => v.slotKey === slotKey && v.code === "APTITUDE_MISMATCH");
 }
 
 // docs/ui-design/01_UI要求・画面設計.md §5.1/§5.3, §4 page composition.
@@ -91,56 +67,6 @@ export function FormationEditor({
   const sideLabelJa = side === "ally" ? "味方" : "敵";
   const sideClass = side === "ally" ? styles["ally"] : styles["enemy"];
 
-  // UI-AC-032: 移動元slotKey。dragとキーボード移動モードで共用する。
-  // stateが陣営別のeditorインスタンスに閉じているため、反対陣営のslotは
-  // 配置先にならない（同一陣営制約の実体）。
-  const [moveSourceSlotKey, setMoveSourceSlotKey] = useState<string | null>(null);
-
-  // 実行開始（disabled化）で移動モードが宙に残らないよう解除する。
-  useEffect(() => {
-    if (disabled) {
-      setMoveSourceSlotKey(null);
-    }
-  }, [disabled]);
-
-  // Escapeによる中止はフォーカス位置で限定しない（強化button・メモリー枠・
-  // 学園レベル入力などへ移った後でも効く）ため、documentレベルで捕捉する。
-  useEffect(() => {
-    if (moveSourceSlotKey === null) {
-      return undefined;
-    }
-    const cancelOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        setMoveSourceSlotKey(null);
-      }
-    };
-    document.addEventListener("keydown", cancelOnEscape);
-    return () => {
-      document.removeEventListener("keydown", cancelOnEscape);
-    };
-  }, [moveSourceSlotKey]);
-
-  const placeMove = (targetSlotKey: string): void => {
-    if (moveSourceSlotKey !== null && moveSourceSlotKey !== targetSlotKey) {
-      onMoveUnit(moveSourceSlotKey, targetSlotKey);
-    }
-    setMoveSourceSlotKey(null);
-  };
-
-  const moveSourceSlot =
-    moveSourceSlotKey !== null
-      ? slots.find((slot) => slot.slotKey === moveSourceSlotKey)
-      : undefined;
-  const moveSourceUnit =
-    moveSourceSlot !== undefined
-      ? catalog.units.find((u) => u.unitDefinitionId === moveSourceSlot.unitDefinitionId)
-      : undefined;
-  const moveAnnouncement =
-    moveSourceSlot !== undefined && moveSourceUnit !== undefined
-      ? `${moveSourceSlot.row === "FRONT" ? "前衛" : "後衛"}${moveSourceSlot.column + 1}の` +
-        `${moveSourceUnit.displayName}を移動中。移動先の枠を選ぶか、Escapeで中止できます`
-      : "";
-
   return (
     <section className={`${styles["side"] ?? ""} ${sideClass ?? ""}`} aria-labelledby={headingId}>
       <div className={styles["heading"]}>
@@ -150,74 +76,18 @@ export function FormationEditor({
         <span className={styles["badge"]}>{sideLabelJa}</span>
       </div>
 
-      {/* 移動モードの進行状態を読み上げへ届ける（UI-CT-052）。 */}
-      <p aria-live="polite" className={styles["visuallyHidden"]}>
-        {moveAnnouncement}
-      </p>
-
-      <div className={styles["grid"]}>
-        {ROWS.map((row) => (
-          <div key={row} className={styles["rowGroup"]}>
-            <p className={styles["rowLabel"]}>{ROW_LABELS[row]}</p>
-            <div className={styles["rowSlots"]}>
-              {COLUMNS.map((column) => {
-                const slot = slotAt(slots, row, column);
-                if (slot === undefined) {
-                  return null;
-                }
-                const unit = catalog.units.find(
-                  (u) => u.unitDefinitionId === slot.unitDefinitionId,
-                );
-                return (
-                  <UnitSlot
-                    key={slot.slotKey}
-                    row={row}
-                    column={column}
-                    {...(unit !== undefined ? { unit } : {})}
-                    aptitudeWarning={hasAptitudeWarningFor(violations, slot.slotKey)}
-                    hasError={hasErrorFor(violations, slot.slotKey)}
-                    disabled={disabled}
-                    {...(imageMap !== undefined ? { imageMap } : {})}
-                    onOpen={() => {
-                      // 移動モード中はslot起動を「この枠へ配置」に読み替え、
-                      // 移動元自身の起動は中止として扱う（UI-AC-032）。
-                      if (moveSourceSlotKey === null) {
-                        onOpenUnitSelection(slot.slotKey);
-                      } else if (moveSourceSlotKey === slot.slotKey) {
-                        setMoveSourceSlotKey(null);
-                      } else {
-                        placeMove(slot.slotKey);
-                      }
-                    }}
-                    onOpenEnhancement={() => {
-                      onOpenUnitEnhancement(slot.slotKey);
-                    }}
-                    moveSource={moveSourceSlotKey === slot.slotKey}
-                    moveTarget={
-                      moveSourceSlotKey !== null && moveSourceSlotKey !== slot.slotKey && !disabled
-                    }
-                    onMoveStart={() => {
-                      setMoveSourceSlotKey(slot.slotKey);
-                    }}
-                    onMoveCancel={() => {
-                      setMoveSourceSlotKey(null);
-                    }}
-                    onMovePlace={() => {
-                      placeMove(slot.slotKey);
-                    }}
-                    enhancementEnabled={enhancement.enabled}
-                    statPreviewStatus={statPreview.status}
-                    {...(() => {
-                      const preview = statPreview.bySlotKey?.get(slot.slotKey);
-                      return preview !== undefined ? { statPreview: preview } : {};
-                    })()}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+      <FormationGrid
+        slots={slots}
+        catalog={catalog}
+        violations={violations}
+        disabled={disabled}
+        {...(imageMap !== undefined ? { imageMap } : {})}
+        statPreview={statPreview}
+        onOpenUnitSelection={onOpenUnitSelection}
+        onMoveUnit={onMoveUnit}
+        onOpenUnitEnhancement={onOpenUnitEnhancement}
+        enhancementEnabled={enhancement.enabled}
+      />
 
       <div className={styles["memoryArea"]}>
         <p className={styles["subheading"]}>{sideLabelEn} MEMORY / 0-6</p>

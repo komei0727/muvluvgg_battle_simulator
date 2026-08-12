@@ -65,6 +65,23 @@ describe("buildTacticalExerciseRequest", () => {
     });
   });
 
+  // UI-CT-060: 敵の配置は前衛左上に固定されない。位置は`POSITION_ROW`条件や
+  // 前後列優先の対象順が参照するため、敵1体でも座標をそのまま送る必要がある。
+  it("sends the enemy position from the slot the unit sits in", () => {
+    let draft = createInitialDraft();
+    draft = withUnit(draft, "ally", "FRONT", 0, "UNIT_ALLY");
+    draft = withUnit(draft, "enemy", "REAR", 2, "UNIT_ENEMY");
+
+    const result = buildTacticalExerciseRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.enemyFormation.units).toEqual([
+      { unitDefinitionId: "UNIT_ENEMY", position: { column: 2, row: "REAR" } },
+    ]);
+    expect(result.enemyUnitSlotKeys).toEqual([slotKeyOf("enemy", "REAR", 2)]);
+  });
+
   it("carries the ally formation and memories through unchanged", () => {
     let draft = exerciseDraft();
     draft = withUnit(draft, "ally", "REAR", 2, "UNIT_ALLY_2");

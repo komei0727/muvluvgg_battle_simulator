@@ -3,7 +3,7 @@ import { AppShell } from "../components/AppShell.js";
 import { Panel } from "../components/Panel.js";
 import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
 import { BreakTimeline } from "../features/exercise/BreakTimeline.js";
-import { ExerciseEnemySlot } from "../features/exercise/ExerciseEnemySlot.js";
+import { ExerciseEnemyFormation } from "../features/exercise/ExerciseEnemyFormation.js";
 import { EXERCISE_TURN_LIMIT } from "../features/exercise/exercise-draft-validation.js";
 import { validateExerciseDraft } from "../features/exercise/exercise-draft-validation.js";
 import { buildTacticalExerciseRequest } from "../features/exercise/exercise-request-mapper.js";
@@ -280,7 +280,7 @@ export function BattleSimulatorPage({
                 ally={renderAllyEditor(catalog.response)}
                 enemy={
                   isExercise ? (
-                    <ExerciseEnemySlot
+                    <ExerciseEnemyFormation
                       slots={slotsForSide(formState.draft, "enemy")}
                       catalog={catalog.response}
                       violations={displayedViolations}
@@ -289,6 +289,9 @@ export function BattleSimulatorPage({
                       statPreview={statPreview}
                       onOpenUnitSelection={(slotKey) => {
                         dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                      }}
+                      onMoveUnit={(fromSlotKey, toSlotKey) => {
+                        dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
                       }}
                     />
                   ) : (

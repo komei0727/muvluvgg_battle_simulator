@@ -96,6 +96,56 @@ describe("formationReducer — unitSelected", () => {
     });
     expect(next).toBe(state);
   });
+
+  // R-TEX-01 #3 / UI-AC-019: 演習の敵は1体だけ。空き枠を選んだら移し替える。
+  describe("exclusiveForSide", () => {
+    function placeEnemyExclusively(
+      state: FormationState,
+      slotKey: string,
+      unitDefinitionId: string,
+    ): FormationState {
+      return formationReducer(state, {
+        type: "unitSelected",
+        slotKey,
+        unitDefinitionId,
+        exclusiveForSide: true,
+      });
+    }
+
+    it("empties the previously filled slot of that side instead of adding a second unit", () => {
+      const front = slotKeyOf("enemy", "FRONT", 0);
+      const rear = slotKeyOf("enemy", "REAR", 2);
+      const placed = placeEnemyExclusively(createInitialFormationState(), front, "UNIT_EX");
+
+      const moved = placeEnemyExclusively(placed, rear, "UNIT_EX");
+
+      expect(moved.draft.enemySlots.filter((s) => s.unitDefinitionId !== undefined)).toEqual([
+        expect.objectContaining({ slotKey: rear, unitDefinitionId: "UNIT_EX" }),
+      ]);
+      expect(moved.draft.enemySlots.find((s) => s.slotKey === front)).not.toHaveProperty(
+        "unitDefinitionId",
+      );
+    });
+
+    it("leaves the other side untouched", () => {
+      const state = fillAllySlots(createInitialFormationState(), 2);
+
+      const next = placeEnemyExclusively(state, slotKeyOf("enemy", "REAR", 1), "UNIT_EX");
+
+      expect(next.draft.allySlots.filter((s) => s.unitDefinitionId !== undefined)).toHaveLength(2);
+    });
+
+    it("replaces the unit in place when the same slot is chosen again", () => {
+      const slotKey = slotKeyOf("enemy", "FRONT", 1);
+      const placed = placeEnemyExclusively(createInitialFormationState(), slotKey, "UNIT_EX");
+
+      const next = placeEnemyExclusively(placed, slotKey, "UNIT_EX_CLOSED");
+
+      expect(next.draft.enemySlots.filter((s) => s.unitDefinitionId !== undefined)).toEqual([
+        expect.objectContaining({ slotKey, unitDefinitionId: "UNIT_EX_CLOSED" }),
+      ]);
+    });
+  });
 });
 
 describe("formationReducer — unitRemoved", () => {

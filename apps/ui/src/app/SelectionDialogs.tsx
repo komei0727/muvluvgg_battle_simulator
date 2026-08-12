@@ -57,9 +57,13 @@ export function SelectionDialogs({
     if (slot === undefined) {
       return null;
     }
+    // R-TEX-01 #3 / UI-AC-019: 演習の敵はちょうど1体。空き枠を選んだときは
+    // 置いていた1体をその枠へ移すので、上限到達として選択を塞がない。
+    const exclusiveForSide = mode === "exercise" && slot.side === "enemy";
     const atCapacity =
+      !exclusiveForSide &&
       slotsForSide(draft, slot.side).filter((s) => s.unitDefinitionId !== undefined).length >=
-      MAX_UNITS_PER_SIDE;
+        MAX_UNITS_PER_SIDE;
     return (
       <UnitSelectionDialog
         units={selectUnitPool(catalog.units, mode, slot.side)}
@@ -75,6 +79,7 @@ export function SelectionDialogs({
             slotKey,
             unitDefinitionId,
             ...(enhancement === undefined ? {} : { enhancement }),
+            ...(exclusiveForSide ? { exclusiveForSide } : {}),
           });
         }}
         onRemove={() => {
