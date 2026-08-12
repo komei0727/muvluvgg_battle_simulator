@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ExerciseEnemySlot } from "./ExerciseEnemySlot.js";
 import { EXERCISE_ENEMY_SLOT_KEY } from "./exercise-enemy-slot-key.js";
-import { createInitialDraft, slotsForSide, enhancementForSide } from "../formation/types.js";
+import { createInitialDraft, slotsForSide } from "../formation/types.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 
 const catalog: BattleSimulationCatalogResponse = {
@@ -32,11 +32,7 @@ function renderSlot(overrides: Partial<Parameters<typeof ExerciseEnemySlot>[0]> 
       catalog={catalog}
       violations={[]}
       disabled={false}
-      enhancement={enhancementForSide(draft, "enemy")}
       onOpenUnitSelection={vi.fn()}
-      onOpenUnitEnhancement={vi.fn()}
-      onEnhancementToggle={vi.fn()}
-      onAcademyLevelChange={vi.fn()}
       {...overrides}
     />,
   );
@@ -62,6 +58,26 @@ describe("ExerciseEnemySlot", () => {
 
     expect(screen.queryByLabelText("ターン上限")).not.toBeInTheDocument();
     expect(screen.getByText(/5ターン固定/)).toBeInTheDocument();
+  });
+
+  // 演習の敵は定義どおりの1体（R-TEX-01 #1）。学園レベルは利用者自身の育成情報
+  // であり、敵陣営には設定させない。
+  it("renders no enemy enhancement panel: no toggle and no academy level inputs", () => {
+    renderSlot();
+
+    expect(screen.queryByRole("checkbox", { name: /強化/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ENEMY ENHANCEMENT/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("物理")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("キュート")).not.toBeInTheDocument();
+  });
+
+  it("offers no unit enhancement action on the enemy slot", () => {
+    const slots = slotsForSide(draft, "enemy").map((slot) =>
+      slot.slotKey === EXERCISE_ENEMY_SLOT_KEY ? { ...slot, unitDefinitionId: "UNIT_ENEMY" } : slot,
+    );
+    renderSlot({ slots });
+
+    expect(screen.queryByRole("button", { name: /の強化を編集/ })).not.toBeInTheDocument();
   });
 
   it("opens the unit selection for the single enemy slot", async () => {

@@ -34,10 +34,18 @@
   border-style: solid;
 }
 
+/* `＋`とラベルは1つのまとまりとして枠の中央へ置く。gridの`place-items`だけだと
+   `＋`とテキストが別々の暗黙行になり、それぞれが自分の行の中央（=枠の1/4と3/4）
+   へ寄って、全体としては上下にずれて見える。 */
+/* 枠の高さは`min-height`由来で不定なため、`height: 100%`では親の高さへ解決されず
+   （grid配下では解決され、単独のblock配下では内容高になる）文脈で挙動が割れる。
+   flex itemとして伸ばすことで、どちらの置き方でも枠いっぱいを占める。 */
 .empty {
-  display: grid;
-  height: 100%;
-  place-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: var(--color-text-muted);
   font-size: 11px;
 }

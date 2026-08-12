@@ -269,21 +269,10 @@ export function BattleSimulatorPage({
                       violations={displayedViolations}
                       disabled={view.formationDisabled}
                       imageMap={definitionImageMap}
-                      enhancement={enhancementForSide(formState.draft, "enemy")}
                       statPreview={statPreview}
                       onOpenUnitSelection={(slotKey) => {
                         dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                       }}
-                      onOpenUnitEnhancement={(slotKey) => {
-                        dispatch({
-                          type: "selectionOpened",
-                          selection: { kind: "unitEnhancement", slotKey },
-                        });
-                      }}
-                      onEnhancementToggle={(side, enabled) => {
-                        dispatch({ type: "enhancementToggled", side, enabled });
-                      }}
-                      onAcademyLevelChange={changeAcademyLevel}
                     />
                   ) : (
                     <FormationEditor

@@ -75,3 +75,48 @@ test("keeps each mode's formation and latest result when switching back and fort
     }),
   ).toBeVisible();
 });
+
+// 空き枠の`＋`とラベルは1つのまとまりとして枠の中央に置く。枠の高さは`min-height`
+// 由来で不定なため、`height: 100%`に頼ると置かれ方（grid配下か単独のblock配下か）で
+// 中央寄せが崩れる。両モードで同じ見え方になることを実ブラウザで押さえる。
+test("centers the empty unit slot's placeholder in both modes", async ({ page }) => {
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
+
+  const expectCentered = async (slot: ReturnType<typeof page.getByRole>) => {
+    const outer = await slot.boundingBox();
+    const inner = await slot.locator("span").first().boundingBox();
+    expect(outer).not.toBeNull();
+    expect(inner).not.toBeNull();
+    const outerCenter = outer!.y + outer!.height / 2;
+    const innerCenter = inner!.y + inner!.height / 2;
+    expect(Math.abs(outerCenter - innerCenter)).toBeLessThanOrEqual(2);
+  };
+
+  await expectCentered(
+    page
+      .getByRole("region", { name: /ALLY FORMATION/ })
+      .getByRole("button", { name: "前衛1にユニットを追加" }),
+  );
+
+  await page.getByRole("tab", { name: "戦術演習" }).click();
+  await expectCentered(
+    page
+      .getByRole("region", { name: /ENEMY FORMATION/ })
+      .getByRole("button", { name: "前衛1にユニットを追加" }),
+  );
+});
+
+// 演習の敵はスコアを競う相手として定義どおりの1体（R-TEX-01 #1）。学園レベルは
+// 利用者自身の育成情報なので、敵陣営には出さない。
+test("shows no enemy enhancement controls in the exercise mode", async ({ page }) => {
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
+  await expect(page.getByText("ENEMY ENHANCEMENT / 学園レベル")).toBeVisible();
+
+  await page.getByRole("tab", { name: "戦術演習" }).click();
+
+  await expect(page.getByText("ENEMY ENHANCEMENT / 学園レベル")).toHaveCount(0);
+  await expect(page.getByText("ALLY ENHANCEMENT / 学園レベル")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /強化/ })).toHaveCount(1);
+});

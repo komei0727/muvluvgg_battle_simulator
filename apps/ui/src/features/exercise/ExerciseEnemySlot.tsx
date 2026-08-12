@@ -1,8 +1,7 @@
 import { useId } from "react";
-import { EnhancementPanel } from "../formation/EnhancementPanel.js";
 import type { UiViolation } from "../formation/draft-validation.js";
 import { EXERCISE_ENEMY_SLOT_KEY } from "./exercise-enemy-slot-key.js";
-import type { FormationSlotInput, SideEnhancementInput } from "../formation/types.js";
+import type { FormationSlotInput } from "../formation/types.js";
 import type { FormationStatPreviewView } from "../formation/FormationEditor.js";
 import { UnitSlot } from "../formation/UnitSlot.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
@@ -15,34 +14,25 @@ export interface ExerciseEnemySlotProps {
   readonly violations: readonly UiViolation[];
   readonly disabled: boolean;
   readonly imageMap?: Readonly<Record<string, string>>;
-  readonly enhancement: SideEnhancementInput;
   readonly statPreview?: FormationStatPreviewView;
   readonly onOpenUnitSelection: (slotKey: string) => void;
-  readonly onOpenUnitEnhancement: (slotKey: string) => void;
-  readonly onEnhancementToggle: (side: "enemy", enabled: boolean) => void;
-  readonly onAcademyLevelChange: (
-    side: "enemy",
-    group: "unitTypes" | "attributes",
-    key: string,
-    value: number | "",
-  ) => void;
 }
 
 // docs/ui-design/01_UI要求・画面設計.md `UI-UC-006` step 2 / `UI-CMP-011`:
 // 敵編成はユニット1枠だけを表示し、敵メモリー枠とターン上限入力を表示しない。
 // ターン上限は5固定であることを明示する（`UI-AC-019`）。
+//
+// 敵の強化（学園レベル・ユニット強化）も表示しない。演習の敵はスコアを競う
+// 相手として定義どおりの1体であり（`R-TEX-01` #1）、学園レベルは利用者自身の
+// 育成情報だからである。リクエストの`enemyFormation`は`enhancement`を持たない。
 export function ExerciseEnemySlot({
   slots,
   catalog,
   violations,
   disabled,
   imageMap,
-  enhancement,
   statPreview = { status: "unavailable" },
   onOpenUnitSelection,
-  onOpenUnitEnhancement,
-  onEnhancementToggle,
-  onAcademyLevelChange,
 }: ExerciseEnemySlotProps) {
   const headingId = useId();
   const slot = slots.find((candidate) => candidate.slotKey === EXERCISE_ENEMY_SLOT_KEY);
@@ -82,10 +72,6 @@ export function ExerciseEnemySlot({
           onOpen={() => {
             onOpenUnitSelection(slot.slotKey);
           }}
-          onOpenEnhancement={() => {
-            onOpenUnitEnhancement(slot.slotKey);
-          }}
-          enhancementEnabled={enhancement.enabled}
           statPreviewStatus={statPreview.status}
           {...(() => {
             const preview = statPreview.bySlotKey?.get(slot.slotKey);
@@ -95,21 +81,8 @@ export function ExerciseEnemySlot({
       </div>
 
       <p className={styles["notice"]}>
-        戦術演習の敵はユニット1体のみで、敵メモリーは設定できません。ターン上限は5ターン固定です。
+        戦術演習の敵はユニット1体のみで、敵メモリーと敵の強化は設定できません。ターン上限は5ターン固定です。
       </p>
-
-      <EnhancementPanel
-        side="enemy"
-        enhancement={enhancement}
-        violations={violations}
-        disabled={disabled}
-        onToggle={(enabled) => {
-          onEnhancementToggle("enemy", enabled);
-        }}
-        onAcademyLevelChange={(group, key, value) => {
-          onAcademyLevelChange("enemy", group, key, value);
-        }}
-      />
     </section>
   );
 }
