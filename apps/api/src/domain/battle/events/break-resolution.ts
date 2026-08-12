@@ -4,6 +4,7 @@ import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattleDomainEvent } from "./domain-event.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 
 /**
  * `BreakResolutionService`（`effects/break-resolution-service.ts`）が`yield`する
@@ -18,6 +19,25 @@ export type BreakResolutionSteps = Generator<
 >;
 
 /**
+ * R-TEX-03 #2: ブレイクを撃破として扱うために`UnitBroken`が引き継ぐ発生源。
+ *
+ * 「敵撃破時」契機の`TriggerDefinition`は`sourceSelector`で発生源を絞る
+ * （production例: `SKL_HIIRO_LONEWOLF_PS2`／`SKL_LILY_HERO_PS1`／
+ * `SKL_YURIA_WILDCARD_PS1`はいずれも`sourceSelector: SELF`＝「自身が敵を撃破した時」）。
+ * `UnitBroken`がブレイク対象自身を発生源にすると、`matchesTriggerEventType`で
+ * 種別の照合に成功してもselectorで脱落し、Catalog定義を変えずに発動させるという
+ * R-TEX-03 #2の要求を満たさない。そのため各シームは、その経路の`UnitDefeated`が
+ * 載せていたのとまったく同じ発生源をここへ渡す。
+ *
+ * 継続ダメージのようにメモリー由来の発生源（`sourceUnitId`を持たず`sourceSide`だけ）
+ * があり得るため、両方を省略可能にする（R-MEM-04）。
+ */
+export interface BreakDefeatSource {
+  readonly sourceUnitId?: BattleUnitId;
+  readonly sourceSide?: Side;
+}
+
+/**
  * 戦闘不能判定を持つ各サービスが注入を受ける、ブレイク解決への単一の入口。
  * 実装は`effects/break-resolution-service.ts`にあり、`combat/`（`effects/`へ依存
  * できない）と`effects/resource-capacity-recalculation-service.ts`（実装との相互
@@ -27,6 +47,7 @@ export type ResolveBreakHook = (
   targetUnitId: BattleUnitId,
   units: readonly BattleUnit[],
   causeEventId: DomainEventId,
+  defeatSource: BreakDefeatSource,
 ) => BreakResolutionSteps;
 
 /**

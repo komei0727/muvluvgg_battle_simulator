@@ -7,14 +7,14 @@ import {
 } from "../model/effective-effect-selector.js";
 import {
   composeResourceCapacity,
-  recalculateResourceCapacities,
+  recalculateResourceCapacitiesSteps,
 } from "./resource-capacity-recalculation-service.js";
 import { toEffectSnapshot, type EffectSnapshot, type ValueChange } from "../events/state-delta.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { AppliedEffect, EffectKindKey } from "../model/applied-effect.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { CombatStatChangeReason } from "../events/domain-event.js";
+import type { BattleDomainEvent, CombatStatChangeReason } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { StatKind } from "../../catalog/definitions/catalog-enums.js";
@@ -172,6 +172,11 @@ export interface RecalculateContext {
    */
   readonly exercise?: ExerciseRuntime;
   readonly resolveBreak?: ResolveBreakHook;
+  /** ブレイク解決の各stepをPS/Memory即時連鎖へ渡すcallback（同期wrapperが使う）。 */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 export interface RecalculateCombatStatsResult {
@@ -192,7 +197,7 @@ export interface RecalculateCombatStatsResult {
  * の採用可否変化だけを対象にする（新規インスタンスと同じ`stateDelta.effects`
  * キーを二重に記録しない）。
  */
-export function recalculateCombatStats(
+export function* recalculateCombatStatsSteps(
   context: RecalculateContext,
   beforeUnits: readonly BattleUnit[],
   units: readonly BattleUnit[],
@@ -200,7 +205,11 @@ export function recalculateCombatStats(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
   reason: CombatStatChangeReason,
-): RecalculateCombatStatsResult {
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  RecalculateCombatStatsResult,
+  readonly BattleUnit[] | undefined
+> {
   const beforeTarget = requireUnit(beforeUnits, targetUnitId);
   const target = requireUnit(units, targetUnitId);
   const newInstanceIds = new Set(
@@ -311,7 +320,7 @@ export function recalculateCombatStats(
   // 実行時例外になるため、同じ関数から必ず続けて再合成する。
   // `CombatStatChanged`（HP上限を含む）を先に出してから呼ぶ — HPの現在値clampは
   // 確定後の`combatStats.maximumHp`を基準にする。
-  const capacityResult = recalculateResourceCapacities(
+  const capacityResult = yield* recalculateResourceCapacitiesSteps(
     context,
     nextUnits,
     targetUnitId,
@@ -323,4 +332,40 @@ export function recalculateCombatStats(
   lastEventId = capacityResult.lastEventId;
 
   return { units: nextUnits, lastEventId };
+}
+
+/**
+ * `recalculateCombatStatsSteps`を`context.onFactEventForPassiveChain`（あれば）で同期的に
+ * 駆動する薄いwrapper。`yield`が起きるのは戦術演習でHP上限低下が敵をブレイクさせた
+ * ときだけなので、通常戦闘の呼び出し側は従来どおりこちらを使えばよい。
+ */
+export function recalculateCombatStats(
+  context: RecalculateContext,
+  beforeUnits: readonly BattleUnit[],
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+  reason: CombatStatChangeReason,
+): RecalculateCombatStatsResult {
+  const steps = recalculateCombatStatsSteps(
+    context,
+    beforeUnits,
+    units,
+    targetUnitId,
+    effectActions,
+    parentEventId,
+    reason,
+  );
+  let step = steps.next();
+  while (!step.done) {
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
+  }
+  return step.value;
 }

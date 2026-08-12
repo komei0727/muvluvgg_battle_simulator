@@ -1,4 +1,4 @@
-import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
+import { recalculateCombatStatsSteps } from "./combat-stat-recalculation-service.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot, toMarkerSnapshot } from "../events/state-delta.js";
@@ -450,7 +450,7 @@ export function* removeGroupMembersSteps(
             });
       lastEventId = removed.eventId;
 
-      const recalculation = recalculateCombatStats(
+      const recalculation = yield* recalculateCombatStatsSteps(
         {
           recorder: context.recorder,
           turnNumber: context.turnNumber,

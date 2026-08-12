@@ -514,6 +514,12 @@ export function applyOneContinuousDamage(
     if (exercise !== undefined && requiresBreakResolution(exercise, updatedTarget)) {
       // ブレイク解決自身が`UnitBroken`をPS/Memory連鎖へ渡すため、ここまでの
       // `ContinuousDamageApplied`等を先に通知してから駆動する。
+      //
+      // R-TEX-03 #2の「撃破トリガーを解除より前に完了させる」は、以下のstepごとの
+      // `onFactEvent`通知が担う。継続ダメージのtickを起こす唯一のproduction経路
+      // （`continuous-heal-service.ts`）は常に`onFactEvent`を渡すため、この関数を
+      // generatorにせずとも順序が保てる — 渡さない呼び出し側を足す場合は、
+      // `resource-modification-service.ts`と同じくstepを駆動側へ返す形へ変える必要がある。
       notify(factEventsStart);
       const steps = resolveBreakSteps(
         { ...context, exercise },
@@ -521,6 +527,12 @@ export function applyOneContinuousDamage(
         holder.battleUnitId,
         context.effectActions,
         applied.eventId,
+        // この経路の`UnitDefeated`と同じ発生源（継続ダメージの付与者。メモリー由来なら
+        // `sourceSide`だけ、R-MEM-04）。
+        {
+          ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+          ...(effect.sourceSide !== undefined ? { sourceSide: effect.sourceSide } : {}),
+        },
       );
       let step = steps.next();
       while (!step.done) {

@@ -1,4 +1,4 @@
-import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
+import { recalculateCombatStatsSteps } from "./combat-stat-recalculation-service.js";
 import {
   orderGroupRemovals,
   removeGroupMembersSteps,
@@ -10,6 +10,7 @@ import {
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { applyExerciseScaling } from "../model/exercise-scaling-policy.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
+import type { BreakDefeatSource } from "../events/break-resolution.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { ValueChange } from "../events/state-delta.js";
@@ -120,6 +121,11 @@ export function* resolveBreakSteps(
   targetUnitId: BattleUnitId,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   causeEventId: DomainEventId,
+  /**
+   * R-TEX-03 #2: この経路の`UnitDefeated`が載せていたのと同じ発生源。`sourceSelector`
+   * で絞る「敵撃破時」トリガーが、Catalog定義のまま`UnitBroken`でも成立するために要る。
+   */
+  defeatSource: BreakDefeatSource = {},
 ): Generator<LinkedGroupCascadeStep, LinkedGroupCascadeResult, readonly BattleUnit[] | undefined> {
   let working = units;
   const broken = context.exercise.recordBreak();
@@ -134,7 +140,9 @@ export function* resolveBreakSteps(
     resolutionScopeId: context.resolutionScopeId,
     parentEventId: causeEventId,
     rootEventId: context.rootEventId,
-    sourceUnitId: targetUnitId,
+    // R-TEX-03 #2: 撃破元をそのまま引き継ぐ（ブレイク対象自身にしない）。
+    ...(defeatSource.sourceUnitId !== undefined ? { sourceUnitId: defeatSource.sourceUnitId } : {}),
+    ...(defeatSource.sourceSide !== undefined ? { sourceSide: defeatSource.sourceSide } : {}),
     targetUnitIds: [targetUnitId],
     payload: {
       unitId: targetUnitId,
@@ -176,7 +184,7 @@ export function* resolveBreakSteps(
 
   // R-STA-04: 基礎側が動いたので、残存効果（メモリー由来）の割合・固定値補正を
   // 強化後の基礎値へ合成し直す。差分は既存の`CombatStatChanged`が所有する。
-  const recalculation = recalculateCombatStats(
+  const recalculation = yield* recalculateCombatStatsSteps(
     context,
     working,
     working,
@@ -247,8 +255,16 @@ export function resolveBreak(
   targetUnitId: BattleUnitId,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   causeEventId: DomainEventId,
+  defeatSource: BreakDefeatSource = {},
 ): LinkedGroupCascadeResult {
-  const steps = resolveBreakSteps(context, units, targetUnitId, effectActions, causeEventId);
+  const steps = resolveBreakSteps(
+    context,
+    units,
+    targetUnitId,
+    effectActions,
+    causeEventId,
+    defeatSource,
+  );
   let step = steps.next();
   while (!step.done) {
     let currentUnits = step.value.units;

@@ -1,14 +1,14 @@
 import { grantEffect, isStackLimitReached } from "../../effects/effect-grant-service.js";
-import { recalculateCombatStats } from "../../effects/combat-stat-recalculation-service.js";
+import { recalculateCombatStatsSteps } from "../../effects/combat-stat-recalculation-service.js";
 import { evaluateFormula } from "../../skill/formula-evaluator.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import {
   completeGrant,
+  driveRemovalSteps,
   grantFormulaScope,
   rejectIfImmune,
   skippedOutcome,
-  type EffectActionHandler,
-  type EffectActionOutcome,
+  type SteppedEffectActionHandler,
 } from "./effect-action-handler.js";
 import { eventContextOf, grantSourceOf } from "./effect-action-group-context.js";
 
@@ -30,9 +30,13 @@ import { eventContextOf, grantSourceOf } from "./effect-action-group-context.js"
  * Formulaが見落としてしまうため。`bindings`はこの呼び出し元では引き続き用意できず、
  * それを要求するFormulaは`FormulaEvaluator`が明確な例外で拒否する。
  */
-export const resolveApplyStatMod: EffectActionHandler<"APPLY_STAT_MOD"> = (
-  input,
-): EffectActionOutcome => {
+/**
+ * R-TEX-03 #2: `APPLY_STAT_MOD(MAXIMUM_HP)`の付与・失効はHP上限を動かし、演習では
+ * 敵のHPを0へ切り下げてブレイクを起こしうる。その撃破トリガーを解除より前に
+ * 完了させるため、再計算をstepped handlerとして`driveRemovalSteps`へ委譲する
+ * （通常戦闘では一度も`yield`せず従来と同じ一括解決）。
+ */
+export const resolveApplyStatMod: SteppedEffectActionHandler<"APPLY_STAT_MOD"> = function* (input) {
   const { context, box, application, effectAction, startingEventId } = input;
 
   // R-EFF-05「重複上限」（`STACK_LIMIT_ON_STAT_MOD`、M7-012）: 対象が同じ
@@ -87,14 +91,17 @@ export const resolveApplyStatMod: EffectActionHandler<"APPLY_STAT_MOD"> = (
   box.units = grantResult.units;
   return completeGrant(
     input,
-    recalculateCombatStats(
-      eventContextOf(context),
-      beforeGrantUnits,
-      box.units,
-      application.targetUnitId,
-      context.definitions.effectActions,
-      grantResult.lastEventId,
-      "EFFECT_APPLIED",
+    yield* driveRemovalSteps(
+      input,
+      recalculateCombatStatsSteps(
+        eventContextOf(context),
+        beforeGrantUnits,
+        box.units,
+        application.targetUnitId,
+        context.definitions.effectActions,
+        grantResult.lastEventId,
+        "EFFECT_APPLIED",
+      ),
     ),
   );
 };

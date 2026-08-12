@@ -15,7 +15,7 @@ import {
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import type { ResourceCapacityChangeReason } from "../events/domain-event.js";
+import type { BattleDomainEvent, ResourceCapacityChangeReason } from "../events/domain-event.js";
 import type {
   ActionId,
   DomainEventId,
@@ -176,6 +176,15 @@ export interface ResourceCapacityRecalculateContext {
    * このモジュールへ依存する）を避けるため、直接importせずhookとして受け取る。
    */
   readonly resolveBreak?: ResolveBreakHook;
+  /**
+   * ブレイク解決の各stepを、次へ進む前にPS/Memoryの即時連鎖へ渡すためのcallback
+   * （`LinkedGroupCascadeContext`と同じ役割・同じ形）。generatorを自分で駆動しない
+   * 呼び出し側が`recalculateResourceCapacities`（同期wrapper）を使うときに要る。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 export interface RecalculateResourceCapacitiesResult {
@@ -233,14 +242,18 @@ function withClampedCurrentValue(
  * 行う（上限差分は`CombatStatChanged`が所有する）。clampでHPが0になった場合は
  * R-END-02に従い`UnitDefeated`も発行する。
  */
-export function recalculateResourceCapacities(
+export function* recalculateResourceCapacitiesSteps(
   context: ResourceCapacityRecalculateContext,
   units: readonly BattleUnit[],
   targetUnitId: BattleUnitId,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
   reason: ResourceCapacityChangeReason,
-): RecalculateResourceCapacitiesResult {
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  RecalculateResourceCapacitiesResult,
+  readonly BattleUnit[] | undefined
+> {
   const target = requireUnit(units, targetUnitId);
   const { changedCapacities, ...capacities } = computeResourceCapacities(target, effectActions);
   let updated: BattleUnit = changedCapacities.length > 0 ? { ...target, ...capacities } : target;
@@ -332,10 +345,16 @@ export function recalculateResourceCapacities(
         "resourceCapacityRecalculateContext.resolveBreak",
       );
       const clamped = units.map((u) => (u.battleUnitId === targetUnitId ? updated : u));
-      const steps = resolveBreak(targetUnitId, clamped, lastEventId);
+      // この経路の`UnitDefeated`と同じ発生源（上限を変えた効果の保持者自身）。
+      const steps = resolveBreak(targetUnitId, clamped, lastEventId, {
+        sourceUnitId: targetUnitId,
+      });
+      // R-TEX-03 #2: 各ブレイクstepを駆動側へ返し、撃破トリガーを解除より前に
+      // 解決させる（ローカルに消費し切ると順序が逆転する）。
       let step = steps.next();
       while (!step.done) {
-        step = steps.next(step.value.units);
+        const injected = yield { events: step.value.events, units: step.value.units };
+        step = steps.next(injected ?? step.value.units);
       }
       return { units: step.value.units, lastEventId: step.value.lastEventId };
     }
@@ -363,4 +382,38 @@ export function recalculateResourceCapacities(
         : units.map((u) => (u.battleUnitId === targetUnitId ? updated : u)),
     lastEventId,
   };
+}
+
+/**
+ * `recalculateResourceCapacitiesSteps`を`context.onFactEventForPassiveChain`（あれば）で
+ * 同期的に駆動する薄いwrapper。通常戦闘では一度も`yield`しないため、演習以外の
+ * 呼び出し側は従来どおりこちらを使えばよい。
+ */
+export function recalculateResourceCapacities(
+  context: ResourceCapacityRecalculateContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+  reason: ResourceCapacityChangeReason,
+): RecalculateResourceCapacitiesResult {
+  const steps = recalculateResourceCapacitiesSteps(
+    context,
+    units,
+    targetUnitId,
+    effectActions,
+    parentEventId,
+    reason,
+  );
+  let step = steps.next();
+  while (!step.done) {
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
+  }
+  return step.value;
 }

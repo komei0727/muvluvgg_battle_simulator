@@ -49,11 +49,11 @@ export function* resolveEffectActionByKind(
     case "COOLDOWN_MANIPULATION":
       return resolveCooldownManipulation({ ...input, effectAction });
     case "APPLY_STAT_MOD":
-      return resolveApplyStatMod({ ...input, effectAction });
+      return yield* resolveApplyStatMod({ ...input, effectAction });
     case "MODIFY_RESOURCE":
-      return resolveModifyResource({ ...input, effectAction });
+      return yield* resolveModifyResource({ ...input, effectAction });
     case "MODIFY_RESOURCE_CAPACITY":
-      return resolveModifyResourceCapacity({ ...input, effectAction });
+      return yield* resolveModifyResourceCapacity({ ...input, effectAction });
     case "APPLY_RESOURCE_GAIN_MOD":
       return resolveApplyResourceGainMod({ ...input, effectAction });
     case "APPLY_HEALING_MOD":

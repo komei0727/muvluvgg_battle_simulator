@@ -1,4 +1,4 @@
-import { recalculateCombatStats } from "./combat-stat-recalculation-service.js";
+import { recalculateCombatStatsSteps } from "./combat-stat-recalculation-service.js";
 import {
   cascadedOnlyRemovals,
   orderGroupRemovals,
@@ -177,7 +177,7 @@ export function* removeFreezeEffectSteps(
   });
   lastEventId = recorded.eventId;
 
-  const recalculation = recalculateCombatStats(
+  const recalculation = yield* recalculateCombatStatsSteps(
     {
       recorder: context.recorder,
       turnNumber: context.turnNumber,

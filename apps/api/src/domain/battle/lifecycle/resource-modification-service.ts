@@ -52,6 +52,40 @@ export interface ApplyModifyResourceActionResult {
   readonly changed: boolean;
 }
 
+/**
+ * `applyModifyResourceActionSteps`を`context.onFactEventForPassiveChain`（あれば）で
+ * 同期的に駆動する薄いwrapper。`linked-group-cascade.ts`の`removeGroupMembers`と
+ * まったく同じ形・役割で、generatorを自分で駆動しない呼び出し側が使う。
+ */
+export function applyModifyResourceAction(
+  hits: readonly ResolvedEffectApplication[],
+  actor: BattleUnit,
+  action: Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE" }>,
+  units: readonly BattleUnit[],
+  context: ModifyResourceEventContext,
+  distributionShareCount = 1,
+): ApplyModifyResourceActionResult {
+  const steps = applyModifyResourceActionSteps(
+    hits,
+    actor,
+    action,
+    units,
+    context,
+    distributionShareCount,
+  );
+  let step = steps.next();
+  while (!step.done) {
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
+  }
+  return step.value;
+}
+
 function findUnit(units: readonly BattleUnit[], id: BattleUnitId, path: string): BattleUnit {
   const unit = units.find((candidate) => candidate.battleUnitId === id);
   if (unit === undefined) {
@@ -117,7 +151,7 @@ function withUpdatedResource(unit: BattleUnit, resource: ResourceKind, value: nu
  * （R-ACT-03のAP/PP消費起因のEXゲージ増加）だけを対象にし、`MODIFY_RESOURCE`
  * には適用しない（`baseDelta`は常に`delta`と一致する）。
  */
-export function applyModifyResourceAction(
+export function* applyModifyResourceActionSteps(
   hits: readonly ResolvedEffectApplication[],
   actor: BattleUnit,
   action: Extract<EffectActionDefinition, { kind: "MODIFY_RESOURCE" }>,
@@ -129,7 +163,11 @@ export function applyModifyResourceAction(
    * `HEAL`の`distributionShareCount`（`heal-application-service.ts`）と同じ契約。
    */
   distributionShareCount = 1,
-): ApplyModifyResourceActionResult {
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  ApplyModifyResourceActionResult,
+  readonly BattleUnit[] | undefined
+> {
   if (!Number.isInteger(distributionShareCount) || distributionShareCount < 1) {
     throw new DomainValidationError(
       "distributionShareCount",
@@ -247,20 +285,19 @@ export function applyModifyResourceAction(
           target.battleUnitId,
           units.map((unit) => working.get(unit.battleUnitId)!),
           lastEventId,
+          // この経路の`UnitDefeated`と同じ発生源（`MODIFY_RESOURCE`の使用者）。
+          { sourceUnitId: context.sourceUnitId },
         );
+        // R-TEX-03 #2: 各ブレイクstepをそのまま駆動側へ返す。ここでローカルに
+        // 消費し切ると、`onFactEventForPassiveChain`を持たない経路（PS自身の
+        // EffectSequence解決）で撃破トリガーが解除・強化・全回復の**後**に処理され、
+        // トリガーが敵へ付与した効果が解除されずに残る。
         let step = steps.next();
         while (!step.done) {
-          let stepUnits = step.value.units;
-          if (context.onFactEventForPassiveChain !== undefined) {
-            for (const event of step.value.events) {
-              stepUnits = context.onFactEventForPassiveChain(event, stepUnits);
-            }
-          }
-          step = steps.next(stepUnits);
+          const injected = yield { events: step.value.events, units: step.value.units };
+          step = steps.next(injected ?? step.value.units);
         }
-        for (const unit of step.value.units) {
-          working.set(unit.battleUnitId, unit);
-        }
+        working = new Map(step.value.units.map((unit) => [unit.battleUnitId, unit]));
         lastEventId = step.value.lastEventId;
         continue;
       }

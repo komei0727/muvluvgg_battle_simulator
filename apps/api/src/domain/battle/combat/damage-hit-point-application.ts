@@ -334,7 +334,9 @@ export function* applyConfirmedDamageSteps(
     const resolved = yield* driveRemovalSteps(
       context,
       working,
-      breakResolution(targetUnitId, Array.from(working.values()), damageApplied.eventId),
+      breakResolution(targetUnitId, Array.from(working.values()), damageApplied.eventId, {
+        sourceUnitId: attackerUnitId,
+      }),
     );
     lastEventId = resolved.lastEventId;
   }
