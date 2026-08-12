@@ -21,7 +21,10 @@ import {
 } from "../model/battle-unit.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
+import {
+  resolveCompletionAt,
+  type CompletionCheckResult,
+} from "../outcome/completion-checkpoint.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -29,8 +32,11 @@ import type { BattleUnitId } from "../../shared/ids.js";
 export interface ActionPhaseResult {
   readonly allyUnits: readonly BattleUnit[];
   readonly enemyUnits: readonly BattleUnit[];
-  /** `undefined` means the phase drained naturally without a victory being resolved. */
-  readonly result: VictoryResult | undefined;
+  /**
+   * `undefined` means the phase drained naturally without a result being resolved
+   * （通常戦闘は勝敗、戦術演習は終了理由だけ。R-END-02／R-TEX-09）。
+   */
+  readonly result: CompletionCheckResult | undefined;
 }
 
 function splitBySide(units: readonly BattleUnit[]): {
@@ -446,13 +452,13 @@ export function resolveActionPhase(
       }
 
       const { ally, enemy } = splitBySide(units);
-      const victory = resolveVictory({
+      const completion = resolveCompletionAt(exercise, {
         allAlliesDefeated: ally.every(isDefeated),
         allEnemiesDefeated: enemy.every(isDefeated),
         turnLimitReached: false,
       });
-      if (victory !== undefined) {
-        return { allyUnits: ally, enemyUnits: enemy, result: victory };
+      if (completion !== undefined) {
+        return { allyUnits: ally, enemyUnits: enemy, result: completion };
       }
     }
   }

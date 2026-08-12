@@ -15,10 +15,11 @@ import {
   sameEffectSnapshot,
   sameMarkerSnapshot,
 } from "../../domain/battle/lifecycle/state-delta-reducer.js";
-import type {
-  CooldownState,
-  EffectSnapshot,
-  MarkerSnapshot,
+import {
+  isExerciseBattleResult,
+  type CooldownState,
+  type EffectSnapshot,
+  type MarkerSnapshot,
 } from "../../domain/battle/events/state-delta.js";
 import type {
   BattleOutcome,
@@ -135,6 +136,11 @@ function unitSnapshotsEqual(
   );
 }
 
+/**
+ * 通常戦闘は勝敗・終了理由・終了ターン、戦術演習は終了理由・終了ターン・総スコア・
+ * ブレイク回数（R-TEX-10 #1）を比較する。演習では総スコアの比較そのものが、独立
+ * Reducerで復元した結果と最終状態の累計スコアの一致（R-TEX-10 #3）の検証になる。
+ */
 function resultsEqual(
   a: BattleResultSnapshot | undefined,
   b: BattleResultSnapshot | undefined,
@@ -142,11 +148,15 @@ function resultsEqual(
   if (a === undefined || b === undefined) {
     return a === b;
   }
-  return (
-    a.outcome === b.outcome &&
-    a.completionReason === b.completionReason &&
-    a.completedTurn === b.completedTurn
-  );
+  if (a.completionReason !== b.completionReason || a.completedTurn !== b.completedTurn) {
+    return false;
+  }
+  if (isExerciseBattleResult(a)) {
+    return (
+      isExerciseBattleResult(b) && a.totalScore === b.totalScore && a.breakCount === b.breakCount
+    );
+  }
+  return !isExerciseBattleResult(b) && a.outcome === b.outcome;
 }
 
 /** `status`/`currentTurn`/`units`/`result`をキー順に依存せず比較する（独立Reducerによる復元結果の検証用）。 */

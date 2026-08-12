@@ -1115,6 +1115,13 @@ const actorEffectiveActionDetailsSchema = {
   },
 } as const;
 
+/**
+ * 通常戦闘の結果（R-END-02）。演習の`BattleCompleted`は勝敗を持たず総スコアと
+ * ブレイク回数を持つ別の形（R-TEX-10 #1）だが、このvariantを`oneOf`へ広げると
+ * `outcome`必須を失う破壊的変更として公開v1契約の互換性検査に掛かる。
+ * `POST /api/v1/battle-simulations`は演習結果を返さないため、演習形は演習
+ * エンドポイントの文書側で定義する（TEX-006／007）。
+ */
 const battleCompletedDetailsSchema = {
   type: "object",
   additionalProperties: false,

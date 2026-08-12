@@ -15,6 +15,7 @@ import {
   captureUnitRoster,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { isExerciseBattleResult } from "../../domain/battle/events/state-delta.js";
 import { createBattleParty } from "../../domain/formation/formation-factory.js";
 import { createTurnLimit } from "../../domain/battle/model/turn-limit.js";
 import type {
@@ -251,6 +252,13 @@ export class SimulateBattleUseCase {
       if (result === undefined) {
         throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
           { reason: "Battle reached COMPLETED without a result" },
+        ]);
+      }
+      if (isExerciseBattleResult(result)) {
+        // このユースケースは`NORMAL`のBattleしか生成しないため到達しない。演習結果
+        // （勝敗を持たない、R-TEX-10 #1）は`SimulateTacticalExerciseUseCase`が扱う。
+        throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+          { reason: "a normal battle simulation resolved a tactical exercise result" },
         ]);
       }
 

@@ -229,6 +229,102 @@ describe("applyStateDelta", () => {
     expect(() => applyStateDelta(exerciseState, delta)).toThrow(DomainValidationError);
   });
 
+  it("UT-R-TEX-10-001: applies an exercise result delta, restoring a result that has no victory outcome", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 72, breakCount: 1 },
+    };
+    const delta: StateDelta = {
+      result: {
+        before: undefined,
+        after: {
+          completionReason: "TURN_LIMIT_REACHED",
+          completedTurn: 5,
+          totalScore: 72,
+          breakCount: 1,
+        },
+      },
+    };
+
+    const next = applyStateDelta(exerciseState, delta);
+
+    expect(next.result).toEqual({
+      completionReason: "TURN_LIMIT_REACHED",
+      completedTurn: 5,
+      totalScore: 72,
+      breakCount: 1,
+    });
+    expect(next.result).not.toHaveProperty("outcome");
+  });
+
+  it("UT-R-TEX-10-002: throws when the exercise result's total score does not match the cumulative score restored so far (R-TEX-10 #3)", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 72, breakCount: 1 },
+    };
+    const delta: StateDelta = {
+      result: {
+        before: undefined,
+        after: {
+          completionReason: "TURN_LIMIT_REACHED",
+          completedTurn: 5,
+          totalScore: 71,
+          breakCount: 1,
+        },
+      },
+    };
+
+    expect(() => applyStateDelta(exerciseState, delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TEX-10-003: throws when the exercise result's break count does not match the count restored so far", () => {
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 72, breakCount: 1 },
+    };
+    const delta: StateDelta = {
+      result: {
+        before: undefined,
+        after: {
+          completionReason: "ALLY_DEFEATED",
+          completedTurn: 3,
+          totalScore: 72,
+          breakCount: 2,
+        },
+      },
+    };
+
+    expect(() => applyStateDelta(exerciseState, delta)).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TEX-10-004: throws when an exercise result is applied to a state without exercise state, or a victory result to an exercise", () => {
+    const exerciseResult: StateDelta = {
+      result: {
+        before: undefined,
+        after: {
+          completionReason: "ALLY_DEFEATED",
+          completedTurn: 1,
+          totalScore: 0,
+          breakCount: 0,
+        },
+      },
+    };
+    const victoryResult: StateDelta = {
+      result: {
+        before: undefined,
+        after: { outcome: "ALLY_LOSE", completionReason: "ALLY_DEFEATED", completedTurn: 1 },
+      },
+    };
+    const exerciseState: BattleStateSnapshot = {
+      ...initialState(),
+      exercise: { totalScore: 0, breakCount: 0 },
+    };
+
+    expect(() => applyStateDelta(initialState(), exerciseResult)).toThrow(DomainValidationError);
+    // R-TEX-10 #1: 演習は勝敗を持たない。
+    expect(() => applyStateDelta(exerciseState, victoryResult)).toThrow(DomainValidationError);
+  });
+
   it("UT-R-TEX-04-017: applies a units.<id>.baseCombatStats delta for the break enhancement, leaving the battle-time combatStats to their own delta", () => {
     const delta: StateDelta = {
       units: {
