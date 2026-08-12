@@ -3,15 +3,30 @@ import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import {
+  initialSnapshotFor,
+  loadProductionSnapshot,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import type { AppliedEffect } from "../../../domain/battle/model/applied-effect.js";
+import type { BattleDefinitions } from "../../../domain/battle/model/battle-definitions.js";
+import type { DamageResultRegistry } from "../../../domain/battle/skill/formula-evaluator.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
+  activatedPassiveSkillIds,
+  openPassiveChain,
+} from "../../../testing/production-unit/passive-activation.js";
+import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -517,5 +532,150 @@ describe("production Catalog UNIT_ANIS_SWEETDEVIL (【渚のスイートデビ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-ANIS-SWEETDEVIL-004 (R-PS-03): PS1とPS2は同じ解決スコープでは片方しか発動しない", () => {
+    // 「ヒートアップ・ラブと同じタイミングでは発動しない」。両者は別イベントで
+    // 候補化される（PS1＝`HitPointReduced`／PS2＝`RuntimeCounterChanged`）ため、
+    // R-PS-03の同時発動制限グループ（**同じイベントで候補になったPSだけ**を1グループに
+    // する）には決して同居しない。`resetScope: RESOLUTION_SCOPE` のcounterで
+    // 「この解決スコープで相手が発動したか」を互いに見る形で排他を作っている。
+    // 1解決スコープ＝`openPassiveChain` 1本で、どちらの順番でも後発が落ちることを見る。
+    // PS1の回復は `DAMAGE_RECEIVED_RATIO`／`LAST_DAMAGE_RECEIVED` を読むため、実戦闘の
+    // `action-skill-use-resolver` と同じく1解決スコープにつき1つのレジストリを
+    // 打撃側とPS連鎖側で共有する。
+    const strikeInto = (
+      chain: ReturnType<typeof openPassiveChain>,
+      damageResults: DamageResultRegistry,
+      units: readonly BattleUnit[],
+      targetUnitId: string,
+      power: number,
+      definitions: BattleDefinitions,
+    ): readonly BattleUnit[] =>
+      observeLifecycleDamageProbe({
+        definitions,
+        units,
+        attackerUnitId: "enemy:front",
+        targetUnitId,
+        power,
+        damageResults,
+        onFactEventForPassiveChain: (event, current) => chain.fireRecorded(event, current),
+      }).units;
+
+    // 汐風所持の味方が閾値（最大HP×30%＝3000）を超え、同じスコープでアニス自身も
+    // 最大HP×15%（1500）以上を被弾する状況を作る。
+    const boardOf = () =>
+      productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        allies: ALLIES_WITH_SHIOKAZE,
+        subject: { state: { currentExtraGauge: 2 } },
+      });
+
+    const allyFirst = boardOf();
+    const resultsA: DamageResultRegistry = new Map();
+    const chainA = openPassiveChain({
+      definitions: allyFirst.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_ANIS_EXCLUSIVE_A",
+      damageResults: resultsA,
+    });
+    const afterAllyHit = strikeInto(
+      chainA,
+      resultsA,
+      allyFirst.units,
+      "ally:front",
+      6,
+      allyFirst.definitions,
+    );
+    strikeInto(chainA, resultsA, afterAllyHit, "ally:subject", 3, allyFirst.definitions);
+    expect(activatedPassiveSkillIds(chainA)).toEqual(["SKL_ANIS_SWEETDEVIL_PS2"]);
+
+    const selfFirst = boardOf();
+    const resultsB: DamageResultRegistry = new Map();
+    const chainB = openPassiveChain({
+      definitions: selfFirst.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_ANIS_EXCLUSIVE_B",
+      damageResults: resultsB,
+    });
+    const afterSelfHit = strikeInto(
+      chainB,
+      resultsB,
+      selfFirst.units,
+      "ally:subject",
+      3,
+      selfFirst.definitions,
+    );
+    strikeInto(chainB, resultsB, afterSelfHit, "ally:front", 6, selfFirst.definitions);
+    expect(activatedPassiveSkillIds(chainB)).toEqual(["SKL_ANIS_SWEETDEVIL_PS1"]);
+  });
+
+  it("IT-UNIT-ANIS-SWEETDEVIL-005 (R-DMG-07): PS3の閾値付き軽減は現在HP20%を超えたヒットだけを50%減らし、そのヒットでだけ3回分を消費する", () => {
+    // `-001` のPS3行は付与そのもの（`damageThreshold` と `consumption` の宣言）
+    // までを固定する。閾値の比較演算子（`GT`）も、消費が「軽減を適用したヒット」
+    // だけで起きること（R-DMG-07 #6）も、実ダメージを通してはじめて現れる。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      subject: { state: { currentHp: 10000 } },
+    });
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_ANIS_THRESHOLD",
+    });
+    const guarded = chain.fire(turnStarted({ turnNumber: 1 }), board.units);
+    const reductionsOf = (units: readonly BattleUnit[]): readonly AppliedEffect[] =>
+      units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.filter(
+          (effect) =>
+            effect.effectActionDefinitionId === "ACT_ANIS_SWEETDEVIL_PS3_THRESHOLD_DMG_DOWN",
+        );
+    expect(reductionsOf(guarded)).toHaveLength(1);
+
+    const strike = (units: readonly BattleUnit[], power: number) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        power,
+      });
+
+    // 現在HP10000の20%＝2000ちょうどは `op: GT` を満たさない。素通しで、消費も起きない。
+    const atThreshold = strike(guarded, 4);
+    expect(atThreshold.hpDeltas["ally:subject"]).toBe(-2000);
+    expect(reductionsOf(atThreshold.units)).toHaveLength(1);
+    expect(atThreshold.consumptions).toEqual([]);
+
+    // 2001以上なら成立する。威力4.002＝2001が50%減されて1000（切り捨て）になる。
+    const overThreshold = strike(guarded, 4.002);
+    expect(overThreshold.hpDeltas["ally:subject"]).toBe(-1000);
+    expect(overThreshold.consumptions).toHaveLength(1);
+
+    // 3ヒット目までは軽減され、4ヒット目は残数が尽きて素通しになる。
+    let units = guarded;
+    const applied: number[] = [];
+    for (let hit = 0; hit < 4; hit += 1) {
+      const observed = strike(units, 4.002);
+      applied.push(observed.hpDeltas["ally:subject"]!);
+      units = observed.units;
+    }
+    // 現在HPが減るほど閾値（現在HP×20%）も下がるため、4ヒット目まで閾値自体は
+    // 満たし続ける。差が出るのは消費し切ったかどうかだけである。
+    expect(applied.slice(0, 3).every((delta) => delta === -1000)).toBe(true);
+    expect(applied[3]).toBe(-2001);
+    expect(reductionsOf(units)).toEqual([]);
+
+    // 独立Reducer復元: 軽減・消費・枯渇失効は公開差分（StateDelta）だけで同じ
+    // 最終状態へ届く。`EffectConsumptionChanged`／`EffectExpired` のStateDeltaが
+    // 欠ければここで落ちる。
+    const consumingHit = strike(guarded, 4.002);
+    expect(
+      reduceStateDeltas(
+        initialSnapshotFor(guarded, { include: ["effects"] }),
+        consumingHit.recorder
+          .getEvents()
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      ),
+    ).toEqual(initialSnapshotFor(consumingHit.units, { include: ["effects"] }));
   });
 });

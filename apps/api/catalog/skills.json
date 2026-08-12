@@ -126,11 +126,22 @@
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
     "activationCondition": {
-      "kind": "TARGET_STATE",
-      "target": { "kind": "SELF" },
-      "field": "RESOURCE_EX_GAUGE",
-      "op": "GTE",
-      "value": 1
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "SELF" },
+          "field": "RESOURCE_EX_GAUGE",
+          "op": "GTE",
+          "value": 1
+        },
+        {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_ANIS_SWEETDEVIL_PS1_ACCE_SAVING_IN_SCOPE",
+          "op": "LT",
+          "value": 1
+        }
+      ]
     },
     "resolution": {
       "kind": "IMMEDIATE",
@@ -205,6 +216,27 @@
           "value": 0.15
         }
       }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_ANIS_SWEETDEVIL_PS1_ACCE_SAVING_IN_SCOPE",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_ANIS_SWEETDEVIL_PS2"
+          }
+        },
+        "amount": 1,
+        "resetScope": "RESOLUTION_SCOPE"
+      }
     ]
   },
   {
@@ -266,6 +298,12 @@
       "exclusiveActivationGroupId": "ANIS_SWEETDEVIL_HEAT_SAVE"
     },
     "metadata": { "displayName": "アクセ・セービング", "tags": [] },
+    "activationCondition": {
+      "kind": "RUNTIME_COUNTER",
+      "counter": "SKL_ANIS_SWEETDEVIL_PS2_HEATUP_LOVE_IN_SCOPE",
+      "op": "LT",
+      "value": 1
+    },
     "triggers": [
       {
         "eventType": "RuntimeCounterChanged",
@@ -303,6 +341,25 @@
           }
         },
         "maxHpRatio": 0.3
+      },
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_ANIS_SWEETDEVIL_PS2_HEATUP_LOVE_IN_SCOPE",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_ANIS_SWEETDEVIL_PS1"
+          }
+        },
+        "amount": 1,
+        "resetScope": "RESOLUTION_SCOPE"
       }
     ]
   },
