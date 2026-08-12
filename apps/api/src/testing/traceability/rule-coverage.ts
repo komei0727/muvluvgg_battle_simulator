@@ -1143,6 +1143,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-01-135",
       "UT-R-PS-01-136",
       "UT-R-PS-01-137",
+      // 138-140は`DAMAGE_MAX_HP_RATIO`条件（1ヒットの被弾量を最大HP比で照合、
+      // アニス・ベネットPS1「最大HP×15%以上のダメージを負った際」の前提機構）。
+      "UT-R-PS-01-138",
+      "UT-R-PS-01-139",
+      "UT-R-PS-01-140",
       "UT-R-PS-01-037",
       "UT-R-PS-01-038",
       "UT-R-PS-01-039",
@@ -1869,6 +1874,27 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-BON-ATTACK-DMG-002",
       "UT-R-BON-ATTACK-DMG-003",
       "UT-R-BON-ATTACK-DMG-004",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-DMG-07",
+    testCaseIds: [
+      // 付与時の焼き込みとR-DMG-04合成からの除外。
+      "UT-R-DMG-07-001",
+      "UT-R-DMG-07-002",
+      // 閾値判定・不参加条件・R-DMG-03減衰・下限0の純関数ポリシー。
+      "UT-R-DMG-07-003",
+      "UT-R-DMG-07-004",
+      "UT-R-DMG-07-005",
+      "UT-R-DMG-07-006",
+      // 一括INCOMING_HIT消費からの除外とインスタンス指定消費。
+      "UT-R-DMG-07-007",
+      // full stack: 軽減・境界・消費枯渇による途中失効、サブユニット追加ヒットへの適用。
+      "UT-R-DMG-07-008",
+      "UT-R-DMG-07-009",
+      "UT-R-DMG-07-010",
+      "UT-R-DMG-07-011",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },

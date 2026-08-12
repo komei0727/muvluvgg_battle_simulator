@@ -344,3 +344,51 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     ).toThrow(DomainValidationError);
   });
 });
+
+describe("DAMAGE_MAX_HP_RATIO in EFFECT_SEQUENCE counterUpdates triggers (R-PS-01)", () => {
+  it("UT-RCOUNTER-SEQ-010: resolves the damaged unit via getUnit and gates the match by the max-HP ratio", () => {
+    const actor = unit("actor-1", "ALLY");
+    const resolution = resolutionWithCounterUpdates(actor.battleUnitId, [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_SEQ_HITS",
+        scope: "EFFECT_SEQUENCE",
+        trigger: {
+          eventType: "HitPointReduced",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+          condition: {
+            kind: "DAMAGE_MAX_HP_RATIO",
+            field: "hitPointDamage",
+            op: "GTE",
+            value: 0.15,
+          },
+        },
+        amount: 1,
+      },
+    ]);
+    const activeResolutions = new Map([[SKILL_USE_ID, resolution]]);
+    const bigHitEvent: TriggerCandidateEvent = {
+      eventType: "HitPointReduced",
+      category: "FACT",
+      sourceUnitId: actor.battleUnitId,
+      targetUnitIds: [actor.battleUnitId],
+      // maximumHp 100の15% = 15 <= 20 -> 成立。
+      payload: { hitPointDamage: 20 },
+    };
+
+    const bigHit = matchEffectSequenceRuntimeCounterUpdates(
+      activeResolutions,
+      [actor],
+      bigHitEvent,
+    );
+    expect(bigHit).toHaveLength(1);
+
+    const smallHit = matchEffectSequenceRuntimeCounterUpdates(activeResolutions, [actor], {
+      ...bigHitEvent,
+      payload: { hitPointDamage: 14 },
+    });
+    expect(smallHit).toHaveLength(0);
+  });
+});

@@ -5,13 +5,16 @@ import { damageResultsFor, recordDamageResult } from "../skill/formula-evaluator
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
+import { resolveThresholdDamageReduction } from "./threshold-damage-reduction-policy.js";
 import { guardedDamage } from "./defensive-intervention-policy.js";
 import type {
   ApplyDamageActionResult,
   DamageEventContext,
   DamageHitOutcome,
+  DamageStep,
 } from "./damage-event-context.js";
-import { driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
+import type { DomainEventId } from "../../shared/event-ids.js";
+import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
 import { removeFreezeEffectSteps } from "./damage-effect-expiry.js";
 import { observeHitSteps } from "./damage-hit-observation.js";
 import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
@@ -341,20 +344,38 @@ export function* applyDamageActionSteps(
       intervention.guardRate,
     );
     const combinedFinalDamage = Math.max(1, Math.floor(combinedPreTruncationDamage));
+    // R-DMG-07: 閾値付き被ダメージ軽減はR-DMG-04の合成（`composeDamageModifiers`）から
+    // 除外されており、切り捨て済みの入射ダメージを判定素材として、成立したヒットにだけ
+    // 独立倍率を掛ける。再切り捨て・最低1ダメージは通常規則（R-DMG-02 #1）と同じ。
+    // 消費（`INCOMING_HIT`）は実際に軽減を適用したインスタンスへ、`DamageCalculated`
+    // 発行後にインスタンス指定で行う（R-HIT-04のNヒット回避と同じ機構）。
+    const thresholdReduction = resolveThresholdDamageReduction({
+      attacker: attackerBeforeDamage,
+      defender: targetBeforeDamage,
+      damageType: damageAction.payload.damageType,
+      incomingDamage: combinedFinalDamage,
+      damageReductionIgnoreRate: piercing.damageReductionIgnoreRate,
+      formulaContext,
+    });
+    const thresholdReducedDamage = Math.max(
+      1,
+      Math.floor(combinedFinalDamage * thresholdReduction.multiplier),
+    );
     // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: `calculateDamage`
     // 自身は`AppliedEffect`を知らない純粋な数値計算のため、ここで対象の
     // 有効なDAMAGE_IMMUNITYを判定し、成立すれば`finalDamage`を1へ上書きする。
-    // R-DMG-02の順序どおり（#1切り捨て→#2無効化）、既に切り捨て済みの
-    // `combinedFinalDamage`を「incoming raw damage」として判定する。
+    // R-DMG-02の順序どおり（#1切り捨て→#2無効化）、切り捨て・R-DMG-07軽減済みの
+    // `thresholdReducedDamage`を「incoming raw damage」として判定する（無効化は
+    // 常に最後の砦 — 閾値軽減と共存する場合、G-06の判定素材は軽減後の値になる）。
     const damageImmunity = resolveDamageImmunity(
       targetBeforeDamage,
-      combinedFinalDamage,
+      thresholdReducedDamage,
       formulaContext,
     );
     const damageResult = {
       ...rawDamageResult,
       preTruncationDamage: combinedPreTruncationDamage,
-      finalDamage: damageImmunity.nullified ? 1 : combinedFinalDamage,
+      finalDamage: damageImmunity.nullified ? 1 : thresholdReducedDamage,
     };
 
     const damageCalculated = context.recorder.record({
@@ -402,6 +423,29 @@ export function* applyDamageActionSteps(
 
     let lastEventIdBeforeHp = damageCalculated.eventId;
 
+    // R-DMG-07: 軽減を実際に適用したインスタンスだけを、このヒットで`INCOMING_HIT`消費
+    // する。一括消費（R-EFF-07、`applyConfirmedDamageSteps`末尾）は閾値付き補正を常に
+    // 除外するため、閾値未満のヒットで残数を失うことはない。消費（とそれを契機とする
+    // PS連鎖）は`DamageApplied`（幻惑時は`DamageConvertedToHeal`）の後 — 失効起点の
+    // 連鎖が付与するシールド・サブユニットが、計算済みのこのヒット自身の吸収先に
+    // なってはならない（R-EFF-07の一括消費と同じ順序）。
+    const consumeThresholdReductions = function* (
+      parentEventId: DomainEventId,
+    ): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+      let eventId = parentEventId;
+      for (const applied of thresholdReduction.appliedEffects) {
+        eventId = yield* consumeAndExpire(
+          context,
+          working,
+          targetBeforeDamage.battleUnitId,
+          "INCOMING_HIT",
+          eventId,
+          applied.effectInstanceId,
+        );
+      }
+      return eventId;
+    };
+
     // R-DTH-01（DMG-009）: 幻惑を保持する攻撃側のヒットは、ここまでのR-DMG-05 #1〜#6を
     // そのまま経たうえで#7の適用だけを回復へ差し替える。ダメージを適用しないため、
     // この下の凍結解除（R-STS-03の解除契機は「攻撃スキルによるダメージ」）・
@@ -422,6 +466,7 @@ export function* applyDamageActionSteps(
         damageToHealRate,
         lastEventIdBeforeHp,
       );
+      lastEventId = yield* consumeThresholdReductions(lastEventId);
       // R-INT-02第2項と同じく、後続stepやR-SUB-02の追加ダメージが参照する対象は
       // 引き寄せ・肩代わり後の防御側にする。ダメージは与えていないため`damage`は0。
       outcomes.push({
@@ -489,6 +534,7 @@ export function* applyDamageActionSteps(
       outcomes.push(skip(hit));
       continue;
     }
+    lastEventId = yield* consumeThresholdReductions(lastEventId);
 
     // R-INT-01 #3／R-LNK-01〜03（DMG-007）: 元ダメージの確定後、反射より前に
     // リンク先ダメージを発生させる（R-INT-01の評価順 #3 → #4）。

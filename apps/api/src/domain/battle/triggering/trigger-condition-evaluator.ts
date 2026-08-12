@@ -253,6 +253,33 @@ export function evaluateTriggerCondition(
       const actual = event.payload[condition.field];
       return compareWithOperator(actual, condition.op, condition.value);
     }
+    case "DAMAGE_MAX_HP_RATIO": {
+      // R-PS-01: 被弾量fieldを`TRIGGER_TARGET`（被弾ユニット）の最大HPで割った比率を
+      // 比較する。fieldが数値でない（存在しないpayloadを指した）場合と対象を解決
+      // できない場合は不成立 — `EVENT_PAYLOAD`のリテラル比較と同じ寛容さに揃える。
+      if (context?.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "DAMAGE_MAX_HP_RATIO" requires a context with a getUnit lookup (owner + getUnit)',
+        );
+      }
+      const damage = event.payload[condition.field];
+      if (typeof damage !== "number") {
+        return false;
+      }
+      const { getUnit } = context;
+      return (event.targetUnitIds ?? []).some((id) => {
+        const target = getUnit(id);
+        if (target === undefined || target.combatStats.maximumHp <= 0) {
+          return false;
+        }
+        return compareWithOperator(
+          damage / target.combatStats.maximumHp,
+          condition.op,
+          condition.value,
+        );
+      });
+    }
     case "RUNTIME_COUNTER": {
       let value: number;
       if (context?.effectCounters !== undefined) {

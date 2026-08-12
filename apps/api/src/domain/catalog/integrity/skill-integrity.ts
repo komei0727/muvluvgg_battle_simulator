@@ -8,9 +8,11 @@ import {
   collectConditionEffectActionReferences,
   collectConditionTargetReferencePaths,
   collectTargetStateOrMarkerReferences,
+  conditionContainsDamageMaxHpRatio,
 } from "./condition-inspection.js";
 import {
   collectStepConditionEffectActionReferences,
+  stepsContainDamageMaxHpRatioCondition,
   stepsContainEventPayloadCondition,
 } from "./effect-step-inspection.js";
 import {
@@ -199,6 +201,29 @@ export function validateSkill(
       targetId: skill.skillDefinitionId,
       rule: "EVENT_PAYLOAD_REQUIRES_PS_SKILL",
       message: `EVENT_PAYLOAD condition requires a PS Skill (the triggering event's payload only exists during a passive activation) — "${skill.skillDefinitionId}" is skillType "${skill.skillType}"`,
+    });
+  }
+  // R-PS-01: `DAMAGE_MAX_HP_RATIO`はtrigger条件（`TriggerDefinition.condition`）専用。
+  // `EVENT_PAYLOAD`と違い`effect-step-condition-evaluator.ts`が処理しないため、PSの
+  // resolution stepへ置かれてもロードは通るのに発動中の解決が例外で失敗し、AS/EXの
+  // `activationCondition`も行動選択（`evaluateActivationCondition`）が同じstep評価器で
+  // 解決するため戦闘が停止する。skillTypeを問わず、すべてのresolution step位置と
+  // `activationCondition`から拒否する。
+  if (sequences.some((sequence) => stepsContainDamageMaxHpRatioCondition(sequence.steps))) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER",
+      message: `a DAMAGE_MAX_HP_RATIO condition is trigger-scoped (TriggerDefinition.condition only) — the EffectStep evaluator cannot resolve it, so "${skill.skillDefinitionId}" would fail at resolution time`,
+    });
+  }
+  if (
+    skill.activationCondition !== undefined &&
+    conditionContainsDamageMaxHpRatio(skill.activationCondition)
+  ) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER",
+      message: `a DAMAGE_MAX_HP_RATIO condition is trigger-scoped (TriggerDefinition.condition only) — an activationCondition cannot resolve it, so "${skill.skillDefinitionId}" would fail at action selection`,
     });
   }
   for (const trigger of skill.triggers) {

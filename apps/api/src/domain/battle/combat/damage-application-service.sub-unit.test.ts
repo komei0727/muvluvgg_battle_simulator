@@ -675,6 +675,95 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
     });
   });
 
+  it("UT-R-DMG-07-011 (R-SUB-02×R-DMG-07): the additional hit is reduced by a threshold-gated modifier and consumes only the applied instance", () => {
+    const recorderContext = damageEventContext();
+    const context: DamageEventContext = {
+      ...recorderContext,
+      consumeEffectDuration: testConsumeEffectDuration(
+        recorderContext.recorder,
+        new Map<EffectActionDefinitionId, EffectActionDefinition>(),
+      ),
+    };
+    const attacker = attackerHoldingSubUnit();
+    const baseTarget = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const thresholdGuard: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("THRESHOLD_GUARD"),
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_THRESHOLD_GUARD"),
+      kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_THRESHOLD_GUARD")),
+      duplicate: true,
+      targetUnitId: createBattleUnitId("TARGET"),
+      magnitude: -0.5,
+      categories: ["BUFF"],
+      damageModifier: {
+        direction: "INCOMING",
+        damageType: null,
+        damageThreshold: {
+          op: "GT",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.05 },
+        },
+      },
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: null,
+          consumption: { kind: "INCOMING_HIT", maxCount: 2 },
+        },
+        consumptionRemaining: 2,
+      },
+      appliedTurnNumber: 1,
+    };
+    const target: BattleUnit = { ...baseTarget, appliedEffects: [thresholdGuard] };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 追加ダメージ 70（30 + 100×0.5 - 防御10）。閾値 = 現在HP1000×5% = 50 < 70 -> 35 へ軽減。
+    // R-DMG-04の合成には参加しない（incomingDamageMultiplierは1のまま）。
+    const additionalCalculated = context.recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageCalculated" &&
+          (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+            SUBUNIT_DEFINITION_ID,
+      );
+    expect(additionalCalculated).toHaveLength(1);
+    expect(additionalCalculated[0]!.payload).toMatchObject({
+      skillPower: 70,
+      incomingDamageMultiplier: 1,
+      outgoingDamageMultiplier: 1,
+      finalDamage: 35,
+    });
+
+    // 消費は軽減を適用した追加ヒットでだけ起きる（通常ヒット10は閾値50以下で素通し）。
+    const consumption = context.recorder
+      .getEvents()
+      .filter((event) => event.eventType === "EffectConsumptionChanged");
+    expect(consumption).toHaveLength(1);
+    expect(consumption[0]!.payload).toMatchObject({ before: 2, after: 1 });
+    // R-EFF-07の既存経路と同じく、消費は追加ヒットの`DamageApplied`より後。
+    const events = context.recorder.getEvents();
+    const additionalDamageAppliedIndex = events.findIndex(
+      (event) =>
+        event.eventType === "DamageApplied" &&
+        (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId ===
+          SUBUNIT_DEFINITION_ID,
+    );
+    expect(events.indexOf(consumption[0]!)).toBeGreaterThan(additionalDamageAppliedIndex);
+    const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(
+      updatedTarget.appliedEffects.find(
+        (effect) => effect.effectInstanceId === thresholdGuard.effectInstanceId,
+      )!.duration.consumptionRemaining,
+    ).toBe(1);
+  });
+
   it("UT-R-SUB-02-015 (R-ACTN-01 #2): no accompanying debuff is granted when the additional damage defeats the target", () => {
     const granted: string[] = [];
     const base = damageEventContext();

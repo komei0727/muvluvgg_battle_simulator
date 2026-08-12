@@ -6,9 +6,15 @@ import {
 import { guardedDamage } from "./defensive-intervention-policy.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
+import { resolveThresholdDamageReduction } from "./threshold-damage-reduction-policy.js";
 import { evaluateFormula } from "../skill/formula-evaluator.js";
 import type { DamageEventContext, DamageHitOutcome, DamageStep } from "./damage-event-context.js";
-import { driveRemovalSteps, findUnit, revalidateHit } from "./damage-hit-chain.js";
+import {
+  consumeAndExpire,
+  driveRemovalSteps,
+  findUnit,
+  revalidateHit,
+} from "./damage-hit-chain.js";
 import { observeHitSteps, type HitObservationProfile } from "./damage-hit-observation.js";
 import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
 import {
@@ -252,10 +258,25 @@ function* applyOneSubUnitAdditionalDamageSteps(
     intervention.guardRate,
   );
   const truncatedDamage = Math.max(1, Math.floor(preTruncationDamage));
+  // R-DMG-07: R-DMG-04と同じく追加ヒットにも閾値付き被ダメージ軽減が乗る（R-SUB-02が
+  // 除外するのは防御力減衰だけ）。判定素材・再切り捨て・消費の扱いは通常ヒットと同じ。
+  const thresholdReduction = resolveThresholdDamageReduction({
+    attacker: owner,
+    defender: target,
+    damageType: profile.damageType,
+    incomingDamage: truncatedDamage,
+    damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
+    formulaContext,
+  });
+  const thresholdReducedDamage = Math.max(
+    1,
+    Math.floor(truncatedDamage * thresholdReduction.multiplier),
+  );
   // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: 通常ヒットと同じく、
-  // 切り捨て後の値を「incoming raw damage」として対象の有効なDAMAGE_IMMUNITYを判定する。
-  const damageImmunity = resolveDamageImmunity(target, truncatedDamage, formulaContext);
-  const finalDamage = damageImmunity.nullified ? 1 : truncatedDamage;
+  // 切り捨て・R-DMG-07軽減後の値を「incoming raw damage」として対象の有効な
+  // DAMAGE_IMMUNITYを判定する。
+  const damageImmunity = resolveDamageImmunity(target, thresholdReducedDamage, formulaContext);
+  const finalDamage = damageImmunity.nullified ? 1 : thresholdReducedDamage;
 
   const damageCalculated = context.recorder.record({
     eventType: "DamageCalculated",
@@ -310,6 +331,21 @@ function* applyOneSubUnitAdditionalDamageSteps(
   let lastEventId = application.lastEventId;
   if (application.kind !== "APPLIED") {
     return { kind: application.kind, lastEventId };
+  }
+
+  // R-DMG-07: 通常ヒットと同じく、軽減を実際に適用したインスタンスだけをインスタンス
+  // 指定で`INCOMING_HIT`消費する。消費（とそれを契機とするPS連鎖）は`DamageApplied`の
+  // 後 — 失効起点の連鎖が付与するシールド・サブユニットが、計算済みのこの追加ヒット
+  // 自身の吸収先になってはならない（R-EFF-07の一括消費と同じ順序）。
+  for (const applied of thresholdReduction.appliedEffects) {
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      target.battleUnitId,
+      "INCOMING_HIT",
+      lastEventId,
+      applied.effectInstanceId,
+    );
   }
 
   // R-INT-01 #3／R-LNK-01〜03: 追加ヒットも確定後にリンクを発生させる（通常ヒットと同じ）。

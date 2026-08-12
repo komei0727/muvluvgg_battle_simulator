@@ -90,6 +90,27 @@ export function conditionContainsEventPayload(condition: ConditionDefinition): b
 }
 
 /**
+ * R-PS-01: `condition`のどこかに`DAMAGE_MAX_HP_RATIO`が含まれるか。この kind は
+ * trigger条件（`TriggerDefinition.condition`）専用 — `EVENT_PAYLOAD`と違い
+ * `effect-step-condition-evaluator.ts`が処理しないため、PSのresolution stepに
+ * 置かれてもCatalogロードは通るのに発動中の解決が例外で失敗する。ロード時点で
+ * すべてのresolution step位置から拒否する。
+ */
+export function conditionContainsDamageMaxHpRatio(condition: ConditionDefinition): boolean {
+  switch (condition.kind) {
+    case "DAMAGE_MAX_HP_RATIO":
+      return true;
+    case "AND":
+    case "OR":
+      return condition.conditions.some((c) => conditionContainsDamageMaxHpRatio(c));
+    case "NOT":
+      return conditionContainsDamageMaxHpRatio(condition.condition);
+    default:
+      return false;
+  }
+}
+
+/**
  * `condition`のどこかに`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`が
  * 含まれるか。参照先の`TargetReference`は問わない —
  * `effect-step-condition-evaluator.ts`の`evaluateEffectStepCondition`は

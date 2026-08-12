@@ -260,6 +260,15 @@ export interface ApplyDamageModPayload {
    * 評価し、成立したヒットにだけ`formula`の評価結果を加算する。
    */
   readonly condition?: DamageModConditionDefinition;
+  /**
+   * R-DMG-07: 指定時、この補正はR-DMG-04の通常合成から外れ、確定した入射ダメージが
+   * `op`で`formula`の評価結果と比較して真になるヒットにだけ、独立倍率
+   * `max(0, 1 + 合計補正)`として適用される。`formula`の評価対象は保持者自身
+   * （`source: TARGET`が補正保持者=被弾側を指す、`APPLY_STATUS.damageThreshold`と
+   * 同じ規約）。`direction: INCOMING`でだけ宣言できる — 判定素材の「確定した
+   * 入射ダメージ」は被弾側にしか存在しない。
+   */
+  readonly damageThreshold?: DamageThreshold;
   readonly stacking: { readonly mode: "STACKABLE" };
   readonly duration: DurationDefinition;
 }

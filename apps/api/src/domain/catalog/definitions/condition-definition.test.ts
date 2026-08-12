@@ -786,4 +786,53 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-050 (R-PS-01): maps DAMAGE_MAX_HP_RATIO (per-hit damage compared against the damaged unit's maximum HP)", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "DAMAGE_MAX_HP_RATIO",
+        field: "hitPointDamage",
+        op: "GTE",
+        value: 0.15,
+      },
+      "condition",
+      undefined,
+    );
+
+    expect(result).toEqual({
+      kind: "DAMAGE_MAX_HP_RATIO",
+      field: "hitPointDamage",
+      op: "GTE",
+      value: 0.15,
+    });
+  });
+
+  it("UT-CAT-COND-051 (R-PS-01, NEGATIVE): rejects DAMAGE_MAX_HP_RATIO without a field, with an unknown op, or with a non-number value", () => {
+    expect(() =>
+      createConditionDefinition(
+        { kind: "DAMAGE_MAX_HP_RATIO", op: "GTE", value: 0.15 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createConditionDefinition(
+        { kind: "DAMAGE_MAX_HP_RATIO", field: "hitPointDamage", op: "ALMOST", value: 0.15 },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "DAMAGE_MAX_HP_RATIO",
+          field: "hitPointDamage",
+          op: "GTE",
+          value: "0.15",
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

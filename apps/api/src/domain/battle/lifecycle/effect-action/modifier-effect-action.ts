@@ -55,6 +55,9 @@ export const resolveContinuousModifier: EffectActionHandler<
                 ...(effectAction.payload.condition !== undefined
                   ? { condition: effectAction.payload.condition }
                   : {}),
+                ...(effectAction.payload.damageThreshold !== undefined
+                  ? { damageThreshold: effectAction.payload.damageThreshold }
+                  : {}),
               },
             }
           : {}),

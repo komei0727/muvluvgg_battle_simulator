@@ -118,7 +118,15 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
   APPLY_CONTINUOUS_DAMAGE: ["continuousDamageKind", "damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
-  APPLY_DAMAGE_MOD: ["direction", "damageType", "formula", "condition", "stacking", "duration"],
+  APPLY_DAMAGE_MOD: [
+    "direction",
+    "damageType",
+    "formula",
+    "condition",
+    "damageThreshold",
+    "stacking",
+    "duration",
+  ],
   APPLY_PIERCING_MOD: [
     "defenseIgnoreRate",
     "shieldIgnoreRate",
@@ -189,6 +197,21 @@ const DAMAGE_THRESHOLD_ALLOWED_KEYS = ["op", "formula"] as const;
 const CONFUSION_ALLOWED_KEYS = ["damageReductionRate", "lowAttackBaseDamageRate"] as const;
 /** R-DTH-01（DMG-009、Issue #193）: `APPLY_STATUS.damageToHeal`が持てるfield。 */
 const DAMAGE_TO_HEAL_ALLOWED_KEYS = ["healRate"] as const;
+
+/**
+ * `damageThreshold {op, formula}`を検証・構築する。G-06（`APPLY_STATUS`の
+ * `DAMAGE_IMMUNITY`）とR-DMG-07（`APPLY_DAMAGE_MOD`の`direction: INCOMING`）が
+ * 同じ構造・同じ比較演算子を共有する。
+ */
+function createDamageThresholdField(
+  raw: { op?: string; formula?: FormulaDefinitionInput },
+  path: string,
+): DamageThreshold {
+  assertKnownKeys(raw, DAMAGE_THRESHOLD_ALLOWED_KEYS, path);
+  const op = requireField(raw.op, `${path}.op`);
+  assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
+  return { op, formula: createFormulaField(raw, "formula", path) };
+}
 
 function requireField<T>(value: T | undefined, path: string): T {
   if (value === undefined) {
@@ -650,6 +673,17 @@ function createPayload(
       }
       const stackingMode = requireStackingMode(payload, path);
       const conditionInput = payload["condition"] as Record<string, unknown> | undefined;
+      const damageThresholdRaw = payload["damageThreshold"] as
+        | { op?: string; formula?: FormulaDefinitionInput }
+        | undefined;
+      // R-DMG-07: 判定素材の「確定した入射ダメージ」は被弾側のヒットにしか
+      // 存在しないため、`OUTGOING`側の宣言はsilent no-opになる前に拒否する。
+      if (damageThresholdRaw !== undefined && direction !== "INCOMING") {
+        throw new DomainValidationError(
+          `${path}.damageThreshold`,
+          `is only meaningful for direction "INCOMING", got "${direction}"`,
+        );
+      }
       return {
         kind: "APPLY_DAMAGE_MOD",
         payload: {
@@ -658,6 +692,14 @@ function createPayload(
           formula: createFormulaField(payload, "formula", path),
           ...(conditionInput !== undefined
             ? { condition: createDamageModCondition(conditionInput, `${path}.condition`) }
+            : {}),
+          ...(damageThresholdRaw !== undefined
+            ? {
+                damageThreshold: createDamageThresholdField(
+                  damageThresholdRaw,
+                  `${path}.damageThreshold`,
+                ),
+              }
             : {}),
           stacking: { mode: stackingMode },
           duration: createDurationField(payload, path),
@@ -848,17 +890,10 @@ function createPayload(
             `is only meaningful when status is "DAMAGE_IMMUNITY", got "${status}"`,
           );
         }
-        assertKnownKeys(
+        result.damageThreshold = createDamageThresholdField(
           damageThresholdRaw,
-          DAMAGE_THRESHOLD_ALLOWED_KEYS,
           `${path}.damageThreshold`,
         );
-        const op = requireField(damageThresholdRaw.op, `${path}.damageThreshold.op`);
-        assertEnumValue(op, COMPARISON_OPERATORS, `${path}.damageThreshold.op`);
-        result.damageThreshold = {
-          op,
-          formula: createFormulaField(damageThresholdRaw, "formula", `${path}.damageThreshold`),
-        };
       }
       // R-CFS-02／R-DTH-01（DMG-009、Issue #193）: 混乱・幻惑の数値は、その状態
       // でしか意味を持たない。`damageThreshold`が`DAMAGE_IMMUNITY`以外を拒否する

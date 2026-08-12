@@ -970,13 +970,14 @@ payload:
       count: 1
 ```
 
-| フィールド    | 型                        | 制約                                      |
-| ------------- | ------------------------- | ----------------------------------------- |
-| `direction`   | enum                      | `OUTGOING` / `INCOMING`                   |
-| `damageType`  | enum/null                 | `PHYSICAL` / `EN` / null                  |
-| `formula`     | FormulaDefinition         | 符号付き。増加は正、減少は負              |
-| `condition`   | DamageModCondition/省略可 | ヒットごとに評価する動的条件（`DMG-002`） |
-| `consumption` | ConsumptionDefinition     | 次の攻撃など                              |
+| フィールド        | 型                        | 制約                                                                   |
+| ----------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `direction`       | enum                      | `OUTGOING` / `INCOMING`                                                |
+| `damageType`      | enum/null                 | `PHYSICAL` / `EN` / null                                               |
+| `formula`         | FormulaDefinition         | 符号付き。増加は正、減少は負                                           |
+| `condition`       | DamageModCondition/省略可 | ヒットごとに評価する動的条件（`DMG-002`）                              |
+| `damageThreshold` | DamageThreshold/省略可    | 入射ダメージ閾値（`R-DMG-07`）。`direction: INCOMING` でだけ宣言できる |
+| `consumption`     | ConsumptionDefinition     | 次の攻撃など                                                           |
 
 #### `condition`（`DMG-002`／Issue #192）
 
@@ -1023,6 +1024,29 @@ production例:
 - `SKL_AOI_ELEGANT_PS2`／`SKL_OLGA_VETERAN_AS2`「Xを所持している敵から受ける攻撃の被ダメージを減少」→ `UNIT_HAS_MARKER` + `unit: OPPONENT`
 - `SKL_JULIE_SNOW_PS1`「自分よりもHP割合が高い相手から攻撃された場合にのみ」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: GT`, `right: EFFECT_OWNER`
 - `SKL_KOTOHA_REBEL_PS2`「対象のHP割合が自身より低い敵に対してのみ与ダメージが10%増加」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: LT`, `right: EFFECT_OWNER`
+
+#### `damageThreshold`（`R-DMG-07`）
+
+「現在HPのX%を**超える**ダメージのみ軽減する」のような、入射ダメージの大きさで適用可否が決まる被ダメージ補正を表す。構造・比較演算子は `APPLY_STATUS` の [`damageThreshold`](#damagethreshold) と同じで、`formula` の評価対象は補正の保持者自身（`source: TARGET` が保持者=被弾側を指す）。判定素材・合成・消費の規則は `R-DMG-07` を正本とする。
+
+- `direction: OUTGOING` への宣言はCatalogロード時に拒否する — 判定素材の「確定した入射ダメージ」は被弾側のヒットにしか存在しない。
+- この補正は `R-DMG-04` の通常合成に参加せず、`DamageCalculated` の `incomingDamageMultiplier` にも現れない（`finalDamage` が軽減後の値を持つ）。
+- `duration.consumption {kind: INCOMING_HIT}` と組み合わせた場合、消費は軽減を実際に適用したヒットでだけ起きる（`R-DMG-07` #6）。
+
+```yaml
+kind: APPLY_DAMAGE_MOD
+payload:
+  direction: INCOMING
+  damageType: null
+  formula: { kind: CONSTANT, value: -0.5 }
+  damageThreshold:
+    op: GT
+    formula: { kind: CURRENT_HP_RATIO, source: { kind: TARGET }, ratio: 0.2 }
+  stacking: { mode: STACKABLE }
+  duration:
+    timeLimit: { unit: BATTLE, count: 1 }
+    consumption: { kind: INCOMING_HIT, maxCount: 3 }
+```
 
 ### APPLY_HEALING_MOD
 
@@ -1810,22 +1834,23 @@ condition:
 
 ### kind 一覧
 
-| kind                | 追加フィールド                         | 意味                                                                                               |
-| ------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `TRUE`              | なし                                   | 常に成立                                                                                           |
-| `AND`               | `conditions[]`                         | 全条件                                                                                             |
-| `OR`                | `conditions[]`                         | いずれか                                                                                           |
-| `NOT`               | `condition`                            | 否定                                                                                               |
-| `TARGET_STATE`      | `target`, `field`, `op`, `value`       | 対象状態比較                                                                                       |
-| `TARGET_HAS_MARKER` | `target`, `markerId`, `countCondition` | Marker所持                                                                                         |
-| `EVENT_PAYLOAD`     | `field`, `op`, `value`                 | trigger payload比較                                                                                |
-| `LAST_RESULT`       | `field`, `op`, `value`                 | 直前結果比較                                                                                       |
-| `RUNTIME_COUNTER`   | `counter`, `op`, `value`, `modulo`     | SkillRuntime等のcounter比較                                                                        |
-| `TURN_NUMBER`       | `op`, `value`, `modulo`                | ターン番号条件                                                                                     |
-| `ALIVE_UNIT_COUNT`  | `side`, `excludeSelf`, `op`, `value`   | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
-| `POSITION_RELATION` | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
-| `RESOLUTION_PHASE`  | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
-| `TARGET_SET_COUNT`  | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
+| kind                  | 追加フィールド                         | 意味                                                                                               |
+| --------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `TRUE`                | なし                                   | 常に成立                                                                                           |
+| `AND`                 | `conditions[]`                         | 全条件                                                                                             |
+| `OR`                  | `conditions[]`                         | いずれか                                                                                           |
+| `NOT`                 | `condition`                            | 否定                                                                                               |
+| `TARGET_STATE`        | `target`, `field`, `op`, `value`       | 対象状態比較                                                                                       |
+| `TARGET_HAS_MARKER`   | `target`, `markerId`, `countCondition` | Marker所持                                                                                         |
+| `EVENT_PAYLOAD`       | `field`, `op`, `value`                 | trigger payload比較                                                                                |
+| `DAMAGE_MAX_HP_RATIO` | `field`, `op`, `value`                 | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
+| `LAST_RESULT`         | `field`, `op`, `value`                 | 直前結果比較                                                                                       |
+| `RUNTIME_COUNTER`     | `counter`, `op`, `value`, `modulo`     | SkillRuntime等のcounter比較                                                                        |
+| `TURN_NUMBER`         | `op`, `value`, `modulo`                | ターン番号条件                                                                                     |
+| `ALIVE_UNIT_COUNT`    | `side`, `excludeSelf`, `op`, `value`   | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
+| `POSITION_RELATION`   | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
+| `RESOLUTION_PHASE`    | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
+| `TARGET_SET_COUNT`    | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
 
@@ -1837,6 +1862,18 @@ condition:
 - { kind: EVENT_PAYLOAD, field: categories, op: CONTAINS, value: STATUS }
 # 例: 「敵に気絶が付与された際に発動」（SKL_NADYA_SUCCESSOR_PS2）
 - { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
+```
+
+`DAMAGE_MAX_HP_RATIO`は`EVENT_PAYLOAD`の変種で、`field`が指すpayloadの被弾量（数値）を`TRIGGER_TARGET`（被弾ユニット）の最大HPで割った**比率**を`op`/`value`（数値）と比較する。リテラル比較では表せない「1ヒットで最大HP×N%以上のダメージを負った際」を表す（`R-PS-01`）。`field`は被弾量を持つpayloadプロパティ名（`HitPointReduced`の`hitPointDamage`＝シールド吸収後に実際へHPを減らした量、が代表）を直接指す。trigger条件（`TriggerDefinition.condition`。Skillの`triggers[]`・`counterUpdates[].trigger`・Memoryのtriggerを含む）専用であり、`EVENT_PAYLOAD`と違いEffectStep評価器がこの条件を処理しないため、それ以外の配置 — skillType・Memoryを問わずすべてのresolution step位置、`activationCondition`、`expiration.conditions` — はCatalogロード時に拒否する（`DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER`）。
+
+```yaml
+# 例: 「自身が敵からの攻撃1ヒットで、最大HP×15%以上のダメージを負った際に発動」
+triggers:
+  - eventType: HitPointReduced
+    category: FACT
+    sourceSelector: ENEMY
+    targetSelector: SELF
+    condition: { kind: DAMAGE_MAX_HP_RATIO, field: hitPointDamage, op: GTE, value: 0.15 }
 ```
 
 `TARGET_SET_COUNT`の`countOf`は集合の生存側・戦闘不能側のどちらを数えるかを選ぶ（`ALIVE`／`DEFEATED`、省略時`ALIVE` = Issue #227時点の既定の意味）。`DEFEATED`は`POST_DAMAGE_SURVIVAL_BRANCH`（`DMG-003`／Issue #196）が追加した——対象集合の大きさは実行時にしか分からないため、「この攻撃で敵を倒した場合」を`ALIVE`側のしきい値（`生存数 < 集合の大きさ`）では表せないためである。判定対象はスキル自身の対象binding（production例: `SKL_HIIRO_LONEWOLF_AS2`の`TGT_COLUMN`）とする — bindingはR-SKL-01により再評価されず同じunit集合を指し続け、状態だけが最新化されるため、DAMAGE後に撃破された構成員も数え漏らさない。

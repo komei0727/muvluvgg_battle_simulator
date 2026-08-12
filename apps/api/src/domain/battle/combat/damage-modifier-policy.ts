@@ -150,6 +150,12 @@ function composeRate(
     if (modifier === undefined || modifier.direction !== direction) {
       return total;
     }
+    // R-DMG-07: 閾値付き補正は確定した入射ダメージとの比較でしか適用可否を決められない
+    // ため、この合成（入射ダメージ確定前）には参加させない。
+    // `threshold-damage-reduction-policy.ts`が計算確定後に独立倍率として適用する。
+    if (modifier.damageThreshold !== undefined) {
+      return total;
+    }
     if (modifier.damageType !== null && modifier.damageType !== damageType) {
       return total;
     }

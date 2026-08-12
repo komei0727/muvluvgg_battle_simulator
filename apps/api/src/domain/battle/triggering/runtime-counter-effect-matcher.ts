@@ -67,9 +67,12 @@ export function matchEffectRuntimeCounterUpdates(
           trigger.category === event.category &&
           evaluateSourceSelector(trigger.sourceSelector, holder, event, unitsById) &&
           evaluateTargetSelector(trigger.targetSelector, holder, event, unitsById) &&
+          // `getUnit`はevent由来のユニット参照（`DAMAGE_MAX_HP_RATIO`/`TARGET_STATE`等）の
+          // 解決に必要（`runtime-counter-matcher.ts`の同名配線と同じ理由）。
           evaluateTriggerCondition(trigger.condition, event, {
             owner: holder,
             effectCounters: effect.duration.counters ?? {},
+            getUnit: (id) => unitsById.get(id),
           });
         if (!matches) {
           continue;

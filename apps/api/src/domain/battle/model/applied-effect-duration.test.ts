@@ -832,6 +832,47 @@ describe("consumeEffectDurations", () => {
 
     expect(result.changes).toHaveLength(0);
   });
+
+  it("UT-R-DMG-07-007: a threshold-gated damage modifier is excluded from the bulk INCOMING_HIT sweep (it consumes only on hits it actually reduced, like R-HIT-04 evasion) but still consumes when instance-targeted", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const durationDefinition = {
+      consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    } as const;
+    const thresholdGuard = effectOn(target, source, durationDefinition, {
+      duration: { definition: durationDefinition, consumptionRemaining: 3 },
+      damageModifier: {
+        direction: "INCOMING",
+        damageType: null,
+        damageThreshold: {
+          op: "GT",
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+        },
+      },
+    });
+    target = withEffects(target, [thresholdGuard]);
+
+    const bulk = consumeEffectDurations([source, target], target.battleUnitId, "INCOMING_HIT");
+    expect(bulk.changes).toHaveLength(0);
+
+    const targeted = consumeEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      "INCOMING_HIT",
+      thresholdGuard.effectInstanceId,
+    );
+    expect(targeted.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: thresholdGuard.effectInstanceId,
+        kind: "INCOMING_HIT",
+        before: 3,
+        after: 2,
+      },
+    ]);
+  });
 });
 
 describe("reapplySkillUseDurationDecrement (TGT-004フェーズ3, Issue #167)", () => {
