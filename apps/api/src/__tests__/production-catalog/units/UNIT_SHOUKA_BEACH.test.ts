@@ -8,14 +8,17 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
-import { realDamage, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { turnStarted, unitBeingAttacked } from "../../../testing/production-unit/trigger-events.js";
 
 /**
  * `UNIT_SHOUKA_BEACH`（【砂浜の策謀家】姜小花）のユニット単位production結合テスト
@@ -280,22 +283,23 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SHOUKA_BEACH_PS1",
-      trigger: realDamage({
-        from: "enemy:front",
-        to: "ally:subject",
+      // `UnitBeingAttacked` は命中判定・ダメージ計算より**前**に発行される
+      // （`observeHitSteps`）。`realDamage` は攻撃を最後まで完了させてから
+      // 記録済みイベントを流すため、ここで使うと被弾後のHPで `HP_RATIO_SCALE` を
+      // 評価してしまう。この行は契機・対象・期間宣言を固定する目的なので、契機
+      // イベントだけを渡して評価点を production と揃える。実タイミングでの付与量と
+      // 同一ヒットへの反映は `-004` が実pipelineで固定する。
+      trigger: unitBeingAttacked({
+        source: "enemy:front",
+        target: "ally:subject",
         skillType: "AS",
-        event: "UnitBeingAttacked",
       }),
     },
-    // 契機を実pipelineに出させると、そのヒットのダメージ（攻撃力1000 - 防御力500
-    // ＝500）は観測の基準線へ繰り込まれる。防御バフの評価点を割り切れるHP割合へ
-    // 置くため、被弾後にちょうど50%になる5500から始める。
-    board: { subject: { state: { currentHp: 5500 } } },
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_SHOUKA_BEACH_PS1_DEF_UP", targets: ["ally:subject"] },
       ],
-      // 被弾後の現在HP5000/最大HP10000＝50%。0〜0.17をHP割合で線形補間して0.085。
+      // 被弾前の現在HP5000/最大HP10000＝50%。0〜0.17をHP割合で線形補間して0.085。
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -415,32 +419,62 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-SHOUKA-BEACH-004: PS1が配る防御バフはHPが多いほど大きく、上限17%へ近づく", () => {
-    // `-001` は1点（HP50%＝0.085）だけを固定する。`HP_RATIO_SCALE` が定数ではなく
-    // 本当にHP割合で動いていることは、別のHPでもう一度観測してはじめて分かる。
-    const defenseBuffAt = (currentHp: number): number | undefined =>
-      observeSkillUse({
-        snapshot,
-        unitDefinitionId: UNIT_DEFINITION_ID,
-        use: {
-          kind: "PASSIVE",
-          skillDefinitionId: "SKL_SHOUKA_BEACH_PS1",
-          trigger: realDamage({
-            from: "enemy:front",
-            to: "ally:subject",
-            skillType: "AS",
-            event: "UnitBeingAttacked",
-          }),
-        },
-        board: { subject: { state: { currentHp } } },
-      }).effectsApplied?.find(
-        (effect) => effect.effectActionDefinitionId === "ACT_SHOUKA_BEACH_PS1_DEF_UP",
-      )?.magnitude;
+  it("IT-UNIT-SHOUKA-BEACH-004 (R-DMG-04): PS1は被弾**前**のHPで防御バフを評価し、そのバフが同じヒットのダメージ計算へ入る", () => {
+    // 「この行動内での自分の防御力を最高17%上昇させる」は、実 pipeline の
+    // `UnitBeingAttacked`（命中判定・ダメージ計算より前）でPS連鎖が解決されて
+    // はじめて意味を持つ。契機イベントを手組みする `-001` は評価点だけを揃えており、
+    // 「同じヒットへ効くこと」までは見ていない。ここは実ダメージ経路の
+    // `onFactEventForPassiveChain` へ実PS連鎖を挿し、防御上昇が同一ヒットの
+    // `DamageCalculated` に反映されることを固定する。
+    const strike = (currentHp: number, withPassive: boolean) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp } },
+      });
+      const chain = openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "enemy:front",
+        battleId: `B_SHOUKA_PS1_${currentHp}_${withPassive}`,
+      });
+      return observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: board.units,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        power: 2,
+        ...(withPassive
+          ? {
+              onFactEventForPassiveChain: (event, units) => chain.fireRecorded(event, units),
+            }
+          : {}),
+      });
+    };
 
-    // いずれも契機のヒット分（500）を引いたHPで評価される。満タン開始でも
-    // 被弾後は95%のため、上限17%には届かず0.1615になる。
-    expect(defenseBuffAt(10000)).toBeCloseTo(0.1615, 6);
-    expect(defenseBuffAt(5500)).toBeCloseTo(0.085, 6);
-    expect(defenseBuffAt(1500)).toBeCloseTo(0.017, 6);
+    // 満タン（被弾前HP割合1.0）なら上限の17%。`realDamage` 経由の観測が返す
+    // 0.1615（被弾後95%）ではない。
+    const full = strike(10000, true);
+    const fullBuff = full.units
+      .find((unit) => unit.battleUnitId === "ally:subject")!
+      .appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_SHOUKA_BEACH_PS1_DEF_UP",
+      );
+    expect(fullBuff?.magnitude).toBeCloseTo(0.17, 6);
+
+    // 同じヒットのダメージ計算に反映される: 防御力500が+17%の585へ上がり、
+    // 威力2の攻撃は (1000 - 585) × 2 = 830 になる（PSなしなら (1000 - 500) × 2 = 1000）。
+    const withoutPassive = strike(10000, false);
+    expect(withoutPassive.effectiveDefense.effectiveDefense).toBe(500);
+    expect(withoutPassive.hpDeltas["ally:subject"]).toBe(-1000);
+    expect(full.effectiveDefense.effectiveDefense).toBe(585);
+    expect(full.hpDeltas["ally:subject"]).toBe(-830);
+
+    // HP割合が下がるほど防御バフも小さくなる（定数ではなく `HP_RATIO_SCALE`）。
+    const half = strike(5000, true);
+    expect(
+      half.units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.find(
+          (effect) => effect.effectActionDefinitionId === "ACT_SHOUKA_BEACH_PS1_DEF_UP",
+        )?.magnitude,
+    ).toBeCloseTo(0.085, 6);
   });
 });

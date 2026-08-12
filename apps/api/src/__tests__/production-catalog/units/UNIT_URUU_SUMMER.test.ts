@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
+import {
+  effectActionGroupContext,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -277,6 +286,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
+    skillDefinitionId: "SKL_URUU_SUMMER_AS1",
+    intent:
+      "(被ダメージ軽減を保持済み): 「潮騒」所持相手からの被ダメージ50％減少は重複せず、2回目以降の使用では付与し直さない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_URUU_SUMMER_AS1" },
+    board: { enemies: ENEMIES_WITHOUT_EN_ATTACKER },
+    // 1回目の使用で付いた状態を実 production 定義で用意する。
+    precedingActions: [
+      { effectActionDefinitionId: "ACT_URUU_SUMMER_AS1_DMG_DOWN", target: "SELF" },
+    ],
+    expected: {
+      // 被ダメージ軽減のACTION自体が実行されない（`BRANCH` のelse腕）。実行されると
+      // `-0.5` が2件になり、R-DMG-04の合成で被ダメージ100%減へ跳ね上がる。
+      actions: [
+        { effectActionDefinitionId: "ACT_URUU_SUMMER_AS1_DAMAGE", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_URUU_SUMMER_AS1_MARKER_SHIOSAI",
+          targets: ["enemy:front"],
+        },
+        ...PS1_CHAIN_ACTIONS,
+      ],
+      hpDeltas: { "enemy:front": -1677, "enemy:left": -507 },
+      effectsApplied: [...PS1_CHAIN_EFFECTS],
+      markers: [
+        { unitId: "enemy:front", markerId: SHIOSAI, stackCount: 1 },
+        { unitId: "enemy:front", markerId: PS1_DEF_DOWN_MARKER, stackCount: 1 },
+        { unitId: "enemy:left", markerId: PS1_DEF_DOWN_MARKER, stackCount: 1 },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: PS1_CHAIN_COOLDOWNS,
+    },
+  },
+  {
     skillDefinitionId: "SKL_URUU_SUMMER_PS1",
     intent:
       "自身がアクティブスキルで攻撃した後に発動。前列優先で敵2体に威力101.4で攻撃し、自身が1回行動を終えるまでの間対象の防御力を15％減少させる（重複可）。さらに自身に対して1行動の間、被ダメージを25％減少させる効果を付与する（重複可）",
@@ -537,6 +582,65 @@ describe("production Catalog UNIT_URUU_SUMMER (【夏色シャイガール】波
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-URUU-SUMMER-005 (R-DMG-04): ASを実経路で2回使っても被ダメージ軽減は1件のまま50%に留まる", () => {
+    // `-001` の「保持済み」行は前提を合成アクションで作るため、**実際にASを2回
+    // 使った**ときの積み上がりは見ていない。`APPLY_DAMAGE_MOD` は `STACKABLE`
+    // しか受理せず（最強選択の合成経路が `APPLY_STAT_MOD` にしか無い）、2件残ると
+    // R-DMG-04の合成が `1 - 0.5 - 0.5 = 0` ＝被ダメージ100%減になる。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      enemies: ENEMIES_WITHOUT_EN_ATTACKER,
+    });
+    const skill = skillFrom(snapshot, "SKL_URUU_SUMMER_AS1");
+    const { recorder, rootEventId } = seedRecorder("B_URUU_SUMMER_AS1_TWICE");
+
+    let units = board.units;
+    for (let use = 0; use < 2; use += 1) {
+      const actor = units.find((unit) => unit.battleUnitId === "ally:subject")!;
+      units = applyEffectActionGroups(
+        resolveSkillOrder(
+          skill,
+          actor,
+          units,
+          board.definitions.effectActions,
+          undefined,
+          board.definitions.unitDefinitions,
+        ),
+        units,
+        effectActionGroupContext({
+          actor,
+          skillId: "SKL_URUU_SUMMER_AS1",
+          definitions: board.definitions,
+          recorder,
+          rootEventId,
+        }),
+      ).units;
+    }
+
+    const reductions = units
+      .find((unit) => unit.battleUnitId === "ally:subject")!
+      .appliedEffects.filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_URUU_SUMMER_AS1_DMG_DOWN",
+      );
+    expect(reductions).toHaveLength(1);
+    expect(reductions[0]?.magnitude).toBe(-0.5);
+
+    // 攻撃側（enemy:front）はAS1自身が配った「潮騒」を保持しているため、実ダメージ
+    // pipelineの集計でも条件が成立する。そこでも50%減に留まる（2件残っていれば
+    // `incomingDamageMultiplier` は0になり、R-DMG-02の最低1ダメージまで落ちる）。
+    expect(
+      units
+        .find((unit) => unit.battleUnitId === "enemy:front")!
+        .markerStates.map((marker) => marker.markerId),
+    ).toEqual([SHIOSAI]);
+    const probe = observeDamageProbe({
+      units,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      power: 1,
+    });
+    expect(probe.calculated.incomingDamageMultiplier).toBe(0.5);
   });
 
   it("IT-UNIT-URUU-SUMMER-004 (R-EFF-09, R-EFF-10): PS1の防御デバフは付与者が倒れると同時に解除される", () => {

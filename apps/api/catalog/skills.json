@@ -14867,9 +14867,24 @@
           ]
         },
         {
-          "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_URUU_SUMMER_AS1_DMG_DOWN" }]
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "SELF" },
+              "categories": ["DAMAGE_MOD"],
+              "effectActionDefinitionIds": ["ACT_URUU_SUMMER_AS1_DMG_DOWN"]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_URUU_SUMMER_AS1_DMG_DOWN" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
