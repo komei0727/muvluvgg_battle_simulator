@@ -30,6 +30,11 @@ function fixturePath(...segments: string[]): string {
 const VALID_CATALOG_DIR = fixturePath("runtime", "valid", "minimal");
 const INVALID_CATALOG_DIR = fixturePath("runtime", "invalid", "dangling-reference");
 
+/**
+ * 各テストが使う固定ポートは20579〜20586を採る。Linuxのephemeral port range
+ * （既定32768〜60999）の内側だと、並行実行中の別テストが一時ポートとして
+ * 掴んだ瞬間にlistenがEADDRINUSEで落ちる（CIで34586が実際に奪われた）。
+ */
 function assertPortIsClosed(port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const socket = createConnection({ port, host: "127.0.0.1" });
@@ -70,7 +75,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-001 (11_インフラストラクチャ設計.md「初期化に失敗した場合はポートを公開せず、非0終了する」): rejects and never opens the HTTP port when the Worker's Catalog fails to initialize", async () => {
-    const port = 34579;
+    const port = 20579;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = INVALID_CATALOG_DIR;
@@ -80,7 +85,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-002: resolves and actually listens once Worker Catalog initialization succeeds (positive control for INT-BOOTSTRAP-001)", async () => {
-    const port = 34580;
+    const port = 20580;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
@@ -94,7 +99,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-003 (#12 成果物「Composition RootへのAPI・Pool・Catalog配線」「/health/live」「/health/ready」): the compiled build's /health/live and /health/ready both succeed once bootstrap() has resolved (Pool warm-up already confirmed the Catalog and worker count)", async () => {
-    const port = 34581;
+    const port = 20581;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
@@ -112,7 +117,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-004 (受け入れ条件「最小縦切りをproduction buildで実行できる」): the compiled build still completes a minimal battle end-to-end through POST /api/v1/battle-simulations", async () => {
-    const port = 34582;
+    const port = 20582;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
@@ -142,7 +147,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-005 (listen失敗時はシグナルハンドラーとWorker Poolが残る): when app.listen() itself fails (e.g. the port is already bound by another process), bootstrap() still disposes the SIGTERM/SIGINT listeners and closes the Worker Pool it already created — not just the earlier Worker-Catalog-init failure path (INT-BOOTSTRAP-001), which fails before any of that is created", async () => {
-    const port = 34583;
+    const port = 20583;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
@@ -170,7 +175,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-006 (#85 受け入れ条件「productionではSwagger UIが既定で無効である」): GET /docs is not registered when NODE_ENV=production", async () => {
-    const port = 34584;
+    const port = 20584;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
@@ -186,7 +191,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-007 (#85 受け入れ条件「mise run devで起動後、http://localhost:3000/docsからSwagger UIを確認できる」): GET /docs serves the Swagger UI when NODE_ENV is not production", async () => {
-    const port = 34585;
+    const port = 20585;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;
@@ -202,7 +207,7 @@ describe("bootstrap (compiled build)", () => {
   });
 
   it("INT-BOOTSTRAP-008 (#91 成果物「main threadとWorkerのCatalog revision一致ready check」): the compiled build serves GET /api/v1/battle-simulation-catalog from a main-thread-built read model whose catalogRevision matches the Worker Pool's", async () => {
-    const port = 34586;
+    const port = 20586;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
     process.env["CATALOG_PATH"] = VALID_CATALOG_DIR;

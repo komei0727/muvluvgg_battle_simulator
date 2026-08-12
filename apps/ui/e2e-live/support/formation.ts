@@ -19,7 +19,18 @@ async function selectFirstAvailableUnit(page: Page): Promise<void> {
   throw new Error("No unit was found in the live Catalog's unit selection dialog.");
 }
 
+/**
+ * 既定モードは戦術演習（`UI-AC-018`）。live smokeは通常戦闘の縦切りを見るため、
+ * 編成を触る前にモードを切り替える —— 演習モードのままでは実行ボタンが
+ * 「戦術演習を開始」になり、「戦闘を開始」を待って必ずタイムアウトする
+ * （mock APIのe2eが`openBattleMode`で同じ切替をしているのと同じ理由）。
+ */
+export async function openLiveBattleMode(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "通常戦闘" }).click();
+}
+
 export async function fillMinimalLiveFormation(page: Page): Promise<void> {
+  await openLiveBattleMode(page);
   await page.getByRole("button", { name: "前衛1にユニットを追加" }).first().click();
   await selectFirstAvailableUnit(page);
 
