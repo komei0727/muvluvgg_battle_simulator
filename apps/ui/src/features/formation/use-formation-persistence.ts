@@ -49,7 +49,20 @@ function readPlayerData() {
 }
 
 export interface UseFormationPersistenceInput {
+  /** `mlgg:last-draft`へ保存するdraft（§5.9の保存対象は通常戦闘モードだけ）。 */
   readonly draft: BattleDraft;
+  /**
+   * 手持ちデータの書き戻し元、すなわち今まさに編集しているdraft。手持ちデータは
+   * モードに依らない味方の育成情報なので、どのモードで編集しても書き戻す
+   * （`UI-AC-030`）。
+   */
+  readonly editedDraft: BattleDraft;
+  /**
+   * 書き戻し元draftの識別子（モード）。これが変わっただけの再レンダーでは書き戻さない
+   * ——モード切替は編集ではなく、離れたモードのdraftが持つ古い値で最新の手持ちデータを
+   * 上書きしてはならない。
+   */
+  readonly editedDraftId: string;
   /**
    * 直近に強化入力を編集した枠（`FormationState.lastEditedSlotKey`）。同じユニットを
    * 複数枠へ置けるため、手持ちデータへ書き戻す枠をこれで一意に決める。
@@ -84,6 +97,8 @@ export interface FormationPersistence {
  */
 export function useFormationPersistence({
   draft,
+  editedDraft,
+  editedDraftId,
   lastEditedSlotKey,
   catalog,
   violations,
@@ -95,9 +110,17 @@ export function useFormationPersistence({
   // 味方の育成入力を手持ちデータへ書き戻す。draftの参照はreducerが値を変えたときだけ
   // 変わり、変化が無ければ`mergePlayerDataFromDraft`が同じ参照を返すので、ここが
   // 再レンダーのループになることはない。
+  const lastMergedDraftIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    setPlayerData((previous) => mergePlayerDataFromDraft(previous, draft, lastEditedSlotKey));
-  }, [draft, lastEditedSlotKey]);
+    const previousId = lastMergedDraftIdRef.current;
+    lastMergedDraftIdRef.current = editedDraftId;
+    // 書き戻し元が別のdraftへ切り替わった直後は書き戻さない。切替自体は編集では
+    // ないため、ここで書き戻すと切替先のdraftが持つ古い値で手持ちデータを上書きする。
+    if (previousId !== undefined && previousId !== editedDraftId) {
+      return;
+    }
+    setPlayerData((previous) => mergePlayerDataFromDraft(previous, editedDraft, lastEditedSlotKey));
+  }, [editedDraft, editedDraftId, lastEditedSlotKey]);
 
   useEffect(() => {
     if (isEmptyPlayerData(playerData)) {

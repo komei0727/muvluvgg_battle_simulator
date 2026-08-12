@@ -35,6 +35,7 @@ import {
   memorySlotsForSide,
   slotsForSide,
 } from "../features/formation/types.js";
+import type { Side } from "../features/formation/types.js";
 import { ValidationSummary } from "../features/formation/ValidationSummary.js";
 import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
@@ -148,9 +149,11 @@ export function BattleSimulatorPage({
   // 画面へ出さず、保存以外の機能をそのまま続ける。
   const persistence = useFormationPersistence({
     draft: battleState.draft,
-    ...(battleState.lastEditedSlotKey === undefined
+    editedDraft: formState.draft,
+    editedDraftId: mode,
+    ...(formState.lastEditedSlotKey === undefined
       ? {}
-      : { lastEditedSlotKey: battleState.lastEditedSlotKey }),
+      : { lastEditedSlotKey: formState.lastEditedSlotKey }),
     catalog,
     violations: battleView.violations,
     dispatch: battleDispatch,
@@ -169,6 +172,23 @@ export function BattleSimulatorPage({
     const action: FormationAction = { type: "allyEnhancementCleared" };
     exerciseDispatch(action);
   }, [clearPlayerData]);
+
+  // 学園レベルは手持ちデータ（`mlgg:player-data`）の一部であり、モードに依らない
+  // 味方の育成情報である（01_UI要求・画面設計.md §5.9）。モードごとのdraftへ同じ
+  // 編集を配り、どちらのモードで開いても同じ値が出るようにする。敵側は都度入力の
+  // 方針なので、編集中のモードだけへ配る。
+  const changeAcademyLevel = useCallback(
+    (side: Side, group: "unitTypes" | "attributes", key: string, value: number | "") => {
+      const action: FormationAction = { type: "academyLevelChanged", side, group, key, value };
+      if (side !== "ally") {
+        dispatch(action);
+        return;
+      }
+      battleDispatch(action);
+      exerciseDispatch(action);
+    },
+    [dispatch],
+  );
 
   const submit = () => {
     if (isExercise) {
@@ -207,9 +227,7 @@ export function BattleSimulatorPage({
       onEnhancementToggle={(side, enabled) => {
         dispatch({ type: "enhancementToggled", side, enabled });
       }}
-      onAcademyLevelChange={(side, group, key, value) => {
-        dispatch({ type: "academyLevelChanged", side, group, key, value });
-      }}
+      onAcademyLevelChange={changeAcademyLevel}
       onMoveUnit={(fromSlotKey, toSlotKey) => {
         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
       }}
@@ -265,9 +283,7 @@ export function BattleSimulatorPage({
                       onEnhancementToggle={(side, enabled) => {
                         dispatch({ type: "enhancementToggled", side, enabled });
                       }}
-                      onAcademyLevelChange={(side, group, key, value) => {
-                        dispatch({ type: "academyLevelChanged", side, group, key, value });
-                      }}
+                      onAcademyLevelChange={changeAcademyLevel}
                     />
                   ) : (
                     <FormationEditor
@@ -298,9 +314,7 @@ export function BattleSimulatorPage({
                       onEnhancementToggle={(side, enabled) => {
                         dispatch({ type: "enhancementToggled", side, enabled });
                       }}
-                      onAcademyLevelChange={(side, group, key, value) => {
-                        dispatch({ type: "academyLevelChanged", side, group, key, value });
-                      }}
+                      onAcademyLevelChange={changeAcademyLevel}
                       onMoveUnit={(fromSlotKey, toSlotKey) => {
                         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
                       }}
