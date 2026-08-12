@@ -20559,25 +20559,29 @@
                               "details": {
                                 "type": "object",
                                 "additionalProperties": false,
-                                "required": ["outcome", "completionReason", "completedTurn"],
+                                "required": [
+                                  "completionReason",
+                                  "completedTurn",
+                                  "totalScore",
+                                  "breakCount"
+                                ],
                                 "properties": {
-                                  "outcome": {
-                                    "type": "string",
-                                    "enum": ["ALLY_WIN", "ALLY_LOSE"]
-                                  },
                                   "completionReason": {
                                     "type": "string",
-                                    "enum": [
-                                      "ENEMY_DEFEATED",
-                                      "ALLY_DEFEATED",
-                                      "SIMULTANEOUS_DEFEAT",
-                                      "TURN_LIMIT_REACHED"
-                                    ]
+                                    "enum": ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"]
                                   },
                                   "completedTurn": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 99
+                                    "maximum": 5
+                                  },
+                                  "totalScore": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "breakCount": {
+                                    "type": "integer",
+                                    "minimum": 0
                                   }
                                 }
                               },

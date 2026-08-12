@@ -1136,6 +1136,26 @@ const battleCompletedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `08_ドメインイベント.md`「BattleCompleted payload」: 確定した結果そのものを運ぶため、
+ * 戦闘モードによって形が異なり両者は排他とする。戦術演習は勝敗を持たず（R-TEX-10 #1）、
+ * 終了理由は2つだけ（R-TEX-09 #1）で、総スコアとブレイク回数を伴う。通常戦闘用の
+ * schemaは`outcome`を必須・`additionalProperties: false`とするため、演習の
+ * `BattleCompleted`はそちらへ適合しない——同じ`type`で形が変わる唯一のイベントであり、
+ * 演習側unionでは必ずこちらへ差し替える。
+ */
+const exerciseBattleCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["completionReason", "completedTurn", "totalScore", "breakCount"],
+  properties: {
+    completionReason: { type: "string", enum: ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"] },
+    completedTurn: { type: "integer", minimum: 1, maximum: 5 },
+    totalScore: { type: "integer", minimum: 0 },
+    breakCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 const COOLDOWN_UNIT_ENUM = ["ACTION", "TURN"] as const;
 
 const cooldownStartedDetailsSchema = {
@@ -2386,6 +2406,7 @@ const UNKNOWN_EVENT_TYPE_TOLERANCE_DESCRIPTION =
  */
 const EXERCISE_EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   ...EVENT_DETAILS_SCHEMA_BY_TYPE,
+  BATTLE_COMPLETED: exerciseBattleCompletedDetailsSchema,
   COMBAT_STAT_CHANGED: exerciseCombatStatChangedDetailsSchema,
   RESOURCE_CAPACITY_CHANGED: exerciseResourceCapacityChangedDetailsSchema,
   EXERCISE_SCORE_ACCUMULATED: exerciseScoreAccumulatedDetailsSchema,

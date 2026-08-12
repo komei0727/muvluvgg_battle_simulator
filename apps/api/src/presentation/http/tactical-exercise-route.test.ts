@@ -9,9 +9,23 @@ import {
 import { tacticalExerciseResponseDocSchema } from "./schemas/simulation/tactical-exercise-schema.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
 import type { TacticalExerciseResponseBody } from "../../application/contracts/response.js";
+import { toSimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-request-mapper.js";
+import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import type { SimulateTacticalExerciseResult } from "../../application/simulation/simulation-result-assembler.js";
-import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createSkillDefinitionId,
+  createUnitDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { ManualClock } from "../../testing/clock/manual-clock.js";
+import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
+import { SequenceRandomSourceFactory } from "../../testing/random/sequence-random-source-factory.js";
+import { CatalogBuilder } from "../../testing/scenario/catalog-builder.js";
+import {
+  attackSkill,
+  damageEffectAction,
+  unitDefinition,
+} from "../../testing/scenario/definition-builders.js";
 
 /**
  * 検証対象は`routes/tactical-exercise-route.ts`だが、protocol header・エラー変換は
@@ -128,6 +142,40 @@ function exerciseUseCase(
   return { executeTacticalExercise };
 }
 
+const EXERCISE_ATTACK_SKILL = "SKL_EXERCISE_ATTACK";
+const EXERCISE_ATTACK_ACTION = "ACT_EXERCISE_ATTACK";
+
+/**
+ * 固定結果のstubではなく実`SimulateTacticalExerciseUseCase`を通す版。攻撃力が敵HPを
+ * 上回るのでブレイクとブレイク強化（R-TEX-03／04）まで到達し、演習だけが発行する
+ * イベントが実際に公開レスポンスへ載る——手書きのfixtureでは公開Schemaとの不一致を
+ * 検出できないため（`API-TEX-010`）。Worker Threadは`build-server.cors.test.ts`と同じく
+ * 薄いdirect adapterで代替する。
+ */
+function buildRealExerciseUseCase(): SimulateTacticalExerciseUseCasePort {
+  const catalog = new CatalogBuilder()
+    .withUnit(
+      unitDefinition("UNIT_ALLY", {
+        baseStats: { maximumAp: 1, attack: 100 },
+        activeSkillDefinitionIds: [createSkillDefinitionId(EXERCISE_ATTACK_SKILL)],
+      }),
+      unitDefinition("UNIT_ENEMY", { baseStats: { maximumHp: 100, defense: 0 } }),
+    )
+    .withSkill(attackSkill(EXERCISE_ATTACK_SKILL, EXERCISE_ATTACK_ACTION))
+    .withEffectAction(damageEffectAction(EXERCISE_ATTACK_ACTION))
+    .build();
+  const useCase = new SimulateTacticalExerciseUseCase({
+    battleCatalog: catalog,
+    battleIdGenerator: new FixedBattleIdGenerator(["B_EXERCISE"]),
+    randomSourceFactory: new SequenceRandomSourceFactory(Array.from({ length: 200 }, () => 0.99)),
+    clock: new ManualClock(0),
+  });
+  return {
+    executeTacticalExercise: (request, context) =>
+      Promise.resolve(useCase.execute(toSimulateTacticalExerciseCommand(request), context)),
+  };
+}
+
 describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシミュレーションする」)", () => {
   let app: FastifyInstance | undefined;
 
@@ -193,6 +241,57 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
 
     const validate = new Ajv({ strict: false }).compile(tacticalExerciseResponseDocSchema);
     const valid = validate(response.json());
+    expect(valid, JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2)).toBe(true);
+  });
+
+  it("API-TEX-010 (12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」): a real exercise's 200 body — with the exercise-only events actually emitted — satisfies the doc schema, so BATTLE_COMPLETED and the break events cannot be published in a shape no client can decode", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      exerciseUseCase: buildRealExerciseUseCase(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: TACTICAL_EXERCISES_PATH,
+      payload: {
+        allyFormation: {
+          units: [{ unitDefinitionId: "UNIT_ALLY", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        options: { logLevel: "DIAGNOSTIC" },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<TacticalExerciseResponseBody>();
+
+    // このCatalogは敵HPより高い攻撃力を持つので、ブレイクとブレイク強化まで到達する
+    // ——`BATTLE_COMPLETED`だけでなく演習専用イベント一式が実際に公開される。
+    const publishedTypes = new Set(body.events.map((event) => event.type));
+    for (const type of [
+      "BATTLE_COMPLETED",
+      "EXERCISE_SCORE_ACCUMULATED",
+      "UNIT_BROKEN",
+      "UNIT_REVIVED",
+    ]) {
+      expect(publishedTypes, `the exercise published no ${type}`).toContain(type);
+    }
+    // R-TEX-10 #1: 演習の`BattleCompleted`は勝敗を持たず、総スコアとブレイク回数を運ぶ。
+    const completed = body.events.find((event) => event.type === "BATTLE_COMPLETED");
+    expect(completed?.details).not.toHaveProperty("outcome");
+    expect(completed?.details).toMatchObject({
+      completionReason: body.result.completionReason,
+      completedTurn: body.result.completedTurn,
+      totalScore: body.result.totalScore,
+      breakCount: body.result.breakCount,
+    });
+    expect(body.result.breakCount).toBeGreaterThan(0);
+
+    const validate = new Ajv({ strict: false }).compile(tacticalExerciseResponseDocSchema);
+    const valid = validate(body);
     expect(valid, JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2)).toBe(true);
   });
 
