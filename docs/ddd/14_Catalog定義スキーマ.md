@@ -1864,7 +1864,7 @@ condition:
 - { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
 ```
 
-`DAMAGE_MAX_HP_RATIO`は`EVENT_PAYLOAD`の変種で、`field`が指すpayloadの被弾量（数値）を`TRIGGER_TARGET`（被弾ユニット）の最大HPで割った**比率**を`op`/`value`（数値）と比較する。リテラル比較では表せない「1ヒットで最大HP×N%以上のダメージを負った際」を表す（`R-PS-01`）。`field`は被弾量を持つpayloadプロパティ名（`HitPointReduced`の`hitPointDamage`＝シールド吸収後に実際へHPを減らした量、が代表）を直接指す。trigger条件（`TriggerDefinition.condition`）専用であり、`EVENT_PAYLOAD`と違いEffectStep評価器がこの条件を処理しないため、skillType・Memoryを問わずすべてのresolution step位置はCatalogロード時に拒否する（`DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER`）。
+`DAMAGE_MAX_HP_RATIO`は`EVENT_PAYLOAD`の変種で、`field`が指すpayloadの被弾量（数値）を`TRIGGER_TARGET`（被弾ユニット）の最大HPで割った**比率**を`op`/`value`（数値）と比較する。リテラル比較では表せない「1ヒットで最大HP×N%以上のダメージを負った際」を表す（`R-PS-01`）。`field`は被弾量を持つpayloadプロパティ名（`HitPointReduced`の`hitPointDamage`＝シールド吸収後に実際へHPを減らした量、が代表）を直接指す。trigger条件（`TriggerDefinition.condition`。Skillの`triggers[]`・`counterUpdates[].trigger`・Memoryのtriggerを含む）専用であり、`EVENT_PAYLOAD`と違いEffectStep評価器がこの条件を処理しないため、それ以外の配置 — skillType・Memoryを問わずすべてのresolution step位置、`activationCondition`、`expiration.conditions` — はCatalogロード時に拒否する（`DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER`）。
 
 ```yaml
 # 例: 「自身が敵からの攻撃1ヒットで、最大HP×15%以上のダメージを負った際に発動」

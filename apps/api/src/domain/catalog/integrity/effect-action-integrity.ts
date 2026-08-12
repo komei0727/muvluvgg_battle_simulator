@@ -3,7 +3,10 @@ import type { ActionKind } from "../definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
-import { collectConditionEffectActionReferences } from "./condition-inspection.js";
+import {
+  collectConditionEffectActionReferences,
+  conditionContainsDamageMaxHpRatio,
+} from "./condition-inspection.js";
 import { durationOf } from "./effect-action-inspection.js";
 import { validateConditionEffectActionReferences } from "./effect-sequence-integrity.js";
 
@@ -43,6 +46,21 @@ export function validateEffectAction(
       effectAction.effectActionDefinitionId,
       violations,
     );
+    // R-PS-01: `DAMAGE_MAX_HP_RATIO`はtrigger条件（`TriggerDefinition.condition`）専用。
+    // `expiration.conditions`は保持者スコープの特殊失効条件であり、この専用契約の
+    // 対象外の配置としてロード時に拒否する（`counterUpdates[].trigger.condition`は
+    // TriggerDefinitionそのものなので許可）。
+    if (
+      (duration.expiration?.conditions ?? []).some((condition) =>
+        conditionContainsDamageMaxHpRatio(condition),
+      )
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER",
+        message: `a DAMAGE_MAX_HP_RATIO condition is trigger-scoped (TriggerDefinition.condition only) — expiration.conditions of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+      });
+    }
   }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {
     for (const referencedId of effectAction.payload.effectActionDefinitionIds ?? []) {

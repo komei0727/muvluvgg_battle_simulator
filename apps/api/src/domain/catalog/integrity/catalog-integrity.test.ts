@@ -2877,6 +2877,108 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
   });
 
+  it.each([
+    { skillType: "AS" as const },
+    { skillType: "EX" as const },
+    { skillType: "PS" as const },
+  ])(
+    "UT-CAT-IDX-103 (R-PS-01): rejects a DAMAGE_MAX_HP_RATIO activationCondition on a $skillType skill — AS/EX action selection evaluates it with the step evaluator and would halt the battle",
+    ({ skillType }) => {
+      const defs = baseDefinitions();
+      const skill = createSkillDefinition({
+        skillDefinitionId: skillType === "PS" ? "SKL_PS1" : "SKL_ACTIVE1",
+        skillType,
+        cost:
+          skillType === "AS"
+            ? { resource: "AP", amount: 1 }
+            : skillType === "EX"
+              ? { resource: "EX_GAUGE", amount: 7 }
+              : { resource: "PP", amount: 1 },
+        ...(skillType === "PS"
+          ? {
+              triggers: [
+                {
+                  eventType: "HitPointReduced",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                },
+              ],
+            }
+          : {}),
+        activationCondition: {
+          kind: "DAMAGE_MAX_HP_RATIO",
+          field: "hitPointDamage",
+          op: "GTE",
+          value: 0.15,
+        },
+        resolution: {
+          kind: "IMMEDIATE",
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: skillType === "AS" ? 1 : 0 },
+        traits: {},
+        metadata: { displayName: `Damage-ratio-activation ${skillType}` },
+      });
+      const units =
+        skillType === "PS"
+          ? [unit("UNIT_001", { passive: ["SKL_PS1"] })]
+          : [unit("UNIT_001", { active: ["SKL_ACTIVE1"] })];
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          units,
+          skills: skillType === "PS" ? [...defs.skills, skill] : [skill, exSkill("SKL_EX1", 7)],
+        }),
+      ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
+    },
+  );
+
+  it("UT-CAT-IDX-104 (R-PS-01): rejects a DAMAGE_MAX_HP_RATIO inside DurationDefinition expiration.conditions — the kind is TriggerDefinition.condition only", () => {
+    const action = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_DAMAGE_RATIO_EXPIRY",
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: "ATTACK",
+          valueType: "FIXED",
+          formula: { kind: "CONSTANT", value: 20 },
+          stacking: { mode: "STACKABLE" },
+          duration: {
+            timeLimit: { unit: "BATTLE", count: 1 },
+            dispellable: true,
+            expiration: {
+              conditions: [
+                {
+                  kind: "DAMAGE_MAX_HP_RATIO",
+                  field: "hitPointDamage",
+                  op: "GTE",
+                  value: 0.15,
+                },
+              ],
+            },
+          },
+        },
+      },
+      "effectAction",
+    );
+    const defs = baseDefinitions();
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_DAMAGE_RATIO_EXPIRY")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, action],
+      }),
+    ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
+  });
+
   it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
     const defs = baseDefinitions();
     const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
