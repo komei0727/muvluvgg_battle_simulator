@@ -31,6 +31,12 @@ import type { UiViolation } from "./draft-validation.js";
 
 export const PLAYER_DATA_STORAGE_KEY = "mlgg:player-data";
 export const LAST_DRAFT_STORAGE_KEY = "mlgg:last-draft";
+/**
+ * 戦術演習draftの保存先。モードごとに別キーへ分ける（01_UI要求・画面設計.md §5.9）。
+ * 1つのキーへ両モードのdraftを入れると、既に`mlgg:last-draft`へ書かれている
+ * 単一draft形式と互換が切れ、前回セッションの通常戦闘の編成が丸ごと失われる。
+ */
+export const EXERCISE_DRAFT_STORAGE_KEY = "mlgg:last-draft:exercise";
 
 /**
  * 保存形式の版。draft型・手持ちデータの構造を変えたら上げる。異なる版の保存データは

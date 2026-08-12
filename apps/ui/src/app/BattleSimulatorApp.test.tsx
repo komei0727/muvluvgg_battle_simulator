@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { GetCatalogOptions, SimulateOptions } from "../features/simulation/api-client.js";
@@ -9,6 +10,20 @@ import type {
 } from "../features/simulation/api-contract.js";
 import { BattleSimulatorApp } from "./BattleSimulatorApp.js";
 import type { BattleSimulationRequest } from "../features/formation/request-mapper.js";
+
+/**
+ * 既定モードは戦術演習（`UI-AC-018`）。ここで見るのは通常戦闘モードの配線なので、
+ * render直後に通常戦闘タブへ切り替える。接続設定エラーの表示ではタブ自体が
+ * 描画されないため、存在するときだけ押す。
+ */
+function render(ui: ReactElement) {
+  const result = renderComponent(ui);
+  const battleTab = screen.queryByRole("tab", { name: "通常戦闘" });
+  if (battleTab !== null) {
+    fireEvent.click(battleTab);
+  }
+  return result;
+}
 
 // The real definition-image-map.ts globs locally-synced, gitignored assets
 // (apps/ui/scripts/sync-character-images.mjs) that are absent in CI.

@@ -1,5 +1,13 @@
 import type { Page } from "@playwright/test";
 
+/**
+ * 既定モードは戦術演習（`UI-AC-018`）。通常戦闘モードの画面を見るspecは
+ * `page.goto()`の直後にこれを呼ぶ。
+ */
+export async function openBattleMode(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "通常戦闘" }).click();
+}
+
 // Ally and enemy FormationEditor instances render an identical accessible
 // name ("前衛1にユニットを追加") for their FRONT/column-0 slot. Filling the
 // ally slot first changes its name (e.g. "前衛1: アライアルファを変更"), so

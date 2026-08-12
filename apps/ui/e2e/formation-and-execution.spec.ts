@@ -3,7 +3,7 @@ import { battleDamageBreakdownFixture } from "./fixtures/battle-damage-breakdown
 import { battleHealEffectsFixture } from "./fixtures/battle-heal-effects.js";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
-import { fillMinimalFormation } from "./support/formation.js";
+import { fillMinimalFormation, openBattleMode } from "./support/formation.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 
 test.beforeEach(async ({ page }) => {
@@ -19,6 +19,7 @@ test("runs a minimal battle from formation to summary, tolerating an unknown eve
 }) => {
   await mockSimulationSequence(page, [{ status: 200, body: battleSuccessFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   await page.getByRole("button", { name: "戦闘を開始" }).click();
@@ -42,6 +43,7 @@ test("shows the actually applied healing and the granted effects/status of an M7
 }) => {
   await mockSimulationSequence(page, [{ status: 200, body: battleHealEffectsFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   await page.getByRole("button", { name: "戦闘を開始" }).click();
@@ -72,6 +74,7 @@ test("separates calculated damage, shield/sub unit absorption and HP damage of a
 }) => {
   await mockSimulationSequence(page, [{ status: 200, body: battleDamageBreakdownFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   await page.getByRole("button", { name: "戦闘を開始" }).click();
@@ -115,6 +118,7 @@ test("separates calculated damage, shield/sub unit absorption and HP damage of a
 // UI-E2E-002: memory dialogの全itemが選択できる。
 test("offers every memory in the dialog for selection", async ({ page }) => {
   await page.goto("./");
+  await openBattleMode(page);
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
 
   await page.getByRole("button", { name: "メモリー1を追加" }).first().click();
@@ -130,6 +134,7 @@ test("switches between the event, transition, and JSON tabs and copies the JSON"
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await mockSimulationSequence(page, [{ status: 200, body: battleSuccessFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   await page.getByRole("button", { name: "戦闘を開始" }).click();
@@ -165,6 +170,7 @@ test("moves and swaps units within a side via drag and drop, rejecting cross-sid
   page,
 }) => {
   await page.goto("./");
+  await openBattleMode(page);
 
   // ally前衛1へ配置し、空のally後衛1へdragで移動する。
   await page.getByRole("button", { name: "前衛1にユニットを追加" }).first().click();

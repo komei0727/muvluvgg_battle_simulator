@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { exerciseSuccessFixture } from "./fixtures/exercise-success.js";
 import { mockCatalog, mockTacticalExercise } from "./support/mock-api.js";
+import { openBattleMode } from "./support/formation.js";
 
 // docs/ui-design/06_UIテスト戦略.md §6 「Mock API E2E」: 戦術演習モードの
 // 縦切り（モード切替 → 演習編成 → 実行 → スコア・ブレイク履歴・演習イベント）。
@@ -111,6 +112,7 @@ test("centers the empty unit slot's placeholder in both modes", async ({ page })
 // 利用者自身の育成情報なので、敵陣営には出さない。
 test("shows no enemy enhancement controls in the exercise mode", async ({ page }) => {
   await page.goto("./");
+  await openBattleMode(page);
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
   await expect(page.getByText("ENEMY ENHANCEMENT / 学園レベル")).toBeVisible();
 
@@ -125,6 +127,7 @@ test("shows no enemy enhancement controls in the exercise mode", async ({ page }
 // 開催終了をバッジで示す。通常戦闘・演習味方の選択にはプレイアブルだけが出る。
 test("separates the exercise enemy pool from the playable pool", async ({ page }) => {
   await page.goto("./");
+  await openBattleMode(page);
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
 
   // 通常戦闘: 両陣営とも演習専用ユニットを出さない。

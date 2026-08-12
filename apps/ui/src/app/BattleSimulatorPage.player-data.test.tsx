@@ -180,6 +180,7 @@ describe("BattleSimulatorPage — 手持ちデータはモード共通 (UI-AC-03
     const user = userEvent.setup();
     renderPage();
     await waitForCatalog();
+    await switchMode(user, "通常戦闘");
     await enableAllyEnhancement(user);
     await placeAlly(user, "アルファ");
     await setAllyUnitLevel(user, "180");

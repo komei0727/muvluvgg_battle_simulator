@@ -179,14 +179,19 @@ describe("BattleSimulatorPage — mode tabs (UI-CT-027)", () => {
     );
     await waitForCatalog();
 
-    const battleTab = screen.getByRole("tab", { name: "通常戦闘" });
-    expect(battleTab).toHaveAttribute("aria-selected", "true");
+    const exerciseTab = screen.getByRole("tab", { name: "戦術演習" });
+    expect(exerciseTab).toHaveAttribute("aria-selected", "true");
 
-    battleTab.focus();
+    exerciseTab.focus();
+    await user.keyboard("{ArrowLeft}");
+
+    expect(screen.getByRole("tab", { name: "通常戦闘" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "戦術演習" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByText("POST /api/v1/battle-simulations")).toBeInTheDocument();
+
     await user.keyboard("{ArrowRight}");
 
     expect(screen.getByRole("tab", { name: "戦術演習" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "通常戦闘" })).toHaveAttribute("aria-selected", "false");
     expect(screen.getByText("POST /api/v1/tactical-exercises")).toBeInTheDocument();
   });
 });
@@ -451,6 +456,7 @@ describe("BattleSimulatorPage — per-mode state isolation (UI-CT-032)", () => {
     await waitForCatalog();
 
     // 通常戦闘: 編成して送信し、応答を保留したままモードを離れる。
+    await switchMode(user, "通常戦闘");
     await placeUnit(user, "ally", "アルファ");
     await placeUnit(user, "enemy", "ブラボー");
     await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
@@ -533,9 +539,7 @@ describe("BattleSimulatorPage — unit pools (UI-CT-053/054/055)", () => {
       const user = userEvent.setup();
       renderPage();
       await waitForCatalog();
-      if (modeLabel === "戦術演習") {
-        await switchMode(user, modeLabel);
-      }
+      await switchMode(user, modeLabel);
 
       await openUnitDialog(user, side);
 
@@ -609,6 +613,7 @@ describe("BattleSimulatorPage — restored draft with a mismatched pool (UI-CT-0
       />,
     );
     await waitForCatalog();
+    await switchMode(userEvent.setup(), "通常戦闘");
 
     expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeDisabled();
     expect(
@@ -647,6 +652,7 @@ describe("BattleSimulatorPage — stat preview mode (UI-CT-057)", () => {
     );
     await waitForCatalog();
 
+    await switchMode(user, "通常戦闘");
     await placeUnit(user, "ally", "アルファ");
     await waitFor(() => {
       expect(previewFormationStatsImpl).toHaveBeenCalled();
@@ -660,5 +666,79 @@ describe("BattleSimulatorPage — stat preview mode (UI-CT-057)", () => {
     await waitFor(() => {
       expect(previewFormationStatsImpl.mock.calls.at(-1)![0].mode).toBe("TACTICAL_EXERCISE");
     });
+  });
+});
+
+// UI-CT-058 / UI-CT-059: 戦術演習を既定モードにし、演習draftも通常戦闘と同じく
+// リロードをまたいで復元する。
+describe("BattleSimulatorPage — exercise mode as the default (UI-CT-058/059)", () => {
+  function renderPage() {
+    return render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+  }
+
+  it("UI-CT-058: opens on the tactical exercise tab", async () => {
+    renderPage();
+    await waitForCatalog();
+
+    expect(screen.getByRole("tab", { name: "戦術演習" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "通常戦闘" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByText("POST /api/v1/tactical-exercises")).toBeInTheDocument();
+  });
+
+  it("UI-CT-059: restores the exercise formation after a remount", async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    first.unmount();
+
+    renderPage();
+    await waitForCatalog();
+
+    expect(
+      within(screen.getByRole("region", { name: /ALLY FORMATION/ })).getByRole("button", {
+        name: /前衛1: アルファを変更/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: /ENEMY FORMATION/ })).getByRole("button", {
+        name: /前衛1: エクサを変更/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  // 両モードのdraftは別々のキーへ保存する。片方の編成がもう片方へ現れてはならない。
+  it("keeps the battle draft separate from the exercise draft across a remount", async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await switchMode(user, "通常戦闘");
+    await placeUnit(user, "enemy", "ブラボー");
+    first.unmount();
+
+    renderPage();
+    await waitForCatalog();
+
+    // 既定は演習モード: 演習の敵枠が戻る。
+    expect(
+      within(screen.getByRole("region", { name: /ENEMY FORMATION/ })).getByRole("button", {
+        name: /前衛1: エクサを変更/,
+      }),
+    ).toBeInTheDocument();
+
+    await switchMode(user, "通常戦闘");
+    expect(
+      within(screen.getByRole("region", { name: /ENEMY FORMATION/ })).getByRole("button", {
+        name: /前衛1: ブラボーを変更/,
+      }),
+    ).toBeInTheDocument();
   });
 });
