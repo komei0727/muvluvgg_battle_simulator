@@ -1,17 +1,22 @@
 import { useMemo } from "react";
-import { OutcomeStrip } from "./OutcomeStrip.js";
+import type { ReactNode } from "react";
 import { selectBattleSummary } from "./summary-projector.js";
 import { UnitSummaryTable } from "./UnitSummaryTable.js";
 import type {
+  BattleLogResponse,
   BattleSimulationCatalogResponse,
-  BattleSimulationResponse,
 } from "../simulation/api-contract.js";
 import styles from "./BattleSummarySection.module.css";
 
 export interface BattleSummarySectionProps {
-  readonly response: BattleSimulationResponse;
+  readonly response: BattleLogResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
-  readonly turnLimit: number;
+  /**
+   * 結果ヘッダー。通常戦闘は`OutcomeStrip`、戦術演習は`ScoreSummaryHeader`＋
+   * `BreakTimeline`（`UI-CMP-012`）。演習は勝敗を持たないため、集計表と共通の
+   * 部分だけをこのcomponentが持ち、結果DTOに依存する表示は呼び出し側が渡す。
+   */
+  readonly header: ReactNode;
   readonly imageMap?: Readonly<Record<string, string>>;
 }
 
@@ -29,7 +34,7 @@ const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
 export function BattleSummarySection({
   response,
   catalog,
-  turnLimit,
+  header,
   imageMap,
 }: BattleSummarySectionProps) {
   const projection = useMemo(
@@ -39,12 +44,7 @@ export function BattleSummarySection({
 
   return (
     <div>
-      <OutcomeStrip
-        result={response.result}
-        turnLimit={turnLimit}
-        battleId={response.battleId}
-        catalogRevision={response.catalogRevision}
-      />
+      {header}
       {projection.hasProjectionWarning ? (
         <p className={styles["warning"]} role="alert">
           一部イベントを集計できませんでした。

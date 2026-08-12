@@ -42,7 +42,13 @@ describe("SubmissionFeedback — idle", () => {
   it("renders nothing when idle", () => {
     const state: ExecutionState = { status: "idle" };
     const { container } = render(
-      <SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />,
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -63,7 +69,15 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       allyGearSlotIndices: [],
       enemyGearSlotIndices: [],
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     const region = screen.getByText(/実行中/).closest("[aria-live]");
     expect(region).toHaveAttribute("aria-live", "polite");
@@ -83,7 +97,15 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
       enemyGearSlotIndices: [],
       previousSuccess: successSnapshot(),
     };
-    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={true}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
     expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
@@ -100,7 +122,15 @@ describe("SubmissionFeedback — succeeded (UI-UC-003)", () => {
       requestId: "srv-req-1",
       completedAt: 1000,
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
     expect(screen.getByText(/rev-1/)).toBeInTheDocument();
@@ -115,7 +145,15 @@ describe("SubmissionFeedback — succeeded (UI-UC-003)", () => {
       response: response(),
       completedAt: 1000,
     };
-    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={true}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
@@ -128,7 +166,15 @@ describe("SubmissionFeedback — succeeded (UI-UC-003)", () => {
       response: response(),
       completedAt: 1000,
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByText(/変更前の条件/)).not.toBeInTheDocument();
   });
@@ -153,7 +199,15 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       allyGearSlotIndices: [],
       enemyGearSlotIndices: [],
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/Unexpected failure\./)).toBeInTheDocument();
     expect(screen.getByText(/INTERNAL_INVARIANT_VIOLATION/)).toBeInTheDocument();
@@ -174,7 +228,15 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       allyGearSlotIndices: [],
       enemyGearSlotIndices: [],
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
     expect(screen.getByText(/Server busy\./)).toBeInTheDocument();
@@ -193,7 +255,15 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       allyGearSlotIndices: [],
       enemyGearSlotIndices: [],
     };
-    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={true}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
@@ -216,7 +286,15 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       allyGearSlotIndices: [],
       enemyGearSlotIndices: [],
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={onReloadCatalog} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={onReloadCatalog}
+      />,
+    );
 
     const reloadButton = screen.getByRole("button", { name: /Catalogを再読込/ });
     await user.click(reloadButton);
@@ -236,7 +314,15 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
       allyGearSlotIndices: [],
       enemyGearSlotIndices: [],
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByRole("button", { name: /Catalogを再読込/ })).not.toBeInTheDocument();
   });
@@ -256,6 +342,8 @@ describe("SubmissionFeedback — Catalog revision mismatch (Issue #96 P1)", () =
     render(
       <SubmissionFeedback
         state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
         isDirty={false}
         catalogRevisionMismatch={true}
         onReloadCatalog={onReloadCatalog}
@@ -286,6 +374,8 @@ describe("SubmissionFeedback — Catalog revision mismatch (Issue #96 P1)", () =
     render(
       <SubmissionFeedback
         state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
         isDirty={false}
         catalogRevisionMismatch={true}
         onReloadCatalog={vi.fn()}
@@ -307,6 +397,8 @@ describe("SubmissionFeedback — Catalog revision mismatch (Issue #96 P1)", () =
     render(
       <SubmissionFeedback
         state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
         isDirty={false}
         catalogRevisionMismatch={false}
         onReloadCatalog={vi.fn()}
@@ -321,7 +413,15 @@ describe("SubmissionFeedback — Catalog revision mismatch (Issue #96 P1)", () =
 describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
   it("shows a cancellation-requested message, not a completed-cancellation claim (P3, §7 UI待機上限)", () => {
     const state: ExecutionState = { status: "cancelled", executionId: "exec-1" };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("キャンセルを要求しました。")).toBeInTheDocument();
   });
@@ -332,7 +432,15 @@ describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
       executionId: "exec-2",
       previousSuccess: successSnapshot(),
     };
-    render(<SubmissionFeedback state={state} isDirty={false} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={false}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
   });
@@ -343,7 +451,15 @@ describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
       executionId: "exec-2",
       previousSuccess: successSnapshot(),
     };
-    render(<SubmissionFeedback state={state} isDirty={true} onReloadCatalog={vi.fn()} />);
+    render(
+      <SubmissionFeedback
+        state={state}
+        successMessage="戦闘が完了しました。"
+        resultSummary="ALLY_WIN / ENEMY_DEFEATED (turn 3)"
+        isDirty={true}
+        onReloadCatalog={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });

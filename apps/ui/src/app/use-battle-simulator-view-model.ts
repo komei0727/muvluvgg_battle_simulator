@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import { selectCanSubmit, validateDraft } from "../features/formation/draft-validation.js";
-import { buildBattleSimulationRequest } from "../features/formation/request-mapper.js";
+import { selectCanSubmit } from "../features/formation/draft-validation.js";
 import {
   selectDisplayedSuccess,
   selectIsCatalogRevisionMismatch,
@@ -11,46 +10,65 @@ import type { CatalogLoadState } from "../features/catalog-selection/catalog-loa
 import type { UiViolation } from "../features/formation/draft-validation.js";
 import type { BattleDraft } from "../features/formation/types.js";
 import type { RequestBuildResult } from "../features/formation/request-mapper.js";
+import type { BattleSimulationCatalogResponse } from "../features/simulation/api-contract.js";
 import type {
+  ExecutionResponseLike,
   ExecutionState,
   SuccessfulExecutionSnapshot,
 } from "../features/simulation/execution-reducer.js";
 
-export interface BattleSimulatorViewModel {
+export interface BattleSimulatorViewModel<TRequest, TResponse extends ExecutionResponseLike> {
   /** draft単体の検証結果。`ValidationSummary`はサーバ由来を混ぜずこれだけを出す。 */
   readonly violations: readonly UiViolation[];
   /** draft検証 + 直近422のサーバ違反。slot単位の表示はこちらを使う。 */
   readonly displayedViolations: readonly UiViolation[];
-  readonly requestBuild: RequestBuildResult;
+  readonly requestBuild: RequestBuildResult<TRequest>;
   readonly isSubmitting: boolean;
   readonly canSubmit: boolean;
   readonly formationDisabled: boolean;
-  readonly displayedSuccess: SuccessfulExecutionSnapshot | undefined;
+  readonly displayedSuccess: SuccessfulExecutionSnapshot<TRequest, TResponse> | undefined;
   readonly isDirty: boolean;
   readonly catalogRevisionMismatch: boolean;
 }
 
-export interface BattleSimulatorViewModelInput {
+export interface BattleSimulatorViewModelInput<TRequest, TResponse extends ExecutionResponseLike> {
   readonly catalog: CatalogLoadState;
   readonly draft: BattleDraft;
-  readonly execution: ExecutionState;
+  readonly execution: ExecutionState<TRequest, TResponse>;
+  /**
+   * モード別の送信前検証とリクエスト生成。通常戦闘は`validateDraft`／
+   * `buildBattleSimulationRequest`、戦術演習は`validateExerciseDraft`／
+   * `buildTacticalExerciseRequest`（`UI-AC-020`、`UI-API-014`）。
+   */
+  readonly validate: (
+    draft: BattleDraft,
+    catalog: BattleSimulationCatalogResponse,
+  ) => readonly UiViolation[];
+  readonly buildRequest: (draft: BattleDraft) => RequestBuildResult<TRequest>;
 }
 
 /**
  * `BattleSimulatorPage` の描画に必要な派生値をまとめて導出する。状態そのものは
  * 3つのslice（catalog／formation／execution）が持ち、ここは純粋なselectorの合成
  * だけを担う（04_コンポーネント・状態管理設計.md §1・§4）。
+ *
+ * UI-CMP-013: モードごとに1回ずつ呼び、モード間で派生値を共有しない。
  */
-export function useBattleSimulatorViewModel({
+export function useBattleSimulatorViewModel<TRequest, TResponse extends ExecutionResponseLike>({
   catalog,
   draft,
   execution,
-}: BattleSimulatorViewModelInput): BattleSimulatorViewModel {
+  validate,
+  buildRequest,
+}: BattleSimulatorViewModelInput<TRequest, TResponse>): BattleSimulatorViewModel<
+  TRequest,
+  TResponse
+> {
   const violations = useMemo(
-    () => (catalog.status === "ready" ? validateDraft(draft, catalog.response) : []),
-    [catalog, draft],
+    () => (catalog.status === "ready" ? validate(draft, catalog.response) : []),
+    [catalog, draft, validate],
   );
-  const requestBuild = useMemo(() => buildBattleSimulationRequest(draft), [draft]);
+  const requestBuild = useMemo(() => buildRequest(draft), [draft, buildRequest]);
 
   const serverViolations = useMemo(
     () =>

@@ -45,10 +45,29 @@ export interface BattleSimulationRequest {
   readonly options: { readonly logLevel: LogLevel };
 }
 
-export type RequestBuildResult =
+const ROW_ORDER: Readonly<Record<UiRow, number>> = { FRONT: 0, REAR: 1 };
+
+// The catalog's positionAptitudes vocabulary (FRONT/BACK) is display-only;
+// the API always takes the UI row name (FRONT/REAR) verbatim.
+function apiRowForUiRow(row: UiRow): UiRow {
+  return row;
+}
+
+export interface BuiltFormation {
+  readonly formation: FormationRequest;
+  readonly unitSlotKeys: readonly string[];
+  readonly memorySlotKeys: readonly string[];
+  readonly gearSlotIndices: readonly (readonly number[])[];
+}
+
+/**
+ * 送信DTOに載る編成部分は戦闘・プレビュー・戦術演習で同一である。エンドポイント
+ * ごとの差分（`turnLimit`の有無、人数制約）は呼び出し側が持つ。
+ */
+export type RequestBuildResult<TRequest = BattleSimulationRequest> =
   | {
       readonly ok: true;
-      readonly request: BattleSimulationRequest;
+      readonly request: TRequest;
       readonly allyUnitSlotKeys: readonly string[];
       readonly enemyUnitSlotKeys: readonly string[];
       // memoryDefinitionIds is compressed (empty slots removed), so its API
@@ -64,21 +83,6 @@ export type RequestBuildResult =
       readonly enemyGearSlotIndices: readonly (readonly number[])[];
     }
   | { readonly ok: false };
-
-const ROW_ORDER: Readonly<Record<UiRow, number>> = { FRONT: 0, REAR: 1 };
-
-// The catalog's positionAptitudes vocabulary (FRONT/BACK) is display-only;
-// the API always takes the UI row name (FRONT/REAR) verbatim.
-function apiRowForUiRow(row: UiRow): UiRow {
-  return row;
-}
-
-interface BuiltFormation {
-  readonly formation: FormationRequest;
-  readonly unitSlotKeys: readonly string[];
-  readonly memorySlotKeys: readonly string[];
-  readonly gearSlotIndices: readonly (readonly number[])[];
-}
 
 function isPositiveInteger(value: number | ""): value is number {
   return value !== "" && Number.isInteger(value);
@@ -141,7 +145,7 @@ function buildUnitEnhancement(slot: FormationSlotInput): BuiltUnitEnhancement | 
   };
 }
 
-function buildFormation(
+export function buildFormation(
   side: Side,
   slots: readonly FormationSlotInput[],
   memoryDefinitionIds: readonly (string | undefined)[],

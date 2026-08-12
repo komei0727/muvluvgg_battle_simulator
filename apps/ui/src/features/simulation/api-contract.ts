@@ -137,21 +137,51 @@ export interface StateTransitionResponse {
   readonly [key: string]: unknown;
 }
 
-export interface BattleSimulationResponse {
+// docs/ddd/10_API設計.md「TacticalExerciseResponse」: 演習は`result`だけを差し替え、
+// 残りは戦闘シミュレーションと同じ構造を共有する。ロスター・イベント・状態遷移を
+// 読む側（summary projector、詳細表示）は`result`を見ないため、この共通部分だけを
+// 要求する型で受け取り、両モードの成功レスポンスをそのまま渡せるようにする。
+export interface BattleLogResponse {
   readonly schemaVersion: number;
   readonly battleId: string;
   readonly catalogRevision: string;
-  readonly result: BattleResultResponse;
   readonly initialState: BattleStateResponse;
   readonly finalState: BattleStateResponse;
   readonly events: readonly BattleLogEventResponse[];
   readonly stateTransitions: readonly StateTransitionResponse[];
 }
 
-export type SimulationApiResult =
+export interface BattleSimulationResponse extends BattleLogResponse {
+  readonly result: BattleResultResponse;
+}
+
+// docs/ddd/10_API設計.md「ExerciseBreakResponse」/「ExerciseResultResponse」。
+// 勝敗（`outcome`）は含まない。
+export interface ExerciseBreakResponse {
+  readonly breakNumber: number;
+  readonly turnNumber: number;
+  readonly cumulativeScoreAtBreak: number;
+  readonly [key: string]: unknown;
+}
+
+export interface ExerciseResultResponse {
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly totalScore: number;
+  readonly breakCount: number;
+  readonly breaks: readonly ExerciseBreakResponse[];
+  readonly [key: string]: unknown;
+}
+
+export interface TacticalExerciseResponse extends BattleLogResponse {
+  readonly result: ExerciseResultResponse;
+}
+
+/** 戦闘POSTと演習POSTは結果DTOだけが異なり、失敗側の正規化は完全に共通である。 */
+export type ExecutionApiResult<TResponse> =
   | {
       readonly ok: true;
-      readonly response: BattleSimulationResponse;
+      readonly response: TResponse;
       readonly requestId?: string;
     }
   | {
@@ -161,6 +191,10 @@ export type SimulationApiResult =
       readonly requestId?: string;
       readonly retryAfterSeconds?: number;
     };
+
+export type SimulationApiResult = ExecutionApiResult<BattleSimulationResponse>;
+
+export type TacticalExerciseApiResult = ExecutionApiResult<TacticalExerciseResponse>;
 
 // docs/ddd/10_API設計.md「FormationStatPreviewResponse」/
 // docs/ui-design/03_API・データ連携設計.md §2.5, §9.1.

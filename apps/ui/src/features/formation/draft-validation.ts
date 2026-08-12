@@ -48,17 +48,55 @@ function filledSlots(
   );
 }
 
-function validateUnitCount(side: Side, slots: readonly FormationSlotInput[]): UiViolation[] {
+/**
+ * エンドポイントごとに異なる制約だけを外から与える。演習は敵ちょうど1体・敵
+ * メモリー0件で、ターン上限を持たない（`03_API・データ連携設計.md`§2.3）。
+ * 共有する規則（配置重複・定義存在・適性・強化入力）はモードに依らない。
+ */
+export interface DraftValidationRules {
+  readonly enemyUnitCount: {
+    readonly min: number;
+    readonly max: number;
+    readonly message: string;
+  };
+  readonly enemyMemoryCount: { readonly max: number; readonly message: string };
+  readonly validatesTurnLimit: boolean;
+}
+
+export const BATTLE_DRAFT_VALIDATION_RULES: DraftValidationRules = {
+  enemyUnitCount: {
+    min: MIN_UNITS_PER_SIDE,
+    max: MAX_UNITS_PER_SIDE,
+    message: "敵ユニットを1～5体設定してください。",
+  },
+  enemyMemoryCount: { max: MAX_MEMORIES_PER_SIDE, message: "メモリーは6件まで設定できます。" },
+  validatesTurnLimit: true,
+};
+
+function validateUnitCount(
+  side: Side,
+  slots: readonly FormationSlotInput[],
+  bounds: { readonly min: number; readonly max: number; readonly message: string },
+): UiViolation[] {
   const count = filledSlots(slots).length;
-  if (count >= MIN_UNITS_PER_SIDE && count <= MAX_UNITS_PER_SIDE) {
+  if (count >= bounds.min && count <= bounds.max) {
     return [];
   }
-  const message =
-    side === "ally"
-      ? "味方ユニットを1～5体設定してください。"
-      : "敵ユニットを1～5体設定してください。";
-  return [{ path: unitsPath(side), code: "UNIT_COUNT_OUT_OF_RANGE", message, severity: "error" }];
+  return [
+    {
+      path: unitsPath(side),
+      code: "UNIT_COUNT_OUT_OF_RANGE",
+      message: bounds.message,
+      severity: "error",
+    },
+  ];
 }
+
+const ALLY_UNIT_COUNT_BOUNDS = {
+  min: MIN_UNITS_PER_SIDE,
+  max: MAX_UNITS_PER_SIDE,
+  message: "味方ユニットを1～5体設定してください。",
+} as const;
 
 function validateDuplicatePositions(
   side: Side,
@@ -83,16 +121,20 @@ function validateDuplicatePositions(
   return violations;
 }
 
-function validateMemoryCount(side: Side, ids: readonly (string | undefined)[]): UiViolation[] {
+function validateMemoryCount(
+  side: Side,
+  ids: readonly (string | undefined)[],
+  bounds: { readonly max: number; readonly message: string },
+): UiViolation[] {
   const count = ids.filter((id) => id !== undefined).length;
-  if (count <= MAX_MEMORIES_PER_SIDE) {
+  if (count <= bounds.max) {
     return [];
   }
   return [
     {
       path: memoriesPath(side),
       code: "MEMORY_COUNT_OUT_OF_RANGE",
-      message: "メモリーは6件まで設定できます。",
+      message: bounds.message,
       severity: "error",
     },
   ];
@@ -267,18 +309,22 @@ function validateUnitEnhancements(
   return violations;
 }
 
-export function validateDraft(
+export function validateDraftWithRules(
   draft: BattleDraft,
   catalog: BattleSimulationCatalogResponse,
+  rules: DraftValidationRules,
 ): readonly UiViolation[] {
   return [
-    ...validateUnitCount("ally", draft.allySlots),
-    ...validateUnitCount("enemy", draft.enemySlots),
+    ...validateUnitCount("ally", draft.allySlots, ALLY_UNIT_COUNT_BOUNDS),
+    ...validateUnitCount("enemy", draft.enemySlots, rules.enemyUnitCount),
     ...validateDuplicatePositions("ally", draft.allySlots),
     ...validateDuplicatePositions("enemy", draft.enemySlots),
-    ...validateMemoryCount("ally", draft.allyMemoryDefinitionIds),
-    ...validateMemoryCount("enemy", draft.enemyMemoryDefinitionIds),
-    ...validateTurnLimit(draft.turnLimit),
+    ...validateMemoryCount("ally", draft.allyMemoryDefinitionIds, {
+      max: MAX_MEMORIES_PER_SIDE,
+      message: "メモリーは6件まで設定できます。",
+    }),
+    ...validateMemoryCount("enemy", draft.enemyMemoryDefinitionIds, rules.enemyMemoryCount),
+    ...(rules.validatesTurnLimit ? validateTurnLimit(draft.turnLimit) : []),
     ...validateUnitExistence("ally", draft.allySlots, catalog),
     ...validateUnitExistence("enemy", draft.enemySlots, catalog),
     ...validateMemoryExistence("ally", draft.allyMemoryDefinitionIds, catalog),
@@ -290,6 +336,13 @@ export function validateDraft(
     ...validateUnitEnhancements("ally", draft.allySlots, enhancementForSide(draft, "ally")),
     ...validateUnitEnhancements("enemy", draft.enemySlots, enhancementForSide(draft, "enemy")),
   ];
+}
+
+export function validateDraft(
+  draft: BattleDraft,
+  catalog: BattleSimulationCatalogResponse,
+): readonly UiViolation[] {
+  return validateDraftWithRules(draft, catalog, BATTLE_DRAFT_VALIDATION_RULES);
 }
 
 export function selectCanSubmit(violations: readonly UiViolation[]): boolean {

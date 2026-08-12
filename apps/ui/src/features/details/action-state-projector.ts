@@ -21,10 +21,7 @@
 
 import type { RosterEntry } from "../summary/summary-projector.js";
 import type { LogLevel } from "../formation/types.js";
-import type {
-  BattleLogEventResponse,
-  BattleSimulationResponse,
-} from "../simulation/api-contract.js";
+import type { BattleLogEventResponse, BattleLogResponse } from "../simulation/api-contract.js";
 import { isRecord, numberOf } from "../../lib/unknown-narrowing.js";
 
 export interface ResourceValue {
@@ -371,7 +368,7 @@ const actionStateAdapters: Readonly<Record<string, ActionStateEventAdapter>> = {
 // M5以降の形（`cooldowns`が配列）を持つunitはそれを正本として使い、
 // 持たないunit(M5より前のUI fixture)だけevents[]からの再構築へfallbackする。
 export function selectUnitActionStates(
-  response: BattleSimulationResponse,
+  response: BattleLogResponse,
   roster: readonly RosterEntry[],
   logLevel: LogLevel,
 ): readonly UnitActionState[] {

@@ -10,6 +10,7 @@
 import { battleFlowEventFormatters } from "./battle-flow-event-formatters.js";
 import { damageEventFormatters } from "./damage-event-formatters.js";
 import { effectEventFormatters } from "./effect-event-formatters.js";
+import { exerciseEventFormatters } from "./exercise-event-formatters.js";
 import {
   buildRosterIndex,
   mergeDisjointFormatters,
@@ -38,6 +39,8 @@ const eventFormatters = mergeDisjointFormatters({
   // DMG-010（Issue #191）: M8 高度ダメージ（07_UI実装・拡張計画.md §12）。
   // `DAMAGE_APPLIED`もM8で内訳フィールドを得たため、そちらのregistryが持つ。
   damage: damageEventFormatters,
+  // TEX-008（Issue #434）: 戦術演習専用イベント（07_UI実装・拡張計画.md §13.5）。
+  exercise: exerciseEventFormatters,
 });
 
 function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {

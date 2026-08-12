@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import type { SimulateOptions } from "./api-client.js";
 import { simulate as defaultSimulate } from "./api-client.js";
+import type { ExecutionApiResult } from "./api-contract.js";
 import { createInitialExecutionState, executionReducer } from "./execution-reducer.js";
-import type { ExecutionState } from "./execution-reducer.js";
+import type { ExecutionResponseLike, ExecutionState } from "./execution-reducer.js";
+import type { BattleSimulationResponse } from "./api-contract.js";
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 
 // docs/ui-design/03_API・データ連携設計.md §7 「タイムアウトとキャンセル」:
@@ -23,15 +26,26 @@ function generateRequestId(): string | undefined {
   }
 }
 
-type SimulateFn = typeof defaultSimulate;
+/**
+ * 実行を1回だけ行うエンドポイント呼び出し。戦闘POST（`simulate`）と演習POST
+ * （`simulateTacticalExercise`）は結果DTOだけが異なり、送信・中断・待機上限の
+ * 扱いは同一なので、この型を満たす関数ならこのhookがそのまま駆動できる。
+ */
+export type ExecuteFn<TRequest, TResponse> = (
+  request: TRequest,
+  options: SimulateOptions,
+) => Promise<ExecutionApiResult<TResponse>>;
 
-export interface UseSimulationExecutionOptions {
-  readonly simulateImpl?: SimulateFn;
+export interface UseSimulationExecutionOptions<
+  TRequest = BattleSimulationRequest,
+  TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+> {
+  readonly simulateImpl?: ExecuteFn<TRequest, TResponse>;
   readonly timeoutMs?: number;
 }
 
-export interface SubmitInput {
-  readonly request: BattleSimulationRequest;
+export interface SubmitInput<TRequest = BattleSimulationRequest> {
+  readonly request: TRequest;
   // 送信時点のslot対応表。422 violationsのJSON Pointerを、送信後に編集され
   // 得る現在のdraftではなく、この送信自体が使ったslotへ対応づけるために保持
   // する(03_API・データ連携設計.md §13, UI-API-004)。
@@ -43,23 +57,34 @@ export interface SubmitInput {
   readonly enemyGearSlotIndices: readonly (readonly number[])[];
 }
 
-export interface UseSimulationExecutionResult {
-  readonly state: ExecutionState;
-  readonly submit: (input: SubmitInput) => void;
+export interface UseSimulationExecutionResult<
+  TRequest = BattleSimulationRequest,
+  TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+> {
+  readonly state: ExecutionState<TRequest, TResponse>;
+  readonly submit: (input: SubmitInput<TRequest>) => void;
   readonly cancel: () => void;
 }
 
-export function useSimulationExecution(
+export function useSimulationExecution<
+  TRequest = BattleSimulationRequest,
+  TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+>(
   baseUrl: string,
-  options: UseSimulationExecutionOptions = {},
-): UseSimulationExecutionResult {
-  const simulateImpl = options.simulateImpl ?? defaultSimulate;
-  const [state, dispatch] = useReducer(executionReducer, undefined, createInitialExecutionState);
+  options: UseSimulationExecutionOptions<TRequest, TResponse> = {},
+): UseSimulationExecutionResult<TRequest, TResponse> {
+  const simulateImpl =
+    options.simulateImpl ?? (defaultSimulate as unknown as ExecuteFn<TRequest, TResponse>);
+  const [state, dispatch] = useReducer(
+    executionReducer<TRequest, TResponse>,
+    undefined,
+    createInitialExecutionState<TRequest, TResponse>,
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentExecutionIdRef = useRef<string | null>(null);
 
   const submit = useCallback(
-    (input: SubmitInput) => {
+    (input: SubmitInput<TRequest>) => {
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;

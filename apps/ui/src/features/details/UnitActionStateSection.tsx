@@ -5,13 +5,13 @@ import type { RosterEntry } from "../summary/summary-projector.js";
 import type { UnitActionState } from "./action-state-projector.js";
 import type { LogLevel } from "../formation/types.js";
 import type {
+  BattleLogResponse,
   BattleSimulationCatalogResponse,
-  BattleSimulationResponse,
 } from "../simulation/api-contract.js";
 import styles from "./UnitActionStateSection.module.css";
 
 export interface UnitActionStateSectionProps {
-  readonly response: BattleSimulationResponse;
+  readonly response: BattleLogResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
   readonly logLevel: LogLevel;
 }

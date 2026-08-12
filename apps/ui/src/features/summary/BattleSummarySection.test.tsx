@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BattleSummarySection } from "./BattleSummarySection.js";
+import { OutcomeStrip } from "./OutcomeStrip.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
@@ -55,8 +56,21 @@ const response: BattleSimulationResponse = {
 };
 
 describe("BattleSummarySection", () => {
-  it("renders the outcome strip and both ally/enemy summary tables", () => {
-    render(<BattleSummarySection response={response} catalog={catalog} turnLimit={10} />);
+  it("renders the caller-supplied header and both ally/enemy summary tables", () => {
+    render(
+      <BattleSummarySection
+        response={response}
+        catalog={catalog}
+        header={
+          <OutcomeStrip
+            result={response.result}
+            turnLimit={10}
+            battleId="b"
+            catalogRevision="rev-1"
+          />
+        }
+      />,
+    );
 
     expect(screen.getByText("ALLY WIN / 味方勝利")).toBeInTheDocument();
     expect(screen.getByText("ALLY UNIT SUMMARY")).toBeInTheDocument();
@@ -96,7 +110,7 @@ describe("BattleSummarySection", () => {
       <BattleSummarySection
         response={responseWithBothSides}
         catalog={catalog}
-        turnLimit={10}
+        header={null}
         imageMap={{ UNIT_A: "/assets/unit-a.webp" }}
       />,
     );
@@ -119,7 +133,7 @@ describe("BattleSummarySection", () => {
       <BattleSummarySection
         response={responseWithMalformedEvent}
         catalog={catalog}
-        turnLimit={10}
+        header={null}
       />,
     );
 

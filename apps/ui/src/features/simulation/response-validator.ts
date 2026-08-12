@@ -4,6 +4,7 @@ import type {
   CatalogMemorySummary,
   CatalogUnitSummary,
   FormationStatPreviewResponse,
+  TacticalExerciseResponse,
   UiApiError,
 } from "./api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
@@ -228,44 +229,120 @@ function hasMatchingFinalStateUnits(initialState: unknown, finalState: unknown):
   });
 }
 
-export function validateSimulationResponse(body: unknown): SimulationValidationResult {
+// `result`以外は戦闘POSTと演習POSTで同一構造（10_API設計.md
+// 「TacticalExerciseResponse」）。ラベルだけを差し替えて両方から使う。
+type BattleLogStructuralResult =
+  | { readonly ok: true; readonly result: unknown }
+  | { readonly ok: false; readonly message: string };
+
+function structuralMismatch(message: string): BattleLogStructuralResult {
+  return { ok: false, message };
+}
+
+function validateBattleLogResponse(body: unknown, label: string): BattleLogStructuralResult {
   if (!isRecord(body)) {
-    return simulationMismatch("Simulation response body is not a JSON object.");
+    return structuralMismatch(`${label} response body is not a JSON object.`);
   }
 
   if (typeof body["schemaVersion"] !== "number") {
-    return simulationMismatch("Simulation response schemaVersion is not a number.");
+    return structuralMismatch(`${label} response schemaVersion is not a number.`);
   }
   if (!isNonEmptyString(body["battleId"])) {
-    return simulationMismatch("Simulation response battleId is missing or empty.");
+    return structuralMismatch(`${label} response battleId is missing or empty.`);
   }
   if (!isNonEmptyString(body["catalogRevision"])) {
-    return simulationMismatch("Simulation response catalogRevision is missing or empty.");
-  }
-  if (!isValidResult(body["result"])) {
-    return simulationMismatch("Simulation response result is malformed.");
+    return structuralMismatch(`${label} response catalogRevision is missing or empty.`);
   }
   if (!isValidBattleState(body["initialState"])) {
-    return simulationMismatch("Simulation response initialState.units is malformed.");
+    return structuralMismatch(`${label} response initialState.units is malformed.`);
   }
   if (!isValidBattleState(body["finalState"])) {
-    return simulationMismatch("Simulation response finalState.units is malformed.");
+    return structuralMismatch(`${label} response finalState.units is malformed.`);
   }
   if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
-    return simulationMismatch(
-      "Simulation response finalState is missing a battleUnitId present in initialState.",
+    return structuralMismatch(
+      `${label} response finalState is missing a battleUnitId present in initialState.`,
     );
   }
   if (!Array.isArray(body["events"])) {
-    return simulationMismatch("Simulation response events is not an array.");
+    return structuralMismatch(`${label} response events is not an array.`);
   }
   if (!Array.isArray(body["stateTransitions"])) {
-    return simulationMismatch("Simulation response stateTransitions is not an array.");
+    return structuralMismatch(`${label} response stateTransitions is not an array.`);
+  }
+  return { ok: true, result: body["result"] };
+}
+
+export function validateSimulationResponse(body: unknown): SimulationValidationResult {
+  const structural = validateBattleLogResponse(body, "Simulation");
+  if (!structural.ok) {
+    return simulationMismatch(structural.message);
+  }
+  if (!isValidResult(structural.result)) {
+    return simulationMismatch("Simulation response result is malformed.");
   }
 
   return {
     ok: true,
-    response: body as unknown as BattleSimulationResponse,
+    response: body as BattleSimulationResponse,
+  };
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.3 / UI-API-015: 演習の`result`だけを
+// 追加で検証する。総スコア・ブレイク回数・ブレイク履歴は整数であり、`breaks`の
+// 件数は`breakCount`と一致する（10_API設計.md「ExerciseResultResponse」）。
+
+export type TacticalExerciseValidationResult =
+  | { readonly ok: true; readonly response: TacticalExerciseResponse }
+  | { readonly ok: false; readonly error: UiApiError };
+
+function exerciseMismatch(message: string): TacticalExerciseValidationResult {
+  return { ok: false, error: { kind: "RESPONSE_CONTRACT_MISMATCH", message } };
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isValidBreak(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonNegativeInteger(value["breakNumber"]) &&
+    isNonNegativeInteger(value["turnNumber"]) &&
+    isNonNegativeInteger(value["cumulativeScoreAtBreak"])
+  );
+}
+
+function isValidExerciseResult(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const breaks = value["breaks"];
+  return (
+    isNonEmptyString(value["completionReason"]) &&
+    isNonNegativeInteger(value["completedTurn"]) &&
+    isNonNegativeInteger(value["totalScore"]) &&
+    isNonNegativeInteger(value["breakCount"]) &&
+    Array.isArray(breaks) &&
+    breaks.every(isValidBreak) &&
+    breaks.length === value["breakCount"]
+  );
+}
+
+export function validateTacticalExerciseResponse(body: unknown): TacticalExerciseValidationResult {
+  const structural = validateBattleLogResponse(body, "Tactical exercise");
+  if (!structural.ok) {
+    return exerciseMismatch(structural.message);
+  }
+  if (!isValidExerciseResult(structural.result)) {
+    return exerciseMismatch("Tactical exercise response result is malformed.");
+  }
+
+  return {
+    ok: true,
+    response: body as TacticalExerciseResponse,
   };
 }
 

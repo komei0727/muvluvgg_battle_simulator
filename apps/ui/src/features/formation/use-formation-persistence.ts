@@ -35,6 +35,15 @@ export function createPersistedInitialState(): FormationState {
   return createInitialFormationState(createInitialDraft(readPlayerData().academyLevels));
 }
 
+/**
+ * `mlgg:last-draft`の対象外であるdraft（`UI-AC-018`のモード別draft）の初期状態。
+ * 保存draftは復元しないが、手持ちデータ由来の学園レベルだけは通常戦闘と同じく
+ * プリフィルする——手持ちデータはモードに依らない味方の育成情報だからである。
+ */
+export function createUnpersistedInitialState(): FormationState {
+  return createInitialFormationState(createInitialDraft(readPlayerData().academyLevels));
+}
+
 function readPlayerData() {
   return parsePlayerData(readJsonItem(PLAYER_DATA_STORAGE_KEY)) ?? createEmptyPlayerData();
 }
@@ -60,6 +69,12 @@ export interface FormationPersistence {
   ) => UnitEnhancementInput | undefined;
   readonly resetDraft: () => void;
   readonly clearPlayerData: () => void;
+  /**
+   * 保存対象ではないdraft（`UI-CMP-010`のモード別draft）も同じ初期値へ戻せるよう、
+   * dispatch先を固定しないactionだけを返す。学園レベルは手持ちデータ由来のため、
+   * どのdraftを初期化してもここで解決した値を使う。
+   */
+  readonly createDraftResetAction: () => FormationAction;
 }
 
 /**
@@ -121,9 +136,17 @@ export function useFormationPersistence({
     [playerData],
   );
 
+  const createDraftResetAction = useCallback(
+    (): FormationAction => ({
+      type: "draftReset",
+      allyAcademyLevels: playerData.academyLevels,
+    }),
+    [playerData],
+  );
+
   const resetDraft = useCallback(() => {
-    dispatch({ type: "draftReset", allyAcademyLevels: playerData.academyLevels });
-  }, [dispatch, playerData]);
+    dispatch(createDraftResetAction());
+  }, [dispatch, createDraftResetAction]);
 
   const clearPlayerData = useCallback(() => {
     // 手持ちデータと画面の味方育成入力は同じ値の2つの置き場なので対で消す。
@@ -132,5 +155,5 @@ export function useFormationPersistence({
     dispatch({ type: "allyEnhancementCleared" });
   }, [dispatch]);
 
-  return { prefillEnhancementFor, resetDraft, clearPlayerData };
+  return { prefillEnhancementFor, resetDraft, clearPlayerData, createDraftResetAction };
 }
