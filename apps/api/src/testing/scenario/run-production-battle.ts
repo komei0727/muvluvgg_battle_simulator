@@ -1,7 +1,12 @@
 import { GetBattleSimulationCatalogUseCase } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
 import type { SimulateBattleCommand } from "../../application/simulation/simulate-battle-command.js";
-import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
+import type { SimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-command.js";
+import type {
+  SimulateBattleResult,
+  SimulateTacticalExerciseResult,
+} from "../../application/simulation/simulation-result-assembler.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
@@ -24,13 +29,29 @@ class ConstantRandomSourceFactory implements RandomSourceFactory {
   }
 }
 
-/** GET一覧APIが公開する production Unit の定義IDを全件返す。 */
+/**
+ * 通常戦闘で編成可能な production Unit（`PLAYABLE`）の定義IDを全件返す。
+ * R-TEX-11: `EXERCISE_ENEMY`は通常戦闘へ編成できないため、通常戦闘を完走させる
+ * golden・監査・doc-schema層はこの一覧を使う。
+ */
 export function allProductionUnitIds(catalogDir: string): readonly string[] {
+  return allProductionUnitIdsByCategory(catalogDir, "PLAYABLE");
+}
+
+/** 戦術演習の敵としてだけ編成できる production Unit（`EXERCISE_ENEMY`）の定義ID全件。 */
+export function allExerciseEnemyProductionUnitIds(catalogDir: string): readonly string[] {
+  return allProductionUnitIdsByCategory(catalogDir, "EXERCISE_ENEMY");
+}
+
+function allProductionUnitIdsByCategory(catalogDir: string, category: string): readonly string[] {
   const directory = loadBattleCatalogDirectory(catalogDir);
   const result = new GetBattleSimulationCatalogUseCase({
     battleCatalogDirectory: directory,
   }).execute();
-  return result.units.map((unit) => String(unit.unitDefinitionId)).sort();
+  return result.units
+    .filter((unit) => unit.category === category)
+    .map((unit) => String(unit.unitDefinitionId))
+    .sort();
 }
 
 export interface ProductionBattleOptions {
@@ -114,6 +135,42 @@ export function runProductionPartyBattle(
   });
   return useCase.execute(command, {
     requestId: "golden-party-battle",
+    deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+  });
+}
+
+/**
+ * 実 `catalog/` 上で戦術演習（`TACTICAL_EXERCISE`）を完走させる。味方は
+ * {@link runProductionPartyBattle} と同じ詰め方の混成パーティ、敵は演習ユニット1体
+ * （R-TEX-01 #3）。演習ユニット追加ごとの golden 回帰層の実行部。
+ */
+export function runProductionExerciseBattle(
+  catalogDir: string,
+  matchup: { readonly ally: readonly string[]; readonly enemyUnitDefinitionId: string },
+  options: Pick<ProductionBattleOptions, "randomValue" | "battleId" | "logLevel"> = {},
+): SimulateTacticalExerciseResult {
+  const battleCatalog = loadCatalogFromDirectory(catalogDir);
+  const command: SimulateTacticalExerciseCommand = {
+    allyFormation: partySlots(matchup.ally),
+    enemyFormation: {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId(matchup.enemyUnitDefinitionId),
+          position: { column: 0 as const, row: "FRONT" as const },
+        },
+      ],
+      memoryDefinitionIds: [],
+    },
+    logLevel: options.logLevel ?? "DETAILED",
+  };
+  const useCase = new SimulateTacticalExerciseUseCase({
+    battleCatalog,
+    battleIdGenerator: new FixedBattleIdGenerator([options.battleId ?? "B_GOLDEN_TEX"]),
+    randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
+    clock: new ManualClock(0),
+  });
+  return useCase.execute(command, {
+    requestId: "golden-exercise-battle",
     deadlineEpochMs: Number.MAX_SAFE_INTEGER,
   });
 }
