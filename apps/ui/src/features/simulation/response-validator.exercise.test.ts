@@ -124,4 +124,89 @@ describe("validateTacticalExerciseResponse", () => {
     expect(result.ok).toBe(true);
     expect(result.ok ? result.response.events : []).toHaveLength(2);
   });
+
+  // apps/api/.../tactical-exercise-schema.ts: completedTurn は integer 1..5、
+  // turnNumber は integer 1..5、breakNumber は integer >= 1。0や上限超過は
+  // 契約違反であり、成功レスポンスとして表示させない。
+  it("rejects completedTurn 0", () => {
+    expect(
+      validateTacticalExerciseResponse(validResponse({ result: validResult({ completedTurn: 0 }) }))
+        .ok,
+    ).toBe(false);
+  });
+
+  it("rejects a completedTurn above the fixed five-turn limit", () => {
+    expect(
+      validateTacticalExerciseResponse(validResponse({ result: validResult({ completedTurn: 6 }) }))
+        .ok,
+    ).toBe(false);
+  });
+
+  it("accepts the completedTurn boundaries 1 and 5", () => {
+    for (const completedTurn of [1, 5]) {
+      expect(
+        validateTacticalExerciseResponse(validResponse({ result: validResult({ completedTurn }) }))
+          .ok,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects breakNumber 0", () => {
+    const body = validResponse({
+      result: validResult({
+        breakCount: 1,
+        breaks: [{ breakNumber: 0, turnNumber: 2, cumulativeScoreAtBreak: 100 }],
+      }),
+    });
+
+    expect(validateTacticalExerciseResponse(body).ok).toBe(false);
+  });
+
+  it("rejects a break turnNumber of 0 or above the five-turn limit", () => {
+    for (const turnNumber of [0, 6]) {
+      const body = validResponse({
+        result: validResult({
+          breakCount: 1,
+          breaks: [{ breakNumber: 1, turnNumber, cumulativeScoreAtBreak: 100 }],
+        }),
+      });
+      expect(validateTacticalExerciseResponse(body).ok).toBe(false);
+    }
+  });
+
+  it("accepts a break at the turn boundaries 1 and 5", () => {
+    for (const turnNumber of [1, 5]) {
+      const body = validResponse({
+        result: validResult({
+          breakCount: 1,
+          breaks: [{ breakNumber: 1, turnNumber, cumulativeScoreAtBreak: 100 }],
+        }),
+      });
+      expect(validateTacticalExerciseResponse(body).ok).toBe(true);
+    }
+  });
+
+  // breakNumberに上限は無い（サーバー側schemaも minimum: 1 のみ）。
+  it("accepts a large breakNumber", () => {
+    const body = validResponse({
+      result: validResult({
+        breakCount: 1,
+        breaks: [{ breakNumber: 99, turnNumber: 5, cumulativeScoreAtBreak: 100 }],
+      }),
+    });
+
+    expect(validateTacticalExerciseResponse(body).ok).toBe(true);
+  });
+
+  it("still accepts a zero totalScore and a zero cumulativeScoreAtBreak", () => {
+    const body = validResponse({
+      result: validResult({
+        totalScore: 0,
+        breakCount: 1,
+        breaks: [{ breakNumber: 1, turnNumber: 1, cumulativeScoreAtBreak: 0 }],
+      }),
+    });
+
+    expect(validateTacticalExerciseResponse(body).ok).toBe(true);
+  });
 });

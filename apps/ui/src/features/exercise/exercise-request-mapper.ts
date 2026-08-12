@@ -5,7 +5,7 @@
 import { buildFormation } from "../formation/request-mapper.js";
 import type { FormationRequest, RequestBuildResult } from "../formation/request-mapper.js";
 import { enhancementForSide } from "../formation/types.js";
-import type { BattleDraft, LogLevel } from "../formation/types.js";
+import type { BattleDraft, LogLevel, SideEnhancementInput } from "../formation/types.js";
 
 export interface TacticalExerciseRequest {
   readonly allyFormation: FormationRequest;
@@ -14,6 +14,16 @@ export interface TacticalExerciseRequest {
 }
 
 const EXERCISE_ENEMY_UNIT_COUNT = 1;
+
+/**
+ * UI-AC-020: 演習の敵は強化を持たない（`R-TEX-01` #1）。画面が敵強化の入力を
+ * 出さないことに依存せず、リクエスト生成側でも強化無効として組み立てる。
+ * `enabled: false` は陣営単位の`enhancement`とユニット単位の`enhancement`の
+ * 両方を出力対象から外す（`request-mapper.ts` の`buildFormation`）。
+ */
+function disabledEnhancement(enhancement: SideEnhancementInput): SideEnhancementInput {
+  return { ...enhancement, enabled: false };
+}
 
 /**
  * UI-API-014: `turnLimit`を出力せず、敵ちょうど1体・敵メモリー0件を送信前に強制する。
@@ -33,7 +43,7 @@ export function buildTacticalExerciseRequest(
     "enemy",
     draft.enemySlots,
     draft.enemyMemoryDefinitionIds,
-    enhancementForSide(draft, "enemy"),
+    disabledEnhancement(enhancementForSide(draft, "enemy")),
   );
   if (ally === undefined || enemy === undefined) {
     return { ok: false };

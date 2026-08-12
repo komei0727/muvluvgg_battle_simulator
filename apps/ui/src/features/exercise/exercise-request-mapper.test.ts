@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildTacticalExerciseRequest } from "./exercise-request-mapper.js";
-import { createInitialDraft, memorySlotKeyOf, slotKeyOf } from "../formation/types.js";
+import {
+  createInitialDraft,
+  createInitialUnitEnhancement,
+  memorySlotKeyOf,
+  slotKeyOf,
+} from "../formation/types.js";
 import type { BattleDraft, Side, UiColumn, UiRow } from "../formation/types.js";
 
 function withUnit(
@@ -109,5 +114,66 @@ describe("buildTacticalExerciseRequest", () => {
     const draft = withMemory(exerciseDraft(), "enemy", 0, "MEM_E");
 
     expect(buildTacticalExerciseRequest(draft).ok).toBe(false);
+  });
+
+  // UI-AC-020: 敵の`enhancement`は送らない。画面に敵強化の入力が無いことへ依存させず、
+  // リクエスト境界でも保証する（draftが強化有効のまま渡ってきても出力しない）。
+  it("omits the enemy enhancement even when the draft has it enabled", () => {
+    const base = exerciseDraft();
+    const draft: BattleDraft = {
+      ...base,
+      enemyEnhancement: {
+        enabled: true,
+        academyLevels: {
+          unitTypes: { PHYSICAL: 50, ENERGY: 40, AGILE: 30 },
+          attributes: {
+            AGGRESSIVE: 9,
+            SHY: 8,
+            CUTE: 7,
+            SMART: 6,
+            COMICAL: 5,
+            CLEVER: 4,
+          },
+        },
+      },
+      enemySlots: base.enemySlots.map((slot) =>
+        slot.slotKey === slotKeyOf("enemy", "FRONT", 0)
+          ? {
+              ...slot,
+              enhancement: {
+                ...createInitialUnitEnhancement(),
+                level: 250,
+                gears: [
+                  { stat: "ATTACK", tier: "III", grade: "S" },
+                  ...createInitialUnitEnhancement().gears.slice(1),
+                ],
+              },
+            }
+          : slot,
+      ),
+    };
+
+    const result = buildTacticalExerciseRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.enemyFormation).not.toHaveProperty("enhancement");
+    expect(result.request.enemyFormation.units[0]).not.toHaveProperty("enhancement");
+    expect(JSON.stringify(result.request.enemyFormation)).not.toContain("enhancement");
+    expect(result.enemyGearSlotIndices).toEqual([[]]);
+  });
+
+  it("still sends the ally enhancement when the ally side has it enabled", () => {
+    const base = exerciseDraft();
+    const draft: BattleDraft = {
+      ...base,
+      allyEnhancement: { ...base.allyEnhancement, enabled: true },
+    };
+
+    const result = buildTacticalExerciseRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.enhancement).toBeDefined();
   });
 });
