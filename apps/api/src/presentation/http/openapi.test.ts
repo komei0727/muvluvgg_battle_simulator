@@ -4,6 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { buildServer } from "./build-server.js";
 import { BATTLE_SIMULATION_CATALOG_PATH } from "./routes/catalog-route.js";
 import { BATTLE_SIMULATIONS_PATH } from "./routes/simulation-route.js";
+import { TACTICAL_EXERCISES_PATH } from "./routes/tactical-exercise-route.js";
 import {
   HTTP_ERROR_CODES,
   errorCodesForHttpStatus,
@@ -18,6 +19,8 @@ import {
 import {
   battleLogEventResponseDocSchema,
   battleLogEventResponseSchema,
+  exerciseBattleLogEventResponseDocSchema,
+  EXERCISE_ONLY_EVENT_TYPES,
   runtimeCounterChangedDetailsSchema,
   effectDurationReducedDetailsSchema,
   CONDITION_KIND_ENUM,
@@ -105,6 +108,115 @@ describe("OpenAPI document", () => {
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
       ["200", "400", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
+  });
+
+  it("API-OPENAPI-034 (TEX-007、10_API設計.md「戦術演習をシミュレーションする」): documents POST /api/v1/tactical-exercises with the same status set as the battle POST and an ExerciseResultResponse that carries no outcome", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly post?: {
+              readonly requestBody?: unknown;
+              readonly responses?: Readonly<
+                Record<
+                  string,
+                  {
+                    readonly content?: Readonly<
+                      Record<
+                        string,
+                        {
+                          readonly schema?: {
+                            readonly properties?: Record<
+                              string,
+                              { readonly properties?: Record<string, unknown> }
+                            >;
+                          };
+                        }
+                      >
+                    >;
+                  }
+                >
+              >;
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const operation = document.paths?.[TACTICAL_EXERCISES_PATH]?.post;
+
+    expect(operation).toBeDefined();
+    expect(operation?.requestBody).toBeDefined();
+    // 戦闘POSTと同じWorker Poolを通るため、返り得るステータスも同じ。
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
+      ["200", "400", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+    );
+
+    const result =
+      operation?.responses?.["200"]?.content?.["application/json"]?.schema?.properties?.["result"];
+    // R-TEX-10 #1: 演習は勝敗を確定しない。
+    expect(Object.keys(result?.properties ?? {}).sort()).toEqual([
+      "breakCount",
+      "breaks",
+      "completedTurn",
+      "completionReason",
+      "totalScore",
+    ]);
+  });
+
+  it("API-OPENAPI-035 (TEX-007、10_API設計.md「TacticalExerciseRequest」): the published exercise request schema documents R-TEX-01 #3 (exactly one enemy unit, no enemy memory) and has no turnLimit, even though the runtime validator leaves those counts to 422", () => {
+    interface MinimalOpenApiV3Document {
+      readonly paths?: Readonly<
+        Record<
+          string,
+          {
+            readonly post?: {
+              readonly requestBody?: {
+                readonly content?: Readonly<
+                  Record<
+                    string,
+                    {
+                      readonly schema?: {
+                        readonly properties?: Record<string, Record<string, unknown>>;
+                      };
+                    }
+                  >
+                >;
+              };
+            };
+          }
+        >
+      >;
+    }
+
+    const document = app.swagger() as unknown as MinimalOpenApiV3Document;
+    const schema =
+      document.paths?.[TACTICAL_EXERCISES_PATH]?.post?.requestBody?.content?.["application/json"]
+        ?.schema;
+
+    expect(Object.keys(schema?.properties ?? {}).sort()).toEqual([
+      "allyFormation",
+      "enemyFormation",
+      "options",
+    ]);
+
+    const enemyProperties = (
+      schema?.properties?.["enemyFormation"] as
+        | { readonly properties?: Record<string, Record<string, unknown>> }
+        | undefined
+    )?.properties;
+    expect(enemyProperties?.["units"]).toMatchObject({ minItems: 1, maxItems: 1 });
+    expect(enemyProperties?.["memoryDefinitionIds"]).toMatchObject({ maxItems: 0 });
+
+    // 味方編成は戦闘と同じ1〜5体のまま。
+    const allyProperties = (
+      schema?.properties?.["allyFormation"] as
+        | { readonly properties?: Record<string, Record<string, unknown>> }
+        | undefined
+    )?.properties;
+    expect(allyProperties?.["units"]).toMatchObject({ minItems: 1, maxItems: 5 });
   });
 
   it("UT-R-EFF-01-030: every $ref in the real app.swagger() document resolves to an existing local JSON pointer (ConditionDefinition's AND/OR/NOT self-reference must not become a dangling #/components/schemas/def-N)", () => {
@@ -198,6 +310,7 @@ describe("OpenAPI document", () => {
     const document = app.swagger() as unknown as MinimalOpenApiV3Document;
 
     expect(document.paths?.["/api/v1/battle-simulations"]?.options).toBeDefined();
+    expect(document.paths?.["/api/v1/tactical-exercises"]?.options).toBeDefined();
     expect(document.paths?.["/api/v1/formation-stat-previews"]?.options).toBeDefined();
     expect(document.paths?.["/api/v1/battle-simulation-catalog"]?.options).toBeDefined();
   });
@@ -916,7 +1029,7 @@ describe("OpenAPI document", () => {
     ).toBe(true);
   });
 
-  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): battleLogEventResponseDocSchema's oneOf declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
+  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): the exercise event union declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // `SUMMARY_EVENT_TYPE_INCLUSION` is a mapped type over `BattleDomainEventType`,
     // so it gains a compile error (missing or excess key) whenever
     // `BattleDomainEventPayloadMap` changes. Reusing it as the event-type roster
@@ -928,14 +1041,73 @@ describe("OpenAPI document", () => {
       ),
     );
 
-    const declaredTypes = new Set(
-      battleLogEventResponseDocSchema.oneOf.map(
-        (variant) =>
-          (variant.properties as { readonly type: { readonly const: string } }).type.const,
+    const declaredTypesOf = (docSchema: {
+      readonly oneOf: readonly { readonly properties: object }[];
+    }): Set<string> =>
+      new Set(
+        docSchema.oneOf.map(
+          (variant) =>
+            (variant.properties as { readonly type: { readonly const: string } }).type.const,
+        ),
+      );
+
+    // 演習側のunionが全種別を持つ正本。
+    expect(declaredTypesOf(exerciseBattleLogEventResponseDocSchema)).toEqual(expectedTypes);
+
+    // 通常戦闘側は、そこから演習だけが発行する種別（R-TEX-02〜04）をちょうど除いた集合。
+    // `Q-TEX-08`「既存の`POST /api/v1/battle-simulations`の契約は変更しない」を、
+    // 「演習用variantが混ざっていない」と「他の種別は1つも落ちていない」の両方向で固定する。
+    const battleTypes = declaredTypesOf(battleLogEventResponseDocSchema);
+    expect(battleTypes).toEqual(
+      new Set(
+        [...expectedTypes].filter(
+          (type) => !(EXERCISE_ONLY_EVENT_TYPES as readonly string[]).includes(type),
+        ),
       ),
     );
+  });
 
-    expect(declaredTypes).toEqual(expectedTypes);
+  it("API-OPENAPI-036 (TEX-007、Q-TEX-08): the battle POST's published event union carries no exercise-only variant and no BREAK_ENHANCEMENT reason, while the exercise POST's does", () => {
+    const document = app.swagger() as unknown as OpenApiDocumentForTest;
+
+    const eventVariantsOf = (path: string, method: string): Record<string, unknown>[] => {
+      const schema = document.paths?.[path]?.[method]?.responses?.["200"]?.content?.[
+        "application/json"
+      ]?.schema as
+        | { readonly properties?: { readonly events?: { readonly items?: { oneOf?: unknown[] } } } }
+        | undefined;
+      const variants = schema?.properties?.events?.items?.oneOf;
+      expect(variants, `${method.toUpperCase()} ${path} publishes no event union`).toBeDefined();
+      return variants as Record<string, unknown>[];
+    };
+    const typesOf = (variants: Record<string, unknown>[]): string[] =>
+      variants.map(
+        (variant) =>
+          (variant["properties"] as { readonly type: { readonly enum?: readonly string[] } }).type
+            .enum?.[0] ?? "",
+      );
+    const reasonEnumOf = (variants: Record<string, unknown>[], type: string): string[] => {
+      const variant = variants.find(
+        (candidate) =>
+          (candidate["properties"] as { readonly type: { readonly enum?: readonly string[] } }).type
+            .enum?.[0] === type,
+      );
+      const details = (variant?.["properties"] as { readonly details?: unknown } | undefined)
+        ?.details as { readonly properties?: { readonly reason?: { readonly enum?: string[] } } };
+      return details?.properties?.reason?.enum ?? [];
+    };
+
+    const battleVariants = eventVariantsOf(BATTLE_SIMULATIONS_PATH, "post");
+    const exerciseVariants = eventVariantsOf(TACTICAL_EXERCISES_PATH, "post");
+
+    for (const type of EXERCISE_ONLY_EVENT_TYPES) {
+      expect(typesOf(battleVariants)).not.toContain(type);
+      expect(typesOf(exerciseVariants)).toContain(type);
+    }
+    for (const type of ["COMBAT_STAT_CHANGED", "RESOURCE_CAPACITY_CHANGED"]) {
+      expect(reasonEnumOf(battleVariants, type)).not.toContain("BREAK_ENHANCEMENT");
+      expect(reasonEnumOf(exerciseVariants, type)).toContain("BREAK_ENHANCEMENT");
+    }
   });
 
   it("API-OPENAPI-025: cooldownStateResponseSchema keeps the setting scope matched to the unit (10_API設計.md CooldownStateResponse) — it accepts the matching scope field or none at all, and rejects both present or a mismatched scope field", () => {

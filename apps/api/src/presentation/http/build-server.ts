@@ -24,8 +24,18 @@ import {
   FORMATION_STAT_PREVIEW_PATH,
   type PreviewFormationStatsUseCasePort,
 } from "./routes/formation-stat-preview-route.js";
+import {
+  registerTacticalExerciseRoute,
+  TACTICAL_EXERCISES_PATH,
+  type SimulateTacticalExerciseUseCasePort,
+} from "./routes/tactical-exercise-route.js";
 import { formationStatPreviewRequestDocSchema } from "./schemas/simulation/formation-stat-preview-schema.js";
+import {
+  tacticalExerciseRequestDocSchema,
+  tacticalExerciseResponseDocSchema,
+} from "./schemas/simulation/tactical-exercise-schema.js";
 import { errorResponseDocSchemaForStatus } from "./schemas/error/error-schema.js";
+import { ApplicationError } from "../../application/contracts/application-error.js";
 import { registerErrorHandler } from "./protocol/error-response/register-error-handler.js";
 import { toErrorResponseBody } from "./protocol/error-response/error-response-mapper.js";
 import {
@@ -47,6 +57,7 @@ import { acceptsJson } from "./protocol/content-negotiation/content-negotiation.
 
 export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simulation-route.js";
 export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
+export type { SimulateTacticalExerciseUseCasePort } from "./routes/tactical-exercise-route.js";
 export type { GetBattleSimulationCatalogUseCasePort } from "./routes/catalog-route.js";
 
 const ALWAYS_READY: ReadinessPort = { isReady: () => true };
@@ -75,6 +86,21 @@ const NO_CATALOG: GetBattleSimulationCatalogUseCasePort = {
  */
 const NO_PREVIEW: PreviewFormationStatsUseCasePort = {
   execute: () => ({ catalogRevision: "", units: [] }),
+};
+/**
+ * `exerciseUseCase`省略時の既定値。`NO_CATALOG`／`NO_PREVIEW`と違い空の結果を返せない
+ * ——演習結果は`battleId`も状態も持つため、配線されていないことを空値で表せない。
+ * ルート自体は常に登録する（OpenAPI文書の形を`routes/`と`schemas/`だけで決めるため、
+ * `openapi-test-use-case.ts`の注記参照）ので、未配線のまま呼ばれたら黙って偽の結果を
+ * 返さず`500`にする。`bootstrap/index.ts`は常に実`SimulationWorkerPool`を渡す。
+ */
+const NO_EXERCISE: SimulateTacticalExerciseUseCasePort = {
+  executeTacticalExercise: () =>
+    Promise.reject(
+      new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        { reason: "this server instance has no tactical exercise use case wired in" },
+      ]),
+    ),
 };
 
 const DEFAULT_BODY_LIMIT_BYTES = 1_048_576; // 1 MiB。`10_API設計.md`「編成入力自体は小さい」ための暫定上限。
@@ -157,6 +183,11 @@ export interface BuildServerOptions {
   readonly catalogUseCase?: GetBattleSimulationCatalogUseCasePort;
   readonly previewUseCase?: PreviewFormationStatsUseCasePort;
   /**
+   * `POST /api/v1/tactical-exercises`（UC-03）の実行境界。本番では戦闘POSTと同じ
+   * `SimulationWorkerPool`を渡す。省略時は`NO_EXERCISE`（上の注記参照）。
+   */
+  readonly exerciseUseCase?: SimulateTacticalExerciseUseCasePort;
+  /**
    * `10_API設計.md`「CORS」「productionの許可originは`https://komei0727.github.io`を
    * 完全一致で設定する」。既定は空配列（全origin拒否）——`bootstrap/index.ts`が
    * `CORS_ALLOWED_ORIGINS`から検証済みの値を渡す。
@@ -215,6 +246,7 @@ export async function buildServer(
   const shutdownGate = options.shutdownGate ?? NEVER_SHUTTING_DOWN;
   const catalogUseCase = options.catalogUseCase ?? NO_CATALOG;
   const previewUseCase = options.previewUseCase ?? NO_PREVIEW;
+  const exerciseUseCase = options.exerciseUseCase ?? NO_EXERCISE;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
     // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
@@ -325,6 +357,25 @@ export async function buildServer(
           url,
         };
       }
+      if (url === TACTICAL_EXERCISES_PATH) {
+        // 戦闘POSTと同じ理由で、値域・列挙値を持つschema（敵編成のちょうど1体・
+        // メモリー0件を含む）は公開文書側だけへ差し込む。
+        return {
+          schema: {
+            ...schema,
+            ...(schema.body !== undefined ? { body: tacticalExerciseRequestDocSchema } : {}),
+            ...(schema.response !== undefined
+              ? {
+                  response: withResponseDoc({
+                    ...schema.response,
+                    200: tacticalExerciseResponseDocSchema,
+                  }),
+                }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url === FORMATION_STAT_PREVIEW_PATH) {
         // 戦闘POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ
         // 差し込む（実行時validationは`route.schema`のまま）。
@@ -403,10 +454,16 @@ export async function buildServer(
   registerErrorHandler(app);
 
   registerSimulationRoute(app, { useCase, shutdownGate, simulationTimeoutMs });
+  registerTacticalExerciseRoute(app, {
+    useCase: exerciseUseCase,
+    shutdownGate,
+    simulationTimeoutMs,
+  });
   registerFormationStatPreviewRoute(app, previewUseCase);
   registerCatalogRoute(app, catalogUseCase);
   registerCorsPreflightDocRoutes(app, [
     BATTLE_SIMULATIONS_PATH,
+    TACTICAL_EXERCISES_PATH,
     FORMATION_STAT_PREVIEW_PATH,
     BATTLE_SIMULATION_CATALOG_PATH,
   ]);

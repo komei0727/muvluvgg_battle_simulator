@@ -109,6 +109,27 @@ describe("OpenAPI v1 compatibility", () => {
     ).toEqual([]);
   });
 
+  it("API-OPENAPI-037 (TEX-007、Q-TEX-08): the battle POST's published definition is identical to the frozen baseline's, so adding an endpoint cannot widen the existing contract even backward-compatibly", () => {
+    // `findBreakingChanges`（`API-OPENAPI-022`）は後方互換な追加を通すため、演習専用の
+    // イベントvariantや`reason`が`POST /api/v1/battle-simulations`の公開Schemaへ紛れ
+    // 込んでも検出しない。生成クライアントのunionは変わるので、`Q-TEX-08`「既存の
+    // `POST /api/v1/battle-simulations`の契約は変更しない」はこの完全一致でしか固定
+    // できない。
+    //
+    // 将来この行が落ちたときは、まず「既存エンドポイントの公開契約を本当に変えたのか」を
+    // 確かめること。意図した変更なら同じPRで`scripts/write-openapi-baseline.mjs`を実行し、
+    // baselineの差分そのものをレビュー対象にする（`12_テスト戦略.md`「Snapshot更新時は
+    // 仕様変更と単なる出力変化をレビューで区別する」）。
+    const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as Record<string, unknown>;
+    const current = app.swagger() as unknown as Record<string, unknown>;
+
+    for (const path of ["/api/v1/battle-simulations", "/api/v1/battle-simulation-catalog"]) {
+      const frozen = navigate(baseline, ["paths", path]);
+      expect(frozen, `the baseline no longer freezes ${path}`).toBeDefined();
+      expect(navigate(current, ["paths", path]), path).toEqual(frozen);
+    }
+  });
+
   it("API-OPENAPI-023 (REL-004, Issue #203): the comparator flags removals and tightenings but accepts backward-compatible additions, so the baseline check cannot pass vacuously", () => {
     const baseline = app.swagger() as unknown;
 

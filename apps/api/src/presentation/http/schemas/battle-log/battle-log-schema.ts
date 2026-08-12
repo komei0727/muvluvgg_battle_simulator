@@ -1136,6 +1136,26 @@ const battleCompletedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `08_ドメインイベント.md`「BattleCompleted payload」: 確定した結果そのものを運ぶため、
+ * 戦闘モードによって形が異なり両者は排他とする。戦術演習は勝敗を持たず（R-TEX-10 #1）、
+ * 終了理由は2つだけ（R-TEX-09 #1）で、総スコアとブレイク回数を伴う。通常戦闘用の
+ * schemaは`outcome`を必須・`additionalProperties: false`とするため、演習の
+ * `BattleCompleted`はそちらへ適合しない——同じ`type`で形が変わる唯一のイベントであり、
+ * 演習側unionでは必ずこちらへ差し替える。
+ */
+const exerciseBattleCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["completionReason", "completedTurn", "totalScore", "breakCount"],
+  properties: {
+    completionReason: { type: "string", enum: ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"] },
+    completedTurn: { type: "integer", minimum: 1, maximum: 5 },
+    totalScore: { type: "integer", minimum: 0 },
+    breakCount: { type: "integer", minimum: 0 },
+  },
+} as const;
+
 const COOLDOWN_UNIT_ENUM = ["ACTION", "TURN"] as const;
 
 const cooldownStartedDetailsSchema = {
@@ -1978,14 +1998,18 @@ const effectiveEffectChangedDetailsSchema = {
   },
 } as const;
 
-const COMBAT_STAT_CHANGE_REASON_ENUM = [
-  "EFFECT_APPLIED",
-  "EFFECT_EXPIRED",
-  "EFFECT_REMOVED",
-  // R-TEX-04（TEX-004、Issue #430）: 戦術演習のブレイク強化による`baseCombatStats`の
-  // 書き換えを契機とする再計算。効果の増減を伴わない唯一の契機。
+const COMBAT_STAT_CHANGE_REASON_ENUM = ["EFFECT_APPLIED", "EFFECT_EXPIRED", "EFFECT_REMOVED"];
+
+/**
+ * R-TEX-04（TEX-004、Issue #430）: 戦術演習のブレイク強化による`baseCombatStats`の
+ * 書き換えを契機とする再計算。効果の増減を伴わない唯一の契機であり、通常戦闘では
+ * 発生しない——`Q-TEX-08`（既存契約を変更しない）に従い、この理由を含む列挙は
+ * 演習エンドポイントの公開文書だけが持つ（`EXERCISE_EVENT_DETAILS_SCHEMA_BY_TYPE`）。
+ */
+const EXERCISE_COMBAT_STAT_CHANGE_REASON_ENUM = [
+  ...COMBAT_STAT_CHANGE_REASON_ENUM,
   "BREAK_ENHANCEMENT",
-] as const;
+];
 
 /** `CombatStatChanged`（R-STA-04）。実際に値が変わったstatごとに発行する。 */
 const combatStatChangedDetailsSchema = {
@@ -1998,6 +2022,15 @@ const combatStatChangedDetailsSchema = {
     before: { type: "number" },
     after: { type: "number" },
     reason: { type: "string", enum: COMBAT_STAT_CHANGE_REASON_ENUM },
+  },
+} as const;
+
+/** 演習だけが発行し得る`BREAK_ENHANCEMENT`を加えた`CombatStatChanged`（上の注記参照）。 */
+const exerciseCombatStatChangedDetailsSchema = {
+  ...combatStatChangedDetailsSchema,
+  properties: {
+    ...combatStatChangedDetailsSchema.properties,
+    reason: { type: "string", enum: EXERCISE_COMBAT_STAT_CHANGE_REASON_ENUM },
   },
 } as const;
 
@@ -2017,6 +2050,15 @@ const resourceCapacityChangedDetailsSchema = {
     before: { type: "integer", minimum: 0 },
     after: { type: "integer", minimum: 0 },
     reason: { type: "string", enum: COMBAT_STAT_CHANGE_REASON_ENUM },
+  },
+} as const;
+
+/** 演習だけが発行し得る`BREAK_ENHANCEMENT`を加えた`ResourceCapacityChanged`。 */
+const exerciseResourceCapacityChangedDetailsSchema = {
+  ...resourceCapacityChangedDetailsSchema,
+  properties: {
+    ...resourceCapacityChangedDetailsSchema.properties,
+    reason: { type: "string", enum: EXERCISE_COMBAT_STAT_CHANGE_REASON_ENUM },
   },
 } as const;
 
@@ -2247,6 +2289,10 @@ const markerRemovedDetailsSchema = {
  * 構造上同一payloadだが、`type`ごとに別エントリを持つ（`oneOf`側で`type`を
  * `const`固定するための discriminator は`type`自身であり、`details`の形が
  * 同じでも判別に問題はない）。
+ *
+ * 戦術演習だけが発行するイベント（`EXERCISE_EVENT_DETAILS_SCHEMA_BY_TYPE`）はここに
+ * 含めない。通常戦闘のレスポンスに現れ得ないvariantを既存エンドポイントの公開Schema
+ * へ足すと、生成クライアントのunionが変わり`Q-TEX-08`（既存契約を変更しない）に反する。
  */
 const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   BATTLE_STARTED: battleStartedDetailsSchema,
@@ -2288,9 +2334,6 @@ const EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
   HEALING_TRANSFERRED: healingTransferredDetailsSchema,
   CONTINUOUS_DAMAGE_APPLIED: continuousDamageAppliedDetailsSchema,
   UNIT_DEFEATED: unitDefeatedDetailsSchema,
-  EXERCISE_SCORE_ACCUMULATED: exerciseScoreAccumulatedDetailsSchema,
-  UNIT_BROKEN: unitBrokenDetailsSchema,
-  UNIT_REVIVED: unitRevivedDetailsSchema,
   ACTION_COMPLETING: actorEffectiveActionDetailsSchema,
   ACTION_COMPLETED: actorEffectiveActionDetailsSchema,
   COOLDOWN_STARTED: cooldownStartedDetailsSchema,
@@ -2356,14 +2399,46 @@ const UNKNOWN_EVENT_TYPE_TOLERANCE_DESCRIPTION =
   "(10_API設計.md「バージョニング」). Clients must not reject the whole response solely because " +
   "an event carries an unrecognized type — skip or generically render the event instead.";
 
-export const battleLogEventResponseDocSchema = {
-  description: UNKNOWN_EVENT_TYPE_TOLERANCE_DESCRIPTION,
-  oneOf: Object.entries(EVENT_DETAILS_SCHEMA_BY_TYPE).map(([type, detailsSchema]) => ({
-    ...battleLogEventResponseSchema,
-    properties: {
-      ...battleLogEventResponseSchema.properties,
-      type: { const: type },
-      details: detailsSchema,
-    },
-  })),
-} as const;
+/**
+ * 戦術演習（`POST /api/v1/tactical-exercises`）のレスポンスだけに現れるイベント種別と、
+ * 演習だけが取り得る`reason`を持つ差し替え版（R-TEX-02〜04）。通常戦闘の
+ * `EVENT_DETAILS_SCHEMA_BY_TYPE`へは足さず、ここで重ねる。
+ */
+const EXERCISE_EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
+  ...EVENT_DETAILS_SCHEMA_BY_TYPE,
+  BATTLE_COMPLETED: exerciseBattleCompletedDetailsSchema,
+  COMBAT_STAT_CHANGED: exerciseCombatStatChangedDetailsSchema,
+  RESOURCE_CAPACITY_CHANGED: exerciseResourceCapacityChangedDetailsSchema,
+  EXERCISE_SCORE_ACCUMULATED: exerciseScoreAccumulatedDetailsSchema,
+  UNIT_BROKEN: unitBrokenDetailsSchema,
+  UNIT_REVIVED: unitRevivedDetailsSchema,
+};
+
+function toEventDocSchema(detailsSchemaByType: Readonly<Record<string, object>>) {
+  return {
+    description: UNKNOWN_EVENT_TYPE_TOLERANCE_DESCRIPTION,
+    oneOf: Object.entries(detailsSchemaByType).map(([type, detailsSchema]) => ({
+      ...battleLogEventResponseSchema,
+      properties: {
+        ...battleLogEventResponseSchema.properties,
+        type: { const: type },
+        details: detailsSchema,
+      },
+    })),
+  };
+}
+
+/** `POST /api/v1/battle-simulations`の公開文書が使うイベントunion（演習専用variantを含まない）。 */
+export const battleLogEventResponseDocSchema = toEventDocSchema(EVENT_DETAILS_SCHEMA_BY_TYPE);
+
+/** `POST /api/v1/tactical-exercises`の公開文書が使うイベントunion（演習専用variantを含む）。 */
+export const exerciseBattleLogEventResponseDocSchema = toEventDocSchema(
+  EXERCISE_EVENT_DETAILS_SCHEMA_BY_TYPE,
+);
+
+/** 演習のレスポンスにだけ現れるイベント種別。エンドポイント別unionの差分を機械照合するために公開する。 */
+export const EXERCISE_ONLY_EVENT_TYPES = [
+  "EXERCISE_SCORE_ACCUMULATED",
+  "UNIT_BROKEN",
+  "UNIT_REVIVED",
+] as const;
