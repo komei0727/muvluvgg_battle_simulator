@@ -23,9 +23,13 @@ import type { FormationAction } from "../features/formation/formation-reducer.js
 import { validateDraft } from "../features/formation/draft-validation.js";
 import { buildBattleSimulationRequest } from "../features/formation/request-mapper.js";
 import {
+  EXERCISE_DRAFT_STORAGE_KEY,
+  LAST_DRAFT_STORAGE_KEY,
+} from "../features/formation/persistence.js";
+import {
   createPersistedInitialState,
-  createUnpersistedInitialState,
   useFormationPersistence,
+  usePersistedDraft,
 } from "../features/formation/use-formation-persistence.js";
 import { SubmitControls } from "../features/formation/SubmitControls.js";
 import type { UseFormationStatPreviewOptions } from "../features/formation/use-formation-stat-preview.js";
@@ -86,20 +90,21 @@ export function BattleSimulatorPage({
     apiBaseUrl,
     getCatalogImpl !== undefined ? { getCatalogImpl } : {},
   );
-  const [mode, setMode] = useState<BattleMode>("battle");
+  // UI-AC-018: 戦術演習を既定モードにする。
+  const [mode, setMode] = useState<BattleMode>("exercise");
   // UI-AC-029: 前回セッションのdraftはlazy initで復元する（reducerを不純にしない）。
   const [battleState, battleDispatch] = useReducer(
     formationReducer,
-    undefined,
+    LAST_DRAFT_STORAGE_KEY,
     createPersistedInitialState,
   );
-  // UI-AC-018: 演習draftはモード別の独立したsliceとして持つ。永続化
-  // （01_UI要求・画面設計.md §5.9）は通常戦闘のdraftだけを対象にし、同じ
-  // storage keyを2つのdraftが奪い合わないようにする。
+  // UI-AC-018: 演習draftはモード別の独立したsliceとして持ち、保存先も別キーにする
+  // （01_UI要求・画面設計.md §5.9）。同じキーを2つのdraftが奪い合うと、
+  // 後から保存した側でもう片方の編成が消える。
   const [exerciseState, exerciseDispatch] = useReducer(
     formationReducer,
-    undefined,
-    createUnpersistedInitialState,
+    EXERCISE_DRAFT_STORAGE_KEY,
+    createPersistedInitialState,
   );
   const catalog = catalogLoader.state;
 
@@ -139,23 +144,35 @@ export function BattleSimulatorPage({
 
   // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
   // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
-  const statPreview = useFormationStatPreview(
-    apiBaseUrl,
-    formState.draft,
-    previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {},
-  );
+  const statPreview = useFormationStatPreview(apiBaseUrl, formState.draft, {
+    mode: isExercise ? "TACTICAL_EXERCISE" : "NORMAL",
+    ...(previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {}),
+  });
 
   // 01_UI要求・画面設計.md §5.9: 入力の保存・復元・プリフィル。保存の失敗は
-  // 画面へ出さず、保存以外の機能をそのまま続ける。
-  const persistence = useFormationPersistence({
+  // 画面へ出さず、保存以外の機能をそのまま続ける。draftはモードごとに別キーへ保存し、
+  // 孤児IDのクリアもそれぞれのviolationで判定する。
+  usePersistedDraft({
+    storageKey: LAST_DRAFT_STORAGE_KEY,
     draft: battleState.draft,
+    catalog,
+    violations: battleView.violations,
+    dispatch: battleDispatch,
+  });
+  usePersistedDraft({
+    storageKey: EXERCISE_DRAFT_STORAGE_KEY,
+    draft: exerciseState.draft,
+    catalog,
+    violations: exerciseView.violations,
+    dispatch: exerciseDispatch,
+  });
+  const persistence = useFormationPersistence({
     editedDraft: formState.draft,
     editedDraftId: mode,
     ...(formState.lastEditedSlotKey === undefined
       ? {}
       : { lastEditedSlotKey: formState.lastEditedSlotKey }),
     catalog,
-    violations: battleView.violations,
     dispatch: battleDispatch,
   });
 
@@ -438,6 +455,7 @@ export function BattleSimulatorPage({
         <SelectionDialogs
           selectionDialog={formState.selectionDialog}
           draft={formState.draft}
+          mode={mode}
           catalog={catalog.response}
           unitImageMap={unitImageMap}
           memoryImageMap={memoryImageMap}

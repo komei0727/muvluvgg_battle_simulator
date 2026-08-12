@@ -6,6 +6,14 @@ export interface CatalogUnitSummary {
   readonly unitDefinitionId: string;
   readonly displayName: string;
   readonly characterName: string;
+  /**
+   * R-TEX-11 #1: 編成プールの区分（`PLAYABLE`／`EXERCISE_ENEMY`）。`gearEffects`と
+   * 同じく、この項目を返さない旧APIと組み合わせても壊さないため任意項目にする。
+   * 不在は`PLAYABLE`として扱う。
+   */
+  readonly category?: string;
+  /** R-TEX-11 #4: 開催中バッジ用の表示専用情報。`EXERCISE_ENEMY`のときだけ届く。 */
+  readonly exerciseActive?: boolean;
   readonly attribute: string;
   readonly unitType: string;
   readonly role: string;

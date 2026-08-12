@@ -24,6 +24,30 @@ export const catalogFixture = {
       role: "PHYSICAL_ATTACKER",
       positionAptitudes: ["FRONT"],
     },
+    // R-TEX-11 #1 #4: 戦術演習専用ユニット。通常戦闘の選択プールには現れず、
+    // 開催中フラグはバッジ表示にだけ使う（開催終了も選択できる）。
+    {
+      unitDefinitionId: "UNIT_EXERCISE_A",
+      displayName: "エクササイズアルファ",
+      characterName: "Exercise Alpha",
+      category: "EXERCISE_ENEMY",
+      exerciseActive: true,
+      attribute: "COOL",
+      unitType: "ATTACKER",
+      role: "PHYSICAL_ATTACKER",
+      positionAptitudes: ["FRONT"],
+    },
+    {
+      unitDefinitionId: "UNIT_EXERCISE_B",
+      displayName: "エクササイズブラボー",
+      characterName: "Exercise Bravo",
+      category: "EXERCISE_ENEMY",
+      exerciseActive: false,
+      attribute: "COOL",
+      unitType: "GUARDIAN",
+      role: "TANK",
+      positionAptitudes: ["FRONT"],
+    },
   ],
   memories: [
     {

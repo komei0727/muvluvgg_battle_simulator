@@ -22,6 +22,19 @@ const catalog: BattleSimulationCatalogResponse = {
       unitDefinitionId: "UNIT_ENEMY",
       displayName: "敵",
       characterName: "Enemy",
+      category: "EXERCISE_ENEMY",
+      exerciseActive: true,
+      attribute: "SMART",
+      unitType: "ATTACKER",
+      role: "TANK",
+      positionAptitudes: ["FRONT"],
+    },
+    {
+      unitDefinitionId: "UNIT_ENEMY_CLOSED",
+      displayName: "開催終了の敵",
+      characterName: "Closed Enemy",
+      category: "EXERCISE_ENEMY",
+      exerciseActive: false,
       attribute: "SMART",
       unitType: "ATTACKER",
       role: "TANK",
@@ -108,6 +121,45 @@ describe("validateExerciseDraft", () => {
 
     expect(codes(violations)).toContain("MEMORY_COUNT_OUT_OF_RANGE");
     expect(selectCanSubmit(violations)).toBe(false);
+  });
+
+  // R-TEX-11 #2: 味方は`PLAYABLE`のみ、敵は`EXERCISE_ENEMY`のみ。
+  it("rejects an exercise enemy placed in an ally slot", () => {
+    const draft = withUnit(validExerciseDraft(), "ally", "FRONT", 1, "UNIT_ENEMY");
+
+    const violations = validateExerciseDraft(draft, catalog);
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        code: "UNIT_POOL_MISMATCH",
+        severity: "error",
+        slotKey: slotKeyOf("ally", "FRONT", 1),
+      }),
+    );
+    expect(selectCanSubmit(violations)).toBe(false);
+  });
+
+  it("rejects a playable unit placed in the exercise enemy slot", () => {
+    let draft = createInitialDraft();
+    draft = withUnit(draft, "ally", "FRONT", 0, "UNIT_ALLY");
+    draft = withUnit(draft, "enemy", "FRONT", 0, "UNIT_ALLY");
+
+    const violations = validateExerciseDraft(draft, catalog);
+
+    expect(codes(violations)).toContain("UNIT_POOL_MISMATCH");
+    expect(selectCanSubmit(violations)).toBe(false);
+  });
+
+  // R-TEX-11 #4: `exerciseActive`は表示専用で、受理条件に影響しない。
+  it("accepts an exercise enemy whose event has already closed", () => {
+    let draft = createInitialDraft();
+    draft = withUnit(draft, "ally", "FRONT", 0, "UNIT_ALLY");
+    draft = withUnit(draft, "enemy", "FRONT", 0, "UNIT_ENEMY_CLOSED");
+
+    const violations = validateExerciseDraft(draft, catalog);
+
+    expect(codes(violations)).not.toContain("UNIT_POOL_MISMATCH");
+    expect(selectCanSubmit(violations)).toBe(true);
   });
 
   // UI-AC-019: ターン上限は5固定で入力が存在しないため、draftの値を検証しない。

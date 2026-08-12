@@ -5,7 +5,7 @@ import {
 } from "./fixtures/battle-errors.js";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
-import { fillMinimalFormation } from "./support/formation.js";
+import { fillMinimalFormation, openBattleMode } from "./support/formation.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 
 test.beforeEach(async ({ page }) => {
@@ -16,6 +16,7 @@ test.beforeEach(async ({ page }) => {
 test("highlights the ally slot named by a 422 violation path", async ({ page }) => {
   await mockSimulationSequence(page, [{ status: 422, body: battleValidationErrorFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   await page.getByRole("button", { name: "戦闘を開始" }).click();
@@ -35,6 +36,7 @@ test("keeps the previous success result visible and offers retry after a 503 rer
     { status: 503, body: battleCapacityErrorFixture, headers: { "Retry-After": "5" } },
   ]);
   await page.goto("./");
+  await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   const submitButton = page.getByRole("button", { name: "戦闘を開始" });

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { readJsonItem, removeJsonItem, writeJsonItem } from "../../lib/storage.js";
 import { createInitialFormationState } from "./formation-reducer.js";
 import {
-  LAST_DRAFT_STORAGE_KEY,
   PLAYER_DATA_STORAGE_KEY,
   createEmptyPlayerData,
   isEmptyPlayerData,
@@ -25,22 +24,13 @@ import type { CatalogLoadState } from "../catalog-selection/catalog-loader.js";
  * `useReducer`のlazy initializerとして呼ぶ（04_コンポーネント・状態管理設計.md
  * §4「永続化」）。復元をreducerの副作用にしないため、storageの読み出しはここへ寄せる。
  * 保存draftが無い・壊れている場合は初期draftへ落とし、学園レベルだけ手持ちデータから
- * プリフィルする。
+ * プリフィルする。モード別draftはそれぞれの保存キーを`useReducer`の第2引数で渡す。
  */
-export function createPersistedInitialState(): FormationState {
-  const restored = parseStoredDraft(readJsonItem(LAST_DRAFT_STORAGE_KEY));
+export function createPersistedInitialState(storageKey: string): FormationState {
+  const restored = parseStoredDraft(readJsonItem(storageKey));
   if (restored !== undefined) {
     return createInitialFormationState(restored);
   }
-  return createInitialFormationState(createInitialDraft(readPlayerData().academyLevels));
-}
-
-/**
- * `mlgg:last-draft`の対象外であるdraft（`UI-AC-018`のモード別draft）の初期状態。
- * 保存draftは復元しないが、手持ちデータ由来の学園レベルだけは通常戦闘と同じく
- * プリフィルする——手持ちデータはモードに依らない味方の育成情報だからである。
- */
-export function createUnpersistedInitialState(): FormationState {
   return createInitialFormationState(createInitialDraft(readPlayerData().academyLevels));
 }
 
@@ -48,9 +38,52 @@ function readPlayerData() {
   return parsePlayerData(readJsonItem(PLAYER_DATA_STORAGE_KEY)) ?? createEmptyPlayerData();
 }
 
-export interface UseFormationPersistenceInput {
-  /** `mlgg:last-draft`へ保存するdraft（§5.9の保存対象は通常戦闘モードだけ）。 */
+export interface UsePersistedDraftInput {
+  /** このdraftの保存先キー。モードごとに1つ持つ（§5.9）。 */
+  readonly storageKey: string;
   readonly draft: BattleDraft;
+  readonly catalog: CatalogLoadState;
+  /** そのdraftの`validateDraft`結果。孤児IDの特定に`UNKNOWN_DEFINITION`だけを使う。 */
+  readonly violations: readonly UiViolation[];
+  readonly dispatch: (action: FormationAction) => void;
+}
+
+/**
+ * 1つの編成draftをlocalStorageへ同期し、Catalogから消えた定義を持つ枠を空にする
+ * （01_UI要求・画面設計.md §5.9）。モードごとにdraftとキーが独立するため、
+ * モード数だけ呼ぶ。孤児IDの判定は渡されたdraftのviolationだけで行う — `slotKey`は
+ * モード間で同じ文字列になるため、他モードのviolationを混ぜると無関係な枠を空にする。
+ */
+export function usePersistedDraft({
+  storageKey,
+  draft,
+  catalog,
+  violations,
+  dispatch,
+}: UsePersistedDraftInput): void {
+  const catalogRevision = catalog.status === "ready" ? catalog.response.catalogRevision : undefined;
+
+  useEffect(() => {
+    writeJsonItem(storageKey, toStoredDraft(draft, catalogRevision));
+  }, [storageKey, draft, catalogRevision]);
+
+  // 孤児IDのクリアはmount後の最初のCatalog readyで1回だけ行う。以降の再読込では
+  // 04_コンポーネント・状態管理設計.md §5のとおり黙って削除せず、`validateDraft`の
+  // errorとして送信を止める（利用者が今まさに選んだ定義を消さないため）。
+  const prunedRef = useRef(false);
+  useEffect(() => {
+    if (prunedRef.current || catalog.status !== "ready") {
+      return;
+    }
+    prunedRef.current = true;
+    const slotKeys = selectUnknownDefinitionSlotKeys(violations);
+    if (slotKeys.length > 0) {
+      dispatch({ type: "unknownDefinitionsCleared", slotKeys });
+    }
+  }, [catalog, violations, dispatch]);
+}
+
+export interface UseFormationPersistenceInput {
   /**
    * 手持ちデータの書き戻し元、すなわち今まさに編集しているdraft。手持ちデータは
    * モードに依らない味方の育成情報なので、どのモードで編集しても書き戻す
@@ -69,8 +102,6 @@ export interface UseFormationPersistenceInput {
    */
   readonly lastEditedSlotKey?: string;
   readonly catalog: CatalogLoadState;
-  /** `validateDraft`の結果。孤児IDの特定に`UNKNOWN_DEFINITION`だけを使う。 */
-  readonly violations: readonly UiViolation[];
   readonly dispatch: (action: FormationAction) => void;
 }
 
@@ -91,21 +122,19 @@ export interface FormationPersistence {
 }
 
 /**
- * 編成draftと味方の育成データをlocalStorageへ同期する（01_UI要求・画面設計.md §5.9）。
- * 書き込みは全てこのhookのeffectに閉じ、`formationReducer`は純粋なまま保つ。
- * 保存の失敗は`lib/storage.ts`が握り潰すため、ここでは成否を扱わない。
+ * 味方の育成データ（手持ちデータ）をlocalStorageへ同期する（01_UI要求・画面設計.md
+ * §5.9）。編成draftそのものの保存は`usePersistedDraft`が持つ。書き込みは全て
+ * このhookのeffectに閉じ、`formationReducer`は純粋なまま保つ。保存の失敗は
+ * `lib/storage.ts`が握り潰すため、ここでは成否を扱わない。
  */
 export function useFormationPersistence({
-  draft,
   editedDraft,
   editedDraftId,
   lastEditedSlotKey,
   catalog,
-  violations,
   dispatch,
 }: UseFormationPersistenceInput): FormationPersistence {
   const [playerData, setPlayerData] = useState(readPlayerData);
-  const catalogRevision = catalog.status === "ready" ? catalog.response.catalogRevision : undefined;
 
   // 味方の育成入力を手持ちデータへ書き戻す。draftの参照はreducerが値を変えたときだけ
   // 変わり、変化が無ければ`mergePlayerDataFromDraft`が同じ参照を返すので、ここが
@@ -132,26 +161,17 @@ export function useFormationPersistence({
     writeJsonItem(PLAYER_DATA_STORAGE_KEY, toStoredPlayerData(playerData));
   }, [playerData]);
 
-  useEffect(() => {
-    writeJsonItem(LAST_DRAFT_STORAGE_KEY, toStoredDraft(draft, catalogRevision));
-  }, [draft, catalogRevision]);
-
-  // 孤児IDのクリアはmount後の最初のCatalog readyで1回だけ行う。以降の再読込では
-  // 04_コンポーネント・状態管理設計.md §5のとおり黙って削除せず、`validateDraft`の
-  // errorとして送信を止める（利用者が今まさに選んだ定義を消さないため）。
+  // 未知ユニットの手持ちデータもmount後の最初のCatalog readyで1回だけ取り除く
+  // （枠側の孤児クリアは`usePersistedDraft`が同じタイミングで行う）。
   const prunedRef = useRef(false);
   useEffect(() => {
     if (prunedRef.current || catalog.status !== "ready") {
       return;
     }
     prunedRef.current = true;
-    const slotKeys = selectUnknownDefinitionSlotKeys(violations);
-    if (slotKeys.length > 0) {
-      dispatch({ type: "unknownDefinitionsCleared", slotKeys });
-    }
     const knownUnitIds = catalog.response.units.map((unit) => unit.unitDefinitionId);
     setPlayerData((previous) => prunePlayerData(previous, knownUnitIds));
-  }, [catalog, violations, dispatch]);
+  }, [catalog]);
 
   const prefillEnhancementFor = useCallback(
     (side: Side, unitDefinitionId: string) =>

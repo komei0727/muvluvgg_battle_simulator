@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { mockCatalog } from "./support/mock-api.js";
+import { openBattleMode } from "./support/formation.js";
 
 // UI-ARCH-001/002 foundation smoke test: the built shell must load from the
 // GitHub Pages base path with no failed asset requests. Feature flows are
@@ -18,6 +19,7 @@ test("loads the app shell from the Pages base path without failed requests", asy
   });
 
   await page.goto("./");
+  await openBattleMode(page);
 
   await expect(page.getByRole("banner")).toContainText("BATTLE ANALYTICS CONSOLE");
   await expect(page.getByRole("region", { name: "戦闘パラメータ" })).toBeVisible();

@@ -166,6 +166,59 @@ describe("validateDraft — unknown definition (UI-UT-VAL-006)", () => {
   });
 });
 
+// R-TEX-11 #3: 通常戦闘は両陣営とも`PLAYABLE`のみを受理する。
+describe("validateDraft — unit pool (UI-UT-VAL-011)", () => {
+  const catalog = catalogWith([
+    catalogUnit("UNIT_A"),
+    catalogUnit("UNIT_EX", { category: "EXERCISE_ENEMY", exerciseActive: true }),
+  ]);
+
+  it.each(["ally", "enemy"] as const)("rejects an exercise enemy in a %s slot", (side) => {
+    const base = createInitialDraft();
+    const slotKey = slotKeyOf(side, "FRONT", 0);
+    const draft: BattleDraft = {
+      ...draftWithAllyCount(1, "UNIT_A"),
+      ...(side === "ally"
+        ? {
+            allySlots: base.allySlots.map((slot) =>
+              slot.slotKey === slotKey ? { ...slot, unitDefinitionId: "UNIT_EX" } : slot,
+            ),
+          }
+        : {
+            enemySlots: base.enemySlots.map((slot) =>
+              slot.slotKey === slotKey ? { ...slot, unitDefinitionId: "UNIT_EX" } : slot,
+            ),
+          }),
+    };
+
+    const violations = validateDraft(draft, catalog);
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({ code: "UNIT_POOL_MISMATCH", severity: "error", slotKey }),
+    );
+    expect(selectCanSubmit(violations)).toBe(false);
+  });
+
+  it("accepts playable units on both sides, including definitions without a category", () => {
+    const legacyCatalog = catalogWith([catalogUnit("UNIT_A"), catalogUnit("UNIT_B")]);
+    const draft = draftWithAllyCount(1, "UNIT_A");
+
+    const violations = validateDraft(draft, legacyCatalog);
+
+    expect(violations.some((v) => v.code === "UNIT_POOL_MISMATCH")).toBe(false);
+  });
+
+  // Catalogに無い定義はUNKNOWN_DEFINITIONが指す。カテゴリ不明の枠へ重ねて
+  // プール違反を出すと、選び直しを促す表示が二重になる。
+  it("does not add a pool violation for a definition missing from the catalog", () => {
+    const draft = draftWithAllyCount(1, "UNIT_GONE");
+
+    const violations = validateDraft(draft, catalog);
+
+    expect(violations.some((v) => v.code === "UNIT_POOL_MISMATCH")).toBe(false);
+  });
+});
+
 describe("validateDraft — aptitude mismatch is a warning (UI-UT-VAL-007)", () => {
   it("does not block submission for an off-aptitude placement", () => {
     const catalog = catalogWith([catalogUnit("UNIT_A", { positionAptitudes: ["FRONT"] })]);

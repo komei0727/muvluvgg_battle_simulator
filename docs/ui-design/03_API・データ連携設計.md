@@ -45,6 +45,10 @@ interface CatalogUnitSummary {
   readonly unitDefinitionId: string;
   readonly displayName: string;
   readonly characterName: string;
+  /** R-TEX-11 #1: `PLAYABLE`／`EXERCISE_ENEMY`。不在は`PLAYABLE`として扱う。 */
+  readonly category?: string;
+  /** R-TEX-11 #4: 開催中バッジ用の表示専用情報。`EXERCISE_ENEMY`にだけ現れる。 */
+  readonly exerciseActive?: boolean;
   readonly attribute: string;
   readonly unitType: string;
   readonly role: string;
@@ -59,6 +63,7 @@ interface CatalogMemorySummary {
 
 - Unit/Memory配列はdefinition ID昇順とし、UI側の表示sortに依存しない安定順を持つ。
 - `gearEffects`はギア選択肢の上昇値表示（`01_UI要求・画面設計.md` §5.7）にだけ使う。UIは値を再計算せず、効果表も換算式も持たない。
+- `category`と`exerciseActive`は`gearEffects`と同じく任意項目として扱う。この2項目を返さない旧APIと組み合わせても壊さず、`category`不在は`PLAYABLE`として扱う。届いた場合の型違反は編成プールの判定を誤らせるため契約違反とする（§8）。
 - 画像URLはAPI契約に含めない。UIはdefinition IDに対応する任意のローカル画像mapを重ね、なければfallbackを使う。
 - Skill、EffectAction、Formula、Condition、triggeredEffectsの内容を返さない。
 - pagination、検索query、availability filterは初期契約に設けない。
@@ -103,7 +108,7 @@ Accept: application/json
 X-Request-Id: ui-<UUID>
 ```
 
-リクエストは戦闘シミュレーションの`allyFormation`／`enemyFormation`だけを持ち、`turnLimit`と`options`を持たない。強化指定（`enhancement`）は§5.1の変換規則をそのまま適用する — 戦闘実行時と同じペイロードから同じ開始時ステータスが得られなければ、プレビューの意味がないため。
+リクエストは戦闘シミュレーションの`allyFormation`／`enemyFormation`と任意の`mode`を持ち、`turnLimit`と`options`を持たない。`mode`は`R-TEX-11` #5の編成プール検証にだけ使う。戦術演習モードでは`mode: "TACTICAL_EXERCISE"`を必ず送る — 送らないと敵枠の`EXERCISE_ENEMY`が`NORMAL`のプール制約で422になり、枠のステータス表示が落ちる。通常戦闘では省略する（サーバー既定の`NORMAL`と同じ意味であり、この項目を知らない旧APIを422にしないため）。強化指定（`enhancement`）は§5.1の変換規則をそのまま適用する — 戦闘実行時と同じペイロードから同じ開始時ステータスが得られなければ、プレビューの意味がないため。
 
 APIは0体の陣営を受け付けるため、片側だけ埋まった編集途中の状態でもそのまま送る（味方から順に置くので、両陣営が揃うまで待つと編集中はプレビューを出せない）。両陣営とも0体のときだけ送らず、未取得として扱う。
 
@@ -299,6 +304,17 @@ interface UnitEnhancementRequest {
 | `/turnLimit`             | integer 1～99 | ターン上限は1～99の整数で入力してください。  |
 | `/options/logLevel`      | 許容列挙値    | ログレベルを選択してください。               |
 
+M10（`TEX-011`）で次を追加する。違反コードは `UNIT_POOL_MISMATCH`（error）とする。
+
+| Path                    | 規則                                                     | UIメッセージ                                                           |
+| ----------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `/allyFormation/units`  | `PLAYABLE`のみ（両モード）                               | この枠には戦術演習専用ユニットを設定できません。選び直してください。   |
+| `/enemyFormation/units` | 通常戦闘は`PLAYABLE`のみ、戦術演習は`EXERCISE_ENEMY`のみ | この枠には戦術演習専用ユニットだけを設定できます。選び直してください。 |
+
+- 選択ダイアログの候補を編成プールで絞る（`01_UI要求・画面設計.md` §5.2）だけでは足りない。保存draftの復元やCatalog更新で誤ったプールのユニットが枠へ残り得るため、送信経路にも同じ制約を置く。
+- `exerciseActive`は検証に使わない。開催終了の演習ユニットもサーバーが受理する（`R-TEX-11` #4）。
+- Catalogに存在しない定義は`UNKNOWN_DEFINITION`が指す。カテゴリが判らない枠へプール違反を重ねて出さない。
+
 M11（`ENH-001`）で次を追加する。
 
 | Path                             | 規則          | UIメッセージ                                    |
@@ -404,6 +420,7 @@ type FormationStatPreviewApiResult =
 - 各定義IDが空でなく、配列内で重複しない
 - `displayName`と分類値が契約shapeを満たす
 - `gearEffects`は不在を許容する。届いた場合は各項目が`stat`・`application`・`values`を持ち、各値が`tier`・`grade`・有限数の`percentagePoints`を持つ
+- `category`・`exerciseActive`は不在を許容する。届いた場合は`category`が空でないstring、`exerciseActive`がbooleanである
 
 契約違反時は編成を有効にせず `RESPONSE_CONTRACT_MISMATCH`を表示する。UIがCatalogファイルから欠損値を補完しない。
 

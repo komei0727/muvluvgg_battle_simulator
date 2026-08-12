@@ -91,6 +91,39 @@ describe("validateCatalogResponse", () => {
     }
   });
 
+  // R-TEX-11 #1 #4: category/exerciseActiveは加算的に追加された任意項目.
+  it("carries category and exerciseActive through", () => {
+    const units = [validUnit({ category: "EXERCISE_ENEMY", exerciseActive: false })];
+
+    const result = validateCatalogResponse(validResponse({ units }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.units[0]?.category).toBe("EXERCISE_ENEMY");
+    expect(result.response.units[0]?.exerciseActive).toBe(false);
+  });
+
+  it("accepts a response from an older API that does not publish category at all", () => {
+    const result = validateCatalogResponse(validResponse());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.units[0]?.category).toBeUndefined();
+  });
+
+  it("rejects a malformed category or exerciseActive rather than guessing the pool", () => {
+    for (const overrides of [
+      { category: "" },
+      { category: 42 },
+      { exerciseActive: "true" },
+      { exerciseActive: null },
+    ]) {
+      expect(validateCatalogResponse(validResponse({ units: [validUnit(overrides)] })).ok).toBe(
+        false,
+      );
+    }
+  });
+
   it("rejects schemaVersion other than 1", () => {
     const result = validateCatalogResponse(validResponse({ schemaVersion: 2 }));
 

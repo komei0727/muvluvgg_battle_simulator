@@ -1,4 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render as renderComponent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SimulateOptions } from "../features/simulation/api-client.js";
@@ -40,6 +47,17 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/**
+ * 既定モードは戦術演習（`UI-AC-018`）。この fileは通常戦闘モードの挙動だけを見るため、
+ * render直後に通常戦闘タブへ切り替える。モードタブはCatalogの取得状態に関わらず
+ * 描画されるので、Catalog未取得の状態を見るtestからも同じように呼べる。
+ */
+function render(ui: ReactElement) {
+  const result = renderComponent(ui);
+  fireEvent.click(screen.getByRole("tab", { name: "通常戦闘" }));
+  return result;
+}
 
 function catalogResponse(): BattleSimulationCatalogResponse {
   return {

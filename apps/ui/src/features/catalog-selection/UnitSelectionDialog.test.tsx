@@ -132,3 +132,82 @@ describe("UnitSelectionDialog — capacity guard (UI-CT-007)", () => {
     expect(screen.getByRole("button", { name: "アルファ選択中" })).toBeEnabled();
   });
 });
+
+// UI-CT-053 / UI-CT-055: R-TEX-11 #4の開催中フラグをバッジで示す。開催終了も
+// 選択できる（受理条件ではなく表示専用の情報であるため）。
+describe("UnitSelectionDialog — exercise enemy badges", () => {
+  const exerciseUnits: readonly CatalogUnitSummary[] = [
+    {
+      unitDefinitionId: "UNIT_EX_ACTIVE",
+      displayName: "開催中の敵",
+      characterName: "Active",
+      category: "EXERCISE_ENEMY",
+      exerciseActive: true,
+      attribute: "COOL",
+      unitType: "ATTACKER",
+      role: "TANK",
+      positionAptitudes: ["FRONT"],
+    },
+    {
+      unitDefinitionId: "UNIT_EX_CLOSED",
+      displayName: "開催終了の敵",
+      characterName: "Closed",
+      category: "EXERCISE_ENEMY",
+      exerciseActive: false,
+      attribute: "COOL",
+      unitType: "ATTACKER",
+      role: "TANK",
+      positionAptitudes: ["FRONT"],
+    },
+  ];
+
+  it("tags a running exercise enemy as 開催中 and a closed one as 開催終了", () => {
+    render(
+      <UnitSelectionDialog
+        units={exerciseUnits}
+        atCapacity={false}
+        onSelect={vi.fn()}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("開催中")).toBeInTheDocument();
+    expect(screen.getByText("開催終了")).toBeInTheDocument();
+  });
+
+  it("keeps a closed exercise enemy selectable", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(
+      <UnitSelectionDialog
+        units={exerciseUnits}
+        atCapacity={false}
+        onSelect={onSelect}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const selectButton = screen.getByRole("button", { name: "開催終了の敵を選択" });
+    expect(selectButton).toBeEnabled();
+    await user.click(selectButton);
+
+    expect(onSelect).toHaveBeenCalledWith("UNIT_EX_CLOSED");
+  });
+
+  it("does not tag playable units with an exercise badge", () => {
+    render(
+      <UnitSelectionDialog
+        units={units}
+        atCapacity={false}
+        onSelect={vi.fn()}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("開催中")).not.toBeInTheDocument();
+    expect(screen.queryByText("開催終了")).not.toBeInTheDocument();
+  });
+});

@@ -1,5 +1,6 @@
 import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelectionDialog.js";
 import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
+import { selectUnitPool } from "../features/catalog-selection/unit-pool.js";
 import { MAX_UNITS_PER_SIDE } from "../features/formation/formation-reducer.js";
 import { UnitEnhancementDialog } from "../features/formation/UnitEnhancementDialog.js";
 import {
@@ -13,11 +14,14 @@ import type {
 } from "../features/formation/formation-reducer.js";
 import type { BattleDraft, Side, UnitEnhancementInput } from "../features/formation/types.js";
 import type { UiViolation } from "../features/formation/draft-validation.js";
+import type { BattleMode } from "../features/exercise/ModeTabs.js";
 import type { BattleSimulationCatalogResponse } from "../features/simulation/api-contract.js";
 
 export interface SelectionDialogsProps {
   readonly selectionDialog: SelectionDialogState;
   readonly draft: BattleDraft;
+  /** R-TEX-11 #2 #3: ユニット選択の候補はモードと陣営の組で決まる。 */
+  readonly mode: BattleMode;
   readonly catalog: BattleSimulationCatalogResponse;
   readonly unitImageMap: Readonly<Record<string, string>>;
   readonly memoryImageMap: Readonly<Record<string, string>>;
@@ -39,6 +43,7 @@ export interface SelectionDialogsProps {
 export function SelectionDialogs({
   selectionDialog,
   draft,
+  mode,
   catalog,
   unitImageMap,
   memoryImageMap,
@@ -57,7 +62,7 @@ export function SelectionDialogs({
       MAX_UNITS_PER_SIDE;
     return (
       <UnitSelectionDialog
-        units={catalog.units}
+        units={selectUnitPool(catalog.units, mode, slot.side)}
         {...(slot.unitDefinitionId !== undefined
           ? { currentUnitDefinitionId: slot.unitDefinitionId }
           : {})}

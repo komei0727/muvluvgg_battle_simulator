@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
+import { openBattleMode } from "./support/formation.js";
 
 test.beforeEach(async ({ page }) => {
   await mockCatalog(page, { status: 200, body: catalogFixture });
@@ -35,6 +36,7 @@ test("reaches every step of unit selection through the details tabs via real Tab
 }) => {
   await mockSimulationSequence(page, [{ status: 200, body: battleSuccessFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
 
   const allySlot = page.getByRole("button", { name: "前衛1にユニットを追加" }).first();
   await tabUntilFocused(page, allySlot);

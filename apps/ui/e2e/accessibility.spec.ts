@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
-import { fillMinimalFormation } from "./support/formation.js";
+import { fillMinimalFormation, openBattleMode } from "./support/formation.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 
 const SERIOUS_IMPACTS = new Set(["critical", "serious"]);
@@ -25,6 +25,7 @@ test("the idle formation screen has no critical/serious automated accessibility 
   page,
 }) => {
   await page.goto("./");
+  await openBattleMode(page);
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
 
   const results = await new AxeBuilder({ page }).analyze();
@@ -35,6 +36,7 @@ test("an open unit selection dialog has no critical/serious automated accessibil
   page,
 }) => {
   await page.goto("./");
+  await openBattleMode(page);
   await page.getByRole("button", { name: "前衛1にユニットを追加" }).first().click();
   await expect(page.getByRole("dialog", { name: "ユニットを選択" })).toBeVisible();
 
@@ -47,6 +49,7 @@ test("the battle summary and details screen has no critical/serious automated ac
 }) => {
   await mockSimulationSequence(page, [{ status: 200, body: battleSuccessFixture }]);
   await page.goto("./");
+  await openBattleMode(page);
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
   await page.getByRole("button", { name: "戦闘を開始" }).click();
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();

@@ -33,6 +33,17 @@ function isPositionAptitudes(value: unknown): value is readonly string[] {
   );
 }
 
+// R-TEX-11 #1 #4: `gearEffects`と同じく、この2項目を返さない旧APIと組み合わせても
+// 壊さないため不在を許す。届いた場合に型が違えば編成プールの判定を誤るため
+// （`category`不在は`PLAYABLE`扱いになる）、契約違反として扱う。
+function isValidOptionalCategory(value: unknown): boolean {
+  return value === undefined || isNonEmptyString(value);
+}
+
+function isValidOptionalExerciseActive(value: unknown): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
 function isValidUnit(value: unknown): value is CatalogUnitSummary {
   if (!isRecord(value)) {
     return false;
@@ -41,6 +52,8 @@ function isValidUnit(value: unknown): value is CatalogUnitSummary {
     isNonEmptyString(value["unitDefinitionId"]) &&
     isNonEmptyString(value["displayName"]) &&
     isNonEmptyString(value["characterName"]) &&
+    isValidOptionalCategory(value["category"]) &&
+    isValidOptionalExerciseActive(value["exerciseActive"]) &&
     isNonEmptyString(value["attribute"]) &&
     isNonEmptyString(value["unitType"]) &&
     isNonEmptyString(value["role"]) &&

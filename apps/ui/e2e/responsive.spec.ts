@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { mockCatalog } from "./support/mock-api.js";
+import { openBattleMode } from "./support/formation.js";
 
 test.beforeEach(async ({ page }) => {
   await mockCatalog(page, { status: 200, body: catalogFixture });
@@ -20,6 +21,7 @@ async function hasNoPageHorizontalScroll(page: Page): Promise<boolean> {
 test("desktop (1440x900) places ally and enemy formations side by side", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./");
+  await openBattleMode(page);
 
   const allyBox = await page.getByRole("heading", { name: /ALLY FORMATION/ }).boundingBox();
   const enemyBox = await page.getByRole("heading", { name: /ENEMY FORMATION/ }).boundingBox();
@@ -42,6 +44,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("./");
+    await openBattleMode(page);
 
     const allyBox = await page.getByRole("heading", { name: /ALLY FORMATION/ }).boundingBox();
     const enemyBox = await page.getByRole("heading", { name: /ENEMY FORMATION/ }).boundingBox();
@@ -68,6 +71,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("./");
+    await openBattleMode(page);
 
     await expect(page.getByText("FRONT / 前衛").first()).toBeVisible();
     await expect(page.getByText("REAR / 後衛").first()).toBeVisible();
