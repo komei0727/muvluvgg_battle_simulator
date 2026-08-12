@@ -16,7 +16,7 @@ const FAKE_RESULT = {} as SimulateBattleResult;
 
 export default function fakeWorkerHandler(task: WorkerSimulationTask): WorkerSimulationResult {
   if (task.requestId === "warmup") {
-    return { ok: true, result: FAKE_RESULT };
+    return { ok: true, mode: "BATTLE_SIMULATION", result: FAKE_RESULT };
   }
   return {
     ok: false,

@@ -14,6 +14,7 @@ import type {
   SimulateBattleCommand,
   LogLevel,
 } from "../../application/simulation/simulate-battle-command.js";
+import type { SimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-command.js";
 
 /**
  * Battle Scenario Harness 用の定義Builder（`12_テスト戦略.md`「テストデータ設計」）。
@@ -411,6 +412,14 @@ export function battleCommand(overrides: BattleCommandOverrides = {}): SimulateB
     turnLimit: overrides.turnLimit ?? 3,
     logLevel: overrides.logLevel ?? "DETAILED",
   };
+}
+
+/** 1対1・memoryなしの最小のSimulateTacticalExerciseCommand（`turnLimit`を持たない）。 */
+export function tacticalExerciseCommand(
+  overrides: Omit<BattleCommandOverrides, "turnLimit"> = {},
+): SimulateTacticalExerciseCommand {
+  const { turnLimit: _turnLimit, ...command } = battleCommand(overrides);
+  return command;
 }
 
 export type { UnitDefinitionId };

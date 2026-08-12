@@ -17,5 +17,5 @@ export default async function slowWorkerHandler(
   _task: WorkerSimulationTask,
 ): Promise<WorkerSimulationResult> {
   await delay(RESPONSE_DELAY_MS);
-  return { ok: true, result: FAKE_RESULT };
+  return { ok: true, mode: "BATTLE_SIMULATION", result: FAKE_RESULT };
 }

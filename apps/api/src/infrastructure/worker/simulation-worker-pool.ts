@@ -5,10 +5,16 @@ import { WorkerErrorCircuitBreaker } from "./worker-error-circuit-breaker.js";
 import { SystemClock } from "../time/system-clock.js";
 import type { Clock } from "../../domain/ports/clock.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
-import type { BattleSimulationRequestBody } from "../../application/contracts/request.js";
+import type {
+  BattleSimulationRequestBody,
+  TacticalExerciseRequestBody,
+} from "../../application/contracts/request.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
-import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
+import type {
+  SimulateBattleResult,
+  SimulateTacticalExerciseResult,
+} from "../../application/simulation/simulation-result-assembler.js";
 
 export interface SimulationWorkerPoolOptions {
   readonly catalogDir: string;
@@ -82,6 +88,20 @@ const WARM_UP_REQUEST: BattleSimulationRequestBody = {
   enemyFormation: { units: [], memoryDefinitionIds: [] },
   turnLimit: 1,
 };
+
+/**
+ * 投入したモードと異なるモードの結果が返るのは、Worker側の振り分けが壊れている
+ * ことを意味する（`09_アプリケーション設計.md`「実行境界」）。クライアント入力
+ * ではなく実装不変条件の違反として扱う。
+ */
+function modeMismatchError(
+  expectedMode: WorkerSimulationTask["mode"],
+  actualMode: WorkerSimulationTask["mode"],
+): ApplicationError {
+  return new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+    { reason: `the Worker returned a "${actualMode}" result for a "${expectedMode}" task` },
+  ]);
+}
 
 export class SimulationWorkerPoolStartupError extends Error {
   constructor(message: string) {
@@ -173,6 +193,7 @@ export class SimulationWorkerPool {
     const pool = new SimulationWorkerPool(options);
     const warmUpCount = Math.max(pool.pool.minThreads, 1);
     const warmUpTask: WorkerSimulationTask = {
+      mode: "BATTLE_SIMULATION",
       requestId: "warmup",
       request: WARM_UP_REQUEST,
       deadlineEpochMs: Date.now() + WARM_UP_TASK_DEADLINE_MS,
@@ -219,16 +240,59 @@ export class SimulationWorkerPool {
     request: BattleSimulationRequestBody,
     context: SimulationExecutionContext,
   ): Promise<SimulateBattleResult> {
+    const outcome = await this.runTask(
+      {
+        mode: "BATTLE_SIMULATION",
+        requestId: context.requestId,
+        request,
+        deadlineEpochMs: context.deadlineEpochMs,
+        expectedCatalogRevision: this.catalogRevision,
+      },
+      context,
+    );
+    if (outcome.mode !== "BATTLE_SIMULATION") {
+      throw modeMismatchError("BATTLE_SIMULATION", outcome.mode);
+    }
+    return outcome.result;
+  }
+
+  /**
+   * `09_アプリケーション設計.md`「実行境界」: 戦術演習（UC-03）を同じWorker Pool
+   * （同じタイムアウト・容量制御・Catalogリビジョン検査）で実行する。戦闘との違いは
+   * タスクのモード判別子と、返る結果の型だけである。
+   */
+  async executeTacticalExercise(
+    request: TacticalExerciseRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<SimulateTacticalExerciseResult> {
+    const outcome = await this.runTask(
+      {
+        mode: "TACTICAL_EXERCISE",
+        requestId: context.requestId,
+        request,
+        deadlineEpochMs: context.deadlineEpochMs,
+        expectedCatalogRevision: this.catalogRevision,
+      },
+      context,
+    );
+    if (outcome.mode !== "TACTICAL_EXERCISE") {
+      throw modeMismatchError("TACTICAL_EXERCISE", outcome.mode);
+    }
+    return outcome.result;
+  }
+
+  /**
+   * 両モード共通のタスク投入。Pool致命化の確認、キュー満杯・キャンセル・Worker異常
+   * の分類、サーキットの記録、`ok:false`のエラー変換をここへ集約する。成功結果は
+   * 判別子を保ったまま返し、呼び出し側が投入モードとの一致を確認する。
+   */
+  private async runTask(
+    task: WorkerSimulationTask,
+    context: SimulationExecutionContext,
+  ): Promise<Extract<WorkerSimulationResult, { ok: true }>> {
     if (this.fatalError !== undefined) {
       throw this.fatalError;
     }
-
-    const task: WorkerSimulationTask = {
-      requestId: context.requestId,
-      request,
-      deadlineEpochMs: context.deadlineEpochMs,
-      expectedCatalogRevision: this.catalogRevision,
-    };
 
     let outcome: WorkerSimulationResult;
     try {
@@ -267,7 +331,7 @@ export class SimulationWorkerPool {
     this.workerErrorCircuitBreaker.recordSuccess();
 
     if (outcome.ok) {
-      return outcome.result;
+      return outcome;
     }
 
     const error = toApplicationError(outcome.error);
