@@ -18,6 +18,7 @@ import type {
 import type { MarkerState } from "../model/marker-state.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
+import type { ExerciseEndResult } from "../outcome/exercise-end-policy.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
 import type {
   MarkerId,
@@ -40,8 +41,34 @@ export interface ValueChange<T> {
   readonly after: T;
 }
 
-/** `Battle.result`と同じ形。`battle.js`からの循環importを避けるため独立に定義する。 */
-export type BattleResultSnapshot = VictoryResult & { readonly completedTurn: number };
+/** 通常戦闘の結果（R-END-02）。勝敗と終了理由を持つ。 */
+export type NormalBattleResultSnapshot = VictoryResult & { readonly completedTurn: number };
+
+/**
+ * 演習結果（R-TEX-10 #1）: 終了理由、終了ターン、総スコア、ブレイク回数。勝利・敗北は
+ * 持たない。ブレイク履歴は集約が持たず、`UnitBroken`の投影として出力する（同 #2）。
+ */
+export type ExerciseBattleResultSnapshot = ExerciseEndResult & {
+  readonly completedTurn: number;
+  readonly totalScore: number;
+  readonly breakCount: number;
+};
+
+/**
+ * `Battle.result`と同じ形（`battle.js`が`BattleResult`として再輸出する）。型の正本を
+ * こちら側に置くのは、`state-delta.js`から`battle.js`をimportすると循環になるためである。
+ */
+export type BattleResultSnapshot = NormalBattleResultSnapshot | ExerciseBattleResultSnapshot;
+
+/**
+ * 演習結果を判別する。演習結果だけが総スコアを持ち、通常戦闘の結果だけが勝敗を持つため、
+ * 判別子フィールドを足さずに構造で判別できる（R-TEX-10 #1）。
+ */
+export function isExerciseBattleResult(
+  result: BattleResultSnapshot,
+): result is ExerciseBattleResultSnapshot {
+  return "totalScore" in result;
+}
 
 /**
  * `06_戦闘状態遷移.md`「クールタイム状態」の外部公開形。`setActionId`/`setTurnNumber`は
@@ -433,7 +460,10 @@ export interface StateDelta {
   readonly units?: Readonly<Record<BattleUnitId, UnitStateDelta>>;
   readonly turnNumber?: ValueChange<number>;
   readonly battleStatus?: ValueChange<BattleStatus>;
-  /** 勝敗確定（`BattleCompleted`）のみが持つ。`before`は常に`undefined`（未確定）。 */
+  /**
+   * 結果確定（`BattleCompleted`）のみが持つ。`before`は常に`undefined`（未確定）。
+   * 戦術演習では勝敗ではなく演習結果（R-TEX-10 #1）を運ぶ。
+   */
   readonly result?: ValueChange<BattleResultSnapshot | undefined>;
   /**
    * `08_ドメインイベント.md`「戦術演習イベント」の演習状態差分。戦闘モードが

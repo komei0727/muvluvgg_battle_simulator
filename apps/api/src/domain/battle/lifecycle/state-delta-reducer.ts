@@ -1,13 +1,15 @@
 import type { BattleStateSnapshot, BattleUnitSnapshot } from "./battle-state-snapshot.js";
-import type {
-  ChargeState,
-  CooldownState,
-  EffectSnapshot,
-  ExerciseStateDelta,
-  MarkerSnapshot,
-  StateDelta,
-  UnitStateDelta,
-  ValueChange,
+import {
+  isExerciseBattleResult,
+  type BattleResultSnapshot,
+  type ChargeState,
+  type CooldownState,
+  type EffectSnapshot,
+  type ExerciseStateDelta,
+  type MarkerSnapshot,
+  type StateDelta,
+  type UnitStateDelta,
+  type ValueChange,
 } from "../events/state-delta.js";
 import type { ExerciseStateSnapshot } from "../model/exercise-runtime.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
@@ -729,6 +731,9 @@ export function applyStateDelta(
   }
   const nextResult = delta.result !== undefined ? delta.result.after : state.result;
   const nextExercise = applyExerciseDelta(state.exercise, delta.exercise);
+  if (delta.result?.after !== undefined) {
+    assertResultMatchesMode(delta.result.after, nextExercise);
+  }
   return {
     status: delta.battleStatus?.after ?? state.status,
     currentTurn: delta.turnNumber?.after ?? state.currentTurn,
@@ -736,6 +741,48 @@ export function applyStateDelta(
     ...(nextResult !== undefined ? { result: nextResult } : {}),
     ...(nextExercise !== undefined ? { exercise: nextExercise } : {}),
   };
+}
+
+/**
+ * R-TEX-10: 確定した結果が戦闘モードと整合することを、差分だけから検証する。
+ *
+ * - 演習結果（勝敗を持たない、同 #1）は演習状態を持つ戦闘だけが確定できる。逆に演習が
+ *   勝敗を確定することもない。
+ * - 演習結果の総スコア・ブレイク回数は、同じ時点まで復元した演習状態と一致する（同 #3）。
+ *   結果の確定は`exercise.totalScore`／`breakCount`差分を所有しないため、この一致を
+ *   ここで検証しないと、計上量差分の欠落が結果側の値だけ正しい形で潜伏する。
+ */
+function assertResultMatchesMode(
+  result: BattleResultSnapshot,
+  exercise: ExerciseStateSnapshot | undefined,
+): void {
+  if (!isExerciseBattleResult(result)) {
+    if (exercise !== undefined) {
+      throw new DomainValidationError(
+        "delta.result",
+        "a victory outcome was applied to a TACTICAL_EXERCISE battle, which owns no win or loss",
+      );
+    }
+    return;
+  }
+  if (exercise === undefined) {
+    throw new DomainValidationError(
+      "delta.result",
+      "an exercise result was applied to a state without exercise state; only a TACTICAL_EXERCISE battle owns one",
+    );
+  }
+  if (result.totalScore !== exercise.totalScore) {
+    throw new DomainValidationError(
+      "delta.result.after.totalScore",
+      `the exercise result's total score (${result.totalScore}) does not match the cumulative score restored so far (${exercise.totalScore}); a score delta is missing or duplicated`,
+    );
+  }
+  if (result.breakCount !== exercise.breakCount) {
+    throw new DomainValidationError(
+      "delta.result.after.breakCount",
+      `the exercise result's break count (${result.breakCount}) does not match the break count restored so far (${exercise.breakCount}); a break delta is missing or duplicated`,
+    );
+  }
 }
 
 /**

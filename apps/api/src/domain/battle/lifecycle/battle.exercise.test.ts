@@ -857,6 +857,176 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
   });
 });
 
+/** 5ターン走らせるか、演習が早期終了するまで`advanceBattle`を繰り返す。 */
+function runExerciseToCompletion(
+  definitions: BattleDefinitions,
+  allyUnits: readonly BattleUnit[] = [unit("ally:1", "ALLY")],
+) {
+  const battle = createBattle(
+    createBattleId("B_1"),
+    allyUnits,
+    [unit("enemy:1", "ENEMY", "UNIT_002")],
+    createTurnLimit(5),
+    definitions,
+    "TACTICAL_EXERCISE",
+  );
+  const recorder = new EventRecorder(createBattleId("B_1"));
+  const random = new SequenceRandomSource([]);
+  const initialState = captureBattleState(battle);
+  let completed = startBattle(battle, random, recorder);
+  while (completed.status !== "COMPLETED") {
+    completed = advanceBattle(completed, random, recorder);
+  }
+  return { recorder, completed, initialState };
+}
+
+/** R-TEX-10 #2: ブレイク履歴は`UnitBroken`の投影として出力する（集約は履歴を持たない）。 */
+function projectBreakHistory(recorder: EventRecorder) {
+  return recorder
+    .getEvents()
+    .filter((event) => event.eventType === "UnitBroken")
+    .map((event) => {
+      const payload = event.payload as {
+        breakNumber: number;
+        turnNumber: number;
+        totalScore: number;
+      };
+      return {
+        breakNumber: payload.breakNumber,
+        turnNumber: payload.turnNumber,
+        cumulativeScoreAtBreak: payload.totalScore,
+      };
+    });
+}
+
+function accumulatedScoreTotal(recorder: EventRecorder): number {
+  return recorder
+    .getEvents()
+    .filter((event) => event.eventType === "ExerciseScoreAccumulated")
+    .reduce((sum, event) => sum + (event.payload as { amount: number }).amount, 0);
+}
+
+/** 味方の`UNIT_001`が固定ダメージのASを持ち、敵の`UNIT_002`が味方を1撃で倒すASを持つ。 */
+function mutualAttackerDefinitions(options: {
+  readonly allyDamage: number;
+  readonly enemyDamage?: number;
+}): BattleDefinitions {
+  const base = breakingAttackerDefinitions({ damagePerHit: options.allyDamage, hitCount: 1 });
+  if (options.enemyDamage === undefined) {
+    return base;
+  }
+  const enemyActionId = createEffectActionDefinitionId("ACT_ENEMY_ATTACK");
+  const enemyAction: EffectActionDefinition = {
+    kind: "DAMAGE",
+    effectActionDefinitionId: enemyActionId,
+    metadata: { tags: [] },
+    payload: {
+      damageType: "PHYSICAL",
+      formula: { kind: "CONSTANT", value: options.enemyDamage },
+      hitCount: 1,
+      critical: { mode: "PREVENTED" },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 1, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    },
+  };
+  const allySkill = base.activeSkillsByUnit.get(createUnitDefinitionId("UNIT_001"))![0]!;
+  const enemySkill: SkillDefinition = {
+    ...allySkill,
+    skillDefinitionId: createSkillDefinitionId("SKL_ENEMY_ATTACK"),
+    resolution: {
+      ...allySkill.resolution,
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: enemyActionId }],
+        },
+      ],
+    },
+    metadata: { displayName: "EnemyAttack", tags: [] },
+  };
+  return {
+    ...base,
+    activeSkillsByUnit: new Map([
+      ...base.activeSkillsByUnit,
+      [createUnitDefinitionId("UNIT_002"), [enemySkill]],
+    ]),
+    effectActions: new Map([...base.effectActions, [enemyActionId, enemyAction]]),
+    skillDefinitions: new Map([
+      ...base.skillDefinitions,
+      [enemySkill.skillDefinitionId, enemySkill],
+    ]),
+  };
+}
+
+describe("exercise end conditions and result (R-TEX-09／10)", () => {
+  it("UT-R-TEX-09-009: an exercise that survives five turns ends with TURN_LIMIT_REACHED at completedTurn 5 and no outcome", () => {
+    const { recorder, completed, initialState } = runExerciseToCompletion(attackerDefinitions());
+
+    // R-TEX-10 #1: 演習結果は終了理由・終了ターン・総スコア・ブレイク回数だけを持つ。
+    expect(completed.result).toEqual({
+      completionReason: "TURN_LIMIT_REACHED",
+      completedTurn: 5,
+      totalScore: completed.exercise!.totalScore,
+      breakCount: 0,
+    });
+    expect(completed.result).not.toHaveProperty("outcome");
+    // R-TEX-10 #3: 総スコアは発行された全計上量の合計とも最終状態の累計スコアとも一致する。
+    expect(completed.result!.completedTurn).toBe(5);
+    expect(accumulatedScoreTotal(recorder)).toBe(completed.exercise?.totalScore);
+    expect(captureBattleState(completed).exercise?.totalScore).toBe(completed.exercise?.totalScore);
+    // ブレイク0回でも結果は成立する（履歴は空）。
+    expect(projectBreakHistory(recorder)).toEqual([]);
+
+    expectStateRestoration(initialState, recorder, completed);
+  });
+
+  it("UT-R-TEX-09-010: an enemy reaching 0 HP does not end the exercise, so the battle keeps running after a break", () => {
+    const { recorder, completed } = runExerciseToCompletion(
+      breakingAttackerDefinitions({ damagePerHit: 150, hitCount: 1 }),
+    );
+
+    // ブレイクは毎ターン起きるが、そのどれも終了判定へ影響しない（R-TEX-09 #2）。
+    expect(completed.exercise?.breakCount).toBeGreaterThan(0);
+    expect(completed.result?.completionReason).toBe("TURN_LIMIT_REACHED");
+    // 最初のブレイクの後にもターンが進み、`BattleCompleted`は最終ターンまで発行されない。
+    const events = recorder.getEvents();
+    const firstBreak = events.findIndex((event) => event.eventType === "UnitBroken");
+    const completedIndex = events.findIndex((event) => event.eventType === "BattleCompleted");
+    expect(firstBreak).toBeGreaterThanOrEqual(0);
+    expect(completedIndex).toBeGreaterThan(firstBreak);
+    expect(events[completedIndex]!.turnNumber).toBe(5);
+    expect(projectBreakHistory(recorder).length).toBe(completed.exercise?.breakCount);
+  });
+
+  it("SCN-BTL-028: an ally wipe ends the exercise early with ALLY_DEFEATED, the score and break history at that point, and no further processing", () => {
+    const { recorder, completed, initialState } = runExerciseToCompletion(
+      mutualAttackerDefinitions({ allyDamage: 150, enemyDamage: 1000 }),
+    );
+
+    expect(completed.result).toEqual({
+      completionReason: "ALLY_DEFEATED",
+      completedTurn: 1,
+      totalScore: 150,
+      breakCount: 1,
+    });
+    // R-TEX-10 #2: ブレイク履歴は`UnitBroken`の投影。集約は履歴を持たない。
+    expect(projectBreakHistory(recorder)).toEqual([
+      { breakNumber: 1, turnNumber: 1, cumulativeScoreAtBreak: 150 },
+    ]);
+    // R-TEX-09 #3: 終了確定後は未処理のキュー・効果・PS候補を処理しない。
+    const events = recorder.getEvents();
+    expect(events[events.length - 1]!.eventType).toBe("BattleCompleted");
+    expect(events.filter((event) => event.eventType === "TurnStarted")).toHaveLength(1);
+
+    expectStateRestoration(initialState, recorder, completed);
+  });
+});
+
 /**
  * `eventType`契機で1つのEffectActionを敵へ適用するだけのPS。ブレイクの通知順序
  * （撃破トリガーが解除より前に完了するか）を、経路ごとに同じ形で確かめるために使う。

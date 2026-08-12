@@ -8,6 +8,7 @@ import type {
 } from "../../shared/event-ids.js";
 import type { StateDelta } from "./state-delta.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
+import type { ExerciseCompletionReason } from "../outcome/exercise-end-policy.js";
 import type { BattleOutcome, CompletionReason } from "../outcome/victory-policy.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
@@ -904,11 +905,23 @@ export interface BattleDomainEventPayloadMap {
   };
   readonly TurnCompleting: { readonly turnNumber: number };
   readonly TurnCompleted: { readonly turnNumber: number };
-  readonly BattleCompleted: {
-    readonly outcome: BattleOutcome;
-    readonly completionReason: CompletionReason;
-    readonly completedTurn: number;
-  };
+  /**
+   * 確定した結果そのものを運ぶ（`Battle.result`と同じ形）。戦術演習は勝敗を持たず、
+   * 総スコアとブレイク回数を持つ（R-TEX-10 #1）。ブレイク履歴はこのpayloadではなく
+   * `UnitBroken`の投影として出力する（同 #2）。
+   */
+  readonly BattleCompleted:
+    | {
+        readonly outcome: BattleOutcome;
+        readonly completionReason: CompletionReason;
+        readonly completedTurn: number;
+      }
+    | {
+        readonly completionReason: ExerciseCompletionReason;
+        readonly completedTurn: number;
+        readonly totalScore: number;
+        readonly breakCount: number;
+      };
   /** R-ACT-04: AP/PP/EXゲージ変更を確定した後の主イベント（`08_ドメインイベント.md:475`）。変化量0では発行しない。 */
   readonly ResourceChanged: {
     readonly battleUnitId: BattleUnitId;

@@ -27,14 +27,22 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, ResourceRecoveryEntry } from "../events/domain-event.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "../model/turn-limit.js";
-import { resolveVictory, type VictoryResult } from "../outcome/victory-policy.js";
+import {
+  resolveCompletionAt,
+  type CompletionCheckResult,
+} from "../outcome/completion-checkpoint.js";
+import type { BattleResultSnapshot } from "../events/state-delta.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleId } from "../../shared/ids.js";
 
 export type { BattleStatus } from "../model/battle-status.js";
 
-export type BattleResult = VictoryResult & { readonly completedTurn: number };
+/**
+ * 通常戦闘は勝敗と終了理由（R-END-02）、戦術演習は勝敗を持たない演習結果（R-TEX-10 #1）。
+ * 型の正本は`events/state-delta.js`にある（`StateDelta.result`が同じ形を運ぶため）。
+ */
+export type BattleResult = BattleResultSnapshot;
 
 /**
  * `05_ドメインモデル.md` の Battle集約。`13_実装計画.md`「M3 最小戦闘縦切り」を扱う。
@@ -397,8 +405,8 @@ export function advanceBattle(
   const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
   const started: Battle = { ...battle, turnState, allyUnits, enemyUnits };
 
-  // R-END-01 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その1: TURN_STARTING完了後。
-  const afterTurnStart = resolveVictory({
+  // R-END-01／R-TEX-09 #1 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その1: TURN_STARTING完了後。
+  const afterTurnStart = resolveCompletionAt(battle.exercise, {
     allAlliesDefeated: allDefeated(allyUnits),
     allEnemiesDefeated: allDefeated(enemyUnits),
     turnLimitReached: false,
@@ -632,7 +640,9 @@ export function advanceBattle(
     enemyUnits: afterTurnEndScope.filter((unit) => unit.side === "ENEMY"),
   };
 
-  const afterTurnEnd = resolveVictory({
+  // 演習ではこの`turnLimitReached`が「5ターン目の終了」に一致する
+  // （規定ターン数は5固定のため、R-TEX-01 #4／R-TEX-09 #1）。
+  const afterTurnEnd = resolveCompletionAt(battle.exercise, {
     allAlliesDefeated: allDefeated(progressedWithMarkerDuration.allyUnits),
     allEnemiesDefeated: allDefeated(progressedWithMarkerDuration.enemyUnits),
     turnLimitReached: isFinalTurn(turnState),
@@ -644,21 +654,42 @@ export function advanceBattle(
   return progressedWithMarkerDuration;
 }
 
-/** BattleCompletedを発行する。勝敗確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */
-function complete(battle: Battle, result: VictoryResult, recorder: EventRecorder): Battle {
+/**
+ * 判定結果へ終了ターンを加えて確定形にする。戦術演習ではさらに、その時点の累計スコアと
+ * ブレイク回数を写す（R-TEX-10 #1／#3）。ブレイク履歴は集約に持たせず、`UnitBroken`の
+ * 投影として出力する（同 #2）。
+ */
+function buildResult(
+  battle: Battle,
+  result: CompletionCheckResult,
+  completedTurn: number,
+): BattleResult {
+  if ("outcome" in result) {
+    return { ...result, completedTurn };
+  }
+  const exercise = battle.exercise;
+  if (exercise === undefined) {
+    throw new DomainValidationError(
+      "battle.exercise",
+      "an exercise end reason was resolved for a battle that owns no exercise state; the completion checkpoint and the battle mode disagree",
+    );
+  }
+  return { ...result, completedTurn, ...exercise.snapshot() };
+}
+
+/** BattleCompletedを発行する。結果確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */
+function complete(battle: Battle, result: CompletionCheckResult, recorder: EventRecorder): Battle {
   const completedTurn = battle.turnState.currentTurn;
-  const fullResult: BattleResult = { ...result, completedTurn };
+  const fullResult: BattleResult = buildResult(battle, result, completedTurn);
   recorder.record({
     eventType: "BattleCompleted",
     category: "FACT",
     turnNumber: completedTurn,
     cycleNumber: 0,
     resolutionScopeId: recorder.nextResolutionScopeId(),
-    payload: {
-      outcome: result.outcome,
-      completionReason: result.completionReason,
-      completedTurn,
-    },
+    // 確定した結果そのものがpayloadの形（`08_ドメインイベント.md`「BattleCompleted」）。
+    // 演習では勝敗を持たず、総スコアとブレイク回数を持つ（R-TEX-10 #1）。
+    payload: fullResult,
     stateDelta: {
       battleStatus: { before: battle.status, after: "COMPLETED" },
       result: { before: battle.result, after: fullResult },
