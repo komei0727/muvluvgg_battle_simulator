@@ -35,8 +35,8 @@
       "incompleteConversionRows": 0
     },
     "memoryCatalog": {
-      "sourceTotal": 32,
-      "converted": 32,
+      "sourceTotal": 36,
+      "converted": 36,
       "unconverted": 0
     }
   },
@@ -708,7 +708,7 @@
   "m9Audit": {
     "auditDate": "2026-08-11",
     "auditIssue": 200,
-    "catalogRevision": "2026-08-12.1",
+    "catalogRevision": "2026-08-12.2",
     "scenarioIds": [
       "SCN-BTL-001",
       "SCN-BTL-002",

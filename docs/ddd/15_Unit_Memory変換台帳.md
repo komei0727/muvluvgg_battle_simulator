@@ -13,11 +13,11 @@ Issue #47（[Catalog] M2前提として残UnitとMemoryの基礎Catalogを整備
 | 区分            | 総数 | 済み                                                                                                                                                                     | 未変換 |
 | --------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
 | `raw/units/`    | 69   | 69（代表10 + Issue #47先行バッチ12 + Issue #55 Batch A 8 + Issue #59 Batch B 8 + Issue #57 Batch C 8 + Issue #56 Batch D 8 + Issue #58 Batch E 8 + Issue #60 Batch F 7） | 0      |
-| `raw/memories/` | 32   | 32（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6 + Issue #176 M7-008 所属・動的効果バッチ20）                                                                | 0      |
+| `raw/memories/` | 36   | 36（Issue #47先行バッチ6 + Issue #178 M7-007 静的補正バッチ6 + Issue #176 M7-008 所属・動的効果バッチ20 + 2026-08-12 追加バッチ4）                                       | 0      |
 
 代表10ユニットは Issue #41 / #46 で production Catalog（`catalog-src/units/`）へ昇格済み。Issue #47 では「先行バッチ」として指定された12ユニット・6 Memory を同水準（`unit.json`/`skills.json`/`effects.json` フル変換）で追加した。Issue #55（Issue #54 Batch A）では既存キャラクターの別バージョンを中心とした8ユニットを同水準で追加した。Issue #59（Issue #54 Batch B）では同一キャラクターの複数バージョン整合性に注意が必要な8ユニット（生駒葵・リリー・ラヴォア・一条白奈・綺羅クララの各2バージョン）を同水準で追加した。Issue #57（Issue #54 Batch C）では所属/チーム系Memoryとの将来整合性に注意が必要な8ユニット（桃園める・シエナ・クラーク・リュシー・ムーアクロフト・朽葉ラミの各2バージョン）を同水準で追加した。Issue #56（Issue #54 Batch D）では戦術/前衛寄りの8ユニット（御剣冥夜・篁唯依・オルガ・ヴォルコワ・榊野ヒイロ・珠瀬壬姫・ノエル・アルエ・タリサ・マナンダル・姜小花）を同水準で追加した。Issue #58（Issue #54 Batch E）では支援/制御/イベント色の強い8ユニット（鳴滝七彩・姫川泉花（クリスマスコーデの参謀）・姫川泉花（自称腹黒の深謀策士）・樋向心香・大賀真桜・榊千鶴・ミリアム・ヘイワード・ルナ・メロウ）を同水準で追加した。Issue #60（Issue #54 Batch F）では残っていた最後の7ユニット（エレーナ・パステルコワ・タチアナ・ドロズドヴァ・ロージー・ヒューズ・波瀬うるう・レイヴェル・ブライトリーフ・ナージャ・ヴォルコワ・ジュリー・ステイシー）を同水準で追加し、`raw/units/` の全件変換が完了した。いずれも本Issueで初変換のキャラクターのため、`characterId`・`unitDefinitionId` を新規採番した。ナージャ・ヴォルコワの `characterId`（`CHAR_NADYA_VOLKOVA`）は、姓を共有する既存ユニット `UNIT_OLGA_VETERAN`（`CHAR_OLGA_VOLKOVA`）とは別キャラクターとして区別した。
 
-`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・32）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・32メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
+`raw/` は `.gitignore` 対象（ローカルにのみ存在するスクレイピング元データ）であり、CI環境には存在しない。そのため `raw/units/`・`raw/memories/` の総数（69・36）はこの台帳上で手動管理し、`catalog-src/` 側の変換済み件数（69ユニット・36メモリー）のみを `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts` でCI検証する。
 
 `unitDefinitionId` は `UNIT_<キャラクター名>_<衣装・バージョンを表す語>` の形式へ統一している（例: `UNIT_EVIE_ECO`、`UNIT_EVIE_KYONSHI`）。キャラクター名のみのID（例: 旧`UNIT_EVIE`）は使わない。
 
@@ -285,6 +285,10 @@ DMG-003（Issue #196）は`POST_DAMAGE_CRITICAL_BRANCH`（6行）・`POST_DAMAGE
 | 風紀委員会                        | `MEM_FUUKI_IINKAI`               | 済み（本Issue #176 M7-008 所属・動的効果バッチ） 所属条件あり（`AFF_FUUKI_IINKAI`、`18_Affiliation台帳.md`参照）                                                     |
 | 駆け落ちフルスロットル！          | `MEM_ELOPEMENT_FULL_THROTTLE`    | 済み（本Issue #176 M7-008 所属・動的効果バッチ） ※与ダメージ補正の実行時解決は`DMG-002`待ち→下記参照 所属条件あり（`AFF_CHAOS_MAIDEN`、`18_Affiliation台帳.md`参照） |
 | １日ユーロ・タワー体験            | `MEM_EURO_TOWER_DAY`             | 済み（本Issue #178 M7-007 静的補正バッチ）                                                                                                                           |
+| 『こい』                          | `MEM_KOI`                        | 済み（2026-08-12 追加バッチ） キャラクター条件あり（`CHAR_LYDIA_ELDRIDGE`）                                                                                          |
+| 友達みたいなこと                  | `MEM_LIKE_FRIENDS`               | 済み（2026-08-12 追加バッチ） TurnStarted発動を含む                                                                                                                  |
+| 浮かれた事情                      | `MEM_GIDDY_CIRCUMSTANCES`        | 済み（2026-08-12 追加バッチ） 2件ともTurnStarted発動                                                                                                                 |
+| 空想造形師ロージー                | `MEM_FANTASY_SCULPTOR_ROSIE`     | 済み（2026-08-12 追加バッチ） キャラクター条件あり（`CHAR_ROSIE_HUGHES`）                                                                                            |
 
 ### 未変換 Memory の分類基準
 
@@ -362,6 +366,25 @@ Issue #47先行バッチで変換した6 Memory（`MEM_HARD_WARMUP`、`MEM_STRAN
 - 「1行動の間」（安心する香り・お傍にいるのはいつでもピコですよ♪）は`timeLimit: { unit: ACTION, count: 1, owner: EFFECT_TARGET }`とした。`owner: EFFECT_SOURCE`は付与者ユニットの行動を減算契機にする宣言で、Memoryでは`catalog-integrity.ts`が拒否する。
 - 「三ツ星」には期間の記載がないため、Markerは`timeLimit: { unit: BATTLE, count: 1 }`・`stack: { policy: ADD, max: null }`とした（「1行動の間」は攻撃力バフだけに掛かる修飾）。
 - 「ターン開始時に発動」の2件は、raw原文に期間・重複の指定がないため毎ターン重ねて付与される（`IT-CAP-MEMORY-DYNAMIC-PROD-005`が2ターン分の重ね掛けを固定する）。
+
+### 2026-08-12 追加バッチ: 新規4 Memory
+
+wiki 追加分の4件を `raw/memories/` へ取り込み、既存バッチと同水準（`memory.json`/`effects.json` フル変換）で `catalog-src/memories/` へ追加した。Catalog は `2026-08-12.2` として再生成しており、Unit・Skill の定義は1件も変えていない（差分は `memories.json`・`effects.json` のみ）。
+
+| raw/memories/ ファイル | memoryDefinitionId           | 変換した装備条件・効果                                                                                                                                                 |
+| ---------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 『こい』               | `MEM_KOI`                    | `CHARACTER: CHAR_LYDIA_ELDRIDGE`へ攻撃力+1000（FIXED）／`POSITION_ROW: BACK` かつ `POSITION_COLUMN: CENTER`へ物理与ダメージ+10.5%（`APPLY_DAMAGE_MOD`、`PHYSICAL`）    |
+| 友達みたいなこと       | `MEM_LIKE_FRIENDS`           | **`TurnStarted`**で`ATTRIBUTE: COMICAL` または `CLEVER`へ攻撃力+1000（FIXED）／`BattleStarted`で`POSITION_ROW: BACK`へ与ダメージ+1.25%（`APPLY_DAMAGE_MOD`、種別なし） |
+| 浮かれた事情           | `MEM_GIDDY_CIRCUMSTANCES`    | **2件とも`TurnStarted`**。`ATTRIBUTE: AGGRESSIVE`へ攻撃力+1500（FIXED）／`ATTRIBUTE: SMART`へ攻撃力+1500（FIXED）                                                      |
+| 空想造形師ロージー     | `MEM_FANTASY_SCULPTOR_ROSIE` | `CHARACTER: CHAR_ROSIE_HUGHES`へ会心率+3%（RATIO）／`POSITION_ROW: FRONT` かつ `POSITION_COLUMN: RIGHT`へ会心ダメージ+10.5%（RATIO）                                   |
+
+変換上の判断:
+
+- 特定キャラクター限定（「リディア・エルドリッジの」「ロージー・ヒューズの」）は既存の`CHARACTER` TargetFilter（`characterId`）で表した。所属（`AFFILIATION`）でもロールでも表せない絞り込みであり、production Memoryで`CHARACTER`を使うのはこの2件が初出である。同じキャラクターの別バージョンUnitはいずれも同一`characterId`を共有するため、衣装違いを跨いで効果が乗る（原文の「◯◯の」という表現と一致する）。
+- 「コミカル属性とクレバー属性の味方」（友達みたいなこと）は2属性を`OR`で束ねた**単一のbinding**にした。`triggeredEffect`を2件へ割ると原文にない「効果が2回発動する」という宣言になり、`MemoryTriggered`の発行数が変わる。
+- 「会心率を3%上昇」（空想造形師ロージー）は`valueType: RATIO`とした。同じraw表現を持つ既存Memory（`MEM_WALK_TOGETHER`・`MEM_ABSOLUTE_ORDER`・`MEM_TREBLE_QUINTET`・`MEM_ENCOUNTER_WITH_GIRLS`）と解釈を揃えている（上のIssue #176の節に論点として記録済み）。
+- 「ターン開始時に発動」の2件（友達みたいなこと・浮かれた事情）は、raw原文に期間・重複の指定がないため既存の`MEM_DISCONTENT_AND_ANXIETY`と同じく毎ターン重ねて付与される（`IT-MEM-LIKE-FRIENDS-004`・`IT-MEM-GIDDY-CIRCUMSTANCES-005`が2ターン分の積み上がりを固定する）。
+- `MEM_GIDDY_CIRCUMSTANCES`は`BattleStarted`発動の`triggeredEffect`を1件も持たない初の Memory である。ユニット効果軸の標準形（`-001`が`startBattle`の発現を宣言する）はそのままでは空表になるため、`-001`を「戦闘開始時には何も配られない」の固定に充て、発現の宣言は`-002`以降のターン開始観測が持つ。
 
 ## 後続バッチへの申し送り（履歴）
 
