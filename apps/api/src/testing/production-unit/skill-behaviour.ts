@@ -553,6 +553,14 @@ function precedingSkill(action: PrecedingAction): SkillDefinition {
   // payload が別の TargetBinding を参照する EffectAction（`APPLY_DAMAGE_LINK.linkTo`）は、
   // その binding が合成スキルに無いと解決できず effect が一度も付かない。前提アクションは
   // 「その効果を保持している状態」を作るためだけのものなので、参照先は対象と同じ解決で足りる。
+  // ただし `target: "SELF"` の場合、payload の参照先は保持者自身ではありえない
+  // （`ACT_SHOUKA_BEACH_EX_DAMAGE_LINK` は自身が保持しリンク先は敵）ため、
+  // step 側の binding を持たないこの経路でも payload 用の binding だけは宣言し、
+  // 敵単体へ解決させる。
+  const payloadBindings = (action.payloadBindingIds ?? []).map((id) => ({
+    targetBindingId: createTargetBindingId(id),
+    selector: action.target === "SELF" ? ENEMY_ONE : selector,
+  }));
   return {
     skillDefinitionId: createSkillDefinitionId(PRECEDING_SKILL_ID),
     skillType: "AS",
@@ -564,14 +572,8 @@ function precedingSkill(action: PrecedingAction): SkillDefinition {
       kind: "IMMEDIATE",
       targetBindings:
         action.target === "SELF"
-          ? []
-          : [
-              { targetBindingId: binding, selector },
-              ...(action.payloadBindingIds ?? []).map((id) => ({
-                targetBindingId: createTargetBindingId(id),
-                selector,
-              })),
-            ],
+          ? payloadBindings
+          : [{ targetBindingId: binding, selector }, ...payloadBindings],
       steps: [
         {
           kind: "ACTION",

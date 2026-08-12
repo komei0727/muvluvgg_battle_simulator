@@ -582,6 +582,16 @@ const PROBE_BINDING_ID = "TGT_TEST_DAMAGE_PROBE";
 export interface LifecycleDamageProbeOptions extends DamageProbeOptions {
   /** 盤面の定義一式（`productionBoard(...).definitions`）。 */
   readonly definitions: BattleDefinitions;
+  /**
+   * `UnitBeingAttacked`／`DamageApplied` などの確定直後にPS連鎖を同期解決する
+   * フック（`DamageEventContext.onFactEventForPassiveChain`）。`openPassiveChain`
+   * の `fireRecorded` を渡すと、実 production のPSが**実際の評価点**で解決され、
+   * そこで配られた効果がそのまま同じヒットの計算へ入る。省略時はPS解決を行わない。
+   */
+  readonly onFactEventForPassiveChain?: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[];
 }
 
 /**
@@ -681,6 +691,11 @@ export function observeLifecycleDamageProbe(
       recorder,
       rootEventId,
       ...(options.random === undefined ? {} : { random: options.random }),
+      ...(options.onFactEventForPassiveChain === undefined
+        ? {}
+        : {
+            extras: { onFactEventForPassiveChain: options.onFactEventForPassiveChain },
+          }),
     }),
   );
   return probeObservation(recorder, eventsBefore, options.units, result.units);

@@ -123,6 +123,10 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_RAVEL_MODEL",
         "UNIT_NADYA_SUCCESSOR",
         "UNIT_JULIE_SNOW",
+        // Issue #453 夏バリアント3件（既存キャラクターの新衣装。characterId再利用）
+        "UNIT_URUU_SUMMER",
+        "UNIT_MAO_SUMMER",
+        "UNIT_SHOUKA_BEACH",
       ].sort(),
     );
   });
