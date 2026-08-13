@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 135,
-      "completed": 124,
-      "remaining": 11
+      "completed": 134,
+      "remaining": 1
     },
     "unitCatalog": {
       "convertedProductionUnits": 73,
@@ -536,77 +536,77 @@
       "issue": 402,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-002",
       "issue": 428,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-003",
       "issue": 429,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-004",
       "issue": 430,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-005",
       "issue": 431,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-006",
       "issue": 432,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-007",
       "issue": 433,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-008",
       "issue": 434,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-009",
       "issue": 435,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-010",
       "issue": 447,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "TEX-011",
       "issue": 448,
       "phase": 5,
       "milestone": "M10",
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     {
       "taskId": "ENH-001",
@@ -655,21 +655,6 @@
     {
       "taskId": "M7-019",
       "ruleIds": ["R-TGT-06"]
-    },
-    {
-      "taskId": "TEX-001",
-      "ruleIds": [
-        "R-TEX-01",
-        "R-TEX-02",
-        "R-TEX-03",
-        "R-TEX-04",
-        "R-TEX-05",
-        "R-TEX-06",
-        "R-TEX-07",
-        "R-TEX-08",
-        "R-TEX-09",
-        "R-TEX-10"
-      ]
     }
   ],
   "conversionThemeAssignments": [],
