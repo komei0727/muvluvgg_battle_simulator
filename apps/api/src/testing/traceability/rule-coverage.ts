@@ -3348,8 +3348,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-TEX-05",
-    testCaseIds: ["UT-R-TEX-05-001", "UT-R-TEX-04-019", "SCN-BTL-026"],
-    kinds: ["POSITIVE", "SCENARIO"],
+    // `UT-R-TEX-05-002`が#4（回復として扱わない）の否定側を持つ。#1〜#3・#5は復活が
+    // 「起きること」の証跡で足りるが、#4だけは回復経路が生きた盤面で「起きないこと」を
+    // 見なければ固定できない（回復量補正・回復リンク・回復契機トリガーの不在）。
+    testCaseIds: ["UT-R-TEX-05-001", "UT-R-TEX-05-002", "UT-R-TEX-04-019", "SCN-BTL-026"],
+    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
   {
     ruleId: "R-TEX-06",
