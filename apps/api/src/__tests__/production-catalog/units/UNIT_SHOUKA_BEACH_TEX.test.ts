@@ -95,6 +95,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_EX",
     intent: "(上限に掛からない側): 対象の現在HP×35%が攻撃力×75%を下回る場合はHP割合側が効く",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_EX" },
+    // `HIGHEST_HP_RATIO` が選ぶのは**最もHP割合が高い**敵なので、1体だけ削っても
+    // 満タンの別の敵が選ばれて上限側へ戻ってしまう。MIN式の反対側を通すには
+    // 全候補を上限（攻撃力×75%＝750）の割り戻し（2143）より下へ置く必要がある。
     board: {
       enemies: [
         {
@@ -102,23 +105,30 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           position: { column: "CENTER", row: "FRONT" },
           state: { currentHp: 2000 },
         },
-        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
-        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+        {
+          id: "enemy:left",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 1000 },
+        },
+        {
+          id: "enemy:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 500 },
+        },
       ],
     },
     expected: {
       actions: [
-        // `HIGHEST_HP_RATIO` は満タンの enemy:left を選ぶ——ではなく、削れている
-        // enemy:front を避けた結果として左前列が対象になる。
-        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE", targets: ["enemy:front"] },
         {
           effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE_LINK",
           targets: ["ally:subject"],
         },
         { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_AP_COST", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_AP_DRAIN", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_AP_DRAIN", targets: ["enemy:front"] },
       ],
-      hpDeltas: { "enemy:left": -750 },
+      // 現在HP2000の35%＝700が、攻撃力1000の75%＝750を下回るためHP割合側が効く。
+      hpDeltas: { "enemy:front": -700 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -129,7 +139,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "enemy:left", resource: "AP", delta: -2 },
+        { unitId: "enemy:front", resource: "AP", delta: -2 },
       ],
     },
   },

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AppliedEffect } from "../../../domain/battle/model/applied-effect.js";
 import type { BattleDefinitions } from "../../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import type { DamageResultRegistry } from "../../../domain/battle/skill/formula-evaluator.js";
@@ -473,55 +474,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
-  {
-    skillDefinitionId: "SKL_ANIS_SWEETDEVIL_TEX_PS3",
-    intent:
-      "(毎ターン再発動): プレイアブル版と異なり戦闘中1回の制限が無く、後続ターンの開始時も同じだけ発動する",
-    use: {
-      kind: "PASSIVE",
-      skillDefinitionId: "SKL_ANIS_SWEETDEVIL_TEX_PS3",
-      trigger: turnStarted({ turnNumber: 5 }),
-      triggeredBy: "ally:subject",
-    },
-    expected: {
-      actions: [
-        {
-          effectActionDefinitionId: "ACT_ANIS_SWEETDEVIL_TEX_PS3_MARKER_SHIOKAZE",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_ANIS_SWEETDEVIL_TEX_PS3_MARKER_SHIOKAZE",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_ANIS_SWEETDEVIL_TEX_PS3_MARKER_SHIOKAZE",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_ANIS_SWEETDEVIL_TEX_PS3_THRESHOLD_DMG_DOWN",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_ANIS_SWEETDEVIL_TEX_PS3_EX_GAIN",
-          targets: ["ally:subject"],
-        },
-      ],
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_ANIS_SWEETDEVIL_TEX_PS3_THRESHOLD_DMG_DOWN",
-          magnitude: -0.5,
-          timeLimit: { unit: "BATTLE", count: 1 },
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
-        },
-      ],
-      markers: [{ unitId: "ally:subject", markerId: SHIOKAZE, stackCount: 3 }],
-      resources: [
-        { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 4 },
-      ],
-    },
-  },
 ];
 
 describe("production Catalog UNIT_ANIS_SWEETDEVIL_TEX (【渚のスイートデビル】アニス・ベネット・戦術演習版)", () => {
@@ -742,5 +694,56 @@ describe("production Catalog UNIT_ANIS_SWEETDEVIL_TEX (【渚のスイートデ�
     const overThreshold = strike(guarded, 0.402);
     expect(overThreshold.hpDeltas["ally:subject"]).toBe(-100);
     expect(overThreshold.consumptions).toHaveLength(1);
+  });
+
+  it("IT-UNIT-ANIS-SWEETDEVIL-TEX-008 (Q-TEX-14): PS3+は同じ戦闘の後続ターンでも再発動し、軽減は前ターンの残余へ独立インスタンスとして積み上がる", () => {
+    // 戦闘中1回制限の撤廃はプレイアブル版との差分点そのものだが、**同じ
+    // BattleUnit状態へ連続して**ターン開始を当てないと固定できない。毎回まっさらな
+    // 盤面から1ターンぶんだけ観測する形では、`RUNTIME_COUNTER LT 1` と対応する
+    // `counterUpdates` を戻してしまってもcounterが常に0のまま通ってしまう。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      allies: [],
+      subject: { state: { currentHp: 10000 } },
+    });
+    const reductionsOf = (units: readonly BattleUnit[]): readonly AppliedEffect[] =>
+      units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.filter(
+          (effect) =>
+            effect.effectActionDefinitionId === "ACT_ANIS_SWEETDEVIL_TEX_PS3_THRESHOLD_DMG_DOWN",
+        );
+    const startTurn = (turnNumber: number, units: readonly BattleUnit[]) => {
+      const chain = openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "ally:subject",
+        battleId: `B_ANIS_TEX_PS3_TURN_${turnNumber}`,
+        turnNumber,
+      });
+      return { chain, units: chain.fire(turnStarted({ turnNumber }), units) };
+    };
+
+    const first = startTurn(1, board.units);
+    expect(activatedPassiveSkillIds(first.chain)).toEqual(["SKL_ANIS_SWEETDEVIL_TEX_PS3"]);
+    expect(reductionsOf(first.units)).toHaveLength(1);
+
+    // 2ターン目。前ターンの軽減がまだ1件残っている状態で同じPSがもう一度走る。
+    const second = startTurn(2, first.units);
+    expect(activatedPassiveSkillIds(second.chain)).toEqual(["SKL_ANIS_SWEETDEVIL_TEX_PS3"]);
+
+    const subject = second.units.find((unit) => unit.battleUnitId === "ally:subject")!;
+    // 汐風は解除されないまま3+3＝6段まで伸びる（`stack ADD` / `max: null`）。
+    expect(subject.markerStates.find((marker) => marker.markerId === SHIOKAZE)?.stackCount).toBe(6);
+    // 軽減は上書きではなく別インスタンスで、消費回数もそれぞれ3のまま独立している。
+    expect(
+      reductionsOf(second.units).map((effect) => ({
+        magnitude: effect.magnitude,
+        consumptionRemaining: effect.duration.consumptionRemaining,
+      })),
+    ).toEqual([
+      { magnitude: -0.5, consumptionRemaining: 3 },
+      { magnitude: -0.5, consumptionRemaining: 3 },
+    ]);
+    // EXゲージは2ターンぶん（PP消費+1、スキル加算+3）が入って上限8で頭打ちになる。
+    expect(subject.currentExtraGauge).toBe(8);
   });
 });
