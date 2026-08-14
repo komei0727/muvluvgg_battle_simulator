@@ -190,7 +190,7 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
       damageType: "PHYSICAL",
     },
   });
-  recorder.record({
+  const damageApplied = recorder.record({
     eventType: "DamageApplied",
     category: "FACT",
     turnNumber: 1,
@@ -223,7 +223,11 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
     actionId,
     skillUseId,
     resolutionScopeId: scope(),
-    payload: { unitId: "enemy:1" as never, causeEventId: "battle-1:1" as never },
+    // 撃破は致死ダメージ適用の子である（`UnitDefeated`はSUMMARY対象、親の
+    // `DamageApplied`は対象外）。この親子関係が、間引きが子へ波及しないことを
+    // `UT-LOG-PROJECTION-005`が検証できる唯一の組み合わせになる。
+    parentEventId: damageApplied.eventId,
+    payload: { unitId: "enemy:1" as never, causeEventId: damageApplied.eventId },
   });
   recorder.record({
     eventType: "SkillUseCompleted",
@@ -304,26 +308,25 @@ describe("projectEventsForLogLevel", () => {
     expect(projected.map((e) => e.eventType)).toEqual(expectedTypes);
   });
 
-  it("UT-LOG-PROJECTION-002: DETAILED drops DIAGNOSTIC-category events and keeps every FACT/TIMING event", () => {
+  it("UT-LOG-PROJECTION-002: DETAILED returns every event including the DIAGNOSTIC-category ones (08_ドメインイベント.md「公開レベル」: DIAGNOSTICはDETAILEDへ統合)", () => {
     const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "DETAILED");
 
-    expect(projected).toEqual(events.filter((event) => event.category !== "DIAGNOSTIC"));
-    expect(projected.some((event) => event.category === "DIAGNOSTIC")).toBe(false);
-    // The fixture must actually exercise the exclusion, otherwise this test
-    // passes for the wrong reason.
+    expect(projected).toEqual(events);
+    // 統合前に`DETAILED`から落ちていた2種が、既定のログへ出ることを名指しで固定する。
+    expect(projected.map((event) => event.eventType)).toEqual(
+      expect.arrayContaining(["EffectStepSkipped", "ExtraGaugeOverflowDiscarded"]),
+    );
+    // fixtureが実際にDIAGNOSTICカテゴリを含んでいなければ、この検証は無意味になる。
     expect(events.filter((event) => event.category === "DIAGNOSTIC").length).toBeGreaterThan(0);
   });
 
-  it("UT-LOG-PROJECTION-003: DIAGNOSTIC keeps the DIAGNOSTIC-category events that DETAILED drops", () => {
+  it("UT-LOG-PROJECTION-003: DIAGNOSTIC is accepted and behaves identically to DETAILED (deprecated alias)", () => {
     const events = recordAllEvents();
 
-    const projected = projectEventsForLogLevel(events, "DIAGNOSTIC");
-
-    expect(projected).toEqual(events);
-    expect(projected.map((event) => event.eventType)).toEqual(
-      expect.arrayContaining(["EffectStepSkipped", "ExtraGaugeOverflowDiscarded"]),
+    expect(projectEventsForLogLevel(events, "DIAGNOSTIC")).toEqual(
+      projectEventsForLogLevel(events, "DETAILED"),
     );
   });
 
@@ -336,16 +339,20 @@ describe("projectEventsForLogLevel", () => {
     expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
   });
 
-  it("UT-LOG-PROJECTION-005: DETAILED keeps a child of an excluded DIAGNOSTIC event, so the published parentSequence still names the internal sequence (10_API設計.md「直接の原因イベントが公開されているかにかかわらず、元の連番を返す」)", () => {
+  it("UT-LOG-PROJECTION-005: SUMMARY keeps a child of an excluded parent, so the published parentSequence still names the internal sequence (10_API設計.md「直接の原因イベントが公開されているかにかかわらず、元の連番を返す」)", () => {
+    // DIAGNOSTICが`DETAILED`へ統合された後、親を落として子を残す唯一のレベルは
+    // `SUMMARY`である。`UnitDefeated`（SUMMARY対象）の親`DamageApplied`（対象外）で
+    // その関係を固定する。
     const events = recordAllEvents();
-    const skipped = events.find((event) => event.eventType === "EffectStepSkipped");
-    const child = events.find((event) => event.parentEventId === skipped?.eventId);
-    expect(skipped).toBeDefined();
+    const child = events.find((event) => event.eventType === "UnitDefeated");
+    const parent = events.find((event) => event.eventId === child?.parentEventId);
     expect(child).toBeDefined();
+    expect(parent).toBeDefined();
+    expect(SUMMARY_EVENT_TYPE_INCLUSION[parent!.eventType]).toBe(false);
 
-    const projected = projectEventsForLogLevel(events, "DETAILED");
+    const projected = projectEventsForLogLevel(events, "SUMMARY");
 
-    expect(projected).not.toContain(skipped);
+    expect(projected).not.toContain(parent);
     expect(projected).toContain(child);
   });
 

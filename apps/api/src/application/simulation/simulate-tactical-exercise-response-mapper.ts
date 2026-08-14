@@ -3,6 +3,7 @@ import {
   toBattleLogEventResponseBody,
   toBattleStateResponseBody,
   toStateTransitionResponseBody,
+  toUnitBattleSummaryResponseBody,
 } from "./simulate-battle-response-mapper.js";
 import type { SimulateTacticalExerciseResult } from "./simulation-result-assembler.js";
 import type { TacticalExerciseResponseBody } from "../contracts/response.js";
@@ -44,6 +45,7 @@ export function toTacticalExerciseResponseBody(
     },
     initialState: toBattleStateResponseBody(0, result.initialState, result.unitRoster),
     finalState: toBattleStateResponseBody(finalStateVersion, result.finalState, result.unitRoster),
+    unitSummaries: result.unitSummaries.map(toUnitBattleSummaryResponseBody),
     events: result.events.map(toBattleLogEventResponseBody),
     stateTransitions,
   };

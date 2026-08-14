@@ -319,6 +319,21 @@ export interface StateTransitionResponseBody {
   readonly delta: BattleStateDeltaResponseBody;
 }
 
+/**
+ * `10_API設計.md`「UnitBattleSummaryResponse」。編成検討のための大量実行が必要と
+ * する「勝敗＋ユニット別集計」をサーバーが確定させる。公開レベルに依存しない。
+ */
+export interface UnitBattleSummaryResponseBody {
+  readonly battleUnitId: string;
+  readonly side: string;
+  readonly damageDealt: number;
+  readonly damageTaken: number;
+  readonly healingDone: number;
+  readonly finalHp: number;
+  readonly maximumHp: number;
+  readonly combatStatus: string;
+}
+
 export interface BattleSimulationResponseBody {
   readonly schemaVersion: number;
   readonly battleId: string;
@@ -326,6 +341,7 @@ export interface BattleSimulationResponseBody {
   readonly result: BattleResultResponseBody;
   readonly initialState: BattleStateResponseBody;
   readonly finalState: BattleStateResponseBody;
+  readonly unitSummaries: readonly UnitBattleSummaryResponseBody[];
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];
 }
@@ -360,6 +376,7 @@ export interface TacticalExerciseResponseBody {
   readonly result: ExerciseResultResponseBody;
   readonly initialState: BattleStateResponseBody;
   readonly finalState: BattleStateResponseBody;
+  readonly unitSummaries: readonly UnitBattleSummaryResponseBody[];
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];
 }

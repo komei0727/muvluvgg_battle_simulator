@@ -125,6 +125,28 @@ function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBatt
     },
     events: [],
     stateTransitions: [],
+    unitSummaries: [
+      {
+        battleUnitId: ALLY_ID,
+        side: "ALLY",
+        damageDealt: 100,
+        damageTaken: 10,
+        healingDone: 4,
+        finalHp: 90,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+      {
+        battleUnitId: ENEMY_ID,
+        side: "ENEMY",
+        damageDealt: 10,
+        damageTaken: 100,
+        healingDone: 0,
+        finalHp: 0,
+        maximumHp: 100,
+        combatStatus: "DEFEATED",
+      },
+    ],
     unitRoster: [
       {
         battleUnitId: ALLY_ID,
@@ -1121,5 +1143,43 @@ describe("toBattleSimulationResponseBody", () => {
     // excess-property-check bypass the round 4 review found).
     const rejected: CooldownStateResponseBody = both;
     expect(rejected.unit).toBe("ACTION");
+  });
+
+  it("API-RESP-014 (10_API設計.md「UnitBattleSummaryResponse」): publishes unitSummaries in Result order, and each row's finalHp/maximumHp/combatStatus agrees with the same unit in finalState", () => {
+    const body = toBattleSimulationResponseBody(baseResult());
+
+    expect(body.unitSummaries).toEqual([
+      {
+        battleUnitId: "ally:1",
+        side: "ALLY",
+        damageDealt: 100,
+        damageTaken: 10,
+        healingDone: 4,
+        finalHp: 90,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+      {
+        battleUnitId: "enemy:1",
+        side: "ENEMY",
+        damageDealt: 10,
+        damageTaken: 100,
+        healingDone: 0,
+        finalHp: 0,
+        maximumHp: 100,
+        combatStatus: "DEFEATED",
+      },
+    ]);
+    // 同じレスポンス内で2度公開される値なので、食い違えばクライアントは
+    // どちらを信じるか決められない。
+    for (const summary of body.unitSummaries) {
+      const unit = body.finalState.units.find(
+        (candidate) => candidate.battleUnitId === summary.battleUnitId,
+      )!;
+      expect(summary.side).toBe(unit.side);
+      expect(summary.finalHp).toBe(unit.hp.current);
+      expect(summary.maximumHp).toBe(unit.hp.maximum);
+      expect(summary.combatStatus).toBe(unit.combatStatus);
+    }
   });
 });

@@ -106,10 +106,12 @@ export const SUMMARY_EVENT_TYPE_INCLUSION: Readonly<Record<BattleDomainEventType
  * 応じて間引いた公開ログ、`stateTransitions`（状態復元に必要な差分）は
  * 公開レベルに関わらず全件保持する（この関数は`events`側だけを扱う）。
  *
- * DETAILEDとDIAGNOSTICの境界は`EventCategory`が正本になる
- * （`08_ドメインイベント.md`「DIAGNOSTICイベントは詳細ログ設定が有効な場合だけ
- * 公開してよい」、`10_API設計.md`「公開レベル」でDIAGNOSTIC = DETAILED + 診断イベント）。
- * `category`は3値で網羅されているため、DIAGNOSTIC種別の一覧を別途持つ必要はない。
+ * `DETAILED`は全イベントを返し、`DIAGNOSTIC`はその非推奨の別名である
+ * （`08_ドメインイベント.md`／`10_API設計.md`「公開レベル」）。2つのレベルの差は
+ * `EffectStepSkipped`・`ExtraGaugeOverflowDiscarded`の2種だけであり、これを既定から
+ * 隠すことは「効果が発動しなかった理由が既定のログに出ない」ことしか意味しないため、
+ * `EventCategory`による絞り込みをやめて`DETAILED`へ統合した。`category`の
+ * `DIAGNOSTIC`はイベントの性質を表す分類として残る。
  *
  * 間引かれたイベントを親に持つ子イベントは残る。公開`parentSequence`は間引き前の
  * 全件から解決するため（`battle-log-event.ts`の`toBattleLogEvents`）、
@@ -122,9 +124,6 @@ export function projectEventsForLogLevel(
 ): readonly BattleDomainEvent[] {
   if (logLevel === "SUMMARY") {
     return events.filter((event) => SUMMARY_EVENT_TYPE_INCLUSION[event.eventType]);
-  }
-  if (logLevel === "DETAILED") {
-    return events.filter((event) => event.category !== "DIAGNOSTIC");
   }
   return events;
 }

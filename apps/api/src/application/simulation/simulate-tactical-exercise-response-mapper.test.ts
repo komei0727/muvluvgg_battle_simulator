@@ -62,6 +62,28 @@ function baseResult(
     },
     events: [],
     stateTransitions: [],
+    unitSummaries: [
+      {
+        battleUnitId: ALLY_ID,
+        side: "ALLY",
+        damageDealt: 640,
+        damageTaken: 55,
+        healingDone: 30,
+        finalHp: 100,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+      {
+        battleUnitId: ENEMY_ID,
+        side: "ENEMY",
+        damageDealt: 55,
+        damageTaken: 640,
+        healingDone: 0,
+        finalHp: 100,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+    ],
     unitRoster: [
       {
         battleUnitId: ALLY_ID,
@@ -216,5 +238,32 @@ describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResp
     const delta = body.stateTransitions[0]?.delta;
     expect(delta).not.toHaveProperty("exercise");
     expect(delta?.units?.["ally:1"]).not.toHaveProperty("baseCombatStats");
+  });
+
+  it("API-TEXRESP-006 (10_API設計.md「UnitBattleSummaryResponse」): publishes unitSummaries in Result order, using the same conversion as the battle endpoint", () => {
+    const body = toTacticalExerciseResponseBody(baseResult());
+
+    expect(body.unitSummaries).toEqual([
+      {
+        battleUnitId: "ally:1",
+        side: "ALLY",
+        damageDealt: 640,
+        damageTaken: 55,
+        healingDone: 30,
+        finalHp: 100,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+      {
+        battleUnitId: "enemy:1",
+        side: "ENEMY",
+        damageDealt: 55,
+        damageTaken: 640,
+        healingDone: 0,
+        finalHp: 100,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+    ]);
   });
 });

@@ -486,6 +486,7 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
   },
   "initialState": {},
   "finalState": {},
+  "unitSummaries": [],
   "events": [],
   "stateTransitions": []
 }
@@ -493,16 +494,17 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 ### BattleSimulationResponse
 
-| プロパティ         | 型                          | 説明                                                   |
-| ------------------ | --------------------------- | ------------------------------------------------------ |
-| `schemaVersion`    | integer                     | レスポンス本文スキーマのバージョン。初期値は1。        |
-| `battleId`         | string                      | 今回の実行を識別するID。結果取得用リソースIDではない。 |
-| `catalogRevision`  | string                      | 今回使用したCatalogスナップショットの版。              |
-| `result`           | `BattleResultResponse`      | 確定した勝敗。                                         |
-| `initialState`     | `BattleStateResponse`       | `READY` 時点の状態。`stateVersion` は0。               |
-| `finalState`       | `BattleStateResponse`       | `COMPLETED` 時点の状態。                               |
-| `events`           | `BattleLogEventResponse[]`  | 指定された公開レベルのイベント。                       |
-| `stateTransitions` | `StateTransitionResponse[]` | 全状態変更。公開レベルに依存して間引かない。           |
+| プロパティ         | 型                            | 説明                                                   |
+| ------------------ | ----------------------------- | ------------------------------------------------------ |
+| `schemaVersion`    | integer                       | レスポンス本文スキーマのバージョン。初期値は1。        |
+| `battleId`         | string                        | 今回の実行を識別するID。結果取得用リソースIDではない。 |
+| `catalogRevision`  | string                        | 今回使用したCatalogスナップショットの版。              |
+| `result`           | `BattleResultResponse`        | 確定した勝敗。                                         |
+| `initialState`     | `BattleStateResponse`         | `READY` 時点の状態。`stateVersion` は0。               |
+| `finalState`       | `BattleStateResponse`         | `COMPLETED` 時点の状態。                               |
+| `unitSummaries`    | `UnitBattleSummaryResponse[]` | ユニット別の戦闘集計。公開レベルに依存しない。         |
+| `events`           | `BattleLogEventResponse[]`    | 指定された公開レベルのイベント。                       |
+| `stateTransitions` | `StateTransitionResponse[]`   | 全状態変更。公開レベルに依存して間引かない。           |
 
 ### BattleResultResponse
 
@@ -518,16 +520,59 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 `POST /api/v1/tactical-exercises` の成功レスポンス。`BattleSimulationResponse` と同じ構造を再利用し、`result` だけを演習結果へ差し替える。
 
-| プロパティ         | 型                          | 説明                                                 |
-| ------------------ | --------------------------- | ---------------------------------------------------- |
-| `schemaVersion`    | integer                     | レスポンス本文スキーマのバージョン。初期値は1。      |
-| `battleId`         | string                      | 今回の実行を識別するID。                             |
-| `catalogRevision`  | string                      | 今回使用したCatalogスナップショットの版。            |
-| `result`           | `ExerciseResultResponse`    | 確定した演習結果。                                   |
-| `initialState`     | `BattleStateResponse`       | `READY` 時点の状態。                                 |
-| `finalState`       | `BattleStateResponse`       | `COMPLETED` 時点の状態。                             |
-| `events`           | `BattleLogEventResponse[]`  | 指定された公開レベルのイベント。演習イベントを含む。 |
-| `stateTransitions` | `StateTransitionResponse[]` | 全状態変更。公開レベルに依存して間引かない。         |
+| プロパティ         | 型                            | 説明                                                 |
+| ------------------ | ----------------------------- | ---------------------------------------------------- |
+| `schemaVersion`    | integer                       | レスポンス本文スキーマのバージョン。初期値は1。      |
+| `battleId`         | string                        | 今回の実行を識別するID。                             |
+| `catalogRevision`  | string                        | 今回使用したCatalogスナップショットの版。            |
+| `result`           | `ExerciseResultResponse`      | 確定した演習結果。                                   |
+| `initialState`     | `BattleStateResponse`         | `READY` 時点の状態。                                 |
+| `finalState`       | `BattleStateResponse`         | `COMPLETED` 時点の状態。                             |
+| `unitSummaries`    | `UnitBattleSummaryResponse[]` | ユニット別の戦闘集計。公開レベルに依存しない。       |
+| `events`           | `BattleLogEventResponse[]`    | 指定された公開レベルのイベント。演習イベントを含む。 |
+| `stateTransitions` | `StateTransitionResponse[]`   | 全状態変更。公開レベルに依存して間引かない。         |
+
+### UnitBattleSummaryResponse
+
+ユニット別の戦闘集計。両エンドポイントが同じ形で返す。配列順は `BattleStateResponse.units` と同じ（味方陣営を先に、各陣営は配置順）で、参加ユニット全件を必ず含む。
+
+| プロパティ     | 型      | 説明                                                                     |
+| -------------- | ------- | ------------------------------------------------------------------------ |
+| `battleUnitId` | string  | 対象の戦闘ユニット。                                                     |
+| `side`         | string  | `ALLY` または `ENEMY`。                                                  |
+| `damageDealt`  | integer | このユニットが与えた実HP減少量の合計。0以上。                            |
+| `damageTaken`  | integer | このユニットが受けた実HP減少量の合計。0以上。                            |
+| `healingDone`  | integer | このユニットが行った実HP増加量の合計。0以上。                            |
+| `finalHp`      | number  | `finalState` 時点の現在HP。`BattleUnitStateResponse.hp.current` と同値。 |
+| `maximumHp`    | number  | `finalState` 時点の最大HP。`BattleUnitStateResponse.hp.maximum` と同値。 |
+| `combatStatus` | string  | `finalState` 時点の `ACTIVE` / `DEFEATED`。                              |
+
+#### 集計セマンティクス
+
+集計元は**公開レベルによる間引き前の全イベント**である。`logLevel` を下げても `unitSummaries` の値は変わらない — 大量実行時の用途（勝敗とユニット別集計だけを見る）が `SUMMARY` で成立しなければ、レベルを下げる意味がないためである。
+
+`damageDealt` / `damageTaken` は次の2イベントの `hitPointDamage` を合算する。
+
+| イベント                  | 与ダメージの帰属先                    | 被ダメージの帰属先 |
+| ------------------------- | ------------------------------------- | ------------------ |
+| `DamageApplied`           | イベントエンベロープの `sourceUnitId` | `targetUnitId`     |
+| `ContinuousDamageApplied` | イベントエンベロープの `sourceUnitId` | `targetUnitId`     |
+
+- 計上するのは `hitPointDamage`（実際に減ったHP量）だけである。シールド吸収（`typedShieldAbsorbed` / `untypedShieldAbsorbed`）・サブユニット吸収（`subUnitAbsorbed`）・HPクランプで消えた超過分（`discardedDamage`）は含めない。`calculatedDamage` ではない。
+- 反射ダメージ（`isReflectedDamage`）・リンクダメージ（`isLinkedDamage`）は `DamageApplied` として流れるため追加の規則を持たない。エンベロープの `sourceUnitId` が指すユニット（反射側・リンク発生側）の与ダメージへ計上される。
+- `sourceUnitId` を持たない `ContinuousDamageApplied`（R-MEM-04 のMemory由来付与。`sourceSide` だけを持つ）は、被ダメージにだけ計上し与ダメージへは帰属させない。陣営から特定のユニットを推測して埋めることはしない。
+
+`healingDone` は次の2イベントの `appliedAmount`（最大HPを超えない範囲で実際に増加したHP量）を合算し、いずれも**回復者**へ計上する。
+
+| イベント             | 回復者                                | 実HP増加量      |
+| -------------------- | ------------------------------------- | --------------- |
+| `HealApplied`        | `details.sourceUnitId`                | `appliedAmount` |
+| `HealingTransferred` | イベントエンベロープの `sourceUnitId` | `appliedAmount` |
+
+- 要求量（`healAmount`）でも破棄分を含む `formulaResult` でもなく、実HP増加量を使う。
+- `HealApplied.appliedAmount` は回復リンク（R-HEAL-04）の転送分を含まないため、`HealingTransferred.appliedAmount` を加えないと回復者の実回復量を過小に集計する。転送分の回復者は `HealingTransferred` のエンベロープ `sourceUnitId`（元の `HealApplied` と同じ回復者）であり、`details.fromUnitId`（リンク保持者）を回復者と読み替える推測はしない。
+
+`unitSummaries` に現れないユニットIDを指すイベント（Rosterに存在しない `sourceUnitId` / `targetUnitId`）は、どの行へも計上しない。
 
 ### ExerciseResultResponse
 
@@ -925,13 +970,15 @@ BattleLogEventResponse {
 
 ### 公開レベル
 
-| レベル       | 含めるもの                                                                    |
-| ------------ | ----------------------------------------------------------------------------- |
-| `SUMMARY`    | 戦闘開始・終了、行動結果、戦闘不能、ターン終了など主要イベント。              |
-| `DETAILED`   | SUMMARYに加え、スキル、PS、各ヒット、ダメージ、シールド、効果、リソース変更。 |
-| `DIAGNOSTIC` | DETAILEDに加え、候補除外、乱数判定、上限超過などの診断イベント。              |
+| レベル       | 含めるもの                                                                                                                             |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUMMARY`    | 戦闘開始・終了、行動結果、戦闘不能、ターン終了など主要イベント。                                                                       |
+| `DETAILED`   | 全イベント。スキル、PS、各ヒット、ダメージ、シールド、効果、リソース変更に加え、候補除外・乱数判定・上限超過などの診断イベントを含む。 |
+| `DIAGNOSTIC` | `DETAILED` と同一。互換のため受理を続ける非推奨値。                                                                                    |
 
-公開レベルに関係なく、状態変更は `stateTransitions` へすべて含める。SUMMARYで原因イベントが非公開でも、`causedBySequence` は元のイベント連番を保持する。
+用途は「大量実行して勝敗とユニット別集計だけを見る」と「効果発動を追う」の2つであり、後者は診断イベントを含む全イベントを必要とする。`DETAILED` と `DIAGNOSTIC` の差はイベント2種（`EffectStepSkipped` / `ExtraGaugeOverflowDiscarded`）だけであり、この2種を既定から隠すことは「効果が発動しなかった理由が既定のログに出ない」ことしか意味しないため、`DETAILED` へ統合する。
+
+公開レベルに関係なく、状態変更は `stateTransitions` へすべて含める。`unitSummaries` も同様に間引かない。SUMMARYで原因イベントが非公開でも、`causedBySequence` は元のイベント連番を保持する。
 
 ## 状態差分
 

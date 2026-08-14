@@ -132,6 +132,28 @@ const RESULT: SimulateTacticalExerciseResult = {
       },
     },
   ],
+  unitSummaries: [
+    {
+      battleUnitId: ALLY_ID,
+      side: "ALLY",
+      damageDealt: 700,
+      damageTaken: 200,
+      healingDone: 0,
+      finalHp: 800,
+      maximumHp: 1000,
+      combatStatus: "ACTIVE",
+    },
+    {
+      battleUnitId: ENEMY_ID,
+      side: "ENEMY",
+      damageDealt: 200,
+      damageTaken: 700,
+      healingDone: 0,
+      finalHp: 300,
+      maximumHp: 1000,
+      combatStatus: "ACTIVE",
+    },
+  ],
   unitRoster: [rosterEntry(ALLY_ID, "ALLY", 2), rosterEntry(ENEMY_ID, "ENEMY", 1)],
 };
 
@@ -211,6 +233,41 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
       breaks: [{ breakNumber: 1, turnNumber: 3, cumulativeScoreAtBreak: 1000 }],
     });
     expect(body.result).not.toHaveProperty("outcome");
+  });
+
+  it("API-TEX-012 (10_API設計.md「UnitBattleSummaryResponse」): serializes unitSummaries over the real HTTP path instead of dropping it — fastify silently discards any body field the response schema does not list", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, { exerciseUseCase: exerciseUseCase() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: TACTICAL_EXERCISES_PATH,
+      payload: REQUEST_BODY,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<TacticalExerciseResponseBody>();
+    expect(body.unitSummaries).toEqual([
+      {
+        battleUnitId: "ally:1",
+        side: "ALLY",
+        damageDealt: 700,
+        damageTaken: 200,
+        healingDone: 0,
+        finalHp: 800,
+        maximumHp: 1000,
+        combatStatus: "ACTIVE",
+      },
+      {
+        battleUnitId: "enemy:1",
+        side: "ENEMY",
+        damageDealt: 200,
+        damageTaken: 700,
+        healingDone: 0,
+        finalHp: 300,
+        maximumHp: 1000,
+        combatStatus: "ACTIVE",
+      },
+    ]);
   });
 
   it("API-TEX-002 (10_API設計.md「TacticalExerciseResponse」「StateTransitionResponse」): serializes the exercise-only state deltas (exercise.totalScore/breakCount, units.<id>.baseCombatStats) instead of dropping them", async () => {
