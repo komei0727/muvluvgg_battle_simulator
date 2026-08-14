@@ -129,6 +129,10 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_SHOUKA_BEACH",
         // Issue #454 夏バリアント4体目（#452 のエンジン拡張に依存）
         "UNIT_ANIS_SWEETDEVIL",
+        // Issues #470-#472: 戦術演習専用ユニット（EXERCISE_ENEMY）の追加3体
+        "UNIT_ANIS_SWEETDEVIL_TEX",
+        "UNIT_SHOUKA_BEACH_TEX",
+        "UNIT_MAO_SUMMER_TEX",
       ].sort(),
     );
   });

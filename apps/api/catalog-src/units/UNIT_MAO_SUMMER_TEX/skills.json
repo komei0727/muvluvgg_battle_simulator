@@ -1,0 +1,272 @@
+[
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_MARKER_KAIHOUKAN" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_EX_GAIN_DOWN" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_DEATH_SURVIVAL" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "真夏のトラブル発生！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_MAO_SUMMER_TEX_KAIHOUKAN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_DAMAGE_BOOSTED" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_DAMAGE" }]
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "HP_RATIO",
+            "op": "GTE",
+            "value": 0.015
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_HP_DAMAGE" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_HP_COST" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "海辺の取り締まり！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_MAO_SUMMER_TEX_KAIHOUKAN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS2_STUN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "うっかり大惨事", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_MAO_SUMMER_TEX_KAIHOUKAN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS1_CRIT_RATE_UP" },
+                { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS1_CRIT_DAMAGE_UP" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS1_EX_GAIN" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "リフレッシュ完了！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "CriticalCheckResolved",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_MAO_SUMMER_TEX_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 2
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_MAO_SUMMER_TEX_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "CriticalCheckResolved",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ENEMY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS2_HP_COST" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS2_DMG_DOWN" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS2_DMG_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "たまには羽を伸ばして+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_MAO_SUMMER_TEX_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_MAO_SUMMER_TEX_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_MAO_SUMMER_TEX_PS2"
+          }
+        },
+        "amount": 1
+      }
+    ]
+  }
+]

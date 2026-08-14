@@ -1,0 +1,29 @@
+{
+  "unitDefinitionId": "UNIT_MAO_SUMMER_TEX",
+  "category": "EXERCISE_ENEMY",
+  "exerciseActive": true,
+  "attribute": "AGGRESSIVE",
+  "unitType": "ENERGY",
+  "role": "EN_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 390844,
+    "attack": 12184,
+    "defense": 5659,
+    "criticalRate": 0.18,
+    "actionSpeed": 607,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_MAO_SUMMER_TEX_AS1", "SKL_MAO_SUMMER_TEX_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MAO_SUMMER_TEX_PS1", "SKL_MAO_SUMMER_TEX_PS2"],
+  "extraSkillDefinitionId": "SKL_MAO_SUMMER_TEX_EX",
+  "metadata": {
+    "affiliations": ["AFF_FUUKI_IINKAI"],
+    "tags": [],
+    "displayName": "【真夏の風紀委員長】大賀真桜",
+    "characterName": "大賀真桜",
+    "characterId": "CHAR_MAO_OGA"
+  }
+}

@@ -34,6 +34,39 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_ANIS_SWEETDEVIL_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SHY",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["BACK"],
+    "baseStats": {
+      "maximumHp": 341719,
+      "attack": 9831,
+      "defense": 6806,
+      "criticalRate": 0.13,
+      "actionSpeed": 529,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_ANIS_SWEETDEVIL_TEX_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_ANIS_SWEETDEVIL_TEX_PS1",
+      "SKL_ANIS_SWEETDEVIL_TEX_PS2",
+      "SKL_ANIS_SWEETDEVIL_TEX_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
+      "tags": [],
+      "displayName": "【渚のスイートデビル】アニス・ベネット",
+      "characterName": "アニス・ベネット",
+      "characterId": "CHAR_ANIS_BENNETT"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
     "attribute": "CUTE",
     "unitType": "AGILE",
@@ -1170,6 +1203,35 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MAO_SUMMER_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "AGGRESSIVE",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 390844,
+      "attack": 12184,
+      "defense": 5659,
+      "criticalRate": 0.18,
+      "actionSpeed": 607,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_MAO_SUMMER_TEX_AS1", "SKL_MAO_SUMMER_TEX_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MAO_SUMMER_TEX_PS1", "SKL_MAO_SUMMER_TEX_PS2"],
+    "extraSkillDefinitionId": "SKL_MAO_SUMMER_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_FUUKI_IINKAI"],
+      "tags": [],
+      "displayName": "【真夏の風紀委員長】大賀真桜",
+      "characterName": "大賀真桜",
+      "characterId": "CHAR_MAO_OGA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MEIYA_FATED",
     "attribute": "SHY",
     "unitType": "PHYSICAL",
@@ -1775,6 +1837,35 @@
     "activeSkillDefinitionIds": ["SKL_SHOUKA_BEACH_AS1", "SKL_SHOUKA_BEACH_AS2"],
     "passiveSkillDefinitionIds": ["SKL_SHOUKA_BEACH_PS1", "SKL_SHOUKA_BEACH_PS2"],
     "extraSkillDefinitionId": "SKL_SHOUKA_BEACH_EX",
+    "metadata": {
+      "affiliations": ["AFF_FUUKI_IINKAI"],
+      "tags": [],
+      "displayName": "【砂浜の策謀家】姜小花",
+      "characterName": "姜小花",
+      "characterId": "CHAR_SHOUKA_KYOU"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_SHOUKA_BEACH_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SMART",
+    "unitType": "ENERGY",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 360750,
+      "attack": 7283,
+      "defense": 7341,
+      "criticalRate": 0.13,
+      "actionSpeed": 512,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 9,
+    "activeSkillDefinitionIds": ["SKL_SHOUKA_BEACH_TEX_AS1", "SKL_SHOUKA_BEACH_TEX_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SHOUKA_BEACH_TEX_PS1", "SKL_SHOUKA_BEACH_TEX_PS2"],
+    "extraSkillDefinitionId": "SKL_SHOUKA_BEACH_TEX_EX",
     "metadata": {
       "affiliations": ["AFF_FUUKI_IINKAI"],
       "tags": [],
