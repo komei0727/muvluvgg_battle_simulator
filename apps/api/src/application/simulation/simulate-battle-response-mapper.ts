@@ -2,6 +2,8 @@ import { shieldPoolsOf } from "../../domain/battle/combat/shield-policy.js";
 import { subUnitInstances } from "../../domain/battle/combat/sub-unit-policy.js";
 import type { BattleLogEvent } from "../observation/battle-log-event.js";
 import type { StateTransition } from "../observation/battle-observation.js";
+import { combatStatusOf } from "../observation/combat-status.js";
+import type { UnitBattleSummary } from "../observation/unit-battle-summary-projector.js";
 import type {
   ActionReservationResponseBody,
   BattleSimulationResponseBody,
@@ -17,6 +19,7 @@ import type {
   MarkerStateResponseBody,
   StateTransitionResponseBody,
   SubUnitStateResponseBody,
+  UnitBattleSummaryResponseBody,
   UnitStateDeltaResponseBody,
   ValueChangeBody,
 } from "../contracts/response.js";
@@ -44,10 +47,6 @@ export const SCHEMA_VERSION = 1;
 
 const REVERSE_COLUMNS: Record<PositionColumn, number> = { LEFT: 0, CENTER: 1, RIGHT: 2 };
 const PERCENTAGE_POINT_SCALE = 100;
-
-function combatStatusOf(hp: number): string {
-  return hp === 0 ? "DEFEATED" : "ACTIVE";
-}
 
 /**
  * R-NUM-01: Domain内部の割合は`1.0 = 100%`で保持する。`10_API設計.md`
@@ -321,6 +320,26 @@ export function toBattleStateResponseBody(
     cycleNumber: 0,
     units,
     actionQueue,
+  };
+}
+
+/**
+ * `10_API設計.md`「UnitBattleSummaryResponse」。Application Resultの集計値を
+ * そのまま公開形へ写す（branded typeがstringへ落ちる境界）。通常戦闘・戦術演習の
+ * 両レスポンスが同じ形で返すため、変換をここに一本化する。
+ */
+export function toUnitBattleSummaryResponseBody(
+  summary: UnitBattleSummary,
+): UnitBattleSummaryResponseBody {
+  return {
+    battleUnitId: summary.battleUnitId,
+    side: summary.side,
+    damageDealt: summary.damageDealt,
+    damageTaken: summary.damageTaken,
+    healingDone: summary.healingDone,
+    finalHp: summary.finalHp,
+    maximumHp: summary.maximumHp,
+    combatStatus: summary.combatStatus,
   };
 }
 
@@ -688,6 +707,7 @@ export function toBattleSimulationResponseBody(
     },
     initialState: toBattleStateResponseBody(0, result.initialState, result.unitRoster),
     finalState: toBattleStateResponseBody(finalStateVersion, result.finalState, result.unitRoster),
+    unitSummaries: result.unitSummaries.map(toUnitBattleSummaryResponseBody),
     events: result.events.map(toBattleLogEventResponseBody),
     stateTransitions,
   };

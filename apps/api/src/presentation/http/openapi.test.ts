@@ -1420,6 +1420,7 @@ describe("OpenAPI document", () => {
         units: [],
         actionQueue: [],
       },
+      unitSummaries: [],
       events: [knownEvent, futureEvent],
       stateTransitions: [],
     };

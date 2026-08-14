@@ -989,6 +989,7 @@
                     "result",
                     "initialState",
                     "finalState",
+                    "unitSummaries",
                     "events",
                     "stateTransitions"
                   ],
@@ -2015,6 +2016,56 @@
                                 "enum": ["ACTIVE_SKILL", "EXTRA_SKILL"]
                               }
                             }
+                          }
+                        }
+                      }
+                    },
+                    "unitSummaries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "battleUnitId",
+                          "side",
+                          "damageDealt",
+                          "damageTaken",
+                          "healingDone",
+                          "finalHp",
+                          "maximumHp",
+                          "combatStatus"
+                        ],
+                        "properties": {
+                          "battleUnitId": {
+                            "type": "string"
+                          },
+                          "side": {
+                            "type": "string",
+                            "enum": ["ALLY", "ENEMY"]
+                          },
+                          "damageDealt": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "damageTaken": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "healingDone": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "finalHp": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "maximumHp": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "combatStatus": {
+                            "type": "string",
+                            "enum": ["ACTIVE", "DEFEATED"]
                           }
                         }
                       }
@@ -13610,6 +13661,7 @@
                     "result",
                     "initialState",
                     "finalState",
+                    "unitSummaries",
                     "events",
                     "stateTransitions"
                   ],
@@ -14664,6 +14716,56 @@
                                 "enum": ["ACTIVE_SKILL", "EXTRA_SKILL"]
                               }
                             }
+                          }
+                        }
+                      }
+                    },
+                    "unitSummaries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "battleUnitId",
+                          "side",
+                          "damageDealt",
+                          "damageTaken",
+                          "healingDone",
+                          "finalHp",
+                          "maximumHp",
+                          "combatStatus"
+                        ],
+                        "properties": {
+                          "battleUnitId": {
+                            "type": "string"
+                          },
+                          "side": {
+                            "type": "string",
+                            "enum": ["ALLY", "ENEMY"]
+                          },
+                          "damageDealt": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "damageTaken": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "healingDone": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "finalHp": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "maximumHp": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "combatStatus": {
+                            "type": "string",
+                            "enum": ["ACTIVE", "DEFEATED"]
                           }
                         }
                       }

@@ -20,11 +20,10 @@ import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generat
  * REL-004（Issue #203）: `10_API設計.md`「API契約テスト」「ログレベルと障害」の
  * 1〜3を、実`catalog/`と実HTTP経路で固定する。
  *
- * ここまでDETAILEDとDIAGNOSTICは同じ全件イベント列を返しており
- * （`battle-log-projection.ts`のM3時点の実装）、`EffectStepSkipped`・
- * `ExtraGaugeOverflowDiscarded`という実在のDIAGNOSTICカテゴリイベントが
- * 既定のDETAILEDレスポンスへ漏れていた。3レベルの差が
- * 「eventsだけに現れ、stateTransitionsには一切現れない」ことを実データで押さえる。
+ * Issue #463でログレベルは実質2段階になった — `DETAILED`は`EffectStepSkipped`・
+ * `ExtraGaugeOverflowDiscarded`を含む全イベントを返し、`DIAGNOSTIC`はその非推奨の
+ * 別名である。レベルの差が「`events`だけに現れ、`stateTransitions`にも
+ * `unitSummaries`にも一切現れない」ことを実データで押さえる。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 
@@ -158,7 +157,7 @@ describe("log level projection over the v1 API contract (REL-004)", () => {
     }
   });
 
-  it("IT-REL-004-LOG-LEVEL-002 (10_API設計.md「DETAILEDで各スキル、PS、ダメージ、効果を返す」): DETAILED publishes the skill/hit/damage/effect events and no DIAGNOSTIC-category event at all", () => {
+  it("IT-REL-004-LOG-LEVEL-002 (10_API設計.md「公開レベル」: DETAILEDは全イベント): DETAILED publishes the skill/hit/damage/effect events together with the DIAGNOSTIC-category ones", () => {
     const types = new Set(detailed.events.map((event) => event.type));
     for (const required of [
       "SKILL_USE_STARTED",
@@ -169,33 +168,61 @@ describe("log level projection over the v1 API contract (REL-004)", () => {
       expect(types.has(required), `DETAILED is missing ${required}`).toBe(true);
     }
 
-    expect(detailed.events.filter((event) => event.category === "DIAGNOSTIC")).toEqual([]);
+    // 統合前はこの2種だけがDETAILEDから落ちていた。既定のログで
+    // 「効果が発動しなかった理由」が見えることを実データで固定する。
+    expect(
+      detailed.events.filter((event) => event.category === "DIAGNOSTIC").length,
+    ).toBeGreaterThan(0);
     for (const diagnosticType of DIAGNOSTIC_EVENT_TYPES) {
-      expect(types.has(diagnosticType), `${diagnosticType} leaked into DETAILED`).toBe(false);
+      expect(types.has(diagnosticType), `DETAILED is missing ${diagnosticType}`).toBe(true);
     }
   });
 
-  it("IT-REL-004-LOG-LEVEL-003 (10_API設計.md「DIAGNOSTICで候補除外理由を返し、内部秘密情報は返さない」/12_テスト戦略.md「DETAILEDからDIAGNOSTICを除いても状態履歴が変わらない」): DIAGNOSTIC adds exactly the DIAGNOSTIC-category events on top of DETAILED, changes no state history, and leaks no server internals", () => {
-    const diagnosticOnly = diagnostic.events.filter((event) => event.category === "DIAGNOSTIC");
-    expect(new Set(diagnosticOnly.map((event) => event.type))).toEqual(
-      new Set(DIAGNOSTIC_EVENT_TYPES),
-    );
-
-    // DIAGNOSTIC = DETAILED + 診断イベント。DETAILED側の列は一字一句変わらない。
-    expect(diagnostic.events.filter((event) => event.category !== "DIAGNOSTIC")).toEqual(
-      detailed.events,
-    );
+  it("IT-REL-004-LOG-LEVEL-003 (10_API設計.md「公開レベル」: DIAGNOSTICはDETAILEDと同一の非推奨値): DIAGNOSTIC returns byte-identical events/state history to DETAILED and leaks no server internals", () => {
+    // 統合後、2つのレベルはレスポンス全体として区別できない。
+    expect(diagnostic.events).toEqual(detailed.events);
     expect(diagnostic.stateTransitions).toEqual(detailed.stateTransitions);
     expect(diagnostic.finalState).toEqual(detailed.finalState);
+    expect(diagnostic.unitSummaries).toEqual(detailed.unitSummaries);
 
-    // 診断イベントは状態変更を所有しない。所有していれば、DETAILEDで
-    // 間引いた瞬間に「stateTransitionを持つ唯一のイベント」が消えることになる。
+    // 診断イベントは状態変更を所有しない（SUMMARYで間引いても状態履歴が欠けない）。
+    const diagnosticOnly = diagnostic.events.filter((event) => event.category === "DIAGNOSTIC");
+    expect(diagnosticOnly.length).toBeGreaterThan(0);
     expect(diagnosticOnly.filter((event) => event.stateTransitionIndex !== undefined)).toEqual([]);
 
     // 「DIAGNOSTICでもスタックトレース、ファイルパス、秘密情報を含めない」。
     const serialized = JSON.stringify(diagnosticOnly);
     expect(serialized).not.toMatch(/\/Users\/|\/home\/|node_modules|\.ts:\d+|at Object\./);
     expect(serialized).not.toMatch(/randomState|seed|stack/i);
+  });
+
+  it("IT-REL-004-LOG-LEVEL-005 (10_API設計.md「UnitBattleSummaryResponse」): every log level returns the same unitSummaries, so lowering the level never silently zeroes the per-unit aggregates", () => {
+    // SUMMARYは`DAMAGE_APPLIED`を1件も公開しない。それでも集計は同じでなければ
+    // ならない — 投影元が間引き前の全イベントだからである。
+    expect(summary.events.some((event) => event.type === "DAMAGE_APPLIED")).toBe(false);
+    expect(summary.unitSummaries).toEqual(detailed.unitSummaries);
+    expect(diagnostic.unitSummaries).toEqual(detailed.unitSummaries);
+
+    // 行はfinalStateのユニットと1対1で対応する。
+    expect(detailed.unitSummaries.map((entry) => entry.battleUnitId)).toEqual(
+      detailed.finalState.units.map((unit) => unit.battleUnitId),
+    );
+    for (const entry of detailed.unitSummaries) {
+      const unit = detailed.finalState.units.find(
+        (candidate) => candidate.battleUnitId === entry.battleUnitId,
+      )!;
+      expect(entry.side).toBe(unit.side);
+      expect(entry.finalHp).toBe(unit.hp.current);
+      expect(entry.maximumHp).toBe(unit.hp.maximum);
+      expect(entry.combatStatus).toBe(unit.combatStatus);
+    }
+
+    // この編成は実際にダメージが入る。全行0なら集計経路が繋がっていない。
+    expect(detailed.unitSummaries.some((entry) => entry.damageDealt > 0)).toBe(true);
+    // 与ダメージ合計と被ダメージ合計は同じ実HP減少量を両側から数えたもの。
+    const dealt = detailed.unitSummaries.reduce((sum, entry) => sum + entry.damageDealt, 0);
+    const taken = detailed.unitSummaries.reduce((sum, entry) => sum + entry.damageTaken, 0);
+    expect(dealt).toBe(taken);
   });
 
   it("IT-REL-004-LOG-LEVEL-004 (12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」): all three levels serialize into bodies that satisfy the published v1 doc schema, including the per-event-type details oneOf", () => {

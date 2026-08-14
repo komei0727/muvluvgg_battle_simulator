@@ -6,6 +6,7 @@ import {
   simulationOptionsRequestDocSchema,
   simulationOptionsRequestSchema,
   stateTransitionResponseSchema,
+  unitBattleSummaryResponseSchema,
   unitStateDeltaResponseSchema,
   valueChangeNumberSchema,
 } from "./simulation-schema.js";
@@ -167,6 +168,7 @@ export const tacticalExerciseResponseSchema = {
     "result",
     "initialState",
     "finalState",
+    "unitSummaries",
     "events",
     "stateTransitions",
   ],
@@ -177,6 +179,7 @@ export const tacticalExerciseResponseSchema = {
     result: exerciseResultResponseSchema,
     initialState: battleStateResponseSchema,
     finalState: battleStateResponseSchema,
+    unitSummaries: { type: "array", items: unitBattleSummaryResponseSchema },
     events: { type: "array", items: battleLogEventResponseSchema },
     stateTransitions: { type: "array", items: exerciseStateTransitionResponseSchema },
   },

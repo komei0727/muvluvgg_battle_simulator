@@ -67,6 +67,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "EVASION_ACTIVATED": 8,
     "EXERCISE_SCORE_ACCUMULATED": 341,
     "EXTRA_GAUGE_INCREASED": 48,
+    "EXTRA_GAUGE_OVERFLOW_DISCARDED": 7,
     "HEAL_APPLIED": 45,
     "HIT_CONFIRMED": 357,
     "HIT_POINT_REDUCED": 357,

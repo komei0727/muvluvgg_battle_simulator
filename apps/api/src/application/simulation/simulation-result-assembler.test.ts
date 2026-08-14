@@ -9,10 +9,12 @@ import {
   createMarkerInstanceId,
 } from "../../domain/shared/event-ids.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import type { BattleUnitRosterEntry } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import {
   createEffectActionDefinitionId,
   createMarkerId,
   createSkillDefinitionId,
+  createUnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
 
@@ -956,5 +958,134 @@ describe("assembleSimulationResult", () => {
     }
     expect(error).toBeInstanceOf(ApplicationError);
     expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+  });
+
+  it("UT-RESULT-ASSEMBLER-013 (10_API設計.md「集計セマンティクス」): projects unitSummaries from the events before the log-level filter, so SUMMARY returns the same aggregates as DETAILED even though it publishes no DAMAGE_APPLIED", () => {
+    const ATTACKER = createBattleUnitId("ally:1");
+    const DEFENDER = createBattleUnitId("enemy:1");
+    const rosterEntry = (
+      battleUnitId: typeof ATTACKER,
+      side: BattleUnitRosterEntry["side"],
+    ): BattleUnitRosterEntry => ({
+      battleUnitId,
+      unitDefinitionId: createUnitDefinitionId("UNIT_TEST"),
+      side,
+      position: { column: "LEFT", row: "FRONT" },
+      globalCoordinate: { x: 0, y: side === "ALLY" ? 3 : 0 },
+      combatStats: COMBAT_STATS,
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 10,
+    });
+    const unitSnapshot = (hp: number) => ({
+      hp,
+      ap: 1,
+      pp: 0,
+      extraGauge: 0,
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 10,
+      combatStats: COMBAT_STATS,
+      baseCombatStats: COMBAT_STATS,
+    });
+
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // version 0->1.
+    // R-DMG-05: HP変化のStateDeltaは`HitPointReduced`が持ち、`DamageApplied`は
+    // 持たない。集計はその`DamageApplied`だけを読む。
+    recorder.record({
+      eventType: "HitPointReduced",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: ATTACKER,
+      targetUnitIds: [DEFENDER],
+      payload: {
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_HIT"),
+        hitIndex: 1,
+        targetUnitId: DEFENDER,
+        hitPointDamage: 30,
+        hpBefore: 100,
+        hpAfter: 70,
+      },
+      stateDelta: { units: { [DEFENDER]: { hp: { before: 100, after: 70 } } } },
+    }); // version 1->2.
+    recorder.record({
+      eventType: "DamageApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      sourceUnitId: ATTACKER,
+      targetUnitIds: [DEFENDER],
+      payload: {
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_HIT"),
+        hitIndex: 1,
+        targetUnitId: DEFENDER,
+        calculatedDamage: 30,
+        hpDirectDamage: 0,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        discardedDamage: 0,
+        hitPointDamage: 30,
+        hpBefore: 100,
+        hpAfter: 70,
+        defeated: false,
+      },
+    });
+
+    const input = {
+      battleId: BATTLE_ID,
+      catalogRevision: "rev-1",
+      result: {
+        outcome: "ALLY_WIN" as const,
+        completionReason: "ENEMY_DEFEATED" as const,
+        completedTurn: 1,
+      },
+      initialState: {
+        status: "READY" as const,
+        currentTurn: 0,
+        units: { [ATTACKER]: unitSnapshot(100), [DEFENDER]: unitSnapshot(100) },
+      },
+      finalState: {
+        status: "RUNNING" as const,
+        currentTurn: 0,
+        units: { [ATTACKER]: unitSnapshot(100), [DEFENDER]: unitSnapshot(70) },
+      },
+      events: recorder.getEvents(),
+      unitRoster: [rosterEntry(ATTACKER, "ALLY"), rosterEntry(DEFENDER, "ENEMY")],
+    };
+
+    const detailed = assembleSimulationResult({ ...input, logLevel: "DETAILED" });
+    const summary = assembleSimulationResult({ ...input, logLevel: "SUMMARY" });
+
+    expect(detailed.unitSummaries).toEqual([
+      {
+        battleUnitId: ATTACKER,
+        side: "ALLY",
+        damageDealt: 30,
+        damageTaken: 0,
+        healingDone: 0,
+        finalHp: 100,
+        maximumHp: COMBAT_STATS.maximumHp,
+        combatStatus: "ACTIVE",
+      },
+      {
+        battleUnitId: DEFENDER,
+        side: "ENEMY",
+        damageDealt: 0,
+        damageTaken: 30,
+        healingDone: 0,
+        finalHp: 70,
+        maximumHp: COMBAT_STATS.maximumHp,
+        combatStatus: "ACTIVE",
+      },
+    ]);
+    // SUMMARYは`DAMAGE_APPLIED`を1件も公開しない。それでも集計値は変わらない
+    // ——投影元が間引き前の全イベントだからである。
+    expect(summary.events.some((event) => event.type === "DAMAGE_APPLIED")).toBe(false);
+    expect(summary.unitSummaries).toEqual(detailed.unitSummaries);
   });
 });

@@ -2,6 +2,10 @@ import { ApplicationError } from "../contracts/application-error.js";
 import { toBattleLogEvents, type BattleLogEvent } from "../observation/battle-log-event.js";
 import { projectEventsForLogLevel } from "../observation/battle-log-projection.js";
 import { buildBattleObservation, type StateTransition } from "../observation/battle-observation.js";
+import {
+  projectUnitBattleSummaries,
+  type UnitBattleSummary,
+} from "../observation/unit-battle-summary-projector.js";
 import type { LogLevel } from "./simulate-battle-command.js";
 import type {
   BattleResultSnapshot,
@@ -42,6 +46,8 @@ export interface SimulateBattleResult {
   readonly finalState: BattleStateSnapshot;
   readonly events: readonly BattleLogEvent[];
   readonly stateTransitions: readonly StateTransition[];
+  /** ユニット別の戦闘集計。公開レベルによる間引き前の全イベントから投影する。 */
+  readonly unitSummaries: readonly UnitBattleSummary[];
   /** `10_API設計.md`「BattleUnitStateResponse」の静的項目。Response Mapperが可変状態と合成する。 */
   readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
@@ -69,6 +75,8 @@ export interface SimulateTacticalExerciseResult {
   readonly finalState: BattleStateSnapshot;
   readonly events: readonly BattleLogEvent[];
   readonly stateTransitions: readonly StateTransition[];
+  /** ユニット別の戦闘集計。通常戦闘と同じ形・同じ投影元（間引き前の全イベント）。 */
+  readonly unitSummaries: readonly UnitBattleSummary[];
   /** `10_API設計.md`「BattleUnitStateResponse」の静的項目。Response Mapperが可変状態と合成する。 */
   readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
@@ -307,7 +315,7 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
 export function assembleSimulationResult(
   input: AssembleSimulationResultInput,
 ): SimulateBattleResult {
-  const { observation, events } = buildVerifiedObservation(input);
+  const { observation, events, unitSummaries } = buildVerifiedObservation(input);
 
   return {
     battleId: input.battleId,
@@ -319,6 +327,7 @@ export function assembleSimulationResult(
     finalState: observation.finalState,
     events,
     stateTransitions: observation.stateTransitions,
+    unitSummaries,
     unitRoster: input.unitRoster,
   };
 }
@@ -354,7 +363,7 @@ function projectExerciseBreaks(events: readonly BattleDomainEvent[]): readonly E
 export function assembleTacticalExerciseResult(
   input: AssembleTacticalExerciseResultInput,
 ): SimulateTacticalExerciseResult {
-  const { observation, events } = buildVerifiedObservation(input);
+  const { observation, events, unitSummaries } = buildVerifiedObservation(input);
 
   return {
     battleId: input.battleId,
@@ -368,6 +377,7 @@ export function assembleTacticalExerciseResult(
     finalState: observation.finalState,
     events,
     stateTransitions: observation.stateTransitions,
+    unitSummaries,
     unitRoster: input.unitRoster,
   };
 }
@@ -381,6 +391,7 @@ export function assembleTacticalExerciseResult(
 function buildVerifiedObservation(input: AssembleResultInputBase): {
   readonly observation: ReturnType<typeof buildBattleObservation>;
   readonly events: readonly BattleLogEvent[];
+  readonly unitSummaries: readonly UnitBattleSummary[];
 } {
   const observation = buildBattleObservation({
     initialState: input.initialState,
@@ -409,6 +420,14 @@ function buildVerifiedObservation(input: AssembleResultInputBase): {
 
   return {
     observation,
+    // `breaks`（`projectExerciseBreaks`）と同じく、投影元は`projectEventsForLogLevel`を
+    // 通す**前**の`observation.events`である。下の`events`と同じ列から投影すると
+    // `SUMMARY`でダメージ・回復イベントが1件も残らず、集計値が警告なく0になる。
+    unitSummaries: projectUnitBattleSummaries(
+      observation.events,
+      observation.finalState,
+      input.unitRoster,
+    ),
     events: runOrConvertToInternalInvariant(
       () =>
         toBattleLogEvents(
