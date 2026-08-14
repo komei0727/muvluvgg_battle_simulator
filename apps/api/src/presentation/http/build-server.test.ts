@@ -255,6 +255,50 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(body.error.violations[0]!.path).toBe("/turnLimit");
   });
 
+  // Issue #465: `DIAGNOSTIC`廃止。runtime request schemaは値域・列挙をあえて持たず
+  // （`simulation-schema.ts`冒頭）、request mapperも受信値をそのまま`LogLevel`へ
+  // castするため、廃止値が実際に止まるのはApplicationの`validateLogLevel`だけである。
+  // その一段が抜けても単体テストは通ってしまうので、実HTTP経路のstatus・code・
+  // JSON Pointer pathをここで固定する。
+  it("API-CONTRACT-032 (10_API設計.md「公開レベル」): returns 422 INVALID_COMMAND with path /options/logLevel for the retired DIAGNOSTIC log level", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: { ...validRequestBody(), options: { logLevel: "DIAGNOSTIC" } },
+    });
+
+    expect(response.statusCode).toBe(422);
+    const body = response.json<ErrorResponseBody>();
+    expect(body.error.code).toBe("INVALID_COMMAND");
+    expect(body.error.violations).toContainEqual(
+      expect.objectContaining({ path: "/options/logLevel" }),
+    );
+    // 受理値の一覧が違反理由に出る（クライアントが移行先を読み取れる）。
+    expect(
+      body.error.violations.find((violation) => violation.path === "/options/logLevel")?.message,
+    ).toContain("SUMMARY, DETAILED");
+  });
+
+  it("API-CONTRACT-033 (10_API設計.md「SimulationOptions」): still accepts the two live log levels over the same path, so the rejection above is about the retired value and not about options handling", async () => {
+    for (const logLevel of ["SUMMARY", "DETAILED"] as const) {
+      // レベルごとに新しいserverを組む。`buildTestUseCase`のBattle ID生成器は
+      // 1件しか持たないため、1インスタンスへ2回投げると2回目がID枯渇で失敗し、
+      // ログレベルの受理可否とは無関係な理由で落ちる。
+      const levelApp = await buildServer(buildTestUseCase());
+      try {
+        const response = await levelApp.inject({
+          method: "POST",
+          url: "/api/v1/battle-simulations",
+          payload: { ...validRequestBody(), options: { logLevel } },
+        });
+
+        expect(response.statusCode, `${logLevel} must be accepted`).toBe(200);
+      } finally {
+        await levelApp.close();
+      }
+    }
+  });
+
   it("API-CONTRACT-010: returns 422 DEFINITION_NOT_FOUND for an unknown unitDefinitionId, with an external JSON Pointer path (not the internal Command's dot/`slots` form)", async () => {
     const response = await app.inject({
       method: "POST",

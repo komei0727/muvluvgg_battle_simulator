@@ -28,7 +28,7 @@ function percentile(sortedAscending: readonly number[], p: number): number {
 }
 
 describe("battle simulation load/soak baseline", () => {
-  it("LOAD-SOAK-001: repeatedly simulates a DIAGNOSTIC production battle without runaway time or heap growth, and reports a baseline", () => {
+  it("LOAD-SOAK-001: repeatedly simulates a DETAILED production battle — the level with the largest response — without runaway time or heap growth, and reports a baseline", () => {
     const [unitId] = allProductionUnitIds(CATALOG_DIR);
     expect(unitId, "at least one selectable production unit is required").toBeDefined();
 
