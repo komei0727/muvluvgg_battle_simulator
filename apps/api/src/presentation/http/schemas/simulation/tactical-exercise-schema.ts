@@ -167,7 +167,6 @@ export const tacticalExerciseResponseSchema = {
     "catalogRevision",
     "result",
     "initialState",
-    "finalState",
     "unitSummaries",
     "events",
     "stateTransitions",

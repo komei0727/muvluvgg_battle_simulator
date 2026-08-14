@@ -340,7 +340,11 @@ export interface BattleSimulationResponseBody {
   readonly catalogRevision: string;
   readonly result: BattleResultResponseBody;
   readonly initialState: BattleStateResponseBody;
-  readonly finalState: BattleStateResponseBody;
+  /**
+   * `10_API設計.md`「公開レベル」: `SUMMARY`ではキーごと省略する。表示に要る最終HP・
+   * 戦闘状態は`unitSummaries`が運ぶ（`initialState`はロースター解決のため常に返す）。
+   */
+  readonly finalState?: BattleStateResponseBody;
   readonly unitSummaries: readonly UnitBattleSummaryResponseBody[];
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];
@@ -375,7 +379,11 @@ export interface TacticalExerciseResponseBody {
   readonly catalogRevision: string;
   readonly result: ExerciseResultResponseBody;
   readonly initialState: BattleStateResponseBody;
-  readonly finalState: BattleStateResponseBody;
+  /**
+   * `10_API設計.md`「公開レベル」: `SUMMARY`ではキーごと省略する。表示に要る最終HP・
+   * 戦闘状態は`unitSummaries`が運ぶ（`initialState`はロースター解決のため常に返す）。
+   */
+  readonly finalState?: BattleStateResponseBody;
   readonly unitSummaries: readonly UnitBattleSummaryResponseBody[];
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];

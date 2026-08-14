@@ -34,7 +34,7 @@ describe("production Unit golden battles", () => {
       const result = runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
         turnLimit: 5,
         randomValue: 0.5,
-        logLevel: "DIAGNOSTIC",
+        logLevel: "DETAILED",
       });
 
       expect(typeof result.outcome).toBe("string");

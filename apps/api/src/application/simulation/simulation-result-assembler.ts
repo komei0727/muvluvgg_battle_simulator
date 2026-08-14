@@ -43,10 +43,17 @@ export interface SimulateBattleResult {
   readonly completionReason: CompletionReason;
   readonly completedTurn: number;
   readonly initialState: BattleStateSnapshot;
-  readonly finalState: BattleStateSnapshot;
+  /**
+   * `SUMMARY`では省略する（`10_API設計.md`「公開レベル」）。表示に要る最終HP・
+   * 戦闘状態は`unitSummaries`が運ぶ。内部の整合性検証はレベルに関係なく最終状態を
+   * 使って全量で行うため、ここが`undefined`でも検証が緩むことはない。
+   */
+  readonly finalState: BattleStateSnapshot | undefined;
+  /** `SUMMARY`では空。 */
   readonly events: readonly BattleLogEvent[];
+  /** `SUMMARY`では空（`10_API設計.md`「公開レベル」）。 */
   readonly stateTransitions: readonly StateTransition[];
-  /** ユニット別の戦闘集計。公開レベルによる間引き前の全イベントから投影する。 */
+  /** ユニット別の戦闘集計。公開レベルによる間引き前の全イベントから投影し、全レベルで返す。 */
   readonly unitSummaries: readonly UnitBattleSummary[];
   /** `10_API設計.md`「BattleUnitStateResponse」の静的項目。Response Mapperが可変状態と合成する。 */
   readonly unitRoster: readonly BattleUnitRosterEntry[];
@@ -72,8 +79,11 @@ export interface SimulateTacticalExerciseResult {
   readonly breakCount: number;
   readonly breaks: readonly ExerciseBreak[];
   readonly initialState: BattleStateSnapshot;
-  readonly finalState: BattleStateSnapshot;
+  /** `SimulateBattleResult.finalState`と同じ規約。`SUMMARY`では省略する。 */
+  readonly finalState: BattleStateSnapshot | undefined;
+  /** `SUMMARY`では空。 */
   readonly events: readonly BattleLogEvent[];
+  /** `SUMMARY`では空。 */
   readonly stateTransitions: readonly StateTransition[];
   /** ユニット別の戦闘集計。通常戦闘と同じ形・同じ投影元（間引き前の全イベント）。 */
   readonly unitSummaries: readonly UnitBattleSummary[];
@@ -315,7 +325,8 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
 export function assembleSimulationResult(
   input: AssembleSimulationResultInput,
 ): SimulateBattleResult {
-  const { observation, events, unitSummaries } = buildVerifiedObservation(input);
+  const { observation, events, stateTransitions, finalState, unitSummaries } =
+    buildVerifiedObservation(input);
 
   return {
     battleId: input.battleId,
@@ -324,9 +335,9 @@ export function assembleSimulationResult(
     completionReason: input.result.completionReason,
     completedTurn: input.result.completedTurn,
     initialState: observation.initialState,
-    finalState: observation.finalState,
+    finalState,
     events,
-    stateTransitions: observation.stateTransitions,
+    stateTransitions,
     unitSummaries,
     unitRoster: input.unitRoster,
   };
@@ -363,7 +374,8 @@ function projectExerciseBreaks(events: readonly BattleDomainEvent[]): readonly E
 export function assembleTacticalExerciseResult(
   input: AssembleTacticalExerciseResultInput,
 ): SimulateTacticalExerciseResult {
-  const { observation, events, unitSummaries } = buildVerifiedObservation(input);
+  const { observation, events, stateTransitions, finalState, unitSummaries } =
+    buildVerifiedObservation(input);
 
   return {
     battleId: input.battleId,
@@ -374,9 +386,9 @@ export function assembleTacticalExerciseResult(
     breakCount: input.result.breakCount,
     breaks: projectExerciseBreaks(observation.events),
     initialState: observation.initialState,
-    finalState: observation.finalState,
+    finalState,
     events,
-    stateTransitions: observation.stateTransitions,
+    stateTransitions,
     unitSummaries,
     unitRoster: input.unitRoster,
   };
@@ -391,6 +403,8 @@ export function assembleTacticalExerciseResult(
 function buildVerifiedObservation(input: AssembleResultInputBase): {
   readonly observation: ReturnType<typeof buildBattleObservation>;
   readonly events: readonly BattleLogEvent[];
+  readonly stateTransitions: readonly StateTransition[];
+  readonly finalState: BattleStateSnapshot | undefined;
   readonly unitSummaries: readonly UnitBattleSummary[];
 } {
   const observation = buildBattleObservation({
@@ -418,8 +432,19 @@ function buildVerifiedObservation(input: AssembleResultInputBase): {
     ]);
   }
 
+  // 上の検証（`stateVersion`連続性・独立Reducer復元）はログレベルに関係なく
+  // **全量**で行う。公開量を減らすのは検証を終えた後であり、`SUMMARY`だからと
+  // いって内部矛盾の検出が緩むことはない。
+  const isSummary = input.logLevel === "SUMMARY";
+
   return {
     observation,
+    // `SUMMARY`は状態履歴を返さない。イベントを1件も返さない以上、差分だけ返しても
+    // 対応する原因イベント（`causedBySequence`）を辿れず、この用途では読まれない。
+    stateTransitions: isSummary ? [] : observation.stateTransitions,
+    // `SUMMARY`は最終状態をキーごと省略する。表示に要る最終HP・戦闘状態は
+    // `unitSummaries`が運ぶ（`initialState`はロースター解決のため維持する）。
+    finalState: isSummary ? undefined : observation.finalState,
     // `breaks`（`projectExerciseBreaks`）と同じく、投影元は`projectEventsForLogLevel`を
     // 通す**前**の`observation.events`である。下の`events`と同じ列から投影すると
     // `SUMMARY`でダメージ・回復イベントが1件も残らず、集計値が警告なく0になる。

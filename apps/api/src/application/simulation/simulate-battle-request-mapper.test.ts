@@ -32,22 +32,25 @@ describe("toSimulateBattleCommand", () => {
     expect(command.turnLimit).toBe(10);
   });
 
-  it("API-SIM-002: defaults logLevel to DETAILED when options is omitted", () => {
+  // ログ方針刷新3/3（Issue #465）: 既定の用途は「編成を比べるための実行」であり、
+  // 必要なのは勝敗とユニット別集計だけ。`DETAILED`を既定にすると、指定しない
+  // クライアントが毎回数MBのレスポンスを受け取ることになる。
+  it("API-SIM-002: defaults logLevel to SUMMARY when options is omitted", () => {
     const command = toSimulateBattleCommand(requestBody());
 
-    expect(command.logLevel).toBe("DETAILED");
+    expect(command.logLevel).toBe("SUMMARY");
   });
 
-  it("API-SIM-003: defaults logLevel to DETAILED when options.logLevel is omitted", () => {
+  it("API-SIM-003: defaults logLevel to SUMMARY when options.logLevel is omitted", () => {
     const command = toSimulateBattleCommand(requestBody({ options: {} }));
 
-    expect(command.logLevel).toBe("DETAILED");
+    expect(command.logLevel).toBe("SUMMARY");
   });
 
   it("API-SIM-004: passes through an explicit options.logLevel", () => {
-    const command = toSimulateBattleCommand(requestBody({ options: { logLevel: "SUMMARY" } }));
+    const command = toSimulateBattleCommand(requestBody({ options: { logLevel: "DETAILED" } }));
 
-    expect(command.logLevel).toBe("SUMMARY");
+    expect(command.logLevel).toBe("DETAILED");
   });
 
   it("API-SIM-005: passes through memoryDefinitionIds without validating format (existence is a Preflight concern)", () => {

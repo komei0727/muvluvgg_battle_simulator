@@ -1,10 +1,7 @@
 import { GetBattleSimulationCatalogUseCase } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
 import type { SimulateBattleCommand } from "../../application/simulation/simulate-battle-command.js";
 import type { SimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-command.js";
-import type {
-  SimulateBattleResult,
-  SimulateTacticalExerciseResult,
-} from "../../application/simulation/simulation-result-assembler.js";
+import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
@@ -14,6 +11,11 @@ import {
   loadBattleCatalogDirectory,
   loadCatalogFromDirectory,
 } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
+import {
+  requireFullObservation,
+  type FullObservationBattleResult,
+  type FullObservationExerciseResult,
+} from "./run-scenario.js";
 import { ManualClock } from "../clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../id/fixed-battle-id-generator.js";
 
@@ -70,7 +72,7 @@ export function runProductionUnitBattle(
   catalogDir: string,
   unitDefinitionId: string,
   options: ProductionBattleOptions = {},
-): SimulateBattleResult {
+): FullObservationBattleResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const slot = {
     unitDefinitionId: createUnitDefinitionId(unitDefinitionId),
@@ -88,10 +90,12 @@ export function runProductionUnitBattle(
     randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
     clock: new ManualClock(0),
   });
-  return useCase.execute(command, {
-    requestId: "golden-battle",
-    deadlineEpochMs: Number.MAX_SAFE_INTEGER,
-  });
+  return requireFullObservation(
+    useCase.execute(command, {
+      requestId: "golden-battle",
+      deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+    }),
+  );
 }
 
 /** 6スロット（前列3・後列3）を左から詰めて割り当てる。 */
@@ -119,7 +123,7 @@ export function runProductionPartyBattle(
   catalogDir: string,
   parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
   options: ProductionBattleOptions = {},
-): SimulateBattleResult {
+): FullObservationBattleResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const command: SimulateBattleCommand = {
     allyFormation: partySlots(parties.ally),
@@ -133,10 +137,12 @@ export function runProductionPartyBattle(
     randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
     clock: new ManualClock(0),
   });
-  return useCase.execute(command, {
-    requestId: "golden-party-battle",
-    deadlineEpochMs: Number.MAX_SAFE_INTEGER,
-  });
+  return requireFullObservation(
+    useCase.execute(command, {
+      requestId: "golden-party-battle",
+      deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+    }),
+  );
 }
 
 /**
@@ -148,7 +154,7 @@ export function runProductionExerciseBattle(
   catalogDir: string,
   matchup: { readonly ally: readonly string[]; readonly enemyUnitDefinitionId: string },
   options: Pick<ProductionBattleOptions, "randomValue" | "battleId" | "logLevel"> = {},
-): SimulateTacticalExerciseResult {
+): FullObservationExerciseResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const command: SimulateTacticalExerciseCommand = {
     allyFormation: partySlots(matchup.ally),
@@ -169,10 +175,12 @@ export function runProductionExerciseBattle(
     randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
     clock: new ManualClock(0),
   });
-  return useCase.execute(command, {
-    requestId: "golden-exercise-battle",
-    deadlineEpochMs: Number.MAX_SAFE_INTEGER,
-  });
+  return requireFullObservation(
+    useCase.execute(command, {
+      requestId: "golden-exercise-battle",
+      deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+    }),
+  );
 }
 
 /**
@@ -198,16 +206,18 @@ export function createProductionBattleRunner(
   };
   const randomSourceFactory = new ConstantRandomSourceFactory(options.randomValue ?? 0.5);
   const clock = new ManualClock(0);
-  return (battleId: string): SimulateBattleResult => {
+  return (battleId: string): FullObservationBattleResult => {
     const useCase = new SimulateBattleUseCase({
       battleCatalog,
       battleIdGenerator: new FixedBattleIdGenerator([battleId]),
       randomSourceFactory,
       clock,
     });
-    return useCase.execute(command, {
-      requestId: `soak-${battleId}`,
-      deadlineEpochMs: Number.MAX_SAFE_INTEGER,
-    });
+    return requireFullObservation(
+      useCase.execute(command, {
+        requestId: `soak-${battleId}`,
+        deadlineEpochMs: Number.MAX_SAFE_INTEGER,
+      }),
+    );
   };
 }

@@ -507,7 +507,7 @@ describe("SimulateBattleUseCase", () => {
       testContext(),
     );
 
-    expect(result.finalState.currentTurn).toBe(99);
+    expect(result.finalState!.currentTurn).toBe(99);
     // The old 20,000 cap would have failed this legitimate battle; the
     // recalibrated cap must clear it with margin to spare.
     expect(result.events.length).toBeGreaterThan(20_000);

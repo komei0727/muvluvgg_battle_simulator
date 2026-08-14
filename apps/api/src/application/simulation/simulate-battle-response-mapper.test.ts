@@ -207,10 +207,10 @@ describe("toBattleSimulationResponseBody", () => {
         ],
       }),
     );
-    expect(withTransitions.finalState.stateVersion).toBe(2);
+    expect(withTransitions.finalState!.stateVersion).toBe(2);
 
     const withoutTransitions = toBattleSimulationResponseBody(baseResult());
-    expect(withoutTransitions.finalState.stateVersion).toBe(0);
+    expect(withoutTransitions.finalState!.stateVersion).toBe(0);
   });
 
   it("API-RESP-004: lists units in roster order (ally before enemy) with formationPosition/coordinate converted back to the per-side API representation", () => {
@@ -232,8 +232,8 @@ describe("toBattleSimulationResponseBody", () => {
   // 戦闘中に変わりうるため、roster（開始時点の不変値）ではなくこの時点のsnapshotから写す。
   it("API-RESP-005: maps hp/resources current values and gauge maximums from the snapshot, and derives combatStatus from hp", () => {
     const body = toBattleSimulationResponseBody(baseResult());
-    const finalAlly = body.finalState.units[0]!;
-    const finalEnemy = body.finalState.units[1]!;
+    const finalAlly = body.finalState!.units[0]!;
+    const finalEnemy = body.finalState!.units[1]!;
 
     expect(finalAlly.hp).toEqual({ current: 90, maximum: 100 });
     expect(finalAlly.resources).toEqual({
@@ -303,11 +303,11 @@ describe("toBattleSimulationResponseBody", () => {
     const base = baseResult();
     const withMarker = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             markers: [
               {
                 markerInstanceId,
@@ -325,7 +325,7 @@ describe("toBattleSimulationResponseBody", () => {
 
     const body = toBattleSimulationResponseBody(withMarker);
 
-    expect(body.finalState.units[0]!.markers).toEqual([
+    expect(body.finalState!.units[0]!.markers).toEqual([
       {
         markerInstanceId: "battle-1:marker:1",
         markerId: "MARKER_TEST",
@@ -336,18 +336,18 @@ describe("toBattleSimulationResponseBody", () => {
       },
     ]);
     // A unit with no MarkerState instances still gets a truthfully-empty array.
-    expect(body.finalState.units[1]!.markers).toEqual([]);
+    expect(body.finalState!.units[1]!.markers).toEqual([]);
   });
 
   it("API-RESP-012C (M7-009, Issue #182): classifies an APPLY_STATUS-derived AppliedEffect as STATUS_ABNORMALITY and publishes its statusKind, instead of deriving BUFF from a zero magnitude", () => {
     const base = baseResult();
     const withStatus = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             effects: [
               {
                 effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
@@ -370,7 +370,7 @@ describe("toBattleSimulationResponseBody", () => {
 
     const body = toBattleSimulationResponseBody(withStatus);
 
-    expect(body.finalState.units[0]!.effects).toEqual([
+    expect(body.finalState!.units[0]!.effects).toEqual([
       {
         effectInstanceId: "battle-1:effect:1",
         effectDefinitionId: "ACT_TEST_STUN",
@@ -391,11 +391,11 @@ describe("toBattleSimulationResponseBody", () => {
     const base = baseResult();
     const withAdvantageousStatus = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             effects: [
               {
                 effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
@@ -428,7 +428,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
 
     const effects =
-      toBattleSimulationResponseBody(withAdvantageousStatus).finalState.units[0]!.effects;
+      toBattleSimulationResponseBody(withAdvantageousStatus).finalState!.units[0]!.effects;
 
     expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "BUFF"]);
     expect(effects.map((effect) => effect.statusKind)).toEqual(["STEALTH", "DAMAGE_IMMUNITY"]);
@@ -438,11 +438,11 @@ describe("toBattleSimulationResponseBody", () => {
     const base = baseResult();
     const withAilments = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             effects: STATUS_AILMENT_KINDS.map((statusKind, index) => ({
               effectInstanceId: createEffectInstanceId(`battle-1:effect:${index + 1}`),
               effectDefinitionId: `ACT_TEST_${statusKind}`,
@@ -465,7 +465,7 @@ describe("toBattleSimulationResponseBody", () => {
       },
     });
 
-    const effects = toBattleSimulationResponseBody(withAilments).finalState.units[0]!.effects;
+    const effects = toBattleSimulationResponseBody(withAilments).finalState!.units[0]!.effects;
 
     expect(effects.map((effect) => effect.category)).toEqual(
       STATUS_AILMENT_KINDS.map(() => "STATUS_ABNORMALITY"),
@@ -476,11 +476,11 @@ describe("toBattleSimulationResponseBody", () => {
     const base = baseResult();
     const withStatMods = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             effects: [
               {
                 effectInstanceId: createEffectInstanceId("battle-1:effect:1"),
@@ -510,7 +510,7 @@ describe("toBattleSimulationResponseBody", () => {
       },
     });
 
-    const effects = toBattleSimulationResponseBody(withStatMods).finalState.units[0]!.effects;
+    const effects = toBattleSimulationResponseBody(withStatMods).finalState!.units[0]!.effects;
 
     expect(effects.map((effect) => effect.category)).toEqual(["BUFF", "DEBUFF"]);
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
@@ -541,11 +541,11 @@ describe("toBattleSimulationResponseBody", () => {
     });
     const withContinuousDamage = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             effects: [
               dot(1, "ACT_TEST_POISON", ["DEBUFF", "STATUS"], "POISON"),
               dot(2, "ACT_TEST_BURN", ["DEBUFF", "STATUS"], "BURN"),
@@ -558,7 +558,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
 
     const effects =
-      toBattleSimulationResponseBody(withContinuousDamage).finalState.units[0]!.effects;
+      toBattleSimulationResponseBody(withContinuousDamage).finalState!.units[0]!.effects;
 
     expect(effects.map((effect) => effect.category)).toEqual([
       "STATUS_ABNORMALITY",
@@ -573,11 +573,11 @@ describe("toBattleSimulationResponseBody", () => {
     const base = baseResult();
     const withMemoryMarker = baseResult({
       finalState: {
-        ...base.finalState,
+        ...base.finalState!,
         units: {
-          ...base.finalState.units,
+          ...base.finalState!.units,
           [ALLY_ID]: {
-            ...base.finalState.units[ALLY_ID]!,
+            ...base.finalState!.units[ALLY_ID]!,
             markers: [
               {
                 markerInstanceId: createMarkerInstanceId("battle-1:marker:1"),
@@ -595,7 +595,7 @@ describe("toBattleSimulationResponseBody", () => {
 
     // `EffectStateResponse`と同じexactly-one union。付与者ユニットを推測せず、
     // 付与元陣営だけを公開する。
-    expect(toBattleSimulationResponseBody(withMemoryMarker).finalState.units[0]!.markers).toEqual([
+    expect(toBattleSimulationResponseBody(withMemoryMarker).finalState!.units[0]!.markers).toEqual([
       {
         markerInstanceId: "battle-1:marker:1",
         markerId: "MARKER_TEST",
@@ -960,7 +960,7 @@ describe("toBattleSimulationResponseBody", () => {
       }),
     );
 
-    const finalAlly = body.finalState.units[0]!;
+    const finalAlly = body.finalState!.units[0]!;
     expect(finalAlly.cooldowns).toEqual([
       { skillDefinitionId: "SKL_A", unit: "ACTION", remaining: 2, setAtActionId: "action-1" },
       { skillDefinitionId: "SKL_B", unit: "TURN", remaining: 1, setAtTurnNumber: 3 },
@@ -1011,7 +1011,7 @@ describe("toBattleSimulationResponseBody", () => {
       }),
     );
 
-    const cooldowns = body.finalState.units.find(
+    const cooldowns = body.finalState!.units.find(
       (unit) => unit.battleUnitId === ALLY_ID,
     )?.cooldowns;
     expect(cooldowns).toEqual([{ skillDefinitionId: SKL_A, unit: "ACTION", remaining: 2 }]);
@@ -1173,7 +1173,7 @@ describe("toBattleSimulationResponseBody", () => {
     // 同じレスポンス内で2度公開される値なので、食い違えばクライアントは
     // どちらを信じるか決められない。
     for (const summary of body.unitSummaries) {
-      const unit = body.finalState.units.find(
+      const unit = body.finalState!.units.find(
         (candidate) => candidate.battleUnitId === summary.battleUnitId,
       )!;
       expect(summary.side).toBe(unit.side);

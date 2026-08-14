@@ -7,10 +7,37 @@ import type {
   SimulateBattleResult,
   SimulateTacticalExerciseResult,
 } from "../../application/simulation/simulation-result-assembler.js";
+import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import type { BattleCatalog } from "../../domain/ports/battle-catalog.js";
 import { ManualClock } from "../clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../id/fixed-battle-id-generator.js";
 import { SequenceRandomSourceFactory } from "../random/sequence-random-source-factory.js";
+
+/**
+ * `SUMMARY`は`finalState`を返さない（`10_API設計.md`「公開レベル」）。シナリオ層は
+ * 最終状態・イベント列・状態差分をassert対象にするため必ず`DETAILED`で走らせる
+ * （`definition-builders.ts`の既定）。取り違えを`undefined`のまま素通りさせず、
+ * ここで明示的に失敗させたうえで非optionalへ絞る。
+ */
+export function requireFullObservation<
+  T extends { readonly finalState: BattleStateSnapshot | undefined },
+>(result: T): T & { readonly finalState: BattleStateSnapshot } {
+  if (result.finalState === undefined) {
+    throw new Error(
+      "scenario harness requires logLevel DETAILED: a SUMMARY run omits finalState/events/stateTransitions",
+    );
+  }
+  return result as T & { readonly finalState: BattleStateSnapshot };
+}
+
+/** `finalState`が確実に届く（＝`DETAILED`で走らせた）シナリオ結果。 */
+export type FullObservationBattleResult = SimulateBattleResult & {
+  readonly finalState: BattleStateSnapshot;
+};
+
+export type FullObservationExerciseResult = SimulateTacticalExerciseResult & {
+  readonly finalState: BattleStateSnapshot;
+};
 
 export interface RunScenarioOptions {
   /** 合成または実Catalog。`CatalogBuilder.build()` の戻り値をそのまま渡せる。 */
@@ -30,7 +57,15 @@ export interface RunScenarioOptions {
  * 決定的なテスト実装へ固定する。戻り値の `SimulateBattleResult` に対し、勝敗・最終状態・
  * イベント順・状態差分・乱数消費を個別にassertできる。
  */
-export function runScenario(options: RunScenarioOptions): SimulateBattleResult {
+export function runScenario(options: RunScenarioOptions): FullObservationBattleResult {
+  return requireFullObservation(runScenarioRaw(options));
+}
+
+/**
+ * `SUMMARY`のように`finalState`・`events`・`stateTransitions`が返らないレベルを
+ * **意図的に**検証するシナリオ用。通常は{@link runScenario}を使う。
+ */
+export function runScenarioRaw(options: RunScenarioOptions): SimulateBattleResult {
   const useCase = new SimulateBattleUseCase({
     battleCatalog: options.catalog,
     battleIdGenerator: new FixedBattleIdGenerator([...(options.battleIds ?? ["B_TEST"])]),
@@ -55,6 +90,13 @@ export interface RunExerciseScenarioOptions extends Omit<RunScenarioOptions, "co
  */
 export function runExerciseScenario(
   options: RunExerciseScenarioOptions,
+): FullObservationExerciseResult {
+  return requireFullObservation(runExerciseScenarioRaw(options));
+}
+
+/** {@link runScenarioRaw}の戦術演習版。 */
+export function runExerciseScenarioRaw(
+  options: RunExerciseScenarioOptions,
 ): SimulateTacticalExerciseResult {
   const useCase = new SimulateTacticalExerciseUseCase({
     battleCatalog: options.catalog,
@@ -73,10 +115,9 @@ export function runExerciseScenario(
  * 不変条件の検査対象。通常戦闘・戦術演習のどちらの結果でも、勝敗以外の共通部分
  * （イベント列・状態差分・最終状態）だけを見る。
  */
-type BattleInvariantSubject = Pick<
-  SimulateBattleResult,
-  "events" | "stateTransitions" | "finalState"
->;
+type BattleInvariantSubject = Pick<SimulateBattleResult, "events" | "stateTransitions"> & {
+  readonly finalState: BattleStateSnapshot;
+};
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {

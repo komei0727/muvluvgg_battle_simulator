@@ -147,7 +147,7 @@ describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResp
     );
 
     expect(body.initialState.stateVersion).toBe(0);
-    expect(body.finalState.stateVersion).toBe(1);
+    expect(body.finalState!.stateVersion).toBe(1);
     expect(body.initialState.units.map((unit) => unit.battleUnitId)).toEqual(["ally:1", "enemy:1"]);
     expect(body.stateTransitions[0]?.delta.battle).toEqual({ turnNumber: { before: 0, after: 1 } });
   });

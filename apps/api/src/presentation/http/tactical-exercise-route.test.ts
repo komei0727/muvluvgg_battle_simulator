@@ -322,7 +322,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
           units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
           memoryDefinitionIds: [],
         },
-        options: { logLevel: "DIAGNOSTIC" },
+        options: { logLevel: "DETAILED" },
       },
     });
 

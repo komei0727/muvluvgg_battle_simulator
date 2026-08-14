@@ -124,9 +124,9 @@ describe("assembleSimulationResult", () => {
     ).toThrow(ApplicationError);
   });
 
-  it("UT-RESULT-ASSEMBLER-007: filters events by logLevel (SUMMARY) while keeping stateTransitions complete", () => {
+  it("UT-RESULT-ASSEMBLER-007 (10_API設計.md「公開レベル」): SUMMARY publishes no events, no stateTransitions and no finalState, yet still runs the full state-restoration verification", () => {
     const recorder = new EventRecorder(BATTLE_ID);
-    recordBattleStarted(recorder); // BattleStarted is SUMMARY-visible and carries the only delta.
+    recordBattleStarted(recorder); // 唯一のstateDeltaを持つイベント。
     recorder.record({
       eventType: "TargetsSelected",
       category: "FACT",
@@ -149,9 +149,35 @@ describe("assembleSimulationResult", () => {
       unitRoster: [],
     });
 
-    expect(result.events.map((e) => e.type)).toEqual(["BATTLE_STARTED"]);
-    // stateTransitions is unaffected by logLevel: it stays complete either way.
-    expect(result.stateTransitions).toHaveLength(1);
+    expect(result.events).toEqual([]);
+    expect(result.stateTransitions).toEqual([]);
+    expect(result.finalState).toBeUndefined();
+    // 公開量は減っても検証は減らない: 上の`assembleSimulationResult`が例外を投げず
+    // 返っていること自体が、全差分での復元検証を通過した証跡である
+    // （UT-RESULT-ASSEMBLER-002が同じ経路の失敗側を押さえている）。
+    expect(result.initialState).toBe(initialState);
+    expect(result.outcome).toBe("ALLY_WIN");
+  });
+
+  it("UT-RESULT-ASSEMBLER-014 (10_API設計.md「公開レベル」): a SUMMARY run still rejects a finalState that initialState + every delta cannot reconstruct, so the lighter response is not a weaker check", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordBattleStarted(recorder); // READY -> RUNNING の差分だけを記録する。
+    const initialState = { status: "READY" as const, currentTurn: 0, units: {} };
+    // 記録した差分では到達し得ない最終状態。
+    const finalState = { status: "COMPLETED" as const, currentTurn: 3, units: {} };
+
+    expect(() =>
+      assembleSimulationResult({
+        battleId: BATTLE_ID,
+        catalogRevision: "rev-1",
+        logLevel: "SUMMARY",
+        result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
+        initialState,
+        finalState,
+        events: recorder.getEvents(),
+        unitRoster: [],
+      }),
+    ).toThrow(ApplicationError);
   });
 
   it("UT-RESULT-ASSEMBLER-003: converts a Reducer-detected broken delta sequence (DomainValidationError) into INTERNAL_INVARIANT_VIOLATION, not INVALID_COMMAND", () => {

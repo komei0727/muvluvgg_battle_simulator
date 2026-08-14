@@ -11,7 +11,13 @@ import type {
   UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 
-const DEFAULT_LOG_LEVEL = "DETAILED";
+/**
+ * `10_API設計.md`「SimulationOptions」: `options.logLevel`の既定値。既定の用途は
+ * 「編成を比べるための実行」であり、必要なのは勝敗とユニット別集計だけである
+ * （`DETAILED`を既定にすると、指定しないクライアントが毎回数MBのレスポンスを
+ * 受け取る）。
+ */
+const DEFAULT_LOG_LEVEL = "SUMMARY";
 
 /**
  * `10_API設計.md`: 定義IDは「クライアントが解析しない不透明な文字列」であり、

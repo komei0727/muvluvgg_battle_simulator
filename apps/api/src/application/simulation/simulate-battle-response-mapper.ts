@@ -706,7 +706,15 @@ export function toBattleSimulationResponseBody(
       completedTurn: result.completedTurn,
     },
     initialState: toBattleStateResponseBody(0, result.initialState, result.unitRoster),
-    finalState: toBattleStateResponseBody(finalStateVersion, result.finalState, result.unitRoster),
+    ...(result.finalState !== undefined
+      ? {
+          finalState: toBattleStateResponseBody(
+            finalStateVersion,
+            result.finalState,
+            result.unitRoster,
+          ),
+        }
+      : {}),
     unitSummaries: result.unitSummaries.map(toUnitBattleSummaryResponseBody),
     events: result.events.map(toBattleLogEventResponseBody),
     stateTransitions,

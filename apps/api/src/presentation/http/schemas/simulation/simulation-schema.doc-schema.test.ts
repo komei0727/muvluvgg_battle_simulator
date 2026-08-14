@@ -46,7 +46,7 @@ describe("published response conforms to the v1 doc schema across the production
           runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
             turnLimit: 5,
             randomValue: 0.5,
-            logLevel: "DIAGNOSTIC",
+            logLevel: "DETAILED",
           }),
         );
       } catch (error) {
@@ -82,7 +82,7 @@ describe("published response conforms to the v1 doc schema across the production
       runProductionUnitBattle(CATALOG_DIR, "UNIT_LUCIE_MAID", {
         turnLimit: 5,
         randomValue: 0.5,
-        logLevel: "DIAGNOSTIC",
+        logLevel: "DETAILED",
       }),
     );
 

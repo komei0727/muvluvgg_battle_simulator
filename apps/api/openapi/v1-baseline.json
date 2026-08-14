@@ -939,7 +939,7 @@
                     "properties": {
                       "logLevel": {
                         "type": "string",
-                        "enum": ["SUMMARY", "DETAILED", "DIAGNOSTIC"]
+                        "enum": ["SUMMARY", "DETAILED"]
                       }
                     }
                   }
@@ -988,7 +988,6 @@
                     "catalogRevision",
                     "result",
                     "initialState",
-                    "finalState",
                     "unitSummaries",
                     "events",
                     "stateTransitions"
@@ -13611,7 +13610,7 @@
                     "properties": {
                       "logLevel": {
                         "type": "string",
-                        "enum": ["SUMMARY", "DETAILED", "DIAGNOSTIC"]
+                        "enum": ["SUMMARY", "DETAILED"]
                       }
                     }
                   }
@@ -13660,7 +13659,6 @@
                     "catalogRevision",
                     "result",
                     "initialState",
-                    "finalState",
                     "unitSummaries",
                     "events",
                     "stateTransitions"

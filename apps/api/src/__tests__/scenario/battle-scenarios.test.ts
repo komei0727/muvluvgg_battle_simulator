@@ -29,6 +29,7 @@ import {
 import {
   assertBattleInvariants,
   runExerciseScenario,
+  runExerciseScenarioRaw,
   runScenario,
 } from "../../testing/scenario/run-scenario.js";
 
@@ -1902,15 +1903,16 @@ describe("battle scenarios (harness)", () => {
         command: tacticalExerciseCommand(),
         randomValues: Array.from({ length: 200 }, () => 0.99),
       });
-      const summary = runExerciseScenario({
+      // `SUMMARY`は`finalState`を返さないため、narrowingしないraw版を使う。
+      const summary = runExerciseScenarioRaw({
         catalog: exerciseCatalog(100),
         command,
         randomValues: Array.from({ length: 200 }, () => 0.99),
       });
 
-      expect(summary.events.some((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")).toBe(
-        false,
-      );
+      // SUMMARYはイベントを1件も公開しない。それでもブレイク履歴は完全である。
+      expect(summary.events).toEqual([]);
+      expect(summary.stateTransitions).toEqual([]);
       expect(summary.breaks).toEqual(detailed.breaks);
       expect(summary.breaks).toHaveLength(summary.breakCount);
       expect(summary.totalScore).toBe(detailed.totalScore);

@@ -183,9 +183,11 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.breaks.map((entry) => entry.breakNumber)).toEqual([1, 2]);
     expect(result.breaks).toHaveLength(result.breakCount);
     expect(result.totalScore).toBe(30);
-    // SUMMARYはスコア加算イベントを公開しないが、投影も総スコアも影響を受けない。
-    expect(result.events.some((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")).toBe(false);
-    expect(result.stateTransitions.length).toBeGreaterThan(result.events.length);
+    // SUMMARYはイベントも状態差分も1件も公開しないが、投影も総スコアも影響を受けない
+    // ——`breaks`の投影元が間引き前の全イベントだからである。
+    expect(result.events).toEqual([]);
+    expect(result.stateTransitions).toEqual([]);
+    expect(result.finalState).toBeUndefined();
   });
 
   it("UT-TEXASSEMBLER-004 (R-TEX-10 #2): returns an empty break history when the enemy never broke", () => {
@@ -205,7 +207,7 @@ describe("assembleTacticalExerciseResult", () => {
       ],
     });
 
-    expect(result.finalState.exercise).toEqual({ totalScore: 60, breakCount: 1 });
+    expect(result.finalState!.exercise).toEqual({ totalScore: 60, breakCount: 1 });
     expect(result.totalScore).toBe(60);
   });
 });
@@ -338,7 +340,7 @@ describe("assembleTacticalExerciseResult break enhancement restoration (R-TEX-04
   it("UT-TEXASSEMBLER-006 (R-TEX-04 #4): accepts a revival whose baseCombatStats/combatStats deltas restore the enhanced stats of finalState", () => {
     const result = assembleRevival();
 
-    expect(result.finalState.units[ENEMY_ID]?.baseCombatStats).toEqual(ENHANCED_STATS);
+    expect(result.finalState!.units[ENEMY_ID]?.baseCombatStats).toEqual(ENHANCED_STATS);
     expect(result.breaks).toEqual([{ breakNumber: 1, turnNumber: 1, cumulativeScoreAtBreak: 0 }]);
   });
 

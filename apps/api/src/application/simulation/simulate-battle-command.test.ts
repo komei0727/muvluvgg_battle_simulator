@@ -99,6 +99,21 @@ describe("validateCommandShape", () => {
     expect(violations).toContainEqual(expect.objectContaining({ path: "logLevel" }));
   });
 
+  // ログ方針刷新3/3（Issue #465）: `DIAGNOSTIC`は`DETAILED`と同一挙動になったうえで
+  // 廃止した。受理を続けると、同じ意味の値が2つある状態が公開契約に残り続ける。
+  it("UT-CMD-022 (10_API設計.md「公開レベル」): rejects the retired DIAGNOSTIC log level as an INVALID_COMMAND violation on logLevel", () => {
+    const violations = validateCommandShape(
+      // @ts-expect-error DIAGNOSTIC is no longer part of LogLevel
+      validCommand({ logLevel: "DIAGNOSTIC" }),
+    );
+
+    expect(violations).toContainEqual(expect.objectContaining({ path: "logLevel" }));
+    // 受理値の一覧が違反理由へそのまま出る（クライアントが移行先を読み取れる）。
+    expect(violations.find((violation) => violation.path === "logLevel")?.reason).toContain(
+      "SUMMARY, DETAILED",
+    );
+  });
+
   it("UT-CMD-012 (09_アプリケーション設計.md「columnが0～2」): rejects a column outside 0..2", () => {
     const violations = validateCommandShape(
       validCommand({

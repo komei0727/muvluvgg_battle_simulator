@@ -34,7 +34,7 @@ describe("battle simulation load/soak baseline", () => {
 
     const runBattle = createProductionBattleRunner(CATALOG_DIR, unitId!, {
       turnLimit: TURN_LIMIT,
-      logLevel: "DIAGNOSTIC",
+      logLevel: "DETAILED",
     });
 
     // ウォームアップ（JIT・初回割り当てを baseline から除外）。
@@ -71,7 +71,7 @@ describe("battle simulation load/soak baseline", () => {
       unitId,
       iterations: ITERATIONS,
       turnLimit: TURN_LIMIT,
-      logLevel: "DIAGNOSTIC",
+      logLevel: "DETAILED",
       durationMs: {
         p50: Number(percentile(sorted, 50).toFixed(3)),
         p95: Number(percentile(sorted, 95).toFixed(3)),

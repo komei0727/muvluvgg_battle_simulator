@@ -19,7 +19,7 @@ CANCEL_PORT=18082
 FIXTURE_CATALOG_DIR="$(pwd)/apps/api/src/infrastructure/catalog/__fixtures__/runtime/valid/minimal"
 
 # `11_インフラストラクチャ設計.md`「同一ユニット重複と最大編成人数を受理する」
-# （`12_テスト戦略.md`End-to-Endテスト#5）。5対5・99ターン・DIAGNOSTICは
+# （`12_テスト戦略.md`End-to-Endテスト#5）。5対5・99ターン・DETAILEDは
 # CANCEL_CONTAINERで複数件同時に投げるための「computeに数百msかかる」戦闘
 # として使う（fixture Catalogの`UNIT_001`だけで構成できる。詳細は後段の
 # `CANCEL_CONCURRENCY`まわりのコメント参照）。
@@ -45,7 +45,7 @@ LARGE_BATTLE_BODY='{
     "memoryDefinitionIds": []
   },
   "turnLimit": 99,
-  "options": { "logLevel": "DIAGNOSTIC" }
+  "options": { "logLevel": "DETAILED" }
 }'
 
 cleanup() {
@@ -256,7 +256,7 @@ echo "== run: SHUTDOWN_GRACE_MS=0 + concurrent in-flight battles, to prove incom
 # `--cpuset-cpus=0`でNode/Piscinaの`os.availableParallelism()`を1に固定する
 # （実測: single vCPUのcontainerでは`availableParallelism()`が1を返す）。
 # `piscina`の既定`maxThreads`は`availableParallelism * 1.5`のため、これで
-# 同時実行中Workerが高々1〜2本に制限される。5対5・99ターン・DIAGNOSTICの
+# 同時実行中Workerが高々1〜2本に制限される。5対5・99ターン・DETAILEDの
 # 実戦闘を$CANCEL_CONCURRENCY件同時に投げれば、SIGTERM到達時点で残りは
 # 確実にPiscinaのtask queueで「未開始」のまま待たされる——`shutdown.ts`
 # 「ステップ4」の「未開始タスクを即座にキャンセルする」は計算速度と無関係に
