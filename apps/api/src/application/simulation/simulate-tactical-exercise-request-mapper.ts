@@ -3,7 +3,13 @@ import type { LogLevel } from "./simulate-battle-command.js";
 import type { SimulateTacticalExerciseCommand } from "./simulate-tactical-exercise-command.js";
 import type { TacticalExerciseRequestBody } from "../contracts/request.js";
 
-const DEFAULT_LOG_LEVEL = "DETAILED";
+/**
+ * `10_API設計.md`「SimulationOptions」: `options.logLevel`の既定値。既定の用途は
+ * 「編成を比べるための実行」であり、必要なのは勝敗とユニット別集計だけである
+ * （`DETAILED`を既定にすると、指定しないクライアントが毎回数MBのレスポンスを
+ * 受け取る）。
+ */
+const DEFAULT_LOG_LEVEL = "SUMMARY";
 
 /**
  * `10_API設計.md`「Inbound Adapterでの変換」の戦術演習版。編成の変換は戦闘リクエストと

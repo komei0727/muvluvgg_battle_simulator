@@ -230,7 +230,7 @@ export const simulationOptionsRequestDocSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    logLevel: { type: "string", enum: ["SUMMARY", "DETAILED", "DIAGNOSTIC"] },
+    logLevel: { type: "string", enum: ["SUMMARY", "DETAILED"] },
   },
 } as const;
 
@@ -771,7 +771,6 @@ export const battleSimulationResponseSchema = {
     "catalogRevision",
     "result",
     "initialState",
-    "finalState",
     "unitSummaries",
     "events",
     "stateTransitions",

@@ -30,7 +30,7 @@ import {
 import type { BattleLogEventResponseBody } from "../../application/contracts/battle-log.js";
 import type { BattleSimulationResponseBody } from "../../application/contracts/response.js";
 import { GEAR_STAT_APPLICATION_ENUM } from "./schemas/catalog/catalog-schema.js";
-import { SUMMARY_EVENT_TYPE_INCLUSION } from "../../application/observation/battle-log-projection.js";
+import { BATTLE_DOMAIN_EVENT_TYPES } from "../../domain/battle/events/domain-event.js";
 import { GEAR_STAT_APPLICATION_KINDS } from "../../domain/battle/model/gear-customization-policy.js";
 import { CONDITION_KINDS } from "../../domain/catalog/definitions/condition-definition.js";
 import { EFFECT_ACTION_KINDS } from "../../domain/catalog/definitions/effect-action-definition.js";
@@ -528,10 +528,11 @@ describe("OpenAPI document", () => {
       ];
     expect(positionSchema?.properties?.["column"]?.enum).toEqual([0, 1, 2]);
     expect(positionSchema?.properties?.["row"]?.enum).toEqual(["FRONT", "REAR"]);
+    // Issue #465: `DIAGNOSTIC`は廃止した。公開文書のenumが2値であることが、
+    // 生成クライアントに廃止値を出させないための唯一の担保になる。
     expect(bodySchema?.properties?.["options"]?.properties?.["logLevel"]?.enum).toEqual([
       "SUMMARY",
       "DETAILED",
-      "DIAGNOSTIC",
     ]);
 
     // The runtime validator (used by the actual route, not the doc) is unaffected:
@@ -1030,13 +1031,13 @@ describe("OpenAPI document", () => {
   });
 
   it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): the exercise event union declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
-    // `SUMMARY_EVENT_TYPE_INCLUSION` is a mapped type over `BattleDomainEventType`,
+    // `BATTLE_DOMAIN_EVENT_TYPES` is a mapped type over `BattleDomainEventType`,
     // so it gains a compile error (missing or excess key) whenever
-    // `BattleDomainEventPayloadMap` changes. Reusing it as the event-type roster
+    // `BattleDomainEventPayloadMap` changes. Using it as the event-type roster
     // keeps this test from drifting the way `EVENT_DETAILS_SCHEMA_BY_TYPE` did,
     // without maintaining a second exhaustive list here.
     const expectedTypes = new Set(
-      Object.keys(SUMMARY_EVENT_TYPE_INCLUSION).map((eventType) =>
+      Object.keys(BATTLE_DOMAIN_EVENT_TYPES).map((eventType) =>
         eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase(),
       ),
     );

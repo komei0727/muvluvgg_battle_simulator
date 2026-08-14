@@ -1513,6 +1513,103 @@ export type BattleDomainEventType = keyof BattleDomainEventPayloadMap;
  * `08_ドメインイベント.md`が定義するイベントの判別共用体。M3の19種別に加え、
  * M5（issue #20）が`ActionWaited`/`ActionReservationRemoved`を追加する。
  */
+/**
+ * `BattleDomainEventPayloadMap`の全種別を列挙する網羅レコード。`keyof`は型であって
+ * 値ではないため、全種別を実行時に走査する検査—OpenAPIのイベントunionが全種別を
+ * 宣言しているか（`API-OPENAPI-024`）—はこの表を正本にする。
+ *
+ * `Record<BattleDomainEventType, true>`なのでキーの過不足はコンパイルエラーになり、
+ * 新しいイベント種別を足せばここも必ず更新される。かつて同じ強制関数を
+ * `SUMMARY_EVENT_TYPE_INCLUSION`（SUMMARYへ含めるかの選別表）が兼ねていたが、
+ * `SUMMARY`がイベントを返さなくなって選別自体が消えたため、網羅性の担保だけを
+ * 目的とした表として定義元へ移した。
+ */
+export const BATTLE_DOMAIN_EVENT_TYPES: Readonly<Record<BattleDomainEventType, true>> = {
+  BattleStarted: true,
+  TurnStarted: true,
+  ResourcesRecovered: true,
+  ActionQueueCreated: true,
+  ActionReservationRemoved: true,
+  ActionQueueReordered: true,
+  ActionStarted: true,
+  ActionWaited: true,
+  TargetsSelected: true,
+  SkillUseStarting: true,
+  SkillUseStarted: true,
+  SkillUseCompleted: true,
+  EffectStepStarting: true,
+  EffectStepSkipped: true,
+  EffectStepCompleted: true,
+  RandomBranchSelected: true,
+  EffectActionStarting: true,
+  EffectActionCompleted: true,
+  UnitBeingAttacked: true,
+  HitConfirmed: true,
+  EvasionActivated: true,
+  BlindnessCheckResolved: true,
+  SkillMissed: true,
+  CriticalCheckResolved: true,
+  DamageWillBeApplied: true,
+  DamageCalculated: true,
+  ShieldConsumed: true,
+  SubUnitDamaged: true,
+  HitPointReduced: true,
+  DamageApplied: true,
+  DamageConvertedToHeal: true,
+  LinkedDamageGenerated: true,
+  DamageRedirected: true,
+  ReflectedDamageGenerated: true,
+  LethalDamageSurvived: true,
+  HealApplied: true,
+  HealingTransferred: true,
+  ContinuousDamageApplied: true,
+  EffectMerged: true,
+  UnitDefeated: true,
+  ActionCompleting: true,
+  ActionCompleted: true,
+  CooldownStarted: true,
+  CooldownReduced: true,
+  CooldownCompleted: true,
+  ChargeStarted: true,
+  ChargeReleased: true,
+  ChargeReleaseCompleted: true,
+  ChargeReleaseInterrupted: true,
+  ChargeCancelled: true,
+  ChargeHeldByFreeze: true,
+  TurnCompleting: true,
+  TurnCompleted: true,
+  BattleCompleted: true,
+  ResourceChanged: true,
+  PassivePointConsumed: true,
+  ExtraGaugeIncreased: true,
+  ExtraGaugeOverflowDiscarded: true,
+  PassiveActivated: true,
+  PassiveResolved: true,
+  PassiveInterrupted: true,
+  MemoryTriggered: true,
+  MemoryResolved: true,
+  SkillUseInterrupted: true,
+  RuntimeCounterChanged: true,
+  RuntimeCounterReset: true,
+  EffectApplied: true,
+  EffectApplicationRejected: true,
+  EffectiveEffectChanged: true,
+  CombatStatChanged: true,
+  ResourceCapacityChanged: true,
+  EffectDurationReduced: true,
+  StunDurationChanged: true,
+  FreezeRemoved: true,
+  EffectConsumptionChanged: true,
+  EffectExpired: true,
+  EffectRemoved: true,
+  MarkerApplied: true,
+  MarkerUpdated: true,
+  MarkerRemoved: true,
+  ExerciseScoreAccumulated: true,
+  UnitBroken: true,
+  UnitRevived: true,
+};
+
 export type BattleDomainEvent = {
   readonly [Type in BattleDomainEventType]: DomainEventEnvelope & {
     readonly eventType: Type;

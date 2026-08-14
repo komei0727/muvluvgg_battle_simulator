@@ -423,10 +423,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "PROP-ACT-03-002",
       "PROP-ACT-03-003",
       // REL-004（Issue #203）: EX上限超過の破棄は`ExtraGaugeOverflowDiscarded`
-      // （DIAGNOSTICカテゴリ）で観測する。DETAILEDへ漏れず、DIAGNOSTICでだけ
-      // 公開されることを実`catalog/`・実HTTP経路で固定する。
+      // （DIAGNOSTICカテゴリ）で観測する。Issue #465で`DETAILED`が全イベントを
+      // 返すようになったため、この破棄イベントが`DETAILED`のレスポンスへ実際に
+      // 現れることを実`catalog/`・実HTTP経路で固定する。
       "IT-REL-004-LOG-LEVEL-002",
-      "IT-REL-004-LOG-LEVEL-003",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },

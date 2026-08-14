@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SUMMARY_EVENT_TYPE_INCLUSION, projectEventsForLogLevel } from "./battle-log-projection.js";
-import { DIAGNOSTIC_ONLY_EVENT_TYPES } from "../../domain/catalog/definitions/catalog-event-types.js";
-import type {
-  BattleDomainEvent,
-  BattleDomainEventType,
-} from "../../domain/battle/events/domain-event.js";
+import { projectEventsForLogLevel } from "./battle-log-projection.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 
@@ -291,30 +287,22 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
 }
 
 describe("projectEventsForLogLevel", () => {
-  it("UT-LOG-PROJECTION-001: SUMMARY keeps only BattleStarted/ActionCompleted/UnitDefeated/TurnCompleted/BattleCompleted", () => {
+  it("UT-LOG-PROJECTION-001 (10_API設計.md「公開レベル」): SUMMARY publishes no event at all", () => {
     const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "SUMMARY");
 
-    // Sequence order, not the order listed in 08_ドメインイベント.md's prose:
-    // UnitDefeated (mid-action) precedes ActionCompleted (end of action).
-    const expectedTypes: readonly BattleDomainEventType[] = [
-      "BattleStarted",
-      "UnitDefeated",
-      "ActionCompleted",
-      "TurnCompleted",
-      "BattleCompleted",
-    ];
-    expect(projected.map((e) => e.eventType)).toEqual(expectedTypes);
+    expect(projected).toEqual([]);
+    // fixtureが空でなければこそ「1件も返さない」ことに意味がある。
+    expect(events.length).toBeGreaterThan(0);
   });
 
-  it("UT-LOG-PROJECTION-002: DETAILED returns every event including the DIAGNOSTIC-category ones (08_ドメインイベント.md「公開レベル」: DIAGNOSTICはDETAILEDへ統合)", () => {
+  it("UT-LOG-PROJECTION-002 (08_ドメインイベント.md「公開レベル」): DETAILED returns every event, including the DIAGNOSTIC-category ones that explain why an effect did not fire", () => {
     const events = recordAllEvents();
 
     const projected = projectEventsForLogLevel(events, "DETAILED");
 
     expect(projected).toEqual(events);
-    // 統合前に`DETAILED`から落ちていた2種が、既定のログへ出ることを名指しで固定する。
     expect(projected.map((event) => event.eventType)).toEqual(
       expect.arrayContaining(["EffectStepSkipped", "ExtraGaugeOverflowDiscarded"]),
     );
@@ -322,48 +310,23 @@ describe("projectEventsForLogLevel", () => {
     expect(events.filter((event) => event.category === "DIAGNOSTIC").length).toBeGreaterThan(0);
   });
 
-  it("UT-LOG-PROJECTION-003: DIAGNOSTIC is accepted and behaves identically to DETAILED (deprecated alias)", () => {
+  it("UT-LOG-PROJECTION-004: DETAILED preserves the recorded sequence order", () => {
     const events = recordAllEvents();
 
-    expect(projectEventsForLogLevel(events, "DIAGNOSTIC")).toEqual(
-      projectEventsForLogLevel(events, "DETAILED"),
-    );
-  });
-
-  it("UT-LOG-PROJECTION-004: preserves sequence order within the SUMMARY subset", () => {
-    const events = recordAllEvents();
-
-    const projected = projectEventsForLogLevel(events, "SUMMARY");
+    const projected = projectEventsForLogLevel(events, "DETAILED");
 
     const sequences = projected.map((e) => e.sequence);
     expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
   });
 
-  it("UT-LOG-PROJECTION-005: SUMMARY keeps a child of an excluded parent, so the published parentSequence still names the internal sequence (10_API設計.md「直接の原因イベントが公開されているかにかかわらず、元の連番を返す」)", () => {
-    // DIAGNOSTICが`DETAILED`へ統合された後、親を落として子を残す唯一のレベルは
-    // `SUMMARY`である。`UnitDefeated`（SUMMARY対象）の親`DamageApplied`（対象外）で
-    // その関係を固定する。
+  it("UT-LOG-PROJECTION-006 (12_テスト戦略.md「ログレベルを下げても状態履歴が変わらない」): the projection only ever drops events, so no level can invent one the recorder never produced", () => {
     const events = recordAllEvents();
-    const child = events.find((event) => event.eventType === "UnitDefeated");
-    const parent = events.find((event) => event.eventId === child?.parentEventId);
-    expect(child).toBeDefined();
-    expect(parent).toBeDefined();
-    expect(SUMMARY_EVENT_TYPE_INCLUSION[parent!.eventType]).toBe(false);
+    const recorded = new Set(events);
 
-    const projected = projectEventsForLogLevel(events, "SUMMARY");
-
-    expect(projected).not.toContain(parent);
-    expect(projected).toContain(child);
-  });
-
-  it("UT-LOG-PROJECTION-006: no DIAGNOSTIC-category event type is classified into SUMMARY", () => {
-    const summaryTypes = Object.entries(SUMMARY_EVENT_TYPE_INCLUSION)
-      .filter(([, included]) => included)
-      .map(([eventType]) => eventType);
-
-    expect(summaryTypes).not.toEqual(expect.arrayContaining([...DIAGNOSTIC_ONLY_EVENT_TYPES]));
-    for (const eventType of DIAGNOSTIC_ONLY_EVENT_TYPES) {
-      expect(summaryTypes).not.toContain(eventType);
+    for (const logLevel of ["SUMMARY", "DETAILED"] as const) {
+      for (const event of projectEventsForLogLevel(events, logLevel)) {
+        expect(recorded.has(event)).toBe(true);
+      }
     }
   });
 });

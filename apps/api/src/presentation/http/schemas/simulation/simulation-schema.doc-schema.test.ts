@@ -21,8 +21,9 @@ import {
  * Memory・PSチェーン・シールド・サブユニット・Marker系のdetailsは
  * 手書きリテラルでしか検証されていなかった。
  *
- * DIAGNOSTICで実行するのは、公開レベルの上限＝発行され得るイベント種別の
- * 全量だから（DETAILEDは`EffectStepSkipped`等を含まない）。
+ * DETAILEDで実行するのは、それが公開レベルの上限＝発行され得るイベント種別の
+ * 全量だからである（`EffectStepSkipped`等のDIAGNOSTICカテゴリを含む）。`SUMMARY`は
+ * イベントを1件も返さないため、details schemaの検証には使えない。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../../../catalog", import.meta.url));
 const PRODUCTION_UNIT_IDS = allProductionUnitIds(CATALOG_DIR);
@@ -32,7 +33,7 @@ function describeErrors(validate: ValidateFunction): string {
 }
 
 describe("published response conforms to the v1 doc schema across the production Catalog (REL-004)", () => {
-  it("IT-REL-004-DOC-SCHEMA-001: every selectable production Unit's DIAGNOSTIC response satisfies battleSimulationResponseDocSchema, including the per-event-type details oneOf", () => {
+  it("IT-REL-004-DOC-SCHEMA-001: every selectable production Unit's DETAILED response satisfies battleSimulationResponseDocSchema, including the per-event-type details oneOf", () => {
     expect(PRODUCTION_UNIT_IDS.length).toBeGreaterThan(0);
     const validate = new Ajv({ strict: false }).compile(battleSimulationResponseDocSchema);
 
@@ -46,7 +47,7 @@ describe("published response conforms to the v1 doc schema across the production
           runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
             turnLimit: 5,
             randomValue: 0.5,
-            logLevel: "DIAGNOSTIC",
+            logLevel: "DETAILED",
           }),
         );
       } catch (error) {
@@ -82,7 +83,7 @@ describe("published response conforms to the v1 doc schema across the production
       runProductionUnitBattle(CATALOG_DIR, "UNIT_LUCIE_MAID", {
         turnLimit: 5,
         randomValue: 0.5,
-        logLevel: "DIAGNOSTIC",
+        logLevel: "DETAILED",
       }),
     );
 

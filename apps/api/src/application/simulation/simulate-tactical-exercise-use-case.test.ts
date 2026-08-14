@@ -94,7 +94,7 @@ describe("SimulateTacticalExerciseUseCase", () => {
 
     expect(accumulated.length).toBeGreaterThan(0);
     expect(result.totalScore).toBe(accumulated.reduce((sum, amount) => sum + amount, 0));
-    expect(result.finalState.exercise?.totalScore).toBe(result.totalScore);
+    expect(result.finalState!.exercise?.totalScore).toBe(result.totalScore);
   });
 
   it("UT-TEXUSECASE-003 (R-TEX-01 #3): rejects an enemy formation that is not exactly one unit with INVALID_COMMAND, without loading the Catalog", () => {

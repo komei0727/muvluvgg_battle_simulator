@@ -58,7 +58,14 @@ export interface FormationInput {
   readonly enhancement?: FormationEnhancementInput;
 }
 
-export const LOG_LEVELS = ["SUMMARY", "DETAILED", "DIAGNOSTIC"] as const;
+/**
+ * `10_API設計.md`「公開レベル」: 用途は「大量実行して勝敗とユニット別集計だけを
+ * 見る」(`SUMMARY`)と「効果発動を追う」(`DETAILED`)の2つ。`DIAGNOSTIC`は
+ * `DETAILED`と同一挙動になったうえで廃止した — 受理を続けると、同じ意味の値が
+ * 2つある状態が公開契約に残り続ける。指定は`validateLogLevel`が
+ * `422 INVALID_COMMAND`として拒否する。
+ */
+export const LOG_LEVELS = ["SUMMARY", "DETAILED"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /**

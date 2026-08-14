@@ -622,6 +622,7 @@ async function runLethalScenario(): Promise<BattleSimulationResponseBody> {
           memoryDefinitionIds: [],
         },
         turnLimit: 5,
+        options: { logLevel: "DETAILED" },
       },
     });
     if (response.statusCode !== 200) {
@@ -688,6 +689,7 @@ async function runMarkerScenario(): Promise<BattleSimulationResponseBody> {
           memoryDefinitionIds: [],
         },
         turnLimit: 1,
+        options: { logLevel: "DETAILED" },
       },
     });
     if (response.statusCode !== 200) {
@@ -848,6 +850,7 @@ async function runCombinedConditionScenario(): Promise<BattleSimulationResponseB
           memoryDefinitionIds: [],
         },
         turnLimit: 1,
+        options: { logLevel: "DETAILED" },
       },
     });
     if (response.statusCode !== 200) {
@@ -970,6 +973,7 @@ async function runRuntimeCounterThresholdScenario(): Promise<BattleSimulationRes
           memoryDefinitionIds: [],
         },
         turnLimit: 1,
+        options: { logLevel: "DETAILED" },
       },
     });
     if (response.statusCode !== 200) {
@@ -1043,6 +1047,7 @@ async function runHpCapacityScenario(): Promise<BattleSimulationResponseBody> {
           memoryDefinitionIds: [],
         },
         turnLimit: 1,
+        options: { logLevel: "DETAILED" },
       },
     });
     if (response.statusCode !== 200) {
@@ -1156,6 +1161,7 @@ async function runChargeAndCooldownScenario(): Promise<BattleSimulationResponseB
           memoryDefinitionIds: [],
         },
         turnLimit: 3,
+        options: { logLevel: "DETAILED" },
       },
     });
     if (response.statusCode !== 200) {
@@ -1175,7 +1181,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     // otherwise the restoration below would trivially pass with no deltas.
     expect(body.result.outcome).toBe("ALLY_WIN");
     expect(body.stateTransitions.length).toBeGreaterThan(0);
-    const enemyFinal = body.finalState.units.find((u) => u.unitDefinitionId === "UNIT_DEF");
+    const enemyFinal = body.finalState!.units.find((u) => u.unitDefinitionId === "UNIT_DEF");
     expect(enemyFinal?.combatStatus).toBe("DEFEATED");
     expect(enemyFinal?.hp.current).toBe(0);
 
@@ -1212,7 +1218,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     // Sanity: this scenario actually leaves an active ACTION-unit cooldown
     // and completes the charge lifecycle — otherwise the restoration below
     // would trivially pass with no cooldowns/charge deltas at all.
-    const chargerFinal = body.finalState.units.find((u) => u.unitDefinitionId === "UNIT_CHARGER");
+    const chargerFinal = body.finalState!.units.find((u) => u.unitDefinitionId === "UNIT_CHARGER");
     expect(chargerFinal?.cooldowns).toHaveLength(1);
     const cooldown = chargerFinal!.cooldowns[0]!;
     expect(cooldown.unit).toBe("ACTION");
@@ -1222,7 +1228,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     }
     expect(typeof cooldown.setAtActionId).toBe("string");
     expect(chargerFinal?.charge).toBeUndefined(); // released by the end of the battle.
-    const defenderFinal = body.finalState.units.find((u) => u.unitDefinitionId === "UNIT_DEF");
+    const defenderFinal = body.finalState!.units.find((u) => u.unitDefinitionId === "UNIT_DEF");
     expect(defenderFinal?.hp.current).toBeLessThan(1000); // the charge release actually hit.
 
     const reconstructed = reconstructFinalState(body);
@@ -1240,7 +1246,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
 
     // Sanity: this scenario actually grants a Marker — otherwise the
     // restoration below would trivially pass with no markers deltas at all.
-    const defenderFinal = body.finalState.units.find(
+    const defenderFinal = body.finalState!.units.find(
       (u) => u.unitDefinitionId === "UNIT_MARKER_DEF",
     );
     expect(defenderFinal?.markers).toHaveLength(1);
@@ -1264,10 +1270,10 @@ describe("HTTP response state restoration (independent Reducer)", () => {
   it("API-STATE-RESTORE-009 (Issue #230 RES-004-CONDITION-SCOPE): an ACTION combining stepCondition (TARGET_SET_COUNT gate) with targetCondition (TARGET_HAS_MARKER filter) applies damage only to the marked enemy through the full HTTP pipeline, and reconstructedFinalState built from stateTransitions alone (HP + markers) equals finalState", async () => {
     const body = await runCombinedConditionScenario();
 
-    const markedEnemy = body.finalState.units.find(
+    const markedEnemy = body.finalState!.units.find(
       (u) => u.unitDefinitionId === "UNIT_COMBINED_ENEMY_1",
     );
-    const unmarkedEnemy = body.finalState.units.find(
+    const unmarkedEnemy = body.finalState!.units.find(
       (u) => u.unitDefinitionId === "UNIT_COMBINED_ENEMY_2",
     );
     // Sanity: the gate was satisfied (both enemies alive) and the filter
@@ -1292,7 +1298,7 @@ describe("HTTP response state restoration (independent Reducer)", () => {
 
     // Sanity: この経路が本当にHP上限を動かしている — 動いていなければ、下の復元は
     // 差分が1件も無いまま自明に成功してしまう。
-    const actorFinal = body.finalState.units.find(
+    const actorFinal = body.finalState!.units.find(
       (u) => u.unitDefinitionId === "UNIT_CAPACITY_ACTOR",
     );
     const actorInitial = body.initialState.units.find(

@@ -55,7 +55,7 @@ POST /api/v1/battle-simulations
 | 成功ステータス         | `200 OK`                                               |
 | 永続化                 | しない                                                 |
 | 冪等性                 | 保証しない                                             |
-| 既定ログレベル         | `DETAILED`                                             |
+| 既定ログレベル         | `SUMMARY`                                              |
 
 新しい永続リソースを作成しないため `201 Created` は使用しない。途中処理を非同期ジョブとして受け付けるAPIではないため `202 Accepted` も使用しない。
 
@@ -75,7 +75,7 @@ POST /api/v1/tactical-exercises
 | 成功ステータス         | `200 OK`                                         |
 | 永続化                 | しない                                           |
 | 冪等性                 | 保証しない                                       |
-| 既定ログレベル         | `DETAILED`                                       |
+| 既定ログレベル         | `SUMMARY`                                        |
 
 既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
 
@@ -405,11 +405,13 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 ### SimulationOptions
 
-| プロパティ | 型     | 必須 | 既定値     | 制約                                  |
-| ---------- | ------ | ---- | ---------- | ------------------------------------- |
-| `logLevel` | string | 任意 | `DETAILED` | `SUMMARY`、`DETAILED`、`DIAGNOSTIC`。 |
+| プロパティ | 型     | 必須 | 既定値    | 制約                    |
+| ---------- | ------ | ---- | --------- | ----------------------- |
+| `logLevel` | string | 任意 | `SUMMARY` | `SUMMARY`、`DETAILED`。 |
 
-`DIAGNOSTIC` は内部判定情報を多く含み、レスポンスも大きくなる。初期APIでは定義済みの選択肢として受理する。将来、公開環境で利用を制限する場合は、認可規則とエラーコードをAPI契約へ明示し、黙って `DETAILED` へ落とさない。
+既定を `SUMMARY` とするのは、既定の用途が編成比較であり、`DETAILED` を既定にすると指定しないクライアントが毎回数MBのレスポンスを受け取るためである。`DETAILED` は内部判定情報を多く含み、レスポンスも大きくなる。将来、公開環境で `DETAILED` の利用を制限する場合は、認可規則とエラーコードをAPI契約へ明示し、黙って `SUMMARY` へ落とさない。
+
+`DIAGNOSTIC` は廃止した（「公開レベル」参照）。指定は `422 INVALID_COMMAND` で拒否し、黙って `DETAILED` として扱わない。
 
 ### TacticalExerciseRequest
 
@@ -501,10 +503,10 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `catalogRevision`  | string                        | 今回使用したCatalogスナップショットの版。              |
 | `result`           | `BattleResultResponse`        | 確定した勝敗。                                         |
 | `initialState`     | `BattleStateResponse`         | `READY` 時点の状態。`stateVersion` は0。               |
-| `finalState`       | `BattleStateResponse`         | `COMPLETED` 時点の状態。                               |
+| `finalState`       | `BattleStateResponse`         | `COMPLETED` 時点の状態。`SUMMARY` では省略する。       |
 | `unitSummaries`    | `UnitBattleSummaryResponse[]` | ユニット別の戦闘集計。公開レベルに依存しない。         |
-| `events`           | `BattleLogEventResponse[]`    | 指定された公開レベルのイベント。                       |
-| `stateTransitions` | `StateTransitionResponse[]`   | 全状態変更。公開レベルに依存して間引かない。           |
+| `events`           | `BattleLogEventResponse[]`    | 公開レベルのイベント。`SUMMARY` では空配列。           |
+| `stateTransitions` | `StateTransitionResponse[]`   | 全状態変更。`SUMMARY` では空配列。                     |
 
 ### BattleResultResponse
 
@@ -520,17 +522,17 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 `POST /api/v1/tactical-exercises` の成功レスポンス。`BattleSimulationResponse` と同じ構造を再利用し、`result` だけを演習結果へ差し替える。
 
-| プロパティ         | 型                            | 説明                                                 |
-| ------------------ | ----------------------------- | ---------------------------------------------------- |
-| `schemaVersion`    | integer                       | レスポンス本文スキーマのバージョン。初期値は1。      |
-| `battleId`         | string                        | 今回の実行を識別するID。                             |
-| `catalogRevision`  | string                        | 今回使用したCatalogスナップショットの版。            |
-| `result`           | `ExerciseResultResponse`      | 確定した演習結果。                                   |
-| `initialState`     | `BattleStateResponse`         | `READY` 時点の状態。                                 |
-| `finalState`       | `BattleStateResponse`         | `COMPLETED` 時点の状態。                             |
-| `unitSummaries`    | `UnitBattleSummaryResponse[]` | ユニット別の戦闘集計。公開レベルに依存しない。       |
-| `events`           | `BattleLogEventResponse[]`    | 指定された公開レベルのイベント。演習イベントを含む。 |
-| `stateTransitions` | `StateTransitionResponse[]`   | 全状態変更。公開レベルに依存して間引かない。         |
+| プロパティ         | 型                            | 説明                                             |
+| ------------------ | ----------------------------- | ------------------------------------------------ |
+| `schemaVersion`    | integer                       | レスポンス本文スキーマのバージョン。初期値は1。  |
+| `battleId`         | string                        | 今回の実行を識別するID。                         |
+| `catalogRevision`  | string                        | 今回使用したCatalogスナップショットの版。        |
+| `result`           | `ExerciseResultResponse`      | 確定した演習結果。                               |
+| `initialState`     | `BattleStateResponse`         | `READY` 時点の状態。                             |
+| `finalState`       | `BattleStateResponse`         | `COMPLETED` 時点の状態。`SUMMARY` では省略する。 |
+| `unitSummaries`    | `UnitBattleSummaryResponse[]` | ユニット別の戦闘集計。公開レベルに依存しない。   |
+| `events`           | `BattleLogEventResponse[]`    | 公開レベルのイベント。`SUMMARY` では空配列。     |
+| `stateTransitions` | `StateTransitionResponse[]`   | 全状態変更。`SUMMARY` では空配列。               |
 
 ### UnitBattleSummaryResponse
 
@@ -746,7 +748,7 @@ CombatStatsResponse {
 
 割合値はパーセントポイントで返す。例えば `criticalRate: 15` は15%を表す。会心率そのものは0～100へ制限せず、会心判定時だけ内部で補正する。
 
-値はJSON numberで返す。ダメージなど仕様上整数に確定した値はintegerとする。途中計算値をDIAGNOSTICログへ出す場合も `NaN` や無限値を返してはならない。
+値はJSON numberで返す。ダメージなど仕様上整数に確定した値はintegerとする。`DETAILED` が途中計算値を返す場合も `NaN` や無限値を返してはならない。
 
 ### ShieldStateResponse
 
@@ -937,8 +939,7 @@ BattleLogEventResponse {
 - ID、列挙値、計算値など構造化された情報を持つ。
 - イベント種別ごとにスキーマを定義する。
 - 共通エンベロープに存在する値を無目的に重複しない。
-- DETAILEDでは乱数の内部状態やサーバー実装情報を含めない。
-- DIAGNOSTICでもスタックトレース、ファイルパス、秘密情報を含めない。
+- 最大の公開レベルである `DETAILED` でも、乱数の内部状態やサーバー実装情報、スタックトレース、ファイルパス、秘密情報を含めない。DIAGNOSTICカテゴリのイベント（候補除外・乱数判定・超過切り捨て）も同じ規則に従う。
 
 例：
 
@@ -970,15 +971,20 @@ BattleLogEventResponse {
 
 ### 公開レベル
 
-| レベル       | 含めるもの                                                                                                                             |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUMMARY`    | 戦闘開始・終了、行動結果、戦闘不能、ターン終了など主要イベント。                                                                       |
-| `DETAILED`   | 全イベント。スキル、PS、各ヒット、ダメージ、シールド、効果、リソース変更に加え、候補除外・乱数判定・上限超過などの診断イベントを含む。 |
-| `DIAGNOSTIC` | `DETAILED` と同一。互換のため受理を続ける非推奨値。                                                                                    |
+| レベル     | 含めるもの                                                                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUMMARY`  | `result`・`initialState`・`unitSummaries`（演習は `breaks` も）。イベントと状態差分は返さず、`finalState` は省略する。                                                  |
+| `DETAILED` | 全イベント。スキル、PS、各ヒット、ダメージ、シールド、効果、リソース変更に加え、候補除外・乱数判定・上限超過などの診断イベントを含む。加えて全状態差分と `finalState`。 |
 
-用途は「大量実行して勝敗とユニット別集計だけを見る」と「効果発動を追う」の2つであり、後者は診断イベントを含む全イベントを必要とする。`DETAILED` と `DIAGNOSTIC` の差はイベント2種（`EffectStepSkipped` / `ExtraGaugeOverflowDiscarded`）だけであり、この2種を既定から隠すことは「効果が発動しなかった理由が既定のログに出ない」ことしか意味しないため、`DETAILED` へ統合する。
+用途は「大量実行して勝敗とユニット別集計だけを見る」（`SUMMARY`）と「効果発動を追う」（`DETAILED`）の2つしかない。既定値は `SUMMARY` とする。
 
-公開レベルに関係なく、状態変更は `stateTransitions` へすべて含める。`unitSummaries` も同様に間引かない。SUMMARYで原因イベントが非公開でも、`causedBySequence` は元のイベント連番を保持する。
+`SUMMARY` はイベント・状態差分・`finalState` を返さない。前者の用途が必要とするのは勝敗とユニット別集計だけであり、主要イベントを数種類だけ返しても読まれないまま応答サイズだけが増えるためである。表示に要る最終HP・戦闘状態は `unitSummaries` が運ぶ。`initialState` だけは残す — クライアントが表示用Rosterを解決する唯一の入力だからである。
+
+`DIAGNOSTIC` は廃止した。`DETAILED` と同一挙動になった以上、同じ意味の値が2つある状態を公開契約へ残さない。指定は `422 INVALID_COMMAND`（`path: /options/logLevel`）で拒否する。
+
+公開レベルは**公開量だけ**を決める。サーバー内部の整合性検証（`stateVersion` の連続性、独立Reducerによる `initialState` + 全差分 = `finalState` の一致）はレベルに関係なく全量で行う。`SUMMARY` だから検証が緩むことはない。
+
+`DETAILED` では従来どおり、状態変更を `stateTransitions` へすべて含める。`unitSummaries` はレベルに関係なく間引かない。
 
 ## 状態差分
 
@@ -1213,10 +1219,24 @@ reconstructedFinalState = apply(
 次は破壊的変更としてAPIメジャーバージョンを検討する。
 
 - 既存必須プロパティの削除・型変更
-- 既存列挙値の意味変更
+- 既存列挙値の削除・意味変更
 - 座標系や割合単位の変更
 - 差分適用規則の変更
 - 既存イベント種別の意味変更
+
+#### v1のまま行った破壊的変更（ログ方針刷新 / Issue #465）
+
+上の原則に反して、次の3点はメジャーバージョンを上げずにv1のまま変更した。
+
+1. `options.logLevel` の既定値を `DETAILED` から `SUMMARY` へ反転した。
+2. 列挙値 `DIAGNOSTIC` を削除した（指定は `422 INVALID_COMMAND`）。
+3. `SUMMARY` の応答から `events`・`stateTransitions` の中身と `finalState` を落とした（`finalState` は必須プロパティから任意へ）。
+
+v2を切らずに行える判断の根拠は、このAPIの公開範囲が閉じていることである。既知のクライアントは本リポジトリのUIだけであり、UIは `logLevel` を常に明示送信し、Issue #464 で `finalState`・`events`・`stateTransitions` の欠落を受理できる状態を**先にデプロイ済み**である。したがって「既存クライアントが受け取れていた応答の形が壊れる」事態は発生しない。
+
+この免除は公開範囲がこの前提を満たす間だけ有効である。第三者クライアントが現れた時点で、以後の同種の変更はv2を切って行う。
+
+なお `apps/api/openapi/v1-baseline.json` はこの変更を反映して再生成した。互換性検査（`API-OPENAPI-022`）は再生成後のbaselineを基準に、これ以降の**意図しない**破壊的変更を検出し続ける。
 
 ## サイズ・タイムアウト・圧縮
 
@@ -1266,7 +1286,7 @@ Battle実行期限を最も短くし、HTTP接続が強制終了される前に�
 - 未知プロパティを拒否する。
 - IDをファイルパスやSQLへ直接連結しない。
 - JSONの深さ、配列長、文字列長を制限する。
-- DIAGNOSTICログにも内部例外や秘密情報を含めない。
+- 最大の公開レベルである `DETAILED` のレスポンスにも内部例外や秘密情報を含めない。
 - M4.5はCloud Runのunauthenticated invocationを許可し、TLS終端はCloud Runに委ねる。
 - CORSはbrowser origin制御であり認証ではない。public APIへの直接requestは本文上限、timeout、bounded queue、maximum instancesで保護する。
 
@@ -1314,9 +1334,9 @@ GitHub Pages UIから別originのAPIを呼ぶため、M4.5でCORSをAPI契約へ
 
 ### ログレベルと障害
 
-1. SUMMARYでも全状態差分を返す。
-2. DETAILEDで各スキル、PS、ダメージ、効果を返す。
-3. DIAGNOSTICで候補除外理由を返し、内部秘密情報は返さない。
+1. `options` を省略するとSUMMARYになり、`events` と `stateTransitions` が空で `finalState` を持たない。`result`・`initialState`・`unitSummaries` は完全に返す。
+2. DETAILEDで各スキル、PS、ダメージ、効果に加え、候補除外理由などの診断イベントも返し、内部秘密情報は返さない。
+3. 廃止済みの `DIAGNOSTIC` を指定すると `422 INVALID_COMMAND`（`path: /options/logLevel`）を返す。
 4. 実行保護上限到達時に不完全な成功結果を返さない。
 5. タイムアウトを敗北へ変換しない。
 6. 内部例外でスタックトレースを返さず、`diagnosticId` を返す。

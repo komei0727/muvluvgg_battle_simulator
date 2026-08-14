@@ -322,7 +322,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
           units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
           memoryDefinitionIds: [],
         },
-        options: { logLevel: "DIAGNOSTIC" },
+        options: { logLevel: "DETAILED" },
       },
     });
 
@@ -389,6 +389,52 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
         ruleId: "R-TEX-11",
       }),
     );
+  });
+
+  // Issue #465: `DIAGNOSTIC`廃止。演習エンドポイントも戦闘と同じ`validateLogLevel`
+  // を通るが、request schemaが列挙を持たない以上、実HTTP経路で止まることは
+  // route levelでしか固定できない（戦闘側は`API-CONTRACT-032`）。
+  it("API-TEX-013 (10_API設計.md「公開レベル」): returns 422 INVALID_COMMAND with path /options/logLevel for the retired DIAGNOSTIC log level", async () => {
+    // stubのUseCaseはCommand検証を一切通さないため、実UseCaseで組む
+    // （`API-TEX-011`と同じ理由）。
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+      exerciseUseCase: buildRealExerciseUseCase(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: TACTICAL_EXERCISES_PATH,
+      payload: { ...REQUEST_BODY, options: { logLevel: "DIAGNOSTIC" } },
+    });
+
+    expect(response.statusCode).toBe(422);
+    const error = response.json<{
+      error: { code: string; violations: { path: string; message: string }[] };
+    }>().error;
+    expect(error.code).toBe("INVALID_COMMAND");
+    expect(error.violations).toContainEqual(expect.objectContaining({ path: "/options/logLevel" }));
+    expect(
+      error.violations.find((violation) => violation.path === "/options/logLevel")?.message,
+    ).toContain("SUMMARY, DETAILED");
+  });
+
+  it("API-TEX-014 (10_API設計.md「SimulationOptions」): still accepts the two live log levels, so the rejection above is about the retired value and not about options handling", async () => {
+    for (const logLevel of ["SUMMARY", "DETAILED"] as const) {
+      const levelApp = await buildServer(UNUSED_BATTLE_USE_CASE, {
+        exerciseUseCase: buildRealExerciseUseCase(),
+      });
+      try {
+        const response = await levelApp.inject({
+          method: "POST",
+          url: TACTICAL_EXERCISES_PATH,
+          payload: { ...REQUEST_BODY, options: { logLevel } },
+        });
+
+        expect(response.statusCode, `${logLevel} must be accepted`).toBe(200);
+      } finally {
+        await levelApp.close();
+      }
+    }
   });
 
   it("API-TEX-004 (10_API設計.md「TacticalExerciseRequest」「`turnLimit`は持たない」): rejects turnLimit as an undefined top-level property (400 MALFORMED_REQUEST), instead of silently ignoring it and running the fixed 5 turns", async () => {

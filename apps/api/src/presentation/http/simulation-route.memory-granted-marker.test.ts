@@ -93,7 +93,7 @@ async function runPicoBattleOverHttp(): Promise<BattleSimulationResponseBody> {
 }
 
 function picoMarkerOf(body: BattleSimulationResponseBody): MarkerStateResponseBody {
-  const markers = body.finalState.units.flatMap((unit) => unit.markers ?? []);
+  const markers = body.finalState!.units.flatMap((unit) => unit.markers ?? []);
   const marker = markers.find((candidate) => candidate.markerId === PICO_MARKER_ID);
   if (marker === undefined) {
     throw new Error(`no ${PICO_MARKER_ID} in response markers: ${JSON.stringify(markers)}`);
