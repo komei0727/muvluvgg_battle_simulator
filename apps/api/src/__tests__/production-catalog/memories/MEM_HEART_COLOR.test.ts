@@ -40,14 +40,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
       "ally:BACK_RIGHT",
     ],
     magnitude: 0.1,
-    statMod: { stat: "CRITICAL_DAMAGE_BONUS", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_DAMAGE_BONUS", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_HEART_COLOR_FRONT_CRIT_UP",
     unitIds: ["ally:FRONT_LEFT", "ally:FRONT_CENTER", "ally:FRONT_RIGHT"],
     magnitude: 0.085,
-    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_RATE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -134,10 +134,13 @@ describe("production Catalog MEM_HEART_COLOR (心の色)", () => {
       "MEM_STRANGERS#1",
     ]);
 
-    // ハードな準備運動……？の前衛+4%（1000→1040）と、自Memoryの会心ダメージ+10%（0.5→0.55）が重なる。会心率はRATIO補正で基礎値0のため動かない。
+    // ハードな準備運動……？の前衛+4%（1000→1040）と、自Memoryの会心ダメージ+10pp
+    // （0.5→0.6）・前衛会心率+8.5pp（0→0.085）が重なる。会心系はパーセントポイント
+    // 加算のため、乗算だった頃の0.55ではなく0.6になる（R-STA-01）。
     expect(observed.statChanges["ally:FRONT_LEFT"]).toEqual({
       attack: 1040,
-      criticalDamageBonus: 0.55,
+      criticalDamageBonus: 0.6,
+      criticalRate: 0.085,
     });
 
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。

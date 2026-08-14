@@ -105,7 +105,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
@@ -117,7 +117,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -0.5 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }

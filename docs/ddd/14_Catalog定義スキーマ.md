@@ -924,13 +924,13 @@ payload:
 - `AFFINITY_BONUS`
 - `ACTION_SPEED`
 
-| フィールド  | 型                 | 必須 | 制約                                                              |
-| ----------- | ------------------ | ---- | ----------------------------------------------------------------- |
-| `stat`      | enum               | ✓    | 下記の `stat` 候補                                                |
-| `valueType` | enum               | ✓    | `RATIO` / `FIXED`                                                 |
-| `formula`   | FormulaDefinition  | ✓    | 符号付き。増加は正、減少は負                                      |
-| `stacking`  | object             | ✓    | `mode`（`STACKABLE` / `NON_STACKABLE`）と任意の `max`。詳細は下記 |
-| `duration`  | DurationDefinition | ✓    | —                                                                 |
+| フィールド  | 型                 | 必須 | 制約                                                               |
+| ----------- | ------------------ | ---- | ------------------------------------------------------------------ |
+| `stat`      | enum               | ✓    | 下記の `stat` 候補                                                 |
+| `valueType` | enum               | ✓    | `RATIO` / `FIXED`。パーセントポイント加算ステータスは `FIXED` のみ |
+| `formula`   | FormulaDefinition  | ✓    | 符号付き。増加は正、減少は負                                       |
+| `stacking`  | object             | ✓    | `mode`（`STACKABLE` / `NON_STACKABLE`）と任意の `max`。詳細は下記  |
+| `duration`  | DurationDefinition | ✓    | —                                                                  |
 
 `stacking.mode`（`R-EFF-05` / `R-STA-03`、`M7-012`／Issue #266）:
 
@@ -951,6 +951,12 @@ stacking:
 ```
 
 `AFFINITY_BONUS` と `CRITICAL_DAMAGE_BONUS` は Unit の `baseStats` に保持する。Catalog作成時の初期値はそれぞれ `0.25` と `0.5` だが、Unitごとの上書きと `APPLY_STAT_MOD` による一時補正の対象にできる。
+
+`valueType`（R-STA-01のステータス分類、Issue #460）:
+
+- `CRITICAL_RATE`・`CRITICAL_DAMAGE_BONUS`・`AFFINITY_BONUS` はパーセントポイント加算ステータスであり、補正はパーセンテージの加減算としてだけ与えられる。この3つへ `valueType: RATIO` を宣言した定義はCatalogロード時点で `UNSUPPORTED_POINT_ADDITIVE_STAT_RATIO` として拒否する。
+- 拒否する理由は、`RATIO`（基本値への割合乗算）と `FIXED`（値の加算）の語義をステータスによらず1つに保つためである。「`RATIO` をこの3ステータスでは加算と解釈する」設計は採らない — 同じ語が対象ステータスによって別の式を意味すると、Catalog投入時に定義を読んだだけでは結果を推測できなくなる。
+- wiki原文の「会心率を10%上昇」は10パーセントポイントの上昇を意味する。`valueType: FIXED`・`formula.value: 0.1` として書く（`0.1` は会心率という比率そのものの増分であり、基本値への倍率ではない）。
 
 ### APPLY_DAMAGE_MOD
 

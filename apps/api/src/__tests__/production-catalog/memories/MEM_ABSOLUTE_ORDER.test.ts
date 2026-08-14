@@ -39,7 +39,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_ABSOLUTE_ORDER_PHYSICAL_CRIT_UP",
     unitIds: ["ally:FRONT_LEFT", "ally:BACK_CENTER"],
     magnitude: 0.05,
-    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_RATE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];

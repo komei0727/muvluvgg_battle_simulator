@@ -60,7 +60,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_TREBLE_QUINTET_ALL_CRIT_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 0.01,
-    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_RATE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -95,13 +95,13 @@ describe("production Catalog MEM_TREBLE_QUINTET (Treble Quintet)", () => {
       `${MEMORY_DEFINITION_ID}#0`,
       `${MEMORY_DEFINITION_ID}#1`,
     ]);
-    // 効果1は所属メンバーだけ、効果2は所属に関係なく全員へ乗る。会心率は`RATIO`の
-    // ため基礎値へ比例し、盤面の基礎会心率0では実効値が動かない。
+    // 効果1は所属メンバーだけ、効果2は所属に関係なく全員へ乗る。会心率は
+    // パーセントポイント加算（R-STA-01）のため、基礎会心率0でも1%として現れる。
     for (const unit of observed.started.allyUnits) {
       expect(unit.combatStats.attack).toBe(
         MEMORY_COMBAT_STATS.attack + (unit.battleUnitId === "ally:BACK_RIGHT" ? 250 : 0),
       );
-      expect(unit.combatStats.criticalRate).toBe(MEMORY_COMBAT_STATS.criticalRate * 1.01);
+      expect(unit.combatStats.criticalRate).toBe(MEMORY_COMBAT_STATS.criticalRate + 0.01);
     }
   });
 
@@ -176,8 +176,9 @@ describe("production Catalog MEM_TREBLE_QUINTET (Treble Quintet)", () => {
       "MEM_STRANGERS#1",
     ]);
 
-    // 自Memoryの所属メンバー攻撃力+250に、ハードな準備運動……？の後衛+2.5%（1000→1025）が乗る。会心率はRATIO補正で基礎値0のため動かない。
-    expect(observed.statChanges["ally:BACK_RIGHT"]).toEqual({ attack: 1275 });
+    // 自Memoryの所属メンバー攻撃力+250に、ハードな準備運動……？の後衛+2.5%（1000→1025）が
+    // 乗る。会心率は自Memoryの+1ppがパーセントポイント加算で現れる（R-STA-01、0→0.01）。
+    expect(observed.statChanges["ally:BACK_RIGHT"]).toEqual({ attack: 1275, criticalRate: 0.01 });
 
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
     expect(observed.stateFromDeltas).toEqual(observed.stateAfter);

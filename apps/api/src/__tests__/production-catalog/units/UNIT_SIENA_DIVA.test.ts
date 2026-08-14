@@ -461,8 +461,8 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     // 付与そのものと `timeLimit: { unit: TURN, count: 1 }` の宣言は `-001` の
     // PS2行が持つ。ターン単位期間は**行動単位期間と減る契機が違う**ことでしか
     // 区別できず、それは行動終了とターン終了の両方を跨がないと現れない。
-    // 会心率は `RATIO` で基礎値に掛かるため、盤面既定の0のままでは上昇も失効も
-    // 実効値に現れない。基礎値だけを0.2へ置く（この観測は攻撃を1発も撃たない）。
+    // 失効で実効値が「戻る」ことを見るため、基礎値だけを0.2へ置く（この観測は
+    // 攻撃を1発も撃たない）。会心率はパーセントポイント加算（R-STA-01）。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       combatStats: { criticalRate: 0.2 },
     });
@@ -471,7 +471,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     ]);
     expect(
       granted.find((unit) => unit.battleUnitId === "ally:subject")!.combatStats.criticalRate,
-    ).toBeCloseTo(0.23);
+    ).toBeCloseTo(0.35);
 
     expect(
       observeEffectExpiry({
@@ -505,7 +505,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
             cascaded: false,
           },
         ],
-        // 15%上昇が巻き戻り、基礎値0.2へ戻る。
+        // 15pp上昇が巻き戻り、基礎値0.2へ戻る。
         stats: { "ally:subject/criticalRate": 0.2 },
       },
     ]);

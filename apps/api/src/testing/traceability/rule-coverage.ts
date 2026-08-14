@@ -242,6 +242,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
 
   // STA: ステータス
+  // Issue #460: R-STA-01はステータスを2分類する。割合補正ステータス（HP・攻撃力・
+  // 防御力・行動速度）は乗算、パーセントポイント加算ステータス（会心率・会心ダメージ
+  // ボーナス・属性相性ボーナス）は加減算で合成する。`020`〜`024`が式の分岐そのもの、
+  // `025`〜`026`が編成補正（R-BON-03のクレバー会心率+15pp）、`030`〜`034`が戦闘中
+  // バフ・デバフ、`027`〜`029`がCatalog投入時の`valueType: RATIO`拒否を固定する。
   {
     ruleId: "R-STA-01",
     testCaseIds: [
@@ -257,8 +262,23 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-STA-01-013",
       "UT-R-STA-01-018",
       "UT-R-STA-01-019",
+      "UT-R-STA-01-020",
+      "UT-R-STA-01-021",
+      "UT-R-STA-01-022",
+      "UT-R-STA-01-023",
+      "UT-R-STA-01-024",
+      "UT-R-STA-01-025",
+      "UT-R-STA-01-026",
+      "UT-R-STA-01-027",
+      "UT-R-STA-01-028",
+      "UT-R-STA-01-029",
+      "UT-R-STA-01-030",
+      "UT-R-STA-01-031",
+      "UT-R-STA-01-032",
+      "UT-R-STA-01-033",
+      "UT-R-STA-01-034",
     ],
-    kinds: ["POSITIVE", "BOUNDARY"],
+    kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
   {
     ruleId: "R-STA-02",

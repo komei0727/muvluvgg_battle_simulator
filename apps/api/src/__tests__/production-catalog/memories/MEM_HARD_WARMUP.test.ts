@@ -133,10 +133,13 @@ describe("production Catalog MEM_HARD_WARMUP (ハードな準備運動……？)
       "MEM_STRANGERS#1",
     ]);
 
-    // 自Memoryの前衛+4%（1000→1040）と、色は心のままにの会心ダメージ+10%（0.5→0.55）が重なる。
+    // 自Memoryの前衛+4%（1000→1040）と、心の色の会心ダメージ+10pp（0.5→0.6）・
+    // 前衛会心率+8.5pp（0→0.085）が重なる。会心・属性の3ステータスはパーセント
+    // ポイント加算のため、乗算だった頃の0.55ではなく0.6になる（R-STA-01）。
     expect(observed.statChanges["ally:FRONT_LEFT"]).toEqual({
       attack: 1040,
-      criticalDamageBonus: 0.55,
+      criticalDamageBonus: 0.6,
+      criticalRate: 0.085,
     });
 
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。

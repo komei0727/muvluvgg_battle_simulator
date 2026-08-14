@@ -124,7 +124,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": {
         "kind": "HP_RATIO_SCALE",
         "target": { "kind": "SKILL_SOURCE" },

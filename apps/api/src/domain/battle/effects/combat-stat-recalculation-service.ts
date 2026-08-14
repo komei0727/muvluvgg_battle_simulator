@@ -115,6 +115,7 @@ export function computeCombatStats(
     // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる）。
     // ゲージ最大値としての整数化はゲージへ渡す境界で行う。
     const corrected = calculateCombatStat({
+      stat,
       baseValue: unit.baseCombatStats[field],
       formationBonus: ZERO_PERCENTAGE,
       aptitudePenalty: ZERO_PERCENTAGE,

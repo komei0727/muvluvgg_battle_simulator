@@ -404,8 +404,8 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     // 宣言は `-001` のPS1行が持つ。消費は**以後の別の攻撃**でしか起きないため、
     // 「いつ消費され、いつ失効し、その1発に効果が乗っているか」は表に現れない。
     //
-    // 会心率は `RATIO` で基礎値に掛かるため基礎値を0.5へ置く。抽選値0.6は
-    // 素の0.5では会心せず、上昇後の 0.5 × 1.3 = 0.65 でだけ会心する。
+    // 会心率はパーセントポイント加算（R-STA-01）。基礎値を0.5へ置くと、抽選値0.6は
+    // 素の0.5では会心せず、上昇後の 0.5 + 0.3 = 0.8 でだけ会心する。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       combatStats: { criticalRate: 0.5 },
     });
@@ -413,7 +413,7 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
       { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_CRIT_UP", target: "ALLY" },
     ]);
     const holder = granted.find((unit) => unit.battleUnitId === "ally:front")!;
-    expect(holder.combatStats.criticalRate).toBeCloseTo(0.65);
+    expect(holder.combatStats.criticalRate).toBeCloseTo(0.8);
 
     const probe = observeLifecycleDamageProbe({
       units: granted,

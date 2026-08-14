@@ -556,7 +556,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN",
       "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
     ]);
-    expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE * (1 - 0.25), 9);
+    expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE - 0.25, 9);
 
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -750,7 +750,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     expect(holderBefore.markerStates.map((marker) => [marker.markerId, marker.stackCount])).toEqual(
       [[KOUYOU, 2]],
     );
-    expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE * (1 - 0.25), 9);
+    expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE - 0.25, 9);
 
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -767,8 +767,9 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       "ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN",
       "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN",
     ]);
-    // 会心率デバフの失効が実効値の再計算まで通る（-25%が外れ、PS2の-7.5%だけが残る）。
-    expect(holder.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE * (1 - 0.075), 9);
+    // 会心率デバフの失効が実効値の再計算まで通る（-25ppが外れ、PS2の-7.5ppだけが残る。
+    // 会心率はパーセントポイント加減算で合成する — R-STA-01）。
+    expect(holder.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE - 0.075, 9);
 
     const cascade = chain.recorder
       .getEvents()
