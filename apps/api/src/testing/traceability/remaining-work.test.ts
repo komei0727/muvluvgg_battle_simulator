@@ -204,10 +204,10 @@ describe("remaining work manifest (PLAN-001)", () => {
     expect(new Set(taskIds).size).toBe(taskIds.length);
     expect(new Set(manifest.tasks.map((task) => task.issue)).size).toBe(manifest.tasks.length);
     expect(referencedTaskIds.every((taskId) => taskIds.includes(taskId))).toBe(true);
-    // Rule割当の許容milestoneはRuleを持つ実装マイルストーンに限る。M10は
-    // TEX-001（Issue #402、戦術演習）の設計時新設Rule（R-TEX-01〜10）が、M11は
-    // ENH-001（Issue #409、基本ステータス強化）の設計時新設Rule（R-ENH-01〜06）が
-    // 加わり許容へ追加した。
+    // Rule割当の許容milestoneはRuleを持つ実装マイルストーンに限る。M10・M11は
+    // 設計時新設Rule（R-TEX-01〜10／R-ENH-01〜06）のために許容へ加えた。どちらも
+    // 完了計上済みで現在の割当は無いが、後続の設計時新設が再び同じマイルストーンへ
+    // 割り当たり得るため許容は残す。
     expect(
       manifest.ruleAssignments.every((assignment) => {
         const milestone = taskById.get(assignment.taskId)?.milestone;

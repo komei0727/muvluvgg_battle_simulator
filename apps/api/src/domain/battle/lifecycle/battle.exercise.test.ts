@@ -9,6 +9,7 @@ import {
   effectKindKeyFromDefinitionId,
 } from "../model/applied-effect.js";
 import { createTurnLimit } from "../model/turn-limit.js";
+import { createHitPoint } from "../model/resource-gauge.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
@@ -586,11 +587,13 @@ function breakingAttackerDefinitions(options: {
 function exerciseBattleWith(
   definitions: BattleDefinitions,
   enemyOverrides: Partial<BattleUnit> = {},
+  allyOverrides: Partial<BattleUnit> = {},
 ) {
   const enemy = { ...unit("enemy:1", "ENEMY", "UNIT_002"), ...enemyOverrides };
+  const ally = { ...unit("ally:1", "ALLY"), ...allyOverrides };
   const battle = createBattle(
     createBattleId("B_1"),
-    [unit("ally:1", "ALLY")],
+    [ally],
     [enemy],
     createTurnLimit(5),
     definitions,
@@ -852,6 +855,162 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     // R-TEX-02 #2: 各ヒットの計上量はオーバーキルを含む150。
     expect(afterTurn.exercise?.totalScore).toBe(300);
     expect(afterTurn.enemyUnits[0]!.currentHp).toBe(140);
+
+    expectStateRestoration(initialState, recorder, afterTurn);
+  });
+
+  it("UT-R-TEX-05-002: the revival's full heal is not a heal — it emits no HealApplied/HealingTransferred, ignores healing modifiers and healing links, and fires no heal-triggered PS", () => {
+    // R-TEX-05 #4: 復活は演習固有のライフサイクル機構であり回復（R-HEAL系）ではない。
+    // 「回復量補正・回復リンク・回復契機のトリガーを発生させない」は回復経路が生きて
+    // いる盤面でしか観測できないため、敵が回復関連の効果を保持したまま復活し、味方が
+    // 回復契機のPSを構えている状態を作って否定側を固定する。
+    //
+    // 補正・リンクはメモリー由来（`sourceSide`のみ）で持たせる。ユニット由来だと
+    // R-TEX-05 #2の解除が全回復（#3）より前に走って先に消え、「回復経路を通らない」
+    // ではなく「効果が無かった」だけの空振りになる。
+    const healingModId = createEffectActionDefinitionId("ACT_MEMORY_HEAL_DOWN");
+    const healingLinkId = createEffectActionDefinitionId("ACT_MEMORY_HEAL_LINK");
+    // 補正は**負**（被回復量-50%）にする。増加側だと、誤って補正が掛かっても回復量が
+    // 最大HPで打ち止められて復活後HPが120のままになり、誤適用を観測できない。
+    const HEALING_MOD_RATE = -0.5;
+    const memoryGrant = (
+      effectActionDefinitionId: EffectActionDefinitionId,
+      instanceId: string,
+      magnitude: number,
+    ) => ({
+      effectInstanceId: createEffectInstanceId(instanceId),
+      effectActionDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(effectActionDefinitionId),
+      duplicate: true,
+      sourceSide: "ALLY" as const,
+      targetUnitId: createBattleUnitId("enemy:1"),
+      magnitude,
+      categories: ["DEBUFF" as const],
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    });
+
+    const onHealPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_ON_HEAL_APPLIED"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 0 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "HealApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_SELF"),
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: true,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_SELF") },
+            actions: [{ effectActionDefinitionId: healingModId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "OnHealApplied", tags: [] },
+    };
+
+    const definitions = breakingAttackerDefinitions({
+      damagePerHit: 150,
+      hitCount: 1,
+      allyPassive: onHealPassive,
+      extraEffectActions: [
+        {
+          effectActionDefinitionId: healingModId,
+          kind: "APPLY_HEALING_MOD",
+          payload: {
+            direction: "INCOMING",
+            formula: { kind: "CONSTANT", value: HEALING_MOD_RATE },
+            stacking: { mode: "STACKABLE" },
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+          metadata: { tags: [] },
+        },
+        {
+          effectActionDefinitionId: healingLinkId,
+          kind: "APPLY_HEALING_LINK",
+          payload: {
+            transferTo: { kind: "SELF" },
+            transferRate: 1,
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+          metadata: { tags: [] },
+        },
+      ],
+    });
+
+    const { recorder, afterTurn, initialState } = exerciseBattleWith(
+      definitions,
+      {
+        appliedEffects: [
+          memoryGrant(healingModId, "EFF_MEMORY_HEAL_DOWN", HEALING_MOD_RATE),
+          {
+            ...memoryGrant(healingLinkId, "EFF_MEMORY_HEAL_LINK", 0),
+            // 転送率100%。復活が回復として処理されれば全量が味方へ移る。
+            healingLink: { transferToUnitId: createBattleUnitId("ally:1"), transferRate: 1 },
+          },
+        ],
+      },
+      // 転送先の味方を削っておく。満タンのままだと転送が起きても上限で打ち止められ、
+      // 「転送されなかった」と区別がつかない。
+      { currentHp: createHitPoint(50, 100) },
+    );
+
+    const events = recorder.getEvents();
+    expect(events.map((event) => event.eventType)).toContain("UnitRevived");
+    // #4: 回復イベントそのものが存在しない（回復契機のトリガー照合対象が生まれない）。
+    expect(events.filter((event) => event.eventType === "HealApplied")).toEqual([]);
+    expect(events.filter((event) => event.eventType === "HealingTransferred")).toEqual([]);
+    // #4: 回復契機のPSは候補にすらならない。
+    expect(
+      events
+        .filter((event) => event.eventType === "PassiveActivated")
+        .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId),
+    ).not.toContain("SKL_ON_HEAL_APPLIED");
+
+    const enemy = afterTurn.enemyUnits[0]!;
+    // #3／#4: 全回復量は強化後の最大HPちょうど。被回復量-50%が掛かれば60まで、
+    // リンクで転送されれば0のままになり、どちらもここで落ちる。
+    expect(enemy.currentHp).toBe(120);
+    expect(enemy.baseCombatStats.maximumHp).toBe(120);
+    // 転送先の味方（HP50/100）も動かない。転送が起きていれば50→100へ跳ね上がる。
+    expect(afterTurn.allyUnits[0]!.currentHp).toBe(50);
+    // 補正・リンクはメモリー由来なので解除もされていない — 空振りの検証ではない。
+    expect(enemy.appliedEffects.map((effect) => effect.effectInstanceId)).toEqual([
+      "EFF_MEMORY_HEAL_DOWN",
+      "EFF_MEMORY_HEAL_LINK",
+    ]);
 
     expectStateRestoration(initialState, recorder, afterTurn);
   });
