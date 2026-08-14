@@ -868,11 +868,15 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     // 補正・リンクはメモリー由来（`sourceSide`のみ）で持たせる。ユニット由来だと
     // R-TEX-05 #2の解除が全回復（#3）より前に走って先に消え、「回復経路を通らない」
     // ではなく「効果が無かった」だけの空振りになる。
-    const healingModId = createEffectActionDefinitionId("ACT_MEMORY_HEAL_UP");
+    const healingModId = createEffectActionDefinitionId("ACT_MEMORY_HEAL_DOWN");
     const healingLinkId = createEffectActionDefinitionId("ACT_MEMORY_HEAL_LINK");
+    // 補正は**負**（被回復量-50%）にする。増加側だと、誤って補正が掛かっても回復量が
+    // 最大HPで打ち止められて復活後HPが120のままになり、誤適用を観測できない。
+    const HEALING_MOD_RATE = -0.5;
     const memoryGrant = (
       effectActionDefinitionId: EffectActionDefinitionId,
       instanceId: string,
+      magnitude: number,
     ) => ({
       effectInstanceId: createEffectInstanceId(instanceId),
       effectActionDefinitionId,
@@ -880,9 +884,8 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
       duplicate: true,
       sourceSide: "ALLY" as const,
       targetUnitId: createBattleUnitId("enemy:1"),
-      // 被回復量+100%。復活が回復として処理されれば最大HPの2倍量が算出される。
-      magnitude: 1,
-      categories: ["BUFF" as const],
+      magnitude,
+      categories: ["DEBUFF" as const],
       duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       appliedTurnNumber: 1,
     });
@@ -948,7 +951,7 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
           kind: "APPLY_HEALING_MOD",
           payload: {
             direction: "INCOMING",
-            formula: { kind: "CONSTANT", value: 1 },
+            formula: { kind: "CONSTANT", value: HEALING_MOD_RATE },
             stacking: { mode: "STACKABLE" },
             duration: { dispellable: true, linkedEffectGroupId: null },
           },
@@ -971,9 +974,9 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
       definitions,
       {
         appliedEffects: [
-          memoryGrant(healingModId, "EFF_MEMORY_HEAL_UP"),
+          memoryGrant(healingModId, "EFF_MEMORY_HEAL_DOWN", HEALING_MOD_RATE),
           {
-            ...memoryGrant(healingLinkId, "EFF_MEMORY_HEAL_LINK"),
+            ...memoryGrant(healingLinkId, "EFF_MEMORY_HEAL_LINK", 0),
             // 転送率100%。復活が回復として処理されれば全量が味方へ移る。
             healingLink: { transferToUnitId: createBattleUnitId("ally:1"), transferRate: 1 },
           },
@@ -997,14 +1000,15 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     ).not.toContain("SKL_ON_HEAL_APPLIED");
 
     const enemy = afterTurn.enemyUnits[0]!;
-    // #3: 全回復量は強化後の最大HPちょうど。被回復量+100%も転送も掛からない。
+    // #3／#4: 全回復量は強化後の最大HPちょうど。被回復量-50%が掛かれば60まで、
+    // リンクで転送されれば0のままになり、どちらもここで落ちる。
     expect(enemy.currentHp).toBe(120);
     expect(enemy.baseCombatStats.maximumHp).toBe(120);
     // 転送先の味方（HP50/100）も動かない。転送が起きていれば50→100へ跳ね上がる。
     expect(afterTurn.allyUnits[0]!.currentHp).toBe(50);
     // 補正・リンクはメモリー由来なので解除もされていない — 空振りの検証ではない。
     expect(enemy.appliedEffects.map((effect) => effect.effectInstanceId)).toEqual([
-      "EFF_MEMORY_HEAL_UP",
+      "EFF_MEMORY_HEAL_DOWN",
       "EFF_MEMORY_HEAL_LINK",
     ]);
 
