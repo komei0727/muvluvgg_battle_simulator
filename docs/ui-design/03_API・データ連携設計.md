@@ -447,7 +447,9 @@ type FormationStatPreviewApiResult =
 - 同じ`battleUnitId`が複数ある: §11.2のindex化で後の行が無警告で勝ち、矛盾した集計値が「正しい値」として表示される。
 - rosterに無い`battleUnitId`がある: どの行にも現れず、集計の一部が黙って消える。
 
-包含だけを見ると後ろ2つを通してしまうため、件数・IDの一意性・rosterとの完全一致をそれぞれ確認する。配列の順序は契約ではない（表の並びはrosterが決める）。
+包含だけを見ると後ろ2つを通してしまうため、件数・IDの一意性・rosterとの完全一致をそれぞれ確認する。
+
+配列順もAPI契約は定めている（[10_API設計.md](../ddd/10_API設計.md)「UnitBattleSummaryResponse」: 配列順は `BattleStateResponse.units` と同じ）。ただしこの最小validatorは順序違反だけでは拒否しない。UIは `battleUnitId` で結合し、表の並びは§11.2のとおりrosterが決めるため、順序が違っても表示は壊れないためである。本節冒頭の方針（表示が成立するレスポンスをOpenAPIの厳密な再実装で拒否しない）をここでも適用する。
 
 値域はサーバーのschemaに合わせ、集計3項目は0以上のinteger、`finalHp`・`maximumHp`は0以上の有限number（丸めない）とする。
 

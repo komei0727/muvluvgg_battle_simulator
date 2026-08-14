@@ -284,7 +284,12 @@ function isValidUnitSummary(value: unknown): boolean {
  * - Rosterに無い`battleUnitId`がある: どの行にも現れず、集計の一部が黙って消える。
  *
  * 包含だけでは重複と余剰を通してしまうため、件数・IDの一意性・Rosterとの完全一致を
- * それぞれ確認する。配列の順序は契約ではない（表の並びはRosterが決める）。
+ * それぞれ確認する。
+ *
+ * 配列順もAPI契約は定めている（同「配列順は`BattleStateResponse.units`と同じ」）が、
+ * この最小validatorは順序違反だけでは拒否しない。UIは`battleUnitId`で結合し表の
+ * 並びはRosterが決めるため、順序が違っても表示は壊れない — §9の方針どおり、
+ * 表示が成立するレスポンスをOpenAPIの厳密な再実装で拒否しない。
  */
 function matchesRosterExactlyOnce(
   initialState: unknown,

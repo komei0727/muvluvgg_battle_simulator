@@ -358,7 +358,10 @@ describe("validateSimulationResponse", () => {
     }
   });
 
-  it("UI-UT-API-016: accepts unitSummaries whose rows are in a different order from initialState.units, since only the correspondence is contractual", () => {
+  // API契約は配列順も定めている（10_API設計.md「UnitBattleSummaryResponse」）が、
+  // この最小validatorは順序違反だけでは拒否しない。UIはbattleUnitIdで結合し表の
+  // 並びはrosterが決めるため、順序が違っても表示は壊れない。
+  it("UI-UT-API-016: accepts unitSummaries ordered differently from initialState.units, because the display joins by battleUnitId and an order-only deviation breaks nothing", () => {
     const result = validateSimulationResponse(
       validResponse({
         initialState: validState({
