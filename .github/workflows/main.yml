@@ -241,7 +241,9 @@ jobs:
     needs: pages-build
     # pages-buildがskipされた場合にdeployまで素通りさせない——artifactが
     # 存在しないままdeployを試みてしまうため、successを明示的に要求する。
-    if: needs.pages-build.result == 'success'
+    # UI-only mergeではpages-buildの祖先にあるdeployが正当にskipされるため、
+    # implicit success()による祖先skipの伝播をalways()で解除する。
+    if: always() && needs.pages-build.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -272,7 +274,9 @@ jobs:
   pages-smoke:
     name: Deployed Pages live smoke test (post-deploy correctness)
     needs: pages-deploy
-    if: needs.pages-deploy.result == 'success'
+    # pages-deployと同じく、UI-only mergeで正当にskipされたAPI deployの影響を
+    # implicit success()から切り離し、Pages deploy成功時だけ実行する。
+    if: always() && needs.pages-deploy.result == 'success'
     runs-on: ubuntu-latest
     environment: production
     steps:
