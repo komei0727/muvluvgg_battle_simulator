@@ -441,6 +441,416 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["SELF_LOWEST_PRIORITY"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "REPEAT",
+          "count": 3,
+          "steps": [
+            {
+              "kind": "RANDOM_BRANCH",
+              "mode": "WEIGHTED_ONE",
+              "branches": [
+                {
+                  "weight": 1,
+                  "label": "ALLY",
+                  "steps": [
+                    {
+                      "kind": "ACTION",
+                      "target": { "kind": "BINDING", "targetBindingId": "TGT_ALLY" },
+                      "actions": [
+                        { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_EX_ATK_UP" },
+                        { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_EX_EX_GAIN" }
+                      ]
+                    },
+                    {
+                      "kind": "ACTION",
+                      "target": { "kind": "SELF" },
+                      "actions": [
+                        { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_EX_EX_GAIN" }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "weight": 1,
+                  "label": "ENEMY",
+                  "steps": [
+                    {
+                      "kind": "ACTION",
+                      "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+                      "actions": [
+                        { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_EX_DEF_DOWN" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "ミッドサマー・ラブ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TARGET",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+            "field": "RESOURCE_EX_GAUGE",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_AS1_EX_DRAIN" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_AS1_EX_GAIN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "サマー・スプラッシュ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "SELF" },
+          "field": "RESOURCE_EX_GAUGE",
+          "op": "GTE",
+          "value": 1
+        },
+        {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_ANIS_SWEETDEVIL_TEX_PS1_AQUA_SAVING_IN_SCOPE",
+          "op": "LT",
+          "value": 1
+        }
+      ]
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS1_EX_GAIN_UP" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "RESOURCE_EX_GAUGE",
+            "op": "GTE",
+            "value": 3
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS1_EX_COST_2" },
+                { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS1_HEAL_FULL" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "SELF" },
+                "field": "RESOURCE_EX_GAUGE",
+                "op": "EQ",
+                "value": 2
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS1_EX_COST_1" },
+                    { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS1_HEAL_HALF" }
+                  ]
+                }
+              ],
+              "elseSteps": []
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {
+      "simultaneousActivationLimited": true,
+      "exclusiveActivationGroupId": "ANIS_SWEETDEVIL_TEX_HEAT_SAVE"
+    },
+    "metadata": { "displayName": "ヒートアップ・ラブ+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "DAMAGE_MAX_HP_RATIO",
+          "field": "hitPointDamage",
+          "op": "GTE",
+          "value": 0.0075
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_ANIS_SWEETDEVIL_TEX_PS1_AQUA_SAVING_IN_SCOPE",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_ANIS_SWEETDEVIL_TEX_PS2"
+          }
+        },
+        "amount": 1,
+        "resetScope": "RESOLUTION_SCOPE"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_SHIOKAZE_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [
+              { "kind": "HAS_MARKER", "markerId": "MARKER_ANIS_SWEETDEVIL_TEX_SHIOKAZE" }
+            ],
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_SHIOKAZE_ALLY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS2_REMOVE_SHIOKAZE" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "RESOURCE_EX_GAUGE",
+            "op": "GTE",
+            "value": 2
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS2_EX_COST" },
+                { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS2_PP_GAIN" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {
+      "simultaneousActivationLimited": true,
+      "exclusiveActivationGroupId": "ANIS_SWEETDEVIL_TEX_HEAT_SAVE"
+    },
+    "metadata": { "displayName": "アクア・セービング+", "tags": [] },
+    "activationCondition": {
+      "kind": "RUNTIME_COUNTER",
+      "counter": "SKL_ANIS_SWEETDEVIL_TEX_PS2_HEATUP_LOVE_IN_SCOPE",
+      "op": "LT",
+      "value": 1
+    },
+    "triggers": [
+      {
+        "eventType": "RuntimeCounterChanged",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_ANIS_SWEETDEVIL_TEX_PS2_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_ANIS_SWEETDEVIL_TEX_PS2_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "ALLY",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "TRIGGER_TARGET" },
+            "markerId": "MARKER_ANIS_SWEETDEVIL_TEX_SHIOKAZE"
+          }
+        },
+        "maxHpRatio": 0.015
+      },
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_ANIS_SWEETDEVIL_TEX_PS2_HEATUP_LOVE_IN_SCOPE",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_ANIS_SWEETDEVIL_TEX_PS1"
+          }
+        },
+        "amount": 1,
+        "resetScope": "RESOLUTION_SCOPE"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "REPEAT",
+          "count": 3,
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS3_MARKER_SHIOKAZE" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS3_THRESHOLD_DMG_DOWN" },
+            { "effectActionDefinitionId": "ACT_ANIS_SWEETDEVIL_TEX_PS3_EX_GAIN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "サマータイム・ロマンス+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_ANIS_TROUBLEMAKER_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },
@@ -9046,6 +9456,276 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_MARKER_KAIHOUKAN" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_EX_GAIN_DOWN" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_EX_DEATH_SURVIVAL" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "真夏のトラブル発生！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_MAO_SUMMER_TEX_KAIHOUKAN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_DAMAGE_BOOSTED" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_DAMAGE" }]
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "HP_RATIO",
+            "op": "GTE",
+            "value": 0.015
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_HP_DAMAGE" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS1_HP_COST" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "海辺の取り締まり！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 3, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_MAO_SUMMER_TEX_KAIHOUKAN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_AS2_STUN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "うっかり大惨事", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_MAO_SUMMER_TEX_KAIHOUKAN"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS1_CRIT_RATE_UP" },
+                { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS1_CRIT_DAMAGE_UP" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS1_EX_GAIN" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "リフレッシュ完了！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "CriticalCheckResolved",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_MAO_SUMMER_TEX_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 2
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_MAO_SUMMER_TEX_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "CriticalCheckResolved",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ENEMY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_MAO_SUMMER_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS2_HP_COST" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS2_DMG_DOWN" },
+            { "effectActionDefinitionId": "ACT_MAO_SUMMER_TEX_PS2_DMG_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "たまには羽を伸ばして+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_MAO_SUMMER_TEX_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_MAO_SUMMER_TEX_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_MAO_SUMMER_TEX_PS2"
+          }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_MEIYA_FATED_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 6 },
@@ -13554,6 +14234,273 @@
             "field": "skillDefinitionId",
             "op": "EQ",
             "value": "SKL_SHOUKA_BEACH_PS2"
+          }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_BEACH_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 9 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TARGET",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE_LINK" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "RESOURCE_AP",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_EX_AP_COST" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_EX_AP_DRAIN" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_EX_ATK_DOWN" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "少しお行儀悪いですが……", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_BEACH_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "NOT",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "HP_RATIO",
+            "op": "GTE",
+            "value": 0.5
+          }
+        },
+        {
+          "kind": "NOT",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_SHOUKA_BEACH_TEX_SHOKI"
+          }
+        }
+      ]
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS1_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS1_MARKER_SHOKI" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "たまには子供っぽく+", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_BEACH_TEX_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TARGET",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ENEMY_FRONT",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_SHOUKA_BEACH_TEX_SHOKI"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS2_DAMAGE" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS2_DRAIN_HEAL" }]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_SET_COUNT",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
+                "countOf": "DEFEATED",
+                "op": "GTE",
+                "value": 1
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS2_KILL_HEAL" }]
+                }
+              ],
+              "elseSteps": []
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS2_SHIELD" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY_FRONT" },
+              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_AS2_FRONT_DMG_DOWN" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "夏のせいです", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_BEACH_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_PS1_DEF_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "油断は禁物ですよ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SHOUKA_BEACH_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_TEX_PS2_MAX_HP_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "わたくしがしっかりしないと+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_SHOUKA_BEACH_TEX_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_SHOUKA_BEACH_TEX_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_SHOUKA_BEACH_TEX_PS2"
           }
         },
         "amount": 1

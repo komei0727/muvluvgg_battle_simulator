@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_ANIS_SWEETDEVIL_TEX",
+  "category": "EXERCISE_ENEMY",
+  "exerciseActive": true,
+  "attribute": "SHY",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 341719,
+    "attack": 9831,
+    "defense": 6806,
+    "criticalRate": 0.13,
+    "actionSpeed": 529,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_ANIS_SWEETDEVIL_TEX_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_ANIS_SWEETDEVIL_TEX_PS1",
+    "SKL_ANIS_SWEETDEVIL_TEX_PS2",
+    "SKL_ANIS_SWEETDEVIL_TEX_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_ANIS_SWEETDEVIL_TEX_EX",
+  "metadata": {
+    "affiliations": ["AFF_CHAOS_MAIDEN"],
+    "tags": [],
+    "displayName": "【渚のスイートデビル】アニス・ベネット",
+    "characterName": "アニス・ベネット",
+    "characterId": "CHAR_ANIS_BENNETT"
+  }
+}

@@ -50,7 +50,10 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
  * enemies transcribed from in-game screenshots, not `raw/units/` conversions.
  * They are tallied separately (`IT-CAT-INV-003`, ledger section
  * 「戦術演習ユニット」in `15_Unit_Memory変換台帳.md`) and excluded from the
- * converted-unit count for the same reason INTERNAL fixtures are.
+ * converted-unit count for the same reason INTERNAL fixtures are. Issues
+ * #470/#471/#472 add three more (`UNIT_ANIS_SWEETDEVIL_TEX`,
+ * `UNIT_SHOUKA_BEACH_TEX`, `UNIT_MAO_SUMMER_TEX`), leaving the converted-unit
+ * total at 73.
  */
 
 function apiPackageRootPath(...segments: string[]): string {
@@ -74,12 +77,17 @@ describe("catalog-src/ inventory (Issue #47 ledger)", () => {
     expect(source.memories.length).toBe(36);
   });
 
-  it("IT-CAT-INV-003: catalog-src/ has exactly the EXERCISE_ENEMY units tallied in the ledger's 戦術演習ユニット section (TEX-010 / Issue #447)", () => {
+  it("IT-CAT-INV-003: catalog-src/ has exactly the EXERCISE_ENEMY units tallied in the ledger's 戦術演習ユニット section (TEX-010 / Issue #447, Issues #470-#472)", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     const exerciseEnemies = source.units
       .filter((unit) => (unit as { category?: string }).category === "EXERCISE_ENEMY")
       .map((unit) => (unit as { unitDefinitionId: string }).unitDefinitionId)
       .sort();
-    expect(exerciseEnemies).toEqual(["UNIT_AOI_GUARDIAN_TEX"]);
+    expect(exerciseEnemies).toEqual([
+      "UNIT_ANIS_SWEETDEVIL_TEX",
+      "UNIT_AOI_GUARDIAN_TEX",
+      "UNIT_MAO_SUMMER_TEX",
+      "UNIT_SHOUKA_BEACH_TEX",
+    ]);
   });
 });
