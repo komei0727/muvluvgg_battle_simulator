@@ -2,7 +2,11 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
-import { fillMinimalFormation, openBattleMode } from "./support/formation.js";
+import {
+  fillMinimalFormation,
+  openBattleMode,
+  selectDetailedLogLevel,
+} from "./support/formation.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 
 const SERIOUS_IMPACTS = new Set(["critical", "serious"]);
@@ -51,6 +55,7 @@ test("the battle summary and details screen has no critical/serious automated ac
   await page.goto("./");
   await openBattleMode(page);
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦闘を開始" }).click();
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
 

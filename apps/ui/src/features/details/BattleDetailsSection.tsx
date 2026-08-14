@@ -60,6 +60,19 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
     setActiveTab("transitions");
   }
 
+  // ログ方針刷新2/3（Issue #464）: `SUMMARY`実行のレスポンスはイベント・状態遷移・
+  // `finalState`を持たない。tabを出したままにすると5つとも「空だが正常」に見え、
+  // 実行が失敗したのか設定の問題なのか画面から区別できない。案内へ置き換える。
+  if (logLevel === "SUMMARY") {
+    return (
+      <div className={styles["panel"]}>
+        <p className={styles["notice"]}>
+          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・レスポンスJSONを閲覧できます。
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className={styles["panel"]}>
       <Tabs

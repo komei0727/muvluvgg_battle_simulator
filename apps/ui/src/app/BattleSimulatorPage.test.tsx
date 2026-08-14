@@ -271,6 +271,7 @@ function simulationResponse(): BattleSimulationResponse {
     result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
     initialState: { units: [] },
     finalState: { units: [] },
+    unitSummaries: [],
     events: [],
     stateTransitions: [],
   };

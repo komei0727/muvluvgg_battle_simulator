@@ -3,7 +3,7 @@ import { catalogFixture } from "./fixtures/catalog.js";
 import { exerciseSuccessFixture } from "./fixtures/exercise-success.js";
 import { TACTICAL_EXERCISE_URL } from "./support/constants.js";
 import { mockCatalog, mockTacticalExercise } from "./support/mock-api.js";
-import { openBattleMode } from "./support/formation.js";
+import { openBattleMode, selectDetailedLogLevel } from "./support/formation.js";
 
 // docs/ui-design/06_UIテスト戦略.md §6 「Mock API E2E」: 戦術演習モードの
 // 縦切り（モード切替 → 演習編成 → 実行 → スコア・ブレイク履歴・演習イベント）。
@@ -32,6 +32,8 @@ test("runs a tactical exercise from the mode tab to the score summary and break 
   await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
   await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
 
+  // UI-AC-022の詳細タイムラインは詳細ログ実行のときだけ表示される（Issue #464）。
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦術演習を開始" }).click();
   await expect(page.getByText("戦術演習が完了しました。")).toBeVisible();
 

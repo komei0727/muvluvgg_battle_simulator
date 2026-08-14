@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
-import { fillMinimalFormation, openBattleMode } from "./support/formation.js";
+import {
+  fillMinimalFormation,
+  openBattleMode,
+  selectDetailedLogLevel,
+} from "./support/formation.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 
 // docs/ui-design/06_UIテスト戦略.md §7 (Visual regression): 1440×900と
@@ -50,6 +54,7 @@ test("desktop (1440x900) battle result screen matches the visual baseline @visua
   await page.goto("./");
   await openBattleMode(page);
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦闘を開始" }).click();
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
 

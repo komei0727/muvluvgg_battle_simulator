@@ -179,6 +179,32 @@ export const battleDamageBreakdownFixture = {
     ],
     actionQueue: [],
   },
+  // サーバー集計（docs/ddd/10_API設計.md「UnitBattleSummaryResponse」）。
+  // 味方の与ダメージは実HPダメージ 160 + 40 = 200（計算ダメージ250+40でも、
+  // 吸収された90を足した値でもない）。敵の与ダメージは継続ダメージ10。
+  unitSummaries: [
+    {
+      battleUnitId: "bu-ally-1",
+      side: "ALLY",
+      damageDealt: 200,
+      damageTaken: 10,
+      healingDone: 0,
+      finalHp: 290,
+      maximumHp: 300,
+      combatStatus: "ACTIVE",
+    },
+    {
+      battleUnitId: "bu-enemy-1",
+      side: "ENEMY",
+      damageDealt: 10,
+      damageTaken: 200,
+      healingDone: 0,
+      finalHp: 0,
+      maximumHp: 200,
+      combatStatus: "DEFEATED",
+    },
+  ],
+
   events: [
     {
       sequence: 1,

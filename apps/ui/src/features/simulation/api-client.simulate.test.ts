@@ -42,6 +42,7 @@ const validResponseBody = {
     cycleNumber: 0,
     units: [],
   },
+  unitSummaries: [],
   events: [],
   stateTransitions: [],
 };

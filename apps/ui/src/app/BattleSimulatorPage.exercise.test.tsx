@@ -108,6 +108,19 @@ function unitState(battleUnitId: string, unitDefinitionId: string, side: string)
   };
 }
 
+function unitSummary(battleUnitId: string, side: string) {
+  return {
+    battleUnitId,
+    side,
+    damageDealt: 0,
+    damageTaken: 0,
+    healingDone: 0,
+    finalHp: 100,
+    maximumHp: 100,
+    combatStatus: "ACTIVE",
+  };
+}
+
 function exerciseResponse(
   overrides: Partial<TacticalExerciseResponse> = {},
 ): TacticalExerciseResponse {
@@ -128,6 +141,7 @@ function exerciseResponse(
     },
     initialState: { units },
     finalState: { units },
+    unitSummaries: [unitSummary("ally:1", "ALLY"), unitSummary("enemy:1", "ENEMY")],
     events: [],
     stateTransitions: [],
     ...overrides,
@@ -143,6 +157,7 @@ function battleResponse(): BattleSimulationResponse {
     result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
     initialState: { units },
     finalState: { units },
+    unitSummaries: [unitSummary("ally:1", "ALLY"), unitSummary("enemy:1", "ENEMY")],
     events: [],
     stateTransitions: [],
   };
@@ -464,6 +479,8 @@ describe("BattleSimulatorPage — exercise events in the timeline (UI-CT-031)", 
     await switchMode(user, "戦術演習");
     await placeUnit(user, "ally", "アルファ");
     await placeUnit(user, "enemy", "エクサ");
+    // 時系列イベントは詳細ログ実行のときだけ表示される（Issue #464）。
+    await user.selectOptions(screen.getByLabelText("ログレベル"), "DETAILED");
     await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
     await waitFor(() => {
       expect(screen.getByText("戦術演習が完了しました。")).toBeInTheDocument();

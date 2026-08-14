@@ -3,7 +3,11 @@ import { battleDamageBreakdownFixture } from "./fixtures/battle-damage-breakdown
 import { battleHealEffectsFixture } from "./fixtures/battle-heal-effects.js";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
-import { fillMinimalFormation, openBattleMode } from "./support/formation.js";
+import {
+  fillMinimalFormation,
+  openBattleMode,
+  selectDetailedLogLevel,
+} from "./support/formation.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
 
 test.beforeEach(async ({ page }) => {
@@ -22,6 +26,7 @@ test("runs a minimal battle from formation to summary, tolerating an unknown eve
   await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦闘を開始" }).click();
 
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
@@ -46,6 +51,7 @@ test("shows the actually applied healing and the granted effects/status of an M7
   await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦闘を開始" }).click();
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
 
@@ -77,6 +83,7 @@ test("separates calculated damage, shield/sub unit absorption and HP damage of a
   await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦闘を開始" }).click();
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
 
@@ -137,6 +144,7 @@ test("switches between the event, transition, and JSON tabs and copies the JSON"
   await openBattleMode(page);
 
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
   await page.getByRole("button", { name: "戦闘を開始" }).click();
   await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
 

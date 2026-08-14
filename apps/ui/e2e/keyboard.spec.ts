@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
-import { openBattleMode } from "./support/formation.js";
+import { openBattleMode, selectDetailedLogLevel } from "./support/formation.js";
 
 test.beforeEach(async ({ page }) => {
   await mockCatalog(page, { status: 200, body: catalogFixture });
@@ -63,6 +63,9 @@ test("reaches every step of unit selection through the details tabs via real Tab
   const enemySlotFilled = page.getByRole("button", { name: /前衛1: エネミーアルファを変更/ });
   await expect(enemySlotFilled).toBeFocused();
 
+  // 詳細tabは詳細ログ実行のときだけ表示される（Issue #464）。ここはtab到達性の
+  // 前提づくりであり、検証対象のkeyboard操作は以降のTab/Arrow/Home/Endである。
+  await selectDetailedLogLevel(page);
   const submitButton = page.getByRole("button", { name: "戦闘を開始" });
   await tabUntilFocused(page, submitButton);
   await page.keyboard.press("Enter");

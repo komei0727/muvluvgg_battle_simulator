@@ -24,6 +24,20 @@ function validState(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function validSummary(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
+  return {
+    battleUnitId: "battle-unit-1",
+    side: "ALLY",
+    damageDealt: 30,
+    damageTaken: 0,
+    healingDone: 0,
+    finalHp: 100,
+    maximumHp: 100,
+    combatStatus: "ACTIVE",
+    ...overrides,
+  };
+}
+
 function validResponse(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     schemaVersion: 1,
@@ -32,6 +46,7 @@ function validResponse(overrides: Partial<Record<string, unknown>> = {}) {
     result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
     initialState: validState({ turnNumber: 0 }),
     finalState: validState({ turnNumber: 3, battleStatus: "COMPLETED" }),
+    unitSummaries: [validSummary()],
     events: [{ type: "DAMAGE_APPLIED" }],
     stateTransitions: [{}],
     ...overrides,
@@ -173,6 +188,7 @@ describe("validateSimulationResponse", () => {
         finalState: validState({
           units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "ally:2" })],
         }),
+        unitSummaries: [validSummary({ battleUnitId: "ally:1" })],
       }),
     );
 
@@ -222,5 +238,145 @@ describe("validateSimulationResponse", () => {
     if (!result.ok) {
       expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
     }
+  });
+
+  // ログ方針刷新2/3（Issue #464）: 3/3でサーバーは`SUMMARY`実行の`finalState`を
+  // 省略する。UI/APIは別デプロイであるため、この寛容化を3/3より先に出す必要がある
+  // ——旧UIのまま3/3を出すと、全実行が`finalState`必須検証でfailedになる。
+  it("UI-UT-API-010: accepts a response without finalState, since the summary table now reads unitSummaries instead", () => {
+    const { finalState: _omitted, ...withoutFinalState } = validResponse();
+
+    const result = validateSimulationResponse(withoutFinalState);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("UI-UT-API-011: still checks the initialState/finalState roster correspondence when finalState is present, so a partial final roster is not silently displayed", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({ units: [validUnit({ battleUnitId: "ally:2" })] }),
+        unitSummaries: [validSummary({ battleUnitId: "ally:1" })],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("UI-UT-API-012: rejects a response whose unitSummaries is missing or malformed, rather than rendering an empty summary table", () => {
+    const { unitSummaries: _omitted, ...withoutSummaries } = validResponse();
+    expect(validateSimulationResponse(withoutSummaries).ok).toBe(false);
+
+    expect(validateSimulationResponse(validResponse({ unitSummaries: {} })).ok).toBe(false);
+
+    for (const field of [
+      "battleUnitId",
+      "side",
+      "damageDealt",
+      "damageTaken",
+      "healingDone",
+      "finalHp",
+      "maximumHp",
+      "combatStatus",
+    ]) {
+      const { [field]: _dropped, ...withoutField } = validSummary();
+      expect(
+        validateSimulationResponse(validResponse({ unitSummaries: [withoutField] })).ok,
+        `unitSummaries entry without ${field} must be rejected`,
+      ).toBe(false);
+    }
+
+    // 集計量が数値でない・負であるものは表示できる値ではない。
+    expect(
+      validateSimulationResponse(
+        validResponse({ unitSummaries: [validSummary({ damageDealt: "30" })] }),
+      ).ok,
+    ).toBe(false);
+    expect(
+      validateSimulationResponse(
+        validResponse({ unitSummaries: [validSummary({ healingDone: -1 })] }),
+      ).ok,
+    ).toBe(false);
+  });
+
+  it("UI-UT-API-013: rejects a response whose unitSummaries does not cover every initialState roster unit, since those rows would silently render as zero", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "ally:2" })],
+        }),
+        finalState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "ally:2" })],
+        }),
+        unitSummaries: [validSummary({ battleUnitId: "ally:1" })],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+    }
+  });
+
+  // `UnitBattleSummaryResponse`は「参加ユニット全件をちょうど1行ずつ」を契約とする。
+  // 包含だけを見ると、rosterを覆いつつ同じbattleUnitIdが複数ある応答が通り、
+  // summary-projectorのMap変換で後の行が無警告で採用される — 矛盾した集計値が
+  // 「正しい値」として表示される。件数・一意性・roster完全一致まで見る。
+  it("UI-UT-API-014: rejects a response whose unitSummaries repeats a battleUnitId, since the projector would silently keep only the last of the conflicting rows", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        unitSummaries: [
+          validSummary({ battleUnitId: "ally:1", damageDealt: 30 }),
+          validSummary({ battleUnitId: "ally:1", damageDealt: 999 }),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+    }
+  });
+
+  it("UI-UT-API-015: rejects a unitSummaries row for a battleUnitId absent from the initialState roster, which no table row would ever show", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        unitSummaries: [
+          validSummary({ battleUnitId: "ally:1" }),
+          validSummary({ battleUnitId: "ally:ghost" }),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+    }
+  });
+
+  // API契約は配列順も定めている（10_API設計.md「UnitBattleSummaryResponse」）が、
+  // この最小validatorは順序違反だけでは拒否しない。UIはbattleUnitIdで結合し表の
+  // 並びはrosterが決めるため、順序が違っても表示は壊れない。
+  it("UI-UT-API-016: accepts unitSummaries ordered differently from initialState.units, because the display joins by battleUnitId and an order-only deviation breaks nothing", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "enemy:1" })],
+        }),
+        finalState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "enemy:1" })],
+        }),
+        unitSummaries: [
+          validSummary({ battleUnitId: "enemy:1" }),
+          validSummary({ battleUnitId: "ally:1" }),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
   });
 });

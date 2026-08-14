@@ -243,6 +243,87 @@ function hasMatchingFinalStateUnits(initialState: unknown, finalState: unknown):
   });
 }
 
+function isIntegerInRange(value: unknown, minimum: number, maximum?: number): value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
+    return false;
+  }
+  return maximum === undefined || value <= maximum;
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+// docs/ddd/10_API設計.md「UnitBattleSummaryResponse」。集計量はinteger、HPは
+// 「0以上の有限number」（丸めない）という公開契約に合わせる。
+function isValidUnitSummary(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["battleUnitId"]) &&
+    isNonEmptyString(value["side"]) &&
+    isNonEmptyString(value["combatStatus"]) &&
+    isIntegerInRange(value["damageDealt"], 0) &&
+    isIntegerInRange(value["damageTaken"], 0) &&
+    isIntegerInRange(value["healingDone"], 0) &&
+    isNonNegativeNumber(value["finalHp"]) &&
+    isNonNegativeNumber(value["maximumHp"])
+  );
+}
+
+/**
+ * `10_API設計.md`「UnitBattleSummaryResponse」: 参加ユニット**全件をちょうど1行ずつ**
+ * 含む。サマリー表はRosterの全行をこの配列から描くため、対応が1対1でないと表示が
+ * 静かに壊れる。
+ *
+ * - 行が足りない: その枠だけが警告なく0表示になる（クライアント集計時代の既知の
+ *   不具合と同じ見え方）。
+ * - 同じ`battleUnitId`が複数ある: `summary-projector.ts`の`Map`変換で後の行が
+ *   無警告で勝ち、矛盾した集計値が「正しい値」として表示される。
+ * - Rosterに無い`battleUnitId`がある: どの行にも現れず、集計の一部が黙って消える。
+ *
+ * 包含だけでは重複と余剰を通してしまうため、件数・IDの一意性・Rosterとの完全一致を
+ * それぞれ確認する。
+ *
+ * 配列順もAPI契約は定めている（同「配列順は`BattleStateResponse.units`と同じ」）が、
+ * この最小validatorは順序違反だけでは拒否しない。UIは`battleUnitId`で結合し表の
+ * 並びはRosterが決めるため、順序が違っても表示は壊れない — §9の方針どおり、
+ * 表示が成立するレスポンスをOpenAPIの厳密な再実装で拒否しない。
+ */
+function matchesRosterExactlyOnce(
+  initialState: unknown,
+  unitSummaries: readonly unknown[],
+): boolean {
+  if (!isRecord(initialState)) {
+    return false;
+  }
+  const initialUnits = initialState["units"];
+  if (!Array.isArray(initialUnits)) {
+    return false;
+  }
+  const summarizedIds = unitSummaries
+    .map(battleUnitIdOf)
+    .filter((id): id is string => id !== undefined);
+  if (summarizedIds.length !== unitSummaries.length) {
+    return false;
+  }
+  const uniqueSummarizedIds = new Set(summarizedIds);
+  if (uniqueSummarizedIds.size !== summarizedIds.length) {
+    return false;
+  }
+  const rosterIds = initialUnits.map(battleUnitIdOf).filter((id): id is string => id !== undefined);
+  if (rosterIds.length !== initialUnits.length) {
+    return false;
+  }
+  // Rosterは同じ`battleUnitId`を持たない（戦闘内で一意）。件数一致と包含の
+  // 両方を見れば、過不足のない1対1になる。
+  return (
+    uniqueSummarizedIds.size === new Set(rosterIds).size &&
+    rosterIds.every((battleUnitId) => uniqueSummarizedIds.has(battleUnitId))
+  );
+}
+
 // `result`以外は戦闘POSTと演習POSTで同一構造（10_API設計.md
 // 「TacticalExerciseResponse」）。ラベルだけを差し替えて両方から使う。
 type BattleLogStructuralResult =
@@ -270,12 +351,26 @@ function validateBattleLogResponse(body: unknown, label: string): BattleLogStruc
   if (!isValidBattleState(body["initialState"])) {
     return structuralMismatch(`${label} response initialState.units is malformed.`);
   }
-  if (!isValidBattleState(body["finalState"])) {
-    return structuralMismatch(`${label} response finalState.units is malformed.`);
+  // ログ方針刷新3/3でサーバーは`SUMMARY`実行の`finalState`を省略する。不在は
+  // 受理し、届いた場合だけ従来どおりshapeとroster対応を検証する——存在するのに
+  // 壊れているのは、表示層まで通してはいけない契約違反のままである。
+  if (body["finalState"] !== undefined) {
+    if (!isValidBattleState(body["finalState"])) {
+      return structuralMismatch(`${label} response finalState.units is malformed.`);
+    }
+    if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
+      return structuralMismatch(
+        `${label} response finalState is missing a battleUnitId present in initialState.`,
+      );
+    }
   }
-  if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
+  const unitSummaries = body["unitSummaries"];
+  if (!Array.isArray(unitSummaries) || !unitSummaries.every(isValidUnitSummary)) {
+    return structuralMismatch(`${label} response unitSummaries is missing or malformed.`);
+  }
+  if (!matchesRosterExactlyOnce(body["initialState"], unitSummaries)) {
     return structuralMismatch(
-      `${label} response finalState is missing a battleUnitId present in initialState.`,
+      `${label} response unitSummaries does not contain exactly one entry per initialState battleUnitId.`,
     );
   }
   if (!Array.isArray(body["events"])) {
@@ -317,13 +412,6 @@ export type TacticalExerciseValidationResult =
 
 function exerciseMismatch(message: string): TacticalExerciseValidationResult {
   return { ok: false, error: { kind: "RESPONSE_CONTRACT_MISMATCH", message } };
-}
-
-function isIntegerInRange(value: unknown, minimum: number, maximum?: number): value is number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
-    return false;
-  }
-  return maximum === undefined || value <= maximum;
 }
 
 function isValidBreak(value: unknown): boolean {

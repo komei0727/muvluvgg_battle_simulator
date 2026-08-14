@@ -47,7 +47,7 @@ export function BattleSummarySection({
       {header}
       {projection.hasProjectionWarning ? (
         <p className={styles["warning"]} role="alert">
-          一部イベントを集計できませんでした。
+          一部ユニットの集計を取得できませんでした。
         </p>
       ) : null}
       <div className={styles["grid"]}>

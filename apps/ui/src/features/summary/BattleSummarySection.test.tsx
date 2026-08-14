@@ -51,6 +51,18 @@ const response: BattleSimulationResponse = {
       },
     ],
   },
+  unitSummaries: [
+    {
+      battleUnitId: "ally:1",
+      side: "ALLY",
+      damageDealt: 0,
+      damageTaken: 0,
+      healingDone: 0,
+      finalHp: 100,
+      maximumHp: 100,
+      combatStatus: "ACTIVE",
+    },
+  ],
   events: [],
   stateTransitions: [],
 };
@@ -94,7 +106,7 @@ describe("BattleSummarySection", () => {
       },
       finalState: {
         units: [
-          ...response.finalState.units,
+          ...(response.finalState?.units ?? []),
           {
             battleUnitId: "enemy:1",
             unitDefinitionId: "UNIT_A",
@@ -104,6 +116,19 @@ describe("BattleSummarySection", () => {
           },
         ],
       },
+      unitSummaries: [
+        ...response.unitSummaries,
+        {
+          battleUnitId: "enemy:1",
+          side: "ENEMY",
+          damageDealt: 0,
+          damageTaken: 0,
+          healingDone: 0,
+          finalHp: 100,
+          maximumHp: 100,
+          combatStatus: "ACTIVE",
+        },
+      ],
     };
 
     render(
@@ -123,20 +148,34 @@ describe("BattleSummarySection", () => {
     }
   });
 
-  it("shows a projection warning banner when a DAMAGE_APPLIED event could not be aggregated", () => {
-    const responseWithMalformedEvent: BattleSimulationResponse = {
+  it("shows a projection warning banner when a roster unit has no unitSummaries row", () => {
+    const responseWithMissingSummary: BattleSimulationResponse = {
       ...response,
-      events: [{ sequence: 1, type: "DAMAGE_APPLIED", details: {} }],
+      unitSummaries: [],
     };
 
     render(
       <BattleSummarySection
-        response={responseWithMalformedEvent}
+        response={responseWithMissingSummary}
         catalog={catalog}
         header={null}
       />,
     );
 
-    expect(screen.getByText("一部イベントを集計できませんでした。")).toBeInTheDocument();
+    expect(screen.getByText("一部ユニットの集計を取得できませんでした。")).toBeInTheDocument();
+  });
+
+  it("shows no warning banner for a response without finalState, since the table no longer reads it", () => {
+    const { finalState: _omitted, ...withoutFinalState } = response;
+
+    render(
+      <BattleSummarySection
+        response={withoutFinalState as BattleSimulationResponse}
+        catalog={catalog}
+        header={null}
+      />,
+    );
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

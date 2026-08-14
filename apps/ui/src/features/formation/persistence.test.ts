@@ -57,7 +57,7 @@ describe("parseStoredDraft", () => {
       ),
       allyMemoryDefinitionIds: ["MEM_A", undefined, undefined, "MEM_B", undefined, undefined],
       turnLimit: 42,
-      logLevel: "DIAGNOSTIC",
+      logLevel: "DETAILED",
       allyEnhancement: {
         enabled: true,
         academyLevels: {
@@ -126,6 +126,22 @@ describe("parseStoredDraft", () => {
     ],
   ])("discards stored data with %s", (_label, stored) => {
     expect(parseStoredDraft(stored)).toBeUndefined();
+  });
+
+  // UI-UT-PST-010: ログ方針刷新2/3（Issue #464）。`DIAGNOSTIC`はUIの選択肢から
+  // 外れたが、以前のセッションで保存されたドラフトには残っている。破棄すると編成
+  // 全体を入力し直させることになり、そのまま送ると3/3のAPIが422で拒否する。
+  // 同一挙動になった`DETAILED`へ読み替えるのが、値の意味を変えない唯一の移行である。
+  it("UI-UT-PST-010: restores a stored DIAGNOSTIC logLevel as DETAILED instead of discarding the whole draft", () => {
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: { ...createInitialDraft(), logLevel: "DIAGNOSTIC" },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored).toBeDefined();
+    expect(restored?.logLevel).toBe("DETAILED");
   });
 
   it("keeps a slot that only holds a unit id", () => {

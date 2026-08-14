@@ -46,6 +46,18 @@ function validResponse(overrides: Partial<Record<string, unknown>> = {}) {
     result: validResult(),
     initialState: validState({ turnNumber: 0 }),
     finalState: validState({ turnNumber: 5, battleStatus: "COMPLETED" }),
+    unitSummaries: [
+      {
+        battleUnitId: "battle-unit-1",
+        side: "ALLY",
+        damageDealt: 0,
+        damageTaken: 0,
+        healingDone: 0,
+        finalHp: 100,
+        maximumHp: 100,
+        combatStatus: "ACTIVE",
+      },
+    ],
     events: [{ type: "EXERCISE_SCORE_ACCUMULATED" }],
     stateTransitions: [{}],
     ...overrides,

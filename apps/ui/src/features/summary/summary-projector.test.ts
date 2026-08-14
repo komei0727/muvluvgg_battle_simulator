@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { selectBattleSummary, selectRoster } from "./summary-projector.js";
-import type { SummaryProjection } from "./summary-projector.js";
 import type {
-  BattleLogEventResponse,
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
   BattleUnitStateResponse,
+  UnitBattleSummaryResponse,
 } from "../simulation/api-contract.js";
 
 function catalogWith(
@@ -42,120 +41,33 @@ function battleUnit(overrides: {
   };
 }
 
-function damageAppliedEvent(overrides: {
-  sequence: number;
-  sourceUnitId?: string;
-  targetUnitIds: readonly string[];
-  targetUnitId: string;
-  hitPointDamage: number;
-  calculatedDamage?: number;
-}): BattleLogEventResponse {
+function unitSummary(overrides: {
+  battleUnitId: string;
+  side?: string;
+  damageDealt?: number;
+  damageTaken?: number;
+  healingDone?: number;
+  finalHp?: number;
+  maximumHp?: number;
+  combatStatus?: string;
+}): UnitBattleSummaryResponse {
   return {
-    sequence: overrides.sequence,
-    type: "DAMAGE_APPLIED",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 1,
-    rootSequence: overrides.sequence,
-    ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
-    targetUnitIds: overrides.targetUnitIds,
-    details: {
-      effectActionDefinitionId: "EFFECT_1",
-      hitIndex: 0,
-      targetUnitId: overrides.targetUnitId,
-      calculatedDamage: overrides.calculatedDamage ?? overrides.hitPointDamage,
-      hitPointDamage: overrides.hitPointDamage,
-      hpBefore: 100,
-      hpAfter: 100 - overrides.hitPointDamage,
-      defeated: false,
-    },
-    stateVersionBefore: 0,
-    stateVersionAfter: 1,
-  };
-}
-
-// apps/api/src/presentation/http/schemas/battle-log/battle-log-schema.ts
-// healAppliedDetailsSchema (M7-005, Issue #184).
-function healAppliedEvent(overrides: {
-  sequence: number;
-  sourceUnitId?: string;
-  targetUnitId: string;
-  appliedAmount: number;
-  healAmount?: number;
-  discardedAmount?: number;
-  transferredAmount?: number;
-}): BattleLogEventResponse {
-  const healAmount = overrides.healAmount ?? overrides.appliedAmount;
-  return {
-    sequence: overrides.sequence,
-    type: "HEAL_APPLIED",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 1,
-    rootSequence: overrides.sequence,
-    ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
-    targetUnitIds: [overrides.targetUnitId],
-    details: {
-      effectActionDefinitionId: "ACT_HEAL_1",
-      ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
-      targetUnitId: overrides.targetUnitId,
-      formulaResult: healAmount,
-      distributionShareCount: 1,
-      healingModifierMultiplier: 1,
-      healAmount,
-      ...(overrides.transferredAmount !== undefined
-        ? { transferredAmount: overrides.transferredAmount }
-        : {}),
-      appliedAmount: overrides.appliedAmount,
-      discardedAmount: overrides.discardedAmount ?? 0,
-      hpBefore: 100,
-      hpAfter: 100 + overrides.appliedAmount,
-    },
-    stateVersionBefore: 0,
-    stateVersionAfter: 1,
-  };
-}
-
-// 同上 healingTransferredDetailsSchema (M7-005-HEAL-LINK, Issue #229, R-HEAL-04)。
-function healingTransferredEvent(overrides: {
-  sequence: number;
-  sourceUnitId?: string;
-  fromUnitId: string;
-  toUnitId: string;
-  appliedAmount: number;
-  transferredAmount?: number;
-}): BattleLogEventResponse {
-  const transferredAmount = overrides.transferredAmount ?? overrides.appliedAmount;
-  return {
-    sequence: overrides.sequence,
-    type: "HEALING_TRANSFERRED",
-    category: "FACT",
-    turnNumber: 1,
-    cycleNumber: 1,
-    rootSequence: overrides.sequence,
-    ...(overrides.sourceUnitId !== undefined ? { sourceUnitId: overrides.sourceUnitId } : {}),
-    targetUnitIds: [overrides.toUnitId],
-    details: {
-      effectInstanceId: "battle-1:effect:1",
-      effectActionDefinitionId: "ACT_HEAL_LINK_1",
-      fromUnitId: overrides.fromUnitId,
-      toUnitId: overrides.toUnitId,
-      transferRate: 0.5,
-      transferredAmount,
-      appliedAmount: overrides.appliedAmount,
-      discardedAmount: transferredAmount - overrides.appliedAmount,
-      hpBefore: 100,
-      hpAfter: 100 + overrides.appliedAmount,
-    },
-    stateVersionBefore: 1,
-    stateVersionAfter: 2,
+    battleUnitId: overrides.battleUnitId,
+    side: overrides.side ?? "ALLY",
+    damageDealt: overrides.damageDealt ?? 0,
+    damageTaken: overrides.damageTaken ?? 0,
+    healingDone: overrides.healingDone ?? 0,
+    finalHp: overrides.finalHp ?? 100,
+    maximumHp: overrides.maximumHp ?? 100,
+    combatStatus: overrides.combatStatus ?? "ACTIVE",
   };
 }
 
 function responseWith(overrides: {
   initialUnits: readonly BattleUnitStateResponse[];
-  finalUnits: readonly BattleUnitStateResponse[];
-  events?: readonly BattleLogEventResponse[];
+  unitSummaries: readonly UnitBattleSummaryResponse[];
+  finalUnits?: readonly BattleUnitStateResponse[];
+  events?: readonly BattleSimulationResponse["events"][number][];
 }): BattleSimulationResponse {
   return {
     schemaVersion: 1,
@@ -163,7 +75,8 @@ function responseWith(overrides: {
     catalogRevision: "rev-1",
     result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
     initialState: { units: overrides.initialUnits },
-    finalState: { units: overrides.finalUnits },
+    ...(overrides.finalUnits === undefined ? {} : { finalState: { units: overrides.finalUnits } }),
+    unitSummaries: overrides.unitSummaries,
     events: overrides.events ?? [],
     stateTransitions: [],
   };
@@ -180,9 +93,9 @@ describe("selectRoster", () => {
         battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
         battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_B", side: "ALLY" }),
       ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_B", side: "ALLY" }),
+      unitSummaries: [
+        unitSummary({ battleUnitId: "ally:1" }),
+        unitSummary({ battleUnitId: "ally:2" }),
       ],
     });
 
@@ -197,7 +110,7 @@ describe("selectRoster", () => {
     const catalog = catalogWith([]);
     const response = responseWith({
       initialUnits: [battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_UNKNOWN" })],
-      finalUnits: [battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_UNKNOWN" })],
+      unitSummaries: [unitSummary({ battleUnitId: "ally:1" })],
     });
 
     const roster = selectRoster(response, catalog);
@@ -207,133 +120,50 @@ describe("selectRoster", () => {
 });
 
 describe("selectBattleSummary", () => {
-  it("adds DAMAGE_APPLIED.hitPointDamage to the source unit's DAMAGE (UI-UT-SUM-001)", () => {
-    const catalog = catalogWith([
-      unitDefinition("UNIT_A", "エー"),
-      unitDefinition("UNIT_B", "ビー"),
-    ]);
+  const catalog = catalogWith([unitDefinition("UNIT_A", "エー"), unitDefinition("UNIT_B", "ビー")]);
+
+  it("UI-UT-SUM-001: reads damageDealt/damageTaken/healingDone from unitSummaries, not from the event log", () => {
     const response = responseWith({
       initialUnits: [
         battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
         battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
       ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({
+      unitSummaries: [
+        unitSummary({ battleUnitId: "ally:1", damageDealt: 30, damageTaken: 4, healingDone: 12 }),
+        unitSummary({
           battleUnitId: "enemy:1",
-          unitDefinitionId: "UNIT_B",
           side: "ENEMY",
-          hp: { current: 70, maximum: 100 },
+          damageDealt: 4,
+          damageTaken: 30,
         }),
       ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 30,
-        }),
-      ],
+      // `SUMMARY`実行ではダメージ・回復イベントが1件も届かない。それでも
+      // 集計値が出ることが、この切り替えの目的そのものである。
+      events: [],
     });
 
     const projection = selectBattleSummary(response, catalog);
 
-    const allySummary = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1");
-    expect(allySummary?.summary.damageDealt).toBe(30);
+    const ally = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary;
+    expect(ally?.damageDealt).toBe(30);
+    expect(ally?.damageTaken).toBe(4);
+    expect(ally?.healingDone).toBe(12);
+    expect(
+      projection.enemyRows.find((row) => row.roster.battleUnitId === "enemy:1")?.summary
+        .damageTaken,
+    ).toBe(30);
+    expect(projection.hasProjectionWarning).toBe(false);
   });
 
-  it("adds the same hitPointDamage to the target unit's DEFENSE (UI-UT-SUM-002)", () => {
-    const catalog = catalogWith([
-      unitDefinition("UNIT_A", "エー"),
-      unitDefinition("UNIT_B", "ビー"),
-    ]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
-      ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 30,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    const enemySummary = projection.enemyRows.find((row) => row.roster.battleUnitId === "enemy:1");
-    expect(enemySummary?.summary.damageTaken).toBe(30);
-  });
-
-  it("uses hitPointDamage rather than calculatedDamage when they differ (UI-UT-SUM-003)", () => {
-    const catalog = catalogWith([
-      unitDefinition("UNIT_A", "エー"),
-      unitDefinition("UNIT_B", "ビー"),
-    ]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
-      ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 20,
-          calculatedDamage: 250,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    const allySummary = projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1");
-    expect(allySummary?.summary.damageDealt).toBe(20);
-  });
-
-  it("aggregates separately for the same unitDefinitionId with different battleUnitId (UI-UT-SUM-004)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+  it("UI-UT-SUM-004: keeps separate rows for the same unitDefinitionId under different battleUnitIds", () => {
     const response = responseWith({
       initialUnits: [
         battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
         battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
       ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
-      ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 10,
-        }),
-        damageAppliedEvent({
-          sequence: 2,
-          sourceUnitId: "ally:2",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 5,
-        }),
+      unitSummaries: [
+        unitSummary({ battleUnitId: "ally:1", damageDealt: 10 }),
+        unitSummary({ battleUnitId: "ally:2", damageDealt: 5 }),
       ],
     });
 
@@ -347,16 +177,10 @@ describe("selectBattleSummary", () => {
     ).toBe(5);
   });
 
-  it("shows 0 for a unit with no matching events (UI-UT-SUM-005)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+  it("UI-UT-SUM-005: shows the server's zeroes for a unit that neither dealt nor took anything", () => {
     const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [],
+      initialUnits: [battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A" })],
+      unitSummaries: [unitSummary({ battleUnitId: "ally:1" })],
     });
 
     const projection = selectBattleSummary(response, catalog);
@@ -364,186 +188,29 @@ describe("selectBattleSummary", () => {
     const summary = projection.allyRows[0]?.summary;
     expect(summary?.damageDealt).toBe(0);
     expect(summary?.damageTaken).toBe(0);
+    expect(summary?.healingDone).toBe(0);
+    expect(projection.hasProjectionWarning).toBe(false);
   });
 
-  it("adds HEAL_APPLIED.appliedAmount to the healer's HEAL, not the requested healAmount (UI-UT-SUM-011)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+  it("UI-UT-SUM-007: resolves combatStatus and HP from unitSummaries rather than finalState", () => {
     const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        healAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitId: "ally:2",
-          healAmount: 50,
-          appliedAmount: 20,
-          discardedAmount: 30,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(
-      projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary.healingDone,
-    ).toBe(20);
-    expect(
-      projection.allyRows.find((row) => row.roster.battleUnitId === "ally:2")?.summary.healingDone,
-    ).toBe(0);
-  });
-
-  it("adds HEALING_TRANSFERRED.appliedAmount to the original healer without double counting the HEAL_APPLIED transfer (UI-UT-SUM-012)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:3", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "ally:3", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        healAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitId: "ally:2",
-          healAmount: 40,
-          transferredAmount: 20,
-          appliedAmount: 20,
-        }),
-        healingTransferredEvent({
-          sequence: 2,
-          sourceUnitId: "ally:1",
-          fromUnitId: "ally:2",
-          toUnitId: "ally:3",
-          transferredAmount: 20,
-          appliedAmount: 15,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(
-      projection.allyRows.find((row) => row.roster.battleUnitId === "ally:1")?.summary.healingDone,
-    ).toBe(35);
-  });
-
-  it("excludes a malformed HEAL_APPLIED event from aggregation and reports a warning (UI-UT-SUM-013)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        {
-          sequence: 1,
-          type: "HEAL_APPLIED",
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["ally:1"],
-          details: { targetUnitId: "ally:1", appliedAmount: "not-a-number" },
-        },
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
-    expect(projection.hasProjectionWarning).toBe(true);
-  });
-
-  it("excludes a HEAL_APPLIED event whose healer isn't part of the roster and warns (UI-UT-SUM-014)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        healAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:ghost",
-          targetUnitId: "ally:1",
-          appliedAmount: 10,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
-    expect(projection.hasProjectionWarning).toBe(true);
-  });
-
-  it("rejects a non-integer appliedAmount as malformed rather than aggregating a rounded display value (UI-UT-SUM-015)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        healAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitId: "ally:1",
-          appliedAmount: 1.5,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
-    expect(projection.hasProjectionWarning).toBe(true);
-  });
-
-  it("shows 0 for HEAL when the response carries no heal events at all (M4〜M6 fixture backward compatibility, UI-UT-SUM-006)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(projection.allyRows[0]?.summary.healingDone).toBe(0);
-  });
-
-  it("resolves combatStatus and hp from finalState (UI-UT-SUM-007)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
+      initialUnits: [battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A" })],
+      // `finalState`は`unitSummaries`と食い違う値を持たせる。表示が
+      // `unitSummaries`側になることを固定するため。
       finalUnits: [
         battleUnit({
           battleUnitId: "ally:1",
           unitDefinitionId: "UNIT_A",
-          side: "ALLY",
+          combatStatus: "ACTIVE",
+          hp: { current: 999, maximum: 999 },
+        }),
+      ],
+      unitSummaries: [
+        unitSummary({
+          battleUnitId: "ally:1",
           combatStatus: "DEFEATED",
-          hp: { current: 0, maximum: 500 },
+          finalHp: 0,
+          maximumHp: 500,
         }),
       ],
     });
@@ -556,132 +223,78 @@ describe("selectBattleSummary", () => {
     expect(summary?.maximumHp).toBe(500);
   });
 
-  it("ignores unknown events and still succeeds (UI-UT-SUM-008)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+  it("UI-UT-SUM-008: ignores the event log entirely, so an unknown event type cannot affect the table", () => {
     const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
+      initialUnits: [battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A" })],
+      unitSummaries: [unitSummary({ battleUnitId: "ally:1", damageDealt: 7 })],
       events: [{ sequence: 1, type: "SOME_FUTURE_EVENT", details: { anything: true } }],
     });
 
-    expect(() => selectBattleSummary(response, catalog)).not.toThrow();
-    expect(projectionDamage(selectBattleSummary(response, catalog))).toBe(0);
-  });
-
-  it("excludes a malformed DAMAGE_APPLIED event from aggregation and reports a warning (UI-UT-SUM-009)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        {
-          sequence: 1,
-          type: "DAMAGE_APPLIED",
-          sourceUnitId: "ally:1",
-          targetUnitIds: [],
-          details: { hitPointDamage: "not-a-number" },
-        },
-      ],
-    });
-
     const projection = selectBattleSummary(response, catalog);
 
-    expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
-    expect(projection.hasProjectionWarning).toBe(true);
+    expect(projection.allyRows[0]?.summary.damageDealt).toBe(7);
+    expect(projection.hasProjectionWarning).toBe(false);
   });
 
-  it("excludes a DAMAGE_APPLIED event whose target isn't part of the roster and warns, without crediting the source (review: unknown targetUnitId)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+  it("UI-UT-SUM-016: renders the table from a response that carries no finalState at all (the 3/3 SUMMARY shape)", () => {
     const response = responseWith({
       initialUnits: [
         battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
       ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-      ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["enemy:ghost"],
-          targetUnitId: "enemy:ghost",
-          hitPointDamage: 30,
+      unitSummaries: [
+        unitSummary({ battleUnitId: "ally:1", damageDealt: 42, finalHp: 80 }),
+        unitSummary({
+          battleUnitId: "enemy:1",
+          side: "ENEMY",
+          damageTaken: 42,
+          finalHp: 0,
+          combatStatus: "DEFEATED",
         }),
       ],
     });
+    expect(response.finalState).toBeUndefined();
 
     const projection = selectBattleSummary(response, catalog);
 
-    expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
+    expect(projection.allyRows[0]?.summary.damageDealt).toBe(42);
+    expect(projection.allyRows[0]?.summary.finalHp).toBe(80);
+    expect(projection.enemyRows[0]?.summary.combatStatus).toBe("DEFEATED");
+    expect(projection.hasProjectionWarning).toBe(false);
+  });
+
+  it("UI-UT-SUM-017: falls back to zeroes and warns when a roster unit has no unitSummaries row, instead of showing a silently empty row", () => {
+    const response = responseWith({
+      initialUnits: [
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "ally:2", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+      ],
+      unitSummaries: [unitSummary({ battleUnitId: "ally:1", damageDealt: 9 })],
+    });
+
+    const projection = selectBattleSummary(response, catalog);
+
+    expect(projection.allyRows).toHaveLength(2);
+    expect(projection.allyRows[1]?.summary.damageDealt).toBe(0);
+    expect(projection.allyRows[1]?.summary.combatStatus).toBe("UNKNOWN");
     expect(projection.hasProjectionWarning).toBe(true);
   });
 
-  it("excludes a DAMAGE_APPLIED event whose source isn't part of the roster and warns, without crediting the target (review: unknown sourceUnitId)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
+  it("UI-UT-SUM-018: splits rows by the roster's side, not by the summary row's own side field", () => {
     const response = responseWith({
       initialUnits: [
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
+        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
+        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_B", side: "ENEMY" }),
       ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
-      ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:ghost",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 30,
-        }),
+      unitSummaries: [
+        unitSummary({ battleUnitId: "ally:1", side: "ALLY" }),
+        unitSummary({ battleUnitId: "enemy:1", side: "ENEMY" }),
       ],
     });
 
     const projection = selectBattleSummary(response, catalog);
 
-    expect(projection.enemyRows[0]?.summary.damageTaken).toBe(0);
-    expect(projection.hasProjectionWarning).toBe(true);
-  });
-
-  it("rejects a non-integer hitPointDamage as malformed rather than aggregating a rounded display value (review: fractional hitPointDamage)", () => {
-    const catalog = catalogWith([unitDefinition("UNIT_A", "エー")]);
-    const response = responseWith({
-      initialUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
-      ],
-      finalUnits: [
-        battleUnit({ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }),
-        battleUnit({ battleUnitId: "enemy:1", unitDefinitionId: "UNIT_A", side: "ENEMY" }),
-      ],
-      events: [
-        damageAppliedEvent({
-          sequence: 1,
-          sourceUnitId: "ally:1",
-          targetUnitIds: ["enemy:1"],
-          targetUnitId: "enemy:1",
-          hitPointDamage: 1.23456,
-        }),
-      ],
-    });
-
-    const projection = selectBattleSummary(response, catalog);
-
-    expect(projection.allyRows[0]?.summary.damageDealt).toBe(0);
-    expect(projection.hasProjectionWarning).toBe(true);
+    expect(projection.allyRows.map((row) => row.roster.battleUnitId)).toEqual(["ally:1"]);
+    expect(projection.enemyRows.map((row) => row.roster.battleUnitId)).toEqual(["enemy:1"]);
   });
 });
-
-function projectionDamage(projection: SummaryProjection): number {
-  return [...projection.allyRows, ...projection.enemyRows].reduce(
-    (total, row) => total + row.summary.damageDealt,
-    0,
-  );
-}

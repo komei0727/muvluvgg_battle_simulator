@@ -24,3 +24,12 @@ export async function fillMinimalFormation(
   await page.getByRole("button", { name: "前衛1にユニットを追加" }).click();
   await page.getByRole("button", { name: `${enemyUnitDisplayName}を選択` }).click();
 }
+
+/**
+ * 既定のログレベルは`SUMMARY`（Issue #464）。`SUMMARY`実行のレスポンスは時系列
+ * イベント・状態遷移・レスポンスJSONを持たないため、詳細タブを開くspecは実行前に
+ * これを呼んで詳細ログモードへ切り替える。
+ */
+export async function selectDetailedLogLevel(page: Page): Promise<void> {
+  await page.getByLabel("ログレベル").selectOption("DETAILED");
+}

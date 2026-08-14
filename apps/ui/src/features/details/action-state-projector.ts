@@ -372,8 +372,11 @@ export function selectUnitActionStates(
   roster: readonly RosterEntry[],
   logLevel: LogLevel,
 ): readonly UnitActionState[] {
+  // `finalState`はサーバーが`SUMMARY`実行で省略しうる（Issue #464）。このタブ自体が
+  // `DETAILED`実行時にしか表示されないため実際には常に届くが、不在時も既存の
+  // 「finalStateにそのunitが無い」経路（events[]からの再構築）へそのまま落ちる。
   const finalUnitsById = new Map(
-    response.finalState.units.map((unit) => [unit.battleUnitId, unit] as const),
+    (response.finalState?.units ?? []).map((unit) => [unit.battleUnitId, unit] as const),
   );
 
   const byUnit = new Map<string, MutableUnitAccumulator>();
