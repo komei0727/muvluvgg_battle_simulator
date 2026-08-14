@@ -52,7 +52,21 @@ export interface StoredPlayerData {
   readonly units: Readonly<Record<string, UnitEnhancementInput>>;
 }
 
-const LOG_LEVELS: readonly LogLevel[] = ["SUMMARY", "DETAILED", "DIAGNOSTIC"];
+const LOG_LEVELS: readonly LogLevel[] = ["SUMMARY", "DETAILED"];
+
+/**
+ * ログ方針刷新2/3（Issue #464）: `DIAGNOSTIC`はUIの選択肢から外れたが、以前の
+ * セッションで保存されたドラフトには残っている。保存データ全体を破棄すると編成を
+ * 入力し直させることになり、そのまま送れば`DIAGNOSTIC`を廃止したAPI（3/3）が422で
+ * 拒否する。`DIAGNOSTIC`は`DETAILED`と同一挙動になったため、読み替えは選択の意味を
+ * 変えない。
+ */
+function logLevelOf(value: unknown): LogLevel {
+  if (value === "DIAGNOSTIC") {
+    return "DETAILED";
+  }
+  return isMemberOf(LOG_LEVELS, value) ? value : fail();
+}
 
 function isMemberOf<T extends string>(values: readonly T[], value: unknown): value is T {
   return typeof value === "string" && (values as readonly string[]).includes(value);
@@ -213,10 +227,7 @@ export function parseStoredDraft(value: unknown): BattleDraft | undefined {
       return fail();
     }
     const skeleton = createInitialDraft();
-    const logLevel = stored["logLevel"];
-    if (!isMemberOf(LOG_LEVELS, logLevel)) {
-      return fail();
-    }
+    const logLevel = logLevelOf(stored["logLevel"]);
     return {
       allySlots: slotsOf(skeleton.allySlots, stored["allySlots"]),
       enemySlots: slotsOf(skeleton.enemySlots, stored["enemySlots"]),

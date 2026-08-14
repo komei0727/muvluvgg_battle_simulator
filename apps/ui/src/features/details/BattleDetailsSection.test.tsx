@@ -11,6 +11,7 @@ const response: BattleSimulationResponse = {
   result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
   initialState: { units: [] },
   finalState: { units: [] },
+  unitSummaries: [],
   events: [
     {
       sequence: 1,
@@ -160,6 +161,7 @@ describe("BattleDetailsSection", () => {
           stateVersionAfter: 2,
         },
       ],
+      unitSummaries: [],
       stateTransitions: [
         {
           causedBySequence: 1,
@@ -179,5 +181,27 @@ describe("BattleDetailsSection", () => {
 
     expect(screen.getAllByText("AP -")).toHaveLength(2);
     expect(screen.getAllByText("クールタイムなし")).toHaveLength(2);
+  });
+
+  // UI-CT-062: ログ方針刷新2/3（Issue #464）。`SUMMARY`実行のレスポンスは
+  // イベント・状態遷移・finalStateを持たない（3/3以降）。tabを出したままにすると
+  // 全タブが「空だが正常」に見え、実行が失敗したのか設定の問題なのか区別できない。
+  it("UI-CT-062: replaces the detail tabs with guidance when the run used SUMMARY, since that response carries no event log", () => {
+    render(<BattleDetailsSection response={response} logLevel="SUMMARY" />);
+
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.getByText(/詳細ログ/)).toBeInTheDocument();
+  });
+
+  it("UI-CT-063: keeps every detail tab for a DETAILED run", () => {
+    render(<BattleDetailsSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "時系列イベント",
+      "状態遷移",
+      "レスポンスJSON",
+      "ユニット状態",
+      "因果ツリー",
+    ]);
   });
 });

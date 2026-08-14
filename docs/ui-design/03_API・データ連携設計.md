@@ -123,7 +123,7 @@ APIは0体の陣営を受け付けるため、片側だけ埋まった編集途�
 ```ts
 type Side = "ally" | "enemy";
 type UiRow = "FRONT" | "REAR";
-type LogLevel = "SUMMARY" | "DETAILED" | "DIAGNOSTIC";
+type LogLevel = "SUMMARY" | "DETAILED";
 
 interface FormationSlotInput {
   readonly slotKey: `${Side}:${UiRow}:${0 | 1 | 2}`;
@@ -431,11 +431,17 @@ type FormationStatPreviewApiResult =
 - `schemaVersion`がnumber
 - `battleId`と`catalogRevision`がstring
 - `result`の必須3項目
-- `initialState.units`と`finalState.units`がarray
+- `initialState.units`がarray
 - `events`と`stateTransitions`がarray
 - 各unitに `battleUnitId`、`unitDefinitionId`、`side`、HP、combatStatusがある
+- `unitSummaries`がarrayであり、各行が§11.1の全項目を持つ
+- `unitSummaries`が`initialState.units`の全`battleUnitId`を覆う
 
 未知の任意プロパティ、イベントtype、列挙値は許容する。必須shape欠落時は部分表示で誤解を招かず、`RESPONSE_CONTRACT_MISMATCH`として失敗扱いにする。検証ライブラリを使う場合も、OpenAPI全体を厳格に再実装して将来の追加を拒否しない。
+
+`finalState`は**不在を許容する**。サーバーは`SUMMARY`実行でこれを省略しうるためである。届いた場合だけ、`finalState.units`のshapeと§10手順5のroster対応を従来どおり検証する — 存在するのに壊れているのは、表示層まで通してはいけない契約違反のままである。
+
+`unitSummaries`だけは逆に**必須**とする。サマリ表はこの配列だけから描くため、1行でも欠ければその枠が警告なく0表示になる（クライアント集計時代の既知の不具合と同じ見え方になる）。値域はサーバーのschemaに合わせ、集計3項目は0以上のinteger、`finalHp`・`maximumHp`は0以上の有限number（丸めない）とする。
 
 ### 9.1 プレビューレスポンスの検証
 
@@ -469,10 +475,16 @@ interface RosterEntry {
 1. `initialState.units`を入力順で走査する。
 2. `unitDefinitionId`をUI Catalogで解決する。
 3. 未解決なら `displayName = unitDefinitionId` とする。
-4. `finalState.units`はbattleUnitIdでindex化し、最終状態と結合する。
-5. finalに存在しないunitは契約不一致とする。
+4. 最終HP・戦闘状態は`unitSummaries`をbattleUnitIdでindex化して結合する（`finalState`は読まない。`SUMMARY`実行では届かないため）。
+5. `unitSummaries`に存在しないunitは契約不一致とする（§9）。
+6. `finalState`が届いた場合、そこに存在しないunitも契約不一致とする（§9）。詳細タブだけがこの状態を読む。
 
 ## 11. サマリ集計
+
+UIはイベントを畳み込まない。集計はサーバーが確定させた `unitSummaries`
+（[10_API設計.md](../ddd/10_API設計.md)「UnitBattleSummaryResponse」）をそのまま読む。
+
+クライアント集計をやめた理由は2つある。継続ダメージ（`CONTINUOUS_DAMAGE_APPLIED`）を経路ごと取りこぼし、DoT主体のユニット・メモリーの貢献が0に見えていたこと。そして `SUMMARY` ではダメージ・回復イベント自体が公開されないため、ログレベルを下げた瞬間に全ユニットが警告なく0表示になっていたことである。どちらもアダプタを足しても塞げない — 集計の正本はサーバー側にしかない。
 
 ### 11.1 出力型
 
@@ -488,50 +500,19 @@ interface UnitBattleSummary {
 }
 ```
 
-### 11.2 DAMAGEとDEFENSE
+### 11.2 生成手順
 
-`DAMAGE_APPLIED`イベントのみを対象とする。
+1. §10の表示用Rosterを`initialState.units`の順で作る。
+2. `unitSummaries`を`battleUnitId`でindex化する。
+3. Roster1件につき1行を、対応する`unitSummaries`の行から作る。
+4. 陣営の振り分け（ALLY表／ENEMY表）はRoster側の`side`で決める。`unitSummaries[].side`と同じ値だが、行の並びと表の左右はRosterが正本である。
 
-```text
-amount = details.hitPointDamage
-damageDealt[sourceUnitId] += amount
-damageTaken[details.targetUnitId] += amount
-```
+- 対応する行が無いRosterユニットは0埋めし、`combatStatus`を`UNKNOWN`として警告フラグを立てる。この状態は§9の検証が成功レスポンス自体を拒否するため通常は到達しない。0埋め＋警告にしておくのは、検証を通らない経路で欠落行だけが正しい値のように見えるのを防ぐ防御である。
+- 表示時に整数へ勝手に丸めない。集計3項目の現契約はintegerだが、将来の型変更を検出できるよう§9のvalidatorで守る。
 
-- `calculatedDamage`ではなく `hitPointDamage` を使用する。
-- sourceUnitId欠落、targetUnitId不明、details shape不正の場合、そのイベントを集計から除外し警告件数を内部に保持する。
-- 0ダメージも正しい値として扱う。
-- numberが有限・0以上であることを確認する。
-- 表示時に整数へ勝手に丸めない。現在の契約はintegerだが、将来の型変更を検出できるようvalidatorで守る。
+### 11.3 集計セマンティクスの正本
 
-### 11.3 HEAL
-
-M7-005（Issue #184）・M7-005-HEAL-LINK（Issue #229）で回復イベント契約が確定したため、M7-009で次のadapterを追加した。
-
-```text
-healingDone[HEAL_APPLIED.details.sourceUnitId]   += HEAL_APPLIED.details.appliedAmount
-healingDone[HEALING_TRANSFERRED.sourceUnitId]    += HEALING_TRANSFERRED.details.appliedAmount
-```
-
-- 列は常に表示する。対応イベントがなければ0。
-- 要求量（`healAmount`）でも評価結果（`formulaResult`）でもなく、実際にHPが増えた量（`appliedAmount`）を集計する。overhealの破棄分（`discardedAmount`）は含めない。
-- `HEAL_APPLIED.appliedAmount`はR-HEAL-04で転送した分を含まないため、`HEALING_TRANSFERRED.appliedAmount`を加算しないと回復者の実回復量を過小表示する。二重計上ではない。
-- 転送分の回復者はイベントの`sourceUnitId`（元の`HEAL_APPLIED`と同じ）を正本とし、`details.fromUnitId`（リンク保持者）を回復者と読み替えない。
-- DAMAGEと同じく、details shape不正・roster外のbattleUnitId・非整数値はそのイベントを集計から除外し、警告フラグだけ立てる。
-
-### 11.4 Adapter registry
-
-```ts
-type SummaryEventAdapter = (event: BattleLogEvent, accumulator: MutableSummaryAccumulator) => void;
-
-const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
-  DAMAGE_APPLIED: applyDamageApplied,
-  HEAL_APPLIED: applyHealApplied,
-  HEALING_TRANSFERRED: applyHealingTransferred,
-};
-```
-
-未知イベントは無視し、詳細画面には表示する。summary adapterの未登録を成功レスポンス全体のエラーにしない。
+「実HP減少量だけを数える」「継続ダメージを合算する」「回復リンクの転送分を回復者へ計上する」といった規則は、すべて[10_API設計.md](../ddd/10_API設計.md)「集計セマンティクス」が正本である。UIはその定義を再実装せず、値をそのまま表示する。
 
 ## 12. イベント表示
 

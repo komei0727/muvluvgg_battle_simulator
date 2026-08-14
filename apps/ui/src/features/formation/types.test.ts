@@ -39,11 +39,13 @@ describe("createInitialDraft", () => {
     expect(draft.enemyMemoryDefinitionIds).toHaveLength(6);
   });
 
-  it("defaults turnLimit to 10 and logLevel to DETAILED", () => {
+  // ログ方針刷新2/3（Issue #464）: 既定は編成比較のための通常実行。詳細ログは
+  // 効果発動を追うときだけ明示的に選ぶ。
+  it("defaults turnLimit to 10 and logLevel to SUMMARY", () => {
     const draft = createInitialDraft();
 
     expect(draft.turnLimit).toBe(10);
-    expect(draft.logLevel).toBe("DETAILED");
+    expect(draft.logLevel).toBe("SUMMARY");
   });
 });
 

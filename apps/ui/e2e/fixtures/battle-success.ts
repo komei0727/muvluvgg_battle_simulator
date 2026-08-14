@@ -58,6 +58,30 @@ export const battleSuccessFixture = {
       },
     ],
   },
+  // サーバー集計（docs/ddd/10_API設計.md「UnitBattleSummaryResponse」）。
+  // イベント列の DAMAGE_APPLIED.hitPointDamage=80 と一致する。
+  unitSummaries: [
+    {
+      battleUnitId: "bu-ally-1",
+      side: "ALLY",
+      damageDealt: 80,
+      damageTaken: 0,
+      healingDone: 0,
+      finalHp: 100,
+      maximumHp: 100,
+      combatStatus: "ACTIVE",
+    },
+    {
+      battleUnitId: "bu-enemy-1",
+      side: "ENEMY",
+      damageDealt: 0,
+      damageTaken: 80,
+      healingDone: 0,
+      finalHp: 0,
+      maximumHp: 80,
+      combatStatus: "DEFEATED",
+    },
+  ],
   events: [
     {
       sequence: 0,

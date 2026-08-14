@@ -1,16 +1,18 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §10 (表示用Roster), §11
-// (サマリ集計), §11.4 (Adapter registry). DAMAGE/DEFENSE come from
-// DAMAGE_APPLIED.details.hitPointDamage, never calculatedDamage
-// (01_UI要求・画面設計.md §7.2). HEAL comes from the M7 heal event contract
-// (HEAL_APPLIED / HEALING_TRANSFERRED の details.appliedAmount, 03 §11.3).
+// (サマリ集計). ユニット別集計はサーバーが確定させた `unitSummaries`
+// (docs/ddd/10_API設計.md「UnitBattleSummaryResponse」) をそのまま読む。
+//
+// 以前はUIが `DAMAGE_APPLIED`/`HEAL_APPLIED`/`HEALING_TRANSFERRED` を畳み込んで
+// いたが、その方式には塞げない欠落が2つあった。継続ダメージ
+// (`CONTINUOUS_DAMAGE_APPLIED`) を経路ごと取りこぼしDoT主体のユニットが0に見える
+// こと、そして `SUMMARY` ではこれらのイベント自体が公開されないため全ユニットが
+// 警告なく0表示になることである。集計の正本はサーバー側にしかない。
 
 import type {
-  BattleLogEventResponse,
   BattleLogResponse,
   BattleResultResponse,
   BattleSimulationCatalogResponse,
 } from "../simulation/api-contract.js";
-import { isRecord } from "../../lib/unknown-narrowing.js";
 
 /** `SubmissionFeedback`の1行要約。演習側の対応は`describeExerciseResult`。 */
 export function describeBattleResult(result: BattleResultResponse): string {
@@ -45,14 +47,6 @@ export interface SummaryProjection {
   readonly hasProjectionWarning: boolean;
 }
 
-// API契約上hitPointDamageはintegerである(apps/api/src/presentation/http/
-// schemas/battle-log/battle-log-schema.ts damageAppliedDetailsSchema)。
-// 小数を受理すると表示側のtoLocaleString()が丸めて誤った値を見せるため、
-// ここでも整数だけ受理する。
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
-}
-
 // docs/ui-design/03_API・データ連携設計.md §10「表示用Roster」の生成手順:
 // initialState.units を入力順で走査し、Catalog未解決なら
 // displayName = unitDefinitionId とする。
@@ -75,168 +69,40 @@ export function selectRoster(
   });
 }
 
-interface MutableSummaryAccumulator {
-  readonly damageDealt: Map<string, number>;
-  readonly damageTaken: Map<string, number>;
-  readonly healingDone: Map<string, number>;
-  readonly validBattleUnitIds: ReadonlySet<string>;
-  warned: boolean;
-}
-
-function addTo(map: Map<string, number>, key: string, amount: number): void {
-  map.set(key, (map.get(key) ?? 0) + amount);
-}
-
-// docs/ui-design/03_API・データ連携設計.md §11.4「Adapter registry」。
-// sourceUnitId欠落、targetUnitId不明、details shape不正の場合はそのイベント
-// を集計から除外し、警告フラグだけ立てる(UI-UT-SUM-009)。sourceUnitId/
-// targetUnitIdがRosterに存在しない場合も同様に除外する。片側だけ加算する
-// と対応するDEFENSE/DAMAGEが欠けたまま警告なしに見えてしまうため。
-function applyDamageApplied(
-  event: BattleLogEventResponse,
-  accumulator: MutableSummaryAccumulator,
-): void {
-  const sourceUnitId = event["sourceUnitId"];
-  const details = event["details"];
-  if (typeof sourceUnitId !== "string" || !isRecord(details)) {
-    accumulator.warned = true;
-    return;
-  }
-  const targetUnitId = details["targetUnitId"];
-  const hitPointDamage = details["hitPointDamage"];
-  if (typeof targetUnitId !== "string" || !isNonNegativeInteger(hitPointDamage)) {
-    accumulator.warned = true;
-    return;
-  }
-  if (
-    !accumulator.validBattleUnitIds.has(sourceUnitId) ||
-    !accumulator.validBattleUnitIds.has(targetUnitId)
-  ) {
-    accumulator.warned = true;
-    return;
-  }
-  addTo(accumulator.damageDealt, sourceUnitId, hitPointDamage);
-  addTo(accumulator.damageTaken, targetUnitId, hitPointDamage);
-}
-
-// docs/ui-design/01_UI要求・画面設計.md §7.2「HEAL: 実HP回復量」/
-// 07_UI実装・拡張計画.md §11「HEALは要求量ではなく実HP回復量を集計する」。
-// HealApplied.details.appliedAmount は「最大HPを超えない範囲で実際に増加したHP量」
-// (apps/api/src/domain/battle/events/domain-event.ts) であり、要求量である
-// healAmount でも破棄分を含む formulaResult でもない。回復者(details.sourceUnitId)
-// 側へ積む — DAMAGEをsourceUnitIdへ積むのと同じ規約。
-function applyHealApplied(
-  event: BattleLogEventResponse,
-  accumulator: MutableSummaryAccumulator,
-): void {
-  const details = event["details"];
-  if (!isRecord(details)) {
-    accumulator.warned = true;
-    return;
-  }
-  const sourceUnitId = details["sourceUnitId"];
-  const targetUnitId = details["targetUnitId"];
-  const appliedAmount = details["appliedAmount"];
-  if (
-    typeof sourceUnitId !== "string" ||
-    typeof targetUnitId !== "string" ||
-    !isNonNegativeInteger(appliedAmount)
-  ) {
-    accumulator.warned = true;
-    return;
-  }
-  if (
-    !accumulator.validBattleUnitIds.has(sourceUnitId) ||
-    !accumulator.validBattleUnitIds.has(targetUnitId)
-  ) {
-    accumulator.warned = true;
-    return;
-  }
-  addTo(accumulator.healingDone, sourceUnitId, appliedAmount);
-}
-
-// R-HEAL-04 (M7-005-HEAL-LINK, Issue #229): 回復リンクは HealApplied の回復量の
-// 一部を別ユニットへ移し替える。HealApplied.appliedAmount は転送分を含まない
-// ため、転送先で実際に増えたHP量 (HealingTransferred.details.appliedAmount) を
-// 加算しないと回復者の実回復量を過小表示する。転送分の「回復者」はイベント側の
-// sourceUnitId (元のHealApplied と同じ context.sourceUnitId) を正本とし、
-// details.fromUnitId(リンク保持者)を回復者と読み替える推測はしない。
-function applyHealingTransferred(
-  event: BattleLogEventResponse,
-  accumulator: MutableSummaryAccumulator,
-): void {
-  const sourceUnitId = event["sourceUnitId"];
-  const details = event["details"];
-  if (typeof sourceUnitId !== "string" || !isRecord(details)) {
-    accumulator.warned = true;
-    return;
-  }
-  const toUnitId = details["toUnitId"];
-  const appliedAmount = details["appliedAmount"];
-  if (typeof toUnitId !== "string" || !isNonNegativeInteger(appliedAmount)) {
-    accumulator.warned = true;
-    return;
-  }
-  if (
-    !accumulator.validBattleUnitIds.has(sourceUnitId) ||
-    !accumulator.validBattleUnitIds.has(toUnitId)
-  ) {
-    accumulator.warned = true;
-    return;
-  }
-  addTo(accumulator.healingDone, sourceUnitId, appliedAmount);
-}
-
-type SummaryEventAdapter = (
-  event: BattleLogEventResponse,
-  accumulator: MutableSummaryAccumulator,
-) => void;
-
-const summaryAdapters: Readonly<Record<string, SummaryEventAdapter>> = {
-  DAMAGE_APPLIED: applyDamageApplied,
-  HEAL_APPLIED: applyHealApplied,
-  HEALING_TRANSFERRED: applyHealingTransferred,
-};
-
-// finalState/initialStateのroster対応関係は、成功レスポンス全体を失敗させる
-// べき契約違反であるため、simulation/response-validator.ts の
-// validateSimulationResponse で検証し、execution状態をfailedへ遷移させる
-// (このプロジェクタへは既に対応関係が保証された response しか渡らない)。
+// `unitSummaries`がRosterの全ユニットを覆うことは response-validator.ts が成功
+// レスポンス全体の受理条件として検証済みであり、ここへ来る時点で行が欠けることは
+// ない。それでも欠落を0埋め＋警告として扱うのは、検証を通らない経路（テスト用の
+// 部分fixtureや将来の呼び出し元追加）で、対応表を持たない行だけが正しい値のように
+// 見えるのを防ぐためである。
 export function selectBattleSummary(
   response: BattleLogResponse,
   catalog: BattleSimulationCatalogResponse,
 ): SummaryProjection {
   const roster = selectRoster(response, catalog);
-  const finalUnitsById = new Map(
-    response.finalState.units.map((unit) => [unit.battleUnitId, unit] as const),
+  const summaryByUnitId = new Map(
+    response.unitSummaries.map((summary) => [summary.battleUnitId, summary] as const),
   );
-
-  const accumulator: MutableSummaryAccumulator = {
-    damageDealt: new Map(),
-    damageTaken: new Map(),
-    healingDone: new Map(),
-    validBattleUnitIds: new Set(roster.map((entry) => entry.battleUnitId)),
-    warned: false,
-  };
-  for (const event of response.events) {
-    const adapter = summaryAdapters[event.type];
-    adapter?.(event, accumulator);
-  }
 
   const allyRows: SummaryRow[] = [];
   const enemyRows: SummaryRow[] = [];
+  let warned = false;
   for (const entry of roster) {
-    const finalUnit = finalUnitsById.get(entry.battleUnitId);
+    const served = summaryByUnitId.get(entry.battleUnitId);
+    if (served === undefined) {
+      warned = true;
+    }
     const summary: UnitBattleSummary = {
       battleUnitId: entry.battleUnitId,
-      damageDealt: accumulator.damageDealt.get(entry.battleUnitId) ?? 0,
-      damageTaken: accumulator.damageTaken.get(entry.battleUnitId) ?? 0,
-      healingDone: accumulator.healingDone.get(entry.battleUnitId) ?? 0,
-      combatStatus: finalUnit?.combatStatus ?? "UNKNOWN",
-      finalHp: finalUnit?.hp.current ?? 0,
-      maximumHp: finalUnit?.hp.maximum ?? 0,
+      damageDealt: served?.damageDealt ?? 0,
+      damageTaken: served?.damageTaken ?? 0,
+      healingDone: served?.healingDone ?? 0,
+      combatStatus: served?.combatStatus ?? "UNKNOWN",
+      finalHp: served?.finalHp ?? 0,
+      maximumHp: served?.maximumHp ?? 0,
     };
     const row: SummaryRow = { roster: entry, summary };
+    // 陣営は表示用Roster（`initialState`）が正本。`unitSummaries[].side`と
+    // 二重に持つが、行の並びと表の左右はRoster側の`side`で決まる。
     if (entry.side === "ENEMY") {
       enemyRows.push(row);
     } else {
@@ -244,5 +110,5 @@ export function selectBattleSummary(
     }
   }
 
-  return { allyRows, enemyRows, hasProjectionWarning: accumulator.warned };
+  return { allyRows, enemyRows, hasProjectionWarning: warned };
 }

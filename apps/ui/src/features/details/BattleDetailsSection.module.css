@@ -1,3 +1,11 @@
 .panel {
   margin-top: var(--space-4);
 }
+
+/* SUMMARY実行では詳細tabの代わりに案内だけを出す（Issue #464）。 */
+.notice {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}

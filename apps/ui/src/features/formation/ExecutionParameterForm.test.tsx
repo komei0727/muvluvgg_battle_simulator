@@ -73,7 +73,7 @@ describe("ExecutionParameterForm", () => {
     render(
       <ExecutionParameterForm
         turnLimit={10}
-        logLevel="DETAILED"
+        logLevel="SUMMARY"
         endpoint="POST /api/v1/battle-simulations"
         disabled={false}
         onTurnLimitChange={vi.fn()}
@@ -81,16 +81,34 @@ describe("ExecutionParameterForm", () => {
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("ログレベル"), "DIAGNOSTIC");
+    await user.selectOptions(screen.getByLabelText("ログレベル"), "DETAILED");
 
-    expect(onLogLevelChange).toHaveBeenCalledWith("DIAGNOSTIC");
+    expect(onLogLevelChange).toHaveBeenCalledWith("DETAILED");
   });
 
-  it("shows a size warning description when DIAGNOSTIC is selected", () => {
+  // UI-CT-061: ログ方針刷新2/3（Issue #464）。用途は「大量実行して勝敗と
+  // ユニット別集計だけを見る」と「効果発動を追う」の2つしかない。
+  it("UI-CT-061: offers exactly SUMMARY and DETAILED, so the retired DIAGNOSTIC value cannot be selected", () => {
     render(
       <ExecutionParameterForm
         turnLimit={10}
-        logLevel="DIAGNOSTIC"
+        logLevel="SUMMARY"
+        endpoint="POST /api/v1/battle-simulations"
+        disabled={false}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    const options = screen.getAllByRole("option").map((option) => option.getAttribute("value"));
+    expect(options).toEqual(["SUMMARY", "DETAILED"]);
+  });
+
+  it("shows a size warning description when DETAILED is selected, and none for SUMMARY", () => {
+    const { rerender } = render(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="DETAILED"
         endpoint="POST /api/v1/battle-simulations"
         disabled={false}
         onTurnLimitChange={vi.fn()}
@@ -99,6 +117,19 @@ describe("ExecutionParameterForm", () => {
     );
 
     expect(screen.getByText(/レスポンス/)).toBeInTheDocument();
+
+    rerender(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="SUMMARY"
+        endpoint="POST /api/v1/battle-simulations"
+        disabled={false}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/レスポンス/)).not.toBeInTheDocument();
   });
 
   it("disables both inputs when disabled is true", () => {

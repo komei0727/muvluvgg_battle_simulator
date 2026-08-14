@@ -18,7 +18,12 @@ export interface ExecutionParameterFormProps {
   readonly onLogLevelChange: (value: LogLevel) => void;
 }
 
-const LOG_LEVELS: readonly LogLevel[] = ["SUMMARY", "DETAILED", "DIAGNOSTIC"];
+/**
+ * ログ方針刷新2/3（Issue #464）: `SUMMARY`＝通常実行（勝敗＋ユニット別集計だけを
+ * 見る大量実行）、`DETAILED`＝詳細ログ（効果発動を追う）の2択。`DIAGNOSTIC`は
+ * `DETAILED`と同一挙動の非推奨値になったため選択肢から外す。
+ */
+const LOG_LEVELS: readonly LogLevel[] = ["SUMMARY", "DETAILED"];
 
 function messagesForPath(violations: readonly UiViolation[], path: string): readonly string[] {
   return Array.from(
@@ -45,7 +50,7 @@ export function ExecutionParameterForm({
 }: ExecutionParameterFormProps) {
   const turnLimitId = useId();
   const logLevelId = useId();
-  const diagnosticNoticeId = useId();
+  const detailedNoticeId = useId();
   const turnLimitErrorId = useId();
   const logLevelErrorId = useId();
 
@@ -93,8 +98,8 @@ export function ExecutionParameterForm({
           aria-describedby={
             logLevelMessages.length > 0
               ? logLevelErrorId
-              : logLevel === "DIAGNOSTIC"
-                ? diagnosticNoticeId
+              : logLevel === "DETAILED"
+                ? detailedNoticeId
                 : undefined
           }
           onChange={(event) => {
@@ -112,9 +117,9 @@ export function ExecutionParameterForm({
             {logLevelMessages.join(" ")}
           </p>
         ) : null}
-        {logLevel === "DIAGNOSTIC" ? (
-          <p id={diagnosticNoticeId} className={styles["notice"]}>
-            DIAGNOSTICはレスポンスが大きくなります。
+        {logLevel === "DETAILED" ? (
+          <p id={detailedNoticeId} className={styles["notice"]}>
+            DETAILEDはレスポンスが大きくなります。
           </p>
         ) : null}
       </div>

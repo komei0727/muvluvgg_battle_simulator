@@ -60,6 +60,31 @@ export const exerciseSuccessFixture = {
       },
     ],
   },
+  // サーバー集計（docs/ddd/10_API設計.md「UnitBattleSummaryResponse」）。
+  // 演習も通常戦闘と同じ形で返る。
+  unitSummaries: [
+    {
+      battleUnitId: "bu-ally-1",
+      side: "ALLY",
+      damageDealt: 200,
+      damageTaken: 40,
+      healingDone: 0,
+      finalHp: 60,
+      maximumHp: 100,
+      combatStatus: "ACTIVE",
+    },
+    {
+      battleUnitId: "bu-enemy-1",
+      side: "ENEMY",
+      damageDealt: 40,
+      damageTaken: 200,
+      healingDone: 0,
+      finalHp: 80,
+      maximumHp: 80,
+      combatStatus: "ACTIVE",
+    },
+  ],
+
   events: [
     {
       eventId: "evt-1",

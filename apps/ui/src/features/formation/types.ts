@@ -4,7 +4,13 @@
 export type Side = "ally" | "enemy";
 export type UiRow = "FRONT" | "REAR";
 export type UiColumn = 0 | 1 | 2;
-export type LogLevel = "SUMMARY" | "DETAILED" | "DIAGNOSTIC";
+/**
+ * 用途は「大量実行して勝敗とユニット別集計だけを見る」(`SUMMARY`)と「効果発動を
+ * 追う」(`DETAILED`)の2つしかない。`DIAGNOSTIC`は`DETAILED`と同一挙動の非推奨値に
+ * なったため(docs/ddd/08_ドメインイベント.md「公開レベル」)、UIの選択肢から外す。
+ * 保存済みドラフトの`"DIAGNOSTIC"`は`persistence.ts`が`"DETAILED"`へ読み替える。
+ */
+export type LogLevel = "SUMMARY" | "DETAILED";
 
 // docs/ui-design/03_API・データ連携設計.md §3.1 (M11 強化入力).
 export type EnhancementUnitType = "PHYSICAL" | "ENERGY" | "AGILE";
@@ -152,7 +158,10 @@ export function createInitialDraft(
     allyMemoryDefinitionIds: createEmptyMemorySlots(),
     enemyMemoryDefinitionIds: createEmptyMemorySlots(),
     turnLimit: DEFAULT_TURN_LIMIT,
-    logLevel: "DETAILED",
+    // ログ方針刷新2/3（Issue #464）: 既定の用途は「編成を比べるための実行」で
+    // あり、必要なのは勝敗とユニット別集計だけ。詳細ログは効果発動を追うときに
+    // 明示的に選ぶ（既定にすると毎回数MBのレスポンスを受け取ることになる）。
+    logLevel: "SUMMARY",
     allyEnhancement:
       allyAcademyLevels === undefined
         ? allyEnhancement

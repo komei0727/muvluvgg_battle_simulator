@@ -243,6 +243,55 @@ function hasMatchingFinalStateUnits(initialState: unknown, finalState: unknown):
   });
 }
 
+function isIntegerInRange(value: unknown, minimum: number, maximum?: number): value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
+    return false;
+  }
+  return maximum === undefined || value <= maximum;
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+// docs/ddd/10_API設計.md「UnitBattleSummaryResponse」。集計量はinteger、HPは
+// 「0以上の有限number」（丸めない）という公開契約に合わせる。
+function isValidUnitSummary(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["battleUnitId"]) &&
+    isNonEmptyString(value["side"]) &&
+    isNonEmptyString(value["combatStatus"]) &&
+    isIntegerInRange(value["damageDealt"], 0) &&
+    isIntegerInRange(value["damageTaken"], 0) &&
+    isIntegerInRange(value["healingDone"], 0) &&
+    isNonNegativeNumber(value["finalHp"]) &&
+    isNonNegativeNumber(value["maximumHp"])
+  );
+}
+
+// サマリー表はRosterの全行を`unitSummaries`から描くため、1行でも欠けると
+// その枠だけが警告なく0表示になる（クライアント集計時代の既知の不具合と同じ
+// 見え方）。表示層へ通す前にレスポンス全体を拒否する。
+function coversRoster(initialState: unknown, unitSummaries: readonly unknown[]): boolean {
+  if (!isRecord(initialState)) {
+    return false;
+  }
+  const initialUnits = initialState["units"];
+  if (!Array.isArray(initialUnits)) {
+    return false;
+  }
+  const summarizedIds = new Set(
+    unitSummaries.map(battleUnitIdOf).filter((id): id is string => id !== undefined),
+  );
+  return initialUnits.every((unit) => {
+    const battleUnitId = battleUnitIdOf(unit);
+    return battleUnitId !== undefined && summarizedIds.has(battleUnitId);
+  });
+}
+
 // `result`以外は戦闘POSTと演習POSTで同一構造（10_API設計.md
 // 「TacticalExerciseResponse」）。ラベルだけを差し替えて両方から使う。
 type BattleLogStructuralResult =
@@ -270,12 +319,26 @@ function validateBattleLogResponse(body: unknown, label: string): BattleLogStruc
   if (!isValidBattleState(body["initialState"])) {
     return structuralMismatch(`${label} response initialState.units is malformed.`);
   }
-  if (!isValidBattleState(body["finalState"])) {
-    return structuralMismatch(`${label} response finalState.units is malformed.`);
+  // ログ方針刷新3/3でサーバーは`SUMMARY`実行の`finalState`を省略する。不在は
+  // 受理し、届いた場合だけ従来どおりshapeとroster対応を検証する——存在するのに
+  // 壊れているのは、表示層まで通してはいけない契約違反のままである。
+  if (body["finalState"] !== undefined) {
+    if (!isValidBattleState(body["finalState"])) {
+      return structuralMismatch(`${label} response finalState.units is malformed.`);
+    }
+    if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
+      return structuralMismatch(
+        `${label} response finalState is missing a battleUnitId present in initialState.`,
+      );
+    }
   }
-  if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
+  const unitSummaries = body["unitSummaries"];
+  if (!Array.isArray(unitSummaries) || !unitSummaries.every(isValidUnitSummary)) {
+    return structuralMismatch(`${label} response unitSummaries is missing or malformed.`);
+  }
+  if (!coversRoster(body["initialState"], unitSummaries)) {
     return structuralMismatch(
-      `${label} response finalState is missing a battleUnitId present in initialState.`,
+      `${label} response unitSummaries is missing a battleUnitId present in initialState.`,
     );
   }
   if (!Array.isArray(body["events"])) {
@@ -317,13 +380,6 @@ export type TacticalExerciseValidationResult =
 
 function exerciseMismatch(message: string): TacticalExerciseValidationResult {
   return { ok: false, error: { kind: "RESPONSE_CONTRACT_MISMATCH", message } };
-}
-
-function isIntegerInRange(value: unknown, minimum: number, maximum?: number): value is number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
-    return false;
-  }
-  return maximum === undefined || value <= maximum;
 }
 
 function isValidBreak(value: unknown): boolean {

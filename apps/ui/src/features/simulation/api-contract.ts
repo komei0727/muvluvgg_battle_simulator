@@ -145,6 +145,22 @@ export interface StateTransitionResponse {
   readonly [key: string]: unknown;
 }
 
+// docs/ddd/10_API設計.md「UnitBattleSummaryResponse」。ユニット別集計はサーバーが
+// 確定させ、公開レベルに依存せず必ず届く。UIはイベントを畳み込まずこれを表示する
+// ——`SUMMARY`ではダメージ・回復イベント自体が公開されないため、クライアント集計は
+// レベルを下げた瞬間に警告なく0になる。
+export interface UnitBattleSummaryResponse {
+  readonly battleUnitId: string;
+  readonly side: string;
+  readonly damageDealt: number;
+  readonly damageTaken: number;
+  readonly healingDone: number;
+  readonly finalHp: number;
+  readonly maximumHp: number;
+  readonly combatStatus: string;
+  readonly [key: string]: unknown;
+}
+
 // docs/ddd/10_API設計.md「TacticalExerciseResponse」: 演習は`result`だけを差し替え、
 // 残りは戦闘シミュレーションと同じ構造を共有する。ロスター・イベント・状態遷移を
 // 読む側（summary projector、詳細表示）は`result`を見ないため、この共通部分だけを
@@ -154,7 +170,13 @@ export interface BattleLogResponse {
   readonly battleId: string;
   readonly catalogRevision: string;
   readonly initialState: BattleStateResponse;
-  readonly finalState: BattleStateResponse;
+  /**
+   * サーバーが`SUMMARY`実行で省略しうるため任意にする(ログ方針刷新3/3)。表示に
+   * 必要な最終HP・戦闘状態は`unitSummaries`が運ぶので、不在でもサマリー表示は
+   * 成立する。`finalState`を読むのは詳細タブ（`DETAILED`実行時のみ表示）だけ。
+   */
+  readonly finalState?: BattleStateResponse;
+  readonly unitSummaries: readonly UnitBattleSummaryResponse[];
   readonly events: readonly BattleLogEventResponse[];
   readonly stateTransitions: readonly StateTransitionResponse[];
 }

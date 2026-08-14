@@ -188,8 +188,8 @@ describe("formationReducer — parameters", () => {
     });
     expect(withTurn.draft.turnLimit).toBe(42);
 
-    const withLevel = formationReducer(withTurn, { type: "logLevelChanged", value: "DIAGNOSTIC" });
-    expect(withLevel.draft.logLevel).toBe("DIAGNOSTIC");
+    const withLevel = formationReducer(withTurn, { type: "logLevelChanged", value: "DETAILED" });
+    expect(withLevel.draft.logLevel).toBe("DETAILED");
     expect(withLevel.draft.turnLimit).toBe(42);
   });
 

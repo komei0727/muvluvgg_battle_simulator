@@ -23,6 +23,7 @@ function responseWith(overrides: {
     result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
     initialState: { units: overrides.units as never },
     finalState: { units: overrides.units as never },
+    unitSummaries: [],
     events: overrides.events ?? [],
     stateTransitions: [],
   };
@@ -307,12 +308,12 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText("効果なし")).toBeInTheDocument();
   });
 
-  it("shows the known cooldown/charge state as usual when logLevel is DETAILED or DIAGNOSTIC", () => {
+  it("shows the known cooldown/charge state as usual when logLevel is DETAILED", () => {
     const response = responseWith({
       units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],
     });
 
-    render(<UnitActionStateSection response={response} logLevel="DIAGNOSTIC" />);
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
 
     expect(screen.getByText("クールタイムなし")).toBeInTheDocument();
     expect(screen.queryByText(/SUMMARYログ/)).not.toBeInTheDocument();

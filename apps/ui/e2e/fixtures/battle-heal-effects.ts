@@ -103,6 +103,32 @@ export const battleHealEffectsFixture = {
       },
     ],
   },
+  // サーバー集計（docs/ddd/10_API設計.md「UnitBattleSummaryResponse」）。
+  // HEALは実回復量 40（自己回復）+ 10（回復リンクの転送先で実際に増えた分）= 50。
+  // 要求量60でも破棄分を含む合計でもない。
+  unitSummaries: [
+    {
+      battleUnitId: "bu-ally-1",
+      side: "ALLY",
+      damageDealt: 80,
+      damageTaken: 0,
+      healingDone: 50,
+      finalHp: 100,
+      maximumHp: 100,
+      combatStatus: "ACTIVE",
+    },
+    {
+      battleUnitId: "bu-enemy-1",
+      side: "ENEMY",
+      damageDealt: 0,
+      damageTaken: 80,
+      healingDone: 0,
+      finalHp: 0,
+      maximumHp: 80,
+      combatStatus: "DEFEATED",
+    },
+  ],
+
   events: [
     {
       sequence: 1,

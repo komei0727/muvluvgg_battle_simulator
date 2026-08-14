@@ -150,6 +150,7 @@ function responseWith(overrides: {
     result: { outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 3 },
     initialState: { units: overrides.finalUnits as never },
     finalState: { units: overrides.finalUnits as never },
+    unitSummaries: [],
     events: overrides.events ?? [],
     stateTransitions: [],
   };
@@ -334,13 +335,10 @@ describe("selectUnitActionStates", () => {
     expect(states[1]?.cooldownChargeKnown).toBe(false);
   });
 
-  it("marks cooldown/charge as known for DETAILED and DIAGNOSTIC log levels", () => {
+  it("marks cooldown/charge as known for the DETAILED log level", () => {
     const response = responseWith({ finalUnits: [{ battleUnitId: "ally:1" }] });
 
     expect(selectUnitActionStates(response, roster, "DETAILED")[0]?.cooldownChargeKnown).toBe(true);
-    expect(selectUnitActionStates(response, roster, "DIAGNOSTIC")[0]?.cooldownChargeKnown).toBe(
-      true,
-    );
   });
 
   it("reads cooldowns/charge directly from finalState.units[] when it carries the M5+ shape (cooldowns is an array), ignoring events entirely", () => {

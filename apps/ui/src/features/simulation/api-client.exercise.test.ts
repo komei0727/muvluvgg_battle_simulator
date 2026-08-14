@@ -35,6 +35,7 @@ const validResponseBody = {
   },
   initialState: { stateVersion: 0, battleStatus: "READY", turnNumber: 0, units: [] },
   finalState: { stateVersion: 5, battleStatus: "COMPLETED", turnNumber: 5, units: [] },
+  unitSummaries: [],
   events: [],
   stateTransitions: [],
 };

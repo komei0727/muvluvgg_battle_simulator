@@ -136,14 +136,14 @@ describe("buildBattleSimulationRequest — no UI-only fields (UI-UT-REQ-006)", (
   });
 
   it("sends turnLimit as a number and always includes options.logLevel", () => {
-    const draft: BattleDraft = { ...baseDraft(), turnLimit: 42, logLevel: "DIAGNOSTIC" };
+    const draft: BattleDraft = { ...baseDraft(), turnLimit: 42, logLevel: "DETAILED" };
 
     const result = buildBattleSimulationRequest(draft);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.request.turnLimit).toBe(42);
-    expect(result.request.options).toEqual({ logLevel: "DIAGNOSTIC" });
+    expect(result.request.options).toEqual({ logLevel: "DETAILED" });
   });
 });
 
