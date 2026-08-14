@@ -61,7 +61,8 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
     expect(result.attack).toBeCloseTo(250);
     expect(result.maximumHp).toBeCloseTo(1250);
     expect(result.defense).toBeCloseTo(130);
-    expect(result.criticalRate).toBeCloseTo(0.115);
+    // 会心率はpp加算のため 0.1 + 0.15 = 0.25（R-STA-01のパーセントポイント加算ステータス）。
+    expect(result.criticalRate).toBeCloseTo(0.25);
     expect(result.actionSpeed).toBeCloseTo(50);
     expect(result.criticalDamageBonus).toBeCloseTo(0.5);
   });
@@ -100,6 +101,43 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
 
     expect(result.maximumHp).toBeCloseTo(40347.6);
     expect(result.attack).toBeCloseTo(21214.8);
+  });
+
+  it("UT-R-STA-01-025: the clever criticalRate formation bonus is added as percentage points (R-BON-03: 20% + 15pp = 35%)", () => {
+    const result = calculateStartingCombatStats({
+      baseStats: { ...BASE_STATS, criticalRate: 0.2 },
+      positionAptitudes: ["FRONT"],
+      row: "FRONT",
+      formationBonus: {
+        attackBonus: createPercentage(0.1),
+        hpBonus: createPercentage(0.1),
+        defenseBonus: createPercentage(0.3),
+        criticalRateBonus: createPercentage(0.15),
+      },
+    });
+
+    // クレバー3人。会心率だけがpp加算で、HP・攻撃力・防御力は従来どおり乗算する。
+    expect(result.criticalRate).toBeCloseTo(0.35);
+    expect(result.maximumHp).toBeCloseTo(1100);
+    expect(result.attack).toBeCloseTo(220);
+    expect(result.defense).toBeCloseTo(130);
+  });
+
+  it("UT-R-STA-01-026: criticalDamageBonus and affinityBonus have no formation bonus, so they stay at the base value", () => {
+    const result = calculateStartingCombatStats({
+      baseStats: BASE_STATS,
+      positionAptitudes: ["FRONT"],
+      row: "FRONT",
+      formationBonus: {
+        attackBonus: createPercentage(0.25),
+        hpBonus: createPercentage(0.25),
+        defenseBonus: createPercentage(0.3),
+        criticalRateBonus: createPercentage(0.15),
+      },
+    });
+
+    expect(result.criticalDamageBonus).toBeCloseTo(0.5);
+    expect(result.affinityBonus).toBeCloseTo(0.25);
   });
 
   it("UT-R-ATR-02-004: affinityBonus is copied through as-is from baseStats, unaffected by formation/aptitude", () => {

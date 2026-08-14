@@ -13,6 +13,7 @@ import type { TargetSelectorDefinitionInput } from "../definitions/target-select
 import { createUnitDefinition, type UnitDefinition } from "../definitions/unit-definition.js";
 import type { ConditionDefinitionInput } from "../definitions/condition-definition.js";
 import type { EffectStepDefinitionInput } from "../definitions/effect-sequence.js";
+import type { StatKind } from "../definitions/catalog-enums.js";
 
 function damageAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
@@ -394,6 +395,28 @@ function statModAction(
         formula: { kind: "CONSTANT", value: 20 },
         stacking: { mode: "STACKABLE" },
         duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true, linkedEffectGroupId },
+      },
+    },
+    "effectAction",
+  );
+}
+
+/** R-STA-01／Q-STA-04（Issue #460）: `stat`と`valueType`の組み合わせを振るためのfixture。 */
+function pointStatModAction(
+  id: string,
+  stat: StatKind,
+  valueType: "RATIO" | "FIXED",
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat,
+        valueType,
+        formula: { kind: "CONSTANT", value: 0.1 },
+        stacking: { mode: "STACKABLE" },
+        duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
       },
     },
     "effectAction",
@@ -1447,6 +1470,77 @@ describe("buildCatalogIndex", () => {
       ).toBe(true);
     }
   });
+
+  // R-STA-01／Q-STA-04（Issue #460）: 会心率・会心ダメージボーナス・属性相性ボーナスは
+  // パーセントポイント加算ステータスであり、`RATIO`（基本値への割合乗算）を宣言すると
+  // 「会心率20%へ会心率5%上昇が乗って21%になる」という別の式で解決されてしまう。
+  // 分類は`calculateCombatStat`側にも持つが、Catalog投入時点でも拒否して再発の余地を残さない。
+  it.each(["CRITICAL_RATE", "CRITICAL_DAMAGE_BONUS", "AFFINITY_BONUS"] as const)(
+    "UT-R-STA-01-027 (Issue #460, NEGATIVE): rejects an APPLY_STAT_MOD declaring valueType RATIO for the percentage-point stat %s",
+    (stat) => {
+      const defs = baseDefinitions();
+      const withRatioPointStat: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_POINT_STAT_RATIO")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [
+          ...defs.effectActions,
+          pointStatModAction("ACT_POINT_STAT_RATIO", stat, "RATIO"),
+        ],
+      };
+
+      try {
+        buildCatalogIndex(withRatioPointStat);
+        expect.unreachable();
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(
+          err.violations.some(
+            (v) =>
+              v.rule === "UNSUPPORTED_POINT_ADDITIVE_STAT_RATIO" &&
+              v.targetId === "ACT_POINT_STAT_RATIO",
+          ),
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each(["CRITICAL_RATE", "CRITICAL_DAMAGE_BONUS", "AFFINITY_BONUS"] as const)(
+    "UT-R-STA-01-028 (Issue #460): accepts an APPLY_STAT_MOD declaring valueType FIXED for the percentage-point stat %s",
+    (stat) => {
+      const defs = baseDefinitions();
+      const withFixedPointStat: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_POINT_STAT_FIXED")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [
+          ...defs.effectActions,
+          pointStatModAction("ACT_POINT_STAT_FIXED", stat, "FIXED"),
+        ],
+      };
+
+      const index = buildCatalogIndex(withFixedPointStat);
+
+      expect(index.effectActions.get("ACT_POINT_STAT_FIXED" as never)).toBeDefined();
+    },
+  );
+
+  it.each(["MAXIMUM_HP", "ATTACK", "DEFENSE", "ACTION_SPEED"] as const)(
+    "UT-R-STA-01-029 (Issue #460): keeps accepting valueType RATIO for the ratio-corrected stat %s",
+    (stat) => {
+      const defs = baseDefinitions();
+      const withRatioStat: CatalogDefinitions = {
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_RATIO_STAT")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, pointStatModAction("ACT_RATIO_STAT", stat, "RATIO")],
+      };
+
+      const index = buildCatalogIndex(withRatioStat);
+
+      expect(index.effectActions.get("ACT_RATIO_STAT" as never)).toBeDefined();
+    },
+  );
 
   it("UT-R-HEAL-04-001 (M7-005-HEAL-LINK Issue #229): accepts an APPLY_HEALING_LINK transferring to SELF, the only destination heal-application-service.ts can resolve", () => {
     const defs = baseDefinitions();

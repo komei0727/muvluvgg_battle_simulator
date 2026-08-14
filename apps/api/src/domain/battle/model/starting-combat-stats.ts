@@ -62,6 +62,7 @@ export interface StartingCombatStatsInput {
 export function calculateStartingCombatStats(input: StartingCombatStatsInput): CombatStats {
   function stat(stat: FormationCorrectableStat, baseValue: number): number {
     return calculateCombatStat({
+      stat,
       baseValue,
       formationBonus: resolveFormationBonus(input.formationBonus, stat),
       aptitudePenalty: resolveAptitudePenalty(input.positionAptitudes, input.row, stat),

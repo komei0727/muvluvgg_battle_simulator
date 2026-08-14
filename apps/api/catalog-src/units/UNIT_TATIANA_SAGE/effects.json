@@ -180,7 +180,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": {
         "kind": "CONSTANT",
         "value": -0.2
@@ -205,7 +205,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": {
         "kind": "CONSTANT",
         "value": -0.5

@@ -1,5 +1,5 @@
 import type { EffectActionDefinitionId, SkillDefinitionId } from "../definitions/catalog-ids.js";
-import type { ActionKind } from "../definitions/catalog-enums.js";
+import { isPointAdditiveStat, type ActionKind } from "../definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
@@ -100,6 +100,27 @@ export function validateEffectAction(
         });
       }
     }
+  }
+  // R-STA-01「パーセントポイント加算ステータス」／Q-STA-04（Issue #460）: 会心率・
+  // 会心ダメージボーナス・属性相性ボーナスはそれ自体がパーセンテージで表される値であり、
+  // 補正もパーセンテージの加減算としてだけ与えられる。`RATIO`（基本値への割合乗算）を
+  // 宣言すると「会心率20%へ会心率5%上昇が乗って21%」という別の式で黙って解決され、
+  // 重複可のデバフほど乖離が拡大する。分類の正本（`isPointAdditiveStat`）は
+  // `calculateCombatStat`の式分岐と共有しており、ドメイン側で正しく分岐しても
+  // Catalog側で再発できる余地を残さないため投入時点でも拒否する。
+  //
+  // `RATIO`をこの3ステータスでは加算と解釈する設計は採らない — 同じ語が対象ステータスに
+  // よって別の式を意味すると、Catalog投入時に定義を読んだだけでは結果を推測できなくなる。
+  if (
+    effectAction.kind === "APPLY_STAT_MOD" &&
+    effectAction.payload.valueType === "RATIO" &&
+    isPointAdditiveStat(effectAction.payload.stat)
+  ) {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "UNSUPPORTED_POINT_ADDITIVE_STAT_RATIO",
+      message: `APPLY_STAT_MOD stat "${effectAction.payload.stat}" is a percentage-point additive stat (R-STA-01, Q-STA-04): corrections are added as percentage points, so valueType must be "FIXED", not "RATIO"`,
+    });
   }
   // Issue #129: COOLDOWN_MANIPULATIONの対象スキル存在チェック。所有者一致は
   // `checkCooldownManipulationOwnership`（Unit視点でのみ判定可能）が担う。

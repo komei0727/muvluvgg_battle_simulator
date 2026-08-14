@@ -44,7 +44,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_STRANGERS_ALL_CRIT_UP",
     unitIds: ALL_ALLY_SLOTS,
     magnitude: 0.01,
-    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_RATE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
@@ -82,9 +82,9 @@ describe("production Catalog MEM_STRANGERS (STRANGERS)", () => {
     ]);
     for (const unit of observed.started.allyUnits) {
       expect(unit.combatStats.actionSpeed).toBe(MEMORY_COMBAT_STATS.actionSpeed + 30);
-      // 会心率は`RATIO`のため基礎値へ比例する。盤面の基礎会心率は0で、
-      // 効果は適用されるが実効値は動かない。
-      expect(unit.combatStats.criticalRate).toBe(MEMORY_COMBAT_STATS.criticalRate * 1.01);
+      // 会心率はパーセントポイント加算（R-STA-01）。盤面の基礎会心率は0だが、
+      // 加算のため「味方全体の会心率を1%上昇」がそのまま1%として現れる。
+      expect(unit.combatStats.criticalRate).toBe(MEMORY_COMBAT_STATS.criticalRate + 0.01);
     }
   });
 
@@ -139,8 +139,13 @@ describe("production Catalog MEM_STRANGERS (STRANGERS)", () => {
       "MEM_TIMID_REINDEER_EVE#1",
     ]);
 
-    // ハードな準備運動……？の後衛+2.5%（1000→1025）と、自Memoryの行動速度+30が同じスロットへ重なる。会心率はRATIO補正で基礎値0のため動かない。
-    expect(observed.statChanges["ally:BACK_LEFT"]).toEqual({ attack: 1025, actionSpeed: 130 });
+    // ハードな準備運動……？の後衛+2.5%（1000→1025）と、自Memoryの行動速度+30・
+    // 会心率+1pp（R-STA-01のパーセントポイント加算、0→0.01）が同じスロットへ重なる。
+    expect(observed.statChanges["ally:BACK_LEFT"]).toEqual({
+      attack: 1025,
+      actionSpeed: 130,
+      criticalRate: 0.01,
+    });
 
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
     expect(observed.stateFromDeltas).toEqual(observed.stateAfter);

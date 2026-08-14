@@ -63,6 +63,29 @@ export const STAT_KINDS = [
 export type StatKind = (typeof STAT_KINDS)[number];
 
 /**
+ * R-STA-01「パーセントポイント加算ステータス」（Q-STA-04、Issue #460）。それ自体が
+ * パーセンテージで表される値であり、編成補正・戦闘中補正・強化（R-ENH-06）・演習
+ * ブレイク強化（R-TEX-04）のいずれもパーセントポイントの加減算として合成する
+ * — 会心率20%へ「会心率5%上昇」が乗れば25%であり21%ではない。残る4ステータス
+ * （HP・攻撃力・防御力・行動速度）は基本値への割合乗算である。
+ *
+ * 分類の正本をここ（値もtypeも持たない葉モジュール）へ置くのは、これを読む2者が
+ * `domain/battle`（`combat-stat-calculator.ts`の式分岐）と`domain/catalog`
+ * （`effect-action-integrity.ts`の`valueType: RATIO`拒否）に分かれており、後者は
+ * 前者へ依存できないためである（`domain/catalog must not depend on domain/battle`）。
+ */
+export const POINT_ADDITIVE_STAT_KINDS = [
+  "CRITICAL_RATE",
+  "CRITICAL_DAMAGE_BONUS",
+  "AFFINITY_BONUS",
+] as const satisfies readonly StatKind[];
+export type PointAdditiveStatKind = (typeof POINT_ADDITIVE_STAT_KINDS)[number];
+
+export function isPointAdditiveStat(stat: StatKind): stat is PointAdditiveStatKind {
+  return (POINT_ADDITIVE_STAT_KINDS as readonly StatKind[]).includes(stat);
+}
+
+/**
  * R-DOT-01〜04（DMG-008、Issue #189）の継続ダメージ種別。`STAT_KINDS`と同じ理由で
  * `effect-action-payload.ts`からここへ移した（`TARGET_HAS_EFFECT.continuousDamageKinds`
  * が同じ値集合を検証に使う）。`effect-action-payload.ts`は後方互換のため再exportする。

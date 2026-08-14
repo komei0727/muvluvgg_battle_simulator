@@ -168,6 +168,71 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     expect(result.combatStats.attack).toBeCloseTo(115);
   });
 
+  it("UT-R-STA-01-030: a FIXED CRITICAL_RATE buff adds percentage points to the base critical rate", () => {
+    // `ACT_MEM_STRANGERS_ALL_CRIT_UP`「味方全体の会心率を1%上昇」相当。
+    // 基本会心率10% + 1pp = 11%（乗算なら 10% × 1.01 = 10.1%）。
+    const def = statModDefinition("ACT_CRIT_UP", "CRITICAL_RATE", "FIXED");
+    const target = unit({ appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.01)] });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.criticalRate).toBeCloseTo(0.11);
+  });
+
+  it("UT-R-STA-01-031: stacked duplicate CRITICAL_RATE buffs accumulate by addition, not by compounding", () => {
+    // `ACT_SAYA_BUNNY_PS1_CRIT_UP`（2.5pp × n）相当。3スタックで 10% + 7.5pp = 17.5%。
+    const def = statModDefinition("ACT_CRIT_UP", "CRITICAL_RATE", "FIXED");
+    const target = unit({
+      appliedEffects: [
+        statMod(def.effectActionDefinitionId, true, 0.025),
+        statMod(def.effectActionDefinitionId, true, 0.025),
+        statMod(def.effectActionDefinitionId, true, 0.025),
+      ],
+    });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.criticalRate).toBeCloseTo(0.175);
+  });
+
+  it("UT-R-STA-01-032: CRITICAL_RATE debuffs exceeding the base value reach a negative combat stat, which R-CRT-01 clamps to an effective 0%", () => {
+    // 生駒葵の「高揚」3個ぶん（`ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN`、-25pp × 3）。
+    // 加算なら 10% − 75pp = −65% で、乗算（10% × 0.75³ ≒ 4.2%）では負へ到達できない
+    // ためR-CRT-01の`max(0%, …)`が会心率デバフに対して到達不能コードになる。
+    const def = statModDefinition("ACT_CRIT_DOWN", "CRITICAL_RATE", "FIXED");
+    const target = unit({
+      appliedEffects: [
+        statMod(def.effectActionDefinitionId, true, -0.25),
+        statMod(def.effectActionDefinitionId, true, -0.25),
+        statMod(def.effectActionDefinitionId, true, -0.25),
+      ],
+    });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.criticalRate).toBeCloseTo(-0.65);
+  });
+
+  it("UT-R-STA-01-033: a FIXED CRITICAL_DAMAGE_BONUS buff adds percentage points", () => {
+    // `ACT_MEM_HEART_COLOR_ALL_CRIT_DMG_UP`「会心ダメージを10%上昇」相当。
+    // 基本50% + 10pp = 60%（乗算なら 50% × 1.1 = 55%）。
+    const def = statModDefinition("ACT_CRIT_DMG_UP", "CRITICAL_DAMAGE_BONUS", "FIXED");
+    const target = unit({ appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.1)] });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.criticalDamageBonus).toBeCloseTo(0.6);
+  });
+
+  it("UT-R-STA-01-034: a FIXED AFFINITY_BONUS buff adds percentage points on the same path", () => {
+    const def = statModDefinition("ACT_AFFINITY_UP", "AFFINITY_BONUS", "FIXED");
+    const target = unit({ appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.1)] });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    expect(result.combatStats.affinityBonus).toBeCloseTo(0.35);
+  });
+
   it("UT-R-STA-04-014: distinct stats recalculate independently", () => {
     const atk = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
     const def = statModDefinition("ACT_DEF_UP", "DEFENSE", "RATIO");

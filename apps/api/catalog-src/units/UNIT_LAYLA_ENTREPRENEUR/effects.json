@@ -33,7 +33,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.3 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
@@ -61,7 +61,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.2 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }

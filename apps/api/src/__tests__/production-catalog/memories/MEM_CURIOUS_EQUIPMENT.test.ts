@@ -140,8 +140,13 @@ describe("production Catalog MEM_CURIOUS_EQUIPMENT (気になる装備)", () => 
 
     // 自Memoryの味方全体HP+2500に、ハードな準備運動……？の前衛+4%が乗る。
     expect(observed.statChanges["ally:FRONT_LEFT"]).toEqual({ maximumHp: 12500, attack: 1040 });
-    // 自Memoryは敵前衛の防御力を-1%（500→495）。同じ敵陣営がSTRANGERSを宣言しているため行動速度+30も乗る。
-    expect(observed.statChanges["enemy:FRONT_LEFT"]).toEqual({ defense: 495, actionSpeed: 130 });
+    // 自Memoryは敵前衛の防御力を-1%（500→495）。同じ敵陣営がSTRANGERSを宣言しているため
+    // 行動速度+30と会心率+1pp（R-STA-01のパーセントポイント加算、0→0.01）も乗る。
+    expect(observed.statChanges["enemy:FRONT_LEFT"]).toEqual({
+      defense: 495,
+      actionSpeed: 130,
+      criticalRate: 0.01,
+    });
 
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
     expect(observed.stateFromDeltas).toEqual(observed.stateAfter);

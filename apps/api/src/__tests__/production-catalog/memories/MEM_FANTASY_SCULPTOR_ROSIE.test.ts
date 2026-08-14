@@ -46,14 +46,14 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
     effectActionDefinitionId: "ACT_MEM_FANTASY_SCULPTOR_ROSIE_FRONT_RIGHT_CRIT_DMG_UP",
     unitIds: ["ally:FRONT_RIGHT"],
     magnitude: 0.105,
-    statMod: { stat: "CRITICAL_DAMAGE_BONUS", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_DAMAGE_BONUS", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
   {
     effectActionDefinitionId: "ACT_MEM_FANTASY_SCULPTOR_ROSIE_ROSIE_CRIT_UP",
     unitIds: ["ally:BACK_LEFT"],
     magnitude: 0.03,
-    statMod: { stat: "CRITICAL_RATE", valueType: "RATIO" },
+    statMod: { stat: "CRITICAL_RATE", valueType: "FIXED" },
     sourceSide: "ALLY",
   },
 ];
@@ -100,14 +100,19 @@ describe("production Catalog MEM_FANTASY_SCULPTOR_ROSIE (空想造形師ロー�
       `${MEMORY_DEFINITION_ID}#0`,
       `${MEMORY_DEFINITION_ID}#1`,
     ]);
-    // `RATIO`は基礎値に対する割合なので、会心率の基礎値が0である固定盤面では
-    // ロージー側の実効値は動かない（`magnitude`にだけ0.03が現れる）。会心ダメージは
-    // 基礎値0.5があるため右列前衛だけ0.5525へ動く。
+    // 会心率・会心ダメージボーナスはどちらもパーセントポイント加算（R-STA-01）。
+    // ロージー（`ally:BACK_LEFT`）は基礎会心率0へ+3ppで0.03、右列前衛は
+    // 基礎会心ダメージ0.5へ+10.5ppで0.605になる。対象外のスロットは基礎値のまま。
     for (const unit of observed.started.allyUnits) {
-      expect(unit.combatStats.criticalRate).toBe(MEMORY_COMBAT_STATS.criticalRate);
+      expect(unit.combatStats.criticalRate).toBeCloseTo(
+        unit.battleUnitId === "ally:BACK_LEFT"
+          ? MEMORY_COMBAT_STATS.criticalRate + 0.03
+          : MEMORY_COMBAT_STATS.criticalRate,
+        6,
+      );
       expect(unit.combatStats.criticalDamageBonus).toBeCloseTo(
         unit.battleUnitId === "ally:FRONT_RIGHT"
-          ? MEMORY_COMBAT_STATS.criticalDamageBonus * 1.105
+          ? MEMORY_COMBAT_STATS.criticalDamageBonus + 0.105
           : MEMORY_COMBAT_STATS.criticalDamageBonus,
         6,
       );
@@ -177,14 +182,15 @@ describe("production Catalog MEM_FANTASY_SCULPTOR_ROSIE (空想造形師ロー�
       "MEM_STRANGERS#1",
     ]);
 
-    // 右列前衛は自Memoryの会心ダメージ+10.5%とハードな準備運動……？の前衛+4%が重なる。
+    // 右列前衛は自Memoryの会心ダメージ+10.5ppとハードな準備運動……？の前衛+4%が重なる。
+    // 会心ダメージはパーセントポイント加算のため 0.5 + 0.105 = 0.605（R-STA-01）。
     expect(observed.statChanges["ally:FRONT_RIGHT"]).toEqual({
       attack: 1040,
-      criticalDamageBonus: 0.5525,
+      criticalDamageBonus: 0.605,
     });
-    // ロージー（後衛左）の会心率は基礎値0のRATIO補正で動かないため、実効値に
-    // 現れるのはハードな準備運動……？の後衛+2.5%だけ。
-    expect(observed.statChanges["ally:BACK_LEFT"]).toEqual({ attack: 1025 });
+    // ロージー（後衛左）はハードな準備運動……？の後衛+2.5%に加え、自Memoryの
+    // 会心率+3ppが基礎値0へ加算されて現れる。
+    expect(observed.statChanges["ally:BACK_LEFT"]).toEqual({ attack: 1025, criticalRate: 0.03 });
 
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
     expect(observed.stateFromDeltas).toEqual(observed.stateAfter);

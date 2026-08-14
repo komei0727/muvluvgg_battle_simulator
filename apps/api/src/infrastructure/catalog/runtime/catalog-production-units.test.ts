@@ -471,7 +471,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-12.4` は夏バリアント4体目 `UNIT_ANIS_SWEETDEVIL` の追加
     // （Issue #454）。`DMG-012`（Issue #452）が追加した `DAMAGE_MAX_HP_RATIO` と
     // `APPLY_DAMAGE_MOD.damageThreshold` の production 初使用である。
-    expect(catalog.catalogRevision).toBe("2026-08-12.4");
+    // `2026-08-14.1` は会心率・会心ダメージボーナスへの `APPLY_STAT_MOD` 46件を
+    // `valueType: RATIO` から `FIXED` へ正規化した（Issue #460、R-STA-01の
+    // パーセントポイント加算ステータス）。Unit・Skill・Memoryの構成は変えていない。
+    expect(catalog.catalogRevision).toBe("2026-08-14.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

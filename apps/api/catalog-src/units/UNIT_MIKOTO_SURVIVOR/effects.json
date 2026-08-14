@@ -49,7 +49,7 @@
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_RATE",
-      "valueType": "RATIO",
+      "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.05 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
