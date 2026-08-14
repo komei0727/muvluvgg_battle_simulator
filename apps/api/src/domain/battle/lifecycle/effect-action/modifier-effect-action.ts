@@ -106,6 +106,43 @@ export const resolveApplyAttackDamageBonus: EffectActionHandler<"APPLY_ATTACK_DA
 };
 
 /**
+ * R-FUP-01（Issue #474、production例: `SKL_SUIRAN_CHAOS_PS3`「当該攻撃に威力35.88の
+ * ENダメージ…を追加」）: 保持者の次のAS/EXスキル使用の攻撃に相乗りする追撃バフを
+ * 付与する。`APPLY_ATTACK_DAMAGE_BONUS`と違い`magnitude`に意味を持たせない（0固定）—
+ * 追撃のダメージは付与時snapshotではなく、追撃解決時に保持者（攻撃者）のステータスで
+ * `payload.damage.formula`を評価するためである。ダメージ定義・onHitEffect参照は
+ * `AppliedEffect`へ焼き込まず、解決側（`follow-up-attack-service.ts`）が
+ * `effectActionDefinitionId`からCatalogを引き直す。
+ */
+export const resolveApplyFollowUpAttack: EffectActionHandler<"APPLY_FOLLOW_UP_ATTACK"> = (
+  input,
+): EffectActionOutcome => {
+  const { context, box, application, effectAction, startingEventId } = input;
+  const magnitude = 0;
+  const rejected = rejectIfImmune(input, magnitude);
+  if (rejected !== undefined) {
+    return rejected;
+  }
+  return completeGrant(
+    input,
+    grantEffect(
+      eventContextOf(context),
+      box.units,
+      {
+        definition: effectAction,
+        ...grantSourceOf(context),
+        targetUnitId: application.targetUnitId,
+        duplicate: true,
+        magnitude,
+        isFollowUpAttack: true,
+        durationDefinition: effectAction.payload.duration,
+      },
+      startingEventId,
+    ),
+  );
+};
+
+/**
  * R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003）: 保持者が行う後続の
  * 攻撃へ一時的に防御貫通を上乗せする継続効果（R-ACTN-03）。3つの率は静的な
  * Catalog値のため`formula`を持たず、`magnitude`は使わない（0のまま）——

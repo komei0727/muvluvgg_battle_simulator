@@ -17,6 +17,7 @@ import type {
 } from "../../../catalog/definitions/catalog-ids.js";
 import type { SkillType } from "../../../catalog/definitions/catalog-enums.js";
 import type { DamageResultRegistry } from "../../skill/formula-evaluator.js";
+import type { FollowUpAttackCapture } from "../../combat/damage-event-context.js";
 import type { RandomSource } from "../../../ports/random-source.js";
 import { DomainValidationError } from "../../../shared/errors.js";
 import type { MarkerSource } from "../../model/marker-state.js";
@@ -88,6 +89,13 @@ export interface EffectActionGroupContext {
    * EffectActionは`FormulaEvaluator`が明確な例外で拒否する。
    */
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉。AS/EXスキル使用
+   * （`action-skill-use-resolver.ts`）だけがスキル使用ごとに1つ渡し、DAMAGE経路
+   * （`resolveDamage`→`applyDamageActionSteps`）が書き込む。PS/Memory自身の
+   * EffectSequence解決・チャージ解放は渡さない（追撃の相乗り対象外）。
+   */
+  readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
    * R-TEX-02: Battleが所有する演習状態。戦闘モードが`TACTICAL_EXERCISE`のときだけ
    * 呼び出し側（行動resolver・`PassiveActivationRuntime`）が渡し、DAMAGE経路が

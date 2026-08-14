@@ -49,6 +49,52 @@ describe("applyEffectActionGroups", () => {
       magnitude: 6, // 40 attack * 0.15
     });
   });
+
+  it("UT-R-FUP-01-007 (Issue #474, mirrors SKL_SUIRAN_CHAOS_PS3): an APPLY_FOLLOW_UP_ATTACK ACTION step grants an isFollowUpAttack AppliedEffect that keeps its NEXT_OUTGOING_ATTACK consumption and stacks with an existing instance", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const ally = unit("ALLY_ATTACKER", "ALLY");
+    const rider: EffectActionDefinition = {
+      kind: "APPLY_FOLLOW_UP_ATTACK",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_FOLLOW_UP"),
+      metadata: { tags: [] },
+      payload: {
+        damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.3588 } },
+        onHitEffect: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FUP_SPEED_DOWN"),
+        },
+        duration: {
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[rider.effectActionDefinitionId, rider]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        singleActionStep(0, true, ally.battleUnitId, rider.effectActionDefinitionId),
+        singleActionStep(1, true, ally.battleUnitId, rider.effectActionDefinitionId),
+      ],
+      targetUnitIds: [ally.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, ally], context);
+
+    // 重複可: 2度の付与が2インスタンスとして共存し、それぞれが消費残数1を持つ。
+    const target = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+    expect(target.appliedEffects).toHaveLength(2);
+    for (const effect of target.appliedEffects) {
+      expect(effect).toMatchObject({
+        isFollowUpAttack: true,
+        duplicate: true,
+        duration: { consumptionRemaining: 1 },
+      });
+    }
+  });
 });
 
 describe("APPLY_DAMAGE_MOD (R-DMG-03, R-DMG-04, DMG-002 Issue #192)", () => {

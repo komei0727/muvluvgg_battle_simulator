@@ -770,6 +770,7 @@ metadata:
 | `APPLY_REFLECT`            | 反射                                     |
 | `APPLY_DAMAGE_LINK`        | 継続リンク状態                           |
 | `APPLY_SUBUNIT`            | サブユニット                             |
+| `APPLY_FOLLOW_UP_ATTACK`   | 攻撃に相乗りする追撃バフ                 |
 | `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット     |
 
 ---
@@ -1618,6 +1619,34 @@ payload:
 `damageType` を任意にしたのは、raw原文が明示する定義（`ACT_SHIRANA_SORA_EX_SUBUNIT`／`AS1`・`ACT_OLGA_VETERAN_PS1_SUBUNIT`／`PS2` の「ENダメージを追加する」）と、書いていない定義（`ACT_NADYA_SUCCESSOR_*` の「ダメージを追加する」）を取り違えないためである。省略は「不明」ではなく「その攻撃と同じ種類のダメージ」という確定した意味を持つ。
 
 `duration` は他の継続効果と同じく必須にする — 省略を許すと「期間を書き忘れた定義」と「期間を持たない定義」（`ACT_OLGA_VETERAN_PS2_SUBUNIT` の「カムラッドⅠ」）が区別できなくなるためである。耐久力が0になったインスタンスは `EffectExpired`（`reason: SUBUNIT_DEPLETED`）で失効し、失効経路は時間制限（`TIME_LIMIT`）と共有するため R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる（`APPLY_SHIELD` の `SHIELD_DEPLETED` と同じ）。
+
+### APPLY_FOLLOW_UP_ATTACK
+
+R-FUP-01（Issue #474）。保持者の次のAS/EXスキル使用の攻撃に相乗りする追撃バフ（raw原文「当該攻撃に威力Xのダメージ…を追加する」、production定義: `ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP`／`ACT_CHIYURU_MAZE_PS2_FOLLOW_UP`／`ACT_FEE_ACTOR_PS1_FOLLOW_UP`）。
+
+```yaml
+kind: APPLY_FOLLOW_UP_ATTACK
+payload:
+  damage:
+    damageType: EN
+    formula:
+      kind: SKILL_POWER
+      power: 0.3588
+  onHitEffect:
+    effectActionDefinitionId: ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN
+  duration:
+    dispellable: true
+    consumption: { kind: NEXT_OUTGOING_ATTACK, maxCount: 1 }
+```
+
+| フィールド          | 型                             | 意味                                                                                                                                                                                                                              |
+| ------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `damage.damageType` | enum（`PHYSICAL` / `EN`）      | 追撃のダメージタイプ                                                                                                                                                                                                              |
+| `damage.formula`    | Formula                        | 追撃のスキル威力。付与時snapshotではなく追撃解決時に、**保持者**（攻撃した味方）を `SKILL_SOURCE` として評価する（R-FUP-01 #7）                                                                                                   |
+| `onHitEffect`       | `{ effectActionDefinitionId }` | 任意。追撃ヒットが適用された対象へ付与する `APPLY_STAT_MOD` または `APPLY_CONTINUOUS_DAMAGE` 定義への参照。参照先が存在しない／対応外kindの場合はCatalogロード時点で拒否する（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF` と同じ検証規約） |
+| `duration`          | `DurationDefinition`           | 必須。`consumption.kind: NEXT_OUTGOING_ATTACK` を必須とする — 「相乗りする攻撃」と「このバフを消費する攻撃」を構造的に同一へ保つため、他の期間表現はfactoryが拒否する                                                             |
+
+`stacking` フィールドは持たず常に重複可とする（`APPLY_ATTACK_DAMAGE_BONUS` と同じ規約。複数保持していればその数だけ追撃が増える）。`magnitude` に効果量としての意味は無い（0固定）— 追撃のダメージは付与時に焼き込まず、解決時に保持者のステータスで評価するためである。
 
 ### APPLY_MARKER
 

@@ -299,14 +299,11 @@
         {
           "kind": "ACTION",
           "target": {
-            "kind": "TRIGGER_TARGET"
+            "kind": "TRIGGER_SOURCE"
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD"
-            },
-            {
-              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON"
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_FOLLOW_UP"
             }
           ]
         }

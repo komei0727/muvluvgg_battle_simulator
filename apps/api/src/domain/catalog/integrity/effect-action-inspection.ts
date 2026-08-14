@@ -35,6 +35,7 @@ export function durationOf(effectAction: EffectActionDefinition): DurationDefini
     case "APPLY_DAMAGE_LINK":
     case "APPLY_PIERCING_MOD":
     case "APPLY_SUBUNIT":
+    case "APPLY_FOLLOW_UP_ATTACK":
       // `APPLY_SUBUNIT`は`SUBUNIT_DURATION`（DMG-005、Issue #190）でサブユニット自身も
       // 存続期間を持つ継続効果になった（`ApplySubunitPayload.duration`）。
       return effectAction.payload.duration;

@@ -34,7 +34,7 @@ import { buildConsumeEffectDurationHooks } from "./effect-duration-consumption.j
  * `yield`する連鎖境界（`{ units }`）を、`combat/`側の除去ステップ規約
  * （`{ events, units }`）へ変換して中継する形をどちらも共有する。
  */
-type DamageHookSteps = Generator<
+export type DamageHookSteps = Generator<
   { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
   { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
   readonly BattleUnit[] | undefined
@@ -47,7 +47,7 @@ type DamageHookSteps = Generator<
  * HealingModifier・overheal破棄・R-HEAL-04の回復リンク転送は通常の回復とまったく同じ
  * 経路をたどる。
  */
-function* applyDeathSurvivalHealSteps(
+export function* applyDeathSurvivalHealSteps(
   context: EffectActionGroupContext,
   units: readonly BattleUnit[],
   targetUnitId: BattleUnitId,
@@ -338,6 +338,10 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),
       ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      // R-FUP-01: AS/EXスキル使用だけが渡す追撃捕捉をヒット処理へ素通しする。
+      ...(context.followUpAttackCapture !== undefined
+        ? { followUpAttackCapture: context.followUpAttackCapture }
+        : {}),
       ...(context.triggerSourceUnitId !== undefined
         ? { triggerSourceUnitId: context.triggerSourceUnitId }
         : {}),

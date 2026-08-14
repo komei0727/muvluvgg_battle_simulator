@@ -86,8 +86,8 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD" }]
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_FOLLOW_UP" }]
         },
         {
           "kind": "BRANCH",
@@ -116,7 +116,7 @@
       {
         "eventType": "SkillUseStarting",
         "category": "TIMING",
-        "sourceSelector": "ALLY",
+        "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",
         "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
       }

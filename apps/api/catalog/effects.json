@@ -1055,9 +1055,16 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD",
-    "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.3816 } },
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_FOLLOW_UP",
+    "kind": "APPLY_FOLLOW_UP_ATTACK",
+    "payload": {
+      "damage": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.3816 } },
+      "onHitEffect": { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
     "metadata": { "tags": [] }
   },
   {
@@ -2198,9 +2205,15 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_DAMAGE_ADD",
-    "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.2808 } },
+    "effectActionDefinitionId": "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+    "kind": "APPLY_FOLLOW_UP_ATTACK",
+    "payload": {
+      "damage": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.2808 } },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
     "metadata": { "tags": [] }
   },
   {
@@ -9310,9 +9323,16 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
-    "kind": "DAMAGE",
-    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.3588 } },
+    "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP",
+    "kind": "APPLY_FOLLOW_UP_ATTACK",
+    "payload": {
+      "damage": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.3588 } },
+      "onHitEffect": { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
     "metadata": { "tags": [] }
   },
   {

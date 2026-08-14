@@ -32,6 +32,7 @@ import {
   skillUseCompleted,
   skillUseStarting,
 } from "../../../testing/production-unit/trigger-events.js";
+import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
 
 /**
  * `UNIT_CHIYURU_MAZE`（【博識なメイズの探求者】月ヶ瀬ちゆる）のユニット単位production
@@ -325,19 +326,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: { allies: alliesWith({ unitType: "AGILE" }) },
     expected: {
       actions: [
-        { effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_POISON", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_FOLLOW_UP", targets: ["ally:front"] },
       ],
-      hpDeltas: {
-        "enemy:left": -190,
-      },
       effectsApplied: [
         {
-          unitId: "enemy:left",
-          effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_POISON",
-          // 追加ダメージ後の現在HP4810の10%。
-          magnitude: 481,
-          timeLimit: { unit: "ACTION", count: 3 },
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_FOLLOW_UP",
+          magnitude: 0,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
         },
       ],
       resources: [
@@ -414,6 +410,11 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
       unexecutedEffectActionIds(
         unitEffectActionClosure(snapshot, UNIT_DEFINITION_ID),
         collectedExecutedActionIds(),
+        // R-FUP-01: PS2の毒は追撃バフ（`ACT_CHIYURU_MAZE_PS2_FOLLOW_UP`の
+        // `onHitEffect`参照）が味方の攻撃に相乗りしたときだけ実行される。表は
+        // 「スキル使用1回」単位のためPS発動（バフ付与）までしか表せず、
+        // 実行は`IT-UNIT-CHIYURU-MAZE-006`が保持者の実AS経路で検証する。
+        ["ACT_CHIYURU_MAZE_PS2_POISON"],
       ),
     ).toEqual([]);
   });
@@ -588,5 +589,45 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
         battleId: "B_CHIYURU_MAZE_POISON_REGRANT",
       }).steps[0]!.ticks,
     ).toEqual([tick("ACT_CHIYURU_MAZE_PS1_POISON", 5000)]);
+  });
+
+  it("IT-UNIT-CHIYURU-MAZE-006 (R-FUP-01): PS2の追撃バフを保持した味方が実ASで攻撃すると、当該攻撃の後に威力38.16の追撃が味方のステータスで入り、ヒットした敵へ毒が付与され、バフはその1回で失効する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    // 付与は実productionの`APPLY_FOLLOW_UP_ATTACK` resolver経由（PS発動から付与までは
+    // `-001`表が固定済み。ここは相乗りの解決だけを観測する）。
+    const withRider = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_CHIYURU_MAZE_PS2_FOLLOW_UP", target: "ALLY" },
+    ]);
+    const holder = withRider.find((unit) =>
+      unit.appliedEffects.some((effect) => effect.isFollowUpAttack === true),
+    );
+    expect(holder).toBeDefined();
+
+    const { units } = rideStandInAttack({
+      attackerUnitId: holder!.battleUnitId,
+      units: withRider,
+      definitions: board.definitions,
+      battleId: "B_CHIYURU_MAZE_PS2_RIDE",
+    });
+
+    // AS本体: (1000 - 500) x 1.0 = 500。追撃: (1000 - 500) x 0.3816 = 190（非会心継承）。
+    const attacked = units.filter(
+      (unit) => unit.side === "ENEMY" && unit.currentHp < unit.combatStats.maximumHp / 2,
+    );
+    expect(attacked).toHaveLength(1);
+    const enemyAfter = attacked[0]!;
+    expect(enemyAfter.currentHp).toBe(5000 - 500 - 190);
+    // onHitEffect（毒3行動）が追撃ヒット対象へ付与される。効果量は付与時点の現在HPx10%。
+    const poison = enemyAfter.appliedEffects.filter(
+      (effect) => effect.effectActionDefinitionId === "ACT_CHIYURU_MAZE_PS2_POISON",
+    );
+    expect(poison).toHaveLength(1);
+    expect(poison[0]).toMatchObject({
+      magnitude: 431,
+      continuousDamage: { continuousDamageKind: "POISON", damageType: "PHYSICAL" },
+    });
+    // バフは「次の攻撃1回」で消費・失効している。
+    const holderAfter = units.find((unit) => unit.battleUnitId === holder!.battleUnitId)!;
+    expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
   });
 });

@@ -2369,4 +2369,106 @@ describe("EffectActionDefinition", () => {
       }
     });
   });
+
+  describe("APPLY_FOLLOW_UP_ATTACK (R-FUP-01, Issue #474)", () => {
+    const followUpDuration = {
+      consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+      dispellable: true,
+    };
+
+    it("UT-CAT-ACT-111: maps APPLY_FOLLOW_UP_ATTACK with damage and an onHitEffect reference", () => {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_FOLLOW_UP_1",
+          kind: "APPLY_FOLLOW_UP_ATTACK",
+          payload: {
+            damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.3588 } },
+            onHitEffect: { effectActionDefinitionId: "ACT_SPEED_DOWN_1" },
+            duration: followUpDuration,
+          },
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_FOLLOW_UP_ATTACK");
+      if (result.kind === "APPLY_FOLLOW_UP_ATTACK") {
+        expect(result.payload.damage).toEqual({
+          damageType: "EN",
+          formula: { kind: "SKILL_POWER", power: 0.3588 },
+        });
+        expect(result.payload.onHitEffect?.effectActionDefinitionId).toBe("ACT_SPEED_DOWN_1");
+        expect(result.payload.duration.consumption).toEqual({
+          kind: "NEXT_OUTGOING_ATTACK",
+          maxCount: 1,
+        });
+      }
+    });
+
+    it("UT-CAT-ACT-112: maps APPLY_FOLLOW_UP_ATTACK without onHitEffect (damage only)", () => {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_FOLLOW_UP_2",
+          kind: "APPLY_FOLLOW_UP_ATTACK",
+          payload: {
+            damage: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 0.3816 } },
+            duration: followUpDuration,
+          },
+        },
+        "effectAction",
+      );
+      expect(result.kind).toBe("APPLY_FOLLOW_UP_ATTACK");
+      if (result.kind === "APPLY_FOLLOW_UP_ATTACK") {
+        expect(result.payload.onHitEffect).toBeUndefined();
+      }
+    });
+
+    it("UT-CAT-ACT-113: rejects a duration whose consumption is missing or not NEXT_OUTGOING_ATTACK", () => {
+      for (const duration of [
+        { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
+        { consumption: { kind: "OUTGOING_HIT", maxCount: 1 }, dispellable: true },
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              effectActionDefinitionId: "ACT_FOLLOW_UP_3",
+              kind: "APPLY_FOLLOW_UP_ATTACK",
+              payload: {
+                damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.2808 } },
+                duration,
+              },
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+
+    it("UT-CAT-ACT-114: rejects unknown keys and missing damage fields", () => {
+      for (const payload of [
+        {
+          damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 }, extra: 1 },
+          duration: followUpDuration,
+        },
+        {
+          damage: { damageType: "EN" },
+          duration: followUpDuration,
+        },
+        {
+          damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 } },
+          onHitEffect: {},
+          duration: followUpDuration,
+        },
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(
+            {
+              effectActionDefinitionId: "ACT_FOLLOW_UP_4",
+              kind: "APPLY_FOLLOW_UP_ATTACK",
+              payload,
+            },
+            "effectAction",
+          ),
+        ).toThrow(DomainValidationError);
+      }
+    });
+  });
 });

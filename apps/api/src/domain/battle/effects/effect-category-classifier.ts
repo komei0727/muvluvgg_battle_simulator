@@ -145,6 +145,11 @@ export function effectCategoriesOf(
       // 一致でしかない。`DAMAGE_MOD`は付けない（与/被ダメージ倍率ではなく貫通率
       // であり、「与ダメージ補正を解除する」`REMOVE_EFFECTS`の対象ではない）。
       return new Set<EffectImmunityCategory>(["BUFF"]);
+    case "APPLY_FOLLOW_UP_ATTACK":
+      // R-FUP-01（Issue #474）: 追撃バフは保持者の攻撃を強化する効果であり常に
+      // バフである。`APPLY_PIERCING_MOD`と同じく`magnitude`を使わず0のままのため、
+      // 符号から導く既定の分岐に任せない。
+      return new Set<EffectImmunityCategory>(["BUFF"]);
     case "APPLY_SHIELD":
       return new Set<EffectImmunityCategory>(["SHIELD"]);
     case "APPLY_SUBUNIT":

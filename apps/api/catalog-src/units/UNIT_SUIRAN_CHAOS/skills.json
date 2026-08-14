@@ -154,16 +154,11 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD" },
-            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN" }
-          ]
-        },
-        {
-          "kind": "ACTION",
           "target": { "kind": "TRIGGER_SOURCE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP" }
+          ]
         }
       ]
     },

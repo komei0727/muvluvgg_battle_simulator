@@ -318,6 +318,19 @@ export const EFFECT_KIND_COVERAGE: Readonly<Record<EffectActionKind, EffectKindC
       "UT-R-BON-ATTACK-DMG-004",
     ],
   },
+  // 付与は effect-action-group-resolver.modifier、ライダー捕捉は
+  // damage-application-service.follow-up、追撃解決は follow-up-attack-service が検証する。
+  APPLY_FOLLOW_UP_ATTACK: {
+    ruleIds: ["R-FUP-01"],
+    testCaseIds: [
+      "UT-R-FUP-01-001",
+      "UT-R-FUP-01-004",
+      "UT-R-FUP-01-005",
+      "UT-R-FUP-01-006",
+      "UT-R-FUP-01-007",
+      "UT-R-FUP-01-008",
+    ],
+  },
   // 付与は effect-action-group-resolver.resource、合成・負率・-100%下限は
   // action-resolution-shared、full stackは action-phase-resolver が検証する。
   APPLY_RESOURCE_GAIN_MOD: {

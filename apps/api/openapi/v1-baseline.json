@@ -3861,6 +3861,7 @@
                                       "APPLY_SUBUNIT",
                                       "COOLDOWN_MANIPULATION",
                                       "APPLY_ATTACK_DAMAGE_BONUS",
+                                      "APPLY_FOLLOW_UP_ATTACK",
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_DAMAGE_LINK"
@@ -3990,6 +3991,7 @@
                                       "APPLY_SUBUNIT",
                                       "COOLDOWN_MANIPULATION",
                                       "APPLY_ATTACK_DAMAGE_BONUS",
+                                      "APPLY_FOLLOW_UP_ATTACK",
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_DAMAGE_LINK"
@@ -9487,6 +9489,7 @@
                                       "APPLY_SUBUNIT",
                                       "COOLDOWN_MANIPULATION",
                                       "APPLY_ATTACK_DAMAGE_BONUS",
+                                      "APPLY_FOLLOW_UP_ATTACK",
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_DAMAGE_LINK"
@@ -16560,6 +16563,7 @@
                                       "APPLY_SUBUNIT",
                                       "COOLDOWN_MANIPULATION",
                                       "APPLY_ATTACK_DAMAGE_BONUS",
+                                      "APPLY_FOLLOW_UP_ATTACK",
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_DAMAGE_LINK"
@@ -16689,6 +16693,7 @@
                                       "APPLY_SUBUNIT",
                                       "COOLDOWN_MANIPULATION",
                                       "APPLY_ATTACK_DAMAGE_BONUS",
+                                      "APPLY_FOLLOW_UP_ATTACK",
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_DAMAGE_LINK"
@@ -22190,6 +22195,7 @@
                                       "APPLY_SUBUNIT",
                                       "COOLDOWN_MANIPULATION",
                                       "APPLY_ATTACK_DAMAGE_BONUS",
+                                      "APPLY_FOLLOW_UP_ATTACK",
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_DAMAGE_LINK"

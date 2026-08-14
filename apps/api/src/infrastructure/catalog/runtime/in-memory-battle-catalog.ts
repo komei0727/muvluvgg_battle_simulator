@@ -59,6 +59,14 @@ export class InMemoryBattleCatalog implements BattleCatalog {
           includeEffectAction(debuff.effectActionDefinitionId);
         }
       }
+      // R-FUP-01（Issue #474）: 追撃のonHitEffectも同じ理由（`APPLY_FOLLOW_UP_ATTACK`の
+      // payloadからだけ指される）で推移閉包へ含める。
+      if (effectAction.kind === "APPLY_FOLLOW_UP_ATTACK") {
+        const onHitEffect = effectAction.payload.onHitEffect;
+        if (onHitEffect !== undefined) {
+          includeEffectAction(onHitEffect.effectActionDefinitionId);
+        }
+      }
     };
 
     const includeSkill = (skillId: SkillDefinitionId): void => {

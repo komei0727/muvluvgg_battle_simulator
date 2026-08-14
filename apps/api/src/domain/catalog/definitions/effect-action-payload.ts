@@ -339,6 +339,31 @@ export interface ApplyAttackDamageBonusPayload {
   readonly duration: DurationDefinition;
 }
 
+/**
+ * R-FUP-01（Issue #474）: 保持者の次のAS/EXスキル使用の攻撃に相乗りする追撃バフ
+ * （raw原文「当該攻撃に威力Xのダメージ…を追加する」、production例:
+ * `SKL_SUIRAN_CHAOS_PS3`/`SKL_CHIYURU_MAZE_PS2`/`SKL_FEE_ACTOR_PS1`）。
+ *
+ * - `damage.formula`は付与時snapshotではなく追撃解決時に、**保持者**（攻撃した
+ *   味方）を`SKILL_SOURCE`として評価する — 追撃のダメージ計算は付与者ではなく
+ *   攻撃者のステータスで行うためである（`APPLY_ATTACK_DAMAGE_BONUS`との本質的な
+ *   違い。会心・命中も追撃固有の判定を持たず元攻撃から継承する）
+ * - `onHitEffect`は追撃ヒットが適用された対象へ付与する効果への参照。参照先は
+ *   `APPLY_STAT_MOD`または`APPLY_CONTINUOUS_DAMAGE`に限る（`catalog-integrity.ts`が
+ *   ロード時に拒否する）
+ * - `duration.consumption`は`NEXT_OUTGOING_ATTACK`を必須にする — 「相乗りする
+ *   攻撃」と「このバフを消費する攻撃」を同一に保つための構造的制約で、factoryが
+ *   他の期間表現を拒否する
+ */
+export interface ApplyFollowUpAttackPayload {
+  readonly damage: {
+    readonly damageType: DamageType;
+    readonly formula: FormulaDefinition;
+  };
+  readonly onHitEffect?: { readonly effectActionDefinitionId: EffectActionDefinitionId };
+  readonly duration: DurationDefinition;
+}
+
 export interface ModifyResourcePayload {
   readonly resource: ResourceKind;
   readonly operation: ResourceModifyOperation;

@@ -158,13 +158,25 @@
     }
   },
   {
-    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_DAMAGE_ADD",
-    "kind": "DAMAGE",
+    "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_FOLLOW_UP",
+    "kind": "APPLY_FOLLOW_UP_ATTACK",
     "payload": {
-      "damageType": "PHYSICAL",
-      "formula": {
-        "kind": "SKILL_POWER",
-        "power": 0.3816
+      "damage": {
+        "damageType": "PHYSICAL",
+        "formula": {
+          "kind": "SKILL_POWER",
+          "power": 0.3816
+        }
+      },
+      "onHitEffect": {
+        "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS2_POISON"
+      },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_OUTGOING_ATTACK",
+          "maxCount": 1
+        }
       }
     },
     "metadata": {

@@ -101,6 +101,33 @@ export function validateEffectAction(
       }
     }
   }
+  // R-FUP-01（Issue #474）: 追撃のonHitEffectも`APPLY_SUBUNIT`のdebuffと同じ
+  // 「参照として書き、ロード時点で存在とkindを検証する」規約に従う。実行経路
+  // （`grantFollowUpOnHitEffectSteps`）が扱えるのは`APPLY_STAT_MOD`（付与＋
+  // CombatStat再計算）と`APPLY_CONTINUOUS_DAMAGE`（production例:
+  // `SKL_CHIYURU_MAZE_PS2`の毒）だけであり、それ以外は黙ってno-opにしない。
+  if (effectAction.kind === "APPLY_FOLLOW_UP_ATTACK") {
+    const onHitEffect = effectAction.payload.onHitEffect;
+    if (onHitEffect !== undefined) {
+      const referenced = effectActions.get(onHitEffect.effectActionDefinitionId);
+      if (referenced === undefined) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "DANGLING_REFERENCE",
+          message: `APPLY_FOLLOW_UP_ATTACK payload.onHitEffect references undefined EffectActionDefinition "${onHitEffect.effectActionDefinitionId}"`,
+        });
+      } else if (
+        referenced.kind !== "APPLY_STAT_MOD" &&
+        referenced.kind !== "APPLY_CONTINUOUS_DAMAGE"
+      ) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "TYPE_MISMATCH",
+          message: `APPLY_FOLLOW_UP_ATTACK payload.onHitEffect must reference an APPLY_STAT_MOD or APPLY_CONTINUOUS_DAMAGE EffectActionDefinition, but "${onHitEffect.effectActionDefinitionId}" is a ${referenced.kind}`,
+        });
+      }
+    }
+  }
   // R-STA-01「パーセントポイント加算ステータス」／Q-STA-04（Issue #460）: 会心率・
   // 会心ダメージボーナス・属性相性ボーナスはそれ自体がパーセンテージで表される値であり、
   // 補正もパーセンテージの加減算としてだけ与えられる。`RATIO`（基本値への割合乗算）を
