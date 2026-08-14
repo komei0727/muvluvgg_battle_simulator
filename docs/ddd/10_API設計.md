@@ -55,7 +55,7 @@ POST /api/v1/battle-simulations
 | 成功ステータス         | `200 OK`                                               |
 | 永続化                 | しない                                                 |
 | 冪等性                 | 保証しない                                             |
-| 既定ログレベル         | `DETAILED`                                             |
+| 既定ログレベル         | `SUMMARY`                                              |
 
 新しい永続リソースを作成しないため `201 Created` は使用しない。途中処理を非同期ジョブとして受け付けるAPIではないため `202 Accepted` も使用しない。
 
@@ -75,7 +75,7 @@ POST /api/v1/tactical-exercises
 | 成功ステータス         | `200 OK`                                         |
 | 永続化                 | しない                                           |
 | 冪等性                 | 保証しない                                       |
-| 既定ログレベル         | `DETAILED`                                       |
+| 既定ログレベル         | `SUMMARY`                                        |
 
 既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
 
@@ -1335,9 +1335,9 @@ GitHub Pages UIから別originのAPIを呼ぶため、M4.5でCORSをAPI契約へ
 
 ### ログレベルと障害
 
-1. SUMMARYでも全状態差分を返す。
-2. DETAILEDで各スキル、PS、ダメージ、効果を返す。
-3. DIAGNOSTICで候補除外理由を返し、内部秘密情報は返さない。
+1. `options` を省略するとSUMMARYになり、`events` と `stateTransitions` が空で `finalState` を持たない。`result`・`initialState`・`unitSummaries` は完全に返す。
+2. DETAILEDで各スキル、PS、ダメージ、効果に加え、候補除外理由などの診断イベントも返し、内部秘密情報は返さない。
+3. 廃止済みの `DIAGNOSTIC` を指定すると `422 INVALID_COMMAND`（`path: /options/logLevel`）を返す。
 4. 実行保護上限到達時に不完全な成功結果を返さない。
 5. タイムアウトを敗北へ変換しない。
 6. 内部例外でスタックトレースを返さず、`diagnosticId` を返す。
