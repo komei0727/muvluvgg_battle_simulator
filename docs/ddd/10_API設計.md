@@ -748,7 +748,7 @@ CombatStatsResponse {
 
 割合値はパーセントポイントで返す。例えば `criticalRate: 15` は15%を表す。会心率そのものは0～100へ制限せず、会心判定時だけ内部で補正する。
 
-値はJSON numberで返す。ダメージなど仕様上整数に確定した値はintegerとする。途中計算値をDIAGNOSTICログへ出す場合も `NaN` や無限値を返してはならない。
+値はJSON numberで返す。ダメージなど仕様上整数に確定した値はintegerとする。`DETAILED` が途中計算値を返す場合も `NaN` や無限値を返してはならない。
 
 ### ShieldStateResponse
 
@@ -939,8 +939,7 @@ BattleLogEventResponse {
 - ID、列挙値、計算値など構造化された情報を持つ。
 - イベント種別ごとにスキーマを定義する。
 - 共通エンベロープに存在する値を無目的に重複しない。
-- DETAILEDでは乱数の内部状態やサーバー実装情報を含めない。
-- DIAGNOSTICでもスタックトレース、ファイルパス、秘密情報を含めない。
+- 最大の公開レベルである `DETAILED` でも、乱数の内部状態やサーバー実装情報、スタックトレース、ファイルパス、秘密情報を含めない。DIAGNOSTICカテゴリのイベント（候補除外・乱数判定・超過切り捨て）も同じ規則に従う。
 
 例：
 
@@ -981,7 +980,7 @@ BattleLogEventResponse {
 
 `SUMMARY` はイベント・状態差分・`finalState` を返さない。前者の用途が必要とするのは勝敗とユニット別集計だけであり、主要イベントを数種類だけ返しても読まれないまま応答サイズだけが増えるためである。表示に要る最終HP・戦闘状態は `unitSummaries` が運ぶ。`initialState` だけは残す — クライアントが表示用Rosterを解決する唯一の入力だからである。
 
-`DIAGNOSTIC` は廃止した。`DETAILED` と同一挙動になった以上、同じ意味の値が2つある状態を公開契約へ残さない。指定は `422 INVALID_COMMAND`（`path: logLevel`）で拒否する。
+`DIAGNOSTIC` は廃止した。`DETAILED` と同一挙動になった以上、同じ意味の値が2つある状態を公開契約へ残さない。指定は `422 INVALID_COMMAND`（`path: /options/logLevel`）で拒否する。
 
 公開レベルは**公開量だけ**を決める。サーバー内部の整合性検証（`stateVersion` の連続性、独立Reducerによる `initialState` + 全差分 = `finalState` の一致）はレベルに関係なく全量で行う。`SUMMARY` だから検証が緩むことはない。
 
@@ -1287,7 +1286,7 @@ Battle実行期限を最も短くし、HTTP接続が強制終了される前に�
 - 未知プロパティを拒否する。
 - IDをファイルパスやSQLへ直接連結しない。
 - JSONの深さ、配列長、文字列長を制限する。
-- DIAGNOSTICログにも内部例外や秘密情報を含めない。
+- 最大の公開レベルである `DETAILED` のレスポンスにも内部例外や秘密情報を含めない。
 - M4.5はCloud Runのunauthenticated invocationを許可し、TLS終端はCloud Runに委ねる。
 - CORSはbrowser origin制御であり認証ではない。public APIへの直接requestは本文上限、timeout、bounded queue、maximum instancesで保護する。
 
