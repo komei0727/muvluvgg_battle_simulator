@@ -272,10 +272,24 @@ function isValidUnitSummary(value: unknown): boolean {
   );
 }
 
-// サマリー表はRosterの全行を`unitSummaries`から描くため、1行でも欠けると
-// その枠だけが警告なく0表示になる（クライアント集計時代の既知の不具合と同じ
-// 見え方）。表示層へ通す前にレスポンス全体を拒否する。
-function coversRoster(initialState: unknown, unitSummaries: readonly unknown[]): boolean {
+/**
+ * `10_API設計.md`「UnitBattleSummaryResponse」: 参加ユニット**全件をちょうど1行ずつ**
+ * 含む。サマリー表はRosterの全行をこの配列から描くため、対応が1対1でないと表示が
+ * 静かに壊れる。
+ *
+ * - 行が足りない: その枠だけが警告なく0表示になる（クライアント集計時代の既知の
+ *   不具合と同じ見え方）。
+ * - 同じ`battleUnitId`が複数ある: `summary-projector.ts`の`Map`変換で後の行が
+ *   無警告で勝ち、矛盾した集計値が「正しい値」として表示される。
+ * - Rosterに無い`battleUnitId`がある: どの行にも現れず、集計の一部が黙って消える。
+ *
+ * 包含だけでは重複と余剰を通してしまうため、件数・IDの一意性・Rosterとの完全一致を
+ * それぞれ確認する。配列の順序は契約ではない（表の並びはRosterが決める）。
+ */
+function matchesRosterExactlyOnce(
+  initialState: unknown,
+  unitSummaries: readonly unknown[],
+): boolean {
   if (!isRecord(initialState)) {
     return false;
   }
@@ -283,13 +297,26 @@ function coversRoster(initialState: unknown, unitSummaries: readonly unknown[]):
   if (!Array.isArray(initialUnits)) {
     return false;
   }
-  const summarizedIds = new Set(
-    unitSummaries.map(battleUnitIdOf).filter((id): id is string => id !== undefined),
+  const summarizedIds = unitSummaries
+    .map(battleUnitIdOf)
+    .filter((id): id is string => id !== undefined);
+  if (summarizedIds.length !== unitSummaries.length) {
+    return false;
+  }
+  const uniqueSummarizedIds = new Set(summarizedIds);
+  if (uniqueSummarizedIds.size !== summarizedIds.length) {
+    return false;
+  }
+  const rosterIds = initialUnits.map(battleUnitIdOf).filter((id): id is string => id !== undefined);
+  if (rosterIds.length !== initialUnits.length) {
+    return false;
+  }
+  // Rosterは同じ`battleUnitId`を持たない（戦闘内で一意）。件数一致と包含の
+  // 両方を見れば、過不足のない1対1になる。
+  return (
+    uniqueSummarizedIds.size === new Set(rosterIds).size &&
+    rosterIds.every((battleUnitId) => uniqueSummarizedIds.has(battleUnitId))
   );
-  return initialUnits.every((unit) => {
-    const battleUnitId = battleUnitIdOf(unit);
-    return battleUnitId !== undefined && summarizedIds.has(battleUnitId);
-  });
 }
 
 // `result`以外は戦闘POSTと演習POSTで同一構造（10_API設計.md
@@ -336,9 +363,9 @@ function validateBattleLogResponse(body: unknown, label: string): BattleLogStruc
   if (!Array.isArray(unitSummaries) || !unitSummaries.every(isValidUnitSummary)) {
     return structuralMismatch(`${label} response unitSummaries is missing or malformed.`);
   }
-  if (!coversRoster(body["initialState"], unitSummaries)) {
+  if (!matchesRosterExactlyOnce(body["initialState"], unitSummaries)) {
     return structuralMismatch(
-      `${label} response unitSummaries is missing a battleUnitId present in initialState.`,
+      `${label} response unitSummaries does not contain exactly one entry per initialState battleUnitId.`,
     );
   }
   if (!Array.isArray(body["events"])) {

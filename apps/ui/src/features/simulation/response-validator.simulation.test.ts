@@ -243,7 +243,7 @@ describe("validateSimulationResponse", () => {
   // ログ方針刷新2/3（Issue #464）: 3/3でサーバーは`SUMMARY`実行の`finalState`を
   // 省略する。UI/APIは別デプロイであるため、この寛容化を3/3より先に出す必要がある
   // ——旧UIのまま3/3を出すと、全実行が`finalState`必須検証でfailedになる。
-  it("UI-UT-VAL-012: accepts a response without finalState, since the summary table now reads unitSummaries instead", () => {
+  it("UI-UT-API-010: accepts a response without finalState, since the summary table now reads unitSummaries instead", () => {
     const { finalState: _omitted, ...withoutFinalState } = validResponse();
 
     const result = validateSimulationResponse(withoutFinalState);
@@ -251,7 +251,7 @@ describe("validateSimulationResponse", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("UI-UT-VAL-013: still checks the initialState/finalState roster correspondence when finalState is present, so a partial final roster is not silently displayed", () => {
+  it("UI-UT-API-011: still checks the initialState/finalState roster correspondence when finalState is present, so a partial final roster is not silently displayed", () => {
     const result = validateSimulationResponse(
       validResponse({
         initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
@@ -263,7 +263,7 @@ describe("validateSimulationResponse", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("UI-UT-VAL-014: rejects a response whose unitSummaries is missing or malformed, rather than rendering an empty summary table", () => {
+  it("UI-UT-API-012: rejects a response whose unitSummaries is missing or malformed, rather than rendering an empty summary table", () => {
     const { unitSummaries: _omitted, ...withoutSummaries } = validResponse();
     expect(validateSimulationResponse(withoutSummaries).ok).toBe(false);
 
@@ -299,7 +299,7 @@ describe("validateSimulationResponse", () => {
     ).toBe(false);
   });
 
-  it("UI-UT-VAL-015: rejects a response whose unitSummaries does not cover every initialState roster unit, since those rows would silently render as zero", () => {
+  it("UI-UT-API-013: rejects a response whose unitSummaries does not cover every initialState roster unit, since those rows would silently render as zero", () => {
     const result = validateSimulationResponse(
       validResponse({
         initialState: validState({
@@ -316,5 +316,64 @@ describe("validateSimulationResponse", () => {
     if (!result.ok) {
       expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
     }
+  });
+
+  // `UnitBattleSummaryResponse`は「参加ユニット全件をちょうど1行ずつ」を契約とする。
+  // 包含だけを見ると、rosterを覆いつつ同じbattleUnitIdが複数ある応答が通り、
+  // summary-projectorのMap変換で後の行が無警告で採用される — 矛盾した集計値が
+  // 「正しい値」として表示される。件数・一意性・roster完全一致まで見る。
+  it("UI-UT-API-014: rejects a response whose unitSummaries repeats a battleUnitId, since the projector would silently keep only the last of the conflicting rows", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        unitSummaries: [
+          validSummary({ battleUnitId: "ally:1", damageDealt: 30 }),
+          validSummary({ battleUnitId: "ally:1", damageDealt: 999 }),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+    }
+  });
+
+  it("UI-UT-API-015: rejects a unitSummaries row for a battleUnitId absent from the initialState roster, which no table row would ever show", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        finalState: validState({ units: [validUnit({ battleUnitId: "ally:1" })] }),
+        unitSummaries: [
+          validSummary({ battleUnitId: "ally:1" }),
+          validSummary({ battleUnitId: "ally:ghost" }),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+    }
+  });
+
+  it("UI-UT-API-016: accepts unitSummaries whose rows are in a different order from initialState.units, since only the correspondence is contractual", () => {
+    const result = validateSimulationResponse(
+      validResponse({
+        initialState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "enemy:1" })],
+        }),
+        finalState: validState({
+          units: [validUnit({ battleUnitId: "ally:1" }), validUnit({ battleUnitId: "enemy:1" })],
+        }),
+        unitSummaries: [
+          validSummary({ battleUnitId: "enemy:1" }),
+          validSummary({ battleUnitId: "ally:1" }),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
   });
 });

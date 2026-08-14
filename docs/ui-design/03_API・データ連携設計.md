@@ -435,13 +435,21 @@ type FormationStatPreviewApiResult =
 - `events`と`stateTransitions`がarray
 - 各unitに `battleUnitId`、`unitDefinitionId`、`side`、HP、combatStatusがある
 - `unitSummaries`がarrayであり、各行が§11.1の全項目を持つ
-- `unitSummaries`が`initialState.units`の全`battleUnitId`を覆う
+- `unitSummaries`が`initialState.units`の各`battleUnitId`をちょうど1行ずつ持つ（過不足・重複なし）
 
 未知の任意プロパティ、イベントtype、列挙値は許容する。必須shape欠落時は部分表示で誤解を招かず、`RESPONSE_CONTRACT_MISMATCH`として失敗扱いにする。検証ライブラリを使う場合も、OpenAPI全体を厳格に再実装して将来の追加を拒否しない。
 
 `finalState`は**不在を許容する**。サーバーは`SUMMARY`実行でこれを省略しうるためである。届いた場合だけ、`finalState.units`のshapeと§10手順5のroster対応を従来どおり検証する — 存在するのに壊れているのは、表示層まで通してはいけない契約違反のままである。
 
-`unitSummaries`だけは逆に**必須**とする。サマリ表はこの配列だけから描くため、1行でも欠ければその枠が警告なく0表示になる（クライアント集計時代の既知の不具合と同じ見え方になる）。値域はサーバーのschemaに合わせ、集計3項目は0以上のinteger、`finalHp`・`maximumHp`は0以上の有限number（丸めない）とする。
+`unitSummaries`だけは逆に**必須**とする。サマリ表はこの配列だけから描くため、rosterとの対応が1対1でないと表示が静かに壊れる。
+
+- 行が足りない: その枠が警告なく0表示になる（クライアント集計時代の既知の不具合と同じ見え方）。
+- 同じ`battleUnitId`が複数ある: §11.2のindex化で後の行が無警告で勝ち、矛盾した集計値が「正しい値」として表示される。
+- rosterに無い`battleUnitId`がある: どの行にも現れず、集計の一部が黙って消える。
+
+包含だけを見ると後ろ2つを通してしまうため、件数・IDの一意性・rosterとの完全一致をそれぞれ確認する。配列の順序は契約ではない（表の並びはrosterが決める）。
+
+値域はサーバーのschemaに合わせ、集計3項目は0以上のinteger、`finalHp`・`maximumHp`は0以上の有限number（丸めない）とする。
 
 ### 9.1 プレビューレスポンスの検証
 
