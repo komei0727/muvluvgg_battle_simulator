@@ -479,7 +479,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-15.2` は追撃（攻撃ライダー、R-FUP-01／Issue #474）への載せ替え。
     // `SKL_SUIRAN_CHAOS_PS3`・`SKL_CHIYURU_MAZE_PS2`・`SKL_FEE_ACTOR_PS1` の3スキル
     // （と`SKL_FEE_ACTOR_PS1`の`OTHER_ALLY`修正）だけを変え、他ユニットは変えていない。
-    expect(catalog.catalogRevision).toBe("2026-08-15.2");
+    // `2026-08-15.3` は新規Memory 1件（`MEM_YOUR_SECRET_I_WANT_TO_KNOW`）の追加。
+    // Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-08-15.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

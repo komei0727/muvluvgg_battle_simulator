@@ -90,7 +90,7 @@ export function effectActionClosure(
 export const UNCOVERED_UNIT_IDS: readonly string[] = [];
 
 /**
- * 全36メモリーが `production-catalog/memories/<MEM_ID>.test.ts` に載ったため空。
+ * 全37メモリーが `production-catalog/memories/<MEM_ID>.test.ts` に載ったため空。
  * 新しいメモリーを追加するときも、ここへ積むのではなくユニット効果軸のファイルを
  * 同じPRで用意する（`12_テスト戦略.md`「Memory 側の標準形」）。
  */

@@ -2320,5 +2320,75 @@
       }
     ],
     "metadata": { "displayName": "これからも共に歩むあなたへ", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_YOUR_SECRET_I_WANT_TO_KNOW",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_LAYLA_JENKINS_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_LAYLA_JENKINS" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_LAYLA_JENKINS_ALLIES" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MEM_YOUR_SECRET_I_WANT_TO_KNOW_LAYLA_CRIT_DMG_UP"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_LAYLA_JENKINS_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_LAYLA_JENKINS" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_LAYLA_JENKINS_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_YOUR_SECRET_I_WANT_TO_KNOW_LAYLA_CRIT_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "知りたいキミの秘密", "tags": [] }
   }
 ]
