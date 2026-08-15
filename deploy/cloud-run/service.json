@@ -36,6 +36,12 @@
               { "name": "LOG_LEVEL", "value": "info" },
               { "name": "SIMULATION_TIMEOUT_MS", "value": "30000" },
               { "name": "WORKER_MAX_QUEUE", "value": "1" },
+              { "name": "WORKER_MIN_THREADS", "value": "1" },
+              { "name": "WORKER_MAX_THREADS", "value": "1" },
+              { "name": "SIMULATION_MAX_EVENTS", "value": "1000000" },
+              { "name": "SIMULATION_MAX_PASSIVE_DEPTH", "value": "8" },
+              { "name": "SIMULATION_MAX_EFFECTS_PER_SCOPE", "value": "100" },
+              { "name": "SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH", "value": "10" },
               { "name": "SHUTDOWN_GRACE_MS", "value": "8000" },
               { "name": "CORS_ALLOWED_ORIGINS", "value": "https://komei0727.github.io" }
             ],

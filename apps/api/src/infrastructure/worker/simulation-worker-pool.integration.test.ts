@@ -173,4 +173,25 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
       pool.execute(minimalRequest(), freshContext("req-3", Date.now() - 1_000)),
     ).rejects.toMatchObject({ code: "EXECUTION_TIMEOUT" });
   });
+  it("INT-WORKER-006 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定から受け取る」): the configured execution limits cross the Worker Thread boundary via workerData, so SIMULATION_MAX_* bounds the compiled production path", async () => {
+    pool = await SimulationWorkerPool.create({
+      catalogDir: CATALOG_DIR,
+      catalogRevision: CATALOG_REVISION,
+      minThreads: 1,
+      maxThreads: 1,
+      // 既定(1,000,000)なら完走する最小戦闘を、1件目のイベントで止める。
+      // 構造化クローンされてWorker側の`SimulateBattleUseCase`まで届かなければ
+      // 既定値のまま完走し、この期待は満たされない。
+      executionLimits: {
+        maxTotalEvents: 1,
+        maxPassiveDepth: 8,
+        maxEffectsPerScope: 50,
+        maxEffectRuntimeCounterDepth: 10,
+      },
+    });
+
+    await expect(pool.execute(minimalRequest(), freshContext("req-limits"))).rejects.toMatchObject({
+      code: "EXECUTION_LIMIT_EXCEEDED",
+    });
+  });
 });

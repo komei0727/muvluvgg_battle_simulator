@@ -15,7 +15,12 @@ import {
   type BattleStateSnapshot,
   type BattleUnitRosterEntry,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import {
+  DEFAULT_MAX_TOTAL_EVENTS,
+  EventRecorder,
+} from "../../domain/battle/events/event-recorder.js";
+import { DEFAULT_PASSIVE_CHAIN_LIMITS } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import type { PassiveChainLimits } from "../../domain/battle/model/passive-chain-limits.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleMode } from "../../domain/battle/model/exercise-runtime.js";
@@ -46,7 +51,24 @@ export interface BattleExecutionDependencies {
   readonly battleIdGenerator: BattleIdGenerator;
   readonly randomSourceFactory: RandomSourceFactory;
   readonly clock: Clock;
+  /** 省略時は{@link DEFAULT_SIMULATION_EXECUTION_LIMITS}。 */
+  readonly executionLimits?: SimulationExecutionLimits;
 }
+
+/**
+ * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」が戦闘ごとに保持する
+ * 上限のうち、設定から受け取るもの一式。総イベント数は`EventRecorder`が、
+ * それ以外は`PassiveActivationRuntime`が読むため、実装上は別々の場所へ配るが、
+ * 運用上は1組の設定として扱う（`SIMULATION_MAX_*`環境変数）。
+ */
+export interface SimulationExecutionLimits extends PassiveChainLimits {
+  readonly maxTotalEvents: number;
+}
+
+export const DEFAULT_SIMULATION_EXECUTION_LIMITS: SimulationExecutionLimits = {
+  ...DEFAULT_PASSIVE_CHAIN_LIMITS,
+  maxTotalEvents: DEFAULT_MAX_TOTAL_EVENTS,
+};
 
 export interface BattleExecutionOptions {
   readonly mode: BattleMode;
@@ -173,6 +195,7 @@ function buildMemoriesBySide(
 function buildBattleDefinitions(
   snapshot: BattleCatalogSnapshot,
   command: FormationPairCommand,
+  executionLimits: SimulationExecutionLimits,
 ): BattleDefinitions {
   return {
     activeSkillsByUnit: buildActiveSkillsByUnit(snapshot.units, snapshot.skills),
@@ -181,6 +204,7 @@ function buildBattleDefinitions(
     unitDefinitions: snapshot.units,
     skillDefinitions: snapshot.skills,
     memoriesBySide: buildMemoriesBySide(command, snapshot.memories),
+    executionLimits,
   };
 }
 
@@ -203,6 +227,7 @@ export function executeBattleToCompletion(
 ): ExecutedBattle {
   const { unitDefinitionIds, memoryDefinitionIds } = collectReferencedIds(command);
   const snapshot = dependencies.battleCatalog.loadSnapshot(unitDefinitionIds, memoryDefinitionIds);
+  const executionLimits = dependencies.executionLimits ?? DEFAULT_SIMULATION_EXECUTION_LIMITS;
 
   runPreflight(command, snapshot, options.mode);
 
@@ -236,13 +261,13 @@ export function executeBattleToCompletion(
     const random = dependencies.randomSourceFactory.create();
     // 08_ドメインイベント.md「イベント発行と処理」: BattleごとにEventRecorderを
     // 1つだけ生成し、開始から完了までの全イベントを蓄積させる。
-    const recorder = new EventRecorder(battleId);
+    const recorder = new EventRecorder(battleId, executionLimits.maxTotalEvents);
     let battle = createBattle(
       battleId,
       allyUnits,
       enemyUnits,
       createTurnLimit(options.turnLimit),
-      buildBattleDefinitions(snapshot, command),
+      buildBattleDefinitions(snapshot, command, executionLimits),
       options.mode,
     );
     const initialState = captureBattleState(battle);

@@ -11,12 +11,12 @@ import {
 import type {
   PassiveChainLimits,
   PassiveChainLimitViolationReason,
-} from "./passive-chain-limits.js";
+} from "../model/passive-chain-limits.js";
 import {
   checkEffectRuntimeCounterDepth,
   checkEffectsResolvedCount,
   checkPassiveDepth,
-} from "./passive-chain-limits.js";
+} from "../model/passive-chain-limits.js";
 import type { MemoryCandidate, MemoryCandidateGroup } from "./memory-candidate.js";
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 import {

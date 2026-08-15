@@ -4,6 +4,7 @@ import { UuidBattleIdGenerator } from "../identity/uuid-battle-id-generator.js";
 import { SystemRandomSourceFactory } from "../random/system-random-source.js";
 import { SystemClock } from "../time/system-clock.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
+import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「ワーカー初期化」: Piscinaがこのモジュールを
@@ -35,13 +36,16 @@ import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader
  */
 interface SimulationWorkerData {
   readonly catalogDir: string;
+  /** `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の上限。未指定はコード既定値。 */
+  readonly executionLimits?: SimulationExecutionLimits;
 }
 
-const { catalogDir } = workerData as SimulationWorkerData;
+const { catalogDir, executionLimits } = workerData as SimulationWorkerData;
 const catalog = loadCatalogFromDirectory(catalogDir);
 
 export default createSimulationTaskRunner(catalog, {
   battleIdGenerator: new UuidBattleIdGenerator(),
   randomSourceFactory: new SystemRandomSourceFactory(),
   clock: new SystemClock(),
+  ...(executionLimits !== undefined ? { executionLimits } : {}),
 });

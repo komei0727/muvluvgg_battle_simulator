@@ -1,4 +1,8 @@
 import { resolveDocsEnabled } from "./docs-enabled.js";
+import {
+  DEFAULT_SIMULATION_EXECUTION_LIMITS,
+  type SimulationExecutionLimits,
+} from "../application/simulation/battle-execution.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「設定管理」「文字列を検証済みの型付き
@@ -32,6 +36,18 @@ export interface ApplicationConfig {
   readonly logLevel: string;
   readonly docsEnabled: boolean;
   readonly corsAllowedOrigins: readonly string[];
+  /**
+   * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」「上限値は設定から
+   * 受け取る」。Worker側のBattle実行へ`workerData`経由で配る。
+   */
+  readonly executionLimits: SimulationExecutionLimits;
+  /**
+   * `11_インフラストラクチャ設計.md`「CPU limitに合わせて`WORKER_MAX_THREADS`を
+   * 設定し」。未設定はPiscina自身の既定（`os.cpus()`由来）を使う意味なので、
+   * 0や既定値ではなく`undefined`のまま渡す。
+   */
+  readonly workerMinThreads: number | undefined;
+  readonly workerMaxThreads: number | undefined;
 }
 
 interface PositiveIntegerSpec {
@@ -72,6 +88,24 @@ function parsePositiveInteger(
     return spec.defaultValue;
   }
   return value;
+}
+
+/**
+ * 「未設定」と「明示的に設定された値」を区別する必要がある数値設定用
+ * （`WORKER_MIN_THREADS`/`WORKER_MAX_THREADS`は未設定時にPiscinaの既定へ委ねる）。
+ * 検証規則そのものは{@link parsePositiveInteger}と同一で、既定値を持たない点だけが違う。
+ */
+function parseOptionalPositiveInteger(
+  raw: string | undefined,
+  spec: Omit<PositiveIntegerSpec, "defaultValue">,
+  violations: string[],
+): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const before = violations.length;
+  const value = parsePositiveInteger(raw, { ...spec, defaultValue: spec.min }, violations);
+  return violations.length === before ? value : undefined;
 }
 
 /**
@@ -180,6 +214,71 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
 
   const corsAllowedOrigins = parseCorsAllowedOrigins(env["CORS_ALLOWED_ORIGINS"], violations);
 
+  // 実行保護の上限はいずれも`min: 1`。0は「1件目で必ず超過する」設定であり、
+  // 暴走を止めるガードではなく全戦闘を止めるスイッチになるため受理しない。
+  const executionLimits: SimulationExecutionLimits = {
+    maxTotalEvents: parsePositiveInteger(
+      env["SIMULATION_MAX_EVENTS"],
+      {
+        envVar: "SIMULATION_MAX_EVENTS",
+        defaultValue: DEFAULT_SIMULATION_EXECUTION_LIMITS.maxTotalEvents,
+        min: 1,
+      },
+      violations,
+    ),
+    maxPassiveDepth: parsePositiveInteger(
+      env["SIMULATION_MAX_PASSIVE_DEPTH"],
+      {
+        envVar: "SIMULATION_MAX_PASSIVE_DEPTH",
+        defaultValue: DEFAULT_SIMULATION_EXECUTION_LIMITS.maxPassiveDepth,
+        min: 1,
+      },
+      violations,
+    ),
+    maxEffectsPerScope: parsePositiveInteger(
+      env["SIMULATION_MAX_EFFECTS_PER_SCOPE"],
+      {
+        envVar: "SIMULATION_MAX_EFFECTS_PER_SCOPE",
+        defaultValue: DEFAULT_SIMULATION_EXECUTION_LIMITS.maxEffectsPerScope,
+        min: 1,
+      },
+      violations,
+    ),
+    maxEffectRuntimeCounterDepth: parsePositiveInteger(
+      env["SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH"],
+      {
+        envVar: "SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH",
+        defaultValue: DEFAULT_SIMULATION_EXECUTION_LIMITS.maxEffectRuntimeCounterDepth,
+        min: 1,
+      },
+      violations,
+    ),
+  };
+
+  // 未設定はPiscinaの既定に委ねる意味を持つため、`parsePositiveInteger`の
+  // 既定値機構ではなく`undefined`を返す。
+  const workerMinThreads = parseOptionalPositiveInteger(
+    env["WORKER_MIN_THREADS"],
+    { envVar: "WORKER_MIN_THREADS", min: 1 },
+    violations,
+  );
+  const workerMaxThreads = parseOptionalPositiveInteger(
+    env["WORKER_MAX_THREADS"],
+    { envVar: "WORKER_MAX_THREADS", min: 1 },
+    violations,
+  );
+  // Piscinaは`minThreads > maxThreads`をコンストラクタで例外にする。起動時に
+  // ポートを開かずここで拒否し、Worker warm-up前に理由付きで失敗させる。
+  if (
+    workerMinThreads !== undefined &&
+    workerMaxThreads !== undefined &&
+    workerMinThreads > workerMaxThreads
+  ) {
+    violations.push(
+      `WORKER_MIN_THREADS=${workerMinThreads} must not exceed WORKER_MAX_THREADS=${workerMaxThreads}`,
+    );
+  }
+
   if (violations.length > 0) {
     throw new ConfigError(violations);
   }
@@ -194,5 +293,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     logLevel: env["LOG_LEVEL"] ?? "info",
     docsEnabled: resolveDocsEnabled(env["NODE_ENV"]),
     corsAllowedOrigins,
+    executionLimits,
+    workerMinThreads,
+    workerMaxThreads,
   };
 }

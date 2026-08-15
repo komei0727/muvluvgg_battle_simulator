@@ -15,6 +15,7 @@ import type {
   SimulateBattleResult,
   SimulateTacticalExerciseResult,
 } from "../../application/simulation/simulation-result-assembler.js";
+import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 
 export interface SimulationWorkerPoolOptions {
   readonly catalogDir: string;
@@ -22,6 +23,12 @@ export interface SimulationWorkerPoolOptions {
   readonly minThreads?: number;
   readonly maxThreads?: number;
   readonly maxQueue?: number;
+  /**
+   * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」「上限値は設定から
+   * 受け取る」。`workerData`としてWorkerへ配る（構造化クローン可能な素の数値のみ）。
+   * 省略時はWorker側が`DEFAULT_SIMULATION_EXECUTION_LIMITS`を使う。
+   */
+  readonly executionLimits?: SimulationExecutionLimits;
   /** テスト・結合テストが明示的なworker entryファイルを指すためのfallback。省略時は同ディレクトリの`simulation-worker-entry`。 */
   readonly workerFileUrl?: URL;
   /** `11_インフラストラクチャ設計.md`「Graceful Shutdown」`shutdown()`が実行中タスクを待つ上限(ms)。省略時はPiscina自身の既定(30000)。 */
@@ -148,7 +155,12 @@ export class SimulationWorkerPool {
     );
     this.pool = new Piscina<WorkerSimulationTask, WorkerSimulationResult>({
       filename: (options.workerFileUrl ?? resolveDefaultWorkerFileUrl()).href,
-      workerData: { catalogDir: options.catalogDir },
+      workerData: {
+        catalogDir: options.catalogDir,
+        ...(options.executionLimits !== undefined
+          ? { executionLimits: options.executionLimits }
+          : {}),
+      },
       // Piscinaの既定`atomics: 'sync'`（`SharedArrayBuffer`+`Atomics.wait`による
       // 低遅延経路）は、応答送信直後にWorkerが自ら終了するケースで、その終了が
       // どのタスクにも紐づかない未処理の`error`イベントとしてプロセス全体を

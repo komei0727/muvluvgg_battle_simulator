@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { createSimulationTaskRunner } from "./simulation-task-runner.js";
+import { DEFAULT_SIMULATION_EXECUTION_LIMITS } from "../../application/simulation/battle-execution.js";
 import type { WorkerSimulationTask } from "./worker-contract.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
@@ -248,6 +249,22 @@ describe("createSimulationTaskRunner", () => {
       expect(outcome.error.violations).toContainEqual(
         expect.objectContaining({ path: "enemyFormation.slots" }),
       );
+    }
+  });
+  it("UT-TASKRUNNER-009 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定から受け取る」): passes the configured execution limits into the Battle it runs, so SIMULATION_MAX_* bounds Worker-side execution", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(["B_LIMITED"]),
+      randomSourceFactory: new SequenceRandomSourceFactory(Array(50).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
+      executionLimits: { ...DEFAULT_SIMULATION_EXECUTION_LIMITS, maxTotalEvents: 1 },
+    });
+
+    const outcome = runner(buildTask());
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.error.code).toBe("EXECUTION_LIMIT_EXCEEDED");
     }
   });
 });
