@@ -843,6 +843,16 @@ describe("BattleSimulatorPage — 編成ステータスプレビュー (UI-AC-02
         affinityBonus: 25,
         criticalDamageBonus: 50,
       },
+      // 補正前は補正後と別の値にして、切替が実際に効いていることを観測できるようにする。
+      enhancedBaseStats: {
+        maximumHp: maximumHp - 100,
+        attack: 80,
+        defense: 40,
+        criticalRate: 10,
+        actionSpeed: 12,
+        affinityBonus: 25,
+        criticalDamageBonus: 50,
+      },
     };
   }
 
@@ -923,6 +933,100 @@ describe("BattleSimulatorPage — 編成ステータスプレビュー (UI-AC-02
     await waitFor(() => {
       expect(within(allyRegion()).getByText("2,500")).toBeInTheDocument();
     });
+  });
+
+  it("UI-CT-072: one toggle switches every slot of both sides between the corrected and the pre-correction stats", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        previewFormationStatsImpl={previewImplFor(2500, 1000)}
+      />,
+    );
+
+    await setUpMinimalFormation(user);
+
+    const allySlot = () =>
+      within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ });
+    await user.hover(allySlot());
+    await waitFor(() => {
+      expect(within(allyRegion()).getByText("1,000")).toBeInTheDocument();
+    });
+    await user.unhover(allySlot());
+
+    await user.click(screen.getByRole("checkbox", { name: "補正前のステータスを表示" }));
+
+    await user.hover(allySlot());
+    await waitFor(() => {
+      expect(within(allyRegion()).getByText("補正前ステータス")).toBeInTheDocument();
+    });
+    expect(within(allyRegion()).getByText("900")).toBeInTheDocument();
+    expect(within(allyRegion()).queryByText("1,000")).not.toBeInTheDocument();
+    await user.unhover(allySlot());
+
+    // 同じトグルが敵側の枠にも効く（枠ごとの状態ではない）。
+    const enemyRegion = screen.getByRole("region", { name: /ENEMY FORMATION/ });
+    const enemySlot = within(enemyRegion).getByRole("button", { name: /前衛1: アルファを変更/ });
+    await user.hover(enemySlot);
+    await waitFor(() => {
+      expect(within(enemyRegion).getByText("補正前ステータス")).toBeInTheDocument();
+    });
+    expect(within(enemyRegion).getByText("899")).toBeInTheDocument();
+  });
+
+  it("UI-CT-073: an API response without enhancedBaseStats keeps the corrected preview working and says the pre-correction stats are unavailable", async () => {
+    const user = userEvent.setup();
+    const previewFormationStatsImpl = vi.fn<
+      (
+        request: FormationStatPreviewRequest,
+        options: SimulateOptions,
+      ) => Promise<FormationStatPreviewApiResult>
+    >((request) =>
+      Promise.resolve({
+        ok: true,
+        response: {
+          schemaVersion: 1,
+          catalogRevision: "rev-1",
+          units: [
+            ...request.allyFormation.units.map(() => {
+              const { enhancedBaseStats: _dropped, ...withoutBase } = previewUnit("ALLY", 1000);
+              return withoutBase;
+            }),
+            ...request.enemyFormation.units.map(() => previewUnit("ENEMY", 999)),
+          ],
+        },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        previewFormationStatsImpl={previewFormationStatsImpl}
+      />,
+    );
+
+    await setUpMinimalFormation(user);
+
+    const allySlot = () =>
+      within(allyRegion()).getByRole("button", { name: /前衛1: アルファを変更/ });
+    // 補正後は従来どおり表示される（プレビュー全体を契約違反で落とさない）。
+    await user.hover(allySlot());
+    await waitFor(() => {
+      expect(within(allyRegion()).getByText("1,000")).toBeInTheDocument();
+    });
+    await user.unhover(allySlot());
+
+    await user.click(screen.getByRole("checkbox", { name: "補正前のステータスを表示" }));
+
+    await user.hover(allySlot());
+    await waitFor(() => {
+      expect(
+        within(allyRegion()).getByText("補正前ステータスは取得できませんでした"),
+      ).toBeInTheDocument();
+    });
+    // 補正後の値が補正前として出てはならない。
+    expect(within(allyRegion()).queryByText("1,000")).not.toBeInTheDocument();
   });
 
   it("UI-CT-040: keeps the battle submittable when the preview request fails", async () => {

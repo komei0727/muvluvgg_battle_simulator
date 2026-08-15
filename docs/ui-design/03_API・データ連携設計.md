@@ -112,7 +112,7 @@ X-Request-Id: ui-<UUID>
 
 APIは0体の陣営を受け付けるため、片側だけ埋まった編集途中の状態でもそのまま送る（味方から順に置くので、両陣営が揃うまで待つと編集中はプレビューを出せない）。両陣営とも0体のときだけ送らず、未取得として扱う。
 
-成功レスポンスは`units[]`（`side`、`unitDefinitionId`、`formationPosition`、`maximumHp`、`combatStats`）だけを持つ。`units`は味方→敵の順で、各陣営内はリクエストの`units`配列と同じ順序である。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「FormationStatPreviewRequest」「FormationStatPreviewResponse」とする。
+成功レスポンスは`units[]`（`side`、`unitDefinitionId`、`formationPosition`、`maximumHp`、`combatStats`、および任意の`enhancedBaseStats`）だけを持つ。`enhancedBaseStats`は`R-ENH-06`の強化後基本ステータス（編成ボーナス・配置適性補正の適用前）で、`UI-AC-034`の補正前表示に使う。`units`は味方→敵の順で、各陣営内はリクエストの`units`配列と同じ順序である。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「FormationStatPreviewRequest」「FormationStatPreviewResponse」とする。
 
 戦闘POSTと同じく`cache: "no-store"`・`credentials: "omit"`とし、自動retryしない。編成・強化指定が変わるたびに送り直し、直前の実行中リクエストはabortする。プレビューは戦闘実行とは別の`AbortController`を使い、実行中の戦闘をプレビューの再取得で中断させない。
 
@@ -460,8 +460,13 @@ type FormationStatPreviewApiResult =
 - `schemaVersion`がnumber、`catalogRevision`がstring
 - `units`がarray
 - 各unitに `side`、`unitDefinitionId`、`formationPosition`、有限numberの`maximumHp`、`combatStats`の6項目（`attack`、`defense`、`criticalRate`、`actionSpeed`、`affinityBonus`、`criticalDamageBonus`）がある
+- `enhancedBaseStats` は**任意**とする。存在する場合だけ、`combatStats` と同じ6項目に加えて有限numberの `maximumHp` を持つことを検証する
 
 契約違反は`RESPONSE_CONTRACT_MISMATCH`として扱うが、他のレスポンス検証と違い戦闘実行を止めない（§2.5）。プレビュー表示だけを取り下げる。
+
+`enhancedBaseStats`（`UI-AC-034` の補正前ステータス）だけは不在を正常系として扱う。APIとUIは別々にデプロイされ、切替中は本フィールドを持たないサーバーの応答も届き得るためである（[10_API設計.md](../ddd/10_API設計.md)「ローリングデプロイ中の可用性」）。不在で応答全体を契約違反にすると、補正後のプレビューまで巻き添えで消える。
+
+一方、**存在するのに壊れている**場合は契約違反とする。欠けた項目だけが抜けた表示になり、利用者からは補正前の値として正しく見えてしまうためである。不在時の表示は補正後の値へ差し替えず、取得できない旨を示す（§5.8）。
 
 shape検証に加えて、応答の各`units[]`がリクエストへ載せた枠と`side`・`formationPosition`・`unitDefinitionId`で一致することも確かめる。1件でも食い違えば、対応づかない枠だけを落とさずプレビュー全体を失敗扱いにする — どの枠の値が信用できるのか画面から区別できないため。
 

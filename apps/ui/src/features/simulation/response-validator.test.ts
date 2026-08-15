@@ -269,4 +269,52 @@ describe("validateFormationStatPreviewResponse (UI-UT-API-009)", () => {
   it("rejects a body whose units is not an array", () => {
     expect(validateFormationStatPreviewResponse({ ...previewBody, units: {} }).ok).toBe(false);
   });
+
+  const enhancedBaseStats = {
+    maximumHp: 900,
+    attack: 80,
+    defense: 40,
+    criticalRate: 10,
+    actionSpeed: 12,
+    affinityBonus: 25,
+    criticalDamageBonus: 50,
+  };
+
+  it("UI-CT-064: keeps enhancedBaseStats on the validated unit so the display can show the pre-correction values", () => {
+    const result = validateFormationStatPreviewResponse({
+      ...previewBody,
+      units: [{ ...previewUnit, enhancedBaseStats }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.units[0]?.enhancedBaseStats).toEqual(enhancedBaseStats);
+  });
+
+  it("UI-CT-065: accepts a unit without enhancedBaseStats, so an API deployed before the field still previews", () => {
+    const result = validateFormationStatPreviewResponse(previewBody);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.units[0]?.enhancedBaseStats).toBeUndefined();
+  });
+
+  it("UI-CT-066: rejects a present but malformed enhancedBaseStats instead of showing partial values", () => {
+    const { defense: _dropped, ...withoutDefense } = enhancedBaseStats;
+
+    expect(
+      validateFormationStatPreviewResponse({
+        ...previewBody,
+        units: [{ ...previewUnit, enhancedBaseStats: withoutDefense }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateFormationStatPreviewResponse({
+        ...previewBody,
+        units: [
+          { ...previewUnit, enhancedBaseStats: { ...enhancedBaseStats, maximumHp: Number.NaN } },
+        ],
+      }).ok,
+    ).toBe(false);
+  });
 });

@@ -5,6 +5,11 @@ export interface UnitStatPreviewProps {
   readonly id: string;
   readonly status: "unavailable" | "loading" | "failed" | "ready";
   readonly unit?: FormationStatPreviewUnit;
+  /**
+   * UI-AC-034: 編成ボーナス・配置適性の補正を**適用する前**の値を表示する。
+   * 全枠で一括切替するため、状態は枠ではなくページが持つ。
+   */
+  readonly showBase?: boolean;
 }
 
 // docs/ui-design/01_UI要求・画面設計.md §5.8: 表示項目と単位。割合値は
@@ -46,28 +51,37 @@ function statusMessage(status: UnitStatPreviewProps["status"]): string {
  * 取得失敗は`role="alert"`にしない ——戦闘実行は妨げられておらず、緊急でない
  * API失敗にalertを使わない（05_非機能・アクセシビリティ設計.md §6）。
  */
-export function UnitStatPreview({ id, status, unit }: UnitStatPreviewProps) {
+export function UnitStatPreview({ id, status, unit, showBase = false }: UnitStatPreviewProps) {
+  // 表示する組を先に決める。補正前が選ばれているのに`enhancedBaseStats`が無い場合
+  // （本フィールドより前のAPIが応答した場合）は`undefined`のままにして、補正後の値
+  // へ黙って落とさない —— 別の意味の数値を同じ見出しの下に出すことになるため。
+  const stats = showBase ? unit?.enhancedBaseStats : unit?.combatStats;
+  const maximumHp = showBase ? unit?.enhancedBaseStats?.maximumHp : unit?.maximumHp;
+
   return (
     <div id={id} className={styles["preview"]}>
-      <p className={styles["heading"]}>開始時ステータス</p>
-      {status === "ready" && unit !== undefined ? (
+      <p className={styles["heading"]}>{showBase ? "補正前ステータス" : "開始時ステータス"}</p>
+      {showBase ? <p className={styles["note"]}>編成ボーナス・配置適性の補正なし</p> : null}
+      {status === "ready" && stats !== undefined && maximumHp !== undefined ? (
         <dl className={styles["list"]}>
           <div className={styles["row"]}>
             <dt className={styles["term"]}>最大HP</dt>
-            <dd className={styles["value"]}>{formatNumber(unit.maximumHp)}</dd>
+            <dd className={styles["value"]}>{formatNumber(maximumHp)}</dd>
           </div>
           {STAT_LABELS.map(([key, label]) => (
             <div key={key} className={styles["row"]}>
               <dt className={styles["term"]}>{label}</dt>
               <dd className={styles["value"]}>
-                {formatNumber(unit.combatStats[key])}
+                {formatNumber(stats[key])}
                 {RATIO_STATS.has(key) ? "%" : ""}
               </dd>
             </div>
           ))}
         </dl>
       ) : (
-        <p className={styles["message"]}>{statusMessage(status)}</p>
+        <p className={styles["message"]}>
+          {status === "ready" ? "補正前ステータスは取得できませんでした" : statusMessage(status)}
+        </p>
       )}
     </div>
   );

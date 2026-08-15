@@ -14,6 +14,8 @@ export interface ExerciseEnemyFormationProps {
   readonly disabled: boolean;
   readonly imageMap?: Readonly<Record<string, string>>;
   readonly statPreview?: FormationStatPreviewView;
+  /** UI-AC-034: 補正前ステータスの表示。通常戦闘と同じ切替を共有する。 */
+  readonly showBaseStats?: boolean;
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onMoveUnit: (fromSlotKey: string, toSlotKey: string) => void;
 }
@@ -34,6 +36,7 @@ export function ExerciseEnemyFormation({
   disabled,
   imageMap,
   statPreview = { status: "unavailable" },
+  showBaseStats = false,
   onOpenUnitSelection,
   onMoveUnit,
 }: ExerciseEnemyFormationProps) {
@@ -55,6 +58,7 @@ export function ExerciseEnemyFormation({
         disabled={disabled}
         {...(imageMap !== undefined ? { imageMap } : {})}
         statPreview={statPreview}
+        showBaseStats={showBaseStats}
         onOpenUnitSelection={onOpenUnitSelection}
         onMoveUnit={onMoveUnit}
       />
