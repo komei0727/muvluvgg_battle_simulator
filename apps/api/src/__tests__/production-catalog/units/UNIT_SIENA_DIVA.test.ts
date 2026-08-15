@@ -74,12 +74,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // 観測に残る気絶は `ACT_SIENA_DIVA_EX_STUN` の1件（残り2行動）になる。
       actions: [
         { effectActionDefinitionId: "ACT_SIENA_DIVA_EX_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_SIENA_DIVA_EX_STUN", targets: ["enemy:front"] },
+        // R-ATM-01: PS1の候補はEXの気絶付与時点で検出され、発動はEXの効果処理の後。
         { effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_ATK_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_STUN", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_STUN", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_SIENA_DIVA_EX_STUN", targets: ["enemy:front"] },
       ],
       // EX本体1060に、連鎖したPS1の攻撃力+10%込みの140が加わる。
       hpDeltas: { "enemy:front": -1200, "enemy:left": -140 },

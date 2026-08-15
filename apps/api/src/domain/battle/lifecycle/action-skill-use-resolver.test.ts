@@ -971,4 +971,161 @@ describe("resolveSkillUse", () => {
     expect(reducedEvents[1]!.parentEventId).toBe(skillUseCompleted.eventId);
     expect(reducedEvents[1]!.parentEventId).not.toBe(reducedEvents[0]!.eventId);
   });
+  it("UT-R-ATM-02-004 (R-ATM-02「中断時も保留分は解決する」): a skill use interrupted by the actor's own self-damage still drains the candidates detected earlier in its effect processing, after SkillUseInterrupted", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_INTERRUPT_DRAIN");
+    const watcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_INTERRUPT_DRAIN");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_INTERRUPT_DRAIN");
+    const hit = damageEffectAction("ACT_INTERRUPT_DRAIN_HIT");
+    const watcherGrant = statusEffectAction("ACT_INTERRUPT_DRAIN_WATCHER_GRANT", 1);
+    // 使用者自身のHPを全額削るコスト。2番目のstepで使用者が戦闘不能になり、
+    // R-SKL-01により3番目のstepは中断される。
+    const selfCost: EffectActionDefinition = {
+      kind: "MODIFY_RESOURCE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_INTERRUPT_DRAIN_SELF_COST"),
+      metadata: { tags: [] },
+      payload: {
+        resource: "HP",
+        operation: "ADD",
+        formula: { kind: "CONSTANT", value: -1000 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      },
+    };
+    const threeStepSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_INTERRUPT_DRAIN"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: selfCost.effectActionDefinitionId }],
+          },
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "InterruptDrain", tags: [] },
+    };
+    // 1番目のstepの`DamageApplied`で候補になるwatcher。所有者は使用者ではないため、
+    // 使用者の戦闘不能では発動直前確認（R-PS-04）に落ちない。
+    const watcherPs: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_INTERRUPT_DRAIN_WATCHER"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "DamageApplied",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: watcherGrant.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "InterruptDrainWatcher", tags: [] },
+    };
+
+    const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId, currentAp: 3 });
+    const watcher = unit("WATCHER", "ALLY", {
+      unitDefinitionId: watcherUnitDefinitionId,
+      currentPp: 3,
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [
+          watcherUnitDefinitionId,
+          unitDefinitionOf(watcherUnitDefinitionId, [watcherPs.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([[watcherPs.skillDefinitionId, watcherPs]]),
+      new Map([
+        [hit.effectActionDefinitionId, hit],
+        [selfCost.effectActionDefinitionId, selfCost],
+        [watcherGrant.effectActionDefinitionId, watcherGrant],
+      ]),
+    );
+
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    resolveSkillUse(
+      actor,
+      threeStepSkill,
+      "AS",
+      "AS",
+      [actor, watcher, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const eventTypes = recorder.getEvents().map((event) => event.eventType);
+    // 3番目のstepは走らず中断で終わる。
+    expect(eventTypes).toContain("SkillUseInterrupted");
+    expect(eventTypes).not.toContain("SkillUseCompleted");
+    // それでも、1番目のstepで検出された候補は後段フェーズで発動する。
+    const interruptedIndex = eventTypes.indexOf("SkillUseInterrupted");
+    const watcherActivatedIndex = recorder
+      .getEvents()
+      .findIndex(
+        (event) =>
+          event.eventType === "PassiveActivated" && event.sourceUnitId === watcher.battleUnitId,
+      );
+    expect(watcherActivatedIndex).toBeGreaterThan(interruptedIndex);
+  });
 });

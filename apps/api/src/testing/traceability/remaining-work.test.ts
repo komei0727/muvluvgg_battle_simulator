@@ -10,7 +10,12 @@ import { collectTestCaseDefinitionsFromSource } from "./test-case-definitions.js
  * `15_Unit_Memory変換台帳.md`であり、台帳の件数・割当が Catalog 実データと
  * Capability レジストリに一致し続けることを機械照合する。
  */
-type Milestone = "M7" | "M8" | "M9" | "M10" | "M11";
+/**
+ * `M12`はIssue #478〜#480の「スキル効果処理の割り込み制御」（`R-ATM-01`〜`R-ATM-04`）
+ * のための実装マイルストーン。M9完了後に新設したRuleを持つため、既存のM9完了監査
+ * （`m9-completion-audit.test.ts`）の対象へ入れずに所有者を記録できる枠が要る。
+ */
+type Milestone = "M7" | "M8" | "M9" | "M10" | "M11" | "M12";
 
 interface RemainingWorkManifest {
   readonly schemaVersion: 1;
@@ -207,12 +212,17 @@ describe("remaining work manifest (PLAN-001)", () => {
     // Rule割当の許容milestoneはRuleを持つ実装マイルストーンに限る。M10・M11は
     // 設計時新設Rule（R-TEX-01〜10／R-ENH-01〜06）のために許容へ加えた。どちらも
     // 完了計上済みで現在の割当は無いが、後続の設計時新設が再び同じマイルストーンへ
-    // 割り当たり得るため許容は残す。
+    // 割り当たり得るため許容は残す。M12は`R-ATM-01`〜`R-ATM-04`（Issue #478）の
+    // ために加えた。
     expect(
       manifest.ruleAssignments.every((assignment) => {
         const milestone = taskById.get(assignment.taskId)?.milestone;
         return (
-          milestone === "M7" || milestone === "M8" || milestone === "M10" || milestone === "M11"
+          milestone === "M7" ||
+          milestone === "M8" ||
+          milestone === "M10" ||
+          milestone === "M11" ||
+          milestone === "M12"
         );
       }),
     ).toBe(true);

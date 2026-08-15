@@ -108,15 +108,16 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_KATE_PALADIN_EX" },
     random: rolls(0.5),
     expected: {
-      // 1体目の凍結が自身のPS1（「敵に凍結が付与された際」）を即座に呼び、その攻撃が
-      // 凍結を解除する。PS1は`R-PS-07`（1解決スコープ1回）で1度しか走らないため、
-      // 2体目以降の凍結は残る。PS1のダメージは795だが、凍結解除時の被ダメージ150%
-      // 増加が乗って1987（切り捨て）になる。
+      // 1体目の凍結が自身のPS1（「敵に凍結が付与された際」）の候補を生む。R-ATM-01に
+      // より発動はEXの効果処理（3体分の凍結付与）が終わった後になり、その攻撃が
+      // 1体目の凍結を解除する。PS1は`R-PS-07`（1解決スコープ1回）で1度しか走らない
+      // ため、2体目以降の凍結は残る。PS1のダメージは795だが、凍結解除時の被ダメージ
+      // 150%増加が乗って1987（切り捨て）になる。
       actions: [
-        { effectActionDefinitionId: "ACT_KATE_PALADIN_PS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_KATE_PALADIN_EX_FREEZE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_KATE_PALADIN_EX_FREEZE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_KATE_PALADIN_EX_FREEZE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_KATE_PALADIN_PS1_DAMAGE", targets: ["enemy:front"] },
       ],
       hpDeltas: { "enemy:front": -1987 },
       effectsApplied: [

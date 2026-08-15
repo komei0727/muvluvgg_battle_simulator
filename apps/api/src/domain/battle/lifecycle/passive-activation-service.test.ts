@@ -817,7 +817,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "PassiveActivated")).toBe(false);
   });
 
-  it("when a PS's own EffectSequence has two EffectActions and the first triggers a child PS, the child resolves completely before the parent's second EffectAction starts (親A→子PS→親B)", () => {
+  it("UT-R-ATM-01-004: when a PS's own EffectSequence has two EffectActions and the first triggers a child PS, the child is held back until the parent's whole effect processing finished (親A→親B→PassiveResolved→子PS)", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
     const actionA = damageEffectAction("ACT_A");
@@ -848,8 +848,9 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       },
     };
     // 子PS: 任意の`EffectActionCompleted`に反応する（R-PS-07の1解決スコープ1回
-    // guardにより、実際に発動するのは最初に観測した1件だけ — 親のaction A由来の
-    // ものになるはずで、これが「親A→子PS→親B」の検証を成立させる）。
+    // guardにより、実際に発動するのは最初に検出した1件だけ — 親のaction A由来の
+    // ものになる。R-ATM-01により、その候補は検出だけ即時に行われ、発動は親の
+    // 効果処理が完了して`PassiveResolved`を発行した後になる）。
     const childSkill: SkillDefinition = {
       ...passiveSkillOf("SKL_CHILD"),
       triggers: [
@@ -920,10 +921,11 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         e.eventType === "EffectActionCompleted",
     );
     // 親のaction A・B・子のchildActionの3件がそれぞれ1回ずつ解決される。
+    // R-ATM-01: 子の効果処理は親の効果処理の**後**に来る。
     expect(actionCompletedEvents.map((e) => e.payload.effectActionDefinitionId)).toEqual([
       actionA.effectActionDefinitionId,
-      childAction.effectActionDefinitionId,
       actionB.effectActionDefinitionId,
+      childAction.effectActionDefinitionId,
     ]);
 
     const actionACompletedIndex = events.indexOf(actionCompletedEvents[0]!);
@@ -935,8 +937,13 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         e.eventType === "EffectActionStarting" &&
         e.payload.effectActionDefinitionId === actionB.effectActionDefinitionId,
     );
+    const parentResolvedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === parentOwner.battleUnitId,
+    );
     expect(childPassiveActivatedIndex).toBeGreaterThan(actionACompletedIndex);
-    expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
+    // R-ATM-02 #3: 保留候補の発動は完了イベント（`PassiveResolved`）の後。
+    expect(actionBStartingIndex).toBeLessThan(parentResolvedIndex);
+    expect(childPassiveActivatedIndex).toBeGreaterThan(parentResolvedIndex);
 
     // 子PSは1解決スコープ1回のため、親のaction B由来のEffectActionCompletedや
     // 自分自身のchildAction由来のEffectActionCompletedでは再発動しない。
@@ -946,7 +953,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivatedEvents).toHaveLength(1);
   });
 
-  it("a child PS triggered by DamageApplied (the DAMAGE action's own internal event, not EffectActionCompleted) resolves before the parent's second EffectAction starts", () => {
+  it("UT-R-ATM-01-005: a child PS triggered by DamageApplied (the DAMAGE action's own internal event, not EffectActionCompleted) is detected there but only activates after the parent's whole effect processing", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
     const actionA = damageEffectAction("ACT_A");
@@ -1048,7 +1055,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
 
     const events = recorder.getEvents();
     const damageAppliedEvents = events.filter((e) => e.eventType === "DamageApplied");
-    // 親のaction A・子のchildAction・親のaction Bの3件のDamageAppliedが発行される。
+    // 親のaction A・親のaction B・子のchildActionの3件のDamageAppliedが発行される。
     expect(damageAppliedEvents).toHaveLength(3);
 
     const actionADamageAppliedIndex = events.indexOf(damageAppliedEvents[0]!);
@@ -1060,8 +1067,13 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         e.eventType === "EffectActionStarting" &&
         e.payload.effectActionDefinitionId === actionB.effectActionDefinitionId,
     );
-    expect(childPassiveActivatedIndex).toBeGreaterThan(actionADamageAppliedIndex);
-    expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
+    const parentResolvedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === parentOwner.battleUnitId,
+    );
+    // R-ATM-01: `DamageApplied`の候補は検出されるが、発動は親の効果処理完了後。
+    expect(actionBStartingIndex).toBeGreaterThan(actionADamageAppliedIndex);
+    expect(actionBStartingIndex).toBeLessThan(parentResolvedIndex);
+    expect(childPassiveActivatedIndex).toBeGreaterThan(parentResolvedIndex);
 
     const childPassiveActivatedEvents = events.filter(
       (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === childOwner.battleUnitId,
@@ -1069,7 +1081,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivatedEvents).toHaveLength(1);
   });
 
-  it("a PS's own DAMAGE action against a frozen target with a linked-group sibling resolves the cascade's EffectExpired (and a reacting child PS) before FreezeRemoved is recorded, not batched after the whole hit completes", () => {
+  it("UT-R-EFF-09-030: a PS's own DAMAGE action against a frozen target with a linked-group sibling records the cascade's EffectExpired before FreezeRemoved (R-EFF-09 detection granularity), while the reacting child PS activates only after the parent's effect processing (R-ATM-01)", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_FREEZE");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_REACT");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_FROZEN");
@@ -1237,10 +1249,16 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(freezeRemoved).toBeDefined();
     expect(childPassiveActivated).toBeDefined();
     expect(events.indexOf(cascadeExpired!)).toBeLessThan(events.indexOf(freezeRemoved!));
-    // 中核となる回帰チェック: 子PSはEffectExpired（カスケードの子）に反応して
-    // 即座に発動する — FreezeRemoved（このヒットのDAMAGE解決の一部として
-    // まとめて後で処理されるのではなく）より前に。
-    expect(events.indexOf(childPassiveActivated!)).toBeLessThan(events.indexOf(freezeRemoved!));
+    // 中核となる回帰チェック: 子PSの候補はEffectExpired（カスケードの子）の発行
+    // 時点で検出されるが、R-ATM-01により発動は親PSの効果処理が完了して
+    // `PassiveResolved`を発行した後になる（EffectExpiredの通知粒度そのものは
+    // 上のcascadeExpired→freezeRemovedの順で担保される）。
+    const parentResolved = events.find(
+      (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === parentOwner.battleUnitId,
+    );
+    expect(parentResolved).toBeDefined();
+    expect(events.indexOf(freezeRemoved!)).toBeLessThan(events.indexOf(parentResolved!));
+    expect(events.indexOf(childPassiveActivated!)).toBeGreaterThan(events.indexOf(parentResolved!));
   });
 
   it("PS-own DAMAGE against a frozen target still notifies the pre-cascade FACT events (HitConfirmed) — they are not silently dropped once the freeze-removal cascade starts yielding", () => {
@@ -1661,7 +1679,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(updatedEnemy.currentHp).toBe(0);
   });
 
-  it("a child PS triggered by CooldownReduced (a COOLDOWN_MANIPULATION action's own internal event) resolves before the parent's second EffectAction starts", () => {
+  it("UT-R-ATM-01-006: a child PS triggered by CooldownReduced (a COOLDOWN_MANIPULATION action's own internal event) is detected there but only activates after the parent's whole effect processing", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD");
     const targetSkillId = createSkillDefinitionId("SKL_ON_COOLDOWN");
@@ -1772,8 +1790,13 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         e.eventType === "EffectActionStarting" &&
         e.payload.effectActionDefinitionId === actionB.effectActionDefinitionId,
     );
-    expect(childPassiveActivatedIndex).toBeGreaterThan(cooldownReducedIndex);
-    expect(actionBStartingIndex).toBeGreaterThan(childPassiveActivatedIndex);
+    const parentResolvedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === parentOwner.battleUnitId,
+    );
+    // R-ATM-01: `CooldownReduced`の候補は検出されるが、発動は親の効果処理完了後。
+    expect(actionBStartingIndex).toBeGreaterThan(cooldownReducedIndex);
+    expect(actionBStartingIndex).toBeLessThan(parentResolvedIndex);
+    expect(childPassiveActivatedIndex).toBeGreaterThan(parentResolvedIndex);
   });
 
   it("UT-R-EFF-11-001 (RuntimeCounter): updates the counter and emits RuntimeCounterChanged before the causing event's own PS candidates are resolved, so a modulo-gated PS only activates once the counter reaches a multiple", () => {
@@ -3706,7 +3729,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       });
     });
 
-    it("UT-R-EFF-10-034 (R-EFF-09 逐次通知): inside the PS chain too, a PS triggered by the cascaded CHILD's EffectExpired still observes the parent Marker (it is removed only after that candidate resolves)", () => {
+    it("UT-R-EFF-10-034 (R-EFF-09 逐次通知 / R-ATM-01 再確認): inside the PS chain too, the cascaded CHILD's EffectExpired is delivered while the parent Marker still exists, but a candidate gated on that Marker is discarded by the R-PS-04 reconfirmation once the pending queue drains", () => {
       const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_ATTACKER");
       const victimUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_VICTIM");
       const attackDamage = damageEffectAction("ACT_KOUYOU_SEQ_ATTACK_DAMAGE");
@@ -3816,16 +3839,20 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(childExpiredIndex).toBeGreaterThanOrEqual(0);
       expect(markerRemovedIndex).toBeGreaterThan(childExpiredIndex);
 
-      // 本題: 子の`EffectExpired`を観測したPSが、親Markerをまだ所持している状態で
-      // 発動し、その`PassiveActivated`が親の`MarkerRemoved`より前に来る。
+      // 本題: 子の`EffectExpired`は親Marker所持状態でPS/Memoryへ届く（R-EFF-09の
+      // 検出粒度）。ただしR-ATM-01により発動は攻撃PSの効果処理完了後まで保留され、
+      // その時点では親Markerが既に除去済みのため、`activationCondition`
+      // （`TARGET_HAS_MARKER`）を見るR-PS-04の発動直前確認がこの候補を破棄する。
+      // 検出粒度の契約（上の`childExpiredIndex < markerRemovedIndex`）は保ったまま、
+      // 「保留中に前提が崩れた候補は発動しない」ことをここで固定する。
       const watcherActivated = events.find(
         (e) =>
           e.eventType === "PassiveActivated" &&
           (e.payload as { readonly skillDefinitionId?: string }).skillDefinitionId ===
             watcherSkill.skillDefinitionId,
       );
-      expect(watcherActivated).toBeDefined();
-      expect(eventTypes.indexOf(watcherActivated!.eventType)).toBeLessThan(markerRemovedIndex);
+      expect(watcherActivated).toBeUndefined();
+      expect(eventTypes.indexOf("PassiveResolved")).toBeGreaterThan(markerRemovedIndex);
 
       // 最終状態ではMarkerも子効果も残らない。
       const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
@@ -4819,11 +4846,21 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         );
       expect(childActivated).toBeDefined();
 
-      // The child activates while the parent's own EffectSequence is still
-      // resolving (before finalize discards the counter) — R-PS-06 "parent
-      // effect A -> child PS -> parent effect B" ordering parity.
+      // R-ATM-01: the child's candidate is detected at the second
+      // RuntimeCounterChanged (mid effect processing) but only activates in the
+      // post phase — after the parent's PassiveResolved. The ordering the chain
+      // guarantees is therefore "parent effect A -> parent effect B ->
+      // PassiveResolved -> child PS".
       const secondChange = counterChanges[1]!;
+      const parentResolved = recorder
+        .getEvents()
+        .find(
+          (e) =>
+            e.eventType === "PassiveResolved" &&
+            (e.payload as { skillDefinitionId?: string }).skillDefinitionId === parentSkillId,
+        )!;
       expect(childActivated!.sequence).toBeGreaterThan(secondChange.sequence);
+      expect(childActivated!.sequence).toBeGreaterThan(parentResolved.sequence);
 
       // Once the parent's EffectSequence resolution completes, its own
       // EFFECT_SEQUENCE counter is discarded exactly once (skillDefinitionId
@@ -4844,7 +4881,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
   });
 
   describe("R-TGT-08 Stealth consumption inside a PS's own EffectSequence (TGT-004)", () => {
-    it("UT-R-TGT-08-009: a Stealth AppliedEffect consumed by a PS's own targetBindings redirect (not the AS/EX callback path) still reaches the PS chain — a watcher PS triggered by the resulting EffectExpired(CONSUMPTION) fully resolves before the parent's own first EffectAction starts", () => {
+    it("UT-R-TGT-08-009: a Stealth AppliedEffect consumed by a PS's own targetBindings redirect (not the AS/EX callback path) still reaches the PS chain — a watcher PS triggered by the resulting EffectExpired(CONSUMPTION) is detected there and activates once the parent's effect processing completed (R-ATM-01)", () => {
       const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_STEALTH");
       const watcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_STEALTH");
       const enemyBindingId = createTargetBindingId("TGT_ENEMY");
@@ -4999,8 +5036,14 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           e.eventType === "EffectActionStarting" &&
           e.payload.effectActionDefinitionId === enemyDamage.effectActionDefinitionId,
       );
+      const parentResolvedIndex = events.findIndex(
+        (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === parentOwner.battleUnitId,
+      );
       expect(watcherActivatedIndex).toBeGreaterThan(expiredIndex);
-      expect(parentActionStartingIndex).toBeGreaterThan(watcherActivatedIndex);
+      // R-ATM-01: 消費の`EffectExpired`はPS/Memoryへ届くが、watcherの発動は
+      // 親PSの効果処理（最初のEffectActionを含む）が完了した後になる。
+      expect(parentActionStartingIndex).toBeLessThan(parentResolvedIndex);
+      expect(watcherActivatedIndex).toBeGreaterThan(parentResolvedIndex);
     });
 
     it("UT-R-EFF-09-008 (R-EFF-09): a Stealth holder whose AppliedEffect is PARENT-role in a linkedEffectGroupId cascades its CHILD-role sibling first, and both resulting EffectExpired events reach the PS chain in order via the same PS-own-EffectSequence path", () => {
@@ -5248,13 +5291,17 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
           e.eventType === "EffectActionStarting" &&
           e.payload.effectActionDefinitionId === enemyDamage.effectActionDefinitionId,
       );
+      const parentResolvedIndex = events.findIndex(
+        (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === parentOwner.battleUnitId,
+      );
       // 両方のEffectExpired（カスケード・消費）は、その事後PS連鎖が走るより前に
-      // 一括で記録済み（`expireEffects`が両方を返す前に記録する）。カスケード
-      // 側watcherは消費側watcherより前のイベント（配列内で先）に反応するため、
-      // その候補連鎖全体（PassiveActivated含む）を消費側watcherより先に完了する。
+      // 一括で記録済み（`expireEffects`が両方を返す前に記録する）。R-ATM-01により
+      // どちらのwatcherも保留キューへ入り、親PSの効果処理完了後にイベント発生順
+      // （カスケード → 消費）で発動する。
       expect(cascadeWatcherActivatedIndex).toBeGreaterThan(consumptionIndex);
       expect(consumptionWatcherActivatedIndex).toBeGreaterThan(cascadeWatcherActivatedIndex);
-      expect(parentActionStartingIndex).toBeGreaterThan(consumptionWatcherActivatedIndex);
+      expect(parentActionStartingIndex).toBeLessThan(parentResolvedIndex);
+      expect(cascadeWatcherActivatedIndex).toBeGreaterThan(parentResolvedIndex);
     });
   });
 
@@ -5915,8 +5962,9 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () 
     return { recorder, updatedUnits, events: recorder.getEvents() };
   }
 
-  it("UT-R-HEAL-04-017: a child PS triggered by HealApplied fully resolves before the transfer is applied — killing the transfer destination in that chain discards the transfer instead of healing (or reviving) it", () => {
-    // HEALER(100) > DESTINATION(1) なので、子PSは転送先だけを撃破する（使用者は生存）。
+  it("UT-R-HEAL-04-017 (R-ATM-01「転送途中のPS/Memory発動は存在しない」): the child PS triggered by HealApplied is only detected there — the transfer completes untouched and the child activates after the parent's PassiveResolved", () => {
+    // HEALER(100) > DESTINATION(1)。旧仕様では子PSが転送前に割り込んで転送先を
+    // 撃破し、転送が破棄されていた。R-ATM-01の保留方式ではその経路自体が存在しない。
     const { updatedUnits, events } = board(100, 1);
 
     const healAppliedIndex = events.findIndex((e) => e.eventType === "HealApplied");
@@ -5924,49 +5972,64 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () 
       (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === createBattleUnitId("WATCHER"),
     );
     const transferredIndex = events.findIndex((e) => e.eventType === "HealingTransferred");
+    const parentResolvedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === createBattleUnitId("HEALER"),
+    );
     expect(healAppliedIndex).toBeGreaterThanOrEqual(0);
-    expect(childActivatedIndex).toBeGreaterThan(healAppliedIndex);
-    // 中核の回帰チェック: 子PS連鎖は転送より前に完全に解決される。
-    expect(transferredIndex).toBeGreaterThan(childActivatedIndex);
+    // 中核の回帰チェック: 転送は`HealApplied`の直後・親PSの効果処理の内側で完了し、
+    // 子PSの発動はその後（完了イベント後の後段フェーズ）になる。
+    expect(transferredIndex).toBeGreaterThan(healAppliedIndex);
+    expect(transferredIndex).toBeLessThan(parentResolvedIndex);
+    expect(childActivatedIndex).toBeGreaterThan(parentResolvedIndex);
 
-    // 子PSが転送先を撃破したため、転送は成立せず破棄される（蘇生させない）。
-    expect(
-      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("DESTINATION"))!.currentHp,
-    ).toBe(0);
+    // 転送は成立する（転送先は生存したまま30回復して31になる）。
     expect(events[transferredIndex]!.payload).toMatchObject({
       fromUnitId: createBattleUnitId("HOLDER"),
       toUnitId: createBattleUnitId("DESTINATION"),
       transferredAmount: 30,
-      appliedAmount: 0,
-      discardedAmount: 30,
+      appliedAmount: 30,
+      discardedAmount: 0,
     });
-    expect(events[transferredIndex]!.stateDelta).toBeUndefined();
-    // 保持者へも戻さない（R-HEAL-04、`HealApplied`のStateDeltaは確定済み）。
+    // 保持者は転送分を差し引いた残量のまま（R-HEAL-04 #2）。
     expect(
       updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HOLDER"))!.currentHp,
     ).toBe(50);
   });
 
-  it("UT-R-HEAL-04-018 (NEGATIVE, R-SKL-01): when the HealApplied chain defeats the skill user itself, the pending transfer is interrupted — no HealingTransferred is emitted and the EffectAction completes as INTERRUPTED", () => {
-    // HEALER(1) < DESTINATION(40) なので、子PSは使用者（親PSの所有者）を撃破する。
+  it("UT-R-HEAL-04-018 (R-ATM-01): a HealApplied candidate that would defeat the skill user cannot interrupt the transfer any more — the transfer completes, and the user is only defeated in the post phase", () => {
+    // HEALER(1) < DESTINATION(40)。子PSの対象は「最もHP割合の低い敵」であり、
+    // 保留解決の時点でもHEALERが該当するため、後段フェーズで使用者が撃破される。
+    // 旧仕様ではこれが転送の途中に割り込んで`HealingTransferred`を消していた。
     const { updatedUnits, events } = board(1, 40);
 
     expect(events.some((e) => e.eventType === "HealApplied")).toBe(true);
-    expect(
-      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HEALER"))!.currentHp,
-    ).toBe(0);
-    // R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」。
-    expect(events.some((e) => e.eventType === "HealingTransferred")).toBe(false);
-    expect(
-      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("DESTINATION"))!.currentHp,
-    ).toBe(40);
+    // R-ATM-01「#2 の割り当てから #5 の適用までの間にPS/Memoryの発動が挟まって
+    // 転送先・使用者を戦闘不能にする経路は存在しない」。
+    const transferredIndex = events.findIndex((e) => e.eventType === "HealingTransferred");
+    const parentResolvedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveResolved" && e.sourceUnitId === createBattleUnitId("HEALER"),
+    );
+    expect(transferredIndex).toBeGreaterThanOrEqual(0);
+    expect(transferredIndex).toBeLessThan(parentResolvedIndex);
     const completed = events.find(
       (e) =>
         e.eventType === "EffectActionCompleted" &&
         e.payload.effectActionDefinitionId === healAction.effectActionDefinitionId,
     )!;
-    expect(completed.payload).toMatchObject({ resultKind: "INTERRUPTED" });
-    // 解決済みの効果は巻き戻さない（R-SKL-01）: 保持者は転送分を差し引いた残量のまま。
+    expect(completed.payload).toMatchObject({ resultKind: "APPLIED" });
+    // 使用者の戦闘不能は後段フェーズ（保留候補の発動）で起きる。
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HEALER"))!.currentHp,
+    ).toBe(0);
+    const healerDefeatedIndex = events.findIndex(
+      (e) => e.eventType === "UnitDefeated" && e.payload.unitId === createBattleUnitId("HEALER"),
+    );
+    expect(healerDefeatedIndex).toBeGreaterThan(parentResolvedIndex);
+    // 転送先は転送分だけ回復している。
+    expect(
+      updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("DESTINATION"))!.currentHp,
+    ).toBe(70);
+    // 保持者は転送分を差し引いた残量のまま。
     expect(
       updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HOLDER"))!.currentHp,
     ).toBe(50);

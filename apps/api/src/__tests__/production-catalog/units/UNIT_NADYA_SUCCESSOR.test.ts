@@ -138,38 +138,40 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: { enemies: ENEMY_WITH_HIGHEST_ATTACK },
     expected: {
       // EXが付与した気絶そのものがPS2（「敵に気絶が付与された際に発動」）の契機に
-      // なるため、同じ行動の中でPS2が実際に走る。EX側の `EffectActionCompleted` は
-      // このPS連鎖の後に確定する。
+      // なるため、同じ行動の中でPS2が実際に走る。R-ATM-01により、その候補は気絶の
+      // 付与時点で検出されるがEXの全効果が解決してから発動する。
       actions: [
         { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_EX_DAMAGE", targets: ["enemy:back"] },
-        { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_DAMAGE", targets: ["enemy:back"] },
-        {
-          effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_TRAINING_MARK",
-          targets: ["ally:subject"],
-        },
-        { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_EX_STUN", targets: ["enemy:back"] },
         {
           effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_EX_TRAINING_MARK",
           targets: ["ally:subject"],
         },
         { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_EX_SUBUNIT", targets: ["ally:subject"] },
-      ],
-      // EX本体742（威力148.4%）とPS2の追撃390（威力78%）の合計。
-      hpDeltas: { "enemy:back": -1132 },
-      effectsApplied: [
+        { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_DAMAGE", targets: ["enemy:back"] },
         {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT",
-          magnitude: 2500,
-          timeLimit: { unit: "ACTION", count: 1 },
+          effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_TRAINING_MARK",
+          targets: ["ally:subject"],
         },
+        { effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT", targets: ["ally:subject"] },
+      ],
+      // EX本体742（威力148.4%）とPS2の攻撃の合計。R-ATM-01でPS2がEXの効果処理の
+      // 後になったため、PS2の攻撃はEXが先に付与した「研鑽」とサブユニット
+      // （攻撃時追加ダメージ、R-SUB-02）が乗った状態で解決する。
+      hpDeltas: { "enemy:back": -1866 },
+      effectsApplied: [
         {
           unitId: "ally:subject",
           // サブユニットの耐久力は付与時の最大HP10000の25%。
           effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_EX_SUBUNIT",
           magnitude: 2500,
           timeLimit: { unit: "ACTION", count: 2 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT",
+          magnitude: 2500,
+          timeLimit: { unit: "ACTION", count: 1 },
         },
         {
           unitId: "enemy:back",

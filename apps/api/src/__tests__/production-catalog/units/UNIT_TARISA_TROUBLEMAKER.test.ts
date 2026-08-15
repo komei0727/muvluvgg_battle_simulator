@@ -180,7 +180,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_TARISA_TROUBLEMAKER_EX" },
     expected: {
       actions: [
-        ...PS1_SELF_BUFF,
         { effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_EX_DAMAGE", targets: ["enemy:front"] },
         {
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN",
@@ -194,11 +193,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_EX_IMMUNITY",
           targets: ["ally:subject"],
         },
+        ...PS1_SELF_BUFF,
       ],
-      // 1ヒット目116のあとPS1の攻撃力+2.5%が入り、残り9ヒットは122になる。
-      hpDeltas: { "enemy:front": -1214 },
+      // R-ATM-01: PS1の攻撃力+2.5%はEXの効果処理完了後に入るため、10ヒットすべてが116。
+      hpDeltas: { "enemy:front": -1160 },
       effectsApplied: [
-        PS1_ATK_UP_APPLIED,
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_EX_ATK_UP",
@@ -211,6 +210,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           magnitude: 0,
           timeLimit: { unit: "ACTION", count: 1 },
         },
+        PS1_ATK_UP_APPLIED,
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN",
@@ -231,7 +231,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_TARISA_TROUBLEMAKER_AS1" },
     expected: {
       actions: [
-        ...PS1_SELF_BUFF,
         {
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_AS1_DAMAGE",
           targets: ["enemy:front"],
@@ -240,9 +239,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION",
           targets: ["enemy:front"],
         },
+        ...PS1_SELF_BUFF,
       ],
-      // 1ヒット目148のあと攻撃力+2.5%が入り、残り6ヒットは155になる。
-      hpDeltas: { "enemy:front": -1078 },
+      // R-ATM-01: PS1の攻撃力+2.5%はAS1の効果処理完了後に入るため、7ヒットすべてが148。
+      hpDeltas: { "enemy:front": -1036 },
       effectsApplied: [
         PS1_ATK_UP_APPLIED,
         {
@@ -270,7 +270,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_TARISA_TROUBLEMAKER_AS2" },
     expected: {
       actions: [
-        ...PS1_SELF_BUFF,
         {
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_AS2_DAMAGE",
           targets: ["enemy:front"],
@@ -279,9 +278,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_AS2_ATK_DOWN",
           targets: ["enemy:front"],
         },
+        ...PS1_SELF_BUFF,
       ],
-      // 1ヒット目273のあと攻撃力+2.5%が入り、残り2ヒットは286になる。
-      hpDeltas: { "enemy:front": -845 },
+      // R-ATM-01: PS1の攻撃力+2.5%はAS2の効果処理完了後に入るため、3ヒットすべてが273。
+      hpDeltas: { "enemy:front": -819 },
       effectsApplied: [
         PS1_ATK_UP_APPLIED,
         {
@@ -308,14 +308,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_TARISA_TROUBLEMAKER_AS3" },
     expected: {
       actions: [
-        ...PS1_SELF_BUFF,
         {
           effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_AS3_DAMAGE",
           targets: ["enemy:front"],
         },
         { effectActionDefinitionId: "ACT_TARISA_TROUBLEMAKER_AS3_HEAL", targets: ["ally:subject"] },
+        ...PS1_SELF_BUFF,
       ],
-      // 単発なのでPS1の攻撃力上昇はこの攻撃には乗らない。954の35%＝333を回復する。
+      // PS1の攻撃力上昇はこの攻撃には乗らない（R-ATM-01で効果処理の後）。954の35%＝333を回復する。
       hpDeltas: { "enemy:front": -954, "ally:subject": 333 },
       effectsApplied: [PS1_ATK_UP_APPLIED],
       markers: [PS1_FIRST_STACK],
@@ -703,7 +703,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(subject.combatStats.attack).toBe(1000);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-008 (R-EFF-09 通知順序): カスケードで巻き込まれた子の `EffectExpired` を契機にするPSは、その時点でまだ親の「負けん気」を所持している状態で発動する", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-008 (R-EFF-09 通知順序 / R-ATM-01 再確認): カスケードで巻き込まれた子の `EffectExpired` は親の「負けん気」を所持している状態でPS/Memoryへ届き、そこで検出された候補は保留中に親Markerが消えるためR-PS-04で破棄される", () => {
     // R-EFF-09「各インスタンスの失効イベントは、次のインスタンスへ進む前にPS/Memoryの
     // 即時連鎖へ渡す」。この規約は**評価経路を問わない** — 実 `catalog/` で連動グループの
     // 親Markerを外す2定義（`ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER`・
@@ -760,25 +760,21 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     );
     const markerRemoved = indexOf((event) => event.eventType === "MarkerRemoved");
 
-    // 本命: 子の失効 → watcher PSの発動 → 親Markerの除去、の順。watcher が
-    // `MarkerRemoved` より後ろへ回ると `TARGET_HAS_MARKER` は成立しない。
+    // 本命その1（R-EFF-09の検出粒度）: 子の失効は親Markerの除去より前に発行され、
+    // その時点でPS/Memoryの候補検出へ渡る。まとめて通知していると逆順になる。
     expect(childExpired).toBeGreaterThanOrEqual(0);
-    expect(watcherActivated).toBeGreaterThan(childExpired);
-    expect(markerRemoved).toBeGreaterThan(watcherActivated);
-    expect(
-      emitted.filter(
-        (event) =>
-          event.eventType === "PassiveActivated" &&
-          event.payload.skillDefinitionId === markerWatcher.skillDefinitionId,
-      ),
-    ).toHaveLength(1);
-    // watcher が付けたのは連動グループ外の効果なので、続く親Markerの除去には
-    // 巻き込まれず残る（カスケードが無差別に消していないことの対照）。
+    expect(markerRemoved).toBeGreaterThan(childExpired);
+    // 本命その2（R-ATM-01の再確認）: 効果処理中に検出された候補の発動は、PS1の効果
+    // 処理が完了した後になる。その時点で親Markerは既に除去済みのため、
+    // `activationCondition: TARGET_HAS_MARKER` を見るR-PS-04の発動直前確認が
+    // この候補を破棄する。
+    expect(watcherActivated).toBe(-1);
+    // 破棄されたので、watcher の効果は付かない。
     expect(
       after
         .find((unit) => unit.battleUnitId === "ally:subject")!
         .appliedEffects.map((effect) => effect.effectActionDefinitionId),
-    ).toEqual([WATCHER_EFFECT_ID]);
+    ).toEqual([]);
   });
 
   it("IT-UNIT-TARISA-TROUBLEMAKER-009 (R-CRT-03 #1): AS1が配る実「会心不可」は保持者自身の攻撃だけを会心させない — 同じデバフを防御側が持っていても、攻撃側の会心は止まらない", () => {

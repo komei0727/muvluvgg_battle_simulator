@@ -436,6 +436,11 @@ export function resolveSkillUse(
     // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
     ...(exercise !== undefined ? { exercise } : {}),
   };
+  // R-ATM-02 #2: ここから効果処理フェーズ。`onFactEventForPassiveChain`経由で
+  // 届くFACTイベントは状態保守だけを即時に確定させ、PS/Memory候補の発動は
+  // 完了イベント（`SkillUseCompleted`/`SkillUseInterrupted`）発行後の後段フェーズ
+  // まで保留する（R-ATM-01）。追撃（R-FUP-01）も効果処理フェーズの内側として扱う。
+  passiveRuntime.beginEffectProcessingPhase();
   const effectResult = applyEffectActionGroups(plan, working, groupContext);
   // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
   // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま
@@ -523,9 +528,10 @@ export function resolveSkillUse(
         });
   // TGT-004フェーズ3（Issue #167、08_ドメインイベント.md
   // 「イベント発行と処理」の順序契約）: 原因イベント（`SkillUseCompleted`）
-  // 自身のPS/Memory候補は、他の子イベントより先に直ちに解決しなければならない
+  // 自身のPS/Memory候補は、他の子イベントより先に解決しなければならない
   // （前倒しできる明示的な例外は`RuntimeCounterChanged`のみ）。そのため
-  // `SKILL_USE`単位期間減算より先に`SkillUseCompleted`自身をPS連鎖へ渡す。
+  // `SKILL_USE`単位期間減算より先に、後段フェーズ（保留キュー →
+  // `SkillUseCompleted`自身の候補）を完了させる。
   // ただし、この連鎖解決前のunitsスナップショット（`preCompletionChainWorking`）
   // から減算対象（`battleUnitId`+`effectInstanceId`のキーのみ）を決定する
   // ——`SkillUseCompleted`（sourceSelector: SELF等）に反応するPSがこのAS/EX
@@ -537,7 +543,11 @@ export function resolveSkillUse(
   // はこの減算契機に含めない（`decrementSkillUseEffectDurations`が明示する
   // 仕様固定）。
   const preCompletionChainWorking = working;
+  // R-ATM-01: 完了イベント自身の候補も発行時に検出したうえで保留キューの末尾へ
+  // 積む。続く`drainEffectProcessingPhase`が「保留候補（発生順）→ 完了イベント
+  // 自身の候補」の順で発動させる（R-ATM-02 #3の後段フェーズ）。
   working = passiveRuntime.onFactEvent(skillUseCompleted, working).units;
+  working = passiveRuntime.drainEffectProcessingPhase(skillUseCompleted.eventId, working).units;
 
   if (skillUseCompleted.eventType === "SkillUseCompleted") {
     const skillUseDurationTargets = decrementSkillUseEffectDurations(

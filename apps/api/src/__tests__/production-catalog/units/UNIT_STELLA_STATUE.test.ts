@@ -301,13 +301,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     random: alwaysProc,
     expected: {
       // 増加分の675で対象が50%以下へ落ち、「惑光」も持っているためPS1が同じスキル
-      // 使用の中で連鎖する。PS1はHP減少の時点で走るのでAS2本体の完了より先に並ぶ。
+      // 使用の中で連鎖する。R-ATM-01: PS1の候補はHP減少の時点で検出されるが、発動は
+      // AS2の全効果が解決した後になる。
       actions: [
-        { effectActionDefinitionId: "ACT_STELLA_STATUE_PS1_DAMAGE", targets: ["enemy:front"] },
-        {
-          effectActionDefinitionId: "ACT_STELLA_STATUE_PS1_REMOVE_MARKER",
-          targets: ["enemy:front"],
-        },
         {
           effectActionDefinitionId: "ACT_STELLA_STATUE_AS2_DAMAGE_BOOSTED",
           targets: ["enemy:front"],
@@ -315,6 +311,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         {
           effectActionDefinitionId: "ACT_STELLA_STATUE_AS2_SELF_EVASION",
           targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_STELLA_STATUE_PS1_DAMAGE", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_STELLA_STATUE_PS1_REMOVE_MARKER",
+          targets: ["enemy:front"],
         },
       ],
       // AS2の675にPS1の上限1500が積み上がる。

@@ -1460,35 +1460,48 @@ describe("resolveActionPhase", () => {
     return { ctx, result, eventsOfParent };
   }
 
-  it("UT-R-DMG-05-008 (08_ドメインイベント.md「TIMINGイベント後の再検証」): when the PS chained off an AS DAMAGE's CriticalCheckResolved defeats the target, the parent hit ends immediately — no DamageWillBeApplied is emitted for it (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
+  it("UT-R-DMG-05-008 (R-ATM-01): a PS reacting to an AS DAMAGE's CriticalCheckResolved no longer cancels the parent hit — the hit runs its full R-DMG-05 sequence and the reacting PS lands after SkillUseCompleted (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
     const { ctx, result, eventsOfParent } = lethalObserverChainSetup("CriticalCheckResolved");
 
+    // 旧仕様では会心判定の直後にPSが割り込んで対象を倒し、親のヒットが
+    // `DamageWillBeApplied`へ到達しなかった。R-ATM-01の保留方式ではその経路が消え、
+    // 親のヒットは最後まで解決する。
     expect(eventsOfParent("CriticalCheckResolved")).toBe(1);
-    expect(
-      eventsOfParent("DamageWillBeApplied"),
-      "the parent hit must be cancelled before its DamageWillBeApplied, so no further chain is induced",
-    ).toBe(0);
-    expect(eventsOfParent("DamageCalculated")).toBe(0);
-    expect(eventsOfParent("DamageApplied")).toBe(0);
-    expect(
-      ctx.recorder.getEvents().filter((event) => event.eventType === "UnitDefeated"),
-    ).toHaveLength(1);
+    expect(eventsOfParent("DamageWillBeApplied")).toBe(1);
+    expect(eventsOfParent("DamageCalculated")).toBe(1);
+    expect(eventsOfParent("DamageApplied")).toBe(1);
+
+    const events = ctx.recorder.getEvents();
+    const completedIndex = events.findIndex((event) => event.eventType === "SkillUseCompleted");
+    const observerActivatedIndex = events.findIndex(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        event.sourceUnitId === createBattleUnitId("ALLY_2"),
+    );
+    expect(completedIndex).toBeGreaterThanOrEqual(0);
+    expect(observerActivatedIndex).toBeGreaterThan(completedIndex);
+    expect(events.filter((event) => event.eventType === "UnitDefeated")).toHaveLength(1);
     expect(result.enemyUnits[0]!.currentHp).toBe(0);
   });
 
-  it("UT-R-DMG-05-009 (R-DMG-05 #2→#3): when the PS chained off an AS DAMAGE's HitConfirmed defeats the target, the parent hit ends before the critical check — no CriticalCheckResolved is emitted for it", () => {
+  it("UT-R-DMG-05-009 (R-ATM-01): a PS reacting to an AS DAMAGE's HitConfirmed no longer cancels the parent hit — the critical check and the rest of R-DMG-05 still run for it", () => {
     const { ctx, result, eventsOfParent } = lethalObserverChainSetup("HitConfirmed");
 
     expect(eventsOfParent("HitConfirmed")).toBe(1);
-    expect(
-      eventsOfParent("CriticalCheckResolved"),
-      "the parent hit must be cancelled before its own critical check",
-    ).toBe(0);
-    expect(eventsOfParent("DamageWillBeApplied")).toBe(0);
-    expect(eventsOfParent("DamageApplied")).toBe(0);
-    expect(
-      ctx.recorder.getEvents().filter((event) => event.eventType === "UnitDefeated"),
-    ).toHaveLength(1);
+    expect(eventsOfParent("CriticalCheckResolved")).toBe(1);
+    expect(eventsOfParent("DamageWillBeApplied")).toBe(1);
+    expect(eventsOfParent("DamageApplied")).toBe(1);
+
+    const events = ctx.recorder.getEvents();
+    const completedIndex = events.findIndex((event) => event.eventType === "SkillUseCompleted");
+    const observerActivatedIndex = events.findIndex(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        event.sourceUnitId === createBattleUnitId("ALLY_2"),
+    );
+    expect(completedIndex).toBeGreaterThanOrEqual(0);
+    expect(observerActivatedIndex).toBeGreaterThan(completedIndex);
+    expect(events.filter((event) => event.eventType === "UnitDefeated")).toHaveLength(1);
     expect(result.enemyUnits[0]!.currentHp).toBe(0);
   });
 

@@ -332,25 +332,18 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS2_DEF_UP", target: "SELF" },
     ],
     expected: {
+      // R-ATM-01: 会心の候補はAS1の効果処理中に検出され、PS2の発動はAS1の全効果が
+      // 解決した後になる。したがってAS1のダメージは解除前の防御力上昇が乗った状態で
+      // 計算され、AS1自身が付けた被ダメージ減少バフもPS2の解除対象に入る。
       actions: [
+        { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DAMAGE", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN", targets: ["ally:subject"] },
         {
           effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_PS2_REMOVE_BUFF",
           targets: ["ally:subject"],
         },
-        { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DAMAGE", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
-      // 702（威力140.4%）に会心（基本100%＋会心ダメージ+50%）が乗って1053、
-      // さらに混乱の被ダメージ30%減少が掛かって737（切り捨て）。
-      hpDeltas: { "ally:subject": -737 },
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN",
-          magnitude: -0.2,
-          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
-        },
-      ],
+      hpDeltas: { "ally:subject": -479 },
       // 混乱はその行動の `DAMAGE` で消費され、防御力上昇はPS2が解除する。
       effectsRemoved: [
         {

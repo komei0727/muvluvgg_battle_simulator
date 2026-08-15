@@ -199,16 +199,17 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
     expected: {
-      // 撃破そのものがPS2（「自身が敵を倒した際に発動」）の契機になる。
+      // 撃破そのものがPS2（「自身が敵を倒した際に発動」）の契機になる。R-ATM-01に
+      // より、その候補は撃破時点で検出されるがAS2の効果処理が終わるまで保留される。
       actions: [
         { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_AS2_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_AS2_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_AS2_EX_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_PS2_HEAL", targets: ["ally:subject"] },
         {
           effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_PS2_STUN_IMMUNITY",
           targets: ["ally:subject"],
         },
-        { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_AS2_DAMAGE", targets: ["enemy:back"] },
-        { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_AS2_EX_UP", targets: ["ally:subject"] },
       ],
       hpDeltas: {
         "ally:subject": 3500,

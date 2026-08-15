@@ -987,50 +987,12 @@ describe("battle scenarios (harness)", () => {
       return timeline;
     };
 
-    /** 敵全体へ1つのEffectActionを撃つPS。契機イベントの種別だけを差し替えて使う。 */
-    const reactionSkill = (id: string, effectActionId: string): SkillDefinition => ({
-      skillDefinitionId: createSkillDefinitionId(id),
-      skillType: "PS",
-      cost: { resource: "PP", amount: 1 },
-      activationCondition: { kind: "TRUE" },
-      triggers: [
-        {
-          eventType: "DamageApplied",
-          category: "FACT",
-          sourceSelector: "ANY",
-          targetSelector: "SELF",
-          condition: { kind: "TRUE" },
-        },
-      ],
-      counterUpdates: [],
-      resolution: {
-        kind: "IMMEDIATE",
-        targetBindings: [
-          { targetBindingId: createTargetBindingId("TGT_REACT"), selector: ENEMY_ALL },
-        ],
-        steps: [
-          {
-            kind: "ACTION",
-            stepCondition: { kind: "TRUE" },
-            targetCondition: { kind: "TRUE" },
-            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_REACT") },
-            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
-          },
-        ],
-      },
-      cooldown: { unit: "ACTION", count: 0 },
-      traits: {
-        priorityAttack: false,
-        simultaneousActivationLimited: false,
-        exclusiveActivationGroupId: null,
-        accuracy: { guaranteedHit: true },
-        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
-      },
-      metadata: { displayName: id, tags: [] },
-    });
-
-    it("SCN-BTL-009 (R-SKL-01): when the user is defeated by a reaction chain in the middle of its own skill, the remaining steps are interrupted — the later step's EffectAction never runs and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
-      const twoStepSkill: SkillDefinition = {
+    it("SCN-BTL-009 (R-SKL-01): when the user is defeated in the middle of its own skill, the remaining steps are interrupted — the later step's EffectAction never runs and SkillUseInterrupted is emitted instead of SkillUseCompleted", () => {
+      // R-ATM-01により、効果処理中のFACTイベントを契機とするPSは効果処理の完了後
+      // まで発動しない。したがって使用者がスキル解決の途中で倒れる経路は、PS連鎖
+      // ではなく効果処理自身が使用者のHPを削る形（自傷コスト・反射・リンク）に
+      // 限られる。ここではHPコスト（`MODIFY_RESOURCE`）で決定的に作る。
+      const threeStepSkill: SkillDefinition = {
         ...selfEffectSkill("SKL_TWO_STEPS", []),
         resolution: {
           kind: "IMMEDIATE",
@@ -1045,7 +1007,17 @@ describe("battle scenarios (harness)", () => {
               target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
               actions: [{ effectActionDefinitionId: createEffectActionDefinitionId("ACT_POKE") }],
             },
-            // 2番目のstepは使用者自身へのバフ。中断されれば `EFFECT_APPLIED` が
+            // 2番目のstepで使用者自身のHPを全額支払い、戦闘不能になる。
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [
+                { effectActionDefinitionId: createEffectActionDefinitionId("ACT_SELF_COST") },
+              ],
+            },
+            // 3番目のstepは使用者自身へのバフ。中断されれば `EFFECT_APPLIED` が
             // 1件も出ないため、「走らなかった」ことを不在で固定できる。
             {
               kind: "ACTION",
@@ -1059,20 +1031,18 @@ describe("battle scenarios (harness)", () => {
       };
       const catalog = new CatalogBuilder()
         .withUnit(
-          // 反撃の一撃で確実に倒れる薄さにする。
           unitDefinition("UNIT_FRAGILE", {
             baseStats: { maximumHp: 10, defense: 0, maximumAp: 1 },
             activeSkillDefinitionIds: [createSkillDefinitionId("SKL_TWO_STEPS")],
           }),
           unitDefinition("UNIT_COUNTER", {
             baseStats: { maximumHp: 1000, attack: 999, defense: 0, maximumAp: 0 },
-            passiveSkillDefinitionIds: [createSkillDefinitionId("SKL_COUNTER")],
           }),
         )
-        .withSkill(twoStepSkill, reactionSkill("SKL_COUNTER", "ACT_LETHAL"))
+        .withSkill(threeStepSkill)
         .withEffectAction(
           damageEffectAction("ACT_POKE", 1, "PREVENTED"),
-          damageEffectAction("ACT_LETHAL", 1, "PREVENTED"),
+          hpCostEffectAction("ACT_SELF_COST", 1),
           statModEffectAction("ACT_ATK_UP"),
         )
         .build();
@@ -1095,15 +1065,13 @@ describe("battle scenarios (harness)", () => {
           .map((event) => (event.details as Record<string, unknown>)["skillDefinitionId"]),
       ).toEqual(["SKL_TWO_STEPS"]);
       expect(types).not.toContain("SKILL_USE_COMPLETED");
-      // 実行されたEffectActionは1番目のstep（と反撃PS）だけで、2番目のstepの
-      // `ACT_ATK_UP` は一度も走らない。反撃PSは `ACT_POKE` の `DamageApplied` を契機に
-      // その場で解決される（`R-SKL-01`「イベントに反応したPS連鎖を直ちに解決してから
-      // 次のstepへ進む」）ため、`ACT_LETHAL` の完了が先に確定する。
+      // 実行されたEffectActionは1・2番目のstepだけで、3番目のstepの
+      // `ACT_ATK_UP` は一度も走らない。
       expect(
         result.events
           .filter((event) => event.type === "EFFECT_ACTION_COMPLETED")
           .map((event) => (event.details as Record<string, unknown>)["effectActionDefinitionId"]),
-      ).toEqual(["ACT_LETHAL", "ACT_POKE"]);
+      ).toEqual(["ACT_POKE", "ACT_SELF_COST"]);
       expect(types).not.toContain("EFFECT_APPLIED");
 
       // 解決済みの効果は巻き戻さない（1番目のstepのダメージは残る）。
