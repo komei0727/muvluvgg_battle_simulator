@@ -2315,27 +2315,28 @@ trigger:
 
 v2では v1 のイベントに加えて、raw のPS条件を表現するため次を追加候補とする。
 
-| eventType               | 用途                       |
-| ----------------------- | -------------------------- |
-| `BattleStarted`         | Memoryの戦闘開始時効果     |
-| `TurnStarted`           | ターン開始PS/Memory        |
-| `TurnCompleting`        | ターン終了PS               |
-| `SkillUseStarting`      | スキル使用前               |
-| `SkillUseCompleted`     | スキル使用後               |
-| `UnitBeingAttacked`     | 攻撃対象決定後、ダメージ前 |
-| `DamageWillBeApplied`   | ダメージ適用直前           |
-| `DamageApplied`         | ダメージ適用後             |
-| `EffectApplied`         | 効果インスタンス追加後     |
-| `HealApplied`           | 回復後                     |
-| `CriticalHitConfirmed`  | 会心確定後                 |
-| `ResourceChanged`       | AP/PP/EX変更後             |
-| `MarkerApplied`         | Marker付与後               |
-| `MarkerCountChanged`    | Marker数変更後             |
-| `ChargeStarted`         | チャージ開始後             |
-| `PassiveEffectReceived` | 他味方からPS効果を受けた後 |
-| `UnitDefeated`          | 戦闘不能後                 |
+| eventType               | 用途                                                    |
+| ----------------------- | ------------------------------------------------------- |
+| `BattleStarted`         | Memoryの戦闘開始時効果                                  |
+| `TurnStarted`           | ターン開始PS/Memory                                     |
+| `TurnCompleting`        | ターン終了PS                                            |
+| `SkillUseStarting`      | スキル使用前                                            |
+| `SkillUseCompleted`     | スキル使用後                                            |
+| `UnitBeingAttacked`     | 攻撃前観測（効果処理開始前、対象ごとに1回、`R-ATM-03`） |
+| `DamageApplied`         | ダメージ適用後                                          |
+| `EffectApplied`         | 効果インスタンス追加後                                  |
+| `HealApplied`           | 回復後                                                  |
+| `CriticalHitConfirmed`  | 会心確定後                                              |
+| `ResourceChanged`       | AP/PP/EX変更後                                          |
+| `MarkerApplied`         | Marker付与後                                            |
+| `MarkerCountChanged`    | Marker数変更後                                          |
+| `ChargeStarted`         | チャージ開始後                                          |
+| `PassiveEffectReceived` | 他味方からPS効果を受けた後                              |
+| `UnitDefeated`          | 戦闘不能後                                              |
 
 Memory の `BattleStarted` trigger は、編成内 Memory の API 指定順、同一 Memory 内の `triggeredEffects` 定義順で解決する。
+
+`DamageWillBeApplied`・`EffectStepStarting`・`EffectActionStarting` は効果処理内部のTIMINGイベントであり、`TriggerDefinition.eventType` に使用できない（`07_戦闘ルール詳細.md` `R-ATM-04`。Catalogロード時の整合性検証で拒否する）。
 
 ---
 
