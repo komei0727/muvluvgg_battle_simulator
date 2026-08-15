@@ -319,7 +319,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.queryByText(/SUMMARYログ/)).not.toBeInTheDocument();
   });
 
-  // DMG-010（Issue #191）: 07_UI実装・拡張計画.md §12「shield吸収、HP damage内訳」
+  // DMG-010（Issue #191）: 「shield吸収、HP damage内訳」
   // 「sub unit」をUnit詳細へ追加する（サマリ列は増やさない）。
   it("shows the shield pools and sub unit instances of finalState (UI-CT-022)", () => {
     const response = responseWith({

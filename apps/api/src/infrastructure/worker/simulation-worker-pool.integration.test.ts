@@ -9,7 +9,7 @@ import type {
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 
 /**
- * `13_実装計画.md`「production build後のworker file解決」: `tsx`/Vitest実行時と
+ * M4完了条件「production build後のworker file解決」: `tsx`/Vitest実行時と
  * `tsc`ビルド後とで、Piscinaが解決するワーカーファイルの拡張子が変わる
  * （`simulation-worker-pool.ts`の`resolveDefaultWorkerFileUrl`参照）。この
  * 結合テストは実際に`tsc`でビルドし、コンパイル済み`dist/`配下の

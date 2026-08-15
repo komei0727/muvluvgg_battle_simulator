@@ -59,10 +59,10 @@ describe("Rule coverage ledger", () => {
     // Issue #478（2026-08-15）でスキル効果処理の割り込み制御 `R-ATM-01`〜`R-ATM-04`
     // を新設し136→140 — 旧「効果1件ごとの即時割り込み」（旧R-PS-06・旧R-ACTN-01 #6）
     // を置き換える保留キュー方式の規約で、時機規約の唯一の正本となる節を作った。
-    // `R-ATM-01`／`R-ATM-02`はIssue #479が実装済み、`R-ATM-03`／`R-ATM-04`は
-    // Issue #480が担当する（未被覆のため`17_残作業対応表.json`が所有者を記録する）。
-    // 実装中に新しいRuleを発見した場合はここと`17_残作業対応表.json`の
-    // `current.rules`を同じPRで更新する（`baseline`は履歴として変更しない）。
+    // `R-ATM-01`／`R-ATM-02`はIssue #479が、`R-ATM-03`／`R-ATM-04`はIssue #480が
+    // 実装した。実行可能テストを持たないRuleは`07_戦闘ルール詳細.md`の当該Rule節へ
+    // 保留理由と追跡Issueを明記する（現在は`R-TGT-06`の列距離順キーのみ、Issue #273）。
+    // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
     expect(RULE_COVERAGE).toHaveLength(140);
   });
 
@@ -100,9 +100,9 @@ describe("Rule coverage ledger", () => {
     // 衝突検査は台帳掲載IDに限らず、収集された全IDへ適用する — 台帳外で
     // 生まれた重複が、後から台帳・Capability検証へ持ち込まれるのを防ぐ。
     //
-    // `remaining-work.test.ts`の`IT-TRACE-003`重複はパーサ検証用のテンプレート
+    // `test-case-definitions.test.ts`の`IT-TRACE-003`重複はパーサ検証用のテンプレート
     // リテラル内ソース（実行されないフィクスチャ）であり、そもそも収集され
-    // ないため許可リスト登録は不要（UT-PLAN-001-007がその挙動自体を検証する）。
+    // ないため許可リスト登録は不要（UT-TESTDEFS-001がその挙動自体を検証する）。
     const definitions = collectTestCaseDefinitions(apiSrcPath);
     const violations: string[] = [];
     for (const coverage of RULE_COVERAGE) {

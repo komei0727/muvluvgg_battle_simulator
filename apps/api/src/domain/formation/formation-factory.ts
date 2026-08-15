@@ -30,7 +30,7 @@ import { calculateStartingCombatStats } from "../battle/model/starting-combat-st
  * `combatStats`: Memory's `triggeredEffects` (the sole representation of
  * Memory stat correction, `APPLY_STAT_MOD` included) are resolved later by
  * the Memory triggering engine, not by `FormationFactory`
- * (`13_実装計画.md`「スコープ外：Memory triggeredEffectsの解決」).
+ * (M3スコープ外「Memory triggeredEffectsの解決」).
  */
 export function createBattleParty(
   side: Side,

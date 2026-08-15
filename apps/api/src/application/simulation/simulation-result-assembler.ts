@@ -300,7 +300,7 @@ function assertStateVersionContinuity(stateTransitions: readonly StateTransition
 }
 
 /**
- * `13_実装計画.md`「M3 最小戦闘縦切り」の`SimulationResultAssembler`。Battleの
+ * マイルストーンM3「最小戦闘縦切り」の`SimulationResultAssembler`。Battleの
  * 勝敗フィールドと、記録済みイベント列・初期/最終状態から`SimulateBattleResult`
  * （`09_アプリケーション設計.md`のトップレベル形）を組み立てる。`events`は
  * `logLevel`に応じて`projectEventsForLogLevel`で間引いたうえで、内部

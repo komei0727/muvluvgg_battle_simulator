@@ -37,7 +37,7 @@ export const battleLogEventResponseSchema = {
 
 /**
  * `08_ドメインイベント.md`の`BattleDomainEventPayloadMap`（M3の19種別に、M5
- * （`13_実装計画.md`「M5 行動ライフサイクル」）が追加する`ActionWaited`/
+ * （マイルストーンM5「行動ライフサイクル」）が追加する`ActionWaited`/
  * `ActionReservationRemoved`/`ActionQueueReordered`/`CooldownStarted`/
  * `CooldownReduced`/`CooldownCompleted`/`ChargeStarted`/`ChargeReleased`の
  * 8種別を加えた27種別）を外部`details`形へ写した、OpenAPI公開専用のschema群。

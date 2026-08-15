@@ -17,7 +17,7 @@ interface CausalityNodeRowProps {
   readonly roster: RosterIndex;
 }
 
-// docs/ui-design/07_UI実装・拡張計画.md §10: 「DIAGNOSTIC固有情報は折りたたみ、
+// M6 PSイベントエンジン拡張: 「DIAGNOSTIC固有情報は折りたたみ、
 // 既定表示を圧迫しない」。DIAGNOSTIC事象自体の行は表示するが、その配下
 // (children)は既定で折りたたみ、展開してもUI-CMP-006同様に取りこぼさない。
 function CausalityNodeRow({ node, roster }: CausalityNodeRowProps) {
@@ -70,7 +70,7 @@ function CausalityNodeRow({ node, roster }: CausalityNodeRowProps) {
   );
 }
 
-// docs/ui-design/07_UI実装・拡張計画.md §10「PSイベントは通常の時系列と因果
+// M6 PSイベントエンジン拡張「PSイベントは通常の時系列と因果
 // treeを切り替えられるようにする候補とする」。parentSequence/rootSequenceは
 // event typeを問わず全eventが持つ(08_ドメインイベント.md)ため、PS/Memoryの
 // 区別なく汎用的にtreeを構築する — 将来Memory発動eventが追加されても、この

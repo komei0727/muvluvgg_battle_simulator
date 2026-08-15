@@ -106,8 +106,8 @@ const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
 
 /**
  * `onFactEvent`が自身の`RuntimeCounterChanged`を再帰的に候補解決へ回す深さの上限
- * （M6完了条件「実行ガードがPS深度とイベント数を監視する」
- * 13_実装計画.md参照）。`RuntimeCounterChanged`を自身の`counterUpdates.trigger`に
+ * （M6完了条件「実行ガードがPS深度とイベント数を監視する」）。
+ * `RuntimeCounterChanged`を自身の`counterUpdates.trigger`に
  * 持つCatalog定義は、更新→発行→候補解決の都度また同じcounterを更新しうるため、
  * この再帰は`PassiveChainLimits`（1解決スコープ単位のPS深度・効果解決数）にも
  * `EventRecorder`の総イベント数Guardにも到達する前にJSの呼び出しスタックを
@@ -121,7 +121,7 @@ const MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH = 10;
 
 /**
  * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の暫定既定値。
- * M9で設定可能にするまでの固定値（`13_実装計画.md`「実行保護の全上限を設定
+ * M9で設定可能にするまでの固定値（M9完了条件「実行保護の全上限を設定
  * 可能にする」）。
  */
 export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {

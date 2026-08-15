@@ -11,7 +11,7 @@ export interface MockResponse {
 // JavaScript unless Access-Control-Expose-Headers names the rest — the same
 // origin-page-vs-Cloud-Run-API split this app runs under in production. The
 // real API exposes exactly these three
-// (docs/ui-design/07_UI実装・拡張計画.md §3 「X-Request-Id、Retry-After、
+// (「X-Request-Id、Retry-After、
 // ETagをexposeする」), so the mock must too, or api-client.ts's
 // response.headers.get("Retry-After"/"X-Request-Id"/"ETag") reads null here
 // even though route.fulfill sent the header — a failure mode that would

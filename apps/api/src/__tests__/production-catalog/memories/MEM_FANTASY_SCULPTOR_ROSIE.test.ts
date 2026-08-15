@@ -20,8 +20,7 @@ import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
  * テスト（`12_テスト戦略.md`「ユニット効果軸」）。
  *
  * ロージー・ヒューズへ会心率+3%、右列前衛へ会心ダメージ+10.5%。どちらも
- * `valueType: RATIO`（基礎値に対する割合）で、`15_Unit_Memory変換台帳.md`が
- * 記録する既存の会心率変換の慣習に揃えてある。
+ * `valueType: RATIO`（基礎値に対する割合）で、既存の会心率変換の慣習に揃えてある。
  *
  * `CHARACTER` TargetFilterは`UnitDefinition.metadata.characterId`を引く。固定盤面の
  * 既定IDは実キャラクターIDと一致しないため、1スロットだけへ`CHAR_ROSIE_HUGHES`を

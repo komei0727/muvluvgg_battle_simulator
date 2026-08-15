@@ -33,7 +33,7 @@ describe("flattenDelta", () => {
   });
 });
 
-// DMG-010（Issue #191）: 07_UI実装・拡張計画.md §12完了条件「subUnit/effect
+// DMG-010（Issue #191）: 完了条件「subUnit/effect
 // collection deltaを汎用JSONだけでなく意味のある表示へ変換する」。件数だけの
 // `+1 / ~1 / -1`では、何が付いて何が消えたかを状態遷移から辿れない。
 describe("flattenDelta entity collection entries (DMG-010)", () => {

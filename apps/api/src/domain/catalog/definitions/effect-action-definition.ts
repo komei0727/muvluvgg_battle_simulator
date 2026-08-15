@@ -32,12 +32,11 @@ import type {
 /**
  * Kinds documented with a complete payload in `14_Catalog定義スキーマ.md`.
  * `APPLY_HEALING_MOD`, `MODIFY_RESOURCE_CAPACITY`, `APPLY_SHIELD`,
- * `REMOVE_EFFECTS` were unsupported pending payload design; Issue #44
- * (G-01/G-02/G-04/G-08/G-09) adds their payload shapes below.
- * `APPLY_DAMAGE_LINK` was unsupported while the doc's own "後続設計で具体化
- * する点" still flagged Cover/Reflect/DamageLink ordering as open; `DMG-006`
- * (Issue #188) fixed that ordering as R-INT-01 #1〜#5 and `DMG-007`
- * (Issue #187, R-LNK-01〜03) adds the payload below.
+ * `REMOVE_EFFECTS` were unsupported pending payload design; Issue #44 adds
+ * their payload shapes below. `APPLY_DAMAGE_LINK` was unsupported until
+ * `DMG-006` (Issue #188) fixed Cover/Reflect/DamageLink ordering as
+ * R-INT-01 #1〜#5 and `DMG-007` (Issue #187, R-LNK-01〜03) added the
+ * payload below.
  */
 export const EFFECT_ACTION_KINDS = [
   "DAMAGE",

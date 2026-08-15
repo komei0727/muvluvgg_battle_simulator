@@ -1,4 +1,4 @@
-// M7-009（Issue #182）: docs/ui-design/07_UI実装・拡張計画.md §11「M7 効果・状態異常・
+// M7-009（Issue #182）: 「M7 効果・状態異常・
 // 回復拡張」。回復・効果ライフサイクル・状態異常・命中判定のイベント。共通の型・helperは
 // `event-presentation.ts`が持つ（formatter群の各ファイル間で循環importを避けるため）。
 

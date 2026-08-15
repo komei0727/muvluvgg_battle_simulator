@@ -1,6 +1,6 @@
 import type { TurnLimit } from "../model/turn-limit.js";
 
-/** `13_実装計画.md` の TurnState: 現在ターンと規定ターン数を保持する。 */
+/** TurnState: 現在ターンと規定ターン数を保持する。 */
 export interface TurnState {
   readonly currentTurn: number;
   readonly turnLimit: TurnLimit;

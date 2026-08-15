@@ -45,7 +45,7 @@ export type { BattleStatus } from "../model/battle-status.js";
 export type BattleResult = BattleResultSnapshot;
 
 /**
- * `05_ドメインモデル.md` の Battle集約。`13_実装計画.md`「M3 最小戦闘縦切り」を扱う。
+ * `05_ドメインモデル.md` の Battle集約。マイルストーンM3「最小戦闘縦切り」を扱う。
  * `advanceBattle` 1回はTURN_STARTING〜TURN_ENDINGの1ターン全体に相当し、内部で
  * QUEUE_BUILDING〜ACTION_RESOLUTION（`resolveActionPhase`）を使用可能な行動が
  * 無くなるまで繰り返す。
