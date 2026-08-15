@@ -2,6 +2,7 @@ import { GetBattleSimulationCatalogUseCase } from "../../application/catalog/get
 import type { SimulateBattleCommand } from "../../application/simulation/simulate-battle-command.js";
 import type { SimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-command.js";
 import type { SimulateBattleResult } from "../../application/simulation/simulation-result-assembler.js";
+import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
@@ -61,6 +62,11 @@ export interface ProductionBattleOptions {
   readonly randomValue?: number;
   readonly battleId?: string;
   readonly logLevel?: SimulateBattleCommand["logLevel"];
+  /**
+   * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の上限。負荷試験が
+   * 「production Catalogが実際に必要とする最小の上限」を二分探索するために上書きする。
+   */
+  readonly executionLimits?: SimulationExecutionLimits;
 }
 
 /**
@@ -193,14 +199,27 @@ export function createProductionBattleRunner(
   unitDefinitionId: string,
   options: ProductionBattleOptions = {},
 ): (battleId: string) => SimulateBattleResult {
+  return createProductionFormationBattleRunner(
+    catalogDir,
+    { ally: [unitDefinitionId], enemy: [unitDefinitionId] },
+    options,
+  );
+}
+
+/**
+ * {@link createProductionBattleRunner}の任意編成版。`11_インフラストラクチャ設計.md`
+ * 「負荷試験で99ターン・DETAILEDの上限シナリオを測定する」が要求する5対5の
+ * 最大規模シナリオを、catalogロードを含めずに反復実行するために使う。
+ */
+export function createProductionFormationBattleRunner(
+  catalogDir: string,
+  parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
+  options: ProductionBattleOptions = {},
+): (battleId: string) => SimulateBattleResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
-  const slot = {
-    unitDefinitionId: createUnitDefinitionId(unitDefinitionId),
-    position: { column: 0 as const, row: "FRONT" as const },
-  };
   const command: SimulateBattleCommand = {
-    allyFormation: { slots: [slot], memoryDefinitionIds: [] },
-    enemyFormation: { slots: [slot], memoryDefinitionIds: [] },
+    allyFormation: partySlots(parties.ally),
+    enemyFormation: partySlots(parties.enemy),
     turnLimit: options.turnLimit ?? 5,
     logLevel: options.logLevel ?? "DETAILED",
   };
@@ -212,6 +231,9 @@ export function createProductionBattleRunner(
       battleIdGenerator: new FixedBattleIdGenerator([battleId]),
       randomSourceFactory,
       clock,
+      ...(options.executionLimits !== undefined
+        ? { executionLimits: options.executionLimits }
+        : {}),
     });
     return requireFullObservation(
       useCase.execute(command, {

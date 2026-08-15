@@ -80,7 +80,7 @@ import {
 import type {
   PassiveChainLimits,
   PassiveChainLimitViolationReason,
-} from "../triggering/passive-chain-limits.js";
+} from "../model/passive-chain-limits.js";
 import type { PassiveCandidate } from "../triggering/passive-candidate.js";
 import {
   detectPassiveCandidateGroup,
@@ -115,18 +115,32 @@ const MAX_RESOLUTION_SCOPE_RESET_ROUNDS = 10;
  * `onFactEvent`の再帰（`SKILL_RUNTIME`スコープ・トップレベルの`AppliedEffect`
  * スコープ）専用のカウンタで、`resolveEvent`自身の再帰を守る
  * `PassiveChainLimits.maxEffectRuntimeCounterDepth`（PS連鎖内部の`AppliedEffect`
- * スコープ）とは別の経路のため同じ値を流用する。
+ * スコープ）とは別の経路だが、上限値そのものは同じ
+ * `maxEffectRuntimeCounterDepth`を共有する（`11_インフラストラクチャ設計.md`
+ * 「SimulationExecutionGuard」が「両スコープで共有」と定める1つのつまみ）。
+ * この定数はその既定値であり、上限判定自体は`this.limits`（設定で上書き可能）
+ * を読む。
  */
 const MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH = 10;
 
 /**
- * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の暫定既定値。
- * M9で設定可能にするまでの固定値（M9完了条件「実行保護の全上限を設定
- * 可能にする」）。
+ * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の既定値。
+ * 運用値は`SIMULATION_MAX_PASSIVE_DEPTH`等の環境変数から
+ * `BattleDefinitions.executionLimits`経由で上書きでき、この定数は上書きが
+ * 無い場合（テスト・CLI・既定構成）に使われる。
  */
 export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {
   maxPassiveDepth: 8,
-  maxEffectsPerScope: 50,
+  /**
+   * REL-005（Issue #198）の実測（`LOAD-CAPACITY-002`）で、production Catalogの
+   * 5対5・99ターン・DETAILEDの全29編成（ミラー14・混成15）を走査すると、
+   * 1解決スコープあたり最大54件の効果解決を必要とする。旧値50はこれを**下回って
+   * おり**、正常な混成編成が`EXECUTION_LIMIT_EXCEEDED`（503）で落ちていた
+   * （暴走した定義ではなく、対象数の多いEffectSequenceが正しく解決された結果）。
+   * 実測値の約1.9倍へ引き上げる（`maxPassiveDepth`は実測4に対し8で2倍の余裕が
+   * あるため据え置き）。
+   */
+  maxEffectsPerScope: 100,
   maxEffectRuntimeCounterDepth: MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH,
 };
 
@@ -193,9 +207,9 @@ export class PassiveActivationRuntime {
   /**
    * R-EFF-08の自己再誘発（`applyExpirationConditionsForChain`が発行した
    * `EffectExpired`/`CombatStatChanged`がさらに別の`expiration.conditions`を
-   * 成立させ続ける）を検出する再帰深度。`RuntimeCounterChanged`用の
-   * `MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH`とは独立した別の自己再誘発
-   * 経路のため、専用のカウンタで管理する。
+   * 成立させ続ける）を検出する再帰深度。`RuntimeCounterChanged`の再帰とは
+   * 独立した別の自己再誘発経路のため、専用のカウンタで管理する（上限値は
+   * 同じ`maxEffectRuntimeCounterDepth`を共有する）。
    */
   private expirationConditionDepth = 0;
   /**
@@ -275,10 +289,20 @@ export class PassiveActivationRuntime {
    */
   private readonly pendingEffectProcessingFrames: PassiveResolutionStackEntry[][] = [];
 
+  /**
+   * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」「上限値は設定から
+   * 受け取る」の解決順。呼び出し側が明示した`context.limits`（PS連鎖の単体テストが
+   * 極小値を注入する経路）を最優先し、次に戦闘単位の運用設定
+   * （`BattleDefinitions.executionLimits`、`SIMULATION_MAX_*`由来）、最後に既定値。
+   */
+  private readonly limits: PassiveChainLimits;
+
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
     this.units = initialUnits;
     this.guard = createEmptyPassiveActivationGuard();
+    this.limits =
+      context.limits ?? context.definitions.executionLimits ?? DEFAULT_PASSIVE_CHAIN_LIMITS;
   }
 
   /** `action-skill-use-resolver.ts`/`action-charge-resolver.ts`が自身のEffectSequenceへも同じregistryを渡すための公開アクセサ。 */
@@ -457,7 +481,7 @@ export class PassiveActivationRuntime {
         this.reconfirmMemoryCandidate(candidate, event),
       activateMemory: (candidate, event): PassiveActivation =>
         this.activateMemoryCandidate(candidate, event),
-      limits: this.context.limits ?? DEFAULT_PASSIVE_CHAIN_LIMITS,
+      limits: this.limits,
       turnNumber: this.context.turnNumber,
       // RES-004: `ALIVE_UNIT_COUNT`の再確認（R-PS-04）が候補検出時と
       // 同じ生存数母集団を使うため、`findUnit`と同様に`this.units`を都度読み直す
@@ -981,9 +1005,9 @@ export class PassiveActivationRuntime {
 
     const nextDepth = counterUpdateDepth + 1;
     for (const recorded of this.detectAndRecordRuntimeCounterChanges(event)) {
-      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      if (nextDepth > this.limits.maxEffectRuntimeCounterDepth) {
         throw new ExecutionGuardExceededError(
-          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+          `RuntimeCounterChanged self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; a counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
       this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
@@ -1000,9 +1024,9 @@ export class PassiveActivationRuntime {
     // 呼び出し自体であり、record 1件ごとにその候補連鎖を完全に解決してから
     // 次のエントリへ進む。
     this.applyEffectRuntimeCounterUpdates(triggerEvent, (recorded) => {
-      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      if (nextDepth > this.limits.maxEffectRuntimeCounterDepth) {
         throw new ExecutionGuardExceededError(
-          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a DurationDefinition.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+          `RuntimeCounterChanged self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; a DurationDefinition.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
       this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
@@ -1012,9 +1036,9 @@ export class PassiveActivationRuntime {
     // EFF-006: `EffectSequence`スコープも同じ理由・同じ順序
     // （`applyExpirationConditions`より先）で確定させる。
     this.applyEffectSequenceRuntimeCounterUpdates(triggerEvent, (recorded) => {
-      if (nextDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      if (nextDepth > this.limits.maxEffectRuntimeCounterDepth) {
         throw new ExecutionGuardExceededError(
-          `RuntimeCounterChanged self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an EffectSequence.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
+          `RuntimeCounterChanged self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; an EffectSequence.counterUpdates definition likely re-triggers itself from the RuntimeCounterChanged event it causes (infinite regeneration)`,
         );
       }
       this.units = this.onFactEvent(recorded, this.units, nextDepth).units;
@@ -1093,9 +1117,9 @@ export class PassiveActivationRuntime {
     if (matches.length === 0) {
       return this.units;
     }
-    if (depth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+    if (depth > this.limits.maxEffectRuntimeCounterDepth) {
       throw new ExecutionGuardExceededError(
-        `expiration.conditions self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
+        `expiration.conditions self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
       );
     }
     const seeds: ExpirationSeed[] = matches.map((match) => ({
@@ -1145,9 +1169,9 @@ export class PassiveActivationRuntime {
     if (seeds.length === 0) {
       return this.units;
     }
-    if (depth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+    if (depth > this.limits.maxEffectRuntimeCounterDepth) {
       throw new ExecutionGuardExceededError(
-        `removeOnSourceDefeated self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
+        `removeOnSourceDefeated self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
       );
     }
     const removal = removeMarkers(
@@ -1194,9 +1218,9 @@ export class PassiveActivationRuntime {
     }
     this.expirationConditionDepth += 1;
     try {
-      if (this.expirationConditionDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      if (this.expirationConditionDepth > this.limits.maxEffectRuntimeCounterDepth) {
         throw new ExecutionGuardExceededError(
-          `expiration.conditions self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
+          `expiration.conditions self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
         );
       }
       const seeds: ExpirationSeed[] = matches.map((match) => ({
@@ -1260,9 +1284,9 @@ export class PassiveActivationRuntime {
     }
     this.expirationConditionDepth += 1;
     try {
-      if (this.expirationConditionDepth > MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH) {
+      if (this.expirationConditionDepth > this.limits.maxEffectRuntimeCounterDepth) {
         throw new ExecutionGuardExceededError(
-          `removeOnSourceDefeated self-triggering recursion exceeded ${MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
+          `removeOnSourceDefeated self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
         );
       }
       const steps = removeMarkersSteps(

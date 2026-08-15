@@ -93,11 +93,15 @@ describe("Cloud Run service manifest", () => {
     expect(manifest.spec.template.spec.timeoutSeconds).toBe(40);
   });
 
-  it("IT-INFRA-CLOUDRUN-006: declares 1 vCPU and 1 GiB memory limits", () => {
+  it("IT-INFRA-CLOUDRUN-006 (REL-005/Issue #198): declares 1 vCPU and the 2 GiB memory limit the load test's peak RSS justifies", () => {
+    // `LOAD-MEMORY-001`の実測: 最大応答(24.1 MB)を配備並行度で流したときの
+    // process peak RSSは837〜868 MB。1 GiBでは余裕が15%しか無く、V8は既定の
+    // old-space上限(64bitで約4 GB)までcontainerの制限を知らないため、超過は
+    // graceful degradationではなくOOM killになる。
     const manifest = loadManifest();
     const container = manifest.spec.template.spec.containers[0];
     expect(container?.resources.limits.cpu).toBe("1");
-    expect(container?.resources.limits.memory).toBe("1Gi");
+    expect(container?.resources.limits.memory).toBe("2Gi");
   });
 
   it("IT-INFRA-CLOUDRUN-007: sets WORKER_MAX_QUEUE=1 and SHUTDOWN_GRACE_MS=8000", () => {
@@ -161,6 +165,50 @@ describe("Cloud Run service manifest", () => {
     expect(container?.startupProbe.httpGet.port).toBe(containerPort);
     expect(container?.livenessProbe.httpGet.port).toBe(containerPort);
     expect(container?.readinessProbe.httpGet.port).toBe(containerPort);
+  });
+
+  it("IT-INFRA-CLOUDRUN-015 (REL-005/Issue #198「Worker数をM9で決定する」): pins WORKER_MIN_THREADS/WORKER_MAX_THREADS to the CPU allocation instead of letting Piscina size the pool from the host's parallelism", () => {
+    // Piscinaは未設定時に`minThreads = max(floor(availableParallelism/2), 1)`
+    // `maxThreads = availableParallelism * 1.5`を採る。`os.availableParallelism()`は
+    // hostのCPU数／affinityを見るのであって、Cloud Runの1 vCPU（cgroup quota）
+    // ではない——未設定のままだと割り当てCPUを超える本数のWorkerが起動しうる。
+    const manifest = loadManifest();
+    const cpuLimit = Number(manifest.spec.template.spec.containers[0]?.resources.limits.cpu);
+    const minThreads = Number(envValue(manifest, "WORKER_MIN_THREADS"));
+    const maxThreads = Number(envValue(manifest, "WORKER_MAX_THREADS"));
+
+    expect(minThreads).toBeGreaterThan(0);
+    expect(maxThreads).toBeGreaterThanOrEqual(minThreads);
+    // `11_インフラストラクチャ設計.md`「メインイベントループとシリアライズ用に、
+    // 原則として少なくとも1論理CPU分を予約する」: Worker本数はCPU数を超えない。
+    expect(maxThreads).toBeLessThanOrEqual(cpuLimit);
+  });
+
+  it("IT-INFRA-CLOUDRUN-016 (同上「実行保護の全上限を設定可能にする」): declares every SimulationExecutionGuard limit explicitly rather than depending on the code defaults", () => {
+    const manifest = loadManifest();
+    for (const name of [
+      "SIMULATION_MAX_EVENTS",
+      "SIMULATION_MAX_PASSIVE_DEPTH",
+      "SIMULATION_MAX_EFFECTS_PER_SCOPE",
+      "SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH",
+    ]) {
+      const value = Number(envValue(manifest, name));
+      expect(Number.isSafeInteger(value), `${name} must be declared as an integer`).toBe(true);
+      expect(value, `${name} must be positive`).toBeGreaterThan(0);
+    }
+  });
+
+  it("IT-INFRA-CLOUDRUN-017 (同上): keeps the container concurrency within what one Worker plus the bounded queue can accept, so normal traffic is never rejected with 503 CAPACITY_EXCEEDED", () => {
+    // `LOAD-HTTP-002`の実測: `maxThreads`1本＋`WORKER_MAX_QUEUE`1枠は
+    // 並行度2をちょうど受け切り（16/16完了）、それを超えるburstだけを拒否する。
+    const manifest = loadManifest();
+    const acceptedInParallel =
+      Number(envValue(manifest, "WORKER_MAX_THREADS")) +
+      Number(envValue(manifest, "WORKER_MAX_QUEUE"));
+
+    expect(manifest.spec.template.spec.containerConcurrency).toBeLessThanOrEqual(
+      acceptedInParallel,
+    );
   });
 
   it("IT-INFRA-CLOUDRUN-014: stops routing new traffic (without restarting) on /health/ready failure — shutdown, Catalog/Worker mismatch, or a degraded pool", () => {

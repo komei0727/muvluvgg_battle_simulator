@@ -8,6 +8,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { Side } from "../../shared/side.js";
+import type { PassiveChainLimits } from "./passive-chain-limits.js";
 
 /**
  * `BattleDefinitionSet` の基本形 (`05_ドメインモデル.md`)。「1回の戦闘で使用する
@@ -34,6 +35,15 @@ export interface BattleDefinitions {
    * Memoryを1件も指定しない戦闘（既存テストの大多数）では省略できる。
    */
   readonly memoriesBySide?: Readonly<Record<Side, readonly MemoryDefinition[]>>;
+  /**
+   * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」「上限値は設定から
+   * 受け取る」。定義そのものではなく戦闘1回分の実行保護設定だが、`BattleDefinitions`と
+   * まったく同じ寿命（戦闘開始から完了まで不変）と配布経路（全解決スコープが
+   * `definitions`として参照する）を持つため、ここへ同乗させる。9箇所ある
+   * `PassiveActivationRuntime`生成点とその全呼び出し元へ引数を通す代わりに、
+   * 既存の唯一の運搬役を使う。省略時は`DEFAULT_PASSIVE_CHAIN_LIMITS`。
+   */
+  readonly executionLimits?: PassiveChainLimits;
 }
 
 /** `memoriesBySide`未指定（Memoryなしの戦闘）の既定値。 */

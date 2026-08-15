@@ -177,4 +177,72 @@ describe("loadConfig", () => {
       loadConfig(envWith({ CORS_ALLOWED_ORIGINS: "https://komei0727.github.io/" })),
     ).toThrow(ConfigError);
   });
+
+  it("CFG-029 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定から受け取る」): returns the code defaults for every execution guard limit when unset", () => {
+    const config = loadConfig(envWith({}));
+
+    expect(config.executionLimits).toEqual({
+      maxTotalEvents: 1_000_000,
+      maxPassiveDepth: 8,
+      maxEffectsPerScope: 100,
+      maxEffectRuntimeCounterDepth: 10,
+    });
+  });
+
+  it("CFG-030: parses overrides for every execution guard limit", () => {
+    const config = loadConfig(
+      envWith({
+        SIMULATION_MAX_EVENTS: "200000",
+        SIMULATION_MAX_PASSIVE_DEPTH: "6",
+        SIMULATION_MAX_EFFECTS_PER_SCOPE: "40",
+        SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH: "4",
+      }),
+    );
+
+    expect(config.executionLimits).toEqual({
+      maxTotalEvents: 200_000,
+      maxPassiveDepth: 6,
+      maxEffectsPerScope: 40,
+      maxEffectRuntimeCounterDepth: 4,
+    });
+  });
+
+  it("CFG-031 (上限0は「1件目で必ず超過する」設定であり、実行保護ではなく全戦闘の停止になる): throws ConfigError for an execution guard limit of 0", () => {
+    expect(() => loadConfig(envWith({ SIMULATION_MAX_PASSIVE_DEPTH: "0" }))).toThrow(ConfigError);
+    expect(() => loadConfig(envWith({ SIMULATION_MAX_EVENTS: "0" }))).toThrow(ConfigError);
+    expect(() => loadConfig(envWith({ SIMULATION_MAX_EFFECTS_PER_SCOPE: "0" }))).toThrow(
+      ConfigError,
+    );
+    expect(() => loadConfig(envWith({ SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH: "0" }))).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("CFG-032 (SIMULATION_MAX_EVENTS=Infinityはガードを無効化し、暴走したCatalog定義がプロセスメモリーを食い尽くすまで走る): throws ConfigError for a non-finite execution guard limit", () => {
+    expect(() => loadConfig(envWith({ SIMULATION_MAX_EVENTS: "Infinity" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-033 (11_インフラストラクチャ設計.md「CPU limitに合わせてWORKER_MAX_THREADSを設定し」): returns undefined worker thread counts when unset so Piscina keeps its own defaults", () => {
+    const config = loadConfig(envWith({}));
+
+    expect(config.workerMinThreads).toBeUndefined();
+    expect(config.workerMaxThreads).toBeUndefined();
+  });
+
+  it("CFG-034: parses WORKER_MIN_THREADS and WORKER_MAX_THREADS", () => {
+    const config = loadConfig(envWith({ WORKER_MIN_THREADS: "1", WORKER_MAX_THREADS: "2" }));
+
+    expect(config.workerMinThreads).toBe(1);
+    expect(config.workerMaxThreads).toBe(2);
+  });
+
+  it("CFG-035 (maxThreads未満のWorkerしか起動できない設定は、Piscinaが起動時に例外を投げる矛盾した構成): throws ConfigError when WORKER_MIN_THREADS exceeds WORKER_MAX_THREADS", () => {
+    expect(() => loadConfig(envWith({ WORKER_MIN_THREADS: "3", WORKER_MAX_THREADS: "2" }))).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("CFG-036 (WORKER_MAX_THREADS=0はWorkerを1本も持たないPoolになり、全戦闘が実行されない): throws ConfigError for WORKER_MAX_THREADS=0", () => {
+    expect(() => loadConfig(envWith({ WORKER_MAX_THREADS: "0" }))).toThrow(ConfigError);
+  });
 });

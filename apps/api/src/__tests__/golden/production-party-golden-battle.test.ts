@@ -43,20 +43,18 @@ const MATCHUPS = PARTIES.map((ally, index) => ({
 }));
 
 /**
- * 実行ガード（`maxEffectsPerScope: 50`、`passive-activation-service.ts`）へ到達し、
+ * 実行ガード（`maxEffectsPerScope`、`passive-activation-service.ts`）へ到達し、
  * 完走しない組み合わせ。golden（完走）軸の契約は「完走・不変条件」なので、
  * 例外を完走ケースの成功として飲み込まず、**既知の到達**として別のテストへ分離する。
  * ここが増減した場合はガードの水準か production 定義が変わったということなので、
  * どちらのテストも失敗してレビューに乗る。
  *
- * パーティは全ユニットIDをsortして5体ずつへ分割するため、**ユニットを1体足すと
- * 以降の編成が繰り上がり、このindexも動く**。Issue #454 で `UNIT_ANIS_SWEETDEVIL`
- * （`UNIT_ANIS_TROUBLEMAKER` の直後）が入ったことで、ガードへ到達する編成は
- * index 3 から index 5（味方 `UNIT_KOKORO_SPORTSDAY`〜`UNIT_LILY_HERO` 対 敵
- * `UNIT_LILY_SINGER`〜`UNIT_LYDIA_GENIUS`）へ繰り上がった。到達する編成が
- * 1つだけである点は変わっていない。
+ * REL-005（Issue #198）の実測で、この編成が到達していたのは「暴走した定義」では
+ * なく正常な混成編成の効果解決であり、全29編成の実測必要量54件を上限50が
+ * 下回っていたことが原因と分かった。上限を実測値の約1.9倍（100）へ
+ * 引き上げたため、ガードへ到達する編成は無くなった。
  */
-const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [5];
+const GUARD_LIMITED_MATCHUP_INDICES: readonly number[] = [];
 
 const COMPLETING_MATCHUPS = MATCHUPS.filter(
   (matchup) => !GUARD_LIMITED_MATCHUP_INDICES.includes(matchup.index),

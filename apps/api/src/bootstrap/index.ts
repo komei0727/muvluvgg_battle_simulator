@@ -47,6 +47,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
     logLevel,
     docsEnabled,
     corsAllowedOrigins,
+    executionLimits,
+    workerMinThreads,
+    workerMaxThreads,
   } = loadConfig(process.env);
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
@@ -76,6 +79,11 @@ export async function bootstrap(): Promise<FastifyInstance> {
     catalogRevision: manifest.catalogRevision,
     maxQueue: workerMaxQueue,
     shutdownGraceMs,
+    executionLimits,
+    // 未設定時はPiscinaの既定（`os.cpus()`由来）を保つため、`undefined`を
+    // そのまま渡さずキーごと落とす。
+    ...(workerMinThreads !== undefined ? { minThreads: workerMinThreads } : {}),
+    ...(workerMaxThreads !== undefined ? { maxThreads: workerMaxThreads } : {}),
   });
 
   const shutdownState = new ShutdownState();

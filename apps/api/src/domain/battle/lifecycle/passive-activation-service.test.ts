@@ -8,6 +8,7 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
+import type { PassiveChainLimits } from "../model/passive-chain-limits.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
@@ -4322,6 +4323,37 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
         caught = error;
       }
       expect(caught).toBeInstanceOf(ExecutionGuardExceededError);
+
+      // 11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定
+      // から受け取る」: 同じ上限を、単体テスト用の`context.limits`ではなく
+      // 運用経路（`SIMULATION_MAX_*`→`BattleDefinitions.executionLimits`）から
+      // 与えても、同じガードが同じように働く。上限が無視されれば既定値(10)で
+      // いずれ停止してしまい例外の型だけでは判別できないため、停止までに記録
+      // されたイベント数が上限に比例して減ることまで確かめる。
+      const eventsRecordedUntilGuard = (limits: PassiveChainLimits | undefined): number => {
+        const freshRecorder = new EventRecorder(createBattleId("B_1"));
+        const freshTurnStarted = recordTurnStarted(freshRecorder);
+        const runtimeFromDefinitions = new PassiveActivationRuntime(
+          contextOf(
+            freshRecorder,
+            { ...definitions, ...(limits !== undefined ? { executionLimits: limits } : {}) },
+            freshTurnStarted,
+            createActionId("B_1:action:1"),
+          ),
+          [attacker, holderWithEffect],
+        );
+        expect(() =>
+          runtimeFromDefinitions.onFactEvent(freshTurnStarted, [attacker, holderWithEffect]),
+        ).toThrow(ExecutionGuardExceededError);
+        return freshRecorder.getEvents().length;
+      };
+
+      const withInjectedDepth = eventsRecordedUntilGuard({
+        ...DEFAULT_PASSIVE_CHAIN_LIMITS,
+        maxEffectRuntimeCounterDepth: 3,
+      });
+      const withCodeDefault = eventsRecordedUntilGuard(undefined);
+      expect(withInjectedDepth).toBeLessThan(withCodeDefault);
     });
 
     it("UT-R-EFF-11-019: a second AppliedEffect counter that matches the same causing event is applied against state updated by the first counter's own candidate chain, not a stale pre-computed value", () => {

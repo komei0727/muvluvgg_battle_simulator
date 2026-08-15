@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SimulateBattleUseCase } from "./simulate-battle-use-case.js";
+import { DEFAULT_SIMULATION_EXECUTION_LIMITS } from "./battle-execution.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
 import type { SimulationExecutionContext } from "./simulation-execution-context.js";
 import { ApplicationError } from "../contracts/application-error.js";
@@ -512,5 +513,25 @@ describe("SimulateBattleUseCase", () => {
     // recalibrated cap must clear it with margin to spare.
     expect(result.events.length).toBeGreaterThan(20_000);
     expect(result.events.length).toBeLessThan(1_000_000);
+  });
+
+  it("UT-USECASE-011 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定から受け取る」): applies the injected total-event limit instead of the code default, so SIMULATION_MAX_EVENTS actually bounds a battle", () => {
+    const catalog = new FakeBattleCatalog(UNITS);
+    const useCase = new SimulateBattleUseCase({
+      battleCatalog: catalog,
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(0),
+      executionLimits: { ...DEFAULT_SIMULATION_EXECUTION_LIMITS, maxTotalEvents: 1 },
+    });
+
+    let caught: unknown;
+    try {
+      useCase.execute(command({ turnLimit: 3 }), testContext());
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ApplicationError);
+    expect((caught as ApplicationError).code).toBe("EXECUTION_LIMIT_EXCEEDED");
   });
 });

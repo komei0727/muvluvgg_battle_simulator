@@ -7,6 +7,7 @@ import {
 import { ApplicationError } from "../../application/contracts/application-error.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 import { toSimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-request-mapper.js";
 import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
 import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
@@ -18,6 +19,12 @@ export interface SimulationTaskRunnerDependencies {
   readonly battleIdGenerator: BattleIdGenerator;
   readonly randomSourceFactory: RandomSourceFactory;
   readonly clock: Clock;
+  /**
+   * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」「上限値は設定から
+   * 受け取る」。Worker側の実行保護上限。省略時は
+   * `DEFAULT_SIMULATION_EXECUTION_LIMITS`。
+   */
+  readonly executionLimits?: SimulationExecutionLimits;
 }
 
 export type SimulationTaskRunner = (task: WorkerSimulationTask) => WorkerSimulationResult;
@@ -39,6 +46,9 @@ export function createSimulationTaskRunner(
     battleIdGenerator: dependencies.battleIdGenerator,
     randomSourceFactory: dependencies.randomSourceFactory,
     clock: dependencies.clock,
+    ...(dependencies.executionLimits !== undefined
+      ? { executionLimits: dependencies.executionLimits }
+      : {}),
   };
   const useCase = new SimulateBattleUseCase(useCaseDependencies);
   const tacticalExerciseUseCase = new SimulateTacticalExerciseUseCase(useCaseDependencies);
