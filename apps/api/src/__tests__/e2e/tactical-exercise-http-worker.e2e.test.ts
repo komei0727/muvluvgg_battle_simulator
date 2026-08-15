@@ -91,7 +91,13 @@ describe("HTTP -> Worker -> UseCase -> Battle -> Response for a tactical exercis
     const response = await server.inject({
       method: "POST",
       url: TACTICAL_EXERCISES_PATH,
-      payload: { allyFormation: ALLY_FORMATION, enemyFormation: ENEMY_FORMATION },
+      // 既定の`SUMMARY`は`stateTransitions`を返さないため、累計スコア差分を
+      // 確認するにはDETAILEDを明示する必要がある。
+      payload: {
+        allyFormation: ALLY_FORMATION,
+        enemyFormation: ENEMY_FORMATION,
+        options: { logLevel: "DETAILED" },
+      },
     });
 
     expect(response.statusCode).toBe(200);
