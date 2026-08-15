@@ -1489,7 +1489,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ATM-03-008",
       // #4 発行直前に戦闘不能である対象へは発行しない。
       "UT-R-ATM-03-009",
-      // 全production戦闘で「スキル使用ごと・対象ごとに1回、最初のヒットより前」。
+      // #1 実経路ごとの発行（AS/EXは`UT-R-ATM-03-006`、PSとチャージ解放はこの2件）。
+      "UT-R-ATM-03-010",
+      "UT-R-ATM-03-011",
+      // 全production戦闘で「スキル使用ごと・対象ごとにちょうど1回、最初のヒットより前」。
       // 実production定義（`SKL_SHIRANA_SORA_PS2`）が#7の別名規約で発動することは
       // `IT-UNIT-SHIRANA-SORA-001`の振る舞い表が固定する（表駆動のため
       // `UT-TRACEABILITY-005`の単一テスト対応を満たさず、ここには列挙しない）。
