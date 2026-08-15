@@ -304,7 +304,12 @@ function* applyOneSubUnitAdditionalDamageSteps(
       shieldIgnoreRate: profile.piercing.shieldIgnoreRate,
       damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
       // `DamageCalculated.skillPower`はFormula評価結果そのもの（補正適用前）。
+      // DMG-012の`baseDamage`と属性相性4欄は持たない — R-SUB-02の計算式が基礎ダメージ
+      // （防御力減衰）の項も属性相性の項も持たないためである。属性を書いた上で
+      // `isFavorableAttribute: false`と断定すると、実際には有利な組み合わせの追加ヒットで
+      // 監査ログが偽を述べることになる。
       skillPower: formulaResult,
+      skillPowerFormulaKind: source.additionalDamage.formula.kind,
       attributeMultiplier: 1,
       criticalMultiplier: observation.critical.multiplier,
       outgoingDamageMultiplier: damageModifierMultipliers.outgoingMultiplier,
@@ -313,7 +318,18 @@ function* applyOneSubUnitAdditionalDamageSteps(
       // R-CFS-02（DMG-009）: サブユニットの追加ダメージは混乱の対象外
       // （「ASの`DAMAGE` EffectActionだけに適用する」）ため常に1。
       confusionDamageMultiplier: 1,
+      rawPreTruncationDamage:
+        formulaResult *
+        damageModifierMultipliers.outgoingMultiplier *
+        damageModifierMultipliers.incomingMultiplier,
       preTruncationDamage,
+      // R-SUB-02: 凍結解除増幅（R-STS-03）と攻撃時追加ダメージ（R-DMG-06）は追加ヒットで
+      // 行わない（「同じ攻撃の中で二重に数えない」）ため、この経路では常に中立値になる。
+      freezeMultiplier: 1,
+      attackDamageBonus: 0,
+      guardRate: intervention.guardRate,
+      thresholdReductionMultiplier: thresholdReduction.multiplier,
+      damageImmunityNullified: damageImmunity.nullified,
       finalDamage,
       damageType: profile.damageType,
     },

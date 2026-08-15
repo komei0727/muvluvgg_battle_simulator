@@ -4884,10 +4884,44 @@
                                   "damageReductionIgnoreRate": {
                                     "type": "number"
                                   },
+                                  "baseDamage": {
+                                    "type": "number"
+                                  },
                                   "skillPower": {
                                     "type": "number"
                                   },
+                                  "skillPowerFormulaKind": {
+                                    "type": "string"
+                                  },
                                   "attributeMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "attackerAttribute": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AGGRESSIVE",
+                                      "SHY",
+                                      "CUTE",
+                                      "SMART",
+                                      "COMICAL",
+                                      "CLEVER"
+                                    ]
+                                  },
+                                  "defenderAttribute": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AGGRESSIVE",
+                                      "SHY",
+                                      "CUTE",
+                                      "SMART",
+                                      "COMICAL",
+                                      "CLEVER"
+                                    ]
+                                  },
+                                  "isFavorableAttribute": {
+                                    "type": "boolean"
+                                  },
+                                  "attackerAffinityBonus": {
                                     "type": "number"
                                   },
                                   "criticalMultiplier": {
@@ -4905,8 +4939,26 @@
                                   "confusionDamageMultiplier": {
                                     "type": "number"
                                   },
+                                  "rawPreTruncationDamage": {
+                                    "type": "number"
+                                  },
                                   "preTruncationDamage": {
                                     "type": "number"
+                                  },
+                                  "freezeMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "attackDamageBonus": {
+                                    "type": "number"
+                                  },
+                                  "guardRate": {
+                                    "type": "number"
+                                  },
+                                  "thresholdReductionMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "damageImmunityNullified": {
+                                    "type": "boolean"
                                   },
                                   "finalDamage": {
                                     "type": "integer",
@@ -17581,10 +17633,44 @@
                                   "damageReductionIgnoreRate": {
                                     "type": "number"
                                   },
+                                  "baseDamage": {
+                                    "type": "number"
+                                  },
                                   "skillPower": {
                                     "type": "number"
                                   },
+                                  "skillPowerFormulaKind": {
+                                    "type": "string"
+                                  },
                                   "attributeMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "attackerAttribute": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AGGRESSIVE",
+                                      "SHY",
+                                      "CUTE",
+                                      "SMART",
+                                      "COMICAL",
+                                      "CLEVER"
+                                    ]
+                                  },
+                                  "defenderAttribute": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AGGRESSIVE",
+                                      "SHY",
+                                      "CUTE",
+                                      "SMART",
+                                      "COMICAL",
+                                      "CLEVER"
+                                    ]
+                                  },
+                                  "isFavorableAttribute": {
+                                    "type": "boolean"
+                                  },
+                                  "attackerAffinityBonus": {
                                     "type": "number"
                                   },
                                   "criticalMultiplier": {
@@ -17602,8 +17688,26 @@
                                   "confusionDamageMultiplier": {
                                     "type": "number"
                                   },
+                                  "rawPreTruncationDamage": {
+                                    "type": "number"
+                                  },
                                   "preTruncationDamage": {
                                     "type": "number"
+                                  },
+                                  "freezeMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "attackDamageBonus": {
+                                    "type": "number"
+                                  },
+                                  "guardRate": {
+                                    "type": "number"
+                                  },
+                                  "thresholdReductionMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "damageImmunityNullified": {
+                                    "type": "boolean"
                                   },
                                   "finalDamage": {
                                     "type": "integer",

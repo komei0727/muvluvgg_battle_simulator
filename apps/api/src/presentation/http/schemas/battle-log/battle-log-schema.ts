@@ -391,6 +391,9 @@ const effectActionCompletedDetailsSchema = {
 
 const DAMAGE_TYPE_ENUM = ["PHYSICAL", "EN"] as const;
 
+/** R-ATR-01の属性6値（DMG-012、Issue #488）。 */
+const ATTRIBUTE_ENUM = ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] as const;
+
 /**
  * `UnitBeingAttacked`（攻撃前観測、`R-ATM-03`）。対象束縛の解決後・効果処理の
  * 開始前に、DAMAGEの対象として解決された各ユニットへ1回ずつ発行する。ヒット単位で
@@ -551,8 +554,29 @@ const damageCalculatedDetailsSchema = {
     defenseIgnoreRate: { type: "number" },
     shieldIgnoreRate: { type: "number" },
     damageReductionIgnoreRate: { type: "number" },
+    /**
+     * DMG-012（Issue #488）: ダメージ計算を`details`単体で再現するための監査項目。
+     * `10_API設計.md`「バージョニング」に従い、`schemaVersion: 1`のまま既存イベントへ
+     * **必須**項目を足すのは後方互換でないため、`confusionDamageMultiplier`
+     * （DMG-009）・`subUnitAbsorbed`（DMG-005）と同じく任意項目として追加する。
+     *
+     * `baseDamage`と属性相性4欄はR-SUB-02のサブユニット追加ヒットでは
+     * Response Mapperも値を持たない（計算式にその項が無い）。それ以外の欄は
+     * 全経路で常に値を設定する。
+     */
+    baseDamage: { type: "number" },
     skillPower: { type: "number" },
+    /**
+     * `FormulaDefinition.kind`。`enum`を書かないのは、値の正本
+     * （`formula-definition.ts`の`FORMULA_KINDS`）がexportされておらず、ここへ
+     * 転記するとFormula種別の追加時に黙って drift するためである。
+     */
+    skillPowerFormulaKind: { type: "string" },
     attributeMultiplier: { type: "number" },
+    attackerAttribute: { type: "string", enum: ATTRIBUTE_ENUM },
+    defenderAttribute: { type: "string", enum: ATTRIBUTE_ENUM },
+    isFavorableAttribute: { type: "boolean" },
+    attackerAffinityBonus: { type: "number" },
     criticalMultiplier: { type: "number" },
     outgoingDamageMultiplier: { type: "number" },
     incomingDamageMultiplier: { type: "number" },
@@ -564,7 +588,15 @@ const damageCalculatedDetailsSchema = {
      * （Response Mapperは常に値を設定する）。
      */
     confusionDamageMultiplier: { type: "number" },
+    /** 上の倍率群だけを`baseDamage`へ掛けた積（DMG-012）。 */
+    rawPreTruncationDamage: { type: "number" },
     preTruncationDamage: { type: "number" },
+    /** R-STS-03・R-DMG-06・R-INT-02第2項・R-DMG-07・R-DMG-02 #2の各段（DMG-012）。 */
+    freezeMultiplier: { type: "number" },
+    attackDamageBonus: { type: "number" },
+    guardRate: { type: "number" },
+    thresholdReductionMultiplier: { type: "number" },
+    damageImmunityNullified: { type: "boolean" },
     finalDamage: { type: "integer", minimum: 0 },
     damageType: { type: "string", enum: DAMAGE_TYPE_ENUM },
   },
