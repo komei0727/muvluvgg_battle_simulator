@@ -186,8 +186,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_YUI_HEIR_AS2_DMG_DOWN", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_YUI_HEIR_AS2_KENKI", targets: ["ally:subject"] },
       ],
-      // 会心（基本1.5倍 + 会心ダメージ+50%）が乗って858の2倍。
-      hpDeltas: { "enemy:front": -1716 },
+      // 会心（基本100% + 会心ダメージ+50%）が乗って858の1.5倍。
+      hpDeltas: { "enemy:front": -1287 },
       effectsApplied: [
         {
           unitId: "enemy:front",

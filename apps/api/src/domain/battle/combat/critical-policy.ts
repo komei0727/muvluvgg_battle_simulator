@@ -56,8 +56,13 @@ export interface CriticalResult {
  * `CriticalPolicy` (R-CRT-01, R-CRT-02). `GUARANTEED`/`PREVENTED` (Catalogの
  * `DamagePayload.critical.mode`) はRandomSourceを消費せず確定する。`NORMAL`は
  * R-NUM-03の`resolveProbability`で実効会心率を判定する。会心倍率は会心時
- * 150%+会心ダメージボーナス、非会心時は常に100%。`baseRate`/`effectiveRate`は
+ * 100%+会心ダメージボーナス、非会心時は常に100%。`baseRate`/`effectiveRate`は
  * modeに関わらず常に算出し、`CriticalCheckResolved`イベントでの監査に使う。
+ *
+ * 基準が150%ではなく100%なのは、`criticalDamageBonus`が既定値50%（Q-CAT-05）を
+ * 含んだユニットステータスだからである（R-ENH-06のギア加算・R-STA-01の戦闘中補正も
+ * この値へパーセントポイントで足し込む）。R-CRT-02が挙げる「150%」は既定値込みの
+ * 結果であり、ここで別途150%を足すと既定値が二重に乗る。
  */
 export function resolveCritical(
   mode: CriticalMode,
@@ -68,7 +73,7 @@ export function resolveCritical(
   const isCritical = resolveIsCritical(mode, criticalRate, random);
   return {
     isCritical,
-    multiplier: isCritical ? 1.5 + criticalDamageBonus : 1,
+    multiplier: isCritical ? 1 + criticalDamageBonus : 1,
     baseRate: criticalRate,
     effectiveRate: clampToEffectiveRate(criticalRate),
   };

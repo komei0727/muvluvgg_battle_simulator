@@ -789,10 +789,10 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
       recorder.nextResolutionScopeId(),
     );
 
-    // AS本体: (1000 - 500) x 会心2.0 = 1000。追撃: (1000 - 500) x 0.3588 x 会心継承2.0
-    // = 358.8 → 358（味方のステータス・会心ダメージボーナスで計算。翠蘭は参照しない）。
+    // AS本体: (1000 - 500) x 会心1.5 = 750。追撃: (1000 - 500) x 0.3588 x 会心継承1.5
+    // = 269.1 → 269（味方のステータス・会心ダメージボーナスで計算。翠蘭は参照しない）。
     const enemyAfter = unitOf(result.units, board.enemy.battleUnitId);
-    expect(enemyAfter.currentHp).toBe(board.enemy.currentHp - 1000 - 358);
+    expect(enemyAfter.currentHp).toBe(board.enemy.currentHp - 750 - 269);
     // 追撃がヒットした敵へ1行動の速度-200デバフ。
     expect(enemyAfter.appliedEffects).toHaveLength(1);
     expect(enemyAfter.appliedEffects[0]).toMatchObject({
@@ -815,8 +815,8 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     expect(followUpDamage).toHaveLength(1);
     expect(followUpDamage[0]?.payload).toMatchObject({
       attackerAttack: PASSIVE_COMBAT_STATS.attack,
-      criticalMultiplier: 2,
-      finalDamage: 358,
+      criticalMultiplier: 1.5,
+      finalDamage: 269,
       damageType: "EN",
     });
   });

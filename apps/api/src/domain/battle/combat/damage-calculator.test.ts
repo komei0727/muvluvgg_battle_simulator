@@ -64,13 +64,14 @@ describe("calculateDamage", () => {
     ).toBe(45);
   });
 
-  it("UT-R-DMG-01-003: a favorable attribute applies 125% plus the attacker's affinity bonus (R-ATR-02)", () => {
-    // AGGRESSIVE is favorable against SHY.
+  it("UT-R-DMG-01-003: a favorable attribute applies 100% plus the attacker's affinity bonus (R-ATR-02)", () => {
+    // AGGRESSIVE is favorable against SHY。属性相性ボーナスは既定25%（Q-CAT-05）に
+    // ギア10ppを足した35%のユニットを想定する。
     const result = calculateDamage(
       input({
         attackerAttribute: "AGGRESSIVE",
         defenderAttribute: "SHY",
-        attackerAffinityBonus: 0.1,
+        attackerAffinityBonus: 0.35,
       }),
     );
     expect(result.finalDamage).toBe(Math.floor(30 * 1.35));
@@ -140,7 +141,7 @@ describe("calculateDamage", () => {
         },
         attackerAttribute: "AGGRESSIVE",
         defenderAttribute: "SHY",
-        attackerAffinityBonus: 0.1,
+        attackerAffinityBonus: 0.35,
         criticalMultiplier: 2,
         damageModifiers: [{ kind: "CONSTANT", value: 0.1 }],
       }),
@@ -287,7 +288,7 @@ describe("calculateDamage", () => {
       input({
         attackerAttribute: "AGGRESSIVE",
         defenderAttribute: "SHY",
-        attackerAffinityBonus: 0.1,
+        attackerAffinityBonus: 0.35,
       }),
     );
     expect(result.attributeMultiplier).toBeCloseTo(1.35);

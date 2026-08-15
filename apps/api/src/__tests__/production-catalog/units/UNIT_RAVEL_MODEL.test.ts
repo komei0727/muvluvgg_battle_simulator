@@ -230,8 +230,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_RAVEL_MODEL_AS2_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_RAVEL_MODEL_AS2_MARK_CRIT", targets: ["enemy:front"] },
       ],
-      // 会心（基本1.5倍 + 会心ダメージ+50%）が乗って1204。
-      hpDeltas: { "enemy:front": -1204 },
+      // 会心（基本100% + 会心ダメージ+50%）が乗って903。
+      hpDeltas: { "enemy:front": -903 },
       markers: [{ unitId: "enemy:front", markerId: TARGET_MARKER, stackCount: 1 }],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
@@ -251,7 +251,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_RAVEL_MODEL_AS2_MARK_CRIT", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_RAVEL_MODEL_AS2_STUN", targets: ["enemy:front"] },
       ],
-      hpDeltas: { "enemy:front": -1204 },
+      hpDeltas: { "enemy:front": -903 },
       effectsApplied: [
         {
           unitId: "enemy:front",

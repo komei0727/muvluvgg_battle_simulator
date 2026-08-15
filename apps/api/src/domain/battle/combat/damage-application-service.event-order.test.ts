@@ -61,9 +61,9 @@ describe("applyDamageAction hit-level damage event order (DMG-001)", () => {
       hitIndex: 1,
       targetUnitId: createBattleUnitId("TARGET"),
       damageType: "PHYSICAL",
-      // R-CRT-02: 会心倍率は`1.5 + criticalDamageBonus(0.5)`。
+      // R-CRT-02: 会心倍率は`1 + criticalDamageBonus(0.5)`。
       isCritical: true,
-      criticalMultiplier: 2,
+      criticalMultiplier: 1.5,
       defenseIgnoreRate: 0,
       shieldIgnoreRate: 0,
       damageReductionIgnoreRate: 0,

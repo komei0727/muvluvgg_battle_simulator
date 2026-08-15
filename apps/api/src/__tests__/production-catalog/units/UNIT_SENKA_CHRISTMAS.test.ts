@@ -340,9 +340,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DAMAGE", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_SENKA_CHRISTMAS_AS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
-      // 702（威力140.4%）に会心（基本1.5倍＋会心ダメージ+50%）が乗って1404、
-      // さらに混乱の被ダメージ30%減少が掛かって982（切り捨て）。
-      hpDeltas: { "ally:subject": -982 },
+      // 702（威力140.4%）に会心（基本100%＋会心ダメージ+50%）が乗って1053、
+      // さらに混乱の被ダメージ30%減少が掛かって737（切り捨て）。
+      hpDeltas: { "ally:subject": -737 },
       effectsApplied: [
         {
           unitId: "ally:subject",

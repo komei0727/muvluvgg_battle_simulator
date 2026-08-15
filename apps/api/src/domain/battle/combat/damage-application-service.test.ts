@@ -234,8 +234,8 @@ describe("applyDamageAction", () => {
 
     random.assertFullyConsumed();
     expect(result.hits[0]!.isCritical).toBe(true);
-    // base damage 20 * (1.5 + 0.5 criticalDamageBonus) = 40
-    expect(result.hits[0]!.damage).toBe(40);
+    // base damage 20 * (1 + 0.5 criticalDamageBonus) = 30
+    expect(result.hits[0]!.damage).toBe(30);
   });
 
   it("UT-DAMAGE-APPLICATION-006: throws when a hit references a BattleUnitId absent from the given units (defensive)", () => {
@@ -311,14 +311,15 @@ describe("applyDamageAction", () => {
   it("UT-DAMAGE-APPLICATION-009 (会心・ダメージイベントのpayload監査可能性): the recorded CriticalCheckResolved/DamageCalculated events carry the correct, non-swapped calculation values — not just calculateDamage()/resolveCritical()'s own return values", () => {
     // criticalRate above 100% so baseCriticalRate (1.5) and effectiveCriticalRate
     // (clamped to 1) are guaranteed to differ, catching a "stored baseRate into
-    // effectiveRate" bug. attributeMultiplier (1.35, favorable attribute +
-    // affinityBonus) and actionDamageMultiplier (1.2, from damageModifiers) are
+    // effectiveRate" bug. criticalMultiplier (2.0, from a 100% criticalDamageBonus)、
+    // attributeMultiplier (1.35, favorable attribute + affinityBonus)、
+    // actionDamageMultiplier (1.2, from damageModifiers) are
     // chosen to differ from each other and from 1, catching a field swap.
     const attacker = unit("ATTACKER", "ALLY", {
       attack: 50,
       criticalRate: 1.5,
-      criticalDamageBonus: 0.5,
-      affinityBonus: 0.1,
+      criticalDamageBonus: 1,
+      affinityBonus: 0.35,
       attribute: "AGGRESSIVE",
     });
     const target = unit("TARGET", "ENEMY", {
@@ -1316,8 +1317,8 @@ describe("applyDamageAction", () => {
       context,
     );
 
-    // 基礎20 × 会心倍率2.0（150% + 会心ダメージボーナス50%）。
-    expect(result.hits[0]!.damage).toBe(40);
+    // 基礎20 × 会心倍率1.5（100% + 会心ダメージボーナス50%）。
+    expect(result.hits[0]!.damage).toBe(30);
     random.assertFullyConsumed();
     const criticalCheckResolved = context.recorder
       .getEvents()
@@ -1375,7 +1376,8 @@ describe("applyDamageAction", () => {
       context,
     );
 
-    expect(result.hits[0]!.damage).toBe(40);
+    // 基礎20 × 会心倍率1.5（100% + 会心ダメージボーナス50%）。
+    expect(result.hits[0]!.damage).toBe(30);
     random.assertFullyConsumed();
     const criticalCheckResolved = context.recorder
       .getEvents()
