@@ -28,6 +28,7 @@ import type {
   EffectActionGroupContext,
   EffectActionGroupsResult,
 } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "./battle-actors.js";
 
 /**
  * `applyEffectActionGroups`/`resolveEffectSequencePlan`をkind別ハンドラごとの
@@ -40,6 +41,7 @@ export const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 export function unit(id: string, side: Side, overrides: Partial<BattleUnit> = {}): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

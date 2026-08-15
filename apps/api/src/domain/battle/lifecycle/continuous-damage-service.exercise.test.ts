@@ -22,6 +22,7 @@ import {
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 /**
  * R-TEX-02 #3「ダメージの発生源・種別は問わない…継続ダメージなど…敵HPへ向かうものは
@@ -32,6 +33,7 @@ const DOT_DEFINITION_ID = createEffectActionDefinitionId("ACT_DOT");
 function enemy(currentHp: number, effects: readonly AppliedEffect[]): BattleUnit {
   const position = { row: "FRONT" as const, column: "LEFT" as const };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("enemy:1"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

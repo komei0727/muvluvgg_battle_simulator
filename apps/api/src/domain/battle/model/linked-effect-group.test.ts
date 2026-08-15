@@ -21,12 +21,14 @@ import type {
   DurationDefinition,
   LinkedEffectGroupRole,
 } from "../../catalog/definitions/duration-definition.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
 function unit(id: string): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

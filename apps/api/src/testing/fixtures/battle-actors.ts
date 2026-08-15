@@ -7,6 +7,7 @@ import {
 import type { BattlePartyMember } from "../../domain/battle/model/battle-party.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import { toGlobalCoordinate } from "../../domain/battle/model/global-coordinate.js";
+import type { BaseStats } from "../../domain/catalog/definitions/unit-definition.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { Side } from "../../domain/shared/side.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
@@ -26,6 +27,24 @@ const DEFAULT_COMBAT_STATS: CombatStats = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+};
+
+/**
+ * `BattlePartyMember` の型を満たすためだけの `enhancedBaseStats`（R-ENH-06の
+ * 強化後基本ステータス）。`combatStats` を直接指定するテストでは補正前の値に
+ * 意味がなく、`createBattleUnit` も読まないため、対応関係を持たせない。
+ * 補正前後の関係そのものを検証するテストは `FormationFactory` 経由で組む。
+ */
+export const UNUSED_ENHANCED_BASE_STATS: BaseStats = {
+  maximumHp: 0,
+  attack: 0,
+  defense: 0,
+  criticalRate: 0,
+  criticalDamageBonus: 0,
+  affinityBonus: 0,
+  actionSpeed: 0,
+  maximumAp: 0,
+  maximumPp: 0,
 };
 
 const DEFAULT_LIMITS: BattleUnitResourceLimits = {
@@ -56,6 +75,7 @@ export function testPartyMember(options: TestPartyMemberOptions): BattlePartyMem
     position,
     globalCoordinate: toGlobalCoordinate(side, position),
     combatStats: { ...DEFAULT_COMBAT_STATS, ...options.combatStats },
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
   };
 }
 

@@ -10,6 +10,7 @@ import {
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { Side } from "../../domain/shared/side.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../fixtures/battle-actors.js";
 
 /**
  * Property/Model テストの共通設定（`12_テスト戦略.md`「Property／Modelテスト」）。
@@ -48,6 +49,7 @@ interface UnitPlacement {
 /** `UnitPlacement` から実 `BattleUnit` を構築する（action-order-policy.test.ts と同じ経路）。 */
 export function battleUnitFromPlacement(placement: UnitPlacement): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(placement.id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

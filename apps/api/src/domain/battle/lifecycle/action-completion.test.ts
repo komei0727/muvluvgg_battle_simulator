@@ -15,10 +15,12 @@ import {
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function actorWithExpiringCooldown(): BattleUnit {
   const position = { column: "LEFT", row: "FRONT" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("U1"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",
@@ -57,6 +59,7 @@ function actorWithExpiringCooldown(): BattleUnit {
 function plainUnit(id: string): BattleUnit {
   const position = { column: "LEFT", row: "FRONT" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

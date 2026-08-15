@@ -16,6 +16,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const CHARGE_SKILL: SkillDefinition = {
   skillDefinitionId: createSkillDefinitionId("SKL_CHARGE"),
@@ -51,6 +52,7 @@ function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

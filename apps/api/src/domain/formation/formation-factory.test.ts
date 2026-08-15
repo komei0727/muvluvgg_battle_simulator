@@ -99,6 +99,17 @@ describe("createBattleParty — FormationFactory", () => {
         criticalDamageBonus: 0.5,
         affinityBonus: 0.25,
       },
+      enhancedBaseStats: {
+        maximumHp: 100,
+        attack: 10,
+        defense: 10,
+        criticalRate: 0.1,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0.25,
+        actionSpeed: 10,
+        maximumAp: 3,
+        maximumPp: 3,
+      },
     });
     expect(party.memoryDefinitionIds).toEqual([]);
     expect(party.formationBonus.attackBonus).toBeCloseTo(0);
@@ -430,6 +441,149 @@ describe("createBattleParty — FormationFactory", () => {
 
     // 適正外配置の -5%（R-STA-01）が、強化後の攻撃力 18607.39 に対して掛かる。
     expect(party.members[0]!.combatStats.attack).toBeCloseTo(17677.0205, 4);
+  });
+
+  it("UT-R-FRM-FACTORY-009 (R-ENH-06): exposes the enhanced base stats the member's combat stats were derived from", () => {
+    const enhanced: UnitDefinition = {
+      ...unitDefinition("UNIT_001", "AGGRESSIVE"),
+      levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+    };
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+          enhancement: { level: 220, gears: [{ stat: "ATTACK", tier: "III", grade: "S" }] },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: {
+        academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+      },
+    };
+
+    const party = createBattleParty(
+      "ALLY",
+      formation,
+      [createBattleUnitId("BU_1")],
+      unitsMap(enhanced),
+      NO_MEMORIES,
+    );
+
+    // UT-R-ENH-06-007と同じ強化指定。適性内配置・編成ボーナス不成立のため
+    // `combatStats`と一致するが、一致することではなく強化後基本値がそのまま
+    // 公開されることを見る。
+    expect(party.members[0]!.enhancedBaseStats.attack).toBeCloseTo(28723.9043, 4);
+    expect(party.members[0]!.enhancedBaseStats.actionSpeed).toBeCloseTo(50, 6);
+    // AP/PPは強化対象外（R-ENH-06）だが基本ステータスの一部として保持する。
+    expect(party.members[0]!.enhancedBaseStats.maximumAp).toBe(3);
+    expect(party.members[0]!.enhancedBaseStats.maximumPp).toBe(3);
+  });
+
+  it("UT-R-FRM-FACTORY-010 (R-ENH-01 #2): a formation without an enhancement exposes the Unit definition's baseStats unchanged", () => {
+    const definition = unitDefinition("UNIT_001", "AGGRESSIVE");
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+      ],
+      memoryDefinitionIds: [],
+    };
+
+    const party = createBattleParty(
+      "ALLY",
+      formation,
+      [createBattleUnitId("BU_1")],
+      unitsMap(definition),
+      NO_MEMORIES,
+    );
+
+    expect(party.members[0]!.enhancedBaseStats).toEqual(definition.baseStats);
+  });
+
+  it("UT-R-STA-01-035: the enhanced base stats precede the formation bonus and the aptitude penalty, so only the stats those corrections reach differ", () => {
+    // クレバー3人・アグレッシブ2人。役判定はクレバーを除いた2人からでは成立せず
+    // （R-BON-01）、補正はR-BON-03の累積段階だけになる: 攻撃+10%・HP+10%・
+    // 防御+30%・会心率+15%pt。UNIT_003だけ前衛適性のユニットを後衛へ置き、
+    // 適性補正-5%を重ねる。
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+        },
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_002"),
+          position: { column: "CENTER", row: "FRONT" },
+        },
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_003"),
+          position: { column: "LEFT", row: "BACK" },
+        },
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_004"),
+          position: { column: "CENTER", row: "BACK" },
+        },
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_005"),
+          position: { column: "RIGHT", row: "BACK" },
+        },
+      ],
+      memoryDefinitionIds: [],
+    };
+    const units = unitsMap(
+      unitDefinition("UNIT_001", "CLEVER"),
+      unitDefinition("UNIT_002", "CLEVER"),
+      unitDefinition("UNIT_003", "CLEVER", ["FRONT"]),
+      unitDefinition("UNIT_004", "AGGRESSIVE"),
+      unitDefinition("UNIT_005", "AGGRESSIVE"),
+    );
+
+    const party = createBattleParty(
+      "ALLY",
+      formation,
+      [
+        createBattleUnitId("BU_1"),
+        createBattleUnitId("BU_2"),
+        createBattleUnitId("BU_3"),
+        createBattleUnitId("BU_4"),
+        createBattleUnitId("BU_5"),
+      ],
+      units,
+      NO_MEMORIES,
+    );
+
+    const penalised = party.members[2]!;
+    // 割合補正ステータスは編成補正と適性補正の両方を受ける（R-STA-01）。
+    expect(penalised.enhancedBaseStats.attack).toBeCloseTo(10, 6);
+    expect(penalised.combatStats.attack).toBeCloseTo(10.5, 6); // 10 × (1 + 0.10 − 0.05)
+    expect(penalised.enhancedBaseStats.maximumHp).toBeCloseTo(100, 6);
+    expect(penalised.combatStats.maximumHp).toBeCloseTo(105, 6); // 100 × (1 + 0.10 − 0.05)
+    expect(penalised.enhancedBaseStats.defense).toBeCloseTo(10, 6);
+    expect(penalised.combatStats.defense).toBeCloseTo(12.5, 6); // 10 × (1 + 0.30 − 0.05)
+    // 会心率はパーセントポイント加算で編成補正だけを受ける（適性補正は常に0）。
+    expect(penalised.enhancedBaseStats.criticalRate).toBeCloseTo(0.1, 6);
+    expect(penalised.combatStats.criticalRate).toBeCloseTo(0.25, 6);
+    // 編成補正・適性補正のどちらも及ばないステータスは補正前後で一致する。
+    expect(penalised.combatStats.actionSpeed).toBeCloseTo(
+      penalised.enhancedBaseStats.actionSpeed,
+      6,
+    );
+    expect(penalised.combatStats.criticalDamageBonus).toBeCloseTo(
+      penalised.enhancedBaseStats.criticalDamageBonus,
+      6,
+    );
+    expect(penalised.combatStats.affinityBonus).toBeCloseTo(
+      penalised.enhancedBaseStats.affinityBonus,
+      6,
+    );
+
+    // 適性内に置いたユニットは同じ編成補正だけを受ける（適性補正が乗らない分だけ高い）。
+    const unpenalised = party.members[0]!;
+    expect(unpenalised.enhancedBaseStats.attack).toBeCloseTo(10, 6);
+    expect(unpenalised.combatStats.attack).toBeCloseTo(11, 6); // 10 × (1 + 0.10)
   });
 
   it("UT-R-FRM-FACTORY-008: rejects a formation referencing an unknown MemoryDefinitionId", () => {

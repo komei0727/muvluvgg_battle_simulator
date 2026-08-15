@@ -19,12 +19,14 @@ import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/appl
 import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const POSITION = { column: "LEFT", row: "FRONT" } as const;
 
 function owner(side: Side, overrides: Partial<BattleUnit> = {}): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("OWNER"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

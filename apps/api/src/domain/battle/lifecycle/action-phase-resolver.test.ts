@@ -38,6 +38,7 @@ import type { EffectActionDefinition } from "../../catalog/definitions/effect-ac
 import { DomainValidationError } from "../../shared/errors.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function unit(
   id: string,
@@ -56,6 +57,7 @@ function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId(overrides.unitDefinitionId ?? "UNIT_001"),
     attribute: "AGGRESSIVE",

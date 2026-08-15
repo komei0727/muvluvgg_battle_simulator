@@ -19,12 +19,14 @@ import type { Side } from "../../shared/side.js";
 import type { RuntimeCounterUpdateDefinitionInput } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import { createRuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
 function unit(id: string, side: Side = "ALLY", overrides: Partial<BattleUnit> = {}): BattleUnit {
   const position = { row: "FRONT", column: "LEFT" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

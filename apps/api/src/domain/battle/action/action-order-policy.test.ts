@@ -17,6 +17,7 @@ import {
   PROPERTY_ASSERT_CONFIG,
 } from "../../../testing/property/index.js";
 import type { Side } from "../../shared/side.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -27,6 +28,7 @@ function unit(
   actionSpeed: number,
 ): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

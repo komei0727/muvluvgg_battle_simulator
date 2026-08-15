@@ -19,6 +19,7 @@ import {
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const CHARGE_SKILL: SkillDefinition = {
   skillDefinitionId: createSkillDefinitionId("SKL_A"),
@@ -49,6 +50,7 @@ const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 2, maximumEx
 function unit(id: string, side: Side) {
   const position = { column: "LEFT" as const, row: "FRONT" as const };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

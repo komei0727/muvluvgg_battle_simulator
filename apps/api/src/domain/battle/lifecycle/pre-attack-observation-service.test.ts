@@ -14,12 +14,14 @@ import {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const RIDER_ID = createEffectActionDefinitionId("ACT_TEST_FOLLOW_UP_RIDER");
 
 function unit(id: string, appliedEffects: readonly AppliedEffect[] = []): BattleUnit {
   const position = { column: "LEFT", row: "FRONT" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

@@ -284,6 +284,40 @@ describe("PreviewFormationStatsUseCase", () => {
     expect(result.units[0]!.combatStats.maximumHp).toBeGreaterThan(0);
   });
 
+  it("UT-STAT-PREVIEW-024 (09_アプリケーション設計.md「FormationStatPreviewResult」/R-ENH-06): reports the enhanced base stats alongside the corrected combat stats", () => {
+    const result = useCase().execute(
+      command({
+        allyFormation: {
+          slots: [slot("UNIT_ALLY", 0)],
+          memoryDefinitionIds: [],
+          enhancement: { academyLevels: { unitTypes: { PHYSICAL: 50 } } },
+        },
+      }),
+    );
+
+    // 強化指定のある味方は、強化後基本ステータスをユニット定義の基本値より高く報告する。
+    expect(result.units[0]!.enhancedBaseStats.attack).toBeGreaterThan(ALLY.baseStats.attack);
+    // 強化指定のない敵陣営はユニット定義の基本ステータスをそのまま報告する。
+    expect(result.units[1]!.enhancedBaseStats).toEqual(GROWING.baseStats);
+  });
+
+  it("UT-STAT-PREVIEW-025 (R-STA-01): the reported enhanced base stats exclude the aptitude penalty that the combat stats include", () => {
+    // 前衛適性しか持たないユニットを後衛へ置き、適性補正-5%だけを成立させる
+    // （1体編成のため役は成立せず、編成補正は0）。
+    const frontOnly = unitDefinition("UNIT_FRONT_ONLY", { positionAptitudes: ["FRONT"] });
+    const result = useCase([ALLY, GROWING, frontOnly]).execute(
+      command({
+        allyFormation: {
+          slots: [slot("UNIT_FRONT_ONLY", 1, "REAR")],
+          memoryDefinitionIds: [],
+        },
+      }),
+    );
+
+    expect(result.units[0]!.enhancedBaseStats.attack).toBeCloseTo(10, 6);
+    expect(result.units[0]!.combatStats.attack).toBeCloseTo(9.5, 6);
+  });
+
   it("UT-STAT-PREVIEW-016 (09_アプリケーション設計.md「PreviewFormationStatsUseCase」): is deterministic — the same command produces the same stats on every call", () => {
     const preview = useCase();
     expect(preview.execute(command())).toEqual(preview.execute(command()));

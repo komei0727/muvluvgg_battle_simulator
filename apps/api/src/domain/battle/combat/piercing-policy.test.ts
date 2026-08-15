@@ -11,6 +11,7 @@ import {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const NO_PIERCING = {
   defenseIgnoreRate: 0,
@@ -22,6 +23,7 @@ function attacker(effects: readonly AppliedEffect[] = []): BattleUnit {
   const side = "ALLY" as const;
   const position = { row: "FRONT", column: "CENTER" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("ATTACKER"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

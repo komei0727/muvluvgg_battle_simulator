@@ -31,6 +31,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { Side } from "../../shared/side.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -44,6 +45,7 @@ const NO_SKILLS: BattleDefinitions = {
 
 function unit(id: string, side: Side, unitDefinitionId = "UNIT_001"): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId(unitDefinitionId),
     attribute: "AGGRESSIVE",

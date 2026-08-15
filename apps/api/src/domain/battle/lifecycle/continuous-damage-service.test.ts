@@ -29,6 +29,7 @@ import type { ContinuousDamageKind } from "../../catalog/definitions/effect-acti
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { ShieldState } from "../model/applied-effect.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function unit(
   id: string,
@@ -41,6 +42,7 @@ function unit(
 ): BattleUnit {
   const position = { row: "FRONT" as const, column: "LEFT" as const };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

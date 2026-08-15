@@ -21,6 +21,7 @@ import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { FormulaEvaluationContext } from "../skill/formula-evaluator.js";
 import { createHitPoint } from "../model/resource-gauge.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const IMMUNITY_DEFINITION_ID = createEffectActionDefinitionId("ACT_IMMUNITY");
@@ -28,6 +29,7 @@ const IMMUNITY_DEFINITION_ID = createEffectActionDefinitionId("ACT_IMMUNITY");
 function unit(id: string, maximumHp = 100): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

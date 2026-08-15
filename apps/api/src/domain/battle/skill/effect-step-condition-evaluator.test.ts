@@ -32,6 +32,7 @@ import type {
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import { effectCategoriesOf } from "../effects/effect-category-classifier.js";
 import { createEffectActionDefinition } from "../../catalog/definitions/effect-action-definition-factory.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -43,6 +44,7 @@ function unit(
   const side = "ENEMY" as const;
   const position = { row: "FRONT", column: "CENTER" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId(unitDefinitionId),
     attribute: "AGGRESSIVE",

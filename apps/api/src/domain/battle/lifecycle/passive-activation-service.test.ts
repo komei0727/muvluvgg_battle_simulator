@@ -44,6 +44,7 @@ import { SequenceRandomSource } from "../../../testing/random/sequence-random-so
 import { applyStateDelta } from "./state-delta-reducer.js";
 import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
 import { ExecutionGuardExceededError } from "../../shared/errors.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -64,6 +65,7 @@ function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: overrides.unitDefinitionId ?? createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

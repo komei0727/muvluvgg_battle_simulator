@@ -20,6 +20,7 @@ import type { Side } from "../../shared/side.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const UNIT_TEST_ID = createUnitDefinitionId("UNIT_TEST");
 const UNIT_TEST_DEFINITION: UnitDefinition = {
@@ -90,6 +91,7 @@ function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_TEST"),
     attribute: "AGGRESSIVE",

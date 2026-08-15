@@ -20,6 +20,7 @@ import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const EVASION_DEFINITION_ID = createEffectActionDefinitionId("ACT_EVASION");
@@ -30,6 +31,7 @@ const GUARANTEED_HIT_DEFINITION_ID = createEffectActionDefinitionId("ACT_GUARANT
 function unit(id: string): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

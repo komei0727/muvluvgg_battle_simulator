@@ -9,10 +9,12 @@ import { createMarkerInstanceId } from "../../shared/event-ids.js";
 import { createMarkerId, createUnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function unitAt(id: string, side: Side, overrides: Partial<BattleUnit> = {}): BattleUnit {
   const position = { row: "FRONT" as const, column: "LEFT" as const };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

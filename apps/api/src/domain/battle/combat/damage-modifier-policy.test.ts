@@ -15,10 +15,12 @@ import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import { createHitPoint } from "../model/resource-gauge.js";
 import type { Side } from "../../shared/side.js";
 import type { MarkerState } from "../model/marker-state.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function unitAt(id: string, side: Side): BattleUnit {
   const position = { row: "FRONT" as const, column: "LEFT" as const };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

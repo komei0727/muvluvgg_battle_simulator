@@ -23,12 +23,14 @@ import type {
 } from "../../catalog/definitions/catalog-enums.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const SKILL_ID = createSkillDefinitionId("SKL_PS1");
 const COUNTER_ID = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
 
 function ownerWithCounter(value?: number): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("U1"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",
@@ -67,6 +69,7 @@ function unitAt(
 ): BattleUnit {
   const position = { row, column };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

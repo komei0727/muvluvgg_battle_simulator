@@ -15,6 +15,7 @@ import type { Side } from "../../shared/side.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { resolveBreakSteps } from "../effects/break-resolution-service.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function unit(
   id: string,
@@ -23,6 +24,7 @@ function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

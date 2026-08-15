@@ -22,6 +22,7 @@ import type { Side } from "../../shared/side.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -32,6 +33,7 @@ function unit(
   overrides: Partial<BattleUnit> = {},
 ): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",
