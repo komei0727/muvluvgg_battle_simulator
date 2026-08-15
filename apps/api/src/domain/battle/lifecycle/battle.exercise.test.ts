@@ -847,9 +847,12 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
         .filter((event) => event.eventType === "PassiveActivated")
         .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId),
     ).toContain("SKL_ON_ENEMY_DEFEATED");
-    // R-TEX-05 #2＋`06_戦闘状態遷移.md`の手順: 撃破トリガーは解除より**前**に完了する。
-    // そのトリガーが敵へ付与した非メモリー由来の効果は、続く解除で必ず消える。
-    expect(afterTurn.enemyUnits[0]!.appliedEffects).toEqual([]);
+    // R-ATM-01: 撃破トリガーの候補は`UnitBroken`（解除・強化・復活より前の状態）で
+    // 検出されるが、発動はこのスキル使用の効果処理が完了した後になる。したがって
+    // そのトリガーが敵へ付与した効果は復活時の解除（R-TEX-05 #2）の後に付き、残る。
+    expect(
+      afterTurn.enemyUnits[0]!.appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).toEqual([onDefeatDamageId]);
     // R-TEX-06 #4: 2ヒット目も解決され、復活後の敵（HP120）を再び削り切る。
     expect(afterTurn.exercise?.breakCount).toBe(2);
     // R-TEX-02 #2: 各ヒットの計上量はオーバーキルを含む150。
@@ -1302,13 +1305,21 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     });
   }
 
-  function expectTriggerRanBeforeRemoval(run: ReturnType<typeof exerciseBattleWith>): void {
+  /**
+   * R-TEX-03 #2「ブレイクは撃破として扱い、敵撃破時を契機とするPS・メモリー効果の
+   * 発動判定を行う」を、R-ATM-01の保留方式のもとで確認する。ブレイクは効果処理の
+   * 内部で起きるため、撃破トリガーの候補は`UnitBroken`の発行時点（＝解除・強化・
+   * 復活より前の状態）で**検出**され、**発動**はその効果処理の完了後になる。
+   * したがって、そのトリガーが敵へ付与した効果は復活時の解除（R-TEX-05 #2）より
+   * 後に付くため、解除で消えずに残る。
+   */
+  function expectDefeatTriggerDetectedOnBreak(run: ReturnType<typeof exerciseBattleWith>): void {
     const events = run.recorder.getEvents();
     const types = events.map((event) => event.eventType);
     expect(types).toContain("UnitBroken");
     expect(types).not.toContain("UnitDefeated");
     // まず撃破トリガーが実際に発動していることを確かめる — 発動しないまま
-    // 「敵に効果が残っていない」ことを見ても、順序の検証にならない（空振り）。
+    // 状態だけを見ても、検出の検証にならない（空振り）。
     expect(
       events
         .filter((event) => event.eventType === "PassiveActivated")
@@ -1321,14 +1332,43 @@ describe("break resolution notifies the defeat trigger before the removal on eve
           ON_DEFEAT_BUFF,
     );
     expect(buffApplied).toBeGreaterThanOrEqual(0);
-    // その付与が、ブレイクの解除より前に起きている（＝トリガーが解除に先行した）。
+    // R-ATM-01: 発動（＝付与）は復活の解除より後。
+    const lastRemoval = types.lastIndexOf("EffectRemoved");
+    expect(lastRemoval).toBeLessThan(buffApplied);
+    // 結果として、撃破トリガーが敵へ付与した効果は解除の対象にならず残る。
+    expect(
+      run.afterTurn.enemyUnits[0]!.appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).toEqual([ON_DEFEAT_BUFF]);
+  }
+
+  /**
+   * スキル効果処理の**外**（ターン境界の継続ダメージ等）でブレイクが起きた経路。
+   * R-ATM-01の保留は効果処理中のイベントだけが対象のため、撃破トリガーは従来どおり
+   * 即時に発動し、その付与は復活時の解除（R-TEX-05 #2）で消える。
+   */
+  function expectDefeatTriggerRanBeforeRemoval(run: ReturnType<typeof exerciseBattleWith>): void {
+    const events = run.recorder.getEvents();
+    const types = events.map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).not.toContain("UnitDefeated");
+    expect(
+      events
+        .filter((event) => event.eventType === "PassiveActivated")
+        .map((event) => (event.payload as { skillDefinitionId: string }).skillDefinitionId),
+    ).toContain("SKL_ON_DEFEAT_BUFF");
+    const buffApplied = events.findIndex(
+      (event) =>
+        event.eventType === "EffectApplied" &&
+        (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+          ON_DEFEAT_BUFF,
+    );
+    expect(buffApplied).toBeGreaterThanOrEqual(0);
     const lastRemoval = types.lastIndexOf("EffectRemoved");
     expect(lastRemoval).toBeGreaterThan(buffApplied);
-    // 結果として、撃破トリガーが敵へ付与した効果は解除で必ず消えている。
     expect(run.afterTurn.enemyUnits[0]!.appliedEffects).toEqual([]);
   }
 
-  it("UT-R-TEX-03-012 (MODIFY_RESOURCE path): a PS-driven MODIFY_RESOURCE(HP) break runs the defeat trigger before the removal", () => {
+  it("UT-R-TEX-03-012 (MODIFY_RESOURCE path): a PS-driven MODIFY_RESOURCE(HP) break detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
     const drain: EffectActionDefinition = {
       effectActionDefinitionId: HP_DRAIN,
       kind: "MODIFY_RESOURCE",
@@ -1339,7 +1379,9 @@ describe("break resolution notifies the defeat trigger before the removal on eve
       },
       metadata: { tags: [] },
     };
-    expectTriggerRanBeforeRemoval(runWith(drain, passiveOn("SKL_DRAIN", "TurnStarted", HP_DRAIN)));
+    expectDefeatTriggerDetectedOnBreak(
+      runWith(drain, passiveOn("SKL_DRAIN", "TurnStarted", HP_DRAIN)),
+    );
   });
 
   it("UT-R-TEX-03-015: UnitBroken carries the actual breaker as its source, so a sourceSelector: SELF defeat trigger fires only on the ally that broke the enemy", () => {
@@ -1412,7 +1454,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     expect(activated).not.toContain("SKL_BYSTANDER_ON_DEFEAT");
   });
 
-  it("UT-R-TEX-03-016 (sub-unit additional-damage debuff path): a MAXIMUM_HP debuff that clamps the enemy to 0 runs the defeat trigger before the removal", () => {
+  it("UT-R-TEX-03-016 (sub-unit additional-damage debuff path): a MAXIMUM_HP debuff that clamps the enemy to 0 detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
     // R-SUB-02第3項: サブユニットの追加ダメージに付随するデバフ。ここでは最大HPを
     // -100%にして、追加ダメージそのものではなく再計算のHP clampでブレイクさせる。
     const MAX_HP_DEBUFF = createEffectActionDefinitionId("ACT_SUBUNIT_MAX_HP_DEBUFF");
@@ -1492,7 +1534,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     const initialState = captureBattleState(battle);
     const afterTurn = advanceBattle(startBattle(battle, random, recorder), random, recorder);
 
-    expectTriggerRanBeforeRemoval({ battle, recorder, afterTurn, initialState });
+    expectDefeatTriggerDetectedOnBreak({ battle, recorder, afterTurn, initialState });
   });
 
   it("UT-R-TEX-03-014 (continuous damage path): a lethal continuous damage tick runs the defeat trigger before the removal", () => {
@@ -1564,12 +1606,14 @@ describe("break resolution notifies the defeat trigger before the removal on eve
       burningEnemy,
     );
 
-    expectTriggerRanBeforeRemoval(run);
-    // 継続ダメージ自身は敵が保持する非メモリー由来の効果なので、解除で消える。
+    // 継続ダメージのtickはスキル効果処理の外（ターン境界）で起きるため、撃破
+    // トリガーは従来どおり即時に発動し、その付与は復活の解除で消える（R-ATM-01の
+    // 保留対象外）。
+    expectDefeatTriggerRanBeforeRemoval(run);
     expect(run.afterTurn.exercise?.breakCount).toBeGreaterThan(0);
   });
 
-  it("UT-R-TEX-03-013 (MODIFY_RESOURCE_CAPACITY path): a maximum-HP drop that clamps the enemy to 0 runs the defeat trigger before the removal", () => {
+  it("UT-R-TEX-03-013 (MODIFY_RESOURCE_CAPACITY path): a maximum-HP drop that clamps the enemy to 0 detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
     const capacityDrop: EffectActionDefinition = {
       effectActionDefinitionId: MAX_HP_DROP,
       kind: "MODIFY_RESOURCE_CAPACITY",
@@ -1581,7 +1625,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
       },
       metadata: { tags: [] },
     };
-    expectTriggerRanBeforeRemoval(
+    expectDefeatTriggerDetectedOnBreak(
       runWith(capacityDrop, passiveOn("SKL_MAX_HP_DROP", "TurnStarted", MAX_HP_DROP)),
     );
   });

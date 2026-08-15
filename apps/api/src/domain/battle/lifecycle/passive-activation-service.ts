@@ -81,11 +81,14 @@ import type {
 } from "../triggering/passive-chain-limits.js";
 import type { PassiveCandidate } from "../triggering/passive-candidate.js";
 import {
+  detectPassiveCandidateGroup,
   resolvePassiveChain,
+  resolvePendingCandidateGroups,
   type PassiveActivation,
   type PassiveActivationStep,
   type PassiveChainDependencies,
 } from "../triggering/resolve-passive-chain.js";
+import type { PassiveResolutionStackEntry } from "../triggering/passive-resolution-stack.js";
 import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 
@@ -259,6 +262,16 @@ export class PassiveActivationRuntime {
    * 両方が同じインスタンスを共有する。
    */
   private readonly damageResults: DamageResultRegistry = new Map();
+  /**
+   * `R-ATM-01`の保留キュー（トップレベルの効果処理フェーズ用）。AS/EX使用・
+   * チャージ解放は`applyEffectActionGroups`が同期callback（`onFactEventForPassiveChain`
+   * →`onFactEvent`）でイベントを届けるため、`resolvePassiveChain`のジェネレータ
+   * 駆動（PS/Memory自身の解決）とは別にこちら側でフレームを持つ。
+   * `beginEffectProcessingPhase`で1つ積み、`drainEffectProcessingPhase`で取り出す。
+   * 配列にしているのは対称な呼び出しをネストしても壊れないようにするためで、
+   * 実際の運用では深さ1しか使わない。
+   */
+  private readonly pendingEffectProcessingFrames: PassiveResolutionStackEntry[][] = [];
 
   constructor(context: PassiveActivationRuntimeContext, initialUnits: readonly BattleUnit[]) {
     this.context = context;
@@ -296,6 +309,75 @@ export class PassiveActivationRuntime {
       skillDefinitionId,
       counterUpdates,
     });
+  }
+
+  /**
+   * `R-ATM-02` #2「効果処理フェーズ」の開始。以降`drainEffectProcessingPhase`までの
+   * 間に`onFactEvent`へ届いたFACTイベントは、状態保守だけを即時に確定させ、PS/Memory
+   * 候補の**発動**を保留する（`R-ATM-01`）。TIMINGイベント（`EffectStepStarting`・
+   * `EffectActionStarting`・`UnitBeingAttacked`・`DamageWillBeApplied`）は保留の
+   * 対象外で従来どおり即時解決する — 効果処理中のTIMINGイベントを発動契機から
+   * 外すのは`R-ATM-04`の担当であり、本メソッドの責務ではない。
+   *
+   * 呼び出し側（AS/EX使用・チャージ解放）は`applyEffectActionGroups`の直前に呼び、
+   * 完了イベント（`SkillUseCompleted`等）を`onFactEvent`へ渡した直後に
+   * `drainEffectProcessingPhase`を必ず対で呼ぶ。
+   */
+  beginEffectProcessingPhase(): void {
+    this.pendingEffectProcessingFrames.push([]);
+  }
+
+  /**
+   * `R-ATM-02` #3「後段フェーズ」: 直前の効果処理フェーズで保留した候補グループを
+   * イベント発生順に発動させる。完了イベント自身の候補はキューの末尾に積まれている
+   * ため、保留分をすべて解決した後に発動する（`R-ATM-01`の即時解決規則の唯一の例外）。
+   *
+   * 中断（使用者戦闘不能）で終わった効果処理でも呼ぶ — 「発生済みイベントへの反応を
+   * 中断が消すことはない」（`R-ATM-02`）。
+   *
+   * 戻り値は`onFactEvent`と同じ`ResolutionResult`。この呼び出し自身が何も発行
+   * しなければ（保留候補が無い、または全て`R-PS-04`で破棄された場合）、受け取った
+   * `cursor`をそのまま`lastEventId`として返す。
+   */
+  drainEffectProcessingPhase(
+    cursor: DomainEventId,
+    units?: readonly BattleUnit[],
+  ): ResolutionResult {
+    if (units !== undefined) {
+      this.units = units;
+    }
+    const frame = this.pendingEffectProcessingFrames.pop();
+    if (frame === undefined || frame.length === 0) {
+      return { units: this.units, lastEventId: cursor };
+    }
+    const eventsStart = this.context.recorder.getEvents().length;
+    // フレームは既に取り外してあるため、この解決中に発動したPS/Memoryが
+    // `onFactEvent`を経由することがあっても親のキューへ積まれることはない
+    // （それぞれの発動は`resolvePassiveChain`側の自分のフレームを持つ）。
+    // キューは1回の呼び出しでまとめて渡す — グループごとに解決を分けると
+    // 効果解決数Guardがグループ単位でリセットされ、各グループが上限未満でも
+    // 合計が上限を超える連鎖を検出できなくなる（`R-ATM-02`「実行ガードは
+    // 従来どおり1解決スコープ単位で数える」）。
+    const result = resolvePendingCandidateGroups(frame, this.guard, this.buildDependencies());
+    if (!result.ok) {
+      throw new ExecutionGuardExceededError(
+        `PS chain resolution exceeded its execution guard: ${result.reason}`,
+      );
+    }
+    this.guard = result.activationGuard;
+    const recordedEvents = this.context.recorder.getEvents();
+    const last =
+      recordedEvents.length > eventsStart ? recordedEvents[recordedEvents.length - 1] : undefined;
+    return { units: this.units, lastEventId: last?.eventId ?? cursor };
+  }
+
+  /**
+   * `R-ATM-01`: 効果処理フェーズが進行中で、かつ`event`がFACTイベントであれば
+   * 発動を保留する。`DIAGNOSTIC`は`toTriggerEvent`がFACTとして扱う分類のため
+   * 同じく保留対象とする。
+   */
+  private defersActivationOf(event: BattleDomainEvent): boolean {
+    return this.pendingEffectProcessingFrames.length > 0 && event.category !== "TIMING";
   }
 
   private toTriggerEvent(event: BattleDomainEvent): TriggerCandidateEvent {
@@ -963,6 +1045,22 @@ export class PassiveActivationRuntime {
     // 注入し、PS連鎖内部の各イベントに対しても候補抽出直前に同じ評価を行う。
     // トップレベルの`event`自身は上の呼び出しで既に失効済みのため、
     // `resolveEvent`側の評価は該当なし（no-op）になる — 二重発行はしない。
+    //
+    // R-ATM-01: 効果処理フェーズの進行中は、ここまでの状態保守だけを確定させ、
+    // 候補は検出して保留キューへ積む（発動は`drainEffectProcessingPhase`）。
+    // 上の状態保守が発行した子イベントもこの`onFactEvent`へ再帰しているため、
+    // キュー内では子イベントの候補が`event`自身の候補より前に並ぶ。
+    const deferralFrame = this.defersActivationOf(event)
+      ? this.pendingEffectProcessingFrames[this.pendingEffectProcessingFrames.length - 1]
+      : undefined;
+    if (deferralFrame !== undefined) {
+      deferralFrame.push(detectPassiveCandidateGroup(triggerEvent, this.buildDependencies()));
+      const deferredEvents = this.context.recorder.getEvents();
+      const lastDeferred =
+        deferredEvents.length > eventsStart ? deferredEvents[deferredEvents.length - 1] : undefined;
+      return { units: this.units, lastEventId: lastDeferred?.eventId ?? event.eventId };
+    }
+
     const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
     if (!result.ok) {
       throw new ExecutionGuardExceededError(
@@ -1495,7 +1593,9 @@ export class PassiveActivationRuntime {
         resolvedStepCount: sequence.steps.length,
       },
     });
-    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(memoryResolved) };
+    // `R-ATM-02` #3: Memoryの完了イベント。保留キューを排出してから自身の候補を
+    // 解決させるため`COMPLETION_EVENT`としてyieldする。
+    yield { kind: "COMPLETION_EVENT", event: this.toTriggerEvent(memoryResolved) };
 
     return { interrupted: false };
   }
@@ -1791,8 +1891,11 @@ export class PassiveActivationRuntime {
     // `finalizeEffectSequenceResolution`（トップレベル専用、内部で
     // `this.onFactEvent`を再帰させる）ではなく、`finalizeEffectSequenceResolutionSteps`
     // を`yield*`委譲し、`driveActivation`が共有するstateへ正しく候補解決させる。
+    // `EffectSequence`スコープのResetは効果処理の末尾（完了イベント発行前）に
+    // 発行されるため、候補は検出のみ行い発動は後段フェーズへ回す
+    // （`R-ATM-02`、`08_ドメインイベント.md`「RuntimeCounterイベント」の分類表）。
     for (const recorded of this.finalizeEffectSequenceResolutionSteps(skillUseId)) {
-      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(recorded) };
+      yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(recorded) };
       lastEventId = recorded.eventId;
     }
 
@@ -1842,20 +1945,21 @@ export class PassiveActivationRuntime {
         },
       });
     }
-    // `PassiveActivated`と同じ理由（544行目付近）で、
+    // `PassiveActivated`と同じ理由で、
     // `PassiveResolved`/`PassiveInterrupted`もPS発動契機にできる契約
     // （08_ドメインイベント.md「同じSkillUseIdに属するイベント」節、
-    // 「味方のPS解決後」を条件とするPS等）を満たすため、TIMING_EVENTとして
+    // 「味方のPS解決後」を条件とするPS等）を満たすため、`COMPLETION_EVENT`として
     // yieldし進行中の`driveActivation`が共有するstateへ候補解決させる。
     // `RuntimeCounterChanged`（`terminalCounterChanges`）は`08_ドメインイベント.md`
     // が明示する唯一の前倒し例外のため、引き続き`terminalEvent`自身より先に
-    // 解決する。
+    // 保留キューへ積む（R-ATM-01の保留コンテキストでは「先に解決する」が
+    // 「キュー内で前に並べる」へ読み替わる）。
     const terminalCounterChanges = this.detectAndRecordRuntimeCounterChanges(
       terminalEvent,
       skillUseId,
     );
     for (const changed of terminalCounterChanges) {
-      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(changed) };
+      yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(changed) };
     }
     // TGT-004フェーズ3（08_ドメインイベント.md
     // 「イベント発行と処理」の順序契約）: `RuntimeCounterChanged`以外の子イベント
@@ -1868,7 +1972,7 @@ export class PassiveActivationRuntime {
     // `SKILL_USE`期間効果を付与し得るため、連鎖解決後のunitsから対象を決定
     // すると、そのPSが付与したばかりの効果まで誤って減算・即時失効させてしまう。
     const preTerminalChainUnits = this.units;
-    yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(terminalEvent) };
+    yield { kind: "COMPLETION_EVENT", event: this.toTriggerEvent(terminalEvent) };
 
     if (outcome.status !== "INTERRUPTED") {
       const skillUseDurationTargets = decrementSkillUseEffectDurations(

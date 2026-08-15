@@ -1303,7 +1303,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-06-005",
       "UT-R-PS-06-006",
       "UT-R-PS-06-007",
-      "UT-R-PS-06-008",
+      // R-ATM-01改訂（Issue #479）で「効果1件ごとの即時割り込み」から
+      // 「効果処理完了後の保留キュー」へ置き換わったため、旧`UT-R-PS-06-008`は
+      // `UT-R-ATM-01-001`として新しい規約を検証する。
+      "UT-R-ATM-01-001",
       "UT-R-PS-06-009",
     ],
     kinds: ["POSITIVE", "SCENARIO"],
@@ -1414,6 +1417,70 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-10-020",
     ],
     kinds: ["POSITIVE", "NEGATIVE"],
+  },
+
+  // ATM: スキル効果処理の割り込み制御
+  // Issue #478が設計改訂（旧「効果1件ごとの即時割り込み」→保留キュー方式）、
+  // Issue #479がR-ATM-01/02のエンジン実装、Issue #480がR-ATM-03/04を担当する。
+  {
+    ruleId: "R-ATM-01",
+    testCaseIds: [
+      // 保留キュー本体: 効果処理中の候補は検出のみ即時・発動は完了後。
+      "UT-R-ATM-01-001",
+      // 保留中に前提が崩れた候補はR-PS-04の発動直前確認で破棄される。
+      "UT-R-ATM-01-002",
+      // 効果処理フェーズ境界のFACT（EffectSequenceスコープのRuntimeCounterReset）。
+      "UT-R-ATM-01-003",
+      // 実ライフサイクル（PS自身のEffectSequence・DAMAGE内部イベント・
+      // COOLDOWN_MANIPULATION内部イベント・チャージ解放中の反撃）。
+      "UT-R-ATM-01-004",
+      "UT-R-ATM-01-005",
+      "UT-R-ATM-01-006",
+      "UT-R-ATM-01-007",
+      // 状態保守（R-EFF-09の検出粒度・R-EFF-10のMarker解除）は即時のまま、
+      // 発動だけが後段フェーズへ移ることの証跡。
+      "UT-R-EFF-09-030",
+      "UT-R-EFF-10-034",
+      "IT-UNIT-TARISA-TROUBLEMAKER-008",
+      // 効果処理中のFACTイベントがヒットを取り消せなくなったこと（旧R-DMG-05の
+      // 途中終了経路が仕様上消えたこと）。
+      "UT-R-DMG-05-008",
+      "UT-R-DMG-05-009",
+      // 回復リンクの転送途中にPS/Memory発動が挟まらないこと（07 R-HEAL-04の注記）。
+      "UT-R-HEAL-04-017",
+      "UT-R-HEAL-04-018",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+  {
+    ruleId: "R-ATM-02",
+    testCaseIds: [
+      // 後段フェーズ: 完了イベント発行 → 保留キュー（発生順） → 完了イベント自身の候補。
+      "UT-R-ATM-02-001",
+      // 中断で終わった効果処理でも保留分は解決する。
+      "UT-R-ATM-02-002",
+      // 保留候補から発動したPS/Memoryも同じ3フェーズで再帰する（深さ優先の維持）。
+      "UT-R-ATM-02-003",
+      // AS/EX経路: 中断で終わったスキル使用でも保留分は排出する。
+      "UT-R-ATM-02-004",
+      // 実行ガードは保留キュー全体で1つ — グループごとにリセットしない。
+      "UT-GUARD-012",
+      "UT-GUARD-013",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
+  },
+  // R-ATM-03（攻撃前観測）・R-ATM-04（効果処理中TIMINGイベントのトリガー禁止）は
+  // Issue #480が実装する。実行可能なテストを持たないため`17_残作業対応表.json`の
+  // `ruleAssignments`がその所有を記録する。
+  {
+    ruleId: "R-ATM-03",
+    testCaseIds: [],
+    kinds: [],
+  },
+  {
+    ruleId: "R-ATM-04",
+    testCaseIds: [],
+    kinds: [],
   },
 
   // ACTN: EffectAction解決
@@ -2914,6 +2981,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-09-027",
       "UT-R-EFF-09-028",
       "UT-R-EFF-09-029",
+      // Issue #479: PS自身のEffectSequence解決でも、凍結解除カスケードの
+      // `EffectExpired`は`FreezeRemoved`より前に届く（発動時機はR-ATM-01が決める）。
+      "UT-R-EFF-09-030",
       "UT-R-EFF-10-010",
       "UT-R-EFF-10-011",
       "IT-UNIT-HARRIET-SAGE-004",

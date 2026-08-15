@@ -56,9 +56,14 @@ describe("Rule coverage ledger", () => {
     // Issue #474（2026-08-15）で追撃（攻撃ライダー）のR-FUP-01を新設し135→136 —
     // 「当該攻撃にダメージを追加する」raw原文（`SKL_SUIRAN_CHAOS_PS3`等3件）が
     // PS所有者の即時攻撃として近似されており、相乗り攻撃のRule定義が無かった。
+    // Issue #478（2026-08-15）でスキル効果処理の割り込み制御 `R-ATM-01`〜`R-ATM-04`
+    // を新設し136→140 — 旧「効果1件ごとの即時割り込み」（旧R-PS-06・旧R-ACTN-01 #6）
+    // を置き換える保留キュー方式の規約で、時機規約の唯一の正本となる節を作った。
+    // `R-ATM-01`／`R-ATM-02`はIssue #479が実装済み、`R-ATM-03`／`R-ATM-04`は
+    // Issue #480が担当する（未被覆のため`17_残作業対応表.json`が所有者を記録する）。
     // 実装中に新しいRuleを発見した場合はここと`17_残作業対応表.json`の
     // `current.rules`を同じPRで更新する（`baseline`は履歴として変更しない）。
-    expect(RULE_COVERAGE).toHaveLength(136);
+    expect(RULE_COVERAGE).toHaveLength(140);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

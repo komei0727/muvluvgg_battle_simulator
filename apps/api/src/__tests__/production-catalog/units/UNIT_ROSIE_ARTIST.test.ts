@@ -305,9 +305,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:back"],
         },
         // PS2解決 → PS3追撃 → その追撃で敵前列がHP50%以下になり PS1 まで連鎖する。
+        // R-ATM-01: PS1の候補はPS3の効果処理中に検出され、発動はPS3の完了後。
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
       ],
       hpDeltas: {
         "enemy:front": -218,
@@ -382,9 +383,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        // 追撃で敵前列がHP50%以下になり、PS1が続けて発動する。
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
+        // 追撃で敵前列がHP50%以下になり、PS3の効果処理完了後にPS1が発動する（R-ATM-01）。
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
       ],
       hpDeltas: {
         "enemy:front": -218,

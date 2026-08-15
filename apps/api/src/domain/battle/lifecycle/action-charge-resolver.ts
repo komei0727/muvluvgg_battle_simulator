@@ -493,6 +493,9 @@ export function resolveChargeRelease(
   // 届けるとともに、`working`を最新化する。
   working = passiveRuntime.onFactEvent(chargeReleased, working).units;
 
+  // R-ATM-02 #2: ここから効果処理フェーズ（AS/EX経路と同じ規約）。候補の発動は
+  // `ChargeReleaseCompleted`/`ChargeReleaseInterrupted`発行後の後段フェーズまで保留する。
+  passiveRuntime.beginEffectProcessingPhase();
   const effectResult = applyEffectActionGroups(plan, working, {
     definitions,
     actorUnitId,
@@ -629,7 +632,10 @@ export function resolveChargeRelease(
             targetUnitIds,
           },
         });
+  // R-ATM-02 #3: 完了イベント自身の候補も保留キューの末尾へ積んだうえで、保留分を
+  // 発生順に発動させてから最後に解決する。
   working = passiveRuntime.onFactEvent(chargeReleaseFinished, working).units;
+  working = passiveRuntime.drainEffectProcessingPhase(chargeReleaseFinished.eventId, working).units;
 
   const completion = recordActionCompletion(
     recorder,

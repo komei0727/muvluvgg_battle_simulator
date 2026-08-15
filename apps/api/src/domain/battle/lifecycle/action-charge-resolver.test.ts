@@ -795,7 +795,7 @@ describe("resolveChargeRelease", () => {
     ).toEqual(["ChargeReleaseInterrupted"]);
   });
 
-  it("when the actor is STUNNed mid-release, ChargeCancelled already owns the charge removal — the finishing event adds no second removal and an independent Reducer replays every StateDelta cleanly (R-STS-02/R-SKL-05)", () => {
+  it("UT-R-ATM-01-007 (R-STS-02/R-SKL-05): the counter-attacking PS that STUNs the releasing actor is held back to the post phase, so the charge is already closed by the finishing event — no second removal is emitted and an independent Reducer replays every StateDelta cleanly", () => {
     const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
     const hit = damageEffectAction("ACT_CHARGE_HIT");
@@ -845,15 +845,23 @@ describe("resolveChargeRelease", () => {
     );
 
     const events = recorder.getEvents();
-    // 解放中にSTUNが成立し、`cancelChargeOnStun`がキャンセルを記録している。
-    expect(events.some((e) => e.eventType === "ChargeCancelled")).toBe(true);
+    // R-ATM-01: 反撃PSの発動は効果処理の完了後（`ChargeReleaseCompleted`の発行後）に
+    // なる。その時点でチャージ状態は既に終了しているため、解放中のSTUNを表す
+    // `cancelChargeOnStun`（`ChargeCancelled`）は成立しない。
+    expect(events.some((e) => e.eventType === "ChargeCancelled")).toBe(false);
+    const stunAppliedIndex = events.findIndex(
+      (e) => e.eventType === "PassiveActivated" && e.sourceUnitId === enemy.battleUnitId,
+    );
+    const releaseCompletedIndex = events.findIndex((e) => e.eventType === "ChargeReleaseCompleted");
+    expect(releaseCompletedIndex).toBeGreaterThanOrEqual(0);
+    expect(stunAppliedIndex).toBeGreaterThan(releaseCompletedIndex);
 
-    // charge削除の所有者はその1件だけ。終了イベントは二重の削除差分を持たない。
+    // charge削除の所有者は終了イベントの1件だけ。二重の削除差分を持たない。
     expect(
       events
         .filter((event) => event.stateDelta?.units?.[charger.battleUnitId]?.charge !== undefined)
         .map((event) => event.eventType),
-    ).toEqual(["ChargeCancelled"]);
+    ).toEqual(["ChargeReleaseCompleted"]);
 
     // 公開差分を全件当て直しても`before`不一致で落ちず、チャージは消えている。
     const restored = reduceStateDeltas(

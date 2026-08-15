@@ -112,13 +112,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: { enemies: ENEMY_LEFT_ALMOST_DEAD },
     expected: {
       // 敵が倒れたことがPS2（「敵が倒された際に発動」）の契機になり、同じ行動の中で
-      // PS2が実際に走る。
+      // PS2が実際に走る。R-ATM-01により、その発動はEXの全対象を解決し終えた後になる。
       actions: [
         { effectActionDefinitionId: "ACT_SENKA_SCHEMER_EX_DAMAGE_ROW", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_SENKA_SCHEMER_EX_DAMAGE_ROW", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_SENKA_SCHEMER_PS2_ATK_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_SENKA_SCHEMER_PS2_HEALING_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_SENKA_SCHEMER_PS2_DMG_DOWN", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_SENKA_SCHEMER_EX_DAMAGE_ROW", targets: ["enemy:left"] },
       ],
       hpDeltas: { "enemy:front": -853, "enemy:left": -100 },
       effectsApplied: [

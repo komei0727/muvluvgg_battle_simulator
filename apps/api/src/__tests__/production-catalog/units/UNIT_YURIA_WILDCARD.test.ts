@@ -89,21 +89,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
     expected: {
-      // 撃破そのものがPS1（「自身が敵を倒した際に発動」）の契機になるため、
-      // PS1の連鎖は続くBRANCH stepより先に解決し、EXのEffectAction完了報告に先行する。
+      // 撃破そのものがPS1（「自身が敵を倒した際に発動」）の契機になる。R-ATM-01により
+      // その候補は撃破時点で検出され、発動はEXの全step（続くBRANCH stepを含む）が
+      // 解決した後になる。
       actions: [
-        {
-          effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_EX_UP",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_DEF_UP",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_SHIELD",
-          targets: ["ally:subject"],
-        },
         {
           effectActionDefinitionId: "ACT_YURIA_WILDCARD_EX_DAMAGE_BOOSTED",
           targets: ["enemy:front"],
@@ -121,6 +110,18 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         {
           effectActionDefinitionId: "ACT_YURIA_WILDCARD_EX_AP_DOWN",
           targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_EX_UP",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_DEF_UP",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_SHIELD",
+          targets: ["ally:subject"],
         },
       ],
       hpDeltas: {

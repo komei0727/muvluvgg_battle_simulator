@@ -62,17 +62,17 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     intent: "敵全体に威力74.2で5ヒット攻撃し、1行動の間行動速度を50低下させる（重複可）",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_KEI_JACKKNIFE_EX" },
     expected: {
-      // 速度低下はデバフなので、最初の1体への付与がPS2（敵にデバフが付与された際）を
-      // 呼ぶ。PS2はクールタイム1行動のため2体目以降では発動しない。
+      // 速度低下はデバフなので、最初の1体への付与がPS2（敵にデバフが付与された際）の
+      // 候補を生む。PS2はクールタイム1行動のため2体目以降では候補にならない。
       actions: [
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_EX_DAMAGE", targets: ["enemy:front"] },
-        // PS2の連鎖は`EffectApplied`の時点で走るため、付与側の完了記録より先に出る。
-        { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_PS2_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_EX_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_EX_DAMAGE", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN", targets: ["enemy:back"] },
+        // R-ATM-01: PS2の発動はEXの効果処理がすべて終わってからになる。
+        { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_PS2_DAMAGE", targets: ["enemy:front"] },
       ],
       // 1ヒット371（(1000-500)×74.2%）×5ヒット。enemy:frontはPS2の795が加わる。
       hpDeltas: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolvePassiveChain,
+  resolvePendingCandidateGroups,
   type PassiveActivation,
   type PassiveActivationCompletion,
   type PassiveActivationStep,
@@ -225,11 +226,9 @@ describe("resolvePassiveChain", () => {
     }
   });
 
-  it("UT-R-PS-06-008: a child PS triggered mid-EffectSequence resolves before the parent's remaining effects, not after the parent completes", () => {
-    // Reproduces the parent-effect-A -> child-PS -> parent-effect-B ordering
-    // that a real EffectSequence resolver (#73) will drive through this port:
-    // the parent's own generator must not be allowed to reach effect B until
-    // the child PS chain triggered by effect A has fully resolved.
+  it("UT-R-ATM-01-001: a candidate detected mid-EffectSequence is held back until the whole effect processing finished (no interruption)", () => {
+    // R-ATM-01「1回のスキル効果処理の途中に、他のスキル効果処理を開始しない」:
+    // 親の効果Aが子PSの候補を生んでも、親の効果Bと親の完了までは発動しない。
     const unitParent = unit("PARENT");
     const unitChild = unit("CHILD");
     const skillParent = skillOf("SKL_PARENT");
@@ -266,7 +265,242 @@ describe("resolvePassiveChain", () => {
       limits: GENEROUS_LIMITS,
     });
 
-    expect(order).toEqual(["PARENT_EFFECT_A", "CHILD_ACTIVATED", "PARENT_EFFECT_B", "PARENT_DONE"]);
+    expect(order).toEqual(["PARENT_EFFECT_A", "PARENT_EFFECT_B", "PARENT_DONE", "CHILD_ACTIVATED"]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("UT-R-ATM-02-001: pending candidates activate in event order, and the completion event's own candidates activate last", () => {
+    // R-ATM-02 #3後段フェーズ: 完了イベント発行 → 保留キュー（発生順） →
+    // 完了イベント自身の候補、の順で発動する。
+    const unitParent = unit("PARENT");
+    const unitFirst = unit("FIRST");
+    const unitSecond = unit("SECOND");
+    const unitCompletion = unit("COMPLETION");
+    const skillParent = skillOf("SKL_PARENT");
+    const skillFirst = skillOf("SKL_FIRST");
+    const skillSecond = skillOf("SKL_SECOND");
+    const skillCompletion = skillOf("SKL_COMPLETION");
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const effectAEvent = event("EFFECT_A");
+    const effectBEvent = event("EFFECT_B");
+    const resolvedEvent = event("PASSIVE_RESOLVED");
+    const unitsById = new Map<BattleUnitId, BattleUnit>(
+      [unitParent, unitFirst, unitSecond, unitCompletion].map((u) => [u.battleUnitId, u]),
+    );
+
+    const groupsByEvent = new Map<string, PassiveCandidateGroup>([
+      [rootEvent.eventType, [candidateOf(unitParent, skillParent)]],
+      [effectAEvent.eventType, [candidateOf(unitFirst, skillFirst)]],
+      [effectBEvent.eventType, [candidateOf(unitSecond, skillSecond)]],
+      [resolvedEvent.eventType, [candidateOf(unitCompletion, skillCompletion)]],
+    ]);
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
+      getCurrentUnit: (id) => {
+        const found = unitsById.get(id);
+        if (found === undefined) {
+          throw new Error(`unknown unit ${id}`);
+        }
+        return found;
+      },
+      activate: function* (candidate) {
+        const skillId = candidate.skillDefinition.skillDefinitionId;
+        order.push(skillId);
+        if (skillId === skillParent.skillDefinitionId) {
+          yield resolvedStep([effectAEvent]);
+          yield resolvedStep([effectBEvent]);
+          yield { kind: "COMPLETION_EVENT", event: resolvedEvent };
+        }
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(order).toEqual(["SKL_PARENT", "SKL_FIRST", "SKL_SECOND", "SKL_COMPLETION"]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("UT-R-ATM-02-002: an interrupted effect processing still drains its pending queue", () => {
+    // R-ATM-02「効果処理が使用者戦闘不能で中断した場合も、後段フェーズの保留解決は
+    // 行う。発生済みイベントへの反応を中断が消すことはない」。
+    const unitParent = unit("PARENT");
+    const unitChild = unit("CHILD");
+    const skillParent = skillOf("SKL_PARENT");
+    const skillChild = skillOf("SKL_CHILD");
+    const candParent = candidateOf(unitParent, skillParent);
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const effectAEvent = event("EFFECT_A");
+    const interruptedEvent = event("PASSIVE_INTERRUPTED");
+
+    const groupsByEvent = new Map<string, PassiveCandidateGroup>([
+      [rootEvent.eventType, [candParent]],
+      [effectAEvent.eventType, [candidateOf(unitChild, skillChild)]],
+    ]);
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
+      getCurrentUnit: (id) => (id === unitParent.battleUnitId ? unitParent : unitChild),
+      activate: function* (candidate) {
+        const skillId = candidate.skillDefinition.skillDefinitionId;
+        order.push(skillId);
+        if (skillId === skillParent.skillDefinitionId) {
+          yield resolvedStep([effectAEvent]);
+          yield { kind: "COMPLETION_EVENT", event: interruptedEvent };
+          return { interrupted: true };
+        }
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(order).toEqual(["SKL_PARENT", "SKL_CHILD"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.interruptedCandidates).toEqual([candParent]);
+    }
+  });
+
+  it("UT-R-ATM-01-002: a pending candidate whose owner stopped qualifying is discarded by the R-PS-04 reconfirmation at activation time", () => {
+    // R-ATM-01「保留した候補を発動する直前には、R-PS-04（発動直前確認）を必ず行う。
+    // 保留中に前提が崩れた候補はこの再確認で破棄する」。
+    const unitParent = unit("PARENT");
+    const unitChild = unit("CHILD");
+    const skillParent = skillOf("SKL_PARENT");
+    const skillChild = skillOf("SKL_CHILD");
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const effectAEvent = event("EFFECT_A");
+    const resolvedEvent = event("PASSIVE_RESOLVED");
+    // 効果Aの時点では戦闘可能で候補になるが、親の効果処理の途中（効果B）で
+    // 戦闘不能になる。発動直前確認はこの最新状態を見る。
+    let childCurrent = unitChild;
+
+    const groupsByEvent = new Map<string, PassiveCandidateGroup>([
+      [rootEvent.eventType, [candidateOf(unitParent, skillParent)]],
+      [effectAEvent.eventType, [candidateOf(unitChild, skillChild)]],
+    ]);
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
+      getCurrentUnit: (id) => (id === unitParent.battleUnitId ? unitParent : childCurrent),
+      activate: function* (candidate) {
+        const skillId = candidate.skillDefinition.skillDefinitionId;
+        order.push(skillId);
+        if (skillId === skillParent.skillDefinitionId) {
+          yield resolvedStep([effectAEvent]);
+          childCurrent = { ...unitChild, currentHp: 0 };
+          yield resolvedStep([]);
+          yield { kind: "COMPLETION_EVENT", event: resolvedEvent };
+        }
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(order).toEqual(["SKL_PARENT"]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("UT-R-ATM-01-003: a DEFERRED_EVENT emitted at the effect-processing boundary queues its candidates instead of activating them right away", () => {
+    // EffectSequenceスコープの`RuntimeCounterReset`（EFF-006）は完了イベントより前に
+    // 発行されるが、候補は検出のみで発動は後段フェーズになる
+    // （`08_ドメインイベント.md`「RuntimeCounterイベント」の分類表）。
+    const unitParent = unit("PARENT");
+    const unitWatcher = unit("WATCHER");
+    const skillParent = skillOf("SKL_PARENT");
+    const skillWatcher = skillOf("SKL_WATCHER");
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const counterResetEvent = event("RUNTIME_COUNTER_RESET");
+    const resolvedEvent = event("PASSIVE_RESOLVED");
+
+    const groupsByEvent = new Map<string, PassiveCandidateGroup>([
+      [rootEvent.eventType, [candidateOf(unitParent, skillParent)]],
+      [counterResetEvent.eventType, [candidateOf(unitWatcher, skillWatcher)]],
+    ]);
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
+      getCurrentUnit: (id) => (id === unitParent.battleUnitId ? unitParent : unitWatcher),
+      activate: function* (candidate) {
+        const skillId = candidate.skillDefinition.skillDefinitionId;
+        order.push(skillId);
+        if (skillId === skillParent.skillDefinitionId) {
+          yield { kind: "DEFERRED_EVENT", event: counterResetEvent };
+          order.push("PARENT_TERMINAL");
+          yield { kind: "COMPLETION_EVENT", event: resolvedEvent };
+        }
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(order).toEqual(["SKL_PARENT", "PARENT_TERMINAL", "SKL_WATCHER"]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("UT-R-ATM-02-003: a PS activated from the pending queue finishes its own post phase before the parent queue advances", () => {
+    // R-ATM-02「保留候補から発動したPS/Memoryも同じ3フェーズで処理する。その効果処理中に
+    // 生じた候補はその発動自身の保留キューへ入り、当該発動の後段フェーズで解決してから、
+    // 親のキューの次の候補へ進む」。
+    const unitParent = unit("PARENT");
+    const unitFirst = unit("FIRST");
+    const unitSecond = unit("SECOND");
+    const unitGrandchild = unit("GRANDCHILD");
+    const skillParent = skillOf("SKL_PARENT");
+    const skillFirst = skillOf("SKL_FIRST");
+    const skillSecond = skillOf("SKL_SECOND");
+    const skillGrandchild = skillOf("SKL_GRANDCHILD");
+
+    const order: string[] = [];
+    const rootEvent = event("ROOT");
+    const effectAEvent = event("EFFECT_A");
+    const effectBEvent = event("EFFECT_B");
+    const nestedEvent = event("NESTED");
+    const unitsById = new Map<BattleUnitId, BattleUnit>(
+      [unitParent, unitFirst, unitSecond, unitGrandchild].map((u) => [u.battleUnitId, u]),
+    );
+
+    const groupsByEvent = new Map<string, PassiveCandidateGroup>([
+      [rootEvent.eventType, [candidateOf(unitParent, skillParent)]],
+      [effectAEvent.eventType, [candidateOf(unitFirst, skillFirst)]],
+      [effectBEvent.eventType, [candidateOf(unitSecond, skillSecond)]],
+      [nestedEvent.eventType, [candidateOf(unitGrandchild, skillGrandchild)]],
+    ]);
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => groupsByEvent.get(evt.eventType) ?? [],
+      getCurrentUnit: (id) => {
+        const found = unitsById.get(id);
+        if (found === undefined) {
+          throw new Error(`unknown unit ${id}`);
+        }
+        return found;
+      },
+      activate: function* (candidate) {
+        const skillId = candidate.skillDefinition.skillDefinitionId;
+        order.push(skillId);
+        if (skillId === skillParent.skillDefinitionId) {
+          yield resolvedStep([effectAEvent]);
+          yield resolvedStep([effectBEvent]);
+          yield { kind: "COMPLETION_EVENT", event: event("PARENT_RESOLVED") };
+        } else if (skillId === skillFirst.skillDefinitionId) {
+          yield resolvedStep([nestedEvent]);
+          yield { kind: "COMPLETION_EVENT", event: event("FIRST_RESOLVED") };
+        }
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(order).toEqual(["SKL_PARENT", "SKL_FIRST", "SKL_GRANDCHILD", "SKL_SECOND"]);
     expect(result.ok).toBe(true);
   });
 
@@ -374,6 +608,63 @@ describe("resolvePassiveChain", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
+  });
+
+  it("UT-GUARD-012 (R-ATM-02): draining a pending queue shares the effects-resolved guard across every queued group — several groups that are each under the limit still trip it once their total exceeds it", () => {
+    // `R-ATM-02`「PS深度・効果解決数の実行ガードは従来どおり1解決スコープ単位で
+    // 数える」: 保留キューをグループごとに別々の解決へ分けると、各グループが
+    // 上限未満のまま合計が上限を超える連鎖を検出できなくなる。
+    const owner = unit("A");
+    // 各グループは2効果しか解決しない（上限5の未満）。3グループで合計6となり、
+    // 3グループ目の途中で上限を超える。
+    const groups = ["E1", "E2", "E3"].map((eventType) => ({
+      event: event(eventType),
+      candidates: [candidateOf(owner, skillOf(`SKL_${eventType}`))],
+      memoryCandidates: [],
+    }));
+
+    const activated: string[] = [];
+    const result = resolvePendingCandidateGroups(groups, createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [],
+      getCurrentUnit: () => owner,
+      activate: function* (candidate) {
+        activated.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        yield resolvedStep();
+        return DONE;
+      },
+      limits: { maxPassiveDepth: 10, maxEffectsPerScope: 5, maxEffectRuntimeCounterDepth: 10 },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
+    // 上限は3グループ目の途中（通算6件目）で超える — 1・2グループ目は完走している。
+    // これが無いと「そもそも1グループしか走っていない」形でも上のexpectが通ってしまう。
+    expect(activated).toEqual(["SKL_E1", "SKL_E2", "SKL_E3"]);
+  });
+
+  it("UT-GUARD-013 (R-ATM-02): the same pending queue completes when its total stays within the limit, so the shared counter does not over-trigger", () => {
+    const owner = unit("A");
+    const groups = ["E1", "E2"].map((eventType) => ({
+      event: event(eventType),
+      candidates: [candidateOf(owner, skillOf(`SKL_${eventType}`))],
+      memoryCandidates: [],
+    }));
+
+    const activated: string[] = [];
+    const result = resolvePendingCandidateGroups(groups, createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [],
+      getCurrentUnit: () => owner,
+      activate: function* (candidate) {
+        activated.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        yield resolvedStep();
+        return DONE;
+      },
+      limits: { maxPassiveDepth: 10, maxEffectsPerScope: 5, maxEffectRuntimeCounterDepth: 10 },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(activated).toEqual(["SKL_E1", "SKL_E2"]);
   });
 
   it("UT-GUARD-007: post-application domain events from a single EffectAction are each checked for PS candidates but counted as exactly one resolved effect", () => {
