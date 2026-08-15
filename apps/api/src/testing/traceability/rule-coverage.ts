@@ -2125,8 +2125,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-FUP-01-006",
       // 付与: isFollowUpAttack判別子・重複可・消費残数の保持。
       "UT-R-FUP-01-007",
-      // スキル使用単位: 全step解決後・SkillUseCompleted前の1回だけの解決と消費失効。
+      // スキル使用単位: 全step解決後・SkillUseCompleted前の1回だけの解決と消費失効、
+      // 複数DAMAGE actionでも1回・複数ライダーの各1回・非攻撃スキルの非消費・
+      // 追撃中断のSkillUseInterrupted伝播。
       "UT-R-FUP-01-008",
+      "UT-R-FUP-01-009",
+      "UT-R-FUP-01-010",
+      "UT-R-FUP-01-011",
+      "UT-R-FUP-01-012",
       // production実ライフサイクル（3ユニット）。
       "IT-UNIT-SUIRAN-CHAOS-011",
       "IT-UNIT-CHIYURU-MAZE-006",

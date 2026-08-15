@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "./action-skill-use-resolver.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
+import { createHitPoint } from "../model/resource-gauge.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
@@ -83,10 +85,13 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     };
   }
 
-  function attackSkill(): SkillDefinition {
+  function attackSkill(
+    actionIds: readonly string[] = [AS_DAMAGE_ID],
+    skillId: string = AS_ID,
+  ): SkillDefinition {
     const binding = createTargetBindingId("TGT_TEST_FUP");
     return {
-      skillDefinitionId: createSkillDefinitionId(AS_ID),
+      skillDefinitionId: createSkillDefinitionId(skillId),
       skillType: "AS",
       cost: { resource: "AP", amount: 1 },
       activationCondition: { kind: "TRUE" },
@@ -113,7 +118,9 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
             stepCondition: { kind: "TRUE" },
             targetCondition: { kind: "TRUE" },
             target: { kind: "BINDING", targetBindingId: binding },
-            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(AS_DAMAGE_ID) }],
+            actions: actionIds.map((actionId) => ({
+              effectActionDefinitionId: createEffectActionDefinitionId(actionId),
+            })),
           },
         ],
       },
@@ -125,14 +132,14 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
         accuracy: { guaranteedHit: false },
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
       },
-      metadata: { displayName: AS_ID, tags: [] },
+      metadata: { displayName: skillId, tags: [] },
     };
   }
 
-  function riderEffect(holderId: string): AppliedEffect {
+  function riderEffect(holderId: string, instanceId = "RIDER_1"): AppliedEffect {
     const definitionId = createEffectActionDefinitionId(RIDER_ID);
     return {
-      effectInstanceId: createEffectInstanceId("RIDER_1"),
+      effectInstanceId: createEffectInstanceId(instanceId),
       effectActionDefinitionId: definitionId,
       kindKey: effectKindKeyFromDefinitionId(definitionId),
       duplicate: true,
@@ -153,7 +160,7 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     };
   }
 
-  function definitions(): BattleDefinitions {
+  function definitions(extraSkills: readonly SkillDefinition[] = []): BattleDefinitions {
     const skill = attackSkill();
     const attackerDefinition = testUnitDefinition("UNIT_TEST_ATTACKER");
     const enemyDefinition = testUnitDefinition("UNIT_TEST_ENEMY");
@@ -170,11 +177,19 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
         [attackerDefinition.unitDefinitionId, attackerDefinition],
         [enemyDefinition.unitDefinitionId, enemyDefinition],
       ]),
-      skillDefinitions: new Map([[skill.skillDefinitionId, skill]]),
+      skillDefinitions: new Map(
+        [skill, ...extraSkills].map((definition) => [definition.skillDefinitionId, definition]),
+      ),
     };
   }
 
-  function board(options: { readonly enemyEffects?: readonly AppliedEffect[] } = {}): {
+  function board(
+    options: {
+      readonly enemyEffects?: readonly AppliedEffect[];
+      readonly attackerEffects?: readonly AppliedEffect[];
+      readonly attackerHp?: number;
+    } = {},
+  ): {
     attacker: BattleUnit;
     enemy: BattleUnit;
   } {
@@ -187,7 +202,10 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     const attacker: BattleUnit = {
       ...attackerBase,
       currentAp: 2,
-      appliedEffects: [riderEffect("ally:attacker")],
+      appliedEffects: options.attackerEffects ?? [riderEffect("ally:attacker")],
+      ...(options.attackerHp !== undefined
+        ? { currentHp: createHitPoint(options.attackerHp, attackerBase.combatStats.maximumHp) }
+        : {}),
     };
     const enemyBase = testBattleUnit({
       battleUnitId: "enemy:1",
@@ -200,6 +218,42 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
       ...(options.enemyEffects !== undefined ? { appliedEffects: options.enemyEffects } : {}),
     };
     return { attacker, enemy };
+  }
+
+  function useSkill(
+    attacker: BattleUnit,
+    enemy: BattleUnit,
+    battleDefinitions: BattleDefinitions,
+    skillId: string,
+    battleId: string,
+  ): { result: ReturnType<typeof resolveSkillUse>; recorder: EventRecorder } {
+    const recorder = new EventRecorder(createBattleId(battleId));
+    const result = resolveSkillUse(
+      attacker,
+      battleDefinitions.skillDefinitions.get(createSkillDefinitionId(skillId))!,
+      "AS",
+      "AS",
+      [attacker, enemy],
+      battleDefinitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId(`${battleId}:action:1`),
+      recorder.nextResolutionScopeId(),
+    );
+    return { result, recorder };
+  }
+
+  function followUpDamageEvents(recorder: EventRecorder): readonly BattleDomainEvent[] {
+    return recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageCalculated" &&
+          (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+            RIDER_ID,
+      );
   }
 
   it("UT-R-FUP-01-008: resolves the follow-up once after all steps and before SkillUseCompleted, grants the onHitEffect, and expires the rider", () => {
@@ -310,5 +364,124 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     // 消費は命中判定到達時点（R-EFF-07）— 全ヒットMISSでもライダーは失効している。
     const attackerAfter = result.units.find((unit) => unit.battleUnitId === attacker.battleUnitId)!;
     expect(attackerAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
+  });
+
+  it("UT-R-FUP-01-009: a skill with multiple DAMAGE actions still resolves the follow-up exactly once, after the last DAMAGE action", () => {
+    const MULTI_AS_ID = "SKL_TEST_FUP_AS_MULTI";
+    const battleDefinitions = definitions([attackSkill([AS_DAMAGE_ID, AS_DAMAGE_ID], MULTI_AS_ID)]);
+    const { attacker, enemy } = board();
+
+    const { result, recorder } = useSkill(
+      attacker,
+      enemy,
+      battleDefinitions,
+      MULTI_AS_ID,
+      "B_FUP_MULTI",
+    );
+
+    // AS本体: (100 - 20) x 2 action = 160。追撃はスキル末尾に1回だけ（40）。
+    const enemyAfter = result.units.find((unit) => unit.battleUnitId === enemy.battleUnitId)!;
+    expect(enemyAfter.currentHp).toBe(1000 - 80 - 80 - 40);
+    const followUps = followUpDamageEvents(recorder);
+    expect(followUps).toHaveLength(1);
+    // 追撃は2つ目のDAMAGE actionの後 — AS本体の`DamageCalculated`2件より後に位置する。
+    const events = recorder.getEvents();
+    const asDamageIndices = events
+      .map((event, index) => ({ event, index }))
+      .filter(
+        ({ event }) =>
+          event.eventType === "DamageCalculated" &&
+          (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+            AS_DAMAGE_ID,
+      )
+      .map(({ index }) => index);
+    expect(asDamageIndices).toHaveLength(2);
+    expect(events.indexOf(followUps[0]!)).toBeGreaterThan(asDamageIndices[1]!);
+  });
+
+  it("UT-R-FUP-01-010: each of two rider instances adds its own follow-up hit", () => {
+    const { attacker, enemy } = board({
+      attackerEffects: [
+        riderEffect("ally:attacker", "RIDER_1"),
+        riderEffect("ally:attacker", "RIDER_2"),
+      ],
+    });
+    const battleDefinitions = definitions();
+
+    const { result, recorder } = useSkill(attacker, enemy, battleDefinitions, AS_ID, "B_FUP_TWO");
+
+    const enemyAfter = result.units.find((unit) => unit.battleUnitId === enemy.battleUnitId)!;
+    expect(enemyAfter.currentHp).toBe(1000 - 80 - 40 - 40);
+    const followUps = followUpDamageEvents(recorder);
+    expect(followUps.map((event) => (event.payload as { hitIndex?: number }).hitIndex)).toEqual([
+      0, 1,
+    ]);
+    const attackerAfter = result.units.find((unit) => unit.battleUnitId === attacker.battleUnitId)!;
+    expect(attackerAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
+  });
+
+  it("UT-R-FUP-01-011: a skill without any DAMAGE action neither consumes the rider nor triggers a follow-up", () => {
+    const BUFF_AS_ID = "SKL_TEST_FUP_BUFF_AS";
+    const battleDefinitions = definitions([attackSkill([SPEED_DOWN_ID], BUFF_AS_ID)]);
+    const { attacker, enemy } = board();
+
+    const { result, recorder } = useSkill(
+      attacker,
+      enemy,
+      battleDefinitions,
+      BUFF_AS_ID,
+      "B_FUP_BUFF",
+    );
+
+    expect(followUpDamageEvents(recorder)).toHaveLength(0);
+    // 攻撃を含まないスキルは`NEXT_OUTGOING_ATTACK`の消費点を持たない（R-EFF-07・Q-FUP-05）。
+    const attackerAfter = result.units.find((unit) => unit.battleUnitId === attacker.battleUnitId)!;
+    const rider = attackerAfter.appliedEffects.find((effect) => effect.isFollowUpAttack);
+    expect(rider?.duration?.consumptionRemaining).toBe(1);
+    expect(recorder.getEvents().some((event) => event.eventType === "SkillUseCompleted")).toBe(
+      true,
+    );
+  });
+
+  it("UT-R-FUP-01-012: when the actor is defeated during a follow-up hit, the remaining riders stay unresolved and the skill use reports SkillUseInterrupted", () => {
+    // 敵の反射（受けたダメージの100%）で、AS本体の反射80は耐え（HP100→20）、
+    // 1件目の追撃40の反射で使用者が戦闘不能になる。2件目のライダーは未解決のまま
+    // 中断され、完了契機PS・SKILL_USE期間減算を誤って走らせないため
+    // `SkillUseCompleted`ではなく`SkillUseInterrupted`を発行する（R-SKL-01／R-FUP-01 #6）。
+    const reflectDefinitionId = createEffectActionDefinitionId("ACT_TEST_FUP_REFLECT");
+    const reflect: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("REFLECT_1"),
+      effectActionDefinitionId: reflectDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(reflectDefinitionId),
+      duplicate: true,
+      targetUnitId: createBattleUnitId("enemy:1"),
+      magnitude: 0,
+      categories: ["BUFF"],
+      reflect: {
+        formula: { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1 },
+        allowRecursiveReflect: false,
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const { attacker, enemy } = board({
+      attackerEffects: [
+        riderEffect("ally:attacker", "RIDER_1"),
+        riderEffect("ally:attacker", "RIDER_2"),
+      ],
+      attackerHp: 100,
+      enemyEffects: [reflect],
+    });
+    const battleDefinitions = definitions();
+
+    const { result, recorder } = useSkill(attacker, enemy, battleDefinitions, AS_ID, "B_FUP_INT");
+
+    const attackerAfter = result.units.find((unit) => unit.battleUnitId === attacker.battleUnitId)!;
+    expect(attackerAfter.currentHp).toBe(0);
+    // 1件目の追撃までは解決され、2件目は未解決のまま中断される。
+    expect(followUpDamageEvents(recorder)).toHaveLength(1);
+    const eventTypes = recorder.getEvents().map((event) => event.eventType);
+    expect(eventTypes).not.toContain("SkillUseCompleted");
+    expect(eventTypes).toContain("SkillUseInterrupted");
   });
 });

@@ -449,6 +449,7 @@ export function resolveSkillUse(
   // R-FUP-01: 元攻撃が1発でも命中していれば、全step解決後・`SkillUseCompleted`発行前に
   // 追撃を1回だけ解決する。中断（使用者戦闘不能）で打ち切ったスキル使用では行わない
   // （R-SKL-01「未解決効果を中断する」）。
+  let followUpInterrupted = false;
   if (effectResult.outcome.status !== "INTERRUPTED") {
     const followUp = resolveFollowUpAttacksAfterSkillUse(
       groupContext,
@@ -459,15 +460,21 @@ export function resolveSkillUse(
       recorder.getEvents().at(-1)?.eventId ?? skillUseStarted.eventId,
     );
     working = followUp.units;
+    followUpInterrupted = followUp.interrupted;
   }
 
   // Issue #217設計方針B: `SkillUseInterrupted`/`SkillUseCompleted`の選択は
   // `effectResult.outcome.status`（実際に解決が最後まで進んだか、使用者戦闘
   // 不能で打ち切ったかという事実）だけから決める。`unresolvedEffectCount`の
   // 値からは決して導出しない（`INTERRUPTED`かつ`unresolvedEffectCount: 0`も
-  // 正当な結果として扱う）。
+  // 正当な結果として扱う）。R-FUP-01: 追撃の解決中に使用者が戦闘不能になり
+  // 未解決の追撃を残した場合（`followUpInterrupted`）も同じ「使用者戦闘不能で
+  // 打ち切った」事実であり、`SkillUseInterrupted`を発行する — 完了契機PSや
+  // `SKILL_USE`単位期間減算を誤って走らせないためである。追撃はEffectActionの
+  // ヒット列に属さないため、この場合の`unresolvedEffectCount`は0のままになる
+  // （`INTERRUPTED`かつ0はR-SUB-02のサブユニット追加ヒット中断と同じ正当な結果）。
   const skillUseCompleted =
-    effectResult.outcome.status === "INTERRUPTED"
+    effectResult.outcome.status === "INTERRUPTED" || followUpInterrupted
       ? recorder.record({
           eventType: "SkillUseInterrupted",
           category: "FACT",
@@ -483,9 +490,15 @@ export function resolveSkillUse(
           payload: {
             actorUnitId,
             skillDefinitionId: skill.skillDefinitionId,
-            reason: effectResult.outcome.reason,
+            reason:
+              effectResult.outcome.status === "INTERRUPTED"
+                ? effectResult.outcome.reason
+                : "ACTOR_DEFEATED",
             resolvedEffectCount: effectResult.outcome.resolvedEffectCount,
-            unresolvedEffectCount: effectResult.outcome.unresolvedEffectCount,
+            unresolvedEffectCount:
+              effectResult.outcome.status === "INTERRUPTED"
+                ? effectResult.outcome.unresolvedEffectCount
+                : 0,
           },
         })
       : recorder.record({

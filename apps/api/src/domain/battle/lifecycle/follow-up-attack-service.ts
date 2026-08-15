@@ -186,14 +186,24 @@ export function resolveFollowUpAttacksAfterSkillUse(
   capture: FollowUpAttackCapture,
   units: readonly BattleUnit[],
   parentEventId: DomainEventId,
-): { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId } {
+): {
+  readonly units: readonly BattleUnit[];
+  readonly lastEventId: DomainEventId;
+  /**
+   * R-SKL-01: 追撃の解決中に使用者が戦闘不能になり、未解決の追撃を残して中断した
+   * 場合`true`。呼び出し側（`action-skill-use-resolver.ts`）はこれを外側のスキル
+   * 使用結果へ伝播し、`SkillUseCompleted`ではなく`SkillUseInterrupted`を発行する —
+   * 完了契機PSや`SKILL_USE`単位期間減算を誤って走らせないためである。
+   */
+  readonly interrupted: boolean;
+} {
   if (capture.riders.size === 0 || !capture.anyApplied || context.actorUnitId === undefined) {
-    return { units, lastEventId: parentEventId };
+    return { units, lastEventId: parentEventId, interrupted: false };
   }
   const actor = units.find((unit) => unit.battleUnitId === context.actorUnitId);
   if (actor === undefined || isDefeated(actor)) {
     // R-SKL-01: 使用者が既に戦闘不能なら追撃も行わない（中断経路はここへ到達しない）。
-    return { units, lastEventId: parentEventId };
+    return { units, lastEventId: parentEventId, interrupted: false };
   }
   const riders: FollowUpAttackRider[] = [];
   for (const [, captured] of capture.riders) {
@@ -214,7 +224,7 @@ export function resolveFollowUpAttacksAfterSkillUse(
     });
   }
   if (riders.length === 0) {
-    return { units, lastEventId: parentEventId };
+    return { units, lastEventId: parentEventId, interrupted: false };
   }
 
   const { consumeEffectDuration, finalizeConsumedEffectDurations } =
@@ -321,5 +331,6 @@ export function resolveFollowUpAttacksAfterSkillUse(
   return {
     units: units.map((unit) => working.get(unit.battleUnitId) ?? unit),
     lastEventId,
+    interrupted: result.interrupted,
   };
 }
