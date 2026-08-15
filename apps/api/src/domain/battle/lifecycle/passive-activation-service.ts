@@ -83,7 +83,7 @@ import type { PassiveCandidate } from "../triggering/passive-candidate.js";
 import {
   detectPassiveCandidateGroup,
   resolvePassiveChain,
-  resolvePendingCandidateGroup,
+  resolvePendingCandidateGroups,
   type PassiveActivation,
   type PassiveActivationStep,
   type PassiveChainDependencies,
@@ -354,15 +354,17 @@ export class PassiveActivationRuntime {
     // フレームは既に取り外してあるため、この解決中に発動したPS/Memoryが
     // `onFactEvent`を経由することがあっても親のキューへ積まれることはない
     // （それぞれの発動は`resolvePassiveChain`側の自分のフレームを持つ）。
-    for (const group of frame) {
-      const result = resolvePendingCandidateGroup(group, this.guard, this.buildDependencies());
-      if (!result.ok) {
-        throw new ExecutionGuardExceededError(
-          `PS chain resolution exceeded its execution guard: ${result.reason}`,
-        );
-      }
-      this.guard = result.activationGuard;
+    // キューは1回の呼び出しでまとめて渡す — グループごとに解決を分けると
+    // 効果解決数Guardがグループ単位でリセットされ、各グループが上限未満でも
+    // 合計が上限を超える連鎖を検出できなくなる（`R-ATM-02`「実行ガードは
+    // 従来どおり1解決スコープ単位で数える」）。
+    const result = resolvePendingCandidateGroups(frame, this.guard, this.buildDependencies());
+    if (!result.ok) {
+      throw new ExecutionGuardExceededError(
+        `PS chain resolution exceeded its execution guard: ${result.reason}`,
+      );
     }
+    this.guard = result.activationGuard;
     const recordedEvents = this.context.recorder.getEvents();
     const last =
       recordedEvents.length > eventsStart ? recordedEvents[recordedEvents.length - 1] : undefined;

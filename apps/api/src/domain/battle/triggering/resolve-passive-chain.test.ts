@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolvePassiveChain,
+  resolvePendingCandidateGroups,
   type PassiveActivation,
   type PassiveActivationCompletion,
   type PassiveActivationStep,
@@ -607,6 +608,63 @@ describe("resolvePassiveChain", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
+  });
+
+  it("UT-GUARD-012 (R-ATM-02): draining a pending queue shares the effects-resolved guard across every queued group — several groups that are each under the limit still trip it once their total exceeds it", () => {
+    // `R-ATM-02`「PS深度・効果解決数の実行ガードは従来どおり1解決スコープ単位で
+    // 数える」: 保留キューをグループごとに別々の解決へ分けると、各グループが
+    // 上限未満のまま合計が上限を超える連鎖を検出できなくなる。
+    const owner = unit("A");
+    // 各グループは2効果しか解決しない（上限5の未満）。3グループで合計6となり、
+    // 3グループ目の途中で上限を超える。
+    const groups = ["E1", "E2", "E3"].map((eventType) => ({
+      event: event(eventType),
+      candidates: [candidateOf(owner, skillOf(`SKL_${eventType}`))],
+      memoryCandidates: [],
+    }));
+
+    const activated: string[] = [];
+    const result = resolvePendingCandidateGroups(groups, createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [],
+      getCurrentUnit: () => owner,
+      activate: function* (candidate) {
+        activated.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        yield resolvedStep();
+        return DONE;
+      },
+      limits: { maxPassiveDepth: 10, maxEffectsPerScope: 5, maxEffectRuntimeCounterDepth: 10 },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
+    // 上限は3グループ目の途中（通算6件目）で超える — 1・2グループ目は完走している。
+    // これが無いと「そもそも1グループしか走っていない」形でも上のexpectが通ってしまう。
+    expect(activated).toEqual(["SKL_E1", "SKL_E2", "SKL_E3"]);
+  });
+
+  it("UT-GUARD-013 (R-ATM-02): the same pending queue completes when its total stays within the limit, so the shared counter does not over-trigger", () => {
+    const owner = unit("A");
+    const groups = ["E1", "E2"].map((eventType) => ({
+      event: event(eventType),
+      candidates: [candidateOf(owner, skillOf(`SKL_${eventType}`))],
+      memoryCandidates: [],
+    }));
+
+    const activated: string[] = [];
+    const result = resolvePendingCandidateGroups(groups, createEmptyPassiveActivationGuard(), {
+      detectCandidates: () => [],
+      getCurrentUnit: () => owner,
+      activate: function* (candidate) {
+        activated.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        yield resolvedStep();
+        return DONE;
+      },
+      limits: { maxPassiveDepth: 10, maxEffectsPerScope: 5, maxEffectRuntimeCounterDepth: 10 },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(activated).toEqual(["SKL_E1", "SKL_E2"]);
   });
 
   it("UT-GUARD-007: post-application domain events from a single EffectAction are each checked for PS candidates but counted as exactly one resolved effect", () => {

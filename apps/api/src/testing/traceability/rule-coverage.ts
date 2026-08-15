@@ -1463,6 +1463,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ATM-02-003",
       // AS/EX経路: 中断で終わったスキル使用でも保留分は排出する。
       "UT-R-ATM-02-004",
+      // 実行ガードは保留キュー全体で1つ — グループごとにリセットしない。
+      "UT-GUARD-012",
+      "UT-GUARD-013",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },

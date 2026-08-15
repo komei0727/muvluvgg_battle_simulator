@@ -770,19 +770,35 @@ export function resolvePassiveChain(
  * `R-ATM-02` #3の後段フェーズを、トップレベルの効果処理（AS/EX使用・チャージ解放。
  * `applyEffectActionGroups`が同期callbackでイベントを届けるため`PassiveActivation`
  * ジェネレータを持たない経路）から駆動するための入口。呼び出し側が効果処理中に
- * 検出・保留しておいた候補グループを1件受け取り、`resolvePassiveChain`と同じ
- * 解決規約（R-PS-02〜08・R-MEM-02・実行ガード）で発動させる。
+ * 検出・保留しておいた候補グループを**キュー1本まるごと**受け取り、
+ * `resolvePassiveChain`と同じ解決規約（R-PS-02〜08・R-MEM-02・実行ガード）で
+ * イベント発生順に発動させる。
+ *
+ * 1グループずつ別々の`runChain`へ渡してはならない。`R-ATM-02`「PS深度・効果解決数の
+ * 実行ガードは従来どおり1解決スコープ単位で数える」を満たすには、効果解決数
+ * （`ChainState.effectsResolved`）と深度をキュー全体で共有する必要がある — グループ
+ * ごとに`ChainState`を作り直すと、各グループが上限未満でも合計が上限を超える連鎖を
+ * ガードが検出できない。生成器駆動の経路（`driveSteps`の`drainPendingFrame`）が
+ * 1つの`ChainState`で自分のキューを排出しているのと同じ粒度に揃える。
  *
  * 状態保守（R-EFF-08/10/11）は候補を保留した時点で確定済みのため、ここでは
  * 再度行わない。R-PS-04の発動直前確認は`resolveTopGroup`が候補ごとに行うため、
  * 保留中に前提が崩れた候補はこの入口を通ってから破棄される。
  */
-export function resolvePendingCandidateGroup(
-  group: PassiveResolutionStackEntry,
+export function resolvePendingCandidateGroups(
+  groups: readonly PassiveResolutionStackEntry[],
   initialGuard: PassiveActivationGuard,
   deps: PassiveChainDependencies,
 ): PassiveChainResult {
-  return runChain(initialGuard, (state) => resolveCandidateGroup(group, state, deps));
+  return runChain(initialGuard, (state) => {
+    for (const group of groups) {
+      const violation = resolveCandidateGroup(group, state, deps);
+      if (violation !== undefined) {
+        return violation;
+      }
+    }
+    return undefined;
+  });
 }
 
 function runChain(
