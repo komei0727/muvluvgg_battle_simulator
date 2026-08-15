@@ -44,6 +44,21 @@ function maxScalePartyCandidates(
   return candidates;
 }
 
+/**
+ * `production-party-golden-battle.test.ts`と同じ混成編成（全ユニットIDをsortして
+ * 5体ずつに分割し、`party[k]`対`party[k+1]`）。実行ガードへ実際に到達していたのは
+ * ミラー編成ではなく**この混成編成**だったため、上限の必要量はここから算出する。
+ */
+function mixedPartyMatchups(
+  unitIds: readonly string[],
+): ReadonlyArray<{ readonly ally: readonly string[]; readonly enemy: readonly string[] }> {
+  const parties: string[][] = [];
+  for (let start = 0; start < unitIds.length; start += 5) {
+    parties.push([...unitIds.slice(start, start + 5)]);
+  }
+  return parties.map((ally, index) => ({ ally, enemy: parties[(index + 1) % parties.length]! }));
+}
+
 function limitsWith(overrides: Partial<SimulationExecutionLimits>): SimulationExecutionLimits {
   return { ...DEFAULT_SIMULATION_EXECUTION_LIMITS, ...overrides };
 }
@@ -65,8 +80,16 @@ function completesWithin(run: () => unknown): boolean {
  * `completesWithin`が真になる最小の上限値を`[1, ceiling]`から二分探索する。
  * 上限を下げるほど失敗しやすい単調な性質を前提にする（ガードは「超過したら止める」
  * だけで、低い上限で通ったものが高い上限で落ちることはない）。
+ *
+ * `ceiling`でも完走しない場合は`undefined`を返す——二分探索の結果として`ceiling`を
+ * 返してしまうと「上限ちょうどで足りている」と読めてしまい、実際には現行の上限では
+ * 足りていない（正常な戦闘が503になる）という逆の結論になる。
  */
-function smallestPassingLimit(ceiling: number, passesAt: (limit: number) => boolean): number {
+function smallestPassingLimit(
+  ceiling: number,
+  passesAt: (limit: number) => boolean,
+): number | undefined {
+  if (!passesAt(ceiling)) return undefined;
   let low = 1;
   let high = ceiling;
   while (low < high) {
@@ -169,37 +192,67 @@ describe("battle execution capacity baseline", () => {
     expect(worst!.eventCount).toBeLessThan(DEFAULT_SIMULATION_EXECUTION_LIMITS.maxTotalEvents);
   }, 300_000);
 
-  it("LOAD-CAPACITY-002 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」の上限決定): measures the smallest execution guard limits the maximum-scale battle actually needs, so the configured ceilings can be justified as headroom rather than guesses", () => {
+  it("LOAD-CAPACITY-002 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」の上限決定): measures the smallest execution guard limits every production formation actually needs — mirror and mixed parties alike — so the configured ceilings can be justified as headroom rather than guesses", () => {
     const unitIds = allProductionUnitIds(CATALOG_DIR);
-    // 上限探索は1編成で足りる（他編成は`LOAD-CAPACITY-003`の全件走査が覆う）。
-    const parties = maxScalePartyCandidates(unitIds)[0]!;
-    const runWith = (executionLimits: SimulationExecutionLimits) => () =>
-      createProductionFormationBattleRunner(CATALOG_DIR, parties, {
-        turnLimit: TURN_LIMIT,
-        logLevel: "DETAILED",
-        executionLimits,
-      })("B_GUARD_PROBE");
+    // ミラー編成と混成編成の両方を走査する。実行ガードへ実際に到達していたのは
+    // 混成編成だったため、ミラー編成1つの二分探索では必要量を過小評価する。
+    const formations = [...maxScalePartyCandidates(unitIds), ...mixedPartyMatchups(unitIds)];
+    const runWith =
+      (
+        parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
+        executionLimits: SimulationExecutionLimits,
+        battleId: string,
+      ) =>
+      () =>
+        createProductionFormationBattleRunner(CATALOG_DIR, parties, {
+          turnLimit: TURN_LIMIT,
+          logLevel: "DETAILED",
+          executionLimits,
+        })(battleId);
 
-    const requiredPassiveDepth = smallestPassingLimit(
-      DEFAULT_SIMULATION_EXECUTION_LIMITS.maxPassiveDepth,
-      (maxPassiveDepth) => completesWithin(runWith(limitsWith({ maxPassiveDepth }))),
-    );
-    const requiredEffectsPerScope = smallestPassingLimit(
-      DEFAULT_SIMULATION_EXECUTION_LIMITS.maxEffectsPerScope,
-      (maxEffectsPerScope) => completesWithin(runWith(limitsWith({ maxEffectsPerScope }))),
-    );
+    let requiredPassiveDepth = 0;
+    let requiredEffectsPerScope = 0;
+    const insufficientFor: string[] = [];
+
+    for (const [index, parties] of formations.entries()) {
+      const depth = smallestPassingLimit(
+        DEFAULT_SIMULATION_EXECUTION_LIMITS.maxPassiveDepth,
+        (maxPassiveDepth) =>
+          completesWithin(
+            runWith(parties, limitsWith({ maxPassiveDepth }), `B_GUARD_DEPTH_${index}`),
+          ),
+      );
+      const effects = smallestPassingLimit(
+        DEFAULT_SIMULATION_EXECUTION_LIMITS.maxEffectsPerScope,
+        (maxEffectsPerScope) =>
+          completesWithin(
+            runWith(parties, limitsWith({ maxEffectsPerScope }), `B_GUARD_EFFECTS_${index}`),
+          ),
+      );
+
+      if (depth === undefined || effects === undefined) {
+        insufficientFor.push(`${index}: ${parties.ally.join(",")} vs ${parties.enemy.join(",")}`);
+        continue;
+      }
+      requiredPassiveDepth = Math.max(requiredPassiveDepth, depth);
+      requiredEffectsPerScope = Math.max(requiredEffectsPerScope, effects);
+    }
 
     const baseline = {
       testId: "LOAD-CAPACITY-002",
       turnLimit: TURN_LIMIT,
       logLevel: "DETAILED",
+      formationCount: formations.length,
       requiredPassiveDepth,
       configuredPassiveDepth: DEFAULT_SIMULATION_EXECUTION_LIMITS.maxPassiveDepth,
       requiredEffectsPerScope,
       configuredEffectsPerScope: DEFAULT_SIMULATION_EXECUTION_LIMITS.maxEffectsPerScope,
+      insufficientFor,
     };
     console.log(`[LOAD-CAPACITY-002] baseline ${JSON.stringify(baseline)}`);
 
+    // 現行の上限で完走しない編成が1つでもあれば、正常な戦闘が503になっている。
+    expect(insufficientFor).toEqual([]);
     // 上限は「正常系が必要とする量」より厳密に大きい——等しければ、production
     // Catalogが1段深い連鎖を持った瞬間に正常な戦闘が503で落ちる。
     expect(requiredPassiveDepth).toBeLessThan(DEFAULT_SIMULATION_EXECUTION_LIMITS.maxPassiveDepth);

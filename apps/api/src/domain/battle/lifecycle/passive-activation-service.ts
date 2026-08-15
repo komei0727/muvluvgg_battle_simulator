@@ -133,10 +133,12 @@ export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {
   maxPassiveDepth: 8,
   /**
    * REL-005（Issue #198）の実測（`LOAD-CAPACITY-002`）で、production Catalogの
-   * 5対5・99ターン・DETAILEDが1解決スコープあたり40件の効果解決を必要とすることが
-   * 分かった。旧値50は余裕が1.25倍しかなく、対象数の多いEffectSequenceが1つ
-   * 増えただけで正常な戦闘が`EXECUTION_LIMIT_EXCEEDED`（503）になる。実測値の
-   * 2.5倍へ引き上げる（`maxPassiveDepth`は実測3に対し8で余裕があるため据え置き）。
+   * 5対5・99ターン・DETAILEDの全29編成（ミラー14・混成15）を走査すると、
+   * 1解決スコープあたり最大54件の効果解決を必要とする。旧値50はこれを**下回って
+   * おり**、正常な混成編成が`EXECUTION_LIMIT_EXCEEDED`（503）で落ちていた
+   * （暴走した定義ではなく、対象数の多いEffectSequenceが正しく解決された結果）。
+   * 実測値の約1.9倍へ引き上げる（`maxPassiveDepth`は実測4に対し8で2倍の余裕が
+   * あるため据え置き）。
    */
   maxEffectsPerScope: 100,
   maxEffectRuntimeCounterDepth: MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH,

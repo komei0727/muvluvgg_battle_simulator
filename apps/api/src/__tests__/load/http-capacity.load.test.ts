@@ -79,6 +79,24 @@ async function postSimulation(
   return { status: response.status, bytes: Buffer.byteLength(text, "utf8") };
 }
 
+function soloFormation(unitDefinitionId: string) {
+  return {
+    units: [{ unitDefinitionId, position: { column: 0, row: "FRONT" } }],
+    memoryDefinitionIds: [],
+  };
+}
+
+/** 5枠（前列3・後列2）を左から詰めた最大編成。 */
+function partyFormation(unitDefinitionIds: readonly string[]) {
+  return {
+    units: unitDefinitionIds.map((unitDefinitionId, index) => ({
+      unitDefinitionId,
+      position: { column: index % 3, row: index < 3 ? "FRONT" : "REAR" },
+    })),
+    memoryDefinitionIds: [],
+  };
+}
+
 /** Pool直投げの失敗を、HTTPへ写ったときのstatusと対応する分類名へ落とす。 */
 function classifyPoolFailure(error: unknown): string {
   if (error instanceof Error && error.name === "SimulationCapacityExceededError") {
@@ -87,6 +105,81 @@ function classifyPoolFailure(error: unknown): string {
   const code = (error as { code?: unknown }).code;
   return typeof code === "string" ? code : "UNKNOWN";
 }
+
+/**
+ * 実Poolを`SimulateBattleUseCasePort`として包み、**サーバー側が`execute()`へ入った
+ * 瞬間**を通知するlatchと、その`cancellationSignal`を公開する。
+ *
+ * これが無いと、切断・shutdownの測定が「サーバーがrequestを受け取る前にクライアント側
+ * だけで取り消した」状態でも成功してしまう（実測: `fetch()`直後に同期`abort()`すると
+ * shutdownは1ms・in-flightは503で、実行中タスクを1件も抱えていなかった）。
+ * `build-server.disconnect.integration.test.ts`の`INT-HTTP-DISCONNECT-002`が
+ * 偽のUseCaseで使っているlatchと同じ役割を、実Worker Poolのまま与える。
+ */
+interface ExecutionLatch {
+  readonly port: { execute: SimulationWorkerPoolClass["execute"] };
+  /** サーバーが`execute()`へ入るまで解決しない。 */
+  readonly entered: Promise<void>;
+  /** 直近の`execute()`が受け取ったキャンセル信号（クライアント切断で中断される）。 */
+  capturedSignal(): AbortSignal | undefined;
+}
+
+function latchedPool(pool: SimulationWorkerPoolClass): ExecutionLatch {
+  let resolveEntered: () => void = () => {};
+  const entered = new Promise<void>((resolve) => {
+    resolveEntered = resolve;
+  });
+  let signal: AbortSignal | undefined;
+  return {
+    port: {
+      execute: (request, context) => {
+        signal = context.cancellationSignal;
+        resolveEntered();
+        return pool.execute(request, context);
+      },
+    },
+    entered,
+    capturedSignal: () => signal,
+  };
+}
+
+/**
+ * 実Poolを包み、`deadlineEpochMs`を必ず過去へ書き換える。`SIMULATION_TIMEOUT_MS=1`
+ * では期限超過が乱数任せになる——Workerは`SystemRandomSourceFactory`を使うため
+ * 決着ターンが毎回変わり、1ms未満で終わる試行は期限に触れずに200で完走する
+ * （実測: 5対5でも10回中2回）。「タイムアウトの連続」を測るには超過を確定させる
+ * 必要があるため、`INT-WORKER-005`と同じく過去の期限を渡す。Worker側の
+ * 協調的停止（`11_インフラストラクチャ設計.md`「キャンセルと期限」段階1）は
+ * production経路そのままで、変えているのは期限の値だけである。
+ */
+function expiredDeadlinePool(pool: SimulationWorkerPoolClass): {
+  execute: SimulationWorkerPoolClass["execute"];
+} {
+  return {
+    execute: (request, context) =>
+      pool.execute(request, { ...context, deadlineEpochMs: Date.now() - 1_000 }),
+  };
+}
+
+/** `signal`が中断されるまで待つ（既に中断済みなら即座に返る）。 */
+async function waitForAbort(signal: AbortSignal | undefined): Promise<void> {
+  if (signal === undefined || signal.aborted) return;
+  await new Promise<void>((resolve) => {
+    signal.addEventListener("abort", () => {
+      resolve();
+    });
+  });
+}
+
+/**
+ * Workerがタスクを実行し始めるまでの猶予。`execute()`へ入った時点ではPiscinaが
+ * Worker Threadへメッセージを送っただけで、Worker側の実行開始は次のtick以降になる。
+ * 「実行中タスクを抱えたshutdown」を測るには、その受け渡しが済むまで待つ必要がある。
+ * 待ち足りなかった場合は測定が静かに成立するのではなく、in-flight requestが
+ * キャンセル扱い（未開始タスクの拒否）になることで**テストが失敗する**——
+ * `close({force:true})`は未開始タスクを即座にrejectし、実行中タスクだけを待つため。
+ */
+const WORKER_PICKUP_SETTLE_MS = 50;
 
 function latencySummary(durationsMs: readonly number[]): Record<string, number> {
   const sorted = [...durationsMs].sort((a, b) => a - b);
@@ -117,26 +210,32 @@ describe("HTTP and Worker Pool capacity baseline", () => {
     });
 
     catalogRevision = loadCatalogFromDirectory(CATALOG_DIR).catalogRevision;
-    const [unitId] = allProductionUnitIds(CATALOG_DIR);
-    expect(unitId, "at least one selectable production unit is required").toBeDefined();
-    const formation = {
-      units: [{ unitDefinitionId: unitId!, position: { column: 0, row: "FRONT" } }],
-      memoryDefinitionIds: [],
-    };
+    const unitIds = allProductionUnitIds(CATALOG_DIR);
+    expect(
+      unitIds.length,
+      "at least five selectable production units are required",
+    ).toBeGreaterThan(4);
     // 「1対1短時間戦闘」: 既定のSUMMARYで短いturnLimit。
     shortBattleRequest = {
-      allyFormation: formation,
-      enemyFormation: formation,
+      allyFormation: soloFormation(unitIds[0]!),
+      enemyFormation: soloFormation(unitIds[0]!),
       turnLimit: 5,
     };
-    // 「大きなイベント・状態差分」: 99ターン・DETAILEDの最大応答。
+    // 「5対5・99ターン・DETAILED」: 公開APIから作れる最大の入力。
+    //
+    // 最大**応答**を出すのは1対1のUNIT_AOI_GUARDIAN（23.1 MB）だが、それは
+    // `LOAD-CAPACITY-*`が定数乱数で決定化した場合の値である。production Workerは
+    // `SystemRandomSourceFactory`を使うため、同じ編成でも決着ターンが毎回変わり、
+    // 1対1では1ms未満で終わる試行が混ざる（実測: `SIMULATION_TIMEOUT_MS=1`でも
+    // 10回中5回が200で完走した）。実経路の測定は乱数に依存せず必ず十分な仕事量に
+    // なる5対5の最大編成で行う。
     heavyBattleRequest = {
-      allyFormation: formation,
-      enemyFormation: formation,
+      allyFormation: partyFormation(unitIds.slice(0, 5)),
+      enemyFormation: partyFormation(unitIds.slice(0, 5)),
       turnLimit: 99,
       options: { logLevel: "DETAILED" },
     };
-  }, 180_000);
+  }, 300_000);
 
   let pool: SimulationWorkerPoolClass | undefined;
   let app: FastifyInstance | undefined;
@@ -331,8 +430,8 @@ describe("HTTP and Worker Pool capacity baseline", () => {
       maxThreads: 1,
       maxQueue: 4,
     });
-    // 最大応答の戦闘が確実に間に合わない期限にし、504経路を連続で通す。
-    app = await buildServer(pool, { simulationTimeoutMs: 1 });
+    // 期限を必ず超過させ、504経路を連続で通す（`expiredDeadlinePool`の注記参照）。
+    app = await buildServer(expiredDeadlinePool(pool));
     let baseUrl = await listenOnEphemeralPort(app);
 
     const timeoutStatusCounts = new Map<number, number>();
@@ -344,37 +443,54 @@ describe("HTTP and Worker Pool capacity baseline", () => {
     const healthyAfterTimeouts = pool.isHealthy;
 
     await app.close();
-    // 期限を戻し、同じPoolで切断サイクルを通す。
-    app = await buildServer(pool, { simulationTimeoutMs: 30_000 });
-    baseUrl = await listenOnEphemeralPort(app);
 
+    // 切断サイクル。サーバーが`execute()`へ入ったことをlatchで確認してから切断し、
+    // **server-side cancellationSignalが実際に中断されるまで**観測する。
+    // クライアント側だけで取り消した場合はサーバーが何も知らないまま完走するため、
+    // 「切断してもPoolが健全」を検証したことにならない。
     let abortedCount = 0;
+    let serverObservedCancellations = 0;
+    const cancellationLatencies: number[] = [];
     for (let cycle = 0; cycle < cycles; cycle++) {
+      const latch = latchedPool(pool);
+      app = await buildServer(latch.port, { simulationTimeoutMs: 30_000 });
+      baseUrl = await listenOnEphemeralPort(app);
+
       const controller = new AbortController();
       const pending = fetch(`${baseUrl}/api/v1/battle-simulations`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(heavyBattleRequest),
         signal: controller.signal,
-      });
-      // 受付直後に切断する（`11_インフラストラクチャ設計.md`「クライアント切断時は
-      // 応答送信を試みない」の連続実行）。
+      }).catch((error: unknown) => error);
+
+      await latch.entered;
+      const abortStart = performance.now();
       controller.abort();
-      await pending.catch(() => {
-        abortedCount += 1;
-      });
+      await waitForAbort(latch.capturedSignal());
+      cancellationLatencies.push(performance.now() - abortStart);
+      if (latch.capturedSignal()?.aborted === true) serverObservedCancellations += 1;
+      const settled = await pending;
+      if (settled instanceof Error) abortedCount += 1;
+
+      await app.close();
+      app = undefined;
     }
     const healthyAfterDisconnects = pool.isHealthy;
 
+    app = await buildServer(pool, { simulationTimeoutMs: 30_000 });
+    baseUrl = await listenOnEphemeralPort(app);
     const recovered = await postSimulation(baseUrl, shortBattleRequest);
 
     console.log(
       `[LOAD-HTTP-003] baseline ${JSON.stringify({
         testId: "LOAD-HTTP-003",
         cycles,
-        simulationTimeoutMs: 1,
+        deadlinePolicy: "already-expired",
         timeoutStatusCounts: Object.fromEntries(timeoutStatusCounts),
         abortedCount,
+        serverObservedCancellations,
+        cancellationLatencyMs: latencySummary(cancellationLatencies),
         poolHealthyAfterTimeouts: healthyAfterTimeouts,
         poolHealthyAfterDisconnects: healthyAfterDisconnects,
         recoveredStatusCode: recovered.status,
@@ -385,6 +501,9 @@ describe("HTTP and Worker Pool capacity baseline", () => {
     // 「タイムアウトを戦闘の敗北へ変換しない」）。
     expect(timeoutStatusCounts.get(504)).toBe(cycles);
     expect(abortedCount).toBe(cycles);
+    // 切断がサーバー側まで届き、実行中タスクのキャンセル信号を毎回中断させた
+    // （`11_インフラストラクチャ設計.md`「キャンセルと期限」段階2）。
+    expect(serverObservedCancellations).toBe(cycles);
     // 連続タイムアウト・連続切断はWorker障害ではないため、readinessを落とさない。
     expect(healthyAfterTimeouts).toBe(true);
     expect(healthyAfterDisconnects).toBe(true);
@@ -400,13 +519,17 @@ describe("HTTP and Worker Pool capacity baseline", () => {
       maxQueue: 4,
       shutdownGraceMs: 8_000,
     });
-    app = await buildServer(pool);
+    const latch = latchedPool(pool);
+    app = await buildServer(latch.port);
     const baseUrl = await listenOnEphemeralPort(app);
 
-    // 最大応答の戦闘を投入し、完了を待たずにshutdownへ入る。
+    // 最重量の戦闘（実測で実行200ms超）を投入し、サーバーが`execute()`へ入ったことを
+    // latchで確認し、Workerがタスクを受け取るまで待ってからshutdownへ入る。
     const inFlight = postSimulation(baseUrl, heavyBattleRequest)
       .then(({ status }) => status)
       .catch(() => -1);
+    await latch.entered;
+    await new Promise((resolve) => setTimeout(resolve, WORKER_PICKUP_SETTLE_MS));
 
     const shutdownStart = performance.now();
     await pool.shutdown();
@@ -417,16 +540,18 @@ describe("HTTP and Worker Pool capacity baseline", () => {
       `[LOAD-HTTP-004] baseline ${JSON.stringify({
         testId: "LOAD-HTTP-004",
         shutdownGraceMs: 8_000,
+        workerPickupSettleMs: WORKER_PICKUP_SETTLE_MS,
         shutdownMs: Number(shutdownMs.toFixed(3)),
         inFlightStatusCode: inFlightStatus,
       })}`,
     );
 
-    // 実行中タスクを抱えたshutdownがgrace期限内に完了する（Cloud RunのSIGTERM後
-    // 10秒予算に収まることの根拠）。
+    // **実行中**タスクを抱えていたことの証明: `close({force:true})`は未開始タスクを
+    // 即座にrejectし（→ 503 EXECUTION_CANCELLED）、実行中タスクだけを待って完走
+    // させる。200が返ったということは、shutdownが実際に実行中の戦闘を待った。
+    expect(inFlightStatus).toBe(200);
+    // その待ち時間がgrace期限内に収まる（Cloud RunのSIGTERM後10秒予算の根拠）。
     expect(shutdownMs).toBeLessThan(8_000);
-    // 途中状態を勝敗として返さない: 完走した200か、キャンセル扱いのエラーのみ。
-    expect([200, 500, 503, 504]).toContain(inFlightStatus);
 
     pool = undefined;
   }, 300_000);
