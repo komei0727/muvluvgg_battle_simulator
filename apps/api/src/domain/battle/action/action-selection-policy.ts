@@ -51,9 +51,14 @@ const defaultActivationConditionEvaluator: ActivationConditionEvaluator = (condi
 };
 
 /**
- * R-TGT-01 #4: 各targetBindingが1体以上の候補を持つかどうかで判定する。
+ * R-ACT-02「必要な対象候補が1体以上存在する」/ R-TGT-01 #4: `optional: true`を持たない
+ * targetBindingが1体以上の候補を持つかどうかで判定する。`optional`な binding（隣接
+ * splashのような補助対象）は0件でも失格理由にしない — 効果解決層は対象0件のstepを
+ * 元から素通りするため、ここで失格させるとスキルごと発動しなくなる。
  * R-TGT-09/10: `base: BINDING`が先行bindingを参照できるよう、定義順に解決した
  * bindingを積み上げながら判定する（後続bindingが不成立でも先行分は評価済み）。
+ * 空の binding も`resolvedBindingUnits`へ登録するため、`activationCondition`の
+ * `TARGET_SET_COUNT`は0件として評価できる。
  * `unitDefinitions`はTGT-002（CAP_TARGET_FILTER_ORDER）のUNIT_TYPE系filter/order
  * （UNIT_TYPE_PRIORITYなど）を含むselectorにだけ要る。CAP_ACTION_ACTIVATION_CONDITION
  * （Issue #180）: `activationCondition`のTARGET_SET_COUNT/TARGET_STATE/TARGET_HAS_MARKER
@@ -76,7 +81,7 @@ function resolveAllTargetBindings(
       unitDefinitions,
     );
     resolvedBindingUnits.set(binding.targetBindingId, units);
-    if (units.length === 0) {
+    if (units.length === 0 && binding.optional !== true) {
       return { bindings: resolvedBindingUnits, allResolvable: false };
     }
   }
