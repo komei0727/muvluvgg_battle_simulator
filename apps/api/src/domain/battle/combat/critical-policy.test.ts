@@ -162,12 +162,12 @@ describe("resolveCritical", () => {
     random.assertFullyConsumed();
   });
 
-  it("UT-R-CRT-02-001: a critical hit multiplies by 150% plus the criticalDamageBonus", () => {
+  it("UT-R-CRT-02-001: a critical hit multiplies by 100% plus the criticalDamageBonus", () => {
     const random = new SequenceRandomSource([]);
 
     const result = resolveCritical("GUARANTEED", createPercentage(0), 0.25, random);
 
-    expect(result.multiplier).toBeCloseTo(1.75);
+    expect(result.multiplier).toBeCloseTo(1.25);
   });
 
   it("UT-R-CRT-02-002: a non-critical hit always multiplies by 100%, regardless of criticalDamageBonus", () => {
@@ -176,6 +176,33 @@ describe("resolveCritical", () => {
     const result = resolveCritical("PREVENTED", createPercentage(1), 0.9, random);
 
     expect(result.multiplier).toBe(1);
+  });
+
+  // `criticalDamageBonus`は既定値50%（Q-CAT-05）を含んだユニットステータスであり、
+  // R-CRT-02の「150%」はその既定値込みの結果である。倍率式が150%を別途足すと既定値が
+  // 二重に乗るため、既定値そのものを入力にした倍率をここで固定する。
+  it("UT-R-CRT-02-003: the default 50% criticalDamageBonus yields exactly the 150% critical multiplier", () => {
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveCritical("GUARANTEED", createPercentage(0), 0.5, random);
+
+    expect(result.multiplier).toBeCloseTo(1.5);
+  });
+
+  it("UT-R-CRT-02-004: gear and buffs raise the multiplier by the same percentage points they add to the bonus", () => {
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveCritical("GUARANTEED", createPercentage(0), 1.05, random);
+
+    expect(result.multiplier).toBeCloseTo(2.05);
+  });
+
+  it("UT-R-CRT-02-005: a zero criticalDamageBonus leaves a critical hit at 100%", () => {
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveCritical("GUARANTEED", createPercentage(0), 0, random);
+
+    expect(result.multiplier).toBeCloseTo(1);
   });
 });
 

@@ -164,10 +164,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:front"],
         },
       ],
-      // 会心倍率は 1.5 + 会心ダメージ上昇率 0.5 = 2.0。
+      // 会心倍率は 1.0 + 会心ダメージ上昇率 0.5 = 1.5。
       hpDeltas: {
-        "enemy:front": -936,
-        "enemy:left": -936,
+        "enemy:front": -702,
+        "enemy:left": -702,
       },
       effectsApplied: [
         {
@@ -293,11 +293,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:back"],
         },
       ],
-      // 会心5ヒット 284×5 に、被ダメージ+100%を受けた追撃1ヒット 284×2 が続く。
+      // 会心5ヒット 213×5 に、被ダメージ+100%を受けた追撃1ヒット 213×2 が続く。
       hpDeltas: {
-        "enemy:front": -1988,
-        "enemy:left": -1988,
-        "enemy:back": -1988,
+        "enemy:front": -1491,
+        "enemy:left": -1491,
+        "enemy:back": -1491,
       },
     },
   },

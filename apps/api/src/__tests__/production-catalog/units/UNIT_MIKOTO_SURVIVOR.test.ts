@@ -654,8 +654,8 @@ describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーン�
     expect(buffed.criticals).toEqual([
       { mode: "GUARANTEED", baseCriticalRate: 0, effectiveCriticalRate: 0, result: true },
     ]);
-    // 攻撃力1000 - 防御力500 = 500 に会心倍率2.0（150% + 会心ダメージボーナス50%）。
-    expect(buffed.hpDeltas).toEqual({ "enemy:front": -1000 });
+    // 攻撃力1000 - 防御力500 = 500 に会心倍率1.5（100% + 会心ダメージボーナス50%）。
+    expect(buffed.hpDeltas).toEqual({ "enemy:front": -750 });
 
     // 会心保証を抜いた対照。同じ一撃が `NORMAL` のまま抽選を1つ消費し、会心率0%で外す。
     const controlRandom = new SequenceRandomSource([0.5]);

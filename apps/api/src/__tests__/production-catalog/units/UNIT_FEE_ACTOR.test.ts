@@ -429,8 +429,8 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
       battleId: "B_FEE_CONSUME",
     });
 
-    // 攻撃力1000 - 防御力500 = 500 に会心倍率（R-CRT-02: 150% + 会心ダメージ50%）が乗る。
-    expect(probe.hpDeltas).toEqual({ "enemy:front": -1000 });
+    // 攻撃力1000 - 防御力500 = 500 に会心倍率（R-CRT-02: 100% + 会心ダメージ50%）が乗る。
+    expect(probe.hpDeltas).toEqual({ "enemy:front": -750 });
     // 消費が0まで進み、その攻撃の解決後に失効する（`CONSUMPTION`）。
     expect(
       probe.recorder

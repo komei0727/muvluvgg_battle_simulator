@@ -103,10 +103,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_LUNA_HUNGRY_AS1_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_LUNA_HUNGRY_AS1_DAMAGE", targets: ["enemy:back"] },
       ],
-      // 会心確定の一撃は会心倍率（1.5 + 会心ダメージ補正0.5）で585 × 2、
+      // 会心確定の一撃は会心倍率（1 + 会心ダメージ補正0.5）で585 × 1.5 = 877.5 → 877、
       // 隣接2体は会心指定のない585。
       hpDeltas: {
-        "enemy:front": -1170,
+        "enemy:front": -877,
         "enemy:left": -585,
         "enemy:back": -585,
       },

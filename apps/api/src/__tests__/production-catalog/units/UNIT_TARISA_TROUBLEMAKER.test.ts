@@ -829,7 +829,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(critical.criticals).toEqual([
       { mode: "NORMAL", baseCriticalRate: 1, effectiveCriticalRate: 1, result: true },
     ]);
-    expect(critical.hpDeltas).toEqual({ "enemy:front": -1000 });
+    expect(critical.hpDeltas).toEqual({ "enemy:front": -750 });
   });
 
   it("IT-UNIT-TARISA-TROUBLEMAKER-010 (R-EFF-02/R-EFF-03): AS1が配る実「会心不可」はデバフであって定義済み状態異常ではない — 実 resolver の分類が `DEBUFF` だけで、デバフ解除で消え、バフ解除では残り、EXが配る実デバフ免疫が付与そのものを弾く。公開差分だけからも同じ状態へ復元できる", () => {

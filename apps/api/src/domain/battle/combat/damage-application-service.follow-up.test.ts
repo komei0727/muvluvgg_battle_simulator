@@ -235,8 +235,8 @@ describe("applyFollowUpAttacksSteps (R-FUP-01)", () => {
     drive(context, working, "ATTACKER", [rider()], ["TARGET"], true);
 
     const after = working.get(target.battleUnitId)!;
-    // (60 - 10) x (1.5 + 0.5) = 100。
-    expect(after.currentHp).toBe(500 - 100);
+    // (60 - 10) x (1 + 0.5) = 75。
+    expect(after.currentHp).toBe(500 - 75);
     const criticalChecks = context.recorder
       .getEvents()
       .filter((event) => event.eventType === "CriticalCheckResolved");

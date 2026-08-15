@@ -183,9 +183,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_FEE_BATH_AS2_MARKER", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_FEE_BATH_AS2_MARKER_CRIT", targets: ["enemy:front"] },
       ],
-      // 会心倍率は1.5＋会心ダメージ0.5＝2.0倍。1ヒット468×3ヒット。
+      // 会心倍率は1.0＋会心ダメージ0.5＝1.5倍。1ヒット351×3ヒット。
       hpDeltas: {
-        "enemy:front": -1404,
+        "enemy:front": -1053,
       },
       markers: [{ unitId: "enemy:front", markerId: FLUSH, stackCount: 2 }],
       resources: [

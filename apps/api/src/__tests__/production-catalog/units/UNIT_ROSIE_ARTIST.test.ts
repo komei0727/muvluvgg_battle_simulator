@@ -186,11 +186,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
       ],
-      // 会心2ヒット 1170 + 390。前列へはさらにPS3の追撃が入り、その1発が
+      // 会心2ヒット 877 + 292（会心倍率1.5）。前列へはさらにPS3の追撃が入り、その1発が
       // `ACT_ROSIE_ARTIST_AS1_DMG_UP`（次の攻撃+25%）を消費する。
       hpDeltas: {
-        "enemy:front": -2106,
-        "enemy:left": -1560,
+        "enemy:front": -1579,
+        "enemy:left": -1169,
       },
       effectsApplied: [
         {
@@ -513,10 +513,10 @@ describe("production Catalog UNIT_ROSIE_ARTIST (【空想造形アーティス�
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
       ],
       // enemy:front は非会心の585 + 追撃195 + PS3の追撃273（`ACT_ROSIE_ARTIST_AS1_DMG_UP`
-      // の+25%を消費した218）。enemy:left は会心の1170（会心倍率2.0）+ 追撃195。
+      // の+25%を消費した218）。enemy:left は会心の877（会心倍率1.5）+ 追撃195。
       hpDeltas: {
         "enemy:front": -1053,
-        "enemy:left": -1365,
+        "enemy:left": -1072,
       },
       effectsApplied: [
         {

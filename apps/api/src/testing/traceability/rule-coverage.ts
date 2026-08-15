@@ -1665,10 +1665,22 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
+  // Issue #476: 会心ダメージボーナスは既定値50%（Q-CAT-05）を含んだユニット
+  // ステータスであり、会心倍率の基準は100%である（Q-DMG-09）。`UT-R-CRT-02-003`が
+  // 既定値ちょうどで150%になることを、`IT-AUDIT-BONUS-001`がCatalog既定値からの
+  // 経路ごと固定する — 倍率式だけを見るテストでは、既定値の出所と基準の乖離を
+  // 検出できないため。
   {
     ruleId: "R-CRT-02",
-    testCaseIds: ["UT-R-CRT-02-001", "UT-R-CRT-02-002"],
-    kinds: ["POSITIVE"],
+    testCaseIds: [
+      "UT-R-CRT-02-001",
+      "UT-R-CRT-02-002",
+      "UT-R-CRT-02-003",
+      "UT-R-CRT-02-004",
+      "UT-R-CRT-02-005",
+      "IT-AUDIT-BONUS-001",
+    ],
+    kinds: ["POSITIVE", "BOUNDARY"],
   },
   // DMG-003A（Issue #295）で新設。R-CRT-03「会心保証・会心不可」は、使用者が持つ
   // `CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`効果を攻撃側定義の`critical.mode`へ
@@ -1723,6 +1735,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "PROPERTY"],
   },
+  // Issue #476: 属性相性ボーナスも既定値25%を含んだユニットステータスで、有利属性
+  // 倍率の基準は100%である（Q-DMG-09）。会心側と同じ構成で`IT-AUDIT-BONUS-002`が
+  // Catalog既定値からの経路を固定する。
   {
     ruleId: "R-ATR-02",
     testCaseIds: [
@@ -1731,6 +1746,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ATR-02-003",
       "UT-R-ATR-02-004",
       "UT-R-ATR-02-005",
+      "UT-R-ATR-02-006",
+      "IT-AUDIT-BONUS-002",
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
@@ -1751,6 +1768,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "PROP-DMG-01-002",
       "PROP-DMG-01-003",
       "PROP-DMG-01-004",
+      // Issue #476: 属性倍率と会心倍率が同じ一撃へ重なったときの積を、Catalog既定値
+      // だけを持つユニットで固定する（Q-DMG-09）。
+      "IT-AUDIT-BONUS-003",
       // M7-015（Issue #269）: R-DMG-01の「Action内追加ダメージ倍率」を、
       // production定義（`ACT_KARINA_DOWNER_AS1_DAMAGE`／`ACT_FEE_BATH_AS2_DAMAGE`の
       // `damageModifiers`）が実際に使う`MARKER_COUNT_SCALE`で実測した。同一AOE解決の

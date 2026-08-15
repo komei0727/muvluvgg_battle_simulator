@@ -123,11 +123,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:back"],
         },
       ],
-      // 568（(1000-500)×113.76%）。後列は会心確定で、会心倍率2倍は切り捨て前に
-      // 掛かるため568.8×2の切り捨て1137になる。
+      // 568（(1000-500)×113.76%）。後列は会心確定で、会心倍率1.5倍は切り捨て前に
+      // 掛かるため568.8×1.5の切り捨て853になる。
       hpDeltas: {
         "enemy:left": -568,
-        "enemy:back": -1137,
+        "enemy:back": -853,
       },
     },
   },
@@ -147,7 +147,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       hpDeltas: {
         "enemy:front": -568,
-        "enemy:back": -1137,
+        "enemy:back": -853,
       },
     },
   },
@@ -538,10 +538,10 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
         },
       ],
       // 中央列の敵はどちらのbindingにも入らない。右列後段の敵だけが列への一撃
-      // （568）と後列への会心攻撃（1137）を重ねて受ける。
+      // （568）と後列への会心攻撃（853）を重ねて受ける。
       hpDeltas: {
         "enemy:left": -568,
-        "enemy:right": -1705,
+        "enemy:right": -1421,
       },
     });
 
@@ -565,7 +565,7 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
       ],
       hpDeltas: {
         "enemy:front": -568,
-        "enemy:back": -1137,
+        "enemy:back": -853,
       },
     });
   });

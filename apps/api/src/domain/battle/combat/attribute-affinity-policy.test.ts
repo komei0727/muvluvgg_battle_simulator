@@ -70,9 +70,12 @@ describe("isFavorableAttribute — R-ATR-01 有利属性", () => {
 });
 
 describe("resolveAttributeMultiplier — R-ATR-02 属性倍率", () => {
-  it("UT-R-ATR-02-001: a favorable matchup multiplies by 125% plus the attacker's affinity bonus", () => {
+  // `affinityBonus`は既定値25%（Q-CAT-05）を含んだユニットステータスであり、
+  // R-ATR-02の「125%」はその既定値込みの結果である。倍率式が125%を別途足すと
+  // 既定値が二重に乗るため、既定値そのものを入力にした倍率をここで固定する。
+  it("UT-R-ATR-02-001: the default 25% affinity bonus yields exactly the 125% favorable multiplier", () => {
     const result = resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(0.25));
-    expect(result).toBeCloseTo(1.5);
+    expect(result).toBeCloseTo(1.25);
   });
 
   it("UT-R-ATR-02-002: a non-favorable matchup always multiplies by exactly 100%, ignoring the affinity bonus", () => {
@@ -80,8 +83,13 @@ describe("resolveAttributeMultiplier — R-ATR-02 属性倍率", () => {
     expect(result).toBeCloseTo(1);
   });
 
-  it("UT-R-ATR-02-003: zero affinity bonus on a favorable matchup still applies the base 125%", () => {
+  it("UT-R-ATR-02-003: a raised affinity bonus adds the same percentage points to the favorable multiplier", () => {
+    const result = resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(0.35));
+    expect(result).toBeCloseTo(1.35);
+  });
+
+  it("UT-R-ATR-02-006: a zero affinity bonus leaves a favorable matchup at 100%", () => {
     const result = resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(0));
-    expect(result).toBeCloseTo(1.25);
+    expect(result).toBeCloseTo(1);
   });
 });
