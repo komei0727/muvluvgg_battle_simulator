@@ -11,6 +11,7 @@ import { createBattleUnitId } from "../../domain/shared/ids.js";
 import { createPercentage } from "../../domain/shared/percentage.js";
 import type { Side } from "../../domain/shared/side.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../testing/fixtures/battle-actors.js";
 
 /**
  * Issue #476: 会心ダメージボーナス・属性相性ボーナスは、既定値（Q-CAT-05の50%／25%）
@@ -73,6 +74,7 @@ const COMBAT_STATS = calculateStartingCombatStats({
 function probeUnit(id: string, side: Side): BattleUnit {
   const position = { row: "FRONT", column: "LEFT" } as const;
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: PROBE_DEFINITION.unitDefinitionId,
     attribute: PROBE_DEFINITION.attribute,

@@ -19,6 +19,7 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import type { EventSelector } from "./trigger-selector-evaluator.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 interface TriggerSpec {
   readonly eventType: string;
@@ -38,6 +39,7 @@ function unit(
   overrides: Partial<BattleUnit> = {},
 ): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId,
     attribute: "AGGRESSIVE",

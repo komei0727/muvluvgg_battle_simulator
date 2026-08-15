@@ -102,19 +102,26 @@ export function createBattleParty(
     });
   }
 
-  const members: BattlePartyMember[] = slotUnits.map(({ slot, unitDefinition }, index) => ({
-    battleUnitId: battleUnitIds[index]!,
-    unitDefinitionId: slot.unitDefinitionId,
-    attribute: unitDefinition.attribute,
-    position: slot.position,
-    globalCoordinate: toGlobalCoordinate(side, slot.position),
-    combatStats: calculateStartingCombatStats({
-      baseStats: resolveBaseStats(unitDefinition, slot),
-      positionAptitudes: unitDefinition.positionAptitudes,
-      row: slot.position.row,
-      formationBonus,
-    }),
-  }));
+  const members: BattlePartyMember[] = slotUnits.map(({ slot, unitDefinition }, index) => {
+    // 強化計算は1参加枠につき1回だけ行い、その結果を`combatStats`の算出元と
+    // `enhancedBaseStats`の公開値で共有する。同じ値を2経路で算出すると、片方だけ
+    // 変更されたときに両者がずれても双方「仕様どおり」に見えてしまう。
+    const baseStats = resolveBaseStats(unitDefinition, slot);
+    return {
+      battleUnitId: battleUnitIds[index]!,
+      unitDefinitionId: slot.unitDefinitionId,
+      attribute: unitDefinition.attribute,
+      position: slot.position,
+      globalCoordinate: toGlobalCoordinate(side, slot.position),
+      combatStats: calculateStartingCombatStats({
+        baseStats,
+        positionAptitudes: unitDefinition.positionAptitudes,
+        row: slot.position.row,
+        formationBonus,
+      }),
+      enhancedBaseStats: baseStats,
+    };
+  });
 
   return {
     side,

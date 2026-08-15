@@ -19,6 +19,18 @@ const RESULT: FormationStatPreviewResult = {
         affinityBonus: 0.25,
         criticalDamageBonus: 0.5,
       },
+      // 編成補正・適性補正の適用前。`combatStats`とは別の値にして、取り違えを検知する。
+      enhancedBaseStats: {
+        maximumHp: 1000,
+        attack: 80.5,
+        defense: 40,
+        criticalRate: 0.1,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0.25,
+        actionSpeed: 12,
+        maximumAp: 3,
+        maximumPp: 4,
+      },
     },
   ],
 };
@@ -52,5 +64,23 @@ describe("toFormationStatPreviewResponseBody", () => {
       affinityBonus: 25,
       criticalDamageBonus: 50,
     });
+  });
+
+  it("API-STAT-PREVIEW-013 (10_API設計.md「FormationStatPreviewUnitResponse」/R-ENH-06): publishes the enhanced base stats in the same units as combatStats, without the resource maximums", () => {
+    const unit = toFormationStatPreviewResponseBody(RESULT).units[0]!;
+
+    // 比率3項目は`combatStats`と同じくパーセントポイントで公開する。
+    expect(unit.enhancedBaseStats).toEqual({
+      maximumHp: 1000,
+      attack: 80.5,
+      defense: 40,
+      criticalRate: 10,
+      actionSpeed: 12,
+      affinityBonus: 25,
+      criticalDamageBonus: 50,
+    });
+    // AP/PPはプレビューの表示対象ではないため公開しない。
+    expect(unit.enhancedBaseStats).not.toHaveProperty("maximumAp");
+    expect(unit.enhancedBaseStats).not.toHaveProperty("maximumPp");
   });
 });

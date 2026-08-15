@@ -17,9 +17,11 @@ import {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { createPercentage } from "../../shared/percentage.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function member(overrides: Partial<BattlePartyMember> = {}): BattlePartyMember {
   return {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("BU_1"),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

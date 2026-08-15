@@ -24,6 +24,7 @@ import type { ResourceKind } from "../../catalog/definitions/catalog-enums.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { EffectInstanceId } from "../../shared/event-ids.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const BASE_COMBAT_STATS: CombatStats = {
   maximumHp: 1000,
@@ -38,6 +39,7 @@ const BASE_COMBAT_STATS: CombatStats = {
 function unit(overrides: Partial<BattleUnit> = {}): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("BU_1"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",
@@ -208,6 +210,7 @@ describe("recalculateResourceCapacities defeat detection (R-TEX-03)", () => {
     const position: FormationPosition = { column: "LEFT", row: "FRONT" };
     const stats: CombatStats = { ...BASE_COMBAT_STATS, maximumHp };
     const member: BattlePartyMember = {
+      enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
       battleUnitId: createBattleUnitId("BU_ENEMY"),
       unitDefinitionId: createUnitDefinitionId("UNIT_A"),
       attribute: "AGGRESSIVE",

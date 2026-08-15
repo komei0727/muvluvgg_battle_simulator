@@ -53,11 +53,33 @@ export const formationStatPreviewRequestDocSchema = {
   },
 } as const;
 
+/**
+ * `10_API設計.md`「FormationStatPreviewUnitResponse」: R-ENH-06の強化後基本
+ * ステータス（編成補正・適性補正の適用前）。比率3項目の単位は`CombatStatsResponse`と
+ * 同じパーセントポイントであり、`maximumHp`だけを補って同形にする。
+ */
+const formationStatPreviewBaseStatsResponseSchema = {
+  ...combatStatsResponseSchema,
+  required: [...combatStatsResponseSchema.required, "maximumHp"],
+  properties: {
+    ...combatStatsResponseSchema.properties,
+    // R-NUM-01: 補正後の`maximumHp`と同じく丸めない全精度値。
+    maximumHp: { type: "number", minimum: 0 },
+  },
+} as const;
+
 /** `10_API設計.md`「FormationStatPreviewUnitResponse」。 */
 const formationStatPreviewUnitResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["side", "unitDefinitionId", "formationPosition", "maximumHp", "combatStats"],
+  required: [
+    "side",
+    "unitDefinitionId",
+    "formationPosition",
+    "maximumHp",
+    "combatStats",
+    "enhancedBaseStats",
+  ],
   properties: {
     side: { type: "string", enum: ["ALLY", "ENEMY"] },
     unitDefinitionId: { type: "string" },
@@ -65,6 +87,7 @@ const formationStatPreviewUnitResponseSchema = {
     // R-NUM-01: `BattleUnitStateResponse.hp.maximum`と同じく丸めない全精度値。
     maximumHp: { type: "number", minimum: 0 },
     combatStats: combatStatsResponseSchema,
+    enhancedBaseStats: formationStatPreviewBaseStatsResponseSchema,
   },
 } as const;
 

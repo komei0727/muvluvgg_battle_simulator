@@ -3,6 +3,7 @@ import type {
   MemoryDefinitionId,
   UnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { BaseStats } from "../../catalog/definitions/unit-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { FormationBonus } from "./formation-bonus-calculator.js";
 import type { FormationPosition } from "./formation-input.js";
@@ -20,6 +21,14 @@ export interface BattlePartyMember {
   readonly globalCoordinate: GlobalCoordinate;
   /** R-STA-01: 配置適性・編成補正・Memory補正を含む開始時の戦闘中ステータス。 */
   readonly combatStats: CombatStats;
+  /**
+   * R-ENH-06: `combatStats` の算出元になったR-STA-01の基本値。編成補正・適性補正を
+   * **適用する前**の値であり、`BattleUnit.baseCombatStats`（補正を適用した後の、
+   * 戦闘中割合補正の再計算基準）とは別物である。
+   *
+   * 強化指定のない陣営では `UnitDefinition.baseStats` と一致する。
+   */
+  readonly enhancedBaseStats: BaseStats;
 }
 
 export interface BattleParty {

@@ -10,6 +10,7 @@ import { createBattleParty } from "../../domain/formation/formation-factory.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { BaseStats } from "../../domain/catalog/definitions/unit-definition.js";
 import type { BattleCatalogDirectory } from "../../domain/ports/battle-catalog-directory.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { DomainValidationError } from "../../domain/shared/errors.js";
@@ -23,6 +24,12 @@ export interface FormationStatPreviewUnit {
   readonly position: FormationPosition;
   /** R-STA-01適用後の開始時ステータス。最大HPを含み、R-NUM-01に従い丸めない。 */
   readonly combatStats: CombatStats;
+  /**
+   * R-ENH-06の強化後基本ステータス。`combatStats`の算出元であり、編成補正・
+   * 適性補正を適用する前の値である（R-STA-01の基本値）。強化指定のない陣営では
+   * ユニット定義の基本ステータスと一致する。
+   */
+  readonly enhancedBaseStats: BaseStats;
 }
 
 export interface FormationStatPreviewResult {
@@ -71,6 +78,7 @@ function previewUnits(
     unitDefinitionId: member.unitDefinitionId,
     position: member.position,
     combatStats: member.combatStats,
+    enhancedBaseStats: member.enhancedBaseStats,
   }));
 }
 

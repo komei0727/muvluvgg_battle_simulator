@@ -617,6 +617,15 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
         "actionSpeed": 120,
         "affinityBonus": 25,
         "criticalDamageBonus": 50
+      },
+      "enhancedBaseStats": {
+        "maximumHp": 11223,
+        "attack": 1122.3,
+        "defense": 522.2,
+        "criticalRate": 10,
+        "actionSpeed": 120,
+        "affinityBonus": 25,
+        "criticalDamageBonus": 50
       }
     }
   ]
@@ -633,17 +642,22 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 ### FormationStatPreviewUnitResponse
 
-| プロパティ          | 型                    | 説明                                                            |
-| ------------------- | --------------------- | --------------------------------------------------------------- |
-| `side`              | string                | `ALLY` または `ENEMY`。                                         |
-| `unitDefinitionId`  | string                | 元となるユニット定義ID。                                        |
-| `formationPosition` | object                | `{ column, row }`。リクエストと同じ陣営内表現。                 |
-| `maximumHp`         | number                | 開始時の最大HP。`BattleUnitStateResponse.hp.maximum` と同じ値。 |
-| `combatStats`       | `CombatStatsResponse` | 開始時の戦闘中ステータス（後述の戦闘状態と同じ形・同じ単位）。  |
+| プロパティ          | 型                    | 説明                                                                                                     |
+| ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `side`              | string                | `ALLY` または `ENEMY`。                                                                                  |
+| `unitDefinitionId`  | string                | 元となるユニット定義ID。                                                                                 |
+| `formationPosition` | object                | `{ column, row }`。リクエストと同じ陣営内表現。                                                          |
+| `maximumHp`         | number                | 開始時の最大HP。`BattleUnitStateResponse.hp.maximum` と同じ値。                                          |
+| `combatStats`       | `CombatStatsResponse` | 開始時の戦闘中ステータス（後述の戦闘状態と同じ形・同じ単位）。                                           |
+| `enhancedBaseStats` | object                | `R-ENH-06` の強化後基本ステータス。`CombatStatsResponse` と同じ形・同じ単位に `maximumHp` を加えたもの。 |
 
 同じ編成・強化指定で `POST /api/v1/battle-simulations` を実行したときの `initialState.units[]` の `combatStats` と `hp.maximum` に一致する。プレビューは戦闘開始時の値だけを返し、`BattleStarted` で解決されるMemory由来の `triggeredEffects`（`R-MEM-03`）や戦闘中のバフ・デバフは含まない。
 
 `maximumHp` は `CombatStatsResponse` が `maximumHp` を持たない（公開上の置き場所が `hp.maximum` である）ため、ユニット直下へ置く。`R-NUM-01` に従い丸めない——`BattleUnitStateResponse.hp.maximum` も同じく丸めない全精度値であり、ここで整数へ落とすと両者が一致しなくなる。表示上の丸めはクライアントの責務とする。
+
+`enhancedBaseStats` は `combatStats` の算出元になった `R-STA-01` の基本値であり、編成補正（`R-BON-01`〜`03`）と適性補正を**適用する前**の値である。編成画面が補正込みの値と補正前の値を切り替えて示せるように公開する。強化指定のない陣営ではユニット定義の基本ステータスと一致する。`maximumHp` は `combatStats` 側と違ってこのオブジェクトの内側へ置く——外側へ出す理由（`hp.maximum` との公開上の対応）が補正前の値には無いためである。AP・PPは編成画面の表示対象ではないため含めない。`R-NUM-01` に従い丸めない。
+
+補正の内訳（編成補正・適性補正それぞれの量）は返さない。`combatStats` との差から逆算できるのは合成後の補正量だけであり、内訳が要るようになった時点で改めて公開項目を決める。
 
 ## 戦闘状態
 

@@ -24,6 +24,7 @@ import type { SkillDefinition } from "../../catalog/definitions/skill-definition
 import type { BattleUnitId } from "../../shared/ids.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 const POSITION = { column: "LEFT", row: "FRONT" } as const;
@@ -35,6 +36,7 @@ const GENEROUS_LIMITS = {
 
 function unit(id: string): BattleUnit {
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

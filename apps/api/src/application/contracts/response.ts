@@ -400,6 +400,20 @@ export interface FormationStatPreviewUnitResponseBody {
   readonly formationPosition: FormationPositionResponseBody;
   readonly maximumHp: number;
   readonly combatStats: CombatStatsResponseBody;
+  readonly enhancedBaseStats: FormationStatPreviewBaseStatsResponseBody;
+}
+
+/**
+ * `10_API設計.md`「FormationStatPreviewUnitResponse」: R-ENH-06の強化後基本
+ * ステータス（編成補正・適性補正の適用前）。単位は `CombatStatsResponse` と同じで、
+ * 比率3項目はパーセントポイントで公開する。
+ *
+ * `maximumHp` は `combatStats` 側と違って内側に置く —— 外側へ出す理由（`hp.maximum`
+ * との公開上の対応）が補正前の値には無く、1オブジェクトで完結させたほうが
+ * クライアントの取り違えが起きにくいため。AP/PPはプレビューの表示対象外なので含めない。
+ */
+export interface FormationStatPreviewBaseStatsResponseBody extends CombatStatsResponseBody {
+  readonly maximumHp: number;
 }
 
 export interface FormationStatPreviewResponseBody {

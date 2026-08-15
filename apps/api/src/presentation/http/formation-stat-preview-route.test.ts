@@ -52,6 +52,18 @@ const RESULT: FormationStatPreviewResult = {
         affinityBonus: 0.25,
         criticalDamageBonus: 0.5,
       },
+      // 編成補正・適性補正の適用前。`combatStats`とは別の値にして取り違えを検知する。
+      enhancedBaseStats: {
+        maximumHp: 900,
+        attack: 80,
+        defense: 40,
+        criticalRate: 0.1,
+        criticalDamageBonus: 0.5,
+        affinityBonus: 0.25,
+        actionSpeed: 12,
+        maximumAp: 3,
+        maximumPp: 4,
+      },
     },
   ],
 };
@@ -93,9 +105,31 @@ describe("POST /api/v1/formation-stat-previews", () => {
             affinityBonus: 25,
             criticalDamageBonus: 50,
           },
+          enhancedBaseStats: {
+            maximumHp: 900,
+            attack: 80,
+            defense: 40,
+            criticalRate: 10,
+            actionSpeed: 12,
+            affinityBonus: 25,
+            criticalDamageBonus: 50,
+          },
         },
       ],
     });
+  });
+
+  it("API-STAT-PREVIEW-009 (10_API設計.md「FormationStatPreviewUnitResponse」): the response schema publishes enhancedBaseStats instead of dropping it as an unlisted property", async () => {
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, { previewUseCase: previewUseCase() });
+
+    const response = await app.inject({ method: "POST", url: PREVIEW_PATH, payload: REQUEST_BODY });
+
+    // fastifyはレスポンスschema未記載のフィールドを黙って落とすため、
+    // schemaへの追加漏れはmapperのテストでは捕まらない。
+    const unit = response.json<FormationStatPreviewResponseBody>().units[0]!;
+    expect(unit.enhancedBaseStats.attack).toBe(80);
+    expect(unit.enhancedBaseStats.maximumHp).toBe(900);
+    expect(unit.enhancedBaseStats.criticalRate).toBe(10);
   });
 
   it("API-STAT-PREVIEW-008 (R-TEX-11 #5): passes mode through to the use case, and omits it when the request omits it", async () => {

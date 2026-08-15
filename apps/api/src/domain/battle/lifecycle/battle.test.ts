@@ -25,9 +25,11 @@ import type { TargetSelectorDefinition } from "../../catalog/definitions/target-
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function member(id: string, overrides: Partial<BattlePartyMember> = {}): BattlePartyMember {
   return {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

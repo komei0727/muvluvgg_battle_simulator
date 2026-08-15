@@ -26,6 +26,7 @@ import type { EffectActionDefinition } from "../../catalog/definitions/effect-ac
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { createRuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
@@ -41,6 +42,7 @@ function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: overrides.unitDefinitionId ?? createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",

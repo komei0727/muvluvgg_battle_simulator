@@ -36,6 +36,7 @@ import type {
   CriticalMode,
 } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "./battle-actors.js";
 
 /**
  * `damage-application-service.*.test.ts`の各スイートが共有する、ダメージpipeline用の
@@ -67,6 +68,7 @@ export function unit(
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: overrides.attribute ?? "AGGRESSIVE",

@@ -21,11 +21,13 @@ import type { Side } from "../../shared/side.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
 function member(id: string, overrides: Partial<BattlePartyMember> = {}): BattlePartyMember {
   return {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: "AGGRESSIVE",

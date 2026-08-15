@@ -18,10 +18,12 @@ import {
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
+import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 function unitWithShields(shields: readonly AppliedEffect[]): BattleUnit {
   const position = { row: "FRONT" as const, column: "LEFT" as const };
   const member: BattlePartyMember = {
+    enhancedBaseStats: UNUSED_ENHANCED_BASE_STATS,
     battleUnitId: createBattleUnitId("ally:1"),
     unitDefinitionId: createUnitDefinitionId("UNIT_A"),
     attribute: "AGGRESSIVE",
