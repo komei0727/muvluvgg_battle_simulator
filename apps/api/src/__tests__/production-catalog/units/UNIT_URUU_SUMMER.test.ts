@@ -533,6 +533,23 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_URUU_SUMMER_EX",
+    intent: "同上: 敵が1体だけで隣接対象がいなくてもEXは発動する（発動不能ならEXゲージを全量失う）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_URUU_SUMMER_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_URUU_SUMMER_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -1325,
+      },
+    },
+  },
 ];
 
 describe("production Catalog UNIT_URUU_SUMMER (【夏色シャイガール】波瀬うるう)", () => {

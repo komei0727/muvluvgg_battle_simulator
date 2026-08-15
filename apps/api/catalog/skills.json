@@ -1177,6 +1177,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -3829,6 +3830,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -4323,6 +4325,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -4737,6 +4740,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -5386,6 +5390,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -5613,6 +5618,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -6063,6 +6069,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -6165,6 +6172,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
@@ -7332,6 +7340,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -7939,6 +7948,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -8118,6 +8128,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -8925,6 +8936,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -10432,6 +10444,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -10586,6 +10599,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
@@ -11303,6 +11317,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT_ALLY",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ALLY",
@@ -11496,6 +11511,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -11948,6 +11964,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -16188,6 +16205,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",

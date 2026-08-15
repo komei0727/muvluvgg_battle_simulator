@@ -36,6 +36,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT_ALLY",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ALLY",

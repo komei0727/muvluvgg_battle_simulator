@@ -350,6 +350,53 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_NANAE_COMMANDER_AS1",
+    intent: "同上: 隣接する味方がいなくても、最も近い敵への炎上付与は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NANAE_COMMANDER_AS1" },
+    board: {
+      allies: [],
+      enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NANAE_COMMANDER_AS1_BURN",
+          targets: ["enemy:front"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_NANAE_COMMANDER_AS1_BURN",
+          magnitude: 300,
+          timeLimit: {
+            unit: "ACTION",
+            count: 5,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -2,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 2,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_NANAE_COMMANDER_AS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_NANAE_COMMANDER (【オールラウンダーな統率者】鳴滝七彩)", () => {

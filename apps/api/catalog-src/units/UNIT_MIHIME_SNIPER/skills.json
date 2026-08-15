@@ -173,6 +173,7 @@
         },
         {
           "targetBindingId": "TGT_ADJ",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",

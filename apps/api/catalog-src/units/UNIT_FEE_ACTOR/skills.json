@@ -48,6 +48,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },

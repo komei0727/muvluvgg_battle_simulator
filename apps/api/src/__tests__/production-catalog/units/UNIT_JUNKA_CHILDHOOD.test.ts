@@ -161,6 +161,63 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
+    skillDefinitionId: "SKL_JUNKA_CHILDHOOD_AS1",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、その1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_JUNKA_CHILDHOOD_AS1" },
+    board: {
+      enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE_EXTRA",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -976,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF",
+          magnitude: -0.2,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_JUNKA_CHILDHOOD_AS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
+  {
     skillDefinitionId: "SKL_JUNKA_CHILDHOOD_AS2",
     intent: "敵単体へ威力53で4ヒット攻撃する（対象が生き残ればAP回復はしない）",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_JUNKA_CHILDHOOD_AS2" },

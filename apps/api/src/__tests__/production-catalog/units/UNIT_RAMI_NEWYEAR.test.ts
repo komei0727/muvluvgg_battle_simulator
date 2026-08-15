@@ -429,6 +429,39 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_RAMI_NEWYEAR_EX",
+    intent: "同上: 敵が1体だけで隣接対象がいなくてもEXは発動する（発動不能ならEXゲージを全量失う）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAMI_NEWYEAR_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_RAMI_NEWYEAR_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_RAMI_NEWYEAR_EX_FREEZE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -585,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_RAMI_NEWYEAR_EX_FREEZE",
+          magnitude: 0,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+          statusKind: "FREEZE",
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_RAMI_NEWYEAR (【大吉ハッピーニューイヤー】朽葉ラミ)", () => {

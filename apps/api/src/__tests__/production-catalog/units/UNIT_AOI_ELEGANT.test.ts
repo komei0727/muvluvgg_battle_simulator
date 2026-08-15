@@ -487,6 +487,46 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_AOI_ELEGANT_AS2",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、最も遠い1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_AOI_ELEGANT_AS2" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_AOI_ELEGANT_AS2_MARKER",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -424,
+      },
+      markers: [
+        {
+          unitId: "enemy:front",
+          markerId: "MARKER_AOI_ELEGANT_UKIASHI",
+          stackCount: 1,
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生駒葵)", () => {

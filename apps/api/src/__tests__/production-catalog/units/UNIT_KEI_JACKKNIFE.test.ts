@@ -318,6 +318,53 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_KEI_JACKKNIFE_AS1",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、その1体への攻撃と自身の「狼心」は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_KEI_JACKKNIFE_AS1" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_KEI_JACKKNIFE_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_KEI_JACKKNIFE_AS1_MARKER",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -758,
+      },
+      markers: [
+        {
+          unitId: "ally:subject",
+          markerId: "MARKER_ROUSHIN",
+          stackCount: 1,
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_KEI_JACKKNIFE_AS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナイフ】彩峰慧)", () => {

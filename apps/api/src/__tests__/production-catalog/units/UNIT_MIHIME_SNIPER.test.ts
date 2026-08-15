@@ -286,6 +286,63 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_MIHIME_SNIPER_AS2",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、その1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIHIME_SNIPER_AS2" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE1",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SELF_SPD_DOWN",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -585,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SELF_SPD_DOWN",
+          magnitude: -35,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
+          magnitude: -20,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_MIHIME_SNIPER (【稀代の狙撃手】珠瀬壬姫)", () => {
