@@ -1,4 +1,4 @@
-// Mirrors docs/ui-design/07_UI実装・拡張計画.md §9 (M5 行動ライフサイクル拡張):
+// Mirrors the M5 行動ライフサイクル拡張 display contract:
 // cooldown/chargeをbattleUnitId単位で追跡する。apps/api/src/application/
 // simulate-battle-response-mapper.ts の finalState.units[].cooldowns/charge
 // はM5実装後、Domainの実値を返す(cooldownsは残数>0のスキルだけの配列)。
@@ -6,7 +6,7 @@
 // 見ない）なので、これを正本として読む(SUMMARYログの
 // 「不明」表示問題は、finalStateを使う限りそもそも発生しない)。
 //
-// DMG-010（Issue #191、07_UI実装・拡張計画.md §12）でシールドプール
+// DMG-010（Issue #191）でシールドプール
 // （`finalState.units[].shields`）とサブユニット（`subUnits`）を追加した。
 // どちらも同じ後方互換規約に従い、配列・オブジェクトが無いfixtureでは
 // 「なし」ではなく不明として返す。
@@ -363,7 +363,7 @@ const actionStateAdapters: Readonly<Record<string, ActionStateEventAdapter>> = {
   CHARGE_RELEASED: applyChargeReleased,
 };
 
-// docs/ui-design/07_UI実装・拡張計画.md §9完了条件「cooldown/charge状態を
+// M5 行動ライフサイクル拡張の完了条件「cooldown/charge状態を
 // battleUnitId単位で追跡できる」。roster順で1エントリずつ返す。`finalState`が
 // M5以降の形（`cooldowns`が配列）を持つunitはそれを正本として使い、
 // 持たないunit(M5より前のUI fixture)だけevents[]からの再構築へfallbackする。

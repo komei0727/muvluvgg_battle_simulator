@@ -34,12 +34,12 @@ const eventFormatters = mergeDisjointFormatters({
   battleFlow: battleFlowEventFormatters,
   skill: skillEventFormatters,
   resource: resourceEventFormatters,
-  // M7-009（Issue #182）: 効果・状態異常・回復（07_UI実装・拡張計画.md §11）。
+  // M7-009（Issue #182）: 効果・状態異常・回復。
   effect: effectEventFormatters,
-  // DMG-010（Issue #191）: M8 高度ダメージ（07_UI実装・拡張計画.md §12）。
+  // DMG-010（Issue #191）: M8 高度ダメージ。
   // `DAMAGE_APPLIED`もM8で内訳フィールドを得たため、そちらのregistryが持つ。
   damage: damageEventFormatters,
-  // TEX-008（Issue #434）: 戦術演習専用イベント（07_UI実装・拡張計画.md §13.5）。
+  // TEX-008（Issue #434）: 戦術演習専用イベント。
   exercise: exerciseEventFormatters,
 });
 

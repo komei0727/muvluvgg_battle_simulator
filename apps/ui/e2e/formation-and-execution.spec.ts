@@ -42,7 +42,7 @@ test("runs a minimal battle from formation to summary, tolerating an unknown eve
 
 // UI-E2E-009 (M7-009, Issue #182): HEAL列がfixtureの実回復量と一致し、付与された
 // 効果・状態異常がユニット状態と時系列イベントの両方から辿れる
-// (07_UI実装・拡張計画.md §11完了条件)。
+// (M7 効果・状態異常表示の完了条件、Issue #182)。
 test("shows the actually applied healing and the granted effects/status of an M7 battle", async ({
   page,
 }) => {
@@ -74,7 +74,7 @@ test("shows the actually applied healing and the granted effects/status of an M7
 
 // UI-E2E-010 (DMG-010, Issue #191): calculated / shield absorbed / subUnit
 // absorbed / HP damage を混同せず表示し、subUnit状態とcollection deltaを
-// 汎用JSONではなく意味のある表示で辿れる (07_UI実装・拡張計画.md §12完了条件)。
+// 汎用JSONではなく意味のある表示で辿れる (M8 高度ダメージ表示の完了条件、Issue #191)。
 test("separates calculated damage, shield/sub unit absorption and HP damage of an M8 battle", async ({
   page,
 }) => {

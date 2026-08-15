@@ -4,7 +4,7 @@
 // nested shape degrades to nothing rendered rather than crashing
 // (01_UI要求・画面設計.md §11 未知event／effect kindでもクラッシュしない).
 //
-// DMG-010 (Issue #191, 07_UI実装・拡張計画.md §12完了条件「subUnit/effect
+// DMG-010 (Issue #191, 完了条件「subUnit/effect
 // collection deltaを汎用JSONだけでなく意味のある表示へ変換する」): an
 // EntityCollectionDelta additionally emits one line per added/updated/removed
 // entry. Entity identity is read from the id fields the API contract actually

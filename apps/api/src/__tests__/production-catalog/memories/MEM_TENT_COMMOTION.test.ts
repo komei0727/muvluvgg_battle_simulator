@@ -23,7 +23,7 @@ import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
  *
  * `AFFILIATION` TargetFilterは静的Catalogの`UnitDefinition.metadata.affiliations`を
  * 引くため、盤面の1スロットだけへ所属を持たせ、残る5スロットがそのまま非対象の
- * 検証になるようにする（`18_Affiliation台帳.md`）。所属は後衛へ置き、前衛集合とは
+ * 検証になるようにする（所属の正本はunit.jsonの`metadata.affiliations`）。所属は後衛へ置き、前衛集合とは
  * 互いに素にする。
  *
  * 実`catalog/`の未改変定義を実`startBattle`（`BattleStarted`）から解決し、

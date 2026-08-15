@@ -14,7 +14,7 @@ import { getRequestExecutionState } from "../protocol/request-id/request-id.js";
 export const BATTLE_SIMULATIONS_PATH = "/api/v1/battle-simulations";
 
 /**
- * `13_実装計画.md`「M4 API・Worker Walking Skeleton」: ルートハンドラーが呼ぶのは
+ * マイルストーンM4「API・Worker Walking Skeleton」: ルートハンドラーが呼ぶのは
  * 検証済みDTOと実行コンテキストを渡して`SimulateBattleResult`を受け取る
  * この最小portだけ。DTO→Command変換とBattle実行は、実装
  * （`SimulationWorkerPool`）がWorker Threadへ委譲する — HTTPメインスレッドは

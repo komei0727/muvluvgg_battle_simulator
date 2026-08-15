@@ -3,7 +3,7 @@ import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidat
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 
 /**
- * `05_ドメインモデル.md`「PassiveCandidateStack」（`13_実装計画.md`・本Issue(#21)では
+ * `05_ドメインモデル.md`「PassiveCandidateStack」（本Issue(#21)では
  * 「PassiveResolutionStack」と表記）: PS候補グループを後入れ先出しで保持する。1件分の
  * エントリは、候補群だけでなく`event`（発動直前確認 R-PS-04 が再評価するトリガー
  * イベント）も一緒に保持する。stackの先頭（配列の先頭要素）が現在解決中のグループ。

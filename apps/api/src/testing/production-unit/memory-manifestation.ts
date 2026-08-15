@@ -125,7 +125,7 @@ function slotUnitDefinitionId(slot: MemorySlot): string {
  *
  * `AFFILIATION` TargetFilterは静的Catalogの`UnitDefinition.metadata.affiliations`を
  * 引くため、既定の「所属なし」6スロットのままでは対象0件になり、効果が一度も
- * 発現しない。所属は`18_Affiliation台帳.md`の`AFF_*`ごとに異なり、全所属を6スロットへ
+ * 発現しない。所属（正本はunit.jsonの`metadata.affiliations`）は`AFF_*`ごとに異なり、全所属を6スロットへ
  * 常設することはできないため、Memoryごとに「どのスロットが名乗るか」を宣言する。
  */
 export interface MemoryBoardOverrides {

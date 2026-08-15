@@ -334,8 +334,7 @@ export async function buildServer(
       if (url === BATTLE_SIMULATION_CATALOG_PATH) {
         // `10_API設計.md`「304では送らない」: 実行時の`route.schema.response`は
         // 304を持たない（本文がなく`send()`へ渡す値もないため）。公開文書だけ
-        // ここで304を追加し、「GETの200／304、Schema」契約
-        // （`13_実装計画.md`）を満たす。
+        // ここで304を追加し、「GETの200／304、Schema」契約を満たす。
         return {
           schema: {
             ...schema,

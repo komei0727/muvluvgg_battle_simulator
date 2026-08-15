@@ -103,7 +103,7 @@ pnpm workspaceで `apps/api`（backend）・`apps/ui`（frontend）を独立し�
 workspace以外の主なディレクトリ:
 
 - `deploy/` — GCP デプロイ定義（`artifact-registry/` `cloud-build/` `cloud-run/`）
-- `raw/` — wiki 由来のユニット・メモリー原文マークダウン（`units/` `memories/`。Catalog 生成の入力）
+- `raw/` — wiki 由来のユニット・メモリー原文マークダウン（`units/` `memories/`。Catalog 生成の入力。gitignore 対象のローカル専用ディレクトリで、CI checkout には存在しない）
 - `docs/` — DDD 設計書（`docs/ddd/`）・UI 設計書ほか
 - `scripts/` — 品質ゲート正本 (`run-quality-gates.sh`)・CI 変更判定 (`ci/`)・コンテナ smoke test
 

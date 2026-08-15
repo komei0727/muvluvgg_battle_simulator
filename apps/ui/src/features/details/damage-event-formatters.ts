@@ -1,4 +1,4 @@
-// DMG-010（Issue #191）: docs/ui-design/07_UI実装・拡張計画.md §12「M8 高度ダメージ拡張」。
+// DMG-010（Issue #191）: 「M8 高度ダメージ拡張」。
 //
 // 完了条件「calculated、shield absorbed、HP damageを混同せず表示する」に従い、
 // 1ヒットの内訳（計算ダメージ → タイプありシールド吸収 / タイプなしシールド吸収 /
@@ -559,7 +559,7 @@ function formatEffectMerged(
 }
 
 /**
- * `07_UI実装・拡張計画.md` §12「M8 高度ダメージ拡張」の追加表示。`DAMAGE_APPLIED`は
+ * 「M8 高度ダメージ拡張」（DMG-010）の追加表示。`DAMAGE_APPLIED`は
  * M4から存在するtypeだが、M8で内訳フィールドが加わったためこちらへ移した。
  */
 export const damageEventFormatters: Readonly<Record<string, EventFormatter>> = {

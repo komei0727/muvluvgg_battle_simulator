@@ -31,7 +31,7 @@ export interface SimulationWorkerPoolOptions {
 }
 
 /**
- * `13_実装計画.md`「開発時のtsx実行とproductionのコンパイル済み実行で、ワーカーファイル
+ * M4完了条件「開発時のtsx実行とproductionのコンパイル済み実行で、ワーカーファイル
  * 解決方法が変わる点」への対応。このモジュール自身の`import.meta.url`は、`tsx`/Vitest
  * 実行時は`.ts`のまま、`tsc`ビルド後は`.js`になる。Node.js 24はerasable
  * TypeScriptをネイティブに実行できるため、同じ拡張子の兄弟ファイルを指すだけで

@@ -132,7 +132,7 @@ pnpm --filter api run check-catalog-src catalog-src catalog
 3. `pnpm --filter api run validate-catalog catalog` と `pnpm --filter api run check-catalog-src catalog-src catalog` が成功することを確認する。
 4. 追加・変更したユニット/メモリ単位でレビューを依頼する（`catalog-src/` 側の差分がレビュー対象になる）。
 
-`raw/units/`・`raw/memories/` 全件の変換状況（済み/未変換/保留）と、未変換分のM2向け分類は [`15_Unit_Memory変換台帳.md`](./15_Unit_Memory変換台帳.md) で追跡する。新しいUnit/Memoryを変換した際は台帳の該当行も更新する。
+変換済み件数の機械的な正本は `apps/api/src/infrastructure/catalog/source/catalog-src-inventory.test.ts`（IT-CAT-INV-001〜003）である。Unit/Memory を追加・削除する PR は、同じ PR で同テストの期待件数を更新する。
 
 ---
 
@@ -247,7 +247,7 @@ metadata:
 | `affiliations`  | string[] | ✓    | 所属ID。空配列可             |
 | `tags`          | string[] | ✓    | 任意タグ。空配列可           |
 
-`affiliations` は Memory の所属フィルタで使用する。所属不明の場合は空配列にし、所属フィルタを必要とする Memory の Catalog 化時に補完する。`affiliationId`（`AFF_*`）の確定済み一覧・採番方針・Unit metadata 更新方針は [`18_Affiliation台帳.md`](./18_Affiliation台帳.md) を参照。表示名の字面一致のみでは補完しない。
+`affiliations` は Memory の所属フィルタで使用する。所属不明の場合は空配列にし、所属フィルタを必要とする Memory の Catalog 化時に補完する。`affiliationId`（`AFF_*`、大文字スネーク）は `catalog-src/units/<id>/unit.json` の `metadata.affiliations` が正本である。新規採番は Memory 原文の所属句を根拠に行い、表示名の字面一致だけでは補完しない。
 
 ### levelGrowth の仮値
 
@@ -2561,64 +2561,24 @@ production Catalog には source text を含めない。出典と転記根拠は
 
 ---
 
-## 後続設計で具体化する点
+## 既知の表現ギャップ（見送り中）
 
-本書では Catalog schema の枠を定める。以下は `05_ドメインモデル.md`、`07_戦闘ルール詳細.md`、`08_ドメインイベント.md` で具体化する。
+Catalog schema が表現できず、production 定義を近似で運用している既知のギャップ。着手トリガーを満たした時点で、schema 拡張と近似の解消をあわせて設計する。
 
-1. DamageModifier / HealingModifier の正確な計算順。
-2. `UnitBeingAttacked` / `DamageWillBeApplied` など新イベントの発行位置。
-3. Cover / Reflect / DamageLink の割り込み順。
-4. Marker と linkedEffectGroup の失効順。
-5. RandomBranch のログ形式。
-6. Memory の複数指定時の発動順。
+### G-07 `APPLY_DAMAGE_MOD` の動的な相対比較条件
 
-## Issue #6実装で判明した制約
+- 表現できないこと: 「対象HP割合が自身より低い敵にのみ与ダメージ+10%」のように、以後発生する個々の `DAMAGE` 解決のたびに、その時点の適用対象で条件を再評価する DamageModifier。`APPLY_DAMAGE_MOD` は付与時（skill使用時）に1回だけ評価されるモデルであり、条件内の `TargetReference` に「この DamageModifier が今まさに適用されようとしている対象」を指す kind が存在しない。
+- 現在の近似: `UNIT_KOTOHA_REBEL` PS2（起死回生）は、付与時点の snapshot で条件を評価する近似で production Catalog へ定義している。
+- 着手トリガー: per-hit の条件再評価を必要とする production 定義の追加。新しい `TargetReference` kind と Damage pipeline 側の評価フックの両方の設計を要する。
 
-Catalog v2 DTO・Domain Definition・Mapperの実装（Issue #6）で、本書の記述だけでは一意に決まらない箇所が見つかった。次はpayload例やenum一覧が未確定であり、production Catalogの authoring 前に本書へ追記が必要。
+### G-11 `fallback` 経由の EffectAction 差し替え
 
-1. `EffectActionDefinition.kind` のうち `APPLY_HEALING_MOD`、`MODIFY_RESOURCE_CAPACITY`、`APPLY_SHIELD`、`REMOVE_EFFECTS`、`APPLY_DAMAGE_LINK` の5種はpayload例が示されていなかった。Issue #44でこのうち `APPLY_HEALING_MOD`・`MODIFY_RESOURCE_CAPACITY`・`APPLY_SHIELD`・`REMOVE_EFFECTS` の4種のpayload形状を本書へ追記し、Mapperへ実装した（下記「Issue #44実装で追加した拡張」）。`APPLY_DAMAGE_LINK` はCover/Reflect/DamageLinkの割り込み順（本書「後続設計で具体化する点」#3）が未確定のため長く未サポートのままだったが、`DMG-006`（Issue #188）がその割り込み順を `R-INT-01` #1〜#5 として確定させたため、`DMG-007`（Issue #187）が上記「APPLY_DAMAGE_LINK」のpayload形状を本書へ追記しMapperへ実装した。`REMOVE_MARKER` は `APPLY_MARKER` の対称形（`markerId` のみ）として実装した。
-2. `FormulaDefinition` の `HP_RATIO_SCALE.direction` は値候補が本書のどこにも列挙されておらず、Mapperは長らく `HP_RATIO_SCALE` 自体を未サポートとして拒否していた。`DMG-002`（Issue #192、`HP_RATIO_SCALE_FORMULA`）が下記「HP_RATIO_SCALE」節へ2値を定義し、Mapper・`FormulaEvaluator` へ実装して解消した。
-3. `APPLY_STAT_MOD.stacking.mode` / `APPLY_DAMAGE_MOD.stacking.mode` は例で `STACKABLE` しか示されていない。「重複なし」(`R-STA-03`) に対応する値が未定義のため、Mapperは `STACKABLE` のみを許可していた。`M7-012`（Issue #266）が `APPLY_STAT_MOD` 側について `NON_STACKABLE` と重複上限 `stacking.max` を本書「APPLY_STAT_MOD」節へ定義し、Mapper・実ライフサイクルへ実装して解消した（`R-EFF-05` 完了）。`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD` は最強選択を行う合成経路を持たないため引き続き `STACKABLE` のみである。
-4. Formulaの `source`/`target` 参照（`STAT_RATIO.source`、`MARKER_COUNT_SCALE.target` など）はHEAL/MARKER_COUNT_SCALE例では `{kind: ...}` オブジェクト形式、APPLY_SUBUNIT例 (`source: SKILL_SOURCE`) では裸のenum文字列形式と表記が揺れている。Mapperはオブジェクト形式 `{kind, targetBindingId?}` に統一した（`BINDING` 種別が追加フィールドを要するため）。
-5. `TriggerDefinition.sourceSelector` / `targetSelector` の値候補は本書に一覧化されていない。実装では `08_ドメインイベント.md` と本書の例に実際に現れる値（`SELF`、`ALLY`、`ENEMY`、`ANY`、`EFFECT_OWNER`）だけを許可した。`REF-028`（Issue #358）が `OTHER_ALLY`（味方のうち所有者自身を除く）を追加した — production 原文の「**他の**味方が〜した際に発動」（14スキル）は `ALLY` が所有者自身を含むため表せず、自分の行動が自分のPSを呼んでしまう。`ALLY` と違い解決可能な発生源／対象の `BattleUnitId` を必須にする — 「他の味方」は所有者以外の味方 BattleUnit を指す語彙であり、`sourceSide` だけを持つイベントは陣営が一致しても成立させない。Memory の trigger は所有ユニットを持たない（`R-MEM-04`）ため `OTHER_ALLY` を `EFFECT_OWNER` と同じく明示的に拒否する。
-6. `MarkerDefinition` はUnit/Skill/EffectAction/Memoryのような専用Catalogファイルを持たず、`MarkerId` 参照のみが登場する。Issue #6では `MarkerId` のformat検証のみを実装し、スタック上限や関連効果を持つ独立したMarkerカタログは未実装とした。
+- 表現できないこと: `TargetSelectorDefinition.fallback` で対象が差し替わったとき、適用する `EffectAction` 自体（威力など）を候補経路ごとに変えること。`fallback` は対象選択のみを差し替える仕組みで、`resolution.steps[].actions[]` は選択された対象の由来（通常フィルタ経由か `fallback` 経由か）を区別しない。
+- 現在の近似: リディア EX（リディアたいちょうのめいれい。原文は右列・左列に敵がいない場合、威力113.76ではなく威力100の別攻撃）は、`TGT_COLUMNS` の埋め込み `fallback` で対象選択だけを表現し、`fallback` 経由の対象にも通常と同じ `ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN`（威力113.76）を適用している。どの `resolution.steps` からも参照されない死んだ定義を残さないため、威力100の専用 EffectAction は差し替え機構が実装されるまで定義しない。
+- 着手トリガー: `fallback` 経由か否かを steps へ伝播するフィールド（例: `EffectStepDefinition.target.kind: BINDING` への `viaFallback` 分岐先）を含む、対象フォールバック機構の拡張設計。
 
-## Issue #44実装で追加した拡張
+### Marker 独立カタログの未実装
 
-Issue #41（代表10ユニットのv2 Catalog変換パイロット）で、当時のMapperでは表現できずfixtureから省略した10項目（G-01〜G-10）について、設計方針を確定し、実装するもの・見送るものを区分した。
-
-### 実装したもの（Mapper拡張済み、fixtureで実データ再変換済み）
-
-| #    | 内容                                                                  | 追加したschema要素                                                                                                                                                                                                                                                                                                             |
-| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| G-01 | 回復量増減の被付与                                                    | `EffectActionDefinition.kind: APPLY_HEALING_MOD`                                                                                                                                                                                                                                                                               |
-| G-02 | 継続ダメージ(DoT)                                                     | `EffectActionDefinition.kind: APPLY_CONTINUOUS_DAMAGE`                                                                                                                                                                                                                                                                         |
-| G-03 | 生存ユニット数を直接比較する条件                                      | `ConditionDefinition.kind: ALIVE_UNIT_COUNT`                                                                                                                                                                                                                                                                                   |
-| G-04 | 効果解除                                                              | `EffectActionDefinition.kind: REMOVE_EFFECTS`                                                                                                                                                                                                                                                                                  |
-| G-06 | `DAMAGE_IMMUNITY`のダメージ量しきい値                                 | `APPLY_STATUS.payload.damageThreshold`（既存kindへのフィールド追加）                                                                                                                                                                                                                                                           |
-| G-08 | シールド付与                                                          | `EffectActionDefinition.kind: APPLY_SHIELD`                                                                                                                                                                                                                                                                                    |
-| G-09 | 最大リソース上限変更                                                  | `EffectActionDefinition.kind: MODIFY_RESOURCE_CAPACITY`                                                                                                                                                                                                                                                                        |
-| G-10 | 同一EffectSequence内のDAMAGE結果合算参照                              | `FormulaDefinition` の `sourceResult: SUM_DAMAGE_DEALT` / `SUM_DAMAGE_RECEIVED`                                                                                                                                                                                                                                                |
-| G-05 | リソース「獲得量」自体を増減させるModifier（実装: M7-002/Issue #185） | `EffectActionDefinition.kind: APPLY_RESOURCE_GAIN_MOD`。`resource`は当初計画の`AP`/`PP`/`EX_GAUGE`から`EX_GAUGE`固定へ絞った（合成経路がEXゲージ増加だけを対象にするため、AP/PP/HPを受理しても機能しない「無効な定義」になってしまうことをレビューで指摘され修正）。`UNIT_MAIA_SALON`/`UNIT_KARINA_DOWNER`を実データ再変換済み |
-
-Mapper/schemaレベルでの受理と、対応するBattle Engineの実行（HP/リソース状態遷移、イベント発行）は分離して段階的に実装した。Engine側の実装は各Task（DoTはDMG-008／Issue #189、ShieldはDMG-004／Issue #194、SubUnitへのDamage適用はDMG-005／Issue #190、効果解除・無効化・CombatStat再計算はM7-001／Issue #181、`MODIFY_RESOURCE_CAPACITY`はM7-002A／Issue #255）で追跡した。
-
-`MODIFY_RESOURCE` は一回限りの加減算のままとし、`APPLY_RESOURCE_GAIN_MOD` とは別kindとして扱う（「Duration付与時に確定した符号付き量を加算する」既存の`APPLY_DAMAGE_MOD`/`APPLY_HEALING_MOD`と同じモデルへ揃え、将来の獲得イベントへ事後的にフックする新モデルは導入しない）。フィールド名・丸め規則・複数Modifier合成順は、M7-002（Issue #185）で`resource: EX_GAUGE`固定の契約として確定・実装済み（上記「実装したもの」表のG-05、および[APPLY_RESOURCE_GAIN_MOD](#apply_resource_gain_mod)参照）。
-
-### 見送ったもの（設計課題を明記し、実装を見送り）
-
-| #    | 内容                                    | 見送り理由                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ---- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G-07 | `APPLY_DAMAGE_MOD` の動的な相対比較条件 | 「対象HP割合が自身より低い敵にのみ与ダメージ+10%」は、`APPLY_DAMAGE_MOD` が付与時（skill使用時）に1回だけ評価される現行モデルに対し、以後発生する個々の`DAMAGE`解決のたびに、その時点の対象で条件を再評価する必要がある。単に `condition: ConditionDefinition` フィールドを追加するだけでは、条件内の `TargetReference` が「このDamageModifierが今まさに適用されようとしている対象」を指す手段（既存の `TargetReference` kindはBINDING/SELF/TRIGGER_SOURCE/TRIGGER_TARGET/LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETSのみで、この用途を持たない）がなく、新しいTargetReference kindとDamage pipeline側の評価フックの両方の設計を要する。防御貫通はDMG-001（Issue #195）、複数hitはDMG-002（Issue #192）でDamage pipelineを完成させ、per-hit評価の設計が固まってから着手する。 |
-
-G-05（カリナPS2 包囲かんりょ～）該当箇所はM7-002（Issue #185）で実装済み。G-07（コトハPS2 起死回生）該当箇所は、Issue #41時点のfixtureのまま近似表現（該当効果を省略）を維持する。
-
-## Issue #46実装で見つかった追加課題
-
-代表10ユニットのfixtureをproduction Catalog候補（`catalog/`）へ昇格するにあたり raw と再照合した際に、G-01〜G-10 とは別の新しい表現ギャップが1件見つかった。
-
-| #    | 内容                                                                                                                                   | 影響ユニット・スキル                                                                                            | 状態                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G-11 | `TargetSelectorDefinition.fallback` で対象が差し替わったとき、適用する `EffectAction` 自体（威力など）を候補経路ごとに変える手段がない | リディア EX リディアたいちょうのめいれい（右列・左列に敵がいない場合は威力113.76ではなく威力100の別攻撃にする） | **見送り**。`fallback` は対象選択のみを差し替える仕組みで、`resolution.steps[].actions[]` は選択された対象の由来（通常フィルタ経由か `fallback` 経由か）を区別しない。現状の fixture は `TGT_COLUMNS` の埋め込み `fallback`（対象が0件のとき最近の敵1体を選ぶ）で対象選択だけは表現しつつ、命中した対象には通常と同じ `ACT_LYDIA_EX_DAMAGE_COLUMN`（威力113.76）を適用する近似とする。`CAP_TARGET_BINDING_FALLBACK`（TGT-003、Issue #168）と `CAP_TARGET_FILTER_ORDER`（TGT-002、Issue #169）がいずれも実装済みになった時点で、この近似は production でも到達可能になった（`TGT_COLUMNS` の `filters` が対象0件のとき `fallback` が実際に評価される）。単に威力を分ける `EffectAction` を fallback 側に追加するだけでは実行されず、`fallback` 経由か否かを steps へ伝播する新しいフィールド（例: `EffectStepDefinition.target.kind: BINDING` に `viaFallback` の分岐先を持たせる）の設計を要するため、対象フォールバック機構そのものを実装する際にあわせて設計する。 |
-
-Issue #41パイロット実施時に宣言されていた `TGT_FALLBACK` targetBinding と `ACT_LYDIA_EX_DAMAGE_FALLBACK`（威力100の専用DAMAGE）は、どの `resolution.steps` からも参照されない死んだ定義だったため、Issue #46でproduction Catalog候補へ昇格する際に削除した。上記の近似表現に置き換わる実装ができるまで、威力100の専用アクションを復活させない。
+- 表現できないこと: `MarkerDefinition` は Unit/Skill/EffectAction/Memory のような独立した Catalog ファイルを持たず、skill/memory 定義内のインライン参照（`MarkerId`）としてのみ存在する。スタック上限・関連効果などの Marker 固有属性は、参照側の `APPLY_MARKER` payload で都度指定しており、複数スキルが同じ Marker を共有する場合の一元的な定義場所がない。
+- 現在の運用: `MarkerId` の format 検証と参照整合のみを行い、Marker の属性は参照ごとに宣言する。
+- 着手トリガー: 複数定義間で共有すべき Marker 固有属性（スタック上限・関連効果）の不整合が問題になる production 定義の追加。

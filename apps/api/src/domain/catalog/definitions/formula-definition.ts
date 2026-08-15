@@ -19,10 +19,10 @@ import {
 /**
  * Payload shapes documented in `14_Catalog定義スキーマ.md`.
  *
- * DMG-002（Issue #192）: `HP_RATIO_SCALE`の`direction`は長らく値候補が本書の
- * どこにも列挙されておらずMapperが未サポートとしていた（`14_Catalog定義
- * スキーマ.md`「Issue #6実装で判明した制約」#2）。本Taskが
- * `HP_RATIO_SCALE_DIRECTIONS`の2値を同書へ定義し、ここで受理する。
+ * DMG-002（Issue #192）: `HP_RATIO_SCALE`の`direction`は長らく値候補が
+ * schema上どこにも列挙されておらずMapperが未サポートとしていた。本Taskが
+ * `HP_RATIO_SCALE_DIRECTIONS`の2値を`14_Catalog定義スキーマ.md`へ定義し、
+ * ここで受理する。
  */
 const FORMULA_KINDS = [
   "CONSTANT",

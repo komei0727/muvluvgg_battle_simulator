@@ -1,4 +1,4 @@
-// DMG-010 (Issue #191): 07_UI実装・拡張計画.md §12「M8 高度ダメージ拡張」完了条件
+// DMG-010 (Issue #191): 「M8 高度ダメージ拡張」完了条件
 // 「calculated、shield absorbed、HP damageを混同せず表示する」。
 // 各payloadの正本は apps/api/src/domain/battle/events/domain-event.ts と
 // apps/api/src/presentation/http/schemas/battle-log/battle-log-schema.ts。

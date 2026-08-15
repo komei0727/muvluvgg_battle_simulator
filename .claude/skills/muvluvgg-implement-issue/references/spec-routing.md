@@ -16,8 +16,8 @@ Treat repository documents as the source of truth. Search identifiers with `rg -
 | HTTP DTOs, schemas, and status mapping      | `docs/ddd/10_API設計.md`                    |
 | Catalog, workers, runtime, and operations   | `docs/ddd/11_インフラストラクチャ設計.md`   |
 | Test levels, IDs, determinism, and gates    | `docs/ddd/12_テスト戦略.md`                 |
-| Milestones, dependencies, and completion    | `docs/ddd/13_実装計画.md`                   |
+| Catalog schema and conversion               | `docs/ddd/14_Catalog定義スキーマ.md`        |
 
-Also inspect `docs/ddd/戦闘システム.md` when a rule depends on the source gameplay description, and `docs/templates/` when changing Catalog definitions.
+Also inspect `docs/ddd/戦闘システム.md` when a rule depends on the source gameplay description.
 
-Resolve conflicts in this order: explicit decided `Q-*` item, detailed `R-*` rule, domain/event/application/API design, implementation plan. Stop and surface a conflict instead of choosing silently.
+Resolve conflicts in this order: explicit decided `Q-*` item, detailed `R-*` rule, domain/event/application/API design. Stop and surface a conflict instead of choosing silently.

@@ -4,8 +4,8 @@ import { loadCatalogFromDirectory } from "./catalog-file-loader.js";
 import { allProductionUnitIds } from "../../../testing/scenario/run-production-battle.js";
 
 /**
- * Issue #46: promotes the Issue #41/#44 pilot fixture (retired in the
- * docs/ddd/19 cleanup) to the production Catalog candidate at `catalog/`
+ * Issue #46: promotes the retired Issue #41/#44 pilot fixture to the
+ * production Catalog candidate at `catalog/`
  * (apps/api package root, per `docs/ddd/14_Catalog定義スキーマ.md`). These tests lock in
  * the conversion-mistake fixes found while re-checking raw/units/ against
  * the pilot fixture, so a future edit to `catalog/` cannot silently
@@ -275,8 +275,8 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `verification.testCaseIds` dropped the retired UT-R-HIT-05-009 boundary.
     // Capability metadata only — no Unit/Skill/EffectAction definition changed,
     // so the 10 promoted units' `unitCount`/violation expectations are unchanged
-    // (5 other production units do become newly `selectable`: 55 → 60, tracked in
-    // `docs/ddd/17_残作業対応表.json`'s `m7Audit`).
+    // (5 other production units do become newly `selectable`: 55 → 60,
+    // recorded by the M7 audit, Issue #177).
     // `.5`: `CRITICAL_PREVENTION` is classified
     // as `DEBUFF` (not `BUFF`) by `effect-category-classifier.ts`, recorded in
     // `CAP_CRITICAL_CONTROL`'s description plus two more `verification.testCaseIds`.
@@ -288,8 +288,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // (`ACT_LUNA_HUNGRY_PS1_REDIRECT` / `ACT_LUNA_HUNGRY_PS1_REFLECT` added, its
     // cover moved onto the attacker like Karina's and Evie's). The 10 promoted
     // units' definitions are unchanged, but every remaining production unit
-    // becomes `selectable` (60 → 69, tracked in `docs/ddd/17_残作業対応表.json`'s
-    // `m7Audit`).
+    // becomes `selectable` (60 → 69, recorded by the M7 audit, Issue #177).
     // `.7`: `appliesTo.actionKinds` beyond
     // `["DAMAGE"]` is rejected at Catalog load time
     // (`UNSUPPORTED_DEFENSIVE_INTERVENTION`) because `R-INT-01` only evaluates

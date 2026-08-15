@@ -13,7 +13,7 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
  * `presentation`の`buildServer`と`infrastructure`の実`SimulationWorkerPool`を
  * 実際に接続し、`app.inject`でHTTPリクエストを送って
  * `HTTP → Worker → UseCase → Battle → Response`が実Worker Thread経由で
- * 完結することを検証する（`13_実装計画.md`「curl相当の1リクエストで結果を
+ * 完結することを検証する（M4完了条件「curl相当の1リクエストで結果を
  * 取得できる」）。個々のレイヤー結合（Worker単体・Pool単体など）は
  * `*.integration.test.ts`が担い、ここはHTTP層を含めた縦切り全体だけを見る。
  *

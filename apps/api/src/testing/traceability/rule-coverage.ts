@@ -501,7 +501,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // Issue #170 (TGT-001)でFRONT_ROW/BACK_ROW（前後列優先）を実装した
   // （target-selection-policy.test.tsのUT-R-TGT-06-001〜003で回帰検証）。
   // R-TGT-06は左右列指定時の「指定列からの列距離順」まで含む単一ルールであり
-  // （`07_戦闘ルール詳細.md`）、`13_実装計画.md`の完了定義（Rule全体の受け入れ条件と
+  // （`07_戦闘ルール詳細.md`）、完了定義（Rule全体の受け入れ条件と
   // production経路が揃った時点）に照らすと前後列優先だけでは完了計上できない。
   // TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）でfilters・残りのorderキー
   // （NEAREST/LEFT_TO_RIGHT/統計値の極値/MARKER_COUNT/UNIT_TYPE_PRIORITY/
@@ -782,7 +782,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `IT-UNIT-TATIANA-SAGE-008` へ移送した）を近似なしへ更新した。
   // デバフ本体（`APPLY_DAMAGE_MOD`）の実行時解決は`CAP_DAMAGE_MOD`（`DMG-002`、
   // Issue #192）待ちのため、`EffectSequencePlan`レベルの振り分け検証に留め、
-  // `15_Unit_Memory変換台帳.md`の`DAMAGE_MOD_KIND_UNIMPLEMENTED`へ残していた。
+  // 不完全変換テーマ`DAMAGE_MOD_KIND_UNIMPLEMENTED`として残していた。
   // `DMG-002`が`APPLY_DAMAGE_MOD`を実ライフサイクルへ配線した後、Issue #225が
   // 機能軸の `IT-CAP-TATIANA-OMEN-PROD-*` で同じ対象別条件を実`resolveSkillUse`
   // 経由の実付与（Marker混在AOE・Domain Event・StateDelta・stateVersion・
@@ -1549,7 +1549,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `MODIFY_RESOURCE`（`DISTRIBUTE`を含む）だけが自前の規約を持つ。委譲先が
   // すべて実装済みになった時点で初めて全条項が成立するため、完了責任は
   // `DMG-001`（Issue #195）から本監査へ引き継がれていた
-  // （`docs/ddd/archive/17_残作業対応表_完了履歴.md`「DMG-001」節の再割当表）。
+  // （DMG-001／Issue #195 からの再割当）。
   {
     ruleId: "R-ACTN-02",
     testCaseIds: [
@@ -2895,8 +2895,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `linkedEffectGroupId`を持つ`AppliedEffect`**と**`MarkerState`は親子連動
   // グループとして扱う」は未実装で、`catalog-integrity.ts`が該当Catalog定義を
   // `UNSUPPORTED_MARKER_LINKED_GROUP`としてロード時点で拒否していたため、
-  // 「SchemaやMapperが定義を受理するだけでは完了としない」
-  // （`17_残作業対応表.md`「更新手順」）に照らして未完了へ戻した。
+  // 「SchemaやMapperが定義を受理するだけでは完了としない」という
+  // 完了基準に照らして未完了へ戻した。
   //
   // M7-013（Issue #267）: そのcross-typeカスケードを実装して完了させた。
   // 種別ごとに分かれていた2つの収集関数を`model/linked-effect-group.ts`の
@@ -3120,7 +3120,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  // `13_実装計画.md`のM7完了条件「R-EFF-11がAppliedEffect／EffectSequenceスコープを
+  // M7完了条件「R-EFF-11がAppliedEffect／EffectSequenceスコープを
   // 含めて台帳上で完了する」を満たす。`SkillRuntime`スコープ（M6最小実装、
   // Issue #143）・`AppliedEffect`スコープ（EFF-005、Issue #162）・`EffectSequence`
   // スコープ（EFF-006、Issue #212）の3スコープすべてを実装・検証済み。

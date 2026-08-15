@@ -57,7 +57,7 @@ export interface StartingCombatStatsInput {
  * 薄い合成層であり、戦闘中の再計算(R-STA-04)でも同じ`calculateCombatStat`をそのまま
  * 再利用できる。Memory由来のstat補正(`APPLY_STAT_MOD`)はMemory発動エンジンが
  * `AppliedEffect`として解決した後、通常バフと同じ経路で`calculateCombatStat`へ渡す
- * ため、ここでは扱わない（`13_実装計画.md`参照）。
+ * ため、ここでは扱わない。
  */
 export function calculateStartingCombatStats(input: StartingCombatStatsInput): CombatStats {
   function stat(stat: FormationCorrectableStat, baseValue: number): number {

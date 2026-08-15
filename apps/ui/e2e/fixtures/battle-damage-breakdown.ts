@@ -1,7 +1,7 @@
 import { CATALOG_REVISION } from "./catalog.js";
 
 // DMG-010 (Issue #191) regression fixture: a battle that exercises the M8
-// advanced-damage contract (07_UI実装・拡張計画.md §12), kept separate from
+// advanced-damage contract (DMG-010, Issue #191), kept separate from
 // battle-success.ts / battle-heal-effects.ts so the visual-regression baselines
 // pinned to those fixtures stay valid.
 //

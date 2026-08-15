@@ -525,7 +525,7 @@ describe("selectUnitActionStates", () => {
   });
 });
 
-// DMG-010（Issue #191）: 07_UI実装・拡張計画.md §12「shield吸収、HP damage内訳」
+// DMG-010（Issue #191）: 「shield吸収、HP damage内訳」
 // 「sub unit」。`finalState.units[].shields`（プール合計、R-SHD-01第3項）と
 // `subUnits`（インスタンス単位、R-SUB-01第3項）を正本として読む。
 describe("selectUnitActionStates shields and sub units (DMG-010)", () => {

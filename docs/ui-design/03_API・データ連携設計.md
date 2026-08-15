@@ -573,7 +573,7 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 - `shieldType: null`はタイプなしプールであり、`null`をそのまま見せない。`reason: DECAY`は吸収ではなく時間減衰のため動詞を分ける。
 - `reason`／`damageType`／`continuousDamageKind`／`mode`などの列挙値は翻訳せずそのまま出す。UI側で列挙値の部分集合を持つとDomainの分類と黙って乖離するため。
 - `confusionDamageMultiplier`（R-CFS-02）は与ダメージ倍率と別の語で出す。`APPLY_DAMAGE_MOD`由来ではない減少をR-DMG-04の集計へ混ぜないというDomain側の分離をそのまま保つ。
-- summary adapter（§11.4）は変更しない。`CONTINUOUS_DAMAGE_APPLIED`もDAMAGE/DEFENSE列へ足さない（[07_UI実装・拡張計画.md](./07_UI実装・拡張計画.md) §12「shield absorbedをDEFENSE列へ混ぜない。別指標を追加する場合は名称と集計規則を新規ADRで定義する」）。
+- summary adapter（§11.4）は変更しない。`CONTINUOUS_DAMAGE_APPLIED`もDAMAGE/DEFENSE列へ足さない。shield absorbedをDEFENSE列へ混ぜないのと同じ理由で、別指標を追加する場合は名称と集計規則を新規ADRで定義する。
 
 ### 12.2 状態遷移deltaの展開（DMG-010、Issue #191）
 

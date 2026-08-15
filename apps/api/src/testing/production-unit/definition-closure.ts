@@ -68,7 +68,7 @@ export function memoryEffectActionClosure(
 /**
  * 実行された集合と閉包の差分を、テストが読みやすい形で返す。
  * `unreachable` は「production定義上は存在するが前提盤面を作れない」ものを
- * 理由付きで除外するための許可リスト（`15_Unit_Memory変換台帳.md` の
+ * 理由付きで除外するための許可リスト（到達不能判断
  * `UNREACHABLE_BRANCH_BY_RAW_DATA` と同じ運用）。
  */
 export function unexecutedEffectActionIds(

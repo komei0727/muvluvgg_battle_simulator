@@ -11,8 +11,8 @@ import { isExerciseBattleResult } from "../../domain/battle/events/state-delta.j
 export type SimulateBattleUseCaseDependencies = BattleExecutionDependencies;
 
 /**
- * `09_アプリケーション設計.md` の SimulateBattleUseCase。`13_実装計画.md`
- * 「M3 最小戦闘縦切り」のうち、ActionQueue・AS選択・命中・会心・ダメージ・
+ * `09_アプリケーション設計.md` の SimulateBattleUseCase。マイルストーン
+ * M3「最小戦闘縦切り」のうち、ActionQueue・AS選択・命中・会心・ダメージ・
  * 勝敗までを扱う。Catalog取得からBattle完了までの実行本体は、戦術演習
  * （`SimulateTacticalExerciseUseCase`）と共有する`executeBattleToCompletion`が持つ。
  */

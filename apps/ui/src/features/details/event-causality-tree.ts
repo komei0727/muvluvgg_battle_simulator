@@ -1,4 +1,4 @@
-// docs/ui-design/07_UI実装・拡張計画.md §10 (M6 PSイベントエンジン拡張):
+// M6 PSイベントエンジン拡張:
 // 「event parent/root sequenceのtree表示」「parent/root sequenceの欠番を許容
 // する」。全eventはenvelope上の`parentSequence`（`08_ドメインイベント.md`
 // 「子イベントのsequenceは親イベントより大きくする」）で連結されるため、
