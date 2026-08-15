@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectPreAttackObservations,
   flattenEffectSequencePlan,
   resolveChargeReleaseOrder,
   resolveSkillOrder,
@@ -1459,5 +1460,235 @@ describe("resolveSkillOrder: R-CFS-01 混乱の対象振り替え (DMG-009, Issu
         .resolvedBindings.get(createTargetBindingId("TGT_ATTACK"))!
         .units.map((u) => u.battleUnitId),
     ).toEqual([createBattleUnitId("ENEMY_1")]);
+  });
+});
+
+describe("collectPreAttackObservations (R-ATM-03)", () => {
+  const TGT_1 = createTargetBindingId("TGT_1");
+  const TGT_2 = createTargetBindingId("TGT_2");
+
+  function enDamageAction(id: string): EffectActionDefinition {
+    const base = damageAction(id);
+    if (base.kind !== "DAMAGE") {
+      throw new Error("damageAction must build a DAMAGE definition");
+    }
+    return { ...base, payload: { ...base.payload, damageType: "EN" } };
+  }
+
+  function healAction(id: string): EffectActionDefinition {
+    return {
+      kind: "HEAL",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: 10 },
+        distribution: "NONE",
+        overheal: "DISCARD",
+      },
+    };
+  }
+
+  it("UT-R-ATM-03-001: enumerates every unit a DAMAGE step can target, in step-then-binding order, deduped on first occurrence", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const near = unit("NEAR", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const far = unit("FAR", "ENEMY", { column: "LEFT", row: "BACK" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: TGT_1, selector: ENEMY_ALL_SELECTOR }],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: TGT_1 },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: TGT_1 },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const units = [actor, far, near];
+    const plan = resolveSkillOrder(skill, actor, units, effectActions);
+
+    expect(
+      collectPreAttackObservations(
+        skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+        plan.resolvedBindings,
+        actor,
+        units,
+        effectActions,
+      ),
+    ).toEqual([
+      { targetUnitId: createBattleUnitId("NEAR"), damageTypes: ["PHYSICAL"] },
+      { targetUnitId: createBattleUnitId("FAR"), damageTypes: ["PHYSICAL"] },
+    ]);
+  });
+
+  it("UT-R-ATM-03-002: a BRANCH that will not be taken still contributes its DAMAGE targets, and damage types accumulate across branches", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const physical = damageAction("ACT_PHYSICAL");
+    const en = enDamageAction("ACT_EN");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: TGT_1, selector: ENEMY_ALL_SELECTOR }],
+      steps: [
+        {
+          kind: "BRANCH",
+          condition: {
+            kind: "TARGET_SET_COUNT",
+            target: { kind: "BINDING", targetBindingId: TGT_1 },
+            countOf: "ALIVE",
+            op: "GTE",
+            value: 99,
+          },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: TGT_1 },
+              actions: [{ effectActionDefinitionId: physical.effectActionDefinitionId }],
+            },
+          ],
+          elseSteps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "BINDING", targetBindingId: TGT_1 },
+              actions: [{ effectActionDefinitionId: en.effectActionDefinitionId }],
+            },
+          ],
+        },
+      ],
+    });
+    const effectActions = new Map([
+      [physical.effectActionDefinitionId, physical],
+      [en.effectActionDefinitionId, en],
+    ]);
+    const units = [actor, enemy];
+    const plan = resolveSkillOrder(skill, actor, units, effectActions);
+
+    expect(
+      collectPreAttackObservations(
+        skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+        plan.resolvedBindings,
+        actor,
+        units,
+        effectActions,
+      ),
+    ).toEqual([{ targetUnitId: createBattleUnitId("ENEMY_1"), damageTypes: ["PHYSICAL", "EN"] }]);
+  });
+
+  it("UT-R-ATM-03-003: non-DAMAGE steps and LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS references contribute no observation", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const heal = healAction("ACT_HEAL");
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [{ targetBindingId: TGT_1, selector: ENEMY_ALL_SELECTOR }],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: TGT_1 },
+          actions: [{ effectActionDefinitionId: heal.effectActionDefinitionId }],
+        },
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "LAST_DAMAGED_TARGETS" },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([
+      [heal.effectActionDefinitionId, heal],
+      [attack.effectActionDefinitionId, attack],
+    ]);
+    const units = [actor, enemy];
+    const plan = resolveSkillOrder(skill, actor, units, effectActions);
+
+    expect(
+      collectPreAttackObservations(
+        skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+        plan.resolvedBindings,
+        actor,
+        units,
+        effectActions,
+      ),
+    ).toEqual([]);
+  });
+
+  it("UT-R-ATM-03-004: a SELF-targeted DAMAGE inside a REPEAT is observed, and a second binding adds its own targets after the first", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const attack = damageAction("ACT_ATTACK");
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: TGT_1, selector: ENEMY_ALL_SELECTOR },
+        {
+          targetBindingId: TGT_2,
+          selector: {
+            kind: "SELECT",
+            side: "ALLY",
+            count: "ALL",
+            filters: [],
+            order: ["DEFAULT"],
+            includeDefeated: false,
+          },
+        },
+      ],
+      steps: [
+        {
+          kind: "REPEAT",
+          count: 2,
+          steps: [
+            {
+              kind: "ACTION",
+              stepCondition: { kind: "TRUE" },
+              targetCondition: { kind: "TRUE" },
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+            },
+          ],
+        },
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: TGT_1 },
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+        },
+      ],
+    });
+    const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+    const units = [actor, enemy];
+    const plan = resolveSkillOrder(skill, actor, units, effectActions);
+
+    expect(
+      collectPreAttackObservations(
+        skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+        plan.resolvedBindings,
+        actor,
+        units,
+        effectActions,
+      ),
+    ).toEqual([
+      { targetUnitId: createBattleUnitId("ACTOR"), damageTypes: ["PHYSICAL"] },
+      { targetUnitId: createBattleUnitId("ENEMY_1"), damageTypes: ["PHYSICAL"] },
+    ]);
   });
 });

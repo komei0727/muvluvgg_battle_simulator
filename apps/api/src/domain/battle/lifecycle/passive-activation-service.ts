@@ -27,13 +27,15 @@ import {
   reapplySkillUseDurationDecrement,
 } from "../model/applied-effect-duration.js";
 import {
+  collectPreAttackObservations,
   resolveMemoryEffectSequenceOrder,
   resolveSkillOrder,
 } from "../skill/skill-resolution-service.js";
+import { recordPreAttackObservation, shouldObserve } from "./pre-attack-observation-service.js";
 import type { TriggerContext } from "../targeting/target-selection-policy.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
-import type { BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { NO_MEMORIES, type BattleDefinitions } from "../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
@@ -1532,6 +1534,11 @@ export class PassiveActivationRuntime {
     // `PassiveActivated`と同じくTIMING_EVENTとしてyieldし、進行中の連鎖へ参加させる。
     yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(memoryTriggered) };
 
+    // R-ATM-03（R-ATM-02 #1の表、Memory行）の攻撃前観測はこの経路には現れない。
+    // `UnitBeingAttacked` payloadは発生源スキル（`skillDefinitionId`）を必須に持つ
+    // 一方、MemoryのEffectSequenceは所有スキルを持たない（R-MEM-04）。DAMAGEを
+    // 含むMemory定義は`requireSkillDefinitionId`が解決時に拒否するため、観測すべき
+    // 攻撃自体がMemoryからは成立しない（現行production Catalogにも該当定義は無い）。
     const groupContext: EffectActionGroupContext = {
       definitions: this.context.definitions,
       // R-MEM-04: 使用者BattleUnitを持たず、Memoryを指定した陣営をsource sideとする。
@@ -1826,6 +1833,58 @@ export class PassiveActivationRuntime {
     // （PassiveResolutionStack・深度Guard・効果解決数Guard）へ正しく参加し、
     // 各EffectAction/step境界で子PS連鎖を完全に解決してから次へ進むように
     // なる。
+    // EFF-006: このPS自身のEffectSequence解決を開始する前に登録する
+    // （`SkillUseStarting`相当のTIMINGはPSには無いため、前段フェーズの攻撃前観測
+    // 以降に発行される全イベントを対象にできるようにする）。
+    this.beginEffectSequenceResolution(
+      skillUseId,
+      ownerId,
+      skill.skillDefinitionId,
+      skill.resolution.counterUpdates ?? [],
+    );
+
+    // R-ATM-03: 前段フェーズの最後に攻撃前観測を行う（R-ATM-02 #1の表、PS行）。
+    // `TIMING_EVENT`としてyieldするため、この候補は進行中の連鎖で直ちに解決される
+    // （効果処理フェーズはこの後に始まるため保留対象にならない）。
+    let observationInterrupted = false;
+    for (const observation of collectPreAttackObservations(
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+      plan.resolvedBindings,
+      ownerAfterChainedActivations,
+      this.units,
+      this.context.definitions.effectActions,
+      triggerContext,
+    )) {
+      if (!shouldObserve(this.units, observation.targetUnitId)) {
+        continue;
+      }
+      const recorded = recordPreAttackObservation(
+        {
+          recorder: this.context.recorder,
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+          skillUseId,
+          resolutionScopeId: this.context.resolutionScopeId,
+          rootEventId: this.context.rootEventId,
+          skillDefinitionId: skill.skillDefinitionId,
+          skillType: skill.skillType,
+          attackerUnitId: ownerId,
+        },
+        observation,
+        lastEventId,
+      );
+      lastEventId = recorded.eventId;
+      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(recorded) };
+      // R-ATM-03 #5: PS所有者が戦闘不能になった場合は残りの観測を発行せず、
+      // 効果処理フェーズへ進まずに`PassiveInterrupted`で終える。
+      const owner = this.units.find((unit) => unit.battleUnitId === ownerId);
+      if (owner === undefined || isDefeated(owner)) {
+        observationInterrupted = true;
+        break;
+      }
+    }
+
     const groupContext: EffectActionGroupContext = {
       definitions: this.context.definitions,
       actorUnitId: ownerId,
@@ -1843,18 +1902,23 @@ export class PassiveActivationRuntime {
       ...(this.context.exercise !== undefined ? { exercise: this.context.exercise } : {}),
       ...triggerContext,
     };
-    // EFF-006: このPS自身のEffectSequence解決を開始する前に登録する
-    // （`SkillUseStarting`相当のTIMINGはPSには無いため、`resolveEffectSequencePlan`
-    // 自身が発行する最初のイベントから対象にできるようにする）。
-    this.beginEffectSequenceResolution(
-      skillUseId,
-      ownerId,
-      skill.skillDefinitionId,
-      skill.resolution.counterUpdates ?? [],
-    );
+
     const box: UnitsBox = { units: this.units };
-    const generator = resolveEffectSequencePlan(plan, box, groupContext);
-    let step = generator.next();
+    const generator = observationInterrupted
+      ? undefined
+      : resolveEffectSequencePlan(plan, box, groupContext);
+    let step = generator?.next() ?? {
+      done: true as const,
+      value: {
+        units: this.units,
+        outcome: {
+          status: "INTERRUPTED" as const,
+          reason: "ACTOR_DEFEATED" as const,
+          resolvedEffectCount: 0,
+          unresolvedEffectCount: 0,
+        },
+      },
+    };
     while (!step.done) {
       // このyieldをresolvePassiveChainが処理する前に、ここまでの状態変化
       // （box.units）を`this.units`へ反映し、子PSの候補検出・発動が最新状態を
@@ -1878,7 +1942,7 @@ export class PassiveActivationRuntime {
       if (lastYielded !== undefined) {
         lastEventId = lastYielded.eventId;
       }
-      step = generator.next();
+      step = generator!.next();
     }
     this.units = box.units;
     const effectResult = step.value;

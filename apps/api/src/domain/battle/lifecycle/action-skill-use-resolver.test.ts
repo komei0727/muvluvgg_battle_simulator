@@ -24,6 +24,7 @@ import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
@@ -41,9 +42,11 @@ function unit(
     maximumHp?: number;
     currentAp?: number;
     currentPp?: number;
+    /** 位置フィルタで対象を撃ち分けたいテストだけが指定する（既定は前列左）。 */
+    position?: FormationPosition;
   } = {},
 ): BattleUnit {
-  const position: FormationPosition = { column: "LEFT", row: "FRONT" };
+  const position: FormationPosition = overrides.position ?? { column: "LEFT", row: "FRONT" };
   const member: BattlePartyMember = {
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: overrides.unitDefinitionId ?? createUnitDefinitionId("UNIT_A"),
@@ -1127,5 +1130,208 @@ describe("resolveSkillUse", () => {
           event.eventType === "PassiveActivated" && event.sourceUnitId === watcher.battleUnitId,
       );
     expect(watcherActivatedIndex).toBeGreaterThan(interruptedIndex);
+  });
+  /**
+   * R-ATM-03の攻撃前観測を`resolveSkillUse`の実経路で観測するための、
+   * 「`UnitBeingAttacked`を契機に自分へ状態を付与するだけ」の見張りPS。
+   * `targetSelector: "SELF"`で「自身が攻撃される直前」に限定する。
+   */
+  function observerPassive(
+    id: string,
+    grantEffectActionId: string,
+    condition: ConditionDefinition = { kind: "TRUE" },
+  ): SkillDefinition {
+    return {
+      skillDefinitionId: createSkillDefinitionId(id),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "UnitBeingAttacked",
+          category: "TIMING",
+          sourceSelector: "ENEMY",
+          targetSelector: "SELF",
+          condition,
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [
+              { effectActionDefinitionId: createEffectActionDefinitionId(grantEffectActionId) },
+            ],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: id, tags: [] },
+    };
+  }
+
+  it("UT-R-ATM-03-006 (R-ATM-03 #1〜#3): the observation fires before the effect processing phase for a target only a never-taken BRANCH arm attacks, and never for a target reached through LAST_DAMAGED_TARGETS", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_ATM03");
+    const branchOnlyUnitDefinitionId = createUnitDefinitionId("UNIT_BRANCH_ONLY_ATM03");
+    const lastTargetsUnitDefinitionId = createUnitDefinitionId("UNIT_LAST_TARGETS_ATM03");
+    const hit = damageEffectAction("ACT_ATM03_HIT");
+    const grant = statusEffectAction("ACT_ATM03_OBSERVED", 1);
+    const branchOnlyPs = observerPassive("SKL_ATM03_BRANCH_ONLY_PS", "ACT_ATM03_OBSERVED");
+    const lastTargetsPs = observerPassive("SKL_ATM03_LAST_TARGETS_PS", "ACT_ATM03_OBSERVED");
+
+    // `TGT_BRANCH`は「絶対に成立しない`BRANCH`のthen腕」でだけ攻撃される対象、
+    // `TGT_LAST`は`LAST_DAMAGED_TARGETS`経由でだけ攻撃される対象。
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_ATM03_BRANCH"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_BRANCH"),
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [{ kind: "POSITION_SLOT", row: "FRONT", column: "LEFT" }],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "BRANCH",
+            // 生存数が99以上という、この盤面では決して成立しない条件。
+            condition: {
+              kind: "TARGET_SET_COUNT",
+              target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BRANCH") },
+              countOf: "ALIVE",
+              op: "GTE",
+              value: 99,
+            },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                stepCondition: { kind: "TRUE" },
+                targetCondition: { kind: "TRUE" },
+                target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BRANCH") },
+                actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+              },
+            ],
+            elseSteps: [],
+          },
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "LAST_DAMAGED_TARGETS" },
+            actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "ATM03Branch", tags: [] },
+    };
+
+    const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId, currentAp: 3 });
+    const branchOnly = unit("BRANCH_ONLY", "ENEMY", {
+      unitDefinitionId: branchOnlyUnitDefinitionId,
+      currentPp: 3,
+      position: { row: "FRONT", column: "LEFT" },
+    });
+    const lastTargets = unit("LAST_TARGETS", "ENEMY", {
+      unitDefinitionId: lastTargetsUnitDefinitionId,
+      currentPp: 3,
+      position: { row: "BACK", column: "RIGHT" },
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [
+          branchOnlyUnitDefinitionId,
+          unitDefinitionOf(branchOnlyUnitDefinitionId, [branchOnlyPs.skillDefinitionId]),
+        ],
+        [
+          lastTargetsUnitDefinitionId,
+          unitDefinitionOf(lastTargetsUnitDefinitionId, [lastTargetsPs.skillDefinitionId]),
+        ],
+      ]),
+      new Map([
+        [branchOnlyPs.skillDefinitionId, branchOnlyPs],
+        [lastTargetsPs.skillDefinitionId, lastTargetsPs],
+      ]),
+      new Map([
+        [hit.effectActionDefinitionId, hit],
+        [grant.effectActionDefinitionId, grant],
+      ]),
+    );
+
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor, branchOnly, lastTargets],
+      definitions,
+      new SequenceRandomSource([0, 0, 0, 0]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    // R-ATM-03 #2: BRANCHが実行時に成立しなくても、束縛が解決している以上は観測対象。
+    // #6: `LAST_DAMAGED_TARGETS`が解決する対象は観測対象に含めない。
+    expect(
+      events
+        .filter((event) => event.eventType === "UnitBeingAttacked")
+        .map((event) => event.payload.targetUnitId),
+    ).toEqual([branchOnly.battleUnitId]);
+    // その観測を契機に、実際には攻撃されない側のPSが発動する。
+    expect(
+      events.some(
+        (event) =>
+          event.eventType === "PassiveActivated" && event.sourceUnitId === branchOnly.battleUnitId,
+      ),
+    ).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.eventType === "PassiveActivated" && event.sourceUnitId === lastTargets.battleUnitId,
+      ),
+    ).toBe(false);
+    // R-ATM-03 #1: 観測は効果処理フェーズの開始（最初の`EffectStepStarting`）より前。
+    const observationIndex = events.findIndex((event) => event.eventType === "UnitBeingAttacked");
+    const firstStepIndex = events.findIndex((event) => event.eventType === "EffectStepStarting");
+    expect(observationIndex).toBeGreaterThanOrEqual(0);
+    expect(firstStepIndex).toBeGreaterThan(observationIndex);
   });
 });

@@ -4095,22 +4095,10 @@
                               "details": {
                                 "type": "object",
                                 "additionalProperties": false,
-                                "required": [
-                                  "skillDefinitionId",
-                                  "effectActionDefinitionId",
-                                  "hitIndex",
-                                  "targetUnitId"
-                                ],
+                                "required": ["skillDefinitionId", "targetUnitId", "damageTypes"],
                                 "properties": {
                                   "skillDefinitionId": {
                                     "type": "string"
-                                  },
-                                  "effectActionDefinitionId": {
-                                    "type": "string"
-                                  },
-                                  "hitIndex": {
-                                    "type": "integer",
-                                    "minimum": 0
                                   },
                                   "targetUnitId": {
                                     "type": "string"
@@ -4118,6 +4106,13 @@
                                   "skillType": {
                                     "type": "string",
                                     "enum": ["AS", "PS", "EX"]
+                                  },
+                                  "damageTypes": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": ["PHYSICAL", "EN"]
+                                    }
                                   }
                                 }
                               },
@@ -16797,22 +16792,10 @@
                               "details": {
                                 "type": "object",
                                 "additionalProperties": false,
-                                "required": [
-                                  "skillDefinitionId",
-                                  "effectActionDefinitionId",
-                                  "hitIndex",
-                                  "targetUnitId"
-                                ],
+                                "required": ["skillDefinitionId", "targetUnitId", "damageTypes"],
                                 "properties": {
                                   "skillDefinitionId": {
                                     "type": "string"
-                                  },
-                                  "effectActionDefinitionId": {
-                                    "type": "string"
-                                  },
-                                  "hitIndex": {
-                                    "type": "integer",
-                                    "minimum": 0
                                   },
                                   "targetUnitId": {
                                     "type": "string"
@@ -16820,6 +16803,13 @@
                                   "skillType": {
                                     "type": "string",
                                     "enum": ["AS", "PS", "EX"]
+                                  },
+                                  "damageTypes": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": ["PHYSICAL", "EN"]
+                                    }
                                   }
                                 }
                               },

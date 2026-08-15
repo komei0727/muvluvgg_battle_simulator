@@ -22,7 +22,11 @@ import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
-import { resolveSkillOrder } from "../skill/skill-resolution-service.js";
+import {
+  collectPreAttackObservations,
+  resolveSkillOrder,
+} from "../skill/skill-resolution-service.js";
+import { emitPreAttackObservations } from "./pre-attack-observation-service.js";
 import {
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
@@ -406,6 +410,37 @@ export function resolveSkillUse(
   });
   working = passiveRuntime.onFactEvent(skillUseStarted, working).units;
 
+  // R-ATM-03: 前段フェーズの最後に攻撃前観測を行う（対象束縛の解決後・効果処理
+  // フェーズの開始前）。`beginEffectProcessingPhase`より前のため、この観測の
+  // PS/Memory候補は保留されず直ちに解決する（R-ATM-02 #1の表、AS/EX行）。
+  const observation = emitPreAttackObservations(
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      skillUseId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      skillDefinitionId: skill.skillDefinitionId,
+      skillType: skill.skillType,
+      attackerUnitId: actorUnitId,
+    },
+    collectPreAttackObservations(
+      skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+      plan.resolvedBindings,
+      actorBeforeTargeting,
+      working,
+      definitions.effectActions,
+    ),
+    working,
+    actorUnitId,
+    definitions.effectActions,
+    skillUseStarted.eventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+  );
+  working = observation.units;
+
   // R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉はAS/EXスキル使用だけが行う。
   // このスキル使用の全DAMAGE EffectActionを横断して、命中判定へ到達した時点の
   // ライダー・攻撃対象・命中/会心を蓄積し、全step解決後に1回だけ追撃を解決する。
@@ -421,7 +456,9 @@ export function resolveSkillUse(
     skillUseId,
     actionScope,
     rootEventId: actionStarted.eventId,
-    parentEventId: skillUseStarted.eventId,
+    // 効果処理フェーズは前段フェーズの続きであり、その終端は最後の攻撃前観測
+    // （R-ATM-03）になる。観測が1件も無ければ`SkillUseStarted`のままである。
+    parentEventId: observation.lastEventId,
     skillDefinitionId: skill.skillDefinitionId,
     onFactEventForPassiveChain: (
       event: BattleDomainEvent,
@@ -441,7 +478,20 @@ export function resolveSkillUse(
   // 完了イベント（`SkillUseCompleted`/`SkillUseInterrupted`）発行後の後段フェーズ
   // まで保留する（R-ATM-01）。追撃（R-FUP-01）も効果処理フェーズの内側として扱う。
   passiveRuntime.beginEffectProcessingPhase();
-  const effectResult = applyEffectActionGroups(plan, working, groupContext);
+  // R-ATM-03 #5: 攻撃前観測の候補解決で使用者が戦闘不能になった場合は効果処理
+  // フェーズへ進まない。どのACTIONも未開始のため`unresolvedEffectCount: 0`の中断に
+  // なる（Q-SKL-03）。保留キューは空でも後段フェーズの排出は下で必ず行う。
+  const effectResult = observation.interrupted
+    ? {
+        units: working,
+        outcome: {
+          status: "INTERRUPTED" as const,
+          reason: "ACTOR_DEFEATED" as const,
+          resolvedEffectCount: 0,
+          unresolvedEffectCount: 0,
+        },
+      }
+    : applyEffectActionGroups(plan, working, groupContext);
   // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
   // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま
   // `finalizeEffectSequenceResolution`（`this.units`を参照する）を呼べる。

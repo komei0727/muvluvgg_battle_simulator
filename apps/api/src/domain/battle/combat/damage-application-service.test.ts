@@ -430,7 +430,6 @@ describe("applyDamageAction", () => {
     // `innerEvents` empty whenever the callback is supplied), and the chain of
     // each may still cancel or re-shape this hit before damage is calculated.
     expect(seenEventTypes).toEqual([
-      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageWillBeApplied",
@@ -643,7 +642,7 @@ describe("applyDamageAction", () => {
     });
   });
 
-  it("UT-R-EFF-07-010 (R-EFF-07/08_ドメインイベント.md UnitBeingAttacked): records a real UnitBeingAttacked event when the target is determined attackable, and consumes NEXT_INCOMING_ATTACK causally after it (not merely before hit judgment)", () => {
+  it("UT-R-EFF-07-010 (R-EFF-07 / R-DMG-05 #1): consumes NEXT_INCOMING_ATTACK at the start of the hit — before hit judgment — and the hit itself emits no UnitBeingAttacked (that moved to the pre-attack observation, R-ATM-03)", () => {
     const nextIncomingEffect = consumptionEffect(
       "eff-next-incoming",
       createBattleUnitId("TARGET"),
@@ -674,19 +673,19 @@ describe("applyDamageAction", () => {
     );
 
     const events = baseContext.recorder.getEvents();
-    const unitBeingAttacked = events.find((e) => e.eventType === "UnitBeingAttacked");
-    const consumptionChanged = events.find((e) => e.eventType === "EffectConsumptionChanged");
-    expect(unitBeingAttacked).toBeDefined();
-    expect(unitBeingAttacked!.payload).toMatchObject({
-      targetUnitId: createBattleUnitId("TARGET"),
-      hitIndex: 1,
-    });
-    expect(unitBeingAttacked!.sourceUnitId).toBe(createBattleUnitId("ATTACKER"));
-    expect(consumptionChanged).toBeDefined();
-    expect(consumptionChanged!.parentEventId).toBe(unitBeingAttacked!.eventId);
+    // R-ATM-03: ヒット単位の`UnitBeingAttacked`は存在しない。効果処理の開始前に
+    // 対象ごと1回だけ発行される（`lifecycle/pre-attack-observation-service.ts`）。
+    expect(events.some((e) => e.eventType === "UnitBeingAttacked")).toBe(false);
+    // R-DMG-05 #1: 消費タイミングは変えない — 命中判定（`HitConfirmed`）より前に
+    // 消費し、そのイベントの因果親はこのヒットの起点イベントのままである。
+    const consumptionIndex = events.findIndex((e) => e.eventType === "EffectConsumptionChanged");
+    const hitConfirmedIndex = events.findIndex((e) => e.eventType === "HitConfirmed");
+    expect(consumptionIndex).toBeGreaterThanOrEqual(0);
+    expect(hitConfirmedIndex).toBeGreaterThan(consumptionIndex);
+    expect(events[consumptionIndex]!.parentEventId).toBe(baseContext.parentEventId);
   });
 
-  it("UT-R-EFF-07-011: does not record UnitBeingAttacked for a hit skipped because the target is already defeated", () => {
+  it("UT-R-EFF-07-011: consumes nothing for a hit skipped because the target is already defeated", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const target = defeated(unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }));
     const random = new SequenceRandomSource([]);
@@ -701,9 +700,14 @@ describe("applyDamageAction", () => {
       context,
     );
 
-    expect(context.recorder.getEvents().some((e) => e.eventType === "UnitBeingAttacked")).toBe(
-      false,
-    );
+    // R-ACTN-01 #2でスキップされたヒットは観測列（R-DMG-05 #1の消費を含む）へ
+    // 一切入らないため、ヒット由来のイベントを1件も発行しない。
+    expect(
+      context.recorder
+        .getEvents()
+        .map((e) => e.eventType)
+        .filter((eventType) => eventType !== "ActionStarted"),
+    ).toEqual([]);
   });
 
   it("UT-R-EFF-07-009 (R-EFF-07 boundary/expiry): a NEXT_OUTGOING_ATTACK effect at maxCount 1 expires (EffectConsumptionChanged then EffectExpired) after being consumed", () => {
@@ -746,17 +750,17 @@ describe("applyDamageAction", () => {
     expect(types.indexOf("EffectConsumptionChanged")).toBeLessThan(types.indexOf("EffectExpired"));
   });
 
-  it("UT-R-EFF-07-012 (hpBefore/hpAfter staleness): an HP change made by a PS reacting to UnitBeingAttacked (before hit judgment) is reflected as the damage baseline, not silently discarded", () => {
+  it("UT-R-EFF-07-012 (hpBefore/hpAfter staleness): an HP change made by a PS reacting to HitConfirmed (before damage calculation) is reflected as the damage baseline, not silently discarded", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
     const random = new SequenceRandomSource([]);
     const context = damageEventContext();
-    // Simulate a PS that heals the target by 5 HP the instant it becomes an
-    // attack target (reacting to UnitBeingAttacked, before hit judgment).
+    // Simulate a PS that heals the target by 5 HP the instant the hit lands
+    // (reacting to HitConfirmed, before damage calculation).
     const contextWithHeal: DamageEventContext = {
       ...context,
       onFactEventForPassiveChain: (event, units) =>
-        event.eventType === "UnitBeingAttacked"
+        event.eventType === "HitConfirmed"
           ? units.map((u) =>
               u.battleUnitId === target.battleUnitId ? { ...u, currentHp: u.currentHp + 5 } : u,
             )

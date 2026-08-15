@@ -3,6 +3,7 @@ import {
   createSkillDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
 import type {
+  DamageType,
   EffectImmunityCategory,
   SkillType,
   StatusKind,
@@ -36,13 +37,15 @@ const SYNTHETIC_SKILL_ID = createSkillDefinitionId("SKL_TEST_TRIGGER_SOURCE");
 const SYNTHETIC_ACTION_ID = createEffectActionDefinitionId("ACT_TEST_TRIGGER_SOURCE");
 
 /**
- * 敵の攻撃が対象へ当たる直前（R-EFF-07 の消費点）。`skillType` は「自身がアクティブ
- * スキルで攻撃される直前」を `EVENT_PAYLOAD` で読む trigger のために指定する。
+ * 攻撃前観測（R-ATM-03）: 敵の攻撃の効果処理が始まる直前、対象ごとに1回。
+ * `skillType` は「自身がアクティブスキルで攻撃される直前」を、`damageTypes` は
+ * 「ENタイプの攻撃を受ける直前」を `EVENT_PAYLOAD` で読む trigger のために指定する。
  */
 export function unitBeingAttacked(options: {
   readonly source: string;
   readonly target: string;
   readonly skillType?: SkillType;
+  readonly damageTypes?: readonly DamageType[];
 }): PassiveTriggerEvent<"UnitBeingAttacked"> {
   return {
     eventType: "UnitBeingAttacked",
@@ -51,10 +54,9 @@ export function unitBeingAttacked(options: {
     targetUnitIds: [createBattleUnitId(options.target)],
     payload: {
       skillDefinitionId: SYNTHETIC_SKILL_ID,
-      effectActionDefinitionId: SYNTHETIC_ACTION_ID,
-      hitIndex: 1,
       targetUnitId: createBattleUnitId(options.target),
       ...(options.skillType === undefined ? {} : { skillType: options.skillType }),
+      damageTypes: options.damageTypes ?? ["PHYSICAL"],
     },
   };
 }

@@ -66,8 +66,8 @@ export type HitObservation =
     };
 
 /**
- * R-DMG-05 #1〜#4 ＋ R-SKL-03: 1ヒットのダメージ計算に入るまでの観測を解決する
- * （`UnitBeingAttacked` → R-EFF-07の`NEXT_*_ATTACK`消費 → 回避判定 → `HitConfirmed`
+ * R-DMG-05 #1〜#3 ＋ R-SKL-03: 1ヒットのダメージ計算に入るまでの観測を解決する
+ * （R-EFF-07の`NEXT_*_ATTACK`消費 → 回避判定 → `HitConfirmed`
  * → 会心判定 → `CriticalCheckResolved` → `DamageWillBeApplied`）。各イベントの記録
  * 直後にPS/Memory即時連鎖を解決し、その連鎖後の最新stateで前提を再検証してから次へ
  * 進む（`08_ドメインイベント.md`「TIMINGイベント後の再検証」）。
@@ -90,38 +90,12 @@ export function* observeHitSteps(
   let lastEventId = parentEventId;
   const attackerAtStart = findUnit(working, attackerUnitId, "attacker.battleUnitId");
 
-  // `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
-  // （命中判定・ダメージ計算より前）に発行する。R-EFF-07:
-  // `NEXT_INCOMING_ATTACK`はこの発行時点で消費する。
-  const unitBeingAttackedEventsStart = context.recorder.getEvents().length;
-  const unitBeingAttacked = context.recorder.record({
-    eventType: "UnitBeingAttacked",
-    category: "TIMING",
-    turnNumber: context.turnNumber,
-    cycleNumber: context.cycleNumber,
-    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-    skillUseId: context.skillUseId,
-    resolutionScopeId: context.resolutionScopeId,
-    parentEventId: lastEventId,
-    rootEventId: context.rootEventId,
-    sourceUnitId: attackerUnitId,
-    targetUnitIds: [targetUnitId],
-    payload: {
-      skillDefinitionId: context.skillDefinitionId,
-      effectActionDefinitionId: profile.effectActionDefinitionId,
-      hitIndex: profile.hitIndex,
-      targetUnitId,
-      // 「自身がアクティブスキルで攻撃される直前」を`EVENT_PAYLOAD`で読むtriggerが
-      // 参照する。スキル種別へ帰属しない経路（継続ダメージ等）では未指定のまま。
-      ...(context.skillType === undefined ? {} : { skillType: context.skillType }),
-    },
-  });
-  lastEventId = unitBeingAttacked.eventId;
-  // `UnitBeingAttacked`は消費失効より前に記録されているため、状態を書き換える前に
-  // ここで通知する。消費失効自身の通知は`consumeAndExpire`が除去1件ごとに行う
-  // （またはcallback未指定なら`yield`する）。これもTIMINGイベントであり、下の再検証は
-  // その連鎖の結果を見るためのもの。callback未指定の経路でも連鎖をここで解決し切る必要がある。
-  yield* notifyOrYieldNewEvents(context, working, unitBeingAttackedEventsStart);
+  // R-ATM-03: `UnitBeingAttacked`はヒット単位では発行しない — 効果処理フェーズの
+  // 開始前に、攻撃前観測が対象ごとに1回だけ発行する
+  // （`lifecycle/pre-attack-observation-service.ts`）。
+  // R-DMG-05 #1: `NEXT_INCOMING_ATTACK`／`NEXT_OUTGOING_ATTACK`の消費はこの位置
+  // （各ヒットの命中判定前）のまま変えない — 観測イベントの前段フェーズへの移動は
+  // 消費タイミングを変えない（R-EFF-07）。
   lastEventId = yield* consumeAndExpire(
     context,
     working,
@@ -140,7 +114,7 @@ export function* observeHitSteps(
     lastEventId,
   );
 
-  // `UnitBeingAttacked`／`NEXT_OUTGOING_ATTACK`消費が発火したPS連鎖は`working`を
+  // `NEXT_*_ATTACK`消費の失効が発火したPS連鎖は`working`を
   // 書き換え得る（対象を回復・戦闘不能にする等）。`08_ドメインイベント.md`のTIMINGイベント
   // 契約どおり、命中・会心・ダメージ計算に入る前に発生源・対象の生存を再検証し、
   // 計算用ステータスも`working`から取り直す。

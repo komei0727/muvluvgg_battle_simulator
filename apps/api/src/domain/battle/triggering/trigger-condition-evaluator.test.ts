@@ -157,6 +157,32 @@ describe("evaluateTriggerCondition", () => {
     ).toBe(true);
   });
 
+  it('UT-R-ATM-03-005: EVENT_PAYLOAD field "damageType" is an alias for the UnitBeingAttacked damageTypes set — any element satisfying the comparison makes it true', () => {
+    const condition: ConditionDefinition = {
+      kind: "EVENT_PAYLOAD",
+      field: "damageType",
+      op: "EQ",
+      value: "EN",
+    };
+    // 混在した集合（複数のDAMAGE定義＋捕捉済み追撃ライダーの型）でいずれかが一致すれば真。
+    expect(
+      evaluateTriggerCondition(condition, { payload: { damageTypes: ["PHYSICAL", "EN"] } }),
+    ).toBe(true);
+    expect(evaluateTriggerCondition(condition, { payload: { damageTypes: ["PHYSICAL"] } })).toBe(
+      false,
+    );
+    expect(evaluateTriggerCondition(condition, { payload: { damageTypes: [] } })).toBe(false);
+    // 実フィールド`damageType`を持つイベント（`DamageWillBeApplied`等）は従来どおり直接比較する。
+    expect(evaluateTriggerCondition(condition, { payload: { damageType: "EN" } })).toBe(true);
+    // 別名は`damageType`にだけ効き、他のfieldへ複数形の推測を広げない。
+    expect(
+      evaluateTriggerCondition(
+        { kind: "EVENT_PAYLOAD", field: "status", op: "EQ", value: "FREEZE" },
+        { payload: { statuses: ["FREEZE"] } },
+      ),
+    ).toBe(false);
+  });
+
   it("UT-R-PS-01-004: EVENT_PAYLOAD returns false when the field is missing from payload", () => {
     const condition: ConditionDefinition = {
       kind: "EVENT_PAYLOAD",

@@ -17,7 +17,11 @@ import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
-import { resolveChargeReleaseOrder } from "../skill/skill-resolution-service.js";
+import {
+  collectPreAttackObservations,
+  resolveChargeReleaseOrder,
+} from "../skill/skill-resolution-service.js";
+import { emitPreAttackObservations } from "./pre-attack-observation-service.js";
 import { expireEffectsSteps } from "../effects/duration-expiry-service.js";
 import type {
   ActionId,
@@ -493,31 +497,72 @@ export function resolveChargeRelease(
   // 届けるとともに、`working`を最新化する。
   working = passiveRuntime.onFactEvent(chargeReleased, working).units;
 
+  // R-ATM-03: 前段フェーズの最後に攻撃前観測を行う（R-ATM-02 #1の表、チャージ解放行）。
+  const observation = emitPreAttackObservations(
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      skillUseId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      skillDefinitionId: skill.skillDefinitionId,
+      skillType: skill.skillType,
+      attackerUnitId: actorUnitId,
+    },
+    collectPreAttackObservations(
+      skill.resolution.kind === "CHARGE" ? skill.resolution.chargeRelease.steps : [],
+      plan.resolvedBindings,
+      requireUnit(working, actorUnitId),
+      working,
+      definitions.effectActions,
+    ),
+    working,
+    actorUnitId,
+    // R-FUP-01の捕捉はAS/EXスキル使用だけが行うため、チャージ解放にライダーは乗らない。
+    undefined,
+    chargeReleased.eventId,
+    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+  );
+  working = observation.units;
+
   // R-ATM-02 #2: ここから効果処理フェーズ（AS/EX経路と同じ規約）。候補の発動は
   // `ChargeReleaseCompleted`/`ChargeReleaseInterrupted`発行後の後段フェーズまで保留する。
   passiveRuntime.beginEffectProcessingPhase();
-  const effectResult = applyEffectActionGroups(plan, working, {
-    definitions,
-    actorUnitId,
-    random,
-    recorder,
-    turnNumber,
-    cycleNumber,
-    actionId,
-    skillUseId,
-    actionScope,
-    rootEventId: actionStarted.eventId,
-    parentEventId: chargeReleased.eventId,
-    skillDefinitionId: skill.skillDefinitionId,
-    onFactEventForPassiveChain: (event, unitsForChain) =>
-      passiveRuntime.onFactEvent(event, unitsForChain).units,
-    // R-SKL-08: `action-skill-use-resolver.ts`と
-    // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
-    // 自身のEffectSequenceにも使い回す。
-    damageResults: passiveRuntime.damageResultsRegistry,
-    // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
-    ...(exercise !== undefined ? { exercise } : {}),
-  });
+  // R-ATM-03 #5: 攻撃前観測で使用者が戦闘不能になったなら効果処理フェーズへ進まない。
+  const effectResult = observation.interrupted
+    ? {
+        units: working,
+        outcome: {
+          status: "INTERRUPTED" as const,
+          reason: "ACTOR_DEFEATED" as const,
+          resolvedEffectCount: 0,
+          unresolvedEffectCount: 0,
+        },
+      }
+    : applyEffectActionGroups(plan, working, {
+        definitions,
+        actorUnitId,
+        random,
+        recorder,
+        turnNumber,
+        cycleNumber,
+        actionId,
+        skillUseId,
+        actionScope,
+        rootEventId: actionStarted.eventId,
+        parentEventId: observation.lastEventId,
+        skillDefinitionId: skill.skillDefinitionId,
+        onFactEventForPassiveChain: (event, unitsForChain) =>
+          passiveRuntime.onFactEvent(event, unitsForChain).units,
+        // R-SKL-08: `action-skill-use-resolver.ts`と
+        // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
+        // 自身のEffectSequenceにも使い回す。
+        damageResults: passiveRuntime.damageResultsRegistry,
+        // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
+        ...(exercise !== undefined ? { exercise } : {}),
+      });
   // EFF-006/Issue #212: `applyEffectActionGroups`の戻り値は
   // `onFactEventForPassiveChain`経由で既に`passiveRuntime`（`this.units`）へ
   // 同期済みのため、そのまま`finalizeEffectSequenceResolution`（`this.units`を

@@ -20,6 +20,7 @@ import type {
   TargetBindingDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
+import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
@@ -661,6 +662,127 @@ export function flattenEffectSequencePlan(
     }
   }
   return result;
+}
+
+/** R-ATM-03: 攻撃前観測（`UnitBeingAttacked`）を1件発行する対象と、その対象へ向き得るダメージ型の集合。 */
+export interface PreAttackObservation {
+  readonly targetUnitId: BattleUnitId;
+  /** `EVENT_PAYLOAD field: "damageType"`が別名として参照する集合（R-ATM-03 #7）。初出順。 */
+  readonly damageTypes: readonly DamageType[];
+}
+
+/**
+ * R-ATM-03 #2〜#3: `DAMAGE`を適用しうるstepの対象参照を、条件評価も乱数消費も
+ * 行わずに構造だけから走査して観測対象を決める（`collectDamageTargetedBindingIds`
+ * と同型の静的走査）。
+ *
+ * - 走査順は`steps`の定義順（`BRANCH`は`thenSteps`→`elseSteps`、`RANDOM_BRANCH`は
+ *   branch定義順、`REPEAT`は`steps`定義順）で、各stepでは対象参照が解決した束縛順。
+ * - 同じ対象は初出でだけ観測を発行するが、`damageTypes`は後続stepの分も同じ
+ *   エントリへ足し込む（「その対象へ向き得る全DAMAGE定義の`damageType`の集合」）。
+ * - `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`は前段フェーズでは未確定であり、
+ *   R-ATM-03 #6が観測対象から明示的に除外する。
+ * - `TRIGGER_SOURCE`/`TRIGGER_TARGET`は`triggerContext`がある場合にだけ解決する
+ *   （無い経路ではその参照が実行時にも解決できないため、静的走査では寄与しない）。
+ */
+export function collectPreAttackObservations(
+  steps: readonly EffectStepDefinition[],
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
+  source: ResolutionSource,
+  allUnits: readonly BattleUnit[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  triggerContext?: TriggerContext,
+): readonly PreAttackObservation[] {
+  const order: BattleUnitId[] = [];
+  const damageTypesByTarget = new Map<BattleUnitId, DamageType[]>();
+
+  const visit = (list: readonly EffectStepDefinition[]): void => {
+    for (const step of list) {
+      switch (step.kind) {
+        case "ACTION": {
+          const damageTypes = step.actions
+            .map((action) => effectActions.get(action.effectActionDefinitionId))
+            .filter(
+              (definition): definition is Extract<EffectActionDefinition, { kind: "DAMAGE" }> =>
+                definition?.kind === "DAMAGE",
+            )
+            .map((definition) => definition.payload.damageType);
+          if (damageTypes.length === 0) {
+            break;
+          }
+          for (const unitId of resolveObservableTargetUnitIds(
+            step.target,
+            resolvedBindings,
+            source,
+            allUnits,
+            triggerContext,
+          )) {
+            let collected = damageTypesByTarget.get(unitId);
+            if (collected === undefined) {
+              collected = [];
+              damageTypesByTarget.set(unitId, collected);
+              order.push(unitId);
+            }
+            for (const damageType of damageTypes) {
+              if (!collected.includes(damageType)) {
+                collected.push(damageType);
+              }
+            }
+          }
+          break;
+        }
+        case "BRANCH":
+          visit(step.thenSteps);
+          visit(step.elseSteps);
+          break;
+        case "RANDOM_BRANCH":
+          for (const branch of step.branches) {
+            visit(branch.steps);
+          }
+          break;
+        case "REPEAT":
+          visit(step.steps);
+          break;
+      }
+    }
+  };
+  visit(steps);
+
+  return order.map((targetUnitId) => ({
+    targetUnitId,
+    damageTypes: damageTypesByTarget.get(targetUnitId)!,
+  }));
+}
+
+/**
+ * R-ATM-03 #2: 前段フェーズ時点で解決できる対象参照（`BINDING`・`SELF`・
+ * `TRIGGER_SOURCE`／`TRIGGER_TARGET`）だけをユニットidへ解決する。それ以外
+ * （`LAST_*_TARGETS`）は空を返す。
+ */
+function resolveObservableTargetUnitIds(
+  reference: TargetReference,
+  resolvedBindings: ReadonlyMap<TargetBindingId, ResolvedBinding>,
+  source: ResolutionSource,
+  allUnits: readonly BattleUnit[],
+  triggerContext: TriggerContext | undefined,
+): readonly BattleUnitId[] {
+  if (reference.kind === "LAST_ACTION_TARGETS" || reference.kind === "LAST_DAMAGED_TARGETS") {
+    return [];
+  }
+  if (reference.kind === "TRIGGER_SOURCE" && triggerContext?.triggerSourceUnitId === undefined) {
+    return [];
+  }
+  if (reference.kind === "TRIGGER_TARGET" && triggerContext?.triggerTargetUnitIds === undefined) {
+    return [];
+  }
+  return resolveReference(
+    reference,
+    resolvedBindings,
+    source,
+    allUnits,
+    undefined,
+    triggerContext,
+  ).units.map((unit) => unit.battleUnitId);
 }
 
 /**

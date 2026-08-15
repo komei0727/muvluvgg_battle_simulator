@@ -389,15 +389,19 @@ const effectActionCompletedDetailsSchema = {
   },
 } as const;
 
-/** `UnitBeingAttacked`（R-EFF-07、EFF-003）。攻撃対象が確定した直後、命中判定より前に発行する。 */
+const DAMAGE_TYPE_ENUM = ["PHYSICAL", "EN"] as const;
+
+/**
+ * `UnitBeingAttacked`（攻撃前観測、`R-ATM-03`）。対象束縛の解決後・効果処理の
+ * 開始前に、DAMAGEの対象として解決された各ユニットへ1回ずつ発行する。ヒット単位で
+ * 発行しなくなったため、`effectActionDefinitionId`・`hitIndex`は持たない。
+ */
 const unitBeingAttackedDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["skillDefinitionId", "effectActionDefinitionId", "hitIndex", "targetUnitId"],
+  required: ["skillDefinitionId", "targetUnitId", "damageTypes"],
   properties: {
     skillDefinitionId: { type: "string" },
-    effectActionDefinitionId: { type: "string" },
-    hitIndex: { type: "integer", minimum: 0 },
     targetUnitId: { type: "string" },
     /**
      * `EVENT_PAYLOAD field: "skillType"`をこのeventTypeへ条件付けるproduction
@@ -406,6 +410,8 @@ const unitBeingAttackedDetailsSchema = {
      * （v1デコーダ互換）。PSが与えたダメージもあるため`AS`/`EX`に加えて`PS`を取りうる。
      */
     skillType: { type: "string", enum: ["AS", "PS", "EX"] },
+    /** `R-ATM-03` #7: この対象へ向き得る全DAMAGE定義と捕捉済み追撃ライダーのダメージ型。 */
+    damageTypes: { type: "array", items: { type: "string", enum: DAMAGE_TYPE_ENUM } },
   },
 } as const;
 
@@ -470,8 +476,6 @@ const criticalCheckResolvedDetailsSchema = {
     result: { type: "boolean" },
   },
 } as const;
-
-const DAMAGE_TYPE_ENUM = ["PHYSICAL", "EN"] as const;
 
 /**
  * `DamageWillBeApplied`（R-DMG-05 #4、DMG-001／Issue #195）。命中・会心の確定後、

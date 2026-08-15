@@ -1157,6 +1157,40 @@ describe("buildCatalogIndex", () => {
     expect(index.skills.get("SKL_PS1" as never)).toBeDefined();
   });
 
+  it("UT-R-ATM-04-001: rejects a trigger on a TIMING event emitted inside the effect processing phase, and keeps the ones emitted outside it usable", () => {
+    const defs = baseDefinitions();
+    // R-ATM-04: 効果処理フェーズの内部で発行されるTIMINGイベントは発動契機にできない。
+    for (const eventType of ["DamageWillBeApplied", "EffectStepStarting", "EffectActionStarting"]) {
+      const withForbidden: CatalogDefinitions = {
+        ...defs,
+        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+        skills: [...defs.skills, psSkill("SKL_PS1", eventType, "TIMING")],
+      };
+      try {
+        buildCatalogIndex(withForbidden);
+        expect.unreachable(`${eventType} must be rejected as a Trigger target`);
+      } catch (error) {
+        const err = error as CatalogIntegrityError;
+        expect(err.violations[0]?.rule).toBe("EFFECT_PROCESSING_TIMING_EVENT_TRIGGER");
+        expect(err.violations[0]?.targetId).toBe("SKL_PS1");
+      }
+    }
+    // 効果処理の外で発行されるTIMINGイベントは引き続き発動契機に使える。
+    for (const eventType of [
+      "SkillUseStarting",
+      "UnitBeingAttacked",
+      "ActionCompleting",
+      "TurnCompleting",
+    ]) {
+      const withAllowed: CatalogDefinitions = {
+        ...defs,
+        units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+        skills: [...defs.skills, psSkill("SKL_PS1", eventType, "TIMING")],
+      };
+      expect(buildCatalogIndex(withAllowed).skills.get("SKL_PS1" as never)).toBeDefined();
+    }
+  });
+
   it("UT-CAT-IDX-013: rejects a Unit that lists the same Skill id twice in activeSkillDefinitionIds", () => {
     const defs = baseDefinitions();
     const withDupRef: CatalogDefinitions = {

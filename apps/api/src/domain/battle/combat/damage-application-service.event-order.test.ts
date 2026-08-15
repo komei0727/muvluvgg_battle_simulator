@@ -37,7 +37,6 @@ describe("applyDamageAction hit-level damage event order (DMG-001)", () => {
     expect(
       events.map((event) => event.eventType).filter((eventType) => eventType !== "ActionStarted"),
     ).toEqual([
-      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageWillBeApplied",

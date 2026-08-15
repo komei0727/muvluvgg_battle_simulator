@@ -26,8 +26,8 @@
   "current": {
     "rules": {
       "total": 140,
-      "completed": 137,
-      "remaining": 3
+      "completed": 139,
+      "remaining": 1
     },
     "unitCatalog": {
       "convertedProductionUnits": 73,
@@ -649,23 +649,12 @@
       "phase": 5,
       "milestone": "M11",
       "status": "CLOSED"
-    },
-    {
-      "taskId": "ATM-002",
-      "issue": 480,
-      "phase": 6,
-      "milestone": "M12",
-      "status": "OPEN"
     }
   ],
   "ruleAssignments": [
     {
       "taskId": "M7-019",
       "ruleIds": ["R-TGT-06"]
-    },
-    {
-      "taskId": "ATM-002",
-      "ruleIds": ["R-ATM-03", "R-ATM-04"]
     }
   ],
   "conversionThemeAssignments": [],

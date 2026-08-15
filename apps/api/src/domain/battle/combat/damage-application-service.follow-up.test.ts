@@ -299,10 +299,11 @@ describe("applyFollowUpAttacksSteps (R-FUP-01)", () => {
         sourceUnitId: createBattleUnitId("GRANTOR"),
       },
     ]);
-    // 戦闘不能対象にはヒットイベント自体を発行しない。
+    // 戦闘不能対象にはヒットイベント自体を発行しない（`UnitBeingAttacked`は
+    // R-ATM-03で効果処理の前段へ移ったため、ヒットの起点は`HitConfirmed`になる）。
     const attackedTargets = context.recorder
       .getEvents()
-      .filter((event) => event.eventType === "UnitBeingAttacked")
+      .filter((event) => event.eventType === "HitConfirmed")
       .map((event) => event.targetUnitIds?.[0]);
     expect(attackedTargets).toEqual([createBattleUnitId("TARGET_A")]);
   });
