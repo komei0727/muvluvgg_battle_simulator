@@ -455,6 +455,48 @@ function subunitAction(
   );
 }
 
+/** R-FUP-01（Issue #474）: `APPLY_FOLLOW_UP_ATTACK`のfixture。 */
+function followUpAttackAction(
+  id: string,
+  options: { readonly onHitEffectId?: string } = {},
+): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_FOLLOW_UP_ATTACK",
+      payload: {
+        damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.3588 } },
+        ...(options.onHitEffectId !== undefined
+          ? { onHitEffect: { effectActionDefinitionId: options.onHitEffectId } }
+          : {}),
+        duration: {
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+          dispellable: true,
+        },
+      },
+    },
+    "effectAction",
+  );
+}
+
+/** R-FUP-01（Issue #474）: `onHitEffect`が受理する側の`APPLY_CONTINUOUS_DAMAGE` fixture。 */
+function continuousDamageAction(id: string): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_CONTINUOUS_DAMAGE",
+      payload: {
+        continuousDamageKind: "POISON",
+        damageType: "PHYSICAL",
+        formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: { timeLimit: { unit: "ACTION", count: 3 }, dispellable: true },
+      },
+    },
+    "effectAction",
+  );
+}
+
 function modifyResourceDistributeAction(id: string): EffectActionDefinition {
   return createEffectActionDefinition(
     {
@@ -1272,6 +1314,71 @@ describe("buildCatalogIndex", () => {
     const index = buildCatalogIndex(withDebuff);
 
     expect(index.effectActions.get("ACT_SUBUNIT_WITH_DEBUFF" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-105 (Issue #474, R-FUP-01): rejects an APPLY_FOLLOW_UP_ATTACK whose onHitEffect references a missing EffectActionDefinition", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        followUpAttackAction("ACT_FOLLOW_UP_DANGLING", { onHitEffectId: "ACT_MISSING_ON_HIT" }),
+      ],
+    };
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "DANGLING_REFERENCE" && v.targetId === "ACT_FOLLOW_UP_DANGLING",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-106 (Issue #474, R-FUP-01): rejects an APPLY_FOLLOW_UP_ATTACK whose onHitEffect references a kind that is neither APPLY_STAT_MOD nor APPLY_CONTINUOUS_DAMAGE", () => {
+    const defs = baseDefinitions();
+    const withNonGrantable: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        followUpAttackAction("ACT_FOLLOW_UP_BAD_ON_HIT", { onHitEffectId: "ACT_DAMAGE_1" }),
+      ],
+    };
+    try {
+      buildCatalogIndex(withNonGrantable);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.some(
+          (v) => v.rule === "TYPE_MISMATCH" && v.targetId === "ACT_FOLLOW_UP_BAD_ON_HIT",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-107 (Issue #474, R-FUP-01): accepts APPLY_FOLLOW_UP_ATTACK onHitEffect references to APPLY_STAT_MOD and APPLY_CONTINUOUS_DAMAGE", () => {
+    const defs = baseDefinitions();
+    const withRiders: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        statModAction("ACT_FUP_SPEED_DOWN"),
+        continuousDamageAction("ACT_FUP_POISON"),
+        followUpAttackAction("ACT_FOLLOW_UP_STAT", { onHitEffectId: "ACT_FUP_SPEED_DOWN" }),
+        followUpAttackAction("ACT_FOLLOW_UP_POISON", { onHitEffectId: "ACT_FUP_POISON" }),
+        followUpAttackAction("ACT_FOLLOW_UP_PLAIN"),
+      ],
+    };
+
+    const index = buildCatalogIndex(withRiders);
+
+    expect(index.effectActions.get("ACT_FOLLOW_UP_STAT" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_FOLLOW_UP_POISON" as never)).toBeDefined();
+    expect(index.effectActions.get("ACT_FOLLOW_UP_PLAIN" as never)).toBeDefined();
   });
 
   it("UT-CAT-IDX-077 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): accepts an EFFECT_IMMUNITY with statusKinds that declares CAP_SPECIFIC_IMMUNITY", () => {

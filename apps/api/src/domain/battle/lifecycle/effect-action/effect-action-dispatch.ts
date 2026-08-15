@@ -15,6 +15,7 @@ import {
 } from "./resource-effect-action.js";
 import {
   resolveApplyAttackDamageBonus,
+  resolveApplyFollowUpAttack,
   resolveApplyPiercingMod,
   resolveContinuousModifier,
 } from "./modifier-effect-action.js";
@@ -62,6 +63,8 @@ export function* resolveEffectActionByKind(
       return resolveContinuousModifier({ ...input, effectAction });
     case "APPLY_ATTACK_DAMAGE_BONUS":
       return resolveApplyAttackDamageBonus({ ...input, effectAction });
+    case "APPLY_FOLLOW_UP_ATTACK":
+      return resolveApplyFollowUpAttack({ ...input, effectAction });
     case "APPLY_PIERCING_MOD":
       return resolveApplyPiercingMod({ ...input, effectAction });
     case "APPLY_MARKER":

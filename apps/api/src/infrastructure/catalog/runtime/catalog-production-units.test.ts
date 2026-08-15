@@ -477,7 +477,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-15.1` は戦術演習専用ユニット3体（`UNIT_ANIS_SWEETDEVIL_TEX`・
     // `UNIT_SHOUKA_BEACH_TEX`・`UNIT_MAO_SUMMER_TEX`、Issue #470〜#472）の追加。
     // 既存Unitの定義は変えていない。
-    expect(catalog.catalogRevision).toBe("2026-08-15.1");
+    // `2026-08-15.2` は追撃（攻撃ライダー、R-FUP-01／Issue #474）への載せ替え。
+    // `SKL_SUIRAN_CHAOS_PS3`・`SKL_CHIYURU_MAZE_PS2`・`SKL_FEE_ACTOR_PS1` の3スキル
+    // （と`SKL_FEE_ACTOR_PS1`の`OTHER_ALLY`修正）だけを変え、他ユニットは変えていない。
+    expect(catalog.catalogRevision).toBe("2026-08-15.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

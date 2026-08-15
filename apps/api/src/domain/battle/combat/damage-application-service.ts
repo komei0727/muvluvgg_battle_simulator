@@ -36,7 +36,9 @@ export type {
   DamageHitOutcome,
   DamageStep,
   DepletedAbsorberReason,
+  FollowUpAttackCapture,
 } from "./damage-event-context.js";
+export { emptyFollowUpAttackCapture } from "./damage-event-context.js";
 
 /**
  * R-CFS-02（DMG-009）: このヒットへ適用する混乱の数値。ASでない攻撃、混乱を保持しない
@@ -157,6 +159,26 @@ export function* applyDamageActionSteps(
         context.skillUseId,
       );
       continue;
+    }
+
+    // R-FUP-01（Issue #474）: このヒットは命中判定へ到達する（直下の`observeHitSteps`が
+    // `NEXT_OUTGOING_ATTACK`を消費する）ため、その時点で攻撃側が保持している追撃バフと
+    // 攻撃対象を捕捉する。消費と同じ到達点で捕捉することで、「相乗りする攻撃」と
+    // 「バフを消費する攻撃」が常に一致する。命中/会心の集計（`anyApplied`/`anyCritical`）は
+    // ループ後にoutcomesから合算する。
+    if (context.followUpAttackCapture !== undefined) {
+      const capture = context.followUpAttackCapture;
+      for (const effect of currentAttacker.appliedEffects) {
+        if (effect.isFollowUpAttack === true && !capture.riders.has(effect.effectInstanceId)) {
+          capture.riders.set(effect.effectInstanceId, {
+            effectActionDefinitionId: effect.effectActionDefinitionId,
+            ...(effect.sourceUnitId !== undefined ? { sourceUnitId: effect.sourceUnitId } : {}),
+          });
+        }
+      }
+      if (!capture.attackedTargetUnitIds.includes(hit.targetUnitId)) {
+        capture.attackedTargetUnitIds.push(hit.targetUnitId);
+      }
     }
 
     // R-DMG-05 #1〜#4／R-SKL-03: 1ヒットの観測（`UnitBeingAttacked`→消費→回避判定→
@@ -617,6 +639,22 @@ export function* applyDamageActionSteps(
       context.finalizeConsumedEffectDurations(Array.from(working.values()), lastEventId),
     );
     lastEventId = finalized.lastEventId;
+  }
+
+  // R-FUP-01: 追撃の発生可否（1発でも命中したか）と会心継承（1発でも会心になったか）は
+  // スキル使用内の全DAMAGE EffectActionを合算する。サブユニット追加ヒット（R-SUB-02）は
+  // `outcomes`に含まれないため集計対象にならない — 会心PREVENTED固定の追加ヒットが
+  // 継承判定を汚すことも、追撃が追撃を誘発することもない。
+  if (context.followUpAttackCapture !== undefined) {
+    const capture = context.followUpAttackCapture;
+    for (const outcome of outcomes) {
+      if (outcome.applied) {
+        capture.anyApplied = true;
+        if (outcome.isCritical) {
+          capture.anyCritical = true;
+        }
+      }
+    }
   }
 
   return {

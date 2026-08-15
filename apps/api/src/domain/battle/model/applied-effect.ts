@@ -418,6 +418,15 @@ export interface AppliedEffect {
    */
   readonly isAttackDamageBonus?: true;
   /**
+   * R-FUP-01（Issue #474）: `APPLY_FOLLOW_UP_ATTACK`由来の付与だけが`true`を持つ
+   * kind判別子。保持者のAS/EXスキル使用の攻撃に追撃を相乗りさせる。
+   * `combat/damage-application-service.ts`はCatalogの`effectActions`マップを
+   * 引けないため、攻撃時のライダー捕捉はこの判別子で行い（`isAttackDamageBonus`と
+   * 同じ理由）、追撃のダメージ定義・onHitEffect参照は解決側（lifecycle層）が
+   * `effectActionDefinitionId`からCatalogを引き直す。
+   */
+  readonly isFollowUpAttack?: true;
+  /**
    * R-HEAL-04（`M7-005-HEAL-LINK`、Issue #229）: `APPLY_HEALING_LINK`由来の付与
    * だけが持つkind判別子。保持者が得る回復量のうち`transferRate`の割合を
    * `transferToUnitId`へ移し替える（`heal-application-service.ts`）。転送先は

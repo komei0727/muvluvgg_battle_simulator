@@ -167,6 +167,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_SUBUNIT: ["durability", "additionalDamage", "duration"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
+  APPLY_FOLLOW_UP_ATTACK: ["damage", "onHitEffect", "duration"],
   APPLY_RESOURCE_GAIN_MOD: ["resource", "rateDelta", "stacking", "duration"],
 };
 
@@ -192,6 +193,9 @@ const SUBUNIT_FORMULA_HOLDER_ALLOWED_KEYS = ["formula"] as const;
  */
 const SUBUNIT_ADDITIONAL_DAMAGE_ALLOWED_KEYS = ["formula", "damageType", "debuff"] as const;
 const SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF_ALLOWED_KEYS = ["effectActionDefinitionId"] as const;
+/** R-FUP-01（Issue #474）: `APPLY_FOLLOW_UP_ATTACK`のネストfield。 */
+const FOLLOW_UP_ATTACK_DAMAGE_ALLOWED_KEYS = ["damageType", "formula"] as const;
+const FOLLOW_UP_ATTACK_ON_HIT_EFFECT_ALLOWED_KEYS = ["effectActionDefinitionId"] as const;
 const DAMAGE_THRESHOLD_ALLOWED_KEYS = ["op", "formula"] as const;
 /** R-CFS-02（DMG-009、Issue #193）: `APPLY_STATUS.confusion`が持てるfield。 */
 const CONFUSION_ALLOWED_KEYS = ["damageReductionRate", "lowAttackBaseDamageRate"] as const;
@@ -1345,6 +1349,58 @@ function createPayload(
         payload: {
           formula: createFormulaField(payload, "formula", path),
           duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_FOLLOW_UP_ATTACK": {
+      const damage = requireField(
+        payload["damage"] as { damageType?: string; formula?: FormulaDefinitionInput } | undefined,
+        `${path}.damage`,
+      );
+      assertKnownKeys(damage, FOLLOW_UP_ATTACK_DAMAGE_ALLOWED_KEYS, `${path}.damage`);
+      const damageType = requireField(damage.damageType, `${path}.damage.damageType`);
+      assertEnumValue(damageType, DAMAGE_TYPES, `${path}.damage.damageType`);
+      const damageFormula = requireField(damage.formula, `${path}.damage.formula`);
+      const onHitEffect = payload["onHitEffect"] as
+        | { effectActionDefinitionId?: string }
+        | undefined;
+      if (onHitEffect !== undefined) {
+        assertKnownKeys(
+          onHitEffect,
+          FOLLOW_UP_ATTACK_ON_HIT_EFFECT_ALLOWED_KEYS,
+          `${path}.onHitEffect`,
+        );
+      }
+      const duration = createDurationField(payload, path);
+      // R-FUP-01: 「相乗りする攻撃」と「このバフを消費する攻撃」を同一に保つため、
+      // 消費条件のない期間表現（時間制限のみ・他kindの消費）は構造ごと拒否する。
+      if (duration.consumption?.kind !== "NEXT_OUTGOING_ATTACK") {
+        throw new DomainValidationError(
+          `${path}.duration.consumption`,
+          `APPLY_FOLLOW_UP_ATTACK requires consumption kind "NEXT_OUTGOING_ATTACK" (the follow-up rides exactly the attacks that consume this effect), got ${JSON.stringify(duration.consumption?.kind)}`,
+        );
+      }
+      return {
+        kind: "APPLY_FOLLOW_UP_ATTACK",
+        payload: {
+          damage: {
+            damageType,
+            formula: createFormulaDefinition(damageFormula, `${path}.damage.formula`, undefined),
+          },
+          ...(onHitEffect !== undefined
+            ? {
+                onHitEffect: {
+                  effectActionDefinitionId: createEffectActionDefinitionId(
+                    requireField(
+                      onHitEffect.effectActionDefinitionId,
+                      `${path}.onHitEffect.effectActionDefinitionId`,
+                    ),
+                    `${path}.onHitEffect.effectActionDefinitionId`,
+                  ),
+                },
+              }
+            : {}),
+          duration,
         },
       };
     }

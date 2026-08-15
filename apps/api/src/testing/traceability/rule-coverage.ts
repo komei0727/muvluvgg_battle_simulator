@@ -2100,6 +2100,47 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
 
+  // FUP: 追撃（攻撃ライダー）
+  // Issue #474: 「当該攻撃に威力Xのダメージ…を追加する」（`SKL_SUIRAN_CHAOS_PS3`／
+  // `SKL_CHIYURU_MAZE_PS2`／`SKL_FEE_ACTOR_PS1`）を、保持者のAS/EXスキル使用の攻撃へ
+  // 相乗りする`APPLY_FOLLOW_UP_ATTACK`として実装した。
+  {
+    ruleId: "R-FUP-01",
+    testCaseIds: [
+      // Catalog表現: payload構造・NEXT_OUTGOING_ATTACK必須・onHitEffect参照検証。
+      "UT-CAT-ACT-111",
+      "UT-CAT-ACT-112",
+      "UT-CAT-ACT-113",
+      "UT-CAT-ACT-114",
+      "UT-CAT-IDX-105",
+      "UT-CAT-IDX-106",
+      "UT-CAT-IDX-107",
+      // ライダー捕捉: 消費と同じ到達点・対象集約・命中/会心の合算。
+      "UT-R-FUP-01-001",
+      "UT-R-FUP-01-002",
+      "UT-R-FUP-01-003",
+      // 追撃解決: 保持者ステータスでの通常ダメージ計算・会心継承・onHitEffect付与。
+      "UT-R-FUP-01-004",
+      "UT-R-FUP-01-005",
+      "UT-R-FUP-01-006",
+      // 付与: isFollowUpAttack判別子・重複可・消費残数の保持。
+      "UT-R-FUP-01-007",
+      // スキル使用単位: 全step解決後・SkillUseCompleted前の1回だけの解決と消費失効、
+      // 複数DAMAGE actionでも1回・複数ライダーの各1回・非攻撃スキルの非消費・
+      // 追撃中断のSkillUseInterrupted伝播。
+      "UT-R-FUP-01-008",
+      "UT-R-FUP-01-009",
+      "UT-R-FUP-01-010",
+      "UT-R-FUP-01-011",
+      "UT-R-FUP-01-012",
+      // production実ライフサイクル（3ユニット）。
+      "IT-UNIT-SUIRAN-CHAOS-011",
+      "IT-UNIT-CHIYURU-MAZE-006",
+      "IT-UNIT-FEE-ACTOR-006",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  },
+
   // INT: 防御介入
   // DMG-006（Issue #188）: 引き寄せ・肩代わり・反射・致死耐えを実ライフサイクルへ
   // 配線した。R-INT-01 #3（`APPLY_DAMAGE_LINK`）はDMG-007（Issue #187）が

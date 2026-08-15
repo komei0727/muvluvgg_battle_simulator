@@ -227,6 +227,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_SUBUNIT",
         "COOLDOWN_MANIPULATION",
         "APPLY_ATTACK_DAMAGE_BONUS",
+        "APPLY_FOLLOW_UP_ATTACK",
         "APPLY_RESOURCE_GAIN_MOD",
       ],
     },

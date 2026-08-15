@@ -26,6 +26,7 @@ import {
   skillUseStarting,
   turnStarted,
 } from "../../../testing/production-unit/trigger-events.js";
+import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
 
 /**
  * `UNIT_FEE_ACTOR`（【空っぽのアクター】フィー・ドレーゼ）のユニット単位production結合テスト
@@ -88,29 +89,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     intent: "敵単体に威力142.2でEN攻撃し、APを1削る。あわせて隣接する2体に威力47.4でEN攻撃する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_FEE_ACTOR_AS1" },
     expected: {
-      // PS1 の `sourceSelector: ALLY` は自分自身も味方として満たすため、フィー自身の
-      // AS使用でもPS1が起き、追加ダメージがAS本体より先に入る。
+      // REF（Issue #474）: PS1の`sourceSelector`は原文「**他の**味方」どおり
+      // `OTHER_ALLY`へ修正済み — フィー自身のAS使用ではPS1は起きない。
       actions: [
-        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_DAMAGE_ADD", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_DAMAGE_ADD", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_DAMAGE_ADD", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_AP_DOWN", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT", targets: ["enemy:back"] },
       ],
       hpDeltas: {
-        "enemy:front": -851,
-        "enemy:left": -377,
-        "enemy:back": -377,
+        "enemy:front": -711,
+        "enemy:left": -237,
+        "enemy:back": -237,
       },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
         { unitId: "enemy:front", resource: "AP", delta: -1 },
       ],
-      cooldowns: [{ unitId: "ally:subject", skillDefinitionId: "SKL_FEE_ACTOR_PS1", remaining: 1 }],
     },
   },
   {
@@ -130,13 +126,16 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: SHY_ALLY,
     expected: {
       actions: [
-        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_DAMAGE_ADD", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_FOLLOW_UP", targets: ["ally:front"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_CRIT_UP", targets: ["ally:front"] },
       ],
-      hpDeltas: {
-        "enemy:back": -140,
-      },
       effectsApplied: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+          magnitude: 0,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_CRIT_UP",
@@ -166,11 +165,16 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: {
       actions: [
-        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_DAMAGE_ADD", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_FOLLOW_UP", targets: ["ally:front"] },
       ],
-      hpDeltas: {
-        "enemy:back": -140,
-      },
+      effectsApplied: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+          magnitude: 0,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -464,5 +468,49 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
       battleId: "B_FEE_NO_BUFF",
     });
     expect(withoutBuff.hpDeltas).toEqual({ "enemy:front": -500 });
+  });
+
+  it("IT-UNIT-FEE-ACTOR-006 (R-FUP-01): 他の味方が実ASで攻撃するとPS1がそのSkillUseStartingで発動して追撃バフを付与し、当該攻撃の後に威力28.08のEN追撃が味方のステータスで入り、バフはその1回で失効する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    // 付与→捕捉→相乗りの全周を1本の実AS使用で観測する — 合成ASの`SkillUseStarting`で
+    // フィーのPS1（OTHER_ALLY）が実際に発動し、その場で付与されたバフが同じ攻撃に
+    // 相乗りする。
+    const { units, recorder } = rideStandInAttack({
+      attackerUnitId: "ally:front",
+      units: board.units,
+      definitions: board.definitions,
+      battleId: "B_FEE_PS1_RIDE",
+    });
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "PassiveResolved")
+        .map((event) => (event.payload as { skillDefinitionId?: string }).skillDefinitionId),
+    ).toEqual(["SKL_FEE_ACTOR_PS1"]);
+
+    // AS本体: (1000 - 500) x 1.0 = 500。追撃: (1000 - 500) x 0.2808 = 140（非会心継承・EN）。
+    const attacked = units.filter(
+      (unit) => unit.side === "ENEMY" && unit.currentHp < unit.combatStats.maximumHp / 2,
+    );
+    expect(attacked).toHaveLength(1);
+    expect(attacked[0]!.currentHp).toBe(5000 - 500 - 140);
+    const followUpDamage = recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageCalculated" &&
+          (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+            "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+      );
+    expect(followUpDamage).toHaveLength(1);
+    expect(followUpDamage[0]?.payload).toMatchObject({
+      attackerAttack: 1000,
+      criticalMultiplier: 1,
+      finalDamage: 140,
+      damageType: "EN",
+    });
+    // バフは「次の攻撃1回」で消費・失効している。
+    const holderAfter = units.find((unit) => unit.battleUnitId === "ally:front")!;
+    expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
   });
 });

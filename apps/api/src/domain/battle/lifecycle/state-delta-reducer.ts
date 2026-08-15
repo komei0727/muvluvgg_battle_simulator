@@ -338,6 +338,7 @@ export function sameEffectSnapshot(
     sameImmunityState(a.immunity, b.immunity) &&
     sameStatusDetails(a.statusDetails, b.statusDetails) &&
     a.isAttackDamageBonus === b.isAttackDamageBonus &&
+    a.isFollowUpAttack === b.isFollowUpAttack &&
     sameHealingLinkState(a.healingLink, b.healingLink) &&
     sameDamageModifierState(a.damageModifier, b.damageModifier) &&
     samePiercingModifierState(a.piercing, b.piercing) &&

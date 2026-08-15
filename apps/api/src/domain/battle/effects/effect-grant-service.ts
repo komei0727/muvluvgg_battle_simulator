@@ -73,6 +73,8 @@ export interface GrantEffectRequest {
   readonly immunity?: EffectImmunityState;
   /** M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`由来の付与だけが持つ。 */
   readonly isAttackDamageBonus?: true;
+  /** R-FUP-01（Issue #474）: `APPLY_FOLLOW_UP_ATTACK`由来の付与だけが持つ。 */
+  readonly isFollowUpAttack?: true;
   /** M7-005-HEAL-LINK（Issue #229、R-HEAL-04）: `APPLY_HEALING_LINK`由来の付与だけが持つ。 */
   readonly healingLink?: HealingLinkState;
   /** DMG-002（Issue #192、R-DMG-04）: `APPLY_DAMAGE_MOD`由来の付与だけが持つ。 */
@@ -269,6 +271,9 @@ export function grantEffect(
     ...(request.immunity !== undefined ? { immunity: request.immunity } : {}),
     ...(request.isAttackDamageBonus !== undefined
       ? { isAttackDamageBonus: request.isAttackDamageBonus }
+      : {}),
+    ...(request.isFollowUpAttack !== undefined
+      ? { isFollowUpAttack: request.isFollowUpAttack }
       : {}),
     ...(request.healingLink !== undefined ? { healingLink: request.healingLink } : {}),
     ...(request.damageModifier !== undefined ? { damageModifier: request.damageModifier } : {}),

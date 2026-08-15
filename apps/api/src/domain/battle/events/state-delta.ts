@@ -128,6 +128,8 @@ export interface EffectSnapshot {
   readonly immunity?: EffectImmunityState;
   /** M7-004（ON_ATTACK_BONUS_DAMAGE_BUFF、Issue #183）: `APPLY_ATTACK_DAMAGE_BONUS`由来の効果だけが持つ。 */
   readonly isAttackDamageBonus?: true;
+  /** R-FUP-01（Issue #474）: `APPLY_FOLLOW_UP_ATTACK`由来の効果だけが持つ。 */
+  readonly isFollowUpAttack?: true;
   /**
    * M7-005-HEAL-LINK（Issue #229、R-HEAL-04）: `APPLY_HEALING_LINK`由来の効果だけが
    * 持つ。転送先・転送率が復元されないと、独立Reducerで復元した状態に対する回復が
@@ -260,6 +262,7 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
     ...(effect.isAttackDamageBonus !== undefined
       ? { isAttackDamageBonus: effect.isAttackDamageBonus }
       : {}),
+    ...(effect.isFollowUpAttack !== undefined ? { isFollowUpAttack: effect.isFollowUpAttack } : {}),
     ...(effect.healingLink !== undefined ? { healingLink: effect.healingLink } : {}),
     ...(effect.damageModifier !== undefined ? { damageModifier: effect.damageModifier } : {}),
     ...(effect.piercing !== undefined ? { piercing: effect.piercing } : {}),

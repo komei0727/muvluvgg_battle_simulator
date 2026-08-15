@@ -28,6 +28,39 @@ export interface DamageHitOutcome {
   readonly damage: number;
 }
 
+/**
+ * R-FUP-01（Issue #474）: 1回のAS/EXスキル使用が横断的に蓄積する追撃（攻撃ライダー）の
+ * 捕捉。呼び出し側（`action-skill-use-resolver.ts`）がスキル使用ごとに
+ * {@link emptyFollowUpAttackCapture}で1つ生成して`DamageEventContext`へ渡し、
+ * `applyDamageActionSteps`が命中判定へ到達したヒットを基準に書き込む（mutable）。
+ *
+ * - `riders`: 攻撃側がヒット観測開始時点で保持していた`isFollowUpAttack`効果。
+ *   `NEXT_OUTGOING_ATTACK`の消費と同じ到達点で捕捉することで、「相乗りする攻撃」と
+ *   「バフを消費する攻撃」を同一に保つ。インスタンス自身は最初のDAMAGE EffectActionの
+ *   末尾で失効するため、追撃解決に必要な定義参照だけをここへ写す
+ * - `attackedTargetUnitIds`: 命中判定へ到達したヒットの対象（初出順・重複なし。
+ *   R-SUB-02「攻撃が誰を狙ったか」と同じ規約で、戦闘不能スキップは含めない）
+ * - `anyApplied`/`anyCritical`: スキル使用内の全DAMAGE EffectActionを合算した
+ *   「1発でも命中したか」「1発でも会心になったか」。追撃の発生可否と会心継承の素材
+ */
+export interface FollowUpAttackCapture {
+  readonly riders: Map<
+    EffectInstanceId,
+    {
+      readonly effectActionDefinitionId: EffectActionDefinitionId;
+      readonly sourceUnitId?: BattleUnitId;
+    }
+  >;
+  readonly attackedTargetUnitIds: BattleUnitId[];
+  anyApplied: boolean;
+  anyCritical: boolean;
+}
+
+/** {@link FollowUpAttackCapture}の初期値。1回のスキル使用ごとに新規生成する。 */
+export function emptyFollowUpAttackCapture(): FollowUpAttackCapture {
+  return { riders: new Map(), attackedTargetUnitIds: [], anyApplied: false, anyCritical: false };
+}
+
 export interface ApplyDamageActionResult {
   readonly units: readonly BattleUnit[];
   readonly hits: readonly DamageHitOutcome[];
@@ -88,6 +121,12 @@ export interface DamageEventContext {
    * 問わないため、この値を参照しない）。
    */
   readonly skillType?: SkillType;
+  /**
+   * R-FUP-01（Issue #474）: AS/EXスキル使用側（`action-skill-use-resolver.ts`）だけが
+   * 渡す追撃捕捉。未指定なら捕捉を行わない — PS/Memory自身のEffectSequenceや
+   * チャージ解放の攻撃は追撃の相乗り対象外（消費だけが起こる）である。
+   */
+  readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
    * `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を同期的に解決するフック。
    * 呼び出し側（`lifecycle/`、Domain層のmodule境界により`combat/`自身は`triggering/`へ
@@ -279,6 +318,26 @@ export interface DamageEventContext {
     targetUnitId: BattleUnitId,
     effectActionDefinitionId: EffectActionDefinitionId,
     formula: FormulaDefinition,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
+  /**
+   * R-FUP-01（Issue #474）: 追撃ヒットが適用された対象へ`onHitEffect`
+   * （`APPLY_STAT_MOD`または`APPLY_CONTINUOUS_DAMAGE`）を付与する。
+   * `grantSubUnitAdditionalDamageDebuff`とまったく同じ理由（`combat/`は`effects/`と
+   * Catalogの`effectActions`マップへ到達できない）で呼び出し側が注入し、同じ
+   * 「1件ごとに`yield`する」規約を持つ。`sourceUnitId`は付与の帰属先（ライダーを
+   * 付与したユニット。Memory由来等で不明なら攻撃者へフォールバックする）。
+   */
+  readonly grantFollowUpOnHitEffect?: (
+    targetUnitId: BattleUnitId,
+    onHitEffectActionDefinitionId: EffectActionDefinitionId,
+    attackerUnitId: BattleUnitId,
+    sourceUnitId: BattleUnitId | undefined,
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
   ) => Generator<

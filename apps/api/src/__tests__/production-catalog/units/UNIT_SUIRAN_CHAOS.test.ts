@@ -526,7 +526,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
     intent:
-      "追撃符: 目の前の味方がASを使うとき、その狙った敵へ追撃と速度低下、味方へ会心率上昇を与える",
+      "追撃符: 目の前の味方がASで攻撃する前に、味方へ会心率上昇と、当該攻撃に相乗りする追撃バフを与える",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
@@ -537,21 +537,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         {
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_DAMAGE_ADD",
-          targets: ["enemy:front"],
-        },
-        {
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
-          targets: ["enemy:front"],
-        },
-        {
           effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
           targets: ["ally:front"],
         },
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP",
+          targets: ["ally:front"],
+        },
       ],
-      hpDeltas: {
-        "enemy:front": -179,
-      },
       effectsApplied: [
         {
           unitId: "ally:front",
@@ -563,12 +556,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           },
         },
         {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
-          magnitude: -200,
-          timeLimit: {
-            unit: "ACTION",
-            count: 1,
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP",
+          magnitude: 0,
+          consumption: {
+            kind: "NEXT_OUTGOING_ATTACK",
+            maxCount: 1,
           },
         },
       ],
@@ -694,6 +687,11 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
       unexecutedEffectActionIds(
         unitEffectActionClosure(snapshot, UNIT_DEFINITION_ID),
         collectedExecutedActionIds(),
+        // R-FUP-01: 速度低下は追撃バフ（`ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP`の
+        // `onHitEffect`参照）が味方の攻撃に相乗りしたときだけ実行される。表は
+        // 「スキル使用1回」単位のためPS発動（バフ付与）までしか表せず、
+        // 実行は`IT-UNIT-SUIRAN-CHAOS-011`が保持者の実AS経路で検証する。
+        ["ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN"],
       ),
     ).toEqual([]);
   });
@@ -719,22 +717,108 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     const units = chain.fireRecorded(realSkillUseStarting, board.units);
 
     expect(activatedPassiveSkillIds(chain)).toEqual(["SKL_SUIRAN_CHAOS_PS3"]);
-    // TRIGGER_TARGET（味方が狙った敵）へダメージと行動速度デバフ、
-    // TRIGGER_SOURCE（味方自身）へ会心率バフ — 同じEffectSequenceの中で別々の
-    // 実ユニットへ解決していることが要点。
+    // R-FUP-01: PS発動の時点では敵に何も起きない — TRIGGER_SOURCE（味方自身）へ
+    // 会心率バフと追撃バフを付与するだけで、追撃と速度低下は当該攻撃の解決に
+    // 相乗りして初めて発生する（`IT-UNIT-SUIRAN-CHAOS-011`）。
     const enemyAfter = unitOf(units, board.enemy.battleUnitId);
-    expect(enemyAfter.currentHp).toBeLessThan(board.enemy.currentHp);
-    expect(enemyAfter.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
-      "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
-    ]);
+    expect(enemyAfter.currentHp).toBe(board.enemy.currentHp);
+    expect(enemyAfter.appliedEffects).toEqual([]);
     expect(
       unitOf(units, board.frontAlly.battleUnitId).appliedEffects.map(
         (effect) => effect.effectActionDefinitionId,
       ),
-    ).toEqual(["ACT_SUIRAN_CHAOS_PS3_CRIT_UP"]);
+    ).toEqual(["ACT_SUIRAN_CHAOS_PS3_CRIT_UP", "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP"]);
     expect(
       chain.eventsOfType("PassiveResolved").map((event) => event.payload.skillDefinitionId),
     ).toEqual(["SKL_SUIRAN_CHAOS_PS3"]);
+  });
+
+  it("IT-UNIT-SUIRAN-CHAOS-011 (R-FUP-01): the rider SKL_SUIRAN_CHAOS_PS3 grants makes the ally's own AS deliver the follow-up — computed from the ally's stats, critical inherited from the boosted attack, speed-down applied to the hit enemy, and both buffs spent by that one attack", () => {
+    const board = passiveBoard();
+    // PS3の付与は実trigger経由（IT-004と同じ）。会心+15%と追撃バフが味方へ載る。
+    const realSkillUseStarting = emitRealSkillUseStarting(board);
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: board.frontAlly.battleUnitId,
+      battleId: "B_SUIRAN_PS3_RIDE",
+    });
+    const afterGrant = chain.fireRecorded(realSkillUseStarting, board.units);
+    // `createBattleUnit`はAP0で始まるため、AS使用分を明示する（PPと同じ扱い）。
+    const boostedAlly = { ...unitOf(afterGrant, board.frontAlly.battleUnitId), currentAp: 1 };
+    const boosted = afterGrant.map((unit) =>
+      unit.battleUnitId === boostedAlly.battleUnitId ? boostedAlly : unit,
+    );
+    expect(boostedAlly.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_SUIRAN_CHAOS_PS3_CRIT_UP",
+      "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP",
+    ]);
+
+    // 会心継承を観測するため、相手役ASは会心NORMALで撃つ。会心率は素0 + バフ0.15。
+    const skill = standInAttackSkill();
+    const criticalCapableDamage: EffectActionDefinition = {
+      ...standInDamageAction(),
+      payload: { ...standInDamageAction().payload, critical: { mode: "NORMAL" } },
+    };
+    const standInDefinition = testUnitDefinition(STAND_IN_UNIT_ID, {
+      baseStats: { attack: PASSIVE_COMBAT_STATS.attack, defense: PASSIVE_COMBAT_STATS.defense },
+      activeSkillDefinitionIds: [createSkillDefinitionId(STAND_IN_AS_ID)],
+    });
+    const definitions: BattleDefinitions = {
+      ...definitionsWith(snapshot, { units: [standInDefinition], skills: [skill] }),
+      activeSkillsByUnit: new Map([[standInDefinition.unitDefinitionId, [skill]]]),
+      effectActions: new Map(snapshot.effectActions).set(
+        createEffectActionDefinitionId(STAND_IN_DAMAGE_ID),
+        criticalCapableDamage,
+      ),
+    };
+    const recorder = new EventRecorder(createBattleId("B_SUIRAN_PS3_RIDE_AS"));
+    const result = resolveSkillUse(
+      boostedAlly,
+      skill,
+      "AS",
+      "AS",
+      boosted,
+      definitions,
+      // AS本体1ヒットの会心判定1回だけ（0.10 < 実効0.15 → 会心）。追撃は判定を持たず
+      // 乱数を消費しない。
+      new SequenceRandomSource([0.1]),
+      recorder,
+      1,
+      0,
+      createActionId("B_SUIRAN_PS3_RIDE_AS:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    // AS本体: (1000 - 500) x 会心2.0 = 1000。追撃: (1000 - 500) x 0.3588 x 会心継承2.0
+    // = 358.8 → 358（味方のステータス・会心ダメージボーナスで計算。翠蘭は参照しない）。
+    const enemyAfter = unitOf(result.units, board.enemy.battleUnitId);
+    expect(enemyAfter.currentHp).toBe(board.enemy.currentHp - 1000 - 358);
+    // 追撃がヒットした敵へ1行動の速度-200デバフ。
+    expect(enemyAfter.appliedEffects).toHaveLength(1);
+    expect(enemyAfter.appliedEffects[0]).toMatchObject({
+      effectActionDefinitionId: "ACT_SUIRAN_CHAOS_PS3_SPEED_DOWN",
+      magnitude: -200,
+      sourceUnitId: board.suiran.battleUnitId,
+    });
+    // どちらのバフも「次の攻撃1回」で消費・失効している。
+    const allyAfter = unitOf(result.units, board.frontAlly.battleUnitId);
+    expect(allyAfter.appliedEffects).toEqual([]);
+    // 追撃の`DamageCalculated`は味方の攻撃力・会心継承倍率で記録される。
+    const followUpDamage = recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageCalculated" &&
+          (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+            "ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP",
+      );
+    expect(followUpDamage).toHaveLength(1);
+    expect(followUpDamage[0]?.payload).toMatchObject({
+      attackerAttack: PASSIVE_COMBAT_STATS.attack,
+      criticalMultiplier: 2,
+      finalDamage: 358,
+      damageType: "EN",
+    });
   });
 
   it("IT-UNIT-SUIRAN-CHAOS-005 (NEGATIVE, EVENT_PAYLOAD): SKL_SUIRAN_CHAOS_PS3 does not activate for a SkillUseStarting whose skillType is not AS, nor for one emitted by an ally who is not in front of Suiran", () => {

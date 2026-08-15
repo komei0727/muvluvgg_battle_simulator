@@ -15,6 +15,8 @@ import {
   fireContinuousHealsOnActionStart,
 } from "./continuous-heal-service.js";
 import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
+import { resolveFollowUpAttacksAfterSkillUse } from "./follow-up-attack-service.js";
+import { emptyFollowUpAttackCapture } from "../combat/damage-application-service.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -404,7 +406,11 @@ export function resolveSkillUse(
   });
   working = passiveRuntime.onFactEvent(skillUseStarted, working).units;
 
-  const effectResult = applyEffectActionGroups(plan, working, {
+  // R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉はAS/EXスキル使用だけが行う。
+  // このスキル使用の全DAMAGE EffectActionを横断して、命中判定へ到達した時点の
+  // ライダー・攻撃対象・命中/会心を蓄積し、全step解決後に1回だけ追撃を解決する。
+  const followUpAttackCapture = emptyFollowUpAttackCapture();
+  const groupContext = {
     definitions,
     actorUnitId,
     random,
@@ -417,15 +423,20 @@ export function resolveSkillUse(
     rootEventId: actionStarted.eventId,
     parentEventId: skillUseStarted.eventId,
     skillDefinitionId: skill.skillDefinitionId,
-    onFactEventForPassiveChain: (event, units) => passiveRuntime.onFactEvent(event, units).units,
+    onFactEventForPassiveChain: (
+      event: BattleDomainEvent,
+      units: readonly BattleUnit[],
+    ): readonly BattleUnit[] => passiveRuntime.onFactEvent(event, units).units,
     // R-SKL-08: `passiveRuntime`はこの行動専用に
     // 1つだけ生成されており（上のコメント参照）、その`damageResultsRegistry`を
     // このAS/EX自身のEffectSequenceにも使い回すことで、この行動内で発生した
     // DAMAGE結果をPS連鎖（カウンター等）からも同じ解決スコープ内として参照できる。
     damageResults: passiveRuntime.damageResultsRegistry,
+    followUpAttackCapture,
     // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
     ...(exercise !== undefined ? { exercise } : {}),
-  });
+  };
+  const effectResult = applyEffectActionGroups(plan, working, groupContext);
   // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
   // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま
   // `finalizeEffectSequenceResolution`（`this.units`を参照する）を呼べる。
@@ -435,13 +446,35 @@ export function resolveSkillUse(
   // 単位で破棄する`finalizeResolutionScope`とは異なるscope）。
   working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
+  // R-FUP-01: 元攻撃が1発でも命中していれば、全step解決後・`SkillUseCompleted`発行前に
+  // 追撃を1回だけ解決する。中断（使用者戦闘不能）で打ち切ったスキル使用では行わない
+  // （R-SKL-01「未解決効果を中断する」）。
+  let followUpInterrupted = false;
+  if (effectResult.outcome.status !== "INTERRUPTED") {
+    const followUp = resolveFollowUpAttacksAfterSkillUse(
+      groupContext,
+      followUpAttackCapture,
+      working,
+      // 追撃ヒットの直接の契機は、直前に記録された解決経路上の最後のイベント
+      // （最終EffectActionの完了イベント等）。
+      recorder.getEvents().at(-1)?.eventId ?? skillUseStarted.eventId,
+    );
+    working = followUp.units;
+    followUpInterrupted = followUp.interrupted;
+  }
+
   // Issue #217設計方針B: `SkillUseInterrupted`/`SkillUseCompleted`の選択は
   // `effectResult.outcome.status`（実際に解決が最後まで進んだか、使用者戦闘
   // 不能で打ち切ったかという事実）だけから決める。`unresolvedEffectCount`の
   // 値からは決して導出しない（`INTERRUPTED`かつ`unresolvedEffectCount: 0`も
-  // 正当な結果として扱う）。
+  // 正当な結果として扱う）。R-FUP-01: 追撃の解決中に使用者が戦闘不能になり
+  // 未解決の追撃を残した場合（`followUpInterrupted`）も同じ「使用者戦闘不能で
+  // 打ち切った」事実であり、`SkillUseInterrupted`を発行する — 完了契機PSや
+  // `SKILL_USE`単位期間減算を誤って走らせないためである。追撃はEffectActionの
+  // ヒット列に属さないため、この場合の`unresolvedEffectCount`は0のままになる
+  // （`INTERRUPTED`かつ0はR-SUB-02のサブユニット追加ヒット中断と同じ正当な結果）。
   const skillUseCompleted =
-    effectResult.outcome.status === "INTERRUPTED"
+    effectResult.outcome.status === "INTERRUPTED" || followUpInterrupted
       ? recorder.record({
           eventType: "SkillUseInterrupted",
           category: "FACT",
@@ -457,9 +490,15 @@ export function resolveSkillUse(
           payload: {
             actorUnitId,
             skillDefinitionId: skill.skillDefinitionId,
-            reason: effectResult.outcome.reason,
+            reason:
+              effectResult.outcome.status === "INTERRUPTED"
+                ? effectResult.outcome.reason
+                : "ACTOR_DEFEATED",
             resolvedEffectCount: effectResult.outcome.resolvedEffectCount,
-            unresolvedEffectCount: effectResult.outcome.unresolvedEffectCount,
+            unresolvedEffectCount:
+              effectResult.outcome.status === "INTERRUPTED"
+                ? effectResult.outcome.unresolvedEffectCount
+                : 0,
           },
         })
       : recorder.record({

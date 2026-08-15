@@ -25,8 +25,8 @@
   },
   "current": {
     "rules": {
-      "total": 135,
-      "completed": 134,
+      "total": 136,
+      "completed": 135,
       "remaining": 1
     },
     "unitCatalog": {
@@ -693,7 +693,7 @@
   "m9Audit": {
     "auditDate": "2026-08-11",
     "auditIssue": 200,
-    "catalogRevision": "2026-08-15.1",
+    "catalogRevision": "2026-08-15.2",
     "scenarioIds": [
       "SCN-BTL-001",
       "SCN-BTL-002",
