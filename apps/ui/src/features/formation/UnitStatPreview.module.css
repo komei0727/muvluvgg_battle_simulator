@@ -24,6 +24,13 @@
   letter-spacing: 0.08em;
 }
 
+/* 見出しの直後に置く補足。切り替えても値が変わらない項目がある理由を示す。 */
+.note {
+  margin: -4px 0 6px;
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+
 .list {
   display: flex;
   margin: 0;

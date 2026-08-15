@@ -1,0 +1,24 @@
+/* 両陣営の編成レイアウトの上に置く共通バー。陣営内のパネルと違い枠線を持たず、
+   どちらの陣営にも属さないことを見た目でも示す。 */
+.bar {
+  display: flex;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+/* トグルの見た目は EnhancementPanel の `.toggle` に揃える（同じ性質の操作）。 */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  font-size: 11px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}

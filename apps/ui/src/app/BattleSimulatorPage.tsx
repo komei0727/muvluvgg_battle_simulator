@@ -17,6 +17,7 @@ import { ScoreSummaryHeader } from "../features/exercise/ScoreSummaryHeader.js";
 import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
+import { StatPreviewModeToggle } from "../features/formation/StatPreviewModeToggle.js";
 import { FormationResetControls } from "../features/formation/FormationResetControls.js";
 import { formationReducer } from "../features/formation/formation-reducer.js";
 import type { FormationAction } from "../features/formation/formation-reducer.js";
@@ -92,6 +93,9 @@ export function BattleSimulatorPage({
   );
   // UI-AC-018: 戦術演習を既定モードにする。
   const [mode, setMode] = useState<BattleMode>("exercise");
+  // UI-AC-034: プレビューの表示モード。編成の内容ではなく見え方なので、
+  // formation-reducerのstateへ入れず保存対象にもしない。両陣営・全枠で共有する。
+  const [showBaseStats, setShowBaseStats] = useState(false);
   // UI-AC-029: 前回セッションのdraftはlazy initで復元する（reducerを不純にしない）。
   const [battleState, battleDispatch] = useReducer(
     formationReducer,
@@ -232,6 +236,7 @@ export function BattleSimulatorPage({
       imageMap={definitionImageMap}
       enhancement={enhancementForSide(formState.draft, "ally")}
       statPreview={statPreview}
+      showBaseStats={showBaseStats}
       onOpenUnitSelection={(slotKey) => {
         dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
       }}
@@ -276,6 +281,8 @@ export function BattleSimulatorPage({
 
           {catalog.status === "ready" ? (
             <>
+              <StatPreviewModeToggle showBaseStats={showBaseStats} onChange={setShowBaseStats} />
+
               <BattleSetupLayout
                 ally={renderAllyEditor(catalog.response)}
                 enemy={
@@ -287,6 +294,7 @@ export function BattleSimulatorPage({
                       disabled={view.formationDisabled}
                       imageMap={definitionImageMap}
                       statPreview={statPreview}
+                      showBaseStats={showBaseStats}
                       onOpenUnitSelection={(slotKey) => {
                         dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                       }}
@@ -305,6 +313,7 @@ export function BattleSimulatorPage({
                       imageMap={definitionImageMap}
                       enhancement={enhancementForSide(formState.draft, "enemy")}
                       statPreview={statPreview}
+                      showBaseStats={showBaseStats}
                       onOpenUnitSelection={(slotKey) => {
                         dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
                       }}

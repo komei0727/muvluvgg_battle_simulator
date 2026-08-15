@@ -26,6 +26,8 @@ export interface FormationEditorProps {
    * 編成そのものは成立する。
    */
   readonly statPreview?: FormationStatPreviewView;
+  /** UI-AC-034: 補正前ステータスの表示。両陣営で1つの切替を共有する。 */
+  readonly showBaseStats?: boolean;
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onOpenMemorySelection: (side: Side, index: number) => void;
   readonly onOpenUnitEnhancement: (slotKey: string) => void;
@@ -55,6 +57,7 @@ export function FormationEditor({
   imageMap,
   enhancement,
   statPreview = { status: "unavailable" },
+  showBaseStats = false,
   onOpenUnitSelection,
   onOpenMemorySelection,
   onOpenUnitEnhancement,
@@ -83,6 +86,7 @@ export function FormationEditor({
         disabled={disabled}
         {...(imageMap !== undefined ? { imageMap } : {})}
         statPreview={statPreview}
+        showBaseStats={showBaseStats}
         onOpenUnitSelection={onOpenUnitSelection}
         onMoveUnit={onMoveUnit}
         onOpenUnitEnhancement={onOpenUnitEnhancement}

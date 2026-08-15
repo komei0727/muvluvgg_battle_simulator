@@ -21,6 +21,8 @@ export interface UnitSlotProps {
   /** UI-AC-027: 開始時ステータスの取得状態。 */
   readonly statPreviewStatus?: "unavailable" | "loading" | "failed" | "ready";
   readonly statPreview?: FormationStatPreviewUnit;
+  /** UI-AC-034: 補正前ステータスを表示する。全枠一括のためページが状態を持つ。 */
+  readonly showBaseStats?: boolean;
   /** UI-AC-032: この枠が移動元（drag中またはキーボード移動モード）。 */
   readonly moveSource?: boolean;
   /** UI-AC-032: 同陣営の別枠から移動が進行中で、この枠が配置先になれる。 */
@@ -49,6 +51,7 @@ export function UnitSlot({
   enhancementEnabled = false,
   statPreviewStatus = "unavailable",
   statPreview,
+  showBaseStats = false,
   moveSource = false,
   moveTarget = false,
   onMoveStart,
@@ -184,6 +187,7 @@ export function UnitSlot({
     <UnitStatPreview
       id={previewId}
       status={statPreviewStatus}
+      showBase={showBaseStats}
       {...(statPreview !== undefined ? { unit: statPreview } : {})}
     />
   ) : null;

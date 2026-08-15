@@ -492,6 +492,25 @@ function isValidPreviewPosition(value: unknown): boolean {
   return typeof value["column"] === "number" && isNonEmptyString(value["row"]);
 }
 
+/**
+ * `enhancedBaseStats`（R-ENH-06の強化後基本ステータス）は不在を正常系として扱う。
+ * APIとUIは別々にデプロイされ、切替中は本フィールドを持たないサーバーの応答も
+ * 届き得るため（`10_API設計.md`「ローリングデプロイ中の可用性」）。不在で応答全体を
+ * 契約違反にすると、補正後のプレビューまで巻き添えで消える。
+ *
+ * ただし**存在するのに壊れている**場合は契約違反とする —— 欠けた項目だけが
+ * 抜けた表示になり、利用者からは補正前の値として正しく見えてしまうため。
+ */
+function isValidPreviewBaseStats(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  return (
+    isValidPreviewCombatStats(value) &&
+    isFiniteNumber((value as Record<string, unknown>)["maximumHp"])
+  );
+}
+
 function isValidPreviewUnit(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
@@ -501,7 +520,8 @@ function isValidPreviewUnit(value: unknown): boolean {
     isNonEmptyString(value["unitDefinitionId"]) &&
     isValidPreviewPosition(value["formationPosition"]) &&
     isFiniteNumber(value["maximumHp"]) &&
-    isValidPreviewCombatStats(value["combatStats"])
+    isValidPreviewCombatStats(value["combatStats"]) &&
+    isValidPreviewBaseStats(value["enhancedBaseStats"])
   );
 }
 

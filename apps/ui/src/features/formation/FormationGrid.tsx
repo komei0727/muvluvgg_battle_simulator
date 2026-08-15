@@ -26,6 +26,8 @@ export interface FormationGridProps {
    * 編成そのものは成立する。
    */
   readonly statPreview?: FormationStatPreviewView;
+  /** UI-AC-034: 補正前ステータスの表示。枠ではなくページが持つ一括切替。 */
+  readonly showBaseStats?: boolean;
   readonly onOpenUnitSelection: (slotKey: string) => void;
   /** UI-AC-032: 同一陣営内のユニット移動・入れ替えintent。 */
   readonly onMoveUnit: (fromSlotKey: string, toSlotKey: string) => void;
@@ -72,6 +74,7 @@ export function FormationGrid({
   disabled,
   imageMap,
   statPreview = { status: "unavailable" },
+  showBaseStats = false,
   onOpenUnitSelection,
   onMoveUnit,
   onOpenUnitEnhancement,
@@ -190,6 +193,7 @@ export function FormationGrid({
                     }}
                     {...(enhancementEnabled !== undefined ? { enhancementEnabled } : {})}
                     statPreviewStatus={statPreview.status}
+                    showBaseStats={showBaseStats}
                     {...(() => {
                       const preview = statPreview.bySlotKey?.get(slot.slotKey);
                       return preview !== undefined ? { statPreview: preview } : {};

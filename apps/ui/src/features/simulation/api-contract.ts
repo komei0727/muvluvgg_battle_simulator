@@ -237,6 +237,14 @@ export interface FormationStatPreviewCombatStats {
   readonly criticalDamageBonus: number;
 }
 
+/**
+ * R-ENH-06の強化後基本ステータス。編成ボーナス・配置適性補正を適用する**前**の値で、
+ * `combatStats`と同じ単位（割合3項目はパーセントポイント）に最大HPを加えた形。
+ */
+export interface FormationStatPreviewBaseStats extends FormationStatPreviewCombatStats {
+  readonly maximumHp: number;
+}
+
 export interface FormationStatPreviewUnit {
   readonly side: string;
   readonly unitDefinitionId: string;
@@ -244,6 +252,11 @@ export interface FormationStatPreviewUnit {
   /** 戦闘の`initialState.units[].hp.maximum`と同じ、丸めていない最大HP。 */
   readonly maximumHp: number;
   readonly combatStats: FormationStatPreviewCombatStats;
+  /**
+   * 補正前ステータス。**optional** —— APIとUIは別々にデプロイされ、本フィールドを
+   * 持たないサーバーの応答も届き得る（10_API設計.md「ローリングデプロイ中の可用性」）。
+   */
+  readonly enhancedBaseStats?: FormationStatPreviewBaseStats;
   readonly [key: string]: unknown;
 }
 
