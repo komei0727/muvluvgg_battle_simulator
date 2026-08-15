@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
@@ -36,6 +36,35 @@ const distBuildServerUrl = new URL(
   import.meta.url,
 );
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
+/** 乱数を固定したworker entry（`__fixtures__/deterministic-battle-worker.ts`のコンパイル結果）。 */
+const distFixtureWorkerUrl = new URL(
+  "../../../dist/infrastructure/worker/__fixtures__/deterministic-battle-worker.js",
+  import.meta.url,
+);
+/** `LOAD-CAPACITY-003`が最大応答を特定したときと同じ値。 */
+const DETERMINISTIC_RANDOM_VALUE = 0.5;
+
+/**
+ * 判定基準は配備manifestの`memory` limitそのものを読む。テスト側へ定数で
+ * 書き写すと、manifestを変えたときに「収まっているか」の判定だけが古い値の
+ * まま残る。
+ */
+function deployedMemoryLimitBytes(): number {
+  const manifestUrl = new URL("../../../../../deploy/cloud-run/service.json", import.meta.url);
+  const manifest = JSON.parse(readFileSync(manifestUrl, "utf-8")) as {
+    spec: {
+      template: {
+        spec: { containers: ReadonlyArray<{ resources: { limits: { memory: string } } }> };
+      };
+    };
+  };
+  const limit = manifest.spec.template.spec.containers[0]?.resources.limits.memory ?? "";
+  const match = /^(\d+)Gi$/.exec(limit);
+  if (match === null) {
+    throw new Error(`unsupported memory limit in the Cloud Run manifest: ${limit}`);
+  }
+  return Number(match[1]) * 1024 * 1024 * 1024;
+}
 
 async function listenOnEphemeralPort(app: FastifyInstance): Promise<string> {
   await app.listen({ port: 0, host: "127.0.0.1" });
@@ -66,28 +95,18 @@ function soloFormation(unitDefinitionId: string) {
   };
 }
 
-/** 5枠（前列3・後列2）を左から詰めた最大編成。 */
-function partyFormation(unitDefinitionIds: readonly string[]) {
-  return {
-    units: unitDefinitionIds.map((unitDefinitionId, index) => ({
-      unitDefinitionId,
-      position: { column: index % 3, row: index < 3 ? "FRONT" : "REAR" },
-    })),
-    memoryDefinitionIds: [],
-  };
-}
-
 describe("production-path memory capacity baseline", () => {
   let SimulationWorkerPool: typeof SimulationWorkerPoolClass;
   let buildServer: typeof buildServerFn;
   let catalogRevision: string;
-  let shortBattleRequest: unknown;
-  let heavyBattleRequest: unknown;
+  let unitIds: readonly string[];
+  let warmUpRequest: unknown;
 
   beforeAll(async () => {
     execFileSync(tscBin, ["-p", "tsconfig.json"], { cwd: apiPackageRoot, stdio: "inherit" });
     expect(existsSync(fileURLToPath(distPoolUrl))).toBe(true);
     expect(existsSync(fileURLToPath(distBuildServerUrl))).toBe(true);
+    expect(existsSync(fileURLToPath(distFixtureWorkerUrl))).toBe(true);
     ({ SimulationWorkerPool } = (await import(distPoolUrl.href)) as {
       SimulationWorkerPool: typeof SimulationWorkerPoolClass;
     });
@@ -96,18 +115,12 @@ describe("production-path memory capacity baseline", () => {
     });
 
     catalogRevision = loadCatalogFromDirectory(CATALOG_DIR).catalogRevision;
-    const unitIds = allProductionUnitIds(CATALOG_DIR);
+    unitIds = allProductionUnitIds(CATALOG_DIR);
     expect(unitIds.length).toBeGreaterThan(4);
-    shortBattleRequest = {
+    warmUpRequest = {
       allyFormation: soloFormation(unitIds[0]!),
       enemyFormation: soloFormation(unitIds[0]!),
       turnLimit: 5,
-    };
-    heavyBattleRequest = {
-      allyFormation: partyFormation(unitIds.slice(0, 5)),
-      enemyFormation: partyFormation(unitIds.slice(0, 5)),
-      turnLimit: 99,
-      options: { logLevel: "DETAILED" },
     };
   }, 300_000);
 
@@ -121,8 +134,13 @@ describe("production-path memory capacity baseline", () => {
     app = undefined;
   });
 
-  it("LOAD-MEMORY-001 (11_インフラストラクチャ設計.md「最大同時実行数と最悪レスポンスサイズからmemory limitを決める」): measures the process peak RSS of the compiled HTTP→Worker path while the heaviest response is produced at the deployed container concurrency", async () => {
+  it("LOAD-MEMORY-001 (11_インフラストラクチャ設計.md「最大同時実行数と最悪レスポンスサイズからmemory limitを決める」): drives every production unit's worst-case 99-turn DETAILED battle through the compiled HTTP→Worker path at the deployed concurrency, so the peak RSS covers the largest response the Catalog can produce", async () => {
     const deployedConcurrency = 2;
+    const memoryLimitBytes = deployedMemoryLimitBytes();
+    // 最大応答を狙って再現するために乱数を固定する（fixtureの注記参照）。
+    // production Workerは`SystemRandomSourceFactory`のため決着ターンが試行ごとに
+    // 変わり、既知の最悪ケース(23.1 MB)を実経路で再現できない。
+    process.env["LOAD_FIXTURE_RANDOM_VALUE"] = String(DETERMINISTIC_RANDOM_VALUE);
     pool = await SimulationWorkerPool.create({
       catalogDir: CATALOG_DIR,
       catalogRevision,
@@ -130,13 +148,14 @@ describe("production-path memory capacity baseline", () => {
       minThreads: 1,
       maxThreads: 1,
       maxQueue: 1,
+      workerFileUrl: distFixtureWorkerUrl,
     });
     app = await buildServer(pool);
     const baseUrl = await listenOnEphemeralPort(app);
 
     // ウォームアップ後に基準を取る。Catalogはメイン・Worker双方が保持済みで、
     // ここから増える分が「requestを捌くために追加で要るメモリー」になる。
-    await postSimulation(baseUrl, shortBattleRequest);
+    await postSimulation(baseUrl, warmUpRequest);
     if (globalThis.gc) globalThis.gc();
     const baselineRssBytes = process.memoryUsage().rss;
 
@@ -145,19 +164,32 @@ describe("production-path memory capacity baseline", () => {
       peakRssBytes = Math.max(peakRssBytes, process.memoryUsage().rss);
     }, 5);
 
-    const rounds = 5;
+    // Catalog全ユニットの1対1・99ターン・DETAILEDを配備並行度で流す。どのユニットが
+    // 最悪応答になるかを事前に決め打たず、最悪ケースを必ず含める（`LOAD-CAPACITY-003`
+    // が同じ乱数で特定した最悪ケースは、この走査の中に必ず現れる）。
     const statusCounts = new Map<number, number>();
     let maxResponseBytes = 0;
+    let heaviestUnitId = "";
     try {
-      for (let round = 0; round < rounds; round++) {
+      for (let index = 0; index < unitIds.length; index += deployedConcurrency) {
+        const batch = unitIds.slice(index, index + deployedConcurrency);
         const responses = await Promise.all(
-          Array.from({ length: deployedConcurrency }, () =>
-            postSimulation(baseUrl, heavyBattleRequest),
-          ),
+          batch.map(async (unitDefinitionId) => ({
+            unitDefinitionId,
+            ...(await postSimulation(baseUrl, {
+              allyFormation: soloFormation(unitDefinitionId),
+              enemyFormation: soloFormation(unitDefinitionId),
+              turnLimit: 99,
+              options: { logLevel: "DETAILED" },
+            })),
+          })),
         );
-        for (const { status, bytes } of responses) {
+        for (const { unitDefinitionId, status, bytes } of responses) {
           statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
-          maxResponseBytes = Math.max(maxResponseBytes, bytes);
+          if (bytes > maxResponseBytes) {
+            maxResponseBytes = bytes;
+            heaviestUnitId = unitDefinitionId;
+          }
         }
         peakRssBytes = Math.max(peakRssBytes, process.memoryUsage().rss);
       }
@@ -168,22 +200,28 @@ describe("production-path memory capacity baseline", () => {
     console.log(
       `[LOAD-MEMORY-001] baseline ${JSON.stringify({
         testId: "LOAD-MEMORY-001",
-        formation: "5v5",
         deployedConcurrency,
-        rounds,
+        unitCount: unitIds.length,
+        randomValue: DETERMINISTIC_RANDOM_VALUE,
         statusCounts: Object.fromEntries(statusCounts),
+        heaviestUnitId,
         maxResponseBytes,
         baselineRssBytes,
         peakRssBytes,
         peakRssGrowthBytes: peakRssBytes - baselineRssBytes,
+        deployedMemoryLimitBytes: memoryLimitBytes,
+        peakRssRatioOfLimit: Number((peakRssBytes / memoryLimitBytes).toFixed(3)),
         gcAvailable: Boolean(globalThis.gc),
       })}`,
     );
 
     // 配備並行度では全requestが成功する（容量拒否が混じると測定が軽くなる）。
-    expect(statusCounts.get(200)).toBe(rounds * deployedConcurrency);
+    expect(statusCounts.get(200)).toBe(unitIds.length);
+    // 測定が「小さい応答しか通っていないのに成功する」ことを防ぐ。既知の最大応答
+    // (23.1 MB)級を実際にWorker経路へ通したことを、下限で確認する。
+    expect(maxResponseBytes).toBeGreaterThan(20 * 1024 * 1024);
     // Node processのRSSはメインスレッドとWorker Thread（同一プロセス内）の
-    // 両方を含む。containerの1 GiB上限に対して収まっていること。
-    expect(peakRssBytes).toBeLessThan(1024 * 1024 * 1024);
+    // 両方を含む。配備manifestのmemory limitに対して収まっていること。
+    expect(peakRssBytes).toBeLessThan(memoryLimitBytes);
   }, 300_000);
 });

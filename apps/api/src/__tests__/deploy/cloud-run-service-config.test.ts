@@ -93,11 +93,15 @@ describe("Cloud Run service manifest", () => {
     expect(manifest.spec.template.spec.timeoutSeconds).toBe(40);
   });
 
-  it("IT-INFRA-CLOUDRUN-006: declares 1 vCPU and 1 GiB memory limits", () => {
+  it("IT-INFRA-CLOUDRUN-006 (REL-005/Issue #198): declares 1 vCPU and the 2 GiB memory limit the load test's peak RSS justifies", () => {
+    // `LOAD-MEMORY-001`の実測: 最大応答(24.1 MB)を配備並行度で流したときの
+    // process peak RSSは837〜868 MB。1 GiBでは余裕が15%しか無く、V8は既定の
+    // old-space上限(64bitで約4 GB)までcontainerの制限を知らないため、超過は
+    // graceful degradationではなくOOM killになる。
     const manifest = loadManifest();
     const container = manifest.spec.template.spec.containers[0];
     expect(container?.resources.limits.cpu).toBe("1");
-    expect(container?.resources.limits.memory).toBe("1Gi");
+    expect(container?.resources.limits.memory).toBe("2Gi");
   });
 
   it("IT-INFRA-CLOUDRUN-007: sets WORKER_MAX_QUEUE=1 and SHUTDOWN_GRACE_MS=8000", () => {

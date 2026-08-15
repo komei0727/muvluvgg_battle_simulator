@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -36,6 +38,11 @@ const distBuildServerUrl = new URL(
   import.meta.url,
 );
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
+/** 乱数固定＋実行開始latchつきworker entry（`__fixtures__/deterministic-battle-worker.ts`）。 */
+const distFixtureWorkerUrl = new URL(
+  "../../../dist/infrastructure/worker/__fixtures__/deterministic-battle-worker.js",
+  import.meta.url,
+);
 
 /** Cloud Runのcontainer concurrency候補。1 vCPUで測って確定値を選ぶ。 */
 const CONCURRENCY_CANDIDATES = [1, 2, 4] as const;
@@ -170,16 +177,6 @@ async function waitForAbort(signal: AbortSignal | undefined): Promise<void> {
     });
   });
 }
-
-/**
- * Workerがタスクを実行し始めるまでの猶予。`execute()`へ入った時点ではPiscinaが
- * Worker Threadへメッセージを送っただけで、Worker側の実行開始は次のtick以降になる。
- * 「実行中タスクを抱えたshutdown」を測るには、その受け渡しが済むまで待つ必要がある。
- * 待ち足りなかった場合は測定が静かに成立するのではなく、in-flight requestが
- * キャンセル扱い（未開始タスクの拒否）になることで**テストが失敗する**——
- * `close({force:true})`は未開始タスクを即座にrejectし、実行中タスクだけを待つため。
- */
-const WORKER_PICKUP_SETTLE_MS = 50;
 
 function latencySummary(durationsMs: readonly number[]): Record<string, number> {
   const sorted = [...durationsMs].sort((a, b) => a - b);
@@ -510,49 +507,74 @@ describe("HTTP and Worker Pool capacity baseline", () => {
     expect(recovered.status).toBe(200);
   }, 300_000);
 
-  it("LOAD-HTTP-004 (12_テスト戦略.md「ローリング終了中の実行」): measures how long graceful shutdown takes with a battle in flight, so SHUTDOWN_GRACE_MS can be set below the Cloud Run SIGTERM budget", async () => {
-    pool = await SimulationWorkerPool.create({
-      catalogDir: CATALOG_DIR,
-      catalogRevision,
-      minThreads: 1,
-      maxThreads: 1,
-      maxQueue: 4,
-      shutdownGraceMs: 8_000,
-    });
-    const latch = latchedPool(pool);
-    app = await buildServer(latch.port);
-    const baseUrl = await listenOnEphemeralPort(app);
+  it("LOAD-HTTP-004 (12_テスト戦略.md「ローリング終了中の実行」): starts graceful shutdown while the Worker is provably inside an unfinished battle, and measures how long the shutdown waits for it", async () => {
+    // Workerがタスクへ入ったことを通知し、解放されるまで待つlatchつきworker entry
+    // （`__fixtures__/deterministic-battle-worker.ts`）を使う。`execute()`入口の
+    // latch＋固定sleepでは、shutdown開始時点で戦闘が既に終わっていた可能性を
+    // 排除できない（実測の`shutdownMs`は1.5msで、待った形跡が無かった）。
+    const latchDir = mkdtempSync(join(tmpdir(), "muvluvgg-load-shutdown-"));
+    const startedPath = join(latchDir, "started");
+    const releasePath = join(latchDir, "release");
+    process.env["LOAD_FIXTURE_STARTED_PATH"] = startedPath;
+    process.env["LOAD_FIXTURE_RELEASE_PATH"] = releasePath;
 
-    // 最重量の戦闘（実測で実行200ms超）を投入し、サーバーが`execute()`へ入ったことを
-    // latchで確認し、Workerがタスクを受け取るまで待ってからshutdownへ入る。
-    const inFlight = postSimulation(baseUrl, heavyBattleRequest)
-      .then(({ status }) => status)
-      .catch(() => -1);
-    await latch.entered;
-    await new Promise((resolve) => setTimeout(resolve, WORKER_PICKUP_SETTLE_MS));
-
-    const shutdownStart = performance.now();
-    await pool.shutdown();
-    const shutdownMs = performance.now() - shutdownStart;
-    const inFlightStatus = await inFlight;
-
-    console.log(
-      `[LOAD-HTTP-004] baseline ${JSON.stringify({
-        testId: "LOAD-HTTP-004",
+    try {
+      pool = await SimulationWorkerPool.create({
+        catalogDir: CATALOG_DIR,
+        catalogRevision,
+        minThreads: 1,
+        maxThreads: 1,
+        maxQueue: 4,
         shutdownGraceMs: 8_000,
-        workerPickupSettleMs: WORKER_PICKUP_SETTLE_MS,
-        shutdownMs: Number(shutdownMs.toFixed(3)),
-        inFlightStatusCode: inFlightStatus,
-      })}`,
-    );
+        workerFileUrl: distFixtureWorkerUrl,
+      });
 
-    // **実行中**タスクを抱えていたことの証明: `close({force:true})`は未開始タスクを
-    // 即座にrejectし（→ 503 EXECUTION_CANCELLED）、実行中タスクだけを待って完走
-    // させる。200が返ったということは、shutdownが実際に実行中の戦闘を待った。
-    expect(inFlightStatus).toBe(200);
-    // その待ち時間がgrace期限内に収まる（Cloud RunのSIGTERM後10秒予算の根拠）。
-    expect(shutdownMs).toBeLessThan(8_000);
+      // `latched-`で始まるrequestIdのタスクだけがlatchで止まる（warm-upは素通し）。
+      const inFlight = pool
+        .execute(heavyBattleRequest as BattleSimulationRequestBody, {
+          requestId: "latched-shutdown",
+          deadlineEpochMs: Date.now() + 30_000,
+        })
+        .then(() => "COMPLETED")
+        .catch((error: unknown) => classifyPoolFailure(error));
 
-    pool = undefined;
+      // Workerがhandlerへ入り、かつ戦闘をまだ始めていない状態を直接観測する。
+      while (!existsSync(startedPath)) {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+      }
+
+      const shutdownStart = performance.now();
+      const shuttingDown = pool.shutdown();
+      // shutdownを開始したうえでWorkerを解放する。ここから先の待ち時間が
+      // 「実行中の戦闘をshutdownが待った時間」そのものになる。
+      writeFileSync(releasePath, "1");
+      await shuttingDown;
+      const shutdownMs = performance.now() - shutdownStart;
+      const inFlightOutcome = await inFlight;
+
+      console.log(
+        `[LOAD-HTTP-004] baseline ${JSON.stringify({
+          testId: "LOAD-HTTP-004",
+          shutdownGraceMs: 8_000,
+          shutdownMs: Number(shutdownMs.toFixed(3)),
+          inFlightOutcome,
+        })}`,
+      );
+
+      // **実行中**タスクを抱えていたことの証明: `close({force:true})`は未開始タスクを
+      // 即座にreject（`EXECUTION_CANCELLED`）し、実行中タスクだけを待って完走させる。
+      expect(inFlightOutcome).toBe("COMPLETED");
+      // shutdownが実際に戦闘の完了を待った（latch解放から戦闘完了までの実時間が
+      // 計上されるため、待っていなければこの下限を割る）。
+      expect(shutdownMs).toBeGreaterThan(1);
+      // その待ち時間がgrace期限内に収まる（Cloud RunのSIGTERM後10秒予算の根拠）。
+      expect(shutdownMs).toBeLessThan(8_000);
+
+      pool = undefined;
+    } finally {
+      delete process.env["LOAD_FIXTURE_STARTED_PATH"];
+      delete process.env["LOAD_FIXTURE_RELEASE_PATH"];
+      rmSync(latchDir, { recursive: true, force: true });
+    }
   }, 300_000);
 });
