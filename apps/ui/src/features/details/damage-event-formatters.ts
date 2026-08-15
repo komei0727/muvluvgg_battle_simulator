@@ -120,6 +120,19 @@ function formulaKindTerm(details: Record<string, unknown>): string | undefined {
 }
 
 /**
+ * R-DMG-02 #2のダメージ無効（DMG-012）。成立時は`finalDamage`が1へ上書きされるため、
+ * 不成立も明示しないと「無効化されていない」と「DMG-012以前で項目自体が無い」を
+ * 要約の上で区別できない。他の監査項目と同じく、落とすのは項目が無いときだけ。
+ */
+function immunityTerm(details: Record<string, unknown>): string | undefined {
+  const nullified = details["damageImmunityNullified"];
+  if (typeof nullified !== "boolean") {
+    return undefined;
+  }
+  return nullified ? "ダメージ無効あり" : "ダメージ無効なし";
+}
+
+/**
  * R-DMG-05 #7の適用結果（DMG-001／004／005／006／007）。M8で`calculatedDamage`の
  * 内訳（シールド・サブユニット吸収、HPクランプ破棄、シールド迂回直撃）が加わったが、
  * M4〜M7に録取したfixtureはそれらを持たないため、内訳項目はすべて任意として扱い、
@@ -191,14 +204,14 @@ function formatDamageCalculated(
   }
   const target = resolveDisplayName(roster, details["targetUnitId"]);
   const terms = optionalTerms([
+    // R-DMG-01の乗算順に並べる。読み手が式として突き合わせられるよう、中立値
+    // （1倍・0・0%）でも省略しない — 落とすのはpayloadがその項目自体を持たないときだけ。
     String(details["damageType"]),
-    positiveTerm("攻撃力", details["attackerAttack"]),
+    auditTerm("攻撃力", details["attackerAttack"]),
     `実効防御${details["effectiveDefense"]}`,
-    rateTerm("防御貫通", details["defenseIgnoreRate"]),
-    rateTerm("シールド貫通", details["shieldIgnoreRate"]),
-    rateTerm("軽減貫通", details["damageReductionIgnoreRate"]),
-    // ここから下はR-DMG-01の乗算順に並べる。読み手が式として突き合わせられるよう、
-    // 中立値（1倍・0）でも省略しない。
+    auditRateTerm("防御貫通", details["defenseIgnoreRate"]),
+    auditRateTerm("シールド貫通", details["shieldIgnoreRate"]),
+    auditRateTerm("軽減貫通", details["damageReductionIgnoreRate"]),
     auditTerm("基礎ダメージ", details["baseDamage"]),
     auditTerm("スキル威力", details["skillPower"]),
     formulaKindTerm(details),
@@ -215,7 +228,7 @@ function formatDamageCalculated(
     auditRateTerm("肩代わり軽減", details["guardRate"]),
     auditTerm("切り捨て前", details["preTruncationDamage"]),
     auditTerm("閾値軽減倍率", details["thresholdReductionMultiplier"]),
-    details["damageImmunityNullified"] === true ? "ダメージ無効" : undefined,
+    immunityTerm(details),
   ]);
   const hit = hitLabel(details);
   const hitText = hit !== undefined ? ` ${hit}` : "";

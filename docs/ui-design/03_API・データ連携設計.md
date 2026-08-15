@@ -581,15 +581,17 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 
 ```text
 {攻撃者} → {対象} ヒットN: 計算ダメージ{finalDamage}
-  （{damageType}、攻撃力{attackerAttack}、実効防御{effectiveDefense}、貫通3割合…、
+  （{damageType}、攻撃力{attackerAttack}、実効防御{effectiveDefense}、
+    防御貫通{defenseIgnoreRate}、シールド貫通{shieldIgnoreRate}、軽減貫通{damageReductionIgnoreRate}、
     基礎ダメージ{baseDamage}、スキル威力{skillPower}、Formula {skillPowerFormulaKind}、
     属性倍率{attributeMultiplier}、有利属性ダメージ{attackerAffinityBonus} {攻撃側}→{防御側}、
     会心倍率、与/被ダメージ倍率、Action内追加倍率、混乱倍率、
     倍率適用後{rawPreTruncationDamage}、凍結増幅、攻撃時追加ダメージ、肩代わり軽減、
-    切り捨て前{preTruncationDamage}、閾値軽減倍率、ダメージ無効）
+    切り捨て前{preTruncationDamage}、閾値軽減倍率、ダメージ無効あり|なし）
 ```
 
-- **§12.1 の「値が0の項目は出さない」を、この計算過程の項目には適用しない。** 等倍・ゼロを隠すと「スキル威力1」「属性倍率1」のような、計算を疑うときに一番確かめたい状態ほど文から消える。値を落とすのはpayloadがその項目自体を持たないときだけで、`DAMAGE_WILL_BE_APPLIED`の貫通率を0%でも出すのと同じ規約である。
+- **§12.1 の「値が0の項目は出さない」を、この計算過程の項目には適用しない。** 等倍・ゼロを隠すと「スキル威力1」「属性倍率1」「防御貫通0%」「攻撃力0」のような、計算を疑うときに一番確かめたい状態ほど文から消える。値を落とすのはpayloadがその項目自体を持たないときだけで、`DAMAGE_WILL_BE_APPLIED`の貫通率を0%でも出すのと同じ規約である。**この規約は貫通3割合・攻撃力を含む枠内の全項目に等しく適用する** — 一部の項目にだけ0隠しのhelper（`rateTerm`／`positiveTerm`）を残すと、同じ1文の中で表示規約が二重になる。
+- boolean項目（`damageImmunityNullified`）は成立・不成立の両方を語で出す。`true`のときだけ語を出す実装では、不成立とDMG-012以前の「項目なし」を要約の上で区別できない。
 - 並びはR-DMG-01の乗算順に固定する。UI側で内訳を再計算・按分しないのは§12.1と同じ。
 - 属性倍率1が「有利属性なし」なのか「有利属性ダメージ0%」なのかを、`isFavorableAttribute`を根拠に語で分ける。R-SUB-02のサブユニット追加ヒットは属性相性4欄を持たないため、その場合はこの語自体を出さない（`false`と断定しない）。
 - M4〜M7に録取したfixtureは新項目を持たない。§12.1と同じく欠落を0と断定せず、その項目だけを文から消す（generic fallbackへは落とさない）。

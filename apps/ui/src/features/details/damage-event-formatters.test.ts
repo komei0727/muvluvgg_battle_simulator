@@ -306,9 +306,17 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
     );
 
     expect(presentation.summary).toContain("基礎ダメージ300");
+    // 0%でも消えない貫通3割合。`DAMAGE_WILL_BE_APPLIED`が0%でも出すのと同じ規約で、
+    // 「宣言が無い」と「0%」を読み分けられるようにする（R-DMG-03）。
+    expect(presentation.summary).toContain("防御貫通0%");
+    expect(presentation.summary).toContain("シールド貫通0%");
+    expect(presentation.summary).toContain("軽減貫通0%");
     // 等倍でも消えない項目（従来は`multiplierTerm`/`positiveTerm`が落としていた）。
     expect(presentation.summary).toContain("スキル威力1");
     expect(presentation.summary).toContain("属性倍率1");
+    // 不成立でも消えないダメージ無効（R-DMG-02 #2）。booleanを持つ限り両状態を出し、
+    // DMG-012以前の「項目なし」と区別する。
+    expect(presentation.summary).toContain("ダメージ無効なし");
     expect(presentation.summary).toContain("会心倍率1");
     // 有利属性ダメージ％。倍率1が「不利」ではなく「有利かつボーナス0」であることを示す。
     expect(presentation.summary).toContain("有利属性");
@@ -355,6 +363,60 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
     expect(presentation.summary).toContain("スキル威力1.5");
     expect(presentation.summary).not.toContain("基礎ダメージ");
     expect(presentation.summary).not.toContain("凍結増幅");
+    // 項目自体を持たない場合だけ落とす。「なし」と断定しない。
+    expect(presentation.summary).not.toContain("ダメージ無効");
+  });
+
+  // UI-UT-DMG-028 (DMG-012): 攻撃力0（R-STA-01の補正で戦闘中攻撃力が0まで落ちた攻撃側）も
+  // 基礎ダメージの計算入力であり、0だからと省略すると式が追えなくなる。
+  it("keeps a zero attacker attack in the DAMAGE_CALCULATED audit summary", () => {
+    const presentation = formatEvent(
+      event({
+        type: "DAMAGE_CALCULATED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          skillDefinitionId: "SKL_A",
+          effectActionDefinitionId: "ACT_ATTACK",
+          hitIndex: 0,
+          targetUnitId: "enemy:1",
+          attackerAttack: 0,
+          defenderDefense: 200,
+          effectiveDefense: 200,
+          defenseIgnoreRate: 0,
+          shieldIgnoreRate: 0,
+          damageReductionIgnoreRate: 0,
+          baseDamage: 0,
+          skillPower: 1,
+          skillPowerFormulaKind: "SKILL_POWER",
+          attributeMultiplier: 1,
+          attackerAttribute: "AGGRESSIVE",
+          defenderAttribute: "AGGRESSIVE",
+          isFavorableAttribute: false,
+          attackerAffinityBonus: 0.25,
+          criticalMultiplier: 1,
+          outgoingDamageMultiplier: 1,
+          incomingDamageMultiplier: 1,
+          actionDamageMultiplier: 1,
+          confusionDamageMultiplier: 1,
+          rawPreTruncationDamage: 0,
+          preTruncationDamage: 0,
+          freezeMultiplier: 1,
+          attackDamageBonus: 0,
+          guardRate: 0,
+          thresholdReductionMultiplier: 1,
+          damageImmunityNullified: false,
+          finalDamage: 1,
+          damageType: "PHYSICAL",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("攻撃力0");
+    expect(presentation.summary).toContain("基礎ダメージ0");
+    // R-ATR-02: 有利でないため属性倍率1。「有利かつボーナス0」と混同させない。
+    expect(presentation.summary).toContain("有利属性なし");
   });
 
   // UI-UT-DMG-007: R-DMG-03の貫通3割合（DamageWillBeApplied）。
