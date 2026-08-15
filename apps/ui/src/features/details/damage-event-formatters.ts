@@ -74,6 +74,52 @@ function rateTerm(label: string, value: unknown): string | undefined {
 }
 
 /**
+ * DMG-012: ダメージ計算の監査項目は、値が既定（1倍・0）でも省略しない。
+ * `multiplierTerm`/`positiveTerm`が既定値を隠す設計なのは「内訳に無関係な項目で文を
+ * 長くしない」ためだが、計算過程を追う項目では逆に「スキル威力1」「属性倍率1」の
+ * ような一番調べたい状態ほど文から消えてしまう。値を持たない（＝そのpayloadが
+ * その項目自体を持たない）ときだけ落とすのは、`DamageWillBeApplied`の貫通率が
+ * 0%でも出るのと同じ規約である。
+ */
+function auditTerm(label: string, value: unknown): string | undefined {
+  const amount = numberOf(value);
+  return amount !== undefined ? `${label}${amount}` : undefined;
+}
+
+/** 監査項目のうち割合で読むもの。値を持つ限り0%でも出す。 */
+function auditRateTerm(label: string, value: unknown): string | undefined {
+  const rate = numberOf(value);
+  return rate !== undefined ? `${label}${percentText(rate)}` : undefined;
+}
+
+/**
+ * R-ATR-01／R-ATR-02（DMG-012）: 属性倍率1が「有利でない」のか「有利だが属性相性
+ * ボーナスが0」なのかを読み分けられるようにする。R-SUB-02の追加ヒットは計算式に
+ * 属性相性の項を持たず4欄とも省略されるため、その場合はこの語自体を出さない。
+ */
+function attributeTerm(details: Record<string, unknown>): string | undefined {
+  const favorable = details["isFavorableAttribute"];
+  if (typeof favorable !== "boolean") {
+    return undefined;
+  }
+  const attacker = details["attackerAttribute"];
+  const defender = details["defenderAttribute"];
+  const matchup =
+    typeof attacker === "string" && typeof defender === "string" ? ` ${attacker}→${defender}` : "";
+  if (!favorable) {
+    return `有利属性なし${matchup}`;
+  }
+  const bonus = auditRateTerm("有利属性ダメージ", details["attackerAffinityBonus"]);
+  return bonus !== undefined ? `${bonus}${matchup}` : `有利属性${matchup}`;
+}
+
+/** スキル威力1が「SKILL_POWERで威力1」か「非SKILL_POWER Formulaの既定値」かを分ける。 */
+function formulaKindTerm(details: Record<string, unknown>): string | undefined {
+  const kind = details["skillPowerFormulaKind"];
+  return typeof kind === "string" ? `Formula ${kind}` : undefined;
+}
+
+/**
  * R-DMG-05 #7の適用結果（DMG-001／004／005／006／007）。M8で`calculatedDamage`の
  * 内訳（シールド・サブユニット吸収、HPクランプ破棄、シールド迂回直撃）が加わったが、
  * M4〜M7に録取したfixtureはそれらを持たないため、内訳項目はすべて任意として扱い、
@@ -151,11 +197,25 @@ function formatDamageCalculated(
     rateTerm("防御貫通", details["defenseIgnoreRate"]),
     rateTerm("シールド貫通", details["shieldIgnoreRate"]),
     rateTerm("軽減貫通", details["damageReductionIgnoreRate"]),
-    multiplierTerm("会心倍率", details["criticalMultiplier"]),
-    multiplierTerm("与ダメージ倍率", details["outgoingDamageMultiplier"]),
-    multiplierTerm("被ダメージ倍率", details["incomingDamageMultiplier"]),
-    multiplierTerm("Action内追加倍率", details["actionDamageMultiplier"]),
-    multiplierTerm("混乱倍率", details["confusionDamageMultiplier"]),
+    // ここから下はR-DMG-01の乗算順に並べる。読み手が式として突き合わせられるよう、
+    // 中立値（1倍・0）でも省略しない。
+    auditTerm("基礎ダメージ", details["baseDamage"]),
+    auditTerm("スキル威力", details["skillPower"]),
+    formulaKindTerm(details),
+    auditTerm("属性倍率", details["attributeMultiplier"]),
+    attributeTerm(details),
+    auditTerm("会心倍率", details["criticalMultiplier"]),
+    auditTerm("与ダメージ倍率", details["outgoingDamageMultiplier"]),
+    auditTerm("被ダメージ倍率", details["incomingDamageMultiplier"]),
+    auditTerm("Action内追加倍率", details["actionDamageMultiplier"]),
+    auditTerm("混乱倍率", details["confusionDamageMultiplier"]),
+    auditTerm("倍率適用後", details["rawPreTruncationDamage"]),
+    auditTerm("凍結増幅", details["freezeMultiplier"]),
+    auditTerm("攻撃時追加ダメージ", details["attackDamageBonus"]),
+    auditRateTerm("肩代わり軽減", details["guardRate"]),
+    auditTerm("切り捨て前", details["preTruncationDamage"]),
+    auditTerm("閾値軽減倍率", details["thresholdReductionMultiplier"]),
+    details["damageImmunityNullified"] === true ? "ダメージ無効" : undefined,
   ]);
   const hit = hitLabel(details);
   const hitText = hit !== undefined ? ` ${hit}` : "";

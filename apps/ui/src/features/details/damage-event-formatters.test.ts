@@ -259,6 +259,104 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
     expect(presentation.summary).toContain("混乱倍率0.5");
   });
 
+  // UI-UT-DMG-026 (DMG-012): ダメージ計算の全項目を、等倍・ゼロでも省略せず出す。
+  // 隠すと「スキル威力1」「属性倍率1」のような一番調べたい状態ほど文から消える。
+  it("shows every DAMAGE_CALCULATED calculation term in the R-DMG-01 multiplication order, including neutral ones", () => {
+    const presentation = formatEvent(
+      event({
+        type: "DAMAGE_CALCULATED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          skillDefinitionId: "SKL_A",
+          effectActionDefinitionId: "ACT_ATTACK",
+          hitIndex: 0,
+          targetUnitId: "enemy:1",
+          attackerAttack: 500,
+          defenderDefense: 200,
+          effectiveDefense: 200,
+          defenseIgnoreRate: 0,
+          shieldIgnoreRate: 0,
+          damageReductionIgnoreRate: 0,
+          baseDamage: 300,
+          skillPower: 1,
+          skillPowerFormulaKind: "SKILL_POWER",
+          attributeMultiplier: 1,
+          attackerAttribute: "AGGRESSIVE",
+          defenderAttribute: "SHY",
+          isFavorableAttribute: true,
+          attackerAffinityBonus: 0,
+          criticalMultiplier: 1,
+          outgoingDamageMultiplier: 1,
+          incomingDamageMultiplier: 1,
+          actionDamageMultiplier: 1,
+          confusionDamageMultiplier: 1,
+          rawPreTruncationDamage: 300,
+          preTruncationDamage: 450,
+          freezeMultiplier: 1.5,
+          attackDamageBonus: 0,
+          guardRate: 0,
+          thresholdReductionMultiplier: 1,
+          damageImmunityNullified: false,
+          finalDamage: 450,
+          damageType: "PHYSICAL",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("基礎ダメージ300");
+    // 等倍でも消えない項目（従来は`multiplierTerm`/`positiveTerm`が落としていた）。
+    expect(presentation.summary).toContain("スキル威力1");
+    expect(presentation.summary).toContain("属性倍率1");
+    expect(presentation.summary).toContain("会心倍率1");
+    // 有利属性ダメージ％。倍率1が「不利」ではなく「有利かつボーナス0」であることを示す。
+    expect(presentation.summary).toContain("有利属性");
+    expect(presentation.summary).toContain("凍結増幅1.5");
+    expect(presentation.summary).toContain("計算ダメージ450");
+  });
+
+  // UI-UT-DMG-027 (DMG-012): M4〜M7のfixtureは新項目を持たない。欠けていても
+  // generic fallbackへ落とさず、その項目だけを文から消す（`formatDamageApplied`と同じ規約）。
+  it("still formats a DAMAGE_CALCULATED payload recorded before the DMG-012 audit fields existed", () => {
+    const presentation = formatEvent(
+      event({
+        type: "DAMAGE_CALCULATED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          skillDefinitionId: "SKL_A",
+          effectActionDefinitionId: "ACT_ATTACK",
+          hitIndex: 0,
+          targetUnitId: "enemy:1",
+          attackerAttack: 500,
+          defenderDefense: 200,
+          effectiveDefense: 200,
+          defenseIgnoreRate: 0,
+          shieldIgnoreRate: 0,
+          damageReductionIgnoreRate: 0,
+          skillPower: 1.5,
+          attributeMultiplier: 1.2,
+          criticalMultiplier: 1,
+          outgoingDamageMultiplier: 1,
+          incomingDamageMultiplier: 1,
+          actionDamageMultiplier: 1,
+          confusionDamageMultiplier: 1,
+          preTruncationDamage: 540,
+          finalDamage: 540,
+          damageType: "PHYSICAL",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.title).toBe("DAMAGE_CALCULATED");
+    expect(presentation.summary).toContain("計算ダメージ540");
+    expect(presentation.summary).toContain("スキル威力1.5");
+    expect(presentation.summary).not.toContain("基礎ダメージ");
+    expect(presentation.summary).not.toContain("凍結増幅");
+  });
+
   // UI-UT-DMG-007: R-DMG-03の貫通3割合（DamageWillBeApplied）。
   it("shows the three piercing rates of DAMAGE_WILL_BE_APPLIED", () => {
     const presentation = formatEvent(

@@ -1,7 +1,10 @@
-import { resolveAttributeMultiplier } from "./attribute-affinity-policy.js";
+import { isFavorableAttribute, resolveAttributeMultiplier } from "./attribute-affinity-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
-import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
+import type {
+  FormulaDefinition,
+  FormulaKind,
+} from "../../catalog/definitions/formula-definition.js";
 import { evaluateFormula, type FormulaEvaluationContext } from "../skill/formula-evaluator.js";
 
 export interface DamageCalculationInput {
@@ -51,8 +54,24 @@ export interface ConfusionDamageInput {
 export interface DamageCalculationResult {
   /** R-DMG-01の実効防御力（`defenderDefense * (1 - defenseIgnoreRate)`）。 */
   readonly effectiveDefense: number;
+  /**
+   * R-DMG-01の基礎ダメージ（DMG-012）。全倍率が掛かる元の値であり、これが無いと
+   * `max(0, 攻撃力 - 実効防御力)`とFormula直値（`CURRENT_HP_RATIO`等）のどちらで
+   * 求まったのか、R-CFS-02の低攻撃力差し替えが働いたのかをログから判別できない。
+   */
+  readonly baseDamage: number;
   readonly skillPower: number;
+  /**
+   * `skillPowerFormula.kind`（DMG-012）。非`SKILL_POWER`のFormulaでは`skillPower`が
+   * 常に`1`になるため、この欄が無いと「`SKILL_POWER`で威力1」と区別できない。
+   */
+  readonly skillPowerFormulaKind: FormulaKind;
   readonly attributeMultiplier: number;
+  /**
+   * R-ATR-01の有利属性判定（DMG-012）。`attributeMultiplier === 1`は「有利でない」と
+   * 「有利だが属性相性ボーナスが0」の2通りあり、この欄だけが両者を分ける。
+   */
+  readonly isFavorableAttribute: boolean;
   /** R-DMG-04の与ダメージ倍率（監査用に入力をそのまま返す）。 */
   readonly outgoingDamageMultiplier: number;
   /** R-DMG-04の被ダメージ倍率（R-DMG-03の`damageReductionIgnoreRate`適用済み）。 */
@@ -137,6 +156,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     input.formulaContext,
     input.confusion,
   );
+  const favorable = isFavorableAttribute(input.attackerAttribute, input.defenderAttribute);
   const attributeMultiplier = resolveAttributeMultiplier(
     input.attackerAttribute,
     input.defenderAttribute,
@@ -169,8 +189,11 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
 
   return {
     effectiveDefense,
+    baseDamage,
     skillPower,
+    skillPowerFormulaKind: input.skillPowerFormula.kind,
     attributeMultiplier,
+    isFavorableAttribute: favorable,
     outgoingDamageMultiplier,
     incomingDamageMultiplier,
     actionDamageMultiplier,

@@ -314,6 +314,90 @@ describe("calculateDamage", () => {
     );
     expect(result.skillPower).toBe(1.5);
   });
+
+  it("UT-DAMAGE-CALCULATOR-011 (DMG-012): exposes baseDamage, the max(0, attack - effectiveDefense) that every multiplier scales", () => {
+    const result = calculateDamage(
+      input({ attackerAttack: 50, defenderDefense: 40, defenseIgnoreRate: 0.5 }),
+    );
+    expect(result.baseDamage).toBe(30);
+    expect(result.skillPowerFormulaKind).toBe("SKILL_POWER");
+  });
+
+  it("UT-DAMAGE-CALCULATOR-012 (DMG-012): a non-SKILL_POWER formula reports its own kind, so skillPower 1 is not mistaken for a SKILL_POWER of power 1", () => {
+    const result = calculateDamage(
+      input({
+        skillPowerFormula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.25 },
+      }),
+    );
+    // baseDamage is the formula result itself; attack/defense never enter it.
+    expect(result.baseDamage).toBe(25);
+    expect(result.skillPower).toBe(1);
+    expect(result.skillPowerFormulaKind).toBe("CURRENT_HP_RATIO");
+  });
+
+  it("UT-DAMAGE-CALCULATOR-013 (DMG-012, R-CFS-02): the low-attack base damage substitution is visible in baseDamage", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 20,
+        defenderDefense: 40,
+        confusion: { damageReductionRate: 0.5, lowAttackBaseDamageRate: 0.3 },
+      }),
+    );
+    // 攻撃力20 <= 実効防御40 なので `max(0, 20 - 40) = 0` ではなく `20 * 0.3` を使う。
+    // 差し替えの成否は baseDamage・attackerAttack・effectiveDefense の3つから一意に
+    // 判別できるため、専用のフラグは公開しない。
+    expect(result.baseDamage).toBeCloseTo(6);
+  });
+
+  it("UT-DAMAGE-CALCULATOR-014 (DMG-012, R-ATR-02): exposes isFavorableAttribute, so an attributeMultiplier of 1 distinguishes 不利 from 有利かつボーナス0", () => {
+    const unfavorable = calculateDamage(
+      input({
+        attackerAttribute: "AGGRESSIVE",
+        defenderAttribute: "AGGRESSIVE",
+        attackerAffinityBonus: 0.25,
+      }),
+    );
+    expect(unfavorable.attributeMultiplier).toBe(1);
+    expect(unfavorable.isFavorableAttribute).toBe(false);
+
+    const favorableWithoutBonus = calculateDamage(
+      input({
+        attackerAttribute: "AGGRESSIVE",
+        defenderAttribute: "SHY",
+        attackerAffinityBonus: 0,
+      }),
+    );
+    expect(favorableWithoutBonus.attributeMultiplier).toBe(1);
+    expect(favorableWithoutBonus.isFavorableAttribute).toBe(true);
+  });
+
+  it("UT-DAMAGE-CALCULATOR-015 (DMG-012): preTruncationDamage is exactly baseDamage times every exposed multiplier", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 50,
+        defenderDefense: 20,
+        attackerAttribute: "AGGRESSIVE",
+        defenderAttribute: "SHY",
+        attackerAffinityBonus: 0.35,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 1.5 },
+        criticalMultiplier: 2,
+        outgoingDamageMultiplier: 1.2,
+        incomingDamageMultiplier: 0.8,
+        damageModifiers: [{ kind: "CONSTANT", value: 0.1 }],
+        confusion: { damageReductionRate: 0.25, lowAttackBaseDamageRate: 0.3 },
+      }),
+    );
+    expect(result.preTruncationDamage).toBeCloseTo(
+      result.baseDamage *
+        result.skillPower *
+        result.attributeMultiplier *
+        2 *
+        result.outgoingDamageMultiplier *
+        result.incomingDamageMultiplier *
+        result.actionDamageMultiplier *
+        result.confusionDamageMultiplier,
+    );
+  });
 });
 
 /**

@@ -14,6 +14,7 @@ import type { ReservedActionKind } from "../action/action-queue.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { Side } from "../../shared/side.js";
 import type {
+  Attribute,
   ConsumptionKind,
   CriticalMode,
   DamageType,
@@ -40,6 +41,7 @@ import type {
   ConditionKind,
 } from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionKind } from "../../catalog/definitions/effect-action-definition.js";
+import type { FormulaKind } from "../../catalog/definitions/formula-definition.js";
 import type {
   EffectStepDefinition,
   RandomBranchMode,
@@ -360,8 +362,40 @@ export interface BattleDomainEventPayloadMap {
     readonly defenseIgnoreRate: number;
     readonly shieldIgnoreRate: number;
     readonly damageReductionIgnoreRate: number;
+    /**
+     * R-DMG-01の基礎ダメージ（DMG-012）。全倍率が掛かる元の値であり、
+     * `max(0, 攻撃力 - 実効防御力)`とFormula直値（`CURRENT_HP_RATIO`等）のどちらで
+     * 求まったのかを`skillPowerFormulaKind`と併せて表す。R-CFS-02の低攻撃力差し替えは
+     * `attackerAttack <= effectiveDefense`かつ`baseDamage > 0`として現れるため、
+     * 専用のフラグは持たない。
+     *
+     * R-SUB-02のサブユニット追加ヒットは「通常の防御力減衰を行わない」＝基礎ダメージの
+     * 概念自体を持たない（Formula評価結果が`skillPower`として直接ダメージ量になる）ため
+     * この欄を持たない。省略は乗算の中立値1として読む。
+     */
+    readonly baseDamage?: number;
     readonly skillPower: number;
+    /**
+     * `skillPowerFormula.kind`（DMG-012）。非`SKILL_POWER`のFormulaでは`skillPower`が
+     * 常に`1`になるため、この欄が無いと「`SKILL_POWER`で威力1」と区別できない。
+     */
+    readonly skillPowerFormulaKind: FormulaKind;
     readonly attributeMultiplier: number;
+    /**
+     * R-ATR-01／R-ATR-02の内訳（DMG-012）。`attributeMultiplier === 1`は「有利でない」と
+     * 「有利だが属性相性ボーナスが0」の2通りあり、`isFavorableAttribute`だけが
+     * 両者を分ける。`attackerAffinityBonus`は攻撃側の戦闘中`affinityBonus`
+     * （既定値25%＝Q-CAT-05を含む、R-ATR-02）そのものである。
+     *
+     * R-SUB-02のサブユニット追加ヒットは計算式に属性相性の項を持たない
+     * （`attributeMultiplier`が規則により常に1）ため、4欄とも持たない。属性を書いた上で
+     * `isFavorableAttribute: false`と断定すると、実際には有利な組み合わせのヒットに
+     * 対して監査ログが偽を述べることになる。
+     */
+    readonly attackerAttribute?: Attribute;
+    readonly defenderAttribute?: Attribute;
+    readonly isFavorableAttribute?: boolean;
+    readonly attackerAffinityBonus?: number;
     readonly criticalMultiplier: number;
     /**
      * R-DMG-01の与ダメージ倍率・被ダメージ倍率（R-DMG-04の集計結果、
@@ -379,8 +413,35 @@ export interface BattleDomainEventPayloadMap {
      * snapshotに紛れ込ませないためである。
      */
     readonly confusionDamageMultiplier: number;
-    /** 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。 */
+    /**
+     * R-DMG-01の計算ダメージ（DMG-012）。上の倍率群だけを`baseDamage`へ掛けた積であり、
+     * 次の`preTruncationDamage`とは別の値である。この欄が無いと、記録済みの倍率を
+     * 掛け合わせても記録済みの`preTruncationDamage`に届かず、ログを電卓で追えない。
+     */
+    readonly rawPreTruncationDamage: number;
+    /**
+     * 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。`rawPreTruncationDamage`
+     * へ凍結解除増幅（R-STS-03）・攻撃時追加ダメージ（R-DMG-06）・肩代わり軽減
+     * （R-INT-02第2項）を適用した後の値であり、その3段はそれぞれ次の欄が表す。
+     */
     readonly preTruncationDamage: number;
+    /** R-STS-03の凍結解除増幅（`1 + damageAmplificationOnBreak`）。凍結していなければ`1`。 */
+    readonly freezeMultiplier: number;
+    /** R-DMG-06の攻撃時追加ダメージ加算量（`APPLY_ATTACK_DAMAGE_BONUS`の合算）。 */
+    readonly attackDamageBonus: number;
+    /**
+     * R-INT-02第2項の肩代わり軽減率。肩代わりが成立していなければ0。同じ値を
+     * `DamageRedirected`（`reason: COVER`）も持つが、このイベント単体で
+     * `preTruncationDamage`を再現できることを優先して重複して持つ。
+     */
+    readonly guardRate: number;
+    /** R-DMG-07の閾値付き被ダメージ軽減の独立倍率。成立が0件なら`1`。 */
+    readonly thresholdReductionMultiplier: number;
+    /**
+     * R-DMG-02 #2のダメージ無効が成立したか。成立時は`finalDamage`が1へ上書きされる
+     * ため、この欄が無いと最終ダメージが計算過程から導けない。
+     */
+    readonly damageImmunityNullified: boolean;
     readonly finalDamage: number;
     readonly damageType: DamageType;
   };

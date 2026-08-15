@@ -388,6 +388,109 @@ describe("applyDamageAction", () => {
     expect(damageDetails.preTruncationDamage).toBeCloseTo(97.2);
   });
 
+  it("UT-DAMAGE-APPLICATION-019 (DMG-012): DamageCalculated exposes the calculation inputs (基礎ダメージ・Formula種別・属性相性) and the post-calculation stages at their neutral values", () => {
+    const attacker = unit("ATTACKER", "ALLY", {
+      attack: 50,
+      affinityBonus: 0.35,
+      attribute: "AGGRESSIVE",
+    });
+    const target = unit("TARGET", "ENEMY", {
+      defense: 20,
+      maximumHp: 1000,
+      attribute: "SHY", // AGGRESSIVE is favorable against SHY (R-ATR-01).
+    });
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const details = context.recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!
+      .payload as Record<string, unknown>;
+    expect(details).toMatchObject({
+      baseDamage: 30,
+      skillPowerFormulaKind: "SKILL_POWER",
+      attackerAttribute: "AGGRESSIVE",
+      defenderAttribute: "SHY",
+      isFavorableAttribute: true,
+      attackerAffinityBonus: 0.35,
+      // 凍結増幅・攻撃時追加ダメージ・肩代わり・閾値軽減・無効化はどれも成立して
+      // いないため中立値になる。「宣言が無い」と「中立」を読み分けられるよう、
+      // 成立しないヒットでも省略せず出す（R-DMG-03の貫通率と同じ規約）。
+      freezeMultiplier: 1,
+      attackDamageBonus: 0,
+      guardRate: 0,
+      thresholdReductionMultiplier: 1,
+      damageImmunityNullified: false,
+    });
+    expect(details.rawPreTruncationDamage).toBeCloseTo(40.5);
+  });
+
+  it("UT-DAMAGE-APPLICATION-020 (DMG-012): the DamageCalculated payload alone reproduces preTruncationDamage and finalDamage across 凍結増幅 (R-STS-03) and 攻撃時追加ダメージ (R-DMG-06)", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [freeze],
+    };
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const details = context.recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!
+      .payload as Record<string, unknown>;
+    expect(details).toMatchObject({
+      baseDamage: 20,
+      freezeMultiplier: 1.5,
+      attackDamageBonus: 6,
+      // 基礎20 * 1.5 + 6 = 36。倍率群だけの積(20)とは別の値であり、この2欄が
+      // 揃わないと記録済みの倍率から preTruncationDamage へ到達できない。
+      rawPreTruncationDamage: 20,
+      preTruncationDamage: 36,
+      finalDamage: 36,
+    });
+  });
+
+  it("UT-DAMAGE-APPLICATION-021 (DMG-012): damageImmunityNullified explains a finalDamage of 1 that the recorded multipliers alone cannot account for", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    const immunity = immunityEffect("eff-immunity", "TARGET", {});
+    const target = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [immunity],
+    };
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const details = context.recorder.getEvents().find((e) => e.eventType === "DamageCalculated")!
+      .payload as Record<string, unknown>;
+    expect(details).toMatchObject({
+      preTruncationDamage: 20,
+      damageImmunityNullified: true,
+      finalDamage: 1,
+    });
+  });
+
   it("a lethal hit still passes DamageApplied (not just the resulting UnitDefeated) to onFactEventForPassiveChain, in event order", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 100 });
     const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 10 });
