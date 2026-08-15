@@ -1889,6 +1889,8 @@ condition:
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
 
+「実際のpayloadプロパティ名を直接指す」の唯一の例外として、`eventType: UnitBeingAttacked`（攻撃前観測、`07_戦闘ルール詳細.md` `R-ATM-03`）の条件に限り `field: "damageType"` を受理する。このイベントの実payloadはダメージ型の**集合** `damageTypes` であり単一値フィールド `damageType` を持たないが、既存trigger定義（「ENタイプの敵から攻撃される直前」等）との互換のため、`damageType` を `damageTypes` への別名として扱い、`op`/`value` の比較を集合の各要素へ適用して**いずれかが成立すれば真**と評価する（`R-ATM-03` #7）。Catalog整合性検証はこの別名を拒否しない。他のeventTypeでは従来どおり実プロパティ名だけを受理する。
+
 ```yaml
 # 例: 「敵にデバフが付与された際に発動」（SKL_KEI_JACKKNIFE_PS2）
 - { kind: EVENT_PAYLOAD, field: categories, op: CONTAINS, value: DEBUFF }
@@ -2172,7 +2174,7 @@ condition:
 
 `activationCondition`が参照できる`TargetReference`の**種別**も、評価する側がskill typeごとに異なるためCatalogロード時点で制約する（`ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`）。AS/EXは行動選択時に評価されトリガーイベントも直前結果も存在しないため`SELF`と解決済み`BINDING`だけ、PSは候補判定時に解決済みTargetBindingを持たないため`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`だけを許可する。CHARGEスキルの`activationCondition`は行動選択時（チャージ開始の可否判定）に評価されるため、解決される`targetBindings`は**開始側**だけであり、`chargeRelease`側のbindingは参照できない。
 
-**相補的な条件を2つのACTION stepへ分けてはならない**。`targetCondition`は各stepの`EffectStepStarting`とそこから生じるPS/Memory連鎖の**後**に最新stateで評価されるため、条件Xと`NOT(X)`を別stepに置くと、先行stepの解決中に`X`が変化した場合に両方が実行されうる。「通常版か強化版のどちらか一方」は`BRANCH`（分岐の選択を一度だけ確定する）で表し、`TRIGGER_TARGET`のようにBRANCHで参照できない対象では「基本効果を無条件、増加分だけを条件付き」の加算形にして条件付きstepを1つに保つ（production例: `SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`はBRANCH、`SKL_FLUTE_INFLUENCER_PS2`は加算形）。
+**相補的な条件を2つのACTION stepへ分けてはならない**。`targetCondition`は各stepの実行時点の最新stateで評価されるため、条件Xと`NOT(X)`を別stepに置くと、先行stepの効果適用が`X`を変化させた場合に両方が実行されうる（`EffectStepStarting`はもはやPS/Memory連鎖を生まないが — `R-ATM-04` — 先行stepの適用自体が状態を変えることに変わりはない）。「通常版か強化版のどちらか一方」は`BRANCH`（分岐の選択を一度だけ確定する）で表し、`TRIGGER_TARGET`のようにBRANCHで参照できない対象では「基本効果を無条件、増加分だけを条件付き」の加算形にして条件付きstepを1つに保つ（production例: `SKL_NOEL_RUMBLE_AS1`/`SKL_SHOUKA_SCHEMER_AS3`はBRANCH、`SKL_FLUTE_INFLUENCER_PS2`は加算形）。
 
 | スコープ                          | 可否 | 備考                                                                                                                                                   |
 | --------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
