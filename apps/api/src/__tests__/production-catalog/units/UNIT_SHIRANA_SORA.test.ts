@@ -328,31 +328,64 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_SHIRANA_SORA_PS2",
-    // production定義のtriggerは `EVENT_PAYLOAD field: "damageType"` を読むが、
-    // `UnitBeingAttacked` payload にその欄は無い（`domain-event.ts`）。原文
-    // 「自身がENタイプの敵から攻撃される直前に発動」は**攻撃側のユニット種別**を
-    // 指しており、他の定義（`SKL_LUCIE_MAID_PS1`）と同じ
-    // `TARGET_STATE target: TRIGGER_SOURCE / field: UNIT_TYPE` で表すのが正しい。
-    // ただしそう直すと、EN同士のミラー戦でPS2が毎ヒット候補化して1解決スコープの
-    // 効果解決数が実行ガード（`maxEffectsPerScope: 50`）を超え、当のユニットが
-    // 戦闘を完走できなくなる。ガードの上限は M9「実行保護の全上限を設定可能にする」
-    // まで固定値のため、定義の是正はその後段へ送り、ここでは実挙動を記録する。
-    intent: "(実挙動): 契機の条件が `UnitBeingAttacked` に存在しない欄を読むため発動しない",
+    // production定義のtriggerは `EVENT_PAYLOAD field: "damageType"` を読む。
+    // R-ATM-03 #7（Issue #480）で攻撃前観測の payload が `damageTypes`（その対象へ
+    // 向き得る全DAMAGE定義の型の集合）を持ち、`damageType` はその別名として
+    // 集合のいずれかで比較が成立すれば真になったため、この trigger が成立する
+    // ようになった（R-ATM実装前は payload に読む欄が無く一度も発動しなかった）。
+    intent: "自身がENタイプの攻撃を受ける直前に発動。次に受けるENダメージを1回だけ75%軽減する",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_SHIRANA_SORA_PS2",
-      trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:subject" }),
+      trigger: unitBeingAttacked({
+        source: "enemy:front",
+        target: "ally:subject",
+        damageTypes: ["EN"],
+      }),
+    },
+    board: ENERGY_ATTACKER,
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_PS2_GUARD", targets: ["ally:subject"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SHIRANA_SORA_PS2_GUARD",
+          magnitude: -0.75,
+          // R-EFF-07: 次に受ける攻撃1回だけへ乗る（「一度だけ」の実体）。
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_SHIRANA_SORA_PS2", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SHIRANA_SORA_PS2",
+    // R-ATM-03 #7の集合比較は「いずれかの要素で成立」であり、集合に EN を
+    // 含まない攻撃（物理だけの攻撃）では成立しない。
+    intent: "(不成立): 物理ダメージだけの攻撃を受ける直前では発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SHIRANA_SORA_PS2",
+      trigger: unitBeingAttacked({
+        source: "enemy:front",
+        target: "ally:subject",
+        damageTypes: ["PHYSICAL"],
+      }),
     },
     board: ENERGY_ATTACKER,
     expected: { activated: false },
   },
 ];
 
-/**
- * PS2が一度も発動しないため、その効果だけは表から実行できない。理由付きで
- * 実行ベース網羅から除外する（`definition-closure.ts` の `unreachable`）。
- */
-const UNREACHABLE_EFFECT_ACTION_IDS: readonly string[] = ["ACT_SHIRANA_SORA_PS2_GUARD"];
+const UNREACHABLE_EFFECT_ACTION_IDS: readonly string[] = [];
 
 const EX_SUBUNIT = "ACT_SHIRANA_SORA_EX_SUBUNIT";
 const AS1_SUBUNIT = "ACT_SHIRANA_SORA_AS1_SUBUNIT";

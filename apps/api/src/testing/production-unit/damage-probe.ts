@@ -4,7 +4,14 @@ import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.
 import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
+import {
+  collectPreAttackObservations,
+  resolveSkillOrder,
+} from "../../domain/battle/skill/skill-resolution-service.js";
+import {
+  recordPreAttackObservation,
+  shouldObserve,
+} from "../../domain/battle/lifecycle/pre-attack-observation-service.js";
 import type {
   AccuracyMode,
   CriticalMode,
@@ -688,9 +695,42 @@ export function observeLifecycleDamageProbe(
     );
   }
   const eventsBefore = recorder.getEvents().length;
+  // R-ATM-03: 実経路（`resolveSkillUse`）と同じく、効果処理の開始前に攻撃前観測を
+  // 1件発行する。`UnitBeingAttacked`を契機に取るガード系PSはここでしか候補化されず、
+  // このプローブが固定したいのは「そのPSの効果が同じヒットの計算へ入ること」である。
+  const probeSkillUseId = recorder.nextSkillUseId();
+  let unitsForEffects = options.units;
+  for (const observation of collectPreAttackObservations(
+    skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+    plan.resolvedBindings,
+    attacker,
+    unitsForEffects,
+    definitions.effectActions,
+  )) {
+    if (!shouldObserve(unitsForEffects, observation.targetUnitId)) {
+      continue;
+    }
+    const recorded = recordPreAttackObservation(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        skillUseId: probeSkillUseId,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        skillDefinitionId: skill.skillDefinitionId,
+        skillType: skill.skillType,
+        attackerUnitId: attacker.battleUnitId,
+      },
+      observation,
+      rootEventId,
+    );
+    unitsForEffects =
+      options.onFactEventForPassiveChain?.(recorded, unitsForEffects) ?? unitsForEffects;
+  }
   const result = applyEffectActionGroups(
     plan,
-    options.units,
+    unitsForEffects,
     effectActionGroupContext({
       actor: attacker,
       skillId: PROBE_SKILL_ID,

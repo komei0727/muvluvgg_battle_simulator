@@ -251,6 +251,20 @@ export function evaluateTriggerCondition(
       return !evaluateTriggerCondition(condition.condition, event, context);
     case "EVENT_PAYLOAD": {
       const actual = event.payload[condition.field];
+      // R-ATM-03 #7（`14_Catalog定義スキーマ.md`「EVENT_PAYLOAD」の別名規約）:
+      // 攻撃前観測（`UnitBeingAttacked`）のpayloadはダメージ型の**集合**
+      // `damageTypes`であり単一値`damageType`を持たない。既存trigger定義
+      // （「ENタイプの敵から攻撃される直前」等）との互換のため`damageType`を
+      // その別名として扱い、集合のいずれかの要素で比較が成立すれば真とする。
+      // 別名は`damageType`に限る（他fieldへ複数形の推測を広げない）。
+      if (condition.field === "damageType" && actual === undefined) {
+        const damageTypes = event.payload["damageTypes"];
+        if (Array.isArray(damageTypes)) {
+          return damageTypes.some((damageType) =>
+            compareWithOperator(damageType, condition.op, condition.value),
+          );
+        }
+      }
       return compareWithOperator(actual, condition.op, condition.value);
     }
     case "DAMAGE_MAX_HP_RATIO": {

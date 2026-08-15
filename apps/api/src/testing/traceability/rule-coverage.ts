@@ -1469,18 +1469,45 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
-  // R-ATM-03（攻撃前観測）・R-ATM-04（効果処理中TIMINGイベントのトリガー禁止）は
-  // Issue #480が実装する。実行可能なテストを持たないため`17_残作業対応表.json`の
-  // `ruleAssignments`がその所有を記録する。
   {
     ruleId: "R-ATM-03",
-    testCaseIds: [],
-    kinds: [],
+    testCaseIds: [
+      // #2〜#3 構造走査: DAMAGEを適用しうるstepの対象を、定義順→束縛順で初出重複排除する。
+      "UT-R-ATM-03-001",
+      // #2 分岐で実際には攻撃されない対象も含める／damageTypesは分岐をまたいで足し込む。
+      "UT-R-ATM-03-002",
+      // #6 非DAMAGE stepと`LAST_*_TARGETS`参照は観測対象に寄与しない。
+      "UT-R-ATM-03-003",
+      // #2 `SELF`・`REPEAT`の内側・複数bindingの並び。
+      "UT-R-ATM-03-004",
+      // #7 `EVENT_PAYLOAD field: "damageType"`の別名規約（集合のいずれかで成立）。
+      "UT-R-ATM-03-005",
+      // #1〜#3・#6 実経路（`resolveSkillUse`）での発行位置と対象の取捨。
+      "UT-R-ATM-03-006",
+      // #7 捕捉済み追撃ライダー（R-FUP-01）の型が集合へ加わる。
+      "UT-R-ATM-03-007",
+      "UT-R-ATM-03-008",
+      // #4 発行直前に戦闘不能である対象へは発行しない。
+      "UT-R-ATM-03-009",
+      // #1 実経路ごとの発行（AS/EXは`UT-R-ATM-03-006`、PSとチャージ解放はこの2件）。
+      "UT-R-ATM-03-010",
+      "UT-R-ATM-03-011",
+      // 全production戦闘で「スキル使用ごと・対象ごとにちょうど1回、最初のヒットより前」。
+      // 実production定義（`SKL_SHIRANA_SORA_PS2`）が#7の別名規約で発動することは
+      // `IT-UNIT-SHIRANA-SORA-001`の振る舞い表が固定する（表駆動のため
+      // `UT-TRACEABILITY-005`の単一テスト対応を満たさず、ここには列挙しない）。
+      "IT-AUDIT-ATM-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
   {
     ruleId: "R-ATM-04",
-    testCaseIds: [],
-    kinds: [],
+    testCaseIds: [
+      // 効果処理中TIMINGイベントを契機にするCatalogをロード時に拒否し、
+      // 効果処理の外のTIMINGイベントは引き続き受理する。
+      "UT-R-ATM-04-001",
+    ],
+    kinds: ["POSITIVE", "NEGATIVE"],
   },
 
   // ACTN: EffectAction解決

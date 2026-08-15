@@ -6034,4 +6034,113 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () 
       updatedUnits.find((u) => u.battleUnitId === createBattleUnitId("HOLDER"))!.currentHp,
     ).toBe(50);
   });
+  it("UT-R-ATM-03-010 (R-ATM-03 #1、R-ATM-02 #1のPS行): a PS whose own EffectSequence contains DAMAGE emits the pre-attack observation for its target after PassiveActivated and before its effect processing, and a PS triggered by it activates", () => {
+    const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_ATTACKER_ATM03");
+    const observerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_OBSERVER_ATM03");
+    const psDamage = damageEffectAction("ACT_PS_ATM03_HIT");
+
+    // ターン開始で発動し、敵1体へDAMAGEを撃つPS。
+    const attackerPs: SkillDefinition = {
+      ...passiveSkillOf("SKL_PS_ATM03_ATTACKER"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_1"),
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+            actions: [{ effectActionDefinitionId: psDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    // 「自身が攻撃される直前」の見張りPS。攻撃前観測からしか候補化されない。
+    const observerPs: SkillDefinition = {
+      ...passiveSkillOf("SKL_PS_ATM03_OBSERVER"),
+      triggers: [
+        {
+          eventType: "UnitBeingAttacked",
+          category: "TIMING",
+          sourceSelector: "ENEMY",
+          targetSelector: "SELF",
+          condition: { kind: "TRUE" },
+        },
+      ],
+    };
+
+    const attacker = unit("PS_ATTACKER", "ALLY", {
+      unitDefinitionId: attackerUnitDefinitionId,
+      currentPp: 3,
+    });
+    const observer = unit("PS_OBSERVER", "ENEMY", {
+      unitDefinitionId: observerUnitDefinitionId,
+      currentPp: 3,
+    });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          attackerUnitDefinitionId,
+          unitDefinitionOf(attackerUnitDefinitionId, [attackerPs.skillDefinitionId]),
+        ],
+        [
+          observerUnitDefinitionId,
+          unitDefinitionOf(observerUnitDefinitionId, [observerPs.skillDefinitionId]),
+        ],
+      ]),
+      new Map([
+        [attackerPs.skillDefinitionId, attackerPs],
+        [observerPs.skillDefinitionId, observerPs],
+      ]),
+      new Map([[psDamage.effectActionDefinitionId, psDamage]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [attacker, observer],
+    );
+
+    runtime.onFactEvent(turnStarted, [attacker, observer]);
+
+    const events = recorder.getEvents();
+    const observations = events.filter((event) => event.eventType === "UnitBeingAttacked");
+    expect(observations).toHaveLength(1);
+    expect(observations[0]!.payload).toMatchObject({
+      targetUnitId: observer.battleUnitId,
+      skillDefinitionId: attackerPs.skillDefinitionId,
+      skillType: "PS",
+      damageTypes: ["PHYSICAL"],
+    });
+    // R-ATM-02 #1のPS行: `PassiveActivated`と候補解決 → 対象束縛 → 攻撃前観測 →
+    // 効果処理フェーズ（最初の`EffectStepStarting`）。
+    const attackerActivatedIndex = events.findIndex(
+      (event) =>
+        event.eventType === "PassiveActivated" && event.sourceUnitId === attacker.battleUnitId,
+    );
+    const observationIndex = events.indexOf(observations[0]!);
+    const firstStepIndex = events.findIndex((event) => event.eventType === "EffectStepStarting");
+    expect(observationIndex).toBeGreaterThan(attackerActivatedIndex);
+    expect(firstStepIndex).toBeGreaterThan(observationIndex);
+    // 前段フェーズの観測なので、その候補は保留されず効果処理より前に発動し切る。
+    const observerActivatedIndex = events.findIndex(
+      (event) =>
+        event.eventType === "PassiveActivated" && event.sourceUnitId === observer.battleUnitId,
+    );
+    expect(observerActivatedIndex).toBeGreaterThan(observationIndex);
+    expect(observerActivatedIndex).toBeLessThan(firstStepIndex);
+  });
 });

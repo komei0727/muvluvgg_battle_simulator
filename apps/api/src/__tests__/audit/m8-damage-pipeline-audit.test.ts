@@ -7,15 +7,15 @@ import {
 } from "../../testing/scenario/run-production-battle.js";
 
 /**
- * DMG-011（Issue #186、M8完了監査）: `R-DMG-05`「ダメージイベント順」の9手順と
+ * DMG-011（Issue #186、M8完了監査）: `R-DMG-05`「ダメージイベント順」の8手順と
  * `08_ドメインイベント.md` 不変条件#6（ダメージ保存則）を、**実 `catalog/` の全
  * production Unit の実戦闘**に対して通しで検証する。
  *
- * `R-DMG-05`の完了責任がDMG-011にあるのは、9手順のうち #5（防御介入、`DMG-006`）・
- * #7（シールド／サブユニット、`DMG-004`／`DMG-005`）・#9（リンク／反射、`DMG-007`／
+ * `R-DMG-05`の完了責任がDMG-011にあるのは、8手順のうち #4（防御介入、`DMG-006`）・
+ * #6（シールド／サブユニット、`DMG-004`／`DMG-005`）・#8（リンク／反射、`DMG-007`／
  * `DMG-006`）が4つのTaskへまたがり、単一の実装Taskでは全体順序を固定できないため
  * である（`docs/ddd/archive/17_残作業対応表_完了履歴.md`「DMG-001」節の再割当表）。個々のTaskは自分が追加した
- * イベントの前後関係だけをunit levelで検証しており、9手順が1本の列として成立して
+ * イベントの前後関係だけをunit levelで検証しており、8手順が1本の列として成立して
  * いることはどこにも固定されていなかった。ここがその欠けている検証にあたる。
  *
  * 同様に保存則も、`DMG-004`（シールド）・`DMG-005`（サブユニット）が
@@ -27,40 +27,45 @@ const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const PRODUCTION_UNIT_IDS = allProductionUnitIds(CATALOG_DIR);
 
 /**
- * `R-DMG-05`の9手順に対応する段階。1ヒットの窓の中で、この段階番号は単調非減少
- * でなければならない。#9（リンク・反射）が生成する追加ダメージの適用は同じ窓の
- * 中で#7以降をもう一度たどるため、段階9を観測した後は適用段階（7〜9）だけを許す。
+ * `R-DMG-05`の8手順に対応する段階。1ヒットの窓の中で、この段階番号は単調非減少
+ * でなければならない。#8（リンク・反射）が生成する追加ダメージの適用は同じ窓の
+ * 中で#6以降をもう一度たどるため、段階8を観測した後は適用段階（6〜8）だけを許す。
+ *
+ * `R-ATM-03`（Issue #480）で`UnitBeingAttacked`が効果処理の開始前・対象ごと1回の
+ * 攻撃前観測へ移ったため、旧#1「攻撃対象の確定」はヒットの一部ではなくなった。
+ * ヒットは命中判定（#1）から始まる。
  */
 const PIPELINE_STAGE: ReadonlyMap<string, number> = new Map([
-  // #1 攻撃対象の確定
-  ["UNIT_BEING_ATTACKED", 1],
-  // #2 命中判定
-  ["EVASION_ACTIVATED", 2],
-  ["HIT_CONFIRMED", 2],
-  // #3 会心判定
-  ["CRITICAL_CHECK_RESOLVED", 3],
-  // #4 ダメージ計算前のTIMINGイベント
-  ["DAMAGE_WILL_BE_APPLIED", 4],
-  // #5 防御介入（`R-INT-01`。引き寄せ・肩代わりだけがこの評価点で防御側を差し替える）
-  ["DAMAGE_REDIRECTED", 5],
-  // #6 ダメージ計算
-  ["DAMAGE_CALCULATED", 6],
-  // #7 シールド・サブユニット・HPへの適用
-  ["SHIELD_CONSUMED", 7],
-  ["SUB_UNIT_DAMAGED", 7],
-  ["LETHAL_DAMAGE_SURVIVED", 7],
-  ["HIT_POINT_REDUCED", 7],
-  ["DAMAGE_APPLIED", 7],
-  ["DAMAGE_CONVERTED_TO_HEAL", 7],
-  // #8 戦闘不能
-  ["UNIT_DEFEATED", 8],
-  // #9 リンク・反射などの追加ダメージ
-  ["LINKED_DAMAGE_GENERATED", 9],
-  ["REFLECTED_DAMAGE_GENERATED", 9],
+  // #1 命中判定
+  ["EVASION_ACTIVATED", 1],
+  ["HIT_CONFIRMED", 1],
+  // #2 会心判定
+  ["CRITICAL_CHECK_RESOLVED", 2],
+  // #3 ダメージ計算前のTIMINGイベント
+  ["DAMAGE_WILL_BE_APPLIED", 3],
+  // #4 防御介入（`R-INT-01`。引き寄せ・肩代わりだけがこの評価点で防御側を差し替える）
+  ["DAMAGE_REDIRECTED", 4],
+  // #5 ダメージ計算
+  ["DAMAGE_CALCULATED", 5],
+  // #6 シールド・サブユニット・HPへの適用
+  ["SHIELD_CONSUMED", 6],
+  ["SUB_UNIT_DAMAGED", 6],
+  ["LETHAL_DAMAGE_SURVIVED", 6],
+  ["HIT_POINT_REDUCED", 6],
+  ["DAMAGE_APPLIED", 6],
+  ["DAMAGE_CONVERTED_TO_HEAL", 6],
+  // #7 戦闘不能
+  ["UNIT_DEFEATED", 7],
+  // #8 リンク・反射などの追加ダメージ
+  ["LINKED_DAMAGE_GENERATED", 8],
+  ["REFLECTED_DAMAGE_GENERATED", 8],
 ]);
 
-/** 適用段階。#9が開いた追加ダメージの適用でもう一度現れてよい段階。 */
-const APPLICATION_STAGE_FLOOR = 7;
+/** ヒットの窓を開く段階（#1 命中判定）。 */
+const HIT_OPENING_STAGE = 1;
+
+/** 適用段階。#8が開いた追加ダメージの適用でもう一度現れてよい段階。 */
+const APPLICATION_STAGE_FLOOR = 6;
 
 interface Hit {
   readonly unitDefinitionId: string;
@@ -70,12 +75,14 @@ interface Hit {
 /**
  * イベント列を「1ヒットの窓」へ分割する。
  *
- * 単純に発行順で切ると、1ヒットの途中で発火したPS連鎖（`R-ACTN-01` #6）が自分の
- * ヒットを内側で完走させるため、親ヒットの残りの手順が子ヒットの後ろへ回り込んで
- * 「#7の後に#4」に見える。実データでは`SKL_EVIE_KYONSHI_PS1`（`CriticalCheckResolved`
- * を契機にDAMAGEを撃つPS）がこの形をとる。ヒットは常に一つのスキル解決に属する
+ * 単純に発行順で切ると、1ヒットの途中で発火したPS連鎖が自分のヒットを内側で完走させる
+ * ため、親ヒットの残りの手順が子ヒットの後ろへ回り込んで「#6の後に#3」に見える。
+ * 実データでは`SKL_EVIE_KYONSHI_PS1`（`CriticalCheckResolved`を契機にDAMAGEを撃つPS）が
+ * この形をとる。ヒットは常に一つのスキル解決に属する
  * （`08_ドメインイベント.md`「同じスキル解決に属するイベントは同じ`skillUseId`を持つ」）
- * ため、まず`skillUseId`で分けてから`UNIT_BEING_ATTACKED`（#1）で窓を開く。
+ * ため、まず`skillUseId`で分けてから命中判定（#1、`HIT_CONFIRMED`／`EVASION_ACTIVATED`）で
+ * 窓を開く。`R-ATM-03`以降は`UNIT_BEING_ATTACKED`がヒットに属さないため、これが
+ * ヒット列の先頭になる。
  */
 function splitIntoHits(
   unitDefinitionId: string,
@@ -95,7 +102,7 @@ function splitIntoHits(
       continue;
     }
     const scope = String(event.skillUseId ?? "no-skill-use");
-    if (event.type === "UNIT_BEING_ATTACKED") {
+    if (PIPELINE_STAGE.get(event.type) === HIT_OPENING_STAGE) {
       close(scope);
       open.set(scope, [event]);
       continue;
@@ -122,9 +129,8 @@ type HitOutcome = "MISSED" | "CONVERTED_TO_HEAL" | "APPLIED";
 
 /** 終端ごとの必須部分列。ヒットのイベント列がこの順で全要素を含まなければ違反。 */
 const REQUIRED_SPINE: Readonly<Record<HitOutcome, readonly string[]>> = {
-  MISSED: ["UNIT_BEING_ATTACKED", "EVASION_ACTIVATED"],
+  MISSED: ["EVASION_ACTIVATED"],
   CONVERTED_TO_HEAL: [
-    "UNIT_BEING_ATTACKED",
     "HIT_CONFIRMED",
     "CRITICAL_CHECK_RESOLVED",
     "DAMAGE_WILL_BE_APPLIED",
@@ -132,7 +138,6 @@ const REQUIRED_SPINE: Readonly<Record<HitOutcome, readonly string[]>> = {
     "DAMAGE_CONVERTED_TO_HEAL",
   ],
   APPLIED: [
-    "UNIT_BEING_ATTACKED",
     "HIT_CONFIRMED",
     "CRITICAL_CHECK_RESOLVED",
     "DAMAGE_WILL_BE_APPLIED",
@@ -156,14 +161,13 @@ const REQUIRED_SPINE: Readonly<Record<HitOutcome, readonly string[]>> = {
  */
 const ALLOWED_EVENT_TYPES: Readonly<Record<HitOutcome, ReadonlySet<string>>> = {
   // `R-HIT-01`: MISSの場合、対象へのダメージと効果を適用しない。命中判定より後の
-  // 手順（#3以降）は一つも発行されない。
-  MISSED: new Set(["UNIT_BEING_ATTACKED", "EVASION_ACTIVATED"]),
+  // 手順（#2以降）は一つも発行されない。
+  MISSED: new Set(["EVASION_ACTIVATED"]),
   // `R-DTH-01`: #1〜#6（命中・会心・防御介入・ダメージ計算）は通常どおり通し、
   // #7の適用段階だけを`DamageConvertedToHeal`へ差し替える。ダメージを適用しない
   // ため、シールド・サブユニットの吸収も致死耐えも`UnitDefeated`もリンク・反射も
   // 起きない。
   CONVERTED_TO_HEAL: new Set([
-    "UNIT_BEING_ATTACKED",
     "HIT_CONFIRMED",
     "CRITICAL_CHECK_RESOLVED",
     "DAMAGE_WILL_BE_APPLIED",
@@ -171,7 +175,7 @@ const ALLOWED_EVENT_TYPES: Readonly<Record<HitOutcome, ReadonlySet<string>>> = {
     "DAMAGE_CALCULATED",
     "DAMAGE_CONVERTED_TO_HEAL",
   ]),
-  // 適用まで到達するヒットは9手順のどのイベントも発行しうる。唯一の例外は
+  // 適用まで到達するヒットは8手順のどのイベントも発行しうる。唯一の例外は
   // `DamageConvertedToHeal`で、これが出た時点で終端は`CONVERTED_TO_HEAL`である。
   APPLIED: new Set(
     [...PIPELINE_STAGE.keys()].filter((type) => type !== "DAMAGE_CONVERTED_TO_HEAL"),
@@ -205,7 +209,7 @@ const BATTLES = PRODUCTION_UNIT_IDS.map((unitDefinitionId) => ({
 }));
 
 describe("M8 damage pipeline audit (DMG-011)", () => {
-  it("IT-AUDIT-M8-001 (R-DMG-05): every hit in every production battle emits the 9 damage steps in order, and each hit individually carries the steps its outcome requires", () => {
+  it("IT-AUDIT-M8-001 (R-DMG-05): every hit in every production battle emits the 8 damage steps in order, and each hit individually carries the steps its outcome requires", () => {
     const orderViolations: string[] = [];
     const spineViolations: string[] = [];
     let observedHits = 0;
@@ -217,8 +221,8 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         observedHits++;
         const types = hit.events.map((event) => event.type);
 
-        // (a) 段階の単調非減少。#9（リンク・反射）が開いた追加ダメージの適用は
-        //     同じ窓の中で#7以降をもう一度たどるため、そこからは適用段階を許す。
+        // (a) 段階の単調非減少。#8（リンク・反射）が開いた追加ダメージの適用は
+        //     同じ窓の中で#6以降をもう一度たどるため、そこからは適用段階を許す。
         let stage = 0;
         let sawAdditionalDamage = false;
         for (const event of hit.events) {
@@ -231,7 +235,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
             );
             break;
           }
-          if (next === 9) {
+          if (next === 8) {
             sawAdditionalDamage = true;
           }
           stage = next;
@@ -282,10 +286,10 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
       expect(ALLOWED_EVENT_TYPES[outcome].size).toBeLessThan(ALLOWED_EVENT_TYPES.APPLIED.size);
     }
 
-    // 空振り防止: 9手順のすべてと、3つの終端すべてがproduction戦闘で実際に
+    // 空振り防止: 8手順のすべてと、3つの終端すべてがproduction戦闘で実際に
     // 観測されていること。
     expect(observedHits).toBeGreaterThan(0);
-    expect([...observedStages].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect([...observedStages].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect([...observedOutcomes.keys()].sort()).toEqual(["APPLIED", "CONVERTED_TO_HEAL", "MISSED"]);
 
     // 上の3終端が現行production Catalogのヒットを尽くしていることは、`classifyHit`が
@@ -366,7 +370,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
             lastApplicationWasAdditional = linked || reflected;
             continue;
           }
-          if (PIPELINE_STAGE.get(event.type) !== 9) {
+          if (PIPELINE_STAGE.get(event.type) !== 8) {
             continue;
           }
           additionalDamageEvents++;

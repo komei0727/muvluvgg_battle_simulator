@@ -72,7 +72,6 @@ describe("applyEffectActionGroups", () => {
     expect(emitted).toEqual([
       "EffectStepStarting",
       "EffectActionStarting",
-      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageWillBeApplied",
@@ -129,7 +128,6 @@ describe("applyEffectActionGroups", () => {
       "EffectStepSkipped",
       "EffectStepStarting",
       "EffectActionStarting",
-      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageWillBeApplied",
@@ -219,7 +217,6 @@ describe("applyEffectActionGroups", () => {
     expect(emitted).toEqual([
       "EffectStepStarting",
       "EffectActionStarting",
-      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageWillBeApplied",
@@ -1003,7 +1000,6 @@ describe("applyEffectActionGroups", () => {
         "EffectStepStarting",
         "EffectStepStarting",
         "EffectActionStarting",
-        "UnitBeingAttacked",
         "HitConfirmed",
         "CriticalCheckResolved",
         "DamageWillBeApplied",

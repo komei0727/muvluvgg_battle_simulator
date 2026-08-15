@@ -897,9 +897,8 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
         targetUnitIds: [board.frontAlly.battleUnitId],
         payload: {
           skillDefinitionId: createSkillDefinitionId(STAND_IN_AS_ID),
-          effectActionDefinitionId: createEffectActionDefinitionId(STAND_IN_DAMAGE_ID),
-          hitIndex: 1,
           targetUnitId: board.frontAlly.battleUnitId,
+          damageTypes: ["PHYSICAL"],
         },
       },
       board.units,

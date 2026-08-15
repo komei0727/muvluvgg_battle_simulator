@@ -19,6 +19,7 @@ import {
   resolveChargeStart,
 } from "../../domain/battle/lifecycle/action-charge-resolver.js";
 import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { recordPreAttackObservation } from "../../domain/battle/lifecycle/pre-attack-observation-service.js";
 import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
@@ -647,6 +648,29 @@ function strikeForTrigger(
 ): { readonly units: readonly BattleUnit[]; readonly triggerEvent: BattleDomainEvent } {
   const attacker = subjectOf(units, trigger.from);
   const eventType = trigger.event ?? "DamageApplied";
+  const skillUseId = chain.recorder.nextSkillUseId();
+  // R-ATM-03: 攻撃前観測は効果処理の開始前・対象ごとに1回発行される。ヒット単位の
+  // 発行が無くなったため、この合成攻撃も実エンジンと同じ位置で1件だけ発行する
+  // （`UnitBeingAttacked`を契機に取るPSはこのイベントからしか候補化されない）。
+  recordPreAttackObservation(
+    {
+      recorder: chain.recorder,
+      turnNumber: 1,
+      cycleNumber: 1,
+      actionId: chain.actionId,
+      skillUseId,
+      resolutionScopeId: chain.resolutionScopeId,
+      rootEventId: chain.rootEventId,
+      skillDefinitionId: createSkillDefinitionId(STRIKE_SKILL_ID),
+      ...(trigger.skillType === undefined ? {} : { skillType: trigger.skillType }),
+      attackerUnitId: attacker.battleUnitId,
+    },
+    {
+      targetUnitId: createBattleUnitId(trigger.to),
+      damageTypes: [strikeDamageAction(trigger.power ?? 1).payload.damageType],
+    },
+    chain.rootEventId,
+  );
   const struck = applyDamageAction(
     attacker,
     [
@@ -664,7 +688,7 @@ function strikeForTrigger(
       turnNumber: 1,
       cycleNumber: 1,
       actionId: chain.actionId,
-      skillUseId: chain.recorder.nextSkillUseId(),
+      skillUseId,
       resolutionScopeId: chain.resolutionScopeId,
       rootEventId: chain.rootEventId,
       parentEventId: chain.rootEventId,

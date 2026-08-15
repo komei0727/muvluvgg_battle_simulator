@@ -230,26 +230,33 @@ export interface BattleDomainEventPayloadMap {
     readonly resultKind: EffectActionResultKind;
   };
   /**
-   * `08_ドメインイベント.md`「UnitBeingAttacked」: 攻撃対象が確定した直後
-   * （命中判定・ダメージ計算より前）に、ヒットごとに発行する（`TIMING`）。
-   * R-EFF-07: `NEXT_INCOMING_ATTACK`消費条件はこのイベントの発行時点で
-   * 消費する。EFF-003（Issue #159）が発行位置を
-   * 最小追加した — `TRIGGER_SOURCE`/`TRIGGER_TARGET`のPS対象解決自体は
-   * RES-005（Issue #172）のスコープのまま。
+   * `08_ドメインイベント.md`「UnitBeingAttacked payload」／R-ATM-03（攻撃前観測）:
+   * 対象束縛の解決後・効果処理フェーズの開始前に、DAMAGEの対象として解決された
+   * 各ユニットへ1回ずつ発行する（`TIMING`）。ヒット単位では発行しないため、
+   * ヒット番号・EffectAction・命中・会心・ダメージ量は持たない（観測時点では
+   * どれも未確定であり、ヒット結果に依存する条件はFACTイベント側で表現する）。
+   * R-EFF-07の`NEXT_INCOMING_ATTACK`消費は各ヒットの命中判定前のまま変わらない
+   * （観測イベントの移動は消費タイミングを変えない、R-DMG-05 #1）。
    */
   readonly UnitBeingAttacked: {
     readonly skillDefinitionId: SkillDefinitionId;
-    readonly effectActionDefinitionId: EffectActionDefinitionId;
-    readonly hitIndex: number;
     readonly targetUnitId: BattleUnitId;
     /**
      * この攻撃を発生させたスキルの種別。production Catalogは「自身がアクティブ
      * スキルで攻撃される直前」を`EVENT_PAYLOAD field: "skillType"`で表現するため
      * （`SKL_CHIZURU_DOMESTIC_PS2`等）、この欄が無いと当該triggerが一度も候補化
      * されない（`DamageApplied`／`SkillUseStarting`の同じ欠落と同じ理由）。
-     * 継続ダメージ・リンク・反射のようにスキル種別へ帰属しない経路では省略する。
+     * スキル種別へ帰属しない経路では省略する。
      */
     readonly skillType?: SkillType;
+    /**
+     * R-ATM-03 #7: この対象へ向き得る全DAMAGE定義の`damageType`と、前段フェーズ
+     * までに捕捉済みの追撃ライダー（R-FUP-01）が追加するダメージ型の集合。
+     * `EVENT_PAYLOAD field: "damageType"`を参照するtrigger条件は、この集合の
+     * いずれかの要素で比較が成立すれば真になる（`14_Catalog定義スキーマ.md`
+     * 「EVENT_PAYLOAD」の別名規約）。
+     */
+    readonly damageTypes: readonly DamageType[];
   };
   readonly HitConfirmed: {
     readonly skillDefinitionId: SkillDefinitionId;

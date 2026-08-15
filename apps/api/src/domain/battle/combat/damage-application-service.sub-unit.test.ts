@@ -488,7 +488,6 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
     );
 
     expect(additionalHitEventTypes(context)).toEqual([
-      "UnitBeingAttacked",
       "HitConfirmed",
       "CriticalCheckResolved",
       "DamageWillBeApplied",
@@ -606,7 +605,11 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
     expect(
       context.recorder.getEvents().filter((e) => e.eventType === "EvasionActivated"),
     ).toHaveLength(2);
-    expect(additionalHitEventTypes(context)).toEqual(["UnitBeingAttacked"]);
+    // 回避で終わった追加ヒットが記録するのは`EvasionActivated`だけで、それは
+    // 回避を成立させた効果へ帰属する（サブユニット定義IDを持たない）ため、
+    // サブユニット由来のイベントは1件も残らない。上の`EvasionActivated` 2件が
+    // 「追加ヒットも命中判定まで到達してそこで止まった」ことの証跡である。
+    expect(additionalHitEventTypes(context)).toEqual([]);
     // 追加ダメージが回避されたので対象のHPは無傷。
     const updatedTarget = result.units.find(
       (u) => u.battleUnitId === createBattleUnitId("TARGET"),

@@ -307,6 +307,36 @@ function passiveSkillOnDamageApplied(id: string): SkillDefinition {
   };
 }
 
+/** `UnitBeingAttacked`（R-ATM-03）を契機に自分へ何もしないPS。発行の有無だけを観測する。 */
+function passiveSkillOnUnitBeingAttacked(id: string): SkillDefinition {
+  return {
+    skillDefinitionId: createSkillDefinitionId(id),
+    skillType: "PS",
+    cost: { resource: "PP", amount: 1 },
+    activationCondition: { kind: "TRUE" },
+    triggers: [
+      {
+        eventType: "UnitBeingAttacked",
+        category: "TIMING",
+        sourceSelector: "ENEMY",
+        targetSelector: "SELF",
+        condition: { kind: "TRUE" },
+      },
+    ],
+    counterUpdates: [],
+    resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+    cooldown: { unit: "ACTION", count: 0 },
+    traits: {
+      priorityAttack: false,
+      simultaneousActivationLimited: false,
+      exclusiveActivationGroupId: null,
+      accuracy: { guaranteedHit: false },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+    },
+    metadata: { displayName: id, tags: [] },
+  };
+}
+
 /** 1ヒットで使用者自身を確実に倒す自傷DAMAGE（`unit()`の最大HP100・防御10に対し威力十分）。 */
 function selfDestructEffectAction(id: string): EffectActionDefinition {
   return {
@@ -872,5 +902,72 @@ describe("resolveChargeRelease", () => {
     expect(
       result.units.find((u) => u.battleUnitId === charger.battleUnitId)!.charge,
     ).toBeUndefined();
+  });
+  it("UT-R-ATM-03-011 (R-ATM-03 #1、R-ATM-02 #1のチャージ解放行): a charge release containing DAMAGE emits the pre-attack observation for its target before the effect processing phase, and a PS triggered by it activates", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER_ATM03");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_ATM03");
+    const hit = damageEffectAction("ACT_CHARGE_ATM03_HIT");
+    const observerPs = passiveSkillOnUnitBeingAttacked("SKL_CHARGE_ATM03_OBSERVER");
+    const chargeSkill = chargeReleaseSkill("ACT_CHARGE_ATM03_HIT");
+
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    const enemy = unit("ENEMY", "ENEMY", {
+      unitDefinitionId: enemyUnitDefinitionId,
+      currentPp: 3,
+    });
+
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [
+          enemyUnitDefinitionId,
+          unitDefinitionOf(enemyUnitDefinitionId, [observerPs.skillDefinitionId]),
+        ],
+      ]),
+      new Map([[observerPs.skillDefinitionId, observerPs]]),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const observations = events.filter((event) => event.eventType === "UnitBeingAttacked");
+    expect(observations).toHaveLength(1);
+    expect(observations[0]!.payload).toMatchObject({
+      targetUnitId: enemy.battleUnitId,
+      skillDefinitionId: chargeSkill.skillDefinitionId,
+      damageTypes: ["PHYSICAL"],
+    });
+    // R-ATM-03 #1: 効果処理フェーズ（最初の`EffectStepStarting`）より前、かつ
+    // `ChargeReleased`（前段フェーズの先頭）より後。
+    const eventTypes = events.map((event) => event.eventType);
+    expect(eventTypes.indexOf("UnitBeingAttacked")).toBeGreaterThan(
+      eventTypes.indexOf("ChargeReleased"),
+    );
+    expect(eventTypes.indexOf("EffectStepStarting")).toBeGreaterThan(
+      eventTypes.indexOf("UnitBeingAttacked"),
+    );
+    // その観測を契機とするPSが実際に発動する（発行しても連鎖へ届かない配線漏れを弾く）。
+    expect(
+      events.some(
+        (event) =>
+          event.eventType === "PassiveActivated" && event.sourceUnitId === enemy.battleUnitId,
+      ),
+    ).toBe(true);
   });
 });
