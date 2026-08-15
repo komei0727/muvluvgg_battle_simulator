@@ -466,10 +466,13 @@ selector:
   fallback: null
 ```
 
-| フィールド        | 型                       | 必須 | 制約                                |
-| ----------------- | ------------------------ | ---- | ----------------------------------- |
-| `targetBindingId` | string                   | ✓    | Skill / Memory の sequence 内で一意 |
-| `selector`        | TargetSelectorDefinition | ✓    | 下記                                |
+| フィールド        | 型                       | 必須 | 制約                                                                    |
+| ----------------- | ------------------------ | ---- | ----------------------------------------------------------------------- |
+| `targetBindingId` | string                   | ✓    | Skill / Memory の sequence 内で一意                                     |
+| `selector`        | TargetSelectorDefinition | ✓    | 下記                                                                    |
+| `optional`        | boolean                  | —    | 省略時 `false`。`true` なら0件でもAS/EXを発動不能にしない（`R-TGT-10`） |
+
+`optional` はAS/EXの発動可否判定（`R-ACT-02`）にだけ効く。隣接splashのような「いれば巻き込む」補助対象へ付ける。`R-TGT-05`「目の前」のように候補なしが発動不能を意味する binding には付けない。
 
 ### TargetSelectorDefinition
 

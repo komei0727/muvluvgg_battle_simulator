@@ -913,4 +913,68 @@ describe("EffectSequence", () => {
       expect(result.steps[0]?.kind).toBe("BRANCH");
     });
   });
+
+  describe("targetBinding optional (Issue #494)", () => {
+    const selector = { kind: "SELECT" as const, side: "ENEMY" as const, count: 1 };
+
+    it("UT-CAT-SEQ-041: keeps optional off the binding entirely when the input omits it, so a binding is required by default", () => {
+      const result = createEffectSequence(
+        {
+          targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        "resolution",
+      );
+
+      expect(result.targetBindings[0]).not.toHaveProperty("optional");
+    });
+
+    it("UT-CAT-SEQ-042: carries optional: true through to the definition", () => {
+      const result = createEffectSequence(
+        {
+          targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector, optional: true }],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        "resolution",
+      );
+
+      expect(result.targetBindings[0]?.optional).toBe(true);
+    });
+
+    it("UT-CAT-SEQ-043: rejects a non-boolean optional", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings: [
+              {
+                targetBindingId: "TGT_PRIMARY",
+                selector,
+                optional: "true" as unknown as boolean,
+              },
+            ],
+            steps: [
+              {
+                kind: "ACTION",
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
 });

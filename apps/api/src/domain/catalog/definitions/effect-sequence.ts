@@ -32,6 +32,7 @@ import {
 import { DomainValidationError } from "../../shared/errors.js";
 import {
   assertArray,
+  assertBoolean,
   assertEnumValue,
   assertFinite,
   assertInteger,
@@ -46,14 +47,23 @@ const TRUE_CONDITION: ConditionDefinition = { kind: "TRUE" };
 export interface TargetBindingDefinition {
   readonly targetBindingId: TargetBindingId;
   readonly selector: TargetSelectorDefinition;
+  /**
+   * R-TGT-10/R-ACT-02「必要な対象候補」: この binding が0件でもAS/EXを発動不能に
+   * しない（隣接splashのような補助対象は、いなくてもスキル自体は成立するため）。
+   * 省略時は必須 — R-TGT-05「目の前」のように候補なしが発動不能を意味する binding が
+   * 既定側に残る。効果解決層は元から0件のstepを素通りするため、ここが効くのは
+   * AS/EX選択時（`action-selection-policy.ts`）だけである。
+   */
+  readonly optional?: boolean;
 }
 
 export interface TargetBindingDefinitionInput {
   readonly targetBindingId: string;
   readonly selector: TargetSelectorDefinitionInput;
+  readonly optional?: boolean;
 }
 
-const TARGET_BINDING_ALLOWED_KEYS = ["targetBindingId", "selector"] as const;
+const TARGET_BINDING_ALLOWED_KEYS = ["targetBindingId", "selector", "optional"] as const;
 
 // ---- EffectActionReference (within an ACTION step) ----
 
@@ -411,14 +421,20 @@ export function createEffectSequence(
   }
   const scope: TargetBindingScope = seen;
 
-  const targetBindings: TargetBindingDefinition[] = bindingInputs.map((b, i) => ({
-    targetBindingId: ids[i] as TargetBindingId,
-    selector: createTargetSelectorDefinition(
-      b.selector,
-      `${path}.targetBindings[${i}].selector`,
-      scope,
-    ),
-  }));
+  const targetBindings: TargetBindingDefinition[] = bindingInputs.map((b, i) => {
+    if (b.optional !== undefined) {
+      assertBoolean(b.optional, `${path}.targetBindings[${i}].optional`);
+    }
+    return {
+      targetBindingId: ids[i] as TargetBindingId,
+      selector: createTargetSelectorDefinition(
+        b.selector,
+        `${path}.targetBindings[${i}].selector`,
+        scope,
+      ),
+      ...(b.optional === undefined ? {} : { optional: b.optional }),
+    };
+  });
 
   if (options.allowEmptySteps === true) {
     assertArray(input.steps, `${path}.steps`);

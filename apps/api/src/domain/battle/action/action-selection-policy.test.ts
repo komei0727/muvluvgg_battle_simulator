@@ -61,6 +61,17 @@ const ENEMY_SELECTOR: TargetSelectorDefinition = {
   includeDefeated: false,
 };
 
+/** production の splash binding と同じ形（R-TGT-04）。基準対象の隣が空なら0件になる。 */
+const ADJACENT_TO_BASE_SELECTOR: TargetSelectorDefinition = {
+  kind: "BINDING_DERIVED",
+  base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_BASE") },
+  area: { kind: "ADJACENT_ORTHOGONAL" },
+  side: "ENEMY",
+  filters: [],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
 function asSkill(
   id: string,
   apCost: number,
@@ -365,6 +376,93 @@ describe("selectAsCandidate", () => {
 
     expect(result).toEqual({ kind: "WAIT" });
   });
+
+  it("UT-R-ACT-02-013: selects an AS whose optional binding resolves to zero candidates", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    // Lone enemy: nothing is orthogonally adjacent to it, so the splash binding is empty.
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const splash = asSkill("SKL_SPLASH", 1, {
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_BASE"), selector: ENEMY_SELECTOR },
+          {
+            targetBindingId: createTargetBindingId("TGT_ADJACENT"),
+            selector: ADJACENT_TO_BASE_SELECTOR,
+            optional: true,
+          },
+        ],
+        steps: [],
+      },
+    });
+    const fallback = asSkill("SKL_FALLBACK", 1);
+
+    const result = selectAsCandidate([splash, fallback], actor, [actor, enemy]);
+
+    expect(result).toEqual({ kind: "SKILL", skill: splash });
+  });
+
+  it("UT-R-ACT-02-014: skips an AS whose required binding resolves to zero candidates even when an earlier binding resolved", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const splash = asSkill("SKL_SPLASH", 1, {
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_BASE"), selector: ENEMY_SELECTOR },
+          {
+            targetBindingId: createTargetBindingId("TGT_ADJACENT"),
+            selector: ADJACENT_TO_BASE_SELECTOR,
+          },
+        ],
+        steps: [],
+      },
+    });
+    const fallback = asSkill("SKL_FALLBACK", 1);
+
+    const result = selectAsCandidate([splash, fallback], actor, [actor, enemy]);
+
+    expect(result).toEqual({ kind: "SKILL", skill: fallback });
+  });
+
+  it("UT-R-ACT-02-015: an optional binding stays observable as zero units to a TARGET_SET_COUNT activationCondition", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    // optional keeps the skill in the running; the activationCondition still gets to reject it
+    // on the very same empty binding.
+    const gated = asSkill("SKL_GATED", 1, {
+      activationCondition: {
+        kind: "TARGET_SET_COUNT",
+        target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_ADJACENT") },
+        countOf: "ALIVE",
+        op: "GTE",
+        value: 1,
+      },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_BASE"), selector: ENEMY_SELECTOR },
+          {
+            targetBindingId: createTargetBindingId("TGT_ADJACENT"),
+            selector: ADJACENT_TO_BASE_SELECTOR,
+            optional: true,
+          },
+        ],
+        steps: [],
+      },
+    });
+    const fallback = asSkill("SKL_FALLBACK", 1);
+
+    const result = selectAsCandidate(
+      [gated, fallback],
+      actor,
+      [actor, enemy],
+      undefined,
+      evaluateActivationCondition,
+    );
+
+    expect(result).toEqual({ kind: "SKILL", skill: fallback });
+  });
 });
 
 describe("isCoolingDown", () => {
@@ -412,6 +510,29 @@ describe("isExUsable", () => {
     const exSkill = asSkill("SKL_EX", 0);
 
     expect(isExUsable(exSkill, actor, [actor])).toBe(false);
+  });
+
+  it("UT-R-ACT-01-EX-004: usable when only an optional binding resolves to zero candidates (Q-BTL-06: otherwise the full EX gauge is burned on a wait)", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const exSkill = asSkill("SKL_EX", 0, {
+      skillType: "EX",
+      cost: { resource: "EX_GAUGE", amount: 7 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          { targetBindingId: createTargetBindingId("TGT_BASE"), selector: ENEMY_SELECTOR },
+          {
+            targetBindingId: createTargetBindingId("TGT_ADJACENT"),
+            selector: ADJACENT_TO_BASE_SELECTOR,
+            optional: true,
+          },
+        ],
+        steps: [],
+      },
+    });
+
+    expect(isExUsable(exSkill, actor, [actor, enemy])).toBe(true);
   });
 
   it("UT-R-ACT-01-EX-003: throws for an unsupported activationCondition kind (ConditionEvaluator is M7 scope)", () => {
