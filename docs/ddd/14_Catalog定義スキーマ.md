@@ -2062,7 +2062,7 @@ duration:
 
 ### counterUpdates（EffectSequenceスコープ、EFF-006）
 
-`EffectSequence`は`counterUpdates`（`RuntimeCounterUpdateDefinition[]`、省略可・省略時は宣言なし扱い）を持てる（EFF-006、Issue #212）。`SkillDefinition.counterUpdates`と同じ構文だが、`scope`は常に`EFFECT_SEQUENCE`でなければならない。実行時識別子には既存の`SkillUseId`（1回の解決を一意に識別する）を再利用し、`BattleUnit.effectSequenceCounters`（`SkillUseId`→`RuntimeCounter`）が保持先となる。宣言位置は`SkillDefinition.resolution`（`kind: IMMEDIATE`）または`chargeRelease`（`kind: CHARGE`）のいずれかで、`EffectSequence`自身が解決されるたびに空のcounterから始まり、その解決が完了した時点（正常終了・中断のいずれでも）で必ず破棄・`RuntimeCounterReset`を発行する — `resetScope`はこの位置では宣言できない（`EffectSequence`は解決単位を超えて状態を持てないため、選択の余地がない）。
+`EffectSequence`は`counterUpdates`（`RuntimeCounterUpdateDefinition[]`、省略可・省略時は宣言なし扱い）を持てる（EFF-006、Issue #212）。`SkillDefinition.counterUpdates`と同じ構文だが、`scope`は常に`EFFECT_SEQUENCE`でなければならない。実行時識別子には既存の`SkillUseId`（1回の解決を一意に識別する）を再利用し、`BattleUnit.effectSequenceCounters`（`SkillUseId`→`RuntimeCounter`）が保持先となる。宣言位置は`SkillDefinition.resolution`（`kind: IMMEDIATE`）または`chargeRelease`（`kind: CHARGE`）のいずれかで、`EffectSequence`自身が解決されるたびに空のcounterから始まり、その解決が完了した時点（正常終了・中断のいずれでも）で必ず破棄・`RuntimeCounterReset`を発行する — `resetScope`はこの位置では宣言できない（`EffectSequence`は解決単位を超えて状態を持てないため、選択の余地がない）。このResetの候補は`R-ATM-01`に従い検出のみ行われ、完了イベント発行後の後段フェーズで発動する（`08_ドメインイベント.md`「RuntimeCounterイベント」の分類表）。
 
 ```yaml
 resolution:
