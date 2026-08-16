@@ -1917,7 +1917,8 @@ describe("battle scenarios (harness)", () => {
 
       // 与ダメージの総和＝スコア。R-TEX-02 #2の計上量とまったく同じ量を数えている。
       // 一致するのはこの敵が回復手段を持たない（R-TEX-02 #5の減算が起きない）ためであり、
-      // 敵が自己回復する演習では`Σ damageDealt = totalScore + 敵回復量`になる。
+      // 敵が自己回復する演習では`Σ damageDealt = totalScore + Σ ExerciseScoreDeducted.amount`
+      // になる（下限クランプがあるため、右辺は敵の回復量そのものではない）。
       expect(result.events.filter((event) => event.type === "EXERCISE_SCORE_DEDUCTED")).toEqual([]);
       expect(dealtByAllies).toBe(result.totalScore);
       expect(enemy.damageTaken).toBe(result.totalScore);
