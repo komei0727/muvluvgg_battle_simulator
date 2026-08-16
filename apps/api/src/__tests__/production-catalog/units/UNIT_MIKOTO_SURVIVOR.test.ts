@@ -435,6 +435,80 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       cooldowns: [PS2_COOLDOWN],
     },
   },
+  {
+    skillDefinitionId: "SKL_MIKOTO_SURVIVOR_AS1",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、最も近い1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIKOTO_SURVIVOR_AS1" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_PS2_DMG_UP",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -948,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_PS2_DMG_UP",
+          magnitude: 0.2,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
+          magnitude: -0.35,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "PP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 2,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_MIKOTO_SURVIVOR_AS1",
+          remaining: 1,
+        },
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_MIKOTO_SURVIVOR_PS2",
+          remaining: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーンサバイバー】鎧衣美琴)", () => {

@@ -413,6 +413,35 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_KATE_PALADIN_AS3",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、最も近い1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_KATE_PALADIN_AS3" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_KATE_PALADIN_AS3_DAMAGE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -371,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_KATE_PALADIN (【人見知りの聖騎士】ケイト・フルニエ)", () => {

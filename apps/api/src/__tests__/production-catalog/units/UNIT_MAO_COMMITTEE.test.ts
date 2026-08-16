@@ -379,6 +379,43 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: { allies: [] },
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_MAO_COMMITTEE_EX",
+    intent: "同上: 敵が1体だけで隣接対象がいなくてもEXは発動する（発動不能ならEXゲージを全量失う）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MAO_COMMITTEE_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_EX_DMG_DOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_EX_HEAL",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": 120,
+        "enemy:front": -602,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_EX_DMG_DOWN",
+          magnitude: -0.15,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+    },
+  },
 ];
 
 /** 敵役が撃つ最小の単体攻撃AS（実Catalogとは無関係）。 */

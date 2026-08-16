@@ -6,6 +6,7 @@ import { toBattleSimulationResponseBody } from "../../../../application/simulati
 import { battleSimulationResponseDocSchema } from "../../../../presentation/http/schemas/simulation/simulation-schema.js";
 import {
   runProductionUnitBattle,
+  runProductionPartyBattle,
   allProductionUnitIds,
 } from "../../../../testing/scenario/run-production-battle.js";
 
@@ -74,17 +75,36 @@ describe("published response conforms to the v1 doc schema across the production
   }, 60000);
 
   it("IT-REL-004-DOC-SCHEMA-002 (R-SKL-04): a cooldown started by a Passive Skill outside any action serializes with no setting scope instead of failing the response mapper", () => {
-    // `SKL_LUCIE_MAID_PS1`はターン境界のトップレベルイベントから発動するため、
-    // `unit: "ACTION"`でありながら設定scope（`setActionId`）を持たない
+    // `unit: "ACTION"`のクールタイムを持つPSが行動外のトップレベルイベントから
+    // 発動すると、設定scope（`setActionId`）を持たないエントリになる
     // （`cooldown-state.ts`の`startCooldown`、`scope === undefined`）。
     // Response Mapperがこれを不変条件違反として落としていたので、実HTTP経路は
     // `500 INTERNAL_INVARIANT_VIOLATION`を返していた。
+    //
+    // 単騎のミラー戦ではこの状態が安定して出ない — 出るかどうかは行動選択の巡り合わせ
+    // 次第で、Catalog側の些細な変更で消える（Issue #495で実際に消えた）。混成パーティ
+    // なら被攻撃契機のPSが行動外で解決する機会が増えるため、そちらを固定する。
     const body = toBattleSimulationResponseBody(
-      runProductionUnitBattle(CATALOG_DIR, "UNIT_LUCIE_MAID", {
-        turnLimit: 5,
-        randomValue: 0.5,
-        logLevel: "DETAILED",
-      }),
+      runProductionPartyBattle(
+        CATALOG_DIR,
+        {
+          ally: [
+            "UNIT_ANIS_SWEETDEVIL",
+            "UNIT_ANIS_TROUBLEMAKER",
+            "UNIT_AOI_ELEGANT",
+            "UNIT_AOI_GUARDIAN",
+            "UNIT_CHIYURU_MAZE",
+          ],
+          enemy: [
+            "UNIT_CHIYURU_NEWYEAR",
+            "UNIT_CHIZURU_DOMESTIC",
+            "UNIT_CLARA_SANTA",
+            "UNIT_CLARA_TSUNDERE",
+            "UNIT_DOROTHEA_GRACE",
+          ],
+        },
+        { turnLimit: 5, randomValue: 0.5, logLevel: "DETAILED" },
+      ),
     );
 
     const addedCooldowns = body.stateTransitions
@@ -95,10 +115,10 @@ describe("published response conforms to the v1 doc schema across the production
       (cooldown) => cooldown.unit === "ACTION" && cooldown.setAtActionId === undefined,
     );
 
-    // このUnitが該当状態を作らなくなったら、テストは意味を失ったことを申告する。
+    // この編成が該当状態を作らなくなったら、テストは意味を失ったことを申告する。
     expect(
       scopeless.length,
-      `UNIT_LUCIE_MAID no longer produces a scope-less cooldown: ${JSON.stringify(addedCooldowns)}`,
+      `this matchup no longer produces a scope-less cooldown: ${JSON.stringify(addedCooldowns)}`,
     ).toBeGreaterThan(0);
     for (const cooldown of scopeless) {
       expect(cooldown.setAtTurnNumber).toBeUndefined();

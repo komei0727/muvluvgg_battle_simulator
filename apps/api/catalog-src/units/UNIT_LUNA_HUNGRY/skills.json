@@ -41,6 +41,7 @@
         },
         {
           "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",

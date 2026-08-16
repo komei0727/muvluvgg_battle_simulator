@@ -366,6 +366,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_NOEL_RUMBLE_EX",
+    intent: "同上: 敵が1体だけで隣接対象がいなくてもEXは発動し、生存していれば追撃まで通る",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NOEL_RUMBLE_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_EX_DAMAGE1",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_EX_DAMAGE2",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_EX_BURN",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -1573,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_NOEL_RUMBLE_EX_BURN",
+          magnitude: 300,
+          timeLimit: {
+            unit: "ACTION",
+            count: 3,
+          },
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_NOEL_RUMBLE (【体育祭の暴れん坊】ノエル・アルエ)", () => {

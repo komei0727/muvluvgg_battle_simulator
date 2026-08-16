@@ -323,6 +323,44 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_FEE_ACTOR_AS1",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、その1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FEE_ACTOR_AS1" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_AP_DOWN",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -711,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+        {
+          unitId: "enemy:front",
+          resource: "AP",
+          delta: -1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フィー・ドレーゼ)", () => {

@@ -30,6 +30,11 @@ function catalogRevision(): string {
 }
 
 describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
+  // production Catalog 5ファイル（`skills.json`だけで約1MB）をまるごと再生成し、
+  // Prettierで整形してから突き合わせるため、既定の5000msでは足りない。ローカルの
+  // フルcoverage実行で約1.7秒を使っており、CIランナーの実行速度差で容易に超える
+  // （実際にIssue #495のPRで超えた）。実行時間の性質が近い他のproduction規模の
+  // テストと同じ30秒へ揃える。
   it("IT-CAT-SRCPROD-001: catalog/ is exactly what regenerating from catalog-src/ produces (no drift)", async () => {
     const result = await checkCatalogUpToDate({
       catalogSrcDir: apiPackageRootPath("catalog-src"),
@@ -37,7 +42,7 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
       catalogRevision: catalogRevision(),
     });
     expect(result).toEqual({ upToDate: true, diffFiles: [] });
-  });
+  }, 30000);
 
   it("IT-CAT-SRCPROD-002: catalog-src/ has one unit directory per unit *version*, not per character (issue #50 note)", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));

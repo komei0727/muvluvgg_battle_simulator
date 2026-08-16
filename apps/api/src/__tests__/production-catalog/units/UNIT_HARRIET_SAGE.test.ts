@@ -416,6 +416,81 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_HARRIET_SAGE_AS1",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、最も近い1体へは通常どおり発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_HARRIET_SAGE_AS1" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_MARKER",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -429,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+          magnitude: -0.075,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+          magnitude: -0.075,
+          timeLimit: {
+            unit: "BATTLE",
+            count: 1,
+          },
+        },
+      ],
+      markers: [
+        {
+          unitId: "enemy:front",
+          markerId: "MARKER_CURSE",
+          stackCount: 1,
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_HARRIET_SAGE_AS1",
+          remaining: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】ハリエット・ミルズ)", () => {

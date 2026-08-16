@@ -460,6 +460,51 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_KARINA_DOWNER_EX",
+    intent: "同上: 敵が1体だけで隣接対象がいなくてもEXは発動する（発動不能ならEXゲージを全量失う）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_KARINA_DOWNER_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_KARINA_DOWNER_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_KARINA_DOWNER_EX_ATKDOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_KARINA_DOWNER_EX_DOT",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -624,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_KARINA_DOWNER_EX_ATKDOWN",
+          magnitude: -0.3,
+          timeLimit: {
+            unit: "ACTION",
+            count: 2,
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_KARINA_DOWNER_EX_DOT",
+          magnitude: 75,
+          timeLimit: {
+            unit: "ACTION",
+            count: 2,
+          },
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副委員長】カリナ・ジェンティーレ)", () => {

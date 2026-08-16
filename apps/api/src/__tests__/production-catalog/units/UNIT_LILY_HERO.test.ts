@@ -205,6 +205,44 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_LILY_HERO_AS1",
+    intent: "同上: 敵が1体だけで隣接対象がいなくても、HPを支払って最も近い1体へ発動する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LILY_HERO_AS1" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LILY_HERO_AS1_HP_COST",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_LILY_HERO_AS1_DAMAGE_HPCOST",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_LILY_HERO_AS1_DAMAGE_FIXED",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": -1000,
+        "enemy:front": -3587,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリー・ラヴォア)", () => {
