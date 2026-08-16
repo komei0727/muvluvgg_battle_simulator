@@ -3515,8 +3515,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "API-TEXRESP-003",
       "SCN-BTL-027",
       // #2の計上量とユニット別集計（`10_API設計.md`「集計セマンティクス」）が同じ量を
-      // 数えていることを、ブレイクを繰り返す演習全体で照合する。
+      // 数えていることを、ブレイクを繰り返す演習全体で照合する。#3の敵の自傷があると
+      // 味方の`damageDealt`合計では足りず、敵の`damageTaken`だけが加算総量と一致する。
       "IT-UNIT-SUMMARY-001",
+      "IT-UNIT-SUMMARY-002",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "PROPERTY", "SCENARIO"],
   },
