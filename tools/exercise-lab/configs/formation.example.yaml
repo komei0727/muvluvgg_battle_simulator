@@ -1,0 +1,38 @@
+# 戦術演習の編成定義サンプル。
+#
+# ID は `GET /api/v1/battle-simulation-catalog` が返す値をそのまま書く（不透明な文字列で、
+# 前後の空白は除去されない）。`lab stats` は実行前にカタログと突き合わせ、未知IDと
+# 編成プール違反（R-TEX-11 #1: 味方は PLAYABLE、敵は EXERCISE_ENEMY）を検出する。
+
+ally:
+  # この節を書くと強化計算が有効になる（R-ENH-01）。書かない場合は
+  # ユニット側の level / gears も指定できず、ユニット定義の基本ステータスで戦う。
+  # 省略したキーは 1 として送る。
+  academyLevels:
+    unitTypes: { PHYSICAL: 60, ENERGY: 55, AGILE: 50 }
+    attributes: { AGGRESSIVE: 40, SHY: 39, CUTE: 38, SMART: 37, COMICAL: 36, CLEVER: 35 }
+
+  # 1〜5体。`column` は俯瞰時の絶対左から 0・1・2、`row` は敵へ近い側が FRONT。
+  # 書いた順のままリクエストへ載る。UIと同じ並びで送るなら FRONT → REAR、
+  # 各列は column 昇順で並べる。
+  units:
+    - unitDefinitionId: UNIT_EXAMPLE_A
+      position: { column: 0, row: FRONT }
+      # level・gears は省略できる。省略時はレベル200・ギアなし。
+      # --player-data を渡すと、省略した項目だけが手持ちデータで埋まる。
+      level: 240
+      gears:
+        - { stat: ATTACK, tier: III, grade: S }
+        - { stat: CRITICAL_RATE, tier: III, grade: A }
+    - unitDefinitionId: UNIT_EXAMPLE_B
+      position: { column: 1, row: REAR }
+
+  # 0〜6件。書いた順のまま送る。
+  memoryDefinitionIds:
+    - MEMORY_EXAMPLE_A
+
+# 敵はちょうど1体・メモリーなし・強化なし（R-TEX-01 #3）。
+# 配置は結果に影響する（前後列優先の対象順・配置条件が参照するため）。
+enemy:
+  unitDefinitionId: UNIT_EXAMPLE_ENEMY
+  position: { column: 1, row: FRONT }
