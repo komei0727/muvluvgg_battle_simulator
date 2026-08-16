@@ -92,6 +92,7 @@ def stats(
         except LabApiError as error:
             _abort(str(error))
 
+    _reject_empty_run(run, chunk_size)
     summary = build_summary(run, seed=base_seed, chunk_size=chunk_size)
     _write_reports(out, run, summary)
     _print_summary(summary)
@@ -109,6 +110,23 @@ def _load(config_path: Path, player_data_path: Path | None) -> FormationConfig:
     for warning in warnings:
         error_console.print(f"[yellow]warning[/]: {warning}")
     return config
+
+
+def _reject_empty_run(run: EvaluationRun, chunk_size: int) -> None:
+    """完了0件を、空のレポートではなく原因つきのエラーにする。
+
+    `completedRuns: 0` は期限到達時の正当な応答（Q-TEX-18）だが、統計は1件も出せない。
+    ヘッダーだけの `runs.csv` を残すと、後段が「0件という結果」と「そもそも走らなかった」を
+    区別できなくなるため、レポートを書かずに終える。
+    """
+    if run.completed_runs > 0:
+        return
+    _abort(
+        f"完了した試行が0件だったため統計を出せない（要求 {run.requested_runs} 件）。"
+        f"期限（サーバーの SIMULATION_TIMEOUT_MS）内に1試行も終わっていない。"
+        f"--chunk-size を今の {chunk_size} より下げるか、devサーバーの WORKER_MAX_THREADS を"
+        "上げる。1試行そのものが重い編成の可能性もあるので、まず --runs 1 で確かめる"
+    )
 
 
 def _reject_catalog_violations(config: FormationConfig, catalog: Catalog) -> None:

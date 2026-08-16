@@ -167,3 +167,39 @@ def test_unreachable_server_is_reported_without_a_traceback(tmp_path):
 
     assert result.exit_code == 1
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+@respx.mock
+def test_zero_completed_runs_is_reported_as_an_explained_error(tmp_path):
+    # Q-TEX-18: 期限に達すると `completedRuns: 0` も正当な応答になる。統計は出せないので、
+    # tracebackではなく原因と対処を書いたエラーで終える。
+    respx.get(f"{BASE_URL}{CATALOG_PATH}").mock(return_value=httpx.Response(200, json=CATALOG))
+    respx.post(f"{BASE_URL}{EVALUATION_PATH}").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "schemaVersion": 1,
+                "catalogRevision": "2026-06-28.1",
+                "seed": "abc#0",
+                "runsPerCandidate": 4,
+                "candidates": [
+                    {
+                        "completedRuns": 0,
+                        "scores": [],
+                        "breakCounts": [],
+                        "completedTurns": [],
+                        "completionReasons": [],
+                    }
+                ],
+            },
+        )
+    )
+    out = tmp_path / "reports"
+
+    result = _run(tmp_path, out, "abc")
+
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    # 中途半端なレポートを残さない。空のCSVがあると、後段が「0件の結果」と
+    # 「そもそも走らなかった」を区別できない。
+    assert not out.exists()

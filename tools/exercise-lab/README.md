@@ -47,9 +47,27 @@ WORKER_MAX_THREADS=8 WORKER_MAX_QUEUE=200 EVALUATION_MAX_TOTAL_RUNS=300 mise run
 
 ## 実行
 
+`configs/formation.example.yaml` は現行 Catalog の実IDで書かれており、そのまま実行できる。
+
 ```bash
 cd tools/exercise-lab
-uv run lab stats configs/formation.yaml --runs 1000 --seed abc123 --out reports/
+uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 --out reports/
+```
+
+ただしこれは全員レベル200・ギアなし・強化計算なしの「素の性能」比較になる。実際の育成状態で
+評価するなら、後述の「手持ちデータの取り込み」で `player-data.json` を書き出して渡す。
+
+```bash
+uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
+  --player-data player-data.json --out reports/
+```
+
+自分の編成を試すときはサンプルを写して編集する（`configs/` 直下はサンプル以外 gitignore 済み）。
+
+```bash
+cp configs/formation.example.yaml configs/formation.yaml
+uv run lab stats configs/formation.yaml --runs 1000 --seed abc123 \
+  --player-data player-data.json --out reports/
 ```
 
 | オプション      | 既定                    | 説明                                     |
@@ -82,6 +100,10 @@ uv run lab stats configs/formation.yaml --runs 1000 --seed abc123 --out reports/
 ```
 run_index,chunk_index,chunk_seed,run_index_in_chunk,score,break_count,completed_turn,completion_reason
 ```
+
+試行が1件も完了しなかった場合（期限到達で全チャンクが `completedRuns: 0`）は、空のレポートを
+書かずにエラーで終える。ヘッダーだけの `runs.csv` を残すと、後段が「0件という結果」と
+「そもそも走らなかった」を区別できないため。
 
 ## 編成定義 YAML
 
