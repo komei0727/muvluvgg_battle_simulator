@@ -11,6 +11,11 @@
 # 前後の空白は除去されない）。`lab stats` は実行前にカタログと突き合わせ、未知IDと
 # 編成プール違反（R-TEX-11 #1: 味方は PLAYABLE、敵は EXERCISE_ENEMY）を検出する。
 # Catalog からユニットが消えるとこのサンプルも検証で落ちるので、その時は現行IDへ差し替える。
+#
+# IDを手で書き写す必要はない。UIで組んだ編成は `lab import-draft` で取り込めるし、
+# `lab units --owned --player-data player-data.json` / `lab memories --grep <語>` で引ける。
+# エディタ補完を効かせるには `lab schema` を実行し、次の行の先頭の `#` を1つ削る。
+## yaml-language-server: $schema=../.schema/formation.schema.json
 
 ally:
   # 1〜5体。`column` は俯瞰時の絶対左から 0・1・2、`row` は敵へ近い側が FRONT。

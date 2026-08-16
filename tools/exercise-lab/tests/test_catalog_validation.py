@@ -79,3 +79,20 @@ def write(tmp_path, text: str):
     path = tmp_path / "formation.yaml"
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def test_unknown_id_errors_point_at_the_search_command(tmp_path):
+    # IDを手で書き写す前提の道具なので、打ち間違いの次の一手を出口に置く。
+    config = load_formation_config(write(tmp_path, VALID_YAML.replace("UNIT_A", "UNIT_KOTOHA")))
+
+    errors = validate_against_catalog(config, CATALOG)
+
+    assert any("lab units --grep" in error for error in errors)
+
+
+def test_unknown_memory_errors_point_at_the_search_command(tmp_path):
+    config = load_formation_config(write(tmp_path, VALID_YAML.replace("MEMORY_A", "MEM_TYPO")))
+
+    errors = validate_against_catalog(config, CATALOG)
+
+    assert any("lab memories --grep" in error for error in errors)
