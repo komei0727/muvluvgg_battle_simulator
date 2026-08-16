@@ -368,6 +368,43 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: PS2_ALREADY_ACTIVATED,
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_SHOUKA_BEACH_AS2",
+    intent: "同上: 敵前列がいなくても、自身へのシールド付与は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_BEACH_AS2" },
+    board: { enemies: [{ id: "enemy:back", position: { column: "CENTER", row: "BACK" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SHOUKA_BEACH_AS2_SHIELD",
+          targets: ["ally:subject"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SHOUKA_BEACH_AS2_SHIELD",
+          magnitude: 1000,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小花)", () => {

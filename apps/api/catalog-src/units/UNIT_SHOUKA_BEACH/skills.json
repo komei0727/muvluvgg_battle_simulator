@@ -121,6 +121,7 @@
         },
         {
           "targetBindingId": "TGT_ENEMY_FRONT",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",

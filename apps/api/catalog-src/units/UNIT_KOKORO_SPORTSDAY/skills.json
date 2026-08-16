@@ -41,6 +41,7 @@
         },
         {
           "targetBindingId": "TGT_BACK_ROW",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",

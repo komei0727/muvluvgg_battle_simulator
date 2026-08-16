@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import {
+  createEffectActionDefinitionId,
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -39,6 +46,28 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
 ]);
 
 /** 右列にも左列にも敵が居ない盤面（中央列だけ）。 */
+/**
+ * ステルス状態の相手役。実定義は検証対象ユニットのスナップショットに載らないため
+ * （`loadProductionSnapshot` は対象ユニット分しか読まない）、`statusKind` だけを
+ * 同じ値で組み立てる。剥がれたかどうかは実 `resolveTargets` の判定が決める。
+ */
+function stealthStatus(targetUnitId: string): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_TEST_STEALTH");
+  return {
+    effectInstanceId: createEffectInstanceId(`B_BEHAVIOUR:stealth:${targetUnitId}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
+    magnitude: 0,
+    categories: ["BUFF"],
+    statusKind: "STEALTH",
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
 const CENTER_ONLY_ENEMIES: readonly BoardUnitSpec[] = [
   { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
@@ -133,20 +162,60 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
-    intent: "(対象): 上記の対象範囲に敵が存在しない場合、代わりに最も近い敵単体に攻撃する",
+    intent:
+      "(不発動): 左右列に敵が居なくても後列に敵が居れば「上記の対象範囲」は空ではないため、代替攻撃は行わない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
     board: { enemies: CENTER_ONLY_ENEMIES },
     expected: {
-      // 右列・左列に敵が居ないため、列への一撃が最も近い敵へ振り替わる。
+      // 代替攻撃の条件は左右列と後列を**合わせた**範囲が空であること。中央後列の
+      // 敵が後列bindingに入るため、中央前列の敵は最後まで対象にならない。
       actions: [
-        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:front"] },
         {
           effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
           targets: ["enemy:back"],
         },
       ],
       hpDeltas: {
-        "enemy:front": -568,
+        "enemy:back": -853,
+      },
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
+    intent: "上記の対象範囲に敵が存在しない場合、代わりに最も近い敵単体に威力100で攻撃する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+    board: {
+      enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+    },
+    expected: {
+      // 中央前列の1体だけなので左右列も後列も空になる。列攻撃の113.76%ではなく
+      // 代替攻撃の100%が乗り、(1000-500)×100%＝500になる。
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_FALLBACK",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -500,
+      },
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
+    intent: "(不発動): 中央後列の1体だけでも後列攻撃が成立するため、代替攻撃は行わない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+    board: {
+      enemies: [{ id: "enemy:back", position: { column: "CENTER", row: "BACK" } }],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
+          targets: ["enemy:back"],
+        },
+      ],
+      hpDeltas: {
         "enemy:back": -853,
       },
     },
@@ -451,6 +520,28 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
+    intent: "同上: 後列に敵がいなくても、左右列への攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX", actionType: "EX" },
+    board: {
+      enemies: [
+        { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN",
+          targets: ["enemy:left"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:left": -568,
+      },
+    },
+  },
 ];
 
 describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニアス】リディア・エルドリッジ)", () => {
@@ -520,7 +611,7 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
     ).toBe("SKL_LYDIA_GENIUS_AS2");
   });
 
-  it("IT-UNIT-LYDIA-GENIUS-005 (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右に敵が居なければ非空filtersは候補0件になり `fallback` が対象を供給する", () => {
+  it("IT-UNIT-LYDIA-GENIUS-005 (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右が候補0件でも後列が候補を持つ限り、列側のstepが素通りするだけで済む", () => {
     expect(
       observeSkillUse({
         snapshot,
@@ -545,9 +636,9 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
       },
     });
 
-    // 候補0件でも `TGT_COLUMNS` は空にならず、`fallback` の
-    // `NEAREST/FRONT_ROW/LEFT_TO_RIGHT` が最も近い敵を供給する。`TGT_BACK_ROW` は
-    // fallbackを持たないため、後列の敵はそのまま拾われる。
+    // 左右列が候補0件でも、後列が候補を持つ限り「上記の対象範囲」は空ではない。
+    // `TGT_COLUMNS` 側のstepが対象0件で素通りするだけで、中央前列の敵は
+    // どのbindingにも入らないまま無傷で残る。
     expect(
       observeSkillUse({
         snapshot,
@@ -557,16 +648,48 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
       }),
     ).toEqual({
       actions: [
-        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:front"] },
         {
           effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
           targets: ["enemy:back"],
         },
       ],
       hpDeltas: {
-        "enemy:front": -568,
         "enemy:back": -853,
       },
+    });
+  });
+
+  it("IT-UNIT-LYDIA-GENIUS-007 (R-TGT-08 #7/R-TGT-10): 代替攻撃のbindingは分岐が不成立でも評価されるが、`POSITION_SLOT` で定義上1体へ限定されているためステルスを消費しない", () => {
+    // R-TGT-10により全targetBindingはEffectSequence開始時に評価され、そこで検出した
+    // ステルス消費はstep実行前に適用される。代替攻撃のbindingが「最も近い敵」のような
+    // 盤面依存のselectorだと、分岐が不成立で一度も攻撃しないまま第一優先対象の
+    // ステルスを剥がしてしまう（R-TGT-08 #2〜#4）。代替攻撃の条件が成立する盤面では
+    // 生存する敵は中央前列の1体に限られるため、`POSITION_SLOT` で構造的に1体へ
+    // 限定し、R-TGT-08 #7の非適用側へ寄せている。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+      board: {
+        subject: { position: { column: "CENTER", row: "FRONT" } },
+        enemies: [
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          {
+            id: "enemy:center",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { appliedEffects: [stealthStatus("enemy:center")] },
+          },
+        ],
+      },
+    });
+
+    // 左列に敵が居るので代替攻撃の分岐は不成立。中央前列へは攻撃もステルス消費も
+    // 起きず、`effectsRemoved` がキーごと現れないことがそれを固定する。
+    expect(observed).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:left"] },
+      ],
+      hpDeltas: { "enemy:left": -568 },
     });
   });
 
