@@ -188,9 +188,9 @@ export const tacticalExerciseResponseSchema = {
  * OpenAPI公開専用の`200`成功レスポンスschema。実行時の
  * `tacticalExerciseResponseSchema`と唯一違うのは`events[].details`
  * （イベント種別ごとの構造を文書化する）で、`battleSimulationResponseDocSchema`と
- * 同じ理由による。unionは演習専用variant（`EXERCISE_SCORE_ACCUMULATED`／`UNIT_BROKEN`／
- * `UNIT_REVIVED`と`BREAK_ENHANCEMENT`を取り得る`reason`）を含む版であり、通常戦闘の
- * 公開文書はそれらを持たない（`Q-TEX-08`）。
+ * 同じ理由による。unionは演習専用variant（`EXERCISE_SCORE_ACCUMULATED`／
+ * `EXERCISE_SCORE_DEDUCTED`／`UNIT_BROKEN`／`UNIT_REVIVED`と`BREAK_ENHANCEMENT`を
+ * 取り得る`reason`）を含む版であり、通常戦闘の公開文書はそれらを持たない（`Q-TEX-08`）。
  */
 export const tacticalExerciseResponseDocSchema = {
   ...tacticalExerciseResponseSchema,

@@ -9,6 +9,8 @@ import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EventRecorder } from "../events/event-recorder.js";
+import { recordExerciseScoreDeductionIfAny } from "../events/exercise-score-recording.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type {
@@ -32,6 +34,13 @@ export interface HealEventContext {
   /** R-HEAL-02: 回復者・対象が保持する`APPLY_HEALING_MOD`をkindで引くために必要。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * R-TEX-02 #5: 戦闘モードが`TACTICAL_EXERCISE`のときだけ呼び出し側が渡す、Battleが
+   * 所有する演習状態。敵ユニットのHPが実際に増えた分をここから減算し
+   * `ExerciseScoreDeducted`を発行する。未指定なら通常戦闘であり、減算もイベント発行も
+   * 一切行わない。
+   */
+  readonly exercise?: ExerciseRuntime;
   readonly onFactEventForPassiveChain?: (
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
@@ -464,7 +473,17 @@ export function* applyOneHealSteps(
       : {}),
   });
 
-  let lastEventId = healApplied.eventId;
+  // R-TEX-02 #5: 敵ユニットのHPが実際に増えた分を累計スコアから減算する。`HealApplied`の
+  // 直後・子連鎖の解決前に発行することで、R-HEAL-04 #4/#6が定める「`HealApplied`起点のPSは
+  // 転送前HPを観測する」順序を崩さない（`ExerciseScoreDeducted`自体は観測専用であり、
+  // 連鎖へは通知しない）。
+  let lastEventId = recordExerciseScoreDeductionIfAny(
+    context.exercise,
+    context,
+    target,
+    appliedAmount,
+    healApplied.eventId,
+  );
   let changed = appliedAmount > 0;
   let interrupted = false;
 
@@ -568,7 +587,15 @@ export function* applyOneHealSteps(
           }
         : {}),
     });
-    lastEventId = transferred.eventId;
+    // R-TEX-02 #5: 転送先が敵ユニットなら、そのHPが実際に増えた分を減算する
+    // （`HealApplied`側と同じく、この転送の連鎖を解決する前に発行する）。
+    lastEventId = recordExerciseScoreDeductionIfAny(
+      context.exercise,
+      context,
+      destination,
+      destinationApplied,
+      transferred.eventId,
+    );
     // R-HEAL-04 #5: 次の転送へ進む前にこの転送の連鎖を解決する（同上）。
     // この連鎖で使用者が戦闘不能になった場合の中断判定は、次iterationの先頭で行う
     // （＝残りの転送があるときだけ中断する）。

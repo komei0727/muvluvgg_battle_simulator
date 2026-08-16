@@ -1815,11 +1815,13 @@ describe("battle scenarios (harness)", () => {
       expect(result).not.toHaveProperty("outcome");
       expect(result.finalState.result).not.toHaveProperty("outcome");
 
-      // スコア＝計上量合計（R-TEX-10 #3）。最終状態の累計スコアとも一致する。
+      // スコア＝計上量合計 − 減算量合計（R-TEX-10 #3）。最終状態の累計スコアとも一致する。
+      // この敵は回復手段を持たないため減算は1件も起きず、計上量合計がそのまま総スコアになる。
       const amounts = result.events
         .filter((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")
         .map((event) => (event.details as { readonly amount: number }).amount);
       expect(amounts.length).toBeGreaterThan(0);
+      expect(result.events.filter((event) => event.type === "EXERCISE_SCORE_DEDUCTED")).toEqual([]);
       expect(result.totalScore).toBe(amounts.reduce((sum, amount) => sum + amount, 0));
       expect(result.finalState.exercise?.totalScore).toBe(result.totalScore);
 
@@ -1914,6 +1916,9 @@ describe("battle scenarios (harness)", () => {
       const enemy = result.unitSummaries.find((summary) => summary.side === "ENEMY")!;
 
       // 与ダメージの総和＝スコア。R-TEX-02 #2の計上量とまったく同じ量を数えている。
+      // 一致するのはこの敵が回復手段を持たない（R-TEX-02 #5の減算が起きない）ためであり、
+      // 敵が自己回復する演習では`Σ damageDealt = totalScore + 敵回復量`になる。
+      expect(result.events.filter((event) => event.type === "EXERCISE_SCORE_DEDUCTED")).toEqual([]);
       expect(dealtByAllies).toBe(result.totalScore);
       expect(enemy.damageTaken).toBe(result.totalScore);
       // 実HP減少量だけを数えていた頃の値との差が、まさに破棄されたオーバーキルである。

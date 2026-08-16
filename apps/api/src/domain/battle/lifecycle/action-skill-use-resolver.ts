@@ -226,6 +226,8 @@ export function resolveSkillUse(
     {
       ...resourceChangeContext,
       effectActions: definitions.effectActions,
+      // R-TEX-02 #5: 継続回復が敵HPを戻した分をスコアから減算する。
+      ...(exercise !== undefined ? { exercise } : {}),
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       // 固定継続ダメージがシールドを枯渇させた場合の失効（R-SHD-01第3項）は、
       // `effect-action-group-resolver.ts`のヒット処理とまったく同じ

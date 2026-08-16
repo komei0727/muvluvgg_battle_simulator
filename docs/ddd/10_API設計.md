@@ -562,7 +562,7 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 - 計上するのは**HPへ向かった量**である。実際に減ったHP量（`hitPointDamage`）に加えて、HPクランプで消えた超過分（`discardedDamage`。撃破ヒットのオーバーキルと、致死ダメージ耐え（R-INT-01 #5）で適用されなかった分の双方）を含める。どちらも防がれた量ではなく、対象のHPが尽きた・止められただけだからである。
 - シールド吸収（`typedShieldAbsorbed` / `untypedShieldAbsorbed`）・サブユニット吸収（`subUnitAbsorbed`）は含めない。HPへ向かう前に別の耐久値が引き受けた量である。したがって `calculatedDamage` そのものでもない — 本書「DamageApplied payload」の保存則より、計上量は `calculatedDamage` から吸収3項を引いた残りに等しい。
-- この量は戦術演習のスコア計上量（R-TEX-02 #2）とまったく同じ定義である。演習では味方の `damageDealt` の総和が、敵HPへ向かったダメージの総量と一致する。
+- この量は戦術演習のスコア**加算**量（R-TEX-02 #2）とまったく同じ定義である。演習では味方の `damageDealt` の総和が、敵HPへ向かったダメージの総量と一致する。総スコアはそこから敵の回復分を減算した値であるため（R-TEX-02 #5）、敵が自己回復する演習では `Σ damageDealt = totalScore + 敵の回復量` になる。
 - 反射ダメージ（`isReflectedDamage`）・リンクダメージ（`isLinkedDamage`）は `DamageApplied` として流れるため追加の規則を持たない。エンベロープの `sourceUnitId` が指すユニット（反射側・リンク発生側）の与ダメージへ計上される。
 - `sourceUnitId` を持たない `ContinuousDamageApplied`（R-MEM-04 のMemory由来付与。`sourceSide` だけを持つ）は、被ダメージにだけ計上し与ダメージへは帰属させない。陣営から特定のユニットを推測して埋めることはしない。
 
@@ -580,13 +580,13 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 ### ExerciseResultResponse
 
-| プロパティ         | 型                        | 値                                                    |
-| ------------------ | ------------------------- | ----------------------------------------------------- |
-| `completionReason` | string                    | `TURN_LIMIT_REACHED` または `ALLY_DEFEATED`。         |
-| `completedTurn`    | integer                   | 演習が終了したターン。1～5。                          |
-| `totalScore`       | integer                   | 総スコア（R-TEX-02）。0以上。                         |
-| `breakCount`       | integer                   | ブレイク回数。0以上。                                 |
-| `breaks`           | `ExerciseBreakResponse[]` | ブレイク履歴。発生順。`breakCount` と件数が一致する。 |
+| プロパティ         | 型                        | 値                                                                                                                            |
+| ------------------ | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `completionReason` | string                    | `TURN_LIMIT_REACHED` または `ALLY_DEFEATED`。                                                                                 |
+| `completedTurn`    | integer                   | 演習が終了したターン。1～5。                                                                                                  |
+| `totalScore`       | integer                   | 総スコア（R-TEX-02）。HPへ向かったダメージの累計から、ブレイク復活以外で敵HPが増えた量を減算した値。下限クランプにより0以上。 |
+| `breakCount`       | integer                   | ブレイク回数。0以上。                                                                                                         |
+| `breaks`           | `ExerciseBreakResponse[]` | ブレイク履歴。発生順。`breakCount` と件数が一致する。                                                                         |
 
 ### ExerciseBreakResponse
 

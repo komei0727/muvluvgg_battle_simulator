@@ -29,6 +29,14 @@ export interface ExerciseScoreAccumulation {
   readonly after: number;
 }
 
+/** `ExerciseRuntime.deductScore`が実際に減算したときだけ返す差分。 */
+export interface ExerciseScoreDeduction {
+  /** 実際に減った量。要求量が累計を上回った場合は累計そのもの（下限0のクランプ）。 */
+  readonly amount: number;
+  readonly before: number;
+  readonly after: number;
+}
+
 /** `ExerciseRuntime.recordBreak`が返す、1増えたブレイク回数とその差分（R-TEX-03 #4）。 */
 export interface ExerciseBreakRecord {
   /** 1から始まるブレイク番号。R-TEX-04の強化量を決める`n`そのもの。 */
@@ -72,8 +80,8 @@ export class ExerciseRuntime {
   /**
    * R-TEX-02: 敵ユニットのHPへ向かったダメージ量を累計スコアへ加算する。
    * 計上量0（および負の値）では加算せず`undefined`を返す — 呼び出し側は
-   * `ExerciseScoreAccumulated`を発行しない（R-TEX-02 #4）。スコアは単調増加で
-   * あり減算しない（同 #5）ため、負の量はここで捨てる。
+   * `ExerciseScoreAccumulated`を発行しない（R-TEX-02 #4）。減算は`deductScore`だけが
+   * 行うため、負の量はここで捨てる。
    *
    * R-NUM-02: 累計は整数で持つ。ダメージ量は各経路が既に整数化しているが、
    * スコアの整数性をこの1か所で担保して呼び出し側の前提に依存しないようにする。
@@ -86,6 +94,26 @@ export class ExerciseRuntime {
     const before = this.total;
     this.total = before + accountable;
     return { amount: accountable, before, after: this.total };
+  }
+
+  /**
+   * R-TEX-02 #5: ブレイク復活以外で敵ユニットのHPが増えた量を累計スコアから減算する。
+   *
+   * 同 #6: 減算量は`min(要求量, 現在の累計)`とし、累計は0未満にしない。実減少量が
+   * 0以下（累計が既に0、要求量が0以下、切り捨てで0）の場合は`undefined`を返し、
+   * 呼び出し側は`ExerciseScoreDeducted`を発行しない（加算側 #4 と同じ規約）。
+   *
+   * 下限クランプをここで行うことで、`ExerciseResultResponse.totalScore`の
+   * 「integer、0以上」（`10_API設計.md`）が発行経路によらず成立する。
+   */
+  deductScore(amount: number): ExerciseScoreDeduction | undefined {
+    const deductible = Math.min(truncateFraction(amount), this.total);
+    if (deductible <= 0) {
+      return undefined;
+    }
+    const before = this.total;
+    this.total = before - deductible;
+    return { amount: deductible, before, after: this.total };
   }
 
   /**

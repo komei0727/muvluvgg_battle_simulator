@@ -124,6 +124,8 @@ export function resolveChargeStart(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       effectActions: definitions.effectActions,
+      // R-TEX-02 #5: 継続回復が敵HPを戻した分をスコアから減算する。
+      ...(exercise !== undefined ? { exercise } : {}),
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       continuousDamage: {
         effectActions: definitions.effectActions,
@@ -350,6 +352,8 @@ export function resolveChargeRelease(
       resolutionScopeId: actionScope,
       rootEventId: actionStarted.eventId,
       effectActions: definitions.effectActions,
+      // R-TEX-02 #5: 継続回復が敵HPを戻した分をスコアから減算する。
+      ...(exercise !== undefined ? { exercise } : {}),
       // R-DOT-01（DMG-008、Issue #189）: 同じ走査で解決する継続ダメージ。
       continuousDamage: {
         effectActions: definitions.effectActions,
