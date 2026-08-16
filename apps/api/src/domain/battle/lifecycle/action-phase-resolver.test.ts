@@ -146,6 +146,16 @@ const ENEMY_NEAREST: TargetSelectorDefinition = {
   includeDefeated: false,
 };
 
+/** 単騎編成では候補0件になる「自分以外の味方1体」。 */
+const OTHER_ALLY_ONE: TargetSelectorDefinition = {
+  kind: "SELECT",
+  side: "ALLY",
+  count: 1,
+  filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+  order: ["DEFAULT"],
+  includeDefeated: false,
+};
+
 const ALLY_ALL: TargetSelectorDefinition = {
   kind: "SELECT",
   side: "ALLY",
@@ -561,11 +571,7 @@ function actionPhaseContext(turnNumber = 1) {
  * される。R-ORD-01の適格性はEXゲージ満タン側で保たれるため予約は除去されず、
  * AP 0ではすべてのASがコスト不足（R-ACT-03によりコストは1以上）で弾かれる。
  */
-function apDrainedWithFullGaugeScenario(gaugeMaximum: number): {
-  allyUnits: readonly BattleUnit[];
-  enemyUnits: readonly BattleUnit[];
-  definitions: BattleDefinitions;
-} {
+function apDrainedWithFullGaugeScenario(gaugeMaximum: number): WaitPathScenario {
   const victimDefinitionId = createUnitDefinitionId("UNIT_AP_DRAIN_VICTIM");
   const manipulatorDefinitionId = createUnitDefinitionId("UNIT_AP_DRAIN_MANIPULATOR");
   const victim = unit("ALLY_1", "ALLY", {
@@ -599,6 +605,90 @@ function apDrainedWithFullGaugeScenario(gaugeMaximum: number): {
         [apDrain.effectActionDefinitionId, apDrain],
         [gaugeFill.effectActionDefinitionId, gaugeFill],
       ]),
+    ),
+  };
+}
+
+interface WaitPathScenario {
+  allyUnits: readonly BattleUnit[];
+  enemyUnits: readonly BattleUnit[];
+  definitions: BattleDefinitions;
+}
+
+/** R-ACT-01 #1/#2の待機（気絶・凍結）。行動阻害の分岐は予約種別より前に処理される。 */
+function stunnedOrFrozenWaitScenario(
+  statusKind: "STUN" | "FREEZE",
+  currentAp: number,
+  currentExtraGauge: number,
+): WaitPathScenario {
+  return {
+    allyUnits: [
+      {
+        ...unit("ALLY_1", "ALLY", {
+          limits: { maximumAp: 1, maximumExtraGauge: 10 },
+          currentAp,
+          currentExtraGauge,
+        }),
+        appliedEffects: [
+          statusEffect(statusKind, `${statusKind}-1`, 1, createBattleUnitId("ALLY_1")),
+        ],
+      },
+    ],
+    enemyUnits: [unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } })],
+    definitions: NO_SKILLS,
+  };
+}
+
+/**
+ * R-ACT-01 #4の待機（EX予約だがEXを使用できない）。EXゲージは満タンで固定し
+ * （そうでなければEX予約自体が生まれない、Q-EX-03）、AP残量だけを変える。
+ *
+ * 対象候補を0件にする手段として「敵の全滅」は使えない——AP消費の待機は同じ
+ * ターンの次の周回まで続くのに対し、全滅は最初の1行動の後の勝敗判定
+ * （R-END-01タイミング#1）で行動フェーズを打ち切ってしまう。単騎編成で
+ * 「自分以外の味方」を要求させ、敵は生存させたまま候補0件にする。
+ */
+function unusableExWaitScenario(currentAp: number): WaitPathScenario {
+  const unitDefinitionId = createUnitDefinitionId("UNIT_EX_UNUSABLE");
+  return {
+    allyUnits: [
+      unit("ALLY_1", "ALLY", {
+        unitDefinitionId: "UNIT_EX_UNUSABLE",
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp,
+        currentExtraGauge: 10,
+      }),
+    ],
+    enemyUnits: [unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } })],
+    definitions: definitionsOf(
+      new Map(),
+      new Map(),
+      new Map([[unitDefinitionId, exSkill("ACT_EX_UNUSABLE", 10, OTHER_ALLY_ONE)]]),
+    ),
+  };
+}
+
+/**
+ * R-ACT-01 #5の待機（AS予約だが使用可能なASがない）をAPを残したまま起こす。
+ * AP不足以外の理由で弾く必要があるため、対象候補0件（唯一の敵が戦闘不能、
+ * R-TGT-01 #2）でASを発動不能にする。
+ */
+function noUsableActiveSkillWaitScenario(): WaitPathScenario {
+  const unitDefinitionId = createUnitDefinitionId("UNIT_AS_TARGETLESS");
+  const effectAction = damageEffectAction("ACT_TARGETLESS_HIT");
+  return {
+    allyUnits: [
+      unit("ALLY_1", "ALLY", {
+        unitDefinitionId: "UNIT_AS_TARGETLESS",
+        limits: { maximumAp: 1, maximumExtraGauge: 10 },
+        currentAp: 1,
+        currentExtraGauge: 0,
+      }),
+    ],
+    enemyUnits: [unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, currentHp: 0 })],
+    definitions: definitionsOf(
+      new Map([[unitDefinitionId, [attackSkill("ACT_TARGETLESS_HIT", 1)]]]),
+      new Map([[effectAction.effectActionDefinitionId, effectAction]]),
     ),
   };
 }
@@ -2302,72 +2392,74 @@ describe("resolveActionPhase", () => {
   });
 
   it.each([
+    // AP 0側（EXゲージ全量消費）。R-ORD-01により、AP 0で行動機会が回るのは
+    // EXゲージ満タンのときだけなので、4経路ともEXゲージ満タンで組む。
     {
       waitReason: "STUNNED",
-      build: () => ({
-        allyUnits: [
-          {
-            ...unit("ALLY_1", "ALLY", {
-              limits: { maximumAp: 1, maximumExtraGauge: 10 },
-              currentAp: 0,
-              currentExtraGauge: 10,
-            }),
-            appliedEffects: [statusEffect("STUN", "stun-1", 1, createBattleUnitId("ALLY_1"))],
-          },
-        ],
-        enemyUnits: [unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } })],
-        definitions: NO_SKILLS,
-      }),
+      apLabel: "AP 0",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
+      build: () => stunnedOrFrozenWaitScenario("STUN", 0, 10),
     },
     {
       waitReason: "FROZEN",
-      build: () => ({
-        allyUnits: [
-          {
-            ...unit("ALLY_1", "ALLY", {
-              limits: { maximumAp: 1, maximumExtraGauge: 10 },
-              currentAp: 0,
-              currentExtraGauge: 10,
-            }),
-            appliedEffects: [statusEffect("FREEZE", "freeze-1", 1, createBattleUnitId("ALLY_1"))],
-          },
-        ],
-        enemyUnits: [unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } })],
-        definitions: NO_SKILLS,
-      }),
+      apLabel: "AP 0",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
+      build: () => stunnedOrFrozenWaitScenario("FREEZE", 0, 10),
     },
     {
       waitReason: "EX_UNUSABLE",
-      build: () => ({
-        allyUnits: [
-          unit("ALLY_1", "ALLY", {
-            unitDefinitionId: "UNIT_EX_SYMMETRY",
-            limits: { maximumAp: 1, maximumExtraGauge: 10 },
-            currentAp: 0,
-            currentExtraGauge: 10,
-          }),
-        ],
-        // 唯一の敵が戦闘不能なのでEXスキルの対象候補が0件になる（R-TGT-01 #2）。
-        enemyUnits: [unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 }, currentHp: 0 })],
-        definitions: definitionsOf(
-          new Map(),
-          new Map(),
-          new Map([[createUnitDefinitionId("UNIT_EX_SYMMETRY"), exSkill("ACT_EX_SYMMETRY", 10)]]),
-        ),
-      }),
+      apLabel: "AP 0",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
+      build: () => unusableExWaitScenario(0),
     },
     {
       waitReason: "NO_USABLE_ACTIVE_SKILL",
+      apLabel: "AP 0",
+      consumedResource: "EX_GAUGE",
+      consumedAmount: 10,
       build: () => apDrainedWithFullGaugeScenario(10),
     },
+    // AP 1以上側（通常の待機＝AP1消費）。待機の理由が同じでもAP残量だけで
+    // 消費リソースが変わることを、同じ4経路の対で固定する。
+    {
+      waitReason: "STUNNED",
+      apLabel: "AP 1",
+      consumedResource: "AP",
+      consumedAmount: 1,
+      build: () => stunnedOrFrozenWaitScenario("STUN", 1, 0),
+    },
+    {
+      waitReason: "FROZEN",
+      apLabel: "AP 1",
+      consumedResource: "AP",
+      consumedAmount: 1,
+      build: () => stunnedOrFrozenWaitScenario("FREEZE", 1, 0),
+    },
+    {
+      waitReason: "EX_UNUSABLE",
+      apLabel: "AP 1",
+      consumedResource: "AP",
+      consumedAmount: 1,
+      build: () => unusableExWaitScenario(1),
+    },
+    {
+      waitReason: "NO_USABLE_ACTIVE_SKILL",
+      apLabel: "AP 1",
+      consumedResource: "AP",
+      consumedAmount: 1,
+      build: () => noUsableActiveSkillWaitScenario(),
+    },
   ])(
-    "UT-R-ACT-03-008 (R-ACT-03「AP 0・EX満タンで行動不能」/ Q-BTL-06): the wait resource is decided by the remaining AP, not by the wait reason — a $waitReason wait at AP 0 drains the full EX gauge on every one of the four wait paths",
-    ({ waitReason, build }) => {
+    "UT-R-ACT-03-008 (R-ACT-03 / Q-BTL-06 / 01_ユビキタス言語.md「待機」): the wait resource is decided by the remaining AP, not by the wait reason — a $waitReason wait at $apLabel consumes $consumedResource on every one of the four wait paths",
+    ({ waitReason, consumedResource, consumedAmount, build }) => {
       const scenario = build();
       const random = new SequenceRandomSource([]);
 
       const ctx = actionPhaseContext();
-      const result = resolveActionPhase(
+      resolveActionPhase(
         scenario.allyUnits,
         scenario.enemyUnits,
         scenario.definitions,
@@ -2379,21 +2471,70 @@ describe("resolveActionPhase", () => {
       );
 
       const waiterId = createBattleUnitId("ALLY_1");
+      // AP消費側は同じターンで次の周回の待機が続き得るため、最初の1件だけを見る。
       const waited = ctx.recorder
         .getEvents()
         .find((e) => e.eventType === "ActionWaited" && e.sourceUnitId === waiterId)!;
       expect(waited.payload).toEqual({
         actorUnitId: waiterId,
         waitReason,
-        consumedResource: "EX_GAUGE",
-        consumedAmount: 10,
+        consumedResource,
+        consumedAmount,
       });
-
-      const waiter = result.allyUnits.find((u) => u.battleUnitId === waiterId)!;
-      expect(waiter.currentAp).toBe(0);
-      expect(waiter.currentExtraGauge).toBe(0);
     },
   );
+
+  it("UT-ACTION-PHASE-020 (R-ACT-03 / Q-BTL-06 / Q-EX-03, Issue #517 review): an EX reservation that turns out to be unusable while its holder still has AP consumes 1 AP and keeps the gauge, and only the following cycle — which re-reserves EX because the gauge is still full — drains it at AP 0", () => {
+    const scenario = unusableExWaitScenario(1);
+    const random = new SequenceRandomSource([]);
+
+    const ctx = actionPhaseContext();
+    const result = resolveActionPhase(
+      scenario.allyUnits,
+      scenario.enemyUnits,
+      scenario.definitions,
+      random,
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+
+    const waiterId = createBattleUnitId("ALLY_1");
+    const events = ctx.recorder.getEvents();
+
+    // Q-EX-03: 予約種別は周回ごとにその時点のEXゲージで決まる。1周回目のAP消費
+    // ではゲージが満タンのまま残るため、2周回目も再びEX予約になる。
+    const queuesCreated = events.filter((e) => e.eventType === "ActionQueueCreated");
+    expect(
+      queuesCreated.map(
+        (e) => e.payload.reservations.find((r) => r.battleUnitId === waiterId)?.reservedActionKind,
+      ),
+    ).toEqual(["EX", "EX"]);
+
+    expect(
+      events
+        .filter((e) => e.eventType === "ActionWaited" && e.sourceUnitId === waiterId)
+        .map((e) => e.payload),
+    ).toEqual([
+      {
+        actorUnitId: waiterId,
+        waitReason: "EX_UNUSABLE",
+        consumedResource: "AP",
+        consumedAmount: 1,
+      },
+      {
+        actorUnitId: waiterId,
+        waitReason: "EX_UNUSABLE",
+        consumedResource: "EX_GAUGE",
+        consumedAmount: 10,
+      },
+    ]);
+
+    const waiter = result.allyUnits.find((u) => u.battleUnitId === waiterId)!;
+    expect(waiter.currentAp).toBe(0);
+    expect(waiter.currentExtraGauge).toBe(0);
+  });
 
   it("UT-ACTION-PHASE-007 (Q-BTL-04/06_戦闘状態遷移.md 戦闘不能者の除去): a reservation for a unit defeated earlier in the same queue is skipped, not processed, and emits ActionReservationRemoved", () => {
     const attackerDefId = createUnitDefinitionId("UNIT_ATTACKER");

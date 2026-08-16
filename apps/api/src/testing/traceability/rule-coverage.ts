@@ -426,9 +426,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACT-03-005",
       "UT-R-ACT-03-007",
       // Issue #517: 待機の消費リソースが待機の理由ではなくAP残量で決まること
-      // （気絶・凍結・EX使用不可・使用可能なASなしの4経路が同じ二択に従うこと）。
+      // （気絶・凍結・EX使用不可・使用可能なASなしの4経路が、AP1以上ならAP1・
+      // AP 0ならEXゲージ全量という同じ二択の両側で一致すること）。
       "UT-R-ACT-03-008",
       "UT-ACTION-PHASE-019",
+      "UT-ACTION-PHASE-020",
       "UT-R-PS-05-001",
       "UT-R-PS-05-002",
       "PROP-ACT-03-001",
