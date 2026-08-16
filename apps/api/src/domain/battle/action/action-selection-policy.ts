@@ -159,10 +159,10 @@ export function selectAsCandidate(
 }
 
 /**
- * R-ACT-01 #5（EX予約）: EXはコスト（AP・クールタイム）判定を持たず（`R-ACT-03`
+ * R-ACT-01 #4（EX予約）: EXはコスト（AP・クールタイム）判定を持たず（`R-ACT-03`
  * 「EX: EXゲージ全量、APは消費しない」、予約時点でゲージは既に満タン確定）、
- * 対象候補の有無だけが発動可否を左右する（`Q-BTL-06`「EXを使用できない場合は
- * EXゲージを全量消費して待機する」）。
+ * 対象候補の有無だけが発動可否を左右する。使用できない場合の待機で何を消費するか
+ * （AP残量による二択、`Q-BTL-06`）は呼び出し側の`action-phase-resolver.ts`が決める。
  */
 export function isExUsable(
   exSkill: SkillDefinition,

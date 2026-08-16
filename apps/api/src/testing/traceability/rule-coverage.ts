@@ -326,6 +326,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ORD-01-006",
       "UT-R-ORD-01-007",
       "UT-R-ORD-01-009",
+      // Issue #517: EXゲージ満タン側で適格性を保ったままAPだけ0にされたAS予約は
+      // 除去されない。この「AP 0のまま行動機会が回ってくる」唯一の抜け穴を固定する。
+      "UT-ACTION-PHASE-019",
       "SCN-BTL-023",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
@@ -422,6 +425,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ACT-03-004",
       "UT-R-ACT-03-005",
       "UT-R-ACT-03-007",
+      // Issue #517: 待機の消費リソースが待機の理由ではなくAP残量で決まること
+      // （気絶・凍結・EX使用不可・使用可能なASなしの4経路が、AP1以上ならAP1・
+      // AP 0ならEXゲージ全量という同じ二択の両側で一致すること）。
+      "UT-R-ACT-03-008",
+      "UT-ACTION-PHASE-019",
+      "UT-ACTION-PHASE-020",
       "UT-R-PS-05-001",
       "UT-R-PS-05-002",
       "PROP-ACT-03-001",
