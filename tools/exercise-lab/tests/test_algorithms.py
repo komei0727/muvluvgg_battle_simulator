@@ -198,13 +198,17 @@ def test_the_best_so_far_curve_never_goes_down(tmp_path):
     )
 
 
-def test_the_final_selection_reports_the_requested_number_of_formations(tmp_path):
+def test_the_final_selection_reports_at_most_the_requested_number_of_distinct_formations(tmp_path):
+    """返すのは「別物である上位k件」。同じ結果になる編成は畳むので k を下回り得る。"""
     config = make_config(tmp_path, topK=3)
 
     result = optimize(IteratedLocalSearch(), make_context(config, ArenaClient()))
 
-    assert len(result.top) == 3
-    assert len({entry.candidate.canonical_key() for entry in result.top}) == 3
+    assert 0 < len(result.top) <= 3
+    keys = [entry.candidate.canonical_key() for entry in result.top]
+    behaviours = [tuple(entry.record.scores_at(entry.sample_count)) for entry in result.top]
+    assert len(set(keys)) == len(keys)
+    assert len(set(behaviours)) == len(behaviours)
 
 
 def test_the_final_selection_uses_samples_the_search_never_saw(tmp_path):

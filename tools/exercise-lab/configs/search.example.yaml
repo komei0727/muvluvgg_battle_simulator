@@ -30,7 +30,8 @@ unitPool:
   - UNIT_MAO_COMMITTEE
   - UNIT_AOI_ELEGANT
 
-# 探索するメモリー。並び順は発動解決順（R-MEM-02）に効くため、順序も探索変数になる。
+# 探索するメモリー。並び順は探索しない — 発動解決順（R-MEM-02）は並びで決まるが、
+# 現行のメモリー効果はどの順で解決してもスコアが動かないため、どれを入れるかだけを探す。
 memoryPool:
   - MEM_GIDDY_CIRCUMSTANCES
   - MEM_YOUR_SECRET_I_WANT_TO_KNOW
@@ -102,7 +103,7 @@ knownFormations:
 #       position: { column: 0, row: FRONT }
 #   # 必ず入れるが配置は探索させる
 #   requiredUnits: [UNIT_ELENA_MOODMAKER]
-#   # 必ず入れるメモリー。並び順は固定しない（順序は探索変数のまま）
+#   # 必ず入れるメモリー
 #   requiredMemories: [MEM_HEART_COLOR]
 
 # 評価スケジュール。段ごとの値は累計試行数で、上位半分だけが次の段へ進む。
@@ -123,13 +124,12 @@ knownFormations:
 #   unitSwap: 0.18
 #   unitAdd: 0.06
 #   unitRemove: 0.02
-#   placementMove: 0.15
-#   placementSwap: 0.15
-#   rowFlip: 0.08
-#   memorySwap: 0.15
+#   placementMove: 0.17
+#   placementSwap: 0.17
+#   rowFlip: 0.09
+#   memorySwap: 0.19
 #   memoryAdd: 0.07
 #   memoryRemove: 0.05
-#   memoryReorder: 0.09
 
 # 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
 # 省略したキーは 1 として送る（R-ENH-01）。

@@ -120,13 +120,12 @@ class OperatorWeightsSpec(_Spec):
     # 人数を動かす手。無いと編成人数が初期値から変わらず、探索空間から次元が落ちる。
     unit_add: float = Field(default=0.06, alias="unitAdd", ge=0.0)
     unit_remove: float = Field(default=0.02, alias="unitRemove", ge=0.0)
-    placement_move: float = Field(default=0.15, alias="placementMove", ge=0.0)
-    placement_swap: float = Field(default=0.15, alias="placementSwap", ge=0.0)
-    row_flip: float = Field(default=0.08, alias="rowFlip", ge=0.0)
-    memory_swap: float = Field(default=0.15, alias="memorySwap", ge=0.0)
+    placement_move: float = Field(default=0.17, alias="placementMove", ge=0.0)
+    placement_swap: float = Field(default=0.17, alias="placementSwap", ge=0.0)
+    row_flip: float = Field(default=0.09, alias="rowFlip", ge=0.0)
+    memory_swap: float = Field(default=0.19, alias="memorySwap", ge=0.0)
     memory_add: float = Field(default=0.07, alias="memoryAdd", ge=0.0)
     memory_remove: float = Field(default=0.05, alias="memoryRemove", ge=0.0)
-    memory_reorder: float = Field(default=0.09, alias="memoryReorder", ge=0.0)
 
     def as_dict(self) -> dict[str, float]:
         return {
@@ -139,7 +138,6 @@ class OperatorWeightsSpec(_Spec):
             "memory_swap": self.memory_swap,
             "memory_add": self.memory_add,
             "memory_remove": self.memory_remove,
-            "memory_reorder": self.memory_reorder,
         }
 
     def normalized(self) -> dict[str, float]:

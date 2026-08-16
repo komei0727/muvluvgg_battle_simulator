@@ -77,12 +77,33 @@ def test_canonical_key_separates_different_placements_of_the_same_units():
     )
 
 
-def test_canonical_key_separates_different_memory_orders():
-    """メモリーの並び順は発動解決順（R-MEM-02）に効くため、別の候補として扱う。"""
+def test_canonical_key_ignores_the_order_memories_are_listed_in():
+    """メモリーの並び順はスコアを変えないため、同じ編成として扱う。
+
+    発動解決順（R-MEM-02）そのものは並びで決まるが、現行のメモリー効果はどの順で
+    解決してもスコアが動かない。別候補として数えると同じ編成へ何度も予算を払う。
+    """
     assert (
         candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_1", "MEM_2")).canonical_key()
-        != candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_2", "MEM_1")).canonical_key()
+        == candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_2", "MEM_1")).canonical_key()
     )
+
+
+def test_canonical_key_separates_different_memory_sets():
+    assert (
+        candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_1", "MEM_2")).canonical_key()
+        != candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_1", "MEM_3")).canonical_key()
+    )
+
+
+def test_repair_normalises_the_memory_order():
+    """送信JSONを1通りに定める。同じ編成が実行ごとに違う並びで出ると突き合わせにくい。"""
+    repaired = repair(
+        candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_3", "MEM_1", "MEM_2")),
+        constraints(),
+    )
+
+    assert repaired.memory_definition_ids == ("MEM_1", "MEM_2", "MEM_3")
 
 
 def test_repair_removes_duplicate_units_keeping_the_first():
@@ -205,18 +226,13 @@ def test_repair_keeps_required_memories_even_when_the_slots_are_full():
     assert "MEM_8" in repaired.memory_definition_ids
 
 
-def test_repair_does_not_pin_a_required_memory_to_a_slot():
-    """必須メモリーは「入っていること」だけを強制する。
-
-    並び順は発動解決順に効く探索変数なので、ここで位置まで固定すると探索空間から
-    順序が落ちる。すでに入っているなら位置は動かさない。
-    """
+def test_repair_keeps_a_required_memory_that_is_already_present():
     repaired = repair(
         candidate([("UNIT_A", 0, "FRONT")], memories=("MEM_1", "MEM_8", "MEM_2")),
         constraints(required_memories=("MEM_8",)),
     )
 
-    assert repaired.memory_definition_ids == ("MEM_1", "MEM_8", "MEM_2")
+    assert repaired.memory_definition_ids == ("MEM_1", "MEM_2", "MEM_8")
 
 
 def test_repair_rejects_a_candidate_that_cannot_hold_one_unit():

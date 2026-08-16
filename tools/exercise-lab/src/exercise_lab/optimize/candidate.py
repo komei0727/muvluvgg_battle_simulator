@@ -1,12 +1,15 @@
 """探索の遺伝子型と、制約を満たす形への矯正。
 
-遺伝子型は「6マスへのユニット割当」と「メモリーの順序付き部分集合」の2つを持つ。
-どちらも編成の結果を変える変数である——配置は行動順・対象順に効き（`06_戦闘状態遷移.md`
-キュー生成、`R-TGT-02`）、メモリーの並びは発動解決順（`R-MEM-02`）に効く。
+遺伝子型は「6マスへのユニット割当」と「メモリーの部分集合」の2つを持つ。
 
-一方でユニットを**どの順に書くか**は結果に影響しない。同速時の行動順は
-「味方・敵・前列・絶対左列」で決まり、対象順も距離と配置で決まるため、
-配置が同じなら列挙順が違っても同じ編成である。正準キーはこの事実に依る。
+**どちらも並べる順は結果を変えない。** ユニットは同速時の行動順が
+「味方・敵・前列・絶対左列」で決まり、対象順も距離と配置で決まるため、配置が同じなら
+列挙順が違っても同じ編成である。メモリーは並びが発動解決順（`R-MEM-02`）を決めるものの、
+現行のメモリー効果はどの順で解決してもスコアが動かない。正準キーはこの2つに依っており、
+並べ替えただけの候補へ二重に予算を払わずに済む。
+
+メモリーの並びがスコアへ効くようになったら、順序を探索変数へ戻す必要がある——
+`canonical_key` の畳み込みと、並びを正規化している `repair` の両方が前提を持つ。
 
 このモジュールはAPIにもカタログにも依存しない。純粋な組合せだけを扱い、
 編成リクエストへの変換は `config.py` が持つ。
@@ -70,14 +73,14 @@ class Candidate:
     def canonical_key(self) -> str:
         """等価な編成を同一視する鍵。評価キャッシュと最終プールの重複排除で使う。
 
-        配置はマス順に正規化し、メモリーは並びのまま連ねる。ユニットの列挙順だけが
-        違う候補を別物として数えると、同じ編成に2度予算を使うことになる。
+        配置はマス順、メモリーはID順へ揃える。どちらの並びもスコアを変えないので、
+        並べ替えただけの候補を別物として数えると同じ編成に何度も予算を使うことになる。
         """
         squad = "|".join(
             f"{placement.cell.row}{placement.cell.column}={placement.unit_definition_id}"
             for placement in sorted(self.placements, key=_cell_index)
         )
-        return f"{squad}#{'>'.join(self.memory_definition_ids)}"
+        return f"{squad}#{'>'.join(sorted(self.memory_definition_ids))}"
 
 
 @dataclass(frozen=True)
@@ -92,7 +95,7 @@ class Constraints:
     fixed_placements: tuple[Placement, ...] = ()
     # 必ず編成へ入れるが、配置は探索させるもの。
     required_units: tuple[str, ...] = ()
-    # 必ず編成へ入れるメモリー。並び順は固定しない（順序は探索変数のままにする）。
+    # 必ず編成へ入れるメモリー。
     required_memories: tuple[str, ...] = ()
     max_units: int = MAX_UNITS
     max_memories: int = MAX_MEMORIES
@@ -257,8 +260,9 @@ def _repair_memories(memories: Sequence[str], constraints: Constraints) -> tuple
     optional = [memory for memory in deduped if memory not in required]
     room = max(0, constraints.max_memories - len(required))
     kept = required.union(optional[:room])
-    # 残す順は入力のまま。必須は位置を固定せず、足りないぶんだけ末尾へ足す。
-    return tuple([*(memory for memory in deduped if memory in kept), *missing])
+    # 並びはID順へ揃える。順序はスコアを変えないので、同じ編成から常に同じ送信JSONが
+    # 出るようにしておく（実行ごとに並びが揺れると評価ログと突き合わせにくい）。
+    return tuple(sorted([*(memory for memory in deduped if memory in kept), *missing]))
 
 
 def constraint_violations(candidate: Candidate, constraints: Constraints) -> list[str]:

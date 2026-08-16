@@ -130,9 +130,7 @@ def test_row_flip_keeps_the_column():
     assert all(moved[unit].column == original[unit].column for unit in changed)
 
 
-@pytest.mark.parametrize(
-    "operator", ["memory_swap", "memory_add", "memory_remove", "memory_reorder"]
-)
+@pytest.mark.parametrize("operator", ["memory_swap", "memory_add", "memory_remove"])
 def test_memory_operators_keep_the_placements(operator):
     space = neighborhood(weights=only(operator))
     rng = random.Random(8)
@@ -140,18 +138,22 @@ def test_memory_operators_keep_the_placements(operator):
     mutated = space.mutate(SQUAD, rng)
 
     assert mutated.placements == SQUAD.placements
-    assert mutated.memory_definition_ids != SQUAD.memory_definition_ids
+    assert set(mutated.memory_definition_ids) != set(SQUAD.memory_definition_ids)
 
 
-def test_memory_reorder_keeps_the_same_memories():
-    """並び順だけを動かす。発動解決順（R-MEM-02）が探索変数であることの現れ。"""
-    space = neighborhood(weights=only("memory_reorder"))
+def test_no_operator_only_reshuffles_the_memories():
+    """並べ替えだけの手を持たない。順序はスコアを変えないので探索する意味がない。
+
+    仮に持たせても `repair` がID順へ戻すため、変異が「何も変わらなかった」扱いになり、
+    近傍生成の試行を空振りさせるだけになる。
+    """
+    space = neighborhood()
     rng = random.Random(9)
 
-    mutated = space.mutate(SQUAD, rng)
-
-    assert sorted(mutated.memory_definition_ids) == sorted(SQUAD.memory_definition_ids)
-    assert mutated.memory_definition_ids != SQUAD.memory_definition_ids
+    for _ in range(200):
+        mutated = space.mutate(SQUAD, rng)
+        if mutated.placements == SQUAD.placements:
+            assert set(mutated.memory_definition_ids) != set(SQUAD.memory_definition_ids)
 
 
 def test_memory_add_is_skipped_when_every_slot_is_full():

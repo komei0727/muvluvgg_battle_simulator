@@ -166,6 +166,19 @@ def test_equivalent_formations_share_one_evaluation(config):
     assert len(client.requests) == before
 
 
+def test_a_different_memory_order_is_the_same_formation(config):
+    """メモリーの並びはスコアを変えないので、並べ替えへ予算を払わない。"""
+    client = FakeClient()
+    evaluator = make_evaluator(config, client)
+    placements = make_candidate("UNIT_A").placements
+
+    evaluator.ensure([Candidate(placements, ("MEM_1", "MEM_2"))], 8)
+    before = len(client.requests)
+    evaluator.ensure([Candidate(placements, ("MEM_2", "MEM_1"))], 8)
+
+    assert len(client.requests) == before
+
+
 def test_requests_are_split_by_the_candidate_limit(config):
     client = FakeClient()
     evaluator = make_evaluator(config, client, max_candidates=2, max_total_runs=300)

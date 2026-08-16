@@ -125,7 +125,12 @@ run_index,chunk_index,chunk_seed,run_index_in_chunk,score,break_count,completed_
 ## 最適編成を探す（`lab optimize`）
 
 候補プールを与えると、その中からスコアの高い編成を探して上位5件を返す。探索変数は
-**ユニットの選抜・6マスへの配置・メモリーの選抜と並び順**の3つである。
+**ユニットの選抜・6マスへの配置・メモリーの選抜**の3つである。
+
+**メモリーの並び順は探索しない。** 発動解決順（R-MEM-02）は並びで決まるが、現行の
+メモリー効果はどの順で解決してもスコアが動かない。並べ替えただけの編成は同じものとして
+扱い、送信時はID順へ揃える。並びがスコアへ効くようになったら、順序を探索変数へ戻す
+必要がある（`optimize/candidate.py` の冒頭にその前提を書いてある）。
 
 ```bash
 uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
@@ -326,8 +331,8 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 組み合わせ最適化が主な目的で、ユニットの入れ替えは未知の構成を適度に探すための手だからである。
 未知のユニット組み合わせをもっと掘りたいなら `unitSwap` / `unitAdd` を上げる。
 
-`constraints.requiredMemories` は「入っていること」だけを強制し、並び順は固定しない。
-順序は発動解決順（R-MEM-02）に効く探索変数なので、位置まで固定すると探索空間から落ちる。
+`constraints.requiredMemories` は「入っていること」を強制する。並び順は探索対象では
+ないので、指定しても位置は選べない。
 
 ユニットとメモリーのIDは `lab units` / `lab memories` で引ける（「IDを引く」参照）。
 未知IDと編成プール違反は、1試行も投げる前にカタログと突き合わせて検出する。

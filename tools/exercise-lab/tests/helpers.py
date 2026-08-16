@@ -106,10 +106,8 @@ class ArenaClient:
         strength = 1000
         strength += 200 * len(units & set(IDEAL_UNITS))
         strength += 120 * sum(1 for unit in IDEAL_FRONT if rows.get(unit) == "FRONT")
+        # 並び順は見ない。現行のメモリー効果はどの順で解決してもスコアが動かない。
         strength += 90 * len(set(memories) & set(IDEAL_MEMORIES))
-        # 並び順も結果に効く（R-MEM-02 の発動解決順を模す）
-        if memories[: len(IDEAL_MEMORIES)] == IDEAL_MEMORIES:
-            strength += 60
         # 編成ごとのわずかな差。実エンジンでは、狙いの条件が同点でも構成が違えば結果は
         # 割れる。ここを入れないと「強さが同じなら試行ごとのスコアまで完全一致」になり、
         # 挙動が同じ編成を畳む処理が、別物まで畳んでしまう。
@@ -130,11 +128,12 @@ def _identity_offset(formation: dict[str, Any]) -> int:
     """編成そのものから決まる小さな差。`hash` を使わないのはプロセス間で変わるため。"""
     identity = "|".join(
         [
-            *(
+            *sorted(
                 f"{unit['position']['row']}{unit['position']['column']}={unit['unitDefinitionId']}"
                 for unit in formation["units"]
             ),
-            *formation["memoryDefinitionIds"],
+            # 並べ替えただけで別編成に見えないよう揃える（順序はスコアを変えない）
+            *sorted(formation["memoryDefinitionIds"]),
         ]
     )
     return zlib.crc32(identity.encode("utf-8")) % 20

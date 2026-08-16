@@ -91,9 +91,9 @@ class Neighborhood:
         return repair(candidate, self.constraints)
 
     def crossover(self, first: Candidate, second: Candidate, rng: Random) -> Candidate:
-        """片方のユニット構成と、もう片方のメモリー列を組み合わせる。
+        """片方のユニット構成と、もう片方のメモリー構成を組み合わせる。
 
-        配置とメモリーは別々の部分問題として動くので、良い編成と良いメモリー列が
+        配置とメモリーは別々の部分問題として動くので、良い配置と良いメモリーの組が
         別のエリートに分かれて出たときに、それを1つへまとめる手を用意する。
         """
         del rng
@@ -234,7 +234,7 @@ def _row_flip(space: Neighborhood, candidate: Candidate, rng: Random) -> Candida
 
 
 def _memory_swap(space: Neighborhood, candidate: Candidate, rng: Random) -> Candidate:
-    """1枠を未使用のメモリーへ差し替える。並び順は変えない。"""
+    """1枠を未使用のメモリーへ差し替える。"""
     slots = _free_memory_slots(space, candidate)
     unused = space._unused_memories(candidate)
     if not slots or not unused:
@@ -248,9 +248,8 @@ def _memory_add(space: Neighborhood, candidate: Candidate, rng: Random) -> Candi
     unused = space._unused_memories(candidate)
     if not unused or len(candidate.memory_definition_ids) >= space.constraints.max_memories:
         return candidate
-    memories = list(candidate.memory_definition_ids)
-    memories.insert(rng.randint(0, len(memories)), rng.choice(unused))
-    return Candidate(candidate.placements, tuple(memories))
+    # 差し込む位置は選ばない。並びはスコアを変えず、`repair` がID順へ揃える。
+    return Candidate(candidate.placements, (*candidate.memory_definition_ids, rng.choice(unused)))
 
 
 def _memory_remove(space: Neighborhood, candidate: Candidate, rng: Random) -> Candidate:
@@ -259,17 +258,6 @@ def _memory_remove(space: Neighborhood, candidate: Candidate, rng: Random) -> Ca
         return candidate
     memories = list(candidate.memory_definition_ids)
     del memories[rng.choice(slots)]
-    return Candidate(candidate.placements, tuple(memories))
-
-
-def _memory_reorder(space: Neighborhood, candidate: Candidate, rng: Random) -> Candidate:
-    """2枠を入れ替える。中身は変えずに発動解決順（R-MEM-02）だけを動かす。"""
-    del space
-    memories = list(candidate.memory_definition_ids)
-    if len(memories) < 2:
-        return candidate
-    first, second = rng.sample(range(len(memories)), 2)
-    memories[first], memories[second] = memories[second], memories[first]
     return Candidate(candidate.placements, tuple(memories))
 
 
@@ -283,7 +271,6 @@ _OPERATORS = {
     "memory_swap": _memory_swap,
     "memory_add": _memory_add,
     "memory_remove": _memory_remove,
-    "memory_reorder": _memory_reorder,
 }
 
 
