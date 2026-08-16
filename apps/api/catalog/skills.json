@@ -8624,6 +8624,7 @@
         },
         {
           "targetBindingId": "TGT_ALLIES_EXCEPT_SELF",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ALLY",
@@ -9040,6 +9041,7 @@
         },
         {
           "targetBindingId": "TGT_SHIELD_ALLY",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ALLY",
@@ -10422,6 +10424,7 @@
         },
         {
           "targetBindingId": "TGT_OTHER",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -10851,6 +10854,7 @@
         },
         {
           "targetBindingId": "TGT_LOW_HP_ENEMIES",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -12887,6 +12891,7 @@
         },
         {
           "targetBindingId": "TGT_OTHERS",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -15635,6 +15640,7 @@
         },
         {
           "targetBindingId": "TGT_ALLIES",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ALLY",

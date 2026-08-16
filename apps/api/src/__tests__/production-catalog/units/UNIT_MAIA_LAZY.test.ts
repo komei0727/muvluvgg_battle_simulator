@@ -251,6 +251,43 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_MAIA_LAZY_AS1",
+    intent: "同上: 自身以外の味方が居なければ、シールドの対象が0件になるだけで攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MAIA_LAZY_AS1" },
+    board: { allies: [], enemies: SINGLE_BACK_ENEMY },
+    precedingActions: [{ effectActionDefinitionId: "ACT_MAIA_LAZY_EX_ATK_UP", target: "ENEMY" }],
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MAIA_LAZY_AS1_DAMAGE",
+          targets: ["enemy:back"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:back": -780,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_MAIA_LAZY_AS1",
+          remaining: 3,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_MAIA_LAZY (【温厚篤実な面倒くさがり】夕凪舞亜)", () => {

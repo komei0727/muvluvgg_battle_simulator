@@ -637,6 +637,23 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_EX",
+    intent: "同上: 自身以外の味方が居なくても、敵単体への攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SUIRAN_CHAOS_EX", actionType: "EX" },
+    board: { allies: [] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SUIRAN_CHAOS_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -1590,
+      },
+    },
+  },
 ];
 
 describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠蘭)", () => {

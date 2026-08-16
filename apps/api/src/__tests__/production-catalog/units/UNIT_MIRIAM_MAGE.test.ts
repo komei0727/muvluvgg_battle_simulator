@@ -283,6 +283,38 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: PS1_COUNTER_AT_TWO,
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_MIRIAM_MAGE_EX",
+    intent: "同上: HPが30%以下の敵が居なくても、敵全体への攻撃とデバフは成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIRIAM_MAGE_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MIRIAM_MAGE_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -468,
+      },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
+          magnitude: 120,
+          timeLimit: {
+            unit: "ACTION",
+            count: 2,
+          },
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_MIRIAM_MAGE (【元気印の大魔導士】ミリアム・ヘイワード)", () => {

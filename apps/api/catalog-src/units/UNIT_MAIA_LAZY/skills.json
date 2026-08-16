@@ -109,6 +109,7 @@
         },
         {
           "targetBindingId": "TGT_ALLIES_EXCEPT_SELF",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ALLY",

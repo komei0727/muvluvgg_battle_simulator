@@ -416,6 +416,45 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_MAO_COMMITTEE_AS1",
+    intent: "同上: 自身以外の味方が居なくても、HPを支払って敵横一列への攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MAO_COMMITTEE_AS1" },
+    board: { allies: [], subject: { state: { currentHp: 10000 } } },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_HP_COST",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": -2500,
+        "enemy:front": -5000,
+        "enemy:left": -5000,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 /** 敵役が撃つ最小の単体攻撃AS（実Catalogとは無関係）。 */
