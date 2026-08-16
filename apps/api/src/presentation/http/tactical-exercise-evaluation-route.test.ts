@@ -124,6 +124,12 @@ describe("POST /api/v1/tactical-exercise-evaluations", () => {
     const first = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
     const second = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
 
+    // ステータスと中身の有無を見ないと、両方がエラー応答でも「同じ本文」で通ってしまう。
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(
+      first.json<EvaluateTacticalExerciseCandidatesResult>().candidates[0]?.scores,
+    ).toHaveLength(2);
     expect(second.json()).toEqual(first.json());
   });
 

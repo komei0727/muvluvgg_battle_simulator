@@ -136,6 +136,10 @@ describe("HTTP -> Worker -> UseCase -> Response for a tactical exercise evaluati
     const second = await server.inject({ method: "POST", url: PATH, payload });
 
     expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(first.json<TacticalExerciseEvaluationResponseBody>().candidates[0]?.scores).toHaveLength(
+      2,
+    );
     expect(second.json()).toEqual(first.json());
   });
 
@@ -148,15 +152,23 @@ describe("HTTP -> Worker -> UseCase -> Response for a tactical exercise evaluati
     };
 
     const generated = await server.inject({ method: "POST", url: PATH, payload });
+    // エラー応答は`seed`も`candidates`も持たないため、ステータスを見ないと
+    // 「undefined同士が一致した」だけで生成・再現の経路が壊れていても通ってしまう。
+    expect(generated.statusCode).toBe(200);
     const seed = generated.json<TacticalExerciseEvaluationResponseBody>().seed;
+    expect(typeof seed).toBe("string");
+    expect(seed.length).toBeGreaterThan(0);
+
     const replayed = await server.inject({
       method: "POST",
       url: PATH,
       payload: { ...payload, seed },
     });
 
-    expect(seed).not.toBe("");
-    expect(replayed.json<TacticalExerciseEvaluationResponseBody>().candidates).toEqual(
+    expect(replayed.statusCode).toBe(200);
+    const replayedCandidates = replayed.json<TacticalExerciseEvaluationResponseBody>().candidates;
+    expect(replayedCandidates.length).toBeGreaterThan(0);
+    expect(replayedCandidates).toEqual(
       generated.json<TacticalExerciseEvaluationResponseBody>().candidates,
     );
   });
