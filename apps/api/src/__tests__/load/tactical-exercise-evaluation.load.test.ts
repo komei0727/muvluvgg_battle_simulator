@@ -17,8 +17,12 @@ import {
  *
  * `EVALUATION_MAX_TOTAL_RUNS`の既定値は「`SIMULATION_TIMEOUT_MS`（30秒）の7割に
  * 収まる試行数」として実測から決めた。その前提が崩れれば上限が実態と合わなくなる
- * ——上限まで要求したリクエストが常に部分結果になる——ため、最大サイズの
- * リクエストが期限内に完走することをここで固定し、1試行あたりの実測値を出力する。
+ * ——上限まで要求したリクエストが常に部分結果になる——ため、上限いっぱいのリクエストが
+ * 期限内に完走することをここで固定する。
+ *
+ * 判定は**全演習敵のうち最も遅いもの**で行う。演習敵ごとに1試行あたり50〜70msの幅が
+ * あり、特定の1体（IDソート順の末尾など）を選ぶと最悪ケースを外す。演習敵が追加され
+ * たときも自動的に測定対象へ入る。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const SIMULATION_TIMEOUT_MS = 30_000;
@@ -27,10 +31,9 @@ const PARTY_SIZE = 5;
 const CANDIDATE_COUNT = 4;
 
 describe("tactical exercise evaluation load baseline", () => {
-  it("LOAD-EVAL-001: a request at EVALUATION_MAX_TOTAL_RUNS completes every run inside the deadline budget the limit was derived from, and reports a per-run baseline", () => {
+  it("LOAD-EVAL-001: a request at EVALUATION_MAX_TOTAL_RUNS completes every run inside the deadline budget the limit was derived from — for the slowest exercise enemy, not an arbitrary one", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const allyParty = allProductionUnitIds(CATALOG_DIR).slice(0, PARTY_SIZE);
-    // 最も遅い敵で上限を決めているため、baseline も演習敵をひととおり跨いで測る。
     const enemyIds = allExerciseEnemyProductionUnitIds(CATALOG_DIR);
     expect(enemyIds.length).toBeGreaterThan(0);
 
@@ -47,6 +50,7 @@ describe("tactical exercise evaluation load baseline", () => {
     };
 
     const runsPerCandidate = Math.floor(DEFAULT_EVALUATION_LIMITS.maxTotalRuns / CANDIDATE_COUNT);
+    const requestedRuns = CANDIDATE_COUNT * runsPerCandidate;
     const useCase = new EvaluateTacticalExerciseCandidatesUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new UuidBattleIdGenerator(),
@@ -55,51 +59,66 @@ describe("tactical exercise evaluation load baseline", () => {
       limits: DEFAULT_EVALUATION_LIMITS,
     });
 
-    const slowestEnemyId = enemyIds[enemyIds.length - 1]!;
-    const startedAt = Date.now();
-    const result = useCase.execute(
-      {
-        enemyFormation: {
-          slots: [
-            {
-              unitDefinitionId: createUnitDefinitionId(slowestEnemyId),
-              position: { column: 0, row: "FRONT" },
-            },
-          ],
-          memoryDefinitionIds: [],
+    const measurements = enemyIds.map((enemyUnitDefinitionId) => {
+      const startedAt = Date.now();
+      const result = useCase.execute(
+        {
+          enemyFormation: {
+            slots: [
+              {
+                unitDefinitionId: createUnitDefinitionId(enemyUnitDefinitionId),
+                position: { column: 0, row: "FRONT" },
+              },
+            ],
+            memoryDefinitionIds: [],
+          },
+          candidates: Array.from({ length: CANDIDATE_COUNT }, () => ({ allyFormation })),
+          runsPerCandidate,
+          seed: `load-eval-001-${enemyUnitDefinitionId}`,
         },
-        candidates: Array.from({ length: CANDIDATE_COUNT }, () => ({ allyFormation })),
-        runsPerCandidate,
-        seed: "load-eval-001",
-      },
-      {
-        requestId: "load-eval-001",
-        deadlineEpochMs: startedAt + SIMULATION_TIMEOUT_MS,
-      },
-    );
-    const elapsedMs = Date.now() - startedAt;
+        {
+          requestId: "load-eval-001",
+          // 期限は判定に使う予算より広く取る。予算超過を「部分結果になった」ではなく
+          // 「所要時間が予算を超えた」として観測するため（部分結果だと超過幅が分からない）。
+          deadlineEpochMs: startedAt + SIMULATION_TIMEOUT_MS * 4,
+        },
+      );
+      const elapsedMs = Date.now() - startedAt;
+      const completedRuns = result.candidates.reduce(
+        (total, candidate) => total + candidate.completedRuns,
+        0,
+      );
+      return { enemyUnitDefinitionId, elapsedMs, completedRuns };
+    });
 
-    const completedRuns = result.candidates.reduce(
-      (total, candidate) => total + candidate.completedRuns,
-      0,
+    const budgetMs = SIMULATION_TIMEOUT_MS * DEADLINE_BUDGET_RATIO;
+    const slowest = measurements.reduce((worst, entry) =>
+      entry.elapsedMs > worst.elapsedMs ? entry : worst,
     );
-    const requestedRuns = CANDIDATE_COUNT * runsPerCandidate;
 
     console.log(
       JSON.stringify({
         baseline: "LOAD-EVAL-001",
-        enemyUnitDefinitionId: slowestEnemyId,
         candidateCount: CANDIDATE_COUNT,
         runsPerCandidate,
         requestedRuns,
-        completedRuns,
-        elapsedMs,
-        msPerRun: Number((elapsedMs / Math.max(completedRuns, 1)).toFixed(2)),
+        budgetMs,
+        slowestEnemyUnitDefinitionId: slowest.enemyUnitDefinitionId,
+        perEnemy: measurements.map((entry) => ({
+          ...entry,
+          msPerRun: Number((entry.elapsedMs / Math.max(entry.completedRuns, 1)).toFixed(2)),
+        })),
       }),
     );
 
-    // 上限の根拠そのもの: 上限いっぱいの要求が、期限のうち上限導出に使った割合で完走する。
-    expect(completedRuns).toBe(requestedRuns);
-    expect(elapsedMs).toBeLessThan(SIMULATION_TIMEOUT_MS * DEADLINE_BUDGET_RATIO);
+    for (const entry of measurements) {
+      expect(entry.completedRuns, `${entry.enemyUnitDefinitionId} completed every run`).toBe(
+        requestedRuns,
+      );
+    }
+    // 上限の根拠そのもの: 最悪ケースでも、上限導出に使った期限の割合に収まる。
+    expect(slowest.elapsedMs, `slowest enemy ${slowest.enemyUnitDefinitionId}`).toBeLessThan(
+      budgetMs,
+    );
   });
 });
