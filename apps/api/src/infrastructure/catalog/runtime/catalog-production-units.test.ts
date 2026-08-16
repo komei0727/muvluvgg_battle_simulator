@@ -486,7 +486,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // Unit・Memoryの構成と対象選択そのものは変えていない。差分は `skills.json` だけ。
     // `2026-08-16.2` は同じ印を行・列filter由来の補助binding 6件へ付けた（Issue #495）。
     // 後列・同列・敵前列といった範囲が空でもスキルを発動不能にしないためのもの。
-    expect(catalog.catalogRevision).toBe("2026-08-16.2");
+    // あわせて`SKL_LYDIA_GENIUS_EX`の代替攻撃を、selector単体の`fallback`から
+    // 両範囲の空を見るBRANCHへ移し、威力100の`ACT_LYDIA_GENIUS_EX_DAMAGE_FALLBACK`を
+    // 追加した（原文の「上記の対象範囲に敵が存在しない場合」に合わせる是正）。
+    // `2026-08-16.3` は除外filter由来の補助binding 6件へ同じ印を付けた（Issue #495）。
+    // 「自身以外の味方」「対象を除く敵」のように条件で絞った先が空になる場合が対象で、
+    // `SKL_ELENA_MOODMAKER_AS1`だけは原文が「自身以外の味方が生存していない場合は
+    // 発動しない」と定めるため必須のまま据え置いている。
+    expect(catalog.catalogRevision).toBe("2026-08-16.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

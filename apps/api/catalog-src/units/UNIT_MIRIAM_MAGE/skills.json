@@ -12,6 +12,7 @@
         },
         {
           "targetBindingId": "TGT_LOW_HP_ENEMIES",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",

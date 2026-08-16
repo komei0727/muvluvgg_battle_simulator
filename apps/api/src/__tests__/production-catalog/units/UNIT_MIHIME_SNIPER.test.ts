@@ -343,6 +343,70 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_MIHIME_SNIPER_AS1",
+    intent: "同上: 敵が1体だけで「もう1体」が居なくても、最もHP割合の低い敵への攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIHIME_SNIPER_AS1" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_DAMAGE1",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN1",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -741,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
+          magnitude: -35,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN1",
+          magnitude: -35,
+          timeLimit: {
+            unit: "ACTION",
+            count: 1,
+          },
+        },
+      ],
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_MIHIME_SNIPER_AS1",
+          remaining: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_MIHIME_SNIPER (【稀代の狙撃手】珠瀬壬姫)", () => {

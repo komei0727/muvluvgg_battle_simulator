@@ -408,6 +408,40 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_SAYA_BUNNY_EX",
+    intent:
+      "同上: 敵が1体だけで「対象を除く敵全体」が居なくても、対象への攻撃と自身への効果は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SAYA_BUNNY_EX", actionType: "EX" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_EX_MARKER",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_EX_CD_RESET",
+          targets: ["ally:subject"],
+          resultKind: "SKIPPED",
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -1696,
+      },
+      markers: [
+        {
+          unitId: "ally:subject",
+          markerId: "MARKER_GOOD_LUCK",
+          stackCount: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_SAYA_BUNNY (【発情バニー】紫雲沙耶)", () => {

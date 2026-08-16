@@ -12,6 +12,7 @@
         },
         {
           "targetBindingId": "TGT_ALLIES",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ALLY",

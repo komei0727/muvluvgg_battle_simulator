@@ -83,6 +83,7 @@
         },
         {
           "targetBindingId": "TGT_SHIELD_ALLY",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ALLY",

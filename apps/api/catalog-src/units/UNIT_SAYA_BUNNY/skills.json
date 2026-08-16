@@ -12,6 +12,7 @@
         },
         {
           "targetBindingId": "TGT_OTHERS",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
