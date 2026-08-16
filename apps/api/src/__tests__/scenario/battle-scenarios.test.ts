@@ -1885,5 +1885,40 @@ describe("battle scenarios (harness)", () => {
       expect(summary.breaks).toHaveLength(summary.breakCount);
       expect(summary.totalScore).toBe(detailed.totalScore);
     });
+
+    it("IT-UNIT-SUMMARY-001 (10_API設計.md「集計セマンティクス」/ R-TEX-02 #2): in an exercise that breaks the enemy repeatedly, the allies' damageDealt adds up to the whole score because the overkill discarded at each break is counted", () => {
+      const result = runExerciseScenario({
+        catalog: exerciseCatalog(100),
+        command: tacticalExerciseCommand(),
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+        battleIds: ["B_EXERCISE"],
+      });
+
+      assertBattleInvariants(result);
+
+      // 前提: ブレイクが起き、実際にオーバーキルが破棄されている。これが無いと
+      // 以下の一致は「破棄分を含めている」ことの証跡にならない。
+      expect(result.breakCount).toBeGreaterThan(0);
+      const applied = result.events
+        .filter((event) => event.type === "DAMAGE_APPLIED")
+        .map(
+          (event) =>
+            event.details as { readonly hitPointDamage: number; readonly discardedDamage: number },
+        );
+      const discarded = applied.reduce((sum, details) => sum + details.discardedDamage, 0);
+      expect(discarded).toBeGreaterThan(0);
+
+      const dealtByAllies = result.unitSummaries
+        .filter((summary) => summary.side === "ALLY")
+        .reduce((sum, summary) => sum + summary.damageDealt, 0);
+      const enemy = result.unitSummaries.find((summary) => summary.side === "ENEMY")!;
+
+      // 与ダメージの総和＝スコア。R-TEX-02 #2の計上量とまったく同じ量を数えている。
+      expect(dealtByAllies).toBe(result.totalScore);
+      expect(enemy.damageTaken).toBe(result.totalScore);
+      // 実HP減少量だけを数えていた頃の値との差が、まさに破棄されたオーバーキルである。
+      const hpReduced = applied.reduce((sum, details) => sum + details.hitPointDamage, 0);
+      expect(dealtByAllies - hpReduced).toBe(discarded);
+    });
   });
 });
