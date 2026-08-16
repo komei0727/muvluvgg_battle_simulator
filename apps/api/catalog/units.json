@@ -194,7 +194,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
-    "levelGrowth": { "hp": 217, "attack": 212, "defense": 94, "actionSpeed": 2 },
+    "levelGrowth": { "hp": 218, "attack": 212, "defense": 94, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_CHIYURU_MAZE_AS1", "SKL_CHIYURU_MAZE_AS2"],
     "passiveSkillDefinitionIds": ["SKL_CHIYURU_MAZE_PS1", "SKL_CHIYURU_MAZE_PS2"],
@@ -334,10 +334,10 @@
     "role": "PHYSICAL_ATTACKER",
     "positionAptitudes": ["FRONT"],
     "baseStats": {
-      "maximumHp": 27600,
-      "attack": 23672,
-      "defense": 11830,
-      "criticalRate": 0.2,
+      "maximumHp": 25546,
+      "attack": 21877,
+      "defense": 10950,
+      "criticalRate": 0.15,
       "actionSpeed": 796,
       "maximumAp": 4,
       "maximumPp": 4
@@ -622,10 +622,10 @@
     "role": "PHYSICAL_ATTACKER",
     "positionAptitudes": ["FRONT"],
     "baseStats": {
-      "maximumHp": 28884,
-      "attack": 21301,
-      "defense": 11610,
-      "criticalRate": 0.2,
+      "maximumHp": 26734,
+      "attack": 19721,
+      "defense": 10750,
+      "criticalRate": 0.15,
       "actionSpeed": 786,
       "maximumAp": 4,
       "maximumPp": 4
@@ -826,10 +826,10 @@
     "role": "PHYSICAL_ATTACKER",
     "positionAptitudes": ["FRONT"],
     "baseStats": {
-      "maximumHp": 28355,
-      "attack": 21130,
-      "defense": 12648,
-      "criticalRate": 0.2,
+      "maximumHp": 26152,
+      "attack": 19570,
+      "defense": 11698,
+      "criticalRate": 0.15,
       "actionSpeed": 680,
       "maximumAp": 4,
       "maximumPp": 4

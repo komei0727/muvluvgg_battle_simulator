@@ -5,10 +5,10 @@
   "role": "PHYSICAL_ATTACKER",
   "positionAptitudes": ["FRONT"],
   "baseStats": {
-    "maximumHp": 28355,
-    "attack": 21130,
-    "defense": 12648,
-    "criticalRate": 0.2,
+    "maximumHp": 26152,
+    "attack": 19570,
+    "defense": 11698,
+    "criticalRate": 0.15,
     "actionSpeed": 680,
     "maximumAp": 4,
     "maximumPp": 4
