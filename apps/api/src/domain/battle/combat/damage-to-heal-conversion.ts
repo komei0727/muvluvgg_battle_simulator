@@ -1,5 +1,6 @@
 import { activeStatusEffect, type BattleUnit } from "../model/battle-unit.js";
 import { recordDamageResult } from "../skill/formula-evaluator.js";
+import { recordExerciseScoreDeductionIfAny } from "../events/exercise-score-recording.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import { consumeAndExpire, findUnit } from "./damage-hit-chain.js";
@@ -83,6 +84,16 @@ export function* applyDamageToHealConversionSteps(
     },
     stateDelta: { units: { [targetUnitId]: { hp: { before: hpBefore, after: hpAfter } } } },
   });
+  // R-TEX-02 #5: 変換後に敵ユニットのHPが実際に増えた分を累計スコアから減算する。
+  // 最大HP超過で破棄された分（`healAmount - appliedHeal`）は敵HPを増やしていない。
+  // `DamageApplied`側の計上と同じく、子連鎖の解決より前に発行して`lastEventId`を繋ぐ。
+  const scoreDeducted = recordExerciseScoreDeductionIfAny(
+    context.exercise,
+    context,
+    target,
+    appliedHeal,
+    converted.eventId,
+  );
   // `DamageApplied`とまったく同じ規約: AS/EX・チャージ解放（callbackあり）ではその場で
   // 連鎖を解決し、PS/Memory自身のEffectSequence解決では`effect-action-group-resolver.ts`が
   // `innerEvents`としてEffectAction完了時にまとめてdriverへ渡す。
@@ -96,7 +107,7 @@ export function* applyDamageToHealConversionSteps(
     }
   }
 
-  let lastEventId = converted.eventId;
+  let lastEventId = scoreDeducted;
   lastEventId = yield* consumeAndExpire(
     context,
     working,

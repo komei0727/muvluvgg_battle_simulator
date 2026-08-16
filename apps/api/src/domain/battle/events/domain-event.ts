@@ -1395,7 +1395,7 @@ export interface BattleDomainEventPayloadMap {
    * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-02）: 戦闘モードが
    * `TACTICAL_EXERCISE`のとき、敵ユニットのHPへ向かうダメージが確定するたびに
    * 発行する。計上量0では発行しない（R-TEX-02 #4）。累計スコアの状態差分
-   * （`exercise.totalScore`）はこのイベントが単独で所有する。
+   * （`exercise.totalScore`）は本イベントと`ExerciseScoreDeducted`が分け合って所有する。
    */
   readonly ExerciseScoreAccumulated: {
     readonly targetUnitId: BattleUnitId;
@@ -1404,6 +1404,26 @@ export interface BattleDomainEventPayloadMap {
     /** 計上後の累計スコア。 */
     readonly totalScore: number;
     /** 計上の原因になったダメージイベント（`DamageApplied`／`ContinuousDamageApplied`）。 */
+    readonly causeEventId: DomainEventId;
+  };
+  /**
+   * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-02 #5）: 戦闘モードが
+   * `TACTICAL_EXERCISE`のとき、ブレイク復活以外で敵ユニットのHPが増えるたびに発行し、
+   * その分を累計スコアから減算する。実減少量0では発行しない（同 #6）。
+   *
+   * `ExerciseScoreAccumulated`と同じく観測専用であり、契機にできる`TriggerDefinition`は
+   * 存在しない。累計スコアの状態差分（`exercise.totalScore`）を単独で所有する。
+   */
+  readonly ExerciseScoreDeducted: {
+    readonly targetUnitId: BattleUnitId;
+    /** 実際に減算した量。累計を上回る回復では累計そのもの（下限0のクランプ）になる。 */
+    readonly amount: number;
+    /** 減算後の累計スコア。0未満にはならない。 */
+    readonly totalScore: number;
+    /**
+     * 減算の原因になった回復イベント
+     * （`HealApplied`／`HealingTransferred`／`DamageConvertedToHeal`）。
+     */
     readonly causeEventId: DomainEventId;
   };
   /**
@@ -1674,6 +1694,7 @@ export const BATTLE_DOMAIN_EVENT_TYPES: Readonly<Record<BattleDomainEventType, t
   MarkerUpdated: true,
   MarkerRemoved: true,
   ExerciseScoreAccumulated: true,
+  ExerciseScoreDeducted: true,
   UnitBroken: true,
   UnitRevived: true,
 };

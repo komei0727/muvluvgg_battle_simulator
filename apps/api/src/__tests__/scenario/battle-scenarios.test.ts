@@ -1799,6 +1799,38 @@ describe("battle scenarios (harness)", () => {
         .build();
     }
 
+    const EXERCISE_SELF_HARM_SKILL = "SKL_EXERCISE_SELF_HARM";
+    const EXERCISE_SELF_HARM_ACTION = "ACT_EXERCISE_SELF_HARM";
+
+    /**
+     * 上のCatalogに、敵が自分自身へダメージを与えるASを足したもの。R-TEX-02 #3が
+     * スコアへ計上する「敵の自傷」を、`sourceUnitId`が敵自身になる最小の形で作る。
+     */
+    function selfHarmingExerciseCatalog(enemyMaximumHp: number) {
+      return new CatalogBuilder()
+        .withUnit(
+          unitDefinition("UNIT_ALLY", {
+            baseStats: { maximumAp: 1, attack: 100 },
+            activeSkillDefinitionIds: [createSkillDefinitionId(EXERCISE_ATTACK_SKILL)],
+          }),
+          unitDefinition("UNIT_ENEMY", {
+            category: "EXERCISE_ENEMY",
+            exerciseActive: true,
+            baseStats: { maximumHp: enemyMaximumHp, defense: 0, attack: 50, maximumAp: 1 },
+            activeSkillDefinitionIds: [createSkillDefinitionId(EXERCISE_SELF_HARM_SKILL)],
+          }),
+        )
+        .withSkill(
+          attackSkill(EXERCISE_ATTACK_SKILL, EXERCISE_ATTACK_ACTION),
+          selfEffectSkill(EXERCISE_SELF_HARM_SKILL, [EXERCISE_SELF_HARM_ACTION]),
+        )
+        .withEffectAction(
+          damageEffectAction(EXERCISE_ATTACK_ACTION),
+          damageEffectAction(EXERCISE_SELF_HARM_ACTION, 1, "PREVENTED"),
+        )
+        .build();
+    }
+
     it("SCN-BTL-024 (R-TEX-01 #4 / R-TEX-09 #1 / R-TEX-10): a tactical exercise runs the full five turns, ends with TURN_LIMIT_REACHED and no outcome, and its totalScore equals the sum of every accumulated amount", () => {
       const result = runExerciseScenario({
         catalog: exerciseCatalog(100_000),
@@ -1815,11 +1847,13 @@ describe("battle scenarios (harness)", () => {
       expect(result).not.toHaveProperty("outcome");
       expect(result.finalState.result).not.toHaveProperty("outcome");
 
-      // スコア＝計上量合計（R-TEX-10 #3）。最終状態の累計スコアとも一致する。
+      // スコア＝計上量合計 − 減算量合計（R-TEX-10 #3）。最終状態の累計スコアとも一致する。
+      // この敵は回復手段を持たないため減算は1件も起きず、計上量合計がそのまま総スコアになる。
       const amounts = result.events
         .filter((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")
         .map((event) => (event.details as { readonly amount: number }).amount);
       expect(amounts.length).toBeGreaterThan(0);
+      expect(result.events.filter((event) => event.type === "EXERCISE_SCORE_DEDUCTED")).toEqual([]);
       expect(result.totalScore).toBe(amounts.reduce((sum, amount) => sum + amount, 0));
       expect(result.finalState.exercise?.totalScore).toBe(result.totalScore);
 
@@ -1914,11 +1948,62 @@ describe("battle scenarios (harness)", () => {
       const enemy = result.unitSummaries.find((summary) => summary.side === "ENEMY")!;
 
       // 与ダメージの総和＝スコア。R-TEX-02 #2の計上量とまったく同じ量を数えている。
+      // 一致するのはこの敵が回復手段も自傷手段も持たないためであり、どちらかがあると
+      // 味方の`damageDealt`合計はスコアから外れる（IT-UNIT-SUMMARY-002）。
+      expect(result.events.filter((event) => event.type === "EXERCISE_SCORE_DEDUCTED")).toEqual([]);
       expect(dealtByAllies).toBe(result.totalScore);
       expect(enemy.damageTaken).toBe(result.totalScore);
       // 実HP減少量だけを数えていた頃の値との差が、まさに破棄されたオーバーキルである。
       const hpReduced = applied.reduce((sum, details) => sum + details.hitPointDamage, 0);
       expect(dealtByAllies - hpReduced).toBe(discarded);
+    });
+
+    it("IT-UNIT-SUMMARY-002 (10_API設計.md「集計セマンティクス」/ R-TEX-02 #3): when the enemy damages itself, the score follows the enemy's damageTaken — the allies' damageDealt alone falls short by exactly the self-inflicted amount", () => {
+      const result = runExerciseScenario({
+        catalog: selfHarmingExerciseCatalog(100_000),
+        command: tacticalExerciseCommand(),
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+        battleIds: ["B_EXERCISE"],
+      });
+
+      assertBattleInvariants(result);
+
+      const enemyUnitId = createBattleUnitId("enemy:1");
+      // 前提: 敵が実際に自傷している。これが無いと以下の不一致は空振りになる。
+      const selfInflicted = result.events
+        .filter(
+          (event) =>
+            event.type === "DAMAGE_APPLIED" &&
+            event.sourceUnitId === enemyUnitId &&
+            (event.details as { readonly targetUnitId: string }).targetUnitId === enemyUnitId,
+        )
+        .reduce((sum, event) => {
+          const details = event.details as {
+            readonly hitPointDamage: number;
+            readonly discardedDamage: number;
+          };
+          return sum + details.hitPointDamage + details.discardedDamage;
+        }, 0);
+      expect(selfInflicted).toBeGreaterThan(0);
+
+      const accumulated = result.events
+        .filter((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")
+        .reduce((sum, event) => sum + (event.details as { readonly amount: number }).amount, 0);
+      const dealtByAllies = result.unitSummaries
+        .filter((summary) => summary.side === "ALLY")
+        .reduce((sum, summary) => sum + summary.damageDealt, 0);
+      const enemy = result.unitSummaries.find((summary) => summary.side === "ENEMY")!;
+
+      // 常に成立するのは被ダメージ側の等式だけである（`damageTaken`は`targetUnitId`へ
+      // 帰属するため、自傷分も敵の被ダメージに入る）。
+      expect(enemy.damageTaken).toBe(accumulated);
+      expect(result.totalScore).toBe(accumulated);
+
+      // 一方、自傷分は敵自身の`damageDealt`へ帰属するため味方の合計からは抜け落ちる。
+      // 差がちょうど自傷量であることまで見て、「たまたま少ない」ではないことを固定する。
+      expect(dealtByAllies).toBeLessThan(enemy.damageTaken);
+      expect(enemy.damageTaken - dealtByAllies).toBe(selfInflicted);
+      expect(enemy.damageDealt).toBe(selfInflicted);
     });
   });
 });

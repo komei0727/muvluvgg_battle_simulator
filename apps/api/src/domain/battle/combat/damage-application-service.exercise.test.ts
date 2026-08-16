@@ -492,4 +492,103 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
     expect(events.filter((e) => e.eventType === "ExerciseScoreAccumulated")).toEqual([]);
     expect(exercise.totalScore).toBe(0);
   });
+
+  it("UT-R-TEX-02-037 / UT-R-DTH-01-005: deducts the HP the enemy actually gained from a hit converted into healing by dazzle", () => {
+    const exercise = exerciseRuntime();
+    exercise.accumulateScore(100);
+    const dazzled: BattleUnit = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [damageToHealEffect("DAZZLE", "ATTACKER")],
+    };
+    const target: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(50, 100),
+    };
+    const context = damageEventContext({ exercise });
+
+    applyDamageAction(
+      dazzled,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [dazzled, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const events = context.recorder.getEvents();
+    const converted = events.find((e) => e.eventType === "DamageConvertedToHeal")!;
+    // 本来のダメージ 20 → floor(20 * 0.7) = 14 がそのままHPへ入る。
+    expect(converted.payload).toMatchObject({ healAmount: 14, appliedHeal: 14 });
+    const deducted = events.filter((e) => e.eventType === "ExerciseScoreDeducted");
+    expect(deducted).toHaveLength(1);
+    expect(deducted[0]!.payload).toEqual({
+      targetUnitId: createBattleUnitId("TARGET"),
+      amount: 14,
+      totalScore: 86,
+      causeEventId: converted.eventId,
+    });
+    expect(deducted[0]!.parentEventId).toBe(converted.eventId);
+    expect(deducted[0]!.stateDelta).toEqual({
+      exercise: { totalScore: { before: 100, after: 86 } },
+    });
+    expect(exercise.totalScore).toBe(86);
+  });
+
+  it("UT-R-TEX-02-038 (BOUNDARY) / UT-R-DTH-01-006: deducts only the applied heal of a converted hit, not the overflow discarded above maximum HP", () => {
+    const exercise = exerciseRuntime();
+    exercise.accumulateScore(100);
+    const dazzled: BattleUnit = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [damageToHealEffect("DAZZLE", "ATTACKER")],
+    };
+    const target: BattleUnit = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(95, 100),
+    };
+    const context = damageEventContext({ exercise });
+
+    applyDamageAction(
+      dazzled,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [dazzled, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const events = context.recorder.getEvents();
+    const converted = events.find((e) => e.eventType === "DamageConvertedToHeal")!;
+    expect(converted.payload).toMatchObject({ healAmount: 14, appliedHeal: 5 });
+    const deducted = events.filter((e) => e.eventType === "ExerciseScoreDeducted");
+    expect(deducted).toHaveLength(1);
+    expect(deducted[0]!.payload).toMatchObject({ amount: 5, totalScore: 95 });
+  });
+
+  it("UT-R-TEX-02-039: does not deduct when a dazzled enemy's hit is converted into healing for an ally", () => {
+    const exercise = exerciseRuntime();
+    exercise.accumulateScore(100);
+    const dazzled: BattleUnit = {
+      ...unit("ATTACKER", "ENEMY", { attack: 30 }),
+      appliedEffects: [damageToHealEffect("DAZZLE", "ATTACKER")],
+    };
+    const target: BattleUnit = {
+      ...unit("TARGET", "ALLY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(50, 100),
+    };
+    const context = damageEventContext({ exercise });
+
+    applyDamageAction(
+      dazzled,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [dazzled, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const events = context.recorder.getEvents();
+    expect(events.some((e) => e.eventType === "DamageConvertedToHeal")).toBe(true);
+    expect(events.filter((e) => e.eventType === "ExerciseScoreDeducted")).toEqual([]);
+    expect(exercise.totalScore).toBe(100);
+  });
 });

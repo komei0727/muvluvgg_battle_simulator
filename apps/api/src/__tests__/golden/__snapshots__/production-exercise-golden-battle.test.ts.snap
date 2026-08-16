@@ -13,27 +13,27 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "breaks": [
     {
       "breakNumber": 1,
-      "cumulativeScoreAtBreak": 344040,
+      "cumulativeScoreAtBreak": 324911,
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
-      "cumulativeScoreAtBreak": 820169,
+      "cumulativeScoreAtBreak": 722688,
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1316332,
+      "cumulativeScoreAtBreak": 1178596,
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 1895089,
+      "cumulativeScoreAtBreak": 1700422,
       "turnNumber": 4,
     },
     {
       "breakNumber": 5,
-      "cumulativeScoreAtBreak": 2557819,
+      "cumulativeScoreAtBreak": 2318142,
       "turnNumber": 5,
     },
   ],
@@ -71,6 +71,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "EFFECT_STEP_STARTING": 543,
     "EVASION_ACTIVATED": 2,
     "EXERCISE_SCORE_ACCUMULATED": 416,
+    "EXERCISE_SCORE_DEDUCTED": 25,
     "EXTRA_GAUGE_INCREASED": 61,
     "EXTRA_GAUGE_OVERFLOW_DISCARDED": 7,
     "HEAL_APPLIED": 57,
@@ -99,7 +100,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 5,
     "UNIT_REVIVED": 5,
   },
-  "totalScore": 2691443,
+  "totalScore": 2445508,
 }
 `;
 
@@ -116,22 +117,22 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "breaks": [
     {
       "breakNumber": 1,
-      "cumulativeScoreAtBreak": 448956,
+      "cumulativeScoreAtBreak": 385500,
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
-      "cumulativeScoreAtBreak": 958831,
+      "cumulativeScoreAtBreak": 837254,
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1548772,
+      "cumulativeScoreAtBreak": 1367203,
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 2231437,
+      "cumulativeScoreAtBreak": 1968551,
       "turnNumber": 4,
     },
   ],
@@ -170,6 +171,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "EFFECT_STEP_STARTING": 390,
     "EVASION_ACTIVATED": 5,
     "EXERCISE_SCORE_ACCUMULATED": 374,
+    "EXERCISE_SCORE_DEDUCTED": 19,
     "EXTRA_GAUGE_INCREASED": 49,
     "EXTRA_GAUGE_OVERFLOW_DISCARDED": 6,
     "HEAL_APPLIED": 51,
@@ -197,7 +199,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 4,
     "UNIT_REVIVED": 4,
   },
-  "totalScore": 2919866,
+  "totalScore": 2497009,
 }
 `;
 
@@ -312,17 +314,17 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "breaks": [
     {
       "breakNumber": 1,
-      "cumulativeScoreAtBreak": 366384,
+      "cumulativeScoreAtBreak": 366382,
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
-      "cumulativeScoreAtBreak": 1149501,
+      "cumulativeScoreAtBreak": 1149493,
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 2061610,
+      "cumulativeScoreAtBreak": 2061594,
       "turnNumber": 4,
     },
   ],
@@ -360,6 +362,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "EFFECT_STEP_STARTING": 443,
     "EVASION_ACTIVATED": 2,
     "EXERCISE_SCORE_ACCUMULATED": 392,
+    "EXERCISE_SCORE_DEDUCTED": 11,
     "EXTRA_GAUGE_INCREASED": 50,
     "EXTRA_GAUGE_OVERFLOW_DISCARDED": 5,
     "HEAL_APPLIED": 43,
@@ -388,6 +391,6 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 3,
     "UNIT_REVIVED": 3,
   },
-  "totalScore": 2748149,
+  "totalScore": 2748127,
 }
 `;

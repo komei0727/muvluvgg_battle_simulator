@@ -1080,6 +1080,23 @@ const exerciseScoreAccumulatedDetailsSchema = {
 } as const;
 
 /**
+ * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-02 #5）。ブレイク復活以外で敵HPが
+ * 増えた分の減算。`totalScore`は下限0のクランプ後の値であるため0を取り得る
+ * （加算側と違い`minimum: 0`）。
+ */
+const exerciseScoreDeductedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["targetUnitId", "amount", "totalScore", "causeEventId"],
+  properties: {
+    targetUnitId: { type: "string" },
+    amount: { type: "integer", minimum: 1 },
+    totalScore: { type: "integer", minimum: 0 },
+    causeEventId: { type: "string" },
+  },
+} as const;
+
+/**
  * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-03）。演習の敵ユニットのHP0到達を
  * 戦闘不能に代えて解決した事実。`UNIT_DEFEATED`とは排他で、演習のレスポンスにだけ現れる。
  */
@@ -2448,6 +2465,7 @@ const EXERCISE_EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = 
   COMBAT_STAT_CHANGED: exerciseCombatStatChangedDetailsSchema,
   RESOURCE_CAPACITY_CHANGED: exerciseResourceCapacityChangedDetailsSchema,
   EXERCISE_SCORE_ACCUMULATED: exerciseScoreAccumulatedDetailsSchema,
+  EXERCISE_SCORE_DEDUCTED: exerciseScoreDeductedDetailsSchema,
   UNIT_BROKEN: unitBrokenDetailsSchema,
   UNIT_REVIVED: unitRevivedDetailsSchema,
 };
@@ -2477,6 +2495,7 @@ export const exerciseBattleLogEventResponseDocSchema = toEventDocSchema(
 /** 演習のレスポンスにだけ現れるイベント種別。エンドポイント別unionの差分を機械照合するために公開する。 */
 export const EXERCISE_ONLY_EVENT_TYPES = [
   "EXERCISE_SCORE_ACCUMULATED",
+  "EXERCISE_SCORE_DEDUCTED",
   "UNIT_BROKEN",
   "UNIT_REVIVED",
 ] as const;

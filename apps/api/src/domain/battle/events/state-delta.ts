@@ -470,8 +470,9 @@ export interface StateDelta {
   readonly result?: ValueChange<BattleResultSnapshot | undefined>;
   /**
    * `08_ドメインイベント.md`「戦術演習イベント」の演習状態差分。戦闘モードが
-   * `TACTICAL_EXERCISE`のときだけ発生し、`ExerciseScoreAccumulated`が
-   * 累計スコア差分を単独で所有する（R-TEX-02 #4）。
+   * `TACTICAL_EXERCISE`のときだけ発生する。累計スコア差分は
+   * `ExerciseScoreAccumulated`（加算、R-TEX-02 #4）と`ExerciseScoreDeducted`
+   * （減算、同 #5/#6）が分け合い、各イベントが自分の差分を単独で所有する。
    */
   readonly exercise?: ExerciseStateDelta;
 }

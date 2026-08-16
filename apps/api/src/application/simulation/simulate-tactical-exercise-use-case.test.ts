@@ -85,15 +85,19 @@ describe("SimulateTacticalExerciseUseCase", () => {
     expect(result.catalogRevision).toBe("test-rev-1");
   });
 
-  it("UT-TEXUSECASE-002 (R-TEX-10 #3): totalScore equals the sum of every ExerciseScoreAccumulated amount and the final state's accumulated score", () => {
+  it("UT-TEXUSECASE-002 (R-TEX-10 #3): totalScore equals the accumulated amounts minus the deducted ones, and the final state's accumulated score", () => {
     const result = useCaseWith(exerciseCatalog()).execute(exerciseCommand(), CONTEXT);
 
-    const accumulated = result.events
-      .filter((event) => event.type === "EXERCISE_SCORE_ACCUMULATED")
-      .map((event) => (event.details as { readonly amount: number }).amount);
+    const amountsOf = (type: string): readonly number[] =>
+      result.events
+        .filter((event) => event.type === type)
+        .map((event) => (event.details as { readonly amount: number }).amount);
+    const sum = (amounts: readonly number[]): number =>
+      amounts.reduce((total, amount) => total + amount, 0);
 
+    const accumulated = amountsOf("EXERCISE_SCORE_ACCUMULATED");
     expect(accumulated.length).toBeGreaterThan(0);
-    expect(result.totalScore).toBe(accumulated.reduce((sum, amount) => sum + amount, 0));
+    expect(result.totalScore).toBe(sum(accumulated) - sum(amountsOf("EXERCISE_SCORE_DEDUCTED")));
     expect(result.finalState!.exercise?.totalScore).toBe(result.totalScore);
   });
 

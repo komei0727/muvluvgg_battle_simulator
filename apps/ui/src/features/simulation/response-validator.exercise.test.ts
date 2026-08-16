@@ -221,4 +221,20 @@ describe("validateTacticalExerciseResponse", () => {
 
     expect(validateTacticalExerciseResponse(body).ok).toBe(true);
   });
+
+  // R-TEX-02 #5/#6: 敵回復の減算でスコアは0まで下がりうる（負にはならない）。
+  it("accepts a response carrying EXERCISE_SCORE_DEDUCTED events with the score clamped to zero", () => {
+    const body = validResponse({
+      events: [{ type: "EXERCISE_SCORE_ACCUMULATED" }, { type: "EXERCISE_SCORE_DEDUCTED" }],
+      result: validResult({ totalScore: 0, breakCount: 0, breaks: [] }),
+    });
+
+    expect(validateTacticalExerciseResponse(body).ok).toBe(true);
+  });
+
+  it("rejects a negative totalScore, since the deduction is clamped at zero", () => {
+    const body = validResponse({ result: validResult({ totalScore: -1 }) });
+
+    expect(validateTacticalExerciseResponse(body).ok).toBe(false);
+  });
 });

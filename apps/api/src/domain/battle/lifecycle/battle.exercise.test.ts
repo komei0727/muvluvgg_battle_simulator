@@ -487,6 +487,165 @@ describe("exercise score accumulation across a resolved turn (R-TEX-02)", () => 
 });
 
 /**
+ * R-TEX-02 #5: ブレイク復活以外で敵ユニットのHPが増えた量を累計スコアから減算する。
+ * 減算シームは`heal-application-service.ts`と`damage-to-heal-conversion.ts`が持つが、
+ * 演習状態がそこまで届いているか（配線）は通しでしか確認できない。
+ */
+describe("exercise score deduction across a resolved turn (R-TEX-02 #5)", () => {
+  const HEAL_ENEMY = createEffectActionDefinitionId("ACT_HEAL_ENEMY");
+  const HP_GAIN = createEffectActionDefinitionId("ACT_HP_GAIN");
+
+  /** 敵（PSの`side: ENEMY`選択先）を最大HPの10%だけ回復する。 */
+  function healEnemyAction(): EffectActionDefinition {
+    return {
+      effectActionDefinitionId: HEAL_ENEMY,
+      kind: "HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      },
+      metadata: { tags: [] },
+    };
+  }
+
+  /** 敵のHPを`MODIFY_RESOURCE`で直接増やす（R-TEX-02 #5の減算対象外）。 */
+  function hpGainAction(): EffectActionDefinition {
+    return {
+      effectActionDefinitionId: HP_GAIN,
+      kind: "MODIFY_RESOURCE",
+      payload: {
+        resource: "HP",
+        operation: "ADD",
+        formula: { kind: "CONSTANT", value: 10 },
+      },
+      metadata: { tags: [] },
+    };
+  }
+
+  function deductedAmounts(recorder: EventRecorder): readonly number[] {
+    return recorder
+      .getEvents()
+      .filter((event) => event.eventType === "ExerciseScoreDeducted")
+      .map((event) => (event.payload as { amount: number }).amount);
+  }
+
+  it("UT-R-TEX-02-040: a heal reaching the enemy during a resolved exercise turn deducts the HP it actually gained, and initialState + deltas still restores the final state", () => {
+    const { recorder, afterTurn, initialState } = exerciseBattleWith(
+      breakingAttackerDefinitions({
+        damagePerHit: 30,
+        hitCount: 1,
+        allyPassive: passiveOn("SKL_HEAL_ENEMY", "DamageApplied", HEAL_ENEMY),
+        extraEffectActions: [healEnemyAction()],
+      }),
+    );
+
+    // ダメージ30を計上したうえで、その連鎖で敵が最大HPの10%（10）を取り戻す。
+    expect(accumulatedScoreTotal(recorder)).toBe(30);
+    expect(deductedAmounts(recorder)).toEqual([10]);
+    expect(afterTurn.exercise?.totalScore).toBe(20);
+    // 累計スコアの差分は加算・減算の2イベントで完結する。
+    expectStateRestoration(initialState, recorder, afterTurn);
+  });
+
+  it("UT-R-TEX-02-041: the break revival's full heal is not a deduction, so the score keeps the whole accumulated amount", () => {
+    const { recorder, afterTurn } = exerciseBattleWith(
+      breakingAttackerDefinitions({ damagePerHit: 150, hitCount: 2 }),
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitRevived");
+    // R-TEX-05 #4: 復活の全回復は回復に該当せず、`HealApplied`も発行しない。
+    expect(types).not.toContain("HealApplied");
+    expect(deductedAmounts(recorder)).toEqual([]);
+    expect(afterTurn.exercise?.totalScore).toBe(accumulatedScoreTotal(recorder));
+  });
+
+  it("UT-R-TEX-02-042: a MODIFY_RESOURCE raising the enemy's HP is not deducted, keeping the deduction scope symmetric with the accumulation side", () => {
+    const { recorder, afterTurn } = exerciseBattleWith(
+      breakingAttackerDefinitions({
+        damagePerHit: 30,
+        hitCount: 1,
+        allyPassive: passiveOn("SKL_HP_GAIN", "DamageApplied", HP_GAIN),
+        extraEffectActions: [hpGainAction()],
+      }),
+    );
+
+    // 敵HPが実際に戻っていることを確かめてから、減算が起きないことを見る（空振り防止）。
+    const resourceChanges = recorder
+      .getEvents()
+      .filter((event) => event.eventType === "ResourceChanged")
+      .map((event) => event.payload as { resource: string; before: number; after: number });
+    expect(
+      resourceChanges.some((change) => change.resource === "HP" && change.after > change.before),
+    ).toBe(true);
+    expect(deductedAmounts(recorder)).toEqual([]);
+    expect(afterTurn.exercise?.totalScore).toBe(accumulatedScoreTotal(recorder));
+  });
+
+  it("UT-R-TEX-02-043: a continuous heal firing at the enemy's own action start is deducted too, so the action-start path carries the exercise state as well", () => {
+    const healActionId = createEffectActionDefinitionId("ACT_REGEN");
+    const regenDefinition: EffectActionDefinition = {
+      effectActionDefinitionId: healActionId,
+      kind: "APPLY_CONTINUOUS_HEAL",
+      payload: {
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.1 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 20 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+      metadata: { tags: [] },
+    };
+    const regenerating: BattleUnit = {
+      ...unit("enemy:1", "ENEMY", "UNIT_002"),
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("EFFECT_REGEN"),
+          effectActionDefinitionId: healActionId,
+          kindKey: effectKindKeyFromDefinitionId(healActionId),
+          categories: ["BUFF"],
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("enemy:1"),
+          targetUnitId: createBattleUnitId("enemy:1"),
+          magnitude: 0.1,
+          duration: {
+            definition: {
+              timeLimit: { unit: "ACTION", count: 20 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 20,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    };
+    const definitions = breakingAttackerDefinitions({ damagePerHit: 30, hitCount: 1 });
+    const { recorder, afterTurn } = exerciseBattleWith(
+      {
+        ...definitions,
+        effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
+          ...definitions.effectActions,
+          [healActionId, regenDefinition],
+        ]),
+      },
+      regenerating,
+    );
+
+    const healApplied = recorder.getEvents().filter((event) => event.eventType === "HealApplied");
+    expect(healApplied.length).toBeGreaterThan(0);
+    const deducted = deductedAmounts(recorder);
+    expect(deducted.length).toBeGreaterThan(0);
+    expect(afterTurn.exercise?.totalScore).toBe(
+      accumulatedScoreTotal(recorder) - deducted.reduce((sum, amount) => sum + amount, 0),
+    );
+  });
+});
+
+/**
  * ブレイク・復活パイプライン（TEX-004、R-TEX-03／05〜08）の通し検証。味方の`UNIT_001`だけが
  * ASを持ち、`hitCount`と1ヒットあたりのダメージ量だけを差し替えて各シナリオを作る。
  */
