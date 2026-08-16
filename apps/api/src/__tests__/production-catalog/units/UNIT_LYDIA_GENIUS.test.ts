@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import {
+  createEffectActionDefinitionId,
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -39,6 +46,28 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
 ]);
 
 /** 右列にも左列にも敵が居ない盤面（中央列だけ）。 */
+/**
+ * ステルス状態の相手役。実定義は検証対象ユニットのスナップショットに載らないため
+ * （`loadProductionSnapshot` は対象ユニット分しか読まない）、`statusKind` だけを
+ * 同じ値で組み立てる。剥がれたかどうかは実 `resolveTargets` の判定が決める。
+ */
+function stealthStatus(targetUnitId: string): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_TEST_STEALTH");
+  return {
+    effectInstanceId: createEffectInstanceId(`B_BEHAVIOUR:stealth:${targetUnitId}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceUnitId: createBattleUnitId(targetUnitId),
+    targetUnitId: createBattleUnitId(targetUnitId),
+    magnitude: 0,
+    categories: ["BUFF"],
+    statusKind: "STEALTH",
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
 const CENTER_ONLY_ENEMIES: readonly BoardUnitSpec[] = [
   { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
@@ -627,6 +656,40 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
       hpDeltas: {
         "enemy:back": -853,
       },
+    });
+  });
+
+  it("IT-UNIT-LYDIA-GENIUS-007 (R-TGT-08 #7/R-TGT-10): 代替攻撃のbindingは分岐が不成立でも評価されるが、`POSITION_SLOT` で定義上1体へ限定されているためステルスを消費しない", () => {
+    // R-TGT-10により全targetBindingはEffectSequence開始時に評価され、そこで検出した
+    // ステルス消費はstep実行前に適用される。代替攻撃のbindingが「最も近い敵」のような
+    // 盤面依存のselectorだと、分岐が不成立で一度も攻撃しないまま第一優先対象の
+    // ステルスを剥がしてしまう（R-TGT-08 #2〜#4）。代替攻撃の条件が成立する盤面では
+    // 生存する敵は中央前列の1体に限られるため、`POSITION_SLOT` で構造的に1体へ
+    // 限定し、R-TGT-08 #7の非適用側へ寄せている。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+      board: {
+        subject: { position: { column: "CENTER", row: "FRONT" } },
+        enemies: [
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          {
+            id: "enemy:center",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { appliedEffects: [stealthStatus("enemy:center")] },
+          },
+        ],
+      },
+    });
+
+    // 左列に敵が居るので代替攻撃の分岐は不成立。中央前列へは攻撃もステルス消費も
+    // 起きず、`effectsRemoved` がキーごと現れないことがそれを固定する。
+    expect(observed).toEqual({
+      actions: [
+        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:left"] },
+      ],
+      hpDeltas: { "enemy:left": -568 },
     });
   });
 

@@ -8306,12 +8306,13 @@
           }
         },
         {
-          "targetBindingId": "TGT_NEAREST",
+          "targetBindingId": "TGT_FALLBACK",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
             "count": 1,
-            "order": ["NEAREST", "FRONT_ROW", "LEFT_TO_RIGHT"]
+            "filters": [{ "kind": "POSITION_SLOT", "row": "FRONT", "column": "CENTER" }]
           }
         }
       ],
@@ -8340,7 +8341,7 @@
           "thenSteps": [
             {
               "kind": "ACTION",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_FALLBACK" },
               "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_FALLBACK" }]
             }
           ],
