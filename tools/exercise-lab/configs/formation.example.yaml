@@ -17,31 +17,31 @@ ally:
   # 書いた順のままリクエストへ載る。ここは UI と同じ並び（FRONT → REAR、column 昇順）。
   # 各ユニットは Catalog の positionAptitudes に合う列へ置いてある。
   units:
-    - unitDefinitionId: UNIT_YURIA_WILDCARD # PHYSICAL_ATTACKER / FRONT
+    - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
       position: { column: 0, row: FRONT }
-    - unitDefinitionId: UNIT_EVIE_ECO # TANK / FRONT
-      position: { column: 1, row: FRONT }
-    - unitDefinitionId: UNIT_MEIYA_FATED # PHYSICAL_ATTACKER / FRONT
+    - unitDefinitionId: UNIT_SAYA_BUNNY
       position: { column: 2, row: FRONT }
-    - unitDefinitionId: UNIT_EVIE_KYONSHI # EN_ATTACKER / BACK
+    - unitDefinitionId: UNIT_ELENA_MOODMAKER
       position: { column: 0, row: REAR }
-    - unitDefinitionId: UNIT_SUIRAN_CHAOS # SUPPORT / BACK
+    - unitDefinitionId: UNIT_LAYLA_ENTREPRENEUR
       position: { column: 1, row: REAR }
+    - unitDefinitionId: UNIT_SUIRAN_CHAOS # SUPPORT / BACK
+      position: { column: 2, row: REAR }
 
   # 0〜6件。書いた順のまま送る。ここは比較したい候補を差し替える対象そのもの。
   memoryDefinitionIds:
+    - MEM_GIDDY_CIRCUMSTANCES
+    - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+    - MEM_EURO_TOWER_DAY
+    - MEM_TIMID_REINDEER_EVE
+    - MEM_HEART_COLOR
     - MEM_ABSOLUTE_ORDER
-    - MEM_CHAOS_MAIDEN
-    - MEM_TREBLE_QUINTET
-    - MEM_TRINITY_JEWEL
-    - MEM_SIRIUS_SUGAR
-    - MEM_STRANGERS
 
 # 敵はちょうど1体・メモリーなし・強化なし（R-TEX-01 #3）。
 # 配置は結果に影響する（前後列優先の対象順・配置条件が参照するため）。
 enemy:
-  unitDefinitionId: UNIT_AOI_GUARDIAN_TEX
-  position: { column: 1, row: FRONT }
+  unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
+  position: { column: 1, row: REAR }
 # 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
 # ally.academyLevels を書くと強化計算が有効になり、ユニット側の level / gears も
 # 指定できるようになる。省略したキーは 1 として送る。
