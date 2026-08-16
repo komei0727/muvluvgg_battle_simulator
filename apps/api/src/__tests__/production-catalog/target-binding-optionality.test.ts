@@ -67,76 +67,83 @@ const BOARDS: readonly (readonly [string, BoardOverrides])[] = [
   ["味方1体(自身のみ)", { allies: [] }],
 ];
 
-describe("production Catalog の補助 targetBinding は optional を持つ (Issue #495)", () => {
-  it("IT-CAT-OPTBIND-001: 先行bindingが解決できている盤面で空になる後続bindingは、すべて optional か、原文が不発動条件として定めるものである", () => {
-    const findings = new Set<string>();
+interface AuditResult {
+  /** 印が要るのに無い binding（`<unitId> / <skillId>/<bindingId> (<盤面>)`）。 */
+  readonly findings: readonly string[];
+  /** 許可リストによって findings から除外されたキー（`<skillId>/<bindingId>`）。 */
+  readonly suppressed: readonly string[];
+}
 
-    for (const unitDefinitionId of unitIds) {
-      const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [unitDefinitionId]);
-      const unit = unitFrom(snapshot, unitDefinitionId);
-      const skillDefinitionIds = [
-        ...unit.activeSkillDefinitionIds,
-        ...(unit.extraSkillDefinitionId === undefined ? [] : [unit.extraSkillDefinitionId]),
-      ];
+/** 走査はCatalog全体を5盤面へ通すため、2つのケースで1回の結果を共有する。 */
+let cached: AuditResult | undefined;
 
-      for (const skillDefinitionId of skillDefinitionIds) {
-        const bindings = skillFrom(snapshot, skillDefinitionId).resolution.targetBindings ?? [];
-        // binding が1つだけなら、それが空＝対象が誰も居ないことなので発動不能で正しい。
-        if (bindings.length < 2) continue;
+function auditOptionality(): AuditResult {
+  if (cached !== undefined) return cached;
 
-        for (const [boardName, overrides] of BOARDS) {
-          const board = productionBoard(snapshot, unitDefinitionId, overrides);
-          const resolved = new Map<TargetBindingId, readonly BattleUnit[]>();
-          let anyEarlierResolved = false;
+  const findings = new Set<string>();
+  const suppressed = new Set<string>();
 
-          for (const binding of bindings) {
-            const units = resolveTargets(
-              binding.selector,
-              board.subject,
-              board.units,
-              resolved,
-              undefined,
-              board.definitions.unitDefinitions,
-            );
-            resolved.set(createTargetBindingId(binding.targetBindingId, "audit"), units);
+  for (const unitDefinitionId of unitIds) {
+    const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [unitDefinitionId]);
+    const unit = unitFrom(snapshot, unitDefinitionId);
+    const skillDefinitionIds = [
+      ...unit.activeSkillDefinitionIds,
+      ...(unit.extraSkillDefinitionId === undefined ? [] : [unit.extraSkillDefinitionId]),
+    ];
 
-            const key = `${skillDefinitionId}/${binding.targetBindingId}`;
-            if (
-              units.length === 0 &&
-              binding.optional !== true &&
-              anyEarlierResolved &&
-              !INTENTIONALLY_REQUIRED.has(key)
-            ) {
+    for (const skillDefinitionId of skillDefinitionIds) {
+      const bindings = skillFrom(snapshot, skillDefinitionId).resolution.targetBindings ?? [];
+      // binding が1つだけなら、それが空＝対象が誰も居ないことなので発動不能で正しい。
+      if (bindings.length < 2) continue;
+
+      for (const [boardName, overrides] of BOARDS) {
+        const board = productionBoard(snapshot, unitDefinitionId, overrides);
+        const resolved = new Map<TargetBindingId, readonly BattleUnit[]>();
+        let anyEarlierResolved = false;
+
+        for (const binding of bindings) {
+          const units = resolveTargets(
+            binding.selector,
+            board.subject,
+            board.units,
+            resolved,
+            undefined,
+            board.definitions.unitDefinitions,
+          );
+          resolved.set(createTargetBindingId(binding.targetBindingId, "audit"), units);
+
+          const key = `${skillDefinitionId}/${binding.targetBindingId}`;
+          if (units.length === 0 && binding.optional !== true && anyEarlierResolved) {
+            if (INTENTIONALLY_REQUIRED.has(key)) {
+              suppressed.add(key);
+            } else {
               findings.add(`${unitDefinitionId} / ${key} (${boardName})`);
             }
-            if (units.length > 0) anyEarlierResolved = true;
           }
+          if (units.length > 0) anyEarlierResolved = true;
         }
       }
     }
+  }
 
-    expect(
-      [...findings].sort(),
-      `optional が要る補助 binding:\n${[...findings].sort().join("\n")}`,
-    ).toEqual([]);
+  cached = { findings: [...findings].sort(), suppressed: [...suppressed].sort() };
+  return cached;
+}
+
+describe("production Catalog の補助 targetBinding は optional を持つ (Issue #495)", () => {
+  it("IT-CAT-OPTBIND-001: 先行bindingが解決できている盤面で空になる後続bindingは、すべて optional か、原文が不発動条件として定めるものである", () => {
+    const { findings } = auditOptionality();
+
+    expect(findings, `optional が要る補助 binding:\n${findings.join("\n")}`).toEqual([]);
   }, 60000);
 
-  it("IT-CAT-OPTBIND-002: 許可リストは実在する binding だけを指し、不要になったら縮む", () => {
-    const declared = new Set<string>();
-    for (const unitDefinitionId of unitIds) {
-      const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [unitDefinitionId]);
-      const unit = unitFrom(snapshot, unitDefinitionId);
-      for (const skillDefinitionId of [
-        ...unit.activeSkillDefinitionIds,
-        ...(unit.extraSkillDefinitionId === undefined ? [] : [unit.extraSkillDefinitionId]),
-      ]) {
-        for (const binding of skillFrom(snapshot, skillDefinitionId).resolution.targetBindings ??
-          []) {
-          declared.add(`${skillDefinitionId}/${binding.targetBindingId}`);
-        }
-      }
-    }
+  it("IT-CAT-OPTBIND-002: 許可リストの各登録は、実際に検出を抑止しているものだけである", () => {
+    // 「実在するか」ではなく「**いま検出を抑止しているか**」で照合する。存在確認だけだと、
+    // 登録済みbindingへ後から `optional` を付けても binding 自体は残るためテストが通り、
+    // 用済みの登録が居座る。その状態で誤って `optional` を外すと、残った登録が
+    // `-001` の検出を抑止して不具合を見逃す。
+    const { suppressed } = auditOptionality();
 
-    expect([...INTENTIONALLY_REQUIRED].filter((key) => !declared.has(key))).toEqual([]);
+    expect(suppressed).toEqual([...INTENTIONALLY_REQUIRED].sort());
   }, 60000);
 });
