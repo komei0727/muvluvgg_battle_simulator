@@ -192,7 +192,7 @@ function resolveOneAction(
         `references a UnitDefinitionId absent from the given exSkillByUnit: "${actor.unitDefinitionId}"`,
       );
     }
-    // R-ACT-01 #5: 対象候補がなければEXは使用不能とし、待機する。消費リソースは
+    // R-ACT-01 #4: 対象候補がなければEXは使用不能とし、待機する。消費リソースは
     // 他の待機経路と同じくAP残量で決める（`chooseWaitResource`）——AP1以上なら
     // 通常の待機としてAPを1消費し、EXゲージは満タンのまま次の周回で改めてEXを
     // 予約する（Q-EX-03）。EXゲージ全量消費はAP 0の場合だけである

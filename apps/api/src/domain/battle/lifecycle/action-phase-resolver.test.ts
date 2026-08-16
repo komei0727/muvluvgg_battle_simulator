@@ -2174,7 +2174,7 @@ describe("resolveActionPhase", () => {
     expect(events.indexOf(applied)).toBeLessThan(events.indexOf(expired));
   });
 
-  it("UT-ACTION-PHASE-005 (R-ACT-01 #5 / R-ACT-03 EX行): a reserved EX skill consumes the full EX gauge (not AP) and applies DAMAGE to the target", () => {
+  it("UT-ACTION-PHASE-005 (R-ACT-01 #4 / R-ACT-03 EX行): a reserved EX skill consumes the full EX gauge (not AP) and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_EX_ATTACKER",
