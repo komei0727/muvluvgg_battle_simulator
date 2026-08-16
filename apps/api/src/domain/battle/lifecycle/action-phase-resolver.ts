@@ -50,12 +50,18 @@ function splitBySide(units: readonly BattleUnit[]): {
 }
 
 /**
- * R-ACT-01/R-ACT-03: 気絶・凍結によるWAITの消費リソースは、通常のWAIT
- * （AP1消費、Q-BTL-06と同じ選択規則）と同じ「APがあれば消費し、無ければ
- * EXゲージ全量を消費する」二択に従う（R-STS-02「APがあれば待機でAPを1消費
- * する。AP 0・EX満タンならEXゲージを全量消費して待機する」）。R-ORD-01が
- * 保証する行動可能条件（AP1以上／EXゲージ満タン／チャージ発動待ち）のうち
- * 前二者のどちらかを満たす前提で、AP優先の二択だけを判定すればよい。
+ * R-ACT-03/Q-BTL-06: WAITの消費リソースは待機の理由ではなくAP残量で決まる
+ * （`06_戦闘状態遷移.md` RESOURCE_CONSUMINGの「通常の待機＝APを1」と
+ * 「AP 0・EX満タン・行動不能による待機＝EXゲージ全量」は、待機理由ではなく
+ * AP残量で分かれる2行である）。R-STS-02「APがあれば待機でAPを1消費する。
+ * AP 0・EX満タンならEXゲージを全量消費して待機する」がこの二択の正本で、
+ * 気絶・凍結・EX使用不可・使用可能なASなしの4経路すべてがこれに従う。
+ *
+ * AP 0の側でEXゲージが空になることはない: R-ORD-01の行動可能条件は
+ * 「AP1以上／EXゲージ満タン／チャージ発動待ち」で、チャージ発動待ちは
+ * `resolveOneAction`のチャージ分岐が先に処理してここへ来ない。よってAP 0で
+ * 待機へ落ちる時点ではEXゲージが満タンであり、`extraGaugeMaximum`は1以上
+ * （`unit-definition.ts`のCatalog検証）なので必ず1以上を消費する。
  */
 function chooseWaitResource(actor: BattleUnit): "AP" | "EX_GAUGE" {
   return actor.currentAp >= 1 ? "AP" : "EX_GAUGE";
@@ -255,7 +261,7 @@ function resolveOneAction(
       actor,
       reservedActionType,
       "NO_USABLE_ACTIVE_SKILL",
-      "AP",
+      chooseWaitResource(actor),
       units,
       definitions,
       random,
