@@ -12,5 +12,10 @@ import type { RandomSourceFactory } from "./random-source-factory.js";
  * 同じ乱数列を何度でも再生できるようにするためである。
  */
 export interface SeededRandomSourceProvider {
+  /**
+   * `runIndex`は符号なし32bit整数（`0`〜`0xffffffff`）に限る。この範囲でだけ
+   * 「異なる`runIndex`なら必ず異なる乱数列」が成立し、範囲外は実装が`RangeError`で
+   * 弾く——黙って別の試行と同じ乱数列を返すと、統計が分散を過小評価したまま通る。
+   */
   forRun(seed: string, runIndex: number): RandomSourceFactory;
 }

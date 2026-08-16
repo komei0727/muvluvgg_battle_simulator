@@ -129,3 +129,36 @@ describe("Mulberry32SeededRandomSourceProvider", () => {
     expect(Array.from({ length: 8 }, () => second.next())).toEqual(firstValues);
   });
 });
+
+describe("deriveRunSeed argument range", () => {
+  it("UT-SEEDRAND-015: a non-integer runIndex is rejected instead of colliding with its truncation", () => {
+    expect(() => deriveRunSeed(42, 0.5)).toThrow(RangeError);
+  });
+
+  it("UT-SEEDRAND-016: a negative runIndex is rejected", () => {
+    expect(() => deriveRunSeed(42, -1)).toThrow(RangeError);
+  });
+
+  it("UT-SEEDRAND-017: a runIndex beyond the unsigned 32-bit range is rejected", () => {
+    expect(() => deriveRunSeed(42, 2 ** 32)).toThrow(RangeError);
+  });
+
+  it("UT-SEEDRAND-018: a baseSeed outside the unsigned 32-bit range is rejected", () => {
+    expect(() => deriveRunSeed(2 ** 32, 5)).toThrow(RangeError);
+    expect(() => deriveRunSeed(-1, 5)).toThrow(RangeError);
+  });
+
+  it("UT-SEEDRAND-019: both ends of the accepted runIndex range are usable and stay distinct", () => {
+    expect(deriveRunSeed(42, 0)).not.toBe(deriveRunSeed(42, 0xffffffff));
+  });
+});
+
+describe("Mulberry32SeededRandomSourceProvider argument range", () => {
+  it("UT-SEEDRAND-020: forRun rejects a runIndex the uniqueness contract cannot cover", () => {
+    const provider = new Mulberry32SeededRandomSourceProvider();
+
+    expect(() => provider.forRun("abc123", 2 ** 32)).toThrow(RangeError);
+    expect(() => provider.forRun("abc123", 0.5)).toThrow(RangeError);
+    expect(() => provider.forRun("abc123", -1)).toThrow(RangeError);
+  });
+});
