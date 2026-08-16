@@ -2169,6 +2169,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // REF-044（Issue #391）でユニット効果軸へ移送した。振り分け5欄の合計が
       // 計算ダメージと一致することを実 production 定義で固定する。
       "IT-UNIT-AOI-GUARDIAN-005",
+      // 第2項で破棄された超過分がユニット別集計（`10_API設計.md`「集計セマンティクス」）
+      // へ算入されることを固定する。
+      "UT-UNIT-SUMMARY-007",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "PROPERTY"],
   },
@@ -2294,6 +2297,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-UNIT-EVIE-ECO-005",
       "IT-UNIT-LUNA-HUNGRY-004",
       "IT-UNIT-KOTOHA-REBEL-006",
+      // #5の耐えで適用されなかった分がユニット別集計（`10_API設計.md`
+      // 「集計セマンティクス」）へ算入されることを固定する。
+      "UT-UNIT-SUMMARY-008",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
@@ -3482,6 +3488,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "API-TEX-002",
       "API-TEXRESP-003",
       "SCN-BTL-027",
+      // #2の計上量とユニット別集計（`10_API設計.md`「集計セマンティクス」）が同じ量を
+      // 数えていることを、ブレイクを繰り返す演習全体で照合する。
+      "IT-UNIT-SUMMARY-001",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "PROPERTY", "SCENARIO"],
   },
