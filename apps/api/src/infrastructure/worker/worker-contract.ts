@@ -5,8 +5,10 @@ import {
 } from "../../application/contracts/application-error.js";
 import type {
   BattleSimulationRequestBody,
+  TacticalExerciseEvaluationRequestBody,
   TacticalExerciseRequestBody,
 } from "../../application/contracts/request.js";
+import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
 import type {
   SimulateBattleResult,
   SimulateTacticalExerciseResult,
@@ -17,7 +19,10 @@ import type {
  * 持たせず、両モードとも明示的に指定させる — 判別子の省略を許すと、演習タスクが
  * 既定の戦闘として実行される取り違えが型の上で通ってしまう。
  */
-export type WorkerSimulationMode = "BATTLE_SIMULATION" | "TACTICAL_EXERCISE";
+export type WorkerSimulationMode =
+  | "BATTLE_SIMULATION"
+  | "TACTICAL_EXERCISE"
+  | "TACTICAL_EXERCISE_EVALUATION";
 
 interface WorkerSimulationTaskBase {
   readonly requestId: string;
@@ -42,7 +47,19 @@ export interface WorkerTacticalExerciseTask extends WorkerSimulationTaskBase {
  * Entity、`Error`インスタンスを含めない。タイムアウト・容量制御・Catalog
  * revision検査は両モードで同じ機構を共有する（`09_アプリケーション設計.md`「実行境界」）。
  */
-export type WorkerSimulationTask = WorkerBattleSimulationTask | WorkerTacticalExerciseTask;
+/**
+ * 候補×試行の二重ループは1タスクの内側で回す。`WORKER_MAX_QUEUE`は本番で1であり、
+ * 試行ごとにタスクを投入するとキュー溢れ（503）になるためである。
+ */
+export interface WorkerTacticalExerciseEvaluationTask extends WorkerSimulationTaskBase {
+  readonly mode: "TACTICAL_EXERCISE_EVALUATION";
+  readonly request: TacticalExerciseEvaluationRequestBody;
+}
+
+export type WorkerSimulationTask =
+  | WorkerBattleSimulationTask
+  | WorkerTacticalExerciseTask
+  | WorkerTacticalExerciseEvaluationTask;
 
 /**
  * `ApplicationError`のplain object表現。`Error`インスタンスをそのまま
@@ -66,6 +83,11 @@ export type WorkerSimulationResult =
       readonly ok: true;
       readonly mode: "TACTICAL_EXERCISE";
       readonly result: SimulateTacticalExerciseResult;
+    }
+  | {
+      readonly ok: true;
+      readonly mode: "TACTICAL_EXERCISE_EVALUATION";
+      readonly result: EvaluateTacticalExerciseCandidatesResult;
     }
   | { readonly ok: false; readonly error: SerializedApplicationError };
 

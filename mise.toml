@@ -19,7 +19,7 @@ depends = ["install"]
 # Defaults CORS to the ui:dev task's port so `mise run dev` + `mise run
 # ui:dev` work together out of the box; export CORS_ALLOWED_ORIGINS yourself
 # to override (e.g. a different UI port).
-run = "CORS_ALLOWED_ORIGINS=\"${CORS_ALLOWED_ORIGINS:-http://localhost:5173}\" pnpm --filter api run dev"
+run = "CORS_ALLOWED_ORIGINS=\"${CORS_ALLOWED_ORIGINS:-http://localhost:5173}\" EVALUATION_ENDPOINT_ENABLED=\"${EVALUATION_ENDPOINT_ENABLED:-true}\" pnpm --filter api run dev"
 
 [tasks.typecheck]
 run = "pnpm --filter api run typecheck"

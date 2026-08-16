@@ -9,6 +9,9 @@ import type {
   BattleSimulationRequestBody,
   TacticalExerciseRequestBody,
 } from "../../application/contracts/request.js";
+import type { TacticalExerciseEvaluationRequestBody } from "../../application/contracts/request.js";
+import type { EvaluationLimits } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
+import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import type {
@@ -29,6 +32,8 @@ export interface SimulationWorkerPoolOptions {
    * 省略時はWorker側が`DEFAULT_SIMULATION_EXECUTION_LIMITS`を使う。
    */
   readonly executionLimits?: SimulationExecutionLimits;
+  /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。`workerData`としてWorkerへ配る。省略時はWorker側の既定値。 */
+  readonly evaluationLimits?: EvaluationLimits;
   /** テスト・結合テストが明示的なworker entryファイルを指すためのfallback。省略時は同ディレクトリの`simulation-worker-entry`。 */
   readonly workerFileUrl?: URL;
   /** `11_インフラストラクチャ設計.md`「Graceful Shutdown」`shutdown()`が実行中タスクを待つ上限(ms)。省略時はPiscina自身の既定(30000)。 */
@@ -157,6 +162,9 @@ export class SimulationWorkerPool {
       filename: (options.workerFileUrl ?? resolveDefaultWorkerFileUrl()).href,
       workerData: {
         catalogDir: options.catalogDir,
+        ...(options.evaluationLimits !== undefined
+          ? { evaluationLimits: options.evaluationLimits }
+          : {}),
         ...(options.executionLimits !== undefined
           ? { executionLimits: options.executionLimits }
           : {}),
@@ -294,7 +302,32 @@ export class SimulationWorkerPool {
   }
 
   /**
-   * 両モード共通のタスク投入。Pool致命化の確認、キュー満杯・キャンセル・Worker異常
+   * `09_アプリケーション設計.md`「実行境界」: 編成候補の一括評価（UC-04）。候補×試行の
+   * 二重ループはWorker側の1タスク内で回る——`WORKER_MAX_QUEUE`が本番で1のため、
+   * 試行ごとにタスクを投入するとキュー溢れ（503）になる。
+   */
+  async executeTacticalExerciseEvaluation(
+    request: TacticalExerciseEvaluationRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<EvaluateTacticalExerciseCandidatesResult> {
+    const outcome = await this.runTask(
+      {
+        mode: "TACTICAL_EXERCISE_EVALUATION",
+        requestId: context.requestId,
+        request,
+        deadlineEpochMs: context.deadlineEpochMs,
+        expectedCatalogRevision: this.catalogRevision,
+      },
+      context,
+    );
+    if (outcome.mode !== "TACTICAL_EXERCISE_EVALUATION") {
+      throw modeMismatchError("TACTICAL_EXERCISE_EVALUATION", outcome.mode);
+    }
+    return outcome.result;
+  }
+
+  /**
+   * 全モード共通のタスク投入。Pool致命化の確認、キュー満杯・キャンセル・Worker異常
    * の分類、サーキットの記録、`ok:false`のエラー変換をここへ集約する。成功結果は
    * 判別子を保ったまま返し、呼び出し側が投入モードとの一致を確認する。
    */

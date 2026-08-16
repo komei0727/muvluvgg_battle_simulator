@@ -246,3 +246,37 @@ describe("loadConfig", () => {
     expect(() => loadConfig(envWith({ WORKER_MAX_THREADS: "0" }))).toThrow(ConfigError);
   });
 });
+
+describe("loadConfig — evaluation endpoint", () => {
+  it("CFG-037: the evaluation endpoint is disabled unless an environment explicitly opts in", () => {
+    expect(loadConfig(envWith({})).evaluationEndpointEnabled).toBe(false);
+  });
+
+  it("CFG-038: EVALUATION_ENDPOINT_ENABLED=true opts in", () => {
+    expect(
+      loadConfig(envWith({ EVALUATION_ENDPOINT_ENABLED: "true" })).evaluationEndpointEnabled,
+    ).toBe(true);
+  });
+
+  it("CFG-039: a non-boolean EVALUATION_ENDPOINT_ENABLED throws instead of silently disabling the endpoint", () => {
+    expect(() => loadConfig(envWith({ EVALUATION_ENDPOINT_ENABLED: "yes" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-040: evaluation limits fall back to the measured defaults", () => {
+    expect(loadConfig(envWith({})).evaluationLimits).toEqual({
+      maxCandidates: 32,
+      maxTotalRuns: 300,
+    });
+  });
+
+  it("CFG-041: evaluation limits accept overrides", () => {
+    expect(
+      loadConfig(envWith({ EVALUATION_MAX_CANDIDATES: "4", EVALUATION_MAX_TOTAL_RUNS: "40" }))
+        .evaluationLimits,
+    ).toEqual({ maxCandidates: 4, maxTotalRuns: 40 });
+  });
+
+  it("CFG-042: a zero evaluation limit throws instead of producing an endpoint that can never run", () => {
+    expect(() => loadConfig(envWith({ EVALUATION_MAX_TOTAL_RUNS: "0" }))).toThrow(ConfigError);
+  });
+});
