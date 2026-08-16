@@ -41,6 +41,28 @@ describe("exercise event formatters", () => {
     expect(presentation.severity).toBe("positive");
   });
 
+  it("summarizes EXERCISE_SCORE_DEDUCTED with the deducted amount and the remaining total", () => {
+    const presentation = formatEvent(
+      {
+        type: "EXERCISE_SCORE_DEDUCTED",
+        details: {
+          targetUnitId: "enemy-1",
+          amount: 800,
+          totalScore: 2800,
+          causeEventId: "evt-3",
+        },
+      },
+      roster,
+    );
+
+    expect(presentation.title).toBe("EXERCISE_SCORE_DEDUCTED");
+    expect(presentation.summary).toContain("エネミー");
+    expect(presentation.summary).toContain("800");
+    expect(presentation.summary).toContain("2,800");
+    // 敵に有利な事象であり、`UNIT_REVIVED`と同じ扱いにする。
+    expect(presentation.severity).toBe("negative");
+  });
+
   it("summarizes UNIT_BROKEN with the break number and the turn it happened on", () => {
     const presentation = formatEvent(
       {

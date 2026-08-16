@@ -31,6 +31,28 @@ function formatExerciseScoreAccumulated(
   };
 }
 
+function formatExerciseScoreDeducted(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+): EventPresentation | undefined {
+  const details = event["details"];
+  if (
+    !isRecord(details) ||
+    typeof details["targetUnitId"] !== "string" ||
+    typeof details["amount"] !== "number" ||
+    typeof details["totalScore"] !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    title: event.type,
+    summary: `${resolveDisplayName(roster, details["targetUnitId"])}の回復でスコアが${details["amount"].toLocaleString()}減算されました（累計 ${details["totalScore"].toLocaleString()}）。`,
+    details,
+    // 敵のHPが戻った＝敵に有利な事象であり、`UNIT_REVIVED`と同じ扱いにする。
+    severity: "negative",
+  };
+}
+
 function formatUnitBroken(
   event: BattleLogEventResponse,
   roster: RosterIndex,
@@ -76,6 +98,7 @@ function formatUnitRevived(
 
 export const exerciseEventFormatters: Readonly<Record<string, EventFormatter>> = {
   EXERCISE_SCORE_ACCUMULATED: formatExerciseScoreAccumulated,
+  EXERCISE_SCORE_DEDUCTED: formatExerciseScoreDeducted,
   UNIT_BROKEN: formatUnitBroken,
   UNIT_REVIVED: formatUnitRevived,
 };
