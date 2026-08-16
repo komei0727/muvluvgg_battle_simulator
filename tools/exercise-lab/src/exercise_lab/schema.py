@@ -105,14 +105,22 @@ def _require_academy_levels_for_unit_enhancement(ally: dict[str, Any]) -> None:
     陣営の強化指定なしにユニットの強化だけ送るとAPIが422で拒む
     （`10_API設計.md`「FormationUnitRequest」）。`models._validate` が実行時に見ている
     のと同じ条件を、書いた時点で分かるようにする。
+
+    判定はキーの有無ではなく**非nullの値があるか**で組む。YAMLは `academyLevels:` と
+    書くだけで `null` になり、pydanticはそれを未指定と同じ `None` として読む。キーの
+    有無で見ると、`academyLevels: null` + `level: 240`（Schemaは通すがローダーは拒否）と
+    `level: null` 単体（Schemaは拒否するがローダーは通す）で判定が逆転する。
     """
-    ally["if"] = {"not": {"required": ["academyLevels"]}}
+    ally["if"] = {"not": _present("academyLevels")}
     ally["then"] = {
         "properties": {
             "units": {
-                "items": {
-                    "not": {"anyOf": [{"required": ["level"]}, {"required": ["gears"]}]},
-                }
+                "items": {"not": {"anyOf": [_present("level"), _present("gears")]}},
             }
         }
     }
+
+
+def _present(field: str) -> dict[str, Any]:
+    """その項目が非nullの値を持つ、という条件。"""
+    return {"required": [field], "properties": {field: {"not": {"type": "null"}}}}

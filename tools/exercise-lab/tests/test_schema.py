@@ -6,8 +6,10 @@
 
 import jsonschema
 import pytest
+import yaml
 
 from exercise_lab.api import Catalog
+from exercise_lab.models import ConfigError, load_formation_config
 from exercise_lab.schema import build_formation_json_schema
 
 CATALOG = Catalog.model_validate(
@@ -191,3 +193,99 @@ def test_duplicate_ally_positions_are_a_documented_gap(schema):
         path.write_text(pyyaml.safe_dump(value), encoding="utf-8")
         with pytest.raises(ConfigError, match="重複"):
             load_formation_config(path)  # ローダーは弾く
+
+
+# YAMLでは `academyLevels:` と書くだけで `null` になる。キーの有無ではなく
+# 「非nullの値があるか」で判定を組まないと、Schemaとローダーの判定が逆転する。
+
+
+def test_null_academy_levels_with_a_unit_level_is_rejected(schema):
+    value = document()
+    value["ally"]["academyLevels"] = None
+    value["ally"]["units"][0]["level"] = 240
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate(schema, value)
+
+
+def test_null_academy_levels_with_null_unit_gears_passes(schema):
+    value = document()
+    value["ally"]["academyLevels"] = None
+    value["ally"]["units"][0]["gears"] = None
+
+    validate(schema, value)
+
+
+def test_null_unit_level_without_academy_levels_passes(schema):
+    value = document()
+    value["ally"]["units"][0]["level"] = None
+
+    validate(schema, value)
+
+
+def test_null_unit_gears_without_academy_levels_pass(schema):
+    value = document()
+    value["ally"]["units"][0]["gears"] = None
+
+    validate(schema, value)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(
+            lambda value: (
+                value["ally"].__setitem__("academyLevels", None)
+                or value["ally"]["units"][0].__setitem__("level", 240)
+            ),
+            id="null-academy-levels-with-level",
+        ),
+        pytest.param(
+            lambda value: value["ally"]["units"][0].__setitem__("level", None),
+            id="null-level",
+        ),
+        pytest.param(
+            lambda value: value["ally"]["units"][0].__setitem__("gears", None),
+            id="null-gears",
+        ),
+        pytest.param(
+            lambda value: (
+                value["ally"].__setitem__("academyLevels", None)
+                or value["ally"]["units"][0].__setitem__("gears", None)
+            ),
+            id="null-academy-levels-with-null-gears",
+        ),
+        pytest.param(
+            lambda value: (
+                value["ally"].__setitem__(
+                    "academyLevels", {"unitTypes": {"PHYSICAL": 60}, "attributes": {}}
+                )
+                or value["ally"]["units"][0].__setitem__("level", 240)
+            ),
+            id="academy-levels-with-level",
+        ),
+    ],
+)
+def test_schema_and_loader_agree_on_null_shaped_documents(schema, mutate, tmp_path):
+    """Schemaが通す/弾く方向とローダーの判定を一致させる。
+
+    片方だけが通ると、エディタで直したのに実行で落ちる（またはその逆）になる。
+    """
+    value = document()
+    mutate(value)
+
+    schema_accepts = True
+    try:
+        validate(schema, value)
+    except jsonschema.ValidationError:
+        schema_accepts = False
+
+    path = tmp_path / "formation.yaml"
+    path.write_text(yaml.safe_dump(value, allow_unicode=True), encoding="utf-8")
+    loader_accepts = True
+    try:
+        load_formation_config(path)
+    except ConfigError:
+        loader_accepts = False
+
+    assert schema_accepts == loader_accepts
