@@ -3043,6 +3043,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-10-030",
       "UT-R-EFF-10-034",
       "IT-UNIT-AOI-ELEGANT-004",
+      // Issue #500: 演習のブレイク解除（R-TEX-05 #2）でも「カスケードは`dispellable`を
+      // 問わない」が優先する — 解除不可の子は、解除対象になった親と同じグループなら道連れになる。
+      "UT-R-TEX-05-005",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -3546,7 +3549,17 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     // `UT-R-TEX-05-002`が#4（回復として扱わない）の否定側を持つ。#1〜#3・#5は復活が
     // 「起きること」の証跡で足りるが、#4だけは回復経路が生きた盤面で「起きないこと」を
     // 見なければ固定できない（回復量補正・回復リンク・回復契機トリガーの不在）。
-    testCaseIds: ["UT-R-TEX-05-001", "UT-R-TEX-05-002", "UT-R-TEX-04-019", "SCN-BTL-026"],
+    // #2の解除不可免除は`UT-R-TEX-05-003`（敵自身のバフ）と`UT-R-TEX-05-004`
+    // （味方が付与したデバフ）が対称性を、`UT-R-TEX-05-005`がR-EFF-09連動の優先を持つ。
+    testCaseIds: [
+      "UT-R-TEX-05-001",
+      "UT-R-TEX-05-002",
+      "UT-R-TEX-05-003",
+      "UT-R-TEX-05-004",
+      "UT-R-TEX-05-005",
+      "UT-R-TEX-04-019",
+      "SCN-BTL-026",
+    ],
     kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
   },
   {

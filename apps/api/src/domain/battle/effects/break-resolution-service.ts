@@ -7,6 +7,7 @@ import {
   type LinkedGroupCascadeStep,
   type LinkedGroupRemoval,
 } from "./linked-group-cascade.js";
+import { collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { applyExerciseScaling } from "../model/exercise-scaling-policy.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
@@ -16,7 +17,7 @@ import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { ValueChange } from "../events/state-delta.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import type { DomainEventId, EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 /**
@@ -42,22 +43,55 @@ function isMemoryGranted(grant: {
 }
 
 /**
- * R-TEX-05 #2／R-TEX-07: ブレイクしたユニット**自身**が保持する、メモリー由来以外の
- * 効果・マーカーだけを解除対象にする。
+ * R-TEX-05 #2の解除対象から外れる保持分。メモリー由来（R-MEM-04）と、解除不可
+ * （`dispellable: false`）を宣言した効果・マーカーがこれにあたる。後者は
+ * `REMOVE_EFFECTS`（R-EFF-02）と同じ扱いで、演習のブレイクでも解除しない。
+ * 発生源・符号は問わない — `dispellable`は解除可否だけを表すフラグであり、
+ * 味方が敵へ付与した解除不可デバフも同じく残る。
+ */
+function isExemptFromBreakRemoval(grant: {
+  readonly sourceUnitId?: BattleUnitId;
+  readonly sourceSide?: unknown;
+  readonly duration: { readonly definition: { readonly dispellable: boolean } };
+}): boolean {
+  return isMemoryGranted(grant) || grant.duration.definition.dispellable === false;
+}
+
+/**
+ * R-TEX-05 #2／R-TEX-07: ブレイクしたユニット**自身**が保持する、メモリー由来でも
+ * 解除不可でもない効果・マーカーを解除対象にする。
  *
- * `REMOVE_EFFECTS`（R-EFF-02）と違い`dispellable: false`を尊重しない — R-TEX-05は
- * 解除スキルではなく演習固有のライフサイクル処理であり、「付与されたバフ・デバフ・
- * マーカーをすべて解除する」と定めているためである。
- *
- * R-EFF-09の`linkedEffectGroupId`カスケードも起こさない。カスケードは他ユニットが
- * 保持するメンバーまで巻き込むが、敵が味方へ付与済みの効果・マーカーはブレイクで
- * 解除しない（R-TEX-07 #1）ためである。同一ユニット内のグループメンバーは、
- * ここで列挙する「自身の非メモリー由来すべて」に元から含まれる。
+ * R-EFF-09の整合だけは`dispellable`より優先する — 解除対象になった親と同じ
+ * `linkedEffectGroupId`を持つメンバーは、解除不可でも道連れにする（「カスケードは
+ * `dispellable`を問わない」）。これはカスケードの再導入ではなく**除外の取り消し**
+ * として実装する。カスケードそのものを走らせると他ユニットが保持するメンバーまで
+ * 巻き込むが、敵が味方へ付与済みの効果・マーカーはブレイクで解除しない（R-TEX-07 #1）
+ * ためである。`collectLinkedGroupCascade`へ渡す盤面をブレイク対象1体に閉じることで、
+ * 到達範囲を同一ユニット内へ限定する。
  */
 function breakRemovals(target: BattleUnit): readonly LinkedGroupRemoval[] {
+  const seedEffectInstanceIds = new Set<EffectInstanceId>();
+  const seedMarkerInstanceIds = new Set<MarkerInstanceId>();
+  for (const effect of target.appliedEffects) {
+    if (!isExemptFromBreakRemoval(effect)) {
+      seedEffectInstanceIds.add(effect.effectInstanceId);
+    }
+  }
+  for (const marker of target.markerStates) {
+    if (!isExemptFromBreakRemoval(marker)) {
+      seedMarkerInstanceIds.add(marker.markerInstanceId);
+    }
+  }
+  const group = collectLinkedGroupCascade([target], {
+    effectInstanceIds: seedEffectInstanceIds,
+    markerInstanceIds: seedMarkerInstanceIds,
+  });
+
   const removals: LinkedGroupRemoval[] = [];
   for (const effect of target.appliedEffects) {
-    if (!isMemoryGranted(effect)) {
+    // メモリー由来の免除だけは連動でも取り消さない。R-TEX-05 #2はこれを
+    // 「解除しない」と無条件に定めており、解除不可の免除より強い。
+    if (!isMemoryGranted(effect) && group.effectInstanceIds.has(effect.effectInstanceId)) {
       removals.push({
         member: { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
         reason: "REMOVED",
@@ -66,7 +100,7 @@ function breakRemovals(target: BattleUnit): readonly LinkedGroupRemoval[] {
     }
   }
   for (const marker of target.markerStates) {
-    if (!isMemoryGranted(marker)) {
+    if (!isMemoryGranted(marker) && group.markerInstanceIds.has(marker.markerInstanceId)) {
       removals.push({
         member: { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
         reason: "REMOVED",
@@ -106,7 +140,7 @@ function baseCombatStatsDelta(
  *    （R-TEX-06 #2／#3のAP・PP・EX・CT・チャージ・RuntimeCounter・予約の引き継ぎも同じ）。
  * 2. `UnitBroken`をPS/Memory即時連鎖へ渡し、「敵撃破時」契機を発動させる
  *    （R-TEX-03 #2。照合側は`trigger-event-matching.ts`）。
- * 3. 自身の非メモリー由来の効果・マーカーを解除する（R-TEX-05 #2）。
+ * 3. 自身の非メモリー由来かつ解除可能な効果・マーカーを解除する（R-TEX-05 #2）。
  * 4. 原基準値からブレイク強化を再計算して`baseCombatStats`を書き換え、R-STA-04の
  *    既存の再計算で戦闘中ステータスへ合成する（R-TEX-04 #4）。
  * 5. 強化後の最大HPまで全回復し`UnitRevived`を発行する（R-TEX-05 #3／#5）。
