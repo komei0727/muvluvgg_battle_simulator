@@ -1,0 +1,139 @@
+# 戦術演習の最適編成探索サンプル。そのまま実行できる。
+#
+#   uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
+#     --player-data player-data.json --out reports/
+#
+# `formation.yaml`（`lab stats` の入力）とは別物である。あちらは「1つの編成を確定して
+# 大量試行する」入力で、こちらは「どの範囲から探すか」を与える入力である。
+#
+# ID は `lab units --owned --player-data player-data.json` / `lab memories --grep <語>`
+# で引ける。育成状態（レベル・ギア）は --player-data 側が正本で、ここには書かない。
+
+# 敵はちょうど1体・メモリーなし（R-TEX-01 #3）。配置は結果に影響する。
+enemy:
+  unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
+  position: { column: 1, row: REAR }
+
+# 探索するユニット。カタログ全件ではなく、ここに挙げたものだけが候補になる。
+# 手持ちで絞るほど探索は速く深くなる。味方は PLAYABLE のみ（R-TEX-11 #1）。
+unitPool:
+  - UNIT_JUNKA_CHILDHOOD
+  - UNIT_SAYA_BUNNY
+  - UNIT_KOTOHA_REBEL
+  - UNIT_YURIA_WILDCARD
+  - UNIT_MEIYA_FATED
+  - UNIT_LILY_HERO
+  - UNIT_ELENA_MOODMAKER
+  - UNIT_LAYLA_ENTREPRENEUR
+  - UNIT_SUIRAN_CHAOS
+  - UNIT_KATE_PALADIN
+  - UNIT_MAO_COMMITTEE
+  - UNIT_AOI_ELEGANT
+
+# 探索するメモリー。並び順は発動解決順（R-MEM-02）に効くため、順序も探索変数になる。
+memoryPool:
+  - MEM_GIDDY_CIRCUMSTANCES
+  - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+  - MEM_EURO_TOWER_DAY
+  - MEM_TIMID_REINDEER_EVE
+  - MEM_HEART_COLOR
+  - MEM_ABSOLUTE_ORDER
+  - MEM_CHAOS_MAIDEN
+  - MEM_COLORFUL_BOUQUET
+  - MEM_CURIOUS_EQUIPMENT
+
+# すでにスコアが高いと分かっている編成。初期母集団の種にする。
+# 良い出発点を確実に含めるためのもので、集団の25%を超えては入らない（多様性を保つため）。
+# UIで組んだ編成は `lab import-draft` で YAML 化できるので、その `ally` をここへ写せる。
+knownFormations:
+  - units:
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_SAYA_BUNNY
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_LAYLA_ENTREPRENEUR
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_GIDDY_CIRCUMSTANCES
+      - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_YURIA_WILDCARD
+        position: { column: 1, row: FRONT }
+      - unitDefinitionId: UNIT_SAYA_BUNNY
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+      - MEM_CHAOS_MAIDEN
+      - MEM_GIDDY_CIRCUMSTANCES
+
+# 下振れをどれだけ罰するか。適応度は λ*平均 + (1-λ)*CVaR_α で、
+# CVaR_α は「悪い方から ⌈α*n⌉ 件の平均」である。
+#
+# alpha を下げるほど「めったに起きない大崩れ」だけを見るが、そのぶん推定に要る試行数が
+# 増える（実効サンプル数は n ではなく α*n）。alpha を下げたら finalStageRuns も上げる。
+# lambda=1 にすると平均だけの最大化に戻る。
+#
+# risk:
+#   alpha: 0.2
+#   lambda: 0.5
+
+# 制約。省略時は「重複ユニット禁止・固定なし」。
+#
+# constraints:
+#   allowDuplicateUnits: false
+#   # マスまで固定する（配置も探索対象から外れる）
+#   fixedPlacements:
+#     - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+#       position: { column: 0, row: FRONT }
+#   # 必ず入れるが配置は探索させる
+#   requiredUnits: [UNIT_ELENA_MOODMAKER]
+#   # 必ず入れるメモリー。並び順は固定しない（順序は探索変数のまま）
+#   requiredMemories: [MEM_HEART_COLOR]
+
+# 評価スケジュール。段ごとの値は累計試行数で、上位半分だけが次の段へ進む。
+# 第1段は平均だけで篩う（CVaR の尾部が育っていないため）。
+#
+# schedule:
+#   populationSize: 40
+#   stageRuns: [8, 24, 72]
+#   finalPoolSize: 24
+#   finalStageRuns: [50, 100]
+#   topK: 5
+#   patience: 8
+
+# 近傍生成の重み。配置とメモリーの最適化が主で、ユニット入替は低頻度にしてある。
+# 未知のユニット組み合わせをもっと探したいなら unitSwap / unitAdd を上げる。
+#
+# operatorWeights:
+#   unitSwap: 0.18
+#   unitAdd: 0.06
+#   unitRemove: 0.02
+#   placementMove: 0.15
+#   placementSwap: 0.15
+#   rowFlip: 0.08
+#   memorySwap: 0.15
+#   memoryAdd: 0.07
+#   memoryRemove: 0.05
+#   memoryReorder: 0.09
+
+# 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
+# 省略したキーは 1 として送る（R-ENH-01）。
+#
+# academyLevels:
+#   unitTypes: { PHYSICAL: 99, ENERGY: 100, AGILE: 101 }
+#   attributes: { AGGRESSIVE: 102, SHY: 103, CUTE: 101, SMART: 102, COMICAL: 26, CLEVER: 27 }

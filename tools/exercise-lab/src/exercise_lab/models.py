@@ -150,14 +150,14 @@ def build_evaluation_request(
 ) -> dict[str, Any]:
     """`TacticalExerciseEvaluationRequest` の本文を組み立てる。候補は常に1件。"""
     return {
-        "enemyFormation": _enemy_formation(config.enemy),
-        "candidates": [{"allyFormation": _ally_formation(config)}],
+        "enemyFormation": build_enemy_formation(config.enemy),
+        "candidates": [{"allyFormation": build_ally_formation(config)}],
         "runsPerCandidate": runs_per_candidate,
         "seed": seed,
     }
 
 
-def _enemy_formation(enemy: EnemySpec) -> dict[str, Any]:
+def build_enemy_formation(enemy: EnemySpec) -> dict[str, Any]:
     return {
         "units": [
             {
@@ -169,7 +169,13 @@ def _enemy_formation(enemy: EnemySpec) -> dict[str, Any]:
     }
 
 
-def _ally_formation(config: FormationConfig) -> dict[str, Any]:
+def build_ally_formation(config: FormationConfig) -> dict[str, Any]:
+    """`FormationRequest`（味方）を組み立てる。
+
+    複数候補を1リクエストへ載せる一括評価（`optimize/`）も同じ規則で組む必要があるため
+    公開している。既定値と同値の項目を落とす判断をここへ集約しないと、候補ごとに
+    送信JSONが揺れて `lab stats` の結果と突き合わせられなくなる。
+    """
     formation: dict[str, Any] = {
         "units": [_ally_unit(unit, config.enhancement_enabled) for unit in config.ally.units],
         "memoryDefinitionIds": list(config.ally.memory_definition_ids),
