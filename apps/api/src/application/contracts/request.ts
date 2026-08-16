@@ -87,3 +87,21 @@ export interface FormationStatPreviewRequestBody {
   /** R-TEX-11 #5: 編成プール検証に使う戦闘モード。省略時は`NORMAL`。 */
   readonly mode?: "NORMAL" | "TACTICAL_EXERCISE";
 }
+
+/** `10_API設計.md`「TacticalExerciseCandidateRequest」。評価対象の味方編成1件。 */
+export interface TacticalExerciseCandidateRequestBody {
+  readonly allyFormation: FormationRequestBody;
+}
+
+/**
+ * `10_API設計.md`「戦術演習の編成候補を一括評価する」（`POST /api/v1/tactical-exercise-evaluations`）の
+ * request body契約。敵編成はリクエスト全体で1つを共有し、味方編成だけを候補として複数受け取る。
+ * `options.logLevel`を持たない——返すのは試行ごとの数値だけで、イベント列は返さないためである。
+ */
+export interface TacticalExerciseEvaluationRequestBody {
+  readonly enemyFormation: FormationRequestBody;
+  readonly candidates: readonly TacticalExerciseCandidateRequestBody[];
+  readonly runsPerCandidate: number;
+  /** 省略時はサーバーが生成し、応答へ載せる（同じ結果を再現できるようにするため）。 */
+  readonly seed?: string;
+}

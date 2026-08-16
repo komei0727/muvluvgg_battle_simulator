@@ -2,6 +2,7 @@ import type { Violation } from "../contracts/application-error.js";
 import {
   validateFormationShape,
   validateLogLevel,
+  type FormationInput,
   type FormationPairCommand,
   type LogLevel,
 } from "./simulate-battle-command.js";
@@ -36,28 +37,43 @@ export function validateTacticalExerciseCommandShape(
 ): Violation[] {
   const violations: Violation[] = [
     ...validateFormationShape(command.allyFormation, "allyFormation"),
-    // 敵編成の件数はR-TEX-01 #3が「ちょうど1体」に狭めるため、共通の1～5体検証
-    // （`validateFormationShape`）は通さず、専用の違反だけを返す（同じ入力に対して
-    // 「1～5体」と「ちょうど1体」の二重の違反を返さない）。配置・強化指定の検証は
-    // 共通規則のまま必要なので、最小人数0で通したうえで件数だけ別途判定する。
-    ...validateFormationShape(command.enemyFormation, "enemyFormation", { minimumSlots: 0 }),
+    ...validateExerciseEnemyFormationShape(command.enemyFormation, "enemyFormation"),
   ];
 
-  if (command.enemyFormation.slots.length !== EXERCISE_ENEMY_SLOTS) {
-    violations.push({
-      path: "enemyFormation.slots",
-      reason: `must contain exactly ${EXERCISE_ENEMY_SLOTS} unit in a tactical exercise, got ${command.enemyFormation.slots.length}`,
-    });
-  }
-
-  if (command.enemyFormation.memoryDefinitionIds.length > 0) {
-    violations.push({
-      path: "enemyFormation.memoryDefinitionIds",
-      reason: `must be empty in a tactical exercise, got ${command.enemyFormation.memoryDefinitionIds.length}`,
-    });
-  }
-
   validateLogLevel(command.logLevel, violations);
+
+  return violations;
+}
+
+/**
+ * R-TEX-01 #3（敵ちょうど1体・敵メモリーなし）の検証。単発の演習と一括評価の双方が
+ * 同じ敵編成規則を受理するため、規則の実体はここ1か所に置く。
+ */
+export function validateExerciseEnemyFormationShape(
+  enemyFormation: FormationInput,
+  path: string,
+): Violation[] {
+  // 敵編成の件数はR-TEX-01 #3が「ちょうど1体」に狭めるため、共通の1～5体検証
+  // （`validateFormationShape`）は通さず、専用の違反だけを返す（同じ入力に対して
+  // 「1～5体」と「ちょうど1体」の二重の違反を返さない）。配置・強化指定の検証は
+  // 共通規則のまま必要なので、最小人数0で通したうえで件数だけ別途判定する。
+  const violations: Violation[] = validateFormationShape(enemyFormation, path, {
+    minimumSlots: 0,
+  });
+
+  if (enemyFormation.slots.length !== EXERCISE_ENEMY_SLOTS) {
+    violations.push({
+      path: `${path}.slots`,
+      reason: `must contain exactly ${EXERCISE_ENEMY_SLOTS} unit in a tactical exercise, got ${enemyFormation.slots.length}`,
+    });
+  }
+
+  if (enemyFormation.memoryDefinitionIds.length > 0) {
+    violations.push({
+      path: `${path}.memoryDefinitionIds`,
+      reason: `must be empty in a tactical exercise, got ${enemyFormation.memoryDefinitionIds.length}`,
+    });
+  }
 
   return violations;
 }

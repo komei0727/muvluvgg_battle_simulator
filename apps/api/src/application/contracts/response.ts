@@ -422,3 +422,26 @@ export interface FormationStatPreviewResponseBody {
   /** 味方、敵の順。各陣営内はリクエストの`units`と同じ順序。 */
   readonly units: readonly FormationStatPreviewUnitResponseBody[];
 }
+
+/**
+ * `10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」。統計量ではなく
+ * 試行ごとの生値を返す——どの統計を採るかは利用側が決める。
+ * 4つの配列は同じ試行を同じ添字で指し、いずれも長さが`completedRuns`に一致する。
+ */
+export interface TacticalExerciseCandidateEvaluationResponseBody {
+  readonly completedRuns: number;
+  readonly scores: readonly number[];
+  readonly breakCounts: readonly number[];
+  readonly completedTurns: readonly number[];
+  readonly completionReasons: readonly string[];
+}
+
+/** `10_API設計.md`「TacticalExerciseEvaluationResponse」。 */
+export interface TacticalExerciseEvaluationResponseBody {
+  readonly schemaVersion: number;
+  readonly catalogRevision: string;
+  /** 実際に使われたseed。省略された場合の生成分もここに載る。 */
+  readonly seed: string;
+  readonly runsPerCandidate: number;
+  readonly candidates: readonly TacticalExerciseCandidateEvaluationResponseBody[];
+}
