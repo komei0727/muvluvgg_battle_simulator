@@ -197,6 +197,147 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     expect(recorder.getEvents().filter((e) => e.eventType === "MarkerRemoved")).toHaveLength(1);
   });
 
+  it("UT-R-TEX-05-003: keeps the broken enemy's own undispellable effects and markers while removing the dispellable ones", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemyId = createBattleUnitId("enemy-1");
+    const enemy = unit("enemy-1", "ENEMY", {
+      currentHp: createHitPoint(0, 1000),
+      appliedEffects: [
+        effect("eff-dispellable", enemyId, ATTACK_BUFF.effectActionDefinitionId),
+        effect("eff-undispellable", enemyId, ATTACK_BUFF.effectActionDefinitionId, {
+          duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+        }),
+      ],
+      markerStates: [
+        marker("mk-dispellable", enemyId),
+        marker("mk-undispellable", enemyId, {
+          duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+        }),
+      ],
+    });
+    const { ctx, recorder, rootEventId } = context(exercise);
+
+    const result = resolveBreak(ctx, [enemy], enemyId, EFFECT_ACTIONS, rootEventId);
+
+    const revived = result.units.find((candidate) => candidate.battleUnitId === enemyId)!;
+    expect(revived.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["eff-undispellable"]);
+    expect(revived.markerStates.map((m) => m.markerInstanceId)).toEqual(["mk-undispellable"]);
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "EffectRemoved")
+        .map((event) => event.payload.effectInstanceId),
+    ).toEqual(["eff-dispellable"]);
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "MarkerRemoved")
+        .map((event) => event.payload.markerInstanceId),
+    ).toEqual(["mk-dispellable"]);
+  });
+
+  it("UT-R-TEX-05-005: removes an undispellable child whose linkedEffectGroup parent the break removes (R-EFF-09)", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemyId = createBattleUnitId("enemy-1");
+    const enemy = unit("enemy-1", "ENEMY", {
+      currentHp: createHitPoint(0, 1000),
+      appliedEffects: [
+        effect("eff-child", enemyId, ATTACK_BUFF.effectActionDefinitionId, {
+          duration: {
+            definition: {
+              dispellable: false,
+              linkedEffectGroupId: "GRP",
+              linkedEffectGroupRole: "CHILD",
+            },
+          },
+        }),
+        effect("eff-lone-child", enemyId, ATTACK_BUFF.effectActionDefinitionId, {
+          duration: {
+            definition: {
+              dispellable: false,
+              linkedEffectGroupId: "GRP_LONE",
+              linkedEffectGroupRole: "CHILD",
+            },
+          },
+        }),
+      ],
+      markerStates: [
+        marker("mk-parent", enemyId, {
+          duration: {
+            definition: {
+              dispellable: true,
+              linkedEffectGroupId: "GRP",
+              linkedEffectGroupRole: "PARENT",
+            },
+          },
+        }),
+      ],
+    });
+    const { ctx, recorder, rootEventId } = context(exercise);
+
+    const result = resolveBreak(ctx, [enemy], enemyId, EFFECT_ACTIONS, rootEventId);
+
+    // 親がブレイクで解除される`GRP`は解除不可の子ごと消え、親を持たない`GRP_LONE`の
+    // 子だけが残る（`CHILD`単独ではカスケードの起点にならない）。
+    const revived = result.units.find((candidate) => candidate.battleUnitId === enemyId)!;
+    expect(revived.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["eff-lone-child"]);
+    expect(revived.markerStates).toHaveLength(0);
+    // 子は自身の資格では解除されず親に巻き込まれただけなので、R-EFF-09どおり
+    // 連動として観測できる（親は直接解除のまま）。子を先に、親を最後に発行する。
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "EffectRemoved")
+        .map((event) => ({
+          effectInstanceId: event.payload.effectInstanceId,
+          reason: event.payload.reason,
+          cascaded: event.payload.cascaded,
+        })),
+    ).toEqual([{ effectInstanceId: "eff-child", reason: "LINKED_GROUP_CASCADE", cascaded: true }]);
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "MarkerRemoved")
+        .map((event) => ({
+          markerInstanceId: event.payload.markerInstanceId,
+          reason: event.payload.reason,
+          cascaded: event.payload.cascaded,
+        })),
+    ).toEqual([{ markerInstanceId: "mk-parent", reason: "REMOVED", cascaded: false }]);
+  });
+
+  it("UT-R-TEX-05-004: keeps undispellable debuffs allies granted to the broken enemy", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemyId = createBattleUnitId("enemy-1");
+    const allyId = createBattleUnitId("ally-1");
+    const ally = unit("ally-1", "ALLY");
+    const enemy = unit("enemy-1", "ENEMY", {
+      currentHp: createHitPoint(0, 1000),
+      appliedEffects: [
+        effect("eff-ally-granted", enemyId, ATTACK_BUFF.effectActionDefinitionId, {
+          sourceUnitId: allyId,
+          categories: ["DEBUFF"],
+          duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+        }),
+      ],
+      markerStates: [
+        marker("mk-ally-granted", enemyId, {
+          sourceUnitId: allyId,
+          duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+        }),
+      ],
+    });
+    const { ctx, recorder, rootEventId } = context(exercise);
+
+    const result = resolveBreak(ctx, [enemy, ally], enemyId, EFFECT_ACTIONS, rootEventId);
+
+    const revived = result.units.find((candidate) => candidate.battleUnitId === enemyId)!;
+    expect(revived.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["eff-ally-granted"]);
+    expect(revived.markerStates.map((m) => m.markerInstanceId)).toEqual(["mk-ally-granted"]);
+    expect(recorder.getEvents().some((e) => e.eventType === "EffectRemoved")).toBe(false);
+    expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(false);
+  });
+
   it("UT-R-TEX-07-001: leaves effects and markers the broken enemy granted to allies untouched", () => {
     const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
     const enemyId = createBattleUnitId("enemy-1");
