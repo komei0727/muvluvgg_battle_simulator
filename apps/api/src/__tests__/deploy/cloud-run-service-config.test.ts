@@ -220,4 +220,10 @@ describe("Cloud Run service manifest", () => {
     expect(probe?.timeoutSeconds).toBeGreaterThan(0);
     expect(probe?.failureThreshold).toBeGreaterThan(0);
   });
+
+  it("IT-INFRA-CLOUDRUN-018: the tactical-exercise evaluation endpoint stays closed in production", () => {
+    // ローカルの分析ツール向けの実行系であり、公開インスタンスでは開かない。
+    // 既定値はコード側でも false だが、意図を manifest 側にも残して固定する。
+    expect(envValue(loadManifest(), "EVALUATION_ENDPOINT_ENABLED")).toBe("false");
+  });
 });
