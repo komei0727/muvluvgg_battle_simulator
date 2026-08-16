@@ -19,7 +19,7 @@ from typing import Any, Protocol
 
 from .candidate import Candidate
 from .evaluator import EvaluationPhase, Evaluator
-from .fitness import RiskPolicy
+from .fitness import Objective
 from .operators import Neighborhood, UnitHint, initial_population
 from .racing import (
     FINAL_SURVIVAL_DIVISOR,
@@ -73,8 +73,8 @@ class SearchContext:
     on_generation: Callable[[GenerationReport], None] | None = None
 
     @property
-    def policy(self) -> RiskPolicy:
-        return self.config.risk_policy
+    def policy(self) -> Objective:
+        return self.config.objective
 
     @property
     def neighborhood(self) -> Neighborhood:
@@ -100,8 +100,9 @@ def exploration_pool(context: SearchContext) -> tuple[Candidate, ...]:
     """探索で評価した候補を、最終選抜へ送る順に並べる。
 
     深く評価された候補を先に置き、同じ試行数の中では適応度で並べる。試行数の違う候補を
-    CVaRの生値で横並びにしない——小標本ほど下方バイアスが乗り、浅くしか評価していない
-    候補が不当に低く見える。レーシングを生き延びたことそのものが先に効く情報である。
+    適応度の生値で横並びにしない——順序統計量ベースの推定量は標本数で偏りが変わり、
+    浅くしか評価していない候補と公平に比べられない。レーシングを生き延びたことそのものが
+    先に効く情報である。
 
     順位を評価器の履歴から作り直すのは、中断から再開したときにも探索前半の候補が
     プールへ残るようにするためでもある（履歴は状態ファイルへ保存される）。

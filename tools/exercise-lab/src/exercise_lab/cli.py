@@ -625,10 +625,10 @@ def compare(
                     "bestFitness": summary["topFormations"][0]["fitness"]
                     if summary["topFormations"]
                     else None,
-                    "bestMean": summary["topFormations"][0]["mean"]
+                    "bestExpectedBest": summary["topFormations"][0]["expectedBest"]
                     if summary["topFormations"]
                     else None,
-                    "bestCvar": summary["topFormations"][0]["cvar"]
+                    "bestMean": summary["topFormations"][0]["mean"]
                     if summary["topFormations"]
                     else None,
                     "report": str(out / name / OPTIMIZATION_JSON),
@@ -713,7 +713,7 @@ def _print_comparison(comparison: dict[str, Any]) -> None:
         f" seed {comparison['seed']}）"
     )
     table.add_column("algorithm")
-    for column in ("best fitness", "mean", "CVaR", "runs", "stopped"):
+    for column in ("best fitness", "E[best]", "mean", "runs", "stopped"):
         table.add_column(column, justify="right")
     for entry in sorted(
         comparison["algorithms"],
@@ -723,8 +723,8 @@ def _print_comparison(comparison: dict[str, Any]) -> None:
         table.add_row(
             entry["algorithm"],
             _format(entry["bestFitness"]),
+            _format(entry["bestExpectedBest"]),
             _format(entry["bestMean"]),
-            _format(entry["bestCvar"]),
             _format(entry["consumedRuns"]),
             entry["stoppedBecause"],
         )
@@ -837,19 +837,32 @@ def _optimize_with_progress(search, context: SearchContext, *, resume: bool, bud
 
 
 def _print_optimization(summary: dict[str, Any]) -> None:
+    best_of = summary["objective"]["bestOf"]
+    guard_days = 1.0 - summary["objective"]["guardQuantile"]
     table = Table(
         title=f"top {len(summary['topFormations'])} formations"
         f"（{summary['consumedRuns']:,} runs / stopped: {summary['stoppedBecause']}）"
     )
-    for column in ("rank", "fitness", "mean", "95% CI", "CVaR", "defeat", "n"):
+    columns = (
+        "rank",
+        "fitness",
+        f"E[best{best_of}]",
+        "median best",
+        f"{guard_days:.0%} floor",
+        "mean",
+        "defeat",
+        "n",
+    )
+    for column in columns:
         table.add_column(column, justify="right" if column != "rank" else "left")
     for formation in summary["topFormations"]:
         table.add_row(
             str(formation["rank"]),
             _format(formation["fitness"]),
+            _format(formation["expectedBest"]),
+            _format(formation["medianBest"]),
+            _format(formation["guaranteedBest"]),
             _format(formation["mean"]),
-            _interval(formation["ci95Low"], formation["ci95High"]),
-            _format(formation["cvar"]),
             f"{formation['defeatRate']:.1%}",
             str(formation["sampleCount"]),
         )

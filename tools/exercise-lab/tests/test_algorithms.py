@@ -100,14 +100,18 @@ def test_local_search_approaches_the_known_optimum(tmp_path):
     assert result.top[0].mean > IDEAL_SCORE * 0.8
 
 
-def test_the_search_avoids_a_formation_that_collapses_in_one_run_out_of_five(tmp_path):
-    """理想編成に必須のユニットが下振れ源のとき、平均だけなら選ぶが適応度では避ける。"""
+def test_the_search_keeps_a_high_ceiling_unit_that_sometimes_collapses(tmp_path):
+    """ベストオブ5勝負では、5回に1回崩れるユニットも天井が高ければ残す。
+
+    崩壊の正しいコスト（全滅は p^5 でしか起きない）は期待日次ベストに織り込まれて
+    いるので、別立てで避ける理由がない。mean-CVaR 時代はこの編成を外していた。
+    """
     config = make_config(tmp_path)
     client = ArenaClient(collapse_units=frozenset({"UNIT_A"}))
 
     result = optimize(IteratedLocalSearch(), make_context(config, client, budget=12000))
 
-    assert "UNIT_A" not in result.top[0].candidate.unit_definition_ids
+    assert "UNIT_A" in result.top[0].candidate.unit_definition_ids
 
 
 def test_the_same_seed_reproduces_the_same_result(tmp_path):

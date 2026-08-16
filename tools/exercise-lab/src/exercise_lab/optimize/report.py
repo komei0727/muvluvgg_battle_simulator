@@ -1,10 +1,10 @@
 """最適化レポート。上位編成の統計と、UIへそのまま入力できる編成表。
 
-数値は探索と同じ `RiskPolicy` で出す。レポート側で別の計算をすると、探索が選んだ理由と
+数値は探索と同じ `Objective` で出す。レポート側で別の計算をすると、探索が選んだ理由と
 報告された順位が食い違う。
 
-CVaRは尾部の件数が少ないと下方バイアスが乗るため、報告に耐える水準
-（`fitness.MIN_RELIABLE_TAIL_SAMPLES`）を割った場合は警告を添える。数字だけを黙って
+期待日次ベストは重みが上位の標本へ集中するため実効サンプル数が少なく、報告に耐える水準
+（`fitness.MIN_RELIABLE_EFFECTIVE_SAMPLES`）を割った場合は警告を添える。数字だけを黙って
 出すと、読み手はそれが確かな値かどうかを判断できない。
 """
 
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from ..api import Catalog
 from ..stats import NORMAL_QUANTILE_95, summarize_scores
-from .fitness import MIN_RELIABLE_TAIL_SAMPLES
+from .fitness import MIN_RELIABLE_EFFECTIVE_SAMPLES
 from .racing import RacedCandidate
 from .search_config import SearchConfig
 
@@ -43,7 +43,7 @@ def build_optimization_summary(
     history: Sequence[GenerationReport],
     catalog_revision: str,
 ) -> dict[str, Any]:
-    policy = config.risk_policy
+    objective = config.objective
     formations = [
         _formation_summary(entry, rank=rank, config=config, catalog=catalog)
         for rank, entry in enumerate(top, start=1)
@@ -55,11 +55,12 @@ def build_optimization_summary(
         "budgetRuns": budget_runs,
         "consumedRuns": consumed_runs,
         "stoppedBecause": stopped_because,
-        "risk": {
-            "alpha": policy.alpha,
+        "objective": {
+            "bestOf": objective.best_of,
             # YAMLのキー名に合わせる。レポートから設定へ戻れるようにする。
-            "lambda": policy.mean_weight,
-            "tailSamples": policy.tail_size(top[0].sample_count) if top else 0,
+            "lambda": objective.expected_weight,
+            "guardQuantile": objective.guard_quantile,
+            "effectiveSamples": objective.effective_samples(top[0].sample_count) if top else 0.0,
         },
         "schedule": {
             "stageRuns": list(config.schedule.stage_runs),
@@ -91,13 +92,16 @@ def _formation_summary(
         if stats.stdev is None
         else NORMAL_QUANTILE_95 * stats.stdev / (entry.sample_count**0.5)
     )
+    objective = config.objective
     return {
         "rank": rank,
         "canonicalKey": entry.candidate.canonical_key(),
         "sampleCount": entry.sample_count,
         "fitness": entry.fitness,
+        "expectedBest": entry.expected_best,
+        "medianBest": objective.median_best(scores),
+        "guaranteedBest": entry.guard,
         "mean": entry.mean,
-        "cvar": entry.cvar,
         "median": stats.median,
         "stdev": stats.stdev,
         "minimum": stats.minimum,
@@ -151,14 +155,15 @@ def formation_rows(
 
 def _warnings(top: Sequence[RacedCandidate], config: SearchConfig) -> list[str]:
     warnings: list[str] = []
-    policy = config.risk_policy
-    thin = [entry for entry in top if not policy.cvar_is_reliable(entry.sample_count)]
+    objective = config.objective
+    thin = [entry for entry in top if not objective.is_reliable(entry.sample_count)]
     if thin:
         shallowest = min(entry.sample_count for entry in thin)
         warnings.append(
-            f"CVaR の尾部が {policy.tail_size(shallowest)} 件しかない"
-            f"（試行数 {shallowest}、報告に要る目安は {MIN_RELIABLE_TAIL_SAMPLES} 件）。"
-            "順位付けには使えるが、値そのものは過小に出やすい"
+            f"期待日次ベストの実効サンプル数が "
+            f"{objective.effective_samples(shallowest):.1f} しかない"
+            f"（試行数 {shallowest}、報告に要る目安は {MIN_RELIABLE_EFFECTIVE_SAMPLES}）。"
+            "順位付けには使えるが、値そのものは上位数標本に引きずられやすい"
         )
     return warnings
 
@@ -205,7 +210,7 @@ def write_comparison_chart(
             )
         axes.set_title(title)
         axes.set_xlabel("consumed simulation runs")
-        axes.set_ylabel("best fitness (mean-CVaR)")
+        axes.set_ylabel("best fitness")
         if len(histories) > 1:
             axes.legend()
         figure.tight_layout()

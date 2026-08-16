@@ -84,7 +84,7 @@ uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
 ```bash
 cp configs/formation.example.yaml configs/formation.yaml
 uv run lab stats configs/formation.yaml --runs 1000 --seed abc123 \
-  --player-data player-data.json --out reports/
+  --player-data local_storage/player-data.json --out reports/
 ```
 
 | オプション      | 既定                    | 説明                                     |
@@ -134,7 +134,7 @@ run_index,chunk_index,chunk_seed,run_index_in_chunk,score,break_count,completed_
 
 ```bash
 uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
-  --player-data player-data.json --out reports/
+  --player-data local_storage/player-data.json --out reports/
 ```
 
 `configs/search.example.yaml` は現行 Catalog の実IDで書かれており、そのまま実行できる。
@@ -153,24 +153,30 @@ uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
 
 ### 何を最大化しているか
 
-平均ではなく **`λ × 平均 + (1−λ) × CVaR_α`** を最大化する。`CVaR_α` は
-「悪い方から `⌈α×n⌉` 件の平均」で、既定は `α=0.2`・`λ=0.5`。
+スコアアタックは1日 `bestOf` 回（既定5回）挑戦でき、その日の成績は**最大値**で決まる。
+そこで平均ではなく **`λ × E[bestOf回中のベスト] + (1−λ) × 保証値`** を最大化する。
+既定は `bestOf=5`・`λ=0.5`・`guardQuantile=0.25`。
 
-ユニットの戦闘不能でごくたまに大きく崩れる編成は、平均をわずかしか下げないので
-平均だけを見ると過大評価される。実際に引いたときの損は大きいので、左裾を別立てで罰する。
-分散ペナルティ（`mean − k×σ`）を使わないのは、会心で伸びる上振れも同じだけ罰してしまい、
-罰したい側だけを狙えないためである。
+- **期待日次ベスト** `E[best-of-k]` は、n回の評価から「ランダムにk回引いたときの最大値の
+  期待値」を順序統計量の重み付き和で不偏推定した値。会心で伸びる上振れは資産として
+  正しく評価され、稀な崩壊は「k回のうち1回を無駄にする」ぶんしか効かない
+  （全滅は p^k でしか起きない）。下振れの正しいコストが指標そのものに織り込まれるので、
+  別立ての下振れペナルティは持たない。
+- **保証値**は日次ベストの `guardQuantile` 分位点。`P(日次ベスト ≤ x) = F(x)^k` の閉形式
+  から、1試行分布の `q^(1/k)` 分位点として引ける（0.25 なら「4日に3日はこれ以上出る」値）。
+  ごく稀な外れ値1本で期待値が吊り上がった編成への防波堤になる。
 
-`α` を下げるほど「めったに起きない大崩れ」だけを見るが、**CVaR の実効サンプル数は `n` では
-なく `α×n`**（尾部の件数）なので、推定に要る試行数が増える。`α` を下げたら `finalStageRuns`
-も上げる。`λ=1` にすると平均だけの最大化に戻る。
+`bestOf` を上げるほど上振れ重視になるが、重みが上位の標本へ集中するぶん
+**実効サンプル数は `n` ではなく約 `n(2k−1)/k²`**（k=5 で n の36%）に縮む。
+`bestOf` を上げたら `finalStageRuns` も増やす。`λ=1` で純粋な期待日次ベストになる。
 
 ### 予算の配り方
 
 全候補へ同じ試行数を配ると、見込みの薄い候補にも深い評価を払うことになる。そこで浅い評価で
 広く篩い、生き残りにだけ試行数を積む（Successive Halving）。既定は `8 → 24 → 72` 試行で、
-各段で上位半分だけが次へ進む。**第1段は平均だけで判定する** — 8試行では CVaR の尾部が
-2件しかなく、順位が雑音になるため。
+各段で上位半分だけが次へ進む。**第1段は中央値だけで判定する** — 8試行では期待日次ベストの
+実効サンプルが約3しかなく順位が雑音になるためで、平均を使わないのは、稀な崩壊が平均だけを
+線形に引き下げて「たまに崩れるが天井の高い編成」を浅い段で系統的に殺すためである。
 
 最終選抜は**探索で1回も使っていない乱数の範囲**でやり直す。上位24件を50試行で篩い、
 残った8件ほどを100試行まで積んで上位5件を確定する（SAR型レース）。探索が使ったのと同じ
@@ -197,7 +203,7 @@ uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
 | `best-so-far.png`   | 消費試行数に対する暫定ベストの曲線。                  |
 | `state.json`        | 中断・再開用の状態。`--resume` が読む。               |
 
-コンソールには上位5編成の 適応度・平均・95%信頼区間・CVaR・敗北率・試行数の表と、
+コンソールには上位5編成の 適応度・期待日次ベスト・日次ベスト中央値・保証値・平均・敗北率・試行数の表と、
 **UIへそのまま入力できる編成表**（表示名つきの配置とメモリーの並び）を出す。
 
 ### 再現性
@@ -336,7 +342,7 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 | `memoryPool`      | 任意 | 探索するメモリーのID。                                     |
 | `knownFormations` | 任意 | 既知の良編成。初期母集団の種になる。                       |
 | `constraints`     | 任意 | 重複可否・固定スロット・必須ユニット・必須メモリー。       |
-| `risk`            | 任意 | `alpha`・`lambda`。                                        |
+| `objective`       | 任意 | `bestOf`・`lambda`・`guardQuantile`。                      |
 | `schedule`        | 任意 | 母集団サイズ・評価段の試行数・最終選抜の設定・`patience`。 |
 | `operatorWeights` | 任意 | 近傍生成の重み。                                           |
 | `academyLevels`   | 任意 | 学園レベル。`--player-data` を使うなら書かなくてよい。     |

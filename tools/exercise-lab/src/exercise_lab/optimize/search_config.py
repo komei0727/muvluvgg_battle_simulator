@@ -37,10 +37,16 @@ from .candidate import (
     cell_index,
     repair,
 )
-from .fitness import DEFAULT_ALPHA, DEFAULT_MEAN_WEIGHT, MIN_RELIABLE_TAIL_SAMPLES, RiskPolicy
+from .fitness import (
+    DEFAULT_BEST_OF,
+    DEFAULT_EXPECTED_WEIGHT,
+    DEFAULT_GUARD_QUANTILE,
+    MIN_RELIABLE_EFFECTIVE_SAMPLES,
+    Objective,
+)
 
-# 評価スケジュールの既定。第1段は平均だけで足切りし、CVaRは尾部が育ってから使う
-# （`fitness.cvar_is_reliable`）。段ごとの値は累計試行数であって増分ではない。
+# 評価スケジュールの既定。第1段は中央値だけで足切りし、期待日次ベストは実効サンプルが
+# 育ってから使う（`racing.plan_stages`）。段ごとの値は累計試行数であって増分ではない。
 DEFAULT_STAGE_RUNS = (8, 24, 72)
 # 最終選抜（SAR型レース）は探索で使っていないseed範囲で回す。
 DEFAULT_FINAL_STAGE_RUNS = (50, 100)
@@ -80,10 +86,15 @@ class ConstraintsSpec(_Spec):
     required_memories: list[str] = Field(default_factory=list, alias="requiredMemories")
 
 
-class RiskSpec(_Spec):
-    alpha: float = Field(default=DEFAULT_ALPHA, gt=0.0, le=1.0)
+class ObjectiveSpec(_Spec):
+    """何を最大化するか。スコアアタックの競技形式（1日k回のベストで競う）を写す。"""
+
+    best_of: int = Field(default=DEFAULT_BEST_OF, alias="bestOf", ge=1)
     # YAMLのキーは計画・Issueと揃えて `lambda`。Pythonの予約語なので名前は変えるが同じλ。
-    mean_weight: float = Field(default=DEFAULT_MEAN_WEIGHT, alias="lambda", ge=0.0, le=1.0)
+    expected_weight: float = Field(default=DEFAULT_EXPECTED_WEIGHT, alias="lambda", ge=0.0, le=1.0)
+    guard_quantile: float = Field(
+        default=DEFAULT_GUARD_QUANTILE, alias="guardQuantile", gt=0.0, lt=1.0
+    )
 
 
 class ScheduleSpec(_Spec):
@@ -159,7 +170,7 @@ class SearchConfig(_Spec):
     academy_levels: AcademyLevels | None = Field(default=None, alias="academyLevels")
     constraint_spec: ConstraintsSpec = Field(default_factory=ConstraintsSpec, alias="constraints")
     known_formations: list[SeedFormationSpec] = Field(default_factory=list, alias="knownFormations")
-    risk: RiskSpec = Field(default_factory=RiskSpec)
+    objective_spec: ObjectiveSpec = Field(default_factory=ObjectiveSpec, alias="objective")
     schedule: ScheduleSpec = Field(default_factory=ScheduleSpec)
     operator_weights: OperatorWeightsSpec = Field(
         default_factory=OperatorWeightsSpec, alias="operatorWeights"
@@ -170,8 +181,12 @@ class SearchConfig(_Spec):
     unit_enhancements: dict[str, AllyUnitSpec] = Field(default_factory=dict, exclude=True)
 
     @property
-    def risk_policy(self) -> RiskPolicy:
-        return RiskPolicy(alpha=self.risk.alpha, mean_weight=self.risk.mean_weight)
+    def objective(self) -> Objective:
+        return Objective(
+            best_of=self.objective_spec.best_of,
+            expected_weight=self.objective_spec.expected_weight,
+            guard_quantile=self.objective_spec.guard_quantile,
+        )
 
     @property
     def constraints(self) -> Constraints:
@@ -289,13 +304,15 @@ def _validate(config: SearchConfig, path: Path) -> None:
     except ValueError as error:
         raise ConfigError(f"{path}: {error}") from error
 
-    policy = config.risk_policy
+    objective = config.objective
     final_runs = config.schedule.final_stage_runs[-1]
-    if not policy.cvar_is_reliable(final_runs):
+    if not objective.is_reliable(final_runs):
         raise ConfigError(
-            f"{path}: 最終選抜の試行数 {final_runs} では CVaR の尾部が "
-            f"{policy.tail_size(final_runs)} 件しかなく、{MIN_RELIABLE_TAIL_SAMPLES} 件に届かない。"
-            f"finalStageRuns を増やすか risk.alpha を上げる"
+            f"{path}: 最終選抜の試行数 {final_runs} では実効サンプル数が "
+            f"{objective.effective_samples(final_runs):.1f} しかなく、"
+            f"{MIN_RELIABLE_EFFECTIVE_SAMPLES} に届かない"
+            f"（期待日次ベストは重みが上位標本へ集中するため、n(2k-1)/k² しか効かない）。"
+            f"finalStageRuns を増やすか objective.bestOf を下げる"
         )
 
     unknown_memories = sorted(set(_seed_memory_ids(config)) - set(config.memory_pool))

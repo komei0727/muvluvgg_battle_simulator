@@ -4,14 +4,14 @@ import pytest
 
 from exercise_lab.optimize.candidate import Candidate, Cell, Placement
 from exercise_lab.optimize.evaluator import FINAL_PHASE, SEARCH_PHASE, CandidateRecord
-from exercise_lab.optimize.fitness import RiskPolicy
+from exercise_lab.optimize.fitness import Objective
 from exercise_lab.optimize.racing import (
     plan_stages,
     select_top_k,
     successive_halving,
 )
 
-POLICY = RiskPolicy(alpha=0.2, mean_weight=0.5)
+POLICY = Objective(best_of=5, expected_weight=0.5)
 
 
 def candidate(name: str) -> Candidate:
@@ -52,21 +52,31 @@ def with_tail(value: int, tail: int, count: int = 120) -> list[int]:
     return [tail if index % 5 == 0 else value for index in range(count)]
 
 
-def test_the_first_stage_ranks_by_the_mean_because_the_tail_is_too_thin():
+def spiky(low: int, high: int, count: int = 120) -> list[int]:
+    """半々で上下に割れる列。会心で伸びる上振れの大きい編成を模す。"""
+    return [high if index % 2 == 0 else low for index in range(count)]
+
+
+def test_the_first_stage_ranks_by_the_median_because_the_estimator_is_still_noisy():
+    """8試行では実効サンプルが約2.9しかなく（n(2k-1)/k²）、期待日次ベストで篩えない。
+
+    足切りは平均ではなく中央値。平均だと稀な崩壊が線形に効いて、天井の高い候補を
+    浅い段で系統的に殺す。
+    """
     stages = plan_stages((8, 24, 72), POLICY)
 
-    assert [stage.statistic for stage in stages] == ["mean", "fitness", "fitness"]
+    assert [stage.statistic for stage in stages] == ["median", "fitness", "fitness"]
     assert [stage.runs for stage in stages] == [8, 24, 72]
 
 
-def test_a_stage_switches_to_the_fitness_once_the_tail_holds_enough_samples():
-    """判定に使うのは n ではなく尾部の件数 αn 。alpha を下げれば切り替えも後ろへ動く。
+def test_a_stage_switches_to_the_fitness_once_the_effective_samples_grow():
+    """判定に使うのは n ではなく実効サンプル数。bestOf を上げれば切り替えも後ろへ動く。
 
-    alpha=0.1 では 24試行でも尾部は3件しかなく、72試行（8件）まで平均で篩う。
+    bestOf=10 では 24試行の実効サンプルが約4.6しかなく、72試行（約13.7）まで中央値で篩う。
     """
-    stages = plan_stages((8, 24, 72), RiskPolicy(alpha=0.1, mean_weight=0.5))
+    stages = plan_stages((8, 24, 72), Objective(best_of=10, expected_weight=0.5))
 
-    assert [stage.statistic for stage in stages] == ["mean", "mean", "fitness"]
+    assert [stage.statistic for stage in stages] == ["median", "median", "fitness"]
 
 
 def test_successive_halving_keeps_the_top_half_at_every_stage():
@@ -99,14 +109,15 @@ def test_successive_halving_never_empties_the_field():
     assert len(survivors) == 1
 
 
-def test_a_candidate_with_a_great_mean_but_a_collapsing_tail_falls_once_the_tail_counts():
-    """下振れペナルティが効く段を分けたことの現れ。
+def test_a_candidate_that_sometimes_collapses_but_has_a_higher_ceiling_stays_on_top():
+    """ベストオブ5勝負では、稀な崩壊は天井の高さを打ち消さない。
 
-    平均だけを見る第1段では首位に立つが、尾部が育った第2段では最下位へ落ちる。
+    5回に1回0点でも、残り4回の1600が日次ベストを立てる。第1段の足切りが中央値なので、
+    崩壊率2割は順位に影響しない。mean-CVaR 時代はこの候補を第2段で沈めていた——
+    それは平均勝負の仮定であり、競技形式とは逆向きだった。
     """
     evaluator = FakeEvaluator(
         {
-            # 平均は最も高いが、5回に1回スコアが0になる
             "UNIT_VOLATILE": with_tail(1600, 0),
             "UNIT_STEADY": flat(1100),
             "UNIT_WEAK": flat(900),
@@ -128,7 +139,22 @@ def test_a_candidate_with_a_great_mean_but_a_collapsing_tail_falls_once_the_tail
         ]
 
     assert race((8,))[0] == "UNIT_VOLATILE"
-    assert race((8, 24))[-1] == "UNIT_VOLATILE"
+    assert race((8, 24))[0] == "UNIT_VOLATILE"
+
+
+def test_upside_variance_wins_over_a_flat_candidate_with_the_same_mean():
+    """平均が同じなら上振れのある方が上。日次ベスト勝負の向きがそのまま順位に出る。"""
+    evaluator = FakeEvaluator({"UNIT_SPIKY": spiky(800, 1600), "UNIT_FLAT": flat(1200)})
+
+    survivors = successive_halving(
+        [candidate("UNIT_FLAT"), candidate("UNIT_SPIKY")],
+        evaluator,
+        policy=POLICY,
+        stages=plan_stages((24,), POLICY),
+        phase=SEARCH_PHASE,
+    )
+
+    assert survivors[0].candidate.unit_definition_ids[0] == "UNIT_SPIKY"
 
 
 def test_candidates_are_compared_at_the_shortest_history_in_the_round():
@@ -269,11 +295,11 @@ def test_select_top_k_returns_everything_when_the_pool_is_smaller_than_k():
     assert len(selected) == 2
 
 
-def test_select_top_k_ranks_by_the_tail_when_the_means_are_equal():
-    """同じ平均でも、崩れる側を下に置く。これが下振れを罰する目的関数の要点。"""
+def test_select_top_k_prefers_the_volatile_candidate_when_the_means_are_equal():
+    """同じ平均なら、上振れを持つ側が上。5回引いてベストを取る競技の向きそのもの。"""
     evaluator = FakeEvaluator({"UNIT_VOLATILE": with_tail(1000, 500), "UNIT_STEADY": flat(900)})
 
-    steady, volatile = select_top_k(
+    volatile, steady = select_top_k(
         [candidate("UNIT_VOLATILE"), candidate("UNIT_STEADY")],
         evaluator,
         policy=POLICY,
@@ -282,11 +308,15 @@ def test_select_top_k_ranks_by_the_tail_when_the_means_are_equal():
         k=2,
     )
 
-    assert steady.candidate.unit_definition_ids[0] == "UNIT_STEADY"
-    assert steady.sample_count == 100
-    assert (steady.mean, steady.cvar, steady.fitness) == pytest.approx((900.0, 900.0, 900.0))
-    # 平均は同じ 900 でも、下位2割が 500 に沈むぶん適応度が下がる
-    assert (volatile.mean, volatile.cvar, volatile.fitness) == pytest.approx((900.0, 500.0, 700.0))
+    assert volatile.candidate.unit_definition_ids[0] == "UNIT_VOLATILE"
+    assert volatile.sample_count == 100
+    assert (steady.mean, steady.expected_best, steady.fitness) == pytest.approx(
+        (900.0, 900.0, 900.0)
+    )
+    # 平均は同じ 900 でも、5回中1回の崩壊はほぼ確実に残り4回の1000で救われる
+    assert volatile.mean == pytest.approx(900.0)
+    assert 999.0 < volatile.expected_best <= 1000.0
+    assert volatile.fitness > steady.fitness
 
 
 def test_a_candidate_the_server_could_not_finish_does_not_drag_the_round_down():

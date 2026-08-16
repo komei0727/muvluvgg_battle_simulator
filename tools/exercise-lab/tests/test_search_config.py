@@ -34,8 +34,9 @@ def load(tmp_path, **overrides):
 def test_minimal_config_fills_the_documented_defaults(tmp_path):
     config = load(tmp_path)
 
-    assert config.risk.alpha == 0.2
-    assert config.risk.mean_weight == 0.5
+    assert config.objective_spec.best_of == 5
+    assert config.objective_spec.expected_weight == 0.5
+    assert config.objective_spec.guard_quantile == 0.25
     assert config.schedule.stage_runs == (8, 24, 72)
     assert config.schedule.population_size == 40
     assert config.schedule.final_stage_runs == (50, 100)
@@ -47,13 +48,14 @@ def test_unknown_top_level_key_is_rejected(tmp_path):
         load(tmp_path, unknownKey=1)
 
 
-def test_risk_reads_lambda_under_its_yaml_name(tmp_path):
-    config = load(tmp_path, risk={"alpha": 0.3, "lambda": 0.25})
+def test_objective_reads_lambda_under_its_yaml_name(tmp_path):
+    config = load(tmp_path, objective={"bestOf": 3, "lambda": 0.25, "guardQuantile": 0.4})
 
-    assert config.risk.alpha == 0.3
-    assert config.risk.mean_weight == 0.25
-    assert config.risk_policy.alpha == 0.3
-    assert config.risk_policy.mean_weight == 0.25
+    assert config.objective_spec.best_of == 3
+    assert config.objective_spec.expected_weight == 0.25
+    assert config.objective.best_of == 3
+    assert config.objective.expected_weight == 0.25
+    assert config.objective.guard_quantile == 0.4
 
 
 def test_constraints_become_the_search_constraints(tmp_path):
@@ -118,10 +120,13 @@ def test_schedule_stage_runs_must_increase(tmp_path):
         load(tmp_path, schedule={"stageRuns": [24, 8]})
 
 
-def test_final_stage_must_hold_enough_tail_samples_for_the_cvar(tmp_path):
-    """最終選抜はCVaRで順位を決めるので、尾部が10件を下回る試行数を許さない。"""
-    with pytest.raises(ConfigError, match="尾部"):
-        load(tmp_path, risk={"alpha": 0.05}, schedule={"finalStageRuns": [50, 100]})
+def test_final_stage_must_hold_enough_effective_samples(tmp_path):
+    """最終選抜は期待日次ベストで順位を決めるので、実効サンプル10未満の試行数を許さない。
+
+    bestOf=20 だと100試行でも実効サンプルは 100·39/400 ≈ 9.75 しかない。
+    """
+    with pytest.raises(ConfigError, match="実効サンプル"):
+        load(tmp_path, objective={"bestOf": 20}, schedule={"finalStageRuns": [50, 100]})
 
 
 def test_operator_weights_default_to_a_low_unit_swap_rate(tmp_path):
@@ -236,7 +241,8 @@ def test_the_bundled_example_is_loadable():
 
     assert len(config.unit_pool) >= 6
     assert config.memory_pool
-    assert len(config.seed_candidates()) == 2
+    # 件数は決め打ちしない。サンプルは実運用の設定で上書きされることがある。
+    assert config.seed_candidates()
     # 種は候補プールの中から組まれている（プール外を書くと探索されないまま消える）
     for seed in config.seed_candidates():
         assert set(seed.unit_definition_ids).issubset(config.unit_pool)

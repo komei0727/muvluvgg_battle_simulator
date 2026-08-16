@@ -5,7 +5,7 @@ import pytest
 from exercise_lab.api import Catalog
 from exercise_lab.optimize.candidate import Candidate, Cell, Placement
 from exercise_lab.optimize.evaluator import CandidateRecord
-from exercise_lab.optimize.fitness import RiskPolicy
+from exercise_lab.optimize.fitness import Objective
 from exercise_lab.optimize.racing import RacedCandidate
 from exercise_lab.optimize.report import (
     build_optimization_summary,
@@ -16,7 +16,7 @@ from exercise_lab.optimize.search_config import load_search_config
 from exercise_lab.player_data import load_player_data
 from helpers import search_config_document, write_yaml
 
-POLICY = RiskPolicy(alpha=0.2, mean_weight=0.5)
+POLICY = Objective(best_of=5, expected_weight=0.5)
 
 CATALOG = Catalog.model_validate(
     {
@@ -69,7 +69,9 @@ def raced(scores: list[int], *, units=("UNIT_A", "UNIT_B"), memories=("MEM_2", "
         record=record,
         sample_count=len(scores),
         mean=POLICY.mean(scores),
-        cvar=POLICY.cvar(scores),
+        median=POLICY.median(scores),
+        expected_best=POLICY.expected_best(scores),
+        guard=POLICY.guard(scores),
         fitness=POLICY.fitness(scores),
         defeat_rate=0.25,
     )
@@ -100,13 +102,18 @@ def test_summary_reports_the_statistics_of_every_top_formation(config):
     assert formation["rank"] == 1
     assert formation["sampleCount"] == 100
     assert formation["mean"] == pytest.approx(120.0)
-    assert formation["cvar"] == pytest.approx(100.0)
-    assert formation["fitness"] == pytest.approx(110.0)
+    # 5本引いて少なくとも1本200を引く確率は 1 − C(80,5)/C(100,5) ≈ 0.6807
+    assert formation["expectedBest"] == pytest.approx(168.07, abs=0.01)
+    # 日次ベストの中央値 = 1試行分布の p87 。上位20%が200なので200へ届く
+    assert formation["medianBest"] == pytest.approx(200.0)
+    # 25%保証値 = 1試行分布の p75.8 。200の層（上位20%）にわずかに届かない
+    assert formation["guaranteedBest"] == pytest.approx(100.0)
+    assert formation["mean"] < formation["fitness"] <= formation["maximum"]
     assert formation["defeatRate"] == pytest.approx(0.25)
     assert formation["ci95Low"] < formation["mean"] < formation["ci95High"]
 
 
-def test_summary_records_the_risk_settings_the_numbers_depend_on(config):
+def test_summary_records_the_objective_settings_the_numbers_depend_on(config):
     summary = build_optimization_summary(
         [raced([100] * 50)],
         config=config,
@@ -120,15 +127,23 @@ def test_summary_records_the_risk_settings_the_numbers_depend_on(config):
         catalog_revision="2026-08-01.1",
     )
 
-    assert summary["risk"] == {"alpha": 0.2, "lambda": 0.5, "tailSamples": 10}
+    assert summary["objective"] == {
+        "bestOf": 5,
+        "lambda": 0.5,
+        "guardQuantile": 0.25,
+        "effectiveSamples": 18.0,
+    }
     assert summary["seed"] == "abc"
     assert summary["algorithm"] == "local-search"
     assert summary["consumedRuns"] == 4200
     assert summary["stoppedBecause"] == "budget"
 
 
-def test_summary_warns_when_the_tail_is_too_thin_to_report(config):
-    """尾部が10件に満たないCVaRは報告値として弱い。黙って数字だけ出さない。"""
+def test_summary_warns_when_the_effective_samples_are_too_thin_to_report(config):
+    """実効サンプル10未満の期待日次ベストは報告値として弱い。黙って数字だけ出さない。
+
+    n=20 だと実効サンプルは 20·9/25 = 7.2 しかない。
+    """
     summary = build_optimization_summary(
         [raced([100] * 20)],
         config=config,
@@ -142,7 +157,7 @@ def test_summary_warns_when_the_tail_is_too_thin_to_report(config):
         catalog_revision="2026-08-01.1",
     )
 
-    assert any("尾部" in warning for warning in summary["warnings"])
+    assert any("実効サンプル" in warning for warning in summary["warnings"])
 
 
 def test_formation_rows_name_the_units_and_cells_for_the_ui(config):

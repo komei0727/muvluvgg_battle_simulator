@@ -4,9 +4,11 @@
 払うことになり、同じ予算で見られる候補の数が減る。そこで浅い評価で広く篩い、生き残りに
 だけ試行数を積む（Successive Halving）。
 
-判定に使う統計量は段によって変える。CVaRの実効サンプル数は `n` ではなく尾部の件数 `αn`
-なので、浅い段では尾部が数件しかなく順位が雑音になる。そこで尾部が育つまでは平均で篩い、
-育ってから下振れを見る。
+判定に使う統計量は段によって変える。期待日次ベストは順序統計量の重みが上位の標本へ
+集中するため、実効サンプル数が `n` ではなくおよそ n(2k-1)/k² しかない。浅い段では順位が
+雑音になるので、実効サンプルが育つまでは中央値で篩い、育ってから日次ベストで見る。
+平均で篩わないのは、稀な崩壊が平均だけを線形に引き下げ、「たまに崩れるが天井の高い
+編成」——この目的関数では上位に立つべき候補——を浅い段で系統的に殺すためである。
 
 最終選抜（top-k）は探索とは別の位相で回す。探索が使ったのと同じ乱数列で選ぶと、
 「その乱数列にたまたま強かった候補」をそのまま最終結果にしてしまう。
@@ -21,14 +23,14 @@ from typing import Literal, Protocol
 
 from .candidate import Candidate
 from .evaluator import CandidateRecord, EvaluationPhase, common_sample_count
-from .fitness import RiskPolicy
+from .fitness import Objective
 
-Statistic = Literal["mean", "fitness"]
+Statistic = Literal["median", "fitness"]
 
-# この件数まで尾部が育ってからCVaRを判定へ混ぜる。1〜4件の尾部で順位を決めると、
-# 崩れやすさではなく「たまたま崩れたか」を見ることになる。
-# 最終結果として報告してよい水準は別で、`fitness.MIN_RELIABLE_TAIL_SAMPLES`（10件）。
-MIN_TAIL_SAMPLES_FOR_RACING = 5
+# この実効サンプル数に届いてから期待日次ベストを判定へ使う。数件の実効サンプルで
+# 順位を決めると、天井の高さではなく「たまたま上振れを引いたか」を見ることになる。
+# 最終結果として報告してよい水準は別で、`fitness.MIN_RELIABLE_EFFECTIVE_SAMPLES`（10）。
+MIN_EFFECTIVE_SAMPLES_FOR_RACING = 5
 
 # 各段で次へ送る割合。半分ずつ落とす標準的なレーシング。
 SURVIVAL_RATIO = 0.5
@@ -58,32 +60,34 @@ class RacingStage:
 class RacedCandidate:
     """1候補の評価結果。順位付けに使った試行数も一緒に持つ。
 
-    `sample_count` を添えるのは、CVaRの比較が同じ試行数どうしでしか成り立たないためで、
-    レポートを読む側がどの条件で並べた順位かを確かめられるようにする。
+    `sample_count` を添えるのは、順序統計量ベースの比較が同じ試行数どうしでしか
+    成り立たないためで、レポートを読む側がどの条件で並べた順位かを確かめられるようにする。
     """
 
     candidate: Candidate
     record: CandidateRecord
     sample_count: int
     mean: float
-    cvar: float
+    median: float
+    expected_best: float
+    guard: float
     fitness: float
     defeat_rate: float
 
     def value(self, statistic: Statistic) -> float:
-        return self.mean if statistic == "mean" else self.fitness
+        return self.median if statistic == "median" else self.fitness
 
 
-def plan_stages(stage_runs: Sequence[int], policy: RiskPolicy) -> tuple[RacingStage, ...]:
-    """各段で使う統計量を決める。切り替えの根拠は試行数ではなく尾部の件数。"""
+def plan_stages(stage_runs: Sequence[int], policy: Objective) -> tuple[RacingStage, ...]:
+    """各段で使う統計量を決める。切り替えの根拠は試行数ではなく実効サンプル数。"""
     if not stage_runs:
         raise ValueError("評価スケジュールには1段以上が要る")
     return tuple(
         RacingStage(
             runs=runs,
             statistic="fitness"
-            if policy.tail_size(runs) >= MIN_TAIL_SAMPLES_FOR_RACING
-            else "mean",
+            if policy.effective_samples(runs) >= MIN_EFFECTIVE_SAMPLES_FOR_RACING
+            else "median",
         )
         for runs in stage_runs
     )
@@ -93,7 +97,7 @@ def successive_halving(
     candidates: Sequence[Candidate],
     evaluator: SampleSource,
     *,
-    policy: RiskPolicy,
+    policy: Objective,
     stages: Sequence[RacingStage],
     phase: EvaluationPhase,
 ) -> list[RacedCandidate]:
@@ -121,7 +125,7 @@ def select_top_k(
     candidates: Sequence[Candidate],
     evaluator: SampleSource,
     *,
-    policy: RiskPolicy,
+    policy: Objective,
     stages: Sequence[RacingStage],
     phase: EvaluationPhase,
     k: int,
@@ -174,15 +178,16 @@ def collapse_equivalent(ranked: Sequence[RacedCandidate]) -> list[RacedCandidate
 
 def rank(
     records: Sequence[CandidateRecord],
-    policy: RiskPolicy,
+    policy: Objective,
     statistic: Statistic,
     *,
     target: int = 0,
 ) -> list[RacedCandidate]:
     """同じ試行数へ揃えて並べる。
 
-    試行数の違う候補を生の値で比べない。経験CVaRは小標本で下方バイアスを持つため、
-    多く回した候補ほど不当に低く見える。そのラウンドで最も短い履歴へ揃えて比べる。
+    試行数の違う候補を生の値で比べない。順序統計量ベースの推定量は標本数で偏りが
+    変わるため、n の違う候補を横並びにすると順位が試行数の差で決まってしまう。
+    そのラウンドで比較に使える共通の試行数へ揃えて比べる。
 
     サーバーは期限に達すると完了ぶんだけを返す（Q-TEX-18）ので、段の試行数に届かない
     候補が混ざり得る。届いた候補が1つでもあるならそれだけで比べる——欠けた候補へ深さを
@@ -199,14 +204,16 @@ def rank(
     return sorted(entries, key=lambda entry: entry.value(statistic), reverse=True)
 
 
-def _measure(record: CandidateRecord, policy: RiskPolicy, count: int) -> RacedCandidate:
+def _measure(record: CandidateRecord, policy: Objective, count: int) -> RacedCandidate:
     scores = record.scores_at(count)
     return RacedCandidate(
         candidate=record.candidate,
         record=record,
         sample_count=count,
         mean=policy.mean(scores),
-        cvar=policy.cvar(scores),
+        median=policy.median(scores),
+        expected_best=policy.expected_best(scores),
+        guard=policy.guard(scores),
         fitness=policy.fitness(scores),
         defeat_rate=record.defeat_rate(count),
     )
