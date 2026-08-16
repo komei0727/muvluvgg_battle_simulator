@@ -319,6 +319,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_KOKORO_SPORTSDAY_AS1",
+    intent:
+      "同上: 「ストイック」状態でも後列に敵がいなければ、追加攻撃だけが対象0件になり単体攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_KOKORO_SPORTSDAY_AS1" },
+    board: {
+      subject: { markers: [{ markerId: STOIC_MARKER_ID }] },
+      enemies: [
+        { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -948,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_KOKORO_SPORTSDAY (【体育祭のサポート役】樋向心香)", () => {

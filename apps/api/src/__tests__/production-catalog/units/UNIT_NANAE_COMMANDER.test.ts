@@ -397,6 +397,35 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_NANAE_COMMANDER_AS2",
+    intent: "同上: 同じ横一列に他の敵がいなくても、その横一列への攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NANAE_COMMANDER_AS2" },
+    board: { enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }] },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NANAE_COMMANDER_AS2_DAMAGE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -468,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_NANAE_COMMANDER (【オールラウンダーな統率者】鳴滝七彩)", () => {

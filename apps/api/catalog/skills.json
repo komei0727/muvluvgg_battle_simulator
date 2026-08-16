@@ -6382,6 +6382,7 @@
         },
         {
           "targetBindingId": "TGT_BACK_ROW",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -8301,6 +8302,7 @@
         },
         {
           "targetBindingId": "TGT_BACK_ROW",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -8637,6 +8639,7 @@
         },
         {
           "targetBindingId": "TGT_ROW",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
@@ -11365,6 +11368,7 @@
         },
         {
           "targetBindingId": "TGT_ROW_OTHERS",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
@@ -14093,6 +14097,7 @@
         },
         {
           "targetBindingId": "TGT_ENEMY_FRONT",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -14375,6 +14380,7 @@
         },
         {
           "targetBindingId": "TGT_ENEMY_FRONT",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",

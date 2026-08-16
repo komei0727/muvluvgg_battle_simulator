@@ -263,14 +263,32 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_AS2",
-    intent:
-      "(不成立・敵前列が不在): 前列デバフの束縛が空集合になるため、スキル自体が選択されない（R-TGT-01 #4）",
+    intent: "同上: 敵前列がいなくても、自身へのシールド付与は成立する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_AS2" },
     board: BACK_ROW_ONLY_ENEMIES,
-    // 演習では味方編成が前列を持たない構成もあり得る。暑気の有無に関わらず
-    // `TGT_ENEMY_FRONT` は宣言されるため、前列不在では暑気所持側の攻撃も含めて
-    // AS2そのものが行動候補から落ちる（プレイアブル版と同じ既存挙動）。
-    expected: { activated: false },
+    // 前列デバフは自己シールドへの追加効果であり、前列不在でスキルが不成立に
+    // なるのは原文と合わない。`TGT_ENEMY_FRONT` は `optional` なので、束縛が
+    // 空集合でも発動可否には影響せず、前列デバフのstepだけが対象0件になる。
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_AS2_SHIELD",
+          targets: ["ally:subject"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_AS2_SHIELD",
+          magnitude: 50,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
   },
   {
     skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_AS2",

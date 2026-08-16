@@ -484,7 +484,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-16.1` は隣接splashのtargetBindingへ `optional: true` を18件付けた
     // （Issue #495）。補助対象が0件でもAS/EXを発動不能にしないための印であり、
     // Unit・Memoryの構成と対象選択そのものは変えていない。差分は `skills.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-08-16.1");
+    // `2026-08-16.2` は同じ印を行・列filter由来の補助binding 6件へ付けた（Issue #495）。
+    // 後列・同列・敵前列といった範囲が空でもスキルを発動不能にしないためのもの。
+    expect(catalog.catalogRevision).toBe("2026-08-16.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

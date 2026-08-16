@@ -451,6 +451,28 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
+    intent: "同上: 後列に敵がいなくても、左右列への攻撃は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX", actionType: "EX" },
+    board: {
+      enemies: [
+        { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN",
+          targets: ["enemy:left"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:left": -568,
+      },
+    },
+  },
 ];
 
 describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニアス】リディア・エルドリッジ)", () => {

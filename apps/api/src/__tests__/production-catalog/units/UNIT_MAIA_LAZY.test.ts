@@ -212,6 +212,45 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_MAIA_LAZY_AS2",
+    intent: "同上: 味方が自身のみで同じ前後列に他の味方がいなくても、回復は成立する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_MAIA_LAZY_AS2" },
+    board: {
+      allies: [],
+      enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_MAIA_LAZY_AS2_HEAL",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": 550,
+      },
+      resources: [
+        {
+          unitId: "ally:subject",
+          resource: "AP",
+          delta: -1,
+        },
+        {
+          unitId: "ally:subject",
+          resource: "EX_GAUGE",
+          delta: 1,
+        },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_MAIA_LAZY_AS2",
+          remaining: 3,
+        },
+      ],
+    },
+  },
 ];
 
 describe("production Catalog UNIT_MAIA_LAZY (【温厚篤実な面倒くさがり】夕凪舞亜)", () => {

@@ -84,6 +84,7 @@
         },
         {
           "targetBindingId": "TGT_ROW_OTHERS",
+          "optional": true,
           "selector": {
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
