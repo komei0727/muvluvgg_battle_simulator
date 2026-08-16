@@ -60,6 +60,11 @@ function allProductionUnitIdsByCategory(catalogDir: string, category: string): r
 export interface ProductionBattleOptions {
   readonly turnLimit?: number;
   readonly randomValue?: number;
+  /**
+   * 乱数源そのものを差し替える。指定した場合は`randomValue`より優先する。
+   * constant sourceでは踏めない「乱数値が実際に散る経路」を決定的に再現する用途。
+   */
+  readonly randomSourceFactory?: RandomSourceFactory;
   readonly battleId?: string;
   readonly logLevel?: SimulateBattleCommand["logLevel"];
   /**
@@ -67,6 +72,13 @@ export interface ProductionBattleOptions {
    * 「production Catalogが実際に必要とする最小の上限」を二分探索するために上書きする。
    */
   readonly executionLimits?: SimulationExecutionLimits;
+}
+
+/** 明示指定があればそれを、無ければ完走を決定化するconstant sourceを使う。 */
+function resolveRandomSourceFactory(
+  options: Pick<ProductionBattleOptions, "randomValue" | "randomSourceFactory">,
+): RandomSourceFactory {
+  return options.randomSourceFactory ?? new ConstantRandomSourceFactory(options.randomValue ?? 0.5);
 }
 
 /**
@@ -93,7 +105,7 @@ export function runProductionUnitBattle(
   const useCase = new SimulateBattleUseCase({
     battleCatalog,
     battleIdGenerator: new FixedBattleIdGenerator([options.battleId ?? "B_GOLDEN"]),
-    randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
+    randomSourceFactory: resolveRandomSourceFactory(options),
     clock: new ManualClock(0),
   });
   return requireFullObservation(
@@ -140,7 +152,7 @@ export function runProductionPartyBattle(
   const useCase = new SimulateBattleUseCase({
     battleCatalog,
     battleIdGenerator: new FixedBattleIdGenerator([options.battleId ?? "B_GOLDEN_PARTY"]),
-    randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
+    randomSourceFactory: resolveRandomSourceFactory(options),
     clock: new ManualClock(0),
   });
   return requireFullObservation(
@@ -159,7 +171,10 @@ export function runProductionPartyBattle(
 export function runProductionExerciseBattle(
   catalogDir: string,
   matchup: { readonly ally: readonly string[]; readonly enemyUnitDefinitionId: string },
-  options: Pick<ProductionBattleOptions, "randomValue" | "battleId" | "logLevel"> = {},
+  options: Pick<
+    ProductionBattleOptions,
+    "randomValue" | "randomSourceFactory" | "battleId" | "logLevel"
+  > = {},
 ): FullObservationExerciseResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const command: SimulateTacticalExerciseCommand = {
@@ -178,7 +193,7 @@ export function runProductionExerciseBattle(
   const useCase = new SimulateTacticalExerciseUseCase({
     battleCatalog,
     battleIdGenerator: new FixedBattleIdGenerator([options.battleId ?? "B_GOLDEN_TEX"]),
-    randomSourceFactory: new ConstantRandomSourceFactory(options.randomValue ?? 0.5),
+    randomSourceFactory: resolveRandomSourceFactory(options),
     clock: new ManualClock(0),
   });
   return requireFullObservation(
@@ -223,7 +238,7 @@ export function createProductionFormationBattleRunner(
     turnLimit: options.turnLimit ?? 5,
     logLevel: options.logLevel ?? "DETAILED",
   };
-  const randomSourceFactory = new ConstantRandomSourceFactory(options.randomValue ?? 0.5);
+  const randomSourceFactory = resolveRandomSourceFactory(options);
   const clock = new ManualClock(0);
   return (battleId: string): FullObservationBattleResult => {
     const useCase = new SimulateBattleUseCase({
