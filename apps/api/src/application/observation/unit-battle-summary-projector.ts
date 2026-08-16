@@ -53,11 +53,18 @@ function addTo(
  * `DamageApplied`・`HealApplied`をどれも公開しないため、間引き後の列から集計すると
  * 全ユニットの集計値が警告なく0になる。
  *
- * 量は常に「実際にHPが動いた分」を採る。
- * - ダメージは`hitPointDamage`（`calculatedDamage`ではない）。シールド吸収
- *   （R-SHD-02）・サブユニット吸収（R-SUB-01）・HPクランプで消えた`discardedDamage`
- *   （R-SHD-03第2項）は、いずれもHPを減らしていないので含めない。
- * - 回復は`appliedAmount`（要求量`healAmount`でも破棄分を含む`formulaResult`でもない）。
+ * ダメージ量は「HPへ向かった分」（`hitPointDamage + discardedDamage`）を採る。
+ * - `discardedDamage`（R-SHD-03第2項）を含めるのは、撃破ヒットのオーバーキルと
+ *   致死耐え（R-INT-01 #5）で適用されなかった分が、いずれも防がれたのではなく
+ *   対象のHPが尽きた・止められただけだからである。含めないと、演習のように同じ
+ *   敵を何度も0へ落とす戦闘で与ダメージが実態より大幅に小さく出る。
+ * - シールド吸収（R-SHD-02）・サブユニット吸収（R-SUB-01）は含めない。こちらは
+ *   HPへ向かう前に別の耐久値が引き受けた分であり、HPへ向かっていない。
+ * - `calculatedDamage`ではない。上記2つの吸収を差し引く必要があるためで、
+ *   `08_ドメインイベント.md`不変条件#6より
+ *   `calculatedDamage - 吸収3項 === hitPointDamage + discardedDamage`である。
+ * - 回復は`appliedAmount`（要求量`healAmount`でも破棄分を含む`formulaResult`でも
+ *   ない）。破棄された過剰回復に「HPへ向かったダメージ」に相当する概念はない。
  *
  * 反射（R-INT-03）・リンク（R-LNK-03）ダメージは`DamageApplied`として流れるため
  * 固有の分岐を持たない。エンベロープの`sourceUnitId`が反射側・リンク発生側を指し、
@@ -79,7 +86,7 @@ export function projectUnitBattleSummaries(
     switch (event.eventType) {
       case "DamageApplied":
       case "ContinuousDamageApplied": {
-        const amount = event.payload.hitPointDamage;
+        const amount = event.payload.hitPointDamage + event.payload.discardedDamage;
         // R-MEM-04: Memory由来の継続ダメージは付与者ユニットを持たず`sourceSide`
         // だけを持つ。陣営から特定のユニットを推測して与ダメージへ帰属させない
         // （被ダメージ側は対象が確定しているので計上する）。

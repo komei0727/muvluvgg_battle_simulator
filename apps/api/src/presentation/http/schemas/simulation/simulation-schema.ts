@@ -732,9 +732,10 @@ export const stateTransitionResponseSchema = {
  * 途中値を丸めない」）。ここだけ`integer`へ絞ると、端数を持つHPでレスポンスの
  * serializeが落ちて`500`になる。
  *
- * 集計量（`damageDealt`/`damageTaken`/`healingDone`）は実HP増減の合計であり、
- * 集計元の`DAMAGE_APPLIED.details.hitPointDamage`・`HEAL_APPLIED.details.appliedAmount`
- * が既に公開契約上`integer`であるため（`battle-log-schema.ts`）同じ型で返す。
+ * 集計量（`damageDealt`/`damageTaken`/`healingDone`）は、集計元の
+ * `DAMAGE_APPLIED.details.hitPointDamage`／`discardedDamage`・
+ * `HEAL_APPLIED.details.appliedAmount`が既に公開契約上`integer`であるため
+ * （`battle-log-schema.ts`）同じ型で返す。
  */
 export const unitBattleSummaryResponseSchema = {
   type: "object",

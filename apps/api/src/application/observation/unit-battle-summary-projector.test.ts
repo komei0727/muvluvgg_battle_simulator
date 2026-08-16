@@ -90,6 +90,9 @@ interface DamageAppliedOverrides {
   readonly subUnitAbsorbed?: number;
   readonly discardedDamage?: number;
   readonly hitPointDamage?: number;
+  readonly hpBefore?: number;
+  readonly hpAfter?: number;
+  readonly defeated?: boolean;
   readonly isReflectedDamage?: true;
   readonly isLinkedDamage?: true;
 }
@@ -97,6 +100,7 @@ interface DamageAppliedOverrides {
 function recordDamageApplied(recorder: EventRecorder, overrides: DamageAppliedOverrides): void {
   const hitPointDamage = overrides.hitPointDamage ?? 10;
   const targetUnitId = overrides.targetUnitId ?? DEFENDER;
+  const hpBefore = overrides.hpBefore ?? 100;
   recorder.record({
     eventType: "DamageApplied",
     category: "FACT",
@@ -116,9 +120,9 @@ function recordDamageApplied(recorder: EventRecorder, overrides: DamageAppliedOv
       subUnitAbsorbed: overrides.subUnitAbsorbed ?? 0,
       discardedDamage: overrides.discardedDamage ?? 0,
       hitPointDamage,
-      hpBefore: 100,
-      hpAfter: 100 - hitPointDamage,
-      defeated: false,
+      hpBefore,
+      hpAfter: overrides.hpAfter ?? hpBefore - hitPointDamage,
+      defeated: overrides.defeated ?? false,
       ...(overrides.isReflectedDamage !== undefined
         ? { isReflectedDamage: overrides.isReflectedDamage }
         : {}),
@@ -260,10 +264,10 @@ function project(events: readonly BattleDomainEvent[], finalState = FULL_HP_FINA
 }
 
 describe("projectUnitBattleSummaries", () => {
-  it("UT-UNIT-SUMMARY-001 (10_API設計.md「集計セマンティクス」): sums hitPointDamage from DamageApplied and ContinuousDamageApplied into the attacker's damageDealt and the target's damageTaken, ignoring shield/sub-unit absorption and the overkill discard", () => {
+  it("UT-UNIT-SUMMARY-001 (10_API設計.md「集計セマンティクス」): sums the HP-directed damage of DamageApplied and ContinuousDamageApplied into the attacker's damageDealt and the target's damageTaken — the HP-clamp discard counts, shield and sub-unit absorption do not", () => {
     const recorder = new EventRecorder(BATTLE_ID);
-    // calculatedDamage 40 のうち、HPへ届いたのは 10 だけ。残りは
-    // シールド20・サブユニット5・HPクランプ破棄5 が吸収する。
+    // calculatedDamage 40 のうち、HPへ向かったのは 15（実減少10＋クランプ破棄5）。
+    // シールド20・サブユニット5 はHPへ向かっていないので算入しない。
     recordDamageApplied(recorder, {
       sourceUnitId: ATTACKER,
       calculatedDamage: 40,
@@ -274,6 +278,7 @@ describe("projectUnitBattleSummaries", () => {
       hitPointDamage: 10,
     });
     // 継続ダメージも同じ規約で合算する（DoTだけ落ちるのがUI集計の既知の欠落）。
+    // calculatedDamage 9 のうちHPへ向かったのは 7（実減少6＋クランプ破棄1）。
     recordContinuousDamageApplied(recorder, {
       sourceUnitId: ATTACKER,
       calculatedDamage: 9,
@@ -284,9 +289,9 @@ describe("projectUnitBattleSummaries", () => {
 
     const summaries = project(recorder.getEvents());
 
-    expect(summaryOf(summaries, ATTACKER).damageDealt).toBe(16);
+    expect(summaryOf(summaries, ATTACKER).damageDealt).toBe(22);
     expect(summaryOf(summaries, ATTACKER).damageTaken).toBe(0);
-    expect(summaryOf(summaries, DEFENDER).damageTaken).toBe(16);
+    expect(summaryOf(summaries, DEFENDER).damageTaken).toBe(22);
     expect(summaryOf(summaries, DEFENDER).damageDealt).toBe(0);
   });
 
@@ -415,5 +420,43 @@ describe("projectUnitBattleSummaries", () => {
         combatStatus: "ACTIVE",
       },
     ]);
+  });
+
+  it("UT-UNIT-SUMMARY-007 (R-SHD-03第2項): the overkill discarded by the HP clamp on a defeating hit counts toward both damageDealt and damageTaken", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    // 残HP30へ100を叩き込む。実際に減ったHPは30、残り70はクランプで破棄される。
+    recordDamageApplied(recorder, {
+      sourceUnitId: ATTACKER,
+      calculatedDamage: 100,
+      hitPointDamage: 30,
+      discardedDamage: 70,
+      hpBefore: 30,
+      hpAfter: 0,
+      defeated: true,
+    });
+
+    const summaries = project(recorder.getEvents(), finalStateWith({ [DEFENDER]: 0 }));
+
+    expect(summaryOf(summaries, ATTACKER).damageDealt).toBe(100);
+    expect(summaryOf(summaries, DEFENDER).damageTaken).toBe(100);
+  });
+
+  it("UT-UNIT-SUMMARY-008 (R-INT-01 #5): the damage a lethal-damage survival kept from applying counts toward both damageDealt and damageTaken, even though the target lived", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    // 残HP30へ100。致死耐えがHPを1で止めるため実減少は29、残り71が破棄される。
+    recordDamageApplied(recorder, {
+      sourceUnitId: ATTACKER,
+      calculatedDamage: 100,
+      hitPointDamage: 29,
+      discardedDamage: 71,
+      hpBefore: 30,
+      hpAfter: 1,
+    });
+
+    const summaries = project(recorder.getEvents(), finalStateWith({ [DEFENDER]: 1 }));
+
+    expect(summaryOf(summaries, ATTACKER).damageDealt).toBe(100);
+    expect(summaryOf(summaries, DEFENDER).damageTaken).toBe(100);
+    expect(summaryOf(summaries, DEFENDER).combatStatus).toBe("ACTIVE");
   });
 });

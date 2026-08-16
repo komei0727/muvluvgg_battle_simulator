@@ -542,8 +542,8 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | -------------- | ------- | ------------------------------------------------------------------------ |
 | `battleUnitId` | string  | 対象の戦闘ユニット。                                                     |
 | `side`         | string  | `ALLY` または `ENEMY`。                                                  |
-| `damageDealt`  | integer | このユニットが与えた実HP減少量の合計。0以上。                            |
-| `damageTaken`  | integer | このユニットが受けた実HP減少量の合計。0以上。                            |
+| `damageDealt`  | integer | このユニットが与えたダメージのうち、HPへ向かった量の合計。0以上。        |
+| `damageTaken`  | integer | このユニットが受けたダメージのうち、HPへ向かった量の合計。0以上。        |
 | `healingDone`  | integer | このユニットが行った実HP増加量の合計。0以上。                            |
 | `finalHp`      | number  | `finalState` 時点の現在HP。`BattleUnitStateResponse.hp.current` と同値。 |
 | `maximumHp`    | number  | `finalState` 時点の最大HP。`BattleUnitStateResponse.hp.maximum` と同値。 |
@@ -553,14 +553,16 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 集計元は**公開レベルによる間引き前の全イベント**である。`logLevel` を下げても `unitSummaries` の値は変わらない — 大量実行時の用途（勝敗とユニット別集計だけを見る）が `SUMMARY` で成立しなければ、レベルを下げる意味がないためである。
 
-`damageDealt` / `damageTaken` は次の2イベントの `hitPointDamage` を合算する。
+`damageDealt` / `damageTaken` は次の2イベントの `hitPointDamage + discardedDamage` を合算する。
 
 | イベント                  | 与ダメージの帰属先                    | 被ダメージの帰属先 |
 | ------------------------- | ------------------------------------- | ------------------ |
 | `DamageApplied`           | イベントエンベロープの `sourceUnitId` | `targetUnitId`     |
 | `ContinuousDamageApplied` | イベントエンベロープの `sourceUnitId` | `targetUnitId`     |
 
-- 計上するのは `hitPointDamage`（実際に減ったHP量）だけである。シールド吸収（`typedShieldAbsorbed` / `untypedShieldAbsorbed`）・サブユニット吸収（`subUnitAbsorbed`）・HPクランプで消えた超過分（`discardedDamage`）は含めない。`calculatedDamage` ではない。
+- 計上するのは**HPへ向かった量**である。実際に減ったHP量（`hitPointDamage`）に加えて、HPクランプで消えた超過分（`discardedDamage`。撃破ヒットのオーバーキルと、致死ダメージ耐え（R-INT-01 #5）で適用されなかった分の双方）を含める。どちらも防がれた量ではなく、対象のHPが尽きた・止められただけだからである。
+- シールド吸収（`typedShieldAbsorbed` / `untypedShieldAbsorbed`）・サブユニット吸収（`subUnitAbsorbed`）は含めない。HPへ向かう前に別の耐久値が引き受けた量である。したがって `calculatedDamage` そのものでもない — 本書「DamageApplied payload」の保存則より、計上量は `calculatedDamage` から吸収3項を引いた残りに等しい。
+- この量は戦術演習のスコア計上量（R-TEX-02 #2）とまったく同じ定義である。演習では味方の `damageDealt` の総和が、敵HPへ向かったダメージの総量と一致する。
 - 反射ダメージ（`isReflectedDamage`）・リンクダメージ（`isLinkedDamage`）は `DamageApplied` として流れるため追加の規則を持たない。エンベロープの `sourceUnitId` が指すユニット（反射側・リンク発生側）の与ダメージへ計上される。
 - `sourceUnitId` を持たない `ContinuousDamageApplied`（R-MEM-04 のMemory由来付与。`sourceSide` だけを持つ）は、被ダメージにだけ計上し与ダメージへは帰属させない。陣営から特定のユニットを推測して埋めることはしない。
 
