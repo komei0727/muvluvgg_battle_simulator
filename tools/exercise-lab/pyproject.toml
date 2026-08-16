@@ -1,0 +1,42 @@
+[project]
+name = "exercise-lab"
+version = "0.1.0"
+description = "Local analysis tooling for tactical-exercise score statistics"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+    "matplotlib>=3.9",
+    "numpy>=2.1",
+    "pandas>=2.2",
+    "pydantic>=2.9",
+    "pyyaml>=6.0",
+    "rich>=13.9",
+    "typer>=0.15",
+]
+
+[project.scripts]
+lab = "exercise_lab.cli:app"
+
+[dependency-groups]
+dev = ["pytest>=8.3", "respx>=0.22", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/exercise_lab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+# 全角約物は日本語コメント・メッセージの正しい表記であり、半角との取り違えではない
+# （リポジトリの他の言語も日本語コメントで統一している）。
+ignore = ["RUF001", "RUF002", "RUF003"]

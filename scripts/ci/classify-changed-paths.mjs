@@ -25,7 +25,7 @@ const SHARED_EXACT_PATHS = new Set([
 ]);
 const SHARED_PATH_PREFIXES = [".github/workflows/", "scripts/ci/"];
 
-// Anything matching none of the lists above (docs/, .claude/,
+// Anything matching none of the lists above (docs/, .claude/, tools/,
 // scripts/run-quality-gates.sh, root markdown, ...) intentionally runs
 // neither gate: those paths cannot change what the API/UI jobs build or
 // test, and the always-on `changes` job already covers repo-wide

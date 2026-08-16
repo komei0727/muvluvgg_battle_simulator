@@ -1,0 +1,59 @@
+# 戦術演習の編成定義サンプル。そのまま実行できる。
+#
+#   uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
+#     --player-data player-data.json --out reports/
+#
+# level・gears・academyLevels をあえて書いていないのは、--player-data で
+# 実際の育成状態を載せる前提だからである。--player-data なしで実行すると
+# 全員レベル200・ギアなし・強化計算なしの「素の性能」比較になる。
+#
+# ID は `GET /api/v1/battle-simulation-catalog` が返す値をそのまま書く（不透明な文字列で、
+# 前後の空白は除去されない）。`lab stats` は実行前にカタログと突き合わせ、未知IDと
+# 編成プール違反（R-TEX-11 #1: 味方は PLAYABLE、敵は EXERCISE_ENEMY）を検出する。
+# Catalog からユニットが消えるとこのサンプルも検証で落ちるので、その時は現行IDへ差し替える。
+
+ally:
+  # 1〜5体。`column` は俯瞰時の絶対左から 0・1・2、`row` は敵へ近い側が FRONT。
+  # 書いた順のままリクエストへ載る。ここは UI と同じ並び（FRONT → REAR、column 昇順）。
+  # 各ユニットは Catalog の positionAptitudes に合う列へ置いてある。
+  units:
+    - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+      position: { column: 0, row: FRONT }
+    - unitDefinitionId: UNIT_SAYA_BUNNY
+      position: { column: 2, row: FRONT }
+    - unitDefinitionId: UNIT_ELENA_MOODMAKER
+      position: { column: 0, row: REAR }
+    - unitDefinitionId: UNIT_LAYLA_ENTREPRENEUR
+      position: { column: 1, row: REAR }
+    - unitDefinitionId: UNIT_SUIRAN_CHAOS # SUPPORT / BACK
+      position: { column: 2, row: REAR }
+
+  # 0〜6件。書いた順のまま送る。ここは比較したい候補を差し替える対象そのもの。
+  memoryDefinitionIds:
+    - MEM_GIDDY_CIRCUMSTANCES
+    - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+    - MEM_EURO_TOWER_DAY
+    - MEM_TIMID_REINDEER_EVE
+    - MEM_HEART_COLOR
+    - MEM_ABSOLUTE_ORDER
+
+# 敵はちょうど1体・メモリーなし・強化なし（R-TEX-01 #3）。
+# 配置は結果に影響する（前後列優先の対象順・配置条件が参照するため）。
+enemy:
+  unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
+  position: { column: 1, row: REAR }
+# 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
+# ally.academyLevels を書くと強化計算が有効になり、ユニット側の level / gears も
+# 指定できるようになる。省略したキーは 1 として送る。
+#
+# ally:
+#   academyLevels:
+#     unitTypes: { PHYSICAL: 99, ENERGY: 100, AGILE: 101 }
+#     attributes: { AGGRESSIVE: 102, SHY: 103, CUTE: 101, SMART: 102, COMICAL: 26, CLEVER: 27 }
+#   units:
+#     - unitDefinitionId: UNIT_YURIA_WILDCARD
+#       position: { column: 0, row: FRONT }
+#       level: 298
+#       gears:
+#         - { stat: CRITICAL_DAMAGE_BONUS, tier: II, grade: S }
+#         - { stat: ATTACK, tier: III, grade: B }

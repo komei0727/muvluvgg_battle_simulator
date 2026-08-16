@@ -90,6 +90,18 @@ test("shared root config change (.prettierignore) runs both gates", () => {
   assert.deepEqual(result, { runApi: true, runUi: true });
 });
 
+// tools/ holds local-only analysis tooling (tools/exercise-lab is a Python
+// package managed by uv) that ships neither into the API image nor the UI
+// bundle, and is outside the pnpm workspace. Its quality checks (ruff/pytest)
+// run locally, so touching it must not spin up the TypeScript gates.
+test("tools/ change runs neither gate", () => {
+  const result = classifyChangedPaths([
+    "tools/exercise-lab/pyproject.toml",
+    "tools/exercise-lab/src/exercise_lab/cli.py",
+  ]);
+  assert.deepEqual(result, { runApi: false, runUi: false });
+});
+
 test("mixed API and UI change runs both gates", () => {
   const result = classifyChangedPaths(["apps/api/src/x.ts", "apps/ui/src/y.tsx"]);
   assert.deepEqual(result, { runApi: true, runUi: true });
