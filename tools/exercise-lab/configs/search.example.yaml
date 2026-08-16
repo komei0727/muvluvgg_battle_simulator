@@ -1,12 +1,12 @@
 # 戦術演習の最適編成探索サンプル。そのまま実行できる。
 #
 #   uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
-#     --player-data player-data.json --out reports/
+#     --player-data local_storage/player-data.json --out reports/
 #
 # `formation.yaml`（`lab stats` の入力）とは別物である。あちらは「1つの編成を確定して
 # 大量試行する」入力で、こちらは「どの範囲から探すか」を与える入力である。
 #
-# ID は `lab units --owned --player-data player-data.json` / `lab memories --grep <語>`
+# ID は `lab units --owned --player-data local_storage/player-data.json` / `lab memories --grep <語>`
 # で引ける。育成状態（レベル・ギア）は --player-data 側が正本で、ここには書かない。
 #
 # エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の先頭の
@@ -18,8 +18,8 @@
 
 # 敵はちょうど1体・メモリーなし（R-TEX-01 #3）。配置は結果に影響する。
 enemy:
-  unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
-  position: { column: 1, row: REAR }
+  unitDefinitionId: UNIT_SHOUKA_BEACH_TEX
+  position: { column: 1, row: FRONT }
 
 # 探索するユニット。カタログ全件ではなく、ここに挙げたものだけが候補になる。
 # 手持ちで絞るほど探索は速く深くなる。味方は PLAYABLE のみ（R-TEX-11 #1）。

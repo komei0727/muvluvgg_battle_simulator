@@ -72,11 +72,12 @@ uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 --out r
 ```
 
 ただしこれは全員レベル200・ギアなし・強化計算なしの「素の性能」比較になる。実際の育成状態で
-評価するなら、後述の「手持ちデータの取り込み」で `player-data.json` を書き出して渡す。
+評価するなら、後述の「手持ちデータの取り込み」で `local_storage/player-data.json` を
+書き出して渡す。
 
 ```bash
 uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
-  --player-data player-data.json --out reports/
+  --player-data local_storage/player-data.json --out reports/
 ```
 
 自分の編成を試すときはサンプルを写して編集する（`configs/` 直下はサンプル以外 gitignore 済み）。
@@ -245,11 +246,12 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
    copy(localStorage.getItem("mlgg:last-draft:exercise"));
    ```
 
-3. クリップボードの中身を `last-draft-exercise.json` として保存する（gitignore 済み）
+3. クリップボードの中身を `local_storage/draft/<名前>.json` として保存する
+   （`local_storage/` 配下は gitignore 済み。編成ごとに名前を分けて残せる）
 4. 変換する
 
    ```bash
-   uv run lab import-draft last-draft-exercise.json -o configs/formation.yaml
+   uv run lab import-draft local_storage/draft/kotoha-anis.json -o configs/formation.yaml
    ```
 
 `-o` を省くと標準出力へ出る。生成物には**育成状態（レベル・ギア・学園レベル）を含めない** —
@@ -308,7 +310,7 @@ uv run lab schema           # 既定の出力先ディレクトリは .schema/
 ### IDを引く — カタログ検索
 
 ```bash
-uv run lab units --owned --player-data player-data.json   # 手持ちだけに絞る
+uv run lab units --owned --player-data local_storage/player-data.json   # 手持ちだけに絞る
 uv run lab units --grep 反逆                              # 表示名・キャラ名・IDの部分一致
 uv run lab units --category EXERCISE_ENEMY                # 演習の敵一覧
 uv run lab memories --grep 心
@@ -378,8 +380,9 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
    copy(localStorage.getItem("mlgg:player-data"));
    ```
 
-3. クリップボードの中身を `player-data.json` として保存する（このディレクトリ直下は gitignore 済み）
-4. `--player-data player-data.json` を渡す
+3. クリップボードの中身を `local_storage/player-data.json` として保存する
+   （`local_storage/` 配下は gitignore 済み）
+4. `--player-data local_storage/player-data.json` を渡す
 
 適用規則:
 

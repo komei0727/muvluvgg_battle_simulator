@@ -144,7 +144,7 @@ _IMPORTED_HEADER = """\
 # {source} から `lab import-draft` で生成した編成定義。
 #
 # 育成状態（レベル・ギア・学園レベル）は含まない。実際の育成で評価するには
-# `lab stats ... --player-data player-data.json` を使う。
+# `lab stats ... --player-data local_storage/player-data.json` を使う。
 #
 # エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の
 # 先頭の `#` を1つ削り、パスをこのファイルからの相対で合わせる。

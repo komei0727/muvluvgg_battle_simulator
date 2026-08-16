@@ -1,7 +1,7 @@
 # 戦術演習の編成定義サンプル。そのまま実行できる。
 #
 #   uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
-#     --player-data player-data.json --out reports/
+#     --player-data local_storage/player-data.json --out reports/
 #
 # level・gears・academyLevels をあえて書いていないのは、--player-data で
 # 実際の育成状態を載せる前提だからである。--player-data なしで実行すると
@@ -13,7 +13,7 @@
 # Catalog からユニットが消えるとこのサンプルも検証で落ちるので、その時は現行IDへ差し替える。
 #
 # IDを手で書き写す必要はない。UIで組んだ編成は `lab import-draft` で取り込めるし、
-# `lab units --owned --player-data player-data.json` / `lab memories --grep <語>` で引ける。
+# `lab units --owned --player-data local_storage/player-data.json` / `lab memories --grep <語>` で引ける。
 # エディタ補完を効かせるには `lab schema` を実行し、次の行の先頭の `#` を1つ削る。
 ## yaml-language-server: $schema=../.schema/formation.schema.json
 
