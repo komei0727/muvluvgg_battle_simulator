@@ -611,9 +611,14 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // 無改変のproduction Catalogでfallback経路を通すproduction統合テストが必要だった。
   // TGT-002（CAP_TARGET_FILTER_ORDER、Issue #169）でfiltersを実装し、両スキルの
   // fallback+filters経路を追加したことで、production経路が揃い完了とする。REF-037
-  // （Issue #384）でユニット効果軸へ移送し、IT-UNIT-LYDIA-GENIUS-005が
-  // 左右列に敵が居ない盤面のfallbackを、IT-UNIT-CLARA-SANTA-004が
+  // （Issue #384）でユニット効果軸へ移送し、IT-UNIT-CLARA-SANTA-004が
   // 「サンタタグ」を持つ敵が居ない盤面のfallbackを binding 単位で持つ。
+  // `SKL_LYDIA_GENIUS_EX`もかつてfallbackの証跡だったが、原文の代替攻撃条件が
+  // 「左右列**と後列を合わせた**範囲が空」であり単一selectorの`fallback`では
+  // 表現できないため、Issue #495でBRANCHへ置き換えた。IT-UNIT-LYDIA-GENIUS-005は
+  // 現在はbinding単位の候補生成（`optional`な列bindingが空でも後列は拾われる）を
+  // 押さえる。production の`fallback`使用例は`SKL_CLARA_SANTA_AS2`と
+  // `SKL_URUU_SUMMER_EX`が残る。
   {
     ruleId: "R-TGT-10",
     testCaseIds: [

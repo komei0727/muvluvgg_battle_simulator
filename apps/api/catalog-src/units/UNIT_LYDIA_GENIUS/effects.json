@@ -16,6 +16,12 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_FALLBACK",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1 } },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS1_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.702 } },

@@ -8279,6 +8279,7 @@
       "targetBindings": [
         {
           "targetBindingId": "TGT_COLUMNS",
+          "optional": true,
           "selector": {
             "kind": "SELECT",
             "side": "ENEMY",
@@ -8291,13 +8292,7 @@
                   { "kind": "POSITION_COLUMN", "column": "LEFT" }
                 ]
               }
-            ],
-            "fallback": {
-              "kind": "SELECT",
-              "side": "ENEMY",
-              "count": 1,
-              "order": ["NEAREST", "FRONT_ROW", "LEFT_TO_RIGHT"]
-            }
+            ]
           }
         },
         {
@@ -8309,9 +8304,48 @@
             "count": "ALL",
             "filters": [{ "kind": "POSITION_ROW", "row": "BACK" }]
           }
+        },
+        {
+          "targetBindingId": "TGT_NEAREST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST", "FRONT_ROW", "LEFT_TO_RIGHT"]
+          }
         }
       ],
       "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "AND",
+            "conditions": [
+              {
+                "kind": "TARGET_SET_COUNT",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },
+                "countOf": "ALIVE",
+                "op": "EQ",
+                "value": 0
+              },
+              {
+                "kind": "TARGET_SET_COUNT",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_ROW" },
+                "countOf": "ALIVE",
+                "op": "EQ",
+                "value": 0
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_GENIUS_EX_DAMAGE_FALLBACK" }]
+            }
+          ],
+          "elseSteps": []
+        },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMNS" },

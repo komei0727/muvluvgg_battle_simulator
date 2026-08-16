@@ -3,8 +3,8 @@
   "catalogRevision": "2026-08-16.2",
   "files": {
     "units.json": "sha256:6ec395ac3d9d4103e0c65cd6ebb0ee1b46c96a5c3212df640f26dcbe55697c68",
-    "skills.json": "sha256:8450e7b7fadeccf9fee61538302e43ab79dba1d7e189b3eadf1a8a5d5e4fb5dc",
-    "effects.json": "sha256:c5c8c5e72515e36175995a4de5d044da96ab5ac26eb04b902095d4e39af33d13",
+    "skills.json": "sha256:a81ea4a3f973c9df0a3ba0b677feaba31aea70cdc4fae92597342cf714306856",
+    "effects.json": "sha256:888cde1b3b09fc5f27365d9b611a19e57d81f688c2b2f8c3815d823e70e79329",
     "memories.json": "sha256:84db309b0f22298ec55e727a8a05276b9de25dc6d812b57dd855517aab92c6d4"
   }
 }

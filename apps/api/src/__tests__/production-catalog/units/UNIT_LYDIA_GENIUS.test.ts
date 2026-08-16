@@ -133,20 +133,60 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
-    intent: "(対象): 上記の対象範囲に敵が存在しない場合、代わりに最も近い敵単体に攻撃する",
+    intent:
+      "(不発動): 左右列に敵が居なくても後列に敵が居れば「上記の対象範囲」は空ではないため、代替攻撃は行わない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
     board: { enemies: CENTER_ONLY_ENEMIES },
     expected: {
-      // 右列・左列に敵が居ないため、列への一撃が最も近い敵へ振り替わる。
+      // 代替攻撃の条件は左右列と後列を**合わせた**範囲が空であること。中央後列の
+      // 敵が後列bindingに入るため、中央前列の敵は最後まで対象にならない。
       actions: [
-        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:front"] },
         {
           effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
           targets: ["enemy:back"],
         },
       ],
       hpDeltas: {
-        "enemy:front": -568,
+        "enemy:back": -853,
+      },
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
+    intent: "上記の対象範囲に敵が存在しない場合、代わりに最も近い敵単体に威力100で攻撃する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+    board: {
+      enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+    },
+    expected: {
+      // 中央前列の1体だけなので左右列も後列も空になる。列攻撃の113.76%ではなく
+      // 代替攻撃の100%が乗り、(1000-500)×100%＝500になる。
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_FALLBACK",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -500,
+      },
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_GENIUS_EX",
+    intent: "(不発動): 中央後列の1体だけでも後列攻撃が成立するため、代替攻撃は行わない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_GENIUS_EX" },
+    board: {
+      enemies: [{ id: "enemy:back", position: { column: "CENTER", row: "BACK" } }],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
+          targets: ["enemy:back"],
+        },
+      ],
+      hpDeltas: {
         "enemy:back": -853,
       },
     },
@@ -542,7 +582,7 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
     ).toBe("SKL_LYDIA_GENIUS_AS2");
   });
 
-  it("IT-UNIT-LYDIA-GENIUS-005 (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右に敵が居なければ非空filtersは候補0件になり `fallback` が対象を供給する", () => {
+  it("IT-UNIT-LYDIA-GENIUS-005 (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右が候補0件でも後列が候補を持つ限り、列側のstepが素通りするだけで済む", () => {
     expect(
       observeSkillUse({
         snapshot,
@@ -567,9 +607,9 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
       },
     });
 
-    // 候補0件でも `TGT_COLUMNS` は空にならず、`fallback` の
-    // `NEAREST/FRONT_ROW/LEFT_TO_RIGHT` が最も近い敵を供給する。`TGT_BACK_ROW` は
-    // fallbackを持たないため、後列の敵はそのまま拾われる。
+    // 左右列が候補0件でも、後列が候補を持つ限り「上記の対象範囲」は空ではない。
+    // `TGT_COLUMNS` 側のstepが対象0件で素通りするだけで、中央前列の敵は
+    // どのbindingにも入らないまま無傷で残る。
     expect(
       observeSkillUse({
         snapshot,
@@ -579,14 +619,12 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
       }),
     ).toEqual({
       actions: [
-        { effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_COLUMN", targets: ["enemy:front"] },
         {
           effectActionDefinitionId: "ACT_LYDIA_GENIUS_EX_DAMAGE_BACKROW_CRIT",
           targets: ["enemy:back"],
         },
       ],
       hpDeltas: {
-        "enemy:front": -568,
         "enemy:back": -853,
       },
     });
