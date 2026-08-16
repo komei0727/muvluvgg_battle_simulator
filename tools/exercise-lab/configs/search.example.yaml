@@ -1,0 +1,301 @@
+# 戦術演習の最適編成探索サンプル。そのまま実行できる。
+#
+#   uv run lab optimize configs/search.example.yaml --budget 5000 --seed abc123 \
+#     --player-data local_storage/player-data.json --out reports/
+#
+# `formation.yaml`（`lab stats` の入力）とは別物である。あちらは「1つの編成を確定して
+# 大量試行する」入力で、こちらは「どの範囲から探すか」を与える入力である。
+#
+# ID は `lab units --owned --player-data local_storage/player-data.json` / `lab memories --grep <語>`
+# で引ける。育成状態（レベル・ギア）は --player-data 側が正本で、ここには書かない。
+#
+# エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の先頭の
+# `#` を1つ削る。候補プール・敵・固定指定・既知編成のどこでも実IDが補完される。
+#
+# `# yaml-language-server:` はコメントではなく有効なディレクティブなので、最初から
+# 効かせておくと、まだ生成していないSchemaを指してエディタが赤くなる。
+# yaml-language-server: $schema=../.schema/search.schema.json
+
+# 敵はちょうど1体・メモリーなし（R-TEX-01 #3）。配置は結果に影響する。
+enemy:
+  unitDefinitionId: UNIT_SHOUKA_BEACH_TEX
+  position: { column: 1, row: FRONT }
+
+# 探索するユニット。カタログ全件ではなく、ここに挙げたものだけが候補になる。
+# 手持ちで絞るほど探索は速く深くなる。味方は PLAYABLE のみ（R-TEX-11 #1）。
+unitPool:
+  - UNIT_SAYA_BUNNY
+  - UNIT_LAYLA_ENTREPRENEUR
+  - UNIT_SUIRAN_CHAOS
+  - UNIT_YURIA_WILDCARD
+  - UNIT_SAYA_LONGING
+  - UNIT_KEI_JACKKNIFE
+  - UNIT_EVIE_KYONSHI
+  - UNIT_MEIYA_FATED
+  - UNIT_FEE_ACTOR
+  - UNIT_CHIYURU_MAZE
+  - UNIT_JUNKA_CHILDHOOD
+  - UNIT_ELENA_MOODMAKER
+  - UNIT_ANIS_TROUBLEMAKER
+  - UNIT_DOROTHEA_GRACE
+  - UNIT_KOTOHA_REBEL
+
+# 探索するメモリー。並び順は探索しない — 発動解決順（R-MEM-02）は並びで決まるが、
+# 現行のメモリー効果はどの順で解決してもスコアが動かないため、どれを入れるかだけを探す。
+memoryPool:
+  - MEM_GIDDY_CIRCUMSTANCES
+  - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+  - MEM_EURO_TOWER_DAY
+  - MEM_TIMID_REINDEER_EVE
+  - MEM_HEART_COLOR
+  - MEM_ABSOLUTE_ORDER
+  - MEM_FANTASY_SCULPTOR_ROSIE
+  - MEM_KOI
+  - MEM_OJOSAMA_MANNERS
+  - MEM_WALK_TOGETHER
+  - MEM_HARD_WARMUP
+  - MEM_THREE_MAIDS_HOSPITALITY
+  - MEM_MOMOZONO_NEW_YEAR
+
+# すでにスコアが高いと分かっている編成。初期母集団の種にする。
+# 良い出発点を確実に含めるためのもので、集団の25%を超えては入らない（多様性を保つため）。
+# UIで組んだ編成は `lab import-draft` で YAML 化できるので、その `ally` をここへ写せる。
+knownFormations:
+  - units:
+      - unitDefinitionId: UNIT_DOROTHEA_GRACE
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_WALK_TOGETHER
+      - MEM_FANTASY_SCULPTOR_ROSIE
+      - MEM_HARD_WARMUP
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_DOROTHEA_GRACE
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_OJOSAMA_MANNERS
+      - MEM_FANTASY_SCULPTOR_ROSIE
+      - MEM_HARD_WARMUP
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_SAYA_BUNNY
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_LAYLA_ENTREPRENEUR
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+      - MEM_GIDDY_CIRCUMSTANCES
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_SAYA_BUNNY
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_LAYLA_ENTREPRENEUR
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+      - MEM_OJOSAMA_MANNERS
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_YURIA_WILDCARD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_WALK_TOGETHER
+      - MEM_GIDDY_CIRCUMSTANCES
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_YURIA_WILDCARD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_OJOSAMA_MANNERS
+      - MEM_GIDDY_CIRCUMSTANCES
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_ANIS_TROUBLEMAKER
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_FANTASY_SCULPTOR_ROSIE
+      - MEM_HARD_WARMUP
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_ANIS_TROUBLEMAKER
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_REBEL
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_ELENA_MOODMAKER
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SUIRAN_CHAOS
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_OJOSAMA_MANNERS
+      - MEM_HARD_WARMUP
+      - MEM_EURO_TOWER_DAY
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_YURIA_WILDCARD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_DOROTHEA_GRACE
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_KEI_JACKKNIFE
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_SAYA_LONGING
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_KOI
+      - MEM_HARD_WARMUP
+      - MEM_GIDDY_CIRCUMSTANCES
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+  - units:
+      - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_FEE_ACTOR
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_DOROTHEA_GRACE
+        position: { column: 0, row: REAR }
+      - unitDefinitionId: UNIT_CHIYURU_MAZE
+        position: { column: 1, row: REAR }
+      - unitDefinitionId: UNIT_EVIE_KYONSHI
+        position: { column: 2, row: REAR }
+    memoryDefinitionIds:
+      - MEM_KOI
+      - MEM_HARD_WARMUP
+      - MEM_GIDDY_CIRCUMSTANCES
+      - MEM_TIMID_REINDEER_EVE
+      - MEM_HEART_COLOR
+      - MEM_ABSOLUTE_ORDER
+
+# 何を最大化するか。スコアアタックは1日 bestOf 回（既定5回）挑戦してベストで競うので、
+# 適応度は λ*E[bestOf回中のベスト] + (1-λ)*保証値 とする。
+# 保証値は日次ベストの guardQuantile 分位点（0.25 なら「4日に3日はこれ以上出る」値）。
+#
+# bestOf を上げるほど上振れ重視になるが、推定に効く実効サンプル数は n(2k-1)/k² に
+# 縮むので、上げたら finalStageRuns も増やす。lambda=1 で純粋な期待日次ベストになる。
+#
+# objective:
+#   bestOf: 5
+#   lambda: 0.5
+#   guardQuantile: 0.25
+
+# 制約。省略時は「重複ユニット禁止・固定なし」。
+#
+# constraints:
+#   allowDuplicateUnits: false
+#   # マスまで固定する（配置も探索対象から外れる）
+#   fixedPlacements:
+#     - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+#       position: { column: 0, row: FRONT }
+#   # 必ず入れるが配置は探索させる
+#   requiredUnits: [UNIT_ELENA_MOODMAKER]
+#   # 必ず入れるメモリー
+#   requiredMemories: [MEM_HEART_COLOR]
+
+# 評価スケジュール。段ごとの値は累計試行数で、上位半分だけが次の段へ進む。
+# 第1段は中央値だけで篩う（期待日次ベストの実効サンプルが育っていないため。
+# 平均だと稀に崩れる高天井編成を浅い段で殺してしまう）。
+#
+# schedule:
+#   populationSize: 40
+#   stageRuns: [8, 24, 72]
+#   finalPoolSize: 24
+#   finalStageRuns: [50, 100]
+#   topK: 5
+#   patience: 8
+
+# 近傍生成の重み。配置とメモリーの最適化が主で、ユニット入替は低頻度にしてある。
+# 未知のユニット組み合わせをもっと探したいなら unitSwap / unitAdd を上げる。
+#
+# operatorWeights:
+#   unitSwap: 0.18
+#   unitAdd: 0.06
+#   unitRemove: 0.02
+#   placementMove: 0.17
+#   placementSwap: 0.17
+#   rowFlip: 0.09
+#   memorySwap: 0.19
+#   memoryAdd: 0.07
+#   memoryRemove: 0.05
+
+# 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
+# 省略したキーは 1 として送る（R-ENH-01）。
+#
+# academyLevels:
+#   unitTypes: { PHYSICAL: 99, ENERGY: 100, AGILE: 101 }
+#   attributes: { AGGRESSIVE: 102, SHY: 103, CUTE: 101, SMART: 102, COMICAL: 26, CLEVER: 27 }

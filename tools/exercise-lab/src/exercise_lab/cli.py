@@ -13,6 +13,7 @@ import json
 import secrets
 from collections.abc import Sequence
 from pathlib import Path
+from random import Random
 from typing import Annotated, Any, NoReturn
 
 import typer
@@ -29,7 +30,9 @@ from .api import (
     LabApiError,
     search_memories,
     search_units,
+    unit_hints,
     validate_against_catalog,
+    validate_pools_against_catalog,
 )
 from .draft import DraftError, load_exercise_draft
 from .models import (
@@ -38,9 +41,34 @@ from .models import (
     dump_formation_config,
     load_formation_config,
 )
+from .optimize.algorithms import (
+    ALGORITHMS,
+    GenerationReport,
+    SearchContext,
+    SearchSettings,
+    build_algorithm,
+    final_selection_cost,
+    minimum_budget,
+    racing_cost,
+)
+from .optimize.algorithms import (
+    optimize as run_optimization,
+)
+from .optimize.evaluator import Evaluator, phases_for
+from .optimize.operators import UnitHint
+from .optimize.report import (
+    build_optimization_summary,
+    write_best_so_far_chart,
+    write_comparison_chart,
+)
+from .optimize.search_config import (
+    SearchConfig,
+    load_search_config,
+    resolve_unit_enhancements,
+)
 from .player_data import PlayerData, PlayerDataError, apply_player_data, load_player_data
 from .runner import ChunkPlan, EvaluationRun, plan_chunks, run_evaluation
-from .schema import build_formation_json_schema
+from .schema import build_formation_json_schema, build_search_json_schema
 from .stats import build_summary, write_break_count_chart, write_runs_csv, write_score_histogram
 
 # サーバー既定の `EVALUATION_MAX_TOTAL_RUNS`。候補1件なので総試行数の上限がそのまま
@@ -51,6 +79,20 @@ RUNS_CSV = "runs.csv"
 SUMMARY_JSON = "summary.json"
 SCORE_HISTOGRAM_PNG = "score-histogram.png"
 BREAK_COUNT_PNG = "break-count-distribution.png"
+
+OPTIMIZATION_JSON = "optimization.json"
+EVALUATIONS_CSV = "evaluations.csv"
+BEST_SO_FAR_PNG = "best-so-far.png"
+STATE_JSON = "state.json"
+COMPARISON_JSON = "comparison.json"
+COMPARISON_PNG = "comparison.png"
+
+DEFAULT_ALGORITHM = "local-search"
+DEFAULT_BUDGET_RUNS = 5000
+
+DEFAULT_SCHEMA_DIR = Path(".schema")
+FORMATION_SCHEMA_JSON = "formation.schema.json"
+SEARCH_SCHEMA_JSON = "search.schema.json"
 
 app = typer.Typer(add_completion=False, help="戦術演習の統計サマリーを出すローカルツール")
 console = Console()
@@ -102,7 +144,7 @@ _IMPORTED_HEADER = """\
 # {source} から `lab import-draft` で生成した編成定義。
 #
 # 育成状態（レベル・ギア・学園レベル）は含まない。実際の育成で評価するには
-# `lab stats ... --player-data player-data.json` を使う。
+# `lab stats ... --player-data local_storage/player-data.json` を使う。
 #
 # エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の
 # 先頭の `#` を1つ削り、パスをこのファイルからの相対で合わせる。
@@ -169,23 +211,29 @@ def memories(
 
 @app.command()
 def schema(
-    out: Annotated[Path, typer.Option("--out", "-o", help="出力先")] = Path(
-        ".schema/formation.schema.json"
-    ),
+    out: Annotated[Path, typer.Option("--out", "-o", help="出力ディレクトリ")] = DEFAULT_SCHEMA_DIR,
     base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
 ) -> None:
-    """編成YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。"""
+    """YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。
+
+    編成定義（`lab stats`）と探索設定（`lab optimize`）で書式が違うため、
+    Schemaも2つ出す。どちらも実IDを enum に焼くので、Catalog を更新したら作り直す。
+    """
     catalog = _fetch_catalog(base_url)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(
-        json.dumps(build_formation_json_schema(catalog), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    out.mkdir(parents=True, exist_ok=True)
+    written = [
+        (out / FORMATION_SCHEMA_JSON, build_formation_json_schema(catalog), "編成定義YAML"),
+        (out / SEARCH_SCHEMA_JSON, build_search_json_schema(catalog), "探索設定YAML"),
+    ]
+    for path, document, _ in written:
+        path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     console.print(
-        f"[bold]{out}[/] を書き出した（catalogRevision {catalog.catalog_revision}）。"
-        "編成YAMLの先頭へ次の行を置くと補完が効く:"
+        f"[bold]{out}[/] へ書き出した（catalogRevision {catalog.catalog_revision}）。"
+        "各YAMLの先頭へ対応する行を置くと補完が効く:"
     )
-    console.print(f"  # yaml-language-server: $schema={out}", highlight=False)
+    for path, _, label in written:
+        console.print(f"  {label}: # yaml-language-server: $schema={path}", highlight=False)
 
 
 def _fetch_catalog(base_url: str) -> Catalog:
@@ -441,6 +489,409 @@ def _format(value: object) -> str:
     if isinstance(value, int):
         return f"{value:,}"
     return str(value)
+
+
+@app.command()
+def optimize(
+    config_path: Annotated[Path, typer.Argument(help="探索設定YAML", exists=True)],
+    budget: Annotated[
+        int, typer.Option("--budget", min=1, help="シミュレーション総試行数の上限")
+    ] = DEFAULT_BUDGET_RUNS,
+    seed: Annotated[str | None, typer.Option("--seed", help="省略時は生成して表示する")] = None,
+    out: Annotated[Path, typer.Option("--out", help="レポート出力先")] = Path("reports"),
+    algorithm: Annotated[
+        str, typer.Option("--algorithm", help=f"{' / '.join(sorted(ALGORITHMS))}")
+    ] = DEFAULT_ALGORITHM,
+    resume: Annotated[
+        bool, typer.Option("--resume", help="出力先の state.json から再開する")
+    ] = False,
+    base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
+    player_data: Annotated[
+        Path | None,
+        typer.Option("--player-data", help="localStorage `mlgg:player-data` のJSON", exists=True),
+    ] = None,
+    max_candidates: Annotated[
+        int, typer.Option("--max-candidates", min=1, help="1リクエストの候補数上限")
+    ] = 32,
+    max_total_runs: Annotated[
+        int, typer.Option("--max-total-runs", min=1, help="1リクエストの総試行数上限")
+    ] = 300,
+    timeout_seconds: Annotated[
+        float, typer.Option("--timeout", min=1.0, help="1リクエストの待ち時間（秒）")
+    ] = DEFAULT_TIMEOUT_SECONDS,
+) -> None:
+    """候補プールから、スコアの期待値が高く下振れの小さい編成を探す。"""
+    base_seed = seed if seed is not None else secrets.token_hex(8)
+    config = _load_search_config(config_path, player_data)
+    try:
+        search = build_algorithm(algorithm)
+    except ValueError as error:
+        _abort(str(error))
+
+    with LabApiClient(base_url, timeout_seconds=timeout_seconds) as client:
+        catalog = _validated_catalog(client, config)
+        console.print(
+            f"catalogRevision: [bold]{catalog.catalog_revision}[/] /"
+            f" seed: [bold]{base_seed}[/] / algorithm: [bold]{algorithm}[/]"
+        )
+        _print_budget_plan(config, budget)
+        summary, _ = _run_optimization(
+            search,
+            config,
+            client,
+            catalog,
+            base_seed=base_seed,
+            budget=budget,
+            out=out,
+            resume=resume,
+            max_candidates=max_candidates,
+            max_total_runs=max_total_runs,
+        )
+
+    _print_optimization(summary)
+    console.print(f"レポート: [bold]{out}[/]")
+
+
+@app.command()
+def compare(
+    config_path: Annotated[Path, typer.Argument(help="探索設定YAML", exists=True)],
+    budget: Annotated[
+        int, typer.Option("--budget", min=1, help="1アルゴリズムあたりの総試行数の上限")
+    ] = DEFAULT_BUDGET_RUNS,
+    seed: Annotated[str | None, typer.Option("--seed", help="省略時は生成して表示する")] = None,
+    out: Annotated[Path, typer.Option("--out", help="レポート出力先")] = Path("reports/compare"),
+    algorithm: Annotated[
+        list[str] | None,
+        typer.Option("--algorithm", help="比較対象。繰り返し指定できる。省略時は全実装"),
+    ] = None,
+    base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
+    player_data: Annotated[
+        Path | None,
+        typer.Option("--player-data", help="localStorage `mlgg:player-data` のJSON", exists=True),
+    ] = None,
+    max_candidates: Annotated[
+        int, typer.Option("--max-candidates", min=1, help="1リクエストの候補数上限")
+    ] = 32,
+    max_total_runs: Annotated[
+        int, typer.Option("--max-total-runs", min=1, help="1リクエストの総試行数上限")
+    ] = 300,
+    timeout_seconds: Annotated[
+        float, typer.Option("--timeout", min=1.0, help="1リクエストの待ち時間（秒）")
+    ] = DEFAULT_TIMEOUT_SECONDS,
+) -> None:
+    """複数の探索アルゴリズムを同一予算・同一seedで走らせ、採用の根拠を残す。
+
+    アルゴリズムごとに評価器を作り直す。評価キャッシュを共有すると、後から走る実装が
+    先の実装の試行にただ乗りして、消費試行数あたりの比較が成り立たなくなる。
+    """
+    base_seed = seed if seed is not None else secrets.token_hex(8)
+    names = list(algorithm) if algorithm else sorted(ALGORITHMS)
+    config = _load_search_config(config_path, player_data)
+    searches = []
+    for name in names:
+        try:
+            searches.append((name, build_algorithm(name)))
+        except ValueError as error:
+            _abort(str(error))
+
+    entries: list[dict[str, Any]] = []
+    histories: dict[str, Any] = {}
+    with LabApiClient(base_url, timeout_seconds=timeout_seconds) as client:
+        catalog = _validated_catalog(client, config)
+        console.print(
+            f"catalogRevision: [bold]{catalog.catalog_revision}[/] / seed: [bold]{base_seed}[/]"
+        )
+        _print_budget_plan(config, budget)
+        for name, search in searches:
+            console.print(f"[bold]{name}[/] を実行中")
+            summary, result = _run_optimization(
+                search,
+                config,
+                client,
+                catalog,
+                base_seed=base_seed,
+                budget=budget,
+                out=out / name,
+                resume=False,
+                max_candidates=max_candidates,
+                max_total_runs=max_total_runs,
+            )
+            histories[name] = result.history
+            entries.append(
+                {
+                    "algorithm": name,
+                    "consumedRuns": summary["consumedRuns"],
+                    "stoppedBecause": summary["stoppedBecause"],
+                    "bestFitness": summary["topFormations"][0]["fitness"]
+                    if summary["topFormations"]
+                    else None,
+                    "bestExpectedBest": summary["topFormations"][0]["expectedBest"]
+                    if summary["topFormations"]
+                    else None,
+                    "bestMean": summary["topFormations"][0]["mean"]
+                    if summary["topFormations"]
+                    else None,
+                    "report": str(out / name / OPTIMIZATION_JSON),
+                }
+            )
+
+    out.mkdir(parents=True, exist_ok=True)
+    comparison = {"seed": base_seed, "budgetRuns": budget, "algorithms": entries}
+    (out / COMPARISON_JSON).write_text(
+        json.dumps(comparison, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    write_comparison_chart(
+        histories, out / COMPARISON_PNG, title=f"budget {budget:,} runs / seed {base_seed}"
+    )
+    _print_comparison(comparison)
+    console.print(f"レポート: [bold]{out}[/]")
+
+
+def _validated_catalog(client: LabApiClient, config: SearchConfig) -> Catalog:
+    try:
+        catalog = client.fetch_catalog()
+    except LabApiError as error:
+        _abort(str(error))
+    _reject_pool_violations(config, catalog)
+    return catalog
+
+
+def _run_optimization(
+    search,
+    config: SearchConfig,
+    client: LabApiClient,
+    catalog: Catalog,
+    *,
+    base_seed: str,
+    budget: int,
+    out: Path,
+    resume: bool,
+    max_candidates: int,
+    max_total_runs: int,
+):
+    out.mkdir(parents=True, exist_ok=True)
+    context = _build_context(
+        config,
+        client,
+        catalog,
+        base_seed=base_seed,
+        budget=budget,
+        out=out,
+        max_candidates=max_candidates,
+        max_total_runs=max_total_runs,
+    )
+    try:
+        result = _optimize_with_progress(search, context, resume=resume, budget=budget)
+    except (LabApiError, ValueError) as error:
+        _abort(str(error))
+
+    summary = build_optimization_summary(
+        result.top,
+        config=config,
+        catalog=catalog,
+        algorithm=result.algorithm,
+        seed=base_seed,
+        budget_runs=budget,
+        consumed_runs=result.consumed_runs,
+        stopped_because=result.stopped_because,
+        history=result.history,
+        catalog_revision=context.evaluator.catalog_revision or catalog.catalog_revision,
+    )
+    (out / OPTIMIZATION_JSON).write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    write_best_so_far_chart(
+        result.history, out / BEST_SO_FAR_PNG, title=f"{result.algorithm} / seed {base_seed}"
+    )
+    return summary, result
+
+
+def _print_comparison(comparison: dict[str, Any]) -> None:
+    table = Table(
+        title=f"algorithm comparison（budget {comparison['budgetRuns']:,} runs /"
+        f" seed {comparison['seed']}）"
+    )
+    table.add_column("algorithm")
+    for column in ("best fitness", "E[best]", "mean", "runs", "stopped"):
+        table.add_column(column, justify="right")
+    for entry in sorted(
+        comparison["algorithms"],
+        key=lambda item: item["bestFitness"] if item["bestFitness"] is not None else float("-inf"),
+        reverse=True,
+    ):
+        table.add_row(
+            entry["algorithm"],
+            _format(entry["bestFitness"]),
+            _format(entry["bestExpectedBest"]),
+            _format(entry["bestMean"]),
+            _format(entry["consumedRuns"]),
+            entry["stoppedBecause"],
+        )
+    console.print(table)
+
+
+def _load_search_config(config_path: Path, player_data_path: Path | None) -> SearchConfig:
+    try:
+        config = load_search_config(config_path)
+        if player_data_path is None:
+            return config
+        config, warnings = resolve_unit_enhancements(config, load_player_data(player_data_path))
+    except (ConfigError, PlayerDataError) as error:
+        _abort(str(error))
+    for warning in warnings:
+        error_console.print(f"[yellow]warning[/]: {warning}")
+    return config
+
+
+def _reject_pool_violations(config: SearchConfig, catalog: Catalog) -> None:
+    errors = validate_pools_against_catalog(
+        unit_pool=config.unit_pool,
+        memory_pool=config.memory_pool,
+        enemy_unit_definition_id=config.enemy.unit_definition_id,
+        catalog=catalog,
+    )
+    if errors:
+        _abort("探索設定がCatalogと合わない:\n" + "\n".join(f"  - {error}" for error in errors))
+
+
+def _build_context(
+    config: SearchConfig,
+    client: LabApiClient,
+    catalog: Catalog,
+    *,
+    base_seed: str,
+    budget: int,
+    out: Path,
+    max_candidates: int,
+    max_total_runs: int,
+) -> SearchContext:
+    search_phase, final_phase = phases_for(config.schedule)
+    evaluator = Evaluator(
+        client,
+        config,
+        base_seed=base_seed,
+        phases=(search_phase, final_phase),
+        max_candidates=max_candidates,
+        max_total_runs=max_total_runs,
+        log_path=out / EVALUATIONS_CSV,
+    )
+    return SearchContext(
+        config=config,
+        evaluator=evaluator,
+        search_phase=search_phase,
+        final_phase=final_phase,
+        # seedから乱数を起こす。`--seed` が同じなら候補の作られ方まで同じになる。
+        rng=Random(base_seed),
+        settings=SearchSettings(budget_runs=budget, patience=config.schedule.patience),
+        hints=tuple(
+            UnitHint(
+                unit_definition_id=unit.unit_definition_id,
+                position_aptitudes=tuple(unit.position_aptitudes),
+                attribute=unit.attribute,
+                unit_type=unit.unit_type,
+                role=unit.role,
+            )
+            for unit in unit_hints(catalog, config.unit_pool)
+        ),
+        state_path=out / STATE_JSON,
+    )
+
+
+def _print_budget_plan(config: SearchConfig, budget: int) -> None:
+    reserve = final_selection_cost(config.schedule)
+    generation = racing_cost(config.schedule.population_size, config.schedule.stage_runs)
+    console.print(
+        f"予算 {budget:,} 試行 = 探索 {budget - reserve:,} + 最終選抜 {reserve:,}"
+        f"（上位{config.schedule.top_k}件を試行数 {config.schedule.final_stage_runs[-1]} で確定）"
+    )
+    console.print(
+        f"1世代あたり最大 {generation:,} 試行 / 最低予算 {minimum_budget(config.schedule):,} 試行"
+    )
+
+
+def _optimize_with_progress(search, context: SearchContext, *, resume: bool, budget: int):
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total} runs"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("searching", total=budget)
+
+        def advance(report: GenerationReport) -> None:
+            progress.update(
+                task,
+                completed=report.consumed_runs,
+                description=f"gen {report.generation} / best {report.best_fitness:,.0f}",
+            )
+
+        context.on_generation = advance
+        try:
+            return run_optimization(search, context, resume=resume)
+        except (LabApiError, ValueError):
+            # 進捗バーを畳んでからエラーを出す。開いたままだとrichが再描画で上書きする。
+            progress.stop()
+            raise
+
+
+def _print_optimization(summary: dict[str, Any]) -> None:
+    best_of = summary["objective"]["bestOf"]
+    guard_days = 1.0 - summary["objective"]["guardQuantile"]
+    table = Table(
+        title=f"top {len(summary['topFormations'])} formations"
+        f"（{summary['consumedRuns']:,} runs / stopped: {summary['stoppedBecause']}）"
+    )
+    columns = (
+        "rank",
+        "fitness",
+        f"E[best{best_of}]",
+        "median best",
+        f"{guard_days:.0%} floor",
+        "mean",
+        "defeat",
+        "n",
+    )
+    for column in columns:
+        table.add_column(column, justify="right" if column != "rank" else "left")
+    for formation in summary["topFormations"]:
+        table.add_row(
+            str(formation["rank"]),
+            _format(formation["fitness"]),
+            _format(formation["expectedBest"]),
+            _format(formation["medianBest"]),
+            _format(formation["guaranteedBest"]),
+            _format(formation["mean"]),
+            f"{formation['defeatRate']:.1%}",
+            str(formation["sampleCount"]),
+        )
+    console.print(table)
+
+    for formation in summary["topFormations"]:
+        console.print(_formation_lines(formation))
+
+    for warning in summary["warnings"]:
+        error_console.print(f"[yellow]warning[/]: {warning}")
+
+
+def _formation_lines(formation: dict[str, Any]) -> str:
+    """UIへ写せる形で1編成を出す。IDだけでは画面上で探せないため表示名を添える。"""
+    lines = [f"[bold]#{formation['rank']}[/] （fitness {_format(formation['fitness'])}）"]
+    for unit in formation["formation"]["units"]:
+        enhancement = ""
+        if unit["level"] is not None:
+            gears = f" / {', '.join(unit['gears'])}" if unit["gears"] else ""
+            enhancement = f"  Lv.{unit['level']}{gears}"
+        lines.append(
+            f"  {unit['row']:<5} col{unit['column']}  {unit['displayName']}"
+            f" ({unit['unitDefinitionId']}){enhancement}"
+        )
+    for memory in formation["formation"]["memories"]:
+        lines.append(
+            f"  memory {memory['order']}  {memory['displayName']} ({memory['memoryDefinitionId']})"
+        )
+    return "\n".join(lines)
 
 
 def _abort(message: str) -> NoReturn:

@@ -32,6 +32,7 @@ from typing import Any
 
 from .api import EXERCISE_ENEMY, PLAYABLE, Catalog, CatalogUnit
 from .models import ATTRIBUTES, UNIT_TYPES, FormationConfig
+from .optimize.search_config import INTERNAL_FIELDS, SearchConfig
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
@@ -46,13 +47,58 @@ def build_formation_json_schema(catalog: Catalog) -> dict[str, Any]:
     _restrict_academy_level_keys(definitions["AcademyLevels"])
     _require_academy_levels_for_unit_enhancement(definitions["AllySpec"])
 
+    return _finish(schema, catalog, title="exercise-lab formation")
+
+
+def build_search_json_schema(catalog: Catalog) -> dict[str, Any]:
+    """探索設定YAML用のSchema。
+
+    実IDを書く場所は編成YAMLより多い——候補プール2つ、敵、固定・必須の指定、既知の
+    良編成。どれか1か所でも打ち間違えると、そのIDは黙って探索から外れる（プール外の
+    IDは矯正で落とされる）ため、書いている場所で候補が出ることの効きが大きい。
+    """
+    schema: dict[str, Any] = SearchConfig.model_json_schema(by_alias=True)
+    definitions = schema["$defs"]
+    properties = schema["properties"]
+
+    playable = _unit_enum(catalog, PLAYABLE)
+    memory = _memory_enum(catalog)
+
+    properties["unitPool"]["items"] = playable
+    properties["memoryPool"]["items"] = memory
+    definitions["EnemySpec"]["properties"]["unitDefinitionId"] = _unit_enum(catalog, EXERCISE_ENEMY)
+    definitions["FixedPlacementSpec"]["properties"]["unitDefinitionId"] = playable
+    definitions["ConstraintsSpec"]["properties"]["requiredUnits"]["items"] = playable
+    definitions["ConstraintsSpec"]["properties"]["requiredMemories"]["items"] = memory
+    definitions["SeedFormationSpec"]["properties"]["memoryDefinitionIds"]["items"] = memory
+    # 既知の良編成のユニットは編成YAMLと同じ `AllyUnitSpec` を使う。
+    definitions["AllyUnitSpec"]["properties"]["unitDefinitionId"] = playable
+    _restrict_academy_level_keys(definitions["AcademyLevels"])
+    _drop_internal_fields(schema)
+
+    return _finish(schema, catalog, title="exercise-lab search")
+
+
+def _finish(schema: dict[str, Any], catalog: Catalog, *, title: str) -> dict[str, Any]:
     schema["$schema"] = JSON_SCHEMA_DIALECT
-    schema["title"] = "exercise-lab formation"
+    schema["title"] = title
     schema["description"] = (
         f"`lab schema` が catalogRevision {catalog.catalog_revision} から生成した。"
         "Catalog が更新されたら生成し直す。"
     )
     return schema
+
+
+def _drop_internal_fields(schema: dict[str, Any]) -> None:
+    """実行時にだけ埋まる枠を補完候補から外す（`search_config.INTERNAL_FIELDS`）。
+
+    pydanticの `exclude=True` は書き出し側の指定で、検証用のSchemaには残る。
+    残したままだと、YAMLでは書けない項目をエディタが勧めることになる。
+    """
+    for field in INTERNAL_FIELDS:
+        schema["properties"].pop(field, None)
+        if field in schema.get("required", []):
+            schema["required"].remove(field)
 
 
 def _unit_enum(catalog: Catalog, category: str) -> dict[str, Any]:

@@ -49,6 +49,9 @@ class CatalogUnit(_Response):
     character_name: str = Field(default="", alias="characterName")
     role: str = ""
     position_aptitudes: list[str] = Field(default_factory=list, alias="positionAptitudes")
+    # 探索の初期母集団（属性を揃えた構成・適性に合わせた配置）を組むのに使う。
+    attribute: str = ""
+    unit_type: str = Field(default="", alias="unitType")
 
 
 class CatalogMemory(_Response):
@@ -227,6 +230,37 @@ def validate_against_catalog(config: FormationConfig, catalog: Catalog) -> list[
                 f"（`lab memories --grep {_search_hint(memory_definition_id)}` で探せる）"
             )
     return errors
+
+
+def validate_pools_against_catalog(
+    *,
+    unit_pool: Collection[str],
+    memory_pool: Collection[str],
+    enemy_unit_definition_id: str,
+    catalog: Catalog,
+) -> list[str]:
+    """探索設定の候補プールをカタログと突き合わせ、見つかった問題をすべて返す。
+
+    編成の検証（`validate_against_catalog`）と分けているのは、探索の入力が確定した編成
+    ではなく「どの範囲から探すか」だからである。プール1件の打ち間違いで数千試行を
+    投げ終えてから気づく、という事態を避けるために実行前へ置く。
+    """
+    errors: list[str] = []
+    for unit_definition_id in unit_pool:
+        errors.extend(_unit_errors(unit_definition_id, "unitPool", PLAYABLE, catalog))
+    errors.extend(_unit_errors(enemy_unit_definition_id, "enemy", EXERCISE_ENEMY, catalog))
+    for memory_definition_id in memory_pool:
+        if not catalog.has_memory(memory_definition_id):
+            errors.append(
+                f"memoryPool: 未知のメモリー {memory_definition_id}"
+                f"（`lab memories --grep {_search_hint(memory_definition_id)}` で探せる）"
+            )
+    return errors
+
+
+def unit_hints(catalog: Catalog, unit_pool: Collection[str]) -> list[CatalogUnit]:
+    """候補プールに載っているユニットのカタログ情報。ヒューリスティック種の材料。"""
+    return [unit for unit in catalog.units if unit.unit_definition_id in unit_pool]
 
 
 def _search_hint(definition_id: str) -> str:
