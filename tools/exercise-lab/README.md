@@ -45,6 +45,18 @@ WORKER_MAX_THREADS=8 WORKER_MAX_QUEUE=200 EVALUATION_MAX_TOTAL_RUNS=300 mise run
 | `WORKER_MAX_THREADS`          | CPU依存              | Worker スレッド数。                                      |
 | `WORKER_MAX_QUEUE`            | `100`                | Worker 待機キュー上限。                                  |
 
+## コマンド
+
+| コマンド           | 用途                                                 |
+| ------------------ | ---------------------------------------------------- |
+| `lab stats`        | 同一編成を大量試行して統計サマリーを出す             |
+| `lab import-draft` | UIで組んだ演習編成を編成定義YAMLへ変換する           |
+| `lab schema`       | エディタ補完用の JSON Schema を Catalog から生成する |
+| `lab units`        | Catalog のユニットを検索してIDを引く                 |
+| `lab memories`     | Catalog のメモリーを検索してIDを引く                 |
+
+`stats` 以外は編成を用意するための補助である（「編成をIDで書かずに用意する」参照）。
+
 ## 実行
 
 `configs/formation.example.yaml` は現行 Catalog の実IDで書かれており、そのまま実行できる。
@@ -105,6 +117,78 @@ run_index,chunk_index,chunk_seed,run_index_in_chunk,score,break_count,completed_
 書かずにエラーで終える。ヘッダーだけの `runs.csv` を残すと、後段が「0件という結果」と
 「そもそも走らなかった」を区別できないため。
 
+## 編成をIDで書かずに用意する
+
+`unitDefinitionId` / `memoryDefinitionIds` を手で書き写す必要はない。用途が2つに分かれる。
+
+### 初回に編成を起こす — UIのドラフトを取り込む
+
+UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保存している。書き出して
+渡せば、UIの編成エディタ（ユニット選択・配置・適性表示）がそのまま入力手段になる。
+
+1. UI（`mise run ui:dev` またはデプロイ済みの Pages）で演習モードの編成を組む
+2. DevTools のコンソールで次を実行する
+
+   ```js
+   copy(localStorage.getItem("mlgg:last-draft:exercise"));
+   ```
+
+3. クリップボードの中身を `last-draft-exercise.json` として保存する（gitignore 済み）
+4. 変換する
+
+   ```bash
+   uv run lab import-draft last-draft-exercise.json -o configs/formation.yaml
+   ```
+
+`-o` を省くと標準出力へ出る。生成物には**育成状態（レベル・ギア・学園レベル）を含めない** —
+正本は `--player-data` 側に一本化してある。ドラフトの強化入力は読み飛ばす。
+
+演習用ではなく通常戦闘の `mlgg:last-draft` を渡した場合、敵が2体以上のときと敵メモリーを
+持つときはここで落とす。ただし**敵1体・敵メモリーなしの通常戦闘ドラフトは判別できない**
+（保存形式が同じ `BattleDraft` のため）。その取り違えは `lab stats` の Catalog 検証が捕まえる
+——通常戦闘の敵は `PLAYABLE` なので、演習の敵プール（`EXERCISE_ENEMY`）に合わず R-TEX-11 #1
+で弾かれる。
+
+### 反復編集する — エディタ補完を効かせる
+
+Catalog から実IDを enum に焼いた JSON Schema を生成できる。
+
+```bash
+uv run lab schema           # 既定の出力先は .schema/formation.schema.json
+```
+
+編成YAMLの先頭へ次の1行を置くと、YAML Language Server（VSCode の `redhat.vscode-yaml` など）
+が `unitDefinitionId:` や `memoryDefinitionIds:` でIDを補完し、その場で検証する。
+
+```yaml
+# yaml-language-server: $schema=../.schema/formation.schema.json
+```
+
+味方枠と敵枠には別々の enum が入るので、`R-TEX-11` #1（味方は `PLAYABLE`、敵は
+`EXERCISE_ENEMY`）は実行前にエディタ上で分かる。補完候補には日本語表示名・role・
+適性も添えてある（表示はエディタの実装次第）。学園レベルのキー9種と、
+「`ally.academyLevels` なしにユニットの `level` / `gears` は書けない」もSchemaで表す。
+
+**Schema は `lab stats` の受理条件をすべては表さない。** 味方の配置重複は、要素の一部
+（`position`）についての一意性であり JSON Schema では表せないため、エディタは通し
+`lab stats` がエラーにする。差異は `tests/test_schema.py` で固定してある。
+
+生成物は Catalog revision に紐づくため gitignore してある。**Catalog を更新したら
+`lab schema` を実行し直す。**
+
+### IDを引く — カタログ検索
+
+```bash
+uv run lab units --owned --player-data player-data.json   # 手持ちだけに絞る
+uv run lab units --grep 反逆                              # 表示名・キャラ名・IDの部分一致
+uv run lab units --category EXERCISE_ENEMY                # 演習の敵一覧
+uv run lab memories --grep 心
+uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼れる形で出す
+```
+
+`--yaml` の `position` は仮置きなので、貼った後に実際の配置へ直す（配置は結果に影響する）。
+未知IDを書いてしまった場合、`lab stats` のエラーがこの検索コマンドを案内する。
+
 ## 編成定義 YAML
 
 `configs/formation.example.yaml` を写して使う。要点は次のとおり。
@@ -119,7 +203,8 @@ run_index,chunk_index,chunk_seed,run_index_in_chunk,score,break_count,completed_
 
 ## 手持ちデータ（`mlgg:player-data`）の取り込み
 
-ブラウザで入力したレベル・ギア・学園レベルを、編成 YAML へ書き写さずに使える。
+ブラウザで入力したレベル・ギア・学園レベルを、編成 YAML へ書き写さずに使える。編成そのもの
+（誰をどこへ置くか）はここでは決まらない——それは上の `import-draft` 側が持つ。
 
 1. UI（`mise run ui:dev` またはデプロイ済みの Pages）を開く
 2. DevTools のコンソールで次を実行する

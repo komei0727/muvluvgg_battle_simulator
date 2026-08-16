@@ -218,3 +218,49 @@ def _reject_unknown_academy_keys(levels: AcademyLevels, path: Path) -> None:
             raise ConfigError(
                 f"{path}: academyLevels.{group} に未知のキーがある: {', '.join(unknown)}"
             )
+
+
+class _FlowMapping(dict[str, object]):
+    """1行（flow style）で書き出すマッピング。座標のような短い値を縦に展開しない。"""
+
+
+def _represent_flow_mapping(dumper: yaml.SafeDumper, data: _FlowMapping) -> yaml.Node:
+    return dumper.represent_mapping("tag:yaml.org,2002:map", data, flow_style=True)
+
+
+yaml.SafeDumper.add_representer(_FlowMapping, _represent_flow_mapping)
+
+
+def dump_formation_config(config: FormationConfig) -> str:
+    """編成YAMLを書き出す。`load_formation_config` が読み戻せる形だけを出す。
+
+    強化情報（`academyLevels` / `level` / `gears`）は出力しない。育成状態の正本は
+    `--player-data` であり、YAMLへ焼くと同じ値が2か所に生まれる。
+    """
+    document = {
+        "ally": {
+            "units": [
+                {
+                    "unitDefinitionId": unit.unit_definition_id,
+                    "position": _FlowMapping(column=unit.position.column, row=unit.position.row),
+                }
+                for unit in config.ally.units
+            ],
+            "memoryDefinitionIds": list(config.ally.memory_definition_ids),
+        },
+        "enemy": {
+            "unitDefinitionId": config.enemy.unit_definition_id,
+            "position": _FlowMapping(
+                column=config.enemy.position.column, row=config.enemy.position.row
+            ),
+        },
+    }
+    return yaml.dump(
+        document,
+        Dumper=yaml.SafeDumper,
+        # キー順は上の辞書のまま（アルファベット順に崩さない）。日本語IDは無いが、
+        # 将来入っても読める形にしておく。
+        sort_keys=False,
+        allow_unicode=True,
+        default_flow_style=False,
+    )

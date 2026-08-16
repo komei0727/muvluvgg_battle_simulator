@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from types import TracebackType
 from typing import Any, Self
 
@@ -43,6 +44,11 @@ class CatalogUnit(_Response):
     display_name: str = Field(alias="displayName")
     category: str
     exercise_active: bool | None = Field(default=None, alias="exerciseActive")
+    # 表示・検索・補完の説明にだけ使う。API契約上は必須だが、欠けても評価は成立するので
+    # 既定値を持たせる（応答の加算的変更に寛容にする方針と揃える）。
+    character_name: str = Field(default="", alias="characterName")
+    role: str = ""
+    position_aptitudes: list[str] = Field(default_factory=list, alias="positionAptitudes")
 
 
 class CatalogMemory(_Response):
@@ -164,6 +170,46 @@ def _error_object(response: httpx.Response) -> dict[str, Any]:
     return error if isinstance(error, dict) else {}
 
 
+def search_units(
+    catalog: Catalog,
+    *,
+    query: str | None = None,
+    category: str | None = None,
+    owned_ids: Collection[str] | None = None,
+) -> list[CatalogUnit]:
+    """ユニットを絞り込む。結果はID昇順（表示も貼り付けも並びが安定する）。
+
+    照合はID・表示名・キャラクター名の部分一致。同じキャラの別バリアントが多いため
+    キャラクター名だけでは絞り切れず、逆にIDだけだと日本語から辿れない。
+    """
+    found = [
+        unit
+        for unit in catalog.units
+        if (category is None or unit.category == category)
+        and (owned_ids is None or unit.unit_definition_id in owned_ids)
+        and (
+            query is None
+            or _matches(query, unit.unit_definition_id, unit.display_name, unit.character_name)
+        )
+    ]
+    return sorted(found, key=lambda unit: unit.unit_definition_id)
+
+
+def search_memories(catalog: Catalog, *, query: str | None = None) -> list[CatalogMemory]:
+    found = [
+        memory
+        for memory in catalog.memories
+        if query is None or _matches(query, memory.memory_definition_id, memory.display_name)
+    ]
+    return sorted(found, key=lambda memory: memory.memory_definition_id)
+
+
+def _matches(query: str, *fields: str) -> bool:
+    # IDは英大文字なので、日本語の表示名と同じ関数で扱えるよう小文字化して比べる。
+    lowered = query.casefold()
+    return any(lowered in field.casefold() for field in fields)
+
+
 def validate_against_catalog(config: FormationConfig, catalog: Catalog) -> list[str]:
     """編成YAMLをカタログと突き合わせ、見つかった問題をすべて返す。
 
@@ -176,8 +222,20 @@ def validate_against_catalog(config: FormationConfig, catalog: Catalog) -> list[
     errors.extend(_unit_errors(config.enemy.unit_definition_id, "enemy", EXERCISE_ENEMY, catalog))
     for memory_definition_id in config.ally.memory_definition_ids:
         if not catalog.has_memory(memory_definition_id):
-            errors.append(f"ally.memoryDefinitionIds: 未知のメモリー {memory_definition_id}")
+            errors.append(
+                f"ally.memoryDefinitionIds: 未知のメモリー {memory_definition_id}"
+                f"（`lab memories --grep {_search_hint(memory_definition_id)}` で探せる）"
+            )
     return errors
+
+
+def _search_hint(definition_id: str) -> str:
+    """検索コマンドへ渡す当たり。IDの接頭辞（`UNIT_`/`MEM_`）を落とした先頭語を使う。
+
+    打ち間違いの多くは末尾のバリアント名なので、先頭語で引くと目当ての行が出る。
+    """
+    without_prefix = definition_id.split("_", 1)[-1]
+    return without_prefix.split("_")[0] or definition_id
 
 
 def _unit_errors(
@@ -185,7 +243,10 @@ def _unit_errors(
 ) -> list[str]:
     unit = catalog.unit(unit_definition_id)
     if unit is None:
-        return [f"{side}: 未知のユニット {unit_definition_id}"]
+        return [
+            f"{side}: 未知のユニット {unit_definition_id}"
+            f"（`lab units --grep {_search_hint(unit_definition_id)}` で探せる）"
+        ]
     if unit.category != required_category:
         return [
             f"{side}: {unit_definition_id} は category={unit.category} であり "
