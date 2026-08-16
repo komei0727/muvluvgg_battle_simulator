@@ -24834,6 +24834,109 @@
                                 "minimum": 1
                               },
                               "type": {
+                                "enum": ["EXERCISE_SCORE_DEDUCTED"]
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": ["FACT", "TIMING", "DIAGNOSTIC"]
+                              },
+                              "turnNumber": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 99
+                              },
+                              "cycleNumber": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "skillUseId": {
+                                "type": "string"
+                              },
+                              "parentSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "rootSequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "sourceUnitId": {
+                                "type": "string"
+                              },
+                              "sourceSide": {
+                                "type": "string",
+                                "enum": ["ALLY", "ENEMY"]
+                              },
+                              "targetUnitIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "targetUnitId",
+                                  "amount",
+                                  "totalScore",
+                                  "causeEventId"
+                                ],
+                                "properties": {
+                                  "targetUnitId": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "totalScore": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "causeEventId": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "stateVersionBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateVersionAfter": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "stateTransitionIndex": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "sequence",
+                              "type",
+                              "category",
+                              "turnNumber",
+                              "cycleNumber",
+                              "rootSequence",
+                              "targetUnitIds",
+                              "details",
+                              "stateVersionBefore",
+                              "stateVersionAfter"
+                            ],
+                            "properties": {
+                              "sequence": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "type": {
                                 "enum": ["UNIT_BROKEN"]
                               },
                               "category": {
@@ -26583,6 +26686,1376 @@
         }
       }
     },
+    "/api/v1/tactical-exercise-evaluations": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["enemyFormation", "candidates", "runsPerCandidate"],
+                "properties": {
+                  "enemyFormation": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["units", "memoryDefinitionIds"],
+                    "properties": {
+                      "units": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["unitDefinitionId", "position"],
+                          "properties": {
+                            "unitDefinitionId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "position": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": ["column", "row"],
+                              "properties": {
+                                "column": {
+                                  "type": "integer",
+                                  "enum": [0, 1, 2]
+                                },
+                                "row": {
+                                  "type": "string",
+                                  "enum": ["FRONT", "REAR"]
+                                }
+                              }
+                            },
+                            "enhancement": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "level": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "gears": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["stat", "tier", "grade"],
+                                    "properties": {
+                                      "stat": {
+                                        "type": "string",
+                                        "enum": [
+                                          "MAXIMUM_HP",
+                                          "ATTACK",
+                                          "DEFENSE",
+                                          "ACTION_SPEED",
+                                          "CRITICAL_RATE",
+                                          "CRITICAL_DAMAGE_BONUS",
+                                          "AFFINITY_BONUS"
+                                        ]
+                                      },
+                                      "tier": {
+                                        "type": "string",
+                                        "enum": ["II", "III"]
+                                      },
+                                      "grade": {
+                                        "type": "string",
+                                        "enum": ["D", "C", "B", "A", "S"]
+                                      }
+                                    }
+                                  },
+                                  "maxItems": 9
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "minItems": 1,
+                        "maxItems": 5
+                      },
+                      "memoryDefinitionIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "maxItems": 6
+                      },
+                      "enhancement": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "academyLevels": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "unitTypes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "PHYSICAL": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "ENERGY": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "AGILE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
+                              },
+                              "attributes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "AGGRESSIVE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "SHY": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "CUTE": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "SMART": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "COMICAL": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "CLEVER": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "candidates": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["allyFormation"],
+                      "properties": {
+                        "allyFormation": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["units", "memoryDefinitionIds"],
+                          "properties": {
+                            "units": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": ["unitDefinitionId", "position"],
+                                "properties": {
+                                  "unitDefinitionId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256
+                                  },
+                                  "position": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["column", "row"],
+                                    "properties": {
+                                      "column": {
+                                        "type": "integer",
+                                        "enum": [0, 1, 2]
+                                      },
+                                      "row": {
+                                        "type": "string",
+                                        "enum": ["FRONT", "REAR"]
+                                      }
+                                    }
+                                  },
+                                  "enhancement": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "level": {
+                                        "type": "integer",
+                                        "minimum": 1
+                                      },
+                                      "gears": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": ["stat", "tier", "grade"],
+                                          "properties": {
+                                            "stat": {
+                                              "type": "string",
+                                              "enum": [
+                                                "MAXIMUM_HP",
+                                                "ATTACK",
+                                                "DEFENSE",
+                                                "ACTION_SPEED",
+                                                "CRITICAL_RATE",
+                                                "CRITICAL_DAMAGE_BONUS",
+                                                "AFFINITY_BONUS"
+                                              ]
+                                            },
+                                            "tier": {
+                                              "type": "string",
+                                              "enum": ["II", "III"]
+                                            },
+                                            "grade": {
+                                              "type": "string",
+                                              "enum": ["D", "C", "B", "A", "S"]
+                                            }
+                                          }
+                                        },
+                                        "maxItems": 9
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "minItems": 1,
+                              "maxItems": 5
+                            },
+                            "memoryDefinitionIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256
+                              },
+                              "maxItems": 6
+                            },
+                            "enhancement": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "academyLevels": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "unitTypes": {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "PHYSICAL": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "ENERGY": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "AGILE": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        }
+                                      }
+                                    },
+                                    "attributes": {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "AGGRESSIVE": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "SHY": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "CUTE": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "SMART": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "COMICAL": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        },
+                                        "CLEVER": {
+                                          "type": "integer",
+                                          "minimum": 1
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "runsPerCandidate": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "seed": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Reproduces a previous evaluation. Omit to let the server generate one; the response always echoes the seed actually used."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schemaVersion",
+                    "catalogRevision",
+                    "seed",
+                    "runsPerCandidate",
+                    "candidates"
+                  ],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "catalogRevision": {
+                      "type": "string"
+                    },
+                    "seed": {
+                      "type": "string"
+                    },
+                    "runsPerCandidate": {
+                      "type": "integer"
+                    },
+                    "candidates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "completedRuns",
+                          "scores",
+                          "breakCounts",
+                          "completedTurns",
+                          "completionReasons"
+                        ],
+                        "properties": {
+                          "completedRuns": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Number of runs that finished before the request deadline. Lower than runsPerCandidate when the deadline was reached."
+                          },
+                          "scores": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            }
+                          },
+                          "breakCounts": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            }
+                          },
+                          "completedTurns": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            }
+                          },
+                          "completionReasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": ["ALLY_DEFEATED", "TURN_LIMIT_REACHED"]
+                            }
+                          }
+                        }
+                      },
+                      "description": "One entry per request candidate, in request order."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["MALFORMED_REQUEST"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["ENDPOINT_DISABLED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["NOT_ACCEPTABLE"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["REQUEST_TOO_LARGE"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["UNSUPPORTED_MEDIA_TYPE"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["INVALID_COMMAND", "DEFINITION_NOT_FOUND"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Seconds to wait before retrying, when the server can estimate it."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["RATE_LIMIT_EXCEEDED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "INVALID_DEFINITION",
+                            "DOMAIN_RULE_VIOLATION",
+                            "INTERNAL_INVARIANT_VIOLATION"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Seconds to wait before retrying, when the server can estimate it."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "EXECUTION_LIMIT_EXCEEDED",
+                            "EXECUTION_CANCELLED",
+                            "CAPACITY_EXCEEDED"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["EXECUTION_TIMEOUT"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "header",
+            "name": "origin",
+            "required": true,
+            "description": "The requesting page's origin. Present on a genuine CORS preflight request."
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "header",
+            "name": "access-control-request-method",
+            "required": true,
+            "description": "The HTTP method the actual request will use (GET or POST)."
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "header",
+            "name": "access-control-request-headers",
+            "required": false,
+            "description": "Comma-separated list of headers the actual request will send."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "CORS preflight response — fulfilled by @fastify/cors's onRequest hook before this handler runs for an allowed origin (11_インフラストラクチャ設計.md「CORS」).",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "GET, POST, OPTIONS."
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Content-Type, Accept, X-Request-Id, If-None-Match."
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Preflight Request — returned as text/plain by @fastify/cors's onRequest hook (not this handler) when an allowed Origin sends OPTIONS without Access-Control-Request-Method (11_インフラストラクチャ設計.md「CORS」).",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Invalid Preflight Request"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/formation-stat-previews": {
       "post": {
         "requestBody": {
@@ -26953,7 +28426,8 @@
                           "unitDefinitionId",
                           "formationPosition",
                           "maximumHp",
-                          "combatStats"
+                          "combatStats",
+                          "enhancedBaseStats"
                         ],
                         "properties": {
                           "side": {
@@ -27011,6 +28485,43 @@
                               },
                               "criticalDamageBonus": {
                                 "type": "number"
+                              }
+                            }
+                          },
+                          "enhancedBaseStats": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "attack",
+                              "defense",
+                              "criticalRate",
+                              "actionSpeed",
+                              "affinityBonus",
+                              "criticalDamageBonus",
+                              "maximumHp"
+                            ],
+                            "properties": {
+                              "attack": {
+                                "type": "number"
+                              },
+                              "defense": {
+                                "type": "number"
+                              },
+                              "criticalRate": {
+                                "type": "number"
+                              },
+                              "actionSpeed": {
+                                "type": "number"
+                              },
+                              "affinityBonus": {
+                                "type": "number"
+                              },
+                              "criticalDamageBonus": {
+                                "type": "number"
+                              },
+                              "maximumHp": {
+                                "type": "number",
+                                "minimum": 0
                               }
                             }
                           }

@@ -31,6 +31,7 @@ export const HTTP_ERROR_CODES = [
   "EXECUTION_CANCELLED",
   "INTERNAL_INVARIANT_VIOLATION",
   "CAPACITY_EXCEEDED",
+  "ENDPOINT_DISABLED",
 ] as const;
 export type HttpErrorCode = (typeof HTTP_ERROR_CODES)[number];
 
@@ -51,6 +52,9 @@ const STATUS_BY_CODE: Record<HttpErrorCode, number> = {
   EXECUTION_LIMIT_EXCEEDED: 503,
   EXECUTION_CANCELLED: 503,
   EXECUTION_TIMEOUT: 504,
+  // この配備では提供しない操作。実装が無いのではなく設定で閉じているだけなので、
+  // 有効な配備なら同じパスがそのまま動く。
+  ENDPOINT_DISABLED: 404,
 };
 
 const DEFAULT_MESSAGE_BY_CODE: Record<HttpErrorCode, string> = {
@@ -68,6 +72,7 @@ const DEFAULT_MESSAGE_BY_CODE: Record<HttpErrorCode, string> = {
   EXECUTION_LIMIT_EXCEEDED: "The simulation exceeded its execution limits.",
   EXECUTION_TIMEOUT: "The simulation did not complete before the deadline.",
   EXECUTION_CANCELLED: "The simulation was cancelled.",
+  ENDPOINT_DISABLED: "This endpoint is not enabled on this server.",
 };
 
 export function httpStatusForErrorCode(code: HttpErrorCode): number {

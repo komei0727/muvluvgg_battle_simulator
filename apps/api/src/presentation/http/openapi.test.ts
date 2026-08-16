@@ -5,6 +5,7 @@ import { buildServer } from "./build-server.js";
 import { BATTLE_SIMULATION_CATALOG_PATH } from "./routes/catalog-route.js";
 import { BATTLE_SIMULATIONS_PATH } from "./routes/simulation-route.js";
 import { TACTICAL_EXERCISES_PATH } from "./routes/tactical-exercise-route.js";
+import { TACTICAL_EXERCISE_EVALUATIONS_PATH } from "./routes/tactical-exercise-evaluation-route.js";
 import {
   HTTP_ERROR_CODES,
   errorCodesForHttpStatus,
@@ -1443,9 +1444,13 @@ describe("OpenAPI document", () => {
   it("API-OPENAPI-018 (REL-004, Issue #203, 10_API設計.md「ステータスコード対応」/「列挙値」): every documented error status publishes exactly the codes that map to it, so the spec table, STATUS_BY_CODE and the OpenAPI document cannot drift apart", () => {
     const document = app.swagger() as unknown as OpenApiDocumentForTest;
 
+    // 全コードがどこかの文書に現れることを担保するための最小集合。戦闘POSTが
+    // 仕様表のほぼ全ステータスを公開するが、その配備でしか起きないステータス
+    // （一括評価の404 `ENDPOINT_DISABLED`）は当該pathを足さないと不可視のまま残る。
     const errorStatusesByPath = {
       [BATTLE_SIMULATIONS_PATH]: "post",
       [BATTLE_SIMULATION_CATALOG_PATH]: "get",
+      [TACTICAL_EXERCISE_EVALUATIONS_PATH]: "post",
     } as const;
 
     const seenCodes = new Set<string>();
@@ -1468,9 +1473,8 @@ describe("OpenAPI document", () => {
       }
     }
 
-    // The battle POST documents every status in the spec table, so the union of the
-    // published enums must be the whole taxonomy — a code that maps to no documented
-    // status would otherwise stay invisible to clients.
+    // 上のpath群の公開enumの和集合が分類全体と一致すること — どの文書化された
+    // ステータスにも載らないコードは、クライアントから見えないまま残ってしまう。
     expect([...seenCodes].sort()).toEqual([...HTTP_ERROR_CODES].sort());
 
     // Documenting a status the taxonomy has no code for is a contradiction between
