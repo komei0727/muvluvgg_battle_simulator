@@ -143,8 +143,11 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
 `-o` を省くと標準出力へ出る。生成物には**育成状態（レベル・ギア・学園レベル）を含めない** —
 正本は `--player-data` 側に一本化してある。ドラフトの強化入力は読み飛ばす。
 
-演習用ではなく通常戦闘の `mlgg:last-draft` を渡した場合は、敵の体数（演習はちょうど1体）で
-検出してエラーにする。
+演習用ではなく通常戦闘の `mlgg:last-draft` を渡した場合、敵が2体以上のときと敵メモリーを
+持つときはここで落とす。ただし**敵1体・敵メモリーなしの通常戦闘ドラフトは判別できない**
+（保存形式が同じ `BattleDraft` のため）。その取り違えは `lab stats` の Catalog 検証が捕まえる
+——通常戦闘の敵は `PLAYABLE` なので、演習の敵プール（`EXERCISE_ENEMY`）に合わず R-TEX-11 #1
+で弾かれる。
 
 ### 反復編集する — エディタ補完を効かせる
 
@@ -163,7 +166,12 @@ uv run lab schema           # 既定の出力先は .schema/formation.schema.jso
 
 味方枠と敵枠には別々の enum が入るので、`R-TEX-11` #1（味方は `PLAYABLE`、敵は
 `EXERCISE_ENEMY`）は実行前にエディタ上で分かる。補完候補には日本語表示名・role・
-適性も添えてある（表示はエディタの実装次第）。
+適性も添えてある（表示はエディタの実装次第）。学園レベルのキー9種と、
+「`ally.academyLevels` なしにユニットの `level` / `gears` は書けない」もSchemaで表す。
+
+**Schema は `lab stats` の受理条件をすべては表さない。** 味方の配置重複は、要素の一部
+（`position`）についての一意性であり JSON Schema では表せないため、エディタは通し
+`lab stats` がエラーにする。差異は `tests/test_schema.py` で固定してある。
 
 生成物は Catalog revision に紐づくため gitignore してある。**Catalog を更新したら
 `lab schema` を実行し直す。**

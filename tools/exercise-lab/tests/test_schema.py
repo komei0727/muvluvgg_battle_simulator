@@ -117,3 +117,77 @@ def test_the_catalog_revision_is_recorded(schema):
 
 def test_generation_is_deterministic():
     assert build_formation_json_schema(CATALOG) == build_formation_json_schema(CATALOG)
+
+
+def test_unknown_academy_level_keys_are_rejected(schema):
+    # `models._reject_unknown_academy_keys` と同じ判定をSchemaでも持つ。
+    value = document()
+    value["ally"]["academyLevels"] = {"unitTypes": {"PHYSICAL": 60, "MAGIC": 3}, "attributes": {}}
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate(schema, value)
+
+
+def test_known_academy_level_keys_pass(schema):
+    value = document()
+    value["ally"]["academyLevels"] = {
+        "unitTypes": {"PHYSICAL": 60},
+        "attributes": {"AGGRESSIVE": 40},
+    }
+
+    validate(schema, value)
+
+
+def test_unit_level_without_academy_levels_is_rejected(schema):
+    # `models._validate` と同じく、陣営の強化指定なしにユニットの強化は指定できない
+    # （APIが422で拒む組み合わせなので、書いた時点で分かるようにする）。
+    value = document()
+    value["ally"]["units"][0]["level"] = 240
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate(schema, value)
+
+
+def test_unit_gears_without_academy_levels_are_rejected(schema):
+    value = document()
+    value["ally"]["units"][0]["gears"] = [{"stat": "ATTACK", "tier": "III", "grade": "S"}]
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate(schema, value)
+
+
+def test_unit_level_with_academy_levels_passes(schema):
+    value = document()
+    value["ally"]["academyLevels"] = {"unitTypes": {"PHYSICAL": 60}, "attributes": {}}
+    value["ally"]["units"][0]["level"] = 240
+
+    validate(schema, value)
+
+
+def test_duplicate_ally_positions_are_a_documented_gap(schema):
+    """Schemaで表現できない制約はここに列挙し、差異を明示的に固定する。
+
+    「配置が重複しないこと」は要素の一部（`position`）についての一意性で、
+    JSON Schema の `uniqueItems` では表せない。エディタ上は通り、`lab stats` の
+    `ConfigError` で落ちる——この非対称を黙って持たず、テストで見えるようにする。
+    """
+    value = document()
+    value["ally"]["units"] = [
+        {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
+        {"unitDefinitionId": "UNIT_B", "position": {"column": 0, "row": "FRONT"}},
+    ]
+
+    validate(schema, value)  # Schemaは通す
+
+    import tempfile
+    from pathlib import Path
+
+    import yaml as pyyaml
+
+    from exercise_lab.models import ConfigError, load_formation_config
+
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "formation.yaml"
+        path.write_text(pyyaml.safe_dump(value), encoding="utf-8")
+        with pytest.raises(ConfigError, match="重複"):
+            load_formation_config(path)  # ローダーは弾く

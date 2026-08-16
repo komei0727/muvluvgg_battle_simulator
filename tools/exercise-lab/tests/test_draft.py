@@ -170,3 +170,34 @@ def write(tmp_path, value):
     path = tmp_path / "last-draft-exercise.json"
     path.write_text(json.dumps(value), encoding="utf-8")
     return path
+
+
+def test_draft_with_six_allies_is_rejected_as_a_draft_error(tmp_path):
+    # UIの盤面は6枠あるので、6体埋まったドラフトも保存され得る。R-FRM-01の上限は5体で、
+    # pydanticのValidationErrorのままだとCLIが捕まえられずtracebackになる。
+    six = [
+        slot("ally", row, column, f"UNIT_{row}_{column}")
+        for row in ("FRONT", "REAR")
+        for column in (0, 1, 2)
+    ]
+
+    with pytest.raises(DraftError, match="5体"):
+        load_exercise_draft(write(tmp_path, draft_json(allySlots=six)))
+
+
+def test_draft_carrying_enemy_memories_is_rejected(tmp_path):
+    # 演習の敵はメモリーを持たない（R-TEX-01 #3）。敵メモリーが入っているのは
+    # 通常戦闘のドラフトだけなので、敵1体でもこの経路で識別できる。
+    stored = draft_json(enemyMemoryDefinitionIds=["MEM_X", None, None, None, None, None])
+
+    with pytest.raises(DraftError, match="mlgg:last-draft:exercise"):
+        load_exercise_draft(write(tmp_path, stored))
+
+
+def test_single_enemy_normal_battle_draft_is_imported_and_left_to_stats(tmp_path):
+    # 敵1体・敵メモリーなしの通常戦闘ドラフトは、保存形式だけでは演習用と区別できない。
+    # ここでは通し、`lab stats` のCatalog検証（R-TEX-11 #1）が PLAYABLE の敵を弾く。
+    # 「取り込み時に必ず気づける」という保証はしない。
+    config = load_exercise_draft(write(tmp_path, draft_json()))
+
+    assert config.enemy.unit_definition_id == "UNIT_ENEMY"

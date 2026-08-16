@@ -7,6 +7,12 @@
 **強化情報（レベル・ギア・学園レベル）は読まない。** ドラフトにも育成状態は入っているが、
 このツールでの正本は `--player-data` 側に一本化する。両方から取れるようにすると、
 同じ値が2か所にあって食い違ったときにどちらで評価されたのか追えなくなる。
+
+通常戦闘のドラフト（`mlgg:last-draft`）との取り違えは、保存形式が同じ `BattleDraft` で
+あるため完全には判別できない。敵が2体以上のとき（{@link _reject_unusable}）と敵メモリーを
+持つとき（{@link _reject_enemy_memories}）はここで落とせるが、敵1体・敵メモリーなしの
+通常戦闘ドラフトは通る。それは `lab stats` のCatalog検証が捕まえる——通常戦闘の敵は
+`PLAYABLE` であり、演習の敵プール（`EXERCISE_ENEMY`）に合わないため R-TEX-11 #1 で弾かれる。
 """
 
 from __future__ import annotations
@@ -16,7 +22,17 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .models import AllySpec, AllyUnitSpec, Column, EnemySpec, FormationConfig, Position, Row, _Spec
+from .models import (
+    MAX_ALLY_UNITS,
+    AllySpec,
+    AllyUnitSpec,
+    Column,
+    EnemySpec,
+    FormationConfig,
+    Position,
+    Row,
+    _Spec,
+)
 
 # `persistence.ts` の `PERSISTENCE_SCHEMA_VERSION`。異なる版は読み替えず落とす。
 SUPPORTED_SCHEMA_VERSION = 1
@@ -66,7 +82,24 @@ def load_exercise_draft(path: Path) -> FormationConfig:
     ally = _filled_slots(draft.get("allySlots"), "allySlots", path)
     enemy = _filled_slots(draft.get("enemySlots"), "enemySlots", path)
     _reject_unusable(ally, enemy, path)
+    _reject_enemy_memories(draft.get("enemyMemoryDefinitionIds"), path)
 
+    # UIの盤面は6枠あり、R-FRM-01の上限（5体）を超えたドラフトも保存され得る。
+    # 編成モデル側の宣言的な制約はここで初めて効くので、`ValidationError` を
+    # そのまま外へ出さず利用者向けのエラーへ畳む。
+    try:
+        return _config_of(ally, enemy, draft, path)
+    except ValidationError as error:
+        raise DraftError(f"{path}: 演習の編成として成立しない: {_reasons(error)}") from error
+
+
+def _reasons(error: ValidationError) -> str:
+    return "; ".join(detail["msg"] for detail in error.errors())
+
+
+def _config_of(
+    ally: list[StoredSlot], enemy: list[StoredSlot], draft: dict[str, object], path: Path
+) -> FormationConfig:
     return FormationConfig(
         ally=AllySpec(
             units=[
@@ -114,13 +147,37 @@ def _filled_slots(value: object, field: str, path: Path) -> list[StoredSlot]:
 def _reject_unusable(ally: list[StoredSlot], enemy: list[StoredSlot], path: Path) -> None:
     if not ally:
         raise DraftError(f"{path}: 味方が0体のドラフトからは編成を作れない")
+    if len(ally) > MAX_ALLY_UNITS:
+        # UIの盤面は6枠あるので、6体埋めたドラフトも保存できてしまう。
+        raise DraftError(
+            f"{path}: 味方が{len(ally)}体ある。編成できるのは{MAX_ALLY_UNITS}体まで（R-FRM-01）"
+        )
     if not enemy:
         raise DraftError(f"{path}: 敵が置かれていない（演習は敵1体が要る）")
     if len(enemy) > EXERCISE_ENEMY_UNIT_COUNT:
-        # 通常戦闘のドラフト（`mlgg:last-draft`）は敵を最大5体持つ。キーの取り違えは
-        # ここで必ず現れるので、体数だけでなく渡すべきキーまで名指しする。
+        # 通常戦闘のドラフト（`mlgg:last-draft`）は敵を最大5体持つため、キーの取り違えが
+        # ここで現れることがある。体数だけでなく渡すべきキーまで名指しする（ただし
+        # 敵1体の通常戦闘ドラフトはここを通る——`_reject_enemy_memories` 参照）。
         raise DraftError(
             f"{path}: 敵が{len(enemy)}体ある。演習の敵はちょうど1体（R-TEX-01 #3）。"
+            f"通常戦闘の `mlgg:last-draft` ではなく `{EXERCISE_DRAFT_STORAGE_KEY}` を書き出す"
+        )
+
+
+def _reject_enemy_memories(value: object, path: Path) -> None:
+    """敵メモリーを持つドラフトは通常戦闘のもの。
+
+    演習の敵はメモリーを持てず（R-TEX-01 #3）、UIも演習モードでは敵メモリー枠を
+    出さない。したがって1件でも入っていれば通常戦闘の `mlgg:last-draft` である。
+    ただし逆は言えない——敵1体・敵メモリーなしの通常戦闘ドラフトは保存形式だけでは
+    演習用と区別できず、ここは通る。その取り違えは `lab stats` のCatalog検証が
+    捕まえる（通常戦闘の敵は `PLAYABLE` なので R-TEX-11 #1 で弾かれる）。
+    """
+    if not isinstance(value, list):
+        return
+    if any(isinstance(entry, str) and entry for entry in value):
+        raise DraftError(
+            f"{path}: 敵メモリーが入っている。演習の敵はメモリーを持たない（R-TEX-01 #3）。"
             f"通常戦闘の `mlgg:last-draft` ではなく `{EXERCISE_DRAFT_STORAGE_KEY}` を書き出す"
         )
 

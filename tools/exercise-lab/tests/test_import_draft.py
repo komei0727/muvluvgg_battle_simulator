@@ -80,3 +80,26 @@ def test_schema_directive_is_inert_until_the_schema_exists(tmp_path):
     lines = out.read_text(encoding="utf-8").splitlines()
     assert not any(line.startswith("# yaml-language-server:") for line in lines)
     assert any(line.startswith("## yaml-language-server:") for line in lines)
+
+
+def test_six_ally_draft_is_reported_without_a_traceback(tmp_path):
+    six = [
+        {
+            "slotKey": f"ally:{row}:{column}",
+            "side": "ally",
+            "row": row,
+            "column": column,
+            "unitDefinitionId": f"UNIT_{row}_{column}",
+        }
+        for row in ("FRONT", "REAR")
+        for column in (0, 1, 2)
+    ]
+    source = tmp_path / "draft.json"
+    source.write_text(json.dumps(draft_json(allySlots=six)), encoding="utf-8")
+    out = tmp_path / "formation.yaml"
+
+    result = runner.invoke(app, ["import-draft", str(source), "-o", str(out)])
+
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert not out.exists()
