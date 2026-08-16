@@ -20,6 +20,7 @@ export const APPLICATION_ERROR_CODES = [
   "EXECUTION_TIMEOUT",
   "EXECUTION_CANCELLED",
   "INTERNAL_INVARIANT_VIOLATION",
+  "ENDPOINT_DISABLED",
 ] as const;
 export type ApplicationErrorCode = (typeof APPLICATION_ERROR_CODES)[number];
 

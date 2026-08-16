@@ -50,6 +50,8 @@ export async function bootstrap(): Promise<FastifyInstance> {
     executionLimits,
     workerMinThreads,
     workerMaxThreads,
+    evaluationEndpointEnabled,
+    evaluationLimits,
   } = loadConfig(process.env);
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
@@ -80,6 +82,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     maxQueue: workerMaxQueue,
     shutdownGraceMs,
     executionLimits,
+    evaluationLimits,
     // 未設定時はPiscinaの既定（`os.cpus()`由来）を保つため、`undefined`を
     // そのまま渡さずキーごと落とす。
     ...(workerMinThreads !== undefined ? { minThreads: workerMinThreads } : {}),
@@ -103,6 +106,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
     // 戦術演習（UC-03）は戦闘と同じWorker Pool（同じタイムアウト・容量制御・
     // Catalogリビジョン検査）で実行する（`09_アプリケーション設計.md`「実行境界」）。
     exerciseUseCase: pool,
+    // 一括評価（UC-04）はローカルの分析ツール向けであり、明示的に許可した配備だけで
+    // 開く。無効な配備でもルートは登録され、404を返す（公開文書の形を保つため）。
+    ...(evaluationEndpointEnabled ? { evaluationUseCase: pool } : {}),
     docsEnabled,
     corsAllowedOrigins,
   });

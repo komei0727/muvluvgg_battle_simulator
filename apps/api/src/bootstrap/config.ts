@@ -1,5 +1,9 @@
 import { resolveDocsEnabled } from "./docs-enabled.js";
 import {
+  DEFAULT_EVALUATION_LIMITS,
+  type EvaluationLimits,
+} from "../application/simulation/evaluate-tactical-exercise-candidates-command.js";
+import {
   DEFAULT_SIMULATION_EXECUTION_LIMITS,
   type SimulationExecutionLimits,
 } from "../application/simulation/battle-execution.js";
@@ -48,6 +52,12 @@ export interface ApplicationConfig {
    */
   readonly workerMinThreads: number | undefined;
   readonly workerMaxThreads: number | undefined;
+  /**
+   * `POST /api/v1/tactical-exercise-evaluations`を提供するか。既定は無効——
+   * ローカルの分析ツール向けの実行系であり、明示的に許可した環境だけで開く。
+   */
+  readonly evaluationEndpointEnabled: boolean;
+  readonly evaluationLimits: EvaluationLimits;
 }
 
 interface PositiveIntegerSpec {
@@ -88,6 +98,30 @@ function parsePositiveInteger(
     return spec.defaultValue;
   }
   return value;
+}
+
+/**
+ * boolean設定。`"true"`／`"false"`だけを受け、それ以外は既定へ落とさず違反にする——
+ * 綴り違い（`"yes"`／`"1"`）を黙って`false`と解釈すると、意図した公開設定と実際の
+ * 挙動が食い違ったまま起動してしまう。
+ */
+function parseBoolean(
+  raw: string | undefined,
+  envVar: string,
+  defaultValue: boolean,
+  violations: string[],
+): boolean {
+  if (raw === undefined) {
+    return defaultValue;
+  }
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  violations.push(`${envVar}=${JSON.stringify(raw)} must be "true" or "false"`);
+  return defaultValue;
 }
 
 /**
@@ -279,6 +313,33 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     );
   }
 
+  const evaluationEndpointEnabled = parseBoolean(
+    env["EVALUATION_ENDPOINT_ENABLED"],
+    "EVALUATION_ENDPOINT_ENABLED",
+    false,
+    violations,
+  );
+  const evaluationLimits: EvaluationLimits = {
+    maxCandidates: parsePositiveInteger(
+      env["EVALUATION_MAX_CANDIDATES"],
+      {
+        envVar: "EVALUATION_MAX_CANDIDATES",
+        defaultValue: DEFAULT_EVALUATION_LIMITS.maxCandidates,
+        min: 1,
+      },
+      violations,
+    ),
+    maxTotalRuns: parsePositiveInteger(
+      env["EVALUATION_MAX_TOTAL_RUNS"],
+      {
+        envVar: "EVALUATION_MAX_TOTAL_RUNS",
+        defaultValue: DEFAULT_EVALUATION_LIMITS.maxTotalRuns,
+        min: 1,
+      },
+      violations,
+    ),
+  };
+
   if (violations.length > 0) {
     throw new ConfigError(violations);
   }
@@ -296,5 +357,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     executionLimits,
     workerMinThreads,
     workerMaxThreads,
+    evaluationEndpointEnabled,
+    evaluationLimits,
   };
 }

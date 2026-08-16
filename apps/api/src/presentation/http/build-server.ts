@@ -29,6 +29,15 @@ import {
   TACTICAL_EXERCISES_PATH,
   type SimulateTacticalExerciseUseCasePort,
 } from "./routes/tactical-exercise-route.js";
+import {
+  registerTacticalExerciseEvaluationRoute,
+  TACTICAL_EXERCISE_EVALUATIONS_PATH,
+  type EvaluateTacticalExerciseCandidatesUseCasePort,
+} from "./routes/tactical-exercise-evaluation-route.js";
+import {
+  tacticalExerciseEvaluationRequestDocSchema,
+  tacticalExerciseEvaluationResponseDocSchema,
+} from "./schemas/simulation/tactical-exercise-evaluation-schema.js";
 import { formationStatPreviewRequestDocSchema } from "./schemas/simulation/formation-stat-preview-schema.js";
 import {
   tacticalExerciseRequestDocSchema,
@@ -58,6 +67,7 @@ import { acceptsJson } from "./protocol/content-negotiation/content-negotiation.
 export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simulation-route.js";
 export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
 export type { SimulateTacticalExerciseUseCasePort } from "./routes/tactical-exercise-route.js";
+export type { EvaluateTacticalExerciseCandidatesUseCasePort } from "./routes/tactical-exercise-evaluation-route.js";
 export type { GetBattleSimulationCatalogUseCasePort } from "./routes/catalog-route.js";
 
 const ALWAYS_READY: ReadinessPort = { isReady: () => true };
@@ -99,6 +109,20 @@ const NO_EXERCISE: SimulateTacticalExerciseUseCasePort = {
     Promise.reject(
       new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
         { reason: "this server instance has no tactical exercise use case wired in" },
+      ]),
+    ),
+};
+
+/**
+ * 一括評価を提供しない配備（`EVALUATION_ENDPOINT_ENABLED`が既定のfalse）の既定実装。
+ * ルート登録自体は常に行い、公開されるOpenAPI文書の形が配備設定で変わらないように
+ * する——実装の有無ではなく設定で閉じているだけなので、404で返す。
+ */
+const NO_EVALUATION: EvaluateTacticalExerciseCandidatesUseCasePort = {
+  executeTacticalExerciseEvaluation: () =>
+    Promise.reject(
+      new ApplicationError("ENDPOINT_DISABLED", [
+        { reason: "tactical exercise evaluation is not enabled on this server" },
       ]),
     ),
 };
@@ -187,6 +211,8 @@ export interface BuildServerOptions {
    * `SimulationWorkerPool`を渡す。省略時は`NO_EXERCISE`（上の注記参照）。
    */
   readonly exerciseUseCase?: SimulateTacticalExerciseUseCasePort;
+  /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
+  readonly evaluationUseCase?: EvaluateTacticalExerciseCandidatesUseCasePort;
   /**
    * `10_API設計.md`「CORS」「productionの許可originは`https://komei0727.github.io`を
    * 完全一致で設定する」。既定は空配列（全origin拒否）——`bootstrap/index.ts`が
@@ -247,6 +273,7 @@ export async function buildServer(
   const catalogUseCase = options.catalogUseCase ?? NO_CATALOG;
   const previewUseCase = options.previewUseCase ?? NO_PREVIEW;
   const exerciseUseCase = options.exerciseUseCase ?? NO_EXERCISE;
+  const evaluationUseCase = options.evaluationUseCase ?? NO_EVALUATION;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
     // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
@@ -375,6 +402,26 @@ export async function buildServer(
           url,
         };
       }
+      if (url === TACTICAL_EXERCISE_EVALUATIONS_PATH) {
+        // 演習POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ差し込む。
+        return {
+          schema: {
+            ...schema,
+            ...(schema.body !== undefined
+              ? { body: tacticalExerciseEvaluationRequestDocSchema }
+              : {}),
+            ...(schema.response !== undefined
+              ? {
+                  response: withResponseDoc({
+                    ...schema.response,
+                    200: tacticalExerciseEvaluationResponseDocSchema,
+                  }),
+                }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url === FORMATION_STAT_PREVIEW_PATH) {
         // 戦闘POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ
         // 差し込む（実行時validationは`route.schema`のまま）。
@@ -458,11 +505,17 @@ export async function buildServer(
     shutdownGate,
     simulationTimeoutMs,
   });
+  registerTacticalExerciseEvaluationRoute(app, {
+    useCase: evaluationUseCase,
+    shutdownGate,
+    simulationTimeoutMs,
+  });
   registerFormationStatPreviewRoute(app, previewUseCase);
   registerCatalogRoute(app, catalogUseCase);
   registerCorsPreflightDocRoutes(app, [
     BATTLE_SIMULATIONS_PATH,
     TACTICAL_EXERCISES_PATH,
+    TACTICAL_EXERCISE_EVALUATIONS_PATH,
     FORMATION_STAT_PREVIEW_PATH,
     BATTLE_SIMULATION_CATALOG_PATH,
   ]);

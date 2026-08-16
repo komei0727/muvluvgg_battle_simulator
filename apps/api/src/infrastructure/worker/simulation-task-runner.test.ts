@@ -267,4 +267,86 @@ describe("createSimulationTaskRunner", () => {
       expect(outcome.error.code).toBe("EXECUTION_LIMIT_EXCEEDED");
     }
   });
+
+  it("UT-TASKRUNNER-010 (Q-TEX-16): dispatches a TACTICAL_EXERCISE_EVALUATION task to the evaluation use case and returns raw per-run values tagged with the same mode", () => {
+    const catalog = loadCatalogFromDirectory(EXERCISE_CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(
+        Array.from({ length: 20 }, (_, index) => `B_EVAL_${index}`),
+      ),
+      randomSourceFactory: new SequenceRandomSourceFactory(Array(500).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
+    });
+
+    const outcome = runner({
+      mode: "TACTICAL_EXERCISE_EVALUATION",
+      requestId: "req-evaluation-1",
+      deadlineEpochMs: Date.now() + 30_000,
+      expectedCatalogRevision: catalog.catalogRevision,
+      request: {
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        candidates: [
+          { allyFormation: minimalRequest().allyFormation },
+          { allyFormation: minimalRequest().allyFormation },
+        ],
+        runsPerCandidate: 2,
+        seed: "task-runner",
+      },
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok && outcome.mode === "TACTICAL_EXERCISE_EVALUATION") {
+      expect(outcome.result.seed).toBe("task-runner");
+      expect(outcome.result.candidates).toHaveLength(2);
+      expect(outcome.result.candidates[0]?.scores).toHaveLength(2);
+      // 共通乱数法: 同一編成の2候補は同じrunIndexで同じ乱数列を引くため一致する。
+      expect(outcome.result.candidates[1]?.scores).toEqual(outcome.result.candidates[0]?.scores);
+    } else {
+      expect.fail("expected an ok TACTICAL_EXERCISE_EVALUATION outcome");
+    }
+  });
+
+  it("UT-TASKRUNNER-011 (Q-TEX-17): an omitted seed is generated per task, so two runs of the same request differ but each response can replay itself", () => {
+    const catalog = loadCatalogFromDirectory(EXERCISE_CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(
+        Array.from({ length: 20 }, (_, index) => `B_EVAL_SEED_${index}`),
+      ),
+      randomSourceFactory: new SequenceRandomSourceFactory(Array(500).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
+    });
+    const task: WorkerSimulationTask = {
+      mode: "TACTICAL_EXERCISE_EVALUATION",
+      requestId: "req-evaluation-2",
+      deadlineEpochMs: Date.now() + 30_000,
+      expectedCatalogRevision: catalog.catalogRevision,
+      request: {
+        enemyFormation: {
+          units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+          memoryDefinitionIds: [],
+        },
+        candidates: [{ allyFormation: minimalRequest().allyFormation }],
+        runsPerCandidate: 1,
+      },
+    };
+
+    const first = runner(task);
+    const second = runner(task);
+
+    expect(first.ok && second.ok).toBe(true);
+    if (
+      first.ok &&
+      second.ok &&
+      first.mode === "TACTICAL_EXERCISE_EVALUATION" &&
+      second.mode === "TACTICAL_EXERCISE_EVALUATION"
+    ) {
+      expect(first.result.seed).not.toBe(second.result.seed);
+      expect(first.result.seed).not.toBe("");
+    } else {
+      expect.fail("expected two ok TACTICAL_EXERCISE_EVALUATION outcomes");
+    }
+  });
 });

@@ -2,9 +2,11 @@ import { workerData } from "node:worker_threads";
 import { createSimulationTaskRunner } from "./simulation-task-runner.js";
 import { UuidBattleIdGenerator } from "../identity/uuid-battle-id-generator.js";
 import { SystemRandomSourceFactory } from "../random/system-random-source.js";
+import { Mulberry32SeededRandomSourceProvider } from "../random/seeded-random-source.js";
 import { SystemClock } from "../time/system-clock.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
+import type { EvaluationLimits } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
 
 /**
  * `11_インフラストラクチャ設計.md`「ワーカー初期化」: Piscinaがこのモジュールを
@@ -38,14 +40,18 @@ interface SimulationWorkerData {
   readonly catalogDir: string;
   /** `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の上限。未指定はコード既定値。 */
   readonly executionLimits?: SimulationExecutionLimits;
+  /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。未指定はコード既定値。 */
+  readonly evaluationLimits?: EvaluationLimits;
 }
 
-const { catalogDir, executionLimits } = workerData as SimulationWorkerData;
+const { catalogDir, executionLimits, evaluationLimits } = workerData as SimulationWorkerData;
 const catalog = loadCatalogFromDirectory(catalogDir);
 
 export default createSimulationTaskRunner(catalog, {
   battleIdGenerator: new UuidBattleIdGenerator(),
   randomSourceFactory: new SystemRandomSourceFactory(),
   clock: new SystemClock(),
+  seededRandomSourceProvider: new Mulberry32SeededRandomSourceProvider(),
+  ...(evaluationLimits !== undefined ? { evaluationLimits } : {}),
   ...(executionLimits !== undefined ? { executionLimits } : {}),
 });

@@ -79,6 +79,28 @@ POST /api/v1/tactical-exercises
 
 既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
 
+### 戦術演習の編成候補を一括評価する
+
+```http
+POST /api/v1/tactical-exercise-evaluations
+```
+
+共通の敵1体に対する味方編成候補K件を、それぞれn回の演習で評価し（UC-04、Q-TEX-16）、試行ごとの生値を返す。統計量はサーバーで算出しない。
+
+| 項目                   | 値                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| 認証                   | なし。ただし配備ごとに提供可否を切り替える（Q-TEX-19）。                            |
+| リクエストContent-Type | `application/json`                                                                  |
+| レスポンスContent-Type | `application/json; charset=utf-8`                                                   |
+| 成功ステータス         | `200 OK`                                                                            |
+| 永続化                 | しない                                                                              |
+| 冪等性                 | `seed` を明示した同一リクエストは同一結果を返す（Q-TEX-17）                         |
+| 公開制御               | `EVALUATION_ENDPOINT_ENABLED`（既定 `false`）。無効な配備は `404 ENDPOINT_DISABLED` |
+
+ローカルの分析ツール（スコア期待値の統計・最適編成探索）向けの実行系である。無効な配備でもルート登録自体は行うため、公開されるOpenAPI文書の形は配備設定によらず同じである。
+
+期限（`SIMULATION_TIMEOUT_MS`）はリクエスト全体に掛かり、超過した場合はエラーではなく**部分結果**を返す（Q-TEX-18）。候補ごとの `completedRuns` が要求した `runsPerCandidate` より小さいことで不足を判別できる。
+
 ### 編成の開始時ステータスをプレビューする
 
 ```http
@@ -427,6 +449,27 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 編成プール（R-TEX-11: 味方は `PLAYABLE` のみ、敵は `EXERCISE_ENEMY` のみ）の違反も参照解決後のアプリケーション検証で `422`（`INVALID_COMMAND`）として返し、violation へ `ruleId: "R-TEX-11"` を載せる。通常戦闘 `POST /api/v1/battle-simulations` では両陣営とも `PLAYABLE` のみを受理する（同じ `ruleId` の `422`）。`exerciseActive` は受理条件に影響しない。
 
+### TacticalExerciseEvaluationRequest
+
+`POST /api/v1/tactical-exercise-evaluations` のリクエスト本文。
+
+| プロパティ         | 型                                   | 必須 | 制約                                                                                     |
+| ------------------ | ------------------------------------ | ---- | ---------------------------------------------------------------------------------------- |
+| `enemyFormation`   | `FormationRequest`                   | 必須 | `units` はちょうど1件、`memoryDefinitionIds` は空配列（R-TEX-01 #3）。全候補で共有する。 |
+| `candidates`       | `TacticalExerciseCandidateRequest[]` | 必須 | 1件以上 `EVALUATION_MAX_CANDIDATES` 件以下。応答は同じ順で返る。                         |
+| `runsPerCandidate` | `integer`                            | 必須 | 1以上。`candidates` 件数との積が `EVALUATION_MAX_TOTAL_RUNS` 以下。                      |
+| `seed`             | `string`                             | 任意 | 省略時はサーバーが生成し、応答へ載せる。空白のみは拒否する。                             |
+
+### TacticalExerciseCandidateRequest
+
+| プロパティ      | 型                 | 必須 | 制約                                                      |
+| --------------- | ------------------ | ---- | --------------------------------------------------------- |
+| `allyFormation` | `FormationRequest` | 必須 | `TacticalExerciseRequest` の `allyFormation` と同じ制約。 |
+
+`options`（`logLevel`）は持たない — 返すのは試行ごとの数値だけで、イベント列・状態遷移は返さない。
+
+候補数・総試行数の上限は設定（`EVALUATION_*` 環境変数）で変わるため、JSON Schemaでは範囲を固定せずアプリケーション検証の `422`（`INVALID_COMMAND`）として返す。候補の編成違反は `candidates[i].allyFormation...` として候補indexを含むパスで返し、共有の敵編成の違反は候補数によらず1回だけ返す。
+
 ### FormationStatPreviewRequest
 
 `POST /api/v1/formation-stat-previews` のリクエスト本文。編成部分は `BattleSimulationRequest` と同形にし、同じ `FormationRequest`（強化指定を含む）をそのまま送れるようにする。
@@ -605,6 +648,48 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `cumulativeScoreAtBreak` | integer | ブレイク時点の累計スコア。 |
 
 勝敗（`outcome`）は含めない。
+
+### TacticalExerciseEvaluationResponse
+
+`POST /api/v1/tactical-exercise-evaluations` の成功レスポンス。
+
+```json
+{
+  "schemaVersion": 1,
+  "catalogRevision": "2026-06-28.1",
+  "seed": "abc123",
+  "runsPerCandidate": 30,
+  "candidates": [
+    {
+      "completedRuns": 30,
+      "scores": [1234567, 1198200],
+      "breakCounts": [3, 3],
+      "completedTurns": [5, 5],
+      "completionReasons": ["TURN_LIMIT_REACHED", "TURN_LIMIT_REACHED"]
+    }
+  ]
+}
+```
+
+| プロパティ         | 型                                              | 値                                                                  |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------- |
+| `schemaVersion`    | integer                                         | 他のレスポンスと同じスキーマ版。                                    |
+| `catalogRevision`  | string                                          | 評価に使ったCatalogのrevision。                                     |
+| `seed`             | string                                          | 実際に使われたseed。省略時の生成分もここに載る（Q-TEX-17）。        |
+| `runsPerCandidate` | integer                                         | 要求された試行数。実際の完了数は候補ごとの `completedRuns` を見る。 |
+| `candidates`       | `TacticalExerciseCandidateEvaluationResponse[]` | リクエストの候補と同じ順・同じ件数。                                |
+
+### TacticalExerciseCandidateEvaluationResponse
+
+| プロパティ          | 型        | 値                                                                               |
+| ------------------- | --------- | -------------------------------------------------------------------------------- |
+| `completedRuns`     | integer   | 期限内に完了した試行数。期限到達時は `runsPerCandidate` より小さい（Q-TEX-18）。 |
+| `scores`            | integer[] | 試行ごとの `totalScore`（R-TEX-02）。単発の演習が返す値と同一。                  |
+| `breakCounts`       | integer[] | 試行ごとのブレイク回数。                                                         |
+| `completedTurns`    | integer[] | 試行ごとの完了ターン。                                                           |
+| `completionReasons` | string[]  | 試行ごとの `TURN_LIMIT_REACHED` または `ALLY_DEFEATED`。                         |
+
+統計量（平均・分散など）は含めない（Q-TEX-16）。4つの配列は同じ試行を同じ添字で指し、いずれも長さが `completedRuns` に一致する。ブレイク履歴（`breaks`）・イベント列・状態遷移・ユニット別集計は返さない。
 
 ### FormationStatPreviewResponse
 
@@ -1180,22 +1265,25 @@ reconstructedFinalState = apply(
 
 ### ステータスコード対応
 
-| HTTP                         | code                           | 使用条件                                |
-| ---------------------------- | ------------------------------ | --------------------------------------- |
-| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。  |
-| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                  |
-| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                |
-| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                |
-| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。       |
-| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。          |
-| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。  |
-| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。 |
-| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。              |
-| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。       |
-| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。    |
-| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。      |
+| HTTP                         | code                           | 使用条件                                 |
+| ---------------------------- | ------------------------------ | ---------------------------------------- |
+| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。   |
+| `404 Not Found`              | `ENDPOINT_DISABLED`            | この配備では提供しない操作（Q-TEX-19）。 |
+| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                   |
+| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                 |
+| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                 |
+| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。        |
+| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。           |
+| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。   |
+| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。  |
+| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。               |
+| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。        |
+| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。     |
+| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。       |
 
 `POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`406`・`413`・`415`・`422`・`500` だけを返す。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
+
+`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations` だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。この操作は期限超過時に `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 
