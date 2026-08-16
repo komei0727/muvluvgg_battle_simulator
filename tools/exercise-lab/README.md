@@ -257,17 +257,28 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
 
 ### 反復編集する — エディタ補完を効かせる
 
-Catalog から実IDを enum に焼いた JSON Schema を生成できる。
+Catalog から実IDを enum に焼いた JSON Schema を生成できる。編成定義YAMLと探索設定YAMLで
+書式が違うため、Schemaも2つ出る。
 
 ```bash
-uv run lab schema           # 既定の出力先は .schema/formation.schema.json
+uv run lab schema           # 既定の出力先ディレクトリは .schema/
 ```
 
-編成YAMLの先頭へ次の1行を置くと、YAML Language Server（VSCode の `redhat.vscode-yaml` など）
-が `unitDefinitionId:` や `memoryDefinitionIds:` でIDを補完し、その場で検証する。
+| 生成物                          | 対象YAML                   |
+| ------------------------------- | -------------------------- |
+| `.schema/formation.schema.json` | 編成定義（`lab stats`）    |
+| `.schema/search.schema.json`    | 探索設定（`lab optimize`） |
+
+対象のYAMLの先頭へ対応する1行を置くと、YAML Language Server（VSCode の
+`redhat.vscode-yaml` など）が `unitDefinitionId:` や `memoryDefinitionIds:` でIDを補完し、
+その場で検証する。
 
 ```yaml
 # yaml-language-server: $schema=../.schema/formation.schema.json
+```
+
+```yaml
+# yaml-language-server: $schema=../.schema/search.schema.json
 ```
 
 味方枠と敵枠には別々の enum が入るので、`R-TEX-11` #1（味方は `PLAYABLE`、敵は
@@ -275,9 +286,15 @@ uv run lab schema           # 既定の出力先は .schema/formation.schema.jso
 適性も添えてある（表示はエディタの実装次第）。学園レベルのキー9種と、
 「`ally.academyLevels` なしにユニットの `level` / `gears` は書けない」もSchemaで表す。
 
-**Schema は `lab stats` の受理条件をすべては表さない。** 味方の配置重複は、要素の一部
-（`position`）についての一意性であり JSON Schema では表せないため、エディタは通し
-`lab stats` がエラーにする。差異は `tests/test_schema.py` で固定してある。
+探索設定は実IDを書く場所が多い——`unitPool` / `memoryPool` / `enemy` /
+`constraints.fixedPlacements` / `constraints.requiredUnits` /
+`constraints.requiredMemories` / `knownFormations` のすべてで補完が効く。
+プール外のIDは矯正で黙って落とされる（打ち間違えたユニットが探索されないまま終わる）ので、
+書いた時点で分かることの効きが大きい。
+
+**Schema は受理条件をすべては表さない。** 味方の配置重複は、要素の一部（`position`）に
+ついての一意性であり JSON Schema では表せないため、エディタは通し実行時にエラーになる。
+差異は `tests/test_schema.py` / `tests/test_search_schema.py` で固定してある。
 
 生成物は Catalog revision に紐づくため gitignore してある。**Catalog を更新したら
 `lab schema` を実行し直す。**
@@ -335,6 +352,12 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 ないので、指定しても位置は選べない。
 
 ユニットとメモリーのIDは `lab units` / `lab memories` で引ける（「IDを引く」参照）。
+`lab schema` を実行して先頭へ次の1行を置けば、エディタ上でIDが補完される。
+
+```yaml
+# yaml-language-server: $schema=../.schema/search.schema.json
+```
+
 未知IDと編成プール違反は、1試行も投げる前にカタログと突き合わせて検出する。
 
 ## 手持ちデータ（`mlgg:player-data`）の取り込み

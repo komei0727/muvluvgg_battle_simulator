@@ -52,6 +52,10 @@ DEFAULT_PATIENCE = 8
 # 既知の良編成が初期母集団を埋め尽くすと多様性を失い、最終解がかえって悪くなる。
 MAX_SEED_SHARE = 0.25
 
+# `SearchConfig` の項目のうち、YAMLの入力ではなく実行時に埋める枠。
+# 生成するJSON Schemaからも外す（補完候補に出さない）。
+INTERNAL_FIELDS = frozenset({"unit_enhancements"})
+
 
 class SeedFormationSpec(_Spec):
     """既知の良編成。`formation.yaml` の `ally` と同じ形にして写せるようにする。"""
@@ -161,7 +165,8 @@ class SearchConfig(_Spec):
         default_factory=OperatorWeightsSpec, alias="operatorWeights"
     )
     # プール内ユニットの強化。`--player-data` の取り込み結果を保持する枠であり、
-    # YAMLからは書けない（育成状態の正本を2か所へ置かない）。
+    # YAMLからは書けない（`INTERNAL_FIELDS` で入口を塞いでいる）。育成状態の正本を
+    # 2か所へ置くと、どちらで評価したのか後から分からなくなる。
     unit_enhancements: dict[str, AllyUnitSpec] = Field(default_factory=dict, exclude=True)
 
     @property
@@ -251,12 +256,28 @@ def load_search_config(path: Path) -> SearchConfig:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ConfigError(f"{path}: トップレベルはマッピングでなければならない")
+    _reject_internal_fields(raw, path)
     try:
         config = SearchConfig.model_validate(raw)
     except ValidationError as error:
         raise ConfigError(f"{path}: {error}") from error
     _validate(config, path)
     return config
+
+
+def _reject_internal_fields(raw: dict[str, Any], path: Path) -> None:
+    """内部の枠をYAMLから埋めさせない。
+
+    モデルの項目である以上、名前で書けば pydantic は受け取ってしまう（`extra="forbid"`
+    は未知キーしか弾かない）。黙って通すと、`--player-data` とYAMLの2か所に育成状態が
+    生まれ、どちらで評価したのか後から追えなくなる。
+    """
+    written = sorted(set(raw) & INTERNAL_FIELDS)
+    if written:
+        raise ConfigError(
+            f"{path}: {', '.join(written)} はYAMLへ書けない内部項目である。"
+            "ユニットのレベル・ギアは --player-data で渡す"
+        )
 
 
 def _validate(config: SearchConfig, path: Path) -> None:

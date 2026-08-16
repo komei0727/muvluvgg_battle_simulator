@@ -8,6 +8,13 @@
 #
 # ID は `lab units --owned --player-data player-data.json` / `lab memories --grep <語>`
 # で引ける。育成状態（レベル・ギア）は --player-data 側が正本で、ここには書かない。
+#
+# エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の先頭の
+# `#` を1つ削る。候補プール・敵・固定指定・既知編成のどこでも実IDが補完される。
+#
+# `# yaml-language-server:` はコメントではなく有効なディレクティブなので、最初から
+# 効かせておくと、まだ生成していないSchemaを指してエディタが赤くなる。
+## yaml-language-server: $schema=../.schema/search.schema.json
 
 # 敵はちょうど1体・メモリーなし（R-TEX-01 #3）。配置は結果に影響する。
 enemy:

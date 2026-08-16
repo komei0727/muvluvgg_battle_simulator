@@ -68,7 +68,7 @@ from .optimize.search_config import (
 )
 from .player_data import PlayerData, PlayerDataError, apply_player_data, load_player_data
 from .runner import ChunkPlan, EvaluationRun, plan_chunks, run_evaluation
-from .schema import build_formation_json_schema
+from .schema import build_formation_json_schema, build_search_json_schema
 from .stats import build_summary, write_break_count_chart, write_runs_csv, write_score_histogram
 
 # サーバー既定の `EVALUATION_MAX_TOTAL_RUNS`。候補1件なので総試行数の上限がそのまま
@@ -89,6 +89,10 @@ COMPARISON_PNG = "comparison.png"
 
 DEFAULT_ALGORITHM = "local-search"
 DEFAULT_BUDGET_RUNS = 5000
+
+DEFAULT_SCHEMA_DIR = Path(".schema")
+FORMATION_SCHEMA_JSON = "formation.schema.json"
+SEARCH_SCHEMA_JSON = "search.schema.json"
 
 app = typer.Typer(add_completion=False, help="戦術演習の統計サマリーを出すローカルツール")
 console = Console()
@@ -207,23 +211,29 @@ def memories(
 
 @app.command()
 def schema(
-    out: Annotated[Path, typer.Option("--out", "-o", help="出力先")] = Path(
-        ".schema/formation.schema.json"
-    ),
+    out: Annotated[Path, typer.Option("--out", "-o", help="出力ディレクトリ")] = DEFAULT_SCHEMA_DIR,
     base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
 ) -> None:
-    """編成YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。"""
+    """YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。
+
+    編成定義（`lab stats`）と探索設定（`lab optimize`）で書式が違うため、
+    Schemaも2つ出す。どちらも実IDを enum に焼くので、Catalog を更新したら作り直す。
+    """
     catalog = _fetch_catalog(base_url)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(
-        json.dumps(build_formation_json_schema(catalog), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    out.mkdir(parents=True, exist_ok=True)
+    written = [
+        (out / FORMATION_SCHEMA_JSON, build_formation_json_schema(catalog), "編成定義YAML"),
+        (out / SEARCH_SCHEMA_JSON, build_search_json_schema(catalog), "探索設定YAML"),
+    ]
+    for path, document, _ in written:
+        path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     console.print(
-        f"[bold]{out}[/] を書き出した（catalogRevision {catalog.catalog_revision}）。"
-        "編成YAMLの先頭へ次の行を置くと補完が効く:"
+        f"[bold]{out}[/] へ書き出した（catalogRevision {catalog.catalog_revision}）。"
+        "各YAMLの先頭へ対応する行を置くと補完が効く:"
     )
-    console.print(f"  # yaml-language-server: $schema={out}", highlight=False)
+    for path, _, label in written:
+        console.print(f"  {label}: # yaml-language-server: $schema={path}", highlight=False)
 
 
 def _fetch_catalog(base_url: str) -> Catalog:
