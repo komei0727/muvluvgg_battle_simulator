@@ -282,12 +282,28 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     const revived = result.units.find((candidate) => candidate.battleUnitId === enemyId)!;
     expect(revived.appliedEffects.map((e) => e.effectInstanceId)).toEqual(["eff-lone-child"]);
     expect(revived.markerStates).toHaveLength(0);
+    // 子は自身の資格では解除されず親に巻き込まれただけなので、R-EFF-09どおり
+    // 連動として観測できる（親は直接解除のまま）。子を先に、親を最後に発行する。
     expect(
       recorder
         .getEvents()
         .filter((event) => event.eventType === "EffectRemoved")
-        .map((event) => event.payload.effectInstanceId),
-    ).toEqual(["eff-child"]);
+        .map((event) => ({
+          effectInstanceId: event.payload.effectInstanceId,
+          reason: event.payload.reason,
+          cascaded: event.payload.cascaded,
+        })),
+    ).toEqual([{ effectInstanceId: "eff-child", reason: "LINKED_GROUP_CASCADE", cascaded: true }]);
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "MarkerRemoved")
+        .map((event) => ({
+          markerInstanceId: event.payload.markerInstanceId,
+          reason: event.payload.reason,
+          cascaded: event.payload.cascaded,
+        })),
+    ).toEqual([{ markerInstanceId: "mk-parent", reason: "REMOVED", cascaded: false }]);
   });
 
   it("UT-R-TEX-05-004: keeps undispellable debuffs allies granted to the broken enemy", () => {

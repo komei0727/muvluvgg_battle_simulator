@@ -63,11 +63,14 @@ function isExemptFromBreakRemoval(grant: {
  *
  * R-EFF-09の整合だけは`dispellable`より優先する — 解除対象になった親と同じ
  * `linkedEffectGroupId`を持つメンバーは、解除不可でも道連れにする（「カスケードは
- * `dispellable`を問わない」）。これはカスケードの再導入ではなく**除外の取り消し**
- * として実装する。カスケードそのものを走らせると他ユニットが保持するメンバーまで
- * 巻き込むが、敵が味方へ付与済みの効果・マーカーはブレイクで解除しない（R-TEX-07 #1）
- * ためである。`collectLinkedGroupCascade`へ渡す盤面をブレイク対象1体に閉じることで、
- * 到達範囲を同一ユニット内へ限定する。
+ * `dispellable`を問わない」）。ただしカスケードそのものを走らせると他ユニットが
+ * 保持するメンバーまで巻き込むが、敵が味方へ付与済みの効果・マーカーはブレイクで
+ * 解除しない（R-TEX-07 #1）。`collectLinkedGroupCascade`へ渡す盤面をブレイク対象
+ * 1体に閉じることで、到達範囲を同一ユニット内へ限定する。
+ *
+ * 道連れになったメンバーは自身の資格では解除されないため、直接解除（`REMOVED`／
+ * `cascaded: false`）と区別して`LINKED_GROUP_CASCADE`／`cascaded: true`で発行する
+ * （R-EFF-09。`EffectRemoved`／`MarkerRemoved`の契約もこの区別を要求する）。
  */
 function breakRemovals(target: BattleUnit): readonly LinkedGroupRemoval[] {
   const seedEffectInstanceIds = new Set<EffectInstanceId>();
@@ -82,31 +85,36 @@ function breakRemovals(target: BattleUnit): readonly LinkedGroupRemoval[] {
       seedMarkerInstanceIds.add(marker.markerInstanceId);
     }
   }
-  const group = collectLinkedGroupCascade([target], {
+  const seeds = {
     effectInstanceIds: seedEffectInstanceIds,
     markerInstanceIds: seedMarkerInstanceIds,
-  });
+  };
+  const group = collectLinkedGroupCascade([target], seeds);
 
   const removals: LinkedGroupRemoval[] = [];
   for (const effect of target.appliedEffects) {
     // メモリー由来の免除だけは連動でも取り消さない。R-TEX-05 #2はこれを
     // 「解除しない」と無条件に定めており、解除不可の免除より強い。
-    if (!isMemoryGranted(effect) && group.effectInstanceIds.has(effect.effectInstanceId)) {
-      removals.push({
-        member: { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
-        reason: "REMOVED",
-        cascaded: false,
-      });
+    if (isMemoryGranted(effect) || !group.effectInstanceIds.has(effect.effectInstanceId)) {
+      continue;
     }
+    const cascaded = !seeds.effectInstanceIds.has(effect.effectInstanceId);
+    removals.push({
+      member: { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
+      reason: cascaded ? "LINKED_GROUP_CASCADE" : "REMOVED",
+      cascaded,
+    });
   }
   for (const marker of target.markerStates) {
-    if (!isMemoryGranted(marker) && group.markerInstanceIds.has(marker.markerInstanceId)) {
-      removals.push({
-        member: { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
-        reason: "REMOVED",
-        cascaded: false,
-      });
+    if (isMemoryGranted(marker) || !group.markerInstanceIds.has(marker.markerInstanceId)) {
+      continue;
     }
+    const cascaded = !seeds.markerInstanceIds.has(marker.markerInstanceId);
+    removals.push({
+      member: { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
+      reason: cascaded ? "LINKED_GROUP_CASCADE" : "REMOVED",
+      cascaded,
+    });
   }
   return orderGroupRemovals([target], removals);
 }
