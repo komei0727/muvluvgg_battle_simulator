@@ -493,7 +493,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 「自身以外の味方」「対象を除く敵」のように条件で絞った先が空になる場合が対象で、
     // `SKL_ELENA_MOODMAKER_AS1`だけは原文が「自身以外の味方が生存していない場合は
     // 発動しない」と定めるため必須のまま据え置いている。
-    expect(catalog.catalogRevision).toBe("2026-08-16.3");
+    // `2026-08-17.1` は既存Unit 4件の数値是正。`UNIT_DOROTHEA_GRACE`・
+    // `UNIT_HIIRO_LONEWOLF`・`UNIT_KOTOHA_REBEL` の基礎ステータス（最大HP・
+    // 攻撃力・防御力・会心率20%→15%）と、`UNIT_CHIYURU_MAZE` の
+    // `levelGrowth.hp`。Unit・Skill・Memoryの構成は変えておらず、差分は
+    // `units.json` の数値だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-17.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
