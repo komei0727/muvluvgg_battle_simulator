@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BreakDeferral } from "./break-deferral.js";
+import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import { createDomainEventId } from "../../shared/event-ids.js";
 
@@ -15,7 +16,8 @@ const ATTACKER = createBattleUnitId("ATTACKER");
  * 条件分岐を持たない。
  */
 describe("BreakDeferral (R-TEX-03 #5 / R-TEX-06 #5)", () => {
-  it("UT-R-TEX-03-017: does not defer outside an effect-processing phase", () => {
+  it("UT-R-TEX-03-017 (BOUNDARY): does not defer when no effect-processing frame is open", () => {
+    // 保留フレーム0件が「効果処理の外」の境界そのものである（R-TEX-03 #5の2分岐の境目）。
     const deferral = new BreakDeferral();
 
     expect(deferral.isDeferring).toBe(false);
@@ -57,6 +59,24 @@ describe("BreakDeferral (R-TEX-03 #5 / R-TEX-06 #5)", () => {
     // R-TEX-03 #6: 確定するのは最初のHP0到達であり、後続の到達はそこへ吸収される
     // （`UnitBroken`の`parentEventId`は最初の原因イベントのまま）。
     expect(deferral.endEffectProcessing()).toMatchObject({ causeEventId: CAUSE });
+  });
+
+  it("UT-R-TEX-03-022 (NEGATIVE): rejects a second different unit reaching HP 0 in the same effect processing instead of dropping it silently", () => {
+    const deferral = new BreakDeferral();
+    deferral.beginEffectProcessing();
+    deferral.defer({ targetUnitId: ENEMY, causeEventId: CAUSE, defeatSource: {} });
+
+    // 2件目を黙って捨てると、その対象の保留の印を外す主体が居なくなり、HP0のまま
+    // `isDefeated`が永久に偽のユニットが残る。R-TEX-01 #3により本来到達しない状態。
+    expect(() =>
+      deferral.defer({
+        targetUnitId: createBattleUnitId("ENEMY_2"),
+        causeEventId: LATER_CAUSE,
+        defeatSource: {},
+      }),
+    ).toThrow(DomainValidationError);
+    // 最初の保留は失われない。
+    expect(deferral.endEffectProcessing()).toMatchObject({ targetUnitId: ENEMY });
   });
 
   it("UT-R-TEX-06-006: nests frames so a PS/Memory effect processing resolves its own break without draining the outer one", () => {

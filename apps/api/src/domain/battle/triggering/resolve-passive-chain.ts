@@ -62,10 +62,16 @@ export interface PassiveActivationCompletion {
  *   新たなPS候補を誘発しても、このカウントは連鎖の深さに影響されない。
  *   `R-ATM-01`により、各イベントの状態保守は即時に行うが候補の**発動**は
  *   この発動自身の保留キューへ積む。
- * - `DEFERRED_EVENT`: 効果処理フェーズの境界で発行されるFACTイベントのうち、
- *   効果解決数Guardの対象ではないもの（`EffectSequence`スコープの
- *   `RuntimeCounterReset`、完了イベント直前の`RuntimeCounterChanged`）。
- *   `EFFECT_RESOLVED`と同じく検出のみ即時・発動は保留する。
+ * - `DEFERRED_EVENT`: 効果処理フェーズの**末尾**で発行されるFACTイベント。
+ *   `EFFECT_RESOLVED`と同じく検出のみ即時・発動は保留するが、効果解決数Guardの
+ *   対象ではない — Guardが数えるのは「EffectSequenceが実際に解決した効果」であり、
+ *   これらはフェーズ境界の後始末として発行されるためである。該当するのは
+ *   `EffectSequence`スコープの`RuntimeCounterReset`（EFF-006）、完了イベント直前の
+ *   `RuntimeCounterChanged`、そして戦術演習で保留したブレイクの解決が発行する全
+ *   イベント（`UnitBroken`・解除の`EffectRemoved`／`MarkerRemoved`・強化の
+ *   `CombatStatChanged`・`UnitRevived`。`R-TEX-06` #5／#6）である。後者も同じく
+ *   効果ではなくフェーズ末尾の処理であり、その候補は完了イベント自身の候補より前に
+ *   後段フェーズで発動する。
  * - `COMPLETION_EVENT`: 完了イベント（`PassiveResolved`／`PassiveInterrupted`／
  *   `MemoryResolved`）。`R-ATM-01`の即時解決規則の唯一の例外として、発行時に
  *   候補を検出したうえで保留キューの末尾へ積み、その保留キューをすべて解決して

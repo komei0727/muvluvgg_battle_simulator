@@ -1,3 +1,4 @@
+import { DomainValidationError } from "../../shared/errors.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
@@ -78,13 +79,30 @@ export class BreakDeferral {
   /**
    * R-TEX-03 #5: 現在の効果処理フェーズへHP0到達を記録する。
    *
-   * R-TEX-03 #7「1回の効果処理につきブレイクは高々1回」: 既に保留済みなら最初の記録を
-   * 保つ。R-TEX-03 #6が「HPが0へ到達した」最初の事実でブレイクを確定させるため、
-   * `causeEventId`（＝`UnitBroken`の因果の親）も最初の到達のものでなければならない。
+   * R-TEX-03 #7「1回の効果処理につきブレイクは高々1回」: 同じ対象が既に保留済みなら
+   * 最初の記録を保つ。R-TEX-03 #6が「HPが0へ到達した」最初の事実でブレイクを確定させる
+   * ため、`causeEventId`（＝`UnitBroken`の因果の親）も最初の到達のものでなければならない。
+   *
+   * **別の**対象が既に保留されている場合は例外にする。1フレームは保留を1件しか運べず、
+   * 2件目を黙って捨てるとその対象の印を外す主体が存在しなくなり、HP0のまま
+   * `isDefeated`が永久に偽（ブレイクも撃破も起きない）というユニットが残る。R-TEX-01 #3
+   * が演習の敵をちょうど1体に固定し、印が付くのは敵陣営だけであるため現状は到達しないが、
+   * `requireResolveBreak`と同じ理由で、黙って別の意味の状態へ落ちるより不変条件の破れを
+   * その場で表面化させる。
    */
   defer(pending: DeferredBreak): void {
     const index = this.frames.length - 1;
-    if (index < 0 || this.frames[index] !== undefined) {
+    if (index < 0) {
+      return;
+    }
+    const existing = this.frames[index];
+    if (existing !== undefined) {
+      if (existing.targetUnitId !== pending.targetUnitId) {
+        throw new DomainValidationError(
+          "breakDeferral.defer",
+          `a second unit reached HP 0 while "${existing.targetUnitId}" already had a break pending in the same effect processing; a tactical exercise has exactly one enemy (R-TEX-01 #3) so only that unit can break (R-TEX-03 #7)`,
+        );
+      }
       return;
     }
     this.frames[index] = pending;

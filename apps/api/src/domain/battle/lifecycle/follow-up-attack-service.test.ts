@@ -9,9 +9,11 @@ import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
 } from "../../catalog/definitions/catalog-ids.js";
+import { createRuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
@@ -483,5 +485,78 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     const eventTypes = recorder.getEvents().map((event) => event.eventType);
     expect(eventTypes).not.toContain("SkillUseCompleted");
     expect(eventTypes).toContain("SkillUseInterrupted");
+  });
+
+  it("UT-R-FUP-01-013 (R-TEX-06 #5): keeps the EffectSequence-scoped counter alive through the follow-up, so the follow-up hit's RuntimeCounterChanged precedes the RuntimeCounterReset", () => {
+    // R-TEX-06 #5 が定めるフェーズ末尾の順序「全stepの解決 → 追撃 → 保留ブレイクの解決
+    // → `EffectSequence`スコープの`RuntimeCounterReset` → 完了イベントの発行」のうち、
+    // 「追撃 → reset」は演習に限らない通常戦闘の挙動である。resetを追撃より前に戻すと
+    // 追撃解決の時点でcounterが破棄済みになり、追撃ヒットの`DamageApplied`が
+    // counter更新の対象から外れる（`RuntimeCounterChanged`が1件しか出なくなる）。
+    const COUNTER_AS_ID = "SKL_TEST_FUP_AS_COUNTER";
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_FUP_HITS");
+    const base = attackSkill([AS_DAMAGE_ID], COUNTER_AS_ID);
+    const counterSkill: SkillDefinition = {
+      ...base,
+      resolution: {
+        ...base.resolution,
+        counterUpdates: [
+          createRuntimeCounterUpdateDefinition(
+            {
+              kind: "INCREMENT",
+              counter: counterId,
+              scope: "EFFECT_SEQUENCE",
+              // 元攻撃のヒットと追撃のヒットの両方が`DamageApplied`を発行するため、
+              // counterは「この効果処理でこのユニットが与えたヒット数」を数える。
+              trigger: {
+                eventType: "DamageApplied",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ANY",
+              },
+              amount: 1,
+            },
+            "counterUpdates[0]",
+          ),
+        ],
+      },
+    };
+
+    const { attacker, enemy } = board();
+    const battleDefinitions = definitions([counterSkill]);
+    const { recorder } = useSkill(
+      attacker,
+      enemy,
+      battleDefinitions,
+      COUNTER_AS_ID,
+      "B_FUP_COUNTER",
+    );
+
+    const events = recorder.getEvents();
+    const changed = events.filter(
+      (event) =>
+        event.eventType === "RuntimeCounterChanged" &&
+        (event.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    // 元攻撃1ヒット＋追撃1ヒットで2回更新される。追撃より前にresetすると1件になる。
+    expect(changed.map((event) => (event.payload as { after: number }).after)).toEqual([1, 2]);
+
+    const types = events.map((event) => event.eventType);
+    const resetIndex = events.findIndex(
+      (event) =>
+        event.eventType === "RuntimeCounterReset" &&
+        (event.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+    );
+    expect(resetIndex).toBeGreaterThanOrEqual(0);
+    const followUpDamageIndex = events.findIndex(
+      (event) =>
+        event.eventType === "DamageApplied" &&
+        (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+          RIDER_ID,
+    );
+    expect(followUpDamageIndex).toBeGreaterThanOrEqual(0);
+    expect(followUpDamageIndex).toBeLessThan(resetIndex);
+    // resetは完了イベントの発行前に置く（EFF-006の既存契約）。
+    expect(resetIndex).toBeLessThan(types.indexOf("SkillUseCompleted"));
   });
 });

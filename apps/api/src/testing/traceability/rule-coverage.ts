@@ -2333,6 +2333,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-FUP-01-010",
       "UT-R-FUP-01-011",
       "UT-R-FUP-01-012",
+      // R-TEX-06 #5のフェーズ末尾順序のうち「追撃 → `EffectSequence`スコープの
+      // `RuntimeCounterReset`」は演習に限らない通常戦闘の挙動であるため、追撃ヒットが
+      // counter更新の対象に入ることをR-FUP-01側の証跡として持つ（Issue #523）。
+      "UT-R-FUP-01-013",
       // production実ライフサイクル（3ユニット）。
       "IT-UNIT-SUIRAN-CHAOS-011",
       "IT-UNIT-CHIYURU-MAZE-006",
@@ -3630,6 +3634,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-TEX-03-019",
       "UT-R-TEX-03-020",
       "UT-R-TEX-03-021",
+      "UT-R-TEX-03-022",
       "API-TEX-002",
       "API-TEXRESP-003",
       "SCN-BTL-027",
@@ -3716,6 +3721,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-TEX-03-012",
       "UT-R-TEX-03-013",
       "UT-R-TEX-03-016",
+      // #5の「追撃 → RuntimeCounterReset」は通常戦闘にも効く順序であり、R-FUP-01側の
+      // 証跡（`UT-R-FUP-01-013`）がその半分を固定する。
+      "UT-R-FUP-01-013",
       "SCN-BTL-025",
       "SCN-BTL-027",
     ],

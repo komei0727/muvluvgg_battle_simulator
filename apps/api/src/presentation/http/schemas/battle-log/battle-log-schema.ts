@@ -734,6 +734,12 @@ const damageAppliedDetailsSchema = {
     hitPointDamage: { type: "integer", minimum: 0 },
     hpBefore: { type: "integer", minimum: 0 },
     hpAfter: { type: "integer", minimum: 0 },
+    /**
+     * 戦術演習では`hpAfter: 0`と一致しない — ブレイクを保留中（`R-TEX-03` #5）の間は
+     * 敵を戦闘不能として観測させないため`false`になる（`R-TEX-06` #4.3、
+     * `08_ドメインイベント.md`「DamageApplied payload」）。演習で「撃破」を読む
+     * 消費者は`defeated`ではなく`UnitBroken`を見る。schema上の型は変わらない。
+     */
     defeated: { type: "boolean" },
     /**
      * DMG-006（Issue #188、R-INT-03第3項）: 反射で生じたダメージだけが`true`を持つ。
@@ -1021,6 +1027,12 @@ const continuousDamageAppliedDetailsSchema = {
     hitPointDamage: { type: "integer", minimum: 0 },
     hpBefore: { type: "integer", minimum: 0 },
     hpAfter: { type: "integer", minimum: 0 },
+    /**
+     * 戦術演習では`hpAfter: 0`と一致しない — ブレイクを保留中（`R-TEX-03` #5）の間は
+     * 敵を戦闘不能として観測させないため`false`になる（`R-TEX-06` #4.3、
+     * `08_ドメインイベント.md`「DamageApplied payload」）。演習で「撃破」を読む
+     * 消費者は`defeated`ではなく`UnitBroken`を見る。schema上の型は変わらない。
+     */
     defeated: { type: "boolean" },
   },
 } as const;
