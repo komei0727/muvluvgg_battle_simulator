@@ -21,6 +21,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import {
+  markBreakPendingIfDeferred,
   requireResolveBreak,
   requiresBreakResolution,
   type ResolveBreakHook,
@@ -255,7 +256,15 @@ export function* applyModifyResourceActionSteps(
     changed = true;
 
     const wasDefeatedBefore = isDefeated(target);
-    const updatedTarget = withUpdatedResource(target, resource, after);
+    const targetAfterChange = withUpdatedResource(target, resource, after);
+    // R-TEX-06 #4.3: 保留するなら`ResourceChanged`の発行・候補連鎖（`chain`）より前に
+    // 印を立てる — 保留窓の間に敵が戦闘不能として観測される瞬間を作らないため
+    // （`markBreakPendingIfDeferred`のコメント参照）。
+    const reachedZeroHp = resource === "HP" && !wasDefeatedBefore && isDefeated(targetAfterChange);
+    const updatedTarget =
+      reachedZeroHp && requiresBreakResolution(context.exercise, targetAfterChange)
+        ? markBreakPendingIfDeferred(context.exercise, targetAfterChange)
+        : targetAfterChange;
     working.set(target.battleUnitId, updatedTarget);
 
     lastEventId = recordResourceChangeIfAny(
@@ -274,7 +283,7 @@ export function* applyModifyResourceActionSteps(
       .find((event) => event.eventId === lastEventId)!;
     chain(resourceChangedEvent);
 
-    if (resource === "HP" && !wasDefeatedBefore && isDefeated(updatedTarget)) {
+    if (reachedZeroHp) {
       // R-TEX-03 #1: 到達経路を問わないため、リソース操作によるHP0もブレイクへ回す。
       if (requiresBreakResolution(context.exercise, updatedTarget)) {
         const resolveBreak = requireResolveBreak(

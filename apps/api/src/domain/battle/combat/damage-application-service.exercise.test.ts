@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyDamageAction } from "./damage-application-service.js";
 import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { createHitPoint } from "../model/resource-gauge.js";
-import type { BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { DamageEventContext } from "./damage-event-context.js";
 import {
   effectKindKeyFromDefinitionId,
@@ -12,7 +12,7 @@ import {
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
-import { resolveBreakSteps } from "../effects/break-resolution-service.js";
+import { deferOrResolveBreakSteps } from "../effects/break-resolution-service.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
   unit,
@@ -159,12 +159,17 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
    * 「シームが呼ばれたか」しか検証できず、ブレイク解決の結果（復活後HP・強化）まで
    * 通しで確認できない。
    */
+  /**
+   * production配線（`effect-action-group-context.ts`の`eventContextOf`）と同じ
+   * `deferOrResolveBreakSteps`を通す — 保留か即時かは`exercise.deferredBreaks`に
+   * 効果処理フェーズのフレームが積まれているかだけで決まる（R-TEX-03 #5）。
+   */
   function exerciseDamageContext(exercise: ExerciseRuntime): DamageEventContext {
     const base = damageEventContext({ exercise });
     return {
       ...base,
       resolveBreak: (targetUnitId, units, causeEventId) =>
-        resolveBreakSteps(
+        deferOrResolveBreakSteps(
           {
             recorder: base.recorder,
             turnNumber: base.turnNumber,
@@ -417,29 +422,139 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
     expect(revivedEnemy.currentHp).toBe(18);
   });
 
-  it("UT-R-TEX-06-002: leaves the remaining hits of a multi-hit skill to land on the revived enemy", () => {
+  it("UT-R-TEX-06-002: lands the remaining hits of a multi-hit skill on the pending (HP 0) enemy and counts every one of them in full", () => {
     const enemyStats = { defense: 10, maximumHp: 15 };
     const exercise = exerciseRuntime(enemyStats);
     const target = unit("TARGET", "ENEMY", enemyStats);
     const context = exerciseDamageContext(exercise);
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
+    // R-ATM-02 #2: 効果処理フェーズの内側で解決する（AS/EXのDAMAGE EffectActionと同じ）。
+    exercise.deferredBreaks.beginEffectProcessing();
 
     const result = applyDamageAction(
       attacker,
-      [hit("TARGET", 1), hit("TARGET", 1)],
+      [hit("TARGET", 1), hit("TARGET", 1), hit("TARGET", 1)],
       damageAction("PREVENTED"),
       [attacker, target],
       new SequenceRandomSource([]),
       context,
     );
 
-    // 1ヒット目（30 - 10 = 20）でブレイク。2ヒット目は復活後（解除・強化適用後）の敵へ
-    // 命中するため、強化された防御力12で受けて18になり（30 - 12）、HP18を削り切って
-    // 再びブレイクする。どちらのヒットも解決され、中断されない（R-TEX-03 #3／R-TEX-06 #4）。
-    expect(result.hits.map((outcome) => outcome.applied)).toEqual([true, true]);
+    // 1ヒット目（30 - 10 = 20）でHP0へ到達し、ブレイクは保留される。2・3ヒット目は
+    // 保留中（HP0）の敵へ通常どおり命中し、HPは0のままでHPへ向かう20をそのまま計上する
+    // （R-TEX-06 #4.1）。どのヒットもSKIPされず中断もされない。
+    expect(result.hits.map((outcome) => outcome.applied)).toEqual([true, true, true]);
     expect(result.interruptedCount).toBe(0);
-    expect(exercise.breakCount).toBe(2);
-    expect(exercise.totalScore).toBe(38);
+    // R-TEX-03 #5: 解決は効果処理フェーズの末尾であり、この時点では何も発行していない。
+    const types = context.recorder.getEvents().map((event) => event.eventType);
+    expect(types).not.toContain("UnitBroken");
+    expect(types).not.toContain("UnitRevived");
+    expect(types).not.toContain("UnitDefeated");
+    expect(exercise.breakCount).toBe(0);
+    expect(exercise.totalScore).toBe(60);
+
+    const pending = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
+    expect(pending.currentHp).toBe(0);
+    // R-TEX-06 #4.3: 保留窓の間、敵は戦闘不能として観測されない。
+    expect(isDefeated(pending)).toBe(false);
+    expect(exercise.deferredBreaks.endEffectProcessing()).toMatchObject({
+      targetUnitId: createBattleUnitId("TARGET"),
+    });
+  });
+
+  it("UT-R-TEX-06-012: never reports the enemy as defeated on the very hit that defers the break, so no observer sees a defeat inside the pending window", () => {
+    // R-TEX-06 #4.3は「保留窓の間、敵ユニットは戦闘不能として観測されない」を網羅的に
+    // 要求する。印を到達ヒットのイベント発行より**後**に立てると、そのヒット自身の
+    // `HitPointReduced`／`DamageApplied`のPS/Memory候補検出・特殊失効評価が、HPが0で
+    // 印の無い敵を観測してしまう。`DamageApplied.defeated`はその窓を外から見た唯一の
+    // 直接の証跡である。
+    const enemyStats = { defense: 10, maximumHp: 15 };
+    const exercise = exerciseRuntime(enemyStats);
+    const context = exerciseDamageContext(exercise);
+    exercise.deferredBreaks.beginEffectProcessing();
+
+    applyDamageAction(
+      unit("ATTACKER", "ALLY", { attack: 30 }),
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [unit("ATTACKER", "ALLY", { attack: 30 }), unit("TARGET", "ENEMY", enemyStats)],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const applied = context.recorder
+      .getEvents()
+      .find((event) => event.eventType === "DamageApplied")!;
+    expect(applied.payload).toMatchObject({ hpAfter: 0, defeated: false });
+  });
+
+  it("UT-R-TEX-06-013: still reports the enemy as defeated on an immediate (outside-the-phase) arrival, where no pending window exists", () => {
+    const enemyStats = { defense: 10, maximumHp: 15 };
+    const exercise = exerciseRuntime(enemyStats);
+    const context = exerciseDamageContext(exercise);
+
+    applyDamageAction(
+      unit("ATTACKER", "ALLY", { attack: 30 }),
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [unit("ATTACKER", "ALLY", { attack: 30 }), unit("TARGET", "ENEMY", enemyStats)],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const applied = context.recorder
+      .getEvents()
+      .find((event) => event.eventType === "DamageApplied")!;
+    // 保留窓が無い経路では、到達の時点で解決が完了する（`defeated`の意味は従来どおり）。
+    expect(applied.payload).toMatchObject({ hpAfter: 0, defeated: true });
+    expect(exercise.breakCount).toBe(1);
+  });
+
+  it("UT-R-TEX-06-009: keeps the damage-event conservation invariant on hits that land on a pending (HP 0) enemy", () => {
+    const enemyStats = { defense: 10, maximumHp: 15 };
+    const exercise = exerciseRuntime(enemyStats);
+    const context = exerciseDamageContext(exercise);
+    exercise.deferredBreaks.beginEffectProcessing();
+
+    applyDamageAction(
+      unit("ATTACKER", "ALLY", { attack: 30 }),
+      [hit("TARGET", 1), hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [unit("ATTACKER", "ALLY", { attack: 30 }), unit("TARGET", "ENEMY", enemyStats)],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const applied = context.recorder
+      .getEvents()
+      .filter((event) => event.eventType === "DamageApplied");
+    expect(applied).toHaveLength(2);
+    // `08_ドメインイベント.md`不変条件#6。2ヒット目はHPが1も減らないため、HPへ向かった
+    // 全量が`discardedDamage`として説明される。
+    for (const event of applied) {
+      const payload = event.payload as {
+        typedShieldAbsorbed: number;
+        untypedShieldAbsorbed: number;
+        subUnitAbsorbed: number;
+        hitPointDamage: number;
+        discardedDamage: number;
+        calculatedDamage: number;
+      };
+      expect(
+        payload.typedShieldAbsorbed +
+          payload.untypedShieldAbsorbed +
+          payload.subUnitAbsorbed +
+          payload.hitPointDamage +
+          payload.discardedDamage,
+      ).toBe(payload.calculatedDamage);
+    }
+    expect(applied[1]!.payload).toMatchObject({
+      hpBefore: 0,
+      hpAfter: 0,
+      hitPointDamage: 0,
+      discardedDamage: 20,
+      defeated: false,
+    });
   });
 
   it("UT-R-TEX-08-001: a death-survival on the enemy's own skill takes precedence over the break, counting the full damage without incrementing the break count (R-INT-01)", () => {

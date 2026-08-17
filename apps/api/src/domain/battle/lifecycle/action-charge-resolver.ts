@@ -567,6 +567,16 @@ export function resolveChargeRelease(
         // R-TEX-02: 戦術演習だけが持つ演習状態をDAMAGE経路へ運ぶ。
         ...(exercise !== undefined ? { exercise } : {}),
       });
+  // R-TEX-06 #5: 効果処理フェーズ末尾で保留ブレイクを解決する（`EffectSequence`
+  // スコープの`RuntimeCounterReset`より前・完了イベントの発行前）。R-FUP-01の追撃は
+  // AS/EX専用のためチャージ解放にはこの間の処理が無い。R-TEX-06 #7: 中断でも解決する。
+  // 解決後の`units`は`passiveRuntime`側へ同期されるため、直下の
+  // `finalizeEffectSequenceResolution`の戻り値が引き継ぐ。
+  passiveRuntime.resolveDeferredBreak(
+    skillUseId,
+    recorder.getEvents().at(-1)?.eventId ?? chargeReleased.eventId,
+  );
+
   // EFF-006/Issue #212: `applyEffectActionGroups`の戻り値は
   // `onFactEventForPassiveChain`経由で既に`passiveRuntime`（`this.units`）へ
   // 同期済みのため、そのまま`finalizeEffectSequenceResolution`（`this.units`を

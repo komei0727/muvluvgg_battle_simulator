@@ -1,3 +1,4 @@
+import { BreakDeferral } from "./break-deferral.js";
 import { truncateFraction } from "./resource-gauge.js";
 import type { CombatStats } from "./starting-combat-stats.js";
 
@@ -64,6 +65,16 @@ export class ExerciseRuntime {
    * これを書き換えるのはブレイク強化だけであるため、生成時の値をそのまま保持する。
    */
   readonly originalEnemyBaseCombatStats: CombatStats;
+
+  /**
+   * R-TEX-03 #5: スキル効果処理フェーズの内側でのHP0到達を保留するフレームスタック。
+   *
+   * フレームは効果処理フェーズ単位の解決コンテキストであって演習状態の一部ではない
+   * （`snapshot`にも`StateDelta`にも現れない）。それでもここに置くのは、`exercise`が
+   * 伝播した経路には必ず保留先も伝播していることを構造で保証するためである
+   * （`break-deferral.ts`のクラスコメント参照）。
+   */
+  readonly deferredBreaks = new BreakDeferral();
 
   constructor(originalEnemyBaseCombatStats: CombatStats) {
     this.originalEnemyBaseCombatStats = originalEnemyBaseCombatStats;

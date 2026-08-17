@@ -88,6 +88,20 @@ export interface BattleUnit {
    * （`PassiveActivationRuntime.finalizeEffectSequenceResolution`）。
    */
   readonly effectSequenceCounters?: Readonly<Record<SkillUseId, RuntimeCounterMap>>;
+  /**
+   * R-TEX-06 #4.3: 戦術演習でHPが0へ到達し、ブレイクの解決を当該スキル効果処理の
+   * 末尾まで保留している間だけ立つ印（R-TEX-03 #5）。保留窓の間、敵ユニットは
+   * 戦闘不能として観測されてはならない — その要求は「網羅の要求であり例示ではない」
+   * ため、`isDefeated`という単一の問い合わせ点へ例外を持たせて全判定箇所
+   * （対象選択・行動順キュー・R-ACTN-01 #2・演習の終了判定・R-PS-04の発動直前確認・
+   * R-FUP-01 #9とR-SUB-02の付与直前再検証）へ一度に効かせる。
+   *
+   * 効果処理の解決中だけ存在する一時的な印であり、`StateDelta`もBattleState射影も
+   * 持たない（`captureBattleState`は戦闘開始時と終了時にしか動かず、そのどちらでも
+   * 保留は残っていない — 正常終了・中断のいずれでも当該効果処理の末尾で解決される。
+   * R-TEX-06 #7）。
+   */
+  readonly breakPending?: true;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01): 個別管理される全効果インスタンス。付与順を保持する。 */
   readonly appliedEffects: readonly AppliedEffect[];
   /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10): 同じmarkerIdにつき対象ごとに1インスタンス。付与順を保持する。 */
@@ -163,9 +177,38 @@ export function createBattleUnitsFromParty(
   });
 }
 
-/** R-END-02: 全滅判定はHPが0かどうかで決まる（05_ドメインモデル.md「HPが0になったユニットを即時に戦闘不能とする」）。 */
+/**
+ * R-END-02: 全滅判定はHPが0かどうかで決まる（05_ドメインモデル.md「HPが0になった
+ * ユニットを即時に戦闘不能とする」）。
+ *
+ * R-TEX-06 #4.3: ただし戦術演習でブレイクを保留中（`breakPending`）の敵は例外で、
+ * HPが0でも戦闘不能として観測させない。保留の間も残りのヒットは命中し、対象選択・
+ * 行動順・終了判定のいずれからも生存として見える必要があるためである。
+ */
 export function isDefeated(unit: BattleUnit): boolean {
-  return unit.currentHp === 0;
+  return unit.currentHp === 0 && unit.breakPending !== true;
+}
+
+/** R-TEX-03 #5: HP0到達時にブレイクの解決を保留したことを表す印を立てる。 */
+export function markBreakPending(unit: BattleUnit): BattleUnit {
+  return { ...unit, breakPending: true };
+}
+
+/**
+ * R-TEX-06 #5: 保留したブレイクを解決する時点で印を外す。印はキー自体を持たない形へ
+ * 戻す — 保留中でないユニットと構造的に区別が付いてしまうと、`toEqual`比較や
+ * StateDelta非対象フィールドの取り扱いで「保留していた痕跡」が残ってしまう。
+ */
+export function clearBreakPending(unit: BattleUnit): BattleUnit {
+  if (unit.breakPending === undefined) {
+    return unit;
+  }
+  const { breakPending: _pending, ...withoutPending } = unit;
+  return withoutPending;
+}
+
+export function isBreakPending(unit: BattleUnit): boolean {
+  return unit.breakPending === true;
 }
 
 /**

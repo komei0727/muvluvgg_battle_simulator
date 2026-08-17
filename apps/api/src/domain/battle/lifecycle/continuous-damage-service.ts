@@ -20,7 +20,7 @@ import type { DepletedAbsorberReason } from "../combat/damage-application-servic
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { recordExerciseScoreIfAny } from "../events/exercise-score-recording.js";
 import { requiresBreakResolution } from "../events/break-resolution.js";
-import { resolveBreakSteps } from "../effects/break-resolution-service.js";
+import { deferOrResolveBreakSteps } from "../effects/break-resolution-service.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -522,7 +522,11 @@ export function applyOneContinuousDamage(
       // generatorにせずとも順序が保てる — 渡さない呼び出し側を足す場合は、
       // `resource-modification-service.ts`と同じくstepを駆動側へ返す形へ変える必要がある。
       notify(factEventsStart);
-      const steps = resolveBreakSteps(
+      // R-TEX-03 #5: 解決位置の判断は`deferOrResolveBreakSteps`へ委ねる。継続ダメージの
+      // tickを起こす唯一のproduction経路（行動開始時、`continuous-heal-service.ts`）は
+      // 効果処理フェーズの外にあるため常に即時解決になるが、判断そのものを保留フレームの
+      // 有無へ委ねることで、この経路だけが別の規則で動くことを構造的に防ぐ。
+      const steps = deferOrResolveBreakSteps(
         { ...context, exercise },
         working,
         holder.battleUnitId,
