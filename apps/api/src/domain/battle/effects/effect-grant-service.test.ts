@@ -788,9 +788,13 @@ describe("grantEffect", () => {
 
 /**
  * R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: `statusKind`を
- * 持たない汎用効果は`kindKey`（`EffectActionDefinitionId`）で「同じ効果が残って
- * いるか」を判定する。`EffectApplied`は差し替え後の初期残り回数をそのまま運ぶ
- * ため、独立Reducerも`stateDelta`だけで解決後の状態を復元できる。
+ * 持たない汎用効果は`effectActionDefinitionId`で「同じ効果が残っているか」を
+ * 判定する。`EffectApplied`は差し替え後の初期残り回数をそのまま運ぶため、
+ * 独立Reducerも`stateDelta`だけで解決後の状態を復元できる。
+ *
+ * Issue #519でR-STA-03の同種グループ鍵（`EffectKindKey`）がCatalog宣言由来に
+ * なった後も、この一致判定だけは定義ID単位に据え置く（`UT-R-EFF-12-008`が
+ * 据え置きを固定する。理由は`resolveDurationOnReapply`のコメント）。
  */
 describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
   const REAPPLYING_DURATION: DurationDefinition = {
@@ -985,7 +989,7 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
     },
   );
 
-  it("UT-R-EFF-12-007: the same non-aggregated APPLY_STATUS definition re-applied matches by kindKey and takes the reapply count", () => {
+  it("UT-R-EFF-12-007: the same non-aggregated APPLY_STATUS definition re-applied matches by definition id and takes the reapply count", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
