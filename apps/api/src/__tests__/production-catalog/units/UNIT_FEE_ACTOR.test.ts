@@ -27,6 +27,7 @@ import {
   turnStarted,
 } from "../../../testing/production-unit/trigger-events.js";
 import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
  * `UNIT_FEE_ACTOR`（【空っぽのアクター】フィー・ドレーゼ）のユニット単位production結合テスト
@@ -550,5 +551,35 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     // バフは「次の攻撃1回」で消費・失効している。
     const holderAfter = units.find((unit) => unit.battleUnitId === "ally:front")!;
     expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
+  });
+
+  it("IT-UNIT-FEE-ACTOR-007 (Q-CAT-EFF-16, R-STA-03): PS3の味方後列攻撃力30%上昇は原文に「重複可」が無く重複しない — 後列の味方が攻撃されるたび再発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_FEE_ACTOR_PS3_ATK_UP",
+      target: "ALLY",
+      stat: "attack",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue * (1 + 0.3), 10);
+  });
+
+  it("IT-UNIT-FEE-ACTOR-008 (Q-CAT-EFF-16, R-STA-03): PS3の行動速度100低下は原文に「重複可」が無く重複しない — 同じ敵が繰り返し攻撃してきても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_FEE_ACTOR_PS3_SPEED_DOWN",
+      target: "ENEMY",
+      stat: "actionSpeed",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue - 100, 10);
   });
 });

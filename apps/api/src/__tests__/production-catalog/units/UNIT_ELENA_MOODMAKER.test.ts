@@ -11,6 +11,8 @@ import {
 import {
   BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
+  SUBJECT_ID,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -19,6 +21,7 @@ import {
   type BoardOverrides,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
+import { computeCombatStats } from "../../../domain/battle/effects/combat-stat-recalculation-service.js";
 import { applyDamageAction } from "../../../domain/battle/combat/damage-application-service.js";
 import {
   skillUseCompleted,
@@ -71,6 +74,11 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION
 
 const EX_SKILL_ID = "SKL_ELENA_MOODMAKER_EX";
 const EX_BONUS_DAMAGE_ID = "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE";
+const EX_ATK_UP_HIGH_ID = "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH";
+const EX_ATK_UP_LOW_ID = "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW";
+const EX_DMGUP_HIGH_ID = "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH";
+const EX_DMGUP_LOW_ID = "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW";
+const PS2_ATK_UP_ID = "ACT_ELENA_MOODMAKER_PS2_ATK_UP";
 /**
  * 追加ダメージの加算を測る担ぎ手のヒット。エレーナ自身のDAMAGEは
  * `MIN(対象の現在HP12.5%, 攻撃力50%)` で上限に張り付き、加算が差分に出ないため、
@@ -1091,5 +1099,117 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(plain.preTruncationDamage).toBe(850 + 202.5);
     expect(boosted.preTruncationDamage).toBe(850 * 1.1 + 202.5);
     expect(boosted.finalDamage).toBe(1137);
+  });
+
+  /**
+   * 実EXを実ライフサイクルへ`times`回通し、最後の盤面を返す。EXゲージの消費は
+   * 行動選択層の責務であり`resolveSkillUse`は見ないため、そのまま連続で撃てる。
+   */
+  function useExRepeatedly(times: number, overrides: BoardOverrides = BONUS_BOARD) {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, overrides);
+    const recorder = new EventRecorder(createBattleId("B_ELENA_EX_REPEAT"));
+    let units = board.units;
+    for (let index = 1; index <= times; index += 1) {
+      units = resolveSkillUse(
+        unitOf(units, board.subject.battleUnitId),
+        skillFrom(snapshot, EX_SKILL_ID),
+        "EX",
+        "EX",
+        units,
+        board.definitions,
+        noMissNoCrit(),
+        recorder,
+        1,
+        0,
+        createActionId(`B_ELENA_EX_REPEAT:action:${index}`),
+        recorder.nextResolutionScopeId(),
+      ).units;
+    }
+    return { units, definitions: board.definitions };
+  }
+
+  /**
+   * R-STA-03の同種選択を通した実効攻撃力の、基準値（`baseCombatStats`）に対する倍率。
+   * `computeCombatStats`は純粋関数で、常に`baseCombatStats`から合成し直す。
+   */
+  function attackMultiplier(
+    units: readonly BattleUnit[],
+    definitions: BattleDefinitions,
+    battleUnitId: string,
+  ): number {
+    const holder = unitOf(units, battleUnitId);
+    return (
+      computeCombatStats(holder, definitions.effectActions).combatStats.attack /
+      holder.baseCombatStats.attack
+    );
+  }
+
+  it("IT-UNIT-ELENA-MOODMAKER-011 (Q-CAT-EFF-16, R-STA-03): 原文に「重複可」の無いEXの攻撃力35%増加は重複しない — EXを3回使っても対象の実効攻撃力は基準値の1.35倍にとどまる", () => {
+    const { units, definitions } = useExRepeatedly(3);
+
+    // `ally:front` は攻撃力2000で `HIGHEST_ATTACK` に固定、`ally:back` は1000で
+    // `LOWEST_ATTACK`。どちらも毎回同じ定義を受け取り続ける。
+    expect(attackMultiplier(units, definitions, "ally:front")).toBeCloseTo(1.35, 10);
+    expect(attackMultiplier(units, definitions, "ally:back")).toBeCloseTo(1.35, 10);
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-012 (BOUNDARY, Q-CAT-EFF-23): 同一ユニットが HIGH / LOW 両方の対象になっても、共有`kindKey`が2定義を1グループへ括るため1.35倍にとどまる", () => {
+    // 味方がエレーナ1体だけの盤面では `HIGHEST_ATTACK` と `LOWEST_ATTACK` が
+    // どちらも自身へ解決し、`..._HIGH` と `..._LOW` を同時に保持する。
+    const { units, definitions } = useExRepeatedly(1, {
+      subject: { position: { column: "CENTER", row: "BACK" } },
+      allies: [],
+    });
+    const holder = unitOf(units, SUBJECT_ID);
+    expect(
+      holder.appliedEffects
+        .map((effect) => effect.effectActionDefinitionId)
+        .filter((id) => id === EX_ATK_UP_HIGH_ID || id === EX_ATK_UP_LOW_ID),
+    ).toEqual([EX_ATK_UP_HIGH_ID, EX_ATK_UP_LOW_ID]);
+
+    expect(attackMultiplier(units, definitions, SUBJECT_ID)).toBeCloseTo(1.35, 10);
+
+    // 与ダメージ補正と追加ダメージのガードは「対象が既に保持しているか」で判定する
+    // ため、同じ使用の中で LOW 側のstepへ来たときにも2件目を作らない。
+    expect(
+      holder.appliedEffects.filter(
+        (effect) =>
+          effect.effectActionDefinitionId === EX_DMGUP_HIGH_ID ||
+          effect.effectActionDefinitionId === EX_DMGUP_LOW_ID,
+      ),
+    ).toHaveLength(1);
+    expect(
+      holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true),
+    ).toHaveLength(1);
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-013 (Q-CAT-EFF-16): 与ダメージ10%増加と追加ダメージは付与側でガードされる — EXを3回使っても対象はどちらも1件しか保持しない", () => {
+    const { units } = useExRepeatedly(3);
+
+    for (const battleUnitId of ["ally:front", "ally:back"]) {
+      const holder = unitOf(units, battleUnitId);
+      // `APPLY_DAMAGE_MOD`／`APPLY_ATTACK_DAMAGE_BONUS` は `STACKABLE` しか受理せず
+      // 合成側で最強1件を選ぶ経路が無いため、2件目を作らないことで揃える。
+      expect(
+        holder.appliedEffects.filter(
+          (effect) =>
+            effect.effectActionDefinitionId === EX_DMGUP_HIGH_ID ||
+            effect.effectActionDefinitionId === EX_DMGUP_LOW_ID,
+        ),
+      ).toHaveLength(1);
+      expect(
+        holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true),
+      ).toHaveLength(1);
+    }
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-014 (REGRESSION, Q-CAT-EFF-16): 原文に「重複可」があるPS2の攻撃力60%上昇は従来どおり積み増す", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, BONUS_BOARD);
+    const units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: PS2_ATK_UP_ID, target: "SELF" },
+      { effectActionDefinitionId: PS2_ATK_UP_ID, target: "SELF" },
+    ]);
+
+    expect(attackMultiplier(units, board.definitions, SUBJECT_ID)).toBeCloseTo(1 + 0.6 + 0.6, 10);
   });
 });

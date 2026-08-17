@@ -62,7 +62,7 @@
       "stat": "DEFENSE",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.2 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -74,7 +74,7 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.2 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }

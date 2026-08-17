@@ -107,7 +107,7 @@
       "stat": "CRITICAL_RATE",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
     "metadata": { "tags": [] }
@@ -119,7 +119,7 @@
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -0.5 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
     "metadata": { "tags": [] }

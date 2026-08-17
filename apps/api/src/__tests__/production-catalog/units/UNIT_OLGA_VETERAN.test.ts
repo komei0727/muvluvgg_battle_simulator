@@ -782,4 +782,25 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
         .map((effect) => effect.subUnit?.durability),
     ).toEqual([1500, 1500, 1500]);
   });
+
+  it("IT-UNIT-OLGA-VETERAN-008 (Q-CAT-EFF-16): AS2の「警戒」所持相手からの被ダメージ35%減少は原文に「重複可」が無く重複しない — 既に保持していればAS2を撃ち直しても付与stepごと実行されない", () => {
+    // `APPLY_DAMAGE_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
+    // 無いため、2件目を作らないことで重複なしへ揃える（`BRANCH` のelse腕）。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_OLGA_VETERAN_AS2" },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_AS2_DMG_DOWN", target: "SELF" },
+      ],
+    });
+
+    expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).not.toContain(
+      "ACT_OLGA_VETERAN_AS2_DMG_DOWN",
+    );
+    // 攻撃・回復・「警戒」付与は同じスキルの別効果であり、ガードの対象ではない。
+    expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).toContain(
+      "ACT_OLGA_VETERAN_AS2_MARKER",
+    );
+  });
 });

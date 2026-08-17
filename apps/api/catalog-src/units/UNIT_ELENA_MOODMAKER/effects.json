@@ -2,6 +2,7 @@
   {
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
     "kind": "APPLY_STAT_MOD",
+    "kindKey": "KIND_ELENA_MOODMAKER_EX_ATK_UP",
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
@@ -10,7 +11,7 @@
         "value": 0.35
       },
       "stacking": {
-        "mode": "STACKABLE"
+        "mode": "NON_STACKABLE"
       },
       "duration": {
         "dispellable": true,
@@ -52,6 +53,7 @@
   {
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
     "kind": "APPLY_STAT_MOD",
+    "kindKey": "KIND_ELENA_MOODMAKER_EX_ATK_UP",
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
@@ -60,7 +62,7 @@
         "value": 0.35
       },
       "stacking": {
-        "mode": "STACKABLE"
+        "mode": "NON_STACKABLE"
       },
       "duration": {
         "dispellable": true,

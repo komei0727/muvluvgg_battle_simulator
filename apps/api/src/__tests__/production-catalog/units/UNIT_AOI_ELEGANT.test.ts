@@ -28,6 +28,7 @@ import {
   turnStarted,
   unitDefeated,
 } from "../../../testing/production-unit/trigger-events.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
  * `UNIT_AOI_ELEGANT`（【優雅なる規律の花】生駒葵）のユニット単位production
@@ -837,5 +838,77 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       linkedEffectGroupId: KOUYOU_LINK,
       cascaded: false,
     });
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-008 (Q-CAT-EFF-16, R-STA-03): PS1の攻撃力35%低下は原文に「重複可」が無く重複しない — EXがクールタイムをリセットして再発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_AOI_ELEGANT_PS1_ATK_DOWN",
+      target: "ENEMY",
+      stat: "attack",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.35), 10);
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-009 (Q-CAT-EFF-16, R-STA-03): PS2の会心率7.5%低下は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_AOI_ELEGANT_PS2_CRIT_RATE_DOWN",
+      target: "ENEMY",
+      stat: "criticalRate",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue - 0.075, 10);
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-010 (Q-CAT-EFF-16, R-STA-03): PS2の会心ダメージ25%低下は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_AOI_ELEGANT_PS2_CRIT_DMG_DOWN",
+      target: "ENEMY",
+      stat: "criticalDamageBonus",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue - 0.25, 10);
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-011 (Q-CAT-EFF-16): PS2の「浮足」所持相手からの被ダメージ40%減少は原文に「重複可」が無く重複しない — 既に保持していれば毎ターンの発動でも付与stepごと実行されない", () => {
+    // `APPLY_DAMAGE_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
+    // 無いため、2件目を作らないことで重複なしへ揃える（`BRANCH` のelse腕）。
+    // 期間が `BATTLE` である以上、ターン開始ごとの再発動は必ず重なる。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_AOI_ELEGANT_PS2",
+        trigger: turnStarted({ turnNumber: 1 }),
+        triggeredBy: "ally:subject",
+      },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD", target: "SELF" },
+      ],
+    });
+
+    expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).not.toContain(
+      "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD",
+    );
+    // 会心デバフと「浮足」付与は同じスキルの別効果であり、ガードの対象ではない。
+    expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).toContain(
+      "ACT_AOI_ELEGANT_PS2_MARKER_UKIASHI",
+    );
   });
 });

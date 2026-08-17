@@ -17,6 +17,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { skillUseCompleted, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
  * `UNIT_CLARA_TSUNDERE`（【正々堂々なミス・ツンデレ】綺羅クララ）のユニット単位
@@ -515,5 +516,35 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
         stats: { "enemy:front/defense": 500 },
       },
     ]);
+  });
+
+  it("IT-UNIT-CLARA-TSUNDERE-005 (Q-CAT-EFF-16, R-STA-03): AS2の防御力20%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へAS2を撃ち直しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN",
+      target: "ENEMY",
+      stat: "defense",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.2), 10);
+  });
+
+  it("IT-UNIT-CLARA-TSUNDERE-006 (Q-CAT-EFF-16, R-STA-03): AS2の攻撃力20%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へAS2を撃ち直しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN",
+      target: "ENEMY",
+      stat: "attack",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.2), 10);
   });
 });

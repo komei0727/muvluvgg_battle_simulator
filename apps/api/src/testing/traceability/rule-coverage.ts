@@ -318,8 +318,27 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-IDX-111",
       "UT-CAT-IDX-112",
       "UT-CAT-IDX-113",
+      // Issue #520: `Q-CAT-EFF-16`（raw原文が「重複可」を付けないバフは重複なし）を
+      // 実 production Catalog へ適用した結果。`APPLY_STAT_MOD` は `NON_STACKABLE`
+      // で表し、同種選択（この規則）が積み増しを止める。エレーナEXの2定義だけは
+      // 共有`kindKey`で1グループへ括る（`Q-CAT-EFF-23`）。
+      "IT-UNIT-ELENA-MOODMAKER-011",
+      "IT-UNIT-ELENA-MOODMAKER-012",
+      "IT-UNIT-ELENA-MOODMAKER-014",
+      "IT-UNIT-AOI-ELEGANT-008",
+      "IT-UNIT-AOI-ELEGANT-009",
+      "IT-UNIT-AOI-ELEGANT-010",
+      "IT-UNIT-CLARA-TSUNDERE-005",
+      "IT-UNIT-CLARA-TSUNDERE-006",
+      "IT-UNIT-FEE-ACTOR-007",
+      "IT-UNIT-FEE-ACTOR-008",
+      "IT-UNIT-KARINA-DOWNER-009",
+      "IT-UNIT-LAURA-MOUNTAIN-005",
+      "IT-UNIT-RAVEL-MODEL-004",
+      "IT-UNIT-SIENA-DIVA-008",
+      "IT-UNIT-SIENA-DIVA-009",
     ],
-    kinds: ["POSITIVE", "NEGATIVE", "PROPERTY"],
+    kinds: ["POSITIVE", "NEGATIVE", "PROPERTY", "BOUNDARY", "SCENARIO"],
   },
   {
     ruleId: "R-STA-04",
@@ -995,6 +1014,15 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-UNIT-TATIANA-SAGE-004",
       "IT-UNIT-TATIANA-SAGE-006",
       "IT-UNIT-TATIANA-SAGE-008",
+      // Issue #520: `APPLY_DAMAGE_MOD`／`APPLY_HEALING_MOD`／
+      // `APPLY_ATTACK_DAMAGE_BONUS`は`STACKABLE`しか受理せず合成側で最強1件を
+      // 選ぶ経路が無いため、`Q-CAT-EFF-16`の「重複なし」は付与側のガードで表す。
+      // 対象が高々1体に解決する参照は`BRANCH`、`TRIGGER_TARGET`のように複数体へ
+      // 解決する参照は対象ごとに評価する`targetCondition`を使う。
+      "IT-UNIT-ELENA-MOODMAKER-013",
+      "IT-UNIT-AOI-ELEGANT-011",
+      "IT-UNIT-OLGA-VETERAN-008",
+      "IT-UNIT-JULIE-SNOW-004",
       "UT-R-SKL-06-056",
       "UT-R-SKL-06-057",
       "UT-R-SKL-06-058",

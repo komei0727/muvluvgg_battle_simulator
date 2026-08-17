@@ -15,6 +15,7 @@ import {
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnCompleting, unitDefeated } from "../../../testing/production-unit/trigger-events.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
  * `UNIT_RAVEL_MODEL`(【気高きランウェイモデル】レイヴェル・ブライトリーフ)のユニット
@@ -401,5 +402,20 @@ describe("production Catalog UNIT_RAVEL_MODEL (【気高きランウェイモデ
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-RAVEL-MODEL-004 (Q-CAT-EFF-16, R-STA-03): PS2の防御力30%低下は原文に「重複可」が無く重複しない — 2行動の効果が残っているうちにターン終了で再発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_RAVEL_MODEL_PS2_DEF_DOWN",
+      target: "ENEMY",
+      stat: "defense",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.3), 10);
   });
 });
