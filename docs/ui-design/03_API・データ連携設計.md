@@ -605,7 +605,7 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 
 `EntityCollectionDelta`は件数（`+n / ~n / -n`）に加えて、`added`／`updated`／`removed`ごとに1行を出す。
 
-- エンティティ名は`10_API設計.md`が定義するID項目（`effectInstanceId`／`subUnitInstanceId`／`markerInstanceId`／`id`と、`effectDefinitionId`／`subUnitDefinitionId`／`markerId`／`skillDefinitionId`／`effectKindKey`）から取る。定義IDの命名規則を解析しない。
+- エンティティ名は`10_API設計.md`が定義するID項目（`effectInstanceId`／`subUnitInstanceId`／`markerInstanceId`／`id`と、`effectDefinitionId`／`subUnitDefinitionId`／`markerId`／`skillDefinitionId`）から取る。定義IDの命名規則を解析しない。`effectKindKey`は`R-STA-03`の同種グループ鍵であって定義識別子ではなく、Catalogが`kindKey`を宣言した定義群では複数の定義が同じ値を共有する（Issue #519）ため、定義側の名前としては使わない。
 - `updated`は`before`/`after`を再帰比較し、変わったleafだけを`path before → after`として出す。
 - IDが読めない未知shapeはcompact JSONへ退避する。件数へ黙って畳まないことで、将来のエンティティ種別も可視のまま残る。
 - 差分が公開projectionに現れない`updated`は「表示可能な変更項目なし」と明示する。`EffectStateResponse.value`はDMG-004/005時点で`{ magnitude }`だけを持ち、シールド残量・サブユニット耐久の増減を運ばないため、この文言が実際に出うる。

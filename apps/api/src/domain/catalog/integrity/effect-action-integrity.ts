@@ -300,6 +300,99 @@ export function validateEffectAction(
 }
 
 /**
+ * R-STA-03／R-EFF-05（Issue #519）: 同じ`kindKey`を宣言した定義群は1つの同種
+ * グループになる。グループは単一の規則で解決される（最強1件の選択、上限までの
+ * インスタンス数）ため、鍵を共有しながら解決規則が食い違う定義群は
+ * 「どの定義から付与されたか」で結果が変わってしまい、グループ鍵の意味を失う。
+ * `validateEffectAction`と違い定義1件では判定できないため、全定義を見てから
+ * `buildCatalogIndex`が一度だけ呼ぶ。
+ *
+ * 鍵を宣言しない定義は`EffectActionDefinitionId`が鍵になるが、そちらはIDの一意性
+ * （`DUPLICATE_ID`）により常に1定義1グループであり、この検証の対象にならない。
+ *
+ * グループ内の代表は`effectActionDefinitionId`の辞書順で最初の1件とし、違反は
+ * それ以外の定義側へ報告する — 検証結果を定義の入力順に依存させないためである。
+ */
+export function validateEffectKindKeyGroups(
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const groups = new Map<string, EffectActionDefinition[]>();
+  for (const effectAction of effectActions.values()) {
+    const kindKey = effectAction.kindKey;
+    if (kindKey === undefined) {
+      continue;
+    }
+    const group = groups.get(kindKey) ?? [];
+    group.push(effectAction);
+    groups.set(kindKey, group);
+  }
+
+  for (const [kindKey, group] of groups) {
+    if (group.length < 2) {
+      continue;
+    }
+    const [representative, ...rest] = [...group].sort((a, b) =>
+      a.effectActionDefinitionId < b.effectActionDefinitionId ? -1 : 1,
+    );
+    for (const effectAction of rest) {
+      const inconsistent = (message: string): void => {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "INCONSISTENT_EFFECT_KIND_KEY_GROUP",
+          message: `kindKey "${kindKey}" is shared with "${representative!.effectActionDefinitionId}", but ${message} (R-STA-03/R-EFF-05 resolve a kindKey group by a single rule, Issue #519)`,
+        });
+      };
+      const a = stackingOf(representative!);
+      const b = stackingOf(effectAction);
+      // 片方が重複あり・片方が重複なしだと、同じグループの一部だけが最強選択に入る。
+      if (a?.mode !== b?.mode) {
+        inconsistent(
+          `their stacking.mode differ ("${a?.mode ?? "none"}" vs "${b?.mode ?? "none"}")`,
+        );
+      }
+      // `stacking.max`は`EffectKindKey`単位で数えるため、鍵を共有する定義が違う上限を
+      // 宣言すると、同じ保持数でもどの定義で付与しようとしたかで判定が変わる。
+      if (a?.max !== b?.max) {
+        inconsistent(
+          `their stacking.max differ (${String(a?.max ?? null)} vs ${String(b?.max ?? null)})`,
+        );
+      }
+      // 別ステータス・別valueTypeの補正を同種と宣言するのは定義ミスであり、
+      // 受理すると攻撃力バフと防御力バフのうち強い1件だけが有効になる。
+      if (representative!.kind === "APPLY_STAT_MOD" && effectAction.kind === "APPLY_STAT_MOD") {
+        if (representative!.payload.stat !== effectAction.payload.stat) {
+          inconsistent(
+            `their APPLY_STAT_MOD stat differ ("${representative!.payload.stat}" vs "${effectAction.payload.stat}")`,
+          );
+        }
+        if (representative!.payload.valueType !== effectAction.payload.valueType) {
+          inconsistent(
+            `their APPLY_STAT_MOD valueType differ ("${representative!.payload.valueType}" vs "${effectAction.payload.valueType}")`,
+          );
+        }
+      }
+    }
+  }
+}
+
+/** `stacking`を持つkindだけが宣言できる合成規則。持たないkindは`undefined`。 */
+function stackingOf(
+  effectAction: EffectActionDefinition,
+): { readonly mode: string; readonly max: number | null } | undefined {
+  switch (effectAction.kind) {
+    case "APPLY_STAT_MOD":
+      return effectAction.payload.stacking;
+    case "APPLY_DAMAGE_MOD":
+    case "APPLY_HEALING_MOD":
+    case "APPLY_RESOURCE_GAIN_MOD":
+      return { mode: effectAction.payload.stacking.mode, max: null };
+    default:
+      return undefined;
+  }
+}
+
+/**
  * R-INT-01〜03（DMG-006、Issue #188）: 防御介入系4kindが実装済みの形だけを宣言している
  * ことを検証する。実装は次に限られ、いずれもproduction Catalogの全行がこの形である。
  *

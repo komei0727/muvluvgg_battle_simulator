@@ -1145,8 +1145,12 @@ export interface BattleDomainEventPayloadMap {
   /**
    * `05_ドメインモデル.md`「AppliedEffect」/`08_ドメインイベント.md`「EffectApplied
    * payload」（R-EFF-01）。新しい効果インスタンスを追加した直後に発行する。
-   * `kindKey`は`EffectKindKey`（現状`EffectActionDefinitionId`をそのまま使う、
-   * `applied-effect.ts`参照）。`durationUnit`/`durationOwner`/`initialRemaining`は
+   * `kindKey`はR-STA-03の同種グループ鍵（`EffectKindKey`）である。Catalogが
+   * `EffectActionDefinition.kindKey`を宣言していればその値、宣言が無ければ
+   * `EffectActionDefinitionId`そのものになる（Issue #519、`applied-effect.ts`の
+   * `effectKindKeyOf`が正本）。複数の定義が同じ鍵を共有し得るため、付与元の定義を
+   * 名指ししたい参照先は併せて運ぶ`effectActionDefinitionId`である。
+   * `durationUnit`/`durationOwner`/`initialRemaining`は
    * `timeLimit`を持つ場合だけ（`durationOwner`はさらに`timeLimit.owner`が
    * 明示された場合だけ）、`consumptionKind`/`consumptionMaxCount`は`consumption`
    * を持つ場合だけ、`expirationConditions`は`expiration`を持つ場合だけ存在する。
@@ -1163,7 +1167,8 @@ export interface BattleDomainEventPayloadMap {
     readonly kindKey: string;
     /**
      * M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）: 付与した効果の
-     * 分類。`kindKey`が`EffectActionDefinitionId`そのもので分類に使えないため、
+     * 分類。`kindKey`は同種グループの鍵であって分類軸ではなく（Issue #519以降は
+     * 複数の定義が共有し得る）分類に使えないため、
      * `TriggerDefinition.condition`の`EVENT_PAYLOAD`が「デバフが付与された際」
      * 「状態異常が付与された際」を表現できるように併せて運ぶ。`categories`は
      * `effect-category-classifier.ts`（R-EFF-02/03の解除・免疫判定の正本）が導く

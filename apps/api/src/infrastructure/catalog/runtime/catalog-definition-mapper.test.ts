@@ -189,6 +189,23 @@ describe("Catalog v2 definition mapper", () => {
     );
   });
 
+  // Issue #519（R-STA-03）: `kindKey`はShape段階（JSON Schema）でも通す必要がある
+  // — `effectActionDefinitionSchema`は`additionalProperties: false`のため、
+  // 追加し忘れるとMapperがDomain factoryへ届く前に拒否してしまう。
+  it("UT-INFRA-MAP-031: maps an EffectActionDefinition DTO declaring a kindKey", () => {
+    const action = mapEffectActionDefinition({
+      ...effectActionDto,
+      kindKey: "KIND_DAMAGE_PHYSICAL",
+    });
+    expect(action.kindKey).toBe("KIND_DAMAGE_PHYSICAL");
+  });
+
+  it("UT-INFRA-MAP-032: raises CatalogShapeValidationError for a kindKey missing the KIND_ prefix", () => {
+    expect(() =>
+      mapEffectActionDefinition({ ...effectActionDto, kindKey: "ACT_DAMAGE_PHYSICAL_7020" }),
+    ).toThrow(CatalogShapeValidationError);
+  });
+
   it("UT-INFRA-MAP-011: raises CatalogShapeValidationError for a shape-invalid EffectActionDefinition DTO", () => {
     expect(() =>
       mapEffectActionDefinition({ ...effectActionDto, kind: "APPLY_TIME_STOP" }),

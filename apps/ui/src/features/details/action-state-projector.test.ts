@@ -428,14 +428,14 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.effects).toEqual([
       {
         effectInstanceId: "battle-1:effect:1",
-        effectKindKey: "ACT_ATTACK_UP",
+        effectDefinitionId: "ACT_ATTACK_UP",
         category: "BUFF",
         isEffective: true,
         duration: { unit: "TURN", remaining: 2 },
       },
       {
         effectInstanceId: "battle-1:effect:2",
-        effectKindKey: "ACT_STUN_1",
+        effectDefinitionId: "ACT_STUN_1",
         category: "STATUS_ABNORMALITY",
         statusKind: "STUN",
         isEffective: true,
@@ -474,7 +474,7 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.effects).toEqual([
       {
         effectInstanceId: "battle-1:effect:1",
-        effectKindKey: "ACT_ATTACK_UP",
+        effectDefinitionId: "ACT_ATTACK_UP",
         category: "BUFF",
         isEffective: false,
       },

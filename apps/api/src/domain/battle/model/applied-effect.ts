@@ -1,8 +1,10 @@
-import type { Brand } from "../../shared/brand.js";
 import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
-import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type {
+  EffectActionDefinitionId,
+  EffectKindKey,
+} from "../../catalog/definitions/catalog-ids.js";
 import type {
   ActionKind,
   DamageModDirection,
@@ -11,6 +13,7 @@ import type {
   StatKind,
 } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type {
   ApplySubunitPayload,
@@ -276,28 +279,41 @@ export interface ContinuousDamageState {
 /** R-DOT-01: `AppliedEffect.snapshot`が継続ダメージの付与時攻撃力へ使うキー。 */
 export const CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY = "sourceAttack";
 
+export type { EffectKindKey };
+
 /**
  * `07_戦闘ルール詳細.md` R-STA-03: 重複なし効果を同種としてグループ化する鍵
- * （`08_ドメインイベント.md`「EffectApplied payload」）。`14_Catalog定義スキーマ.md`
- * には`kindKey`専用のauthoring fieldが定義されていない（M7-012／Issue #266が
- * `APPLY_STAT_MOD.stacking.mode: NON_STACKABLE`と重複上限`stacking.max`を
- * 追加したが、同種グループの単位を明示する field は依然として無い）。そのため
- * ドメイン側は`EffectActionDefinitionId`をそのまま`EffectKindKey`として扱う —
- * 同じ効果アクション定義からの付与だけを同種とみなす、現時点で唯一実データから
- * 導出できる粒度。この鍵はR-EFF-05の最強選択（`effective-effect-selector.ts`）と
- * 重複上限（`isStackLimitReached`）の両方が使う。
+ * （`08_ドメインイベント.md`「EffectApplied payload」）。R-EFF-05の最強選択
+ * （`effective-effect-selector.ts`）と重複上限（`isStackLimitReached`）の
+ * 両方がこの鍵を使う。
  *
- * この導出規則はplaceholderであり、確定した公開契約ではない —
- * 異なるスキル由来の同種効果（例: 2つの異なるASが
- * 与える「攻撃力+10%」）を同じ`kindKey`へグループ化できないため、将来
- * R-STA-03の導出規則自体を差し替える可能性が高い。この値は`EffectApplied`
- * イベントの`details.kindKey`として`BattleLogEventResponse`経由で外部公開
- * される。EFF-003（Issue #159）が`CAP_STAT_MOD`を`IMPLEMENTED`にしたため、
- * `APPLY_STAT_MOD`由来の`EffectApplied`は実際にproduction battleで発行され
- * 得る — 外部依存が生じた場合はこのplaceholder規則の見直しを優先する。
+ * 導出規則（Issue #519、`14_Catalog定義スキーマ.md`「kindKey」）:
+ * Catalogが`EffectActionDefinition.kindKey`を宣言していればその値、
+ * 宣言が無ければ`EffectActionDefinitionId`そのもの。宣言の無い定義は
+ * 「同じ効果アクション定義からの付与だけが同種」という粒度に留まり、
+ * 宣言した定義群だけが定義をまたいで1グループになる。
+ *
+ * 宣言できるようにしたのは、1つのスキルが同一のバフを実装都合で複数の定義へ
+ * 分けて配る構造（`SKL_ELENA_MOODMAKER_EX`の攻撃力35%増加が
+ * `..._HIGH`/`..._LOW`の2定義）では、定義ID単位の同種判定がR-STA-03
+ * 「同種バフは最も強い1件だけ」を実現できず両方が加算されてしまうためである。
+ * 構造（`stat`・`valueType`・符号）からの自動導出は採らない — 別ユニット由来の
+ * 同種バフまで1グループへ畳んでしまい、実ゲームの「別キャラのバフは重複する」と
+ * 食い違う。
+ *
+ * この値は`EffectApplied`イベントの`details.kindKey`として
+ * `BattleLogEventResponse`経由で外部公開されるが、**定義の一意識別子ではない** —
+ * 同じ鍵を複数の定義が共有するのがこの型の目的であり、定義を名指しする用途には
+ * 併せて運んでいる`effectActionDefinitionId`を使う。
  */
-export type EffectKindKey = Brand<string, "EffectKindKey">;
+export function effectKindKeyOf(definition: EffectActionDefinition): EffectKindKey {
+  return definition.kindKey ?? effectKindKeyFromDefinitionId(definition.effectActionDefinitionId);
+}
 
+/**
+ * `kindKey`宣言の無い定義へ適用する導出（上記のフォールバック）。Catalog定義を
+ * 手元に持たないテストフィクスチャも同じ規則で鍵を組み立てられるよう公開する。
+ */
 export function effectKindKeyFromDefinitionId(id: EffectActionDefinitionId): EffectKindKey {
   return id as unknown as EffectKindKey;
 }

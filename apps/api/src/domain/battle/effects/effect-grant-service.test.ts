@@ -11,6 +11,7 @@ import {
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createEffectKindKey,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
@@ -136,6 +137,46 @@ describe("grantEffect", () => {
       appliedTurnNumber: 1,
     });
     expect(result.appliedEffect).toBe(updatedTarget.appliedEffects[0]);
+  });
+
+  // Issue #519（R-STA-03）: 同種グループの鍵はCatalog宣言由来になる。宣言した
+  // 定義から付与されたインスタンスと`EffectApplied`は、定義IDではなくその鍵を運ぶ。
+  it("UT-R-STA-03-009: stamps the Catalog-declared kindKey onto the instance and EffectApplied", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = grantEffect(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [source, target],
+      {
+        definition: {
+          ...statModDefinition(),
+          kindKey: createEffectKindKey("KIND_ATK_UP"),
+        },
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        duplicate: false,
+        magnitude: 0.35,
+        durationDefinition: TURN_DURATION,
+      },
+      rootEventId,
+    );
+
+    expect(result.appliedEffect.kindKey).toBe("KIND_ATK_UP");
+    // 表示・名指し用の定義IDは鍵と独立に運び続ける（イベント契約は変えない）。
+    expect(result.appliedEffect.effectActionDefinitionId).toBe(EFFECT_ACTION_DEFINITION_ID);
+    const applied = recorder.getEvents().find((e) => e.eventType === "EffectApplied");
+    expect(applied!.payload).toMatchObject({
+      kindKey: "KIND_ATK_UP",
+      effectActionDefinitionId: EFFECT_ACTION_DEFINITION_ID,
+    });
   });
 
   it("UT-R-EFF-01-017 (R-EFF-01): retains a second grant as a separate instance instead of merging with an existing one of the same kind", () => {
@@ -747,9 +788,13 @@ describe("grantEffect", () => {
 
 /**
  * R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: `statusKind`を
- * 持たない汎用効果は`kindKey`（`EffectActionDefinitionId`）で「同じ効果が残って
- * いるか」を判定する。`EffectApplied`は差し替え後の初期残り回数をそのまま運ぶ
- * ため、独立Reducerも`stateDelta`だけで解決後の状態を復元できる。
+ * 持たない汎用効果は`effectActionDefinitionId`で「同じ効果が残っているか」を
+ * 判定する。`EffectApplied`は差し替え後の初期残り回数をそのまま運ぶため、
+ * 独立Reducerも`stateDelta`だけで解決後の状態を復元できる。
+ *
+ * Issue #519でR-STA-03の同種グループ鍵（`EffectKindKey`）がCatalog宣言由来に
+ * なった後も、この一致判定だけは定義ID単位に据え置く（`UT-R-EFF-12-008`が
+ * 据え置きを固定する。理由は`resolveDurationOnReapply`のコメント）。
  */
 describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
   const REAPPLYING_DURATION: DurationDefinition = {
@@ -759,13 +804,22 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
     reapply: { existingRemaining: { op: "GTE", value: 1 }, count: 3 },
   };
 
-  function request(source: BattleUnit, target: BattleUnit, definitionId?: string) {
+  function request(
+    source: BattleUnit,
+    target: BattleUnit,
+    definitionId?: string,
+    kindKey?: string,
+  ) {
     const id =
       definitionId === undefined
         ? EFFECT_ACTION_DEFINITION_ID
         : createEffectActionDefinitionId(definitionId);
     return {
-      definition: { ...statModDefinition(), effectActionDefinitionId: id },
+      definition: {
+        ...statModDefinition(),
+        effectActionDefinitionId: id,
+        ...(kindKey !== undefined ? { kindKey: createEffectKindKey(kindKey) } : {}),
+      },
       sourceUnitId: source.battleUnitId,
       targetUnitId: target.battleUnitId,
       duplicate: true,
@@ -812,6 +866,41 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
         second.appliedEffect.effectInstanceId
       ]?.after,
     ).toMatchObject({ duration: { unit: "TURN", remaining: 3 } });
+  });
+
+  /**
+   * Issue #519: R-EFF-12の「同じ効果」判定だけは`EffectKindKey`ではなく
+   * `EffectActionDefinitionId`単位に据え置く（R-STA-03の同種グループ鍵とは
+   * 別の同一性）。`STATUS_KINDS_AGGREGATED_ON_REAPPLY`の`statusKind`集約は
+   * 付与サービス側（既存インスタンスへ集約する）の挙動と一組であり、一致判定
+   * だけを新しい鍵へ寄せると片肺になるため、統合は別Issueで行う。
+   */
+  it("UT-R-EFF-12-008: a shared kindKey does not make another definition the same effect for the reapply duration", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = {
+      recorder,
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      rootEventId,
+    };
+
+    const other = grantEffect(
+      context,
+      [source, target],
+      request(source, target, "ACT_OTHER_ATK_UP", "KIND_ATK_UP"),
+      rootEventId,
+    );
+    const second = grantEffect(
+      context,
+      other.units,
+      request(source, target, "ACT_ATK_UP", "KIND_ATK_UP"),
+      other.lastEventId,
+    );
+
+    expect(second.appliedEffect.duration.timeLimitRemaining).toBe(2);
   });
 
   it("UT-R-EFF-12-005: another definition's instance is not the same effect, so the base count applies", () => {
@@ -900,7 +989,7 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
     },
   );
 
-  it("UT-R-EFF-12-007: the same non-aggregated APPLY_STATUS definition re-applied matches by kindKey and takes the reapply count", () => {
+  it("UT-R-EFF-12-007: the same non-aggregated APPLY_STATUS definition re-applied matches by definition id and takes the reapply count", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -929,13 +1018,17 @@ describe("grantEffect with a dynamic duration on re-apply (R-EFF-12)", () => {
  * （clampする先の可変スタック数を持たない）。
  */
 describe("isStackLimitReached (R-EFF-05 重複上限)", () => {
-  function withEffects(target: BattleUnit, definitionIds: readonly string[]): BattleUnit {
+  function withEffects(
+    target: BattleUnit,
+    definitionIds: readonly string[],
+    kindKey?: string,
+  ): BattleUnit {
     return {
       ...target,
       appliedEffects: definitionIds.map((definitionId, index) => ({
         effectInstanceId: `E_${index}` as never,
         effectActionDefinitionId: createEffectActionDefinitionId(definitionId),
-        kindKey: definitionId as never,
+        kindKey: (kindKey ?? definitionId) as never,
         duplicate: true,
         targetUnitId: target.battleUnitId,
         magnitude: 0.025,
@@ -951,7 +1044,7 @@ describe("isStackLimitReached (R-EFF-05 重複上限)", () => {
       unit("target-1"),
       Array.from({ length: 20 }, () => "ACT_ATK_UP"),
     );
-    expect(isStackLimitReached(target, EFFECT_ACTION_DEFINITION_ID, null)).toBe(false);
+    expect(isStackLimitReached(target, statModDefinition(), null)).toBe(false);
   });
 
   it("UT-R-EFF-05-015: the limit is reached exactly when the target already holds max instances of the same kindKey", () => {
@@ -966,12 +1059,41 @@ describe("isStackLimitReached (R-EFF-05 重複上限)", () => {
         target,
         Array.from({ length: held }, () => "ACT_ATK_UP"),
       );
-      expect(isStackLimitReached(withHeld, EFFECT_ACTION_DEFINITION_ID, 2)).toBe(expected);
+      expect(isStackLimitReached(withHeld, statModDefinition(), 2)).toBe(expected);
     }
   });
 
   it("UT-R-EFF-05-016: instances of a different kindKey do not count toward this definition's limit", () => {
     const target = withEffects(unit("target-1"), ["ACT_OTHER_ATK_UP", "ACT_OTHER_ATK_UP"]);
-    expect(isStackLimitReached(target, EFFECT_ACTION_DEFINITION_ID, 1)).toBe(false);
+    expect(isStackLimitReached(target, statModDefinition(), 1)).toBe(false);
+  });
+
+  // Issue #519: 重複数の単位はR-EFF-05の文言どおり「同種インスタンス数」であり、
+  // 同種の単位はR-STA-03と共有する`EffectKindKey`である。鍵を宣言した定義群は
+  // 定義をまたいで1つの上限を数える。
+  it("UT-R-EFF-05-022: instances granted by another definition sharing the declared kindKey count toward the limit", () => {
+    const definition = {
+      ...statModDefinition(),
+      kindKey: createEffectKindKey("KIND_ATK_UP"),
+    };
+    const target = withEffects(
+      unit("target-1"),
+      ["ACT_OTHER_ATK_UP", "ACT_OTHER_ATK_UP"],
+      "KIND_ATK_UP",
+    );
+    expect(isStackLimitReached(target, definition, 2)).toBe(true);
+    expect(isStackLimitReached(target, definition, 3)).toBe(false);
+  });
+
+  // 宣言の無い定義は従来どおり定義ID単位で数える（`ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`
+  // の`max: 14`が本Issueで挙動を変えないことの単体側の回帰。実production Catalogでの
+  // 検証は`IT-UNIT-TARISA-TROUBLEMAKER-004/005`が担う）。
+  it("UT-R-EFF-05-023: a definition without a declared kindKey keeps counting per definition ID", () => {
+    const sharedKindKeyHolders = withEffects(
+      unit("target-1"),
+      ["ACT_OTHER_ATK_UP", "ACT_OTHER_ATK_UP"],
+      "KIND_ATK_UP",
+    );
+    expect(isStackLimitReached(sharedKindKeyHolders, statModDefinition(), 2)).toBe(false);
   });
 });

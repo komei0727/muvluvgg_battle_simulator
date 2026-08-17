@@ -8,6 +8,7 @@ import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createEffectKindKey,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -94,11 +95,15 @@ function statMod(
   definitionId: EffectActionDefinitionId,
   duplicate: boolean,
   magnitude: number,
+  kindKey?: string,
 ): AppliedEffect {
   return {
     effectInstanceId: instanceId(),
     effectActionDefinitionId: definitionId,
-    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    kindKey:
+      kindKey !== undefined
+        ? createEffectKindKey(kindKey)
+        : effectKindKeyFromDefinitionId(definitionId),
     categories: ["BUFF"],
     duplicate,
     sourceUnitId: createBattleUnitId("BU_1"),
@@ -145,6 +150,53 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
     expect(result.combatStats.maximumHp).toBeCloseTo(48417.12);
     // ゲージ最大値（0方向切り捨て）は48417 — 二重丸めの48416ではない。
     expect(Math.trunc(result.combatStats.maximumHp)).toBe(48417);
+  });
+
+  // Issue #519（R-STA-03）: 1つのスキルが同じバフを実装都合で2定義へ分けて配る
+  // （`SKL_ELENA_MOODMAKER_EX`の`..._HIGH`/`..._LOW`）構造では、定義ID単位の同種
+  // 判定だと両方が有効になり加算されてしまう。同じ`kindKey`を宣言した定義群は
+  // 1グループになり、最強1件だけが合成へ入る。
+  it("UT-R-STA-03-010: two distinct definitions sharing a declared kindKey collapse to the strongest single instance", () => {
+    const high = statModDefinition("ACT_ELENA_ATK_UP_HIGH", "ATTACK", "RATIO");
+    const low = statModDefinition("ACT_ELENA_ATK_UP_LOW", "ATTACK", "RATIO");
+    const target = unit({
+      appliedEffects: [
+        statMod(high.effectActionDefinitionId, false, 0.35, "KIND_ELENA_ATK_UP"),
+        statMod(low.effectActionDefinitionId, false, 0.35, "KIND_ELENA_ATK_UP"),
+      ],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([
+        [high.effectActionDefinitionId, high],
+        [low.effectActionDefinitionId, low],
+      ]),
+    );
+
+    // 100 × (1 + 0.35)。両方が有効なら135ではなく170になる。
+    expect(result.combatStats.attack).toBeCloseTo(135);
+  });
+
+  it("UT-R-STA-03-011: two definitions that declare no kindKey stay in separate groups and both stay effective", () => {
+    const first = statModDefinition("ACT_OTHER_ATK_UP_A", "ATTACK", "RATIO");
+    const second = statModDefinition("ACT_OTHER_ATK_UP_B", "ATTACK", "RATIO");
+    const target = unit({
+      appliedEffects: [
+        statMod(first.effectActionDefinitionId, false, 0.35),
+        statMod(second.effectActionDefinitionId, false, 0.35),
+      ],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([
+        [first.effectActionDefinitionId, first],
+        [second.effectActionDefinitionId, second],
+      ]),
+    );
+
+    expect(result.combatStats.attack).toBeCloseTo(170);
   });
 
   it("UT-R-STA-04-012: multiple stackable RATIO effects on the same stat sum together (R-STA-02)", () => {

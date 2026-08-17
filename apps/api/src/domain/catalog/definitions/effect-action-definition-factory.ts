@@ -8,6 +8,7 @@ import type {
 } from "./catalog-enums.js";
 import {
   createEffectActionDefinitionId,
+  createEffectKindKey,
   createMarkerId,
   createSkillDefinitionId,
   type EffectActionDefinitionId,
@@ -480,9 +481,17 @@ export function createEffectActionDefinition(
 
   const tags = input.metadata?.tags ?? [];
 
+  // Issue #519（R-STA-03／R-EFF-05）: 宣言が無い場合は field 自体を持たせない。
+  // 省略時の鍵は`EffectActionDefinitionId`（`applied-effect.ts`の`effectKindKeyOf`）
+  // であり、ここで既定値として焼き込むと「宣言された鍵」と「フォールバック」の
+  // 区別が定義から失われ、Catalog検証ガードが定義IDごとの偽グループを見ることになる。
+  const kindKey =
+    input.kindKey !== undefined ? createEffectKindKey(input.kindKey, `${path}.kindKey`) : undefined;
+
   return deepFreeze({
     ...shape,
     effectActionDefinitionId,
+    ...(kindKey !== undefined ? { kindKey } : {}),
     metadata: { tags },
   });
 }

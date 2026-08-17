@@ -1,8 +1,9 @@
 import { isDefeated, requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import {
   CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY,
-  effectKindKeyFromDefinitionId,
+  effectKindKeyOf,
   type AppliedEffect,
+  type EffectKindKey,
 } from "../model/applied-effect.js";
 import {
   grantEffect,
@@ -578,6 +579,13 @@ export interface GrantPoisonResult {
 /** R-DOT-04の統合で「効果量」として一組で採用する、毒ダメージを決める2値と採用元。 */
 interface PoisonMagnitudeCandidate {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
+  /**
+   * 採用元の定義から導いた同種グループ鍵（Issue #519）。統合後インスタンスの
+   * `kindKey`は採用元の定義に従うため、定義IDから作り直さず候補と一組で運ぶ —
+   * 定義IDから導き直すと、`kindKey`を宣言した毒定義で鍵だけがフォールバックへ
+   * 巻き戻る。
+   */
+  readonly kindKey: EffectKindKey;
   readonly formula: FormulaDefinition;
   /** 付与時に評価した割合ダメージ（`現在HP × 毒効果率`）。監査用の保存値。 */
   readonly magnitude: number;
@@ -649,6 +657,7 @@ export function grantPoisonContinuousDamage(
 
   const existingCandidate: PoisonMagnitudeCandidate = {
     effectActionDefinitionId: existing.effectActionDefinitionId,
+    kindKey: effectKindKeyOf(existingDefinition),
     formula: existingDefinition.payload.formula,
     magnitude: existing.magnitude,
     snapshotAttack: snapshotAttackOf(existing),
@@ -657,6 +666,7 @@ export function grantPoisonContinuousDamage(
   };
   const incomingCandidate: PoisonMagnitudeCandidate = {
     effectActionDefinitionId: request.definition.effectActionDefinitionId,
+    kindKey: effectKindKeyOf(request.definition),
     formula:
       request.definition.kind === "APPLY_CONTINUOUS_DAMAGE"
         ? request.definition.payload.formula
@@ -704,7 +714,7 @@ export function grantPoisonContinuousDamage(
   const nextEffect: AppliedEffect = {
     ...existingWithoutSource,
     effectActionDefinitionId: adopted.effectActionDefinitionId,
-    kindKey: effectKindKeyFromDefinitionId(adopted.effectActionDefinitionId),
+    kindKey: adopted.kindKey,
     ...(adopted.sourceUnitId !== undefined ? { sourceUnitId: adopted.sourceUnitId } : {}),
     ...(adopted.sourceSide !== undefined ? { sourceSide: adopted.sourceSide } : {}),
     // 保存する`magnitude`も統合時点で評価し直した割合ダメージへ揃える。これにより

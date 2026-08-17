@@ -64,13 +64,20 @@ const INSTANCE_ID_KEYS = [
   "id",
 ] as const;
 
-/** 同じく、人が読める定義側の名前。`effectKindKey`は定義IDそのものなので最後に見る。 */
+/**
+ * 同じく、人が読める定義側の名前。
+ *
+ * Issue #519: `effectKindKey`はここに含めない。R-STA-03の同種グループ鍵であって
+ * 定義識別子ではなく、Catalogが`kindKey`を宣言した定義群では複数の定義が同じ値を
+ * 共有するため、定義側の名前として見せると別定義の効果が同じラベルになる。
+ * 効果の定義名は`effectDefinitionId`（`10_API設計.md`「EffectStateResponse」の
+ * 必須プロパティ）が常に持つ。
+ */
 const DEFINITION_ID_KEYS = [
   "effectDefinitionId",
   "subUnitDefinitionId",
   "markerId",
   "skillDefinitionId",
-  "effectKindKey",
 ] as const;
 
 function firstString(entity: unknown, keys: readonly string[]): string | undefined {

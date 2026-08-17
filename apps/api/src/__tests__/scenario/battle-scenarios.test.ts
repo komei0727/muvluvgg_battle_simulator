@@ -832,8 +832,8 @@ describe("battle scenarios (harness)", () => {
     });
 
     it("SCN-BTL-013 (R-EFF-05): two STACKABLE instances of the same effect kind are held separately with their own remaining counts, both contribute to the effective stat at once, and each expires on its own schedule", () => {
-      // `EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、**同じ定義を
-      // 2回**適用しないと「同種」にならない。別定義2件では `stacking.mode` を
+      // このシナリオの定義は `kindKey` を宣言しないため `EffectKindKey` は定義IDそのもの
+      // になり（`applied-effect.ts`）、**同じ定義を2回**適用しないと「同種」にならない。別定義2件では `stacking.mode` を
       // `NON_STACKABLE` へ取り違えても両方が加算されてしまい、重複ありの検証にならない。
       //
       // 盤面・スキル・行動列は `SCN-BTL-014` と同一で、違いは `stacking.mode` だけに
@@ -903,8 +903,8 @@ describe("battle scenarios (harness)", () => {
     });
 
     it("SCN-BTL-014 (R-EFF-05): NON_STACKABLE instances of the same effect kind are all held individually but only the strongest counts — the dormant one keeps ticking, and it is promoted the moment the strongest expires", () => {
-      // `EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、「同種」を作るには
-      // **同じ定義を2回**適用するしかない。効果量に差を付けるため、付与額を使用者の
+      // このシナリオの定義は `kindKey` を宣言しないため `EffectKindKey` は定義IDそのもの
+      // になり（`applied-effect.ts`）、「同種」を作るには**同じ定義を2回**適用するしかない。効果量に差を付けるため、付与額を使用者の
       // 現在HPに比例させ、同じスキルの中でHPを半分支払わせる（付与 → 支払いの順）。
       const catalog = new CatalogBuilder()
         .withUnit(

@@ -313,9 +313,10 @@ export function statModEffectAction(
 /**
  * 使用者の現在HPに比例したステータス補正を付与するEffectAction。**同じ定義から
  * 効果量の違うインスタンスを作れる**唯一の形として、`R-EFF-05` の重複あり／重複なし
- * 検証で使う。`EffectKindKey` は定義IDそのもの（`applied-effect.ts`）なので、
- * 別定義2件は「同種」にならず `stacking.mode` の違いが観測に一切現れない —
- * 同種であることを担保できるのは同じ定義を2回適用する形だけである。
+ * 検証で使う。この定義は `kindKey` を宣言しないため `EffectKindKey` は定義IDそのもの
+ * になり（`applied-effect.ts` の `effectKindKeyOf`）、別定義2件は「同種」にならず
+ * `stacking.mode` の違いが観測に一切現れない — 同種であることを担保できるのは
+ * 同じ定義を2回適用する形だけである。
  */
 export function hpScaledStatModEffectAction(
   id: string,

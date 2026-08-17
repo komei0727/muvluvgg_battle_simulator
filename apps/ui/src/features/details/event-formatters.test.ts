@@ -826,6 +826,90 @@ describe("formatEvent", () => {
     expect(consumption.summary).toContain("2 → 1");
   });
 
+  // Issue #519（R-STA-03）: `kindKey`はCatalog宣言由来の同種グループ鍵になり、
+  // 複数の定義が共有し得る。効果そのものの表示は付与元を名指しできる
+  // `effectActionDefinitionId`へ寄せ、`kindKey`はグループを指すイベントだけで使う。
+  it("names the effect by its definition id, not its kindKey group (EFFECT_APPLIED / EXPIRED / REMOVED)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const applied = formatEvent(
+      event({
+        type: "EFFECT_APPLIED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
+          sourceUnitId: "ally:1",
+          targetUnitId: "ally:1",
+          duplicate: false,
+          kindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP",
+          magnitude: 0.35,
+          durationUnit: "TURN",
+          initialRemaining: 2,
+          linkedEffectGroupId: null,
+        },
+      }),
+      rosterIndex,
+    );
+    const expired = formatEvent(
+      event({
+        type: "EFFECT_EXPIRED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "ally:1",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
+          kindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP",
+          reason: "TIME_LIMIT",
+          linkedEffectGroupId: null,
+          cascaded: false,
+        },
+      }),
+      rosterIndex,
+    );
+    const removed = formatEvent(
+      event({
+        type: "EFFECT_REMOVED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          effectInstanceId: "battle-1:effect:1",
+          battleUnitId: "ally:1",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
+          kindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP",
+          reason: "DISPELLED",
+          linkedEffectGroupId: null,
+          cascaded: false,
+        },
+      }),
+      rosterIndex,
+    );
+
+    for (const presentation of [applied, expired, removed]) {
+      expect(presentation.summary).toContain("ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH");
+      expect(presentation.summary).not.toContain("KIND_ELENA_MOODMAKER_EX_ATK_UP");
+    }
+  });
+
+  // グループ単位のイベントは単一の定義IDを名指しできないため、`kindKey`表示のままにする。
+  it("keeps naming the group by its kindKey in EFFECTIVE_EFFECT_CHANGED (Issue #519)", () => {
+    const rosterIndex = buildRosterIndex(roster);
+    const presentation = formatEvent(
+      event({
+        type: "EFFECTIVE_EFFECT_CHANGED",
+        targetUnitIds: ["ally:1"],
+        details: {
+          battleUnitId: "ally:1",
+          kindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP",
+          before: "battle-1:effect:1",
+          after: "battle-1:effect:2",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain("KIND_ELENA_MOODMAKER_EX_ATK_UP");
+  });
+
   it("resolves EFFECTIVE_EFFECT_CHANGED and COMBAT_STAT_CHANGED (R-EFF-05 / R-STA-04)", () => {
     const rosterIndex = buildRosterIndex(roster);
     const effective = formatEvent(

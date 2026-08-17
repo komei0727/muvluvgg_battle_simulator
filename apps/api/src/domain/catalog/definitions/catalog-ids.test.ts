@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createEffectActionDefinitionId,
+  createEffectKindKey,
   createMarkerId,
   createMemoryDefinitionId,
   createRuntimeCounterId,
@@ -31,6 +32,14 @@ describe("Catalog branded IDs", () => {
     expect(createMemoryDefinitionId("MEM_001")).toBe("MEM_001");
     expect(createTargetBindingId("TGT_PRIMARY")).toBe("TGT_PRIMARY");
     expect(createMarkerId("MARKER_CURSE")).toBe("MARKER_CURSE");
+  });
+
+  it("UT-CAT-ID-009: accepts a well-formed EffectKindKey", () => {
+    expect(createEffectKindKey("KIND_ATTACK_UP")).toBe("KIND_ATTACK_UP");
+  });
+
+  it("UT-CAT-ID-010: rejects an EffectKindKey missing the KIND_ prefix", () => {
+    expect(() => createEffectKindKey("ACT_ATTACK_UP")).toThrow(DomainValidationError);
   });
 
   it("UT-CAT-ID-007: accepts a RuntimeCounterId with no fixed prefix", () => {

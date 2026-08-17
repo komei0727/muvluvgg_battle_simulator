@@ -1,16 +1,58 @@
 import { describe, expect, it } from "vitest";
-import { buildInitialDurationState, effectKindKeyFromDefinitionId } from "./applied-effect.js";
+import {
+  buildInitialDurationState,
+  effectKindKeyFromDefinitionId,
+  effectKindKeyOf,
+} from "./applied-effect.js";
 import { createActionId, createSkillUseId } from "../../shared/event-ids.js";
 import {
+  createEffectActionDefinitionId,
+  createEffectKindKey,
   createRuntimeCounterId,
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 
 describe("effectKindKeyFromDefinitionId", () => {
   it("UT-R-EFF-01-002: derives the EffectKindKey from the EffectActionDefinitionId", () => {
     const definitionId = "EFFECT_ACTION_TEST" as EffectActionDefinitionId;
     expect(effectKindKeyFromDefinitionId(definitionId)).toBe("EFFECT_ACTION_TEST");
+  });
+});
+
+describe("effectKindKeyOf — R-STA-03 同種グループの鍵", () => {
+  function definition(id: string, kindKey?: string): EffectActionDefinition {
+    return {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      ...(kindKey !== undefined ? { kindKey: createEffectKindKey(kindKey) } : {}),
+      metadata: { tags: [] },
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: 0.35 },
+        stacking: { mode: "NON_STACKABLE", max: null },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+    };
+  }
+
+  it("UT-R-STA-03-006: uses the Catalog-declared kindKey when the definition has one", () => {
+    expect(effectKindKeyOf(definition("ACT_ATK_UP_HIGH", "KIND_ATK_UP"))).toBe("KIND_ATK_UP");
+  });
+
+  it("UT-R-STA-03-007: groups distinct definitions that declare the same kindKey under one key", () => {
+    expect(effectKindKeyOf(definition("ACT_ATK_UP_HIGH", "KIND_ATK_UP"))).toBe(
+      effectKindKeyOf(definition("ACT_ATK_UP_LOW", "KIND_ATK_UP")),
+    );
+  });
+
+  it("UT-R-STA-03-008: falls back to the EffectActionDefinitionId when no kindKey is declared", () => {
+    expect(effectKindKeyOf(definition("ACT_ATK_UP_HIGH"))).toBe("ACT_ATK_UP_HIGH");
+    expect(effectKindKeyOf(definition("ACT_ATK_UP_HIGH"))).not.toBe(
+      effectKindKeyOf(definition("ACT_ATK_UP_LOW")),
+    );
   });
 });
 

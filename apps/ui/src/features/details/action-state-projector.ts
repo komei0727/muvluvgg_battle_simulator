@@ -44,11 +44,15 @@ export interface UnitChargeState {
  * （M7-009、Issue #182）。`statusKind`は`APPLY_STATUS`由来の効果だけが持ち、
  * 気絶等の状態異常だけでなくSTEALTH等の有利な状態にも設定される。
  * 状態異常かどうかは`category`が正本であり、`statusKind`の有無や
- * `effectKindKey`の命名からは判定しない。
+ * 定義IDの命名からは判定しない。
+ *
+ * Issue #519: 効果の名前は`effectDefinitionId`で表す。`effectKindKey`は
+ * R-STA-03の同種グループ鍵であり複数の定義が共有し得るため、どの定義由来の
+ * 効果なのかを表せない。
  */
 export interface UnitEffectState {
   readonly effectInstanceId: string;
-  readonly effectKindKey: string;
+  readonly effectDefinitionId: string;
   readonly category: string;
   readonly statusKind?: string;
   readonly isEffective: boolean;
@@ -164,7 +168,7 @@ function readEffectsFromFinalState(finalUnit: unknown): readonly UnitEffectState
     if (
       !isRecord(entry) ||
       typeof entry["effectInstanceId"] !== "string" ||
-      typeof entry["effectKindKey"] !== "string" ||
+      typeof entry["effectDefinitionId"] !== "string" ||
       typeof entry["category"] !== "string" ||
       typeof entry["isEffective"] !== "boolean"
     ) {
@@ -174,7 +178,7 @@ function readEffectsFromFinalState(finalUnit: unknown): readonly UnitEffectState
     const statusKind = entry["statusKind"];
     effects.push({
       effectInstanceId: entry["effectInstanceId"],
-      effectKindKey: entry["effectKindKey"],
+      effectDefinitionId: entry["effectDefinitionId"],
       category: entry["category"],
       ...(typeof statusKind === "string" ? { statusKind } : {}),
       isEffective: entry["isEffective"],

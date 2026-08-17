@@ -4,6 +4,7 @@ import {
   CatalogIntegrityError,
   type CatalogDefinitions,
 } from "./catalog-integrity.js";
+import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import { createEffectActionDefinition } from "../definitions/effect-action-definition-factory.js";
 import { createMemoryDefinition } from "../definitions/memory-definition.js";
@@ -3883,5 +3884,166 @@ describe("buildCatalogIndex", () => {
         effectActions: [...defs.effectActions, freezeWithReapply],
       }),
     ).toThrowError(/duration\.reapply is not/);
+  });
+});
+
+/**
+ * Issue #519（R-STA-03／R-EFF-05）: 同じ`kindKey`を宣言した定義群は1つの同種
+ * グループになる。グループの合成・重複上限は1つの規則で解決されるため、鍵を
+ * 共有しながら合成規則が食い違う定義群はCatalogロード時点で拒否する — 受理すると
+ * 「どの定義から付与されたか」で結果が変わり、グループ鍵の意味が失われる。
+ */
+describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)", () => {
+  function statModWithKindKey(
+    id: string,
+    kindKey: string,
+    payload: {
+      readonly stat?: StatKind;
+      readonly valueType?: "RATIO" | "FIXED";
+      readonly mode?: "STACKABLE" | "NON_STACKABLE";
+      readonly max?: number;
+    } = {},
+  ): EffectActionDefinition {
+    return createEffectActionDefinition(
+      {
+        effectActionDefinitionId: id,
+        kindKey,
+        kind: "APPLY_STAT_MOD",
+        payload: {
+          stat: payload.stat ?? "ATTACK",
+          valueType: payload.valueType ?? "RATIO",
+          formula: { kind: "CONSTANT", value: 0.35 },
+          stacking: {
+            mode: payload.mode ?? "NON_STACKABLE",
+            ...(payload.max !== undefined ? { max: payload.max } : {}),
+          },
+          duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
+        },
+      },
+      "effectAction",
+    );
+  }
+
+  function catalogWith(actions: readonly EffectActionDefinition[]): CatalogDefinitions {
+    const defs = baseDefinitions();
+    return {
+      ...defs,
+      skills: [
+        ...defs.skills,
+        ...actions.map((a, i) => asSkill(`SKL_AS_K${i}`, a.effectActionDefinitionId)),
+      ],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", ...actions.map((_, i) => `SKL_AS_K${i}`)] })],
+      effectActions: [...defs.effectActions, ...actions],
+    };
+  }
+
+  function violationsOf(defs: CatalogDefinitions): readonly CatalogIntegrityViolation[] {
+    try {
+      buildCatalogIndex(defs);
+      return [];
+    } catch (error) {
+      return (error as CatalogIntegrityError).violations;
+    }
+  }
+
+  it("UT-CAT-IDX-108: accepts a kindKey group whose definitions agree on stacking and stat", () => {
+    const index = buildCatalogIndex(
+      catalogWith([
+        statModWithKindKey("ACT_ELENA_ATK_UP_HIGH", "KIND_ELENA_ATK_UP"),
+        statModWithKindKey("ACT_ELENA_ATK_UP_LOW", "KIND_ELENA_ATK_UP"),
+      ]),
+    );
+    expect(index.effectActions.get("ACT_ELENA_ATK_UP_LOW" as never)?.kindKey).toBe(
+      "KIND_ELENA_ATK_UP",
+    );
+  });
+
+  // 上限は`EffectKindKey`単位で数えるため、鍵を共有する定義が違う`max`を宣言すると
+  // 「どの定義で付与しようとしたか」によって同じ保持数の判定が変わる。
+  it("UT-CAT-IDX-109: rejects a kindKey group whose definitions declare different stacking.max values", () => {
+    const violations = violationsOf(
+      catalogWith([
+        statModWithKindKey("ACT_MAX_A", "KIND_SHARED_MAX", { mode: "STACKABLE", max: 3 }),
+        statModWithKindKey("ACT_MAX_B", "KIND_SHARED_MAX", { mode: "STACKABLE", max: 5 }),
+      ]),
+    );
+    expect(
+      violations.some(
+        (v) => v.rule === "INCONSISTENT_EFFECT_KIND_KEY_GROUP" && v.targetId === "ACT_MAX_B",
+      ),
+    ).toBe(true);
+  });
+
+  it("UT-CAT-IDX-110: accepts a kindKey group whose definitions declare the same stacking.max", () => {
+    const index = buildCatalogIndex(
+      catalogWith([
+        statModWithKindKey("ACT_MAX_A", "KIND_SHARED_MAX", { mode: "STACKABLE", max: 3 }),
+        statModWithKindKey("ACT_MAX_B", "KIND_SHARED_MAX", { mode: "STACKABLE", max: 3 }),
+      ]),
+    );
+    expect(index.effectActions.size).toBeGreaterThan(0);
+  });
+
+  // 片方が重複あり・片方が重複なしだと、同じグループの一部だけが最強選択に入る。
+  it("UT-CAT-IDX-111: rejects a kindKey group mixing STACKABLE and NON_STACKABLE", () => {
+    const violations = violationsOf(
+      catalogWith([
+        statModWithKindKey("ACT_MODE_A", "KIND_SHARED_MODE", { mode: "NON_STACKABLE" }),
+        statModWithKindKey("ACT_MODE_B", "KIND_SHARED_MODE", { mode: "STACKABLE" }),
+      ]),
+    );
+    expect(
+      violations.some(
+        (v) => v.rule === "INCONSISTENT_EFFECT_KIND_KEY_GROUP" && v.targetId === "ACT_MODE_B",
+      ),
+    ).toBe(true);
+  });
+
+  // 別ステータス・別valueTypeの補正を同種と宣言するのは定義ミスである
+  // （攻撃力バフと防御力バフのうち強い方1件だけが有効になってしまう）。
+  it.each([
+    { label: "stat", a: { stat: "ATTACK" as const }, b: { stat: "DEFENSE" as const } },
+    {
+      label: "valueType",
+      a: { valueType: "RATIO" as const },
+      b: { stat: "ATTACK" as const, valueType: "FIXED" as const },
+    },
+  ])(
+    "UT-CAT-IDX-112: rejects a kindKey group whose APPLY_STAT_MOD definitions differ in $label",
+    ({ a, b }) => {
+      const violations = violationsOf(
+        catalogWith([
+          statModWithKindKey("ACT_STAT_A", "KIND_SHARED_STAT", a),
+          statModWithKindKey("ACT_STAT_B", "KIND_SHARED_STAT", b),
+        ]),
+      );
+      expect(
+        violations.some(
+          (v) => v.rule === "INCONSISTENT_EFFECT_KIND_KEY_GROUP" && v.targetId === "ACT_STAT_B",
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("UT-CAT-IDX-113: does not group definitions that declare no kindKey, even with identical payloads", () => {
+    const noKindKey = (id: string): EffectActionDefinition =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: 0.35 },
+            stacking: { mode: "STACKABLE", max: 3 },
+            duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
+          },
+        },
+        "effectAction",
+      );
+    const index = buildCatalogIndex(
+      catalogWith([noKindKey("ACT_PLAIN_A"), noKindKey("ACT_PLAIN_B")]),
+    );
+    expect(index.effectActions.get("ACT_PLAIN_A" as never)?.kindKey).toBeUndefined();
   });
 });

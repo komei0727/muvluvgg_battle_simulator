@@ -56,6 +56,22 @@ export function createEffectActionDefinitionId(
   return createPrefixedId("EffectActionDefinitionId", "ACT_", path, value);
 }
 
+/**
+ * `07_戦闘ルール詳細.md` R-STA-03／R-EFF-05が「同種」を括る単位。
+ * `EffectActionDefinition.kindKey`としてCatalogが宣言し、宣言の無い定義は
+ * `EffectActionDefinitionId`そのものをこの鍵として扱う（`applied-effect.ts`の
+ * `effectKindKeyOf`が正本）。定義IDと同じ値域を取り得るため、`EffectKindKey`を
+ * 定義の一意識別子として扱ってはならない — 複数の定義が同じ鍵を共有するのが
+ * この型の目的である。
+ *
+ * `EffectActionDefinitionId`と混同せず「宣言された鍵かどうか」をIDの見た目から
+ * 判別できるよう、宣言する場合の prefix は`KIND_`に固定する。
+ */
+export type EffectKindKey = Brand<string, "EffectKindKey">;
+export function createEffectKindKey(value: string, path = "kindKey"): EffectKindKey {
+  return createPrefixedId("EffectKindKey", "KIND_", path, value);
+}
+
 export type MemoryDefinitionId = Brand<string, "MemoryDefinitionId">;
 export function createMemoryDefinitionId(
   value: string,
