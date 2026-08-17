@@ -603,7 +603,7 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `DamageApplied`           | イベントエンベロープの `sourceUnitId` | `targetUnitId`     |
 | `ContinuousDamageApplied` | イベントエンベロープの `sourceUnitId` | `targetUnitId`     |
 
-- 計上するのは**HPへ向かった量**である。実際に減ったHP量（`hitPointDamage`）に加えて、HPクランプで消えた超過分（`discardedDamage`。撃破ヒットのオーバーキルと、致死ダメージ耐え（R-INT-01 #5）で適用されなかった分の双方）を含める。どちらも防がれた量ではなく、対象のHPが尽きた・止められただけだからである。
+- 計上するのは**HPへ向かった量**である。実際に減ったHP量（`hitPointDamage`）に加えて、HPクランプで消えた超過分（`discardedDamage`。撃破ヒットのオーバーキル、演習でブレイクを保留中（HP0）の敵へ命中したヒットの全量（R-TEX-06 #4）、致死ダメージ耐え（R-INT-01 #5）で適用されなかった分）を含める。いずれも防がれた量ではなく、対象のHPが尽きた・止められただけだからである。
 - シールド吸収（`typedShieldAbsorbed` / `untypedShieldAbsorbed`）・サブユニット吸収（`subUnitAbsorbed`）は含めない。HPへ向かう前に別の耐久値が引き受けた量である。したがって `calculatedDamage` そのものでもない — 本書「DamageApplied payload」の保存則より、計上量は `calculatedDamage` から吸収3項を引いた残りに等しい。
 - この量は戦術演習のスコア**加算**量（R-TEX-02 #2）とまったく同じ定義である。演習で成立する等式は、被ダメージ側の次の1本だけである。
 
