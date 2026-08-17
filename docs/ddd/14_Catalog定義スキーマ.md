@@ -146,8 +146,11 @@ pnpm --filter api run check-catalog-src catalog-src catalog
 | Memory         | `MEM_`         | `MEM_001`        |
 | Target binding | `TGT_`         | `TGT_PRIMARY`    |
 | Marker         | `MARKER_`      | `MARKER_CURSE`   |
+| EffectKindKey  | `KIND_`        | `KIND_ATK_UP`    |
 
 ID は ASCII 英数字、ハイフン、アンダースコアのみ許可する。Catalog 全体で同種 ID は一意でなければならない。
+
+`EffectKindKey`（`EffectActionDefinition.kindKey`）だけは一意性の要件が逆で、**複数の定義が同じ値を共有することが目的**である（`R-STA-03` の同種グループ、Issue #519）。詳細は「[kindKey（同種グループの鍵）](#kindkey同種グループの鍵r-sta-03--r-eff-05issue-519)」を参照。
 
 ---
 
@@ -939,20 +942,49 @@ payload:
 `stacking.mode`（`R-EFF-05` / `R-STA-03`、`M7-012`／Issue #266）:
 
 - `STACKABLE`（重複あり）は保持している全インスタンスを合成する。
-- `NON_STACKABLE`（重複なし）は同じ `EffectKindKey` のグループ内で最も強い1件だけを合成する。
+- `NON_STACKABLE`（重複なし）は同じ `EffectKindKey` のグループ内で最も強い1件だけを合成する。グループの単位は下記の `kindKey` が決める。
 - `NON_STACKABLE` は `APPLY_STAT_MOD` だけが宣言できる。他の `stacking` 保持kind（`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD`）は合成経路が全インスタンスの合算だけを実装しており、受理しても何も変わらない「受理されるが効かない定義」になるため、Mapperは引き続き `STACKABLE` のみを許可する。
 
 `stacking.max`（重複上限、`APPLY_MARKER` の `stack.max` に対応、`APPLY_STAT_MOD` 専用）:
 
 - 1以上の整数、または `null`（上限なし）。省略時は `null`。
-- 対象が同じ `EffectKindKey` のインスタンスを `max` 件保持している場合、それ以上の付与を行わない（`EffectApplied` を発行せず、`EffectActionCompleted.resultKind` は `SKIPPED` になる）。
-- production例は `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`（`max: 14`）。Marker「負けん気」の `stack.max: 14` と1対1で対応する攻撃力バフである。
+- 対象が同じ `EffectKindKey` のインスタンスを `max` 件保持している場合、それ以上の付与を行わない（`EffectApplied` を発行せず、`EffectActionCompleted.resultKind` は `SKIPPED` になる）。数える単位は `NON_STACKABLE` の最強選択と同じ `EffectKindKey` であり、`kindKey` を宣言した定義群では定義をまたいで1つの上限を数える（Issue #519）。
+- production例は `ACT_TARISA_TROUBLEMAKER_PS1_ATK_UP`（`max: 14`）。Marker「負けん気」の `stack.max: 14` と1対1で対応する攻撃力バフである。`kindKey` を宣言していないため、従来どおり定義ID単位で数える。
 
 ```yaml
 stacking:
   mode: STACKABLE
   max: 14
 ```
+
+#### kindKey（同種グループの鍵、`R-STA-03` / `R-EFF-05`、Issue #519）
+
+`EffectActionDefinition` の任意フィールドであり、`payload` ではなく `effectActionDefinitionId` と同じ定義直下に置く。
+
+```yaml
+effectActionDefinitionId: ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH
+kindKey: KIND_ELENA_MOODMAKER_EX_ATK_UP
+kind: APPLY_STAT_MOD
+payload: ...
+```
+
+| フィールド | 型     | 必須 | 制約                                   |
+| ---------- | ------ | ---- | -------------------------------------- |
+| `kindKey`  | string | —    | prefix `KIND_`。ID体系の文字種に従う。 |
+
+- 同じ `kindKey` を宣言した定義群が `R-STA-03` の1グループになる（`NON_STACKABLE` の最強選択と `stacking.max` の重複数が、この単位で解決される）。
+- **省略した定義は `EffectActionDefinitionId` そのものが `EffectKindKey` になる。** したがって `kindKey` を宣言しない定義は「同じ定義からの付与だけが同種」という粒度のままであり、宣言を追加しない限り挙動は変わらない。
+- 宣言する用途は、1つのスキルが同一のバフを実装都合で複数の定義へ分けて配る構造である（`SKL_ELENA_MOODMAKER_EX` は攻撃力35%増加を `HIGHEST_ATTACK` / `LOWEST_ATTACK` の2対象へ配るため `..._HIGH` / `..._LOW` の2定義に分かれる）。定義ID単位のままでは両方が有効になり加算されてしまう。
+- 定義の一意識別子ではない — 同じ鍵を複数の定義が共有するのがこの field の目的である。定義を名指しする参照（`REMOVE_EFFECTS.effectActionDefinitionIds` や `TARGET_HAS_EFFECT` 等）には引き続き `effectActionDefinitionId` を使う。
+- 構造（`stat`・`valueType`・符号）からの自動導出は採らない。別ユニット由来の同種バフまで1グループへ畳んでしまい、実ゲームの「別キャラのバフは重複する」と食い違うためである。
+
+Catalogロード時点で、同じ `kindKey` を共有する定義群へ次を強制する（違反は `INCONSISTENT_EFFECT_KIND_KEY_GROUP`）。グループは単一の規則で解決されるため、規則が食い違う定義群を受理すると「どの定義から付与されたか」で結果が変わり、グループ鍵の意味が失われる。
+
+- `stacking.mode` が混在していないこと（`STACKABLE` と `NON_STACKABLE` の混在を拒否する）。
+- `stacking.max` が全定義で同じ値であること（バラバラの `max` は、同じ保持数でもどの定義で付与しようとしたかによって上限判定が変わるため拒否する）。
+- `APPLY_STAT_MOD` どうしでは `stat` と `valueType` が一致していること（攻撃力バフと防御力バフのうち強い1件だけが有効になる定義ミスを弾く）。
+
+`kindKey` は `EffectApplied.details.kindKey` として公開APIへ出る（`08_ドメインイベント.md`）。宣言した定義ではこの値が定義IDから `KIND_*` へ変わるが、スキーマ形状は変わらず、`effectActionDefinitionId` も併せて運び続ける。
 
 `AFFINITY_BONUS` と `CRITICAL_DAMAGE_BONUS` は Unit の `baseStats` に保持する。Catalog作成時の初期値はそれぞれ `0.25` と `0.5` だが、Unitごとの上書きと `APPLY_STAT_MOD` による一時補正の対象にできる。
 

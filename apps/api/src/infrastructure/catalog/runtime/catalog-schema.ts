@@ -200,6 +200,9 @@ export const effectActionDefinitionSchema = {
   required: ["effectActionDefinitionId", "kind", "payload"],
   properties: {
     effectActionDefinitionId: idSchema("ACT_"),
+    // Issue #519（R-STA-03／R-EFF-05）: 任意。省略した定義は
+    // `effectActionDefinitionId`が同種グループの鍵になる。
+    kindKey: idSchema("KIND_"),
     kind: {
       enum: [
         "DAMAGE",

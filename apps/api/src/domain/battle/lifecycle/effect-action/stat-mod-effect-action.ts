@@ -51,7 +51,7 @@ export const resolveApplyStatMod: SteppedEffectActionHandler<"APPLY_STAT_MOD"> =
   if (
     isStackLimitReached(
       requireUnit(box.units, application.targetUnitId),
-      effectAction.effectActionDefinitionId,
+      effectAction,
       effectAction.payload.stacking.max,
     )
   ) {

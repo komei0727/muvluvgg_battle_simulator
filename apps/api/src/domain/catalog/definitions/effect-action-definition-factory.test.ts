@@ -2090,6 +2090,44 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  // Issue #519（R-STA-03／R-EFF-05）: 同種グループの鍵をCatalogが宣言する
+  // `kindKey`。宣言しない定義は`EffectActionDefinitionId`が鍵になる。
+  describe("kindKey (R-STA-03 同種グループの鍵)", () => {
+    const base = {
+      effectActionDefinitionId: "ACT_STAT_MOD_KIND_KEY",
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: 0.35 },
+        stacking: { mode: "NON_STACKABLE" },
+        duration: { timeLimit: { unit: "ACTION", count: 2 } },
+      },
+    } as const;
+
+    it("UT-CAT-ACT-115: maps a declared kindKey onto the definition", () => {
+      const result = createEffectActionDefinition(
+        { ...base, kindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP" },
+        "effectAction",
+      );
+      expect(result.kindKey).toBe("KIND_ELENA_MOODMAKER_EX_ATK_UP");
+    });
+
+    it("UT-CAT-ACT-116: omits kindKey entirely when the definition does not declare one", () => {
+      const result = createEffectActionDefinition(base, "effectAction");
+      expect(result.kindKey).toBeUndefined();
+      expect("kindKey" in result).toBe(false);
+    });
+
+    it("UT-CAT-ACT-117: rejects a kindKey missing the KIND_ prefix", () => {
+      for (const kindKey of ["ACT_STAT_MOD_KIND_KEY", "ATK_UP", ""]) {
+        expect(() => createEffectActionDefinition({ ...base, kindKey }, "effectAction")).toThrow(
+          DomainValidationError,
+        );
+      }
+    });
+  });
+
   describe("APPLY_PIERCING_MOD (TEMP_PIERCING_GRANT, DMG-003/Issue #196)", () => {
     const base = {
       effectActionDefinitionId: "ACT_TEMP_PIERCING",

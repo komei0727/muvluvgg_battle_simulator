@@ -1,4 +1,4 @@
-import type { EffectActionDefinitionId } from "./catalog-ids.js";
+import type { EffectActionDefinitionId, EffectKindKey } from "./catalog-ids.js";
 import type {
   ApplyAttackDamageBonusPayload,
   ApplyFollowUpAttackPayload,
@@ -103,6 +103,19 @@ export type EffectActionPayload =
 
 export type EffectActionDefinition = EffectActionPayload & {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
+  /**
+   * R-STA-03／R-EFF-05（Issue #519）: この定義から付与された効果を「同種」として
+   * 括る鍵。1つのスキルが同じバフを実装都合で複数の定義へ分けている場合や、
+   * 別スキル由来の効果を同種として1グループへまとめたい場合に宣言する。
+   * 省略した定義は`EffectActionDefinitionId`そのものが鍵になる
+   * （`applied-effect.ts`の`effectKindKeyOf`が正本）ため、宣言しない限り
+   * 「同じ定義からの付与だけが同種」という従来の粒度のままである。
+   *
+   * 定義の識別子ではない — 同じ鍵を宣言した複数の定義が1グループになるのが
+   * この field の目的であり、定義を名指ししたい用途には
+   * `effectActionDefinitionId`を使う。
+   */
+  readonly kindKey?: EffectKindKey;
   readonly metadata: { readonly tags: readonly string[] };
 };
 
@@ -111,6 +124,7 @@ export type EffectActionDefinition = EffectActionPayload & {
 export interface EffectActionDefinitionInput {
   readonly effectActionDefinitionId: string;
   readonly kind: string;
+  readonly kindKey?: string;
   readonly payload: Record<string, unknown>;
   readonly metadata?: { readonly tags?: readonly string[] };
 }

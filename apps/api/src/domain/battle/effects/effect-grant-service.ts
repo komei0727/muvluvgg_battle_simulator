@@ -1,6 +1,6 @@
 import {
   buildInitialDurationState,
-  effectKindKeyFromDefinitionId,
+  effectKindKeyOf,
   type AppliedEffect,
   type ContinuousDamageState,
   type CoverState,
@@ -27,7 +27,6 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { StatusKind } from "../../catalog/definitions/effect-action-payload.js";
@@ -147,11 +146,17 @@ const STATUS_KINDS_AGGREGATED_ON_REAPPLY: ReadonlySet<StatusKind> = new Set<Stat
  * 再付与が`statusKind`単位で1インスタンスへ集約される状態異常
  * （`STATUS_KINDS_AGGREGATED_ON_REAPPLY`）だけは`statusKind`で一致させる —
  * raw原文も付与元スキルを限定していない（「対象に1行動の気絶が付与されていた
- * 場合」）ためである。それ以外はすべて`kindKey`（`EffectActionDefinitionId`
- * そのもの）で一致させる。
+ * 場合」）ためである。それ以外はすべて`EffectActionDefinitionId`で一致させる。
+ *
+ * Issue #519: R-STA-03の同種グループ鍵（`EffectKindKey`）がCatalog宣言由来に
+ * なった後も、ここだけは定義ID単位に据え置く。`statusKind`集約は「一致した既存
+ * インスタンスへ集約して新規を作らない」という付与サービス側の挙動と一組であり、
+ * 一致判定だけを新しい鍵へ寄せると、集約しない効果まで別定義のインスタンスを
+ * 見て期間を差し替える片肺の状態になる。気絶を配る全定義へ同じ`kindKey`を宣言して
+ * この特例自体を畳む統合は別Issueで行う。
  *
  * 一致インスタンスが複数ある場合は残り回数が最大のものと比較する。集約される
- * 状態異常は常に1件だけだが、`kindKey`一致の重複あり効果は複数残り得るため、
+ * 状態異常は常に1件だけだが、同一定義由来の重複あり効果は複数残り得るため、
  * どれと比較するかを付与順のような不安定な基準に委ねない。
  */
 export function resolveDurationOnReapply(
@@ -164,7 +169,7 @@ export function resolveDurationOnReapply(
   if (reapply === undefined || timeLimit === undefined) {
     return duration;
   }
-  const kindKey = effectKindKeyFromDefinitionId(request.definition.effectActionDefinitionId);
+  const effectActionDefinitionId = request.definition.effectActionDefinitionId;
   const aggregatedStatusKind =
     request.statusKind !== undefined && STATUS_KINDS_AGGREGATED_ON_REAPPLY.has(request.statusKind)
       ? request.statusKind
@@ -172,7 +177,7 @@ export function resolveDurationOnReapply(
   const matches = target.appliedEffects.filter((effect) =>
     aggregatedStatusKind !== undefined
       ? effect.statusKind === aggregatedStatusKind
-      : effect.kindKey === kindKey,
+      : effect.effectActionDefinitionId === effectActionDefinitionId,
   );
   if (matches.length === 0) {
     return duration;
@@ -198,9 +203,12 @@ export function resolveDurationOnReapply(
  * `SKL_TARISA_TROUBLEMAKER_PS1`「「負けん気」は最大14個まで所持できる」に対応する
  * 攻撃力バフ側の上限。
  *
- * 重複数の単位は`EffectKindKey`（現状は`EffectActionDefinitionId`そのもの、
- * `applied-effect.ts`）— R-EFF-05が同種グループを括る単位と同じものを使い、
- * 別定義由来の同種statバフを巻き込まない。
+ * 重複数の単位は`EffectKindKey`（`applied-effect.ts`の`effectKindKeyOf`）—
+ * R-EFF-05「同時に保持できる同種インスタンス数」が同種を括る単位と同じものを使う。
+ * `kindKey`を宣言しない定義ではこれが定義IDそのものになり、別定義由来の同種stat
+ * バフを巻き込まない。宣言した定義群は、意図どおり定義をまたいで1つの上限を数える
+ * （鍵を共有する定義群が食い違う`max`を宣言していないことはCatalogロード時に
+ * `INCONSISTENT_EFFECT_KIND_KEY_GROUP`が保証する）。
  *
  * `APPLY_MARKER.stack.max`が単一`MarkerState`のスタック数をclampする
  * （`clampMarkerStack`）のに対し、`AppliedEffect`は「重複あり・重複なしの
@@ -212,13 +220,13 @@ export function resolveDurationOnReapply(
  */
 export function isStackLimitReached(
   target: BattleUnit,
-  effectActionDefinitionId: EffectActionDefinitionId,
+  definition: EffectActionDefinition,
   max: number | null,
 ): boolean {
   if (max === null) {
     return false;
   }
-  const kindKey = effectKindKeyFromDefinitionId(effectActionDefinitionId);
+  const kindKey = effectKindKeyOf(definition);
   return target.appliedEffects.filter((effect) => effect.kindKey === kindKey).length >= max;
 }
 
@@ -236,7 +244,7 @@ export function grantEffect(
 ): GrantEffectResult {
   const target = requireUnit(units, request.targetUnitId);
   const effectActionDefinitionId = request.definition.effectActionDefinitionId;
-  const kindKey = effectKindKeyFromDefinitionId(effectActionDefinitionId);
+  const kindKey = effectKindKeyOf(request.definition);
   // R-EFF-12（M7-014、Issue #268）: 以降はCatalog上の`durationDefinition`ではなく
   // 再付与解決後のものを正本にする（`AppliedEffect.duration.definition`にも
   // これが入り、次回の再付与判定は解決後の残り回数と比較される）。
@@ -345,8 +353,8 @@ export function grantEffect(
       // M7-011（Issue #265、`EFFECT_APPLIED_CLASSIFICATION_PAYLOAD`）:
       // `TriggerDefinition.condition`の`EVENT_PAYLOAD`が「デバフが付与された際」
       // 「状態異常が付与された際」を表現できるようにする分類フィールド。
-      // `kindKey`は`EffectActionDefinitionId`そのもの（定義ごとに一意）で分類には
-      // 使えないため、効果の種類（`effectKind`）と、解除・免疫判定の正本である
+      // `kindKey`は同種グループの鍵であって分類軸ではない（Issue #519以降は
+      // 複数定義が共有し得る）ため、効果の種類（`effectKind`）と、解除・免疫判定の正本である
       // `effect-category-classifier.ts`が導く分類集合（`categories`）を併せて運ぶ。
       // `categories`は複数値（R-STS-01「状態異常はデバフの一種」の`APPLY_STATUS`は
       // `STATUS`と`DEBUFF`の両方）を取るため配列とし、`op: CONTAINS`で判定する。

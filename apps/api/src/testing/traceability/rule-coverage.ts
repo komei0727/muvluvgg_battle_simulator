@@ -287,6 +287,16 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     testCaseIds: ["UT-R-STA-02-001", "UT-R-STA-02-002"],
     kinds: ["POSITIVE", "BOUNDARY"],
   },
+  // R-STA-03の同種グループ鍵（`EffectKindKey`）はIssue #519でCatalog宣言由来に
+  // なった。`selectNonStackableWinners`/`combineEffects`は鍵に対して不可知のまま
+  // （UT-R-STA-03-001〜005が選択規則そのものを検証する）で、変わったのは鍵の
+  // 導出（`effectKindKeyOf`）と、それを付与時に焼き込む経路である。
+  // - 導出規則（宣言優先・省略時は定義ID）: UT-R-STA-03-006〜008
+  // - 付与インスタンスと`EffectApplied`が運ぶ鍵: UT-R-STA-03-009
+  // - 鍵を共有する2定義がCombatStat合成で1件へ絞られること／宣言が無ければ
+  //   従来どおり別グループのままであること: UT-R-STA-03-010/011
+  // - Catalog authoring側（`kindKey`のパースと同種グループの一貫性検証）:
+  //   UT-CAT-ACT-115〜117・UT-CAT-IDX-108/111/112/113
   {
     ruleId: "R-STA-03",
     testCaseIds: [
@@ -295,8 +305,21 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-STA-03-003",
       "UT-R-STA-03-004",
       "UT-R-STA-03-005",
+      "UT-R-STA-03-006",
+      "UT-R-STA-03-007",
+      "UT-R-STA-03-008",
+      "UT-R-STA-03-009",
+      "UT-R-STA-03-010",
+      "UT-R-STA-03-011",
+      "UT-CAT-ACT-115",
+      "UT-CAT-ACT-116",
+      "UT-CAT-ACT-117",
+      "UT-CAT-IDX-108",
+      "UT-CAT-IDX-111",
+      "UT-CAT-IDX-112",
+      "UT-CAT-IDX-113",
     ],
-    kinds: ["POSITIVE", "PROPERTY"],
+    kinds: ["POSITIVE", "NEGATIVE", "PROPERTY"],
   },
   {
     ruleId: "R-STA-04",
@@ -2855,6 +2878,16 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-ACT-082",
       "IT-UNIT-TARISA-TROUBLEMAKER-004",
       "IT-UNIT-TARISA-TROUBLEMAKER-005",
+      // Issue #519: `stacking.max`の重複数も、R-EFF-05の文言どおり同種
+      // （`EffectKindKey`）単位で数える。鍵を宣言した定義群は定義をまたいで1つの
+      // 上限を数え（UT-R-EFF-05-022）、宣言の無い定義は定義ID単位のまま
+      // （UT-R-EFF-05-023、実Catalogの`max: 14`は上のIT-が引き続き担う）。
+      // 鍵を共有する定義群が食い違う`max`を宣言できないことはCatalogロード時に
+      // 保証する（UT-CAT-IDX-109/110）。
+      "UT-R-EFF-05-022",
+      "UT-R-EFF-05-023",
+      "UT-CAT-IDX-109",
+      "UT-CAT-IDX-110",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
@@ -3300,6 +3333,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-12-005",
       "UT-R-EFF-12-006",
       "UT-R-EFF-12-007",
+      // Issue #519: 「同じ効果」の一致判定はR-STA-03の同種グループ鍵へ寄せず
+      // `EffectActionDefinitionId`単位に据え置く（据え置きの回帰）。
+      "UT-R-EFF-12-008",
       "UT-CAT-IDX-090",
       "UT-CAT-IDX-091",
       "IT-UNIT-SIENA-DIVA-004",

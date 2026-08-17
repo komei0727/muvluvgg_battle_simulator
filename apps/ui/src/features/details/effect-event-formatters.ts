@@ -110,6 +110,10 @@ function formatHealingTransferred(
 // R-EFF-01/05（EFF-001〜002）: 付与。`statusKind`を持つ付与（`APPLY_STATUS`由来）は
 // 種別をそのまま表示し、定義IDの命名規則から推測しない。
 //
+// 効果そのものの名前は`effectActionDefinitionId`で表す。`kindKey`（R-STA-03の同種
+// グループ鍵）はCatalog宣言由来であり複数の定義が共有し得るため、どの定義から
+// 付与されたのかを表せない。
+//
 // `statusKind`は気絶・凍結・暗闇（`STATUS_AILMENT_KINDS`）だけでなくSTEALTH・
 // EVASION・DAMAGE_IMMUNITY等の有利な状態にも設定される。R-STS-01のどちらに当たるかは
 // Domainの`effect-category-classifier.ts`が正本であり、`EffectApplied`のdetailsは
@@ -125,7 +129,7 @@ function formatEffectApplied(
   if (
     !isRecord(details) ||
     typeof details["targetUnitId"] !== "string" ||
-    typeof details["kindKey"] !== "string" ||
+    typeof details["effectActionDefinitionId"] !== "string" ||
     typeof details["duplicate"] !== "boolean"
   ) {
     return undefined;
@@ -136,7 +140,7 @@ function formatEffectApplied(
   const duplicateText = details["duplicate"] ? "、重複あり" : "";
   return {
     title: event.type,
-    summary: `${resolveOrigin(event, details, roster)} → ${resolveDisplayName(roster, details["targetUnitId"])}へ${statusText}${details["kindKey"]}${statusTextEnd}を付与しました${durationText(details)}${duplicateText}。`,
+    summary: `${resolveOrigin(event, details, roster)} → ${resolveDisplayName(roster, details["targetUnitId"])}へ${statusText}${details["effectActionDefinitionId"]}${statusTextEnd}を付与しました${durationText(details)}${duplicateText}。`,
     details,
     severity: "neutral",
   };
@@ -168,14 +172,17 @@ function formatEffectApplicationRejected(
   };
 }
 
-/** `EffectExpired`（失効、R-EFF-04/06/07/08/09）と`EffectRemoved`（解除、R-EFF-02/09）は同じ形。 */
+/**
+ * `EffectExpired`（失効、R-EFF-04/06/07/08/09）と`EffectRemoved`（解除、R-EFF-02/09）は同じ形。
+ * `formatEffectApplied`と同じ理由で、効果の名前は`effectActionDefinitionId`で表す。
+ */
 function effectLifecycleEndFormatter(verb: string): EventFormatter {
   return (event, roster) => {
     const details = event["details"];
     if (
       !isRecord(details) ||
       typeof details["battleUnitId"] !== "string" ||
-      typeof details["kindKey"] !== "string" ||
+      typeof details["effectActionDefinitionId"] !== "string" ||
       typeof details["reason"] !== "string" ||
       typeof details["cascaded"] !== "boolean"
     ) {
@@ -184,7 +191,7 @@ function effectLifecycleEndFormatter(verb: string): EventFormatter {
     const cascadedText = details["cascaded"] ? "、連動グループの連鎖" : "";
     return {
       title: event.type,
-      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${details["kindKey"]}」が${verb}しました（理由: ${details["reason"]}${cascadedText}）。`,
+      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${details["effectActionDefinitionId"]}」が${verb}しました（理由: ${details["reason"]}${cascadedText}）。`,
       details,
       severity: "neutral",
     };
@@ -216,6 +223,9 @@ function effectRemainingChangeFormatter(label: string, unitKey: string): EventFo
 
 // R-EFF-05: 同種グループで採用中のインスタンスが入れ替わった。before/afterは
 // グループに1件も採用中が無い場合だけ欠ける（その場合は「なし」と表示する）。
+//
+// これはグループ単位のイベントであり単一の定義IDを名指しできないため、他の効果
+// イベントと違い`kindKey`（R-STA-03の同種グループ鍵）をそのまま表示するのが正しい。
 function formatEffectiveEffectChanged(
   event: BattleLogEventResponse,
   roster: RosterIndex,
