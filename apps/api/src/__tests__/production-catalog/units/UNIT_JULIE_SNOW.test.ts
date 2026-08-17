@@ -448,7 +448,7 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
 
   it("IT-UNIT-JULIE-SNOW-004 (Q-CAT-EFF-16): PS2の回復量30%減少は原文に「重複可」が無く重複しない — 対象が既に保持していれば付与stepごと実行されない", () => {
     // `APPLY_HEALING_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
-    // 無いため、2件目を作らないことで重複なしへ揃える（`BRANCH` のelse腕）。
+    // 無いため、2件目を作らないことで重複なしへ揃える（`targetCondition` のfalse側）。
     const observed = observeSkillUse({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -474,5 +474,56 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
     expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).toContain(
       "ACT_JULIE_SNOW_PS2_BURN",
     );
+  });
+
+  it("IT-UNIT-JULIE-SNOW-005 (BOUNDARY, Q-CAT-EFF-16, R-SKL-06): 契機が複数の敵へ解決するとき、既に保持している対象だけが除外され、残りには付与される", () => {
+    // `TGT_ATTACKED` は `TRIGGER_TARGET` で複数体へ解決するため `BRANCH`
+    // （step全体を一度だけ評価する）では表せない。ACTIONの `targetCondition` は
+    // 対象ごとに評価されるという、この選択そのものを固定する。
+    // 前提アクションは `ENEMY_ONE`（`DEFAULT`順の1体＝`enemy:front`）へ解決する。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_JULIE_SNOW_PS2",
+        trigger: skillUseCompleted({
+          actor: "ally:subject",
+          targets: ["enemy:front", "enemy:left", "enemy:back"],
+          skillType: "AS",
+        }),
+        triggeredBy: "ally:subject",
+      },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", target: "ENEMY" },
+      ],
+    });
+
+    // 炎上は3体すべてへ。回復量デバフは保持していない2体だけへ。
+    expect(observed.actions).toEqual([
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:front"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:left"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:back"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: ["enemy:left"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: ["enemy:back"] },
+    ]);
+    expect(
+      observed.effectsApplied?.filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+      ),
+    ).toEqual([
+      {
+        unitId: "enemy:left",
+        effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+        magnitude: -0.3,
+        timeLimit: { unit: "ACTION", count: 2 },
+      },
+      {
+        unitId: "enemy:back",
+        effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+        magnitude: -0.3,
+        timeLimit: { unit: "ACTION", count: 2 },
+      },
+    ]);
   });
 });

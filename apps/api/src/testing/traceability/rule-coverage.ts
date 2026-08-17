@@ -337,6 +337,11 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-UNIT-RAVEL-MODEL-004",
       "IT-UNIT-SIENA-DIVA-008",
       "IT-UNIT-SIENA-DIVA-009",
+      // 同種の鍵は付与元`BattleUnitId`を含まないため、R-FRM-03で同じ
+      // `UnitDefinitionId`を2枠編成しても1グループのままである。重複してよいかを
+      // 決めるのは付与元の数ではなく原文の記載であることを、記載の無いAS2と
+      // 「重複可」付きのPS1が同じ盤面で分かれることで固定する。
+      "IT-UNIT-CLARA-TSUNDERE-007",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "PROPERTY", "BOUNDARY", "SCENARIO"],
   },
@@ -1023,6 +1028,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-UNIT-AOI-ELEGANT-011",
       "IT-UNIT-OLGA-VETERAN-008",
       "IT-UNIT-JULIE-SNOW-004",
+      // `targetCondition` を選んだ理由そのもの — 契機が複数体へ解決するとき、
+      // 保持済みの対象だけが除外され残りには付与されること（対象ごとの評価）。
+      "IT-UNIT-JULIE-SNOW-005",
       "UT-R-SKL-06-056",
       "UT-R-SKL-06-057",
       "UT-R-SKL-06-058",

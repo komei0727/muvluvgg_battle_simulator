@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { computeCombatStats } from "../../../domain/battle/effects/combat-stat-recalculation-service.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId } from "../../../domain/shared/ids.js";
+import {
+  loadProductionSnapshot,
+  noMissNoCrit,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -28,6 +39,14 @@ import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-
  * を1行ずつ宣言する。`intent` は原文の該当句で、`raw/` がCIに存在しない以上、
  * 転記が正しいかをレビューできる唯一の接点になる。
  */
+
+function unitOf(units: readonly BattleUnit[], battleUnitId: string): BattleUnit {
+  const found = units.find((unit) => unit.battleUnitId === battleUnitId);
+  if (found === undefined) {
+    throw new Error(`unit "${battleUnitId}" is not on the board`);
+  }
+  return found;
+}
 
 const UNIT_DEFINITION_ID = "UNIT_CLARA_TSUNDERE";
 
@@ -546,5 +565,66 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
     // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
     expect(instanceCount).toBe(2);
     expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.2), 10);
+  });
+
+  it("IT-UNIT-CLARA-TSUNDERE-007 (BOUNDARY, R-FRM-03, R-STA-03): 同じUnitDefinitionを2枠編成し同じ敵を殴っても、「重複可」の無いAS2デバフは1件分のまま。同じ2枠から配られる「重複可」付きPS1デバフは積み増す", () => {
+    // R-FRM-03は同じ`UnitDefinitionId`を同一陣営へ複数指定でき、効果は
+    // `BattleUnitId`単位で保持すると定める。一方R-STA-03の同種グループの鍵は
+    // `EffectKindKey`（宣言が無ければ`EffectActionDefinitionId`）であり付与元を
+    // 含まない。同じキャラの同じスキルである以上、枠が2つあることは原文が
+    // 書いていない「重複可」の根拠にはならない。重複してよいかどうかを決めるのは
+    // 付与元の数ではなく原文の記載であり、それはAS2とPS1で書き分けられている。
+    // 敵1体だけの盤面にして、2体のクララの`DEFAULT`順の解決先を同じ敵へ揃える。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      allies: [
+        {
+          id: "ally:clara2",
+          unitDefinitionId: UNIT_DEFINITION_ID,
+          position: { column: "LEFT", row: "FRONT" },
+        },
+      ],
+      enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+    });
+    const recorder = new EventRecorder(createBattleId("B_CLARA_DUPLICATE"));
+    const skill = skillFrom(snapshot, "SKL_CLARA_TSUNDERE_AS2");
+
+    let units = board.units;
+    for (const [index, actorUnitId] of ["ally:subject", "ally:clara2"].entries()) {
+      units = resolveSkillUse(
+        unitOf(units, actorUnitId),
+        skill,
+        "AS",
+        "AS",
+        units,
+        board.definitions,
+        noMissNoCrit(),
+        recorder,
+        1,
+        0,
+        createActionId(`B_CLARA_DUPLICATE:action:${index + 1}`),
+        recorder.nextResolutionScopeId(),
+      ).units;
+    }
+
+    const target = unitOf(units, "enemy:front");
+    const held = (id: string) =>
+      target.appliedEffects.filter((effect) => effect.effectActionDefinitionId === id);
+    // 付与そのものは2体分とも起きている（`NON_STACKABLE`は付与を止めない）。
+    expect(held("ACT_CLARA_TSUNDERE_AS2_DEF_DOWN")).toHaveLength(2);
+    expect(held("ACT_CLARA_TSUNDERE_AS2_ATK_DOWN")).toHaveLength(2);
+    expect(held("ACT_CLARA_TSUNDERE_PS1_DEF_DOWN")).toHaveLength(2);
+    expect(
+      new Set(held("ACT_CLARA_TSUNDERE_AS2_DEF_DOWN").map((effect) => effect.sourceUnitId)),
+    ).toEqual(new Set(["ally:subject", "ally:clara2"]));
+
+    const composed = computeCombatStats(target, board.definitions.effectActions).combatStats;
+    // 攻撃力にはAS2しか効かない。2体が付与しても`NON_STACKABLE`の最強選択で-20%。
+    expect(composed.attack).toBeCloseTo(target.baseCombatStats.attack * (1 - 0.2), 10);
+    // 防御力にはAS2（重複なし、-20%が1件分）とPS1（原文に「重複可」、-30%が2件分）が
+    // 重なる。同じ2枠から配られていても、記載どおり片方だけが積み増す。
+    expect(composed.defense).toBeCloseTo(
+      target.baseCombatStats.defense * (1 - 0.2 - 0.3 - 0.3),
+      10,
+    );
   });
 });
