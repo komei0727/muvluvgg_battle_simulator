@@ -31,6 +31,7 @@ import {
   turnCompleting,
   unitBeingAttacked,
 } from "../../../testing/production-unit/trigger-events.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
  * `UNIT_KARINA_DOWNER`（【ダウナーギャルな副委員長】カリナ・ジェンティーレ）の
@@ -799,5 +800,20 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
       published: { baseDelta: EX_EARNER_AS_COST, delta: 3, before: 0, after: 3 },
       modifiers: [{ effectActionDefinitionId: EX_GAIN_UP, magnitude: 0.5, instances: 1 }],
     });
+  });
+
+  it("IT-UNIT-KARINA-DOWNER-009 (Q-CAT-EFF-16, R-STA-03): EXの攻撃力30%低下は原文に「重複可」が無く重複しない — 2行動の効果が残っているうちにEXを撃ち直しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_KARINA_DOWNER_EX_ATKDOWN",
+      target: "ENEMY",
+      stat: "attack",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.3), 10);
   });
 });

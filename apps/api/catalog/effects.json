@@ -684,7 +684,7 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.35 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "metadata": { "tags": [] }
@@ -696,7 +696,7 @@
       "stat": "CRITICAL_RATE",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -0.075 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -708,7 +708,7 @@
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -0.25 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -1529,7 +1529,7 @@
       "stat": "DEFENSE",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.2 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -1541,7 +1541,7 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.2 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -1848,11 +1848,12 @@
   {
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
     "kind": "APPLY_STAT_MOD",
+    "kindKey": "KIND_ELENA_MOODMAKER_EX_ATK_UP",
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.35 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -1872,11 +1873,12 @@
   {
     "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
     "kind": "APPLY_STAT_MOD",
+    "kindKey": "KIND_ELENA_MOODMAKER_EX_ATK_UP",
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.35 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -2262,7 +2264,7 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.3 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -2274,7 +2276,7 @@
       "stat": "ACTION_SPEED",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -100 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -3164,7 +3166,7 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "metadata": { "tags": [] }
@@ -3867,7 +3869,7 @@
       "stat": "ATTACK",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.15 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -7381,7 +7383,7 @@
       "stat": "DEFENSE",
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "metadata": { "tags": [] }
@@ -8842,7 +8844,7 @@
       "stat": "CRITICAL_RATE",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
     "metadata": { "tags": [] }
@@ -8854,7 +8856,7 @@
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -0.5 },
-      "stacking": { "mode": "STACKABLE" },
+      "stacking": { "mode": "NON_STACKABLE" },
       "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
     },
     "metadata": { "tags": [] }

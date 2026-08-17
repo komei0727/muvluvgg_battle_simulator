@@ -333,7 +333,28 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN"
-            },
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ATTACKED"
+          },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_ATTACKED"
+              },
+              "categories": ["DEBUFF"],
+              "effectActionDefinitionIds": ["ACT_JULIE_SNOW_PS2_HEALING_DOWN"]
+            }
+          },
+          "actions": [
             {
               "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_HEALING_DOWN"
             }

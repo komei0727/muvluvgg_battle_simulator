@@ -247,9 +247,24 @@
           ]
         },
         {
-          "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "SELF" },
+              "categories": ["DAMAGE_MOD"],
+              "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD"]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
+            }
+          ],
+          "elseSteps": []
         },
         {
           "kind": "ACTION",

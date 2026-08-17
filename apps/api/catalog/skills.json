@@ -1299,9 +1299,24 @@
           ]
         },
         {
-          "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "SELF" },
+              "categories": ["DAMAGE_MOD"],
+              "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD"]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS2_SELF_DAMAGE_MOD" }]
+            }
+          ],
+          "elseSteps": []
         },
         {
           "kind": "ACTION",
@@ -3220,20 +3235,98 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGH" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH" },
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH" },
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGH" },
+              "categories": ["DAMAGE_MOD"],
+              "effectActionDefinitionIds": [
+                "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
+                "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW"
+              ]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGH" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH" }]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGH" },
+              "categories": ["BUFF"],
+              "effectActionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGH" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE" }]
+            }
+          ],
+          "elseSteps": []
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW" },
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW" },
-            { "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW" },
+              "categories": ["DAMAGE_MOD"],
+              "effectActionDefinitionIds": [
+                "ACT_ELENA_MOODMAKER_EX_DMGUP_HIGH",
+                "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW"
+              ]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_DMGUP_LOW" }]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW" },
+              "categories": ["BUFF"],
+              "effectActionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW" },
+              "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },
@@ -5330,10 +5423,21 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN" },
-            { "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_HEALING_DOWN" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+              "categories": ["DEBUFF"],
+              "effectActionDefinitionIds": ["ACT_JULIE_SNOW_PS2_HEALING_DOWN"]
+            }
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_HEALING_DOWN" }]
         }
       ]
     },
@@ -11851,9 +11955,24 @@
           "actions": [{ "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_MARKER" }]
         },
         {
-          "kind": "ACTION",
-          "target": { "kind": "SELF" },
-          "actions": [{ "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_DMG_DOWN" }]
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_EFFECT",
+              "target": { "kind": "SELF" },
+              "categories": ["DAMAGE_MOD"],
+              "effectActionDefinitionIds": ["ACT_OLGA_VETERAN_AS2_DMG_DOWN"]
+            }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_OLGA_VETERAN_AS2_DMG_DOWN" }]
+            }
+          ],
+          "elseSteps": []
         }
       ]
     },

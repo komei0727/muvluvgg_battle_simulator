@@ -65,11 +65,21 @@ function burnAndHealingDown(unitId: string) {
   ] as const;
 }
 
-/** PS2の連鎖が実行するEffectAction 2件（対象1体分）。 */
-function ps2Actions(unitId: string) {
+/**
+ * PS2の連鎖が実行するEffectAction。回復量デバフは「対象が既に保持していれば付与
+ * しない」`targetCondition` を持つ別stepに分かれているため、炎上が全対象分そろって
+ * から回復量デバフが全対象分続く順になる。
+ */
+function ps2Actions(...unitIds: readonly string[]) {
   return [
-    { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: [unitId] },
-    { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: [unitId] },
+    ...unitIds.map((unitId) => ({
+      effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN",
+      targets: [unitId],
+    })),
+    ...unitIds.map((unitId) => ({
+      effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+      targets: [unitId],
+    })),
   ] as const;
 }
 
@@ -94,9 +104,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP", targets: ["enemy:back"] },
-        ...ps2Actions("enemy:front"),
-        ...ps2Actions("enemy:left"),
-        ...ps2Actions("enemy:back"),
+        ...ps2Actions("enemy:front", "enemy:left", "enemy:back"),
       ],
       hpDeltas: {
         "enemy:front": -1503,
@@ -187,8 +195,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_JULIE_SNOW_AS1_DAMAGE", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_AS1_HEAL", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_AS1_DMG_DOWN", targets: ["ally:subject"] },
-        ...ps2Actions("enemy:front"),
-        ...ps2Actions("enemy:back"),
+        ...ps2Actions("enemy:front", "enemy:back"),
       ],
       // 回復は与えた合計1908の20%。
       hpDeltas: {
@@ -437,5 +444,86 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-JULIE-SNOW-004 (Q-CAT-EFF-16): PS2の回復量30%減少は原文に「重複可」が無く重複しない — 対象が既に保持していれば付与stepごと実行されない", () => {
+    // `APPLY_HEALING_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
+    // 無いため、2件目を作らないことで重複なしへ揃える（`targetCondition` のfalse側）。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_JULIE_SNOW_PS2",
+        trigger: skillUseCompleted({
+          actor: "ally:subject",
+          targets: ["enemy:front"],
+          skillType: "AS",
+        }),
+        triggeredBy: "ally:subject",
+      },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", target: "ENEMY" },
+      ],
+    });
+
+    expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).not.toContain(
+      "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+    );
+    // 炎上は原文が別の効果として並べており、ガードの対象ではない。
+    expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).toContain(
+      "ACT_JULIE_SNOW_PS2_BURN",
+    );
+  });
+
+  it("IT-UNIT-JULIE-SNOW-005 (BOUNDARY, Q-CAT-EFF-16, R-SKL-06): 契機が複数の敵へ解決するとき、既に保持している対象だけが除外され、残りには付与される", () => {
+    // `TGT_ATTACKED` は `TRIGGER_TARGET` で複数体へ解決するため `BRANCH`
+    // （step全体を一度だけ評価する）では表せない。ACTIONの `targetCondition` は
+    // 対象ごとに評価されるという、この選択そのものを固定する。
+    // 前提アクションは `ENEMY_ONE`（`DEFAULT`順の1体＝`enemy:front`）へ解決する。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_JULIE_SNOW_PS2",
+        trigger: skillUseCompleted({
+          actor: "ally:subject",
+          targets: ["enemy:front", "enemy:left", "enemy:back"],
+          skillType: "AS",
+        }),
+        triggeredBy: "ally:subject",
+      },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", target: "ENEMY" },
+      ],
+    });
+
+    // 炎上は3体すべてへ。回復量デバフは保持していない2体だけへ。
+    expect(observed.actions).toEqual([
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:front"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:left"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:back"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: ["enemy:left"] },
+      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: ["enemy:back"] },
+    ]);
+    expect(
+      observed.effectsApplied?.filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+      ),
+    ).toEqual([
+      {
+        unitId: "enemy:left",
+        effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+        magnitude: -0.3,
+        timeLimit: { unit: "ACTION", count: 2 },
+      },
+      {
+        unitId: "enemy:back",
+        effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+        magnitude: -0.3,
+        timeLimit: { unit: "ACTION", count: 2 },
+      },
+    ]);
   });
 });

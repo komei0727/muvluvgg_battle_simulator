@@ -26,6 +26,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { effectApplied, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
  * `UNIT_SIENA_DIVA`(【旋律を紡ぐ静謐のディーヴァ】シエナ・クラーク)のユニット単位
@@ -558,5 +559,35 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
       classification: { effectKind: "APPLY_DAMAGE_MOD", categories: ["DAMAGE_MOD", "DEBUFF"] },
       activated: [],
     });
+  });
+
+  it("IT-UNIT-SIENA-DIVA-008 (Q-CAT-EFF-16, R-STA-03): PS2の味方会心率15%上昇は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
+      target: "ALLY",
+      stat: "criticalRate",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue + 0.15, 10);
+  });
+
+  it("IT-UNIT-SIENA-DIVA-009 (Q-CAT-EFF-16, R-STA-03): PS2の敵会心ダメージ50%減少は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+    const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN",
+      target: "ENEMY",
+      stat: "criticalDamageBonus",
+    });
+
+    // `NON_STACKABLE` は付与そのものを止めず、合成側で同種グループの最強1件だけを
+    // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
+    expect(instanceCount).toBe(2);
+    expect(effectiveValue).toBeCloseTo(baseValue - 0.5, 10);
   });
 });
