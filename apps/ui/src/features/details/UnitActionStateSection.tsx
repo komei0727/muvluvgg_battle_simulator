@@ -35,13 +35,15 @@ interface Row {
 }
 
 // M7 効果・状態異常表示（Issue #182）「effect一覧はUnit詳細へ追加し、
-// サマリ列を無制限に増やさない」「effectKindKeyの未知値を汎用表示する」。
+// サマリ列を無制限に増やさない」「未知の効果を汎用表示する」。
 // `APPLY_STATUS`由来（`statusKind`を持つ）の効果はその種別を先頭へ出し、
 // バフ／デバフ／状態異常の分類はAPIの`category`をそのまま表示する
 // （`statusKind`はSTEALTH等の有利な状態にも設定されるため、
 // 有無だけで状態異常と決めない。分類の正本はDomainの
 // `effect-category-classifier.ts`であり、UIはその結果を受け取るだけにする）。
-// `effectKindKey`は定義IDの命名規則を解析せずそのまま見せる。
+// 効果の名前は`effectDefinitionId`をそのまま見せ、命名規則を解析しない。
+// `effectKindKey`（R-STA-03の同種グループ鍵、Issue #519）は複数の定義が
+// 共有し得るため、どの定義由来の効果なのかを表せず名前には使わない。
 // DMG-010（Issue #191）: 「shield吸収、HP damage内訳」
 // 「sub unit」。UI変更方針「内訳はevent詳細またはUnit分析drawerへ追加する」
 // 「shield absorbedをDEFENSE列へ混ぜない」に従い、サマリ表の列を増やさず
@@ -66,7 +68,7 @@ function effectLabel(effect: UnitActionState["effects"][number]): string {
       ? `残り ${effect.duration.unit} ${effect.duration.remaining}`
       : "永続";
   const effectiveText = effect.isEffective ? "" : "、次点（未採用）";
-  return `${head}: ${effect.effectKindKey}（${durationText}${effectiveText}）`;
+  return `${head}: ${effect.effectDefinitionId}（${durationText}${effectiveText}）`;
 }
 
 // M5 行動ライフサイクル拡張の完了条件: M5追加eventを意味のある

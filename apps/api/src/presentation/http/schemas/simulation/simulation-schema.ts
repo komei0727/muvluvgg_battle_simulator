@@ -404,10 +404,12 @@ export const effectStateResponseSchema = {
     category: { type: "string", enum: ["BUFF", "DEBUFF", "STATUS_ABNORMALITY"] },
     effectKindKey: { type: "string" },
     // M7-009（Issue #182）: `APPLY_STATUS`由来の効果だけが持つ状態の種別。
-    // `effectKindKey`（現状は効果アクション定義ID）の命名規則を解析させずに、
-    // 気絶・凍結・暗闇・隠密などを表示できるようにする任意プロパティ。状態異常か
-    // どうかは`category`が表す（`statusKind`はSTEALTH等の
-    // 有利な状態にも設定されるため、有無だけでは状態異常を判別できない）。
+    // `effectDefinitionId`の命名規則を解析させずに、気絶・凍結・暗闇・隠密などを
+    // 表示できるようにする任意プロパティ。状態異常かどうかは`category`が表す
+    // （`statusKind`はSTEALTH等の有利な状態にも設定されるため、有無だけでは
+    // 状態異常を判別できない）。`effectKindKey`はR-STA-03の同種グループ鍵
+    // （Issue #519）であって定義識別子でも分類軸でもなく、Catalogが`kindKey`を
+    // 宣言した定義群では複数の定義が同じ値を共有する。
     statusKind: { type: "string", enum: STATUS_KIND_ENUM },
     stackMode: { type: "string", enum: ["STACKABLE", "NON_STACKING"] },
     isEffective: { type: "boolean" },

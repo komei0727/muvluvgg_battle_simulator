@@ -206,6 +206,39 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/TURN 2/)).toBeInTheDocument();
   });
 
+  // Issue #519: `effectKindKey`はCatalog宣言由来の同種グループ鍵になり、複数の
+  // 定義が共有し得る。効果そのものの名前は`effectDefinitionId`で表す。
+  it("names an effect by its definition id, not by the kindKey group it belongs to (UI-CT-074)", () => {
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [],
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
+              category: "BUFF",
+              effectKindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: { magnitude: 0.35 },
+              duration: { unit: "TURN", remaining: 2 },
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" />);
+
+    expect(screen.getByText(/ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH/)).toBeInTheDocument();
+    expect(screen.queryByText(/KIND_ELENA_MOODMAKER_EX_ATK_UP/)).not.toBeInTheDocument();
+  });
+
   it("names a status abnormality by its statusKind and marks a superseded duplicate as inactive (UI-CT-018)", () => {
     const response = responseWith({
       units: [
