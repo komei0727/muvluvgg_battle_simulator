@@ -346,6 +346,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
     const draft: BattleDraft = {
       ...base,
       allyEnhancement: {
+        ...base.allyEnhancement,
         enabled: false,
         academyLevels: {
           ...base.allyEnhancement.academyLevels,
@@ -364,7 +365,10 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
       ...base,
       allySlots: base.allySlots.map((slot) =>
         slot.slotKey === slotKey
-          ? { ...slot, enhancement: { level: 0, gears: Array(9).fill(undefined) } }
+          ? {
+              ...slot,
+              enhancement: { level: 0, linkExcluded: false, gears: Array(9).fill(undefined) },
+            }
           : slot,
       ),
     };
@@ -389,7 +393,10 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
       ...base,
       allySlots: base.allySlots.map((slot) =>
         slot.slotKey === slotKey
-          ? { ...slot, enhancement: { level: 200, gears: Array(10).fill(gear) } }
+          ? {
+              ...slot,
+              enhancement: { level: 200, linkExcluded: false, gears: Array(10).fill(gear) },
+            }
           : slot,
       ),
     };
@@ -406,6 +413,105 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
     );
   });
 
+  describe("レベルリンク (UI-UT-VAL-008/009/010)", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+
+    function linkedDraft(level: number | "", slotLevel?: number | ""): BattleDraft {
+      const base = enabledAllyDraft();
+      return {
+        ...base,
+        allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level } },
+        allySlots: base.allySlots.map((slot) =>
+          slot.slotKey === slotKey && slotLevel !== undefined
+            ? {
+                ...slot,
+                enhancement: {
+                  level: slotLevel,
+                  linkExcluded: false,
+                  gears: Array(9).fill(undefined),
+                },
+              }
+            : slot,
+        ),
+      };
+    }
+
+    // UI-UT-VAL-008
+    it.each([["" as const], [0], [1.5]])("rejects the link level %p", (level) => {
+      const violations = validateDraft(linkedDraft(level), catalog);
+
+      expect(violations).toContainEqual(
+        expect.objectContaining({
+          path: "/allyFormation/enhancement/levelLink/level",
+          code: "LEVEL_LINK_INVALID",
+          message: "リンクレベルは1以上の整数で入力してください。",
+          severity: "error",
+        }),
+      );
+    });
+
+    it("accepts a link level of 1 or more", () => {
+      expect(validateDraft(linkedDraft(250), catalog)).toEqual([]);
+    });
+
+    // UI-UT-VAL-009: 免除しないと「リンクをONにする前に途中まで打った`""`」が
+    // リンクON後も永久に送信を止める。
+    it("does not report a blank unit level on a linked slot", () => {
+      const violations = validateDraft(linkedDraft(250, ""), catalog);
+
+      expect(violations).toEqual([]);
+    });
+
+    it("still reports a blank unit level on an excluded slot", () => {
+      const base = linkedDraft(250, "");
+      const draft: BattleDraft = {
+        ...base,
+        allySlots: base.allySlots.map((slot) =>
+          slot.slotKey === slotKey && slot.enhancement !== undefined
+            ? { ...slot, enhancement: { ...slot.enhancement, linkExcluded: true } }
+            : slot,
+        ),
+      };
+
+      expect(validateDraft(draft, catalog)).toContainEqual(
+        expect.objectContaining({
+          path: "/allyFormation/units/enhancement/level",
+          slotKey,
+          code: "UNIT_LEVEL_INVALID",
+        }),
+      );
+    });
+
+    it("exempts a linked slot even while the link level itself is unusable", () => {
+      // 免除の判定はリンクレベルの妥当性を見ない。見ると、リンクレベルを打ち直す
+      // ために消した瞬間に各枠の入力途中の値が一斉に違反として現れる。
+      const violations = validateDraft(linkedDraft("", ""), catalog);
+
+      expect(violations.map((violation) => violation.code)).toEqual(["LEVEL_LINK_INVALID"]);
+    });
+
+    // UI-UT-VAL-010
+    it("ignores the link level while the side toggle is off", () => {
+      const base = linkedDraft("");
+      const draft: BattleDraft = {
+        ...base,
+        allyEnhancement: { ...base.allyEnhancement, enabled: false },
+      };
+
+      expect(validateDraft(draft, catalog)).toEqual([]);
+    });
+
+    it("ignores the link level while the link itself is off", () => {
+      const base = enabledAllyDraft();
+      const draft: BattleDraft = {
+        ...base,
+        allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: false, level: "" } },
+      };
+
+      expect(validateDraft(draft, catalog)).toEqual([]);
+    });
+  });
+
   it("UI-CMP-014: keeps a submit valid after the toggle goes back off, even though the edited unit enhancement is still in the draft", () => {
     // トグルOFFへ戻しても入力値はdraftへ保持し、送信対象からだけ外す
     // （request-mapperがOFF側のユニット強化を出力しない）。保持しているだけの
@@ -416,7 +522,14 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
       ...base,
       allySlots: base.allySlots.map((slot) =>
         slot.slotKey === slotKey
-          ? { ...slot, enhancement: { level: 220, gears: Array<undefined>(9).fill(undefined) } }
+          ? {
+              ...slot,
+              enhancement: {
+                level: 220,
+                linkExcluded: false,
+                gears: Array<undefined>(9).fill(undefined),
+              },
+            }
           : slot,
       ),
     };
@@ -431,7 +544,14 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
       ...base,
       allySlots: base.allySlots.map((slot) =>
         slot.slotKey === slotKey
-          ? { ...slot, enhancement: { level: "", gears: Array<undefined>(9).fill(undefined) } }
+          ? {
+              ...slot,
+              enhancement: {
+                level: "",
+                linkExcluded: false,
+                gears: Array<undefined>(9).fill(undefined),
+              },
+            }
           : slot,
       ),
     };

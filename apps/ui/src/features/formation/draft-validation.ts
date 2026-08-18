@@ -4,6 +4,7 @@
 import { aptitudeMatches } from "../../lib/aptitude.js";
 import { PLAYABLE_CATEGORY, unitCategoryOf } from "../catalog-selection/unit-pool.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import { isSlotLevelLinked } from "./level-link.js";
 import { enhancementForSide, memorySlotKeyOf } from "./types.js";
 import type { BattleDraft, FormationSlotInput, Side, SideEnhancementInput } from "./types.js";
 
@@ -299,6 +300,27 @@ function validateAcademyLevels(side: Side, enhancement: SideEnhancementInput): U
 }
 
 /**
+ * UI-AC-038: リンクレベルは1以上の整数。陣営の強化トグルOFFまたはリンクOFFでは
+ * 検証しない（入力値はdraftへ保持したまま送信対象から外れるため。学園レベルと同じ）。
+ */
+function validateLevelLink(side: Side, enhancement: SideEnhancementInput): UiViolation[] {
+  if (!enhancement.enabled || !enhancement.levelLink.enabled) {
+    return [];
+  }
+  if (isPositiveInteger(enhancement.levelLink.level)) {
+    return [];
+  }
+  return [
+    {
+      path: `${formationPath(side)}/enhancement/levelLink/level`,
+      code: "LEVEL_LINK_INVALID",
+      message: "リンクレベルは1以上の整数で入力してください。",
+      severity: "error",
+    },
+  ];
+}
+
+/**
  * ユニット強化の違反はslotKeyで枠を特定する。pathは送信DTOのindexを持たない
  * 固定文字列にし、ダイアログ側はslotKeyとpathの末尾で入力を対応づける
  * （サーバー違反のpathは`units/{n}/...`のindex付きになるため、
@@ -324,7 +346,10 @@ function validateUnitEnhancements(
     if (unitEnhancement === undefined) {
       continue;
     }
-    if (!isPositiveInteger(unitEnhancement.level)) {
+    // UI-AC-038: リンク中の枠の`level`は送信に使われないため検証しない。免除しないと
+    // 「リンクをONにする前に途中まで打った`""`」がリンクON後も永久に送信を止める。
+    // 判定はリンクレベルの妥当性を見ない（`level-link.ts`）。
+    if (!isSlotLevelLinked(slot, enhancement) && !isPositiveInteger(unitEnhancement.level)) {
       violations.push({
         path: `${formationPath(side)}/units/enhancement/level`,
         slotKey: slot.slotKey,
@@ -373,6 +398,8 @@ export function validateDraftWithRules(
     ...validateAptitudeWarnings("enemy", draft.enemySlots, catalog),
     ...validateAcademyLevels("ally", enhancementForSide(draft, "ally")),
     ...validateAcademyLevels("enemy", enhancementForSide(draft, "enemy")),
+    ...validateLevelLink("ally", enhancementForSide(draft, "ally")),
+    ...validateLevelLink("enemy", enhancementForSide(draft, "enemy")),
     ...validateUnitEnhancements("ally", draft.allySlots, enhancementForSide(draft, "ally")),
     ...validateUnitEnhancements("enemy", draft.enemySlots, enhancementForSide(draft, "enemy")),
   ];

@@ -140,6 +140,7 @@ describe("buildTacticalExerciseRequest", () => {
     const draft: BattleDraft = {
       ...base,
       enemyEnhancement: {
+        ...base.enemyEnhancement,
         enabled: true,
         academyLevels: {
           unitTypes: { PHYSICAL: 50, ENERGY: 40, AGILE: 30 },

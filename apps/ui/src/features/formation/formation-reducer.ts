@@ -2,6 +2,7 @@
 // draft/selection-dialog slice. Catalog load state and execution state are
 // separate slices (catalog-loader.ts / execution-reducer.ts).
 
+import { isSlotLevelLinked } from "./level-link.js";
 import {
   createInitialDraft,
   createInitialUnitEnhancement,
@@ -13,7 +14,9 @@ import type {
   BattleDraft,
   FormationSlotInput,
   GearInput,
+  LevelLinkInput,
   LogLevel,
+  PlayerSideEnhancement,
   Side,
   SideEnhancementInput,
   UnitEnhancementInput,
@@ -78,6 +81,14 @@ export type FormationAction =
       readonly slotKey: string;
       readonly value: number | "";
     }
+  | { readonly type: "levelLinkToggled"; readonly side: Side; readonly enabled: boolean }
+  | { readonly type: "levelLinkLevelChanged"; readonly side: Side; readonly value: number | "" }
+  // 「リンクから外す」／「リンクへ戻す」。外した瞬間のシードはreducerが解決する。
+  | {
+      readonly type: "unitLinkExclusionChanged";
+      readonly slotKey: string;
+      readonly excluded: boolean;
+    }
   | {
       readonly type: "unitEnhancementGearChanged";
       readonly slotKey: string;
@@ -90,11 +101,8 @@ export type FormationAction =
     }
   | { readonly type: "selectionClosed" }
   | { readonly type: "unitMoved"; readonly fromSlotKey: string; readonly toSlotKey: string }
-  // 「編成をクリア」。学園レベルだけ手持ちデータからプリフィルし直す。
-  | {
-      readonly type: "draftReset";
-      readonly allyAcademyLevels?: SideEnhancementInput["academyLevels"];
-    }
+  // 「編成をクリア」。学園レベルとレベルリンクだけ手持ちデータからプリフィルし直す。
+  | { readonly type: "draftReset"; readonly allyPlayerEnhancement?: PlayerSideEnhancement }
   // 「保存した育成データをクリア」に伴う味方育成入力の初期化。
   | { readonly type: "allyEnhancementCleared" }
   // 復元直後にCatalogから消えていた定義の枠を空にする。
@@ -228,6 +236,13 @@ function toggledEnhancement(
   enabled: boolean,
 ): SideEnhancementInput {
   return { ...enhancement, enabled };
+}
+
+function withLevelLink(
+  enhancement: SideEnhancementInput,
+  levelLink: LevelLinkInput,
+): SideEnhancementInput {
+  return { ...enhancement, levelLink };
 }
 
 function withAcademyLevel(
@@ -367,6 +382,50 @@ export function formationReducer(state: FormationState, action: FormationAction)
           toggledEnhancement(enhancementForSide(state.draft, action.side), action.enabled),
         ),
       };
+    case "levelLinkToggled":
+      // 参照時解決なので、リンクのON/OFFで各枠の`level`は書き換えない
+      // （UI-CMP-023。OFFへ戻すだけで各枠が元の手動レベルへ戻る）。
+      return {
+        ...state,
+        draft: withSideEnhancement(
+          state.draft,
+          action.side,
+          withLevelLink(enhancementForSide(state.draft, action.side), {
+            ...enhancementForSide(state.draft, action.side).levelLink,
+            enabled: action.enabled,
+          }),
+        ),
+      };
+    case "levelLinkLevelChanged":
+      return {
+        ...state,
+        draft: withSideEnhancement(
+          state.draft,
+          action.side,
+          withLevelLink(enhancementForSide(state.draft, action.side), {
+            ...enhancementForSide(state.draft, action.side).levelLink,
+            level: action.value,
+          }),
+        ),
+      };
+    case "unitLinkExclusionChanged": {
+      const slot = findSlot(state.draft, action.slotKey);
+      if (slot === undefined) {
+        return state;
+      }
+      // UI-AC-036: 外した瞬間、その枠のレベルをその時点のリンクレベルでシードする。
+      // シードしないと外した途端に枠が保持していた古い値（多くは200）へ跳ね戻り、
+      // 外す操作が破壊的に見える。リンクへ戻すときは触らない（参照時解決なので、
+      // 書き換えなくても表示と送信はリンクレベルへ切り替わる）。
+      const seeded =
+        action.excluded && isSlotLevelLinked(slot, enhancementForSide(state.draft, slot.side));
+      const { levelLink } = enhancementForSide(state.draft, slot.side);
+      return editSlotEnhancement(state, action.slotKey, (enhancement) => ({
+        ...enhancement,
+        ...(seeded ? { level: levelLink.level } : {}),
+        linkExcluded: action.excluded,
+      }));
+    }
     case "academyLevelChanged":
       return {
         ...state,
@@ -437,7 +496,7 @@ export function formationReducer(state: FormationState, action: FormationAction)
     case "draftReset":
       // 実行状態と直近結果は別sliceが持つため、ここでは消さない（UI-CMP-020）。
       return {
-        draft: createInitialDraft(action.allyAcademyLevels),
+        draft: createInitialDraft(action.allyPlayerEnhancement),
         selectionDialog: { kind: "closed" },
       };
     case "allyEnhancementCleared": {
@@ -453,6 +512,7 @@ export function formationReducer(state: FormationState, action: FormationAction)
           allyEnhancement: {
             ...state.draft.allyEnhancement,
             academyLevels: initial.allyEnhancement.academyLevels,
+            levelLink: initial.allyEnhancement.levelLink,
           },
         },
       };

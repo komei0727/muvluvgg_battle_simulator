@@ -27,6 +27,18 @@ function gearsWith(gear: GearInput, index: number): readonly (GearInput | undefi
   return createInitialUnitEnhancement().gears.map((_, i) => (i === index ? gear : undefined));
 }
 
+function emptyGears(): readonly (GearInput | undefined)[] {
+  return createInitialUnitEnhancement().gears;
+}
+
+/** 既存テストの強化入力リテラル。レベルリンクの新項目は既定のまま使う。 */
+function enhancementOf(
+  level: number | "",
+  gears: readonly (GearInput | undefined)[],
+): UnitEnhancementInput {
+  return { ...createInitialUnitEnhancement(), level, gears };
+}
+
 function withAllySlot(
   draft: BattleDraft,
   slotKey: string,
@@ -48,10 +60,12 @@ describe("parseStoredDraft", () => {
   it("restores a draft round-tripped through JSON, including empty slots and gears", () => {
     const base = createInitialDraft();
     const draft: BattleDraft = {
-      ...withAllySlot(base, slotKeyOf("ally", "REAR", 2), "UNIT_A", {
-        level: 150,
-        gears: gearsWith(GEAR, 4),
-      }),
+      ...withAllySlot(
+        base,
+        slotKeyOf("ally", "REAR", 2),
+        "UNIT_A",
+        enhancementOf(150, gearsWith(GEAR, 4)),
+      ),
       enemySlots: base.enemySlots.map((slot, index) =>
         index === 0 ? { ...slot, unitDefinitionId: "UNIT_B" } : slot,
       ),
@@ -60,6 +74,7 @@ describe("parseStoredDraft", () => {
       logLevel: "DETAILED",
       allyEnhancement: {
         enabled: true,
+        levelLink: { enabled: true, level: 260 },
         academyLevels: {
           unitTypes: { PHYSICAL: 5, ENERGY: 1, AGILE: "" },
           attributes: {
@@ -166,10 +181,12 @@ describe("parsePlayerData", () => {
   it("restores player data round-tripped through JSON", () => {
     const data = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
-      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-        level: 120,
-        gears: gearsWith(GEAR, 8),
-      }),
+      withAllySlot(
+        createInitialDraft(),
+        slotKeyOf("ally", "FRONT", 0),
+        "UNIT_A",
+        enhancementOf(120, gearsWith(GEAR, 8)),
+      ),
       slotKeyOf("ally", "FRONT", 0),
     );
 
@@ -208,10 +225,12 @@ describe("parsePlayerData", () => {
 describe("mergePlayerDataFromDraft", () => {
   // UI-UT-PST-005
   it("records ally unit level and gears", () => {
-    const draft = withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-      level: 180,
-      gears: gearsWith(GEAR, 0),
-    });
+    const draft = withAllySlot(
+      createInitialDraft(),
+      slotKeyOf("ally", "FRONT", 0),
+      "UNIT_A",
+      enhancementOf(180, gearsWith(GEAR, 0)),
+    );
 
     const merged = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
@@ -219,7 +238,7 @@ describe("mergePlayerDataFromDraft", () => {
       slotKeyOf("ally", "FRONT", 0),
     );
 
-    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 180, gears: gearsWith(GEAR, 0) });
+    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(180, gearsWith(GEAR, 0)));
   });
 
   // UI-UT-PST-005
@@ -259,20 +278,24 @@ describe("mergePlayerDataFromDraft", () => {
   it("keeps the previously recorded level while the level input is blank", () => {
     const previous = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
-      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-        level: 180,
-        gears: gearsWith(GEAR, 0),
-      }),
+      withAllySlot(
+        createInitialDraft(),
+        slotKeyOf("ally", "FRONT", 0),
+        "UNIT_A",
+        enhancementOf(180, gearsWith(GEAR, 0)),
+      ),
       slotKeyOf("ally", "FRONT", 0),
     );
-    const draft = withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-      level: "",
-      gears: gearsWith(GEAR, 1),
-    });
+    const draft = withAllySlot(
+      createInitialDraft(),
+      slotKeyOf("ally", "FRONT", 0),
+      "UNIT_A",
+      enhancementOf("", gearsWith(GEAR, 1)),
+    );
 
     const merged = mergePlayerDataFromDraft(previous, draft, slotKeyOf("ally", "FRONT", 0));
 
-    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 180, gears: gearsWith(GEAR, 1) });
+    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(180, gearsWith(GEAR, 1)));
   });
 
   // UI-UT-PST-005
@@ -282,10 +305,11 @@ describe("mergePlayerDataFromDraft", () => {
       ...base,
       enemySlots: base.enemySlots.map((slot, index) =>
         index === 0
-          ? { ...slot, unitDefinitionId: "UNIT_E", enhancement: { level: 99, gears: [] } }
+          ? { ...slot, unitDefinitionId: "UNIT_E", enhancement: enhancementOf(99, []) }
           : slot,
       ),
       enemyEnhancement: {
+        ...base.enemyEnhancement,
         enabled: true,
         academyLevels: {
           unitTypes: { PHYSICAL: 8, ENERGY: 8, AGILE: 8 },
@@ -312,10 +336,12 @@ describe("mergePlayerDataFromDraft", () => {
 
   // UI-UT-PST-006
   it("returns the same reference when nothing changed", () => {
-    const draft = withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-      level: 180,
-      gears: gearsWith(GEAR, 0),
-    });
+    const draft = withAllySlot(
+      createInitialDraft(),
+      slotKeyOf("ally", "FRONT", 0),
+      "UNIT_A",
+      enhancementOf(180, gearsWith(GEAR, 0)),
+    );
     const slotKey = slotKeyOf("ally", "FRONT", 0);
     const first = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, slotKey);
 
@@ -326,7 +352,7 @@ describe("mergePlayerDataFromDraft", () => {
 describe("prefillUnitEnhancement", () => {
   // UI-UT-PST-007
   it("returns the recorded enhancement for a known unit", () => {
-    const enhancement: UnitEnhancementInput = { level: 88, gears: gearsWith(GEAR, 2) };
+    const enhancement: UnitEnhancementInput = enhancementOf(88, gearsWith(GEAR, 2));
     const data = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
       withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", enhancement),
@@ -338,10 +364,9 @@ describe("prefillUnitEnhancement", () => {
 
   // UI-UT-PST-007
   it("falls back to the default enhancement for an unrecorded unit", () => {
-    expect(prefillUnitEnhancement(createEmptyPlayerData(), "UNIT_X")).toStrictEqual({
-      level: DEFAULT_UNIT_LEVEL,
-      gears: createInitialUnitEnhancement().gears,
-    });
+    expect(prefillUnitEnhancement(createEmptyPlayerData(), "UNIT_X")).toStrictEqual(
+      enhancementOf(DEFAULT_UNIT_LEVEL, createInitialUnitEnhancement().gears),
+    );
   });
 });
 
@@ -349,13 +374,15 @@ describe("prunePlayerData", () => {
   // UI-UT-PST-009
   it("drops only the entries missing from the catalog", () => {
     const draft = withAllySlot(
-      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-        level: 10,
-        gears: gearsWith(GEAR, 0),
-      }),
+      withAllySlot(
+        createInitialDraft(),
+        slotKeyOf("ally", "FRONT", 0),
+        "UNIT_A",
+        enhancementOf(10, gearsWith(GEAR, 0)),
+      ),
       slotKeyOf("ally", "FRONT", 1),
       "UNIT_GONE",
-      { level: 20, gears: gearsWith(GEAR, 1) },
+      enhancementOf(20, gearsWith(GEAR, 1)),
     );
     const data = mergePlayerDataFromDraft(
       mergePlayerDataFromDraft(createEmptyPlayerData(), draft, slotKeyOf("ally", "FRONT", 0)),
@@ -373,10 +400,12 @@ describe("prunePlayerData", () => {
   it("returns the same reference when every entry is known", () => {
     const data = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
-      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-        level: 10,
-        gears: gearsWith(GEAR, 0),
-      }),
+      withAllySlot(
+        createInitialDraft(),
+        slotKeyOf("ally", "FRONT", 0),
+        "UNIT_A",
+        enhancementOf(10, gearsWith(GEAR, 0)),
+      ),
       slotKeyOf("ally", "FRONT", 0),
     );
 
@@ -419,6 +448,164 @@ describe("selectUnknownDefinitionSlotKeys", () => {
   });
 });
 
+describe("レベルリンクの保存 (UI-UT-PST-011/012)", () => {
+  const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
+
+  // UI-UT-PST-011: 版を上げずに項目を足すため、欠落は既定値として読む。
+  // 版を上げると`envelopeOf`の完全一致判定で全利用者の保存データが破棄される。
+  it("restores a v1 draft that predates the level link with the defaults", () => {
+    const base = createInitialDraft();
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: {
+        ...base,
+        allyEnhancement: { enabled: true, academyLevels: base.allyEnhancement.academyLevels },
+        allySlots: base.allySlots.map((slot, index) =>
+          index === 0
+            ? {
+                ...slot,
+                unitDefinitionId: "UNIT_A",
+                enhancement: enhancementOf(240, emptyGears()),
+              }
+            : slot,
+        ),
+      },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored?.allyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
+    expect(restored?.allySlots[0]?.enhancement).toEqual({
+      level: 240,
+      linkExcluded: false,
+      gears: emptyGears(),
+    });
+  });
+
+  it("restores v1 player data that predates the level link with the defaults", () => {
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      academyLevels: createInitialDraft().allyEnhancement.academyLevels,
+      units: { UNIT_A: enhancementOf(240, emptyGears()) },
+    };
+
+    const restored = parsePlayerData(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored?.levelLink).toEqual({ enabled: false, level: 200 });
+    expect(restored?.units["UNIT_A"]?.linkExcluded).toBe(false);
+  });
+
+  it("discards stored data whose levelLink is not a level link", () => {
+    const base = createInitialDraft();
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: {
+        ...base,
+        allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: "yes", level: 1 } },
+      },
+    };
+
+    expect(parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown)).toBeUndefined();
+  });
+
+  it("round-trips the level link and the per-slot exclusion", () => {
+    const base = createInitialDraft();
+    const draft: BattleDraft = {
+      ...withAllySlot(base, firstSlotKey, "UNIT_A", {
+        ...createInitialUnitEnhancement(),
+        level: 180,
+        linkExcluded: true,
+      }),
+      allyEnhancement: {
+        ...base.allyEnhancement,
+        enabled: true,
+        levelLink: { enabled: true, level: 260 },
+      },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(toStoredDraft(draft))) as unknown);
+
+    expect(restored).toStrictEqual(draft);
+  });
+
+  // UI-UT-PST-012
+  it("writes the ally level link back to the player data", () => {
+    const base = createInitialDraft();
+    const draft: BattleDraft = {
+      ...base,
+      allyEnhancement: {
+        ...base.allyEnhancement,
+        levelLink: { enabled: true, level: 260 },
+      },
+    };
+
+    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), draft);
+
+    expect(merged.levelLink).toEqual({ enabled: true, level: 260 });
+  });
+
+  it("keeps the recorded link level while the input is empty", () => {
+    const base = createInitialDraft();
+    const recorded = mergePlayerDataFromDraft(createEmptyPlayerData(), {
+      ...base,
+      allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level: 260 } },
+    });
+
+    const merged = mergePlayerDataFromDraft(recorded, {
+      ...base,
+      allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level: "" } },
+    });
+
+    expect(merged.levelLink).toEqual({ enabled: true, level: 260 });
+  });
+
+  it("ignores the enemy level link", () => {
+    const base = createInitialDraft();
+    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), {
+      ...base,
+      enemyEnhancement: {
+        ...base.enemyEnhancement,
+        levelLink: { enabled: true, level: 260 },
+      },
+    });
+
+    expect(merged.levelLink).toEqual({ enabled: false, level: 200 });
+  });
+
+  it("records a change of linkExcluded alone", () => {
+    const draft = withAllySlot(createInitialDraft(), firstSlotKey, "UNIT_A", {
+      ...createInitialUnitEnhancement(),
+      linkExcluded: true,
+    });
+
+    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, firstSlotKey);
+
+    expect(merged.units["UNIT_A"]?.linkExcluded).toBe(true);
+  });
+
+  it("prefills the exclusion flag from the player data", () => {
+    const draft = withAllySlot(createInitialDraft(), firstSlotKey, "UNIT_A", {
+      ...createInitialUnitEnhancement(),
+      linkExcluded: true,
+    });
+    const data = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, firstSlotKey);
+
+    expect(prefillUnitEnhancement(data, "UNIT_A").linkExcluded).toBe(true);
+    expect(prefillUnitEnhancement(data, "UNIT_UNKNOWN").linkExcluded).toBe(false);
+  });
+
+  // リンクだけを設定した状態でキーごと消すと、リロードでリンクが失われる。
+  it("is not empty once the level link differs from the default", () => {
+    const base = createInitialDraft();
+    const data = mergePlayerDataFromDraft(createEmptyPlayerData(), {
+      ...base,
+      allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level: 200 } },
+    });
+
+    expect(isEmptyPlayerData(data)).toBe(false);
+  });
+});
+
 describe("isEmptyPlayerData", () => {
   it("treats default academy levels with no unit entries as empty", () => {
     expect(isEmptyPlayerData(createEmptyPlayerData())).toBe(true);
@@ -427,10 +614,12 @@ describe("isEmptyPlayerData", () => {
   it("is not empty once a unit is recorded", () => {
     const data = mergePlayerDataFromDraft(
       createEmptyPlayerData(),
-      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", {
-        level: 10,
-        gears: gearsWith(GEAR, 0),
-      }),
+      withAllySlot(
+        createInitialDraft(),
+        slotKeyOf("ally", "FRONT", 0),
+        "UNIT_A",
+        enhancementOf(10, gearsWith(GEAR, 0)),
+      ),
       slotKeyOf("ally", "FRONT", 0),
     );
 
@@ -461,10 +650,12 @@ describe("mergePlayerDataFromDraft — duplicate placement", () => {
   /** 同じユニットを2枠へ置き、後方の枠だけ既定値のまま残した状態。 */
   function draftWithDuplicate(editedLevel: number): BattleDraft {
     return withAllySlot(
-      withAllySlot(createInitialDraft(), firstSlotKey, "UNIT_A", {
-        level: editedLevel,
-        gears: gearsWith(GEAR, 0),
-      }),
+      withAllySlot(
+        createInitialDraft(),
+        firstSlotKey,
+        "UNIT_A",
+        enhancementOf(editedLevel, gearsWith(GEAR, 0)),
+      ),
       secondSlotKey,
       "UNIT_A",
       createInitialUnitEnhancement(),
@@ -480,7 +671,7 @@ describe("mergePlayerDataFromDraft — duplicate placement", () => {
       firstSlotKey,
     );
 
-    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 220, gears: gearsWith(GEAR, 0) });
+    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(220, gearsWith(GEAR, 0)));
   });
 
   it("keeps the recorded value stable across unrelated draft changes", () => {
@@ -505,14 +696,16 @@ describe("mergePlayerDataFromDraft — duplicate placement", () => {
       draftWithDuplicate(220),
       firstSlotKey,
     );
-    const edited = withAllySlot(draftWithDuplicate(220), secondSlotKey, "UNIT_A", {
-      level: 150,
-      gears: gearsWith(GEAR, 3),
-    });
+    const edited = withAllySlot(
+      draftWithDuplicate(220),
+      secondSlotKey,
+      "UNIT_A",
+      enhancementOf(150, gearsWith(GEAR, 3)),
+    );
 
     const merged = mergePlayerDataFromDraft(first, edited, secondSlotKey);
 
-    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 150, gears: gearsWith(GEAR, 3) });
+    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(150, gearsWith(GEAR, 3)));
   });
 
   it("records nothing for a slot key that no longer holds a unit", () => {
@@ -524,7 +717,7 @@ describe("mergePlayerDataFromDraft — duplicate placement", () => {
 
     const merged = mergePlayerDataFromDraft(recorded, createInitialDraft(), firstSlotKey);
 
-    expect(merged.units["UNIT_A"]).toStrictEqual({ level: 220, gears: gearsWith(GEAR, 0) });
+    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(220, gearsWith(GEAR, 0)));
   });
 
   it("ignores an edited slot on the enemy side", () => {
@@ -537,7 +730,7 @@ describe("mergePlayerDataFromDraft — duplicate placement", () => {
           ? {
               ...slot,
               unitDefinitionId: "UNIT_A",
-              enhancement: { level: 333, gears: gearsWith(GEAR, 0) },
+              enhancement: enhancementOf(333, gearsWith(GEAR, 0)),
             }
           : slot,
       ),
@@ -561,7 +754,7 @@ describe("parseStoredDraft — fixed-length arrays", () => {
     const base = createInitialDraft();
     const stored = storedDraftWith({
       allySlots: base.allySlots.map((slot, index) =>
-        index === 0 ? { ...slot, enhancement: { level: 1, gears: [] } } : slot,
+        index === 0 ? { ...slot, enhancement: enhancementOf(1, []) } : slot,
       ),
     });
 

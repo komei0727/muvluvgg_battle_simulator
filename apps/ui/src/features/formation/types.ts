@@ -59,16 +59,37 @@ export interface GearInput {
 
 export interface UnitEnhancementInput {
   readonly level: number | "";
+  /**
+   * UI-AC-036: 陣営のレベルリンクから外した枠。リンクの反映は参照時解決
+   * （`level-link.ts`）で、外れていない枠の`level`はリンク中だけ読まれない。
+   */
+  readonly linkExcluded: boolean;
   /** 常に9枠。空枠（`undefined`）を許容する（UI-AC-025）。 */
   readonly gears: readonly (GearInput | undefined)[];
 }
 
+/** UI-AC-035: 陣営のユニットレベルを1つの値で束ねる指定。 */
+export interface LevelLinkInput {
+  readonly enabled: boolean;
+  readonly level: number | "";
+}
+
 export interface SideEnhancementInput {
   readonly enabled: boolean;
+  readonly levelLink: LevelLinkInput;
   readonly academyLevels: {
     readonly unitTypes: Readonly<Record<EnhancementUnitType, number | "">>;
     readonly attributes: Readonly<Record<EnhancementAttribute, number | "">>;
   };
+}
+
+/**
+ * 手持ちデータ（`persistence.ts`）が持つ味方の陣営単位の育成入力。学園レベルと
+ * レベルリンクはどちらも「陣営に1組しかない値」であり、編成をクリアしても引き継ぐ。
+ */
+export interface PlayerSideEnhancement {
+  readonly academyLevels: SideEnhancementInput["academyLevels"];
+  readonly levelLink: LevelLinkInput;
 }
 
 export interface FormationSlotInput {
@@ -125,6 +146,7 @@ function createEmptyMemorySlots(): readonly (string | undefined)[] {
 function createInitialSideEnhancement(): SideEnhancementInput {
   return {
     enabled: false,
+    levelLink: createInitialLevelLink(),
     academyLevels: {
       unitTypes: Object.fromEntries(
         ENHANCEMENT_UNIT_TYPES.map((unitType) => [unitType, DEFAULT_ACADEMY_LEVEL]),
@@ -136,21 +158,25 @@ function createInitialSideEnhancement(): SideEnhancementInput {
   };
 }
 
-/** UI-AC-025: レベル既定200・ギア9枠すべて空。 */
+/** UI-AC-035: リンクは既定OFF、リンクレベルの既定はユニットレベルと同じ200。 */
+export function createInitialLevelLink(): LevelLinkInput {
+  return { enabled: false, level: DEFAULT_UNIT_LEVEL };
+}
+
+/** UI-AC-025: レベル既定200・ギア9枠すべて空。リンクからは外さない。 */
 export function createInitialUnitEnhancement(): UnitEnhancementInput {
   return {
     level: DEFAULT_UNIT_LEVEL,
+    linkExcluded: false,
     gears: Array.from({ length: GEAR_SLOT_COUNT }, () => undefined),
   };
 }
 
 /**
- * `allyAcademyLevels`は手持ちデータ（`persistence.ts`）からのプリフィル値。
- * 学園レベルはユニット定義に依存しないため、編成をクリアしても引き継ぐ。
+ * `allyPlayerEnhancement`は手持ちデータ（`persistence.ts`）からのプリフィル値。
+ * 学園レベルとレベルリンクはユニット定義に依存しないため、編成をクリアしても引き継ぐ。
  */
-export function createInitialDraft(
-  allyAcademyLevels?: SideEnhancementInput["academyLevels"],
-): BattleDraft {
+export function createInitialDraft(allyPlayerEnhancement?: PlayerSideEnhancement): BattleDraft {
   const allyEnhancement = createInitialSideEnhancement();
   return {
     allySlots: createSlots("ally"),
@@ -163,9 +189,13 @@ export function createInitialDraft(
     // 明示的に選ぶ（既定にすると毎回数MBのレスポンスを受け取ることになる）。
     logLevel: "SUMMARY",
     allyEnhancement:
-      allyAcademyLevels === undefined
+      allyPlayerEnhancement === undefined
         ? allyEnhancement
-        : { ...allyEnhancement, academyLevels: allyAcademyLevels },
+        : {
+            ...allyEnhancement,
+            academyLevels: allyPlayerEnhancement.academyLevels,
+            levelLink: allyPlayerEnhancement.levelLink,
+          },
     enemyEnhancement: createInitialSideEnhancement(),
   };
 }
