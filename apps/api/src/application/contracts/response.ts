@@ -357,6 +357,11 @@ export interface ExerciseBreakResponseBody {
   readonly breakNumber: number;
   readonly turnNumber: number;
   readonly cumulativeScoreAtBreak: number;
+  /**
+   * ブレイクを起こしたユニットの定義ID（R-TEX-03 #2の発生源）。メモリー由来の
+   * 継続ダメージのように発生源ユニットを持たないブレイクでは省略する（R-MEM-04）。
+   */
+  readonly sourceUnitDefinitionId?: string;
 }
 
 /**

@@ -14,26 +14,31 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     {
       "breakNumber": 1,
       "cumulativeScoreAtBreak": 324911,
+      "sourceUnitDefinitionId": "UNIT_AOI_GUARDIAN",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
       "cumulativeScoreAtBreak": 722688,
+      "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
       "cumulativeScoreAtBreak": 1199155,
+      "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
       "cumulativeScoreAtBreak": 1730180,
+      "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "turnNumber": 4,
     },
     {
       "breakNumber": 5,
       "cumulativeScoreAtBreak": 2332528,
+      "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "turnNumber": 5,
     },
   ],
@@ -119,21 +124,25 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     {
       "breakNumber": 1,
       "cumulativeScoreAtBreak": 385500,
+      "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
       "cumulativeScoreAtBreak": 864530,
+      "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
       "cumulativeScoreAtBreak": 1405907,
+      "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
       "cumulativeScoreAtBreak": 2026006,
+      "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "turnNumber": 4,
     },
   ],
@@ -219,21 +228,25 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     {
       "breakNumber": 1,
       "cumulativeScoreAtBreak": 282328,
+      "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
       "cumulativeScoreAtBreak": 756015,
+      "sourceUnitDefinitionId": "UNIT_AOI_GUARDIAN",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
       "cumulativeScoreAtBreak": 1300778,
+      "sourceUnitDefinitionId": "UNIT_ANIS_SWEETDEVIL",
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
       "cumulativeScoreAtBreak": 1939999,
+      "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "turnNumber": 5,
     },
   ],
@@ -318,16 +331,19 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     {
       "breakNumber": 1,
       "cumulativeScoreAtBreak": 366382,
+      "sourceUnitDefinitionId": "UNIT_AOI_GUARDIAN",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
       "cumulativeScoreAtBreak": 1149493,
+      "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
       "cumulativeScoreAtBreak": 2061594,
+      "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "turnNumber": 4,
     },
   ],

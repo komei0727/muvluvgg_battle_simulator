@@ -178,6 +178,38 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     expect(result.lastEventId).not.toBe(rootEventId);
   });
 
+  it("UT-R-TEX-03-023: carries the defeat source into the UnitBroken payload, not only the envelope", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemy = unit("enemy-1", "ENEMY", { currentHp: createHitPoint(0, 1000) });
+    const attacker = unit("ally-1", "ALLY");
+    const { ctx, recorder, rootEventId } = context(exercise);
+
+    resolveBreak(ctx, [enemy, attacker], enemy.battleUnitId, EFFECT_ACTIONS, rootEventId, {
+      sourceUnitId: attacker.battleUnitId,
+      sourceSide: "ALLY",
+    });
+
+    const broken = recorder.getEvents().find((event) => event.eventType === "UnitBroken")!;
+    expect(broken.payload).toMatchObject({
+      sourceUnitId: attacker.battleUnitId,
+      sourceSide: "ALLY",
+    });
+  });
+
+  it("UT-R-TEX-03-024: omits sourceUnitId in the UnitBroken payload for a Memory-derived defeat source (R-MEM-04)", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemy = unit("enemy-1", "ENEMY", { currentHp: createHitPoint(0, 1000) });
+    const { ctx, recorder, rootEventId } = context(exercise);
+
+    resolveBreak(ctx, [enemy], enemy.battleUnitId, EFFECT_ACTIONS, rootEventId, {
+      sourceSide: "ALLY",
+    });
+
+    const broken = recorder.getEvents().find((event) => event.eventType === "UnitBroken")!;
+    expect(broken.payload).toMatchObject({ sourceSide: "ALLY" });
+    expect(broken.payload).not.toHaveProperty("sourceUnitId");
+  });
+
   it("UT-R-TEX-05-001: removes the broken enemy's own effects and markers but keeps Memory-derived grants (R-MEM-04)", () => {
     const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
     const enemyId = createBattleUnitId("enemy-1");

@@ -1122,6 +1122,11 @@ const unitBrokenDetailsSchema = {
     turnNumber: { type: "integer", minimum: 1 },
     totalScore: { type: "integer", minimum: 0 },
     causeEventId: { type: "string" },
+    // エンベロープの発生源と同じ値を持つ（`turnNumber`と同じ理由 —— R-TEX-10 #2の
+    // ブレイク履歴はpayloadだけからの投影として定義される）。メモリー由来の
+    // ブレイクは発生源ユニットを持たないため、どちらも必須にしない（R-MEM-04）。
+    sourceUnitId: { type: "string" },
+    sourceSide: { type: "string", enum: ["ALLY", "ENEMY"] },
   },
 } as const;
 

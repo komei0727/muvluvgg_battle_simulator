@@ -41,6 +41,9 @@ export function toTacticalExerciseResponseBody(
         breakNumber: entry.breakNumber,
         turnNumber: entry.turnNumber,
         cumulativeScoreAtBreak: entry.cumulativeScoreAtBreak,
+        ...(entry.sourceUnitDefinitionId !== undefined
+          ? { sourceUnitDefinitionId: entry.sourceUnitDefinitionId }
+          : {}),
       })),
     },
     initialState: toBattleStateResponseBody(0, result.initialState, result.unitRoster),

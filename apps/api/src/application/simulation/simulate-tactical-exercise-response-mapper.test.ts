@@ -132,6 +132,32 @@ describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResp
     expect(body.result).not.toHaveProperty("outcome");
   });
 
+  it("API-TEXRESP-007 (R-TEX-10 #2): publishes the break's source unit definition id, and omits it for a break with no source unit (R-MEM-04)", () => {
+    const body = toTacticalExerciseResponseBody(
+      baseResult({
+        breaks: [
+          {
+            breakNumber: 1,
+            turnNumber: 2,
+            cumulativeScoreAtBreak: 500,
+            sourceUnitDefinitionId: createUnitDefinitionId("UNIT_ALLY"),
+          },
+          { breakNumber: 2, turnNumber: 4, cumulativeScoreAtBreak: 900 },
+        ],
+      }),
+    );
+
+    expect(body.result.breaks).toEqual([
+      {
+        breakNumber: 1,
+        turnNumber: 2,
+        cumulativeScoreAtBreak: 500,
+        sourceUnitDefinitionId: "UNIT_ALLY",
+      },
+      { breakNumber: 2, turnNumber: 4, cumulativeScoreAtBreak: 900 },
+    ]);
+  });
+
   it("API-TEXRESP-002: reuses the battle response's state/event/transition shape, so initialState is stateVersion 0 and finalState carries the last transition's stateVersionAfter", () => {
     const body = toTacticalExerciseResponseBody(
       baseResult({

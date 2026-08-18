@@ -76,6 +76,8 @@ const exerciseBreakResponseSchema = {
     breakNumber: { type: "integer", minimum: 1 },
     turnNumber: { type: "integer", minimum: 1, maximum: 5 },
     cumulativeScoreAtBreak: { type: "integer", minimum: 0 },
+    // R-MEM-04: メモリー由来のブレイクは発生源ユニットを持たないため必須にしない。
+    sourceUnitDefinitionId: { type: "string" },
   },
 } as const;
 

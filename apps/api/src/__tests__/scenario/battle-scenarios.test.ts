@@ -1920,6 +1920,30 @@ describe("battle scenarios (harness)", () => {
       expect(summary.totalScore).toBe(detailed.totalScore);
     });
 
+    it("IT-TEX-003 (R-TEX-10 #2 / R-TEX-03 #2, break source through the use case): every break attributes the attacking ally's unit definition id, matching the UNIT_BROKEN envelope", () => {
+      const result = runExerciseScenario({
+        catalog: exerciseCatalog(100),
+        command: tacticalExerciseCommand(),
+        randomValues: Array.from({ length: 200 }, () => 0.99),
+        battleIds: ["B_EXERCISE"],
+      });
+
+      assertBattleInvariants(result);
+
+      // この編成では味方のASだけが敵のHPを削るため、全ブレイクの発生源が味方になる。
+      expect(result.breaks.length).toBeGreaterThan(0);
+      for (const entry of result.breaks) {
+        expect(entry.sourceUnitDefinitionId).toBe("UNIT_ALLY");
+      }
+
+      // 投影（payload由来）と公開ログのエンベロープが同じ発生源を指す。
+      const brokenEvents = result.events.filter((event) => event.type === "UNIT_BROKEN");
+      expect(brokenEvents).toHaveLength(result.breaks.length);
+      for (const event of brokenEvents) {
+        expect(event.sourceUnitId).toBe(createBattleUnitId("ally:1"));
+      }
+    });
+
     it("IT-UNIT-SUMMARY-001 (10_API設計.md「集計セマンティクス」/ R-TEX-02 #2): in an exercise that breaks the enemy repeatedly, the allies' damageDealt adds up to the whole score because the overkill discarded at each break is counted", () => {
       const result = runExerciseScenario({
         catalog: exerciseCatalog(100),

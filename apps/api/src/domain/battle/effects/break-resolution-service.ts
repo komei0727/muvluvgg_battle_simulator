@@ -197,6 +197,10 @@ export function* resolveBreakSteps(
       turnNumber: context.turnNumber,
       totalScore: context.exercise.totalScore,
       causeEventId,
+      ...(defeatSource.sourceUnitId !== undefined
+        ? { sourceUnitId: defeatSource.sourceUnitId }
+        : {}),
+      ...(defeatSource.sourceSide !== undefined ? { sourceSide: defeatSource.sourceSide } : {}),
     },
     stateDelta: { exercise: { breakCount: { before: broken.before, after: broken.after } } },
   });
