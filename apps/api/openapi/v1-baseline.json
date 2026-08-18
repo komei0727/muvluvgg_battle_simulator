@@ -13770,6 +13770,9 @@
                               "cumulativeScoreAtBreak": {
                                 "type": "integer",
                                 "minimum": 0
+                              },
+                              "sourceUnitDefinitionId": {
+                                "type": "string"
                               }
                             }
                           }
@@ -25007,6 +25010,13 @@
                                   },
                                   "causeEventId": {
                                     "type": "string"
+                                  },
+                                  "sourceUnitId": {
+                                    "type": "string"
+                                  },
+                                  "sourceSide": {
+                                    "type": "string",
+                                    "enum": ["ALLY", "ENEMY"]
                                   }
                                 }
                               },

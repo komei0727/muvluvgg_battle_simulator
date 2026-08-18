@@ -31,7 +31,10 @@ import type {
 } from "../../domain/battle/outcome/victory-policy.js";
 import type { ExerciseCompletionReason } from "../../domain/battle/outcome/exercise-end-policy.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
-import type { SkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import type {
+  SkillDefinitionId,
+  UnitDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../domain/shared/errors.js";
 import type { BattleId, BattleUnitId } from "../../domain/shared/ids.js";
 
@@ -64,6 +67,11 @@ export interface ExerciseBreak {
   readonly breakNumber: number;
   readonly turnNumber: number;
   readonly cumulativeScoreAtBreak: number;
+  /**
+   * R-TEX-03 #2の発生源をユニット定義IDへ解決したもの。メモリー由来の継続ダメージ
+   * のように発生源ユニットを持たないブレイクでは省略する（R-MEM-04）。
+   */
+  readonly sourceUnitDefinitionId?: UnitDefinitionId;
 }
 
 /**
@@ -349,16 +357,36 @@ export function assembleSimulationResult(
  * 間引き**前**の全イベント（`observation.events`）とする — `logLevel`を下げただけで
  * 演習結果のブレイク履歴が欠けることがあってはならないためである。
  */
-function projectExerciseBreaks(events: readonly BattleDomainEvent[]): readonly ExerciseBreak[] {
+function projectExerciseBreaks(
+  events: readonly BattleDomainEvent[],
+  unitRoster: readonly BattleUnitRosterEntry[],
+): readonly ExerciseBreak[] {
+  const definitionIdByUnitId = new Map(
+    unitRoster.map((entry) => [entry.battleUnitId, entry.unitDefinitionId]),
+  );
   const breaks: ExerciseBreak[] = [];
   for (const event of events) {
     if (event.eventType !== "UnitBroken") {
       continue;
     }
+    const sourceUnitId = event.payload.sourceUnitId;
+    // 発生源を持つのにロースターへ居ないのは組み立て側のバグである。省略へ落とすと
+    // 「発生源ユニットを持たないブレイク」（メモリー由来）と区別が付かなくなり、
+    // 誤った観測を正常な応答として返してしまうため、ここで失敗させる。
+    if (sourceUnitId !== undefined && !definitionIdByUnitId.has(sourceUnitId)) {
+      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        {
+          reason: `UnitBroken carries a source unit (${sourceUnitId}) that the unit roster does not contain; the break history cannot resolve its definition id`,
+        },
+      ]);
+    }
+    const sourceUnitDefinitionId =
+      sourceUnitId === undefined ? undefined : definitionIdByUnitId.get(sourceUnitId);
     breaks.push({
       breakNumber: event.payload.breakNumber,
       turnNumber: event.payload.turnNumber,
       cumulativeScoreAtBreak: event.payload.totalScore,
+      ...(sourceUnitDefinitionId !== undefined ? { sourceUnitDefinitionId } : {}),
     });
   }
   return breaks;
@@ -384,7 +412,7 @@ export function assembleTacticalExerciseResult(
     completedTurn: input.result.completedTurn,
     totalScore: input.result.totalScore,
     breakCount: input.result.breakCount,
-    breaks: projectExerciseBreaks(observation.events),
+    breaks: projectExerciseBreaks(observation.events, input.unitRoster),
     initialState: observation.initialState,
     finalState,
     events,

@@ -3,9 +3,16 @@ import { assembleTacticalExerciseResult } from "./simulation-result-assembler.js
 import { ApplicationError } from "../contracts/application-error.js";
 import type { LogLevel } from "./simulate-battle-command.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import type { BattleStateSnapshot } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
+import type {
+  BattleStateSnapshot,
+  BattleUnitRosterEntry,
+} from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import { createDomainEventId } from "../../domain/shared/event-ids.js";
 import { createBattleId, createBattleUnitId, type BattleUnitId } from "../../domain/shared/ids.js";
+import {
+  createUnitDefinitionId,
+  type UnitDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 
 const BATTLE_ID = createBattleId("battle-exercise-1");
 const ENEMY_ID = createBattleUnitId("enemy:1");
@@ -25,6 +32,57 @@ const INITIAL_STATE: BattleStateSnapshot = {
   exercise: { totalScore: 0, breakCount: 0 },
 };
 
+const COMBAT_STATS = {
+  maximumHp: 100,
+  attack: 10,
+  defense: 10,
+  criticalRate: 0,
+  actionSpeed: 10,
+  criticalDamageBonus: 0,
+  affinityBonus: 0,
+};
+
+/** ロースター項目に対応する、可変状態を動かさない静止スナップショット。 */
+function unitSnapshot() {
+  return {
+    hp: 100,
+    ap: 1,
+    pp: 0,
+    extraGauge: 0,
+    maximumAp: 3,
+    maximumPp: 3,
+    maximumExtraGauge: 10,
+    combatStats: COMBAT_STATS,
+    baseCombatStats: COMBAT_STATS,
+  };
+}
+
+/** ブレイク発生源の定義ID解決だけに要る最小のロースター項目。 */
+function rosterEntry(
+  battleUnitId: BattleUnitId,
+  unitDefinitionId: UnitDefinitionId,
+): BattleUnitRosterEntry {
+  return {
+    battleUnitId,
+    unitDefinitionId,
+    side: "ALLY",
+    position: { column: "LEFT", row: "FRONT" },
+    globalCoordinate: { x: 0, y: 3 },
+    combatStats: {
+      maximumHp: 100,
+      attack: 10,
+      defense: 10,
+      criticalRate: 0,
+      actionSpeed: 10,
+      criticalDamageBonus: 0,
+      affinityBonus: 0,
+    },
+    maximumAp: 3,
+    maximumPp: 3,
+    maximumExtraGauge: 10,
+  };
+}
+
 /**
  * 演習1回ぶんのイベント列を組み立てる。`amounts`のスコア加算と`breakTurns`の
  * ブレイクを交互に記録し、最後に演習結果（R-TEX-10 #1）を確定する。
@@ -32,7 +90,12 @@ const INITIAL_STATE: BattleStateSnapshot = {
 function recordExercise(options: {
   readonly steps: readonly (
     | { readonly kind: "SCORE"; readonly amount: number; readonly turnNumber: number }
-    | { readonly kind: "BREAK"; readonly turnNumber: number }
+    | {
+        readonly kind: "BREAK";
+        readonly turnNumber: number;
+        /** R-TEX-03 #2の発生源。省略時はメモリー由来（`sourceUnitId`なし）を表す。 */
+        readonly sourceUnitId?: BattleUnitId;
+      }
   )[];
   readonly completedTurn?: number;
 }): { readonly recorder: EventRecorder; readonly finalState: BattleStateSnapshot } {
@@ -73,6 +136,8 @@ function recordExercise(options: {
         turnNumber: step.turnNumber,
         totalScore,
         causeEventId: CAUSE_EVENT_ID,
+        ...(step.sourceUnitId !== undefined ? { sourceUnitId: step.sourceUnitId } : {}),
+        sourceSide: "ALLY" as const,
       },
       stateDelta: { exercise: { breakCount: { before, after: breakCount } } },
     });
@@ -111,9 +176,18 @@ function recordExercise(options: {
 }
 
 function assemble(
-  options: Parameters<typeof recordExercise>[0] & { readonly logLevel?: LogLevel },
+  options: Parameters<typeof recordExercise>[0] & {
+    readonly logLevel?: LogLevel;
+    readonly unitRoster?: readonly BattleUnitRosterEntry[];
+  },
 ) {
   const { recorder, finalState } = recordExercise(options);
+  // ロースターに載せたユニットは状態スナップショットにも居なければならない
+  // （`unit-battle-summary-projector.ts`が対応を要求する）。この投影テストは
+  // ユニットの可変状態を動かさないため、初期・最終とも同じ静止スナップショットにする。
+  const unitStates = Object.fromEntries(
+    (options.unitRoster ?? []).map((entry) => [entry.battleUnitId, unitSnapshot()]),
+  );
   return assembleTacticalExerciseResult({
     battleId: BATTLE_ID,
     catalogRevision: "rev-1",
@@ -124,10 +198,10 @@ function assemble(
       readonly totalScore: number;
       readonly breakCount: number;
     },
-    initialState: INITIAL_STATE,
-    finalState,
+    initialState: { ...INITIAL_STATE, units: unitStates },
+    finalState: { ...finalState, units: unitStates },
     events: recorder.getEvents(),
-    unitRoster: [],
+    unitRoster: options.unitRoster ?? [],
   });
 }
 
@@ -197,6 +271,56 @@ describe("assembleTacticalExerciseResult", () => {
 
     expect(result.breaks).toEqual([]);
     expect(result.breakCount).toBe(0);
+  });
+
+  it("UT-TEXASSEMBLER-008 (R-TEX-10 #2): resolves the break's source unit to its definition id through the roster", () => {
+    const attackerId = createBattleUnitId("ally:1");
+    const result = assemble({
+      steps: [
+        { kind: "SCORE", amount: 100, turnNumber: 1 },
+        { kind: "BREAK", turnNumber: 1, sourceUnitId: attackerId },
+      ],
+      unitRoster: [rosterEntry(attackerId, createUnitDefinitionId("UNIT_KOTOHA_REBEL"))],
+    });
+
+    expect(result.breaks).toEqual([
+      {
+        breakNumber: 1,
+        turnNumber: 1,
+        cumulativeScoreAtBreak: 100,
+        sourceUnitDefinitionId: createUnitDefinitionId("UNIT_KOTOHA_REBEL"),
+      },
+    ]);
+  });
+
+  it("UT-TEXASSEMBLER-009 (R-TEX-10 #2／R-MEM-04): omits the source unit for a break with no source unit, such as a Memory-derived continuous damage", () => {
+    const result = assemble({
+      steps: [
+        { kind: "SCORE", amount: 40, turnNumber: 2 },
+        { kind: "BREAK", turnNumber: 2 },
+      ],
+    });
+
+    expect(result.breaks).toEqual([{ breakNumber: 1, turnNumber: 2, cumulativeScoreAtBreak: 40 }]);
+    expect(result.breaks[0]).not.toHaveProperty("sourceUnitDefinitionId");
+  });
+
+  it("UT-TEXASSEMBLER-010 (R-TEX-10 #2): rejects a break whose source unit is missing from the roster instead of silently reporting it as source-less", () => {
+    const unknownId = createBattleUnitId("ally:absent");
+    const input = {
+      steps: [
+        { kind: "SCORE" as const, amount: 100, turnNumber: 1 },
+        { kind: "BREAK" as const, turnNumber: 1, sourceUnitId: unknownId },
+      ],
+      unitRoster: [],
+    };
+
+    expect(() => assemble(input)).toThrow(ApplicationError);
+    try {
+      assemble(input);
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
   });
 
   it("UT-TEXASSEMBLER-005 (R-TEX-10 #3): verifies state restoration over the exercise deltas, so initialState + every delta equals finalState", () => {

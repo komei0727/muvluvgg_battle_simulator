@@ -641,13 +641,14 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 ### ExerciseBreakResponse
 
-| プロパティ               | 型      | 値                         |
-| ------------------------ | ------- | -------------------------- |
-| `breakNumber`            | integer | 1から始まるブレイク番号。  |
-| `turnNumber`             | integer | ブレイクが発生したターン。 |
-| `cumulativeScoreAtBreak` | integer | ブレイク時点の累計スコア。 |
+| プロパティ               | 型      | 値                                                                                                                         |
+| ------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `breakNumber`            | integer | 1から始まるブレイク番号。                                                                                                  |
+| `turnNumber`             | integer | ブレイクが発生したターン。                                                                                                 |
+| `cumulativeScoreAtBreak` | integer | ブレイク時点の累計スコア。                                                                                                 |
+| `sourceUnitDefinitionId` | string  | ブレイクを起こしたユニットの定義ID（`R-TEX-03` #2 の発生源）。発生源ユニットを持たないブレイクでは省略する（`R-MEM-04`）。 |
 
-勝敗（`outcome`）は含めない。
+勝敗（`outcome`）は含めない。`sourceUnitDefinitionId` が省略されるのは、メモリー由来の継続ダメージのように具体的な発生源ユニットが存在しない場合である。
 
 ### TacticalExerciseEvaluationResponse
 

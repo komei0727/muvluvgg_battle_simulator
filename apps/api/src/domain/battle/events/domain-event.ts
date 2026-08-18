@@ -1453,6 +1453,18 @@ export interface BattleDomainEventPayloadMap {
     readonly totalScore: number;
     /** ブレイクに至ったHP0到達の原因イベント（`DamageApplied`／`ResourceChanged`等）。 */
     readonly causeEventId: DomainEventId;
+    /**
+     * ブレイクを起こした発生源。エンベロープの`sourceUnitId`／`sourceSide`と同じ値だが、
+     * R-TEX-10 #2のブレイク履歴はこのイベントのpayloadだけからの投影として定義されるため、
+     * `turnNumber`と同じ理由で明示的に運ぶ。
+     *
+     * 両方を省略可能にする。攻撃・リソース操作の経路は`sourceUnitId`だけを渡し、
+     * メモリー由来の継続ダメージのように具体的な発生源ユニットを持たない経路は
+     * `sourceSide`だけを渡す（R-MEM-04）——`EventRecorder`は一方から他方を導出しない
+     * ため、どちらの経路でも片方が欠ける。
+     */
+    readonly sourceUnitId?: BattleUnitId;
+    readonly sourceSide?: Side;
   };
   /**
    * `08_ドメインイベント.md`「戦術演習イベント」（R-TEX-05 #5）: 解除・強化・全回復まで
