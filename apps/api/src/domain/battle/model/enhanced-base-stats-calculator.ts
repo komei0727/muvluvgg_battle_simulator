@@ -6,7 +6,7 @@ import { calculateGearRatios, type GearSpecification } from "./gear-customizatio
  * R-ENH-03 #1: タイプ装備は強化対象の全ユニットへ常時適用する固定加算。
  * 個別のON/OFFは持たない（Q-ENH-04）。
  */
-const TYPE_EQUIPMENT_ADDITION = { hp: 19320, attack: 14340, defense: 7980 } as const;
+const TYPE_EQUIPMENT_ADDITION = { hp: 21600, attack: 16020, defense: 8920 } as const;
 
 /** R-ENH-03 #2: モジュールの固定加算。 */
 const MODULE_FIXED_ADDITION = { hp: 3628, attack: 2721, defense: 1515 } as const;
