@@ -23,9 +23,10 @@ export interface AllyUnitRunMetricsInput {
  * ことを構成で保証するためである。
  *
  * ブレイクは参加枠（`BattleUnitId`）で帰属させる。R-FRM-03により同じ`UnitDefinitionId`を
- * 同一陣営へ複数指定できるため、定義IDでは枠を特定できない。発生源を持たないブレイク
- * （メモリー由来の継続ダメージ、R-MEM-04）と味方以外が起こしたブレイクはどの枠へも
- * 数えない — 利用側は`breakCount`との残差としてそれらを把握する。
+ * 同一陣営へ複数指定できるため、定義IDでは枠を特定できない。数えるのは味方の枠が起こした
+ * ブレイクだけで、発生源を持たないブレイク（メモリー由来の継続ダメージ、R-MEM-04）も、
+ * 敵の枠自身が起こしたブレイク（混乱による自傷など、R-CFS-01）もどの枠へも数えない
+ * — 利用側は`breakCount`との残差としてまとめて把握する。
  */
 export function projectAllyUnitRunMetrics(run: AllyUnitRunMetricsInput): AllyUnitRunMetrics {
   const breaksByUnitId = new Map<BattleUnitId, number>();

@@ -445,7 +445,7 @@ export interface TacticalExerciseCandidateEvaluationResponseBody {
   readonly allyUnitDamageTotals: readonly (readonly number[])[];
   /**
    * 試行ごと・味方ユニットごとの、そのユニットの攻撃で発生したブレイク回数。内側は
-   * リクエストの編成順。発生源ユニットを持たないブレイクは数えないため、内側の和は
+   * リクエストの編成順。数えるのは味方ユニットが起こしたブレイクだけであり、内側の和は
    * 同じ添字の`breakCounts`以下になる。
    */
   readonly allyUnitBreakCounts: readonly (readonly number[])[];

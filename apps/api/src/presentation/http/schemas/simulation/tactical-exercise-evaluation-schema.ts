@@ -120,7 +120,7 @@ const candidateEvaluationResponseDocSchema = {
     allyUnitBreakCounts: {
       ...candidateEvaluationResponseSchema.properties.allyUnitBreakCounts,
       description:
-        "Breaks caused by each ally unit, per run. Breaks with no source unit (Memory-derived continuous damage) are counted for no unit, so each row sums to at most the same index of breakCounts.",
+        "Breaks caused by each ally unit, per run. Only breaks whose source is an ally unit are counted, so each row sums to at most the same index of breakCounts; the difference covers both breaks with no source unit (Memory-derived continuous damage) and breaks the enemy caused itself.",
     },
   },
 } as const;

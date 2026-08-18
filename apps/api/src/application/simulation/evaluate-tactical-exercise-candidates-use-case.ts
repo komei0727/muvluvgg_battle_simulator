@@ -46,8 +46,8 @@ export interface TacticalExerciseCandidateEvaluation {
   readonly allyUnitDamageTotals: readonly (readonly number[])[];
   /**
    * 試行ごと・味方の参加枠ごとの、その枠の攻撃で発生したブレイク回数。内側は編成順。
-   * 発生源ユニットを持たないブレイク（R-MEM-04）は数えないため、内側の和は同じ添字の
-   * `breakCounts`以下になる。
+   * 数えるのは味方の枠が起こしたブレイクだけであり、内側の和は同じ添字の`breakCounts`
+   * 以下になる。差は発生源が味方の枠でないブレイクの件数である。
    */
   readonly allyUnitBreakCounts: readonly (readonly number[])[];
 }

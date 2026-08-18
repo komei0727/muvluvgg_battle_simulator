@@ -1496,6 +1496,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-MEM-ALWAYS-PICO-BESIDE-YOU-005",
       "UT-R-EFF-10-019",
       "UT-R-EFF-10-020",
+      // Memory由来のブレイクへ陣営から発生源ユニットを推測しない（利用側の帰属集計）。
+      "UT-ALLYRUNMETRICS-003",
     ],
     kinds: ["POSITIVE", "NEGATIVE"],
   },
@@ -3775,6 +3777,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-TEXASSEMBLER-008",
       "UT-TEXASSEMBLER-009",
       "UT-TEXASSEMBLER-010",
+      "UT-TEXASSEMBLER-011",
       "UT-TEXUSECASE-001",
       "UT-TEXUSECASE-002",
       "IT-TEX-001",

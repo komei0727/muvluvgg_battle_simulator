@@ -702,7 +702,7 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 統計量（平均・分散など）は含めない（Q-TEX-16）。6つの配列は同じ試行を同じ添字で指し、いずれも外側の長さが `completedRuns` に一致する。`allyUnit*` の内側はリクエストの `candidates[i].allyFormation.units` と同じ長さ・同じ順（編成順）である。ブレイク履歴（`breaks`）・イベント列・状態遷移・ユニット別集計（`unitSummaries`）は返さない。
 
-`allyUnitDamageTotals` は単発の演習（`POST /api/v1/tactical-exercises`）が同じseedで返す `unitSummaries` の味方側 `damageDealt` と一致する（同じ投影をそのまま使う）。`allyUnitBreakCounts` は `UnitBroken` の発生源を参加枠へ帰属させたもので、発生源ユニットを持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）はどのユニットへも数えない。したがって各行の和は同じ添字の `breakCounts` 以下であり、差は「発生源ユニットを持たないブレイク」の件数である。
+`allyUnitDamageTotals` は単発の演習（`POST /api/v1/tactical-exercises`）が同じseedで返す `unitSummaries` の味方側 `damageDealt` と一致する（同じ投影をそのまま使う）。`allyUnitBreakCounts` は `UnitBroken` の発生源を参加枠へ帰属させたもので、数えるのは**味方の枠が起こしたブレイクだけ**である。したがって各行の和は同じ添字の `breakCounts` 以下であり、差は「発生源が味方の枠でないブレイク」の件数になる。これには発生源ユニットを持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）と、敵の枠自身が起こしたブレイク（混乱による自傷など、`R-CFS-01`）の両方が入る — 残差を一律に「メモリー由来」として読んではならない。
 
 ### FormationStatPreviewResponse
 

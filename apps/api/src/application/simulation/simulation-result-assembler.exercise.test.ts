@@ -294,7 +294,7 @@ describe("assembleTacticalExerciseResult", () => {
     ]);
   });
 
-  it("UT-TEXASSEMBLER-013 (R-FRM-03): keeps the source participation slot distinguishable when two slots share one definition id", () => {
+  it("UT-TEXASSEMBLER-011 (R-TEX-10 #2／R-FRM-03): keeps the source participation slot distinguishable when two slots share one definition id", () => {
     const firstSlotId = createBattleUnitId("ally:1");
     const secondSlotId = createBattleUnitId("ally:2");
     const sharedDefinitionId = createUnitDefinitionId("UNIT_KOTOHA_REBEL");

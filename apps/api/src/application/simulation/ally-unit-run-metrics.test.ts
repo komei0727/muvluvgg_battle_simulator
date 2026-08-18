@@ -76,7 +76,10 @@ describe("projectAllyUnitRunMetrics", () => {
     expect(metrics.breakCounts).toEqual([1, 0]);
   });
 
-  it("UT-ALLYRUNMETRICS-004: does not count a break whose source is not an ally slot", () => {
+  // 敵の枠が発生源になる経路は実在する: R-CFS-01により混乱した敵のASは対象側が反転し、
+  // 演習の敵はちょうど1体（R-TEX-01 #3）なので自分自身を撃つ。その自傷でHPが0へ達すれば
+  // 発生源が敵の枠のブレイクになる。残差を一律に「メモリー由来」と読めない理由である。
+  it("UT-ALLYRUNMETRICS-004: does not count a break whose source is an enemy slot, such as a confused enemy hitting itself", () => {
     const metrics = projectAllyUnitRunMetrics(run({ breaks: [exerciseBreak(1, ENEMY_ONE)] }));
 
     expect(metrics.breakCounts).toEqual([0, 0]);
