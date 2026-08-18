@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { selectExerciseResultView } from "./exercise-result-projector.js";
-import type { ExerciseResultResponse } from "../simulation/api-contract.js";
+import type {
+  BattleSimulationCatalogResponse,
+  ExerciseResultResponse,
+} from "../simulation/api-contract.js";
+
+function catalog(
+  units: readonly { readonly unitDefinitionId: string; readonly displayName: string }[],
+): BattleSimulationCatalogResponse {
+  return {
+    schemaVersion: 1,
+    catalogRevision: "rev-1",
+    units: units.map((unit) => ({
+      unitDefinitionId: unit.unitDefinitionId,
+      displayName: unit.displayName,
+      characterName: unit.displayName,
+      attribute: "FIRE",
+      unitType: "ATTACKER",
+      role: "ATTACKER",
+      positionAptitudes: ["FRONT"],
+    })),
+    memories: [],
+  };
+}
 
 function result(overrides: Partial<ExerciseResultResponse> = {}): ExerciseResultResponse {
   return {
@@ -52,6 +74,54 @@ describe("selectExerciseResultView", () => {
     );
 
     expect(view.breaks.map((row) => row.breakNumber)).toEqual([1, 2]);
+  });
+
+  // UI-AC-021 / R-TEX-03 #2: 発生源ユニットをCatalogの表示名で名指しする。
+  it("resolves the break source unit display name from the catalog (UI-UT-EXR-001)", () => {
+    const view = selectExerciseResultView(
+      result({
+        breakCount: 1,
+        breaks: [
+          {
+            breakNumber: 1,
+            turnNumber: 2,
+            cumulativeScoreAtBreak: 1500,
+            sourceUnitDefinitionId: "UNIT_ALLY_A",
+          },
+        ],
+      }),
+      catalog([{ unitDefinitionId: "UNIT_ALLY_A", displayName: "アライアルファ" }]),
+    );
+
+    expect(view.breaks[0]?.sourceLabel).toBe("アライアルファ");
+  });
+
+  // Catalog未取得や、Catalog更新で消えた定義でも履歴を出し続ける（`UI-CMP-012`）。
+  it("falls back to the raw definition id for an unknown source unit (UI-UT-EXR-002)", () => {
+    const breaks = [
+      {
+        breakNumber: 1,
+        turnNumber: 2,
+        cumulativeScoreAtBreak: 1500,
+        sourceUnitDefinitionId: "UNIT_RETIRED",
+      },
+    ];
+
+    expect(
+      selectExerciseResultView(result({ breakCount: 1, breaks }), catalog([])).breaks[0]
+        ?.sourceLabel,
+    ).toBe("UNIT_RETIRED");
+    expect(selectExerciseResultView(result({ breakCount: 1, breaks })).breaks[0]?.sourceLabel).toBe(
+      "UNIT_RETIRED",
+    );
+  });
+
+  // R-MEM-04: 発生源ユニットを持たないブレイクはメモリー由来である。この項目を
+  // 返さない旧レスポンスも同じ経路で表示できる（後方互換）。
+  it("labels a break without a source unit as a memory effect (UI-UT-EXR-003)", () => {
+    const view = selectExerciseResultView(result());
+
+    expect(view.breaks.map((row) => row.sourceLabel)).toEqual(["メモリー効果", "メモリー効果"]);
   });
 
   // UI-AC-021: ブレイク0回でも結果表示が成立する。

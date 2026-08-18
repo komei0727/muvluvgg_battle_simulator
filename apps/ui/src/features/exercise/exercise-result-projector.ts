@@ -3,12 +3,17 @@
 // として導出し、componentはこの投影だけを描画する（`UI-CMP-005`）。
 
 import { EXERCISE_TURN_LIMIT } from "./exercise-draft-validation.js";
-import type { ExerciseResultResponse } from "../simulation/api-contract.js";
+import type {
+  BattleSimulationCatalogResponse,
+  ExerciseResultResponse,
+} from "../simulation/api-contract.js";
 
 export interface ExerciseBreakRow {
   readonly breakNumber: number;
   readonly turnNumber: number;
   readonly cumulativeScoreAtBreak: number;
+  /** 発生源ユニットの表示名。Catalog未解決は定義ID、発生源なしは`MEMORY_SOURCE_LABEL`。 */
+  readonly sourceLabel: string;
 }
 
 export interface ExerciseResultView {
@@ -28,13 +33,27 @@ const COMPLETION_REASON_LABELS: Readonly<Record<string, string>> = {
   ALLY_DEFEATED: "味方陣営全滅",
 };
 
+// R-MEM-04: メモリー由来の継続ダメージのように発生源ユニットを持たないブレイクが
+// あり、そのときAPIは`sourceUnitDefinitionId`を省略する。この項目より前にデプロイ
+// されたAPIの応答も同じ経路を通るため、省略を欠損ではなくメモリー由来として読む。
+const MEMORY_SOURCE_LABEL = "メモリー効果";
+
 /** `SubmissionFeedback`の1行要約。演習は勝敗を持たないためスコアで代替する。 */
 export function describeExerciseResult(result: ExerciseResultResponse): string {
   const view = selectExerciseResultView(result);
   return `スコア ${view.totalScore.toLocaleString()} / ブレイク ${view.breakCount}回 / ${view.completionReasonLabel} (turn ${view.completedTurn})`;
 }
 
-export function selectExerciseResultView(result: ExerciseResultResponse): ExerciseResultView {
+export function selectExerciseResultView(
+  result: ExerciseResultResponse,
+  catalog?: BattleSimulationCatalogResponse,
+): ExerciseResultView {
+  // Catalogがreload中・未取得のときも履歴自体は出す（`BattleSummarySection`の
+  // displayName fallbackと同じ方針）。
+  const displayNameByDefinitionId = new Map(
+    (catalog?.units ?? []).map((unit) => [unit.unitDefinitionId, unit.displayName] as const),
+  );
+
   return {
     totalScore: result.totalScore,
     breakCount: result.breakCount,
@@ -47,6 +66,11 @@ export function selectExerciseResultView(result: ExerciseResultResponse): Exerci
         breakNumber: entry.breakNumber,
         turnNumber: entry.turnNumber,
         cumulativeScoreAtBreak: entry.cumulativeScoreAtBreak,
+        sourceLabel:
+          entry.sourceUnitDefinitionId === undefined
+            ? MEMORY_SOURCE_LABEL
+            : (displayNameByDefinitionId.get(entry.sourceUnitDefinitionId) ??
+              entry.sourceUnitDefinitionId),
       }))
       .toSorted((a, b) => a.breakNumber - b.breakNumber),
   };

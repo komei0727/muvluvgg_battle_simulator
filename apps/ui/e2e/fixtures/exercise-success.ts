@@ -14,7 +14,16 @@ export const exerciseSuccessFixture = {
     completedTurn: 5,
     totalScore: 4200,
     breakCount: 1,
-    breaks: [{ breakNumber: 1, turnNumber: 3, cumulativeScoreAtBreak: 2100 }],
+    // R-TEX-03 #2: ブレイクの発生源ユニット。`UNIT_ALLY_A`はcatalog.tsで
+    // 「アライアルファ」として解決される。
+    breaks: [
+      {
+        breakNumber: 1,
+        turnNumber: 3,
+        cumulativeScoreAtBreak: 2100,
+        sourceUnitDefinitionId: "UNIT_ALLY_A",
+      },
+    ],
   },
   initialState: {
     stateVersion: 0,
