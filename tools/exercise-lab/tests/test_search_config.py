@@ -178,19 +178,21 @@ def test_academy_levels_in_the_yaml_enable_enhancement(tmp_path):
     assert formation.ally.academy_levels.unit_types["PHYSICAL"] == 99
 
 
-def player_data_file(tmp_path):
+def player_data_file(tmp_path, *, level_link=None, link_excluded=False):
     path = tmp_path / "player-data.json"
+    unit = {
+        "level": 250,
+        "gears": [{"stat": "ATTACK", "tier": "III", "grade": "S"}, None],
+    }
+    if link_excluded:
+        unit["linkExcluded"] = True
     path.write_text(
         json.dumps(
             {
                 "schemaVersion": 1,
                 "academyLevels": {"unitTypes": {"PHYSICAL": 50}, "attributes": {"SHY": 40}},
-                "units": {
-                    "UNIT_A": {
-                        "level": 250,
-                        "gears": [{"stat": "ATTACK", "tier": "III", "grade": "S"}, None],
-                    }
-                },
+                **({} if level_link is None else {"levelLink": level_link}),
+                "units": {"UNIT_A": unit},
             }
         ),
         encoding="utf-8",
@@ -221,6 +223,47 @@ def test_player_data_supplies_level_and_gears_for_the_pool(tmp_path):
     # キーごと落とすのが `lab stats` と同じ規則で、そのことを警告に残す。
     assert "enhancement" not in unit_b
     assert any("UNIT_B" in warning for warning in warnings)
+
+
+def test_level_link_resolves_the_pool_levels(tmp_path):
+    config = load(tmp_path)
+    data = load_player_data(player_data_file(tmp_path, level_link={"enabled": True, "level": 275}))
+
+    enhanced, _ = resolve_unit_enhancements(config, data)
+
+    assert enhanced.unit_enhancements["UNIT_A"].level == 275
+
+
+def test_pool_unit_absent_from_player_data_is_still_linked(tmp_path):
+    # 記録の無いユニットもリンク対象（UI側の `UI-API-024`）。`unit_pool` の大半が
+    # 「置いただけで一度も開いていない」ユニットなので、ここが主要経路になる。
+    config = load(tmp_path)
+    data = load_player_data(player_data_file(tmp_path, level_link={"enabled": True, "level": 275}))
+
+    enhanced, warnings = resolve_unit_enhancements(config, data)
+
+    assert enhanced.unit_enhancements["UNIT_B"].level == 275
+    assert any("UNIT_B" in warning and "レベル275" in warning for warning in warnings)
+
+
+def test_link_excluded_unit_keeps_its_own_level_in_the_pool(tmp_path):
+    config = load(tmp_path)
+    data = load_player_data(
+        player_data_file(tmp_path, level_link={"enabled": True, "level": 275}, link_excluded=True)
+    )
+
+    enhanced, _ = resolve_unit_enhancements(config, data)
+
+    assert enhanced.unit_enhancements["UNIT_A"].level == 250
+
+
+def test_pool_levels_are_unchanged_without_a_level_link(tmp_path):
+    config = load(tmp_path)
+    data = load_player_data(player_data_file(tmp_path))
+
+    enhanced, _ = resolve_unit_enhancements(config, data)
+
+    assert enhanced.unit_enhancements["UNIT_A"].level == 250
 
 
 def test_player_data_enables_enhancement_when_the_yaml_has_no_academy_levels(tmp_path):

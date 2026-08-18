@@ -153,6 +153,42 @@ def test_units_command_owned_filter_uses_the_player_data(tmp_path):
 
 
 @respx.mock
+def test_owned_level_column_shows_the_resolved_level_with_a_link_marker(tmp_path):
+    """リンク由来の値には印を付ける。YAMLへ書き写すときの取り違えを減らす。"""
+    _mock_catalog()
+    player_data = tmp_path / "player-data.json"
+    player_data.write_text(
+        json.dumps({**PLAYER_DATA, "levelLink": {"enabled": True, "level": 250}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["units", "--owned", "--player-data", str(player_data), "--base-url", BASE_URL],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "250*" in result.output
+    assert "297" not in result.output
+
+
+@respx.mock
+def test_owned_level_column_shows_the_stored_level_without_a_link(tmp_path):
+    _mock_catalog()
+    player_data = tmp_path / "player-data.json"
+    player_data.write_text(json.dumps(PLAYER_DATA), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["units", "--owned", "--player-data", str(player_data), "--base-url", BASE_URL],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "297" in result.output
+    assert "*" not in result.output
+
+
+@respx.mock
 def test_owned_without_player_data_is_an_explained_error():
     _mock_catalog()
 
