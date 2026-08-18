@@ -16,6 +16,7 @@ from pathlib import Path
 from pydantic import Field, ValidationError
 
 from .models import (
+    DEFAULT_UNIT_LEVEL,
     MAX_GEARS,
     AcademyLevels,
     AllyUnitSpec,
@@ -60,18 +61,24 @@ class PlayerData(_Spec):
     units: dict[str, StoredUnitEnhancement]
 
 
-def resolved_level(stored: StoredUnitEnhancement, data: PlayerData) -> int:
+def resolved_level(stored: StoredUnitEnhancement | None, data: PlayerData) -> int:
     """リンクを解いた実効レベル。
 
     `docs/ui-design/03_API・データ連携設計.md` §3.1 の `resolveUnitLevel` と同じ規則。
     リンクONの枠はリンクレベル、除外した枠は個別レベルを使う。リンクレベルが1以上の
     整数でないときは、UI側と同じく個別レベルへフォールバックする（片方だけが別の
     レベルで評価すると、探索結果が誤った前提に立つ）。
+
+    手持ちデータに記録が無いユニット（`stored is None`）もリンク対象とする
+    （`UI-API-024`）。UI側の書き戻しは直近に編集した枠だけなので、「置いただけで
+    一度も強化入力を開いていないユニット」には記録が付かない。それはレベルリンクが
+    狙っている母集団そのものであり、既定200で評価するとUIと結論が割れる。
     """
     link = data.level_link
-    if link is not None and link.enabled and link.level >= 1 and not stored.link_excluded:
+    excluded = stored is not None and stored.link_excluded
+    if link is not None and link.enabled and link.level >= 1 and not excluded:
         return link.level
-    return stored.level
+    return DEFAULT_UNIT_LEVEL if stored is None else stored.level
 
 
 def load_player_data(path: Path) -> PlayerData:
@@ -114,19 +121,22 @@ def apply_player_data(
 
 def _apply_unit(unit: AllyUnitSpec, data: PlayerData, warnings: list[str]) -> AllyUnitSpec:
     stored = data.units.get(unit.unit_definition_id)
+    level = resolved_level(stored, data)
     if stored is None:
+        # ギアが無いことは実際の欠落なので警告は残す。レベルはリンクで決まり得るため
+        # 200と断定せず、実際に評価する値を書く。
         warnings.append(
-            f"{unit.unit_definition_id} は手持ちデータに無い（レベル200・ギアなしとして評価する）"
+            f"{unit.unit_definition_id} は手持ちデータに無い"
+            f"（レベル{level}・ギアなしとして評価する）"
         )
-        return unit
-    if len(stored.gears) > MAX_GEARS:
+    elif len(stored.gears) > MAX_GEARS:
         raise PlayerDataError(
             f"{unit.unit_definition_id}: ギア枠が{MAX_GEARS}件を超えている（{len(stored.gears)}件）"
         )
     update = {}
     if unit.level is None:
-        update["level"] = resolved_level(stored, data)
-    if unit.gears is None:
+        update["level"] = level
+    if unit.gears is None and stored is not None:
         # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
         update["gears"] = [gear for gear in stored.gears if gear is not None]
     return unit.model_copy(update=update) if update else unit

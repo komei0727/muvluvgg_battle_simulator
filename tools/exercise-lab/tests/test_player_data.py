@@ -134,6 +134,39 @@ def test_level_link_replaces_the_stored_level_of_linked_units(tmp_path):
     assert level_of(applied) == 260
 
 
+def test_unit_absent_from_player_data_is_still_linked(tmp_path):
+    """記録の無いユニットもリンク対象（UI側の `UI-API-024`）。
+
+    手持ちデータへの書き戻しは直近に編集した枠だけなので、「置いただけで一度も
+    強化入力を開いていないユニット」には記録が付かない。それはレベルリンクが
+    狙っている母集団そのものであり、ここを既定200で評価するとUIと結論が割れる。
+    """
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, linked(PLAYER_DATA, level=260)))
+
+    applied, warnings = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[1]["enhancement"] == {"level": 260, "gears": []}
+    # ギアが無いことは依然として実際の欠落なので、警告自体は残す。
+    assert any("UNIT_MISSING" in warning and "レベル260" in warning for warning in warnings)
+
+
+def test_link_level_that_cannot_be_an_integer_is_rejected(tmp_path):
+    """`""`（打ち直しのために消した状態）は保存データに現れない前提を固定する。
+
+    UI側は未入力のリンクレベルを書き戻さない（`04_コンポーネント・状態管理設計.md`）。
+    表現できない値を黙ってフォールバックで飲み込むと、`extra="forbid"` と同じ理由で
+    取り違えに気づけなくなるため、読み込みごと落とす。
+    """
+    path = write_json(tmp_path, {**PLAYER_DATA, "levelLink": {"enabled": True, "level": ""}})
+
+    with pytest.raises(PlayerDataError, match="levelLink"):
+        load_player_data(path)
+
+
 def test_link_excluded_unit_keeps_its_own_level(tmp_path):
     stored = linked(PLAYER_DATA, level=260)
     stored["units"] = {"UNIT_A": {**stored["units"]["UNIT_A"], "linkExcluded": True}}

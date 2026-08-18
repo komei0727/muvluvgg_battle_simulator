@@ -17,6 +17,7 @@ import yaml
 from pydantic import Field, ValidationError, model_validator
 
 from ..models import (
+    DEFAULT_UNIT_LEVEL,
     AcademyLevels,
     AllySpec,
     AllyUnitSpec,
@@ -346,17 +347,22 @@ def resolve_unit_enhancements(
     enhancements: dict[str, AllyUnitSpec] = {}
     for unit_definition_id in config.unit_pool:
         stored = data.units.get(unit_definition_id)
+        level = resolved_level(stored, data)
         if stored is None:
             warnings.append(
-                f"{unit_definition_id} は手持ちデータに無い（レベル200・ギアなしとして評価する）"
+                f"{unit_definition_id} は手持ちデータに無い"
+                f"（レベル{level}・ギアなしとして評価する）"
             )
-            continue
+            if level == DEFAULT_UNIT_LEVEL:
+                # 既定と同値の強化は送信時にキーごと落ちる（`models.py` の `_ally_unit`）。
+                # エントリを作らず、リンクが効かないときの形を現行と同じに保つ。
+                continue
         enhancements[unit_definition_id] = AllyUnitSpec.model_construct(
             unit_definition_id=unit_definition_id,
             position=Position(column=0, row="FRONT"),
-            level=resolved_level(stored, data),
+            level=level,
             # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
-            gears=[gear for gear in stored.gears if gear is not None],
+            gears=[] if stored is None else [gear for gear in stored.gears if gear is not None],
         )
     return (
         config.model_copy(

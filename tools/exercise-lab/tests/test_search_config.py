@@ -234,6 +234,18 @@ def test_level_link_resolves_the_pool_levels(tmp_path):
     assert enhanced.unit_enhancements["UNIT_A"].level == 275
 
 
+def test_pool_unit_absent_from_player_data_is_still_linked(tmp_path):
+    # 記録の無いユニットもリンク対象（UI側の `UI-API-024`）。`unit_pool` の大半が
+    # 「置いただけで一度も開いていない」ユニットなので、ここが主要経路になる。
+    config = load(tmp_path)
+    data = load_player_data(player_data_file(tmp_path, level_link={"enabled": True, "level": 275}))
+
+    enhanced, warnings = resolve_unit_enhancements(config, data)
+
+    assert enhanced.unit_enhancements["UNIT_B"].level == 275
+    assert any("UNIT_B" in warning and "レベル275" in warning for warning in warnings)
+
+
 def test_link_excluded_unit_keeps_its_own_level_in_the_pool(tmp_path):
     config = load(tmp_path)
     data = load_player_data(
