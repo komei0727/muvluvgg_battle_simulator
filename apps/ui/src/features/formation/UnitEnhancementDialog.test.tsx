@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
 import type { UiViolation } from "./draft-validation.js";
-import { createInitialUnitEnhancement } from "./types.js";
+import { createInitialDraft, createInitialUnitEnhancement } from "./types.js";
 import type { GearInput, LevelLinkInput, UnitEnhancementInput } from "./types.js";
 import type { CatalogGearEffect } from "../simulation/api-contract.js";
 
@@ -30,7 +30,11 @@ function renderDialog(
       enhancement={overrides.enhancement ?? createInitialUnitEnhancement()}
       violations={overrides.violations ?? []}
       {...(overrides.gearEffects !== undefined ? { gearEffects: overrides.gearEffects } : {})}
-      levelLink={overrides.levelLink ?? { enabled: false, level: 200 }}
+      sideEnhancement={{
+        ...createInitialDraft().allyEnhancement,
+        enabled: true,
+        levelLink: overrides.levelLink ?? { enabled: false, level: 200 },
+      }}
       onLevelChange={onLevelChange}
       onGearChange={onGearChange}
       onLinkExclusionChange={onLinkExclusionChange}
@@ -305,7 +309,7 @@ describe("UnitEnhancementDialog — レベルリンク", () => {
     expect(screen.getByLabelText("現在レベル")).not.toHaveAttribute("readonly");
   });
 
-  // UI-CT-062
+  // UI-CT-076
   it("shows the link level read-only while the slot follows the link", () => {
     renderDialog({
       levelLink: linked,
@@ -350,7 +354,7 @@ describe("UnitEnhancementDialog — レベルリンク", () => {
     expect(onLevelChange).toHaveBeenLastCalledWith("");
   });
 
-  // UI-CT-065: R-ENH-05 #5 の422はリンク中でも該当入力へ出し、逃げ道を示す。
+  // UI-CT-079: R-ENH-05 #5 の422はリンク中でも該当入力へ出し、逃げ道を示す。
   it("keeps showing a server violation on the read-only level input, with the way out", () => {
     renderDialog({
       levelLink: linked,
@@ -369,11 +373,12 @@ describe("UnitEnhancementDialog — レベルリンク", () => {
     expect(level).toHaveAttribute("readonly");
     expect(level).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText(/declares no levelGrowth/)).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "成長値を持たないユニットはレベル200だけを受け付けます。「レベルリンクから外す」を選び、レベルを200に戻してください。",
-      ),
-    ).toBeInTheDocument();
+    const wayOut = screen.getByText(
+      "成長値を持たないユニットはレベル200だけを受け付けます。「レベルリンクから外す」を選び、レベルを200に戻してください。",
+    );
+    expect(wayOut).toBeInTheDocument();
+    // UI-AC-039: 逃げ道の文言も入力へ結びつける（`readOnly`を選んだ理由と同じ）。
+    expect(level.getAttribute("aria-describedby")?.split(" ")).toContain(wayOut.id);
   });
 
   it("does not show the way-out hint while the level is valid", () => {

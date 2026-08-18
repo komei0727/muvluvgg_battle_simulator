@@ -60,14 +60,7 @@ interface LevelFieldProps {
 
 // ExecutionParameterForm と同じ入力・違反表示パターン（UI-CMP-014）。
 // 学園レベル9項目とリンクレベル（UI-AC-035）が同じ形の入力なので共有する。
-function LevelField({
-  label,
-  path,
-  value,
-  disabled,
-  violations,
-  onChange,
-}: LevelFieldProps) {
+function LevelField({ label, path, value, disabled, violations, onChange }: LevelFieldProps) {
   const inputId = useId();
   const errorId = useId();
   const messages = messagesForPath(violations, path);

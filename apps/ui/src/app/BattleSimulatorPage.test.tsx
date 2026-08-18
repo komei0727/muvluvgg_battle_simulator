@@ -830,7 +830,7 @@ describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
 });
 
 // docs/ui-design/01_UI要求・画面設計.md §5.6・§5.7（UI-AC-035〜039）
-describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
+describe("BattleSimulatorPage — レベルリンク (UI-CT-075〜081)", () => {
   function allySection() {
     return screen.getByRole("region", { name: /ALLY FORMATION/ });
   }
@@ -849,7 +849,7 @@ describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
     >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
   }
 
-  // UI-CT-061
+  // UI-CT-075
   it("sends the link level for every ally unit, including a slot whose dialog was never opened", async () => {
     const user = userEvent.setup();
     const simulateImpl = successImpl();
@@ -876,7 +876,7 @@ describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
     expect(sentRequest.enemyFormation).not.toHaveProperty("enhancement");
   });
 
-  // UI-CT-063
+  // UI-CT-077
   it("keeps an excluded slot on its own level, seeded from the link level", async () => {
     const user = userEvent.setup();
     const simulateImpl = successImpl();
@@ -905,7 +905,7 @@ describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
     expect(sentRequest.allyFormation.units[0]?.enhancement?.level).toBe(180);
   });
 
-  // UI-CT-064
+  // UI-CT-078
   it("blocks the submit on an unusable link level, but not on a blank level of a linked slot", async () => {
     const user = userEvent.setup();
     render(
@@ -934,7 +934,7 @@ describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
     ).toBeGreaterThan(0);
   });
 
-  // UI-CT-065: R-ENH-05 #5 の422はリンク中でも該当入力へ出す（UI-API-019の維持）。
+  // UI-CT-079: R-ENH-05 #5 の422はリンク中でも該当入力へ出す（UI-API-019の維持）。
   it("maps a levelGrowth 422 onto the read-only level input of the linked slot", async () => {
     const user = userEvent.setup();
     const simulateImpl = vi.fn<
@@ -980,7 +980,7 @@ describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
     expect(dialog.getByText(/レベルを200に戻してください/)).toBeInTheDocument();
   });
 
-  // UI-CT-067
+  // UI-CT-081
   it("keeps the link controls disabled while the side enhancement toggle is off", async () => {
     const user = userEvent.setup();
     const simulateImpl = successImpl();

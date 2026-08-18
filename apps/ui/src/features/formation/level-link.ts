@@ -29,9 +29,7 @@ function isPositiveInteger(value: number | ""): value is number {
  */
 export function isLevelLinked(
   enhancement: UnitEnhancementInput | undefined,
-  // 陣営強化のうち判定に要る2項目だけを取る。ユニット強化ダイアログは陣営の
-  // 学園レベルを知らない（トグルONのときしか開かない）ため、全体を要求しない。
-  sideEnhancement: Pick<SideEnhancementInput, "enabled" | "levelLink">,
+  sideEnhancement: SideEnhancementInput,
 ): boolean {
   return (
     sideEnhancement.enabled &&

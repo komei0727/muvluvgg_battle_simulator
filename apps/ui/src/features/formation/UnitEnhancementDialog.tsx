@@ -8,7 +8,7 @@ import type {
   GearInput,
   GearStat,
   GearTier,
-  LevelLinkInput,
+  SideEnhancementInput,
   UnitEnhancementInput,
 } from "./types.js";
 import type { CatalogGearEffect } from "../simulation/api-contract.js";
@@ -25,8 +25,12 @@ export interface UnitEnhancementDialogProps {
    * 公開しない旧APIと組み合わせたときはランク名だけの表示へフォールバックする。
    */
   readonly gearEffects?: readonly CatalogGearEffect[];
-  /** UI-AC-037: この枠が属する陣営のレベルリンク。リンク中はレベルを編集させない。 */
-  readonly levelLink: LevelLinkInput;
+  /**
+   * UI-AC-037: この枠が属する陣営の強化入力。リンク中はレベルを編集させない。
+   * `levelLink`だけを受け取って`enabled: true`を決め打ちすると、「ダイアログは
+   * トグルONのときしか開かない」という前提が呼び出し側と離れた場所に埋まる。
+   */
+  readonly sideEnhancement: SideEnhancementInput;
   readonly onLevelChange: (value: number | "") => void;
   readonly onGearChange: (gearIndex: number, gear?: GearInput) => void;
   readonly onLinkExclusionChange: (excluded: boolean) => void;
@@ -278,7 +282,7 @@ export function UnitEnhancementDialog({
   enhancement,
   violations,
   gearEffects,
-  levelLink,
+  sideEnhancement,
   onLevelChange,
   onGearChange,
   onLinkExclusionChange,
@@ -288,16 +292,19 @@ export function UnitEnhancementDialog({
   const levelId = useId();
   const levelErrorId = useId();
   const levelHintId = useId();
+  const levelWayOutId = useId();
   const linkExclusionId = useId();
   const gearErrorIdPrefix = useId();
   const levelErrors = levelMessages(violations, slotKey);
-  // この枠がリンクの適用を受けているか。ダイアログは陣営の強化トグルONのときしか
-  // 開かない（`formationReducer`が`selectionOpened`を無視する）ため、判定に必要な
-  // のは`levelLink`と枠の除外フラグだけである。
-  const linked = isLevelLinked(enhancement, { enabled: true, levelLink });
+  const { levelLink } = sideEnhancement;
+  const linked = isLevelLinked(enhancement, sideEnhancement);
+  // UI-AC-039: 逃げ道の文言も入力へ結びつける。`readOnly`を選んだ理由（focusできる
+  // ままにして説明を読み上げへ残す）は、エラー文だけでなく解決手段にも同じく効く。
+  const showsWayOut = linked && levelErrors.length > 0;
   const describedBy = [
     levelErrors.length > 0 ? levelErrorId : undefined,
     linked ? levelHintId : undefined,
+    showsWayOut ? levelWayOutId : undefined,
   ].filter((id): id is string => id !== undefined);
 
   return (
@@ -338,8 +345,8 @@ export function UnitEnhancementDialog({
             APIが422で拒否する（R-ENH-05 #5）。UIは事前検証しない方針なので、
             解決手段が機能内にあること（外して200へ戻す）をここで示す。
           */}
-          {linked && levelErrors.length > 0 ? (
-            <p className={styles["hint"]}>
+          {showsWayOut ? (
+            <p id={levelWayOutId} className={styles["hint"]}>
               成長値を持たないユニットはレベル200だけを受け付けます。「レベルリンクから外す」を選び、レベルを200に戻してください。
             </p>
           ) : null}
