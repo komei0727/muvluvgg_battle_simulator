@@ -44,10 +44,10 @@ const ACADEMY_LEVEL_50: UnitEnhancement = {
 describe("calculateEnhancedBaseStats — R-ENH-03 タイプ装備・モジュール", () => {
   it("UT-R-ENH-03-001: applies type equipment and module to a unit with no other enhancement", () => {
     const stats = calculateEnhancedBaseStats(target(), {});
-    // (28375 + 19320 + 3628) × 1.09 など、固定加算のあとに9%の割合補正が掛かる。
-    expect(stats.maximumHp).toBeCloseTo(55942.07, 6);
-    expect(stats.attack).toBeCloseTo(43907.38, 6);
-    expect(stats.defense).toBeCloseTo(23190.84, 6);
+    // (28375 + 21600 + 3628) × 1.09 など、固定加算のあとに9%の割合補正が掛かる。
+    expect(stats.maximumHp).toBeCloseTo(58427.27, 6);
+    expect(stats.attack).toBeCloseTo(45738.58, 6);
+    expect(stats.defense).toBeCloseTo(24215.44, 6);
   });
 
   it("UT-R-ENH-03-002: the 9% module ratio never reaches action speed or the three bonus stats", () => {
@@ -62,15 +62,15 @@ describe("calculateEnhancedBaseStats — R-ENH-03 タイプ装備・モジュー
 describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
   it("UT-R-ENH-05-001: level 300 adds 100 × levelGrowth to HP/attack/defense/action speed", () => {
     const stats = calculateEnhancedBaseStats(target({ levelGrowth: LEVEL_GROWTH }), { level: 300 });
-    expect(stats.maximumHp).toBeCloseTo(83737.07, 6);
-    expect(stats.attack).toBeCloseTo(66688.38, 6);
-    expect(stats.defense).toBeCloseTo(34744.84, 6);
+    expect(stats.maximumHp).toBeCloseTo(86222.27, 6);
+    expect(stats.attack).toBeCloseTo(68519.58, 6);
+    expect(stats.defense).toBeCloseTo(35769.44, 6);
     expect(stats.actionSpeed).toBe(980);
   });
 
   it("UT-R-ENH-05-002: level 100 subtracts with the same formula (negative direction)", () => {
     const stats = calculateEnhancedBaseStats(target({ levelGrowth: LEVEL_GROWTH }), { level: 100 });
-    expect(stats.maximumHp).toBeCloseTo(28147.07, 6);
+    expect(stats.maximumHp).toBeCloseTo(30632.27, 6);
     expect(stats.actionSpeed).toBe(580);
   });
 
@@ -87,9 +87,9 @@ describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
 describe("calculateEnhancedBaseStats — R-ENH-06 強化後基本ステータスの算出", () => {
   it("UT-R-ENH-06-001: composes academy levels, type equipment and module for HP/attack/defense", () => {
     const stats = calculateEnhancedBaseStats(target(), ACADEMY_LEVEL_50);
-    expect(stats.maximumHp).toBeCloseTo(62612.87, 6);
-    expect(stats.attack).toBeCloseTo(48616.18, 6);
-    expect(stats.defense).toBeCloseTo(25806.84, 6);
+    expect(stats.maximumHp).toBeCloseTo(65098.07, 6);
+    expect(stats.attack).toBeCloseTo(50447.38, 6);
+    expect(stats.defense).toBeCloseTo(26831.44, 6);
   });
 
   it("UT-R-ENH-06-002: gear ratios join the module ratio for HP/attack/defense", () => {
@@ -99,7 +99,7 @@ describe("calculateEnhancedBaseStats — R-ENH-06 強化後基本ステータス
         { stat: "MAXIMUM_HP", tier: "III", grade: "S" },
       ],
     });
-    expect(stats.maximumHp).toBeCloseTo(51323 * (1 + 0.09 + 0.0666), 6);
+    expect(stats.maximumHp).toBeCloseTo(53603 * (1 + 0.09 + 0.0666), 6);
   });
 
   it("UT-R-ENH-06-003: action speed takes gear ratios without the module ratio", () => {
