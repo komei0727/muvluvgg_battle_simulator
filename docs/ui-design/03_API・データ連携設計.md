@@ -168,6 +168,12 @@ interface GearInput {
 interface UnitEnhancementInput {
   readonly level: number | ""; // 既定200
   readonly gears: readonly (GearInput | undefined)[]; // 常に9枠。空枠可
+  readonly linkExcluded: boolean; // 既定false。陣営のレベルリンク（下記）から外す
+}
+
+interface LevelLinkInput {
+  readonly enabled: boolean; // 既定false
+  readonly level: number | ""; // 既定200
 }
 
 interface SideEnhancementInput {
@@ -176,11 +182,31 @@ interface SideEnhancementInput {
     readonly unitTypes: Readonly<Record<EnhancementUnitType, number | "">>; // 既定1
     readonly attributes: Readonly<Record<EnhancementAttribute, number | "">>; // 既定1
   };
+  readonly levelLink: LevelLinkInput;
 }
 ```
 
 - `FormationSlotInput`へ `enhancement?: UnitEnhancementInput` を、`BattleDraft`へ `allyEnhancement`／`enemyEnhancement`（`SideEnhancementInput`）を追加する。
 - `enabled: false`（既定）の陣営では、学園レベルとユニット単位の入力値を保持したまま送信対象から外す。
+- `levelLink`・`linkExcluded`（レベルリンク。[01_UI要求・画面設計.md](./01_UI要求・画面設計.md) §5.6・§5.7）はUIの入力モデルにだけ存在し、送信DTOへは出さない。どの枠へどの値を載せるかを決めるだけであり、`FormationEnhancementRequest`・`UnitEnhancementRequest`（§5.1）は変更しない。
+- リンクの反映は参照時に解決する。枠の `level` は保持したまま、リンク中は読まない。
+
+```ts
+/**
+ * リンク中の枠は枠の`level`ではなくリンクレベルを使う。強化入力を一度も開いて
+ * いない枠（`enhancement === undefined`）もリンク対象に含める（`UI-API-024`）。
+ */
+function resolveUnitLevel(
+  sideEnhancement: SideEnhancementInput,
+  slot: FormationSlotInput,
+): number | "" {
+  const link = sideEnhancement.levelLink;
+  if (link.enabled && slot.enhancement?.linkExcluded !== true) {
+    return link.level;
+  }
+  return slot.enhancement?.level ?? DEFAULT_UNIT_LEVEL; // 既定200
+}
+```
 
 ## 4. 座標変換
 
@@ -290,6 +316,9 @@ interface UnitEnhancementRequest {
 3. ユニットのギアは空枠を除外し、0～9件の配列として枠順のまま出力する。
 4. レベル200かつギア0件のユニットは`enhancement`を出力しない。省略時の既定と同値のため。
 5. ユニット単位の`enhancement`は陣営の`enhancement`があるときだけ出力する。陣営指定なしのユニット指定はAPIが422で拒否する。
+6. ユニットの`level`には解決済みレベル（§3.1の`resolveUnitLevel`）を出力する。送信するのは解決済みレベルであり、`levelLink`・`linkExcluded`は出力しない。`FormationEnhancementRequest`・`UnitEnhancementRequest`の形は変えない。
+7. 規則4（レベル200かつギア0件は出力しない）は解決済みレベルへ適用する。**強化入力を一度も開いていない枠（`enhancement === undefined`）もリンク対象**であり、リンクONで解決済みレベルが200以外ならギア0件の`enhancement`を出力する。リンクOFFなら従来どおり出力しない（省略時の既定と同値のため）。
+8. レベルリンクは規則1の後に効く。強化トグルOFFの陣営ではリンクONでも`enhancement`を出力しない。
 
 ## 6. クライアント検証
 
@@ -323,9 +352,18 @@ M11（`ENH-001`）で次を追加する。
 | `/*/units/*/enhancement/level`   | integer 1以上 | ユニットレベルは1以上の整数で入力してください。 |
 | `/*/units/*/enhancement/gears`   | 0～9件        | ギアは9枠まで設定できます。                     |
 
+レベルリンクで次を追加する。違反コードは `LEVEL_LINK_INVALID`（error）とする。
+
+| Path                       | 規則          | UIメッセージ                                  |
+| -------------------------- | ------------- | --------------------------------------------- |
+| `/*/enhancement/levelLink` | integer 1以上 | リンクレベルは1以上の整数で入力してください。 |
+
 - 上表の強化3規則は、その陣営の強化トグルがONのときだけ検証する。OFFの陣営は入力値をdraftへ保持したまま送信対象から外す（`UI-CMP-014`）ため、保持しているだけの値で送信を止めてはならない。
 - 「陣営指定なしのユニット指定」（`R-ENH-01` #3）は送信前検証ではなくリクエスト生成で保証する。§5.1の変換規則1が、トグルOFFの陣営では陣営・ユニットとも `enhancement` プロパティ自体を出力しないため、この組み合わせは送信ペイロード上に表現され得ない。検証で重ねて検査すると、編集後にトグルをOFFへ戻しただけで送信が止まる（`UI-API-017` がこの不在を証跡として持つ）。
-- 成長値（levelGrowth）を持たないユニットへの200以外のレベル指定は事前検証しない。UIはユニット定義の成長値を持たず、APIの422を通常の入力エラーとして該当入力へ表示する。
+- 成長値（levelGrowth）を持たないユニットへの200以外のレベル指定は事前検証しない。UIはユニット定義の成長値を持たず、APIの422を通常の入力エラーとして該当入力へ表示する。レベルリンクはこの422の発生確率を上げるが方針は変えない。リンク中でレベル入力を編集できない枠でも、サーバー違反の文言は`UI-API-019`の対応づけどおり該当入力へ表示する。
+- `LEVEL_LINK_INVALID`は、その陣営の強化トグルONかつリンクONのときだけ検証する。トグルOFF・リンクOFFの陣営は入力値をdraftへ保持したまま送信対象から外すため、保持しているだけの値で送信を止めない（学園レベルと同じ扱い）。
+- リンク中の枠には`UNIT_LEVEL_INVALID`を出さない。リンク中の枠の`level`は送信に使われないためであり、免除しないと「リンクをONにする前に途中まで打った`""`」がリンクON後も永久に送信を止める。「リンクから外す」を指定した枠は従来どおり検証する。
+- `/*/enhancement/levelLink`はUI入力モデル上のpathであり、送信DTOには存在しない。サーバーのJSON Pointerがこのpathを指すことはなく、対応づけ（§13）はクライアント違反の表示先を決めるためだけに使う。
 
 クライアント検証を通過してもサーバー検証を省略できない。Catalog revision差、UI生成の不具合、直接HTTP呼び出しがあるため、APIの422を通常の入力エラーとして扱う。
 
@@ -696,3 +734,7 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-020`: 編成ステータスプレビューへ、戦闘POSTと同じ編成・強化指定（`turnLimit`・`options`を除く）を送り、応答の`units`を陣営ごとの並び順で編成枠へ対応づける。
 - `UI-API-021`: プレビューの失敗（ネットワーク・HTTPエラー・契約違反）を戦闘実行の可否と送信前検証へ波及させない。
 - `UI-API-022`: 一覧応答の`gearEffects`をそのままギア選択肢の表示へ渡し、不在時はランク名だけの表示へフォールバックする。UIは効果表を持たない。
+- `UI-API-023`: レベルリンクONの陣営で、各ユニットの`enhancement.level`へ解決済みレベル（リンクレベル、または「リンクから外す」枠の個別レベル）を載せる。`levelLink`・`linkExcluded`をリクエストへ出力せず、`FormationEnhancementRequest`・`UnitEnhancementRequest`の形を変えない。
+- `UI-API-024`: 強化入力を一度も開いていない枠（`enhancement === undefined`）もリンク対象とし、リンクONなら解決済みレベルとギア0件の`enhancement`を出力する。解決済みレベルが200かつギア0件の枠は従来どおり出力しない。
+- `UI-API-025`: リンクレベルが1以上の整数でない場合に`LEVEL_LINK_INVALID`で送信を止め、リンク中の枠へは`UNIT_LEVEL_INVALID`を出さない。強化トグルOFFの陣営ではリンクを検証しない。
+- `UI-API-026`: 編成ステータスプレビューへも戦闘POSTと同じ解決済みレベルを送る（`UI-API-020`の対応づけを維持する）。
