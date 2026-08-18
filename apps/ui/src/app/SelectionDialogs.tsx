@@ -5,6 +5,7 @@ import { MAX_UNITS_PER_SIDE } from "../features/formation/formation-reducer.js";
 import { UnitEnhancementDialog } from "../features/formation/UnitEnhancementDialog.js";
 import {
   createInitialUnitEnhancement,
+  enhancementForSide,
   memorySlotsForSide,
   slotsForSide,
 } from "../features/formation/types.js";
@@ -127,6 +128,7 @@ export function SelectionDialogs({
         enhancement={slot.enhancement ?? createInitialUnitEnhancement()}
         violations={violations}
         {...(catalog.gearEffects !== undefined ? { gearEffects: catalog.gearEffects } : {})}
+        sideEnhancement={enhancementForSide(draft, slot.side)}
         onLevelChange={(value) => {
           dispatch({ type: "unitEnhancementLevelChanged", slotKey, value });
         }}
@@ -137,6 +139,9 @@ export function SelectionDialogs({
             gearIndex,
             ...(gear === undefined ? {} : { gear }),
           });
+        }}
+        onLinkExclusionChange={(excluded) => {
+          dispatch({ type: "unitLinkExclusionChanged", slotKey, excluded });
         }}
         onClose={() => {
           dispatch({ type: "selectionClosed" });

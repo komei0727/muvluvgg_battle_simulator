@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
 import type { UiViolation } from "./draft-validation.js";
-import { createInitialUnitEnhancement } from "./types.js";
-import type { GearInput, UnitEnhancementInput } from "./types.js";
+import { createInitialDraft, createInitialUnitEnhancement } from "./types.js";
+import type { GearInput, LevelLinkInput, UnitEnhancementInput } from "./types.js";
 import type { CatalogGearEffect } from "../simulation/api-contract.js";
 
 function renderDialog(
@@ -12,13 +12,16 @@ function renderDialog(
     readonly enhancement?: UnitEnhancementInput;
     readonly violations?: readonly UiViolation[];
     readonly gearEffects?: readonly CatalogGearEffect[];
+    readonly levelLink?: LevelLinkInput;
     readonly onLevelChange?: (value: number | "") => void;
     readonly onGearChange?: (gearIndex: number, gear?: GearInput) => void;
+    readonly onLinkExclusionChange?: (excluded: boolean) => void;
     readonly onClose?: () => void;
   } = {},
 ) {
   const onLevelChange = overrides.onLevelChange ?? vi.fn();
   const onGearChange = overrides.onGearChange ?? vi.fn();
+  const onLinkExclusionChange = overrides.onLinkExclusionChange ?? vi.fn();
   const onClose = overrides.onClose ?? vi.fn();
   render(
     <UnitEnhancementDialog
@@ -27,12 +30,18 @@ function renderDialog(
       enhancement={overrides.enhancement ?? createInitialUnitEnhancement()}
       violations={overrides.violations ?? []}
       {...(overrides.gearEffects !== undefined ? { gearEffects: overrides.gearEffects } : {})}
+      sideEnhancement={{
+        ...createInitialDraft().allyEnhancement,
+        enabled: true,
+        levelLink: overrides.levelLink ?? { enabled: false, level: 200 },
+      }}
       onLevelChange={onLevelChange}
       onGearChange={onGearChange}
+      onLinkExclusionChange={onLinkExclusionChange}
       onClose={onClose}
     />,
   );
-  return { onLevelChange, onGearChange, onClose };
+  return { onLevelChange, onGearChange, onLinkExclusionChange, onClose };
 }
 
 /** APIが公開する効果表（R-ENH-04 #3）のうち、このテストが使う2ステータス分。 */
@@ -286,5 +295,95 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     await user.selectOptions(screen.getByLabelText("ギア1 の種別"), "");
 
     expect(onGearChange).toHaveBeenLastCalledWith(0, undefined);
+  });
+});
+
+// docs/ui-design/01_UI要求・画面設計.md §5.7「リンクから外す」（UI-AC-036/037、UI-CMP-024）
+describe("UnitEnhancementDialog — レベルリンク", () => {
+  const linked: LevelLinkInput = { enabled: true, level: 260 };
+
+  it("hides the exclusion control while the side's link is off", () => {
+    renderDialog();
+
+    expect(screen.queryByRole("checkbox", { name: /リンク/ })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("現在レベル")).not.toHaveAttribute("readonly");
+  });
+
+  // UI-CT-076
+  it("shows the link level read-only while the slot follows the link", () => {
+    renderDialog({
+      levelLink: linked,
+      enhancement: { ...createInitialUnitEnhancement(), level: 180 },
+    });
+
+    const level = screen.getByLabelText("現在レベル");
+    expect(level).toHaveValue(260);
+    // `disabled`にはしない——focusできなくなると、この入力へ結びつけたサーバー違反の
+    // 説明が読み上げから外れる（UI-AC-039）。
+    expect(level).toHaveAttribute("readonly");
+    expect(screen.getByText(/レベルリンク中（Lv260）/)).toBeInTheDocument();
+  });
+
+  it("reports the exclusion intent without editing the level itself", async () => {
+    const user = userEvent.setup();
+    const { onLinkExclusionChange, onLevelChange } = renderDialog({
+      levelLink: linked,
+      enhancement: { ...createInitialUnitEnhancement(), level: 180 },
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "レベルリンクから外す" }));
+
+    expect(onLinkExclusionChange).toHaveBeenCalledWith(true);
+    expect(onLevelChange).not.toHaveBeenCalled();
+  });
+
+  it("edits the slot's own level again once the slot is excluded", async () => {
+    const user = userEvent.setup();
+    const { onLevelChange } = renderDialog({
+      levelLink: linked,
+      enhancement: { ...createInitialUnitEnhancement(), level: 180, linkExcluded: true },
+    });
+
+    const level = screen.getByLabelText("現在レベル");
+    expect(level).toHaveValue(180);
+    expect(level).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("checkbox", { name: "レベルリンクから外す" })).toBeChecked();
+
+    await user.clear(level);
+
+    expect(onLevelChange).toHaveBeenLastCalledWith("");
+  });
+
+  // UI-CT-079: R-ENH-05 #5 の422はリンク中でも該当入力へ出し、逃げ道を示す。
+  it("keeps showing a server violation on the read-only level input, with the way out", () => {
+    renderDialog({
+      levelLink: linked,
+      violations: [
+        {
+          path: "/allyFormation/units/0/enhancement/level",
+          slotKey: "ally:FRONT:0",
+          code: "SERVER_VIOLATION",
+          message: 'must be 200 because "UNIT_A" declares no levelGrowth, got 260',
+          severity: "error",
+        },
+      ],
+    });
+
+    const level = screen.getByLabelText("現在レベル");
+    expect(level).toHaveAttribute("readonly");
+    expect(level).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(/declares no levelGrowth/)).toBeInTheDocument();
+    const wayOut = screen.getByText(
+      "成長値を持たないユニットはレベル200だけを受け付けます。「レベルリンクから外す」を選び、レベルを200に戻してください。",
+    );
+    expect(wayOut).toBeInTheDocument();
+    // UI-AC-039: 逃げ道の文言も入力へ結びつける（`readOnly`を選んだ理由と同じ）。
+    expect(level.getAttribute("aria-describedby")?.split(" ")).toContain(wayOut.id);
+  });
+
+  it("does not show the way-out hint while the level is valid", () => {
+    renderDialog({ levelLink: linked });
+
+    expect(screen.queryByText(/レベルを200に戻してください/)).not.toBeInTheDocument();
   });
 });

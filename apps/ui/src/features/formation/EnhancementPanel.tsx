@@ -20,6 +20,8 @@ export interface EnhancementPanelProps {
     key: string,
     value: number | "",
   ) => void;
+  readonly onLevelLinkToggle: (enabled: boolean) => void;
+  readonly onLevelLinkChange: (value: number | "") => void;
 }
 
 const UNIT_TYPE_LABELS: Readonly<Record<EnhancementUnitType, string>> = {
@@ -47,7 +49,7 @@ function messagesForPath(violations: readonly UiViolation[], path: string): read
   );
 }
 
-interface AcademyLevelFieldProps {
+interface LevelFieldProps {
   readonly label: string;
   readonly path: string;
   readonly value: number | "";
@@ -57,14 +59,8 @@ interface AcademyLevelFieldProps {
 }
 
 // ExecutionParameterForm と同じ入力・違反表示パターン（UI-CMP-014）。
-function AcademyLevelField({
-  label,
-  path,
-  value,
-  disabled,
-  violations,
-  onChange,
-}: AcademyLevelFieldProps) {
+// 学園レベル9項目とリンクレベル（UI-AC-035）が同じ形の入力なので共有する。
+function LevelField({ label, path, value, disabled, violations, onChange }: LevelFieldProps) {
   const inputId = useId();
   const errorId = useId();
   const messages = messagesForPath(violations, path);
@@ -107,9 +103,12 @@ export function EnhancementPanel({
   disabled,
   onToggle,
   onAcademyLevelChange,
+  onLevelLinkToggle,
+  onLevelLinkChange,
 }: EnhancementPanelProps) {
   const toggleId = useId();
   const headingId = useId();
+  const levelLinkToggleId = useId();
   const formationPath = side === "ally" ? "/allyFormation" : "/enemyFormation";
   const inputsDisabled = disabled || !enhancement.enabled;
   const sideLabelEn = side === "ally" ? "ALLY" : "ENEMY";
@@ -140,9 +139,40 @@ export function EnhancementPanel({
         </p>
       )}
 
+      {/*
+        UI-AC-035: 学園レベルと同じレイヤー（陣営強化パネル）にレベルを1つ指定すると、
+        その陣営のユニットレベルがすべてその値になる。反映は参照時解決で、各枠の
+        「現在レベル」は保持したままリンク中だけ読まれない（`level-link.ts`）。
+      */}
+      <div className={styles["levelLink"]}>
+        <label className={styles["toggle"]} htmlFor={levelLinkToggleId}>
+          <input
+            id={levelLinkToggleId}
+            type="checkbox"
+            checked={enhancement.levelLink.enabled}
+            disabled={inputsDisabled}
+            onChange={(event) => {
+              onLevelLinkToggle(event.target.checked);
+            }}
+          />
+          レベルリンク
+        </label>
+        <LevelField
+          label="リンクレベル"
+          path={`${formationPath}/enhancement/levelLink/level`}
+          value={enhancement.levelLink.level}
+          disabled={inputsDisabled || !enhancement.levelLink.enabled}
+          violations={violations}
+          onChange={onLevelLinkChange}
+        />
+        {enhancement.levelLink.enabled && !inputsDisabled ? (
+          <p className={styles["hint"]}>リンクを外したユニット以外は、レベルがこの値になります。</p>
+        ) : null}
+      </div>
+
       <div className={styles["levels"]}>
         {ENHANCEMENT_UNIT_TYPES.map((unitType) => (
-          <AcademyLevelField
+          <LevelField
             key={unitType}
             label={UNIT_TYPE_LABELS[unitType]}
             path={`${formationPath}/enhancement/academyLevels/unitTypes/${unitType}`}
@@ -155,7 +185,7 @@ export function EnhancementPanel({
           />
         ))}
         {ENHANCEMENT_ATTRIBUTES.map((attribute) => (
-          <AcademyLevelField
+          <LevelField
             key={attribute}
             label={ATTRIBUTE_LABELS[attribute]}
             path={`${formationPath}/enhancement/academyLevels/attributes/${attribute}`}
