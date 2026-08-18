@@ -358,10 +358,10 @@ describe("createBattleParty — FormationFactory", () => {
     const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
 
     // タイプ装備・モジュールは強化対象へ常時適用される（R-ENH-03）:
-    // 攻撃力 (10 + 14340 + 2721) × 1.09、防御力 (10 + 7980 + 1515) × 1.09。
+    // 攻撃力 (10 + 16020 + 2721) × 1.09、防御力 (10 + 8920 + 1515) × 1.09。
     for (const member of party.members) {
-      expect(member.combatStats.attack).toBeCloseTo(18607.39, 4);
-      expect(member.combatStats.defense).toBeCloseTo(10360.45, 4);
+      expect(member.combatStats.attack).toBeCloseTo(20438.59, 4);
+      expect(member.combatStats.defense).toBeCloseTo(11385.05, 4);
       expect(member.combatStats.actionSpeed).toBeCloseTo(10, 4);
     }
   });
@@ -412,8 +412,8 @@ describe("createBattleParty — FormationFactory", () => {
       NO_MEMORIES,
     );
 
-    // 攻撃力 (10 + 1440 + 2880 + 14340 + 2721 + 20×209) × (1 + 0.09 + 0.0333)
-    expect(party.members[0]!.combatStats.attack).toBeCloseTo(28723.9043, 4);
+    // 攻撃力 (10 + 1440 + 2880 + 16020 + 2721 + 20×209) × (1 + 0.09 + 0.0333)
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(30611.0483, 4);
     // 行動速度は学園レベル・タイプ装備・モジュールの対象外: (10 + 20×2) × 1
     expect(party.members[0]!.combatStats.actionSpeed).toBeCloseTo(50, 6);
   });
@@ -439,8 +439,8 @@ describe("createBattleParty — FormationFactory", () => {
       NO_MEMORIES,
     );
 
-    // 適正外配置の -5%（R-STA-01）が、強化後の攻撃力 18607.39 に対して掛かる。
-    expect(party.members[0]!.combatStats.attack).toBeCloseTo(17677.0205, 4);
+    // 適正外配置の -5%（R-STA-01）が、強化後の攻撃力 20438.59 に対して掛かる。
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(19416.6605, 4);
   });
 
   it("UT-R-FRM-FACTORY-009 (R-ENH-06): exposes the enhanced base stats the member's combat stats were derived from", () => {
@@ -473,7 +473,7 @@ describe("createBattleParty — FormationFactory", () => {
     // UT-R-ENH-06-007と同じ強化指定。適性内配置・編成ボーナス不成立のため
     // `combatStats`と一致するが、一致することではなく強化後基本値がそのまま
     // 公開されることを見る。
-    expect(party.members[0]!.enhancedBaseStats.attack).toBeCloseTo(28723.9043, 4);
+    expect(party.members[0]!.enhancedBaseStats.attack).toBeCloseTo(30611.0483, 4);
     expect(party.members[0]!.enhancedBaseStats.actionSpeed).toBeCloseTo(50, 6);
     // AP/PPは強化対象外（R-ENH-06）だが基本ステータスの一部として保持する。
     expect(party.members[0]!.enhancedBaseStats.maximumAp).toBe(3);
