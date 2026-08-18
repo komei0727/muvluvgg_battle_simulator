@@ -27,8 +27,11 @@ const ATTACK_ACTION_ID = "ACT_ATTACK";
 const SEED = "issue-507";
 const LIMITS = { maxCandidates: 8, maxTotalRuns: 64 };
 
-/** 味方だけが攻撃し、敵は何もしない最小の演習Catalog。 */
-function exerciseCatalog(): TestBattleCatalog {
+/**
+ * 味方だけが攻撃し、敵は何もしない最小の演習Catalog。`enemyMaximumHp`を下げると
+ * 味方の攻撃だけで規定ターン内にブレイクが発生する（R-TEX-04）。
+ */
+function exerciseCatalog(enemyMaximumHp = 1000): TestBattleCatalog {
   return new CatalogBuilder()
     .withUnit(
       unitDefinition("UNIT_ALLY", {
@@ -39,10 +42,14 @@ function exerciseCatalog(): TestBattleCatalog {
         baseStats: { maximumAp: 1 },
         activeSkillDefinitionIds: [createSkillDefinitionId(ATTACK_SKILL_ID)],
       }),
+      unitDefinition("UNIT_IDLE_ALLY", {
+        baseStats: { maximumAp: 0 },
+        activeSkillDefinitionIds: [],
+      }),
       unitDefinition("UNIT_ENEMY", {
         category: "EXERCISE_ENEMY",
         exerciseActive: true,
-        baseStats: { maximumHp: 1000, defense: 0 },
+        baseStats: { maximumHp: enemyMaximumHp, defense: 0 },
       }),
     )
     .withSkill(attackSkill(ATTACK_SKILL_ID, ATTACK_ACTION_ID))
@@ -53,6 +60,16 @@ function exerciseCatalog(): TestBattleCatalog {
 function candidate(unitDefinitionId = "UNIT_ALLY"): TacticalExerciseCandidateInput {
   return {
     allyFormation: { slots: [formationSlot(unitDefinitionId, 0)], memoryDefinitionIds: [] },
+  };
+}
+
+/** 攻撃する枠と、攻撃手段を持たず与ダメージ・ブレイクを1件も生まない枠の2枠編成。 */
+function pairCandidate(): TacticalExerciseCandidateInput {
+  return {
+    allyFormation: {
+      slots: [formationSlot("UNIT_ALLY", 0), formationSlot("UNIT_IDLE_ALLY", 1)],
+      memoryDefinitionIds: [],
+    },
   };
 }
 
@@ -180,6 +197,8 @@ describe("EvaluateTacticalExerciseCandidatesUseCase", () => {
     expect(result.candidates).toHaveLength(2);
     for (const evaluation of result.candidates) {
       expect(evaluation.scores).toHaveLength(evaluation.completedRuns);
+      expect(evaluation.allyUnitDamageTotals).toHaveLength(evaluation.completedRuns);
+      expect(evaluation.allyUnitBreakCounts).toHaveLength(evaluation.completedRuns);
     }
   });
 
@@ -297,5 +316,43 @@ describe("EvaluateTacticalExerciseCandidatesUseCase", () => {
     expect(batch.candidates[0]?.scores).toEqual([single.totalScore]);
     expect(batch.candidates[0]?.breakCounts).toEqual([single.breakCount]);
     expect(batch.candidates[0]?.completionReasons).toEqual([single.completionReason]);
+    expect(batch.candidates[0]?.allyUnitDamageTotals).toEqual([
+      single.unitSummaries
+        .filter((summary) => summary.side === "ALLY")
+        .map((summary) => summary.damageDealt),
+    ]);
+  });
+
+  it("UT-EVALUC-013: the per-unit arrays hold one row per completed run and one column per ally slot, in formation order", () => {
+    const result = new EvaluateTacticalExerciseCandidatesUseCase(
+      dependencies(exerciseCatalog()),
+    ).execute(evaluationCommand({ candidates: [pairCandidate()] }), CONTEXT);
+
+    const evaluation = result.candidates[0]!;
+    expect(evaluation.completedRuns).toBe(3);
+    expect(evaluation.allyUnitDamageTotals).toHaveLength(3);
+    expect(evaluation.allyUnitBreakCounts).toHaveLength(3);
+    for (const damageTotals of evaluation.allyUnitDamageTotals) {
+      expect(damageTotals).toHaveLength(2);
+      // 攻撃手段を持たない2枠目は、行が詰められるのではなく0として並ぶ。
+      expect(damageTotals[0]).toBeGreaterThan(0);
+      expect(damageTotals[1]).toBe(0);
+    }
+    for (const breakCounts of evaluation.allyUnitBreakCounts) {
+      expect(breakCounts).toHaveLength(2);
+      expect(breakCounts[1]).toBe(0);
+    }
+  });
+
+  it("UT-EVALUC-014: a lone attacker accounts for every break of its run, leaving no residual against breakCounts", () => {
+    const result = new EvaluateTacticalExerciseCandidatesUseCase(
+      dependencies(exerciseCatalog(1)),
+    ).execute(evaluationCommand({ candidates: [pairCandidate()] }), CONTEXT);
+
+    const evaluation = result.candidates[0]!;
+    expect(evaluation.breakCounts.some((breakCount) => breakCount > 0)).toBe(true);
+    expect(
+      evaluation.allyUnitBreakCounts.map((counts) => counts.reduce((sum, count) => sum + count, 0)),
+    ).toEqual([...evaluation.breakCounts]);
   });
 });

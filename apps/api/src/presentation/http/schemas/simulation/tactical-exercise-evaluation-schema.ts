@@ -51,20 +51,37 @@ export const tacticalExerciseEvaluationRequestDocSchema = {
 } as const;
 
 /**
- * `10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」。4つの配列は同じ試行を
+ * `10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」。6つの配列は同じ試行を
  * 同じ添字で指し、いずれも長さが`completedRuns`に一致する（期限到達で打ち切られた
- * 場合は`runsPerCandidate`より短くなる）。
+ * 場合は`runsPerCandidate`より短くなる）。`allyUnit*`の内側はリクエストの
+ * `allyFormation.units`と同じ長さ・同じ順である。
  */
 const candidateEvaluationResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["completedRuns", "scores", "breakCounts", "completedTurns", "completionReasons"],
+  required: [
+    "completedRuns",
+    "scores",
+    "breakCounts",
+    "completedTurns",
+    "completionReasons",
+    "allyUnitDamageTotals",
+    "allyUnitBreakCounts",
+  ],
   properties: {
     completedRuns: { type: "integer" },
     scores: { type: "array", items: { type: "integer" } },
     breakCounts: { type: "array", items: { type: "integer" } },
     completedTurns: { type: "array", items: { type: "integer" } },
     completionReasons: { type: "array", items: { type: "string" } },
+    allyUnitDamageTotals: {
+      type: "array",
+      items: { type: "array", items: { type: "integer" } },
+    },
+    allyUnitBreakCounts: {
+      type: "array",
+      items: { type: "array", items: { type: "integer" } },
+    },
   },
 } as const;
 
@@ -94,6 +111,16 @@ const candidateEvaluationResponseDocSchema = {
     completionReasons: {
       type: "array",
       items: { type: "string", enum: ["ALLY_DEFEATED", "TURN_LIMIT_REACHED"] },
+    },
+    allyUnitDamageTotals: {
+      ...candidateEvaluationResponseSchema.properties.allyUnitDamageTotals,
+      description:
+        "Damage each ally unit dealt, per run. One row per completed run, one column per requested allyFormation unit, in formation order.",
+    },
+    allyUnitBreakCounts: {
+      ...candidateEvaluationResponseSchema.properties.allyUnitBreakCounts,
+      description:
+        "Breaks caused by each ally unit, per run. Only breaks whose source is an ally unit are counted, so each row sums to at most the same index of breakCounts; the difference covers both breaks with no source unit (Memory-derived continuous damage) and breaks the enemy caused itself.",
     },
   },
 } as const;

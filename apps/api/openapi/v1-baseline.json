@@ -27094,7 +27094,9 @@
                           "scores",
                           "breakCounts",
                           "completedTurns",
-                          "completionReasons"
+                          "completionReasons",
+                          "allyUnitDamageTotals",
+                          "allyUnitBreakCounts"
                         ],
                         "properties": {
                           "completedRuns": {
@@ -27126,6 +27128,26 @@
                               "type": "string",
                               "enum": ["ALLY_DEFEATED", "TURN_LIMIT_REACHED"]
                             }
+                          },
+                          "allyUnitDamageTotals": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer"
+                              }
+                            },
+                            "description": "Damage each ally unit dealt, per run. One row per completed run, one column per requested allyFormation unit, in formation order."
+                          },
+                          "allyUnitBreakCounts": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer"
+                              }
+                            },
+                            "description": "Breaks caused by each ally unit, per run. Only breaks whose source is an ally unit are counted, so each row sums to at most the same index of breakCounts; the difference covers both breaks with no source unit (Memory-derived continuous damage) and breaks the enemy caused itself."
                           }
                         }
                       },

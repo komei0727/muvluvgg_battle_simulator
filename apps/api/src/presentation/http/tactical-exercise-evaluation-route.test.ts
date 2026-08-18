@@ -118,6 +118,24 @@ describe("POST /api/v1/tactical-exercise-evaluations", () => {
     expect(body.candidates[0]?.completedRuns).toBe(2);
   });
 
+  it("API-EVAL-008: the response carries the per-run ally-unit damage totals and break counts", async () => {
+    const server = await serverWith(realUseCase());
+
+    const response = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
+
+    expect(response.statusCode).toBe(200);
+    const candidate = response.json<EvaluateTacticalExerciseCandidatesResult>().candidates[0]!;
+    expect(candidate.allyUnitDamageTotals).toHaveLength(2);
+    expect(candidate.allyUnitBreakCounts).toHaveLength(2);
+    for (const damageTotals of candidate.allyUnitDamageTotals) {
+      expect(damageTotals).toHaveLength(1);
+      expect(damageTotals[0]).toBeGreaterThan(0);
+    }
+    for (const breakCounts of candidate.allyUnitBreakCounts) {
+      expect(breakCounts).toHaveLength(1);
+    }
+  });
+
   it("API-EVAL-002: the same seed replays the same scores across requests", async () => {
     const server = await serverWith(realUseCase());
 
