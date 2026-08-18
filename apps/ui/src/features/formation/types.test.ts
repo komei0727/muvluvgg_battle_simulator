@@ -88,6 +88,26 @@ describe("createInitialDraft — 強化入力 (M11, UI-AC-023)", () => {
   });
 });
 
+describe("createInitialDraft — レベルリンク (UI-AC-035)", () => {
+  it("defaults the level link to off at level 200 on both sides", () => {
+    const draft = createInitialDraft();
+
+    expect(draft.allyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
+    expect(draft.enemyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
+  });
+
+  it("prefills the ally academy levels and level link from the player data (UI-AC-040)", () => {
+    const draft = createInitialDraft({
+      academyLevels: createInitialDraft().allyEnhancement.academyLevels,
+      levelLink: { enabled: true, level: 250 },
+    });
+
+    expect(draft.allyEnhancement.levelLink).toEqual({ enabled: true, level: 250 });
+    // 敵側は都度入力なので手持ちデータを引き継がない。
+    expect(draft.enemyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
+  });
+});
+
 describe("enhancementForSide / createInitialUnitEnhancement", () => {
   it("selects the enhancement input matching the requested side", () => {
     const draft = createInitialDraft();
@@ -102,5 +122,7 @@ describe("enhancementForSide / createInitialUnitEnhancement", () => {
     expect(enhancement.level).toBe(200);
     expect(enhancement.gears).toHaveLength(9);
     expect(enhancement.gears.every((gear) => gear === undefined)).toBe(true);
+    // リンクからの除外は既定でOFF（置いただけの枠もリンク対象。UI-AC-035）。
+    expect(enhancement.linkExcluded).toBe(false);
   });
 });

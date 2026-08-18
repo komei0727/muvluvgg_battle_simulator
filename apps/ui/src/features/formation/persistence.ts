@@ -17,13 +17,16 @@ import {
   GEAR_STATS,
   GEAR_TIERS,
   createInitialDraft,
+  createInitialLevelLink,
   createInitialUnitEnhancement,
 } from "./types.js";
 import type {
   BattleDraft,
   FormationSlotInput,
   GearInput,
+  LevelLinkInput,
   LogLevel,
+  PlayerSideEnhancement,
   SideEnhancementInput,
   UnitEnhancementInput,
 } from "./types.js";
@@ -41,14 +44,23 @@ export const EXERCISE_DRAFT_STORAGE_KEY = "mlgg:last-draft:exercise";
 /**
  * 保存形式の版。draft型・手持ちデータの構造を変えたら上げる。異なる版の保存データは
  * 移行せず破棄する（入力し直せる値であり、誤った移行で壊れた入力を復元するより安全）。
+ *
+ * レベルリンク（`levelLink`・`linkExcluded`）を足しても版は1のまま据え置く。
+ * 版を上げると`envelopeOf`の完全一致判定で全利用者の保存データ（手持ちデータと
+ * 両モードのdraft）が破棄されるためである。デコーダは既知キーだけを読むので、
+ * 新項目を「欠落したら既定値」で読めば旧データはそのまま復元できる。
+ * `mlgg:player-data`には未知キーを拒否する外部の読み手（`tools/exercise-lab`）が
+ * いるため、そちらを先に追随させてからこの項目を書き始める。
  */
 export const PERSISTENCE_SCHEMA_VERSION = 1;
 
 export type AcademyLevels = SideEnhancementInput["academyLevels"];
 
-/** 長寿命の「手持ちデータ」。味方側の入力だけを記録する。 */
-export interface StoredPlayerData {
-  readonly academyLevels: AcademyLevels;
+/**
+ * 長寿命の「手持ちデータ」。味方側の入力だけを記録する。陣営単位の育成情報
+ * （学園レベル・レベルリンク）は`PlayerSideEnhancement`としてdraftへプリフィルする。
+ */
+export interface StoredPlayerData extends PlayerSideEnhancement {
   readonly units: Readonly<Record<string, UnitEnhancementInput>>;
 }
 
@@ -127,6 +139,17 @@ function gearOf(value: unknown): GearInput | undefined {
   return { stat, tier, grade };
 }
 
+/** 新項目のため欠落を許す（既定はリンクOFF・レベル200）。届いた値は契約どおり検証する。 */
+function levelLinkOf(value: unknown): LevelLinkInput {
+  if (value === undefined || value === null) {
+    return createInitialLevelLink();
+  }
+  if (!isRecord(value) || typeof value["enabled"] !== "boolean") {
+    return fail();
+  }
+  return { enabled: value["enabled"], level: levelOf(value["level"]) };
+}
+
 function unitEnhancementOf(value: unknown): UnitEnhancementInput {
   if (!isRecord(value)) {
     return fail();
@@ -137,14 +160,23 @@ function unitEnhancementOf(value: unknown): UnitEnhancementInput {
   if (!Array.isArray(gears) || gears.length !== GEAR_SLOT_COUNT) {
     return fail();
   }
-  return { level: levelOf(value["level"]), gears: gears.map((gear) => gearOf(gear)) };
+  return {
+    level: levelOf(value["level"]),
+    // 新項目のため欠落を許す。旧データの枠はどれもリンクから外れていない。
+    linkExcluded: value["linkExcluded"] === true,
+    gears: gears.map((gear) => gearOf(gear)),
+  };
 }
 
 function sideEnhancementOf(value: unknown): SideEnhancementInput {
   if (!isRecord(value) || typeof value["enabled"] !== "boolean") {
     return fail();
   }
-  return { enabled: value["enabled"], academyLevels: academyLevelsOf(value["academyLevels"]) };
+  return {
+    enabled: value["enabled"],
+    levelLink: levelLinkOf(value["levelLink"]),
+    academyLevels: academyLevelsOf(value["academyLevels"]),
+  };
 }
 
 /**
@@ -265,6 +297,7 @@ export function parsePlayerData(value: unknown): StoredPlayerData | undefined {
     }
     return {
       academyLevels: academyLevelsOf(stored["academyLevels"]),
+      levelLink: levelLinkOf(stored["levelLink"]),
       units: Object.fromEntries(
         Object.entries(units).map(([id, enhancement]) => [id, unitEnhancementOf(enhancement)]),
       ),
@@ -278,15 +311,26 @@ export function parsePlayerData(value: unknown): StoredPlayerData | undefined {
 }
 
 export function createEmptyPlayerData(): StoredPlayerData {
-  return { academyLevels: createInitialDraft().allyEnhancement.academyLevels, units: {} };
+  return {
+    academyLevels: createInitialDraft().allyEnhancement.academyLevels,
+    levelLink: createInitialLevelLink(),
+    units: {},
+  };
 }
 
 /** 既定値のままの手持ちデータは保存せずキー自体を消すため、「空」を判定する。 */
 export function isEmptyPlayerData(data: StoredPlayerData): boolean {
+  const empty = createEmptyPlayerData();
   return (
     Object.keys(data.units).length === 0 &&
-    isSameAcademyLevels(data.academyLevels, createEmptyPlayerData().academyLevels)
+    isSameAcademyLevels(data.academyLevels, empty.academyLevels) &&
+    // リンクだけを設定した手持ちデータをキーごと消すと、リロードでリンクが失われる。
+    isSameLevelLink(data.levelLink, empty.levelLink)
   );
+}
+
+function isSameLevelLink(a: LevelLinkInput, b: LevelLinkInput): boolean {
+  return a.enabled === b.enabled && a.level === b.level;
 }
 
 function isSameAcademyLevels(a: AcademyLevels, b: AcademyLevels): boolean {
@@ -299,6 +343,8 @@ function isSameAcademyLevels(a: AcademyLevels, b: AcademyLevels): boolean {
 function isSameEnhancement(a: UnitEnhancementInput, b: UnitEnhancementInput): boolean {
   return (
     a.level === b.level &&
+    // 「リンクから外す」だけを切り替えた編集も保存されなければならない。
+    a.linkExcluded === b.linkExcluded &&
     a.gears.length === b.gears.length &&
     a.gears.every((gear, index) => {
       const other = b.gears[index];
@@ -314,6 +360,7 @@ function isSamePlayerData(a: StoredPlayerData, b: StoredPlayerData): boolean {
   const aIds = Object.keys(a.units);
   return (
     isSameAcademyLevels(a.academyLevels, b.academyLevels) &&
+    isSameLevelLink(a.levelLink, b.levelLink) &&
     aIds.length === Object.keys(b.units).length &&
     aIds.every((id) => {
       const other = b.units[id];
@@ -343,6 +390,12 @@ function mergedAcademyLevels(previous: AcademyLevels, next: AcademyLevels): Acad
   };
 }
 
+function mergedLevelLink(previous: LevelLinkInput, next: LevelLinkInput): LevelLinkInput {
+  // 未入力（`""`）は「リンクレベルを消した」ではなく入力途中なので、前回値を残す
+  // （`mergedAcademyLevels`と同じ規約）。保存形式は未入力を表現しない。
+  return { enabled: next.enabled, level: next.level === "" ? previous.level : next.level };
+}
+
 /**
  * 味方draftから手持ちデータを導出する。敵側は都度入力の方針なので読まない。
  * 変化が無ければ`previous`をそのまま返し、保存effectと再レンダーを起こさない。
@@ -360,6 +413,7 @@ export function mergePlayerDataFromDraft(
 ): StoredPlayerData {
   const next: StoredPlayerData = {
     academyLevels: mergedAcademyLevels(previous.academyLevels, draft.allyEnhancement.academyLevels),
+    levelLink: mergedLevelLink(previous.levelLink, draft.allyEnhancement.levelLink),
     units: mergedUnits(previous.units, draft, editedSlotKey),
   };
   return isSamePlayerData(previous, next) ? previous : next;
@@ -382,12 +436,13 @@ function mergedUnits(
     ...previous,
     [unitDefinitionId]: {
       level: enhancement.level === "" ? recordedLevel : enhancement.level,
+      linkExcluded: enhancement.linkExcluded,
       gears: enhancement.gears,
     },
   };
 }
 
-/** 記録が無いユニットは既定値（レベル200・ギア9枠すべて空）を返す。 */
+/** 記録が無いユニットは既定値（レベル200・ギア9枠すべて空・リンク対象）を返す。 */
 export function prefillUnitEnhancement(
   data: StoredPlayerData,
   unitDefinitionId: string,

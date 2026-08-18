@@ -4,7 +4,7 @@ import {
   buildFormationStatPreviewRequest,
 } from "./request-mapper.js";
 import { createInitialDraft, enhancementForSide, memorySlotKeyOf, slotKeyOf } from "./types.js";
-import type { UnitEnhancementInput } from "./types.js";
+import type { GearInput, UnitEnhancementInput } from "./types.js";
 import type { BattleDraft } from "./types.js";
 
 function withUnit(
@@ -250,6 +250,26 @@ function withSlotEnhancement(
     : { ...draft, enemySlots: replace(draft.enemySlots) };
 }
 
+function unitEnhancement(
+  level: number | "",
+  gears: readonly (GearInput | undefined)[],
+  linkExcluded = false,
+): UnitEnhancementInput {
+  return { level, linkExcluded, gears };
+}
+
+/** 陣営強化トグルONに加えてレベルリンクをONにする。 */
+function linkedSide(draft: BattleDraft, side: "ally" | "enemy", level: number | ""): BattleDraft {
+  const enabled = enabledSide(draft, side);
+  const enhancement = {
+    ...enhancementForSide(enabled, side),
+    levelLink: { enabled: true, level },
+  };
+  return side === "ally"
+    ? { ...enabled, allyEnhancement: enhancement }
+    : { ...enabled, enemyEnhancement: enhancement };
+}
+
 function enabledSide(draft: BattleDraft, side: "ally" | "enemy"): BattleDraft {
   const enhancement = { ...enhancementForSide(draft, side), enabled: true };
   return side === "ally"
@@ -262,12 +282,14 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     let draft = baseDraft();
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 220,
+      linkExcluded: false,
       gears: [{ stat: "ATTACK", tier: "III", grade: "S" }, ...Array<undefined>(8).fill(undefined)],
     });
     draft = {
       ...draft,
       allyEnhancement: {
         enabled: false,
+        levelLink: { enabled: false, level: 200 },
         academyLevels: {
           ...draft.allyEnhancement.academyLevels,
           unitTypes: { ...draft.allyEnhancement.academyLevels.unitTypes, PHYSICAL: 50 },
@@ -305,6 +327,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     let draft = enabledSide(baseDraft(), "ally");
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 220,
+      linkExcluded: false,
       gears: [
         undefined,
         { stat: "ATTACK", tier: "III", grade: "S" },
@@ -337,6 +360,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     let draft = enabledSide(baseDraft(), "ally");
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 200,
+      linkExcluded: false,
       gears: Array(9).fill(undefined),
     });
 
@@ -371,12 +395,131 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
       "ally",
       "FRONT",
       0,
-      {
-        level: "",
-        gears: Array(9).fill(undefined),
-      },
+      unitEnhancement("", Array(9).fill(undefined)),
     );
     expect(buildBattleSimulationRequest(blankUnitLevel).ok).toBe(false);
+  });
+});
+
+describe("buildBattleSimulationRequest — レベルリンク (UI-UT-REQ-009〜012)", () => {
+  const gear = { stat: "ATTACK", tier: "III", grade: "S" } as const;
+
+  /** 味方2体。2体目は強化入力を一度も開いていない枠として使う。 */
+  function twoAllies(): BattleDraft {
+    return withUnit(baseDraft(), "ally", "FRONT", 1, "UNIT_ALLY_2");
+  }
+
+  // UI-UT-REQ-009
+  it("resolves every slot to the link level, including one whose enhancement was never opened", () => {
+    let draft = linkedSide(twoAllies(), "ally", 260);
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(180, Array(9).fill(gear).fill(undefined, 1)),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [first, second] = result.request.allyFormation.units;
+    expect(first?.enhancement).toEqual({ level: 260, gears: [gear] });
+    // 強化入力を一度も開いていない枠もリンク対象（UI-API-024）。
+    expect(second?.enhancement).toEqual({ level: 260, gears: [] });
+    expect(result.allyGearSlotIndices).toEqual([[0], []]);
+  });
+
+  // UI-UT-REQ-010
+  it("keeps the slot's own level for an excluded slot while the others follow the link", () => {
+    let draft = linkedSide(twoAllies(), "ally", 260);
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(180, Array(9).fill(undefined), true),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [first, second] = result.request.allyFormation.units;
+    expect(first?.enhancement).toEqual({ level: 180, gears: [] });
+    expect(second?.enhancement).toEqual({ level: 260, gears: [] });
+  });
+
+  // UI-UT-REQ-011
+  it("never emits levelLink or linkExcluded, and keeps the link-off payload identical", () => {
+    let linkOff = enabledSide(baseDraft(), "ally");
+    linkOff = withSlotEnhancement(
+      linkOff,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(180, Array(9).fill(undefined)),
+    );
+    const linkOn = linkedSide(linkOff, "ally", 180);
+
+    const off = buildBattleSimulationRequest(linkOff);
+    const on = buildBattleSimulationRequest(linkOn);
+
+    expect(off.ok && on.ok).toBe(true);
+    if (!off.ok || !on.ok) return;
+    expect(JSON.stringify(off.request)).not.toContain("levelLink");
+    expect(JSON.stringify(off.request)).not.toContain("linkExcluded");
+    expect(JSON.stringify(on.request)).not.toContain("levelLink");
+    // 同じ実効レベルなら送信内容も同じになる（リンクは送信DTOを変えない）。
+    expect(on.request.allyFormation.units[0]).toEqual(off.request.allyFormation.units[0]);
+  });
+
+  it("omits the enhancement of a linked slot resolved to level 200 with no gears", () => {
+    const draft = linkedSide(twoAllies(), "ally", 200);
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]).not.toHaveProperty("enhancement");
+    expect(result.request.allyFormation).toHaveProperty("enhancement");
+  });
+
+  it("ignores the link while the side enhancement toggle is off", () => {
+    const linked = linkedSide(twoAllies(), "ally", 260);
+    const draft = {
+      ...linked,
+      allyEnhancement: { ...linked.allyEnhancement, enabled: false },
+    };
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation).not.toHaveProperty("enhancement");
+    expect(result.request.allyFormation.units[0]).not.toHaveProperty("enhancement");
+  });
+
+  // UI-UT-REQ-012
+  it("falls back to each slot's own level while the link level is unusable", () => {
+    let draft = linkedSide(twoAllies(), "ally", "");
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(180, Array(9).fill(undefined)),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [first, second] = result.request.allyFormation.units;
+    expect(first?.enhancement).toEqual({ level: 180, gears: [] });
+    // 未編集の枠は既定200のままなので、既定と同値の強化は出力しない。
+    expect(second).not.toHaveProperty("enhancement");
   });
 });
 

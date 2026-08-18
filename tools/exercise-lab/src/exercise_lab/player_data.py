@@ -64,7 +64,8 @@ class PlayerData(_Spec):
 def resolved_level(stored: StoredUnitEnhancement | None, data: PlayerData) -> int:
     """リンクを解いた実効レベル。
 
-    `docs/ui-design/03_API・データ連携設計.md` §3.1 の `resolveUnitLevel` と同じ規則。
+    `apps/ui/src/features/formation/level-link.ts` の `resolveSlotLevel`
+    （設計は `docs/ui-design/03_API・データ連携設計.md` §3.1）と同じ規則。
     リンクONの枠はリンクレベル、除外した枠は個別レベルを使う。リンクレベルが1以上の
     整数でないときは、UI側と同じく個別レベルへフォールバックする（片方だけが別の
     レベルで評価すると、探索結果が誤った前提に立つ）。

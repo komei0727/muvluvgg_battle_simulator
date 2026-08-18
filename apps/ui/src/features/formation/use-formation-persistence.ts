@@ -14,28 +14,35 @@ import {
   toStoredDraft,
   toStoredPlayerData,
 } from "./persistence.js";
+import type { StoredPlayerData } from "./persistence.js";
 import { createInitialDraft } from "./types.js";
 import type { FormationAction, FormationState } from "./formation-reducer.js";
 import type { UiViolation } from "./draft-validation.js";
-import type { BattleDraft, Side, UnitEnhancementInput } from "./types.js";
+import type { BattleDraft, PlayerSideEnhancement, Side, UnitEnhancementInput } from "./types.js";
 import type { CatalogLoadState } from "../catalog-selection/catalog-loader.js";
 
 /**
  * `useReducer`のlazy initializerとして呼ぶ（04_コンポーネント・状態管理設計.md
  * §4「永続化」）。復元をreducerの副作用にしないため、storageの読み出しはここへ寄せる。
- * 保存draftが無い・壊れている場合は初期draftへ落とし、学園レベルだけ手持ちデータから
- * プリフィルする。モード別draftはそれぞれの保存キーを`useReducer`の第2引数で渡す。
+ * 保存draftが無い・壊れている場合は初期draftへ落とし、学園レベルとレベルリンクだけ
+ * 手持ちデータからプリフィルする。モード別draftはそれぞれの保存キーを`useReducer`の
+ * 第2引数で渡す。
  */
 export function createPersistedInitialState(storageKey: string): FormationState {
   const restored = parseStoredDraft(readJsonItem(storageKey));
   if (restored !== undefined) {
     return createInitialFormationState(restored);
   }
-  return createInitialFormationState(createInitialDraft(readPlayerData().academyLevels));
+  return createInitialFormationState(createInitialDraft(playerSideEnhancementOf(readPlayerData())));
 }
 
 function readPlayerData() {
   return parsePlayerData(readJsonItem(PLAYER_DATA_STORAGE_KEY)) ?? createEmptyPlayerData();
+}
+
+/** 手持ちデータのうち、陣営単位でdraftへプリフィルする育成情報だけを取り出す。 */
+function playerSideEnhancementOf(data: StoredPlayerData): PlayerSideEnhancement {
+  return { academyLevels: data.academyLevels, levelLink: data.levelLink };
 }
 
 export interface UsePersistedDraftInput {
@@ -115,8 +122,8 @@ export interface FormationPersistence {
   readonly clearPlayerData: () => void;
   /**
    * 保存対象ではないdraft（`UI-CMP-010`のモード別draft）も同じ初期値へ戻せるよう、
-   * dispatch先を固定しないactionだけを返す。学園レベルは手持ちデータ由来のため、
-   * どのdraftを初期化してもここで解決した値を使う。
+   * dispatch先を固定しないactionだけを返す。学園レベルとレベルリンクは手持ちデータ
+   * 由来のため、どのdraftを初期化してもここで解決した値を使う。
    */
   readonly createDraftResetAction: () => FormationAction;
 }
@@ -182,7 +189,7 @@ export function useFormationPersistence({
   const createDraftResetAction = useCallback(
     (): FormationAction => ({
       type: "draftReset",
-      allyAcademyLevels: playerData.academyLevels,
+      allyPlayerEnhancement: playerSideEnhancementOf(playerData),
     }),
     [playerData],
   );

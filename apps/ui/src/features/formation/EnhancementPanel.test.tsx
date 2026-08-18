@@ -8,6 +8,7 @@ import type { SideEnhancementInput } from "./types.js";
 function enhancement(overrides: Partial<SideEnhancementInput> = {}): SideEnhancementInput {
   return {
     enabled: true,
+    levelLink: { enabled: false, level: 200 },
     academyLevels: {
       unitTypes: { PHYSICAL: 1, ENERGY: 1, AGILE: 1 },
       attributes: { AGGRESSIVE: 1, SHY: 1, CUTE: 1, SMART: 1, COMICAL: 1, CLEVER: 1 },
@@ -77,6 +78,7 @@ describe("EnhancementPanel (UI-CMP-014)", () => {
     renderPanel({
       enhancement: {
         enabled: false,
+        levelLink: { enabled: false, level: 200 },
         academyLevels: {
           unitTypes: { PHYSICAL: 50, ENERGY: 1, AGILE: 1 },
           attributes: { AGGRESSIVE: 1, SHY: 1, CUTE: 1, SMART: 1, COMICAL: 1, CLEVER: 1 },

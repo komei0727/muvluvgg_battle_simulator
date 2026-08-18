@@ -193,6 +193,8 @@ interface SideEnhancementInput {
 - リンクレベルが1以上の整数でない間はリンクを適用せず、枠の値へフォールバックする。この状態では`LEVEL_LINK_INVALID`（§6）で送信自体が止まるため、解決結果はステータスプレビューの表示にしか使われない。フォールバックしないと、リンクレベルを打ち直すために消した瞬間、**一度も開いていない枠まで含めた陣営の全枠**が`level: ""`のプレビューPOSTを起こし（プレビューは送信前検証でゲートされない。§2.5）、その陣営のプレビューがまとめて落ちる。従来は「ダイアログを開いてレベルを消した枠」1つに閉じていた挙動を、リンク導入で陣営全体へ広げない。
 - ただし`UNIT_LEVEL_INVALID`の免除（§6）は**リンクレベルの妥当性を見ない**。リンクONで除外していない枠は常に免除する。免除条件を解決結果に合わせると、リンクレベルを消した瞬間に各枠の打ちかけの`""`が一斉に違反として現れ、免除の目的（詰み状態を作らない）が崩れる。
 
+解決点は `features/formation/level-link.ts` の1か所に閉じ、リクエスト生成・送信前検証・表示が同じ規則を共有する。
+
 ```ts
 /**
  * リンク中の枠は枠の`level`ではなくリンクレベルを使う。強化入力を一度も開いて
@@ -203,15 +205,30 @@ interface SideEnhancementInput {
  * 同じ規則を`tools/exercise-lab`の`resolved_level`（`player_data.py`）が写している。
  * 片方だけ変えると、UIとlabが別のレベルで同じ編成を評価する。
  */
-function resolveUnitLevel(
-  sideEnhancement: SideEnhancementInput,
+function resolveSlotLevel(
   slot: FormationSlotInput,
+  sideEnhancement: SideEnhancementInput,
 ): number | "" {
-  const link = sideEnhancement.levelLink;
-  if (link.enabled && isPositiveInteger(link.level) && slot.enhancement?.linkExcluded !== true) {
-    return link.level;
+  const { levelLink } = sideEnhancement;
+  if (isSlotLevelLinked(slot, sideEnhancement) && isPositiveInteger(levelLink.level)) {
+    return levelLink.level;
   }
   return slot.enhancement?.level ?? DEFAULT_UNIT_LEVEL; // 既定200
+}
+
+/**
+ * その枠がリンクの適用を受けているか。読み取り専用表示と`UNIT_LEVEL_INVALID`の
+ * 免除がこれを使う。判定はリンクレベルの妥当性を見ない（上記のとおり）。
+ */
+function isSlotLevelLinked(
+  slot: FormationSlotInput,
+  sideEnhancement: SideEnhancementInput,
+): boolean {
+  return (
+    sideEnhancement.enabled &&
+    sideEnhancement.levelLink.enabled &&
+    slot.enhancement?.linkExcluded !== true
+  );
 }
 ```
 

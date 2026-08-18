@@ -512,11 +512,147 @@ describe("formationReducer — unitMoved (UI-AC-032)", () => {
   });
 });
 
+describe("formationReducer — レベルリンク (UI-AC-035/036)", () => {
+  const allySlotKey = slotKeyOf("ally", "FRONT", 0);
+
+  function linkedState(level: number | "" = 260): FormationState {
+    const placed = formationReducer(createInitialFormationState(), {
+      type: "unitSelected",
+      slotKey: allySlotKey,
+      unitDefinitionId: "UNIT_A",
+    });
+    const enabled = formationReducer(placed, {
+      type: "enhancementToggled",
+      side: "ally",
+      enabled: true,
+    });
+    const toggled = formationReducer(enabled, {
+      type: "levelLinkToggled",
+      side: "ally",
+      enabled: true,
+    });
+    return formationReducer(toggled, { type: "levelLinkLevelChanged", side: "ally", value: level });
+  }
+
+  it("toggles the link and edits the link level on the requested side only", () => {
+    const next = linkedState();
+
+    expect(next.draft.allyEnhancement.levelLink).toStrictEqual({ enabled: true, level: 260 });
+    expect(next.draft.enemyEnhancement.levelLink).toStrictEqual({ enabled: false, level: 200 });
+  });
+
+  it("never rewrites a slot level when the link is toggled or edited", () => {
+    // 参照時解決なので、リンクのON/OFFで枠の値を書き換えない（UI-CMP-023）。
+    const edited = formationReducer(linkedState(), {
+      type: "unitEnhancementLevelChanged",
+      slotKey: allySlotKey,
+      value: 180,
+    });
+
+    const off = formationReducer(edited, {
+      type: "levelLinkToggled",
+      side: "ally",
+      enabled: false,
+    });
+
+    expect(off.draft.allySlots[0]?.enhancement?.level).toBe(180);
+  });
+
+  it("seeds the slot level with the link level when the slot is excluded (UI-AC-036)", () => {
+    const next = formationReducer(linkedState(), {
+      type: "unitLinkExclusionChanged",
+      slotKey: allySlotKey,
+      excluded: true,
+    });
+
+    expect(next.draft.allySlots[0]?.enhancement).toMatchObject({
+      level: 260,
+      linkExcluded: true,
+    });
+    expect(next.lastEditedSlotKey).toBe(allySlotKey);
+  });
+
+  it("seeds a slot whose enhancement was never opened", () => {
+    const state = linkedState();
+    expect(state.draft.allySlots[0]?.enhancement).toBeUndefined();
+
+    const next = formationReducer(state, {
+      type: "unitLinkExclusionChanged",
+      slotKey: allySlotKey,
+      excluded: true,
+    });
+
+    expect(next.draft.allySlots[0]?.enhancement?.level).toBe(260);
+  });
+
+  it("leaves the slot level untouched when the slot returns to the link", () => {
+    const excluded = formationReducer(linkedState(), {
+      type: "unitLinkExclusionChanged",
+      slotKey: allySlotKey,
+      excluded: true,
+    });
+    const edited = formationReducer(excluded, {
+      type: "unitEnhancementLevelChanged",
+      slotKey: allySlotKey,
+      value: 180,
+    });
+
+    const back = formationReducer(edited, {
+      type: "unitLinkExclusionChanged",
+      slotKey: allySlotKey,
+      excluded: false,
+    });
+
+    expect(back.draft.allySlots[0]?.enhancement).toMatchObject({
+      level: 180,
+      linkExcluded: false,
+    });
+  });
+
+  it("does not seed a slot that the link was not applying to", () => {
+    // リンクOFFの陣営で除外だけを立てても、枠の値は書き換えない。
+    const placed = formationReducer(createInitialFormationState(), {
+      type: "unitSelected",
+      slotKey: allySlotKey,
+      unitDefinitionId: "UNIT_A",
+    });
+    const edited = formationReducer(placed, {
+      type: "unitEnhancementLevelChanged",
+      slotKey: allySlotKey,
+      value: 180,
+    });
+
+    const next = formationReducer(edited, {
+      type: "unitLinkExclusionChanged",
+      slotKey: allySlotKey,
+      excluded: true,
+    });
+
+    expect(next.draft.allySlots[0]?.enhancement).toMatchObject({
+      level: 180,
+      linkExcluded: true,
+    });
+  });
+
+  it("ignores an unknown slot key", () => {
+    const state = linkedState();
+
+    expect(
+      formationReducer(state, {
+        type: "unitLinkExclusionChanged",
+        slotKey: "ally:FRONT:9",
+        excluded: true,
+      }),
+    ).toBe(state);
+  });
+});
+
 describe("formationReducer — persistence actions", () => {
   const allySlotKey = slotKeyOf("ally", "FRONT", 0);
   const enemySlotKey = slotKeyOf("enemy", "FRONT", 0);
   const prefill: UnitEnhancementInput = {
     level: 88,
+    linkExcluded: false,
     gears: createInitialUnitEnhancement().gears.map((_gear, index) =>
       index === 0 ? { stat: "ATTACK", tier: "III", grade: "S" } : undefined,
     ),
@@ -581,12 +717,13 @@ describe("formationReducer — persistence actions", () => {
 
     const next = formationReducer(previous, {
       type: "draftReset",
-      allyAcademyLevels: academyLevels,
+      allyPlayerEnhancement: { academyLevels, levelLink: { enabled: true, level: 250 } },
     });
 
     expect(next.draft.allySlots.every((slot) => slot.unitDefinitionId === undefined)).toBe(true);
     expect(next.draft.turnLimit).toBe(createInitialDraft().turnLimit);
     expect(next.draft.allyEnhancement.academyLevels).toStrictEqual(academyLevels);
+    expect(next.draft.allyEnhancement.levelLink).toStrictEqual({ enabled: true, level: 250 });
     expect(next.draft.enemyEnhancement.academyLevels).toStrictEqual(
       createInitialDraft().enemyEnhancement.academyLevels,
     );
@@ -626,6 +763,20 @@ describe("formationReducer — persistence actions", () => {
       createInitialDraft().allyEnhancement.academyLevels,
     );
     expect(next.draft.enemySlots[0]?.enhancement?.level).toBe(7);
+  });
+
+  it("resets the ally level link along with the academy levels", () => {
+    const linked = formationReducer(stateWithAllyEnhancement(), {
+      type: "levelLinkToggled",
+      side: "ally",
+      enabled: true,
+    });
+
+    const next = formationReducer(linked, { type: "allyEnhancementCleared" });
+
+    expect(next.draft.allyEnhancement.levelLink).toStrictEqual(
+      createInitialDraft().allyEnhancement.levelLink,
+    );
   });
 
   it("clears only the slots named by unknownDefinitionsCleared", () => {

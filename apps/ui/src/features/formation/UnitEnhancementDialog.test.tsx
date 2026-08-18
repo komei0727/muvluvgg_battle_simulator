@@ -95,6 +95,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const { onGearChange } = renderDialog({
       enhancement: {
         level: 200,
+        linkExcluded: false,
         gears: [gear, ...Array<undefined>(8).fill(undefined)],
       },
     });
@@ -114,6 +115,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const { onGearChange } = renderDialog({
       enhancement: {
         level: 200,
+        linkExcluded: false,
         gears: [
           gear,
           { stat: "ATTACK", tier: "II", grade: "D" },
@@ -192,7 +194,11 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
     renderDialog({
       gearEffects: GEAR_EFFECTS,
-      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [gear, ...Array<undefined>(8).fill(undefined)],
+      },
     });
 
     const tier = within(screen.getByLabelText("ギア1 の種別"));
@@ -209,7 +215,11 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const gear: GearInput = { stat: "CRITICAL_RATE", tier: "III", grade: "S" };
     renderDialog({
       gearEffects: GEAR_EFFECTS,
-      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [gear, ...Array<undefined>(8).fill(undefined)],
+      },
     });
 
     const grade = within(screen.getByLabelText("ギア1 のランク"));
@@ -221,7 +231,11 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const gear = { stat: "ATTACK" } as unknown as GearInput;
     renderDialog({
       gearEffects: GEAR_EFFECTS,
-      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [gear, ...Array<undefined>(8).fill(undefined)],
+      },
     });
 
     const tier = within(screen.getByLabelText("ギア1 の種別"));
@@ -231,7 +245,11 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
   it("UI-CT-043: falls back to plain rank names when the response carries no gear effect table", () => {
     const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
     renderDialog({
-      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [gear, ...Array<undefined>(8).fill(undefined)],
+      },
     });
 
     const grade = within(screen.getByLabelText("ギア1 のランク"));
@@ -243,7 +261,11 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const gear: GearInput = { stat: "DEFENSE", tier: "III", grade: "S" };
     renderDialog({
       gearEffects: GEAR_EFFECTS,
-      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [gear, ...Array<undefined>(8).fill(undefined)],
+      },
     });
 
     const grade = within(screen.getByLabelText("ギア1 のランク"));
@@ -254,7 +276,11 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     const user = userEvent.setup();
     const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
     const { onGearChange } = renderDialog({
-      enhancement: { level: 200, gears: [gear, ...Array<undefined>(8).fill(undefined)] },
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [gear, ...Array<undefined>(8).fill(undefined)],
+      },
     });
 
     await user.selectOptions(screen.getByLabelText("ギア1 の種別"), "");

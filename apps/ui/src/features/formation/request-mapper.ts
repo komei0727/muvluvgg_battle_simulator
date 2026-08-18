@@ -1,6 +1,7 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §4-5 (coordinate conversion
 // and request generation rules).
 
+import { resolveSlotLevel } from "./level-link.js";
 import { DEFAULT_UNIT_LEVEL, enhancementForSide, memorySlotKeyOf } from "./types.js";
 import type {
   BattleDraft,
@@ -124,23 +125,27 @@ interface BuiltUnitEnhancement {
 /**
  * UI-API-018: 空枠を除外した0〜9件のギア配列を枠順のまま出力する。
  * レベル200かつギア0件は省略時の既定と同値のため`enhancement`自体を出力しない。
+ *
+ * UI-API-023/024: 送信するのは解決済みレベル（`level-link.ts`）であり、
+ * `levelLink`・`linkExcluded`は出力しない。強化入力を一度も開いていない枠
+ * （`slot.enhancement === undefined`）もリンク対象なので、ここで早期returnしない。
  */
-function buildUnitEnhancement(slot: FormationSlotInput): BuiltUnitEnhancement | undefined {
-  const enhancement = slot.enhancement;
-  if (enhancement === undefined) {
-    return { gearSlotIndices: [] };
-  }
-  if (!isPositiveInteger(enhancement.level)) {
+function buildUnitEnhancement(
+  slot: FormationSlotInput,
+  sideEnhancement: SideEnhancementInput,
+): BuiltUnitEnhancement | undefined {
+  const level = resolveSlotLevel(slot, sideEnhancement);
+  if (!isPositiveInteger(level)) {
     return undefined;
   }
-  const filledGears = enhancement.gears
+  const filledGears = (slot.enhancement?.gears ?? [])
     .map((gear, index) => ({ gear, index }))
     .filter((entry): entry is { gear: GearInput; index: number } => entry.gear !== undefined);
-  if (enhancement.level === DEFAULT_UNIT_LEVEL && filledGears.length === 0) {
+  if (level === DEFAULT_UNIT_LEVEL && filledGears.length === 0) {
     return { gearSlotIndices: [] };
   }
   return {
-    enhancement: { level: enhancement.level, gears: filledGears.map((entry) => entry.gear) },
+    enhancement: { level, gears: filledGears.map((entry) => entry.gear) },
     gearSlotIndices: filledGears.map((entry) => entry.index),
   };
 }
@@ -177,7 +182,7 @@ export function buildFormation(
   }
 
   const builtUnits = sorted.map((slot) =>
-    sideEnhancement.enabled ? buildUnitEnhancement(slot) : { gearSlotIndices: [] },
+    sideEnhancement.enabled ? buildUnitEnhancement(slot, sideEnhancement) : { gearSlotIndices: [] },
   );
   if (builtUnits.some((built) => built === undefined)) {
     return undefined;
