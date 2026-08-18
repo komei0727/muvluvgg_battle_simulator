@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveChargeRelease } from "./action-charge-resolver.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
@@ -971,5 +972,66 @@ describe("resolveChargeRelease", () => {
           event.eventType === "PassiveActivated" && event.sourceUnitId === enemy.battleUnitId,
       ),
     ).toBe(true);
+  });
+
+  it("UT-R-TEX-06-011 (R-TEX-06 #5): a charge release resolves its deferred break after the effect steps, before the EffectSequence RuntimeCounterReset and before ChargeReleaseCompleted", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER_TEX");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_TEX");
+    const hit = damageEffectAction("ACT_CHARGE_TEX_HIT");
+    const chargeSkill = chargeReleaseSkillWithCounterUpdates("ACT_CHARGE_TEX_HIT");
+
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    // 1ヒットでHP0へ到達させる。
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId, currentHp: 1 });
+
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const exercise = new ExerciseRuntime(enemy.baseCombatStats);
+
+    const result = resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+      exercise,
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).not.toContain("UnitDefeated");
+    expect(types.filter((type) => type === "UnitBroken")).toHaveLength(1);
+    // ブレイク解決は全ダメージイベントより後。
+    expect(types.indexOf("UnitBroken")).toBeGreaterThan(types.lastIndexOf("DamageApplied"));
+    // R-TEX-06 #5: `EffectSequence`スコープのcounter破棄より前 — ブレイク解決が発行する
+    // イベントも当該EffectSequenceのcounter更新対象になり得るため。
+    const resetIndex = recorder
+      .getEvents()
+      .findIndex(
+        (event) =>
+          event.eventType === "RuntimeCounterReset" &&
+          (event.payload as { scope?: string }).scope === "EFFECT_SEQUENCE",
+      );
+    expect(resetIndex).toBeGreaterThanOrEqual(0);
+    expect(types.indexOf("UnitRevived")).toBeLessThan(resetIndex);
+    expect(types.indexOf("UnitRevived")).toBeLessThan(types.indexOf("ChargeReleaseCompleted"));
+    expect(exercise.breakCount).toBe(1);
+    const enemyAfter = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(enemyAfter.breakPending).toBeUndefined();
+    expect(enemyAfter.currentHp).toBe(120);
   });
 });

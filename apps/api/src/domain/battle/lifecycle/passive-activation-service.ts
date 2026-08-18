@@ -23,6 +23,11 @@ import {
 } from "../effects/duration-expiry-service.js";
 import { removeMarkers, removeMarkersSteps } from "../effects/marker-removal-service.js";
 import {
+  resolveBreakSteps,
+  type BreakResolutionContext,
+} from "../effects/break-resolution-service.js";
+import type { BreakDeferral } from "../model/break-deferral.js";
+import {
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
 } from "../model/applied-effect-duration.js";
@@ -351,6 +356,130 @@ export class PassiveActivationRuntime {
    */
   beginEffectProcessingPhase(): void {
     this.pendingEffectProcessingFrames.push([]);
+    // R-TEX-03 #5: ブレイク保留フレームは`R-ATM-01`の保留キューと同じ寿命・同じ
+    // 入れ子を持つ（`05_ドメインモデル.md`「BreakResolutionService」）ため、同じ位置で
+    // 開く。閉じるのは`drainEffectProcessingPhase`ではなく`resolveDeferredBreak`
+    // である — 解決は完了イベントの**発行前**であり、保留キューの排出（後段フェーズ、
+    // 完了イベントの発行後）より早いためである（R-TEX-06 #5）。
+    this.breakDeferral?.beginEffectProcessing();
+  }
+
+  /** R-TEX-03 #5の保留先。演習でなければ保留窓そのものが存在しない。 */
+  private get breakDeferral(): BreakDeferral | undefined {
+    return this.context.exercise?.deferredBreaks;
+  }
+
+  /**
+   * R-TEX-06 #5: 効果処理フェーズの末尾（全stepの解決後・追撃の解決後・完了イベントの
+   * 発行前）で、保留したブレイクを解決する。トップレベルの効果処理（AS/EX使用・
+   * チャージ解放）専用の入口で、`beginEffectProcessingPhase`と対で呼ぶ。
+   *
+   * R-TEX-06 #6: ここで発行するイベント（`UnitBroken`・解除の`EffectRemoved`／
+   * `MarkerRemoved`・`UnitRevived`・強化の`CombatStatChanged`）は`onFactEvent`へ渡す。
+   * 効果処理フェーズはまだ開いているため、それらのPS/Memory候補は`R-ATM-01`の保留
+   * キューへ積まれ、完了イベント自身の候補より前に後段フェーズで発動する。
+   *
+   * R-TEX-06 #7: 中断した効果処理でも呼ぶ — 発生済みの事実を中断は消さない。
+   */
+  resolveDeferredBreak(
+    skillUseId: SkillUseId,
+    cursor: DomainEventId,
+    units?: readonly BattleUnit[],
+  ): ResolutionResult {
+    if (units !== undefined) {
+      this.units = units;
+    }
+    const pending = this.breakDeferral?.endEffectProcessing();
+    const exercise = this.context.exercise;
+    if (pending === undefined || exercise === undefined) {
+      return { units: this.units, lastEventId: cursor };
+    }
+    const steps = resolveBreakSteps(
+      this.breakResolutionContext(exercise, skillUseId),
+      this.units,
+      pending.targetUnitId,
+      this.context.definitions.effectActions,
+      pending.causeEventId,
+      pending.defeatSource,
+    );
+    let step = steps.next();
+    while (!step.done) {
+      this.units = step.value.units;
+      for (const recorded of step.value.events) {
+        this.units = this.onFactEvent(recorded, this.units).units;
+      }
+      step = steps.next(this.units);
+    }
+    this.units = step.value.units;
+    return { units: this.units, lastEventId: step.value.lastEventId };
+  }
+
+  /**
+   * `resolveDeferredBreak`のPS/Memory自身のEffectSequence版。generator駆動の経路
+   * であるため、各stepのイベントを`DEFERRED_EVENT`として`yield`し、進行中の
+   * `driveSteps`の保留キューへ参加させる（`R-ATM-01`）。
+   *
+   * `this.onFactEvent`を再帰させてはならない — 新しい`resolvePassiveChain`を起こして
+   * 進行中の連鎖のguard/stackを上書きしてしまう（`applyMarkerSourceDefeatRemovalsForChain`
+   * と同じ制約）。`EFFECT_RESOLVED`ではなく`DEFERRED_EVENT`を使うのは、ブレイク解決が
+   * 効果解決数Guardの数える「実際に解決した効果」ではなく効果処理フェーズ境界の処理で
+   * あり、同じ位置の`EffectSequence`スコープ`RuntimeCounterReset`と同じ扱いになる
+   * ためである。
+   */
+  private *resolveDeferredBreakSteps(
+    skillUseId: SkillUseId,
+    cursor: DomainEventId,
+  ): Generator<PassiveActivationStep, DomainEventId, unknown> {
+    const pending = this.breakDeferral?.endEffectProcessing();
+    const exercise = this.context.exercise;
+    if (pending === undefined || exercise === undefined) {
+      return cursor;
+    }
+    const steps = resolveBreakSteps(
+      this.breakResolutionContext(exercise, skillUseId),
+      this.units,
+      pending.targetUnitId,
+      this.context.definitions.effectActions,
+      pending.causeEventId,
+      pending.defeatSource,
+    );
+    let step = steps.next();
+    while (!step.done) {
+      this.units = step.value.units;
+      for (const recorded of step.value.events) {
+        yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(recorded) };
+      }
+      step = steps.next(this.units);
+    }
+    this.units = step.value.units;
+    return step.value.lastEventId;
+  }
+
+  /**
+   * `resolveBreakSteps`が要求する因果関係コンテキスト。`onFactEventForPassiveChain`は
+   * 渡さない — 両方の呼び出し側が自分でstepを駆動し、それぞれの経路に合った方法
+   * （トップレベルは`onFactEvent`、PS連鎖内部は`DEFERRED_EVENT`のyield）で候補へ
+   * 届けるためである。
+   */
+  private breakResolutionContext(
+    exercise: ExerciseRuntime,
+    /**
+     * HP0へ到達した効果処理の`SkillUseId`。解決位置がフェーズ末尾へ移っても、
+     * ブレイク解決が発行するイベントはその効果処理に属する（`08_ドメインイベント.md`
+     * 「同じSkillUseIdに属するイベント」）ため、到達時点と同じ`skillUseId`を載せる。
+     */
+    skillUseId: SkillUseId,
+  ): BreakResolutionContext {
+    return {
+      recorder: this.context.recorder,
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      skillUseId,
+      resolutionScopeId: this.context.resolutionScopeId,
+      rootEventId: this.context.rootEventId,
+      exercise,
+    };
   }
 
   /**
@@ -1580,6 +1709,10 @@ export class PassiveActivationRuntime {
       ...(this.context.exercise !== undefined ? { exercise: this.context.exercise } : {}),
       ...triggerContext,
     };
+    // R-TEX-06 #8: MemoryのEffectSequenceも`R-ATM-02`の3フェーズを持つため、ここから
+    // 効果処理フェーズとしてブレイク保留フレームを開く。`R-ATM-01`の保留キュー側の
+    // 対応するフレームは`resolve-passive-chain.ts`の`driveSteps`が持つ。
+    this.breakDeferral?.beginEffectProcessing();
     const box: UnitsBox = { units: this.units };
     const generator = resolveEffectSequencePlan(plan, box, groupContext);
     let lastEventId: DomainEventId = memoryTriggered.eventId;
@@ -1605,6 +1738,11 @@ export class PassiveActivationRuntime {
       step = generator.next();
     }
     this.units = box.units;
+
+    // R-TEX-06 #5: 効果処理フェーズの末尾（`MemoryResolved`の発行前）で保留ブレイクを
+    // 解決する。Memory経路は追撃（R-FUP-01はAS/EX専用）も`EffectSequence`スコープ
+    // counter（R-MEM-04により持てない）も無いため、ここが末尾そのものである。
+    lastEventId = yield* this.resolveDeferredBreakSteps(skillUseId, lastEventId);
 
     const memoryResolved = this.context.recorder.record({
       eventType: "MemoryResolved",
@@ -1927,6 +2065,12 @@ export class PassiveActivationRuntime {
       ...triggerContext,
     };
 
+    // R-TEX-06 #8: PSのEffectSequenceも`R-ATM-02`の3フェーズを持つため、攻撃前観測
+    // （前段フェーズ、R-ATM-03）の後・効果処理フェーズの開始と同じ位置でブレイク保留
+    // フレームを開く。観測の候補解決で所有者が戦闘不能になった場合
+    // （`observationInterrupted`）も開く — 対で必ず閉じるほうが単純であり、その場合は
+    // 保留が1件も入らないまま空のフレームを閉じるだけになる。
+    this.breakDeferral?.beginEffectProcessing();
     const box: UnitsBox = { units: this.units };
     const generator = observationInterrupted
       ? undefined
@@ -1971,6 +2115,13 @@ export class PassiveActivationRuntime {
     this.units = box.units;
     const effectResult = step.value;
     const outcome = effectResult.outcome;
+
+    // R-TEX-06 #5: 保留ブレイクの解決は、全stepの解決後・`EffectSequence`スコープの
+    // `RuntimeCounterReset`より前・完了イベントの発行前に置く。counter破棄より前に
+    // するのは、ブレイク解決が発行するイベントも当該EffectSequenceのcounter更新対象に
+    // なり得るためである。R-TEX-06 #7: 中断（`outcome.status === "INTERRUPTED"`）でも
+    // 解決する。
+    lastEventId = yield* this.resolveDeferredBreakSteps(skillUseId, lastEventId);
 
     // EFF-006: このPS自身のEffectSequence解決が完了した時点で、
     // そのcounterを直ちに破棄する（`resolveEffectSequencePlan`が中断で終わった

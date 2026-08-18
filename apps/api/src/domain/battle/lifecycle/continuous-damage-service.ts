@@ -20,7 +20,7 @@ import type { DepletedAbsorberReason } from "../combat/damage-application-servic
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { recordExerciseScoreIfAny } from "../events/exercise-score-recording.js";
 import { requiresBreakResolution } from "../events/break-resolution.js";
-import { resolveBreakSteps } from "../effects/break-resolution-service.js";
+import { deferOrResolveBreakSteps } from "../effects/break-resolution-service.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -522,7 +522,17 @@ export function applyOneContinuousDamage(
       // generatorにせずとも順序が保てる — 渡さない呼び出し側を足す場合は、
       // `resource-modification-service.ts`と同じくstepを駆動側へ返す形へ変える必要がある。
       notify(factEventsStart);
-      const steps = resolveBreakSteps(
+      // R-TEX-03 #5: 解決位置の判断は`deferOrResolveBreakSteps`へ委ねる。ここへ来る
+      // tickはR-DOT-01により保持者自身の`ActionStarted`が契機であり、効果処理フェーズの
+      // 外にあるため常に即時解決になる。
+      //
+      // 他の到達検出経路（`damage-hit-point-application.ts`／
+      // `resource-modification-service.ts`）が持つ「イベント発行前に保留の印を立てる」
+      // 先回り（`markBreakPendingIfDeferred`）を、この経路は持たない — 上の
+      // `defeated`計算も`notify`も印の無い状態で行われる。保留窓が開かない経路では
+      // 塞ぐべき観測窓が存在しないためであり、仮にこの経路が効果処理フェーズの内側から
+      // 呼ばれるようになったら、その先回りも併せて必要になる。
+      const steps = deferOrResolveBreakSteps(
         { ...context, exercise },
         working,
         holder.battleUnitId,

@@ -1,7 +1,7 @@
 import type { BattleDefinitions } from "../../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../../model/exercise-runtime.js";
 import type { ResolveBreakHook } from "../../events/break-resolution.js";
-import { resolveBreakSteps } from "../../effects/break-resolution-service.js";
+import { deferOrResolveBreakSteps } from "../../effects/break-resolution-service.js";
 import type { ResolvedBinding } from "../../skill/skill-resolution-service.js";
 import type {
   ActionId,
@@ -211,8 +211,11 @@ export function eventContextOf(context: EffectActionGroupContext): EffectResolut
     // 発生源」）を必ず転送する。落とすと`UnitBroken`が発生源を持たないイベントになり、
     // `sourceSelector: SELF`の撃破トリガーが`isSourceUnattributed`のグローバル扱いで
     // 撃破していない味方まで発動させてしまう（`trigger-selector-evaluator.ts`）。
+    // R-TEX-03 #5: 保留か即時かの判断は`deferOrResolveBreakSteps`が1か所で行う。
+    // 到達検出3経路（通常ヒット・`MODIFY_RESOURCE`・最大HP減少クランプ）はいずれも
+    // このhookを通るため、経路ごとに保留の有無を意識する必要がない。
     resolveBreak: (targetUnitId, units, causeEventId, defeatSource) =>
-      resolveBreakSteps(
+      deferOrResolveBreakSteps(
         { ...base, exercise },
         units,
         targetUnitId,

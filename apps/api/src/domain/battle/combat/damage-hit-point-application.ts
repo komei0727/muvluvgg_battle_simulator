@@ -5,7 +5,11 @@ import { evaluateFormula, recordDamageResult } from "../skill/formula-evaluator.
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { recordExerciseScoreIfAny } from "../events/exercise-score-recording.js";
-import { requireResolveBreak, requiresBreakResolution } from "../events/break-resolution.js";
+import {
+  markBreakPendingIfDeferred,
+  requireResolveBreak,
+  requiresBreakResolution,
+} from "../events/break-resolution.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
 import { absorbBeforeHitPointsSteps } from "./damage-absorption.js";
@@ -150,7 +154,7 @@ export function* applyConfirmedDamageSteps(
   // ここが説明する（`08_ドメインイベント.md`ダメージイベント不変条件#6の保存則は
   // そのまま成立する）。
   const discardedDamage = hitPointDamage - (hpBefore - hpAfter);
-  const updatedTarget: BattleUnit = {
+  const targetAfterHitPoints: BattleUnit = {
     ...targetAfterAbsorption,
     // R-NUM-02: `combatStats.maximumHp`は全精度（R-STA-01/R-NUM-01）で保持されるため、
     // HPゲージへ渡す境界で最大値を0方向へ切り捨てて整数化する。
@@ -159,6 +163,24 @@ export function* applyConfirmedDamageSteps(
       truncateFraction(targetAfterAbsorption.combatStats.maximumHp),
     ),
   };
+  // R-TEX-03: 演習の敵のHP0到達はブレイクとして解決する。`UnitBroken`以降の全イベント
+  // （撃破トリガー・解除・強化・復活）は`BreakResolutionService`が発行するため、ここでは
+  // 「このヒットの後段でブレイク解決を駆動する」ことだけを覚えておく。R-TEX-08により
+  // 致死耐えが成立したヒットはそもそもこの分岐へ入らない（HPが`survivalHp`で止まる）。
+  // 保留中（`breakPending`）の敵へ命中したヒットでは`isDefeated`が前後とも偽になるため、
+  // 0への「到達」が再度起きず、2回目のブレイクにならない（R-TEX-03 #7）。
+  const reachedZeroHp = !isDefeated(targetAfterAbsorption) && isDefeated(targetAfterHitPoints);
+  const breakResolution =
+    reachedZeroHp && requiresBreakResolution(context.exercise, targetAfterHitPoints)
+      ? requireResolveBreak(context.resolveBreak, "damageEventContext.resolveBreak")
+      : undefined;
+  // R-TEX-06 #4.3: 保留する場合は、このヒットのイベントを発行する**前**に印を立てる
+  // （`markBreakPendingIfDeferred`のコメント参照）。これにより`HitPointReduced`／
+  // `DamageApplied`の候補検出も、`defeated` payloadも、保留中の敵を生存として扱う。
+  const updatedTarget =
+    breakResolution === undefined
+      ? targetAfterHitPoints
+      : markBreakPendingIfDeferred(context.exercise, targetAfterHitPoints);
   working.set(targetUnitId, updatedTarget);
   // R-SKL-08＋G-10／RES-003A: 確定した結果を直前結果と`SUM_DAMAGE_*`の累計へ記録する。
   // `BattleUnit`の永続フィールドではないため、StateDelta・独立Reducer復元の対象にはならない。
@@ -257,15 +279,6 @@ export function* applyConfirmedDamageSteps(
   // `ExerciseScoreAccumulated`はPS/Memory連鎖へ通知しない — 契機にできる
   // `TriggerDefinition`が存在しない観測専用のイベントだからである。
   const factEvents: BattleDomainEvent[] = [hitPointReduced, damageApplied];
-  // R-TEX-03: 演習の敵のHP0到達はブレイクとして解決する。`UnitBroken`以降の全イベント
-  // （撃破トリガー・解除・強化・復活）は`BreakResolutionService`が発行するため、ここでは
-  // 「このヒットの後段でブレイク解決を駆動する」ことだけを覚えておく。R-TEX-08により
-  // 致死耐えが成立したヒットはそもそもこの分岐へ入らない（HPが`survivalHp`で止まる）。
-  const reachedZeroHp = !isDefeated(targetAfterAbsorption) && isDefeated(updatedTarget);
-  const breakResolution =
-    reachedZeroHp && requiresBreakResolution(context.exercise, updatedTarget)
-      ? requireResolveBreak(context.resolveBreak, "damageEventContext.resolveBreak")
-      : undefined;
   if (reachedZeroHp && breakResolution === undefined) {
     const unitDefeated = context.recorder.record({
       eventType: "UnitDefeated",

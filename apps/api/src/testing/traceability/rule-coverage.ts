@@ -2333,6 +2333,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-FUP-01-010",
       "UT-R-FUP-01-011",
       "UT-R-FUP-01-012",
+      // R-TEX-06 #5のフェーズ末尾順序のうち「追撃 → `EffectSequence`スコープの
+      // `RuntimeCounterReset`」は演習に限らない通常戦闘の挙動であるため、追撃ヒットが
+      // counter更新の対象に入ることをR-FUP-01側の証跡として持つ（Issue #523）。
+      "UT-R-FUP-01-013",
       // production実ライフサイクル（3ユニット）。
       "IT-UNIT-SUIRAN-CHAOS-011",
       "IT-UNIT-CHIYURU-MAZE-006",
@@ -3622,11 +3626,20 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-TEX-03-014",
       "UT-R-TEX-03-015",
       "UT-R-TEX-03-016",
+      // Issue #523（`R-TEX-03` #5〜#7の保留方式）: 保留フレームの有無が解決位置を
+      // 決めること（`UT-R-TEX-03-017`〜`021`）と、1回の効果処理につき高々1回である
+      // こと（`UT-R-TEX-03-019`、`SCN-BTL-027`）を固定する。
+      "UT-R-TEX-03-017",
+      "UT-R-TEX-03-018",
+      "UT-R-TEX-03-019",
+      "UT-R-TEX-03-020",
+      "UT-R-TEX-03-021",
+      "UT-R-TEX-03-022",
       "API-TEX-002",
       "API-TEXRESP-003",
       "SCN-BTL-027",
     ],
-    kinds: ["POSITIVE", "NEGATIVE", "SCENARIO"],
+    kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
   {
     ruleId: "R-TEX-04",
@@ -3682,14 +3695,39 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   },
   {
     ruleId: "R-TEX-06",
+    // Issue #523（保留方式）で#4〜#8の証跡を追加した。#4.3「保留窓の間、敵は戦闘不能
+    // として観測されない」は`isDefeated`という単一の問い合わせ点へ例外を寄せたため、
+    // `UT-R-TEX-06-003`〜`005`がその1か所を、`UT-R-TEX-06-002`が実際のヒット列で
+    // SKIPされないことを固定する。#5の解決位置は完了イベント種別ごとに
+    // （`SkillUseCompleted`／`SkillUseInterrupted`／`ChargeReleaseCompleted`／
+    // `PassiveResolved`）別の証跡が要る。
     testCaseIds: [
       "UT-R-TEX-06-001",
       "UT-R-TEX-06-002",
+      "UT-R-TEX-06-003",
+      "UT-R-TEX-06-004",
+      "UT-R-TEX-06-005",
+      "UT-R-TEX-06-006",
+      "UT-R-TEX-06-007",
+      "UT-R-TEX-06-008",
+      "UT-R-TEX-06-009",
+      "UT-R-TEX-06-010",
+      "UT-R-TEX-06-011",
+      // #4.3の保留窓は、到達したヒット自身のイベント発行より前に開かなければならない
+      // （`UT-R-TEX-06-012`）。保留窓が無い経路では従来の意味が残る（`013`が対称側）。
+      "UT-R-TEX-06-012",
+      "UT-R-TEX-06-013",
       "UT-R-TEX-03-005",
+      "UT-R-TEX-03-012",
+      "UT-R-TEX-03-013",
+      "UT-R-TEX-03-016",
+      // #5の「追撃 → RuntimeCounterReset」は通常戦闘にも効く順序であり、R-FUP-01側の
+      // 証跡（`UT-R-FUP-01-013`）がその半分を固定する。
+      "UT-R-FUP-01-013",
       "SCN-BTL-025",
       "SCN-BTL-027",
     ],
-    kinds: ["POSITIVE", "SCENARIO"],
+    kinds: ["POSITIVE", "BOUNDARY", "SCENARIO"],
   },
   {
     ruleId: "R-TEX-07",

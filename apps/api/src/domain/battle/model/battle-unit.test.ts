@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearBreakPending,
   createBattleUnit,
   createBattleUnitsFromParty,
+  isBreakPending,
   isDefeated,
+  markBreakPending,
   recoverTurnResources,
   requireUnit,
+  type BattleUnit,
   type BattleUnitResourceLimits,
 } from "./battle-unit.js";
+import { createHitPoint } from "./resource-gauge.js";
 import type { BattleParty, BattlePartyMember } from "./battle-party.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnitId } from "../../shared/ids.js";
@@ -213,5 +218,41 @@ describe("requireUnit", () => {
     const unit = createBattleUnit(member(), "ALLY", LIMITS);
 
     expect(() => requireUnit([unit], createBattleUnitId("MISSING"))).toThrow(DomainValidationError);
+  });
+});
+
+/**
+ * R-TEX-06 #4.3: ブレイクを保留している間、敵ユニットは戦闘不能として観測されない。
+ * `isDefeated`は全戦闘不能判定（対象選択・行動順キュー・終了判定・R-PS-04の発動直前
+ * 確認・R-SKL-01の中断・付与直前の対象生存再検証）の共通の問い合わせ点であるため、
+ * 保留の例外もここ1か所へ持たせる。
+ */
+describe("break-pending marker (R-TEX-06 #4.3)", () => {
+  function atZeroHp(): BattleUnit {
+    return { ...createBattleUnit(member(), "ENEMY", LIMITS), currentHp: createHitPoint(0, 100) };
+  }
+
+  it("UT-R-TEX-06-003: reports an HP-0 unit as not defeated while its break is pending", () => {
+    const pending = markBreakPending(atZeroHp());
+
+    expect(pending.currentHp).toBe(0);
+    expect(isBreakPending(pending)).toBe(true);
+    expect(isDefeated(pending)).toBe(false);
+  });
+
+  it("UT-R-TEX-06-004: reports an HP-0 unit as defeated once the pending mark is cleared", () => {
+    const cleared = clearBreakPending(markBreakPending(atZeroHp()));
+
+    expect(isBreakPending(cleared)).toBe(false);
+    expect(isDefeated(cleared)).toBe(true);
+    // 印の除去は`breakPending`キー自体を落とし、保留していた痕跡を残さない。
+    expect(cleared).toEqual(atZeroHp());
+  });
+
+  it("UT-R-TEX-06-005 (BOUNDARY): leaves a unit with remaining HP unaffected by the pending mark", () => {
+    const alive = markBreakPending(createBattleUnit(member(), "ENEMY", LIMITS));
+
+    expect(isDefeated(alive)).toBe(false);
+    expect(isDefeated(clearBreakPending(alive))).toBe(false);
   });
 });

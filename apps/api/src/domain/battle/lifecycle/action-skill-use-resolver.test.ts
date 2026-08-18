@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveSkillUse } from "./action-skill-use-resolver.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
@@ -1132,6 +1133,128 @@ describe("resolveSkillUse", () => {
           event.eventType === "PassiveActivated" && event.sourceUnitId === watcher.battleUnitId,
       );
     expect(watcherActivatedIndex).toBeGreaterThan(interruptedIndex);
+  });
+
+  it("UT-R-TEX-06-010 (R-TEX-06 #7): a skill use interrupted by the actor's own self-damage still resolves the break deferred earlier in its effect processing, before SkillUseInterrupted", () => {
+    // R-TEX-06 #7「使用者の戦闘不能で効果処理が中断した場合も、保留したブレイクは
+    // 解決する」— 発生済みの事実（HP0への到達）を中断が消さないことを固定する。
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_TEX_INTERRUPT");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_TEX_INTERRUPT");
+    const hit = damageEffectAction("ACT_TEX_INTERRUPT_HIT");
+    const selfCost: EffectActionDefinition = {
+      kind: "MODIFY_RESOURCE",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEX_INTERRUPT_SELF_COST"),
+      metadata: { tags: [] },
+      payload: {
+        resource: "HP",
+        operation: "ADD",
+        formula: { kind: "CONSTANT", value: -1000 },
+        bounds: { min: 0, max: "CURRENT_MAX" },
+      },
+    };
+    const step = (
+      target:
+        | { readonly kind: "SELF" }
+        | {
+            readonly kind: "BINDING";
+            readonly targetBindingId: ReturnType<typeof createTargetBindingId>;
+          },
+      effectActionDefinitionId: ReturnType<typeof createEffectActionDefinitionId>,
+    ) => ({
+      kind: "ACTION" as const,
+      stepCondition: { kind: "TRUE" as const },
+      targetCondition: { kind: "TRUE" as const },
+      target,
+      actions: [{ effectActionDefinitionId }],
+    });
+    const binding = { kind: "BINDING" as const, targetBindingId: createTargetBindingId("TGT_1") };
+    const threeStepSkill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_TEX_INTERRUPT"),
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [{ targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL }],
+        steps: [
+          // 1: 敵をHP0へ到達させ、ブレイクを保留する。
+          step(binding, hit.effectActionDefinitionId),
+          // 2: 使用者自身のHPを全額削り、R-SKL-01の中断条件を成立させる。
+          step({ kind: "SELF" }, selfCost.effectActionDefinitionId),
+          // 3: 中断されて走らない。
+          step(binding, hit.effectActionDefinitionId),
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "TexInterrupt", tags: [] },
+    };
+
+    const actor = unit("ACTOR", "ALLY", {
+      unitDefinitionId: actorUnitDefinitionId,
+      currentAp: 3,
+    });
+    // 1ヒットでHP0へ到達させるため残HPを1にする。
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId, currentHp: 1 });
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([
+        [hit.effectActionDefinitionId, hit],
+        [selfCost.effectActionDefinitionId, selfCost],
+      ]),
+    );
+
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const exercise = new ExerciseRuntime(enemy.baseCombatStats);
+    const result = resolveSkillUse(
+      actor,
+      threeStepSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+      exercise,
+    );
+
+    const eventTypes = recorder.getEvents().map((event) => event.eventType);
+    expect(eventTypes).toContain("SkillUseInterrupted");
+    expect(eventTypes).not.toContain("SkillUseCompleted");
+    // R-TEX-03 #1: 戦闘不能になるのは味方の使用者だけで、敵はブレイクへ回る。
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "UnitDefeated")
+        .map((event) => (event.payload as { unitId: string }).unitId),
+    ).toEqual([actor.battleUnitId]);
+    // R-TEX-06 #7: 中断でも保留ブレイクは解決され、完了イベントの発行前に現れる。
+    expect(eventTypes).toContain("UnitBroken");
+    expect(eventTypes.indexOf("UnitRevived")).toBeGreaterThan(eventTypes.indexOf("UnitBroken"));
+    expect(eventTypes.indexOf("UnitRevived")).toBeLessThan(
+      eventTypes.indexOf("SkillUseInterrupted"),
+    );
+    expect(exercise.breakCount).toBe(1);
+    // R-TEX-05 #3: 復活まで完了しているため、敵は保留の印を残さず強化後の最大HPで残る。
+    const revivedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(revivedEnemy.breakPending).toBeUndefined();
+    expect(revivedEnemy.currentHp).toBe(120);
   });
   /**
    * R-ATM-03の攻撃前観測を`resolveSkillUse`の実経路で観測するための、

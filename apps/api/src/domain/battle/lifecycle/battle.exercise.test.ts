@@ -15,6 +15,7 @@ import type { BattlePartyMember } from "../model/battle-party.js";
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import {
@@ -920,7 +921,7 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     expectStateRestoration(initialState, recorder, afterTurn);
   });
 
-  it("SCN-BTL-027: a break mid multi-hit counts the overkill, fires the defeat trigger, and lands the remaining hits on the revived enemy", () => {
+  it("SCN-BTL-027: a break mid multi-hit defers to the end of the effect processing — the remaining hits land on the pending (HP 0) enemy, the overkill is fully counted, and the defeat trigger still fires", () => {
     const onDefeatDamageId = createEffectActionDefinitionId("ACT_ON_DEFEAT_MARK");
     // R-TEX-03 #2: Catalog定義は`UnitDefeated`のままで、ブレイクでも発動する。
     const onDefeatPassive: SkillDefinition = {
@@ -1014,11 +1015,49 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     expect(
       afterTurn.enemyUnits[0]!.appliedEffects.map((effect) => effect.effectActionDefinitionId),
     ).toEqual([onDefeatDamageId]);
-    // R-TEX-06 #4: 2ヒット目も解決され、復活後の敵（HP120）を再び削り切る。
-    expect(afterTurn.exercise?.breakCount).toBe(2);
-    // R-TEX-02 #2: 各ヒットの計上量はオーバーキルを含む150。
+    // R-TEX-03 #7: 1回の効果処理につきブレイクは高々1回。2ヒット目は保留中（HP0）の敵へ
+    // 命中してHPを減らさないため、0への「到達」が再度起きない。
+    expect(afterTurn.exercise?.breakCount).toBe(1);
+    // R-TEX-02 #2／R-TEX-06 #4.1: 保留中の敵へ命中した2ヒット目も、HPが1も減らないまま
+    // HPへ向かう量の全量（150）を計上する。
     expect(afterTurn.exercise?.totalScore).toBe(300);
-    expect(afterTurn.enemyUnits[0]!.currentHp).toBe(140);
+    // R-TEX-05 #3: 1ブレイク分の強化後最大HP（100 × 1.20）まで全回復して復活する。
+    expect(afterTurn.enemyUnits[0]!.currentHp).toBe(120);
+
+    // R-TEX-06 #5: `UnitBroken`〜`UnitRevived`は全ダメージイベントより後、かつ
+    // `SkillUseCompleted`より前に1回だけ現れる。
+    const damageAppliedIndexes = types.flatMap((type, index) =>
+      type === "DamageApplied" ? [index] : [],
+    );
+    expect(damageAppliedIndexes).toHaveLength(2);
+    expect(types.filter((type) => type === "UnitBroken")).toHaveLength(1);
+    expect(types.filter((type) => type === "UnitRevived")).toHaveLength(1);
+    expect(types.indexOf("UnitBroken")).toBeGreaterThan(damageAppliedIndexes.at(-1)!);
+    expect(types.indexOf("UnitRevived")).toBeGreaterThan(types.indexOf("UnitBroken"));
+    expect(types.indexOf("UnitRevived")).toBeLessThan(types.indexOf("SkillUseCompleted"));
+    // R-TEX-06 #6: ブレイク解決のPS候補は完了イベント自身の候補より前・後段フェーズで
+    // 発動する（`SkillUseCompleted`の後）。
+    expect(types.indexOf("PassiveActivated") > types.indexOf("SkillUseCompleted")).toBe(true);
+
+    // R-TEX-06 #4.1: 保留中のヒットも`08_ドメインイベント.md`不変条件#6を満たす
+    // （HPが減らない分は`discardedDamage`が説明する）。
+    for (const damage of recorder.getEvents().filter((e) => e.eventType === "DamageApplied")) {
+      const payload = damage.payload as {
+        typedShieldAbsorbed: number;
+        untypedShieldAbsorbed: number;
+        subUnitAbsorbed: number;
+        hitPointDamage: number;
+        discardedDamage: number;
+        calculatedDamage: number;
+      };
+      expect(
+        payload.typedShieldAbsorbed +
+          payload.untypedShieldAbsorbed +
+          payload.subUnitAbsorbed +
+          payload.hitPointDamage +
+          payload.discardedDamage,
+      ).toBe(payload.calculatedDamage);
+    }
 
     expectStateRestoration(initialState, recorder, afterTurn);
   });
@@ -1474,11 +1513,30 @@ describe("break resolution notifies the defeat trigger before the removal on eve
    * したがって、そのトリガーが敵へ付与した効果は復活時の解除（R-TEX-05 #2）より
    * 後に付くため、解除で消えずに残る。
    */
-  function expectDefeatTriggerDetectedOnBreak(run: ReturnType<typeof exerciseBattleWith>): void {
+  function expectDefeatTriggerDetectedOnBreak(
+    run: ReturnType<typeof exerciseBattleWith>,
+    /** HP0へ到達した効果処理の完了イベント（R-TEX-06 #5の解決位置の直後にあたる）。 */
+    completion: { readonly eventType: string; readonly skillDefinitionId: string },
+  ): void {
     const events = run.recorder.getEvents();
     const types = events.map((event) => event.eventType);
     expect(types).toContain("UnitBroken");
     expect(types).not.toContain("UnitDefeated");
+    // R-TEX-06 #5: 保留したブレイクは、その効果処理の完了イベントの**発行前**に
+    // 解決される。到達時点で割り込むのではなく、フェーズ末尾へ移っていることを固定する。
+    const completionIndex = events.findIndex(
+      (event) =>
+        event.eventType === completion.eventType &&
+        (event.payload as { skillDefinitionId?: string }).skillDefinitionId ===
+          completion.skillDefinitionId,
+    );
+    expect(completionIndex).toBeGreaterThanOrEqual(0);
+    expect(types.indexOf("UnitBroken")).toBeLessThan(completionIndex);
+    expect(types.indexOf("UnitRevived")).toBeLessThan(completionIndex);
+    expect(types.indexOf("UnitRevived")).toBeGreaterThan(types.indexOf("UnitBroken"));
+    // 保留したのは1件だけであり、解決も1回だけ（R-TEX-03 #7）。
+    expect(types.filter((type) => type === "UnitBroken")).toHaveLength(1);
+    expect(types.filter((type) => type === "UnitRevived")).toHaveLength(1);
     // まず撃破トリガーが実際に発動していることを確かめる — 発動しないまま
     // 状態だけを見ても、検出の検証にならない（空振り）。
     expect(
@@ -1507,11 +1565,23 @@ describe("break resolution notifies the defeat trigger before the removal on eve
    * R-ATM-01の保留は効果処理中のイベントだけが対象のため、撃破トリガーは従来どおり
    * 即時に発動し、その付与は復活時の解除（R-TEX-05 #2）で消える。
    */
-  function expectDefeatTriggerRanBeforeRemoval(run: ReturnType<typeof exerciseBattleWith>): void {
+  function expectDefeatTriggerRanBeforeRemoval(
+    run: ReturnType<typeof exerciseBattleWith>,
+    /** HP0へ到達させたイベント。保留先が無いため、その直後に解決が始まる。 */
+    causeEventType: BattleDomainEvent["eventType"],
+  ): void {
     const events = run.recorder.getEvents();
     const types = events.map((event) => event.eventType);
     expect(types).toContain("UnitBroken");
     expect(types).not.toContain("UnitDefeated");
+    // R-TEX-03 #5: 効果処理フェーズの外での到達は**到達した時点で**解決する。原因イベント
+    // と`UnitBroken`の間に挟まるのは、同じ到達が発行するスコア計上だけである（保留した
+    // 場合はここに残りの効果処理・追撃・完了イベントが挟まる）。
+    const causeIndex = types.indexOf(causeEventType);
+    expect(causeIndex).toBeGreaterThanOrEqual(0);
+    expect(types.slice(causeIndex + 1, types.indexOf("UnitBroken"))).toEqual([
+      "ExerciseScoreAccumulated",
+    ]);
     expect(
       events
         .filter((event) => event.eventType === "PassiveActivated")
@@ -1542,6 +1612,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     };
     expectDefeatTriggerDetectedOnBreak(
       runWith(drain, passiveOn("SKL_DRAIN", "TurnStarted", HP_DRAIN)),
+      { eventType: "PassiveResolved", skillDefinitionId: "SKL_DRAIN" },
     );
   });
 
@@ -1695,7 +1766,15 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     const initialState = captureBattleState(battle);
     const afterTurn = advanceBattle(startBattle(battle, random, recorder), random, recorder);
 
-    expectDefeatTriggerDetectedOnBreak({ battle, recorder, afterTurn, initialState });
+    expectDefeatTriggerDetectedOnBreak(
+      { battle, recorder, afterTurn, initialState },
+      {
+        // R-SUB-02の追加ヒットはAS本体の効果処理の内側にあるため、完了イベントは
+        // `SkillUseCompleted`（`ChargeReleaseCompleted`/`PassiveResolved`ではない）。
+        eventType: "SkillUseCompleted",
+        skillDefinitionId: "SKL_BIG_ATTACK",
+      },
+    );
   });
 
   it("UT-R-TEX-03-014 (continuous damage path): a lethal continuous damage tick runs the defeat trigger before the removal", () => {
@@ -1770,7 +1849,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     // 継続ダメージのtickはスキル効果処理の外（ターン境界）で起きるため、撃破
     // トリガーは従来どおり即時に発動し、その付与は復活の解除で消える（R-ATM-01の
     // 保留対象外）。
-    expectDefeatTriggerRanBeforeRemoval(run);
+    expectDefeatTriggerRanBeforeRemoval(run, "ContinuousDamageApplied");
     expect(run.afterTurn.exercise?.breakCount).toBeGreaterThan(0);
   });
 
@@ -1788,6 +1867,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     };
     expectDefeatTriggerDetectedOnBreak(
       runWith(capacityDrop, passiveOn("SKL_MAX_HP_DROP", "TurnStarted", MAX_HP_DROP)),
+      { eventType: "PassiveResolved", skillDefinitionId: "SKL_MAX_HP_DROP" },
     );
   });
 });

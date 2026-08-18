@@ -8,10 +8,15 @@ import {
   type LinkedGroupRemoval,
 } from "./linked-group-cascade.js";
 import { collectLinkedGroupCascade } from "../model/linked-effect-group.js";
-import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import {
+  clearBreakPending,
+  markBreakPending,
+  requireUnit,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 import { applyExerciseScaling } from "../model/exercise-scaling-policy.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
-import type { BreakDefeatSource } from "../events/break-resolution.js";
+import type { BreakDefeatSource } from "../model/break-deferral.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { ValueChange } from "../events/state-delta.js";
@@ -243,8 +248,10 @@ export function* resolveBreakSteps(
   const beforeRevival = requireUnit(working, targetUnitId);
   const hpBefore = beforeRevival.currentHp;
   const enhancedMaximumHp = truncateFraction(beforeRevival.combatStats.maximumHp);
+  // R-TEX-06 #4.3: 保留の印はHPを戻すのと同じ更新で外す。解除・強化の途中で先に外すと、
+  // その間だけHP0の敵が戦闘不能として観測されうる窓が開いてしまう。
   const revived: BattleUnit = {
-    ...beforeRevival,
+    ...clearBreakPending(beforeRevival),
     currentHp: createHitPoint(enhancedMaximumHp, enhancedMaximumHp),
   };
   working = working.map((unit) => (unit.battleUnitId === targetUnitId ? revived : unit));
@@ -284,6 +291,53 @@ export function* resolveBreakSteps(
   }
 
   return { units: working, lastEventId };
+}
+
+/**
+ * R-TEX-03 #5: HP0到達を**保留するか即時解決するか**を決める、全到達検出経路の共通の
+ * 入口。判断材料は「効果処理フェーズの内側か」（＝保留フレームが積まれているか）だけで
+ * あり、到達経路（通常ヒット・追撃・反射・リンク・サブユニット追加ヒット・
+ * `MODIFY_RESOURCE`・最大HP減少クランプ）には依存しない。
+ *
+ * - 効果処理フェーズの内側: 保留を記録し、対象へ保留の印を立てて何も発行せずに返る。
+ *   `lastEventId`は`causeEventId`のまま — このヒットは因果の連なりを進めない。
+ *   解決は当該フェーズの末尾（R-TEX-06 #5）で駆動側が行う。
+ * - フェーズの外（行動開始時の継続ダメージ・ターン境界の期間満了・行動外トップレベル
+ *   イベント・上限低下によるHPの切り下げ）: 保留先が存在しないため到達時点で解決する。
+ *
+ * 呼び出し側は`resolveBreakSteps`とまったく同じ形（`BreakResolutionSteps`）で受け取る
+ * ため、保留か即時かで駆動コードを分岐させる必要がない。
+ *
+ * 印を立てる処理は`markBreakPendingIfDeferred`と重複するが、どちらも必要である。
+ * 到達したイベントを発行する前に観測窓を閉じるのはシーム側の責務（R-TEX-06 #4.3、
+ * `markBreakPendingIfDeferred`のコメント参照）であり、ここでの再適用は、その先回りを
+ * しないシームでも印が必ず立つことを保証する最後の砦になる（冪等）。
+ */
+export function* deferOrResolveBreakSteps(
+  context: BreakResolutionContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  causeEventId: DomainEventId,
+  defeatSource: BreakDefeatSource = {},
+): Generator<LinkedGroupCascadeStep, LinkedGroupCascadeResult, readonly BattleUnit[] | undefined> {
+  if (!context.exercise.deferredBreaks.isDeferring) {
+    return yield* resolveBreakSteps(
+      context,
+      units,
+      targetUnitId,
+      effectActions,
+      causeEventId,
+      defeatSource,
+    );
+  }
+  context.exercise.deferredBreaks.defer({ targetUnitId, causeEventId, defeatSource });
+  return {
+    units: units.map((unit) =>
+      unit.battleUnitId === targetUnitId ? markBreakPending(unit) : unit,
+    ),
+    lastEventId: causeEventId,
+  };
 }
 
 /**

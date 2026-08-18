@@ -494,14 +494,7 @@ export function resolveSkillUse(
         },
       }
     : applyEffectActionGroups(plan, working, groupContext);
-  // EFF-006/Issue #212: `effectResult.units`は`onFactEventForPassiveChain`経由で
-  // 既に`passiveRuntime`（`this.units`）へ同期済みのため、そのまま
-  // `finalizeEffectSequenceResolution`（`this.units`を参照する）を呼べる。
-  // このEffectSequence自身の解決が完了した時点（中断でも正常終了でも）で、
-  // そのcounterを直ちに破棄する（`SkillUseCompleted`/`SkillUseInterrupted`
-  // 発行より前 — この解決自身のcounterであり、行動全体の`resolutionScopeId`
-  // 単位で破棄する`finalizeResolutionScope`とは異なるscope）。
-  working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
+  working = passiveRuntime.currentUnits;
 
   // R-FUP-01: 元攻撃が1発でも命中していれば、全step解決後・`SkillUseCompleted`発行前に
   // 追撃を1回だけ解決する。中断（使用者戦闘不能）で打ち切ったスキル使用では行わない
@@ -519,6 +512,28 @@ export function resolveSkillUse(
     working = followUp.units;
     followUpInterrupted = followUp.interrupted;
   }
+
+  // R-TEX-06 #5: 効果処理フェーズ末尾の順序は「全stepの解決 → 追撃 → 保留ブレイクの
+  // 解決 → `EffectSequence`スコープの`RuntimeCounterReset` → 完了イベントの発行」。
+  // 追撃の後にするのは、追撃ヒットでHPが0へ到達した場合もその効果処理の保留として
+  // 1回にまとめるためであり、counter破棄より前にするのは、ブレイク解決が発行する
+  // イベントも当該EffectSequenceのcounter更新対象になり得るためである。
+  // R-TEX-06 #7: 中断したスキル使用でも解決する。解決後の`units`は`passiveRuntime`側へ
+  // 同期されるため、直下の`finalizeEffectSequenceResolution`の戻り値が引き継ぐ。
+  passiveRuntime.resolveDeferredBreak(
+    skillUseId,
+    recorder.getEvents().at(-1)?.eventId ?? skillUseStarted.eventId,
+    working,
+  );
+
+  // EFF-006/Issue #212: `working`は`onFactEventForPassiveChain`経由で既に
+  // `passiveRuntime`（`this.units`）へ同期済みのため、そのまま
+  // `finalizeEffectSequenceResolution`（`this.units`を参照する）を呼べる。
+  // このEffectSequence自身の解決が完了した時点（中断でも正常終了でも）で、
+  // そのcounterを直ちに破棄する（`SkillUseCompleted`/`SkillUseInterrupted`
+  // 発行より前 — この解決自身のcounterであり、行動全体の`resolutionScopeId`
+  // 単位で破棄する`finalizeResolutionScope`とは異なるscope）。
+  working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
 
   // Issue #217設計方針B: `SkillUseInterrupted`/`SkillUseCompleted`の選択は
   // `effectResult.outcome.status`（実際に解決が最後まで進んだか、使用者戦闘

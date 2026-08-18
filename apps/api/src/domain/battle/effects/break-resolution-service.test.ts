@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveBreak } from "./break-resolution-service.js";
-import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { deferOrResolveBreakSteps, resolveBreak } from "./break-resolution-service.js";
+import {
+  createBattleUnit,
+  isDefeated,
+  markBreakPending,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -440,5 +445,79 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     expect(result.units[0]!.currentExtraGauge).toBe(7);
     expect(result.units[0]!.maximumAp).toBe(3);
     expect(result.units[0]!.maximumExtraGauge).toBe(10);
+  });
+});
+
+/**
+ * R-TEX-03 #5: HP0到達を保留するか即時解決するかは「効果処理フェーズの内側か」だけで
+ * 決まる。全到達検出経路がこの1つの入口を通ることで、経路ごとの分岐を持たない。
+ */
+describe("deferOrResolveBreak (R-TEX-03 #5 / R-TEX-06 #5)", () => {
+  function drive(
+    steps: ReturnType<typeof deferOrResolveBreakSteps>,
+  ): ReturnType<typeof resolveBreak> {
+    let step = steps.next();
+    while (!step.done) {
+      step = steps.next(step.value.units);
+    }
+    return step.value;
+  }
+
+  it("UT-R-TEX-03-020: records the pending break and emits nothing while an effect processing is in flight", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemy = unit("enemy-1", "ENEMY", { currentHp: createHitPoint(0, 1000) });
+    const { ctx, recorder, rootEventId } = context(exercise);
+    const eventsBefore = recorder.getEvents().length;
+    exercise.deferredBreaks.beginEffectProcessing();
+
+    const result = drive(
+      deferOrResolveBreakSteps(ctx, [enemy], enemy.battleUnitId, EFFECT_ACTIONS, rootEventId, {
+        sourceUnitId: createBattleUnitId("ally-1"),
+      }),
+    );
+
+    expect(recorder.getEvents()).toHaveLength(eventsBefore);
+    expect(exercise.breakCount).toBe(0);
+    expect(result.lastEventId).toBe(rootEventId);
+    // R-TEX-06 #4.3: 保留窓の間、HPは0のままで戦闘不能として観測されない。
+    const pending = result.units[0]!;
+    expect(pending.currentHp).toBe(0);
+    expect(isDefeated(pending)).toBe(false);
+    expect(exercise.deferredBreaks.endEffectProcessing()).toEqual({
+      targetUnitId: enemy.battleUnitId,
+      causeEventId: rootEventId,
+      defeatSource: { sourceUnitId: createBattleUnitId("ally-1") },
+    });
+  });
+
+  it("UT-R-TEX-03-021: resolves immediately when no effect processing is in flight", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemy = unit("enemy-1", "ENEMY", { currentHp: createHitPoint(0, 1000) });
+    const { ctx, recorder, rootEventId } = context(exercise);
+
+    const result = drive(
+      deferOrResolveBreakSteps(ctx, [enemy], enemy.battleUnitId, EFFECT_ACTIONS, rootEventId),
+    );
+
+    const types = recorder.getEvents().map((event) => event.eventType);
+    expect(types).toContain("UnitBroken");
+    expect(types).toContain("UnitRevived");
+    expect(exercise.breakCount).toBe(1);
+    expect(result.units[0]!.currentHp).toBe(1200);
+  });
+
+  it("UT-R-TEX-06-008: clears the pending mark when the deferred break is finally resolved", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemy = markBreakPending(
+      unit("enemy-1", "ENEMY", { currentHp: createHitPoint(0, 1000) }),
+    );
+    const { ctx, rootEventId } = context(exercise);
+
+    const result = resolveBreak(ctx, [enemy], enemy.battleUnitId, EFFECT_ACTIONS, rootEventId);
+
+    const revived = result.units[0]!;
+    expect(revived.breakPending).toBeUndefined();
+    expect(isDefeated(revived)).toBe(false);
+    expect(revived.currentHp).toBe(1200);
   });
 });
