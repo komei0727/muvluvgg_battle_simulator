@@ -81,6 +81,11 @@ jobs:
       # ——見つからない場合は既にwarm instanceだったということなので、cold start
       # を検証できなかったとしてjobを失敗させる（Issue #99受け入れ条件）。
       #
+      # message fieldは`build-server.ts`が`messageKey: "message"`でpino既定の
+      # `msg`から改名している（`11_インフラストラクチャ設計.md`「ログイベント」の
+      # field名に合わせるため）。`jsonPayload.msg`で検索すると一致件数が常に0に
+      # なり、cold startが実際に起きていてもこのstepが必ず失敗する。
+      #
       # Cloud Loggingには取り込み遅延があるため、Playwright終了直後の1回だけの
       # 検索では、実際はcold startが成功していてもログがまだ検索可能になって
       # おらず誤ってjobを失敗させ得る。最大5分（20秒間隔×15回）poll/retryし、
@@ -89,7 +94,7 @@ jobs:
         env:
           START_TIME: ${{ steps.window.outputs.start_time }}
         run: |
-          FILTER="resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND jsonPayload.msg=\"muvluvgg-battle-simulator started\" AND timestamp>=\"$START_TIME\""
+          FILTER="resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND jsonPayload.message=\"muvluvgg-battle-simulator started\" AND timestamp>=\"$START_TIME\""
           MATCHES=""
           for attempt in $(seq 1 15); do
             MATCHES="$(gcloud logging read "$FILTER" \
