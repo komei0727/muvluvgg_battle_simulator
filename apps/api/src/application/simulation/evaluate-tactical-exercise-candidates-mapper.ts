@@ -44,6 +44,8 @@ export function toTacticalExerciseEvaluationResponseBody(
       breakCounts: [...candidate.breakCounts],
       completedTurns: [...candidate.completedTurns],
       completionReasons: [...candidate.completionReasons],
+      allyUnitDamageTotals: candidate.allyUnitDamageTotals.map((totals) => [...totals]),
+      allyUnitBreakCounts: candidate.allyUnitBreakCounts.map((counts) => [...counts]),
     })),
   };
 }

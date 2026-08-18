@@ -93,6 +93,14 @@ describe("toTacticalExerciseEvaluationResponseBody", () => {
         breakCounts: [1, 2],
         completedTurns: [5, 5],
         completionReasons: ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"],
+        allyUnitDamageTotals: [
+          [70, 30],
+          [120, 80],
+        ],
+        allyUnitBreakCounts: [
+          [1, 0],
+          [1, 0],
+        ],
       },
     ],
   };
@@ -110,6 +118,14 @@ describe("toTacticalExerciseEvaluationResponseBody", () => {
           breakCounts: [1, 2],
           completedTurns: [5, 5],
           completionReasons: ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"],
+          allyUnitDamageTotals: [
+            [70, 30],
+            [120, 80],
+          ],
+          allyUnitBreakCounts: [
+            [1, 0],
+            [1, 0],
+          ],
         },
       ],
     });
@@ -123,6 +139,8 @@ describe("toTacticalExerciseEvaluationResponseBody", () => {
     expect(candidate.breakCounts).toHaveLength(candidate.completedRuns);
     expect(candidate.completedTurns).toHaveLength(candidate.completedRuns);
     expect(candidate.completionReasons).toHaveLength(candidate.completedRuns);
+    expect(candidate.allyUnitDamageTotals).toHaveLength(candidate.completedRuns);
+    expect(candidate.allyUnitBreakCounts).toHaveLength(candidate.completedRuns);
     expect(candidate.completedRuns).toBeLessThan(body.runsPerCandidate);
   });
 });

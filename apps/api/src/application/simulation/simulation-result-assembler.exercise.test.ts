@@ -288,9 +288,28 @@ describe("assembleTacticalExerciseResult", () => {
         breakNumber: 1,
         turnNumber: 1,
         cumulativeScoreAtBreak: 100,
+        sourceUnitId: attackerId,
         sourceUnitDefinitionId: createUnitDefinitionId("UNIT_KOTOHA_REBEL"),
       },
     ]);
+  });
+
+  it("UT-TEXASSEMBLER-013 (R-FRM-03): keeps the source participation slot distinguishable when two slots share one definition id", () => {
+    const firstSlotId = createBattleUnitId("ally:1");
+    const secondSlotId = createBattleUnitId("ally:2");
+    const sharedDefinitionId = createUnitDefinitionId("UNIT_KOTOHA_REBEL");
+    const result = assemble({
+      steps: [
+        { kind: "SCORE", amount: 100, turnNumber: 1 },
+        { kind: "BREAK", turnNumber: 1, sourceUnitId: secondSlotId },
+      ],
+      unitRoster: [
+        rosterEntry(firstSlotId, sharedDefinitionId),
+        rosterEntry(secondSlotId, sharedDefinitionId),
+      ],
+    });
+
+    expect(result.breaks[0]?.sourceUnitId).toBe(secondSlotId);
   });
 
   it("UT-TEXASSEMBLER-009 (R-TEX-10 #2／R-MEM-04): omits the source unit for a break with no source unit, such as a Memory-derived continuous damage", () => {
@@ -302,6 +321,7 @@ describe("assembleTacticalExerciseResult", () => {
     });
 
     expect(result.breaks).toEqual([{ breakNumber: 1, turnNumber: 2, cumulativeScoreAtBreak: 40 }]);
+    expect(result.breaks[0]).not.toHaveProperty("sourceUnitId");
     expect(result.breaks[0]).not.toHaveProperty("sourceUnitDefinitionId");
   });
 

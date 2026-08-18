@@ -1,4 +1,5 @@
 import { ApplicationError, type Violation } from "../contracts/application-error.js";
+import { projectAllyUnitRunMetrics } from "./ally-unit-run-metrics.js";
 import type { SimulationExecutionLimits } from "./battle-execution.js";
 import {
   validateEvaluateTacticalExerciseCandidatesCommandShape,
@@ -41,6 +42,14 @@ export interface TacticalExerciseCandidateEvaluation {
   readonly breakCounts: readonly number[];
   readonly completedTurns: readonly number[];
   readonly completionReasons: readonly ExerciseCompletionReason[];
+  /** 試行ごと・味方の参加枠ごとの与ダメージ合計。内側は候補の編成順。 */
+  readonly allyUnitDamageTotals: readonly (readonly number[])[];
+  /**
+   * 試行ごと・味方の参加枠ごとの、その枠の攻撃で発生したブレイク回数。内側は編成順。
+   * 発生源ユニットを持たないブレイク（R-MEM-04）は数えないため、内側の和は同じ添字の
+   * `breakCounts`以下になる。
+   */
+  readonly allyUnitBreakCounts: readonly (readonly number[])[];
 }
 
 export interface EvaluateTacticalExerciseCandidatesResult {
@@ -190,6 +199,8 @@ export class EvaluateTacticalExerciseCandidatesUseCase {
     const breakCounts: number[] = [];
     const completedTurns: number[] = [];
     const completionReasons: ExerciseCompletionReason[] = [];
+    const allyUnitDamageTotals: (readonly number[])[] = [];
+    const allyUnitBreakCounts: (readonly number[])[] = [];
 
     for (let runIndex = 0; runIndex < command.runsPerCandidate; runIndex++) {
       if (this.dependencies.clock.now() >= context.deadlineEpochMs) {
@@ -212,6 +223,10 @@ export class EvaluateTacticalExerciseCandidatesUseCase {
       breakCounts.push(result.breakCount);
       completedTurns.push(result.completedTurn);
       completionReasons.push(result.completionReason);
+      // 試行の結果そのものはここで捨て、ユニット別の生値だけを残す。
+      const allyMetrics = projectAllyUnitRunMetrics(result);
+      allyUnitDamageTotals.push(allyMetrics.damageTotals);
+      allyUnitBreakCounts.push(allyMetrics.breakCounts);
     }
 
     return {
@@ -220,6 +235,8 @@ export class EvaluateTacticalExerciseCandidatesUseCase {
       breakCounts,
       completedTurns,
       completionReasons,
+      allyUnitDamageTotals,
+      allyUnitBreakCounts,
     };
   }
 

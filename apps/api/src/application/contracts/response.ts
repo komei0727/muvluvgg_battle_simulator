@@ -433,7 +433,7 @@ export interface FormationStatPreviewResponseBody {
 /**
  * `10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」。統計量ではなく
  * 試行ごとの生値を返す——どの統計を採るかは利用側が決める。
- * 4つの配列は同じ試行を同じ添字で指し、いずれも長さが`completedRuns`に一致する。
+ * 6つの配列は同じ試行を同じ添字で指し、いずれも長さが`completedRuns`に一致する。
  */
 export interface TacticalExerciseCandidateEvaluationResponseBody {
   readonly completedRuns: number;
@@ -441,6 +441,14 @@ export interface TacticalExerciseCandidateEvaluationResponseBody {
   readonly breakCounts: readonly number[];
   readonly completedTurns: readonly number[];
   readonly completionReasons: readonly string[];
+  /** 試行ごと・味方ユニットごとの与ダメージ合計。内側はリクエストの編成順。 */
+  readonly allyUnitDamageTotals: readonly (readonly number[])[];
+  /**
+   * 試行ごと・味方ユニットごとの、そのユニットの攻撃で発生したブレイク回数。内側は
+   * リクエストの編成順。発生源ユニットを持たないブレイクは数えないため、内側の和は
+   * 同じ添字の`breakCounts`以下になる。
+   */
+  readonly allyUnitBreakCounts: readonly (readonly number[])[];
 }
 
 /** `10_API設計.md`「TacticalExerciseEvaluationResponse」。 */

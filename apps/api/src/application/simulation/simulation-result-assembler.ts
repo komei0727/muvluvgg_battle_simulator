@@ -68,6 +68,12 @@ export interface ExerciseBreak {
   readonly turnNumber: number;
   readonly cumulativeScoreAtBreak: number;
   /**
+   * R-TEX-03 #2の発生源そのもの（参加枠単位）。R-FRM-03により同じ`UnitDefinitionId`を
+   * 同一陣営へ複数指定できるため、どの参加枠が起こしたブレイクかは定義IDからは
+   * 決まらない。`sourceUnitDefinitionId`と同じ条件で省略する。
+   */
+  readonly sourceUnitId?: BattleUnitId;
+  /**
    * R-TEX-03 #2の発生源をユニット定義IDへ解決したもの。メモリー由来の継続ダメージ
    * のように発生源ユニットを持たないブレイクでは省略する（R-MEM-04）。
    */
@@ -386,6 +392,7 @@ function projectExerciseBreaks(
       breakNumber: event.payload.breakNumber,
       turnNumber: event.payload.turnNumber,
       cumulativeScoreAtBreak: event.payload.totalScore,
+      ...(sourceUnitId !== undefined ? { sourceUnitId } : {}),
       ...(sourceUnitDefinitionId !== undefined ? { sourceUnitDefinitionId } : {}),
     });
   }
