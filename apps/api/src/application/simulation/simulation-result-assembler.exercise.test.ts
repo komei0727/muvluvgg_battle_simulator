@@ -305,6 +305,24 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.breaks[0]).not.toHaveProperty("sourceUnitDefinitionId");
   });
 
+  it("UT-TEXASSEMBLER-010 (R-TEX-10 #2): rejects a break whose source unit is missing from the roster instead of silently reporting it as source-less", () => {
+    const unknownId = createBattleUnitId("ally:absent");
+    const input = {
+      steps: [
+        { kind: "SCORE" as const, amount: 100, turnNumber: 1 },
+        { kind: "BREAK" as const, turnNumber: 1, sourceUnitId: unknownId },
+      ],
+      unitRoster: [],
+    };
+
+    expect(() => assemble(input)).toThrow(ApplicationError);
+    try {
+      assemble(input);
+    } catch (error) {
+      expect((error as ApplicationError).code).toBe("INTERNAL_INVARIANT_VIOLATION");
+    }
+  });
+
   it("UT-TEXASSEMBLER-005 (R-TEX-10 #3): verifies state restoration over the exercise deltas, so initialState + every delta equals finalState", () => {
     const result = assemble({
       steps: [

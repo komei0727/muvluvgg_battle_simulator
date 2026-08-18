@@ -1458,8 +1458,10 @@ export interface BattleDomainEventPayloadMap {
      * R-TEX-10 #2のブレイク履歴はこのイベントのpayloadだけからの投影として定義されるため、
      * `turnNumber`と同じ理由で明示的に運ぶ。
      *
-     * メモリー由来の継続ダメージのように具体的な発生源ユニットを持たない経路があるため、
-     * 両方を省略可能にする（R-MEM-04）。
+     * 両方を省略可能にする。攻撃・リソース操作の経路は`sourceUnitId`だけを渡し、
+     * メモリー由来の継続ダメージのように具体的な発生源ユニットを持たない経路は
+     * `sourceSide`だけを渡す（R-MEM-04）——`EventRecorder`は一方から他方を導出しない
+     * ため、どちらの経路でも片方が欠ける。
      */
     readonly sourceUnitId?: BattleUnitId;
     readonly sourceSide?: Side;

@@ -346,6 +346,11 @@ export function* recalculateResourceCapacitiesSteps(
       );
       const clamped = units.map((u) => (u.battleUnitId === targetUnitId ? updated : u));
       // この経路の`UnitDefeated`と同じ発生源（上限を変えた効果の保持者自身）。
+      // 自身を発生源にすると`sourceSelector`の照合では落ちるが（`break-deferral.ts`）、
+      // R-TEX-10 #2のブレイク履歴はこの値をユニットへの帰属として公開する。現状この
+      // 分岐は到達しない——Catalogの`MAXIMUM_HP` Modifierはすべて正で、最大HPが現在HPを
+      // 0へ切り下げることがないためである。上限を下げる定義を追加する場合は、
+      // 「敵が自分自身をブレイクした」と読める帰属になる点をここで解決すること。
       const steps = resolveBreak(targetUnitId, clamped, lastEventId, {
         sourceUnitId: targetUnitId,
       });

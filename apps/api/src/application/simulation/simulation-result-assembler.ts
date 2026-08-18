@@ -370,6 +370,16 @@ function projectExerciseBreaks(
       continue;
     }
     const sourceUnitId = event.payload.sourceUnitId;
+    // 発生源を持つのにロースターへ居ないのは組み立て側のバグである。省略へ落とすと
+    // 「発生源ユニットを持たないブレイク」（メモリー由来）と区別が付かなくなり、
+    // 誤った観測を正常な応答として返してしまうため、ここで失敗させる。
+    if (sourceUnitId !== undefined && !definitionIdByUnitId.has(sourceUnitId)) {
+      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        {
+          reason: `UnitBroken carries a source unit (${sourceUnitId}) that the unit roster does not contain; the break history cannot resolve its definition id`,
+        },
+      ]);
+    }
     const sourceUnitDefinitionId =
       sourceUnitId === undefined ? undefined : definitionIdByUnitId.get(sourceUnitId);
     breaks.push({

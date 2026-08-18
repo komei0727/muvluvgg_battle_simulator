@@ -3774,6 +3774,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-TEXASSEMBLER-005",
       "UT-TEXASSEMBLER-008",
       "UT-TEXASSEMBLER-009",
+      "UT-TEXASSEMBLER-010",
       "UT-TEXUSECASE-001",
       "UT-TEXUSECASE-002",
       "IT-TEX-001",
