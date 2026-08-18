@@ -66,7 +66,14 @@ from .optimize.search_config import (
     load_search_config,
     resolve_unit_enhancements,
 )
-from .player_data import PlayerData, PlayerDataError, apply_player_data, load_player_data
+from .player_data import (
+    PlayerData,
+    PlayerDataError,
+    StoredUnitEnhancement,
+    apply_player_data,
+    load_player_data,
+    resolved_level,
+)
 from .runner import ChunkPlan, EvaluationRun, plan_chunks, run_evaluation
 from .schema import build_formation_json_schema, build_search_json_schema
 from .stats import build_summary, write_break_count_chart, write_runs_csv, write_score_histogram
@@ -283,9 +290,20 @@ def _print_units(
         ]
         if data is not None:
             stored = data.units.get(unit.unit_definition_id)
-            row.append("-" if stored is None else str(stored.level))
+            row.append("-" if stored is None else _owned_level(stored, data))
         table.add_row(*row)
     console.print(table)
+
+
+def _owned_level(stored: StoredUnitEnhancement, data: PlayerData) -> str:
+    """実効レベルを出す。リンク由来の値には`*`を付ける。
+
+    表の用途は編成YAMLへ書き写すIDと値を引くことなので、個別に入力した値と
+    リンクで一括指定された値を見分けられないと、リンクを外したときに戻る値を
+    取り違える。
+    """
+    level = resolved_level(stored, data)
+    return f"{level}*" if level != stored.level else str(level)
 
 
 def _add_id_column(table: Table, header: str, values: Sequence[str]) -> None:

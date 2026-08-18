@@ -112,6 +112,37 @@ def test_enhancement_is_not_carried_over(tmp_path):
     assert all("enhancement" not in unit for unit in ally["units"])
 
 
+def test_slots_carrying_unknown_keys_are_still_imported(tmp_path):
+    """UI側がdraftへ項目を足しても取り込みは壊れない（レベルリンクの `linkExcluded` など）。
+
+    `_slot_of` が `row` / `column` / `unitDefinitionId` だけを射影してから validate する
+    ため、枠に増えたキーは検証前に落ちる。育成状態の正本は `--player-data` 側であり、
+    draftの強化入力は読まない方針（`test_enhancement_is_not_carried_over`）を保つ。
+    """
+    ally = [
+        {
+            **slot("ally", "FRONT", 0, "UNIT_A", {**ENHANCEMENT, "linkExcluded": True}),
+            "unknownSlotKey": 1,
+        },
+        *[slot("ally", row, column) for row in ("FRONT", "REAR") for column in (0, 1, 2)][1:],
+    ]
+    linked_enhancement = {
+        "enabled": True,
+        "academyLevels": {"unitTypes": {}, "attributes": {}},
+        "levelLink": {"enabled": True, "level": 260},
+    }
+
+    config = load_exercise_draft(
+        write(
+            tmp_path,
+            draft_json(allySlots=ally, allyEnhancement=linked_enhancement),
+        )
+    )
+
+    assert [unit.unit_definition_id for unit in config.ally.units] == ["UNIT_A"]
+    assert config.ally.units[0].level is None
+
+
 def test_draft_without_an_enemy_is_rejected(tmp_path):
     empty = [slot("enemy", row, column) for row in ("FRONT", "REAR") for column in (0, 1, 2)]
 

@@ -125,6 +125,85 @@ def test_yaml_values_win_over_stored_values(tmp_path):
     }
 
 
+def test_level_link_replaces_the_stored_level_of_linked_units(tmp_path):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, linked(PLAYER_DATA, level=260)))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert level_of(applied) == 260
+
+
+def test_link_excluded_unit_keeps_its_own_level(tmp_path):
+    stored = linked(PLAYER_DATA, level=260)
+    stored["units"] = {"UNIT_A": {**stored["units"]["UNIT_A"], "linkExcluded": True}}
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, stored))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert level_of(applied) == 240
+
+
+def test_level_link_disabled_keeps_the_stored_level(tmp_path):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, linked(PLAYER_DATA, level=260, enabled=False)))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert level_of(applied) == 240
+
+
+def test_export_without_the_level_link_fields_is_still_readable(tmp_path):
+    """リンク導入前に書き出した player-data.json をそのまま読める（取り直させない）。"""
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, PLAYER_DATA))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert level_of(applied) == 240
+
+
+def test_link_level_out_of_range_falls_back_to_the_stored_level(tmp_path):
+    # `03_API・データ連携設計.md` §3.1: リンクレベルが1以上の整数でない間は
+    # リンクを適用せず枠の値を使う。UIとlabで実効レベルが割れないようにする。
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, linked(PLAYER_DATA, level=0)))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert level_of(applied) == 240
+
+
+def test_yaml_level_wins_over_the_link_level(tmp_path):
+    yaml_text = CONFIG_YAML.replace(
+        "      position: { column: 0, row: FRONT }",
+        "      position: { column: 0, row: FRONT }\n      level: 1",
+        1,
+    ).replace(
+        "ally:\n",
+        "ally:\n  academyLevels:\n    unitTypes: { PHYSICAL: 3 }\n",
+        1,
+    )
+    config = load_formation_config(write(tmp_path, "formation.yaml", yaml_text))
+    data = load_player_data(write_json(tmp_path, linked(PLAYER_DATA, level=260)))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert level_of(applied) == 1
+
+
+def linked(player_data, *, level: int, enabled: bool = True):
+    return {**player_data, "levelLink": {"enabled": enabled, "level": level}}
+
+
+def level_of(config) -> int:
+    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    return units[0]["enhancement"]["level"]
+
+
 def test_unknown_schema_version_is_rejected(tmp_path):
     path = write_json(tmp_path, {**PLAYER_DATA, "schemaVersion": 2})
 

@@ -199,6 +199,9 @@ interface SideEnhancementInput {
  * いない枠（`enhancement === undefined`）もリンク対象に含める（`UI-API-024`）。
  * リンクレベルが1以上の整数でない間（打ち直しのために消した`""`を含む）は
  * リンクを適用せず枠の値へフォールバックする。
+ *
+ * 同じ規則を`tools/exercise-lab`の`resolved_level`（`player_data.py`）が写している。
+ * 片方だけ変えると、UIとlabが別のレベルで同じ編成を評価する。
  */
 function resolveUnitLevel(
   sideEnhancement: SideEnhancementInput,

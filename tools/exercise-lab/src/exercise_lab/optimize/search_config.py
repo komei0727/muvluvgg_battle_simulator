@@ -26,7 +26,7 @@ from ..models import (
     Position,
     _Spec,
 )
-from ..player_data import PlayerData
+from ..player_data import PlayerData, resolved_level
 from .candidate import (
     MAX_MEMORIES,
     MAX_UNITS,
@@ -354,7 +354,7 @@ def resolve_unit_enhancements(
         enhancements[unit_definition_id] = AllyUnitSpec.model_construct(
             unit_definition_id=unit_definition_id,
             position=Position(column=0, row="FRONT"),
-            level=stored.level,
+            level=resolved_level(stored, data),
             # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
             gears=[gear for gear in stored.gears if gear is not None],
         )

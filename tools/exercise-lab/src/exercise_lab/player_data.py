@@ -32,8 +32,21 @@ class PlayerDataError(Exception):
     """手持ちデータが契約から外れている。"""
 
 
+class StoredLevelLink(_Spec):
+    """陣営のレベルリンク（`docs/ui-design/01_UI要求・画面設計.md` §5.6）。
+
+    UI側の入力は `number | ""` だが、未入力（`""`）は書き戻しで前回値へ畳まれ
+    保存データには残らない。`StoredUnitEnhancement.level` と同じ前提に立つ。
+    """
+
+    enabled: bool
+    level: int
+
+
 class StoredUnitEnhancement(_Spec):
     level: int
+    # 陣営のレベルリンクから外した枠。リンク導入前のエクスポートには無い。
+    link_excluded: bool = Field(default=False, alias="linkExcluded")
     # 枠は9固定で、空枠はJSON上 `null` として並ぶ。
     gears: list[Gear | None]
 
@@ -41,7 +54,24 @@ class StoredUnitEnhancement(_Spec):
 class PlayerData(_Spec):
     schema_version: int = Field(alias="schemaVersion")
     academy_levels: AcademyLevels = Field(alias="academyLevels")
+    # リンク導入前のエクスポートを取り直させないため任意項目とする。UI側も同じ理由で
+    # `PERSISTENCE_SCHEMA_VERSION` を上げない。
+    level_link: StoredLevelLink | None = Field(default=None, alias="levelLink")
     units: dict[str, StoredUnitEnhancement]
+
+
+def resolved_level(stored: StoredUnitEnhancement, data: PlayerData) -> int:
+    """リンクを解いた実効レベル。
+
+    `docs/ui-design/03_API・データ連携設計.md` §3.1 の `resolveUnitLevel` と同じ規則。
+    リンクONの枠はリンクレベル、除外した枠は個別レベルを使う。リンクレベルが1以上の
+    整数でないときは、UI側と同じく個別レベルへフォールバックする（片方だけが別の
+    レベルで評価すると、探索結果が誤った前提に立つ）。
+    """
+    link = data.level_link
+    if link is not None and link.enabled and link.level >= 1 and not stored.link_excluded:
+        return link.level
+    return stored.level
 
 
 def load_player_data(path: Path) -> PlayerData:
@@ -95,7 +125,7 @@ def _apply_unit(unit: AllyUnitSpec, data: PlayerData, warnings: list[str]) -> Al
         )
     update = {}
     if unit.level is None:
-        update["level"] = stored.level
+        update["level"] = resolved_level(stored, data)
     if unit.gears is None:
         # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
         update["gears"] = [gear for gear in stored.gears if gear is not None]
