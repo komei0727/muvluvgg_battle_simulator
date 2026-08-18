@@ -2,7 +2,15 @@ import { useId, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
 import type { UiViolation } from "./draft-validation.js";
 import { GEAR_GRADES, GEAR_STATS, GEAR_TIERS } from "./types.js";
-import type { GearGrade, GearInput, GearStat, GearTier, UnitEnhancementInput } from "./types.js";
+import { isLevelLinked } from "./level-link.js";
+import type {
+  GearGrade,
+  GearInput,
+  GearStat,
+  GearTier,
+  LevelLinkInput,
+  UnitEnhancementInput,
+} from "./types.js";
 import type { CatalogGearEffect } from "../simulation/api-contract.js";
 import styles from "./UnitEnhancementDialog.module.css";
 
@@ -17,8 +25,11 @@ export interface UnitEnhancementDialogProps {
    * 公開しない旧APIと組み合わせたときはランク名だけの表示へフォールバックする。
    */
   readonly gearEffects?: readonly CatalogGearEffect[];
+  /** UI-AC-037: この枠が属する陣営のレベルリンク。リンク中はレベルを編集させない。 */
+  readonly levelLink: LevelLinkInput;
   readonly onLevelChange: (value: number | "") => void;
   readonly onGearChange: (gearIndex: number, gear?: GearInput) => void;
+  readonly onLinkExclusionChange: (excluded: boolean) => void;
   readonly onClose: () => void;
 }
 
@@ -267,15 +278,27 @@ export function UnitEnhancementDialog({
   enhancement,
   violations,
   gearEffects,
+  levelLink,
   onLevelChange,
   onGearChange,
+  onLinkExclusionChange,
   onClose,
 }: UnitEnhancementDialogProps) {
   const titleId = useId();
   const levelId = useId();
   const levelErrorId = useId();
+  const levelHintId = useId();
+  const linkExclusionId = useId();
   const gearErrorIdPrefix = useId();
   const levelErrors = levelMessages(violations, slotKey);
+  // この枠がリンクの適用を受けているか。ダイアログは陣営の強化トグルONのときしか
+  // 開かない（`formationReducer`が`selectionOpened`を無視する）ため、判定に必要な
+  // のは`levelLink`と枠の除外フラグだけである。
+  const linked = isLevelLinked(enhancement, { enabled: true, levelLink });
+  const describedBy = [
+    levelErrors.length > 0 ? levelErrorId : undefined,
+    linked ? levelHintId : undefined,
+  ].filter((id): id is string => id !== undefined);
 
   return (
     <Dialog titleId={titleId} title={`${unitDisplayName}の強化`} onClose={onClose}>
@@ -286,9 +309,14 @@ export function UnitEnhancementDialog({
             id={levelId}
             type="number"
             min={1}
-            value={enhancement.level}
+            // 参照時解決（`level-link.ts`）。リンク中は枠の値を保持したまま、
+            // 実際に送るリンクレベルを見せる。
+            value={linked ? levelLink.level : enhancement.level}
+            // `disabled`にはしない——focusできなくなると、この入力へ結びつけた
+            // サーバー違反の説明が読み上げから外れる（UI-AC-039）。
+            readOnly={linked}
             aria-invalid={levelErrors.length > 0}
-            aria-describedby={levelErrors.length > 0 ? levelErrorId : undefined}
+            aria-describedby={describedBy.length > 0 ? describedBy.join(" ") : undefined}
             onChange={(event) => {
               const raw = event.target.value;
               onLevelChange(raw === "" ? "" : Number(raw));
@@ -299,7 +327,37 @@ export function UnitEnhancementDialog({
               {levelErrors.join(" ")}
             </p>
           ) : null}
+          {linked ? (
+            <p id={levelHintId} className={styles["hint"]}>
+              レベルリンク中（Lv{levelLink.level === "" ? "—" : levelLink.level}
+              ）。個別に変えるには「レベルリンクから外す」を選んでください。
+            </p>
+          ) : null}
+          {/*
+            UI-AC-039: 成長値（levelGrowth）を持たないユニットへ200以外を指定すると
+            APIが422で拒否する（R-ENH-05 #5）。UIは事前検証しない方針なので、
+            解決手段が機能内にあること（外して200へ戻す）をここで示す。
+          */}
+          {linked && levelErrors.length > 0 ? (
+            <p className={styles["hint"]}>
+              成長値を持たないユニットはレベル200だけを受け付けます。「レベルリンクから外す」を選び、レベルを200に戻してください。
+            </p>
+          ) : null}
         </div>
+
+        {levelLink.enabled ? (
+          <label className={styles["linkExclusion"]} htmlFor={linkExclusionId}>
+            <input
+              id={linkExclusionId}
+              type="checkbox"
+              checked={enhancement.linkExcluded}
+              onChange={(event) => {
+                onLinkExclusionChange(event.target.checked);
+              }}
+            />
+            レベルリンクから外す
+          </label>
+        ) : null}
 
         {gearEffects === undefined ? null : (
           <p className={styles["gearNotation"]}>

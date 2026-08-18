@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
+import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SimulateOptions } from "../features/simulation/api-client.js";
 import type { GetCatalogOptions } from "../features/simulation/api-client.js";
@@ -822,6 +823,180 @@ describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
     const submit = screen.getByRole("button", { name: "戦闘を開始" });
     expect(submit).toBeEnabled();
     await user.click(submit);
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(JSON.stringify(sentRequest)).not.toContain("enhancement");
+  });
+});
+
+// docs/ui-design/01_UI要求・画面設計.md §5.6・§5.7（UI-AC-035〜039）
+describe("BattleSimulatorPage — レベルリンク (UI-CT-061〜067)", () => {
+  function allySection() {
+    return screen.getByRole("region", { name: /ALLY FORMATION/ });
+  }
+
+  async function enableAllyLink(user: UserEvent, level: string) {
+    await user.click(within(allySection()).getByRole("checkbox", { name: /強化/ }));
+    await user.click(within(allySection()).getByRole("checkbox", { name: "レベルリンク" }));
+    const linkLevel = within(allySection()).getByLabelText("リンクレベル");
+    await user.clear(linkLevel);
+    await user.type(linkLevel, level);
+  }
+
+  function successImpl() {
+    return vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => Promise.resolve({ ok: true, response: simulationResponse() }));
+  }
+
+  // UI-CT-061
+  it("sends the link level for every ally unit, including a slot whose dialog was never opened", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = successImpl();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+    await user.click(within(allySection()).getByRole("button", { name: "前衛2にユニットを追加" }));
+    await user.click(screen.getByRole("button", { name: "アルファを選択" }));
+
+    await enableAllyLink(user, "260");
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(sentRequest.allyFormation.units.map((unit) => unit.enhancement?.level)).toEqual([
+      260, 260,
+    ]);
+    expect(JSON.stringify(sentRequest)).not.toContain("levelLink");
+    // 敵陣営はトグルOFFのままなので独立して従来どおり。
+    expect(sentRequest.enemyFormation).not.toHaveProperty("enhancement");
+  });
+
+  // UI-CT-063
+  it("keeps an excluded slot on its own level, seeded from the link level", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = successImpl();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+    await enableAllyLink(user, "260");
+
+    await user.click(within(allySection()).getByRole("button", { name: /の強化を編集/ }));
+    await user.click(screen.getByRole("checkbox", { name: "レベルリンクから外す" }));
+    // 外した瞬間はリンクレベルがシードされる（跳ね戻りを見せない。UI-AC-036）。
+    const level = screen.getByLabelText("現在レベル");
+    expect(level).toHaveValue(260);
+    await user.clear(level);
+    await user.type(level, "180");
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    const [sentRequest] = simulateImpl.mock.calls[0]!;
+    expect(sentRequest.allyFormation.units[0]?.enhancement?.level).toBe(180);
+  });
+
+  // UI-CT-064
+  it("blocks the submit on an unusable link level, but not on a blank level of a linked slot", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+    await setUpMinimalFormation(user);
+    await enableAllyLink(user, "260");
+
+    // リンクON前に打ちかけた`""`は、リンク中は送信に使われないので送信を止めない。
+    await user.click(within(allySection()).getByRole("button", { name: /の強化を編集/ }));
+    await user.click(screen.getByRole("checkbox", { name: "レベルリンクから外す" }));
+    await user.clear(screen.getByLabelText("現在レベル"));
+    await user.click(screen.getByRole("checkbox", { name: "レベルリンクから外す" }));
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+
+    expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeEnabled();
+
+    await user.clear(within(allySection()).getByLabelText("リンクレベル"));
+
+    expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeDisabled();
+    expect(
+      screen.getAllByText("リンクレベルは1以上の整数で入力してください。").length,
+    ).toBeGreaterThan(0);
+  });
+
+  // UI-CT-065: R-ENH-05 #5 の422はリンク中でも該当入力へ出す（UI-API-019の維持）。
+  it("maps a levelGrowth 422 onto the read-only level input of the linked slot", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        error: {
+          kind: "VALIDATION",
+          code: "INVALID_COMMAND",
+          message: "リクエストに不備があります。",
+          violations: [
+            {
+              path: "/allyFormation/units/0/enhancement/level",
+              message: 'must be 200 because "UNIT_A" declares no levelGrowth, got 260',
+            },
+          ],
+        },
+      }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+    await enableAllyLink(user, "260");
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/リクエストに不備があります。/)).toBeInTheDocument();
+    });
+    await user.click(within(allySection()).getByRole("button", { name: /の強化を編集/ }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    const level = dialog.getByLabelText("現在レベル");
+    expect(level).toHaveAttribute("readonly");
+    expect(level).toHaveAttribute("aria-invalid", "true");
+    expect(dialog.getByText(/declares no levelGrowth/)).toBeInTheDocument();
+    expect(dialog.getByText(/レベルを200に戻してください/)).toBeInTheDocument();
+  });
+
+  // UI-CT-067
+  it("keeps the link controls disabled while the side enhancement toggle is off", async () => {
+    const user = userEvent.setup();
+    const simulateImpl = successImpl();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateImpl={simulateImpl}
+      />,
+    );
+    await setUpMinimalFormation(user);
+
+    expect(within(allySection()).getByRole("checkbox", { name: "レベルリンク" })).toBeDisabled();
+    expect(within(allySection()).getByLabelText("リンクレベル")).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "戦闘を開始" }));
 
     const [sentRequest] = simulateImpl.mock.calls[0]!;
     expect(JSON.stringify(sentRequest)).not.toContain("enhancement");

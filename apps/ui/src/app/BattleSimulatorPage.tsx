@@ -211,6 +211,35 @@ export function BattleSimulatorPage({
     [dispatch],
   );
 
+  // レベルリンクも学園レベルと同じ「陣営に1組の手持ちデータ」なので、味方の編集は
+  // 両モードのsliceへ配る。配り忘れると「通常戦闘でリンクを上げ、演習へ切り替えると
+  // 元のまま」というズレになる（UI-CMP-025）。
+  const dispatchAllyWideOrCurrent = useCallback(
+    (side: Side, action: FormationAction) => {
+      if (side !== "ally") {
+        dispatch(action);
+        return;
+      }
+      battleDispatch(action);
+      exerciseDispatch(action);
+    },
+    [dispatch],
+  );
+
+  const toggleLevelLink = useCallback(
+    (side: Side, enabled: boolean) => {
+      dispatchAllyWideOrCurrent(side, { type: "levelLinkToggled", side, enabled });
+    },
+    [dispatchAllyWideOrCurrent],
+  );
+
+  const changeLevelLinkLevel = useCallback(
+    (side: Side, value: number | "") => {
+      dispatchAllyWideOrCurrent(side, { type: "levelLinkLevelChanged", side, value });
+    },
+    [dispatchAllyWideOrCurrent],
+  );
+
   const submit = () => {
     if (isExercise) {
       if (exerciseView.requestBuild.ok) {
@@ -250,6 +279,8 @@ export function BattleSimulatorPage({
         dispatch({ type: "enhancementToggled", side, enabled });
       }}
       onAcademyLevelChange={changeAcademyLevel}
+      onLevelLinkToggle={toggleLevelLink}
+      onLevelLinkChange={changeLevelLinkLevel}
       onMoveUnit={(fromSlotKey, toSlotKey) => {
         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
       }}
@@ -333,6 +364,8 @@ export function BattleSimulatorPage({
                         dispatch({ type: "enhancementToggled", side, enabled });
                       }}
                       onAcademyLevelChange={changeAcademyLevel}
+                      onLevelLinkToggle={toggleLevelLink}
+                      onLevelLinkChange={changeLevelLinkLevel}
                       onMoveUnit={(fromSlotKey, toSlotKey) => {
                         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
                       }}

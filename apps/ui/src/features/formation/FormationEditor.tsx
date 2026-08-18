@@ -40,6 +40,8 @@ export interface FormationEditorProps {
     key: string,
     value: number | "",
   ) => void;
+  readonly onLevelLinkToggle: (side: Side, enabled: boolean) => void;
+  readonly onLevelLinkChange: (side: Side, value: number | "") => void;
 }
 
 function hasErrorFor(violations: readonly UiViolation[], slotKey: string): boolean {
@@ -63,6 +65,8 @@ export function FormationEditor({
   onOpenUnitEnhancement,
   onEnhancementToggle,
   onAcademyLevelChange,
+  onLevelLinkToggle,
+  onLevelLinkChange,
   onMoveUnit,
 }: FormationEditorProps) {
   const headingId = useId();
@@ -128,6 +132,12 @@ export function FormationEditor({
         }}
         onAcademyLevelChange={(group, key, value) => {
           onAcademyLevelChange(side, group, key, value);
+        }}
+        onLevelLinkToggle={(enabled) => {
+          onLevelLinkToggle(side, enabled);
+        }}
+        onLevelLinkChange={(value) => {
+          onLevelLinkChange(side, value);
         }}
       />
     </section>

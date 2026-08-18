@@ -28,10 +28,14 @@ function renderPanel(
       key: string,
       value: number | "",
     ) => void;
+    readonly onLevelLinkToggle?: (enabled: boolean) => void;
+    readonly onLevelLinkChange?: (value: number | "") => void;
   } = {},
 ) {
   const onToggle = overrides.onToggle ?? vi.fn();
   const onAcademyLevelChange = overrides.onAcademyLevelChange ?? vi.fn();
+  const onLevelLinkToggle = overrides.onLevelLinkToggle ?? vi.fn();
+  const onLevelLinkChange = overrides.onLevelLinkChange ?? vi.fn();
   render(
     <EnhancementPanel
       side="ally"
@@ -40,9 +44,11 @@ function renderPanel(
       disabled={overrides.disabled ?? false}
       onToggle={onToggle}
       onAcademyLevelChange={onAcademyLevelChange}
+      onLevelLinkToggle={onLevelLinkToggle}
+      onLevelLinkChange={onLevelLinkChange}
     />,
   );
-  return { onToggle, onAcademyLevelChange };
+  return { onToggle, onAcademyLevelChange, onLevelLinkToggle, onLevelLinkChange };
 }
 
 describe("EnhancementPanel (UI-CMP-014)", () => {
@@ -62,7 +68,8 @@ describe("EnhancementPanel (UI-CMP-014)", () => {
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
-    expect(screen.getAllByRole("spinbutton")).toHaveLength(9);
+    // 9項目＋リンクレベル（UI-AC-035）。学園レベルの側は上のラベルで固定している。
+    expect(screen.getAllByRole("spinbutton")).toHaveLength(10);
   });
 
   it("reports a toggle change without changing the inputs itself", async () => {
@@ -132,6 +139,8 @@ describe("EnhancementPanel (UI-CMP-014)", () => {
         disabled={false}
         onToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
       />,
     );
 
@@ -143,5 +152,71 @@ describe("EnhancementPanel (UI-CMP-014)", () => {
 
     expect(screen.getByRole("checkbox", { name: /強化/ })).toBeDisabled();
     expect(screen.getByLabelText("物理")).toBeDisabled();
+  });
+});
+
+// docs/ui-design/01_UI要求・画面設計.md §5.6「レベルリンク」（UI-AC-035 / UI-CMP-023）
+describe("EnhancementPanel — レベルリンク", () => {
+  it("reports the link toggle without touching the link level", async () => {
+    const user = userEvent.setup();
+    const { onLevelLinkToggle, onLevelLinkChange } = renderPanel();
+
+    await user.click(screen.getByRole("checkbox", { name: "レベルリンク" }));
+
+    expect(onLevelLinkToggle).toHaveBeenCalledWith(true);
+    expect(onLevelLinkChange).not.toHaveBeenCalled();
+  });
+
+  it("disables the link level input while the link is off, keeping the value on screen", () => {
+    renderPanel({ enhancement: enhancement({ levelLink: { enabled: false, level: 250 } }) });
+
+    expect(screen.getByLabelText("リンクレベル")).toBeDisabled();
+    expect(screen.getByLabelText("リンクレベル")).toHaveValue(250);
+  });
+
+  it("enables the link level input once the link is on", () => {
+    renderPanel({ enhancement: enhancement({ levelLink: { enabled: true, level: 250 } }) });
+
+    expect(screen.getByLabelText("リンクレベル")).toBeEnabled();
+    expect(
+      screen.getByText("リンクを外したユニット以外は、レベルがこの値になります。"),
+    ).toBeInTheDocument();
+  });
+
+  it("disables both link controls while the side enhancement toggle is off", () => {
+    renderPanel({
+      enhancement: enhancement({ enabled: false, levelLink: { enabled: true, level: 250 } }),
+    });
+
+    expect(screen.getByRole("checkbox", { name: "レベルリンク" })).toBeDisabled();
+    expect(screen.getByLabelText("リンクレベル")).toBeDisabled();
+  });
+
+  it("reports the edited link level, including a cleared input", async () => {
+    const user = userEvent.setup();
+    const { onLevelLinkChange } = renderPanel({
+      enhancement: enhancement({ levelLink: { enabled: true, level: 250 } }),
+    });
+
+    await user.clear(screen.getByLabelText("リンクレベル"));
+
+    expect(onLevelLinkChange).toHaveBeenLastCalledWith("");
+  });
+
+  it("shows a LEVEL_LINK_INVALID violation on the link level input", () => {
+    renderPanel({
+      enhancement: enhancement({ levelLink: { enabled: true, level: "" } }),
+      violations: [
+        {
+          path: "/allyFormation/enhancement/levelLink/level",
+          code: "LEVEL_LINK_INVALID",
+          message: "リンクレベルは1以上の整数で入力してください。",
+          severity: "error",
+        },
+      ],
+    });
+
+    expect(screen.getByLabelText("リンクレベル")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("リンクレベルは1以上の整数で入力してください。")).toBeInTheDocument();
   });
 });

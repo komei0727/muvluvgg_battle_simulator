@@ -41,6 +41,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -69,6 +71,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -98,6 +102,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -123,6 +129,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -150,6 +158,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -175,6 +185,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -213,6 +225,8 @@ describe("FormationEditor", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
       />,
     );
@@ -248,6 +262,8 @@ describe("FormationEditor — ユニット移動 (UI-CT-050/051/052)", () => {
         onOpenUnitEnhancement={vi.fn()}
         onEnhancementToggle={vi.fn()}
         onAcademyLevelChange={vi.fn()}
+        onLevelLinkToggle={vi.fn()}
+        onLevelLinkChange={vi.fn()}
         onMoveUnit={vi.fn()}
         {...overrides}
       />,

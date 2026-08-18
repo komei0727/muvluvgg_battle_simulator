@@ -174,6 +174,65 @@ describe("BattleSimulatorPage — 手持ちデータはモード共通 (UI-AC-03
     expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
   });
 
+  // UI-CT-066 / UI-CMP-025: レベルリンクも学園レベルと同じ陣営に1組の育成情報。
+  // 味方の編集は両モードのsliceへ配らないと「片方のモードでリンクを上げ、もう片方へ
+  // 切り替えると元のまま」になる。初期表示は戦術演習（UI-AC-018）なので、
+  // 観測するには必ず通常戦闘側へ切り替える。
+  it("carries the ally level link from the exercise mode into the battle mode", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+
+    await enableAllyEnhancement(user);
+    await user.click(within(allySection()).getByRole("checkbox", { name: "レベルリンク" }));
+    const linkLevel = within(allySection()).getByLabelText("リンクレベル");
+    await user.clear(linkLevel);
+    await user.type(linkLevel, "260");
+
+    await switchMode(user, "通常戦闘");
+
+    expect(within(allySection()).getByRole("checkbox", { name: "レベルリンク" })).toBeChecked();
+    expect(within(allySection()).getByLabelText("リンクレベル")).toHaveValue(260);
+  });
+
+  it("carries the ally level link edited in the battle mode back into the exercise mode", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCatalog();
+    await switchMode(user, "通常戦闘");
+
+    await enableAllyEnhancement(user);
+    await user.click(within(allySection()).getByRole("checkbox", { name: "レベルリンク" }));
+    const linkLevel = within(allySection()).getByLabelText("リンクレベル");
+    await user.clear(linkLevel);
+    await user.type(linkLevel, "245");
+
+    await switchMode(user, "戦術演習");
+
+    expect(within(allySection()).getByRole("checkbox", { name: "レベルリンク" })).toBeChecked();
+    expect(within(allySection()).getByLabelText("リンクレベル")).toHaveValue(245);
+  });
+
+  it("restores the ally level link after a remount", async () => {
+    const user = userEvent.setup();
+    const first = renderPage();
+    await waitForCatalog();
+    await enableAllyEnhancement(user);
+    await user.click(within(allySection()).getByRole("checkbox", { name: "レベルリンク" }));
+    const linkLevel = within(allySection()).getByLabelText("リンクレベル");
+    await user.clear(linkLevel);
+    await user.type(linkLevel, "260");
+    await waitFor(() => {
+      expect(window.localStorage.getItem("mlgg:player-data")).toContain("260");
+    });
+    first.unmount();
+
+    renderPage();
+    await waitForCatalog();
+
+    expect(within(allySection()).getByLabelText("リンクレベル")).toHaveValue(260);
+  });
+
   // 手持ちデータの書き戻しは編集操作でだけ起こす。モードを行き来しただけで、
   // 離れたモードのdraftが持つ古い値が最新の手持ちデータを上書きしてはならない。
   it("never rewrites the saved growth data on a bare mode switch", async () => {
