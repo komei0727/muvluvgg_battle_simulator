@@ -46,7 +46,9 @@ export type PassiveReconfirmationResult =
  * 渡す。`units`は再確認時点の最新状態（呼び出し側が`currentUnit`と同様に
  * 都度渡す）。`unitDefinitions`（M7-001E、Issue #248）も同じ理由で、
  * `TARGET_STATE`の`UNIT_TYPE`/`ROLE`を候補検出時と同じCatalog参照表で
- * 再評価するために渡す。
+ * 再評価するために渡す。唯一の例外は`trigger.condition`の`RUNTIME_COUNTER`で、
+ * 候補検出時点の`candidate.unit`を参照する（R-ATM-01「検出は各イベント発行時点の
+ * 状態で照合する」）。
  */
 export function reconfirmPassiveCandidate(
   candidate: PassiveCandidate,
@@ -89,7 +91,16 @@ export function reconfirmPassiveCandidate(
     ...(unitDefinitions !== undefined ? { unitDefinitions } : {}),
   };
   if (
-    !evaluateTriggerCondition(candidate.trigger.condition, event, counterContext) ||
+    // `trigger.condition`の`RUNTIME_COUNTER`だけは候補検出時点のownerスナップショット
+    // （`candidate.unit`）で判定する。「counterがNに到達した」はそのイベント時点の
+    // 一過性の事実であり（R-ATM-01「検出は各イベント発行時点の状態で照合する」）、
+    // 保留中も即時に進むcounter更新（R-EFF-11）を最新値で見ると、多段ヒットで到達の
+    // 後にもう1回加算された候補が黙って破棄される。`activationCondition`はライブの
+    // ままにする — Q-CAT-EFF-22の相互排他が発動直前の再確認に依存しているため。
+    !evaluateTriggerCondition(candidate.trigger.condition, event, {
+      ...counterContext,
+      runtimeCounterOwner: candidate.unit,
+    }) ||
     !evaluateTriggerCondition(candidate.skillDefinition.activationCondition, event, counterContext)
   ) {
     return { ok: false, reason: "CONDITION_NOT_MET" };

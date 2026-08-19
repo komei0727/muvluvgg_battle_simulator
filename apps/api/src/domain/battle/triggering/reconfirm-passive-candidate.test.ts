@@ -7,6 +7,7 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
+  createRuntimeCounterId,
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
@@ -73,6 +74,7 @@ function statusEffectOf(statusKind: "STUN" | "FREEZE", holderId: BattleUnitId): 
 interface SkillOverrides {
   readonly amount?: number;
   readonly activationCondition?: ConditionDefinition;
+  readonly triggerCondition?: ConditionDefinition;
 }
 
 function skillOf(overrides: SkillOverrides = {}): SkillDefinition {
@@ -87,7 +89,12 @@ function skillOf(overrides: SkillOverrides = {}): SkillDefinition {
         category: "FACT",
         sourceSelector: "ANY",
         targetSelector: "ANY",
-        condition: { kind: "EVENT_PAYLOAD", field: "ready", op: "EQ", value: true },
+        condition: overrides.triggerCondition ?? {
+          kind: "EVENT_PAYLOAD",
+          field: "ready",
+          op: "EQ",
+          value: true,
+        },
       },
     ],
     counterUpdates: [],
@@ -407,6 +414,63 @@ describe("reconfirmPassiveCandidate", () => {
         undefined,
         undefined,
         1,
+      ),
+    ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
+  });
+
+  /**
+   * R-ATM-01「検出は各イベント発行時点の状態で照合する」: `trigger.condition`の
+   * `RUNTIME_COUNTER`は「counterがNに到達した」という検出時点の一過性の事実を
+   * ゲートにするため、再確認では候補検出時のスナップショット（`candidate.unit`）で
+   * 判定する。保留中も状態保守（counter加算）は即時に進むため（R-ATM-01）、
+   * 最新値で再評価すると多段ヒットで到達直後にもう1回加算された候補が黙って
+   * 破棄される。
+   */
+  it("UT-R-PS-04-019: a trigger condition RUNTIME_COUNTER is re-evaluated against the candidate-detection snapshot, so a counter that advanced past the gate while pending still confirms", () => {
+    const counter = createRuntimeCounterId("CRIT_COUNT");
+    const skill = skillOf({
+      triggerCondition: { kind: "RUNTIME_COUNTER", counter, op: "EQ", value: 4 },
+    });
+    const countersAt = (value: number) => ({
+      [skill.skillDefinitionId]: { [counter]: { value, carry: 0 } },
+    });
+    const detected = owner("ALLY", { skillCounters: countersAt(4) });
+    const candidate = candidateOf(detected, skill);
+    const current = owner("ALLY", { skillCounters: countersAt(5) });
+
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        current,
+        READY_EVENT,
+        createEmptyPassiveActivationGuard(),
+      ),
+    ).toEqual({ ok: true });
+  });
+
+  /**
+   * Q-CAT-EFF-22「`activationCondition`へ置くのはR-PS-04の発動直前再確認を通すため」:
+   * 相互排他はここのライブ再評価に依存するため、スナップショット化は
+   * `trigger.condition`だけに限る。
+   */
+  it("UT-R-PS-04-020 (Q-CAT-EFF-22): a Skill activationCondition RUNTIME_COUNTER stays live, discarding a candidate whose counter changed while pending", () => {
+    const counter = createRuntimeCounterId("CRIT_COUNT");
+    const skill = skillOf({
+      activationCondition: { kind: "RUNTIME_COUNTER", counter, op: "EQ", value: 4 },
+    });
+    const countersAt = (value: number) => ({
+      [skill.skillDefinitionId]: { [counter]: { value, carry: 0 } },
+    });
+    const detected = owner("ALLY", { skillCounters: countersAt(4) });
+    const candidate = candidateOf(detected, skill);
+    const current = owner("ALLY", { skillCounters: countersAt(5) });
+
+    expect(
+      reconfirmPassiveCandidate(
+        candidate,
+        current,
+        READY_EVENT,
+        createEmptyPassiveActivationGuard(),
       ),
     ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
   });

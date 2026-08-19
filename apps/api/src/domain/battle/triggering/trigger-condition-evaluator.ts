@@ -80,6 +80,16 @@ export interface RuntimeCounterLookupContext {
    * 陣営）。`owner`がある場合は`owner.side`を使うためこのフィールドは不要。
    */
   readonly ownerSide?: Side;
+  /**
+   * `RUNTIME_COUNTER`だけが`owner`の代わりに読むcounter参照元。R-PS-04の発動直前
+   * 再確認（`reconfirm-passive-candidate.ts`）が候補検出時点のownerスナップショットを
+   * 渡す。「counterがNに到達した」はそのイベント時点の一過性の事実であり
+   * （R-ATM-01「検出は各イベント発行時点の状態で照合する」）、保留中も即時に進む
+   * counter更新（R-EFF-11）を最新値で再評価すると、到達直後にもう1回加算された
+   * 候補が黙って破棄される。他のCondition kindはライブ再確認が正しいため`owner`を
+   * 読み続ける。
+   */
+  readonly runtimeCounterOwner?: BattleUnit;
   readonly skillDefinitionId?: SkillDefinitionId;
   readonly effectCounters?: RuntimeCounterMap;
   readonly getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined;
@@ -295,12 +305,13 @@ export function evaluateTriggerCondition(
       });
     }
     case "RUNTIME_COUNTER": {
+      const counterOwner = context?.runtimeCounterOwner ?? context?.owner;
       let value: number;
       if (context?.effectCounters !== undefined) {
         value = context.effectCounters[condition.counter]?.value ?? 0;
-      } else if (context?.skillDefinitionId !== undefined && context.owner !== undefined) {
+      } else if (counterOwner !== undefined && context?.skillDefinitionId !== undefined) {
         value =
-          context.owner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]?.value ?? 0;
+          counterOwner.skillCounters?.[context.skillDefinitionId]?.[condition.counter]?.value ?? 0;
       } else {
         throw new DomainValidationError(
           "condition",
