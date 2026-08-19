@@ -18,7 +18,7 @@ export interface AllyUnitDamageSummary {
   readonly contribution: number;
 }
 
-export interface AllyUnitBreakRunShare {
+export interface AllyUnitBreakRunCounts {
   readonly none: number;
   readonly one: number;
   readonly two: number;
@@ -28,16 +28,18 @@ export interface AllyUnitBreakRunShare {
 export interface AllyUnitBreakSummary {
   readonly unitIndex: number;
   readonly mean: number;
-  readonly runsByBreakCount: AllyUnitBreakRunShare;
+  readonly runsByBreakCount: AllyUnitBreakRunCounts;
 }
 
 export interface AllyUnitBreakStatistics {
   readonly units: readonly AllyUnitBreakSummary[];
   /**
-   * 味方ユニットが起こしたのではないブレイクの平均回数。メモリー由来の継続ダメージ
-   * （R-MEM-04）のように発生源ユニットを持たないブレイクがここへ落ちる。
+   * 味方の枠が起こしたのではないブレイクの平均回数。`10_API設計.md`
+   * 「TacticalExerciseCandidateEvaluationResponse」のとおり、ここには発生源ユニットを
+   * 持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）と、敵の枠自身が起こした
+   * ブレイク（混乱による自傷など、`R-CFS-01`）の両方が入る。起源を一つに断定できない。
    */
-  readonly memoryResidualMean: number;
+  readonly unattributedBreakMean: number;
 }
 
 export interface TopRunUnitSummary {
@@ -107,7 +109,7 @@ export function summarizeAllyUnitBreaks(
         threeOrMore: values.filter((value) => value >= 3).length,
       },
     })),
-    memoryResidualMean: mean(residuals),
+    unattributedBreakMean: mean(residuals),
   };
 }
 
@@ -122,6 +124,15 @@ export function summarizeTopRuns(sample: ExerciseStatisticsSample, topN: number)
   }
   if (sample.scores.length === 0) {
     throw new Error("上位N件の集計を出すには1件以上の試行が要る");
+  }
+  // 上位N選抜はスコアの添字で行うため、ユニット別の行が足りないと、その試行が
+  // 全ユニット0として平均へ入る。列数不一致を拒否しているのと同じ理由で、静かに
+  // 過少な平均を出すより契約違反として落とす。
+  if (
+    sample.allyUnitDamageTotals.length !== sample.scores.length ||
+    sample.allyUnitBreakCounts.length !== sample.scores.length
+  ) {
+    throw new Error("ユニット別の生値はスコアと同じ試行数でなければならない");
   }
 
   const selected = sample.scores

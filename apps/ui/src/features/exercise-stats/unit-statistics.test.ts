@@ -92,8 +92,9 @@ describe("summarizeAllyUnitDamage (UI-UT-STS-011)", () => {
   });
 });
 
-// UI-UT-STS-012: ブレイクは発生源ユニットを持たないことがある（R-MEM-04のメモリー
-// 由来継続ダメージなど）。ユニット別の合計と`breakCounts`の差をその残差として出す。
+// UI-UT-STS-012: `allyUnitBreakCounts`が数えるのは味方の枠が起こしたブレイクだけで、
+// `breakCounts`との差は発生源ユニットを持たないブレイク（R-MEM-04）と敵の自傷
+// （R-CFS-01）の混在値である（`10_API設計.md`）。起源を断定せず残差として出す。
 describe("summarizeAllyUnitBreaks (UI-UT-STS-012)", () => {
   it("averages each unit's breaks and bins the per-run counts", () => {
     const summary = summarizeAllyUnitBreaks(BREAK_COUNTS_BY_UNIT, [1, 4, 2, 1]);
@@ -121,10 +122,10 @@ describe("summarizeAllyUnitBreaks (UI-UT-STS-012)", () => {
     });
   });
 
-  it("averages the breaks no ally unit caused", () => {
+  it("averages the breaks no ally slot caused, without attributing them to one origin", () => {
     const summary = summarizeAllyUnitBreaks(BREAK_COUNTS_BY_UNIT, [1, 4, 2, 1]);
 
-    expect(summary.memoryResidualMean).toBe(0.5);
+    expect(summary.unattributedBreakMean).toBe(0.5);
   });
 
   it("rejects a run count that disagrees with the break count column", () => {
@@ -167,6 +168,24 @@ describe("summarizeTopRuns (UI-UT-STS-013)", () => {
     );
 
     expect(top.units[0]?.meanDamage).toBe(10);
+  });
+
+  it("rejects a sample whose per-unit rows do not cover every score", () => {
+    // 上位N選抜は`scores`の添字で行う。行が足りない試行を`?? 0`で0ダメージとして
+    // 平均へ混ぜると、例外ではなく静かに過少な平均が出る。列数不一致を拒否している
+    // のと同じ理由で、行数不一致も拒否する。
+    expect(() =>
+      summarizeTopRuns(sample({ allyUnitDamageTotals: DAMAGE_TOTALS.slice(0, 3) }), 2),
+    ).toThrow();
+    expect(() =>
+      summarizeTopRuns(
+        sample({
+          allyUnitBreakCounts: BREAK_COUNTS_BY_UNIT.slice(0, 3),
+          breakCounts: [1, 4, 2],
+        }),
+        2,
+      ),
+    ).toThrow();
   });
 
   it("rejects a top count below one and a sample with no runs", () => {
