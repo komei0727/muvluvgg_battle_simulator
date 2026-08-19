@@ -283,4 +283,73 @@ describe("RuntimeCounterUpdateDefinition", () => {
     );
     expect(result.scope).toBe("EFFECT_SEQUENCE");
   });
+
+  it("UT-CAT-RCU-017 (Issue #553): maps a RESET update definition", () => {
+    const result = createRuntimeCounterUpdateDefinition(
+      {
+        kind: "RESET",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          ...baseTrigger,
+          eventType: "PassiveActivated",
+          condition: {
+            kind: "EVENT_PAYLOAD",
+            field: "skillDefinitionId",
+            op: "EQ",
+            value: "SKL_EXAMPLE_PS2",
+          },
+        },
+      },
+      "counterUpdate",
+    );
+    expect(result).toEqual({
+      kind: "RESET",
+      counter: "RUNTIME_COUNTER_CRIT",
+      scope: "SKILL_RUNTIME",
+      trigger: {
+        ...baseTrigger,
+        eventType: "PassiveActivated",
+        condition: {
+          kind: "EVENT_PAYLOAD",
+          field: "skillDefinitionId",
+          op: "EQ",
+          value: "SKL_EXAMPLE_PS2",
+        },
+      },
+    });
+  });
+
+  it("UT-CAT-RCU-018 (Issue #553): rejects a RESET that carries another kind's sibling key (amount / maxHpRatio / resetScope)", () => {
+    for (const extra of [{ amount: 1 }, { maxHpRatio: 0.4 }, { resetScope: "RESOLUTION_SCOPE" }]) {
+      expect(() =>
+        createRuntimeCounterUpdateDefinition(
+          {
+            kind: "RESET",
+            counter: "RUNTIME_COUNTER_CRIT",
+            scope: "SKILL_RUNTIME",
+            trigger: baseTrigger,
+            ...extra,
+          },
+          "counterUpdate",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-RCU-019 (Issue #553): rejects a RESET whose scope is not SKILL_RUNTIME (APPLIED_EFFECT / EFFECT_SEQUENCE discard their counters on their own lifecycle)", () => {
+    for (const scope of ["APPLIED_EFFECT", "EFFECT_SEQUENCE"]) {
+      expect(() =>
+        createRuntimeCounterUpdateDefinition(
+          {
+            kind: "RESET",
+            counter: "RUNTIME_COUNTER_CRIT",
+            scope,
+            trigger: baseTrigger,
+          },
+          "counterUpdate",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
 });

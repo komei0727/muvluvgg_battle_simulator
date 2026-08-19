@@ -66,6 +66,10 @@ export function matchEffectSequenceRuntimeCounterUpdates(
       continue;
     }
     for (const update of resolution.counterUpdates) {
+      // `RESET`（Issue #553）は`scope: SKILL_RUNTIME`しか取り得ない型のため、
+      // このscope検査を通過した`update`の型からは`RESET`が除かれる（`applyUpdate`の
+      // `RESET`分岐はここからは到達しない）。`EffectSequence`スコープのcounterは
+      // 解決の完了が必ず破棄を兼ねるため、契機宣言によるリセットを持たない。
       if (update.scope !== "EFFECT_SEQUENCE") {
         throw new DomainValidationError(
           "counterUpdates.scope",

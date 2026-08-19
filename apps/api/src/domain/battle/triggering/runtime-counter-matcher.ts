@@ -11,6 +11,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import {
   applyCumulativeDamageThreshold,
+  clearRuntimeCounterValue,
   incrementRuntimeCounter,
   type RuntimeCounterMap,
 } from "../model/runtime-counter-state.js";
@@ -83,7 +84,7 @@ function readNumberPayloadField(event: TriggerCandidateEvent, field: string): nu
 }
 
 /**
- * `INCREMENT`/`CUMULATIVE_DAMAGE_THRESHOLD`の適用そのものはscope非依存
+ * `INCREMENT`/`CUMULATIVE_DAMAGE_THRESHOLD`/`RESET`の適用そのものはscope非依存
  * （`runtime-counter-state.ts`参照）。EFF-005/Issue #162の`runtime-counter-
  * effect-matcher.ts`（`AppliedEffect`スコープ）も同じ関数を再利用する — `owner`は
  * `CUMULATIVE_DAMAGE_THRESHOLD`が参照する`combatStats.maximumHp`の持ち主
@@ -106,6 +107,17 @@ export function applyUpdate(
       counters: result.counters,
       before: result.change.before,
       after: result.change.after,
+      carry: 0,
+    };
+  }
+  if (update.kind === "RESET") {
+    // 未保持のcounterへのRESETは値も`counters`も動かさない（呼び出し側は
+    // `before === after` かつ carry不変を「変化なし」と扱い、イベントを発行しない）。
+    const result = clearRuntimeCounterValue(counters, update.counter);
+    return {
+      counters: result?.counters ?? counters,
+      before: result?.change.before ?? 0,
+      after: 0,
       carry: 0,
     };
   }
@@ -328,7 +340,9 @@ export function collectResolutionScopeResets(
         );
       }
       for (const update of skill.counterUpdates) {
-        if (update.resetScope !== "RESOLUTION_SCOPE") {
+        // `RESET`（Issue #553）は`resetScope`を持たない — 解決スコープ終了ではなく
+        // 宣言した`trigger`が破棄の契機になるため、この走査の対象外。
+        if (update.kind === "RESET" || update.resetScope !== "RESOLUTION_SCOPE") {
           continue;
         }
         if (owner.skillCounters?.[skillId]?.[update.counter] === undefined) {

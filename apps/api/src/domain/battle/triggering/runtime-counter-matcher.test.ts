@@ -133,6 +133,18 @@ function critEvent(sourceUnitId: BattleUnit["battleUnitId"]): TriggerCandidateEv
   };
 }
 
+function passiveActivatedEvent(
+  sourceUnitId: BattleUnit["battleUnitId"],
+  skillDefinitionId: SkillDefinitionId,
+): TriggerCandidateEvent {
+  return {
+    eventType: "PassiveActivated",
+    category: "FACT",
+    sourceUnitId,
+    payload: { actorUnitId: sourceUnitId, skillDefinitionId },
+  };
+}
+
 function damageEvent(
   sourceUnitId: BattleUnit["battleUnitId"],
   targetUnitId: BattleUnit["battleUnitId"],
@@ -194,6 +206,99 @@ describe("detectRuntimeCounterUpdates", () => {
       value: 1,
       carry: 0,
     });
+  });
+
+  it("UT-RCOUNTER-M-016 (Issue #553, RESET): returns the current value as before and 0 as after, keeping the counter key so the RuntimeCounterChanged(after: 0) stateDelta restores the same state", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+      },
+      {
+        kind: "RESET",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const incremented = detectRuntimeCounterUpdates({
+      event: critEvent(owner.battleUnitId),
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+    const reset = detectRuntimeCounterUpdates({
+      event: passiveActivatedEvent(owner.battleUnitId, skill.skillDefinitionId),
+      units: incremented.units,
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(reset.changes).toEqual([
+      {
+        ownerUnitId: owner.battleUnitId,
+        skillDefinitionId: skill.skillDefinitionId,
+        counter: "RUNTIME_COUNTER_CRIT",
+        before: 1,
+        after: 0,
+        carry: 0,
+        carryBefore: 0,
+        valueChanged: true,
+      },
+    ]);
+    expect(
+      reset.units[0]?.skillCounters?.[skill.skillDefinitionId]?.["RUNTIME_COUNTER_CRIT" as never],
+    ).toEqual({ value: 0, carry: 0 });
+  });
+
+  it("UT-RCOUNTER-M-017 (Issue #553, RESET): a counter that holds no value yet is left untouched — no change is reported and no key is created (a key born without a stateDelta would diverge from the independent Reducer)", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "RESET",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+
+    const result = detectRuntimeCounterUpdates({
+      event: passiveActivatedEvent(owner.battleUnitId, skill.skillDefinitionId),
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    expect(result.changes).toEqual([]);
+    expect(result.units[0]?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
   });
 
   it("UT-RCOUNTER-M-002: accumulates across repeated matching events (N-th crossing reachable via modulo on the resulting value)", () => {

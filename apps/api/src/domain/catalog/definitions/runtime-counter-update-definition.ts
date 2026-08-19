@@ -44,7 +44,7 @@ const IMPLEMENTED_RUNTIME_COUNTER_SCOPES = [
   "EFFECT_SEQUENCE",
 ] as const;
 
-const RUNTIME_COUNTER_UPDATE_KINDS = ["INCREMENT", "CUMULATIVE_DAMAGE_THRESHOLD"] as const;
+const RUNTIME_COUNTER_UPDATE_KINDS = ["INCREMENT", "CUMULATIVE_DAMAGE_THRESHOLD", "RESET"] as const;
 export type RuntimeCounterUpdateKind = (typeof RUNTIME_COUNTER_UPDATE_KINDS)[number];
 
 /**
@@ -59,7 +59,18 @@ export type RuntimeCounterResetScope = (typeof RUNTIME_COUNTER_RESET_SCOPES)[num
 const RUNTIME_COUNTER_UPDATE_ALLOWED_KEYS: Record<RuntimeCounterUpdateKind, readonly string[]> = {
   INCREMENT: ["kind", "counter", "scope", "trigger", "amount", "resetScope"],
   CUMULATIVE_DAMAGE_THRESHOLD: ["kind", "counter", "scope", "trigger", "maxHpRatio", "resetScope"],
+  // `RESET`は加算量も端数比率も持たず、`resetScope`（1解決スコープ終了ごとの破棄）
+  // とも独立した契機で0へ戻すため、いずれのキーも受理しない。
+  RESET: ["kind", "counter", "scope", "trigger"],
 };
+
+/**
+ * `RESET`（Issue #553）が受理するスコープ。`APPLIED_EFFECT`は効果インスタンス自身の
+ * 失効が、`EFFECT_SEQUENCE`は解決の完了が、それぞれcounterの破棄を必ず兼ねるため、
+ * この位置の`RESET`宣言は意味を持たない（宣言できると「破棄したつもりが二重に
+ * 破棄されるだけ」の定義を許してしまう）。
+ */
+const RESET_RUNTIME_COUNTER_SCOPES = ["SKILL_RUNTIME"] as const;
 
 /**
  * `14_Catalog定義スキーマ.md`「RUNTIME_COUNTERの更新契機」（Issue #143で確定）。
@@ -85,6 +96,19 @@ export type RuntimeCounterUpdateDefinition =
       readonly trigger: TriggerDefinition;
       readonly maxHpRatio: number;
       readonly resetScope?: RuntimeCounterResetScope;
+    }
+  /**
+   * `RESET`（Issue #553）: `trigger`が成立した時点でcounterの公開値を0へ戻す。
+   * 「N到達で発動し、発動時に0へ戻す」PS（`PassiveActivated`契機）のように、
+   * 周期が1回の効果処理をまたいで進む契機では`modulo`で周期を表せない
+   * （1効果処理中にN到達を通り越し、余剰が次回へ繰り越されてしまう）。
+   * `scope`は`SKILL_RUNTIME`だけを受理する。
+   */
+  | {
+      readonly kind: "RESET";
+      readonly counter: RuntimeCounterId;
+      readonly scope: "SKILL_RUNTIME";
+      readonly trigger: TriggerDefinition;
     };
 
 export interface RuntimeCounterUpdateDefinitionInput {
@@ -114,9 +138,18 @@ export function createRuntimeCounterUpdateDefinition(
 ): RuntimeCounterUpdateDefinition {
   assertEnumValue(input.kind, RUNTIME_COUNTER_UPDATE_KINDS, `${path}.kind`);
   assertKnownKeys(input, RUNTIME_COUNTER_UPDATE_ALLOWED_KEYS[input.kind], path);
-  assertEnumValue(input.scope, IMPLEMENTED_RUNTIME_COUNTER_SCOPES, `${path}.scope`);
+  assertEnumValue(
+    input.scope,
+    input.kind === "RESET" ? RESET_RUNTIME_COUNTER_SCOPES : IMPLEMENTED_RUNTIME_COUNTER_SCOPES,
+    `${path}.scope`,
+  );
   const counter = createRuntimeCounterId(input.counter, `${path}.counter`);
   const trigger = createTriggerDefinition(input.trigger, `${path}.trigger`);
+
+  if (input.kind === "RESET") {
+    return { kind: "RESET", counter, scope: "SKILL_RUNTIME", trigger };
+  }
+
   const resetScope = createResetScope(input, path);
 
   if (input.kind === "INCREMENT") {

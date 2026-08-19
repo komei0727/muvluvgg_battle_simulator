@@ -3299,6 +3299,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-RCOUNTER-M-012",
       "UT-RCOUNTER-M-013",
       "UT-RCOUNTER-M-014",
+      // `RESET` kind（Issue #553）: 適用そのものと、未保持counterへのno-op。
+      "UT-RCOUNTER-M-016",
+      "UT-RCOUNTER-M-017",
       "UT-CAT-RCU-001",
       "UT-CAT-RCU-002",
       "UT-CAT-RCU-003",
@@ -3315,6 +3318,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-CAT-RCU-014",
       "UT-CAT-RCU-015",
       "UT-CAT-RCU-016",
+      // `RESET` kind（Issue #553）のCatalogロード検証（受理・許可キー・scope制限）。
+      "UT-CAT-RCU-017",
+      "UT-CAT-RCU-018",
+      "UT-CAT-RCU-019",
       "UT-CAT-IDX-036",
       "UT-CAT-IDX-037",
       "UT-CAT-IDX-038",
@@ -3385,6 +3392,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-EFF-11-024",
       "UT-R-EFF-11-025",
       "UT-R-EFF-11-027",
+      // `RESET` kind（Issue #553）が実ライフサイクルで、そのPSのEffectSequence
+      // 解決より前にcounterを0へ戻すこと。
+      "UT-R-EFF-11-028",
       // 発動回数counterの書き込みと、それを読む次の発動の阻止。
       "IT-UNIT-HIIRO-LONEWOLF-005",
       // 累計ダメージ閾値counterのcarry・閾値跨ぎ・公開差分（carryは載らない）。

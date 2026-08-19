@@ -2002,6 +2002,7 @@ counterUpdates:
 | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `INCREMENT`                   | `amount`（整数、1以上）  | `trigger`が成立するたびにcounterへ`amount`を加算する（`RUNTIME_COUNTER_MODULO`）。                                                                                         |
 | `CUMULATIVE_DAMAGE_THRESHOLD` | `maxHpRatio`（`(0, 1]`） | `trigger`成立時の被ダメージ量を対象の最大HP×`maxHpRatio`単位で加算し、超えた閾値の回数だけcounterを進める。端数は次回へ繰り越す（`CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER`）。 |
+| `RESET`                       | なし                     | `trigger`成立時にcounterの公開値を0へ戻す（Issue #553）。`scope`は`SKILL_RUNTIME`のみ受理する。                                                                            |
 
 `trigger`は`TriggerDefinition`と同じ形（`eventType`/`category`/`sourceSelector`/`targetSelector`/`condition`）で、対象の更新契機を独立に判定する。`scope`は`RuntimeCounter`の所有スコープ（`BATTLE`／`BATTLE_UNIT`／`SKILL_RUNTIME`／`APPLIED_EFFECT`／`EFFECT_SEQUENCE`、`05_ドメインモデル.md`「RuntimeCounter」参照）で、`SkillDefinition.counterUpdates`は`SKILL_RUNTIME`だけを受理する。`BATTLE`／`BATTLE_UNIT`はCatalogロード時点（`createRuntimeCounterUpdateDefinition`）で明示的に拒否する（Issue #143: 当初「Catalogとして受理するが評価器が実行時に拒否する」契約だったが、未対応スコープを実行前に検出できるよう変更した）。利用するproduction定義が現れるまではFeature Complete必須対象に含めず、必要な定義を追加する際にそのproduction経路と同じTaskで実装・検証する。
 
@@ -2022,6 +2023,34 @@ counterUpdates:
 ```
 
 公開値（`value`）が変わらない更新（例: 累計ダメージ閾値未到達のヒット）でも、内部端数（`carry`）が変化していれば`RuntimeCounterChanged`を発行する（`value`不変・`carry`不変（トリガー自体が不成立、または加算量0）の場合だけ何も発行しない）。可変状態の変化を必ずイベント列から追跡できるようにするため。
+
+`RESET`は`amount`／`maxHpRatio`／`resetScope`のいずれも持たない（許可キーは`kind`／`counter`／`scope`／`trigger`だけ）。値0のままキー自体は残し、発行イベントは`RuntimeCounterChanged`（`after: 0`、`valueChanged: true`）を再利用する — `RuntimeCounterReset`（`resetScope: RESOLUTION_SCOPE`／`EffectSequence`完了時の破棄）はキー自体を削除するイベントであり、StateDelta・独立Reducer・state復元の規約が別物になるため兼用しない。値を保持していないcounterへの`RESET`はno-opで、イベントも発行しない（StateDeltaを伴わないキー生成を作らないため）。`scope`は`SKILL_RUNTIME`だけを受理する — `APPLIED_EFFECT`は効果インスタンス自身の失効が、`EFFECT_SEQUENCE`は解決の完了が、それぞれ破棄を必ず兼ねるため、この位置の宣言は意味を持たない。
+
+**「N回ごと」の表し方**: 周期が1回の効果処理をまたがない契機（`SkillUseCompleted`／`PassiveActivated`など、1効果処理あたり高々1回しか進まない）では、`INCREMENT`＋trigger条件の`modulo`で周期を表せる。一方、ヒット単位で進む契機（`CriticalCheckResolved`など、1回の効果処理中にN到達を通り越しうる）では`modulo`では表せない — R-ATM-01により候補の発動は効果処理の完了まで保留される一方でcounter更新は即時に確定するため、到達後の余剰（例: 1スキル中に6会心 → N=4到達後さらに2）がそのまま次回へ繰り越され、次の発動が2会心で来てしまう。この場合は`INCREMENT`＋trigger条件`RUNTIME_COUNTER EQ N`（`modulo`なし）と、そのPSの`PassiveActivated`を契機とする`RESET`を組み合わせ、発動のたびに0から数え直す。
+
+```yaml
+counterUpdates:
+  - kind: INCREMENT
+    counter: SKL_EXAMPLE_PS2_TRIGGER_COUNT
+    scope: SKILL_RUNTIME
+    trigger:
+      eventType: CriticalCheckResolved
+      category: FACT
+      sourceSelector: SELF
+      targetSelector: ANY
+    amount: 1
+  - kind: RESET
+    counter: SKL_EXAMPLE_PS2_TRIGGER_COUNT
+    scope: SKILL_RUNTIME
+    trigger:
+      eventType: PassiveActivated
+      category: FACT
+      sourceSelector: SELF
+      targetSelector: ANY
+      condition: { kind: EVENT_PAYLOAD, field: skillDefinitionId, op: EQ, value: SKL_EXAMPLE_PS2 }
+```
+
+`PassiveActivated`契機の`RESET`は、そのPSの発動直後・自身のEffectSequence解決の**前**に適用される（`R-PS-05` #4→#5の間。`activatePassiveCandidate`が`PassiveActivated`発行の直後にcounter更新を検出する既存経路）。
 
 `INCREMENT`によるカウントは、`RUNTIME_COUNTER` Conditionを対象イベント自身（`counterUpdates[].trigger`と同じ`eventType`）へ直接付与し、`modulo`で周期を絞り込む。一方`CUMULATIVE_DAMAGE_THRESHOLD`は、`counterUpdates[].trigger`（`DamageApplied`など）ごとに閾値を超えたとは限らないため、`RUNTIME_COUNTER`をそのまま使うと閾値を超えていない被ダメージでも「前回超えた時のvalueがまだ条件を満たす」まま誤って再発火しうる。そのため`CUMULATIVE_DAMAGE_THRESHOLD`を消費するPSは、`counterUpdates[].trigger`ではなく`RuntimeCounterChanged`をtriggerのeventTypeとする。
 
