@@ -638,7 +638,10 @@ export function* applyDamageActionSteps(
   // R-DMG-06: 保持者が追加攻撃バフを持っていれば、この攻撃で実際に当てた対象ごとに
   // 独立した1ヒットを加える。R-SUB-02と同じ位置（全ヒットの解決後）に置くのは、数える
   // 単位がヒットではなくDAMAGE EffectActionと攻撃対象だからである。`outcomes`へは
-  // 積まないため、R-FUP-01の命中・会心集計とR-SKL-08の直前結果は汚れない。
+  // 積まないため、R-FUP-01の命中・会心集計（`anyApplied`/`anyCritical`）はこのヒットを
+  // 数えない。R-SKL-08の直前結果と`SUM_DAMAGE_*`の累計へは、通常ヒット・R-SUB-02の
+  // 追加ヒット・R-FUP-01の追撃と同じく`applyConfirmedDamageSteps`が記録する
+  // （R-DMG-06 #9）。
   const bonusAttacks = yield* applyAttackBonusAttacksSteps(
     context,
     working,

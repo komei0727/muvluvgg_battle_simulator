@@ -325,14 +325,17 @@ export interface ApplyHealingLinkPayload {
 }
 
 /**
- * ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、Issue #183）: 対象の攻撃を起点に追加
- * ダメージを発生させる汎用バフ（不完全変換テーマとして追跡していた欠落
- * EffectAction、production例: `SKL_ELENA_MOODMAKER_EX`の
- * 「攻撃時に攻撃力×15%のダメージを追加するバフ」）。`formula`は付与時点で
- * 評価し、結果を`AppliedEffect.attackDamageBonus.magnitude`として保持する
- * （`APPLY_STAT_MOD`と同じ評価規約 — 動的な毎ヒット再評価ではなく付与時snapshot）。
- * `damage-application-service.ts`が保持者自身のDAMAGE EffectActionのヒットごとに
- * 加算する。
+ * R-DMG-06: 保持者の攻撃のあとに**独立した追加攻撃**を発生させるバフ（production例:
+ * `SKL_ELENA_MOODMAKER_EX`の「攻撃時に攻撃力×15%のダメージを追加するバフ」）。
+ *
+ * - `formula`は付与時点に一度だけ評価し、結果を`AppliedEffect.magnitude`
+ *   （`isAttackDamageBonus: true`）として保持する（`APPLY_STAT_MOD`と同じ評価規約 —
+ *   動的な再評価ではなく付与時snapshot）。評価の`SKILL_SOURCE`は**付与者**であり、
+ *   バフを受け取る側のステータスは参照しない（R-DMG-06 #1）
+ * - 解決は`combat/attack-bonus-attack.ts`が行う。単位はヒットではなく
+ *   「DAMAGE EffectAction × 実際に当てた対象」で、焼き込んだ`magnitude`をそのまま
+ *   基礎ダメージにするため対象の防御力では減衰しない（R-DMG-06 #2/#5）
+ * - `stacking`を持たず常に重複可（保持数がそのまま追加攻撃の回数になる）
  */
 export interface ApplyAttackDamageBonusPayload {
   readonly formula: FormulaDefinition;
@@ -346,8 +349,10 @@ export interface ApplyAttackDamageBonusPayload {
  *
  * - `damage.formula`は付与時snapshotではなく追撃解決時に、**保持者**（攻撃した
  *   味方）を`SKILL_SOURCE`として評価する — 追撃のダメージ計算は付与者ではなく
- *   攻撃者のステータスで行うためである（`APPLY_ATTACK_DAMAGE_BONUS`との本質的な
- *   違い。会心・命中も追撃固有の判定を持たず元攻撃から継承する）
+ *   攻撃者のステータスで行うためである。`APPLY_ATTACK_DAMAGE_BONUS`（R-DMG-06）も
+ *   同じく追加攻撃を発生させるが、あちらは**付与者**基準の値を付与時に焼き込む。
+ *   両者は評価時点と基準ユニットで分かれ、1ヒットの解決経路
+ *   （`combat/additional-attack-hit.ts`）と会心・命中の継承は共有する
  * - `onHitEffect`は追撃ヒットが適用された対象へ付与する効果への参照。参照先は
  *   `APPLY_STAT_MOD`または`APPLY_CONTINUOUS_DAMAGE`に限る（`catalog-integrity.ts`が
  *   ロード時に拒否する）

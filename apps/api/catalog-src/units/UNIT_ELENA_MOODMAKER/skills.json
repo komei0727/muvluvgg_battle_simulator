@@ -167,19 +167,13 @@
       "conditions": [
         {
           "kind": "TARGET_SET_COUNT",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_LOW_HP_ALLIES"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW_HP_ALLIES" },
           "op": "GTE",
           "value": 1
         },
         {
           "kind": "TARGET_SET_COUNT",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_OTHER_ALLIES"
-          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
           "op": "GTE",
           "value": 1
         },
@@ -212,13 +206,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "HP_RATIO",
-                "op": "LT",
-                "value": 0.7
-              }
-            ]
+            "filters": [{ "kind": "HP_RATIO", "op": "LT", "value": 0.7 }]
           }
         },
         {
@@ -227,14 +215,7 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [
-              {
-                "kind": "EXCLUDE_RESOLVED_UNIT",
-                "reference": {
-                  "kind": "SELF"
-                }
-              }
-            ]
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
           }
         },
         {

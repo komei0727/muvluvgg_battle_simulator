@@ -40,7 +40,9 @@ export interface AttackBonusAttackResult {
  *
  * 1ヒットの解決（必中・会心継承・防御介入・与被ダメージ補正・閾値付き軽減・ダメージ
  * 無効・シールド吸収・リンク・反射・PS/Memory連鎖）は追撃（R-FUP-01）と共有する
- * `applyOneAdditionalAttackHitSteps`が行う。
+ * `applyOneAdditionalAttackHitSteps`が行う。R-DMG-06 #9: 追加攻撃ヒットは呼び出し側の
+ * `outcomes`へは積まれない（R-FUP-01の命中・会心集計を汚さない）が、R-SKL-08の直前結果と
+ * `SUM_DAMAGE_*`の累計へは`applyConfirmedDamageSteps`が通常ヒットと同じく記録する。
  *
  * バフの並びは**解決を始める前に**確定させる（`applySubUnitAdditionalDamageSteps`の
  * サブユニット列と同じ規約）— 追加攻撃自身のPS/Memory連鎖が新しいバフを付与しても、

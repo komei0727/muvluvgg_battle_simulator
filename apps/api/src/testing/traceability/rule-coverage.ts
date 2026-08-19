@@ -2123,23 +2123,33 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       // #1 付与時snapshot（付与者基準でのformula 1回評価とAppliedEffect保持）。
       "UT-R-BON-ATTACK-DMG-001",
       "IT-UNIT-ELENA-MOODMAKER-008",
-      // #2 独立ヒットとしての解決・防御力減衰なし、#4 ダメージ無効による上限。
-      "UT-R-BON-ATTACK-DMG-002",
-      "UT-R-BON-ATTACK-DMG-003",
-      "IT-UNIT-ELENA-MOODMAKER-007",
-      // #3 会心継承、属性相性・与ダメージ補正の適用。
-      "UT-R-BON-ATTACK-DMG-005",
-      "UT-R-BON-ATTACK-DMG-006",
-      // #2 発生単位（DAMAGE EffectActionごと・実際に当てた対象ごと）と重複可。
+      // #2 発生単位（DAMAGE EffectActionごと・実際に当てた対象ごと）。
       "UT-R-BON-ATTACK-DMG-007",
       "UT-R-BON-ATTACK-DMG-008",
-      "UT-R-BON-ATTACK-DMG-009",
-      "IT-UNIT-ELENA-MOODMAKER-017",
-      // #5 全ヒットMISS・対象不在では発生しない。
+      // #2 1発も当たらなかった攻撃・対象不在では発生しない。
       "UT-R-BON-ATTACK-DMG-004",
       "UT-R-BON-ATTACK-DMG-010",
-      // #6 追加攻撃は追加攻撃・サブユニット追加ダメージを誘発しない。
+      // #3 中断・スキップ（使用者の戦闘不能、対象の戦闘不能）。
+      "UT-R-BON-ATTACK-DMG-013",
+      "UT-R-BON-ATTACK-DMG-014",
+      "UT-R-BON-ATTACK-DMG-016",
+      "UT-R-BON-ATTACK-DMG-017",
+      // #4 会心継承。
+      "UT-R-BON-ATTACK-DMG-005",
+      // #5 独立ヒットとしての解決・防御力減衰なし・属性相性・与ダメージ補正、
+      // ダメージ無効（R-DMG-02 #2）による上限。
+      "UT-R-BON-ATTACK-DMG-002",
+      "UT-R-BON-ATTACK-DMG-003",
+      "UT-R-BON-ATTACK-DMG-006",
+      "IT-UNIT-ELENA-MOODMAKER-007",
+      // #6 重複可（保持数がそのまま回数になる。解除されれば残りは起きない）。
+      "UT-R-BON-ATTACK-DMG-009",
+      "UT-R-BON-ATTACK-DMG-015",
+      "IT-UNIT-ELENA-MOODMAKER-017",
+      // #8 追加攻撃は追加攻撃・サブユニット追加ダメージを誘発しない。
       "UT-R-BON-ATTACK-DMG-011",
+      // #9 ヒット列には属さないが、R-SKL-08の直前結果・累計へは記録する。
+      "UT-R-BON-ATTACK-DMG-012",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
