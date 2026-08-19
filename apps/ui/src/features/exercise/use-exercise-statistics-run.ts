@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { buildTacticalExerciseEvaluationRequest } from "./exercise-request-mapper.js";
+import {
+  buildTacticalExerciseEvaluationRequest,
+  evaluationFormationSignature,
+} from "./exercise-request-mapper.js";
 import {
   EVALUATION_CHUNK_SIZE,
   generateEvaluationSeed,
@@ -211,17 +214,6 @@ export interface UseExerciseStatisticsRunResult {
   readonly state: ExerciseStatisticsRunState;
   readonly start: (input: StatisticsRunInput) => void;
   readonly cancel: () => void;
-}
-
-/**
- * 送信した編成部分のJSON表現。`request-mapper.ts`が同じdraftから同じキー順・同じ並びの
- * リクエストを組み立てるため、文字列比較で構造比較になる（`selectIsResultDirty`と同じ考え）。
- */
-function evaluationFormationSignature(request: TacticalExerciseEvaluationRequest): string {
-  return JSON.stringify({
-    enemyFormation: request.enemyFormation,
-    candidates: request.candidates,
-  });
 }
 
 /** 編成からリクエストを組み立てられなかった実行。対応づける送信そのものが無い。 */

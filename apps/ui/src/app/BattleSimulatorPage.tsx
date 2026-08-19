@@ -14,7 +14,10 @@ import {
 import { mapEvaluationViolationsToUiViolations } from "../features/exercise/evaluation-violation-mapper.js";
 import { ModeTabs } from "../features/exercise/ModeTabs.js";
 import { StatisticsRunFeedback } from "../features/exercise/StatisticsRunFeedback.js";
-import { buildTacticalExerciseEvaluationRequest } from "../features/exercise/exercise-request-mapper.js";
+import {
+  buildTacticalExerciseEvaluationRequest,
+  evaluationFormationSignature,
+} from "../features/exercise/exercise-request-mapper.js";
 import { useExerciseStatisticsRun } from "../features/exercise/use-exercise-statistics-run.js";
 import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
 import type { BattleMode } from "../features/exercise/ModeTabs.js";
@@ -280,7 +283,12 @@ export function BattleSimulatorPage({
 
   // 統計実行の422も単一実行と同じく枠・実行回数入力へ結びつける（UI-API-004）。評価APIの
   // pathは候補indexを含むため、専用のmapperを通す。
+  //
+  // 表示は統計実行の中に閉じる。slotKeyは`side:row:column`でモード間共通なので、絞らないと
+  // 通常戦闘の同じ座標の枠が、説明の無いまま赤くなる（`ValidationSummary`はdraft検証しか
+  // 出さない）。単一実行のサーバー違反が`view`ごとにモードで分かれているのと同じ扱い。
   const statisticsViolations =
+    isStatisticsRun &&
     statisticsRun.state.status === "failed" &&
     statisticsRun.state.error.kind === "API" &&
     statisticsRun.state.error.error.violations !== undefined
@@ -305,10 +313,7 @@ export function BattleSimulatorPage({
   const statisticsResultDirty =
     statisticsAggregate !== undefined &&
     currentEvaluationBuild.ok &&
-    JSON.stringify({
-      enemyFormation: currentEvaluationBuild.request.enemyFormation,
-      candidates: currentEvaluationBuild.request.candidates,
-    }) !==
+    evaluationFormationSignature(currentEvaluationBuild.request) !==
       (statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
         ? statisticsRun.state.submission.formationSignature
         : "");

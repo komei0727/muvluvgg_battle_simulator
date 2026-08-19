@@ -1110,6 +1110,52 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
     expect(screen.getAllByText(/must not exceed 100 total runs/).length).toBeGreaterThan(0);
   });
 
+  // 422の枠表示は統計実行の中に閉じる。slotKeyは`side:row:column`でモード間共通のため、
+  // 絞らないと通常戦闘の同じ座標の枠が、説明の無いまま赤くなる。
+  it("keeps a 422 formation violation out of the other modes", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        error: {
+          kind: "VALIDATION",
+          status: 422,
+          code: "DEFINITION_NOT_FOUND",
+          message: "unknown unit",
+          violations: [
+            {
+              path: "/candidates/0/allyFormation/units/0/unitDefinitionId",
+              message: "定義が見つかりません",
+            },
+          ],
+        },
+      }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "300");
+
+    // 統計実行のタブでは、送信した編成の枠へ出る。
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+    expect(
+      within(screen.getByRole("region", { name: /ALLY FORMATION/ })).getByRole("button", {
+        name: /前衛1: アルファを変更、入力エラーがあります/,
+      }),
+    ).toBeInTheDocument();
+
+    await switchMode(user, "通常戦闘");
+
+    expect(screen.queryByRole("button", { name: /入力エラーがあります/ })).not.toBeInTheDocument();
+
+    // 単一実行へ戻したときも、統計実行の失敗は残さない。
+    await switchMode(user, "戦術演習");
+    await user.selectOptions(screen.getByLabelText("実行モード"), "SINGLE");
+
+    expect(screen.queryByRole("button", { name: /入力エラーがあります/ })).not.toBeInTheDocument();
+  });
+
   // 実行後は編成を編集できる。結果はそのまま残るため、いまの編成の結果に見えてしまう。
   it("marks a finished result as stale once the formation changes", async () => {
     const user = userEvent.setup();

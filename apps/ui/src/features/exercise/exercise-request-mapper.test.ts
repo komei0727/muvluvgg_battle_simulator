@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTacticalExerciseEvaluationRequest,
   buildTacticalExerciseRequest,
+  evaluationFormationSignature,
 } from "./exercise-request-mapper.js";
 import {
   createInitialDraft,
@@ -265,5 +266,32 @@ describe("buildTacticalExerciseEvaluationRequest", () => {
     if (!result.ok || !single.ok) return;
     expect(result.allyUnitSlotKeys).toEqual(single.allyUnitSlotKeys);
     expect(result.enemyUnitSlotKeys).toEqual(single.enemyUnitSlotKeys);
+  });
+});
+
+// UI-UT-REQ-015: 実行時の編成と現在の編成を突き合わせる署名。実行回数とシードは結果表示に
+// 出ているため含めず、画面から読み取れない編成の変化だけを見る。
+describe("evaluationFormationSignature", () => {
+  function signatureOf(draft: BattleDraft, runsPerCandidate = 1, seed = "-"): string | undefined {
+    const build = buildTacticalExerciseEvaluationRequest(draft, { runsPerCandidate, seed });
+    return build.ok ? evaluationFormationSignature(build.request) : undefined;
+  }
+
+  it("is stable for the same formation and ignores the run count and seed", () => {
+    expect(signatureOf(exerciseDraft(), 300, "abc#0")).toBe(signatureOf(exerciseDraft(), 1, "-"));
+  });
+
+  it("changes when the formation changes", () => {
+    const moved = withUnit(exerciseDraft(), "ally", "REAR", 2, "UNIT_ALLY_2");
+
+    expect(signatureOf(moved)).not.toBe(signatureOf(exerciseDraft()));
+  });
+
+  it("changes when only the enemy changes", () => {
+    let other = createInitialDraft();
+    other = withUnit(other, "ally", "FRONT", 0, "UNIT_ALLY");
+    other = withUnit(other, "enemy", "FRONT", 0, "UNIT_ENEMY_2");
+
+    expect(signatureOf(other)).not.toBe(signatureOf(exerciseDraft()));
   });
 });

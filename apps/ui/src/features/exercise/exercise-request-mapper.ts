@@ -125,3 +125,18 @@ export function buildTacticalExerciseEvaluationRequest(
     },
   };
 }
+
+/**
+ * 送信した編成部分のJSON表現。実行回数とシードは含めない —— この2つは結果表示に
+ * 出ているため、画面から読み取れない編成の変化だけを比べる。
+ *
+ * `buildFormation`が同じdraftから同じキー順・同じ並びのリクエストを組み立てるので、
+ * 文字列比較がそのまま構造比較になる（`selectIsResultDirty`と同じ考え）。実行時と
+ * 現在のdraftで別々に組み立てると、片方にキーを足したときに常時不一致になる。
+ */
+export function evaluationFormationSignature(request: TacticalExerciseEvaluationRequest): string {
+  return JSON.stringify({
+    enemyFormation: request.enemyFormation,
+    candidates: request.candidates,
+  });
+}
