@@ -133,10 +133,9 @@ describe("calculateDamage", () => {
     expect(result.finalDamage).toBe(25);
   });
 
-  // 会心倍率がここで分岐しないのはR-CRT-04が「会心判定をさせない」側の規則だから
-  // である。実Catalogの`CURRENT_HP_RATIO`型攻撃は`critical-policy.ts`が会心モードを
-  // `PREVENTED`へ導出するため、この関数へ届く`criticalMultiplier`は常に1になる。
-  // ここが固定するのは計算器の契約 — 渡された倍率はFormula種別によらず素通しする。
+  // 実Catalogの`CURRENT_HP_RATIO`型攻撃のうち`critical.mode: PREVENTED`を宣言した
+  // ものは、この関数へ届く`criticalMultiplier`が常に1になる（R-CRT-04）。ここが
+  // 固定するのは計算器の契約 — 渡された倍率はFormula種別によらず素通しする。
   it("UT-DAMAGE-CALCULATOR-010 (R-NUM-04): a non-SKILL_POWER base damage still passes the given attribute/critical/actionDamageMultiplier straight through", () => {
     const result = calculateDamage(
       input({

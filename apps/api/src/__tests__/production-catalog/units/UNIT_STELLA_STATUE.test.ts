@@ -15,7 +15,7 @@ import {
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { realDamage } from "../../../testing/production-unit/trigger-events.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
-import { observeTargetHpRatioCritical } from "../../../testing/production-unit/target-hp-ratio-critical-probe.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_STELLA_STATUE`(【スタチュービューティー】ステラ・ブレーメル)のユニット単位
@@ -484,7 +484,7 @@ describe("production Catalog UNIT_STELLA_STATUE (【スタチュービューテ�
 
   it("IT-UNIT-STELLA-STATUE-004 (R-CRT-04): PS1の「対象の現在HP×90%のダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
-      observeTargetHpRatioCritical({
+      observeHitPointRatioCritical({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         effectActionDefinitionId,

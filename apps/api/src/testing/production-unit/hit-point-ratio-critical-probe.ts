@@ -15,20 +15,20 @@ import { seedRecorder } from "../fixtures/event-seed.js";
 import { productionBoard, SUBJECT_ID, type BoardOverrides } from "./skill-behaviour.js";
 
 /**
- * R-CRT-04（対象HP割合ダメージの会心不可）をユニット効果軸で見るためのハーネス。
+ * R-CRT-04（HP割合ダメージの会心宣言）をユニット効果軸で見るためのハーネス。
  *
  * `-001` の振る舞い表はHP差分までしか見ず、`observeDamageProbe` は合成の
  * `SKILL_POWER` 定義を撃つため、どちらも「**実定義**の会心判定が何になったか」を
  * 表せない。ここは実 `DAMAGE` 定義をそのまま `applyDamageAction` へ通し、
  * `CriticalCheckResolved`／`DamageCalculated` が運んだ会心の結末を返す。
  *
- * 会心が起きうる条件へ盤面を倒す（会心率100%、さらに使用者が実効モードを
- * `GUARANTEED` へ押し上げる `CRITICAL_GUARANTEE` を保持）。この状態でも会心しない
- * ことが、規則が乱数でも状態効果でもなく**定義の形**で決まっていることを示す。
+ * 盤面は会心が起きうる条件へ倒す（会心率100%、任意で `CRITICAL_GUARANTEE` を保持）。
+ * この状態でも会心しないことが、Catalogの `PREVENTED` 宣言が実際に効いていることを
+ * 示す — 宣言が既定の `NORMAL` へ戻れば、同じ盤面で会心してテストが落ちる。
  */
 const GUARANTEE_EFFECT_ID = "ACT_TEST_CRITICAL_GUARANTEE";
 
-export interface TargetHpRatioCriticalObservation {
+export interface HitPointRatioCriticalObservation {
   /** `CriticalCheckResolved` が通知した実効会心モード。 */
   readonly criticalMode: string;
   readonly isCritical: boolean;
@@ -38,7 +38,7 @@ export interface TargetHpRatioCriticalObservation {
   readonly randomDraws: number;
 }
 
-export interface TargetHpRatioCriticalProbeOptions {
+export interface HitPointRatioCriticalProbeOptions {
   readonly snapshot: BattleCatalogSnapshot;
   readonly unitDefinitionId: string;
   readonly effectActionDefinitionId: string;
@@ -73,9 +73,9 @@ function criticalGuarantee(holderId: BattleUnit["battleUnitId"]): AppliedEffect 
   };
 }
 
-export function observeTargetHpRatioCritical(
-  options: TargetHpRatioCriticalProbeOptions,
-): TargetHpRatioCriticalObservation {
+export function observeHitPointRatioCritical(
+  options: HitPointRatioCriticalProbeOptions,
+): HitPointRatioCriticalObservation {
   const board = productionBoard(options.snapshot, options.unitDefinitionId, {
     ...options.board,
     combatStats: { criticalRate: 1, ...options.board?.combatStats },

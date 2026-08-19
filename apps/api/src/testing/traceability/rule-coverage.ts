@@ -1895,23 +1895,18 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  // Issue: 実機仕様として「対象の現在HP×N%分のダメージを与える」型の攻撃は会心判定を
-  // 行わない。R-CRT-04は宣言会心モードをFormulaの形から導出するため、対象は Catalog の
-  // 宣言ではなく定義の形で決まる。`IT-AUDIT-CRT-001`が実Catalogでの適用範囲を、
-  // `IT-AUDIT-CRT-002`が対象外に置いた非`SKILL_POWER`定義（自身HP消費型・最大HP消費型・
-  // 反撃型）の境界を固定する。ユニット側は規則に掛かる定義と、同一ユニットの威力ベース
-  // 攻撃の対照を並べる。
+  // Issue: 実機仕様として「HP×N%分のダメージを与える」型の攻撃は会心判定を行わず、
+  // 「HPを消費し消費分HP×N%のダメージを与える」型は会心する。R-CRT-04はこの区別を
+  // Formulaの形から導けないことを踏まえ、HP由来Formulaの`DAMAGE`へ`critical.mode`の
+  // 明示を課す規則である（`ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`と
+  // `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`は同じ`MAX_HP_RATIO`/`SKILL_SOURCE`で結論が逆）。
+  // `IT-AUDIT-CRT-001`が実Catalogの2群の内訳を、`IT-AUDIT-CRT-002`が族の外に置いた
+  // 反撃3件の境界を固定する。ユニット側は実機確認済みの
+  // `IT-UNIT-LAYLA-ENTREPRENEUR-006`（会心なし）と`IT-UNIT-LILY-HERO-006`（会心あり）が
+  // 対を成し、残りは同じ原文の型からの分類を1件ずつ固定する。
   {
     ruleId: "R-CRT-04",
     testCaseIds: [
-      "UT-R-CRT-04-001",
-      "UT-R-CRT-04-002",
-      "UT-R-CRT-04-003",
-      "UT-R-CRT-04-004",
-      "UT-R-CRT-04-005",
-      "UT-R-CRT-04-006",
-      "UT-R-CRT-04-007",
-      "UT-R-CRT-04-008",
       "UT-CAT-ACT-118",
       "UT-CAT-ACT-119",
       "UT-CAT-ACT-120",
@@ -1919,6 +1914,9 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-AUDIT-CRT-002",
       "IT-UNIT-ELENA-MOODMAKER-015",
       "IT-UNIT-ELENA-MOODMAKER-016",
+      "IT-UNIT-LAYLA-ENTREPRENEUR-006",
+      "IT-UNIT-LILY-HERO-006",
+      "IT-UNIT-LILY-SINGER-007",
       "IT-UNIT-AOI-ELEGANT-012",
       "IT-UNIT-STELLA-STATUE-004",
       "IT-UNIT-SHOUKA-BEACH-005",

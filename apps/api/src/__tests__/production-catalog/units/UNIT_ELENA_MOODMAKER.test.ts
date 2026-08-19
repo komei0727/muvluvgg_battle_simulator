@@ -54,7 +54,7 @@ import {
 import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { STAND_IN_UNIT_ID } from "../../../testing/production-unit/skill-behaviour.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
-import { observeTargetHpRatioCritical } from "../../../testing/production-unit/target-hp-ratio-critical-probe.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_ELENA_MOODMAKER`（【心色見つめるムードメーカー】エレーナ・パステルコワ）のユニット単位production結合テスト
@@ -1215,7 +1215,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
   });
 
   it("IT-UNIT-ELENA-MOODMAKER-015 (R-CRT-04): AS2の実「対象の現在HP×12.5%分のダメージ」は会心判定を行わない — 会心率100%かつ会心保証を保持していても非会心で、会心の抽選も消費しない", () => {
-    const observed = observeTargetHpRatioCritical({
+    const observed = observeHitPointRatioCritical({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
       effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS2_DAMAGE",
@@ -1228,9 +1228,9 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(observed.criticalMultiplier).toBe(1);
 
     // 対照は同じ盤面・同じ会心保証で撃つ実 `SKILL_POWER` 攻撃（PS2のDAMAGE）。
-    // こちらは会心するため、非会心がこの盤面の性質ではなく定義の形で決まっている
-    // ことが分かる。
-    const control = observeTargetHpRatioCritical({
+    // こちらは会心するため、非会心がこの盤面の性質ではなくAS2の宣言で決まっている
+    // ことが分かる。宣言の`PREVENTED`は使用者の会心保証より強い（R-CRT-03 #1）。
+    const control = observeHitPointRatioCritical({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
       effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_DAMAGE",
@@ -1245,7 +1245,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
 
   it("IT-UNIT-ELENA-MOODMAKER-016 (R-CRT-04 boundary): 会心保証を持たない使用者でもAS2は会心判定へ進まない — 会心率100%の同じ盤面で、PS2のDAMAGEより抽選を1本少なく消費する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
-      observeTargetHpRatioCritical({
+      observeHitPointRatioCritical({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         effectActionDefinitionId,

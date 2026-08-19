@@ -14,7 +14,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { skillUseStarting } from "../../../testing/production-unit/trigger-events.js";
-import { observeTargetHpRatioCritical } from "../../../testing/production-unit/target-hp-ratio-critical-probe.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_MERU_FLATSPIN`（【蒼き穹舞うフラットスピン】桃園める）のユニット単位
@@ -481,7 +481,7 @@ describe("production Catalog UNIT_MERU_FLATSPIN (【蒼き穹舞うフラット�
 
   it("IT-UNIT-MERU-FLATSPIN-005 (R-CRT-04): EXの「対象の失ったHP×50%のダメージ」は会心判定を行わない — 同じEXの威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
-      observeTargetHpRatioCritical({
+      observeHitPointRatioCritical({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         effectActionDefinitionId,

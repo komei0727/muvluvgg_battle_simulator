@@ -1,6 +1,4 @@
 import type { CriticalMode } from "../../catalog/definitions/catalog-enums.js";
-import type { DamagePayload } from "../../catalog/definitions/effect-action-payload.js";
-import { referencesTargetCurrentHp } from "../../catalog/definitions/formula-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import {
   clampToEffectiveRate,
@@ -8,23 +6,6 @@ import {
   type Percentage,
 } from "../../shared/percentage.js";
 import type { BattleUnit } from "../model/battle-unit.js";
-
-/**
- * R-CRT-04「対象HP割合ダメージの会心不可」: `DAMAGE`が宣言する会心モードを、その基礎
- * ダメージFormulaから導出する。基礎ダメージが攻撃対象の現在HPから求まる攻撃
- * （`CURRENT_HP_RATIO`／`MISSING_HP_RATIO`／`LOST_HP_RATIO`の`source: TARGET`。
- * `MIN`等の合成越しも含む）は会心判定を行わないため`PREVENTED`を宣言値とする。
- *
- * R-DMG-01が示すとおり、これらの攻撃のダメージ量は攻撃力と防御力の差を経由せず
- * Formulaの評価結果そのものである。会心の項を計算式に持たない点でサブユニット追加
- * ダメージ（R-SUB-02の`PREVENTED`固定）と同じ立場であり、同じ扱いにする。
- *
- * 戻り値は「宣言された会心モード」として`resolveEffectiveCriticalMode`へ渡す。
- * R-CRT-03 #1が`PREVENTED`を最優先するため、使用者の`CRITICAL_GUARANTEE`では覆らない。
- */
-export function resolveDeclaredCriticalMode(payload: DamagePayload): CriticalMode {
-  return referencesTargetCurrentHp(payload.formula) ? "PREVENTED" : payload.critical.mode;
-}
 
 /**
  * R-CRT-03「会心保証・会心不可」（DMG-003A、Issue #295）: 使用者が保持する会心状態

@@ -19,7 +19,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnStarted, unitBeingAttacked } from "../../../testing/production-unit/trigger-events.js";
-import { observeTargetHpRatioCritical } from "../../../testing/production-unit/target-hp-ratio-critical-probe.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_SHOUKA_BEACH`（【砂浜の策謀家】姜小花）のユニット単位production結合テスト
@@ -518,7 +518,7 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
 
   it("IT-UNIT-SHOUKA-BEACH-005 (R-CRT-04): EXの「対象の現在HP×35%のENダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
-      observeTargetHpRatioCritical({
+      observeHitPointRatioCritical({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         effectActionDefinitionId,

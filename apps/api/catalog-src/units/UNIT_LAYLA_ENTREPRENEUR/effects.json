@@ -89,7 +89,8 @@
     "kind": "DAMAGE",
     "payload": {
       "damageType": "PHYSICAL",
-      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 }
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
+      "critical": { "mode": "PREVENTED" }
     },
     "metadata": { "tags": [] }
   }

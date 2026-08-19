@@ -187,7 +187,8 @@
             "ratio": 0.5
           }
         ]
-      }
+      },
+      "critical": { "mode": "PREVENTED" }
     },
     "metadata": {
       "tags": []

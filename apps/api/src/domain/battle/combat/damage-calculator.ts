@@ -95,10 +95,9 @@ export interface DamageCalculationResult {
  * 等はaccuracy/piercingを上書きせず、通常の命中判定を経る前提であるため）。
  *
  * 会心倍率もこの関数にとっては入力（`criticalMultiplier`）であり、Formula種別で
- * 分岐しない。対象の現在HP割合を基礎とする攻撃が会心しないのはR-CRT-04であり、
- * 会心モードを`PREVENTED`へ導出する呼び出し側（`critical-policy.ts`の
- * `resolveDeclaredCriticalMode`）の責務である — この関数は`AppliedEffect`も
- * 会心率も知らない純粋な数値計算に保つ。
+ * 分岐しない。HP割合を基礎とする攻撃が会心するかはR-CRT-04のとおりCatalogの
+ * `critical.mode`宣言で決まり、Formulaの形からは導けない — この関数は
+ * `AppliedEffect`も会心率も知らない純粋な数値計算に保つ。
  */
 function resolveBaseDamageAndSkillPower(
   formula: FormulaDefinition,

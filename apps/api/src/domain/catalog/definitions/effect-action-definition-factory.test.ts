@@ -1160,52 +1160,34 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-118 (R-CRT-04): accepts DAMAGE whose formula derives from the target's current HP when critical.mode is omitted or PREVENTED", () => {
-    const formula = {
-      kind: "MIN",
-      formulas: [
-        { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.125 },
-        { kind: "STAT_RATIO", source: { kind: "SKILL_SOURCE" }, stat: "ATTACK", ratio: 0.5 },
-      ],
-    };
-    const omitted = createEffectActionDefinition(
+  it("UT-CAT-ACT-118 (R-CRT-04): rejects a DAMAGE whose formula derives from a hit point ratio when critical.mode is omitted", () => {
+    const hpRatioFormulas = [
+      { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.125 },
+      { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: 0.2 },
+      { kind: "LOST_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.5 },
+      { kind: "MISSING_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.5 },
+      // 合成越しでも見つける。productionの「HP割合をATK上限で頭打ちにする」形。
       {
-        effectActionDefinitionId: "ACT_TARGET_HP_DAMAGE_1",
-        kind: "DAMAGE",
-        payload: { damageType: "PHYSICAL", formula },
+        kind: "MIN",
+        formulas: [
+          { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.35 },
+          { kind: "STAT_RATIO", source: { kind: "SKILL_SOURCE" }, stat: "ATTACK", ratio: 0.75 },
+        ],
       },
-      "effectAction",
-    );
-    const explicit = createEffectActionDefinition(
       {
-        effectActionDefinitionId: "ACT_TARGET_HP_DAMAGE_2",
-        kind: "DAMAGE",
-        payload: { damageType: "PHYSICAL", formula, critical: { mode: "PREVENTED" } },
+        kind: "CLAMP",
+        formula: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.2 },
+        min: 0,
+        max: 999,
       },
-      "effectAction",
-    );
-    // 宣言値そのものは保持する。会心不可はR-CRT-04が実行時に導出するため、省略は
-    // 既定の`NORMAL`のまま残る（productionの6定義はすべてこの形）。
-    if (omitted.kind === "DAMAGE") {
-      expect(omitted.payload.critical).toEqual({ mode: "NORMAL" });
-    }
-    if (explicit.kind === "DAMAGE") {
-      expect(explicit.payload.critical).toEqual({ mode: "PREVENTED" });
-    }
-  });
-
-  it("UT-CAT-ACT-119 (R-CRT-04): rejects an explicit NORMAL/GUARANTEED critical.mode on damage derived from the target's current HP", () => {
-    for (const mode of ["NORMAL", "GUARANTEED"]) {
+    ];
+    for (const [index, formula] of hpRatioFormulas.entries()) {
       expect(() =>
         createEffectActionDefinition(
           {
-            effectActionDefinitionId: `ACT_TARGET_HP_DAMAGE_${mode}`,
+            effectActionDefinitionId: `ACT_HP_RATIO_DAMAGE_${index}`,
             kind: "DAMAGE",
-            payload: {
-              damageType: "PHYSICAL",
-              formula: { kind: "LOST_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.5 },
-              critical: { mode },
-            },
+            payload: { damageType: "PHYSICAL", formula },
           },
           "effectAction",
         ),
@@ -1213,21 +1195,47 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-120 (R-CRT-04): an HP ratio sourced from the skill user keeps accepting any critical.mode — 自身のHPを消費して撃つ攻撃は対象外", () => {
-    const result = createEffectActionDefinition(
-      {
-        effectActionDefinitionId: "ACT_SELF_HP_DAMAGE_1",
-        kind: "DAMAGE",
-        payload: {
-          damageType: "EN",
-          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: 0.5625 },
-          critical: { mode: "GUARANTEED" },
+  it("UT-CAT-ACT-119 (R-CRT-04): accepts a hit point ratio DAMAGE with either declared mode — 「HP×N%分のダメージ」はPREVENTED、「消費分HP×N%のダメージ」はNORMAL", () => {
+    const build = (mode: string) =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: `ACT_HP_RATIO_DAMAGE_${mode}`,
+          kind: "DAMAGE",
+          payload: {
+            damageType: "PHYSICAL",
+            formula: { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: 0.2 },
+            critical: { mode },
+          },
         },
-      },
-      "effectAction",
-    );
-    if (result.kind === "DAMAGE") {
-      expect(result.payload.critical).toEqual({ mode: "GUARANTEED" });
+        "effectAction",
+      );
+
+    for (const mode of ["PREVENTED", "NORMAL", "GUARANTEED"]) {
+      const result = build(mode);
+      if (result.kind === "DAMAGE") {
+        expect(result.payload.critical).toEqual({ mode });
+      }
+    }
+  });
+
+  it("UT-CAT-ACT-120 (R-CRT-04): formulas that are not hit point derived keep defaulting to NORMAL — 固定値と反撃量は宣言必須の族に入らない", () => {
+    const outside = [
+      { kind: "CONSTANT", value: 100 },
+      { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1.2 },
+      { kind: "STAT_RATIO", source: { kind: "SKILL_SOURCE" }, stat: "ATTACK", ratio: 0.5 },
+    ];
+    for (const [index, formula] of outside.entries()) {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: `ACT_NON_HP_DAMAGE_${index}`,
+          kind: "DAMAGE",
+          payload: { damageType: "PHYSICAL", formula },
+        },
+        "effectAction",
+      );
+      if (result.kind === "DAMAGE") {
+        expect(result.payload.critical).toEqual({ mode: "NORMAL" });
+      }
     }
   });
 

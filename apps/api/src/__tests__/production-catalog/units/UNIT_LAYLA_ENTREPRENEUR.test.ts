@@ -24,6 +24,7 @@ import {
   criticalCheckResolved,
   turnStarted,
 } from "../../../testing/production-unit/trigger-events.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_LAYLA_ENTREPRENEUR`（【戦うアントレプレナー】レイラ・ジェンキンス）のユニット単位production結合テスト
@@ -526,5 +527,30 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
       { hitIndex: 2, result: "CONFIRMED" },
     ]);
     expect(withoutGuaranteedHit.hpDeltas).toEqual({ "enemy:front": -500 });
+  });
+
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-006 (R-CRT-04): PS2の「自身の最大HP×20%のダメージを与える攻撃」は会心判定を行わない — 同じPS2の威力159側は従来どおり会心する", () => {
+    const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
+      observeHitPointRatioCritical({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        skillDefinitionId,
+        attackerHoldsCriticalGuarantee: false,
+        battleId: `B_LAYLA_CRT04_${effectActionDefinitionId}`,
+      });
+
+    // 会心率100%の盤面。結末を分けるのはCatalogの `critical.mode` 宣言だけである。
+    const ruled = probe("ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP", "SKL_LAYLA_ENTREPRENEUR_PS2");
+    const control = probe("ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE", "SKL_LAYLA_ENTREPRENEUR_PS2");
+
+    expect(ruled.criticalMode).toBe("PREVENTED");
+    expect(ruled.isCritical).toBe(false);
+    expect(ruled.criticalMultiplier).toBe(1);
+    expect(control.criticalMode).toBe("NORMAL");
+    expect(control.isCritical).toBe(true);
+    expect(control.criticalMultiplier).toBeGreaterThan(1);
+    // 会心判定を行った側だけが抽選を1本多く消費する。
+    expect(control.randomDraws - ruled.randomDraws).toBe(1);
   });
 });

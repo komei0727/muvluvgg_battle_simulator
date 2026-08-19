@@ -29,7 +29,7 @@ import {
   unitDefeated,
 } from "../../../testing/production-unit/trigger-events.js";
 import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
-import { observeTargetHpRatioCritical } from "../../../testing/production-unit/target-hp-ratio-critical-probe.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_AOI_ELEGANT`（【優雅なる規律の花】生駒葵）のユニット単位production
@@ -915,7 +915,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
 
   it("IT-UNIT-AOI-ELEGANT-012 (R-CRT-04): AS2の「対象が「浮足」を所持している場合、追加で対象の現在HP×20%のダメージ」は会心判定を行わない — 同じAS2の威力84.8側は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
-      observeTargetHpRatioCritical({
+      observeHitPointRatioCritical({
         snapshot,
         unitDefinitionId: UNIT_DEFINITION_ID,
         effectActionDefinitionId,

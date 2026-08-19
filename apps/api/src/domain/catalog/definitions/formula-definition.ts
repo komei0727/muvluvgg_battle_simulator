@@ -156,36 +156,31 @@ export type FormulaDefinition =
     };
 
 /**
- * R-CRT-04「対象HP割合ダメージの会心不可」: このFormulaが「攻撃対象の現在HPから
- * 導かれる量」を含むかを返す。`DAMAGE`の基礎ダメージFormulaがこれに該当する攻撃は、
- * 会心判定を行わない（`critical-policy.ts`の`resolveDeclaredCriticalMode`）。
+ * R-CRT-04「HP割合ダメージの会心可否」: このFormulaがHPから導かれる量を含むかを返す。
+ * `DAMAGE`の基礎ダメージFormulaがこれに該当する場合、`critical.mode`の明示を必須にする。
  *
- * 合成Formulaを再帰的に走査するのは、production定義の多く（`ACT_ELENA_MOODMAKER_AS2_DAMAGE`
- * など）が「対象の現在HP×N%」を`MIN`で攻撃力上限と組にした形だからである。上限が
- * 効いたヒットだけ会心し得る、といった評価結果依存の判定にはしない — 原文が
- * 「対象の現在HP×N%分のダメージを与える攻撃」という定義そのものだからで、上限は
- * その量の頭打ちにすぎない。
- *
- * `MISSING_HP_RATIO`／`LOST_HP_RATIO`を含めるのは、どちらも`maximumHp - currentHp`
- * として評価される（`formula-evaluator.ts`）現在HP由来の量だからである。
- * `MAX_HP_RATIO`は現在HPに依存しないため含めない。
- *
- * `source`は`TARGET`だけを見る。`DAMAGE`の解決中に「このヒットの適用対象」を必ず指す
- * 参照はこれだけであり、`SKILL_SOURCE`（自身のHPを消費して撃つ攻撃）は別系統である。
+ * 合成Formulaを再帰的に走査するのは、production定義の多くが「HP×N%」を`MIN`で
+ * 攻撃力上限と組にした形だからである。`source`は見ない — 会心の有無は「対象の
+ * HPか自身のHPか」では決まらないためで、根拠はR-CRT-04が挙げる
+ * `ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`（自身の最大HP×20%、会心なし）と
+ * `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`（消費した最大HP10%×319.8%、会心あり）の対比である。
+ * 両者は`MAX_HP_RATIO`の`source: SKILL_SOURCE`で形も比率の大小も同じであり、
+ * この関数が返せるのは「宣言が要る族か」までで、会心の有無そのものではない。
  */
-export function referencesTargetCurrentHp(formula: FormulaDefinition): boolean {
+export function referencesHitPointRatio(formula: FormulaDefinition): boolean {
   switch (formula.kind) {
+    case "MAX_HP_RATIO":
     case "CURRENT_HP_RATIO":
     case "MISSING_HP_RATIO":
     case "LOST_HP_RATIO":
-      return formula.source.kind === "TARGET";
+      return true;
     case "SUM":
     case "PRODUCT":
     case "MIN":
     case "MAX":
-      return formula.formulas.some(referencesTargetCurrentHp);
+      return formula.formulas.some(referencesHitPointRatio);
     case "CLAMP":
-      return referencesTargetCurrentHp(formula.formula);
+      return referencesHitPointRatio(formula.formula);
     default:
       return false;
   }

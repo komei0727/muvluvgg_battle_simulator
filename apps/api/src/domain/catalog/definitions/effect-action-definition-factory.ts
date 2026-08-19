@@ -49,7 +49,7 @@ import {
 } from "./effect-action-payload.js";
 import {
   createFormulaDefinition,
-  referencesTargetCurrentHp,
+  referencesHitPointRatio,
   type FormulaDefinition,
   type FormulaDefinitionInput,
 } from "./formula-definition.js";
@@ -522,14 +522,15 @@ function createPayload(
       // R-CRT-04: 基礎ダメージが攻撃対象の現在HPから求まる攻撃は会心判定を行わない。
       // 実効モードは`critical-policy.ts`が`PREVENTED`へ導出するため、`PREVENTED`以外の
       // 明示宣言は必ず黙殺される。書いた宣言が効かない定義を作らせない。
-      if (
-        criticalRaw?.mode !== undefined &&
-        criticalMode !== "PREVENTED" &&
-        referencesTargetCurrentHp(formula)
-      ) {
+      // R-CRT-04: HPから導かれる量を基礎ダメージにする`DAMAGE`は、会心判定の有無が
+      // Formulaの形から導けない（`ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`と
+      // `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`は同じ`MAX_HP_RATIO`/`SKILL_SOURCE`で結論が
+      // 逆になる）。既定の`NORMAL`へ黙って倒すと、原文が「HP×N%分のダメージ」型の
+      // 定義を追加したときに会心する側へ黙って倒れるため、明示を必須にする。
+      if (criticalRaw?.mode === undefined && referencesHitPointRatio(formula)) {
         throw new DomainValidationError(
-          `${path}.critical.mode`,
-          `must be PREVENTED or omitted when the damage formula derives from the target's current HP (R-CRT-04), got ${criticalMode}`,
+          `${path}.critical`,
+          "is required when the damage formula derives from a hit point ratio (R-CRT-04) — declare mode PREVENTED for 「HP×N%分のダメージ」 or NORMAL for 「消費分HP×N%のダメージ」",
         );
       }
       const accuracyRaw = payload["accuracy"] as { mode?: string } | undefined;
