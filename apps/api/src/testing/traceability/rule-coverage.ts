@@ -3399,6 +3399,12 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "IT-UNIT-HIIRO-LONEWOLF-005",
       // 累計ダメージ閾値counterのcarry・閾値跨ぎ・公開差分（carryは載らない）。
       "IT-UNIT-MIKOTO-SURVIVOR-005",
+      // `RESET`（Issue #554）の実Catalog経路。会心ヒットを数える3スキルが、N到達が
+      // そのスキル最後の会心でなくても発動し、発動時に0へ戻って余剰を繰り越さない。
+      "IT-UNIT-LAYLA-ENTREPRENEUR-007",
+      "IT-UNIT-LAYLA-ENTREPRENEUR-008",
+      "IT-UNIT-MAO-SUMMER-005",
+      "IT-UNIT-MAO-SUMMER-TEX-007",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },

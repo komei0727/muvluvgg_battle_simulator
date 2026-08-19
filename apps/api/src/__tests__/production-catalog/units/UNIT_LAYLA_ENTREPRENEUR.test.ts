@@ -10,7 +10,10 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
-import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
+import {
+  observeActivationCounters,
+  observeCriticalCounterCycle,
+} from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   applyPrecedingActions,
@@ -527,6 +530,52 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
       { hitIndex: 2, result: "CONFIRMED" },
     ]);
     expect(withoutGuaranteedHit.hpDeltas).toEqual({ "enemy:front": -500 });
+  });
+
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-007 (R-EFF-11 RESET, Issue #554): PS2の会心カウンタは、N到達がそのスキル最後の会心でなくても発動し、発動時に0へ戻る。到達後の余剰会心は次回へ繰り越さず、PS2自身の会心だけが0起点で乗る", () => {
+    // 実挙動: 会心が1ヒット出るたびに加算 → N到達で発動を予約 → スキルの全効果処理
+    // 完了後にカウンタを0へ戻す → PSを実行（この攻撃の会心は0起点で加算される）。
+    // `modulo` ゲートでは表せない — 1回の効果処理中に周期を通り越すため、到達後の
+    // 余剰がそのまま次回へ繰り越されてしまう。
+    const cycle = observeCriticalCounterCycle({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      passiveSkillDefinitionId: "SKL_LAYLA_ENTREPRENEUR_PS2",
+      counter: "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+      // カウンタ2から4ヒットASを撃つと、4到達は2ヒット目（＝最後の会心ではない）。
+      initialCounter: 2,
+      uses: [
+        { skillDefinitionId: "SKL_LAYLA_ENTREPRENEUR_AS2" },
+        { skillDefinitionId: "SKL_LAYLA_ENTREPRENEUR_AS1" },
+      ],
+    });
+
+    expect(cycle).toEqual([
+      // AS2の4会心（カウンタ3,4,5,6）＋ PS2自身の会心1。発動は1回だけ（R-PS-07）で、
+      // 発動後のカウンタは0へ戻る。PS2自身の会心は`PassiveActivated`後のPS連鎖内部で
+      // 発行されるため、`SKILL_RUNTIME`のcounterUpdatesには届かない（連鎖内部へ
+      // 届くのは`AppliedEffect`／`EffectSequence`スコープだけ）。
+      { criticalHits: 5, activations: 1, counterAfter: 0 },
+      // 次の発動には改めて4会心が要る。AS1の2会心（カウンタ1,2）では届かない —
+      // 余剰を繰り越す旧`modulo`モデルなら6→7,8で4の倍数に達して発動していた。
+      { criticalHits: 2, activations: 0, counterAfter: 2 },
+    ]);
+  });
+
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-008 (R-EFF-11 RESET, Issue #554): 12ヒットのEXで全ヒット会心しても、PS2の発動は1回だけで、余剰の会心は破棄される", () => {
+    const cycle = observeCriticalCounterCycle({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      passiveSkillDefinitionId: "SKL_LAYLA_ENTREPRENEUR_PS2",
+      counter: "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+      uses: [{ skillDefinitionId: "SKL_LAYLA_ENTREPRENEUR_EX" }],
+    });
+
+    expect(cycle).toEqual([
+      // 敵横一列2体×12ヒット＝24会心。4到達は4ヒット目で、その後20会心が続いても
+      // 発動は1回（R-PS-07）。余剰20会心は繰り越さずカウンタは0へ戻る。
+      { criticalHits: 25, activations: 1, counterAfter: 0 },
+    ]);
   });
 
   it("IT-UNIT-LAYLA-ENTREPRENEUR-006 (R-CRT-04): PS2の「自身の最大HP×20%のダメージを与える攻撃」は会心判定を行わない — 同じPS2の威力159側は従来どおり会心する", () => {

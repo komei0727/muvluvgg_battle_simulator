@@ -10,6 +10,7 @@ import {
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { observeCriticalCounterCycle } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
   applyPrecedingActions,
@@ -606,6 +607,29 @@ describe("production Catalog UNIT_MAO_SUMMER_TEX (【真夏の風紀委員長】
     ).toEqual([
       { effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_PS2_DMG_DOWN", dispellable: false },
       { effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_PS2_DMG_UP", dispellable: false },
+    ]);
+  });
+
+  it("IT-UNIT-MAO-SUMMER-TEX-007 (R-EFF-11 RESET, Issue #554): PS1の会心カウンタは、2到達がそのスキル最後の会心でなくても発動し、発動時に0へ戻る。到達後の余剰会心は次回へ繰り越さない", () => {
+    // 実挙動: 会心が1ヒット出るたびに加算 → N到達で発動を予約 → スキルの全効果処理
+    // 完了後にカウンタを0へ戻す → PSを実行。AS2は敵3体を1回ずつ殴るため、全会心なら
+    // 2到達は2体目（＝そのスキル最後の会心ではない）になる。
+    const cycle = observeCriticalCounterCycle({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      passiveSkillDefinitionId: "SKL_MAO_SUMMER_TEX_PS1",
+      counter: "SKL_MAO_SUMMER_TEX_PS1_TRIGGER_COUNT",
+      uses: [
+        { skillDefinitionId: "SKL_MAO_SUMMER_TEX_AS2" },
+        { skillDefinitionId: "SKL_MAO_SUMMER_TEX_AS2" },
+      ],
+    });
+
+    expect(cycle).toEqual([
+      // 3会心（カウンタ1,2,3）で発動は1回だけ（R-PS-07）。3会心目の余剰は繰り越さず
+      // カウンタは0へ戻る（旧`modulo`モデルなら3が残り、次は1会心で発動していた）。
+      { criticalHits: 3, activations: 1, counterAfter: 0 },
+      { criticalHits: 3, activations: 1, counterAfter: 0 },
     ]);
   });
 });
