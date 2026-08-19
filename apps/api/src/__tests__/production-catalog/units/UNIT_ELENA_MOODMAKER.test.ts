@@ -622,7 +622,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE",
-          magnitude: 202.5,
+          // R-DMG-06: 加算量は付与時点の**付与者（エレーナ）**の攻撃力×15%。この時点の
+          // エレーナは素の1000（自身への攻撃力+35%は後続stepのため）で 150 になる。
+          // `ally:subject`（エレーナ自身）の 202.5 は、直前stepの+35%込みの1350×15%。
+          magnitude: 150,
           timeLimit: {
             unit: "BATTLE",
             count: 1,
@@ -877,7 +880,10 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
   // ここへ移した（付与そのものと`magnitude`の観測は `-001` のEX行が持つ）。
 
   /** 保持者が実AS2のDAMAGEを1ヒット当てたときの、切り捨て前ダメージ。 */
-  function preTruncationDamageOf(attacker: BattleUnit, target: BattleUnit): number {
+  function damageCalculatedPayloadsOf(
+    attacker: BattleUnit,
+    target: BattleUnit,
+  ): readonly Extract<BattleDomainEvent, { eventType: "DamageCalculated" }>["payload"][] {
     const damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
       kind: "DAMAGE",
       effectActionDefinitionId: createEffectActionDefinitionId(BONUS_VEHICLE_DAMAGE_ID),
@@ -929,10 +935,11 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     );
     return recorder
       .getEvents()
-      .find(
+      .filter(
         (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
           event.eventType === "DamageCalculated",
-      )!.payload.preTruncationDamage;
+      )
+      .map((event) => event.payload);
   }
 
   /**
@@ -969,14 +976,16 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     };
   }
 
-  it("IT-UNIT-ELENA-MOODMAKER-007 (Q-DMG-01): the granted attack damage bonus reaches a real DAMAGE hit — the holder's hit adds exactly the granted magnitude on top of the same hit without the bonus", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-007 (R-DMG-06): the granted buff reaches a real DAMAGE hit as its own additional attack — an extra DamageCalculated whose base damage is the granted magnitude, undiminished by the target's defense", () => {
     const { holder, enemy } = grantBonusToElena();
     const bonus = holder.appliedEffects.find((effect) => effect.isAttackDamageBonus === true);
     expect(bonus?.effectActionDefinitionId).toBe(EX_BONUS_DAMAGE_ID);
-    expect(bonus!.magnitude).toBeGreaterThan(0);
+    // エレーナ自身が `LOWEST_ATTACK` の対象になり、直前stepの攻撃力+35%込みで
+    // 1000 × 1.35 × 15% = 202.5 が焼き込まれる。
+    expect(bonus!.magnitude).toBeCloseTo(202.5, 6);
 
-    // 対照実行は追加ダメージ効果**だけ**を外した同じ攻撃側にする（攻撃力バフ・
-    // 与ダメージ補正は残すため、差分は追加ダメージの寄与だけになる）。
+    // 対照実行は追加攻撃バフ**だけ**を外した同じ攻撃側にする（攻撃力バフ・与ダメージ
+    // 補正は残すため、差分は追加攻撃の寄与だけになる）。
     const withoutBonus: BattleUnit = {
       ...holder,
       appliedEffects: holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus !== true),
@@ -985,31 +994,43 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
       holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true),
     ).toHaveLength(1);
 
-    // Q-DMG-01: 追加ダメージは切り捨て前の値へ加算する。
-    expect(
-      preTruncationDamageOf(holder, enemy) - preTruncationDamageOf(withoutBonus, enemy),
-    ).toBeCloseTo(bonus!.magnitude, 6);
+    const withBonus = damageCalculatedPayloadsOf(holder, enemy);
+    expect(damageCalculatedPayloadsOf(withoutBonus, enemy)).toHaveLength(1);
+    // 追加攻撃は担ぎ手のヒットへ加算されるのではなく、それ自身の`DamageCalculated`を
+    // 発行する独立ヒットである。
+    expect(withBonus).toHaveLength(2);
+    expect(withBonus[0]!.effectActionDefinitionId).toBe(
+      createEffectActionDefinitionId(BONUS_VEHICLE_DAMAGE_ID),
+    );
+    expect(withBonus[1]).toMatchObject({
+      effectActionDefinitionId: createEffectActionDefinitionId(EX_BONUS_DAMAGE_ID),
+      // `CONSTANT` Formulaのため基礎ダメージは焼き込んだ加算量そのもの。敵の防御力500は
+      // 差し引かれない（R-DMG-01「`SKILL_POWER`以外は評価結果そのものが基礎ダメージ」）。
+      baseDamage: 202.5,
+      skillPowerFormulaKind: "CONSTANT",
+      damageType: withBonus[0]!.damageType,
+    });
+    // 与ダメージ+10%（同じEXが配る `..._DMGUP_LOW`）は追加攻撃にも乗る。
+    expect(withBonus[1]!.finalDamage).toBe(Math.floor(202.5 * 1.1));
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-008 (BOUNDARY): the bonus is a grant-time snapshot — raising the holder's ATTACK afterwards does not change what the hit adds", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-008 (BOUNDARY, R-DMG-06 #1): the bonus is a grant-time snapshot — raising the holder's ATTACK afterwards does not change the additional attack's base damage", () => {
     const { holder, enemy } = grantBonusToElena();
     const magnitude = holder.appliedEffects.find(
       (effect) => effect.isAttackDamageBonus === true,
     )!.magnitude;
+    // 倍率は、担ぎ手のヒットだけで敵を倒さない範囲にする（倒すと対象不在で追加攻撃が
+    // 起こらず、snapshotかどうか以前に観測できなくなる）。
     const strengthened: BattleUnit = {
       ...holder,
-      combatStats: { ...holder.combatStats, attack: holder.combatStats.attack * 10 },
-    };
-    const withoutBonus: BattleUnit = {
-      ...strengthened,
-      appliedEffects: strengthened.appliedEffects.filter(
-        (effect) => effect.isAttackDamageBonus !== true,
-      ),
+      combatStats: { ...holder.combatStats, attack: holder.combatStats.attack * 2 },
     };
 
-    expect(
-      preTruncationDamageOf(strengthened, enemy) - preTruncationDamageOf(withoutBonus, enemy),
-    ).toBeCloseTo(magnitude, 6);
+    const [vehicle, bonusHit] = damageCalculatedPayloadsOf(strengthened, enemy);
+    // 担ぎ手のヒットは2倍の攻撃力で計算される一方、追加攻撃の基礎ダメージは付与時点の
+    // snapshotのままである。
+    expect(vehicle!.attackerAttack).toBe(holder.combatStats.attack * 2);
+    expect(bonusHit!.baseDamage).toBeCloseTo(magnitude, 6);
   });
 
   it("IT-UNIT-ELENA-MOODMAKER-009 (R-ACT-02): AS1の実 AND(TARGET_SET_COUNT×2, TARGET_STATE) は行動選択層で評価され、いずれか1つでも崩れるとAS1は候補から外れて宣言順の次のAS2が選ばれる", () => {
@@ -1084,8 +1105,8 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
         battleId: "B_ELENA_DMG_MOD",
       }).calculated;
 
-    // 与ダメージ補正を持つのはこの1件だけ（攻撃力バフ・追加ダメージは別枠であり、
-    // 倍率ではなく切り捨て前ダメージへ効く — その配線は `-007`／`-008` が持つ）。
+    // 与ダメージ補正を持つのはこの1件だけ。追加攻撃（R-DMG-06）はこのヒットではなく
+    // 独立した別ヒットとして解決される — その配線は `-007`／`-008` が持つ。
     const boosted = probe(holder);
     const plain = probe(withoutDamageMod);
     expect(boosted.outgoingDamageMultiplier).toBeCloseTo(1.1);
@@ -1094,12 +1115,11 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(boosted.incomingDamageMultiplier).toBe(1);
     expect(boosted.shieldIgnoreRate).toBe(0.25);
     expect(boosted.damageReductionIgnoreRate).toBe(0.5);
-    // 与ダメージ倍率が掛かるのは攻撃力由来の850（1000×1.35 - 500）までで、追加ダメージ
-    // 202.5はその後に足される（Q-DMG-01「切り捨て前の値へ加算する」）。両者の差は
-    // 850×10%＝85であり、追加ダメージまで一緒に1.1倍された値にはならない。
-    expect(plain.preTruncationDamage).toBe(850 + 202.5);
-    expect(boosted.preTruncationDamage).toBe(850 * 1.1 + 202.5);
-    expect(boosted.finalDamage).toBe(1137);
+    // 与ダメージ倍率が掛かるのは攻撃力由来の850（1000×1.35 - 500）であり、この
+    // payloadは追加攻撃の分を含まない（追加攻撃は自分の`DamageCalculated`を持つ）。
+    expect(plain.preTruncationDamage).toBe(850);
+    expect(boosted.preTruncationDamage).toBe(850 * 1.1);
+    expect(boosted.finalDamage).toBe(935);
   });
 
   /**
@@ -1170,8 +1190,8 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
 
     expect(attackMultiplier(units, definitions, SUBJECT_ID)).toBeCloseTo(1.35, 10);
 
-    // 与ダメージ補正と追加ダメージのガードは「対象が既に保持しているか」で判定する
-    // ため、同じ使用の中で LOW 側のstepへ来たときにも2件目を作らない。
+    // 与ダメージ補正のガードは「対象が既に保持しているか」で判定するため、同じ使用の
+    // 中で LOW 側のstepへ来たときにも2件目を作らない。
     expect(
       holder.appliedEffects.filter(
         (effect) =>
@@ -1179,18 +1199,20 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
           effect.effectActionDefinitionId === EX_DMGUP_LOW_ID,
       ),
     ).toHaveLength(1);
+    // 追加攻撃バフはガードを持たない（R-DMG-06「重複可」。保持数がそのまま追加攻撃の
+    // 回数になる）ため、HIGH/LOW の両stepぶん積み増す。
     expect(
       holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-013 (Q-CAT-EFF-16): 与ダメージ10%増加と追加ダメージは付与側でガードされる — EXを3回使っても対象はどちらも1件しか保持しない", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-013 (Q-CAT-EFF-16): 与ダメージ10%増加は付与側でガードされる — EXを3回使っても対象は1件しか保持しない", () => {
     const { units } = useExRepeatedly(3);
 
     for (const battleUnitId of ["ally:front", "ally:back"]) {
       const holder = unitOf(units, battleUnitId);
-      // `APPLY_DAMAGE_MOD`／`APPLY_ATTACK_DAMAGE_BONUS` は `STACKABLE` しか受理せず
-      // 合成側で最強1件を選ぶ経路が無いため、2件目を作らないことで揃える。
+      // `APPLY_DAMAGE_MOD` は `STABLE` な最強選択の経路を持たず `STACKABLE` しか
+      // 受理しないため、2件目を作らないことで「重複しない」へ揃える。
       expect(
         holder.appliedEffects.filter(
           (effect) =>
@@ -1198,10 +1220,30 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
             effect.effectActionDefinitionId === EX_DMGUP_LOW_ID,
         ),
       ).toHaveLength(1);
-      expect(
-        holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true),
-      ).toHaveLength(1);
     }
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-017 (R-DMG-06, Q-CAT-EFF-16の例外): 追加攻撃バフは重複する — 2件保持すればその数だけ追加攻撃が発生する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, BONUS_BOARD);
+    // 実定義を同じ対象へ2回配る。原文に「重複可」は無いが、保持数がそのまま追加攻撃の
+    // 回数になるという効果の性質から重複させる（R-FUP-01の追撃バフと同じ立場）。
+    const units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: EX_BONUS_DAMAGE_ID, target: "SELF" },
+      { effectActionDefinitionId: EX_BONUS_DAMAGE_ID, target: "SELF" },
+    ]);
+    const holder = unitOf(units, SUBJECT_ID);
+    const bonuses = holder.appliedEffects.filter((effect) => effect.isAttackDamageBonus === true);
+    expect(bonuses).toHaveLength(2);
+
+    // 保持した2件がそれぞれ1ヒットずつ、担ぎ手のヒットとは別に発行する。
+    const bonusHits = damageCalculatedPayloadsOf(holder, unitOf(units, "enemy:front")).filter(
+      (payload) =>
+        payload.effectActionDefinitionId === createEffectActionDefinitionId(EX_BONUS_DAMAGE_ID),
+    );
+    expect(bonusHits).toHaveLength(2);
+    expect(bonusHits.map((payload) => payload.baseDamage)).toEqual(
+      bonuses.map((effect) => effect.magnitude),
+    );
   });
 
   it("IT-UNIT-ELENA-MOODMAKER-014 (REGRESSION, Q-CAT-EFF-16): 原文に「重複可」があるPS2の攻撃力60%上昇は従来どおり積み増す", () => {

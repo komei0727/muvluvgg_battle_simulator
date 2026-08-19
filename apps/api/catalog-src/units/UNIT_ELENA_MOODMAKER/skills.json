@@ -75,34 +75,16 @@
           "elseSteps": []
         },
         {
-          "kind": "BRANCH",
-          "condition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_HIGH"
-              },
-              "categories": ["BUFF"],
-              "effectActionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"]
-            }
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGH"
           },
-          "thenSteps": [
+          "actions": [
             {
-              "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_HIGH"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
-                }
-              ]
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
             }
-          ],
-          "elseSteps": []
+          ]
         },
         {
           "kind": "ACTION",
@@ -150,34 +132,16 @@
           "elseSteps": []
         },
         {
-          "kind": "BRANCH",
-          "condition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_LOW"
-              },
-              "categories": ["BUFF"],
-              "effectActionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"]
-            }
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOW"
           },
-          "thenSteps": [
+          "actions": [
             {
-              "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_LOW"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
-                }
-              ]
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
             }
-          ],
-          "elseSteps": []
+          ]
         }
       ]
     },

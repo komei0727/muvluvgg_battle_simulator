@@ -591,9 +591,8 @@ const damageCalculatedDetailsSchema = {
     /** 上の倍率群だけを`baseDamage`へ掛けた積（DMG-012）。 */
     rawPreTruncationDamage: { type: "number" },
     preTruncationDamage: { type: "number" },
-    /** R-STS-03・R-DMG-06・R-INT-02第2項・R-DMG-07・R-DMG-02 #2の各段（DMG-012）。 */
+    /** R-STS-03・R-INT-02第2項・R-DMG-07・R-DMG-02 #2の各段（DMG-012）。 */
     freezeMultiplier: { type: "number" },
-    attackDamageBonus: { type: "number" },
     guardRate: { type: "number" },
     thresholdReductionMultiplier: { type: "number" },
     damageImmunityNullified: { type: "boolean" },

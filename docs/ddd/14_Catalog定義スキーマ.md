@@ -751,33 +751,34 @@ metadata:
 
 ### kind 一覧
 
-| kind                       | 概要                                     |
-| -------------------------- | ---------------------------------------- |
-| `DAMAGE`                   | HP/シールドへダメージ                    |
-| `APPLY_PIERCING_MOD`       | 後続の自身の攻撃へ一時的に防御貫通を付与 |
-| `HEAL`                     | 即時回復                                 |
-| `APPLY_CONTINUOUS_HEAL`    | 行動/ターン時の継続回復                  |
-| `APPLY_CONTINUOUS_DAMAGE`  | 行動/ターン時の継続ダメージ（DoT）       |
-| `APPLY_STAT_MOD`           | HP/攻撃力/防御力/会心率/速度などの補正   |
-| `APPLY_DAMAGE_MOD`         | 与ダメージ/被ダメージ補正                |
-| `APPLY_HEALING_MOD`        | 回復量増減                               |
-| `APPLY_HEALING_LINK`       | 回復リンク（回復効果の転送）             |
-| `MODIFY_RESOURCE`          | AP/PP/EXゲージ増減                       |
-| `MODIFY_RESOURCE_CAPACITY` | 最大APなど上限変更                       |
-| `APPLY_STATUS`             | 気絶、凍結、暗闇など                     |
-| `APPLY_SHIELD`             | シールド付与                             |
-| `REMOVE_EFFECTS`           | 効果解除                                 |
-| `EFFECT_IMMUNITY`          | 効果付与拒否                             |
-| `APPLY_MARKER`             | 固有マーカー付与                         |
-| `REMOVE_MARKER`            | 固有マーカー解除                         |
-| `APPLY_DEATH_SURVIVAL`     | 致死耐え                                 |
-| `APPLY_TARGET_REDIRECT`    | 攻撃引き寄せ                             |
-| `APPLY_COVER`              | 肩代わり                                 |
-| `APPLY_REFLECT`            | 反射                                     |
-| `APPLY_DAMAGE_LINK`        | 継続リンク状態                           |
-| `APPLY_SUBUNIT`            | サブユニット                             |
-| `APPLY_FOLLOW_UP_ATTACK`   | 攻撃に相乗りする追撃バフ                 |
-| `COOLDOWN_MANIPULATION`    | 他スキルのクールタイム短縮・リセット     |
+| kind                        | 概要                                     |
+| --------------------------- | ---------------------------------------- |
+| `DAMAGE`                    | HP/シールドへダメージ                    |
+| `APPLY_PIERCING_MOD`        | 後続の自身の攻撃へ一時的に防御貫通を付与 |
+| `HEAL`                      | 即時回復                                 |
+| `APPLY_CONTINUOUS_HEAL`     | 行動/ターン時の継続回復                  |
+| `APPLY_CONTINUOUS_DAMAGE`   | 行動/ターン時の継続ダメージ（DoT）       |
+| `APPLY_STAT_MOD`            | HP/攻撃力/防御力/会心率/速度などの補正   |
+| `APPLY_DAMAGE_MOD`          | 与ダメージ/被ダメージ補正                |
+| `APPLY_HEALING_MOD`         | 回復量増減                               |
+| `APPLY_HEALING_LINK`        | 回復リンク（回復効果の転送）             |
+| `MODIFY_RESOURCE`           | AP/PP/EXゲージ増減                       |
+| `MODIFY_RESOURCE_CAPACITY`  | 最大APなど上限変更                       |
+| `APPLY_STATUS`              | 気絶、凍結、暗闇など                     |
+| `APPLY_SHIELD`              | シールド付与                             |
+| `REMOVE_EFFECTS`            | 効果解除                                 |
+| `EFFECT_IMMUNITY`           | 効果付与拒否                             |
+| `APPLY_MARKER`              | 固有マーカー付与                         |
+| `REMOVE_MARKER`             | 固有マーカー解除                         |
+| `APPLY_DEATH_SURVIVAL`      | 致死耐え                                 |
+| `APPLY_TARGET_REDIRECT`     | 攻撃引き寄せ                             |
+| `APPLY_COVER`               | 肩代わり                                 |
+| `APPLY_REFLECT`             | 反射                                     |
+| `APPLY_DAMAGE_LINK`         | 継続リンク状態                           |
+| `APPLY_SUBUNIT`             | サブユニット                             |
+| `APPLY_ATTACK_DAMAGE_BONUS` | 攻撃のあとに発生する追加攻撃バフ         |
+| `APPLY_FOLLOW_UP_ATTACK`    | 攻撃に相乗りする追撃バフ                 |
+| `COOLDOWN_MANIPULATION`     | 他スキルのクールタイム短縮・リセット     |
 
 ---
 
@@ -1659,6 +1660,30 @@ payload:
 
 `duration` は他の継続効果と同じく必須にする — 省略を許すと「期間を書き忘れた定義」と「期間を持たない定義」（`ACT_OLGA_VETERAN_PS2_SUBUNIT` の「カムラッドⅠ」）が区別できなくなるためである。耐久力が0になったインスタンスは `EffectExpired`（`reason: SUBUNIT_DEPLETED`）で失効し、失効経路は時間制限（`TIME_LIMIT`）と共有するため R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる（`APPLY_SHIELD` の `SHIELD_DEPLETED` と同じ）。
 
+### APPLY_ATTACK_DAMAGE_BONUS
+
+R-DMG-06。保持者が行う `DAMAGE` EffectAction のあとに、実際に当てた対象ごとに1ヒットの**追加攻撃**を発生させるバフ（raw原文「攻撃時に攻撃力×15%のダメージを追加する」、production定義: `ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`）。
+
+```yaml
+kind: APPLY_ATTACK_DAMAGE_BONUS
+payload:
+  formula:
+    kind: STAT_RATIO
+    source: { kind: SKILL_SOURCE }
+    stat: ATTACK
+    ratio: 0.15
+  duration:
+    dispellable: true
+    timeLimit: { unit: BATTLE, count: 1 }
+```
+
+| フィールド | 型                   | 意味                                                                                                                                                                                          |
+| ---------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formula`  | Formula              | 追加攻撃1ヒット分のダメージ量。**付与時点に一度だけ**評価して `AppliedEffect.magnitude` へ焼き込む（R-DMG-06 #1）。`SKILL_SOURCE` は付与者を指すため、`source` には `SKILL_SOURCE` を宣言する |
+| `duration` | `DurationDefinition` | 必須。追加攻撃が発生し続ける期間                                                                                                                                                              |
+
+`stacking` フィールドは持たず常に重複可とする（`APPLY_FOLLOW_UP_ATTACK` と同じ規約。複数保持していればその数だけ追加攻撃が増える。`Q-CAT-EFF-16` の付与側ガードは置かない）。ダメージタイプは契機になった攻撃から継承するためpayloadに項を持たない。焼き込んだ値がそのまま基礎ダメージになるため、対象の防御力では減衰しない（R-DMG-06 #5）。
+
 ### APPLY_FOLLOW_UP_ATTACK
 
 R-FUP-01（Issue #474）。保持者の次のAS/EXスキル使用の攻撃に相乗りする追撃バフ（raw原文「当該攻撃に威力Xのダメージ…を追加する」、production定義: `ACT_SUIRAN_CHAOS_PS3_FOLLOW_UP`／`ACT_CHIYURU_MAZE_PS2_FOLLOW_UP`／`ACT_FEE_ACTOR_PS1_FOLLOW_UP`）。
@@ -1685,7 +1710,7 @@ payload:
 | `onHitEffect`       | `{ effectActionDefinitionId }` | 任意。追撃ヒットが適用された対象へ付与する `APPLY_STAT_MOD` または `APPLY_CONTINUOUS_DAMAGE` 定義への参照。参照先が存在しない／対応外kindの場合はCatalogロード時点で拒否する（`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF` と同じ検証規約） |
 | `duration`          | `DurationDefinition`           | 必須。`consumption.kind: NEXT_OUTGOING_ATTACK` を必須とする — 「相乗りする攻撃」と「このバフを消費する攻撃」を構造的に同一へ保つため、他の期間表現はfactoryが拒否する                                                             |
 
-`stacking` フィールドは持たず常に重複可とする（`APPLY_ATTACK_DAMAGE_BONUS` と同じ規約。複数保持していればその数だけ追撃が増える）。`magnitude` に効果量としての意味は無い（0固定）— 追撃のダメージは付与時に焼き込まず、解決時に保持者のステータスで評価するためである。
+`stacking` フィールドは持たず常に重複可とする（`APPLY_ATTACK_DAMAGE_BONUS` の追加攻撃と同じ規約。複数保持していればその数だけ追撃が増える）。`magnitude` に効果量としての意味は無い（0固定）— 追撃のダメージは付与時に焼き込まず、解決時に保持者のステータスで評価するためである。
 
 ### APPLY_MARKER
 

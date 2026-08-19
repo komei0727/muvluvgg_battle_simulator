@@ -12,17 +12,26 @@ import {
 } from "../../../testing/fixtures/effect-sequence-plan.js";
 
 describe("applyEffectActionGroups", () => {
-  it("UT-R-BON-ATTACK-DMG-001 (ON_ATTACK_BONUS_DAMAGE_BUFF, Issue #183, mirrors SKL_ELENA_MOODMAKER_EX): an APPLY_ATTACK_DAMAGE_BONUS ACTION step evaluates its formula once at grant time (STAT_RATIO(TARGET, ATTACK, 0.15)) and stores the result as magnitude on an isAttackDamageBonus AppliedEffect", () => {
-    const actor = unit("ACTOR", "ALLY");
+  it("UT-R-BON-ATTACK-DMG-001 (R-DMG-06 #1, mirrors SKL_ELENA_MOODMAKER_EX): an APPLY_ATTACK_DAMAGE_BONUS ACTION step evaluates its formula once at grant time (STAT_RATIO(SKILL_SOURCE, ATTACK, 0.15)) and stores the result as magnitude on an isAttackDamageBonus AppliedEffect", () => {
+    // R-DMG-06 #1: 加算量の基準は**付与者**であり、バフを受け取る側の攻撃力ではない。
+    // 対象へ違う攻撃力を持たせて、`SKILL_SOURCE`側が読まれていることを分ける。
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("X", "ALLY").combatStats, attack: 40 },
+    });
     const enemy = unit("ENEMY", "ENEMY", {
-      combatStats: { ...unit("X", "ENEMY").combatStats, attack: 40 },
+      combatStats: { ...unit("X", "ENEMY").combatStats, attack: 999 },
     });
     const bonus: EffectActionDefinition = {
       kind: "APPLY_ATTACK_DAMAGE_BONUS",
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_ATTACK_DAMAGE_BONUS"),
       metadata: { tags: [] },
       payload: {
-        formula: { kind: "STAT_RATIO", source: { kind: "TARGET" }, stat: "ATTACK", ratio: 0.15 },
+        formula: {
+          kind: "STAT_RATIO",
+          source: { kind: "SKILL_SOURCE" },
+          stat: "ATTACK",
+          ratio: 0.15,
+        },
         duration: {
           timeLimit: { unit: "BATTLE", count: 1 },
           dispellable: true,
@@ -46,7 +55,7 @@ describe("applyEffectActionGroups", () => {
     expect(target.appliedEffects).toHaveLength(1);
     expect(target.appliedEffects[0]).toMatchObject({
       isAttackDamageBonus: true,
-      magnitude: 6, // 40 attack * 0.15
+      magnitude: 6, // 付与者(ACTOR)の攻撃力40 * 0.15。対象の999は読まない。
     });
   });
 

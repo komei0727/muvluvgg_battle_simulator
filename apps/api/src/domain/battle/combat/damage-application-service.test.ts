@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { applyDamageAction, type DamageEventContext } from "./damage-application-service.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
-import { isDefeated } from "../model/battle-unit.js";
-import type { AppliedEffect } from "../model/applied-effect.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import {
+  effectKindKeyFromDefinitionId,
+  SUBUNIT_PROVIDER_ATTACK_KEY,
+  type AppliedEffect,
+} from "../model/applied-effect.js";
 import type { MarkerState } from "../model/marker-state.js";
-import { createMarkerInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
@@ -419,11 +424,10 @@ describe("applyDamageAction", () => {
       defenderAttribute: "SHY",
       isFavorableAttribute: true,
       attackerAffinityBonus: 0.35,
-      // 凍結増幅・攻撃時追加ダメージ・肩代わり・閾値軽減・無効化はどれも成立して
-      // いないため中立値になる。「宣言が無い」と「中立」を読み分けられるよう、
-      // 成立しないヒットでも省略せず出す（R-DMG-03の貫通率と同じ規約）。
+      // 凍結増幅・肩代わり・閾値軽減・無効化はどれも成立していないため中立値になる。
+      // 「宣言が無い」と「中立」を読み分けられるよう、成立しないヒットでも省略せず
+      // 出す（R-DMG-03の貫通率と同じ規約）。
       freezeMultiplier: 1,
-      attackDamageBonus: 0,
       guardRate: 0,
       thresholdReductionMultiplier: 1,
       damageImmunityNullified: false,
@@ -431,9 +435,8 @@ describe("applyDamageAction", () => {
     expect(details.rawPreTruncationDamage).toBeCloseTo(40.5);
   });
 
-  it("UT-DAMAGE-APPLICATION-020 (DMG-012): the DamageCalculated payload alone reproduces preTruncationDamage and finalDamage across 凍結増幅 (R-STS-03) and 攻撃時追加ダメージ (R-DMG-06)", () => {
-    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
-    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+  it("UT-DAMAGE-APPLICATION-020 (DMG-012): the DamageCalculated payload alone reproduces preTruncationDamage and finalDamage across 凍結増幅 (R-STS-03)", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
     const target = {
       ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
@@ -455,12 +458,11 @@ describe("applyDamageAction", () => {
     expect(details).toMatchObject({
       baseDamage: 20,
       freezeMultiplier: 1.5,
-      attackDamageBonus: 6,
-      // 基礎20 * 1.5 + 6 = 36。倍率群だけの積(20)とは別の値であり、この2欄が
-      // 揃わないと記録済みの倍率から preTruncationDamage へ到達できない。
+      // 基礎20 * 1.5 = 30。倍率群だけの積(20)とは別の値であり、この2欄が揃わないと
+      // 記録済みの倍率から preTruncationDamage へ到達できない。
       rawPreTruncationDamage: 20,
-      preTruncationDamage: 36,
-      finalDamage: 36,
+      preTruncationDamage: 30,
+      finalDamage: 30,
     });
   });
 
@@ -1853,27 +1855,82 @@ describe("applyDamageAction", () => {
       .find((e) => e.eventType === "DamageApplied")!;
     expect(damageApplied.payload).toMatchObject({ hpBefore: 105, hpAfter: 75 });
   });
+});
 
-  it("UT-R-BON-ATTACK-DMG-002 (ON_ATTACK_BONUS_DAMAGE_BUFF mirrors SKL_ELENA_MOODMAKER_EX): a DAMAGE hit from an attacker holding an isAttackDamageBonus AppliedEffect adds the buff's magnitude on top of the calculated damage", () => {
+/**
+ * R-DMG-06「攻撃時追加攻撃」（production定義: `SKL_ELENA_MOODMAKER_EX` の
+ * 「攻撃時に攻撃力×15%のダメージを追加するバフ」）。保持者の`DAMAGE` EffectActionの
+ * 解決が終わった後に、保持インスタンスごと×実際に当てた対象ごとに独立した1ヒットを
+ * 加える。基準は「元のヒットへの加算ではなく、別ヒットとして観測されること」であり、
+ * 会心継承・属性相性・与ダメージ補正が乗り、対象の防御力では減衰しない。
+ */
+describe("attack bonus attack (R-DMG-06)", () => {
+  const BONUS_DEFINITION_ID = "ACT_ATTACK_DAMAGE_BONUS";
+
+  /** 追加攻撃が発行した`DamageCalculated`だけを取り出す（元の攻撃とはIDで分かれる）。 */
+  function bonusDamageCalculated(
+    context: DamageEventContext,
+  ): readonly { readonly [key: string]: unknown }[] {
+    return context.recorder
+      .getEvents()
+      .filter((event) => event.eventType === "DamageCalculated")
+      .map((event) => event.payload as { readonly [key: string]: unknown })
+      .filter((payload) => payload["effectActionDefinitionId"] === BONUS_DEFINITION_ID);
+  }
+
+  function hpOf(units: readonly BattleUnit[], id: string): number {
+    return units.find((unit) => unit.battleUnitId === createBattleUnitId(id))!.currentHp;
+  }
+
+  it("UT-R-BON-ATTACK-DMG-002 (R-DMG-06 #1/#2, mirrors SKL_ELENA_MOODMAKER_EX): the bonus resolves as its own hit after the attack — the target loses the attack's damage plus the whole magnitude, with no defense attenuation on the bonus", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
-    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
 
     const result = applyDamageAction(
       attacker,
       [hit("TARGET", 1)],
       damageAction("PREVENTED"),
       [attacker, target],
-      random,
-      damageEventContext(),
+      new SequenceRandomSource([]),
+      context,
     );
 
-    // Base damage 20 (attack 30 - defense 10) + bonus 6 = 26.
-    expect(result.hits[0]!.damage).toBe(26);
+    // 元の攻撃は基礎ダメージ20（攻撃30 - 防御10）のまま。追加攻撃は`CONSTANT`
+    // Formulaのため基礎ダメージ＝magnitudeそのもので、防御10を引かない。
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 20 - 6);
+    // 追加攻撃ヒットは`outcomes`に含めない（R-FUP-01の命中・会心集計と
+    // R-SKL-08の直前結果を汚さないため）。
+    expect(result.hits).toEqual([
+      {
+        targetUnitId: createBattleUnitId("TARGET"),
+        hitIndex: 1,
+        applied: true,
+        isCritical: false,
+        damage: 20,
+      },
+    ]);
+    expect(bonusDamageCalculated(context)).toHaveLength(1);
+    expect(bonusDamageCalculated(context)[0]).toMatchObject({
+      baseDamage: 6,
+      finalDamage: 6,
+      damageType: "PHYSICAL",
+    });
+    // 独立ヒットである証跡として、追加攻撃も自分の`DamageApplied`を発行する。
+    expect(
+      context.recorder
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === "DamageApplied" &&
+            (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+              BONUS_DEFINITION_ID,
+        ),
+    ).toHaveLength(1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-003 (ON_ATTACK_BONUS_DAMAGE_BUFF interacts with R-DMG-02): the bonus is still capped by the target's DAMAGE_IMMUNITY, same as any other damage source", () => {
+  it("UT-R-BON-ATTACK-DMG-003 (R-DMG-06 interacts with R-DMG-02 #2): the bonus attack is capped to 1 by the target's DAMAGE_IMMUNITY, same as any other hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
@@ -1881,21 +1938,26 @@ describe("applyDamageAction", () => {
       ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
       appliedEffects: [immunity],
     };
-    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
 
     const result = applyDamageAction(
       attacker,
       [hit("TARGET", 1)],
       damageAction("PREVENTED"),
       [attacker, target],
-      random,
-      damageEventContext(),
+      new SequenceRandomSource([]),
+      context,
     );
 
     expect(result.hits[0]!.damage).toBe(1);
+    expect(bonusDamageCalculated(context)[0]).toMatchObject({
+      damageImmunityNullified: true,
+      finalDamage: 1,
+    });
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 1 - 1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-004 (bonus does not affect an evaded hit): an evaded hit does not add the attacker's isAttackDamageBonus", () => {
+  it("UT-R-BON-ATTACK-DMG-004 (R-DMG-06, NEGATIVE): an attack whose every hit was evaded produces no bonus attack — the bonus rides on targets that were actually hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
@@ -1903,18 +1965,416 @@ describe("applyDamageAction", () => {
       ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
       appliedEffects: [evasion],
     };
-    const random = new SequenceRandomSource([]);
+    const context = damageEventContext();
 
     const result = applyDamageAction(
       attacker,
       [hit("TARGET", 1)],
       damageAction("PREVENTED"),
       [attacker, target],
-      random,
-      damageEventContext(),
+      new SequenceRandomSource([0]),
+      context,
     );
 
     expect(result.hits[0]!.applied).toBe(false);
-    expect(result.hits[0]!.damage).toBe(0);
+    expect(bonusDamageCalculated(context)).toEqual([]);
+    expect(hpOf(result.units, "TARGET")).toBe(100);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-005 (R-DMG-06, critical inheritance): the bonus attack inherits the attack's critical — a critical attack multiplies the bonus by the holder's critical damage bonus without drawing again", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, criticalDamageBonus: 0.5 }),
+      appliedEffects: [bonus],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    // 乱数列を空にしておくことで、追加攻撃が独自の命中・会心判定を持たない
+    // （乱数を消費しない）ことも同時に固定する。
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("GUARANTEED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(bonusDamageCalculated(context)[0]).toMatchObject({
+      criticalMultiplier: 1.5,
+      finalDamage: 9,
+    });
+    // 元の攻撃 20 × 1.5 = 30、追加攻撃 6 × 1.5 = 9。
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 30 - 9);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-006 (R-DMG-06, R-ATR-02, R-DMG-04): the bonus attack takes the attribute multiplier and the holder's outgoing damage modifier, unlike a flat addition", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const outgoing: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("DMG_MOD"),
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_DMG_MOD"),
+      kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_DMG_MOD")),
+      duplicate: true,
+      targetUnitId: createBattleUnitId("ATTACKER"),
+      magnitude: 0.1,
+      categories: ["DAMAGE_MOD"],
+      damageModifier: { direction: "OUTGOING", damageType: null },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, affinityBonus: 0.25, attribute: "AGGRESSIVE" }),
+      appliedEffects: [bonus, outgoing],
+    };
+    // R-ATR-01: アグレッシブはシャイに対して有利。
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100, attribute: "SHY" });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(bonusDamageCalculated(context)[0]).toMatchObject({
+      attributeMultiplier: 1.25,
+      outgoingDamageMultiplier: 1.1,
+      // 6 × 1.25 × 1.1 = 8.25 → 切り捨て8。
+      finalDamage: 8,
+    });
+    // 元の攻撃 20 × 1.25 × 1.1 = 27.5 → 27。
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 27 - 8);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-007 (R-DMG-06, per EffectAction): a 3-hit attack still produces exactly one bonus attack — the unit is the DAMAGE EffectAction, not the hit", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET", 2), hit("TARGET", 3)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(bonusDamageCalculated(context)).toHaveLength(1);
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 20 * 3 - 6);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-008 (R-DMG-06, per target): a two-target attack produces one bonus attack per target that was actually hit", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const second = unit("TARGET_2", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET_2", 1)],
+      damageAction("PREVENTED"),
+      [attacker, first, second],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(bonusDamageCalculated(context).map((payload) => payload["targetUnitId"])).toEqual([
+      createBattleUnitId("TARGET"),
+      createBattleUnitId("TARGET_2"),
+    ]);
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 20 - 6);
+    expect(hpOf(result.units, "TARGET_2")).toBe(100 - 20 - 6);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-009 (R-DMG-06, stacking): holding two instances produces two bonus attacks, one per instance", () => {
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [
+        attackDamageBonusEffect("eff-bonus-1", "ATTACKER", 6),
+        attackDamageBonusEffect("eff-bonus-2", "ATTACKER", 4),
+      ],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(bonusDamageCalculated(context).map((payload) => payload["finalDamage"])).toEqual([6, 4]);
+    expect(hpOf(result.units, "TARGET")).toBe(100 - 20 - 6 - 4);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-010 (R-DMG-06, NEGATIVE): an already defeated target is skipped by the attack and gets no bonus attack either", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const target = defeated(unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }));
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(result.hits[0]!.applied).toBe(false);
+    expect(bonusDamageCalculated(context)).toEqual([]);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-012 (R-DMG-06 #9, R-SKL-08): the additional attack is recorded into the damage-result registry like any other hit — it does not appear in hits[] but it does count as damage dealt", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const damageResults: DamageResultRegistry = new Map();
+    const context = { ...damageEventContext(), damageResults };
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // ヒット列（R-FUP-01の命中・会心集計が読む側）には現れない。
+    expect(result.hits).toHaveLength(1);
+    // 直前結果は追加攻撃ヒットのもので上書きされ、累計には両方が乗る。R-SUB-02の
+    // 追加ヒット・R-FUP-01の追撃と同じ扱いであり、3者は同じ適用経路を共有する。
+    const dealt = damageResults.get(attacker.battleUnitId)!;
+    expect(dealt.lastDamageDealt).toBe(6);
+    expect(dealt.sumDamageDealt?.get(context.skillUseId)).toBe(20 + 6);
+    const received = damageResults.get(target.battleUnitId)!;
+    expect(received.lastDamageReceived).toBe(6);
+    expect(received.sumDamageReceived?.get(context.skillUseId)).toBe(20 + 6);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-011 (R-DMG-06, R-SUB-02 boundary): the bonus attack neither triggers a further bonus attack nor a sub unit additional damage hit", () => {
+    const SUBUNIT_DEFINITION_ID = createEffectActionDefinitionId("ACT_SUBUNIT_SUB_1");
+    const subUnit: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("SUB_1"),
+      effectActionDefinitionId: SUBUNIT_DEFINITION_ID,
+      kindKey: effectKindKeyFromDefinitionId(SUBUNIT_DEFINITION_ID),
+      duplicate: true,
+      targetUnitId: createBattleUnitId("ATTACKER"),
+      magnitude: 50,
+      categories: ["SUBUNIT"],
+      subUnit: {
+        durability: 50,
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.5,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+        },
+      },
+      snapshot: { [SUBUNIT_PROVIDER_ATTACK_KEY]: 100 },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30 }),
+      appliedEffects: [attackDamageBonusEffect("eff-bonus", "ATTACKER", 6), subUnit],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const context = damageEventContext();
+
+    applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 追加攻撃は1回だけ（自分自身をもう一度誘発しない）。
+    expect(bonusDamageCalculated(context)).toHaveLength(1);
+    // サブユニット追加ダメージも元の攻撃対象1体につき1回だけ（追加攻撃は誘発しない）。
+    expect(
+      context.recorder
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === "DamageCalculated" &&
+            (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+              SUBUNIT_DEFINITION_ID,
+        ),
+    ).toHaveLength(1);
+  });
+});
+
+/**
+ * R-DMG-06 の中断・スキップ経路。追加攻撃の解決中にPS/Memory連鎖が前提を崩したときの
+ * 契約を、production（AS/EX）と同じ`onFactEventForPassiveChain`経路で踏む。連鎖は
+ * FACTイベントの記録直後に同期で呼ばれるため、追加攻撃1件と次の1件の**間**へ状態変化を
+ * 差し込める。
+ */
+describe("attack bonus attack interruption (R-DMG-06 #3)", () => {
+  const BONUS_DEFINITION_ID = "ACT_ATTACK_DAMAGE_BONUS";
+
+  function definitionIdOf(event: { readonly payload: unknown }): string | undefined {
+    return (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId;
+  }
+
+  function bonusHitCount(context: DamageEventContext): number {
+    return context.recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "DamageApplied" && definitionIdOf(event) === BONUS_DEFINITION_ID,
+      ).length;
+  }
+
+  /** `chain`が返したユニットだけを差し替えるPS/Memory即時連鎖フック。 */
+  function contextWithChain(
+    chain: (event: BattleDomainEvent) => readonly BattleUnit[],
+  ): DamageEventContext {
+    return { ...damageEventContext(), onFactEventForPassiveChain: (event) => chain(event) };
+  }
+
+  it("UT-R-BON-ATTACK-DMG-013 (R-SKL-01): a chain that defeats the holder on the attack's own last event leaves the additional attacks unresolved and reports the interruption", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    let defeatedAttacker: BattleUnit | undefined;
+    const context = contextWithChain((event) =>
+      event.eventType === "DamageApplied" && definitionIdOf(event) !== BONUS_DEFINITION_ID
+        ? [(defeatedAttacker = defeated(attacker))]
+        : [],
+    );
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(defeatedAttacker).toBeDefined();
+    expect(result.interrupted).toBe(true);
+    expect(bonusHitCount(context)).toBe(0);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-014 (R-SKL-01): a chain that defeats the holder during an additional attack interrupts that hit and the remaining targets", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const second = unit("TARGET_2", "ENEMY", { defense: 10, maximumHp: 100 });
+    // 1体目への追加攻撃が命中を確定した時点で、連鎖（反射など）が使用者を倒す。
+    const context = contextWithChain((event) =>
+      event.eventType === "HitConfirmed" && definitionIdOf(event) === BONUS_DEFINITION_ID
+        ? [defeated(attacker)]
+        : [],
+    );
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET_2", 1)],
+      damageAction("PREVENTED"),
+      [attacker, first, second],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(result.interrupted).toBe(true);
+    // 命中確定後に倒れたため、1体目のヒットも適用されず2体目は解決自体が行われない。
+    expect(bonusHitCount(context)).toBe(0);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-017 (R-SKL-01): a chain that defeats the holder between two additional attacks leaves the remaining ones unresolved", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const second = unit("TARGET_2", "ENEMY", { defense: 10, maximumHp: 100 });
+    // 1体目への追加攻撃が適用され切った時点で、連鎖が使用者を倒す。
+    const context = contextWithChain((event) =>
+      event.eventType === "DamageApplied" && definitionIdOf(event) === BONUS_DEFINITION_ID
+        ? [defeated(attacker)]
+        : [],
+    );
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET_2", 1)],
+      damageAction("PREVENTED"),
+      [attacker, first, second],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 1体目は適用済みのまま残り、2体目だけが未解決になる（R-SUB-02の追加ヒットと同じ）。
+    expect(result.interrupted).toBe(true);
+    expect(bonusHitCount(context)).toBe(1);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-015 (R-DMG-06 #6): a buff instance removed by the chain stops producing additional attacks for the remaining targets", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const second = unit("TARGET_2", "ENEMY", { defense: 10, maximumHp: 100 });
+    // 1体目への追加攻撃が適用された時点で、連鎖がバフそのものを解除する。
+    const context = contextWithChain((event) =>
+      event.eventType === "DamageApplied" && definitionIdOf(event) === BONUS_DEFINITION_ID
+        ? [{ ...attacker, appliedEffects: [] }]
+        : [],
+    );
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET_2", 1)],
+      damageAction("PREVENTED"),
+      [attacker, first, second],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(result.interrupted).toBe(false);
+    expect(bonusHitCount(context)).toBe(1);
+  });
+
+  it("UT-R-BON-ATTACK-DMG-016 (R-ACTN-01 #2): a target defeated by the chain is skipped without interrupting the remaining additional attacks", () => {
+    const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
+    const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
+    const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
+    const second = unit("TARGET_2", "ENEMY", { defense: 10, maximumHp: 100 });
+    // 1体目への追加攻撃が適用された時点で、連鎖が2体目を倒す。
+    const context = contextWithChain((event) =>
+      event.eventType === "DamageApplied" && definitionIdOf(event) === BONUS_DEFINITION_ID
+        ? [defeated(second)]
+        : [],
+    );
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 1), hit("TARGET_2", 1)],
+      damageAction("PREVENTED"),
+      [attacker, first, second],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    expect(result.interrupted).toBe(false);
+    expect(bonusHitCount(context)).toBe(1);
   });
 });

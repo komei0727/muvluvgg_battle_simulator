@@ -108,7 +108,7 @@
       "formula": {
         "kind": "STAT_RATIO",
         "source": {
-          "kind": "TARGET"
+          "kind": "SKILL_SOURCE"
         },
         "stat": "ATTACK",
         "ratio": 0.15

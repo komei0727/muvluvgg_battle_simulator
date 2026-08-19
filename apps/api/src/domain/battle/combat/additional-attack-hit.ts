@@ -50,8 +50,8 @@ export interface AdditionalAttackHitSpec {
 }
 
 /**
- * 元の攻撃に相乗りする追加攻撃1ヒットを解決する。追撃（R-FUP-01）と攻撃時追加ダメージが
- * 共有する経路であり、通常ヒットと異なるのは次の3点だけで、それ以外
+ * 元の攻撃に相乗りする追加攻撃1ヒットを解決する。追撃（R-FUP-01）と攻撃時追加攻撃
+ * （R-DMG-06）が共有する経路であり、通常ヒットと異なるのは次の3点だけで、それ以外
  * （`observeHitSteps`の観測列・防御介入・与被ダメージ補正・閾値付き軽減・ダメージ無効・
  * シールド吸収・リンク・反射・PS/Memory連鎖）は通常ヒットとまったく同じ経路を通る。
  *
@@ -62,8 +62,9 @@ export interface AdditionalAttackHitSpec {
  *   会心不可（R-CRT-03 #1）は`resolveEffectiveCriticalMode`の畳み込みでこの宣言より
  *   優先される
  * - ダメージ計算は`calculateDamage`を通常どおり通す（攻撃者のステータス・属性相性・
- *   防御減衰あり）が、凍結解除・増幅（R-STS-03）と攻撃時追加ダメージ（R-DMG-06）と
- *   混乱（R-CFS-02）は適用しない（R-SUB-02と同じ「同じ攻撃の中で二重に数えない」境界）。
+ *   防御減衰あり）が、凍結解除・増幅（R-STS-03）と攻撃時追加攻撃（R-DMG-06）と
+ *   混乱（R-CFS-02）は適用・誘発しない（R-SUB-02と同じ「同じ攻撃の中で二重に数えない」
+ *   境界）。
  *   サブユニット追加ダメージ（R-SUB-02）も誘発せず、貫通も持たない
  */
 export function* applyOneAdditionalAttackHitSteps(
@@ -140,7 +141,7 @@ export function* applyOneAdditionalAttackHitSteps(
     formulaContext,
     // R-CFS-02（DMG-009）: 混乱は「ASのDAMAGE EffectAction」だけに働くため適用しない。
   });
-  // R-STS-03の凍結解除・増幅とR-DMG-06の攻撃時追加ダメージは適用しない
+  // R-STS-03の凍結解除・増幅とR-DMG-06の攻撃時追加攻撃は適用・誘発しない
   // （R-SUB-02と同じ「同じ攻撃の中で二重に数えない」境界）。
   // R-INT-02第2項: 肩代わりの軽減率は最終切り捨ての前に掛ける（Q-DMG-01）。
   const preTruncationDamage = guardedDamage(
@@ -203,10 +204,8 @@ export function* applyOneAdditionalAttackHitSteps(
       confusionDamageMultiplier: rawDamageResult.confusionDamageMultiplier,
       rawPreTruncationDamage: rawDamageResult.preTruncationDamage,
       preTruncationDamage,
-      // 凍結解除増幅（R-STS-03）と攻撃時追加ダメージ（R-DMG-06）は追加攻撃へ適用しない
-      // ため、この経路では常に中立値になる。
+      // 凍結解除増幅（R-STS-03）は追加攻撃へ適用しないため、この経路では常に中立値になる。
       freezeMultiplier: 1,
-      attackDamageBonus: 0,
       guardRate: intervention.guardRate,
       thresholdReductionMultiplier: thresholdReduction.multiplier,
       damageImmunityNullified: damageImmunity.nullified,
