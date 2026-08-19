@@ -45,6 +45,9 @@ test("runs a tactical exercise from the mode tab to the score summary and break 
   const breakTimeline = page.getByRole("region", { name: /BREAK TIMELINE/ });
   await expect(breakTimeline.getByRole("row")).toHaveCount(2);
   await expect(breakTimeline.getByText("2,100")).toBeVisible();
+  // 発生源はCatalogの表示名で名指しする（定義IDのままにしない）。
+  await expect(breakTimeline.getByRole("columnheader", { name: "発生源" })).toBeVisible();
+  await expect(breakTimeline.getByText("アライアルファ")).toBeVisible();
 
   // UI-AC-022: 演習イベントも未知イベントも詳細タイムラインへ残る。
   await expect(page.getByText("EXERCISE_SCORE_ACCUMULATED").first()).toBeVisible();

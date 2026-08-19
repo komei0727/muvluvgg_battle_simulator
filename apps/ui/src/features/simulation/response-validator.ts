@@ -418,11 +418,16 @@ function isValidBreak(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
   }
+  // R-MEM-04: 発生源ユニットを持たないブレイクがあるため`sourceUnitDefinitionId`は
+  // 任意項目にする。不在は「メモリー由来」という意味を持つ正常値であり、この項目
+  // より前にデプロイされたAPIの応答もそのまま受理する。
+  const sourceUnitDefinitionId = value["sourceUnitDefinitionId"];
   return (
     // breakNumberに上限は無い（1体を何度でもブレイクし得る）。
     isIntegerInRange(value["breakNumber"], 1) &&
     isIntegerInRange(value["turnNumber"], 1, EXERCISE_TURN_LIMIT) &&
-    isIntegerInRange(value["cumulativeScoreAtBreak"], 0)
+    isIntegerInRange(value["cumulativeScoreAtBreak"], 0) &&
+    (sourceUnitDefinitionId === undefined || isNonEmptyString(sourceUnitDefinitionId))
   );
 }
 

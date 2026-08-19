@@ -90,6 +90,8 @@ X-Request-Id: ui-<UUID>
 
 成功レスポンスは`result`だけが演習結果（`completionReason`、`completedTurn`、`totalScore`、`breakCount`、`breaks[]`）となり、`initialState`／`finalState`／`events`／`stateTransitions`は戦闘シミュレーションと同じ構造を共有する。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseRequest」「TacticalExerciseResponse」とする。
 
+`breaks[]`の`sourceUnitDefinitionId`（`R-TEX-03` #2 の発生源ユニット）は任意項目として読む。メモリー由来の継続ダメージのように発生源ユニットを持たないブレイクでは省略される（`R-MEM-04`）ため、不在を欠損ではなくメモリー由来として扱い、この項目より前にデプロイされたAPIの応答も受理する。
+
 ### 2.4 共通リクエスト方針
 
 - `Content-Type`と`Accept`を明示する。

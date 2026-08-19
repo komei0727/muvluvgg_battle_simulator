@@ -191,6 +191,12 @@ export interface ExerciseBreakResponse {
   readonly breakNumber: number;
   readonly turnNumber: number;
   readonly cumulativeScoreAtBreak: number;
+  /**
+   * R-TEX-03 #2のブレイク発生源ユニット定義ID。メモリー由来のブレイクは発生源
+   * ユニットを持たない（`R-MEM-04`）ため必須にしない。この項目より前にデプロイ
+   * されたAPIとも組み合わせられる。
+   */
+  readonly sourceUnitDefinitionId?: string;
   readonly [key: string]: unknown;
 }
 

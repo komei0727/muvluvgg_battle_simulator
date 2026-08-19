@@ -456,8 +456,10 @@ export function BattleSimulatorPage({
                       />
                       <BreakTimeline
                         breaks={
-                          selectExerciseResultView(exerciseView.displayedSuccess.response.result)
-                            .breaks
+                          selectExerciseResultView(
+                            exerciseView.displayedSuccess.response.result,
+                            catalog.status === "ready" ? catalog.response : undefined,
+                          ).breaks
                         }
                       />
                     </>
