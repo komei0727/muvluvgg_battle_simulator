@@ -519,9 +519,6 @@ function createPayload(
       const criticalMode = criticalRaw?.mode ?? "NORMAL";
       assertEnumValue(criticalMode, CRITICAL_MODES, `${path}.critical.mode`);
       const formula = createFormulaField(payload, "formula", path);
-      // R-CRT-04: 基礎ダメージが攻撃対象の現在HPから求まる攻撃は会心判定を行わない。
-      // 実効モードは`critical-policy.ts`が`PREVENTED`へ導出するため、`PREVENTED`以外の
-      // 明示宣言は必ず黙殺される。書いた宣言が効かない定義を作らせない。
       // R-CRT-04: HPから導かれる量を基礎ダメージにする`DAMAGE`は、会心判定の有無が
       // Formulaの形から導けない（`ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`と
       // `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`は同じ`MAX_HP_RATIO`/`SKILL_SOURCE`で結論が
