@@ -5,7 +5,16 @@ import type { TriggerCandidateEvent } from "../../domain/battle/triggering/trigg
 import type { BattleUnitId } from "../../domain/shared/ids.js";
 import { detectRuntimeCounterUpdates } from "../../domain/battle/triggering/runtime-counter-matcher.js";
 import { evaluateTriggerCondition } from "../../domain/battle/triggering/trigger-condition-evaluator.js";
-import { skillFrom, testBattleUnit, unitFrom } from "../fixtures/index.js";
+import { noMissNoCrit, skillFrom, testBattleUnit, unitFrom } from "../fixtures/index.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { createActionId } from "../../domain/shared/event-ids.js";
+import { createBattleId } from "../../domain/shared/ids.js";
+import type {
+  RuntimeCounterId,
+  SkillDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import { productionBoard } from "./skill-behaviour.js";
 
 /**
  * `SKILL_RUNTIME` スコープの実行時カウンタ（`R-EFF-11`）をユニット効果軸から
@@ -244,4 +253,109 @@ export function observeCumulativeThresholdCounter(
     atThreshold: observe(threshold),
     crossing: observe(threshold * 2),
   };
+}
+
+/** {@link observeCriticalCounterCycle} が観測するスキル使用1回ぶんの結果。 */
+export interface CriticalCounterCycleObservation {
+  /** そのスキル使用で使用者自身が出した会心ヒット数（`CriticalCheckResolved`）。 */
+  readonly criticalHits: number;
+  /** 対象PSがそのスキル使用の中で発動した回数（`PassiveActivated`）。 */
+  readonly activations: number;
+  /** そのスキル使用が終わった時点のcounter値。 */
+  readonly counterAfter: number;
+}
+
+export interface CriticalCounterCycleOptions {
+  readonly snapshot: BattleCatalogSnapshot;
+  readonly unitDefinitionId: string;
+  /** 会心カウンタを消費するPS。 */
+  readonly passiveSkillDefinitionId: string;
+  readonly counter: string;
+  /** 実 `catalog/` のAS/EXを順に1回ずつ使う。状態（counter・PP・AP）は引き継ぐ。 */
+  readonly uses: readonly {
+    readonly skillDefinitionId: string;
+    readonly actionType?: "AS" | "EX";
+  }[];
+  /** 1回目の使用を始める前のcounter値（N到達を最後のヒット以外へずらすために使う）。 */
+  readonly initialCounter?: number;
+}
+
+/**
+ * 会心ヒットを数えるPS（`CriticalCheckResolved` 契機の `INCREMENT`）を、実 `catalog/`
+ * の多段ヒットASを**実経路で**撃って観測する。使用者の会心率を100%へ固定するため
+ * 全ヒットが会心になり、「N到達がそのスキルの最後の会心ではない」並びを作れる。
+ *
+ * `-001` の振る舞い表（`observeSkillUse`）では表せない — 表は変化した観測項目の
+ * 完全一致であって、発動回数とcounterの推移（`RuntimeCounterChanged`）を持たない。
+ * 保留キュー（`R-ATM-01`）から発動する経路をそのまま通すため、PS候補の検出・保留・
+ * 発動直前確認（`R-PS-04`）・発動後のcounterリセットが1回の観測に載る。
+ */
+export function observeCriticalCounterCycle(
+  options: CriticalCounterCycleOptions,
+): readonly CriticalCounterCycleObservation[] {
+  const board = productionBoard(options.snapshot, options.unitDefinitionId, {
+    // 会心率100%で全ヒットを会心にし、最大HPは周期の観測が対象の戦闘不能で
+    // 途切れないところまで上げる（倒れると残りヒットが発生せず会心数が変わる）。
+    combatStats: { criticalRate: 1, maximumHp: 200000 },
+    ...(options.initialCounter === undefined
+      ? {}
+      : {
+          subject: {
+            state: {
+              skillCounters: {
+                [options.passiveSkillDefinitionId as SkillDefinitionId]: {
+                  [options.counter as RuntimeCounterId]: {
+                    value: options.initialCounter,
+                    carry: 0,
+                  },
+                },
+              },
+            },
+          },
+        }),
+  });
+
+  let units = board.units;
+  const observations: CriticalCounterCycleObservation[] = [];
+  for (const [index, use] of options.uses.entries()) {
+    const skill = skillFrom(options.snapshot, use.skillDefinitionId);
+    const recorder = new EventRecorder(createBattleId(`B_CRIT_COUNTER_${index}`));
+    const actor = units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+    const result = resolveSkillUse(
+      actor,
+      skill,
+      use.actionType ?? (skill.skillType === "EX" ? "EX" : "AS"),
+      use.actionType ?? (skill.skillType === "EX" ? "EX" : "AS"),
+      units,
+      board.definitions,
+      // 命中判定は0.99でも当たり、会心判定は会心率100%との比較で必ず当たる。
+      noMissNoCrit(512),
+      recorder,
+      1,
+      0,
+      createActionId(`B_CRIT_COUNTER_${index}:action:1`),
+      recorder.nextResolutionScopeId(),
+    );
+    units = result.units;
+    const events = recorder.getEvents();
+    observations.push({
+      criticalHits: events.filter(
+        (event) =>
+          event.eventType === "CriticalCheckResolved" &&
+          event.sourceUnitId === board.subject.battleUnitId &&
+          (event.payload as { result: boolean }).result,
+      ).length,
+      activations: events.filter(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          (event.payload as { skillDefinitionId: string }).skillDefinitionId ===
+            options.passiveSkillDefinitionId,
+      ).length,
+      counterAfter:
+        units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)?.skillCounters?.[
+          options.passiveSkillDefinitionId as SkillDefinitionId
+        ]?.[options.counter as RuntimeCounterId]?.value ?? 0,
+    });
+  }
+  return observations;
 }

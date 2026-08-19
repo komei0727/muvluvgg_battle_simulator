@@ -208,8 +208,7 @@
               "kind": "RUNTIME_COUNTER",
               "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
               "op": "GTE",
-              "value": 1,
-              "modulo": 4
+              "value": 4
             }
           ]
         }
@@ -228,6 +227,23 @@
           "condition": { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true }
         },
         "amount": 1
+      },
+      {
+        "kind": "RESET",
+        "counter": "SKL_LAYLA_ENTREPRENEUR_PS2_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_LAYLA_ENTREPRENEUR_PS2"
+          }
+        }
       }
     ]
   }

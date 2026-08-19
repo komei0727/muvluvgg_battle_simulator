@@ -504,7 +504,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 5件は「消費分HP×N%」型のため `NORMAL`。反撃3件は族の外だが決定を記録するため
     // 併せて明示した。Unit・Skill・Memoryの構成は変えておらず、差分は
     // `effects.json` の `critical` だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-19.1");
+    // `2026-08-19.2` は会心ヒットを数える3スキル（`SKL_LAYLA_ENTREPRENEUR_PS2`・
+    // `SKL_MAO_SUMMER_PS1`・`SKL_MAO_SUMMER_TEX_PS1`）を`modulo`ゲートから
+    // `RESET`＋閾値比較へ移した（Issue #554）。ヒット単位で進む契機では1回の効果処理中に
+    // 周期を通り越し、到達後の余剰会心が次回へ繰り越されてしまうため。Unit・Skill・
+    // Memoryの構成は変えておらず、差分は`skills.json`の trigger条件と`counterUpdates`だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-19.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -634,15 +639,25 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
    * Issue #143: `RUNTIME_COUNTER`のCondition木からRUNTIME_COUNTER kindだけを
    * 再帰的に探す（`AND`でラップされている場合があるため）。
    */
-  function findRuntimeCounterCondition(
-    condition: unknown,
-  ): { readonly counter?: string; readonly modulo?: number | undefined } | undefined {
+  function findRuntimeCounterCondition(condition: unknown):
+    | {
+        readonly counter?: string;
+        readonly modulo?: number | undefined;
+        readonly op?: string;
+        readonly value?: number;
+      }
+    | undefined {
     if (condition === null || typeof condition !== "object") {
       return undefined;
     }
     const c = condition as Record<string, unknown>;
     if (c.kind === "RUNTIME_COUNTER") {
-      return { counter: c.counter as string, modulo: c.modulo as number | undefined };
+      return {
+        counter: c.counter as string,
+        modulo: c.modulo as number | undefined,
+        op: c.op as string,
+        value: c.value as number,
+      };
     }
     if ((c.kind === "AND" || c.kind === "OR") && Array.isArray(c.conditions)) {
       for (const sub of c.conditions) {
@@ -659,7 +674,6 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
   }
 
   it.each([
-    { unitId: "UNIT_LAYLA_ENTREPRENEUR", skillId: "SKL_LAYLA_ENTREPRENEUR_PS2", modulo: 4 },
     { unitId: "UNIT_JUNKA_CHILDHOOD", skillId: "SKL_JUNKA_CHILDHOOD_PS2", modulo: 3 },
     { unitId: "UNIT_SHIRANA_SORA", skillId: "SKL_SHIRANA_SORA_PS1", modulo: 2 },
     { unitId: "UNIT_CLARA_SANTA", skillId: "SKL_CLARA_SANTA_PS1", modulo: 3 },
@@ -686,6 +700,52 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expect(found).toBeDefined();
       expect(found?.counter).toBe(update?.counter);
       expect(found?.modulo).toBe(modulo);
+    },
+  );
+
+  /**
+   * Issue #554: 会心ヒットのように**1回の効果処理中に周期を通り越す**契機は`modulo`で
+   * 表せない（保留された発動より先にcounter更新が確定するため、到達後の余剰が次回へ
+   * 繰り越される）。この3スキルは閾値そのものの比較（`modulo`なし）と、自身の
+   * `PassiveActivated`を契機とする`RESET`の組で「発動のたびに0から数え直す」を表す。
+   * `op`が`EQ`ではなく`GTE`なのは、R-PS-04の発動直前確認で候補が正当に破棄された場合
+   * （所有者の戦闘不能・PP不足など）にリセットが走らず閾値を超えたまま残るため —
+   * `EQ`だと以後二度と成立しないが、`GTE`なら次の会心で復帰する。
+   */
+  it.each([
+    { unitId: "UNIT_LAYLA_ENTREPRENEUR", skillId: "SKL_LAYLA_ENTREPRENEUR_PS2", threshold: 4 },
+    { unitId: "UNIT_MAO_SUMMER", skillId: "SKL_MAO_SUMMER_PS1", threshold: 2 },
+    { unitId: "UNIT_MAO_SUMMER_TEX", skillId: "SKL_MAO_SUMMER_TEX_PS1", threshold: 2 },
+  ])(
+    "IT-CAT-PROD-015 (Issue #554, R-EFF-11 RESET): $skillId counts critical hits with an INCREMENT + a RESET keyed off its own PassiveActivated, and gates on GTE $threshold without modulo ($unitId)",
+    ({ unitId, skillId, threshold }) => {
+      const catalog = loadCatalogFromDirectory(catalogPath());
+      const snapshot = catalog.loadSnapshot([unitId] as never[], []);
+      const skill = snapshot.skills.get(skillId as never);
+      expect(skill?.counterUpdates.map((update) => update.kind)).toEqual(["INCREMENT", "RESET"]);
+
+      const increment = skill?.counterUpdates[0];
+      expect(increment?.scope).toBe("SKILL_RUNTIME");
+      expect(increment?.trigger.eventType).toBe("CriticalCheckResolved");
+
+      const reset = skill?.counterUpdates[1];
+      expect(reset?.scope).toBe("SKILL_RUNTIME");
+      expect(reset?.counter).toBe(increment?.counter);
+      expect(reset?.trigger.eventType).toBe("PassiveActivated");
+      expect(reset?.trigger.sourceSelector).toBe("SELF");
+      expect(reset?.trigger.condition).toEqual({
+        kind: "EVENT_PAYLOAD",
+        field: "skillDefinitionId",
+        op: "EQ",
+        value: skillId,
+      });
+
+      const found = findRuntimeCounterCondition(skill?.triggers[0]?.condition);
+      expect(found).toBeDefined();
+      expect(found?.counter).toBe(increment?.counter);
+      expect(found?.modulo).toBeUndefined();
+      expect(found?.op).toBe("GTE");
+      expect(found?.value).toBe(threshold);
     },
   );
 

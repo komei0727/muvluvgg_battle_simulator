@@ -352,7 +352,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 4 completes
     "RANDOM_BRANCH_SELECTED": 4,
     "RESOURCES_RECOVERED": 1,
     "RESOURCE_CHANGED": 84,
-    "RUNTIME_COUNTER_CHANGED": 8,
+    "RUNTIME_COUNTER_CHANGED": 9,
     "SKILL_USE_COMPLETED": 12,
     "SKILL_USE_STARTED": 12,
     "SKILL_USE_STARTING": 12,
