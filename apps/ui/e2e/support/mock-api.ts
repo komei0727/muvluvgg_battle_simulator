@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { CATALOG_REVISION } from "../fixtures/catalog.js";
 import {
   CATALOG_URL,
   SIMULATION_URL,
@@ -97,7 +98,9 @@ export async function mockTacticalExerciseEvaluation(
       headers: { "Access-Control-Expose-Headers": EXPOSED_HEADERS },
       body: JSON.stringify({
         schemaVersion: 1,
-        catalogRevision: "e2e-rev",
+        // 実サーバーと同じく、評価もCatalog GETと同じrevisionで返す。ずらすと
+        // 「実行中にCatalogが切り替わった」扱いになり結果を出さない。
+        catalogRevision: CATALOG_REVISION,
         seed: body.seed,
         runsPerCandidate: runs,
         candidates: [

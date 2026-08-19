@@ -11,8 +11,10 @@ import {
   describeExerciseResult,
   selectExerciseResultView,
 } from "../features/exercise/exercise-result-projector.js";
+import { mapEvaluationViolationsToUiViolations } from "../features/exercise/evaluation-violation-mapper.js";
 import { ModeTabs } from "../features/exercise/ModeTabs.js";
 import { StatisticsRunFeedback } from "../features/exercise/StatisticsRunFeedback.js";
+import { buildTacticalExerciseEvaluationRequest } from "../features/exercise/exercise-request-mapper.js";
 import { useExerciseStatisticsRun } from "../features/exercise/use-exercise-statistics-run.js";
 import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
 import type { BattleMode } from "../features/exercise/ModeTabs.js";
@@ -159,7 +161,7 @@ export function BattleSimulatorPage({
   const dispatch = isExercise ? exerciseDispatch : battleDispatch;
   const view = isExercise ? exerciseView : battleView;
   const execution = isExercise ? exerciseExecution : battleExecution;
-  const { displayedViolations } = view;
+  const { displayedViolations: viewViolations } = view;
 
   // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
   // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
@@ -272,7 +274,49 @@ export function BattleSimulatorPage({
 
   const { mode: exerciseExecutionMode, runCount, seed } = exerciseState.draft.exerciseExecution;
   const isStatisticsRun = isExercise && exerciseExecutionMode === "STATISTICS";
-  const isStatisticsRunning = statisticsRun.state.status === "running";
+  // 実行中のロックは演習タブに閉じる。進捗も中断ボタンも演習タブにしか無いため、
+  // 通常戦闘まで無効化すると止める手段が無いまま実行の終わりを待たせることになる。
+  const isStatisticsRunning = isStatisticsRun && statisticsRun.state.status === "running";
+
+  // 統計実行の422も単一実行と同じく枠・実行回数入力へ結びつける（UI-API-004）。評価APIの
+  // pathは候補indexを含むため、専用のmapperを通す。
+  const statisticsViolations =
+    statisticsRun.state.status === "failed" &&
+    statisticsRun.state.error.kind === "API" &&
+    statisticsRun.state.error.error.violations !== undefined
+      ? mapEvaluationViolationsToUiViolations(
+          statisticsRun.state.error.error.violations,
+          statisticsRun.state.submission,
+        )
+      : [];
+
+  // 完了した統計結果が、その後編集された編成のものでないか。実行回数とシードは結果表示に
+  // 出ているため、画面から読み取れない編成の変化だけを見る。
+  const currentEvaluationBuild = isStatisticsRun
+    ? buildTacticalExerciseEvaluationRequest(exerciseState.draft, {
+        runsPerCandidate: 1,
+        seed: "-",
+      })
+    : { ok: false as const };
+  const statisticsAggregate =
+    statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
+      ? statisticsRun.state.aggregate
+      : undefined;
+  const statisticsResultDirty =
+    statisticsAggregate !== undefined &&
+    currentEvaluationBuild.ok &&
+    JSON.stringify({
+      enemyFormation: currentEvaluationBuild.request.enemyFormation,
+      candidates: currentEvaluationBuild.request.candidates,
+    }) !==
+      (statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
+        ? statisticsRun.state.submission.formationSignature
+        : "");
+  const displayedViolations = [...viewViolations, ...statisticsViolations];
+  const statisticsCatalogRevisionMismatch =
+    statisticsAggregate !== undefined &&
+    (catalog.status !== "ready" ||
+      statisticsAggregate.catalogRevision !== catalog.response.catalogRevision);
   // 走っているチャンクは実行開始時のdraftで送られ続けるため、実行中の編集を許すと
   // 画面と結果が食い違う。単一実行（`formationDisabled`）と同じ扱いにする。
   const formationDisabled = view.formationDisabled || isStatisticsRunning;
@@ -459,7 +503,13 @@ export function BattleSimulatorPage({
         </Panel>
 
         {isStatisticsRun ? (
-          <StatisticsRunFeedback state={statisticsRun.state} onCancel={statisticsRun.cancel} />
+          <StatisticsRunFeedback
+            state={statisticsRun.state}
+            onCancel={statisticsRun.cancel}
+            isDirty={statisticsResultDirty}
+            catalogRevisionMismatch={statisticsCatalogRevisionMismatch}
+            onReloadCatalog={catalogLoader.reload}
+          />
         ) : null}
 
         {isExercise && !isStatisticsRun ? (

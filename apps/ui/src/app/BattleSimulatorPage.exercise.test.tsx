@@ -909,12 +909,13 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
   function evaluationResponse(
     runs: number,
     catalogRevision = "rev-1",
+    seed = "abc#0",
   ): TacticalExerciseEvaluationResponse {
     const indices = Array.from({ length: runs }, (_value, index) => index);
     return {
       schemaVersion: 1,
       catalogRevision,
-      seed: "seed#0",
+      seed,
       runsPerCandidate: runs,
       candidates: [
         {
@@ -954,8 +955,8 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
 
   it("runs the requested runs as sequential chunks and reports how many were aggregated", async () => {
     const user = userEvent.setup();
-    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate }) =>
-      Promise.resolve({ ok: true, response: evaluationResponse(runsPerCandidate) }),
+    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate, seed }) =>
+      Promise.resolve({ ok: true, response: evaluationResponse(runsPerCandidate, "rev-1", seed) }),
     );
 
     await startStatisticsRun(user, evaluateImpl, "301");
@@ -995,13 +996,45 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
     ).toBeDisabled();
   });
 
+  // ロックは演習タブの中に閉じる。統計実行の進捗も中断ボタンも演習タブにしか無いため、
+  // 通常戦闘まで止めると「止める手段が無いまま数分待たされる」状態になる。
+  it("does not lock the battle mode while the statistics run is in flight", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(
+      (_request, options) =>
+        new Promise((resolve) => {
+          options.signal.addEventListener("abort", () => {
+            resolve({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } });
+          });
+        }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "600");
+    await screen.findByRole("progressbar", { name: "統計実行の進捗" });
+
+    await switchMode(user, "通常戦闘");
+
+    expect(screen.queryByRole("button", { name: "実行中…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "キャンセル" })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: /ALLY FORMATION/ })).getByRole("button", {
+        name: "前衛1にユニットを追加",
+      }),
+    ).toBeEnabled();
+
+    // 演習タブへ戻れば実行は続いており、中断できる。
+    await switchMode(user, "戦術演習");
+
+    expect(screen.getByRole("button", { name: "中断して結果を見る" })).toBeInTheDocument();
+  });
+
   it("keeps the chunks already completed when the run is cancelled", async () => {
     const user = userEvent.setup();
     let call = 0;
     const evaluateImpl = vi.fn<EvaluateImpl>((_request, options) => {
       call += 1;
       if (call === 1) {
-        return Promise.resolve({ ok: true, response: evaluationResponse(300) });
+        return Promise.resolve({ ok: true, response: evaluationResponse(300, "rev-1", "abc#0") });
       }
       return new Promise((resolve) => {
         options.signal.addEventListener("abort", () => {
@@ -1043,6 +1076,57 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "この環境では統計実行を利用できません",
     );
+  });
+
+  // `EVALUATION_MAX_TOTAL_RUNS`を300未満へ絞った配備では全チャンクが422になる。サーバーは
+  // `/runsPerCandidate`をJSON Pointerで返すので、送信前検証と同じ実行回数入力へ出す。
+  it("shows a 422 on the run count input, not only as a message", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        error: {
+          kind: "VALIDATION",
+          status: 422,
+          code: "INVALID_COMMAND",
+          message: "invalid",
+          violations: [
+            {
+              path: "/runsPerCandidate",
+              message: "candidates x runsPerCandidate must not exceed 100 total runs, got 300",
+            },
+          ],
+        },
+      }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "300");
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("入力内容を確認してください。");
+    });
+    expect(screen.getByLabelText("実行回数")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getAllByText(/must not exceed 100 total runs/).length).toBeGreaterThan(0);
+  });
+
+  // 実行後は編成を編集できる。結果はそのまま残るため、いまの編成の結果に見えてしまう。
+  it("marks a finished result as stale once the formation changes", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate, seed }) =>
+      Promise.resolve({ ok: true, response: evaluationResponse(runsPerCandidate, "rev-1", seed) }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "2");
+
+    await waitFor(() => {
+      expect(screen.getByText(/2試行を集計しました/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/変更前の条件/)).not.toBeInTheDocument();
+
+    await placeUnit(user, "ally", "ブラボー", "前衛2");
+
+    expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
 
   it("runs the single-run endpoint, not the evaluation endpoint, in the single mode", async () => {

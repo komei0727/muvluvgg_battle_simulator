@@ -169,6 +169,47 @@ describe("mergeEvaluationChunks", () => {
     });
   });
 
+  // 1レスポンス内の列数一致は`response-validator.ts`が見ている。チャンクをまたいだ
+  // 一致は誰も見ていないため、崩れると統計の描画時に初めて落ちる。
+  it("reports a per-unit column count that changed between chunks", () => {
+    const widened = chunkResult(1, 2, {
+      allyUnitDamageTotals: [
+        [1, 2, 3],
+        [4, 5, 6],
+      ],
+      allyUnitBreakCounts: [
+        [0, 0, 0],
+        [0, 0, 0],
+      ],
+    });
+
+    const merged = mergeEvaluationChunks([chunkResult(0, 2), widened]);
+
+    expect(merged).toEqual({
+      ok: false,
+      reason: "UNIT_COLUMN_COUNT_CHANGED",
+      unitCount: 2,
+      chunkUnitCount: 3,
+    });
+  });
+
+  it("accepts chunks that completed no run alongside chunks that did", () => {
+    const empty = chunkResult(1, 2, {
+      completedRuns: 0,
+      scores: [],
+      breakCounts: [],
+      completedTurns: [],
+      completionReasons: [],
+      allyUnitDamageTotals: [],
+      allyUnitBreakCounts: [],
+    });
+
+    const merged = mergeEvaluationChunks([chunkResult(0, 2), empty]);
+
+    expect(merged.ok).toBe(true);
+    expect(merged.ok ? merged.aggregate.completedRuns : undefined).toBe(2);
+  });
+
   it("rejects an empty chunk list", () => {
     expect(() => mergeEvaluationChunks([])).toThrow(RangeError);
   });

@@ -6,13 +6,19 @@ import {
   mergeEvaluationChunks,
   planEvaluationChunks,
 } from "./evaluation-chunk-plan.js";
-import type { EvaluationAggregate, EvaluationChunkResult } from "./evaluation-chunk-plan.js";
+import type {
+  EvaluationAggregate,
+  EvaluationChunkResult,
+  EvaluationMergeResult,
+} from "./evaluation-chunk-plan.js";
 import type { TacticalExerciseEvaluationRequest } from "./exercise-request-mapper.js";
 import { evaluateTacticalExercise as defaultEvaluate } from "../simulation/api-client.js";
 import type { SimulateOptions } from "../simulation/api-client.js";
+import { ERROR_KIND_GUIDANCE } from "../simulation/error-guidance.js";
 import type {
   TacticalExerciseEvaluationApiResult,
   UiApiError,
+  ViolationResponseBody,
 } from "../simulation/api-contract.js";
 import type { BattleDraft } from "../formation/types.js";
 
@@ -45,9 +51,38 @@ export type ExerciseStatisticsRunError =
       readonly catalogRevision: string;
       readonly chunkCatalogRevision: string;
     }
+  | {
+      readonly kind: "UNIT_COLUMN_COUNT_CHANGED";
+      readonly unitCount: number;
+      readonly chunkUnitCount: number;
+    }
+  | {
+      readonly kind: "SEED_NOT_ECHOED";
+      readonly requestedSeed: string;
+      readonly respondedSeed: string;
+    }
   | { readonly kind: "NO_COMPLETED_RUNS" }
   | { readonly kind: "REQUEST_NOT_BUILDABLE" }
   | { readonly kind: "API"; readonly error: UiApiError };
+
+/**
+ * 送信時のslot対応表と編成の署名。422 violationsのJSON Pointerを送信後に編集され得る
+ * 現在のdraftではなく送信時のslotへ対応づけ（`UI-API-004`）、実行後に編成が変わったことを
+ * 結果表示へ伝えるために持つ。全チャンクが同じ編成を送るので実行ごとに1つでよい。
+ */
+export interface StatisticsRunSubmission {
+  readonly allyUnitSlotKeys: readonly string[];
+  readonly enemyUnitSlotKeys: readonly string[];
+  readonly allyMemorySlotKeys: readonly string[];
+  readonly enemyMemorySlotKeys: readonly string[];
+  readonly allyGearSlotIndices: readonly (readonly number[])[];
+  readonly enemyGearSlotIndices: readonly (readonly number[])[];
+  /**
+   * 送信した編成部分のJSON表現。実行回数とシードは結果表示に出ているため含めない ——
+   * 画面から読み取れない編成の変化だけをここで見る。
+   */
+  readonly formationSignature: string;
+}
 
 export type ExerciseStatisticsRunState =
   | { readonly status: "idle" }
@@ -56,12 +91,14 @@ export type ExerciseStatisticsRunState =
       readonly runId: string;
       readonly seed: string;
       readonly progress: StatisticsRunProgress;
+      readonly submission: StatisticsRunSubmission;
     }
   | {
       readonly status: "succeeded";
       readonly runId: string;
       readonly seed: string;
       readonly progress: StatisticsRunProgress;
+      readonly submission: StatisticsRunSubmission;
       readonly aggregate: EvaluationAggregate;
     }
   | {
@@ -69,6 +106,7 @@ export type ExerciseStatisticsRunState =
       readonly runId: string;
       readonly seed: string;
       readonly progress: StatisticsRunProgress;
+      readonly submission: StatisticsRunSubmission;
       readonly aggregate: EvaluationAggregate;
     }
   | {
@@ -76,6 +114,7 @@ export type ExerciseStatisticsRunState =
       readonly runId: string;
       readonly seed: string;
       readonly progress: StatisticsRunProgress;
+      readonly submission: StatisticsRunSubmission;
       readonly error: ExerciseStatisticsRunError;
     };
 
@@ -85,6 +124,7 @@ type StatisticsRunAction =
       readonly runId: string;
       readonly seed: string;
       readonly progress: StatisticsRunProgress;
+      readonly submission: StatisticsRunSubmission;
     }
   | {
       readonly type: "chunkCompleted";
@@ -119,6 +159,7 @@ function statisticsRunReducer(
       runId: action.runId,
       seed: action.seed,
       progress: action.progress,
+      submission: action.submission,
     };
   }
   if (state.status !== "running" || state.runId !== action.runId) {
@@ -133,6 +174,7 @@ function statisticsRunReducer(
         runId: state.runId,
         seed: state.seed,
         progress: state.progress,
+        submission: state.submission,
         aggregate: action.aggregate,
       };
     case "runFailed":
@@ -141,6 +183,7 @@ function statisticsRunReducer(
         runId: state.runId,
         seed: state.seed,
         progress: state.progress,
+        submission: state.submission,
         error: action.error,
       };
   }
@@ -170,6 +213,28 @@ export interface UseExerciseStatisticsRunResult {
   readonly cancel: () => void;
 }
 
+/**
+ * 送信した編成部分のJSON表現。`request-mapper.ts`が同じdraftから同じキー順・同じ並びの
+ * リクエストを組み立てるため、文字列比較で構造比較になる（`selectIsResultDirty`と同じ考え）。
+ */
+function evaluationFormationSignature(request: TacticalExerciseEvaluationRequest): string {
+  return JSON.stringify({
+    enemyFormation: request.enemyFormation,
+    candidates: request.candidates,
+  });
+}
+
+/** 編成からリクエストを組み立てられなかった実行。対応づける送信そのものが無い。 */
+const EMPTY_SUBMISSION: StatisticsRunSubmission = {
+  allyUnitSlotKeys: [],
+  enemyUnitSlotKeys: [],
+  allyMemorySlotKeys: [],
+  enemyMemorySlotKeys: [],
+  allyGearSlotIndices: [],
+  enemyGearSlotIndices: [],
+  formationSignature: "",
+};
+
 let runCounter = 0;
 function generateRunId(): string {
   runCounter += 1;
@@ -186,12 +251,16 @@ function generateRequestId(): string | undefined {
 
 // 404 `ENDPOINT_DISABLED` は実装が無いのではなく配備の設定で閉じている（Q-TEX-19）。
 // 汎用のサーバーエラーとして出すと、パスやバージョンの取り違えを疑わせてしまう。
+//
+// 判定に使うのは`code`だけである。statusで判定すると、`VITE_API_BASE_URL`の設定ミスや
+// プロキシのパス取り違えによる404まで「この環境では統計実行を利用できません（単一実行は
+// 使えます）」と案内してしまう——単一実行も同じ理由で動かない状況である。
 function classifyFailure(result: {
   readonly error: UiApiError;
   readonly status?: number;
   readonly retryAfterSeconds?: number;
 }): ExerciseStatisticsRunError {
-  if (result.error.code === "ENDPOINT_DISABLED" || result.status === 404) {
+  if (result.error.code === "ENDPOINT_DISABLED") {
     return { kind: "ENDPOINT_DISABLED" };
   }
   if (result.error.kind === "RATE_LIMIT") {
@@ -204,22 +273,55 @@ function classifyFailure(result: {
   return { kind: "API", error: result.error };
 }
 
-export function describeStatisticsRunError(error: ExerciseStatisticsRunError): string {
+export interface StatisticsRunErrorView {
+  /** 種別ごとの案内。`03_API・データ連携設計.md` §13。 */
+  readonly guidance: string;
+  /** サーバー・クライアントの生message。案内の下へそのままtextとして出す。 */
+  readonly detail?: string;
+  readonly violations?: readonly ViolationResponseBody[];
+  readonly diagnosticId?: string;
+}
+
+export function describeStatisticsRunError(
+  error: ExerciseStatisticsRunError,
+): StatisticsRunErrorView {
   switch (error.kind) {
     case "ENDPOINT_DISABLED":
-      return "この環境では統計実行を利用できません。単一実行はそのまま使えます。";
+      return { guidance: "この環境では統計実行を利用できません。単一実行はそのまま使えます。" };
     case "RATE_LIMITED":
-      return error.retryAfterSeconds === undefined
-        ? "実行が制限されました。時間をおいて再実行してください。"
-        : `実行が制限されました。約${error.retryAfterSeconds.toString()}秒おいて再実行してください。`;
+      return {
+        guidance:
+          error.retryAfterSeconds === undefined
+            ? "実行が制限されました。時間をおいて再実行してください。"
+            : `実行が制限されました。約${error.retryAfterSeconds.toString()}秒おいて再実行してください。`,
+      };
     case "CATALOG_REVISION_CHANGED":
-      return `実行中にCatalogが${error.catalogRevision}から${error.chunkCatalogRevision}へ切り替わりました。同じ条件で実行し直してください。`;
+      return {
+        guidance: `実行中にCatalogが${error.catalogRevision}から${error.chunkCatalogRevision}へ切り替わりました。同じ条件で実行し直してください。`,
+      };
+    case "UNIT_COLUMN_COUNT_CHANGED":
+      return {
+        guidance: `実行中にユニット別集計の列数が${error.unitCount.toString()}から${error.chunkUnitCount.toString()}へ変わりました。結果を集計できません。`,
+      };
+    case "SEED_NOT_ECHOED":
+      return {
+        guidance: `サーバーが要求したseed（${error.requestedSeed}）ではなく${error.respondedSeed}で実行しました。試行が重複している可能性があるため結果を集計できません。`,
+      };
     case "NO_COMPLETED_RUNS":
-      return "1試行も完了しなかったため、統計を出せません。";
+      return { guidance: "1試行も完了しなかったため、統計を出せません。" };
     case "REQUEST_NOT_BUILDABLE":
-      return "編成からリクエストを組み立てられませんでした。編成を確認してください。";
+      return { guidance: "編成からリクエストを組み立てられませんでした。編成を確認してください。" };
     case "API":
-      return error.error.message;
+      // 種別ごとの案内は単一実行（`SubmissionFeedback`）と同じ表から採り、サーバーの生
+      // messageは案内の下へ添える。生messageだけだと英文が1行出るだけになる。
+      return {
+        guidance: ERROR_KIND_GUIDANCE[error.error.kind],
+        detail: error.error.message,
+        ...(error.error.violations !== undefined ? { violations: error.error.violations } : {}),
+        ...(error.error.diagnosticId !== undefined
+          ? { diagnosticId: error.error.diagnosticId }
+          : {}),
+      };
   }
 }
 
@@ -257,34 +359,73 @@ export function useExerciseStatisticsRun(
         baseSeed: seed,
         chunkSize,
       });
+      // 編成部分は全チャンクで同一である。1度だけ組み立てて試行数とseedだけ差し替える
+      // ことで、チャンクごとに違う編成が送られる余地を残さない。
+      const build = buildTacticalExerciseEvaluationRequest(input.draft, {
+        runsPerCandidate: chunks[0]?.runs ?? input.runCount,
+        seed,
+      });
+      const submission: StatisticsRunSubmission = build.ok
+        ? {
+            allyUnitSlotKeys: build.allyUnitSlotKeys,
+            enemyUnitSlotKeys: build.enemyUnitSlotKeys,
+            allyMemorySlotKeys: build.allyMemorySlotKeys,
+            enemyMemorySlotKeys: build.enemyMemorySlotKeys,
+            allyGearSlotIndices: build.allyGearSlotIndices,
+            enemyGearSlotIndices: build.enemyGearSlotIndices,
+            formationSignature: evaluationFormationSignature(build.request),
+          }
+        : EMPTY_SUBMISSION;
       let progress: StatisticsRunProgress = {
         requestedRuns: input.runCount,
         completedRuns: 0,
         completedChunks: 0,
         chunkCount: chunks.length,
       };
-      dispatch({ type: "runStarted", runId, seed, progress });
+      dispatch({ type: "runStarted", runId, seed, progress, submission });
+
+      if (!build.ok) {
+        dispatch({ type: "runFailed", runId, error: { kind: "REQUEST_NOT_BUILDABLE" } });
+        return;
+      }
+      const { request } = build;
 
       const isCurrent = () => currentRunIdRef.current === runId;
+
+      const failWithMerge = (merged: EvaluationMergeResult & { ok: false }): void => {
+        dispatch({
+          type: "runFailed",
+          runId,
+          error:
+            merged.reason === "CATALOG_REVISION_CHANGED"
+              ? {
+                  kind: "CATALOG_REVISION_CHANGED",
+                  catalogRevision: merged.catalogRevision,
+                  chunkCatalogRevision: merged.chunkCatalogRevision,
+                }
+              : {
+                  kind: "UNIT_COLUMN_COUNT_CHANGED",
+                  unitCount: merged.unitCount,
+                  chunkUnitCount: merged.chunkUnitCount,
+                },
+        });
+      };
 
       const finish = (results: readonly EvaluationChunkResult[], cancelled: boolean): void => {
         if (!isCurrent()) {
           return;
         }
-        const merged = results.length === 0 ? undefined : mergeEvaluationChunks(results);
-        if (merged === undefined || !merged.ok || merged.aggregate.completedRuns === 0) {
-          dispatch({
-            type: "runFailed",
-            runId,
-            error:
-              merged !== undefined && !merged.ok
-                ? {
-                    kind: "CATALOG_REVISION_CHANGED",
-                    catalogRevision: merged.catalogRevision,
-                    chunkCatalogRevision: merged.chunkCatalogRevision,
-                  }
-                : { kind: "NO_COMPLETED_RUNS" },
-          });
+        if (results.length === 0) {
+          dispatch({ type: "runFailed", runId, error: { kind: "NO_COMPLETED_RUNS" } });
+          return;
+        }
+        const merged = mergeEvaluationChunks(results);
+        if (!merged.ok) {
+          failWithMerge(merged);
+          return;
+        }
+        if (merged.aggregate.completedRuns === 0) {
+          dispatch({ type: "runFailed", runId, error: { kind: "NO_COMPLETED_RUNS" } });
           return;
         }
         dispatch({
@@ -303,23 +444,16 @@ export function useExerciseStatisticsRun(
             finish(results, true);
             return;
           }
-          const build = buildTacticalExerciseEvaluationRequest(input.draft, {
-            runsPerCandidate: chunk.runs,
-            seed: chunk.seed,
-          });
-          if (!build.ok) {
-            if (isCurrent()) {
-              dispatch({ type: "runFailed", runId, error: { kind: "REQUEST_NOT_BUILDABLE" } });
-            }
-            return;
-          }
           const requestId = generateRequestId();
-          const result = await evaluateImpl(build.request, {
-            baseUrl,
-            signal: controller.signal,
-            ...(requestId !== undefined ? { requestId } : {}),
-            ...(timeoutMs !== undefined ? { timeoutMs } : {}),
-          });
+          const result = await evaluateImpl(
+            { ...request, runsPerCandidate: chunk.runs, seed: chunk.seed },
+            {
+              baseUrl,
+              signal: controller.signal,
+              ...(requestId !== undefined ? { requestId } : {}),
+              ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+            },
+          );
           if (!isCurrent()) {
             return;
           }
@@ -329,6 +463,21 @@ export function useExerciseStatisticsRun(
               return;
             }
             dispatch({ type: "runFailed", runId, error: classifyFailure(result) });
+            return;
+          }
+          // 応答の`seed`は「実際に使われたseed」（`10_API設計.md`）であり、`#<runOffset>`
+          // 規約が効いているかを判定できる唯一の材料である。食い違いを通すと、全チャンクが
+          // 同じ試行を繰り返していても数値が揃って見えるだけで気づけない。
+          if (result.response.seed !== chunk.seed) {
+            dispatch({
+              type: "runFailed",
+              runId,
+              error: {
+                kind: "SEED_NOT_ECHOED",
+                requestedSeed: chunk.seed,
+                respondedSeed: result.response.seed,
+              },
+            });
             return;
           }
           const candidate = result.response.candidates[0];
@@ -353,15 +502,7 @@ export function useExerciseStatisticsRun(
           });
           const merged = mergeEvaluationChunks(results);
           if (!merged.ok) {
-            dispatch({
-              type: "runFailed",
-              runId,
-              error: {
-                kind: "CATALOG_REVISION_CHANGED",
-                catalogRevision: merged.catalogRevision,
-                chunkCatalogRevision: merged.chunkCatalogRevision,
-              },
-            });
+            failWithMerge(merged);
             return;
           }
           progress = {
@@ -378,6 +519,11 @@ export function useExerciseStatisticsRun(
   );
 
   const cancel = useCallback(() => {
+    // 単一実行（`use-simulation-execution.ts`）と違い、ここでは同期的に`cancelled`へ
+    // 遷移させない。中断の結果は「完了済みチャンクまでの集約」であり、それを確定できるのは
+    // チャンクを積んでいる実行ループだけである。ループはabortで解決した応答（CANCELLED）と
+    // チャンクの切れ目の`signal.aborted`の両方で確定へ入り、待ち時間は`api-client`の
+    // 待機上限（35秒）で頭打ちになる。
     abortControllerRef.current?.abort();
   }, []);
 

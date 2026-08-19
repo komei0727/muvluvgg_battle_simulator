@@ -91,7 +91,22 @@ export type EvaluationMergeResult =
       readonly reason: "CATALOG_REVISION_CHANGED";
       readonly catalogRevision: string;
       readonly chunkCatalogRevision: string;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: "UNIT_COLUMN_COUNT_CHANGED";
+      readonly unitCount: number;
+      readonly chunkUnitCount: number;
     };
+
+/**
+ * このチャンクが返したユニット別配列の列数。1試行も完了しなかったチャンクは列数を
+ * 決められないため`undefined`——列数の突き合わせから外す（`response-validator.ts`は
+ * 1レスポンス内の列数一致を既に保証している）。
+ */
+function unitCountOf(candidate: TacticalExerciseCandidateEvaluationResponse): number | undefined {
+  return candidate.allyUnitDamageTotals[0]?.length;
+}
 
 /**
  * チャンクの応答を送信順に連結する。
@@ -123,6 +138,21 @@ export function mergeEvaluationChunks(
   }
 
   const candidates = chunks.map((chunk) => chunk.candidate);
+  // 1レスポンス内の列数一致は`response-validator.ts`が見るが、チャンクをまたいだ一致は
+  // ここでしか見ていない。崩れたまま連結すると、統計側（`unit-statistics.ts`）が描画の
+  // 直前にthrowする——サーバー側の契約違反が、表示の不具合として遅れて出ることになる。
+  const unitCounts = candidates.map(unitCountOf).filter((count) => count !== undefined);
+  const unitCount = unitCounts[0];
+  const differing = unitCounts.find((count) => count !== unitCount);
+  if (unitCount !== undefined && differing !== undefined) {
+    return {
+      ok: false,
+      reason: "UNIT_COLUMN_COUNT_CHANGED",
+      unitCount,
+      chunkUnitCount: differing,
+    };
+  }
+
   const sample: ExerciseStatisticsSample = {
     scores: candidates.flatMap((candidate) => [...candidate.scores]),
     breakCounts: candidates.flatMap((candidate) => [...candidate.breakCounts]),
