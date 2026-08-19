@@ -1,12 +1,17 @@
 import { expect, test } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
+import type { EvaluationRequestRecord } from "./support/mock-api.js";
 import {
   fillMinimalFormation,
   openBattleMode,
   selectDetailedLogLevel,
 } from "./support/formation.js";
-import { mockCatalog, mockSimulationSequence } from "./support/mock-api.js";
+import {
+  mockCatalog,
+  mockSimulationSequence,
+  mockTacticalExerciseEvaluation,
+} from "./support/mock-api.js";
 
 // docs/ui-design/06_UIテスト戦略.md §7 (Visual regression): 1440×900と
 // 390×844を最低baselineとし、動的時刻・Battle ID・画像取得を固定して撮影する。
@@ -73,6 +78,40 @@ test("mobile (390x844) idle formation screen matches the visual baseline @visual
   await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
 
   await expect(page).toHaveScreenshot("mobile-390x844-idle.png", {
+    fullPage: true,
+    animations: "disabled",
+  });
+});
+
+// 統計実行の可視化パネル（Issue #542）。統計量はすべてmockの決定的な生値から出るので、
+// 追加のマスクは要らない。撮るのは戦術演習モードの画面であり、既存3枚（通常戦闘）は
+// 貼り替えを要さない。
+test("desktop (1440x900) statistics result screen matches the visual baseline @visual", async ({
+  page,
+}) => {
+  const requests: EvaluationRequestRecord[] = [];
+  await mockTacticalExerciseEvaluation(page, requests);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("./");
+
+  const ally = page.getByRole("region", { name: /ALLY FORMATION/ });
+  const enemy = page.getByRole("region", { name: /ENEMY FORMATION/ });
+  await ally.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  // 2枠置くのは、キャラ別統計の共通スケールと、同じ定義を複数枠へ置いたときの列名
+  // （`#1`／`#2`）の両方をbaselineへ写すためである。mockは1体目だけが1試行あたり
+  // 18〜22回ブレイクする標本を返すので、枠ごとの偏りも図に出る。
+  await ally.getByRole("button", { name: "前衛2にユニットを追加" }).click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
+  await page.getByLabel("実行モード").selectOption("STATISTICS");
+  await page.getByLabel("実行回数").fill("120");
+  await page.getByLabel("シード").fill("e2e-seed");
+  await page.getByRole("button", { name: "戦術演習を開始" }).click();
+  await expect(page.getByRole("heading", { name: /キャラ別統計/ })).toBeVisible();
+
+  await expect(page).toHaveScreenshot("desktop-1440x900-statistics.png", {
     fullPage: true,
     animations: "disabled",
   });

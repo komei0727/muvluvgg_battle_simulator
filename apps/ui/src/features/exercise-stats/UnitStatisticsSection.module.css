@@ -1,0 +1,164 @@
+.selector {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  border: 0;
+}
+
+.legendLabel {
+  padding: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.segment {
+  padding: 8px 16px;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.segment:last-child {
+  border-right: 0;
+}
+
+/* 選択中の見た目は`:has()`で入力の状態から出す。inline styleもJSでのclass付け替えも
+   使わずに済み、キーボード操作でも同じ表示になる。 */
+.segment:has(input:checked) {
+  background: var(--color-ally-soft);
+  color: var(--color-ally);
+  font-weight: 700;
+}
+
+.segment:has(input:focus-visible) {
+  outline: 2px solid var(--color-ally);
+  outline-offset: -2px;
+}
+
+.segment input {
+  margin-right: var(--space-2);
+}
+
+.blockTitle {
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+.hint {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+
+/* 05_非機能・アクセシビリティ設計.md §4: 横スクロールはこの内部に限定する。 */
+.scrollArea {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  padding-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  text-align: right;
+}
+
+.table thead th {
+  border-bottom: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-align: left;
+}
+
+.table tr:last-child td,
+.table tr:last-child th {
+  border-bottom: 0;
+}
+
+.name {
+  font-family: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.share {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.topValue {
+  color: var(--color-warning);
+  font-weight: 700;
+}
+
+.barCell {
+  width: 42%;
+  min-width: 220px;
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.range {
+  stroke: var(--color-border-strong);
+  stroke-width: 2;
+}
+
+.box {
+  fill: var(--color-ally);
+  fill-opacity: 0.35;
+  stroke: var(--color-ally);
+  stroke-width: 1;
+}
+
+.median {
+  stroke: var(--color-text);
+  stroke-width: 2;
+}
+
+.topMarker {
+  fill: var(--color-warning);
+}
+
+.exportRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-4);
+}
+
+.status {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}

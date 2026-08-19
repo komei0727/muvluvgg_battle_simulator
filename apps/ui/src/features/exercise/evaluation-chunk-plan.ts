@@ -76,12 +76,35 @@ export interface EvaluationChunkResult {
   readonly catalogRevision: string;
 }
 
+/**
+ * 1試行がどのチャンクの何試行目だったか。`runs.csv`（`tools/exercise-lab`）の
+ * `chunk_index`／`chunk_seed`／`run_index_in_chunk`にあたる。連結後の標本からは
+ * 復元できない —— 期限到達の部分結果があるとチャンクの境界が要求試行数と揃わない。
+ */
+export interface EvaluationRunProvenance {
+  readonly chunkIndex: number;
+  readonly chunkSeed: string;
+  readonly runIndexInChunk: number;
+}
+
 export interface EvaluationAggregate {
-  /** 送信したチャンクの試行数の合計。中断で送らなかったチャンクは数えない。 */
-  readonly requestedRuns: number;
+  /**
+   * 送信したチャンクの試行数の合計。中断で送らなかったチャンクは数えないため、これは
+   * **利用者が入力した実行回数ではない**。要求と実績の差を出す側は、実行回数を持っている
+   * `StatisticsRunProgress.requestedRuns` を使う —— ここを「要求」として読むと、中断した
+   * 実行が「要求どおり完走した」ことになる。
+   */
+  readonly sentRuns: number;
   readonly completedRuns: number;
   readonly catalogRevision: string;
   readonly sample: ExerciseStatisticsSample;
+  /**
+   * 実際に送ったチャンクの最大試行数。実行を再現する鍵はseed単独ではなく
+   * （seed, チャンクサイズ, 実行回数）の3つなので、結果と一緒に残す。
+   */
+  readonly chunkSize: number;
+  /** 試行ごとの出所。`sample`の各配列と同じ添字で同じ試行を指す。 */
+  readonly runs: readonly EvaluationRunProvenance[];
 }
 
 export type EvaluationMergeResult =
@@ -165,10 +188,18 @@ export function mergeEvaluationChunks(
   return {
     ok: true,
     aggregate: {
-      requestedRuns: chunks.reduce((total, chunk) => total + chunk.plan.runs, 0),
+      sentRuns: chunks.reduce((total, chunk) => total + chunk.plan.runs, 0),
       completedRuns: sample.scores.length,
       catalogRevision,
       sample,
+      chunkSize: Math.max(...chunks.map((chunk) => chunk.plan.runs)),
+      runs: chunks.flatMap((chunk) =>
+        chunk.candidate.scores.map((_score, runIndexInChunk) => ({
+          chunkIndex: chunk.plan.index,
+          chunkSeed: chunk.plan.seed,
+          runIndexInChunk,
+        })),
+      ),
     },
   };
 }

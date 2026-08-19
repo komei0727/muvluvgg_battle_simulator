@@ -111,7 +111,7 @@ describe("mergeEvaluationChunks", () => {
     if (!merged.ok) {
       return;
     }
-    expect(merged.aggregate.requestedRuns).toBe(4);
+    expect(merged.aggregate.sentRuns).toBe(4);
     expect(merged.aggregate.completedRuns).toBe(4);
     expect(merged.aggregate.catalogRevision).toBe("rev-1");
     expect(merged.aggregate.sample.scores).toEqual([10, 20, 10, 20]);
@@ -120,6 +120,26 @@ describe("mergeEvaluationChunks", () => {
       [12, 8],
       [6, 4],
       [12, 8],
+    ]);
+  });
+
+  // UI-UT-CSV-001: CSVの`chunk_index`/`chunk_seed`/`run_index_in_chunk`は連結後の
+  // 標本からは復元できない（部分結果があるとチャンク境界が試行数で割り切れない）ため、
+  // 連結と同じ場所で試行ごとに残す。
+  it("records the chunk each run came from in send order", () => {
+    const merged = mergeEvaluationChunks([chunkResult(0, 2), chunkResult(1, 2)]);
+
+    expect(merged.ok).toBe(true);
+    if (!merged.ok) {
+      return;
+    }
+    // 実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）である。
+    expect(merged.aggregate.chunkSize).toBe(2);
+    expect(merged.aggregate.runs).toEqual([
+      { chunkIndex: 0, chunkSeed: "s#0", runIndexInChunk: 0 },
+      { chunkIndex: 0, chunkSeed: "s#0", runIndexInChunk: 1 },
+      { chunkIndex: 1, chunkSeed: "s#2", runIndexInChunk: 0 },
+      { chunkIndex: 1, chunkSeed: "s#2", runIndexInChunk: 1 },
     ]);
   });
 
@@ -140,13 +160,13 @@ describe("mergeEvaluationChunks", () => {
     if (!merged.ok) {
       return;
     }
-    expect(merged.aggregate.requestedRuns).toBe(4);
+    expect(merged.aggregate.sentRuns).toBe(4);
     expect(merged.aggregate.completedRuns).toBe(3);
     expect(merged.aggregate.sample.scores).toEqual([10, 20, 30]);
   });
 
-  // 中断は完了済みチャンクまでで確定する。要求数は送ったチャンクの合計であり、
-  // 送らなかったチャンクは要求にも数えない。
+  // 中断は完了済みチャンクまでで確定する。ここが数えるのは送ったチャンクの合計だけで、
+  // 送らなかったチャンクは入らない（利用者が入力した実行回数はこの値ではない）。
   it("aggregates only the chunks that completed before a cancellation", () => {
     const merged = mergeEvaluationChunks([chunkResult(0, 2)]);
 
@@ -154,7 +174,7 @@ describe("mergeEvaluationChunks", () => {
     if (!merged.ok) {
       return;
     }
-    expect(merged.aggregate.requestedRuns).toBe(2);
+    expect(merged.aggregate.sentRuns).toBe(2);
     expect(merged.aggregate.completedRuns).toBe(2);
   });
 

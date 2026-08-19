@@ -81,6 +81,12 @@ export interface StatisticsRunSubmission {
   readonly allyGearSlotIndices: readonly (readonly number[])[];
   readonly enemyGearSlotIndices: readonly (readonly number[])[];
   /**
+   * 送信した味方編成のユニット定義ID。応答の`allyUnit*`の列と同じ並びであり、列に
+   * 名前を付けられる唯一の材料である。実行後もdraftは編集できるので、表示のたびに
+   * 現在の編成から引くと別のユニット名が列へ付く。
+   */
+  readonly allyUnitDefinitionIds: readonly string[];
+  /**
    * 送信した編成部分のJSON表現。実行回数とシードは結果表示に出ているため含めない ——
    * 画面から読み取れない編成の変化だけをここで見る。
    */
@@ -224,6 +230,7 @@ const EMPTY_SUBMISSION: StatisticsRunSubmission = {
   enemyMemorySlotKeys: [],
   allyGearSlotIndices: [],
   enemyGearSlotIndices: [],
+  allyUnitDefinitionIds: [],
   formationSignature: "",
 };
 
@@ -365,6 +372,9 @@ export function useExerciseStatisticsRun(
             enemyMemorySlotKeys: build.enemyMemorySlotKeys,
             allyGearSlotIndices: build.allyGearSlotIndices,
             enemyGearSlotIndices: build.enemyGearSlotIndices,
+            allyUnitDefinitionIds: (build.request.candidates[0]?.allyFormation.units ?? []).map(
+              (unit) => unit.unitDefinitionId,
+            ),
             formationSignature: evaluationFormationSignature(build.request),
           }
         : EMPTY_SUBMISSION;

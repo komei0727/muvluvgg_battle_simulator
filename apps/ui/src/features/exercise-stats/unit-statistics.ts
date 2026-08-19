@@ -5,7 +5,12 @@
 import { quantileOfSorted } from "./descriptive-statistics.js";
 import type { ExerciseStatisticsSample } from "./types.js";
 
-export interface AllyUnitDamageSummary {
+/**
+ * 1つのユニット列の散らばり。与ダメージとブレイク回数で同じ形にするのは、どちらも
+ * 「試行ごとにこの枠がどれだけ働いたか」の分布であり、同じ図（共通スケールの分布バー）
+ * で読ませるためである。
+ */
+export interface AllyUnitColumnDistribution {
   /** 編成順の列番号。表示名の解決は呼び出し側（Catalog）が持つ。 */
   readonly unitIndex: number;
   readonly mean: number;
@@ -14,21 +19,20 @@ export interface AllyUnitDamageSummary {
   readonly p75: number;
   readonly minimum: number;
   readonly maximum: number;
+}
+
+export interface AllyUnitDamageSummary extends AllyUnitColumnDistribution {
   /** 平均の合計に対する割合。試行ごとの割合の平均ではない。 */
   readonly contribution: number;
 }
 
-export interface AllyUnitBreakRunCounts {
-  readonly none: number;
-  readonly one: number;
-  readonly two: number;
-  readonly threeOrMore: number;
-}
-
-export interface AllyUnitBreakSummary {
-  readonly unitIndex: number;
-  readonly mean: number;
-  readonly runsByBreakCount: AllyUnitBreakRunCounts;
+export interface AllyUnitBreakSummary extends AllyUnitColumnDistribution {
+  /**
+   * この枠が1回もブレイクを起こさなかった試行の割合。分位点だけでは読めない
+   * ——ブレイク回数の共通スケールは20回以上取る枠に合わせて伸びるため、数回しか
+   * 取らない枠の箱は潰れて0との差が見えなくなる。
+   */
+  readonly zeroBreakRatio: number;
 }
 
 export interface AllyUnitBreakStatistics {
@@ -60,28 +64,33 @@ export interface TopRunSummary {
   readonly units: readonly TopRunUnitSummary[];
 }
 
+/** 1列分の散らばり。分位点の定義は一般統計（`quantileOfSorted`）と共有する。 */
+function summarizeColumn(values: readonly number[], unitIndex: number): AllyUnitColumnDistribution {
+  const ordered = [...values].sort((left, right) => left - right);
+  return {
+    unitIndex,
+    mean: mean(values),
+    median: quantileOfSorted(ordered, 0.5),
+    p25: quantileOfSorted(ordered, 0.25),
+    p75: quantileOfSorted(ordered, 0.75),
+    minimum: ordered[0] ?? 0,
+    maximum: ordered.at(-1) ?? 0,
+  };
+}
+
 export function summarizeAllyUnitDamage(
   allyUnitDamageTotals: readonly (readonly number[])[],
 ): readonly AllyUnitDamageSummary[] {
   const columns = readColumns(allyUnitDamageTotals, "ユニット別与ダメージ");
-  const means = columns.map(mean);
-  const totalMean = means.reduce((total, value) => total + value, 0);
+  const distributions = columns.map(summarizeColumn);
+  const totalMean = distributions.reduce((total, column) => total + column.mean, 0);
 
-  return columns.map((values, unitIndex) => {
-    const ordered = [...values].sort((left, right) => left - right);
-    return {
-      unitIndex,
-      mean: means[unitIndex] ?? 0,
-      median: quantileOfSorted(ordered, 0.5),
-      p25: quantileOfSorted(ordered, 0.25),
-      p75: quantileOfSorted(ordered, 0.75),
-      minimum: ordered[0] ?? 0,
-      maximum: ordered.at(-1) ?? 0,
-      // 全ユニットが0ダメージの試行だけが集まると分母が0になる。寄与率を出せない
-      // ことと「寄与していない」ことは同じなので0にする。
-      contribution: totalMean === 0 ? 0 : (means[unitIndex] ?? 0) / totalMean,
-    };
-  });
+  return distributions.map((column) => ({
+    ...column,
+    // 全ユニットが0ダメージの試行だけが集まると分母が0になる。寄与率を出せない
+    // ことと「寄与していない」ことは同じなので0にする。
+    contribution: totalMean === 0 ? 0 : column.mean / totalMean,
+  }));
 }
 
 export function summarizeAllyUnitBreaks(
@@ -100,14 +109,8 @@ export function summarizeAllyUnitBreaks(
 
   return {
     units: columns.map((values, unitIndex) => ({
-      unitIndex,
-      mean: mean(values),
-      runsByBreakCount: {
-        none: values.filter((value) => value === 0).length,
-        one: values.filter((value) => value === 1).length,
-        two: values.filter((value) => value === 2).length,
-        threeOrMore: values.filter((value) => value >= 3).length,
-      },
+      ...summarizeColumn(values, unitIndex),
+      zeroBreakRatio: values.filter((value) => value === 0).length / values.length,
     })),
     unattributedBreakMean: mean(residuals),
   };

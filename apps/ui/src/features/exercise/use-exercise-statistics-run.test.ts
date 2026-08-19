@@ -271,7 +271,10 @@ describe("useExerciseStatisticsRun — partial results and cancellation", () => 
     });
     const { state } = result.current;
     expect(state.status === "cancelled" ? state.aggregate.completedRuns : undefined).toBe(2);
-    expect(state.status === "cancelled" ? state.aggregate.requestedRuns : undefined).toBe(2);
+    // 集約が数えるのは送ったチャンクだけである。利用者が入力した6試行は進捗の側に残り、
+    // 結果表示はそちらを「要求」として出す。
+    expect(state.status === "cancelled" ? state.aggregate.sentRuns : undefined).toBe(2);
+    expect(state.status === "cancelled" ? state.progress.requestedRuns : undefined).toBe(6);
     expect(evaluateImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -544,6 +547,27 @@ describe("useExerciseStatisticsRun — failures", () => {
     expect(state.status === "failed" ? state.submission.allyUnitSlotKeys : undefined).toEqual([
       "ally:FRONT:0",
     ]);
+  });
+
+  // ユニット別集計の列は編成順であり、列に名前を付けられるのは送信時の編成だけである。
+  // 実行後に編成を編集できるため、現在のdraftから引くと別のユニット名が列へ付く。
+  it("keeps the ally unit definition ids of the submitted formation in formation order", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 2, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("succeeded");
+    });
+    const { state } = result.current;
+    expect(
+      state.status === "succeeded" ? state.submission.allyUnitDefinitionIds : undefined,
+    ).toEqual(["UNIT_ALLY"]);
   });
 
   // 応答の`seed`は、送ったチャンクseedがそのまま使われたかを判定できる唯一の材料である

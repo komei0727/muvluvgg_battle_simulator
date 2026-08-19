@@ -1203,3 +1203,159 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
     expect(evaluateImpl).not.toHaveBeenCalled();
   });
 });
+
+// UI-CT-091: Issue #542。統計実行の結果は演習サマリ（Panel 02）とキャラ別統計
+// （Panel 03）を差し替える。単一実行の表示は現行のままにする。
+describe("BattleSimulatorPage — 統計可視化パネル (UI-CT-091)", () => {
+  function statisticsResponse(
+    runs: number,
+    seed: string,
+    catalogRevision = "rev-1",
+  ): TacticalExerciseEvaluationResponse {
+    const indices = Array.from({ length: runs }, (_value, index) => index);
+    return {
+      schemaVersion: 1,
+      catalogRevision,
+      seed,
+      runsPerCandidate: runs,
+      candidates: [
+        {
+          completedRuns: runs,
+          scores: indices.map((index) => 1000 + index * 10),
+          breakCounts: indices.map((index) => index % 3),
+          completedTurns: indices.map(() => 5),
+          completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
+          allyUnitDamageTotals: indices.map((index) => [400 + index]),
+          allyUnitBreakCounts: indices.map((index) => [index % 3]),
+        },
+      ],
+    };
+  }
+
+  async function runStatistics(user: UserEvent, runCount = "40") {
+    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate, seed }) =>
+      Promise.resolve({ ok: true, response: statisticsResponse(runsPerCandidate, seed) }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        evaluateTacticalExerciseImpl={evaluateImpl}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+    await user.clear(screen.getByLabelText("実行回数"));
+    await user.type(screen.getByLabelText("実行回数"), runCount);
+    await user.type(screen.getByLabelText("シード"), "abc");
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+    await screen.findByText(/試行を集計しました/);
+    return evaluateImpl;
+  }
+
+  it("replaces the exercise summary and details panels with the statistics panels", async () => {
+    const user = userEvent.setup();
+    await runStatistics(user);
+
+    expect(screen.getByRole("heading", { name: /演習統計サマリ/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /キャラ別統計/ })).toBeInTheDocument();
+    expect(screen.getByText("完了 RUN").closest("div")).toHaveTextContent("40");
+    // 単一実行の表示（ブレイク履歴・詳細タブ）は統計実行では出ない。
+    expect(screen.queryByRole("heading", { name: /ブレイク履歴/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /イベント/ })).not.toBeInTheDocument();
+  });
+
+  // 列に名前を付けられるのは送信時の編成だけである。
+  it("names the per-unit columns with the submitted formation", async () => {
+    const user = userEvent.setup();
+    await runStatistics(user);
+
+    // 与ダメージ表とブレイク回数表の両方に同じ列が並ぶ。
+    expect(screen.getAllByRole("rowheader", { name: "アルファ" })).toHaveLength(2);
+  });
+
+  // 統計は表示のたびに再計算される。実行後に編成を編集しても、結果は送信時の編成の
+  // ものであり、その旨は`StatisticsRunFeedback`が示す。
+  it("keeps the statistics panels after the formation is edited", async () => {
+    const user = userEvent.setup();
+    await runStatistics(user);
+
+    await placeUnit(user, "ally", "ブラボー", "前衛2");
+
+    expect(await screen.findByText("この結果は変更前の条件です。")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /演習統計サマリ/ })).toBeInTheDocument();
+  });
+
+  // 中断は「完了済みチャンクまでで確定した結果」であり、要求どおり完走したのとは違う。
+  // 集約が持つのは送信したチャンクの合計であって利用者が入力した実行回数ではないため、
+  // それを「要求」として出すと、すぐ上の実行結果（要求600試行）と食い違う。
+  it("keeps the requested run count of the user when the run was cancelled", async () => {
+    const user = userEvent.setup();
+    let call = 0;
+    const evaluateImpl = vi.fn<EvaluateImpl>((request, options) => {
+      call += 1;
+      if (call === 1) {
+        return Promise.resolve({
+          ok: true,
+          response: statisticsResponse(request.runsPerCandidate, request.seed),
+        });
+      }
+      return new Promise((resolve) => {
+        options.signal.addEventListener("abort", () => {
+          resolve({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } });
+        });
+      });
+    });
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        evaluateTacticalExerciseImpl={evaluateImpl}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+    await user.clear(screen.getByLabelText("実行回数"));
+    await user.type(screen.getByLabelText("実行回数"), "600");
+    await user.type(screen.getByLabelText("シード"), "abc");
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+
+    await waitFor(() => {
+      expect(evaluateImpl).toHaveBeenCalledTimes(2);
+    });
+    await user.click(screen.getByRole("button", { name: "中断して結果を見る" }));
+    await screen.findByText(/300試行を集計しました/);
+
+    // 実行結果の要約と統計サマリが同じ「要求」を指す。
+    expect(screen.getByText(/300試行を集計しました/).closest("p")).toHaveTextContent(
+      "要求 600試行",
+    );
+    expect(screen.getByText("完了 RUN").closest("div")).toHaveTextContent("/ 600 要求");
+    expect(screen.getByText(/600試行の要求に対し300試行/)).toBeInTheDocument();
+  });
+
+  it("shows the single-run panels when the mode is a single run", async () => {
+    const user = userEvent.setup();
+    const simulateTacticalExerciseImpl = vi.fn(() =>
+      Promise.resolve({ ok: true as const, response: exerciseResponse() }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateTacticalExerciseImpl={simulateTacticalExerciseImpl}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+
+    expect(await screen.findByRole("heading", { name: /演習サマリ/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /演習統計サマリ/ })).not.toBeInTheDocument();
+  });
+});

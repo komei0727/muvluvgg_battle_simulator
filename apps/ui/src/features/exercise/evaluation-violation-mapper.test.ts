@@ -3,6 +3,7 @@ import { mapEvaluationViolationsToUiViolations } from "./evaluation-violation-ma
 import type { StatisticsRunSubmission } from "./use-exercise-statistics-run.js";
 
 const SUBMISSION: StatisticsRunSubmission = {
+  allyUnitDefinitionIds: ["UNIT_ALLY", "UNIT_ALLY_REAR"],
   allyUnitSlotKeys: ["ally:FRONT:0", "ally:REAR:1"],
   enemyUnitSlotKeys: ["enemy:FRONT:0"],
   allyMemorySlotKeys: ["ally:memory:0"],
