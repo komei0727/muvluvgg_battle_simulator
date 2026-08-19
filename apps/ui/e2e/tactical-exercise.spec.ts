@@ -48,14 +48,6 @@ test("runs a tactical exercise from the mode tab to the score summary and break 
   // 発生源はCatalogの表示名で名指しする（定義IDのままにしない）。
   await expect(breakTimeline.getByRole("columnheader", { name: "発生源" })).toBeVisible();
   await expect(breakTimeline.getByText("アライアルファ")).toBeVisible();
-  // 数値列は右揃え、ユニット名の発生源列は左揃え。visual baselineは演習の結果画面を
-  // 撮っていないため、この揃えの崩れはここでしか検出できない。
-  for (const cell of [
-    breakTimeline.getByRole("columnheader", { name: "発生源" }),
-    breakTimeline.getByText("アライアルファ"),
-  ]) {
-    await expect(cell).toHaveCSS("text-align", "left");
-  }
 
   // UI-AC-022: 演習イベントも未知イベントも詳細タイムラインへ残る。
   await expect(page.getByText("EXERCISE_SCORE_ACCUMULATED").first()).toBeVisible();

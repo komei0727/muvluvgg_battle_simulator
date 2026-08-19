@@ -27,9 +27,7 @@ export function BreakTimeline({ breaks }: BreakTimelineProps) {
                 <th scope="col">BREAK</th>
                 <th scope="col">TURN</th>
                 <th scope="col">累計スコア</th>
-                <th scope="col" className={styles["source"]}>
-                  発生源
-                </th>
+                <th scope="col">発生源</th>
               </tr>
             </thead>
             <tbody>
@@ -38,7 +36,7 @@ export function BreakTimeline({ breaks }: BreakTimelineProps) {
                   <td className={styles["mono"]}>{row.breakNumber}</td>
                   <td className={styles["mono"]}>{row.turnNumber}</td>
                   <td className={styles["mono"]}>{row.cumulativeScoreAtBreak.toLocaleString()}</td>
-                  <td className={styles["source"]}>{row.sourceLabel}</td>
+                  <td>{row.sourceLabel}</td>
                 </tr>
               ))}
             </tbody>
