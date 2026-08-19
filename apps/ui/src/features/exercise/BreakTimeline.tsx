@@ -7,7 +7,7 @@ export interface BreakTimelineProps {
   readonly breaks: readonly ExerciseBreakRow[];
 }
 
-// docs/ui-design/01_UI要求・画面設計.md `UI-UC-006` step 4 / `UI-CMP-012`:
+// docs/ui-design/01_UI要求・画面設計.md `UI-UC-006` step 5 / `UI-CMP-012`:
 // ブレイク番号・発生ターン・その時点の累計スコア・発生源を発生順に出す。0回でも
 // 「起きなかった」ことを明示し、表示自体は成立させる（`UI-AC-021`）。
 export function BreakTimeline({ breaks }: BreakTimelineProps) {
@@ -27,7 +27,9 @@ export function BreakTimeline({ breaks }: BreakTimelineProps) {
                 <th scope="col">BREAK</th>
                 <th scope="col">TURN</th>
                 <th scope="col">累計スコア</th>
-                <th scope="col">発生源</th>
+                <th scope="col" className={styles["source"]}>
+                  発生源
+                </th>
               </tr>
             </thead>
             <tbody>

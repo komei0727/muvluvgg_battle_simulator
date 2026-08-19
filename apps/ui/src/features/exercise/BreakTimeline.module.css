@@ -52,8 +52,10 @@
   border-bottom: 0;
 }
 
-/* 発生源はユニット名であり、数値列と違って左揃えの方が読み比べやすい。 */
-.source {
+/* 発生源はユニット名であり、数値列と違って左揃えの方が読み比べやすい。
+   `.table th`／`.table td`の右揃えより詳細度を高くしないと上書きできない。 */
+.table th.source,
+.table td.source {
   text-align: left;
 }
 
