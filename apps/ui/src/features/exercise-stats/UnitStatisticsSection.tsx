@@ -7,11 +7,8 @@ import {
   TOP_RUN_CHOICES,
   buildUnitStatisticsReport,
 } from "./statistics-report.js";
-import type {
-  AllyUnitLabel,
-  ScoreStatisticsReport,
-  UnitStatisticsRow,
-} from "./statistics-report.js";
+import type { AllyUnitLabel, ScoreStatisticsReport } from "./statistics-report.js";
+import type { AllyUnitColumnDistribution } from "./unit-statistics.js";
 import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
 import styles from "./UnitStatisticsSection.module.css";
 
@@ -22,12 +19,19 @@ export interface UnitStatisticsSectionProps {
   readonly score: ScoreStatisticsReport;
 }
 
+/*
+ * 説明文は文字列として持つ。JSXのテキストは行の折り返しが半角スペースへ潰れるため、
+ * 日本語の長文をそのまま書くと、整形のたびに文中へスペースが入る。
+ */
+const DAMAGE_BAR_HINT =
+  "分布バーは全ユニット共通スケールです。箱 = P25〜P75、白線 = 中央値、横線 = min〜max、◆ = ベスト上位run内の平均。◆が箱の右外にあるユニットほど、上振れがベストスコアを作っています。";
+
+const BREAK_BAR_HINT =
+  "ブレイク回数の分布バーも全ユニット共通スケールです。1試行あたりの総ブレイクは20〜30回に達し、ユニットによって数回と20回以上に分かれるため、回数を少数のバケットへ畳まず分位点で出しています。「0回」はその枠が1回もブレイクを起こさなかった試行の割合で、箱が潰れる低い列でもここから読めます。";
+
 /** 分布バー・内訳バーの座標系。位置はSVG属性、色はCSS Modulesが持つ（CSP）。 */
 const BAR_WIDTH = 300;
 const DISTRIBUTION_HEIGHT = 24;
-const BREAKDOWN_HEIGHT = 20;
-/** 直接%を書き込むセグメントの下限。これ未満は文字が枠からはみ出す。 */
-const BREAKDOWN_LABEL_MIN_SHARE = 0.2;
 /**
  * 分布バーの左右の余白。共通スケールの最大値そのものを描く行では、中央値の線も
  * ◆も図の端に来る。余白なしで描くと半分が切れて位置を読めない。
@@ -52,35 +56,45 @@ function round(value: number): number {
 }
 
 /**
- * 与ダメージの分布バー。全ユニット共通スケール（`damageScaleMax`）で描く —— 行ごとに
- * 伸縮させると、寄与の小さいユニットの箱が最大の列と同じ幅に見える。
+ * 1列分の分布バー（min–P25–中央値–P75–max、◆＝上位N平均）。与ダメージにもブレイク
+ * 回数にも同じ図を使う —— どちらも「試行ごとにこの枠がどれだけ働いたか」の分布であり、
+ * 読み方を分ける理由がない。スケールは列の種類ごとに全ユニット共通で渡す（行ごとに
+ * 伸縮させると、値の小さいユニットの箱が最大の列と同じ幅に見える）。
  */
-function DamageDistributionBar({
-  row,
+function DistributionBar({
+  name,
+  quantity,
+  distribution,
+  topMean,
   scaleMax,
+  format,
 }: {
-  readonly row: UnitStatisticsRow;
+  readonly name: string;
+  readonly quantity: string;
+  readonly distribution: AllyUnitColumnDistribution;
+  readonly topMean: number;
   readonly scaleMax: number;
+  readonly format: (value: number) => string;
 }) {
   const span = BAR_WIDTH - DISTRIBUTION_INSET * 2;
   const toX = (value: number): number =>
     scaleMax === 0 ? DISTRIBUTION_INSET : DISTRIBUTION_INSET + (value / scaleMax) * span;
-  const boxLeft = toX(row.damage.p25);
-  const boxWidth = Math.max(1, toX(row.damage.p75) - boxLeft);
-  const diamond = toX(row.topMeanDamage);
+  const boxLeft = toX(distribution.p25);
+  const boxWidth = Math.max(1, toX(distribution.p75) - boxLeft);
+  const diamond = toX(topMean);
 
   return (
     <svg
       className={styles["bar"]}
       viewBox={`0 0 ${BAR_WIDTH.toString()} ${DISTRIBUTION_HEIGHT.toString()}`}
       role="img"
-      aria-label={`${row.label.displayName}の与ダメージ分布。最小${formatAmount(row.damage.minimum)}、P25 ${formatAmount(row.damage.p25)}、中央値${formatAmount(row.damage.median)}、P75 ${formatAmount(row.damage.p75)}、最大${formatAmount(row.damage.maximum)}、上位run平均${formatAmount(row.topMeanDamage)}。`}
+      aria-label={`${name}の${quantity}分布。最小${format(distribution.minimum)}、P25 ${format(distribution.p25)}、中央値${format(distribution.median)}、P75 ${format(distribution.p75)}、最大${format(distribution.maximum)}、上位run平均${format(topMean)}。`}
     >
       <line
         className={styles["range"]}
-        x1={round(toX(row.damage.minimum))}
+        x1={round(toX(distribution.minimum))}
         y1="12"
-        x2={round(toX(row.damage.maximum))}
+        x2={round(toX(distribution.maximum))}
         y2="12"
       />
       <rect
@@ -93,78 +107,15 @@ function DamageDistributionBar({
       />
       <line
         className={styles["median"]}
-        x1={round(toX(row.damage.median))}
+        x1={round(toX(distribution.median))}
         y1="3"
-        x2={round(toX(row.damage.median))}
+        x2={round(toX(distribution.median))}
         y2="21"
       />
       <polygon
         className={styles["topMarker"]}
         points={`${round(diamond).toString()},4 ${round(diamond + 7).toString()},12 ${round(diamond).toString()},20 ${round(diamond - 7).toString()},12`}
       />
-    </svg>
-  );
-}
-
-/**
- * runあたりのブレイク回数の内訳。0回→3回以上を1色の濃淡で並べる（順序のある量なので
- * 色相を変えない）。大きいセグメントにだけ割合を直接置く。
- */
-function BreakBreakdownBar({
-  row,
-  totalRuns,
-}: {
-  readonly row: UnitStatisticsRow;
-  readonly totalRuns: number;
-}) {
-  const segments = [
-    { key: "share0", label: "0回", runs: row.breaks.runsByBreakCount.none },
-    { key: "share1", label: "1回", runs: row.breaks.runsByBreakCount.one },
-    { key: "share2", label: "2回", runs: row.breaks.runsByBreakCount.two },
-    { key: "share3", label: "3回以上", runs: row.breaks.runsByBreakCount.threeOrMore },
-  ];
-
-  let offset = 0;
-  return (
-    <svg
-      className={styles["bar"]}
-      viewBox={`0 0 ${BAR_WIDTH.toString()} ${BREAKDOWN_HEIGHT.toString()}`}
-      role="img"
-      aria-label={`${row.label.displayName}のrunあたりブレイク回数の内訳。${segments
-        .map((segment) => `${segment.label} ${((segment.runs / totalRuns) * 100).toFixed(1)}%`)
-        .join("、")}。`}
-    >
-      {segments.map((segment) => {
-        const share = totalRuns === 0 ? 0 : segment.runs / totalRuns;
-        const width = share * BAR_WIDTH;
-        const x = offset;
-        offset += width;
-        if (width <= 0) {
-          return null;
-        }
-        return (
-          <g key={segment.key}>
-            <rect
-              className={`${styles["barSegment"]} ${styles[segment.key] ?? ""}`}
-              x={round(x)}
-              y="4"
-              width={round(width)}
-              height="12"
-              rx="2"
-            />
-            {share >= BREAKDOWN_LABEL_MIN_SHARE ? (
-              <text
-                className={styles["segmentLabel"]}
-                x={round(x + width / 2)}
-                y="14"
-                textAnchor="middle"
-              >
-                {`${(share * 100).toFixed(0)}%`}
-              </text>
-            ) : null}
-          </g>
-        );
-      })}
     </svg>
   );
 }
@@ -232,10 +183,9 @@ export function UnitStatisticsSection({ aggregate, labels, score }: UnitStatisti
         </div>
       </fieldset>
       <p className={styles["hint"]}>
-        全{score.completedRuns.toLocaleString()}run中、スコア上位
-        {report.requestedTopN.toLocaleString()}runの平均スコア:{" "}
-        <b>{formatAmount(report.topMeanScore)}</b>（全体平均{" "}
-        {formatSignedPercent(report.topMeanScoreRatio)}）
+        {`全${score.completedRuns.toLocaleString()}run中、スコア上位${report.requestedTopN.toLocaleString()}runの平均スコア: `}
+        <b>{formatAmount(report.topMeanScore)}</b>
+        {`（全体平均 ${formatSignedPercent(report.topMeanScoreRatio)}）`}
         {/* 試行数がNに満たないときは要求Nのまま実数を添える。上位50runと書いたまま
             全試行の平均を出すと、差が0になった理由が読めない。 */}
         {report.topRuns < report.requestedTopN
@@ -276,17 +226,21 @@ export function UnitStatisticsSection({ aggregate, labels, score }: UnitStatisti
                   </span>
                 </td>
                 <td className={styles["barCell"]}>
-                  <DamageDistributionBar row={row} scaleMax={report.damageScaleMax} />
+                  <DistributionBar
+                    name={row.label.displayName}
+                    quantity="与ダメージ"
+                    distribution={row.damage}
+                    topMean={row.topMeanDamage}
+                    scaleMax={report.damageScaleMax}
+                    format={formatAmount}
+                  />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className={styles["hint"]}>
-        分布バーは全ユニット共通スケールです。箱 = P25〜P75、白線 = 中央値、横線 = min〜max、◆ =
-        ベスト上位run内の平均。◆が箱の右外にあるユニットほど、上振れが ベストスコアを作っています。
-      </p>
+      <p className={styles["hint"]}>{DAMAGE_BAR_HINT}</p>
 
       <h3 className={styles["blockTitle"]}>
         ユニット別ブレイク回数 — 分布と、ベスト上位平均との比較
@@ -299,7 +253,7 @@ export function UnitStatisticsSection({ aggregate, labels, score }: UnitStatisti
               <th scope="col">ユニット</th>
               <th scope="col">平均（全run）</th>
               <th scope="col">上位{report.requestedTopN}平均</th>
-              <th scope="col">runごとのブレイク回数の内訳（0回 → 3回以上）</th>
+              <th scope="col">分布（min – P25 – 中央値 – P75 – max ／ ◆ = 上位平均）</th>
             </tr>
           </thead>
           <tbody>
@@ -308,40 +262,36 @@ export function UnitStatisticsSection({ aggregate, labels, score }: UnitStatisti
                 <th scope="row" className={styles["name"]}>
                   {row.label.displayName}
                 </th>
-                <td>{formatMean(row.breaks.mean)}</td>
+                <td>
+                  {formatMean(row.breaks.mean)}
+                  {/* 共通スケールは20回以上取る枠に合わせて伸びるため、数回しか取らない枠の
+                      箱は潰れて0との差が見えなくなる。関与しなかった試行の割合は数値で出す。 */}
+                  <span className={styles["share"]}>
+                    {" "}
+                    0回 {(row.breaks.zeroBreakRatio * 100).toFixed(1)}%
+                  </span>
+                </td>
                 <td className={styles["topValue"]}>{formatMean(row.topMeanBreakCount)}</td>
                 <td className={styles["barCell"]}>
-                  <BreakBreakdownBar row={row} totalRuns={score.completedRuns} />
+                  <DistributionBar
+                    name={row.label.displayName}
+                    quantity="ブレイク回数"
+                    distribution={row.breaks}
+                    topMean={row.topMeanBreakCount}
+                    scaleMax={report.breakScaleMax}
+                    format={formatMean}
+                  />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <ul className={styles["legendRow"]}>
-        <li>
-          <span className={`${styles["swatch"]} ${styles["swatch0"]}`} />
-          0回
-        </li>
-        <li>
-          <span className={`${styles["swatch"]} ${styles["swatch1"]}`} />
-          1回
-        </li>
-        <li>
-          <span className={`${styles["swatch"]} ${styles["swatch2"]}`} />
-          2回
-        </li>
-        <li>
-          <span className={`${styles["swatch"]} ${styles["swatch3"]}`} />
-          3回以上
-        </li>
-      </ul>
+      <p className={styles["hint"]}>{BREAK_BAR_HINT}</p>
       {/* 残差には発生源ユニットを持たないブレイク（R-MEM-04）と、敵の枠自身が起こした
           ブレイク（R-CFS-01）の両方が入る。起源を一つに断定しない。 */}
       <p className={styles["hint"]}>
-        ユニット平均の合計 {formatMean(report.unitBreakMeanTotal)} ＋ 味方の枠に帰属しない ブレイク{" "}
-        {formatMean(report.unattributedBreakMean)} = 全体平均 {formatMean(report.breakMean)}
-        。帰属しない分にはメモリー効果の継続ダメージと、敵の 枠自身が起こしたブレイクが含まれます。
+        {`ユニット平均の合計 ${formatMean(report.unitBreakMeanTotal)} ＋ 味方の枠に帰属しないブレイク ${formatMean(report.unattributedBreakMean)} = 全体平均 ${formatMean(report.breakMean)}。帰属しない分にはメモリー効果の継続ダメージと、敵の枠自身が起こしたブレイクが含まれます。`}
       </p>
 
       <div className={styles["exportRow"]}>

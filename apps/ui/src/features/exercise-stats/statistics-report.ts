@@ -82,8 +82,12 @@ export interface UnitStatisticsReport {
   readonly topMeanScoreDelta: number;
   readonly topMeanScoreRatio: number;
   readonly rows: readonly UnitStatisticsRow[];
-  /** 分布バーの共通スケール。行ごとに伸縮させると寄与の差が読めなくなる。 */
+  /**
+   * 分布バーの共通スケール。行ごとに伸縮させると寄与の差が読めなくなる。与ダメージと
+   * ブレイク回数は桁が違うので、同じ図に載せず別々のスケールで描く。
+   */
   readonly damageScaleMax: number;
+  readonly breakScaleMax: number;
   readonly breakMean: number;
   readonly unitBreakMeanTotal: number;
   readonly unattributedBreakMean: number;
@@ -218,6 +222,11 @@ export function buildUnitStatisticsReport(
       0,
       ...rows.map((row) => row.damage.maximum),
       ...rows.map((row) => row.topMeanDamage),
+    ),
+    breakScaleMax: Math.max(
+      0,
+      ...rows.map((row) => row.breaks.maximum),
+      ...rows.map((row) => row.topMeanBreakCount),
     ),
     breakMean,
     unitBreakMeanTotal: breaks.units.reduce((total, unit) => total + unit.mean, 0),

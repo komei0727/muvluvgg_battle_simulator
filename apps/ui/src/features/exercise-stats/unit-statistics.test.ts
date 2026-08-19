@@ -95,31 +95,58 @@ describe("summarizeAllyUnitDamage (UI-UT-STS-011)", () => {
 // UI-UT-STS-012: `allyUnitBreakCounts`が数えるのは味方の枠が起こしたブレイクだけで、
 // `breakCounts`との差は発生源ユニットを持たないブレイク（R-MEM-04）と敵の自傷
 // （R-CFS-01）の混在値である（`10_API設計.md`）。起源を断定せず残差として出す。
+//
+// ブレイク回数は与ダメージと同じ分位点の要約で返す。1試行あたりの総ブレイクが20〜30に
+// 達し、しかもユニットによって1〜2回と20回以上に分かれるため、回数を少数のバケットへ
+// 畳むと差が消える。
 describe("summarizeAllyUnitBreaks (UI-UT-STS-012)", () => {
-  it("averages each unit's breaks and bins the per-run counts", () => {
+  it("summarizes each unit column with the same quantiles as the damage columns", () => {
     const summary = summarizeAllyUnitBreaks(BREAK_COUNTS_BY_UNIT, [1, 4, 2, 1]);
 
     expect(summary.units[0]).toEqual({
       unitIndex: 0,
       mean: 0.75,
-      runsByBreakCount: { none: 2, one: 1, two: 1, threeOrMore: 0 },
+      median: 0.5,
+      p25: 0,
+      p75: 1.25,
+      minimum: 0,
+      maximum: 2,
+      zeroBreakRatio: 0.5,
     });
-    expect(summary.units[1]).toEqual({
-      unitIndex: 1,
-      mean: 0.75,
-      runsByBreakCount: { none: 1, one: 3, two: 0, threeOrMore: 0 },
-    });
+    expect(summary.units[1]?.mean).toBe(0.75);
+    expect(summary.units[1]?.maximum).toBe(1);
+    expect(summary.units[1]?.zeroBreakRatio).toBe(0.25);
   });
 
-  it("bins four or more breaks into the same bucket as three", () => {
-    const summary = summarizeAllyUnitBreaks([[3], [7]], [3, 7]);
+  // 分位点は範囲の広い列（20回以上ブレイクするユニット）でも潰れない。バケットに
+  // 畳んでいた頃はこの列がすべて「3回以上」の1本になっていた。
+  it("keeps the spread of a column that breaks far more than the others", () => {
+    const summary = summarizeAllyUnitBreaks(
+      [
+        [18, 1],
+        [24, 0],
+        [21, 2],
+        [31, 1],
+      ],
+      [19, 24, 23, 32],
+    );
 
-    expect(summary.units[0]?.runsByBreakCount).toEqual({
-      none: 0,
-      one: 0,
-      two: 0,
-      threeOrMore: 2,
+    expect(summary.units[0]).toMatchObject({
+      minimum: 18,
+      p25: 20.25,
+      median: 22.5,
+      p75: 25.75,
+      maximum: 31,
     });
+    expect(summary.units[0]?.zeroBreakRatio).toBe(0);
+  });
+
+  // 分位点だけでは「この枠が1回も関与しなかった試行がどれくらいあるか」が読めない。
+  // 共通スケールでは低い列の箱が潰れるため、割合として別に持つ。
+  it("reports how often a unit caused no break at all", () => {
+    const summary = summarizeAllyUnitBreaks([[0], [0], [0], [5]], [0, 0, 0, 5]);
+
+    expect(summary.units[0]?.zeroBreakRatio).toBe(0.75);
   });
 
   it("averages the breaks no ally slot caused, without attributing them to one origin", () => {

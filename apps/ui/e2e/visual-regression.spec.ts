@@ -98,6 +98,11 @@ test("desktop (1440x900) statistics result screen matches the visual baseline @v
   const enemy = page.getByRole("region", { name: /ENEMY FORMATION/ });
   await ally.getByRole("button", { name: "前衛1にユニットを追加" }).click();
   await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  // 2枠置くのは、キャラ別統計の共通スケールと、同じ定義を複数枠へ置いたときの列名
+  // （`#1`／`#2`）の両方をbaselineへ写すためである。mockは1体目だけが1試行あたり
+  // 18〜22回ブレイクする標本を返すので、枠ごとの偏りも図に出る。
+  await ally.getByRole("button", { name: "前衛2にユニットを追加" }).click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
   await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
   await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
   await page.getByLabel("実行モード").selectOption("STATISTICS");

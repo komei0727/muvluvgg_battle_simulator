@@ -179,8 +179,9 @@ export function ScoreDistributionChart({
         </li>
         <li>
           <span className={`${styles["swatch"]} ${styles["lineSwatch"]}`} />
-          日次ベスト（{bestOf}回中の最大）の分布 — 経験分布 F(x)
-          <sup>{bestOf}</sup> から導出
+          {`日次ベスト（${bestOf.toString()}回中の最大）の分布 — 経験分布 F(x)`}
+          <sup>{bestOf}</sup>
+          {" から導出"}
         </li>
       </ul>
 

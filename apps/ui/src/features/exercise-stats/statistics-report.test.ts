@@ -167,15 +167,18 @@ describe("buildUnitStatisticsReport", () => {
     expect(first?.topMeanDamage).toBe(250);
     expect(first?.topMeanDamageRatio).toBeCloseTo(250 / 175 - 1);
     expect(first?.breaks.mean).toBe(1.75);
+    expect(first?.breaks.maximum).toBe(3);
     expect(first?.topMeanBreakCount).toBe(2.5);
   });
 
   // 分布バーは全ユニット共通スケール。行ごとに伸縮すると、寄与の小さいユニットの
-  // 箱が最大の列と同じ幅に見える。
-  it("exposes one damage scale shared by every row", () => {
+  // 箱が最大の列と同じ幅に見える。与ダメージとブレイク回数は桁が違うので、
+  // スケールは別々に持つ。
+  it("exposes one damage scale and one break scale shared by every row", () => {
     const report = buildUnitStatisticsReport(aggregate(), labels, 2);
 
     expect(report.damageScaleMax).toBe(300);
+    expect(report.breakScaleMax).toBe(3);
   });
 
   // メモリー由来の継続ダメージ（R-MEM-04）と敵の枠自身のブレイク（R-CFS-01）は

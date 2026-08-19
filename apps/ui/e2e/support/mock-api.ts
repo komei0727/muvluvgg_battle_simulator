@@ -78,6 +78,12 @@ export interface EvaluationRequestRecord {
   readonly runsPerCandidate: number;
 }
 
+interface EvaluationRequestBody extends EvaluationRequestRecord {
+  readonly candidates: readonly {
+    readonly allyFormation: { readonly units: readonly unknown[] };
+  }[];
+}
+
 /**
  * 一括評価POST（`POST /api/v1/tactical-exercise-evaluations`）をmockし、届いた
  * チャンクを記録する。統計実行は分割送信そのものが仕様なので、E2Eでも「何回・
@@ -88,10 +94,19 @@ export async function mockTacticalExerciseEvaluation(
   records: EvaluationRequestRecord[],
 ): Promise<void> {
   await page.route(TACTICAL_EXERCISE_EVALUATION_URL, async (route) => {
-    const body = route.request().postDataJSON() as EvaluationRequestRecord;
+    const body = route.request().postDataJSON() as EvaluationRequestBody;
     records.push({ seed: body.seed, runsPerCandidate: body.runsPerCandidate });
     const runs = body.runsPerCandidate;
     const indices = Array.from({ length: runs }, (_value, index) => index);
+    // 列数はリクエストの味方編成から決める。固定長で返すと、2体編成のE2Eが
+    // 「応答の列が編成より少ない」契約違反の経路を通ってしまう。
+    const unitCount = Math.max(1, body.candidates[0]?.allyFormation.units.length ?? 1);
+    const unitIndices = Array.from({ length: unitCount }, (_value, index) => index);
+    // 1体目は1試行あたり18〜22回ブレイクし、以降の枠は0〜2回に留まる。実際の演習の
+    // 桁（総ブレイク20〜30）と、枠ごとの偏りの両方を再現する。
+    const unitBreaks = (runIndex: number, unitIndex: number): number =>
+      unitIndex === 0 ? 18 + (runIndex % 5) : (runIndex + unitIndex) % 3;
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -107,11 +122,19 @@ export async function mockTacticalExerciseEvaluation(
           {
             completedRuns: runs,
             scores: indices.map((index) => 1000 + index),
-            breakCounts: indices.map(() => 1),
+            breakCounts: indices.map((index) =>
+              // 味方の枠が起こした分に、発生源ユニットを持たないブレイク（R-MEM-04）
+              // を2回足す。脚注の残差が0にならないようにする。
+              unitIndices.reduce((total, unitIndex) => total + unitBreaks(index, unitIndex), 2),
+            ),
             completedTurns: indices.map(() => 5),
             completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
-            allyUnitDamageTotals: indices.map(() => [500]),
-            allyUnitBreakCounts: indices.map(() => [1]),
+            allyUnitDamageTotals: indices.map((index) =>
+              unitIndices.map((unitIndex) => 500 + index - unitIndex * 120),
+            ),
+            allyUnitBreakCounts: indices.map((index) =>
+              unitIndices.map((unitIndex) => unitBreaks(index, unitIndex)),
+            ),
           },
         ],
       }),

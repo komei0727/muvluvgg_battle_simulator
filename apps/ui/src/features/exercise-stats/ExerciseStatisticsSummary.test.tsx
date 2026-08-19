@@ -111,6 +111,34 @@ describe("ExerciseStatisticsSummary", () => {
     expect(screen.getByText("CATALOG REVISION").closest("div")).toHaveTextContent("rev-1");
   });
 
+  // 1試行あたりの総ブレイクが20〜30に達すると、回数ごとの棒が15本以上並ぶ。目盛りを
+  // 全部の棒へ付けると文字が重なって読めなくなるため、間引いて両端は必ず残す。
+  it("thins the tick labels when many distinct break counts appear", () => {
+    const wide = aggregate(100, {
+      sample: {
+        ...aggregate(100).sample,
+        breakCounts: Array.from({ length: 100 }, (_value, index) => 18 + (index % 15)),
+      },
+    });
+    const { container } = renderSummary(wide);
+
+    const chart = container.querySelector("svg[aria-label*='ブレイク回数']");
+    expect(chart?.querySelectorAll("rect")).toHaveLength(15);
+    const ticks = [...(chart?.querySelectorAll("text") ?? [])].map((node) => node.textContent);
+    expect(ticks).toContain("18");
+    expect(ticks).toContain("32");
+    expect(ticks.length).toBeLessThan(15);
+  });
+
+  // 間引きは必要なときだけにする。棒が少ないうちは全部の回数に目盛りを付ける。
+  it("labels every bar while the distinct break counts stay few", () => {
+    const { container } = renderSummary(aggregate(100));
+
+    const chart = container.querySelector("svg[aria-label*='ブレイク回数']");
+    const ticks = [...(chart?.querySelectorAll("text") ?? [])].map((node) => node.textContent);
+    expect(ticks).toEqual(expect.arrayContaining(["0", "1", "2", "3"]));
+  });
+
   it("draws without any inline style attribute", () => {
     const { container } = renderSummary(aggregate(100));
 

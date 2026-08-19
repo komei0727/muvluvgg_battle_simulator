@@ -21,11 +21,13 @@ function aggregate(runs = 40): EvaluationAggregate {
     })),
     sample: {
       scores: indices.map((index) => 1000 + index * 100),
-      breakCounts: indices.map((index) => (index < 10 ? 1 : 3)),
+      // 1体目は20回台のブレイクを取り、2体目は0〜2回に留まる。1試行あたりの総ブレイクは
+      // 20〜30に達するので、少数のバケットへ畳むとこの差が消える。
+      breakCounts: indices.map((index) => 22 + (index % 5)),
       completedTurns: indices.map(() => 5),
       completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
       allyUnitDamageTotals: indices.map((index) => [100 + index * 10, 200]),
-      allyUnitBreakCounts: indices.map((index) => [index < 10 ? 0 : 2, 0]),
+      allyUnitBreakCounts: indices.map((index) => [18 + (index % 5), index % 2]),
     },
   };
 }
@@ -113,10 +115,32 @@ describe("UnitStatisticsSection", () => {
   it("footnotes the break mean that no ally column accounts for", () => {
     renderSection();
 
-    // ユニット合計 1.50、全体平均 2.50 → 残差 1.00。
-    expect(screen.getByText(/ユニット平均の合計/)).toHaveTextContent("1.50");
-    expect(screen.getByText(/ユニット平均の合計/)).toHaveTextContent("1.00");
-    expect(screen.getByText(/ユニット平均の合計/)).toHaveTextContent("2.50");
+    // ユニット合計 20.00 + 0.50、全体平均 24.00 → 残差 3.50。
+    const footnote = screen.getByText(/ユニット平均の合計/);
+    expect(footnote).toHaveTextContent("20.50");
+    expect(footnote).toHaveTextContent("3.50");
+    expect(footnote).toHaveTextContent("24.00");
+  });
+
+  // ブレイク回数は与ダメージと同じ分位点の分布バーで出す。1試行あたり20〜30回に達し、
+  // ユニットによって1〜2回と20回以上に分かれるため、0/1/2/3+のバケットでは差が消える。
+  it("shows the break spread as a quantile distribution, not a fixed set of buckets", () => {
+    renderSection();
+
+    const bar = within(breakTable()).getByRole("img", { name: /UNIT_KOTOHAのブレイク回数分布/ });
+    expect(bar).toHaveAccessibleName(/最小18/);
+    expect(bar).toHaveAccessibleName(/最大22/);
+    expect(screen.queryByText("3回以上")).not.toBeInTheDocument();
+  });
+
+  // 共通スケールは20回以上取る枠に合わせて伸びるため、数回しか取らない枠の箱は潰れる。
+  // 「この枠が1回も関与しなかった試行の割合」は数値として別に出す。
+  it("shows how often each unit caused no break at all", () => {
+    renderSection();
+
+    const row = within(breakTable()).getByRole("row", { name: /UNIT_SHIRANA/ });
+    // 2体目は index % 2 === 0 の試行、つまり40runの半分で0回。
+    expect(row).toHaveTextContent("0回 50.0%");
   });
 
   it("draws the distribution bars without any inline style attribute", () => {

@@ -49,6 +49,11 @@ const BREAK_VIEW_WIDTH = 320;
 const BREAK_VIEW_HEIGHT = 120;
 const BREAK_BASELINE = 96;
 const BREAK_TOP = 16;
+/**
+ * 目盛りを付ける本数の上限。1試行あたりの総ブレイクが20〜30に達すると回数ごとの棒が
+ * 15本以上並び、全部に数字を置くと重なって読めない。間引いても両端は必ず残す。
+ */
+const BREAK_TICK_LIMIT = 8;
 
 function BreakCountChart({
   summary,
@@ -64,6 +69,10 @@ function BreakCountChart({
     (highest, share) => (share.runs > highest.runs ? share : highest),
     summary.distribution[0] ?? { breakCount: 0, runs: 0 },
   );
+  const tickStep = Math.ceil(summary.distribution.length / BREAK_TICK_LIMIT);
+  const lastIndex = summary.distribution.length - 1;
+  const showsTick = (index: number): boolean =>
+    index === 0 || index === lastIndex || index % tickStep === 0;
 
   return (
     <>
@@ -94,14 +103,16 @@ function BreakCountChart({
                   height={Math.round(height)}
                   rx="2"
                 />
-                <text
-                  className={styles["tick"]}
-                  x={Math.round(center)}
-                  y={BREAK_BASELINE + 14}
-                  textAnchor="middle"
-                >
-                  {share.breakCount}
-                </text>
+                {showsTick(index) ? (
+                  <text
+                    className={styles["tick"]}
+                    x={Math.round(center)}
+                    y={BREAK_BASELINE + 14}
+                    textAnchor="middle"
+                  >
+                    {share.breakCount}
+                  </text>
+                ) : null}
                 {share.breakCount === tallest.breakCount ? (
                   <text
                     className={styles["tick"]}
@@ -162,9 +173,7 @@ export function ExerciseStatisticsSummary({ report }: ExerciseStatisticsSummaryP
           出さないと「要求どおり終わった」結果として読まれる。 */}
       {report.partial ? (
         <p className={styles["partial"]}>
-          部分結果です。{report.requestedRuns.toLocaleString()}試行の要求に対し
-          {report.completedRuns.toLocaleString()}試行が集計へ入りました。統計はこの
-          {report.completedRuns.toLocaleString()}試行から出しています。
+          {`部分結果です。${report.requestedRuns.toLocaleString()}試行の要求に対し${report.completedRuns.toLocaleString()}試行が集計へ入りました。統計はこの${report.completedRuns.toLocaleString()}試行から出しています。`}
         </p>
       ) : null}
 
@@ -224,8 +233,7 @@ export function ExerciseStatisticsSummary({ report }: ExerciseStatisticsSummaryP
           になる。下限未満の値は上位数試行に引きずられている。 */}
       {dailyBest.reliable ? null : (
         <p className={styles["warning"]}>
-          有効サンプルが{MIN_RELIABLE_EFFECTIVE_SAMPLES}未満です。日次ベスト指標は
-          上位わずかな試行に左右されるため、実行回数を増やしてください。
+          {`有効サンプルが${MIN_RELIABLE_EFFECTIVE_SAMPLES.toString()}未満です。日次ベスト指標は上位わずかな試行に左右されるため、実行回数を増やしてください。`}
         </p>
       )}
 
