@@ -9,7 +9,7 @@ import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
 
 function aggregate(): EvaluationAggregate {
   return {
-    requestedRuns: 4,
+    sentRuns: 4,
     completedRuns: 3,
     catalogRevision: "rev-1",
     chunkSize: 2,
@@ -70,7 +70,10 @@ describe("buildRunsCsv", () => {
 // UI-UT-CSV-003: 統計サマリJSONはexercise-labの`summary.json`と同じ再現条件・同じ
 // キーを持ち、UIだけが持つ日次ベスト指標とユニット別統計を足す。
 describe("buildStatisticsSummaryJson", () => {
-  const score = buildScoreStatisticsReport(aggregate(), "my seed,x");
+  const score = buildScoreStatisticsReport(aggregate(), {
+    seed: "my seed,x",
+    requestedRuns: 4,
+  });
   const units = buildUnitStatisticsReport(aggregate(), labels, 2);
   const summary = JSON.parse(buildStatisticsSummaryJson(score, units)) as Record<string, unknown>;
 
@@ -79,6 +82,7 @@ describe("buildStatisticsSummaryJson", () => {
     expect(summary["chunkSize"]).toBe(2);
     expect(summary["catalogRevision"]).toBe("rev-1");
     expect(summary["requestedRuns"]).toBe(4);
+    expect(summary["sentRuns"]).toBe(4);
     expect(summary["completedRuns"]).toBe(3);
     expect(summary["partial"]).toBe(true);
   });

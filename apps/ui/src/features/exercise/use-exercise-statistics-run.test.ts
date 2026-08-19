@@ -271,7 +271,10 @@ describe("useExerciseStatisticsRun — partial results and cancellation", () => 
     });
     const { state } = result.current;
     expect(state.status === "cancelled" ? state.aggregate.completedRuns : undefined).toBe(2);
-    expect(state.status === "cancelled" ? state.aggregate.requestedRuns : undefined).toBe(2);
+    // 集約が数えるのは送ったチャンクだけである。利用者が入力した6試行は進捗の側に残り、
+    // 結果表示はそちらを「要求」として出す。
+    expect(state.status === "cancelled" ? state.aggregate.sentRuns : undefined).toBe(2);
+    expect(state.status === "cancelled" ? state.progress.requestedRuns : undefined).toBe(6);
     expect(evaluateImpl).toHaveBeenCalledTimes(2);
   });
 

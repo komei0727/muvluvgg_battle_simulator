@@ -88,8 +88,13 @@ export interface EvaluationRunProvenance {
 }
 
 export interface EvaluationAggregate {
-  /** 送信したチャンクの試行数の合計。中断で送らなかったチャンクは数えない。 */
-  readonly requestedRuns: number;
+  /**
+   * 送信したチャンクの試行数の合計。中断で送らなかったチャンクは数えないため、これは
+   * **利用者が入力した実行回数ではない**。要求と実績の差を出す側は、実行回数を持っている
+   * `StatisticsRunProgress.requestedRuns` を使う —— ここを「要求」として読むと、中断した
+   * 実行が「要求どおり完走した」ことになる。
+   */
+  readonly sentRuns: number;
   readonly completedRuns: number;
   readonly catalogRevision: string;
   readonly sample: ExerciseStatisticsSample;
@@ -183,7 +188,7 @@ export function mergeEvaluationChunks(
   return {
     ok: true,
     aggregate: {
-      requestedRuns: chunks.reduce((total, chunk) => total + chunk.plan.runs, 0),
+      sentRuns: chunks.reduce((total, chunk) => total + chunk.plan.runs, 0),
       completedRuns: sample.scores.length,
       catalogRevision,
       sample,

@@ -10,7 +10,7 @@ import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
 function aggregate(runs = 40): EvaluationAggregate {
   const indices = Array.from({ length: runs }, (_value, index) => index);
   return {
-    requestedRuns: runs,
+    sentRuns: runs,
     completedRuns: runs,
     catalogRevision: "rev-1",
     chunkSize: 300,
@@ -39,7 +39,10 @@ function renderSection(evaluation = aggregate()) {
     <UnitStatisticsSection
       aggregate={evaluation}
       labels={labels}
-      score={buildScoreStatisticsReport(evaluation, "seed-1")}
+      score={buildScoreStatisticsReport(evaluation, {
+        seed: "seed-1",
+        requestedRuns: evaluation.sentRuns,
+      })}
     />,
   );
 }

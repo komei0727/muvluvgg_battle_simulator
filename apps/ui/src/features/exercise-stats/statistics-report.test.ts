@@ -11,10 +11,10 @@ import type { BattleSimulationCatalogResponse } from "../simulation/api-contract
 function aggregate(overrides: Partial<EvaluationAggregate> = {}): EvaluationAggregate {
   const scores = [100, 300, 200, 400];
   return {
-    requestedRuns: 4,
     completedRuns: 4,
     catalogRevision: "rev-1",
     chunkSize: 4,
+    sentRuns: 4,
     runs: scores.map((_score, index) => ({
       chunkIndex: 0,
       chunkSeed: "seed#0",
@@ -89,7 +89,7 @@ describe("resolveAllyUnitLabels", () => {
 // 「どの試行数を要求し、何試行が集計へ入ったか」という再現条件の対応づけだけである。
 describe("buildScoreStatisticsReport", () => {
   it("summarizes the sample and carries the reproduction conditions", () => {
-    const report = buildScoreStatisticsReport(aggregate(), "seed-1");
+    const report = buildScoreStatisticsReport(aggregate(), { seed: "seed-1", requestedRuns: 4 });
 
     expect(report.seed).toBe("seed-1");
     expect(report.catalogRevision).toBe("rev-1");
@@ -107,16 +107,30 @@ describe("buildScoreStatisticsReport", () => {
   // 統計は`completedRuns`ではなく配列長から出る。要求との差はそのまま部分結果として
   // 示すため、要求数へ丸めない。
   it("marks a sample shorter than the requested runs as partial", () => {
-    const report = buildScoreStatisticsReport(aggregate({ requestedRuns: 10 }), "seed-1");
+    const report = buildScoreStatisticsReport(aggregate(), { seed: "seed-1", requestedRuns: 10 });
 
     expect(report.requestedRuns).toBe(10);
     expect(report.completedRuns).toBe(4);
     expect(report.partial).toBe(true);
   });
 
+  // 中断すると、送らなかったチャンクの分だけ集約の`sentRuns`が要求を下回る。要求として
+  // `sentRuns`を読むと「要求どおり完走した」ことになってしまう。
+  it("keeps the requested runs of the user apart from the runs actually sent", () => {
+    const cancelled = buildScoreStatisticsReport(aggregate({ sentRuns: 4 }), {
+      seed: "seed-1",
+      requestedRuns: 12,
+    });
+
+    expect(cancelled.requestedRuns).toBe(12);
+    expect(cancelled.sentRuns).toBe(4);
+    expect(cancelled.completedRuns).toBe(4);
+    expect(cancelled.partial).toBe(true);
+  });
+
   // 有効サンプルが下限未満の実行は、値そのものを読ませてはいけない。
   it("reports the daily best metrics as unreliable for a small sample", () => {
-    const report = buildScoreStatisticsReport(aggregate(), "seed-1");
+    const report = buildScoreStatisticsReport(aggregate(), { seed: "seed-1", requestedRuns: 4 });
 
     expect(report.dailyBest.effectiveSamples).toBeCloseTo(4 * (9 / 25));
     expect(report.dailyBest.reliable).toBe(false);

@@ -87,6 +87,8 @@ export function buildStatisticsSummaryJson(
       chunkSize: score.chunkSize,
       catalogRevision: score.catalogRevision,
       requestedRuns: score.requestedRuns,
+      // 中断すると要求より小さくなる。要求・送信・完了は別物なので3つとも残す。
+      sentRuns: score.sentRuns,
       completedRuns: score.completedRuns,
       partial: score.partial,
       score: score.score,

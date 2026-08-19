@@ -9,7 +9,7 @@ import type { ExerciseStatisticsRunState } from "./use-exercise-statistics-run.j
 function aggregate(completedRuns: number): EvaluationAggregate {
   const indices = Array.from({ length: completedRuns }, (_value, index) => index);
   return {
-    requestedRuns: completedRuns,
+    sentRuns: completedRuns,
     completedRuns,
     catalogRevision: "rev-1",
     chunkSize: 300,

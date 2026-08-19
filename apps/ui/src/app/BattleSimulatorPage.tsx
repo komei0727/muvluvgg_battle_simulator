@@ -349,10 +349,12 @@ export function BattleSimulatorPage({
         ? undefined
         : {
             aggregate: completedStatisticsRun.aggregate,
-            score: buildScoreStatisticsReport(
-              completedStatisticsRun.aggregate,
-              completedStatisticsRun.seed,
-            ),
+            score: buildScoreStatisticsReport(completedStatisticsRun.aggregate, {
+              seed: completedStatisticsRun.seed,
+              // 集約が持つのは送信したチャンクの合計であり、中断すると要求より小さくなる。
+              // 利用者が入力した実行回数は進捗の側にある。
+              requestedRuns: completedStatisticsRun.progress.requestedRuns,
+            }),
             // 列に名前を付けられるのは送信時の編成だけである。実行後もdraftは編集
             // できるので、現在の編成から引くと別のユニット名が列へ付く。
             labels: resolveAllyUnitLabels(

@@ -10,7 +10,7 @@ function aggregate(
 ): EvaluationAggregate {
   const indices = Array.from({ length: runs }, (_value, index) => index);
   return {
-    requestedRuns: runs,
+    sentRuns: runs,
     completedRuns: runs,
     catalogRevision: "rev-1",
     chunkSize: 300,
@@ -33,9 +33,14 @@ function aggregate(
   };
 }
 
-function renderSummary(evaluation: EvaluationAggregate, seed = "seed-1") {
+function renderSummary(
+  evaluation: EvaluationAggregate,
+  { seed = "seed-1", requestedRuns = evaluation.sentRuns } = {},
+) {
   return render(
-    <ExerciseStatisticsSummary report={buildScoreStatisticsReport(evaluation, seed)} />,
+    <ExerciseStatisticsSummary
+      report={buildScoreStatisticsReport(evaluation, { seed, requestedRuns })}
+    />,
   );
 }
 
@@ -77,7 +82,7 @@ describe("ExerciseStatisticsSummary", () => {
 
   // 中断・期限到達の部分結果を「要求どおり終わった」と読ませない。
   it("shows a partial result banner when fewer runs completed than requested", () => {
-    renderSummary(aggregate(50, { requestedRuns: 200 }));
+    renderSummary(aggregate(50), { requestedRuns: 200 });
 
     expect(screen.getByText(/200試行の要求に対し50試行/)).toBeInTheDocument();
   });
@@ -105,7 +110,7 @@ describe("ExerciseStatisticsSummary", () => {
 
   // 再現に要る条件（seed・Catalog revision）は結果と一緒でなければ意味がない。
   it("shows the seed and catalog revision the run used", () => {
-    renderSummary(aggregate(100), "my-seed");
+    renderSummary(aggregate(100), { seed: "my-seed" });
 
     expect(screen.getByText("SEED").closest("div")).toHaveTextContent("my-seed");
     expect(screen.getByText("CATALOG REVISION").closest("div")).toHaveTextContent("rev-1");

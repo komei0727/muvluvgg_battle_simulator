@@ -1288,6 +1288,56 @@ describe("BattleSimulatorPage — 統計可視化パネル (UI-CT-091)", () => {
     expect(screen.getByRole("heading", { name: /演習統計サマリ/ })).toBeInTheDocument();
   });
 
+  // 中断は「完了済みチャンクまでで確定した結果」であり、要求どおり完走したのとは違う。
+  // 集約が持つのは送信したチャンクの合計であって利用者が入力した実行回数ではないため、
+  // それを「要求」として出すと、すぐ上の実行結果（要求600試行）と食い違う。
+  it("keeps the requested run count of the user when the run was cancelled", async () => {
+    const user = userEvent.setup();
+    let call = 0;
+    const evaluateImpl = vi.fn<EvaluateImpl>((request, options) => {
+      call += 1;
+      if (call === 1) {
+        return Promise.resolve({
+          ok: true,
+          response: statisticsResponse(request.runsPerCandidate, request.seed),
+        });
+      }
+      return new Promise((resolve) => {
+        options.signal.addEventListener("abort", () => {
+          resolve({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } });
+        });
+      });
+    });
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        evaluateTacticalExerciseImpl={evaluateImpl}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+    await user.clear(screen.getByLabelText("実行回数"));
+    await user.type(screen.getByLabelText("実行回数"), "600");
+    await user.type(screen.getByLabelText("シード"), "abc");
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+
+    await waitFor(() => {
+      expect(evaluateImpl).toHaveBeenCalledTimes(2);
+    });
+    await user.click(screen.getByRole("button", { name: "中断して結果を見る" }));
+    await screen.findByText(/300試行を集計しました/);
+
+    // 実行結果の要約と統計サマリが同じ「要求」を指す。
+    expect(screen.getByText(/300試行を集計しました/).closest("p")).toHaveTextContent(
+      "要求 600試行",
+    );
+    expect(screen.getByText("完了 RUN").closest("div")).toHaveTextContent("/ 600 要求");
+    expect(screen.getByText(/600試行の要求に対し300試行/)).toBeInTheDocument();
+  });
+
   it("shows the single-run panels when the mode is a single run", async () => {
     const user = userEvent.setup();
     const simulateTacticalExerciseImpl = vi.fn(() =>

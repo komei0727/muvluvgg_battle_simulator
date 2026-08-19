@@ -53,9 +53,15 @@ export interface ScoreStatisticsReport {
   /** 実行を再現する鍵は（seed, チャンクサイズ, 実行回数）の3つである。 */
   readonly chunkSize: number;
   readonly catalogRevision: string;
+  /** 利用者が入力した実行回数。中断で送らなかった分もここには含まれる。 */
   readonly requestedRuns: number;
+  /** 実際に送信したチャンクの試行数の合計。中断すると要求より小さくなる。 */
+  readonly sentRuns: number;
   readonly completedRuns: number;
-  /** 集計へ入った試行が要求に満たないこと（中断・期限到達、Q-TEX-18）。 */
+  /**
+   * 集計へ入った試行が要求に満たないこと。中断（送らなかったチャンクがある）と期限到達
+   * （送ったが完走しなかった、Q-TEX-18）の両方がこれになる。
+   */
   readonly partial: boolean;
   readonly score: ScoreSummary;
   readonly dailyBest: DailyBestSummary;
@@ -155,18 +161,29 @@ export function buildScoreDistribution(
   });
 }
 
+export interface ScoreStatisticsReportContext {
+  readonly seed: string;
+  /**
+   * 利用者が入力した実行回数（`StatisticsRunProgress.requestedRuns`）。集約側の
+   * `sentRuns` で代用してはならない —— 中断すると送らなかったチャンクが落ちるため、
+   * 「要求どおり完走した」という表示になる。
+   */
+  readonly requestedRuns: number;
+}
+
 export function buildScoreStatisticsReport(
   aggregate: EvaluationAggregate,
-  seed: string,
+  { seed, requestedRuns }: ScoreStatisticsReportContext,
 ): ScoreStatisticsReport {
   const { sample } = aggregate;
   return {
     seed,
     chunkSize: aggregate.chunkSize,
     catalogRevision: aggregate.catalogRevision,
-    requestedRuns: aggregate.requestedRuns,
+    requestedRuns,
+    sentRuns: aggregate.sentRuns,
     completedRuns: sample.scores.length,
-    partial: sample.scores.length < aggregate.requestedRuns,
+    partial: sample.scores.length < requestedRuns,
     score: summarizeScores(sample.scores),
     dailyBest: summarizeDailyBest(sample.scores),
     distribution: buildScoreDistribution(sample.scores),
