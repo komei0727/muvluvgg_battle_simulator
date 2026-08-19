@@ -11,7 +11,15 @@ import {
   describeExerciseResult,
   selectExerciseResultView,
 } from "../features/exercise/exercise-result-projector.js";
+import { mapEvaluationViolationsToUiViolations } from "../features/exercise/evaluation-violation-mapper.js";
 import { ModeTabs } from "../features/exercise/ModeTabs.js";
+import { StatisticsRunFeedback } from "../features/exercise/StatisticsRunFeedback.js";
+import {
+  buildTacticalExerciseEvaluationRequest,
+  evaluationFormationSignature,
+} from "../features/exercise/exercise-request-mapper.js";
+import { useExerciseStatisticsRun } from "../features/exercise/use-exercise-statistics-run.js";
+import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
 import type { BattleMode } from "../features/exercise/ModeTabs.js";
 import { ScoreSummaryHeader } from "../features/exercise/ScoreSummaryHeader.js";
 import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
@@ -75,6 +83,7 @@ export interface BattleSimulatorPageProps {
     TacticalExerciseResponse
   >["simulateImpl"];
   readonly previewFormationStatsImpl?: UseFormationStatPreviewOptions["previewImpl"];
+  readonly evaluateTacticalExerciseImpl?: UseExerciseStatisticsRunOptions["evaluateImpl"];
 }
 
 const SIMULATION_ENDPOINT = "POST /api/v1/battle-simulations";
@@ -87,6 +96,7 @@ export function BattleSimulatorPage({
   simulateImpl,
   simulateTacticalExerciseImpl,
   previewFormationStatsImpl,
+  evaluateTacticalExerciseImpl,
 }: BattleSimulatorPageProps) {
   const catalogLoader = useCatalogLoader(
     apiBaseUrl,
@@ -124,6 +134,15 @@ export function BattleSimulatorPage({
     TacticalExerciseRequest,
     TacticalExerciseResponse
   >(apiBaseUrl, { simulateImpl: simulateTacticalExerciseImpl ?? simulateTacticalExercise });
+  // 統計実行は1回のPOSTでは終わらない（チャンク分割・進捗・部分結果）ため、単一実行の
+  // 実行stateとは別のsliceが要る。両者は同時に走らない —— 実行モードがどちらか一方を
+  // 選ぶ。
+  const statisticsRun = useExerciseStatisticsRun(
+    apiBaseUrl,
+    evaluateTacticalExerciseImpl !== undefined
+      ? { evaluateImpl: evaluateTacticalExerciseImpl }
+      : {},
+  );
 
   const battleView = useBattleSimulatorViewModel({
     catalog,
@@ -145,7 +164,7 @@ export function BattleSimulatorPage({
   const dispatch = isExercise ? exerciseDispatch : battleDispatch;
   const view = isExercise ? exerciseView : battleView;
   const execution = isExercise ? exerciseExecution : battleExecution;
-  const { displayedViolations } = view;
+  const { displayedViolations: viewViolations } = view;
 
   // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
   // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
@@ -256,12 +275,66 @@ export function BattleSimulatorPage({
     },
   };
 
-  // 統計実行の実行基盤は後続Issue。送信前検証を通っても実行させない
-  // （形だけ動いて何も返らない実行を出すより、準備中と示して止める）。
-  const statisticsRunPending =
-    isExercise && exerciseState.draft.exerciseExecution.mode === "STATISTICS";
+  const { mode: exerciseExecutionMode, runCount, seed } = exerciseState.draft.exerciseExecution;
+  const isStatisticsRun = isExercise && exerciseExecutionMode === "STATISTICS";
+  // 実行中のロックは演習タブに閉じる。進捗も中断ボタンも演習タブにしか無いため、
+  // 通常戦闘まで無効化すると止める手段が無いまま実行の終わりを待たせることになる。
+  const isStatisticsRunning = isStatisticsRun && statisticsRun.state.status === "running";
+
+  // 統計実行の422も単一実行と同じく枠・実行回数入力へ結びつける（UI-API-004）。評価APIの
+  // pathは候補indexを含むため、専用のmapperを通す。
+  //
+  // 表示は統計実行の中に閉じる。slotKeyは`side:row:column`でモード間共通なので、絞らないと
+  // 通常戦闘の同じ座標の枠が、説明の無いまま赤くなる（`ValidationSummary`はdraft検証しか
+  // 出さない）。単一実行のサーバー違反が`view`ごとにモードで分かれているのと同じ扱い。
+  const statisticsViolations =
+    isStatisticsRun &&
+    statisticsRun.state.status === "failed" &&
+    statisticsRun.state.error.kind === "API" &&
+    statisticsRun.state.error.error.violations !== undefined
+      ? mapEvaluationViolationsToUiViolations(
+          statisticsRun.state.error.error.violations,
+          statisticsRun.state.submission,
+        )
+      : [];
+
+  // 完了した統計結果が、その後編集された編成のものでないか。実行回数とシードは結果表示に
+  // 出ているため、画面から読み取れない編成の変化だけを見る。
+  const currentEvaluationBuild = isStatisticsRun
+    ? buildTacticalExerciseEvaluationRequest(exerciseState.draft, {
+        runsPerCandidate: 1,
+        seed: "-",
+      })
+    : { ok: false as const };
+  const statisticsAggregate =
+    statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
+      ? statisticsRun.state.aggregate
+      : undefined;
+  const statisticsResultDirty =
+    statisticsAggregate !== undefined &&
+    currentEvaluationBuild.ok &&
+    evaluationFormationSignature(currentEvaluationBuild.request) !==
+      (statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
+        ? statisticsRun.state.submission.formationSignature
+        : "");
+  const displayedViolations = [...viewViolations, ...statisticsViolations];
+  const statisticsCatalogRevisionMismatch =
+    statisticsAggregate !== undefined &&
+    (catalog.status !== "ready" ||
+      statisticsAggregate.catalogRevision !== catalog.response.catalogRevision);
+  // 走っているチャンクは実行開始時のdraftで送られ続けるため、実行中の編集を許すと
+  // 画面と結果が食い違う。単一実行（`formationDisabled`）と同じ扱いにする。
+  const formationDisabled = view.formationDisabled || isStatisticsRunning;
 
   const submit = () => {
+    if (isStatisticsRun) {
+      // 実行回数の値域は送信前検証が押さえている（`exercise-draft-validation.ts`）ため、
+      // ここへ来る時点で整数である。
+      if (runCount !== "") {
+        statisticsRun.start({ draft: exerciseState.draft, runCount, seed });
+      }
+      return;
+    }
     if (isExercise) {
       if (exerciseView.requestBuild.ok) {
         const { ok: _ok, ...input } = exerciseView.requestBuild;
@@ -282,7 +355,7 @@ export function BattleSimulatorPage({
       memoryDefinitionIds={memorySlotsForSide(formState.draft, "ally")}
       catalog={readyCatalog}
       violations={displayedViolations}
-      disabled={view.formationDisabled}
+      disabled={formationDisabled}
       imageMap={definitionImageMap}
       enhancement={enhancementForSide(formState.draft, "ally")}
       statPreview={statPreview}
@@ -343,7 +416,7 @@ export function BattleSimulatorPage({
                       slots={slotsForSide(formState.draft, "enemy")}
                       catalog={catalog.response}
                       violations={displayedViolations}
-                      disabled={view.formationDisabled}
+                      disabled={formationDisabled}
                       imageMap={definitionImageMap}
                       statPreview={statPreview}
                       showBaseStats={showBaseStats}
@@ -361,7 +434,7 @@ export function BattleSimulatorPage({
                       memoryDefinitionIds={memorySlotsForSide(formState.draft, "enemy")}
                       catalog={catalog.response}
                       violations={displayedViolations}
-                      disabled={view.formationDisabled}
+                      disabled={formationDisabled}
                       imageMap={definitionImageMap}
                       enhancement={enhancementForSide(formState.draft, "enemy")}
                       statPreview={statPreview}
@@ -399,7 +472,7 @@ export function BattleSimulatorPage({
                 turnLimit={formState.draft.turnLimit}
                 logLevel={formState.draft.logLevel}
                 endpoint={isExercise ? EXERCISE_ENDPOINT : SIMULATION_ENDPOINT}
-                disabled={view.formationDisabled}
+                disabled={formationDisabled}
                 violations={displayedViolations}
                 {...(isExercise
                   ? {
@@ -418,15 +491,15 @@ export function BattleSimulatorPage({
               <ValidationSummary violations={view.violations} />
 
               <SubmitControls
-                canSubmit={view.canSubmit && !statisticsRunPending}
-                isSubmitting={view.isSubmitting}
+                canSubmit={view.canSubmit && !isStatisticsRunning}
+                isSubmitting={view.isSubmitting || isStatisticsRunning}
                 submitLabel={isExercise ? "戦術演習を開始" : "戦闘を開始"}
                 onSubmit={submit}
-                onCancel={execution.cancel}
+                onCancel={isStatisticsRun ? statisticsRun.cancel : execution.cancel}
               />
 
               <FormationResetControls
-                disabled={view.formationDisabled}
+                disabled={formationDisabled}
                 onResetDraft={resetActiveDraft}
                 onClearPlayerData={clearPlayerDataEverywhere}
               />
@@ -434,7 +507,17 @@ export function BattleSimulatorPage({
           ) : null}
         </Panel>
 
-        {isExercise ? (
+        {isStatisticsRun ? (
+          <StatisticsRunFeedback
+            state={statisticsRun.state}
+            onCancel={statisticsRun.cancel}
+            isDirty={statisticsResultDirty}
+            catalogRevisionMismatch={statisticsCatalogRevisionMismatch}
+            onReloadCatalog={catalogLoader.reload}
+          />
+        ) : null}
+
+        {isExercise && !isStatisticsRun ? (
           <SubmissionFeedback
             state={exerciseExecution.state}
             isDirty={exerciseView.isDirty}
@@ -447,7 +530,9 @@ export function BattleSimulatorPage({
             catalogRevisionMismatch={exerciseView.catalogRevisionMismatch}
             onReloadCatalog={catalogLoader.reload}
           />
-        ) : (
+        ) : null}
+
+        {!isExercise ? (
           <SubmissionFeedback
             state={battleExecution.state}
             isDirty={battleView.isDirty}
@@ -460,9 +545,11 @@ export function BattleSimulatorPage({
             catalogRevisionMismatch={battleView.catalogRevisionMismatch}
             onReloadCatalog={catalogLoader.reload}
           />
-        )}
+        ) : null}
 
-        {view.displayedSuccess !== undefined && !view.catalogRevisionMismatch ? (
+        {view.displayedSuccess !== undefined &&
+        !isStatisticsRun &&
+        !view.catalogRevisionMismatch ? (
           <>
             <Panel
               step="02"

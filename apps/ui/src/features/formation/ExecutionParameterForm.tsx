@@ -67,9 +67,7 @@ function ExerciseExecutionModeField({
   readonly disabled: boolean;
 }) {
   const modeId = useId();
-  const pendingNoticeId = useId();
   const { value, onModeChange } = execution;
-  const isStatistics = value.mode === "STATISTICS";
 
   return (
     <div className={styles["field"]}>
@@ -78,7 +76,6 @@ function ExerciseExecutionModeField({
         id={modeId}
         value={value.mode}
         disabled={disabled}
-        aria-describedby={isStatistics ? pendingNoticeId : undefined}
         onChange={(event) => {
           onModeChange(event.target.value as ExerciseExecutionMode);
         }}
@@ -89,11 +86,6 @@ function ExerciseExecutionModeField({
           </option>
         ))}
       </select>
-      {isStatistics ? (
-        <p id={pendingNoticeId} className={styles["notice"]}>
-          統計実行は準備中です。
-        </p>
-      ) : null}
     </div>
   );
 }

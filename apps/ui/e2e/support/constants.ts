@@ -6,3 +6,4 @@ export const API_BASE_URL = "https://e2e-mock-api.invalid.example";
 export const CATALOG_URL = `${API_BASE_URL}/api/v1/battle-simulation-catalog`;
 export const SIMULATION_URL = `${API_BASE_URL}/api/v1/battle-simulations`;
 export const TACTICAL_EXERCISE_URL = `${API_BASE_URL}/api/v1/tactical-exercises`;
+export const TACTICAL_EXERCISE_EVALUATION_URL = `${API_BASE_URL}/api/v1/tactical-exercise-evaluations`;

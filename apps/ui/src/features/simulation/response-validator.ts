@@ -4,6 +4,7 @@ import type {
   CatalogMemorySummary,
   CatalogUnitSummary,
   FormationStatPreviewResponse,
+  TacticalExerciseEvaluationResponse,
   TacticalExerciseResponse,
   UiApiError,
 } from "./api-contract.js";
@@ -460,6 +461,110 @@ export function validateTacticalExerciseResponse(body: unknown): TacticalExercis
     ok: true,
     response: body as TacticalExerciseResponse,
   };
+}
+
+// docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」: 統計実行の一括評価。
+// 統計量は返らず、UIが試行ごとの生値から集計する。集計は添字の対応（同じ添字が同じ
+// 試行、ユニット別配列の列が編成順の枠）に全面的に依存するため、長さの整合を
+// ここで確かめ、対応が崩れた応答を統計へ流さない。
+
+export type TacticalExerciseEvaluationValidationResult =
+  | { readonly ok: true; readonly response: TacticalExerciseEvaluationResponse }
+  | { readonly ok: false; readonly error: UiApiError };
+
+/** 候補は常に1件で送る（`exercise-request-mapper.ts`）ため、応答も1件でなければ対応が取れない。 */
+const EVALUATION_CANDIDATE_COUNT = 1;
+
+function isIntegerArrayOfLength(value: unknown, length: number): value is readonly number[] {
+  return (
+    Array.isArray(value) &&
+    value.length === length &&
+    value.every((item) => isIntegerInRange(item, 0))
+  );
+}
+
+function isStringArrayOfLength(value: unknown, length: number): value is readonly string[] {
+  return Array.isArray(value) && value.length === length && value.every(isNonEmptyString);
+}
+
+/**
+ * 試行×ユニットの行列。行数は`completedRuns`、列数は編成のユニット数で、試行が変わっても
+ * 列数は変わらない。列数が試行ごとに違うと、どの列がどのユニットか決められない。
+ */
+function unitColumnCount(value: unknown, runs: number): number | undefined {
+  if (!Array.isArray(value) || value.length !== runs) {
+    return undefined;
+  }
+  const rows: readonly unknown[] = value;
+  const first = rows[0];
+  const columns = Array.isArray(first) ? first.length : 0;
+  return rows.every((row) => isIntegerArrayOfLength(row, columns)) ? columns : undefined;
+}
+
+function isValidEvaluationCandidate(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const completedRuns = value["completedRuns"];
+  if (!isIntegerInRange(completedRuns, 0)) {
+    return false;
+  }
+  if (
+    !isIntegerArrayOfLength(value["scores"], completedRuns) ||
+    !isIntegerArrayOfLength(value["breakCounts"], completedRuns) ||
+    !isIntegerArrayOfLength(value["completedTurns"], completedRuns) ||
+    !isStringArrayOfLength(value["completionReasons"], completedRuns)
+  ) {
+    return false;
+  }
+  const damageColumns = unitColumnCount(value["allyUnitDamageTotals"], completedRuns);
+  const breakColumns = unitColumnCount(value["allyUnitBreakCounts"], completedRuns);
+  return damageColumns !== undefined && damageColumns === breakColumns;
+}
+
+export function validateTacticalExerciseEvaluationResponse(
+  body: unknown,
+): TacticalExerciseEvaluationValidationResult {
+  const evaluationMismatch = (message: string): TacticalExerciseEvaluationValidationResult => ({
+    ok: false,
+    error: { kind: "RESPONSE_CONTRACT_MISMATCH", message },
+  });
+
+  if (!isRecord(body)) {
+    return evaluationMismatch("Tactical exercise evaluation response body is not a JSON object.");
+  }
+  if (typeof body["schemaVersion"] !== "number") {
+    return evaluationMismatch(
+      "Tactical exercise evaluation response schemaVersion is not a number.",
+    );
+  }
+  if (!isNonEmptyString(body["catalogRevision"])) {
+    return evaluationMismatch(
+      "Tactical exercise evaluation response catalogRevision is missing or empty.",
+    );
+  }
+  // seedは再現の鍵であり、欠けた応答は「どの実行の結果か」を失う（Q-TEX-17）。
+  if (!isNonEmptyString(body["seed"])) {
+    return evaluationMismatch("Tactical exercise evaluation response seed is missing or empty.");
+  }
+  if (!isIntegerInRange(body["runsPerCandidate"], 1)) {
+    return evaluationMismatch(
+      "Tactical exercise evaluation response runsPerCandidate is not a positive integer.",
+    );
+  }
+  const candidates = body["candidates"];
+  if (!Array.isArray(candidates) || candidates.length !== EVALUATION_CANDIDATE_COUNT) {
+    return evaluationMismatch(
+      "Tactical exercise evaluation response does not carry exactly one candidate.",
+    );
+  }
+  if (!candidates.every(isValidEvaluationCandidate)) {
+    return evaluationMismatch(
+      "Tactical exercise evaluation response candidate arrays do not agree with completedRuns.",
+    );
+  }
+
+  return { ok: true, response: body as unknown as TacticalExerciseEvaluationResponse };
 }
 
 // docs/ui-design/03_API・データ連携設計.md §9.1: プレビューレスポンスの検証。

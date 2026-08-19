@@ -354,29 +354,6 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     expect(screen.getByText("実行回数は1～2,000の整数で入力してください。")).toBeInTheDocument();
   });
 
-  // 統計実行の実行基盤は後続Issue。選べるのに何も起きない状態を避けるため、
-  // 選んだ時点で準備中であることを画面に出す。
-  it("UI-CT-084: notes that the statistics run is not available yet, and says nothing in the single-run mode", () => {
-    const { rerender } = renderExercise({ mode: "STATISTICS", runCount: 100, seed: "" });
-
-    expect(screen.getByText(/準備中/)).toBeInTheDocument();
-
-    rerender(
-      <ExecutionParameterForm
-        turnLimit={10}
-        logLevel="SUMMARY"
-        endpoint="POST /api/v1/tactical-exercises"
-        disabled={false}
-        fixedTurnLimit={5}
-        exerciseExecution={exerciseExecutionProps({ mode: "SINGLE", runCount: 100, seed: "" })}
-        onTurnLimitChange={vi.fn()}
-        onLogLevelChange={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByText(/準備中/)).not.toBeInTheDocument();
-  });
-
   it("disables the execution mode inputs when disabled is true", () => {
     render(
       <ExecutionParameterForm

@@ -2,7 +2,12 @@ import { expect, test } from "@playwright/test";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { exerciseSuccessFixture } from "./fixtures/exercise-success.js";
 import { TACTICAL_EXERCISE_URL } from "./support/constants.js";
-import { mockCatalog, mockTacticalExercise } from "./support/mock-api.js";
+import {
+  mockCatalog,
+  mockTacticalExercise,
+  mockTacticalExerciseEvaluation,
+} from "./support/mock-api.js";
+import type { EvaluationRequestRecord } from "./support/mock-api.js";
 import { openBattleMode } from "./support/formation.js";
 
 // docs/ui-design/06_UIテスト戦略.md §6 「Mock API E2E」: 戦術演習モードの
@@ -208,11 +213,14 @@ test("separates the exercise enemy pool from the playable pool", async ({ page }
   await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
 });
 
-// UI-E2E-015: UI-AC-041。統計実行を選ぶと実行回数・シードが現れ、実行基盤が入る
-// までは実行できない。単一実行へ戻せば実行できる。
-test("switches the exercise execution mode and holds the statistics run until it is available", async ({
+// UI-E2E-015: UI-AC-041。統計実行を選ぶと実行回数・シードが現れ、指定回数が
+// 300試行ずつのチャンクへ割れて逐次送られる。単一実行へ戻せば単発実行に戻る。
+test("runs the statistics mode as sequential 300-run chunks and returns to the single run", async ({
   page,
 }) => {
+  const requests: EvaluationRequestRecord[] = [];
+  await mockTacticalExerciseEvaluation(page, requests);
+
   await page.goto("./");
   await page.getByRole("tab", { name: "戦術演習" }).click();
   const ally = page.getByRole("region", { name: /ALLY FORMATION/ });
@@ -227,11 +235,21 @@ test("switches the exercise execution mode and holds the statistics run until it
 
   await expect(page.getByLabel("実行回数")).toHaveValue("100");
   await expect(page.getByLabel("シード")).toHaveValue("");
-  await expect(page.getByText("統計実行は準備中です。")).toBeVisible();
-  await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeDisabled();
+
+  await page.getByLabel("実行回数").fill("400");
+  await page.getByLabel("シード").fill("e2e-seed");
+  await page.getByRole("button", { name: "戦術演習を開始" }).click();
+
+  await expect(page.getByText("統計実行が完了しました。")).toBeVisible();
+  await expect(page.getByText(/400試行を集計しました/)).toBeVisible();
+  expect(requests).toEqual([
+    { seed: "e2e-seed#0", runsPerCandidate: 300 },
+    { seed: "e2e-seed#300", runsPerCandidate: 100 },
+  ]);
 
   await page.getByLabel("実行モード").selectOption("SINGLE");
 
   await expect(page.getByLabel("実行回数")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
+  await page.getByRole("button", { name: "戦術演習を開始" }).click();
+  await expect(page.getByText("戦術演習が完了しました。")).toBeVisible();
 });

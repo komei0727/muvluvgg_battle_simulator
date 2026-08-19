@@ -232,6 +232,34 @@ export type SimulationApiResult = ExecutionApiResult<BattleSimulationResponse>;
 
 export type TacticalExerciseApiResult = ExecutionApiResult<TacticalExerciseResponse>;
 
+// docs/ddd/10_API設計.md「TacticalExerciseCandidateEvaluationResponse」。統計量は
+// 返らない（Q-TEX-16）ため、UIは試行ごとの生値だけを受け取って自分で集計する。
+// 6つの配列は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。
+// `allyUnit*`の内側はリクエストの`candidates[i].allyFormation.units`と同じ長さ・同じ順。
+export interface TacticalExerciseCandidateEvaluationResponse {
+  /** 期限内に完了した試行数。期限到達時は要求より小さい（Q-TEX-18）。 */
+  readonly completedRuns: number;
+  readonly scores: readonly number[];
+  readonly breakCounts: readonly number[];
+  readonly completedTurns: readonly number[];
+  readonly completionReasons: readonly string[];
+  readonly allyUnitDamageTotals: readonly (readonly number[])[];
+  readonly allyUnitBreakCounts: readonly (readonly number[])[];
+}
+
+// docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」。
+export interface TacticalExerciseEvaluationResponse {
+  readonly schemaVersion: number;
+  readonly catalogRevision: string;
+  /** 実際に使われたseed。省略して送った場合のサーバー生成分も載る（Q-TEX-17）。 */
+  readonly seed: string;
+  readonly runsPerCandidate: number;
+  readonly candidates: readonly TacticalExerciseCandidateEvaluationResponse[];
+}
+
+export type TacticalExerciseEvaluationApiResult =
+  ExecutionApiResult<TacticalExerciseEvaluationResponse>;
+
 // docs/ddd/10_API設計.md「FormationStatPreviewResponse」/
 // docs/ui-design/03_API・データ連携設計.md §2.5, §9.1.
 export interface FormationStatPreviewCombatStats {
