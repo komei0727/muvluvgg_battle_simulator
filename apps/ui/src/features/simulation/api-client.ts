@@ -3,6 +3,7 @@ import type {
   FormationStatPreviewApiResult,
   SimulationApiResult,
   TacticalExerciseApiResult,
+  TacticalExerciseEvaluationApiResult,
   UiApiError,
 } from "./api-contract.js";
 import {
@@ -14,9 +15,13 @@ import {
   validateCatalogResponse,
   validateFormationStatPreviewResponse,
   validateSimulationResponse,
+  validateTacticalExerciseEvaluationResponse,
   validateTacticalExerciseResponse,
 } from "./response-validator.js";
-import type { TacticalExerciseRequest } from "../exercise/exercise-request-mapper.js";
+import type {
+  TacticalExerciseEvaluationRequest,
+  TacticalExerciseRequest,
+} from "../exercise/exercise-request-mapper.js";
 import type {
   BattleSimulationRequest,
   FormationStatPreviewRequest,
@@ -31,6 +36,7 @@ const SIMULATION_PATH = "/api/v1/battle-simulations";
 // 待機上限とし、API側が構造化504を返す余地を残す」。
 const SIMULATION_DEFAULT_TIMEOUT_MS = 35_000;
 const TACTICAL_EXERCISE_PATH = "/api/v1/tactical-exercises";
+const TACTICAL_EXERCISE_EVALUATION_PATH = "/api/v1/tactical-exercise-evaluations";
 const PREVIEW_PATH = "/api/v1/formation-stat-previews";
 // docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは戦闘を実行せず
 // 同期的に返るため、戦闘POSTの35秒ではなく一覧GETと同じ待機上限で十分。
@@ -306,6 +312,51 @@ export async function simulateTacticalExercise(
 
       if (response.status === 200) {
         const validation = validateTacticalExerciseResponse(body);
+        if (!validation.ok) {
+          return { ok: false, status: 200, ...requestIdField, error: validation.error };
+        }
+        return { ok: true, response: validation.response, ...requestIdField };
+      }
+
+      return {
+        ok: false,
+        status: response.status,
+        ...requestIdField,
+        error: normalizeHttpErrorResponse({
+          status: response.status,
+          body,
+          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+        }),
+        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+      };
+    },
+  );
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.6: 統計実行の一括評価POST。戦闘POSTと
+// 同じ cache/credentials/待機上限の方針で、自動retryもしない —— 期限到達の部分結果
+// （Q-TEX-18）を再送しても同じseedで同じところまでしか進まない。分割送信と部分結果の
+// 集約は呼び出し側（`use-exercise-statistics-run.ts`）の責務。
+export async function evaluateTacticalExercise(
+  request: TacticalExerciseEvaluationRequest,
+  options: SimulateOptions,
+): Promise<TacticalExerciseEvaluationApiResult> {
+  return requestJson<TacticalExerciseEvaluationApiResult>(
+    {
+      url: `${options.baseUrl}${TACTICAL_EXERCISE_EVALUATION_PATH}`,
+      method: "POST",
+      headers: simulationRequestHeaders(options),
+      cache: "no-store",
+      body: JSON.stringify(request),
+      signal: options.signal,
+      timeoutMs: options.timeoutMs ?? SIMULATION_DEFAULT_TIMEOUT_MS,
+      fetchImpl: options.fetchImpl ?? fetch,
+    },
+    async ({ response, requestIdField, readBody, retryAfterSeconds }) => {
+      const body = await readBody();
+
+      if (response.status === 200) {
+        const validation = validateTacticalExerciseEvaluationResponse(body);
         if (!validation.ok) {
           return { ok: false, status: 200, ...requestIdField, error: validation.error };
         }

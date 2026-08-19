@@ -1,5 +1,10 @@
 import type { Page } from "@playwright/test";
-import { CATALOG_URL, SIMULATION_URL, TACTICAL_EXERCISE_URL } from "./constants.js";
+import {
+  CATALOG_URL,
+  SIMULATION_URL,
+  TACTICAL_EXERCISE_EVALUATION_URL,
+  TACTICAL_EXERCISE_URL,
+} from "./constants.js";
 
 export interface MockResponse {
   readonly status: number;
@@ -63,6 +68,50 @@ export async function mockTacticalExercise(page: Page, response: MockResponse): 
       contentType: "application/json",
       headers: { "Access-Control-Expose-Headers": EXPOSED_HEADERS, ...response.headers },
       body: JSON.stringify(response.body),
+    });
+  });
+}
+
+export interface EvaluationRequestRecord {
+  readonly seed: string;
+  readonly runsPerCandidate: number;
+}
+
+/**
+ * 一括評価POST（`POST /api/v1/tactical-exercise-evaluations`）をmockし、届いた
+ * チャンクを記録する。統計実行は分割送信そのものが仕様なので、E2Eでも「何回・
+ * どのseedで送ったか」を見る必要がある。
+ */
+export async function mockTacticalExerciseEvaluation(
+  page: Page,
+  records: EvaluationRequestRecord[],
+): Promise<void> {
+  await page.route(TACTICAL_EXERCISE_EVALUATION_URL, async (route) => {
+    const body = route.request().postDataJSON() as EvaluationRequestRecord;
+    records.push({ seed: body.seed, runsPerCandidate: body.runsPerCandidate });
+    const runs = body.runsPerCandidate;
+    const indices = Array.from({ length: runs }, (_value, index) => index);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "Access-Control-Expose-Headers": EXPOSED_HEADERS },
+      body: JSON.stringify({
+        schemaVersion: 1,
+        catalogRevision: "e2e-rev",
+        seed: body.seed,
+        runsPerCandidate: runs,
+        candidates: [
+          {
+            completedRuns: runs,
+            scores: indices.map((index) => 1000 + index),
+            breakCounts: indices.map(() => 1),
+            completedTurns: indices.map(() => 5),
+            completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
+            allyUnitDamageTotals: indices.map(() => [500]),
+            allyUnitBreakCounts: indices.map(() => [1]),
+          },
+        ],
+      }),
     });
   });
 }

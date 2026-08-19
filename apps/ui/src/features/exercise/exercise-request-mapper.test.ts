@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildTacticalExerciseRequest } from "./exercise-request-mapper.js";
+import {
+  buildTacticalExerciseEvaluationRequest,
+  buildTacticalExerciseRequest,
+} from "./exercise-request-mapper.js";
 import {
   createInitialDraft,
   createInitialUnitEnhancement,
@@ -197,5 +200,70 @@ describe("buildTacticalExerciseRequest", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.request.allyFormation.enhancement).toBeDefined();
+  });
+});
+
+// UI-UT-REQ-014: 一括評価リクエストは単一実行と同じ編成部分を使い、`options`を持たず、
+// 候補を常に1件だけ載せる（`10_API設計.md`「TacticalExerciseEvaluationRequest」）。
+describe("buildTacticalExerciseEvaluationRequest", () => {
+  it("wraps the ally formation in a single candidate and shares the enemy formation", () => {
+    const single = buildTacticalExerciseRequest(exerciseDraft());
+    const result = buildTacticalExerciseEvaluationRequest(exerciseDraft(), {
+      runsPerCandidate: 300,
+      seed: "abc#0",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok || !single.ok) return;
+    expect(Object.keys(result.request).toSorted()).toEqual([
+      "candidates",
+      "enemyFormation",
+      "runsPerCandidate",
+      "seed",
+    ]);
+    expect(result.request.candidates).toEqual([{ allyFormation: single.request.allyFormation }]);
+    expect(result.request.enemyFormation).toEqual(single.request.enemyFormation);
+    expect(result.request.runsPerCandidate).toBe(300);
+    expect(result.request.seed).toBe("abc#0");
+  });
+
+  // 送信内容が同じでも`options.logLevel`が載ると`additionalProperties: false`で422になる。
+  it("sends neither options nor turnLimit", () => {
+    const result = buildTacticalExerciseEvaluationRequest(exerciseDraft(), {
+      runsPerCandidate: 1,
+      seed: "s#0",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request).not.toHaveProperty("options");
+    expect(result.request).not.toHaveProperty("turnLimit");
+  });
+
+  it("keeps the enemy-exactly-one and no-enemy-memory constraints of the single run", () => {
+    const twoEnemies = withUnit(exerciseDraft(), "enemy", "FRONT", 1, "UNIT_ENEMY_2");
+    const enemyMemory = withMemory(exerciseDraft(), "enemy", 0, "MEM_X");
+
+    expect(
+      buildTacticalExerciseEvaluationRequest(twoEnemies, { runsPerCandidate: 1, seed: "s" }).ok,
+    ).toBe(false);
+    expect(
+      buildTacticalExerciseEvaluationRequest(enemyMemory, { runsPerCandidate: 1, seed: "s" }).ok,
+    ).toBe(false);
+  });
+
+  // 422のJSON Pointerは候補indexを含む（`candidates/0/allyFormation/...`）。slot対応表は
+  // 単一実行と同じものを返し、違反の対応づけを共通の経路で扱えるようにする。
+  it("returns the same slot key mapping as the single run", () => {
+    const single = buildTacticalExerciseRequest(exerciseDraft());
+    const result = buildTacticalExerciseEvaluationRequest(exerciseDraft(), {
+      runsPerCandidate: 1,
+      seed: "s",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok || !single.ok) return;
+    expect(result.allyUnitSlotKeys).toEqual(single.allyUnitSlotKeys);
+    expect(result.enemyUnitSlotKeys).toEqual(single.enemyUnitSlotKeys);
   });
 });

@@ -122,6 +122,38 @@ APIは0体の陣営を受け付けるため、片側だけ埋まった編集途�
 
 プレビューの失敗（ネットワーク・422・500のいずれも）は戦闘実行の可否へ影響させない。送信前検証にもプレビュー結果を使わない — サーバーが同じ検証を戦闘POSTでも行うため、プレビューを実行の前提条件にすると、プレビューだけが落ちた状態で戦闘を実行できなくなる。
 
+### 2.6 統計実行（一括評価）
+
+```http
+POST {VITE_API_BASE_URL}/api/v1/tactical-exercise-evaluations
+Content-Type: application/json
+Accept: application/json
+X-Request-Id: ui-<UUID>
+```
+
+戦術演習の統計実行（`UI-AC-041`／`UI-AC-042`）が使う。リクエストは共有の`enemyFormation`と候補1件（`candidates[0].allyFormation`）・`runsPerCandidate`・`seed`を持ち、`options`（`logLevel`）も`turnLimit`も持たない —— 返るのは試行ごとの数値だけで、イベント列・状態遷移は返らない。編成部分は単一実行（§2.3）とまったく同じ`FormationRequest`を組み立てて使う。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseEvaluationRequest」「TacticalExerciseEvaluationResponse」とする。
+
+#### チャンク分割とseed規約
+
+1リクエストの総試行数には上限（`EVALUATION_MAX_TOTAL_RUNS`、既定300）があるため、画面が受け付ける実行回数（1～2,000）を300試行ずつのチャンクへ割り、**同時に1リクエストだけ**を直列に送る。並列化しないのは、サーバーが評価を`maxScale: 1`のWorker Poolへ流すため総所要時間が縮まらないからである。
+
+サーバーは1リクエストの中で試行番号（`runIndex`）を0から振り直して乱数列を決めるため、同じ`seed`のまま分割すると全チャンクがまったく同じ試行を繰り返す。チャンクごとに通し試行番号を埋めた`<seed>#<runOffset>`を送ることでこれを避ける。規約は`tools/exercise-lab/src/exercise_lab/runner.py`（`plan_chunks`）と同一で、**同じseed・同じ編成・同じ実行回数ならexercise-labとUIが同じ数値を出す**。この帰結として、実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）の3つになる。
+
+シード欄が空のときはUI側で実行seedを生成する。サーバー生成（`Q-TEX-17`）に任せないのは、チャンクごとに別のseedが生成されると分割そのものが再現できなくなるためである。
+
+#### 部分結果・中断・失敗
+
+- 自動retryしない。期限到達で`completedRuns`が要求未満のチャンク（`Q-TEX-18`）も再送しない —— 同じseedで送り直しても同じところで切れる。不足は実試行数として集計へ持ち込む。
+- 中断は完了済みチャンクまでで結果を確定する。実行中のチャンクは`AbortController`で中断し、その分は捨てる。page unload・unmountでも同じcontrollerをabortする（§7）。
+- `404 ENDPOINT_DISABLED`は実装が無いのではなく配備の設定で閉じている（`Q-TEX-19`）。「この環境では統計実行を利用できません」と案内し、汎用のサーバーエラーとして出さない。
+- `429`は`Retry-After`の秒数を添えて中断する。
+- チャンク間で`catalogRevision`が変わった場合は集約せず中断する。前半と後半が別の定義で回った標本を混ぜた統計には意味がないためである。
+- 1試行も完了しなかった場合は結果なしとして扱う。
+
+#### レスポンスの検証
+
+6つの配列（`scores`／`breakCounts`／`completedTurns`／`completionReasons`／`allyUnitDamageTotals`／`allyUnitBreakCounts`）は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。集計はこの添字の対応に全面的に依存するため、長さの整合（ユニット別配列の列数が試行間で一致すること、与ダメージ列とブレイク列の列数が一致すること）を§8と同じ`RESPONSE_CONTRACT_MISMATCH`として検証する。候補が1件でない応答も、どの編成の値か決められないため契約違反とする。
+
 ## 3. UI入力モデル
 
 ```ts

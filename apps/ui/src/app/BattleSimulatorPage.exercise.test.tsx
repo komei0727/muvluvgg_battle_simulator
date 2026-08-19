@@ -10,9 +10,14 @@ import type {
   ExecutionApiResult,
   FormationStatPreviewApiResult,
   SimulationApiResult,
+  TacticalExerciseEvaluationApiResult,
+  TacticalExerciseEvaluationResponse,
   TacticalExerciseResponse,
 } from "../features/simulation/api-contract.js";
-import type { TacticalExerciseRequest } from "../features/exercise/exercise-request-mapper.js";
+import type {
+  TacticalExerciseEvaluationRequest,
+  TacticalExerciseRequest,
+} from "../features/exercise/exercise-request-mapper.js";
 import type {
   BattleSimulationRequest,
   FormationStatPreviewRequest,
@@ -21,6 +26,11 @@ import { toStoredDraft } from "../features/formation/persistence.js";
 import { createInitialDraft, slotKeyOf } from "../features/formation/types.js";
 import type { BattleDraft } from "../features/formation/types.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
+
+type EvaluateImpl = (
+  request: TacticalExerciseEvaluationRequest,
+  options: SimulateOptions,
+) => Promise<TacticalExerciseEvaluationApiResult>;
 
 vi.mock("../features/catalog-selection/definition-image-map.js", () => ({
   unitImageMap: {},
@@ -828,7 +838,7 @@ describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-083/084)
     expect(screen.queryByLabelText("実行モード")).not.toBeInTheDocument();
   });
 
-  it("UI-CT-084: blocks the run while the statistics mode is selected, and re-enables it on the way back", async () => {
+  it("UI-CT-084: blocks the run while the run count is out of range and re-enables it once fixed", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -842,14 +852,16 @@ describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-083/084)
     await waitForCatalog();
     await placeUnit(user, "ally", "アルファ");
     await placeUnit(user, "enemy", "エクサ");
-    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
 
     await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
 
-    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeDisabled();
-    expect(screen.getByText(/準備中/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
 
-    await user.selectOptions(screen.getByLabelText("実行モード"), "SINGLE");
+    await user.clear(screen.getByLabelText("実行回数"));
+
+    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("実行回数"), "2");
 
     expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
   });
@@ -888,5 +900,176 @@ describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-083/084)
     await switchMode(user, "戦術演習");
 
     expect(screen.getByLabelText("実行モード")).toHaveValue("STATISTICS");
+  });
+});
+
+// UI-CT-086: Issue #541。統計実行が指定回数をチャンクへ割って逐次送り、進捗・中断・
+// 結果件数を出す。
+describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
+  function evaluationResponse(
+    runs: number,
+    catalogRevision = "rev-1",
+  ): TacticalExerciseEvaluationResponse {
+    const indices = Array.from({ length: runs }, (_value, index) => index);
+    return {
+      schemaVersion: 1,
+      catalogRevision,
+      seed: "seed#0",
+      runsPerCandidate: runs,
+      candidates: [
+        {
+          completedRuns: runs,
+          scores: indices.map(() => 1000),
+          breakCounts: indices.map(() => 1),
+          completedTurns: indices.map(() => 5),
+          completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
+          allyUnitDamageTotals: indices.map(() => [500]),
+          allyUnitBreakCounts: indices.map(() => [1]),
+        },
+      ],
+    };
+  }
+
+  async function startStatisticsRun(
+    user: UserEvent,
+    evaluateTacticalExerciseImpl: EvaluateImpl,
+    runCount: string,
+  ) {
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        evaluateTacticalExerciseImpl={evaluateTacticalExerciseImpl}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+    await user.clear(screen.getByLabelText("実行回数"));
+    await user.type(screen.getByLabelText("実行回数"), runCount);
+    await user.type(screen.getByLabelText("シード"), "abc");
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+  }
+
+  it("runs the requested runs as sequential chunks and reports how many were aggregated", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate }) =>
+      Promise.resolve({ ok: true, response: evaluationResponse(runsPerCandidate) }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "301");
+
+    await waitFor(() => {
+      expect(screen.getByText(/301試行を集計しました/)).toBeInTheDocument();
+    });
+    expect(evaluateImpl.mock.calls.map(([request]) => request.runsPerCandidate)).toEqual([300, 1]);
+    expect(evaluateImpl.mock.calls.map(([request]) => request.seed)).toEqual(["abc#0", "abc#300"]);
+  });
+
+  it("shows the progress and a cancel control while the run is in flight", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(
+      (_request, options) =>
+        new Promise((resolve) => {
+          options.signal.addEventListener("abort", () => {
+            resolve({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } });
+          });
+        }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "600");
+
+    expect(await screen.findByRole("progressbar", { name: "統計実行の進捗" })).toHaveAttribute(
+      "max",
+      "600",
+    );
+    expect(screen.getByRole("button", { name: "中断して結果を見る" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "実行中…" })).toBeDisabled();
+    // 単一実行と同じく、実行中の編成編集は止める。走っているチャンクは実行開始時の
+    // 編成で送られ続けるため、編集できると画面と結果が食い違う。
+    expect(
+      within(screen.getByRole("region", { name: /ALLY FORMATION/ })).getByRole("button", {
+        name: /前衛1: アルファを変更/,
+      }),
+    ).toBeDisabled();
+  });
+
+  it("keeps the chunks already completed when the run is cancelled", async () => {
+    const user = userEvent.setup();
+    let call = 0;
+    const evaluateImpl = vi.fn<EvaluateImpl>((_request, options) => {
+      call += 1;
+      if (call === 1) {
+        return Promise.resolve({ ok: true, response: evaluationResponse(300) });
+      }
+      return new Promise((resolve) => {
+        options.signal.addEventListener("abort", () => {
+          resolve({ ok: false, error: { kind: "CANCELLED", message: "cancelled" } });
+        });
+      });
+    });
+
+    await startStatisticsRun(user, evaluateImpl, "900");
+
+    await waitFor(() => {
+      expect(evaluateImpl).toHaveBeenCalledTimes(2);
+    });
+    await user.click(screen.getByRole("button", { name: "中断して結果を見る" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/300試行を集計しました/)).toBeInTheDocument();
+    });
+    expect(evaluateImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("explains a 404 ENDPOINT_DISABLED as this deployment not offering the statistics run", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({
+        ok: false,
+        status: 404,
+        error: {
+          kind: "SERVER",
+          status: 404,
+          code: "ENDPOINT_DISABLED",
+          message: "This endpoint is not enabled on this server.",
+        },
+      }),
+    );
+
+    await startStatisticsRun(user, evaluateImpl, "300");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "この環境では統計実行を利用できません",
+    );
+  });
+
+  it("runs the single-run endpoint, not the evaluation endpoint, in the single mode", async () => {
+    const user = userEvent.setup();
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({ ok: true, response: evaluationResponse(1) }),
+    );
+    const simulateTacticalExerciseImpl = vi.fn(() =>
+      Promise.resolve({ ok: true as const, response: exerciseResponse() }),
+    );
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateTacticalExerciseImpl={simulateTacticalExerciseImpl}
+        evaluateTacticalExerciseImpl={evaluateImpl}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+
+    await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
+
+    await waitFor(() => {
+      expect(simulateTacticalExerciseImpl).toHaveBeenCalledOnce();
+    });
+    expect(evaluateImpl).not.toHaveBeenCalled();
   });
 });
