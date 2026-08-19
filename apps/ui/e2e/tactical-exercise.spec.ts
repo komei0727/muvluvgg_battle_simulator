@@ -3,7 +3,7 @@ import { catalogFixture } from "./fixtures/catalog.js";
 import { exerciseSuccessFixture } from "./fixtures/exercise-success.js";
 import { TACTICAL_EXERCISE_URL } from "./support/constants.js";
 import { mockCatalog, mockTacticalExercise } from "./support/mock-api.js";
-import { openBattleMode, selectDetailedLogLevel } from "./support/formation.js";
+import { openBattleMode } from "./support/formation.js";
 
 // docs/ui-design/06_UIテスト戦略.md §6 「Mock API E2E」: 戦術演習モードの
 // 縦切り（モード切替 → 演習編成 → 実行 → スコア・ブレイク履歴・演習イベント）。
@@ -22,6 +22,9 @@ test("runs a tactical exercise from the mode tab to the score summary and break 
 
   // UI-AC-019: 敵メモリー枠とターン上限入力を出さず、5ターン固定と明示する。
   await expect(page.getByLabel("ターン上限")).toHaveCount(0);
+  // UI-AC-041: 演習はログレベルではなく実行モードを選ぶ。既定は単一実行。
+  await expect(page.getByLabel("ログレベル")).toHaveCount(0);
+  await expect(page.getByLabel("実行モード")).toHaveValue("SINGLE");
   await expect(page.getByText("5ターン固定").first()).toBeVisible();
   await expect(page.getByText("ENEMY MEMORY / 0-6")).toHaveCount(0);
 
@@ -32,8 +35,7 @@ test("runs a tactical exercise from the mode tab to the score summary and break 
   await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
   await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
 
-  // UI-AC-022の詳細タイムラインは詳細ログ実行のときだけ表示される（Issue #464）。
-  await selectDetailedLogLevel(page);
+  // UI-AC-041: 単一実行は常に`DETAILED`で送るため、詳細タイムラインが必ず出る。
   await page.getByRole("button", { name: "戦術演習を開始" }).click();
   await expect(page.getByText("戦術演習が完了しました。")).toBeVisible();
 
@@ -203,5 +205,33 @@ test("separates the exercise enemy pool from the playable pool", async ({ page }
   await expect(page.getByText("開催終了")).toBeVisible();
 
   await page.getByRole("button", { name: "エクササイズブラボーを選択" }).click();
+  await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
+});
+
+// UI-E2E-015: UI-AC-041。統計実行を選ぶと実行回数・シードが現れ、実行基盤が入る
+// までは実行できない。単一実行へ戻せば実行できる。
+test("switches the exercise execution mode and holds the statistics run until it is available", async ({
+  page,
+}) => {
+  await page.goto("./");
+  await page.getByRole("tab", { name: "戦術演習" }).click();
+  const ally = page.getByRole("region", { name: /ALLY FORMATION/ });
+  const enemy = page.getByRole("region", { name: /ENEMY FORMATION/ });
+  await ally.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
+  await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
+
+  await page.getByLabel("実行モード").selectOption("STATISTICS");
+
+  await expect(page.getByLabel("実行回数")).toHaveValue("100");
+  await expect(page.getByLabel("シード")).toHaveValue("");
+  await expect(page.getByText("統計実行は準備中です。")).toBeVisible();
+  await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeDisabled();
+
+  await page.getByLabel("実行モード").selectOption("SINGLE");
+
+  await expect(page.getByLabel("実行回数")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
 });

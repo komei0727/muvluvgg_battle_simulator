@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_EXERCISE_RUN_COUNT,
   createInitialDraft,
   createInitialUnitEnhancement,
   enhancementForSide,
@@ -23,6 +24,19 @@ describe("createInitialDraft", () => {
     expect(draft.enemySlots).toHaveLength(6);
     expect(new Set(draft.allySlots.map((slot) => slot.slotKey)).size).toBe(6);
     expect(draft.allySlots.every((slot) => slot.unitDefinitionId === undefined)).toBe(true);
+  });
+
+  // Issue #539: 演習の実行モードは既定で単一実行。統計実行のパラメータは既定値を
+  // 持ったまま眠り、モードを切り替えるまで送信にもボタンの活性にも効かない。
+  it("starts the exercise execution in the single-run mode with the default run count", () => {
+    const draft = createInitialDraft();
+
+    expect(draft.exerciseExecution).toEqual({
+      mode: "SINGLE",
+      runCount: DEFAULT_EXERCISE_RUN_COUNT,
+      seed: "",
+    });
+    expect(DEFAULT_EXERCISE_RUN_COUNT).toBe(100);
   });
 
   it("creates 6 empty memory slots per side", () => {

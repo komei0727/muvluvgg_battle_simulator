@@ -16,6 +16,7 @@ import type { BattleMode } from "../features/exercise/ModeTabs.js";
 import { ScoreSummaryHeader } from "../features/exercise/ScoreSummaryHeader.js";
 import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
+import type { ExerciseExecutionFormProps } from "../features/formation/ExecutionParameterForm.js";
 import { FormationEditor } from "../features/formation/FormationEditor.js";
 import { StatPreviewModeToggle } from "../features/formation/StatPreviewModeToggle.js";
 import { FormationResetControls } from "../features/formation/FormationResetControls.js";
@@ -240,6 +241,26 @@ export function BattleSimulatorPage({
     [dispatchAllyWideOrCurrent],
   );
 
+  // UI-AC-041: 演習の実行指定。ログレベル選択の置き換えなので、通常戦闘モードへは
+  // 渡さない（通常戦闘のdraftも同じ項目を持つが、実行にも送信にも効かない）。
+  const exerciseExecutionForm: ExerciseExecutionFormProps = {
+    value: exerciseState.draft.exerciseExecution,
+    onModeChange: (value) => {
+      exerciseDispatch({ type: "exerciseExecutionModeChanged", value });
+    },
+    onRunCountChange: (value) => {
+      exerciseDispatch({ type: "exerciseRunCountChanged", value });
+    },
+    onSeedChange: (value) => {
+      exerciseDispatch({ type: "exerciseSeedChanged", value });
+    },
+  };
+
+  // 統計実行の実行基盤は後続Issue。送信前検証を通っても実行させない
+  // （形だけ動いて何も返らない実行を出すより、準備中と示して止める）。
+  const statisticsRunPending =
+    isExercise && exerciseState.draft.exerciseExecution.mode === "STATISTICS";
+
   const submit = () => {
     if (isExercise) {
       if (exerciseView.requestBuild.ok) {
@@ -380,7 +401,12 @@ export function BattleSimulatorPage({
                 endpoint={isExercise ? EXERCISE_ENDPOINT : SIMULATION_ENDPOINT}
                 disabled={view.formationDisabled}
                 violations={displayedViolations}
-                {...(isExercise ? { fixedTurnLimit: EXERCISE_TURN_LIMIT } : {})}
+                {...(isExercise
+                  ? {
+                      fixedTurnLimit: EXERCISE_TURN_LIMIT,
+                      exerciseExecution: exerciseExecutionForm,
+                    }
+                  : {})}
                 onTurnLimitChange={(value) => {
                   dispatch({ type: "turnLimitChanged", value });
                 }}
@@ -392,7 +418,7 @@ export function BattleSimulatorPage({
               <ValidationSummary violations={view.violations} />
 
               <SubmitControls
-                canSubmit={view.canSubmit}
+                canSubmit={view.canSubmit && !statisticsRunPending}
                 isSubmitting={view.isSubmitting}
                 submitLabel={isExercise ? "戦術演習を開始" : "戦闘を開始"}
                 onSubmit={submit}

@@ -28,7 +28,8 @@ export async function fillMinimalFormation(
 /**
  * 既定のログレベルは`SUMMARY`（Issue #464）。`SUMMARY`実行のレスポンスは時系列
  * イベント・状態遷移・レスポンスJSONを持たないため、詳細タブを開くspecは実行前に
- * これを呼んで詳細ログモードへ切り替える。
+ * これを呼んで詳細ログモードへ切り替える。通常戦闘モード専用 — 演習の単一実行は
+ * 常に`DETAILED`で送り、ログレベルの選択そのものを持たない（Issue #539）。
  */
 export async function selectDetailedLogLevel(page: Page): Promise<void> {
   await page.getByLabel("ログレベル").selectOption("DETAILED");

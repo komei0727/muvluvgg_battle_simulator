@@ -448,6 +448,59 @@ describe("selectUnknownDefinitionSlotKeys", () => {
   });
 });
 
+// UI-UT-PST-013: Issue #539。演習の実行モードは`logLevel`の選択を置き換えたが、
+// 以前のセッションで保存されたdraftは`exerciseExecution`を持たない。版を上げずに
+// 項目を足すため、欠落は既定（単一実行）として読み、保存済みの`logLevel`は
+// そのまま残す（通常戦闘のdraftはこれまでどおりその値で実行する）。
+describe("演習の実行指定の保存 (UI-UT-PST-013)", () => {
+  it("restores a draft that predates the exercise execution input with the single-run defaults", () => {
+    const { exerciseExecution: _dropped, ...withoutExecution } = createInitialDraft();
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: { ...withoutExecution, logLevel: "SUMMARY" },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored?.exerciseExecution).toEqual({ mode: "SINGLE", runCount: 100, seed: "" });
+    expect(restored?.logLevel).toBe("SUMMARY");
+  });
+
+  it("round-trips the execution mode, run count, and seed", () => {
+    const draft: BattleDraft = {
+      ...createInitialDraft(),
+      exerciseExecution: { mode: "STATISTICS", runCount: 2000, seed: "abc123" },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(toStoredDraft(draft))) as unknown);
+
+    expect(restored).toStrictEqual(draft);
+  });
+
+  it("keeps the empty-input sentinel for the run count", () => {
+    const draft: BattleDraft = {
+      ...createInitialDraft(),
+      exerciseExecution: { mode: "STATISTICS", runCount: "", seed: "" },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(toStoredDraft(draft))) as unknown);
+
+    expect(restored?.exerciseExecution.runCount).toBe("");
+  });
+
+  it("discards stored data whose execution mode is not a known mode", () => {
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: {
+        ...createInitialDraft(),
+        exerciseExecution: { mode: "BULK", runCount: 100, seed: "" },
+      },
+    };
+
+    expect(parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown)).toBeUndefined();
+  });
+});
+
 describe("レベルリンクの保存 (UI-UT-PST-011/012)", () => {
   const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
 

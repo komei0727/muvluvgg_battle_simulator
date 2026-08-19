@@ -99,12 +99,16 @@ describe("buildTacticalExerciseRequest", () => {
     expect(result.allyMemorySlotKeys).toEqual([memorySlotKeyOf("ally", 1)]);
   });
 
-  it("keeps the log level from the draft", () => {
-    const result = buildTacticalExerciseRequest({ ...exerciseDraft(), logLevel: "SUMMARY" });
+  // UI-UT-REQ-013: 単一実行はログを読むための実行なので、draftに残っている
+  // `logLevel`（演習では選べなくなった値）に依らず常に`DETAILED`で送る。
+  it("UI-UT-REQ-013: always sends DETAILED regardless of the log level left in the draft", () => {
+    for (const logLevel of ["SUMMARY", "DETAILED"] as const) {
+      const result = buildTacticalExerciseRequest({ ...exerciseDraft(), logLevel });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.request.options).toEqual({ logLevel: "SUMMARY" });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.request.options).toEqual({ logLevel: "DETAILED" });
+    }
   });
 
   it("ignores the draft turnLimit even when it is blank", () => {

@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ExecutionParameterForm } from "./ExecutionParameterForm.js";
+import type { ExerciseExecutionFormProps } from "./ExecutionParameterForm.js";
+import type { ExerciseExecutionInput } from "./types.js";
+import type { UiViolation } from "./draft-validation.js";
 
 // The component is a fully controlled input; a fixed prop value would snap
 // back on every keystroke and produce meaningless intermediate digits, so
@@ -211,5 +214,185 @@ describe("ExecutionParameterForm", () => {
 
     expect(screen.getByLabelText("ターン上限")).toHaveAttribute("aria-invalid", "false");
     expect(screen.getByLabelText("ログレベル")).toHaveAttribute("aria-invalid", "false");
+  });
+});
+
+// UI-CT-083 / UI-CT-084: Issue #539。演習ではログレベルの選択を実行モードの
+// 切替が置き換える（単一実行は常に`DETAILED`で送るため選ばせるものが無い）。
+describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/084)", () => {
+  function exerciseExecutionProps(
+    value: ExerciseExecutionInput,
+    overrides: Partial<ExerciseExecutionFormProps> = {},
+  ): ExerciseExecutionFormProps {
+    return {
+      value,
+      onModeChange: vi.fn(),
+      onRunCountChange: vi.fn(),
+      onSeedChange: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  function renderExercise(
+    value: ExerciseExecutionInput,
+    overrides: Partial<ExerciseExecutionFormProps> = {},
+    violations: readonly UiViolation[] = [],
+  ) {
+    return render(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="SUMMARY"
+        endpoint="POST /api/v1/tactical-exercises"
+        disabled={false}
+        fixedTurnLimit={5}
+        violations={violations}
+        exerciseExecution={exerciseExecutionProps(value, overrides)}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+  }
+
+  it("UI-CT-083: replaces the log level select with the execution mode switch", () => {
+    renderExercise({ mode: "SINGLE", runCount: 100, seed: "" });
+
+    expect(screen.queryByLabelText("ログレベル")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("実行モード")).toHaveValue("SINGLE");
+    expect(screen.queryByLabelText("実行回数")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("シード")).not.toBeInTheDocument();
+  });
+
+  it("UI-CT-083: shows the run count and seed only in the statistics mode", () => {
+    renderExercise({ mode: "STATISTICS", runCount: 100, seed: "abc123" });
+
+    expect(screen.getByLabelText("実行回数")).toHaveValue(100);
+    expect(screen.getByLabelText("シード")).toHaveValue("abc123");
+  });
+
+  it("UI-CT-083: reports the selected execution mode", async () => {
+    const user = userEvent.setup();
+    const onModeChange = vi.fn();
+    renderExercise({ mode: "SINGLE", runCount: 100, seed: "" }, { onModeChange });
+
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+
+    expect(onModeChange).toHaveBeenCalledWith("STATISTICS");
+  });
+
+  // 入力は完全な制御コンポーネントなので、固定propで打鍵すると値が毎回巻き戻る。
+  // 打鍵する検証は`TurnLimitHarness`と同じくstateを持たせて回す。
+  function StatisticsHarness({
+    onRunCountChange,
+    onSeedChange,
+  }: {
+    readonly onRunCountChange: (value: number | "") => void;
+    readonly onSeedChange: (value: string) => void;
+  }) {
+    const [execution, setExecution] = useState<ExerciseExecutionInput>({
+      mode: "STATISTICS",
+      runCount: 100,
+      seed: "",
+    });
+    return (
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="SUMMARY"
+        endpoint="POST /api/v1/tactical-exercises"
+        disabled={false}
+        fixedTurnLimit={5}
+        exerciseExecution={{
+          value: execution,
+          onModeChange: vi.fn(),
+          onRunCountChange: (value) => {
+            setExecution((current) => ({ ...current, runCount: value }));
+            onRunCountChange(value);
+          },
+          onSeedChange: (value) => {
+            setExecution((current) => ({ ...current, seed: value }));
+            onSeedChange(value);
+          },
+        }}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />
+    );
+  }
+
+  it("UI-CT-083: reports the numeric run count and the empty-input sentinel", async () => {
+    const user = userEvent.setup();
+    const onRunCountChange = vi.fn();
+    render(<StatisticsHarness onRunCountChange={onRunCountChange} onSeedChange={vi.fn()} />);
+
+    await user.clear(screen.getByLabelText("実行回数"));
+    expect(onRunCountChange).toHaveBeenLastCalledWith("");
+
+    await user.type(screen.getByLabelText("実行回数"), "500");
+    expect(onRunCountChange).toHaveBeenLastCalledWith(500);
+  });
+
+  it("UI-CT-083: reports the seed as free text", async () => {
+    const user = userEvent.setup();
+    const onSeedChange = vi.fn();
+    render(<StatisticsHarness onRunCountChange={vi.fn()} onSeedChange={onSeedChange} />);
+
+    await user.type(screen.getByLabelText("シード"), "abc123");
+
+    expect(onSeedChange).toHaveBeenLastCalledWith("abc123");
+  });
+
+  it("UI-CT-084: marks the run count invalid and shows the message for a /runsPerCandidate violation", () => {
+    renderExercise({ mode: "STATISTICS", runCount: 5000, seed: "" }, {}, [
+      {
+        path: "/runsPerCandidate",
+        code: "RUN_COUNT_OUT_OF_RANGE",
+        message: "実行回数は1～2,000の整数で入力してください。",
+        severity: "error",
+      },
+    ]);
+
+    expect(screen.getByLabelText("実行回数")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("実行回数は1～2,000の整数で入力してください。")).toBeInTheDocument();
+  });
+
+  // 統計実行の実行基盤は後続Issue。選べるのに何も起きない状態を避けるため、
+  // 選んだ時点で準備中であることを画面に出す。
+  it("UI-CT-084: notes that the statistics run is not available yet, and says nothing in the single-run mode", () => {
+    const { rerender } = renderExercise({ mode: "STATISTICS", runCount: 100, seed: "" });
+
+    expect(screen.getByText(/準備中/)).toBeInTheDocument();
+
+    rerender(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="SUMMARY"
+        endpoint="POST /api/v1/tactical-exercises"
+        disabled={false}
+        fixedTurnLimit={5}
+        exerciseExecution={exerciseExecutionProps({ mode: "SINGLE", runCount: 100, seed: "" })}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/準備中/)).not.toBeInTheDocument();
+  });
+
+  it("disables the execution mode inputs when disabled is true", () => {
+    render(
+      <ExecutionParameterForm
+        turnLimit={10}
+        logLevel="SUMMARY"
+        endpoint="POST /api/v1/tactical-exercises"
+        disabled={true}
+        fixedTurnLimit={5}
+        exerciseExecution={exerciseExecutionProps({ mode: "STATISTICS", runCount: 100, seed: "" })}
+        onTurnLimitChange={vi.fn()}
+        onLogLevelChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("実行モード")).toBeDisabled();
+    expect(screen.getByLabelText("実行回数")).toBeDisabled();
+    expect(screen.getByLabelText("シード")).toBeDisabled();
   });
 });
