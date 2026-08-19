@@ -1,0 +1,196 @@
+/* 単一実行の`ScoreSummaryHeader`と同じstripのイディオム。統計実行のサマリも
+   同じ形で読めるようにする。 */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-border);
+}
+
+.cell {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-raised);
+}
+
+.label {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.value {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sub {
+  display: block;
+  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.score {
+  color: var(--color-success);
+  font-size: 18px;
+}
+
+.best {
+  color: var(--color-warning);
+  font-size: 18px;
+}
+
+/* 日次ベスト指標はこの画面の主役なので、平均と同じ見え方で並べない。 */
+.daily {
+  border-color: rgba(255, 200, 97, 0.45);
+  background: rgba(255, 200, 97, 0.35);
+}
+
+.daily .cell {
+  background: #182337;
+}
+
+.blockTitle {
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+.partial,
+.warning {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-warning);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(255, 200, 97, 0.12);
+  font-size: 12.5px;
+}
+
+.hint {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+@media (max-width: 760px) {
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ok .dot {
+  background: var(--color-success);
+}
+
+.bad .dot {
+  background: var(--color-danger);
+}
+
+/* 05_非機能・アクセシビリティ設計.md §4: 横スクロールはこの内部に限定する。 */
+.scrollArea {
+  overflow-x: auto;
+}
+
+.breakChart {
+  display: block;
+  width: 100%;
+  min-width: 260px;
+  height: auto;
+}
+
+.axis {
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+}
+
+.breakBar {
+  fill: var(--color-ally);
+  fill-opacity: 0.85;
+}
+
+.tick {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.dataTable {
+  width: 100%;
+  min-width: 240px;
+  margin-top: var(--space-3);
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.dataTable caption {
+  padding-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-align: left;
+}
+
+.dataTable th,
+.dataTable td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: right;
+}
+
+.dataTable thead th {
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.dataTable tbody th {
+  color: var(--color-text);
+  font-weight: 400;
+  text-align: left;
+}

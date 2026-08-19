@@ -1,0 +1,143 @@
+/*
+ * 図の色と線種。位置・大きさはSVG属性が持つ（`index.html`のCSPが`style-src 'self'`
+ * のためinline styleを使えない）。
+ */
+.chart {
+  margin-bottom: var(--space-4);
+}
+
+/* 05_非機能・アクセシビリティ設計.md §4: 横スクロールはこの内部に限定する。 */
+.scrollArea {
+  overflow-x: auto;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  min-width: 480px;
+  height: auto;
+}
+
+.axis {
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+}
+
+.grid {
+  stroke: var(--color-surface-strong);
+  stroke-width: 1;
+}
+
+.tick {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.bar {
+  fill: var(--color-ally);
+  fill-opacity: 0.85;
+}
+
+.dailyBestLine {
+  fill: none;
+  stroke: var(--color-warning);
+  stroke-width: 2;
+}
+
+.medianMarker {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.bestMarker {
+  stroke: var(--color-warning);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.medianLabel {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.bestLabel {
+  fill: var(--color-warning);
+  font-size: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  list-style: none;
+}
+
+.swatch {
+  display: inline-block;
+  margin-right: var(--space-2);
+  vertical-align: baseline;
+}
+
+.barSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--color-ally);
+}
+
+.lineSwatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-warning);
+}
+
+.table {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.table summary {
+  cursor: pointer;
+}
+
+.table table {
+  width: 100%;
+  min-width: 360px;
+  margin-top: var(--space-2);
+  border-collapse: collapse;
+}
+
+.table caption {
+  padding-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: right;
+}
+
+.table thead th {
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.table tbody th {
+  color: var(--color-text);
+  font-weight: 400;
+  text-align: left;
+}

@@ -253,3 +253,43 @@ test("runs the statistics mode as sequential 300-run chunks and returns to the s
   await page.getByRole("button", { name: "戦術演習を開始" }).click();
   await expect(page.getByText("戦術演習が完了しました。")).toBeVisible();
 });
+
+// UI-E2E-016: UI-AC-043。統計実行の結果が演習サマリとキャラ別統計へ差し替わり、
+// 上位N切り替えが再実行なしで効き、生データCSVを持ち出せる。
+test("shows the statistics panels and exports the raw runs after a statistics run", async ({
+  page,
+}) => {
+  const requests: EvaluationRequestRecord[] = [];
+  await mockTacticalExerciseEvaluation(page, requests);
+
+  await page.goto("./");
+  await page.getByRole("tab", { name: "戦術演習" }).click();
+  const ally = page.getByRole("region", { name: /ALLY FORMATION/ });
+  const enemy = page.getByRole("region", { name: /ENEMY FORMATION/ });
+  await ally.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "アライアルファを選択" }).click();
+  await enemy.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+  await page.getByRole("button", { name: "エクササイズアルファを選択" }).click();
+
+  await page.getByLabel("実行モード").selectOption("STATISTICS");
+  await page.getByLabel("実行回数").fill("120");
+  await page.getByLabel("シード").fill("e2e-seed");
+  await page.getByRole("button", { name: "戦術演習を開始" }).click();
+
+  await expect(page.getByText("統計実行が完了しました。")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /演習統計サマリ/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /キャラ別統計/ })).toBeVisible();
+  await expect(page.getByText("完了 RUN").locator("..")).toContainText("120");
+  await expect(page.getByText(/期待日次ベスト/)).toBeVisible();
+  await expect(page.getByRole("img", { name: /スコア分布/ })).toBeVisible();
+
+  // 上位Nの切り替えは手元の生値の再集計だけで済む。評価APIを呼び直さない。
+  const requestsBeforeSwitch = requests.length;
+  await page.getByRole("radio", { name: "上位 25 run" }).check();
+  await expect(page.getByText(/スコア上位25runの平均スコア/)).toBeVisible();
+  expect(requests).toHaveLength(requestsBeforeSwitch);
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: /CSVでダウンロード/ }).click();
+  expect((await download).suggestedFilename()).toBe("exercise-runs-120.csv");
+});

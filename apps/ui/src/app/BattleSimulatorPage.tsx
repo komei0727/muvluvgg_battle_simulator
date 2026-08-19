@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useState } from "react";
+import { useCallback, useMemo, useReducer, useState } from "react";
 import { AppShell } from "../components/AppShell.js";
 import { Panel } from "../components/Panel.js";
 import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
@@ -22,6 +22,12 @@ import { useExerciseStatisticsRun } from "../features/exercise/use-exercise-stat
 import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
 import type { BattleMode } from "../features/exercise/ModeTabs.js";
 import { ScoreSummaryHeader } from "../features/exercise/ScoreSummaryHeader.js";
+import { ExerciseStatisticsSummary } from "../features/exercise-stats/ExerciseStatisticsSummary.js";
+import { UnitStatisticsSection } from "../features/exercise-stats/UnitStatisticsSection.js";
+import {
+  buildScoreStatisticsReport,
+  resolveAllyUnitLabels,
+} from "../features/exercise-stats/statistics-report.js";
 import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
 import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
 import type { ExerciseExecutionFormProps } from "../features/formation/ExecutionParameterForm.js";
@@ -326,6 +332,37 @@ export function BattleSimulatorPage({
   // 画面と結果が食い違う。単一実行（`formationDisabled`）と同じ扱いにする。
   const formationDisabled = view.formationDisabled || isStatisticsRunning;
 
+  // 統計実行の結果表示。中断は失敗ではなく「完了済みチャンクまでで確定した結果」
+  // なので、成功と同じ形で読む（`selectStatisticsAggregate`と同じ扱い）。
+  const completedStatisticsRun =
+    statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
+      ? statisticsRun.state
+      : undefined;
+  const readyCatalogResponse = catalog.status === "ready" ? catalog.response : undefined;
+  // 統計は最大2,000試行の並べ替えと分位点を通るため、編成の1文字編集ごとにやり直さない。
+  const statisticsDisplay = useMemo(
+    () =>
+      // Catalogが切り替わった後の結果は、いま表示している定義と対応しない。数値だけを
+      // 残すと別の編成の結果として読まれるため、`StatisticsRunFeedback`が再読込を促す
+      // のと同じ条件でパネルも出さない。
+      completedStatisticsRun === undefined || statisticsCatalogRevisionMismatch
+        ? undefined
+        : {
+            aggregate: completedStatisticsRun.aggregate,
+            score: buildScoreStatisticsReport(
+              completedStatisticsRun.aggregate,
+              completedStatisticsRun.seed,
+            ),
+            // 列に名前を付けられるのは送信時の編成だけである。実行後もdraftは編集
+            // できるので、現在の編成から引くと別のユニット名が列へ付く。
+            labels: resolveAllyUnitLabels(
+              completedStatisticsRun.submission.allyUnitDefinitionIds,
+              readyCatalogResponse,
+            ),
+          },
+    [completedStatisticsRun, statisticsCatalogRevisionMismatch, readyCatalogResponse],
+  );
+
   const submit = () => {
     if (isStatisticsRun) {
       // 実行回数の値域は送信前検証が押さえている（`exercise-draft-validation.ts`）ため、
@@ -545,6 +582,21 @@ export function BattleSimulatorPage({
             catalogRevisionMismatch={battleView.catalogRevisionMismatch}
             onReloadCatalog={catalogLoader.reload}
           />
+        ) : null}
+
+        {isStatisticsRun && statisticsDisplay !== undefined ? (
+          <>
+            <Panel step="02" title="演習統計サマリ" meta="SCORE / DAILY BEST / DISTRIBUTION">
+              <ExerciseStatisticsSummary report={statisticsDisplay.score} />
+            </Panel>
+            <Panel step="03" title="キャラ別統計" meta="DAMAGE / BREAK / EXPORT">
+              <UnitStatisticsSection
+                aggregate={statisticsDisplay.aggregate}
+                labels={statisticsDisplay.labels}
+                score={statisticsDisplay.score}
+              />
+            </Panel>
+          </>
         ) : null}
 
         {view.displayedSuccess !== undefined &&

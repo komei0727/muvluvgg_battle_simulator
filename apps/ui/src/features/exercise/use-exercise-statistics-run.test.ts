@@ -546,6 +546,27 @@ describe("useExerciseStatisticsRun — failures", () => {
     ]);
   });
 
+  // ユニット別集計の列は編成順であり、列に名前を付けられるのは送信時の編成だけである。
+  // 実行後に編成を編集できるため、現在のdraftから引くと別のユニット名が列へ付く。
+  it("keeps the ally unit definition ids of the submitted formation in formation order", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 2, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("succeeded");
+    });
+    const { state } = result.current;
+    expect(
+      state.status === "succeeded" ? state.submission.allyUnitDefinitionIds : undefined,
+    ).toEqual(["UNIT_ALLY"]);
+  });
+
   // 応答の`seed`は、送ったチャンクseedがそのまま使われたかを判定できる唯一の材料である
   // （`10_API設計.md`「実際に使われたseed」）。食い違いを見逃すと、全チャンクが同じ試行を
   // 繰り返していても数値が揃って見えるだけで気づけない。

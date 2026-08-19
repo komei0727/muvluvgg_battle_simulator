@@ -12,6 +12,12 @@ function aggregate(completedRuns: number): EvaluationAggregate {
     requestedRuns: completedRuns,
     completedRuns,
     catalogRevision: "rev-1",
+    chunkSize: 300,
+    runs: indices.map((index) => ({
+      chunkIndex: 0,
+      chunkSeed: "seed#0",
+      runIndexInChunk: index,
+    })),
     sample: {
       scores: indices.map(() => 1000),
       breakCounts: indices.map(() => 1),
@@ -25,6 +31,7 @@ function aggregate(completedRuns: number): EvaluationAggregate {
 
 const SUBMISSION = {
   allyUnitSlotKeys: ["ally:FRONT:0"],
+  allyUnitDefinitionIds: ["UNIT_ALLY"],
   enemyUnitSlotKeys: ["enemy:FRONT:0"],
   allyMemorySlotKeys: [],
   enemyMemorySlotKeys: [],

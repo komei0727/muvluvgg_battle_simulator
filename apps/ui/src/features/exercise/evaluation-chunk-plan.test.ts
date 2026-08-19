@@ -123,6 +123,26 @@ describe("mergeEvaluationChunks", () => {
     ]);
   });
 
+  // UI-UT-CSV-001: CSVの`chunk_index`/`chunk_seed`/`run_index_in_chunk`は連結後の
+  // 標本からは復元できない（部分結果があるとチャンク境界が試行数で割り切れない）ため、
+  // 連結と同じ場所で試行ごとに残す。
+  it("records the chunk each run came from in send order", () => {
+    const merged = mergeEvaluationChunks([chunkResult(0, 2), chunkResult(1, 2)]);
+
+    expect(merged.ok).toBe(true);
+    if (!merged.ok) {
+      return;
+    }
+    // 実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）である。
+    expect(merged.aggregate.chunkSize).toBe(2);
+    expect(merged.aggregate.runs).toEqual([
+      { chunkIndex: 0, chunkSeed: "s#0", runIndexInChunk: 0 },
+      { chunkIndex: 0, chunkSeed: "s#0", runIndexInChunk: 1 },
+      { chunkIndex: 1, chunkSeed: "s#2", runIndexInChunk: 0 },
+      { chunkIndex: 1, chunkSeed: "s#2", runIndexInChunk: 1 },
+    ]);
+  });
+
   it("keeps a partial chunk as a shorter sample without padding it", () => {
     const partial = chunkResult(1, 2, {
       completedRuns: 1,
