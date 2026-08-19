@@ -55,6 +55,11 @@ export function matchEffectRuntimeCounterUpdates(
         continue;
       }
       for (const update of counterUpdates) {
+        // `RESET`（Issue #553）は`scope: SKILL_RUNTIME`しか取り得ない型のため、
+        // このscope検査を通過した`update`の型からは`RESET`が除かれる（`applyUpdate`の
+        // `RESET`分岐はここからは到達しない）。`AppliedEffect`スコープのcounterは
+        // 効果インスタンス自身の失効が破棄を兼ねるため、契機宣言によるリセットを
+        // 持たない。
         if (update.scope !== "APPLIED_EFFECT") {
           throw new DomainValidationError(
             "counterUpdates.scope",

@@ -63,6 +63,28 @@ export function applyCumulativeDamageThreshold(
 }
 
 /**
+ * `R-EFF-11` `RESET` counterUpdate（Issue #553）: counterの公開値を0へ戻す。
+ * `resetRuntimeCounter`（解決スコープ終了時の破棄）と違いキー自体は残す —
+ * 発行イベントが`RuntimeCounterChanged`（`after: 0`）であり、その stateDelta が
+ * 値0を書き込むため、キーを消すと独立Reducerの復元結果（`{ counter: 0 }`）が
+ * 実状態（`{}`）と食い違う。未設定のcounterへのRESETはno-opとして`undefined`を
+ * 返す（キーだけを生む更新はstateDeltaを伴わない状態変化になる）。
+ */
+export function clearRuntimeCounterValue(
+  counters: RuntimeCounterMap,
+  counterId: RuntimeCounterId,
+): { readonly counters: RuntimeCounterMap; readonly change: RuntimeCounterChange } | undefined {
+  const entry = counters[counterId];
+  if (entry === undefined) {
+    return undefined;
+  }
+  return {
+    counters: { ...counters, [counterId]: { value: 0, carry: 0 } },
+    change: { counter: counterId, before: entry.value, after: 0 },
+  };
+}
+
+/**
  * `R-EFF-11`「解決スコープ終了時にリセットするcounter」。未設定のcounterへの
  * リセットはno-opとして`undefined`を返す（`CooldownPolicy`の
  * `manipulateCooldown`と同じ規約）。

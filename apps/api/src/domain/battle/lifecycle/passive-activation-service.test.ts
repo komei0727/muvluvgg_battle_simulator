@@ -1926,6 +1926,174 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(runtimeCounterChanged2.sequence).toBeLessThan(passiveActivated.sequence);
   });
 
+  it("UT-R-EFF-11-028 (Issue #553, RESET): a RESET triggered by the PS's own PassiveActivated returns the counter to 0 before that PS's EffectSequence resolves, and the next INCREMENT counts up from 0 again", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESET_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
+    const skillDefinitionId = createSkillDefinitionId("SKL_PS_RESET");
+    const buffAction = statusEffectAction("ACT_PS_RESET_BUFF", 1);
+    const critTrigger = {
+      eventType: "CriticalCheckResolved",
+      category: "FACT",
+      sourceSelector: "SELF",
+      targetSelector: "ANY",
+      condition: { kind: "TRUE" },
+    } as const;
+    const skill: SkillDefinition = {
+      skillDefinitionId,
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          ...critTrigger,
+          condition: { kind: "RUNTIME_COUNTER", counter: counterId, op: "EQ", value: 2 },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: critTrigger,
+          amount: 1,
+        },
+        {
+          kind: "RESET",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "PassiveActivated",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "ANY",
+            condition: {
+              kind: "EVENT_PAYLOAD",
+              field: "skillDefinitionId",
+              op: "EQ",
+              value: skillDefinitionId,
+            },
+          },
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffAction.effectActionDefinitionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "SKL_PS_RESET", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", { unitDefinitionId, currentPp: 3, maximumPp: 3 });
+    const definitions = definitionsOf(
+      new Map([[unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skillDefinitionId])]]),
+      new Map([[skillDefinitionId, skill]]),
+      new Map([[buffAction.effectActionDefinitionId, buffAction]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner],
+    );
+
+    function recordCrit(): BattleDomainEvent {
+      return recorder.record({
+        eventType: "CriticalCheckResolved",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: owner.battleUnitId,
+        payload: { mode: "NORMAL", baseCriticalRate: 1, effectiveCriticalRate: 1, result: true },
+      });
+    }
+
+    let units = runtime.onFactEvent(recordCrit(), [owner]).units;
+    units = runtime.onFactEvent(recordCrit(), units).units;
+
+    const events = recorder.getEvents();
+    const passiveActivated = events.find((e) => e.eventType === "PassiveActivated")!;
+    expect(passiveActivated).toBeDefined();
+    const resetChanged = events.find(
+      (e) => e.eventType === "RuntimeCounterChanged" && e.payload.after === 0,
+    )!;
+    expect(resetChanged, "the RESET must emit RuntimeCounterChanged(after: 0)").toBeDefined();
+    expect(resetChanged.payload).toMatchObject({
+      ownerUnitId: owner.battleUnitId,
+      scope: "SKILL_RUNTIME",
+      counter: counterId,
+      skillDefinitionId,
+      before: 2,
+      after: 0,
+      carry: 0,
+      valueChanged: true,
+    });
+    // R-PS-05 #4→#5: `PassiveActivated`の直後・そのPSのEffectSequence解決の前。
+    const effectActionStarting = events.find((e) => e.eventType === "EffectActionStarting")!;
+    expect(resetChanged.sequence).toBeGreaterThan(passiveActivated.sequence);
+    expect(resetChanged.sequence).toBeLessThan(effectActionStarting.sequence);
+    // `RuntimeCounterReset`（解決スコープ終了時の破棄）は使わない — キーは値0で残る。
+    expect(events.some((e) => e.eventType === "RuntimeCounterReset")).toBe(false);
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
+      [skillDefinitionId]: { [counterId]: { value: 0, carry: 0 } },
+    });
+    expect(resetChanged.stateDelta).toEqual({
+      units: {
+        [owner.battleUnitId]: {
+          skillCounters: { [skillDefinitionId]: { [counterId]: { before: 2, after: 0 } } },
+        },
+      },
+    });
+
+    // `RuntimeCounterReset`（キー削除）と違い、独立Reducerの復元結果は実状態と
+    // 同じく「キーは残り値が0」になる。
+    const initialSnapshot: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: 1,
+      units: {
+        [owner.battleUnitId]: {
+          hp: owner.currentHp,
+          ap: owner.currentAp,
+          pp: owner.currentPp,
+          extraGauge: owner.currentExtraGauge,
+          maximumAp: owner.maximumAp,
+          maximumPp: owner.maximumPp,
+          maximumExtraGauge: owner.maximumExtraGauge,
+          combatStats: owner.combatStats,
+          baseCombatStats: owner.combatStats,
+          skillCounters: { [skillDefinitionId]: { [counterId]: 2 } },
+        },
+      },
+    };
+    expect(
+      applyStateDelta(initialSnapshot, resetChanged.stateDelta!).units[owner.battleUnitId]!
+        .skillCounters,
+    ).toEqual({ [skillDefinitionId]: { [counterId]: 0 } });
+
+    // リセット後の`INCREMENT`は0起点で数え直す（余剰の繰り越しがない）。
+    units = runtime.onFactEvent(recordCrit(), units).units;
+    expect(units.find((u) => u.battleUnitId === owner.battleUnitId)?.skillCounters).toEqual({
+      [skillDefinitionId]: { [counterId]: { value: 1, carry: 0 } },
+    });
+  });
+
   it("UT-R-PS-05-006 (fix: PassiveActivated now reaches PS candidate detection): a PS that activates causes another PS reacting to PassiveActivated to activate within the same resolution scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CHAIN_OWNER");
     const skillA: SkillDefinition = {
