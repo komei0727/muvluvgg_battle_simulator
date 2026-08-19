@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { validateExerciseDraft } from "./exercise-draft-validation.js";
 import { selectCanSubmit } from "../formation/draft-validation.js";
-import { createInitialDraft, slotKeyOf } from "../formation/types.js";
+import { MAX_EXERCISE_RUN_COUNT, createInitialDraft, slotKeyOf } from "../formation/types.js";
 import type { BattleDraft, Side, UiColumn, UiRow } from "../formation/types.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 
@@ -181,5 +181,60 @@ describe("validateExerciseDraft", () => {
 
     expect(codes(violations)).toContain("UNKNOWN_DEFINITION");
     expect(violations.filter((v) => v.code === "APTITUDE_MISMATCH")[0]?.severity).toBe("warning");
+  });
+});
+
+// UI-UT-VAL-012: 実行回数は統計実行のときだけ意味を持つ。単一実行で入力途中の
+// 値が送信を止めると、統計実行を一度も選んでいない利用者が実行できなくなる。
+describe("統計実行の実行回数の検証 (UI-UT-VAL-012)", () => {
+  function withExecution(
+    mode: "SINGLE" | "STATISTICS",
+    runCount: number | "",
+    seed = "",
+  ): BattleDraft {
+    return { ...validExerciseDraft(), exerciseExecution: { mode, runCount, seed } };
+  }
+
+  it.each([1, 100, MAX_EXERCISE_RUN_COUNT])("accepts %s runs", (runCount) => {
+    expect(
+      selectCanSubmit(validateExerciseDraft(withExecution("STATISTICS", runCount), catalog)),
+    ).toBe(true);
+  });
+
+  it.each([0, -1, 1.5, MAX_EXERCISE_RUN_COUNT + 1, "" as const])(
+    "rejects %s runs in the statistics mode",
+    (runCount) => {
+      const violations = validateExerciseDraft(withExecution("STATISTICS", runCount), catalog);
+
+      expect(codes(violations)).toContain("RUN_COUNT_OUT_OF_RANGE");
+      expect(
+        violations.find((violation) => violation.code === "RUN_COUNT_OUT_OF_RANGE")?.path,
+      ).toBe("/runsPerCandidate");
+      expect(selectCanSubmit(violations)).toBe(false);
+    },
+  );
+
+  it("does not validate the run count in the single-run mode", () => {
+    const violations = validateExerciseDraft(withExecution("SINGLE", ""), catalog);
+
+    expect(codes(violations)).not.toContain("RUN_COUNT_OUT_OF_RANGE");
+    expect(selectCanSubmit(violations)).toBe(true);
+  });
+
+  // シードは任意文字列で、空は「自動生成に任せる」を表す（送信時の扱いは
+  // 統計実行基盤が決める）。送信前検証は形を問わない。
+  it("does not constrain the seed", () => {
+    expect(
+      selectCanSubmit(validateExerciseDraft(withExecution("STATISTICS", 100, "abc123"), catalog)),
+    ).toBe(true);
+    expect(
+      selectCanSubmit(validateExerciseDraft(withExecution("STATISTICS", 100, ""), catalog)),
+    ).toBe(true);
+  });
+
+  // 上限は1リクエストの上限ではなく画面が許す総試行数（チャンク分割は統計実行基盤
+  // が担う）。値そのものを台帳として固定する。
+  it("caps the run count at 2,000", () => {
+    expect(MAX_EXERCISE_RUN_COUNT).toBe(2000);
   });
 });

@@ -16,6 +16,13 @@ export interface TacticalExerciseRequest {
 const EXERCISE_ENEMY_UNIT_COUNT = 1;
 
 /**
+ * UI-AC-041: 単一実行は「ログを読むための1回」であり、演習の画面からログレベルの
+ * 選択そのものが無くなった（Issue #539）。`SUMMARY`を選ぶ動機だった「大量実行して
+ * 集計を見る」は統計実行が担うため、draftに残っている値に依らず`DETAILED`で送る。
+ */
+const SINGLE_RUN_LOG_LEVEL: LogLevel = "DETAILED";
+
+/**
  * UI-AC-020: 演習の敵は強化を持たない（`R-TEX-01` #1）。画面が敵強化の入力を
  * 出さないことに依存せず、リクエスト生成側でも強化無効として組み立てる。
  * `enabled: false` は陣営単位の`enhancement`とユニット単位の`enhancement`の
@@ -60,7 +67,7 @@ export function buildTacticalExerciseRequest(
     request: {
       allyFormation: ally.formation,
       enemyFormation: enemy.formation,
-      options: { logLevel: draft.logLevel },
+      options: { logLevel: SINGLE_RUN_LOG_LEVEL },
     },
     allyUnitSlotKeys: ally.unitSlotKeys,
     enemyUnitSlotKeys: enemy.unitSlotKeys,

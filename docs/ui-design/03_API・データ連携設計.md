@@ -90,6 +90,8 @@ X-Request-Id: ui-<UUID>
 
 成功レスポンスは`result`だけが演習結果（`completionReason`、`completedTurn`、`totalScore`、`breakCount`、`breaks[]`）となり、`initialState`／`finalState`／`events`／`stateTransitions`は戦闘シミュレーションと同じ構造を共有する。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseRequest」「TacticalExerciseResponse」とする。
 
+`options.logLevel`は**常に`DETAILED`**で送る（`UI-AC-041`）。演習の画面はログレベルの選択を持たず、実行モードの切替（単一実行／統計実行）がそれを置き換えたためである。保存済みdraftに残る`logLevel`は演習の送信内容へ影響しない。
+
 `breaks[]`の`sourceUnitDefinitionId`（`R-TEX-03` #2 の発生源ユニット）は任意項目として読む。メモリー由来の継続ダメージのように発生源ユニットを持たないブレイクでは省略される（`R-MEM-04`）ため、不在を欠損ではなくメモリー由来として扱い、この項目より前にデプロイされたAPIの応答も受理する。
 
 ### 2.4 共通リクエスト方針
@@ -369,6 +371,16 @@ M10（`TEX-011`）で次を追加する。違反コードは `UNIT_POOL_MISMATCH
 - 選択ダイアログの候補を編成プールで絞る（`01_UI要求・画面設計.md` §5.2）だけでは足りない。保存draftの復元やCatalog更新で誤ったプールのユニットが枠へ残り得るため、送信経路にも同じ制約を置く。
 - `exerciseActive`は検証に使わない。開催終了の演習ユニットもサーバーが受理する（`R-TEX-11` #4）。
 - Catalogに存在しない定義は`UNKNOWN_DEFINITION`が指す。カテゴリが判らない枠へプール違反を重ねて出さない。
+
+Issue #539 で次を追加する。違反コードは `RUN_COUNT_OUT_OF_RANGE`（error）とする。
+
+| Path                | 規則                                   | UIメッセージ                                 |
+| ------------------- | -------------------------------------- | -------------------------------------------- |
+| `/runsPerCandidate` | integer 1～2,000（統計実行のときだけ） | 実行回数は1～2,000の整数で入力してください。 |
+
+- `path`は評価API（`TacticalExerciseEvaluationRequest`）の`runsPerCandidate`へ合わせる。統計実行のリクエストが載る先と同じ`path`にしておけば、サーバーの422も同じ入力欄へ対応づけられる。
+- 単一実行（`SINGLE`）では検証しない。実行回数は統計実行のときだけ送信へ効くため、統計実行を一度も選んでいない利用者が入力途中の値で実行できなくなるのを避ける。
+- シードは検証しない。任意文字列で、空は「サーバー生成に任せる」を表す。
 
 M11（`ENH-001`）で次を追加する。
 

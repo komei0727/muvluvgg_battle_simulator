@@ -12,6 +12,8 @@ import {
 } from "./types.js";
 import type {
   BattleDraft,
+  ExerciseExecutionInput,
+  ExerciseExecutionMode,
   FormationSlotInput,
   GearInput,
   LevelLinkInput,
@@ -68,6 +70,12 @@ export type FormationAction =
   | { readonly type: "memoryRemoved"; readonly side: Side; readonly index: number }
   | { readonly type: "turnLimitChanged"; readonly value: number | "" }
   | { readonly type: "logLevelChanged"; readonly value: LogLevel }
+  | {
+      readonly type: "exerciseExecutionModeChanged";
+      readonly value: ExerciseExecutionMode;
+    }
+  | { readonly type: "exerciseRunCountChanged"; readonly value: number | "" }
+  | { readonly type: "exerciseSeedChanged"; readonly value: string }
   | { readonly type: "enhancementToggled"; readonly side: Side; readonly enabled: boolean }
   | {
       readonly type: "academyLevelChanged";
@@ -285,6 +293,19 @@ function editSlotEnhancement(
   return { ...state, draft, lastEditedSlotKey: slotKey };
 }
 
+function withExerciseExecution(
+  state: FormationState,
+  patch: Partial<ExerciseExecutionInput>,
+): FormationState {
+  return {
+    ...state,
+    draft: {
+      ...state.draft,
+      exerciseExecution: { ...state.draft.exerciseExecution, ...patch },
+    },
+  };
+}
+
 export function formationReducer(state: FormationState, action: FormationAction): FormationState {
   switch (action.type) {
     case "unitSelected": {
@@ -373,6 +394,14 @@ export function formationReducer(state: FormationState, action: FormationAction)
       return { ...state, draft: { ...state.draft, turnLimit: action.value } };
     case "logLevelChanged":
       return { ...state, draft: { ...state.draft, logLevel: action.value } };
+    // 実行モードの切替は`runCount`・`seed`を保持する。モードを往復しただけで
+    // 入力が消えると、単一実行でログを確かめてから統計実行へ戻す使い方が壊れる。
+    case "exerciseExecutionModeChanged":
+      return withExerciseExecution(state, { mode: action.value });
+    case "exerciseRunCountChanged":
+      return withExerciseExecution(state, { runCount: action.value });
+    case "exerciseSeedChanged":
+      return withExerciseExecution(state, { seed: action.value });
     case "enhancementToggled":
       return {
         ...state,

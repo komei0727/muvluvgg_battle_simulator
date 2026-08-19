@@ -17,11 +17,14 @@ import {
   GEAR_STATS,
   GEAR_TIERS,
   createInitialDraft,
+  createInitialExerciseExecution,
   createInitialLevelLink,
   createInitialUnitEnhancement,
 } from "./types.js";
 import type {
   BattleDraft,
+  ExerciseExecutionInput,
+  ExerciseExecutionMode,
   FormationSlotInput,
   GearInput,
   LevelLinkInput,
@@ -78,6 +81,30 @@ function logLevelOf(value: unknown): LogLevel {
     return "DETAILED";
   }
   return isMemberOf(LOG_LEVELS, value) ? value : fail();
+}
+
+const EXERCISE_EXECUTION_MODES: readonly ExerciseExecutionMode[] = ["SINGLE", "STATISTICS"];
+
+/**
+ * Issue #539: 演習の実行モードは`logLevel`の選択を置き換えたが、以前のセッションで
+ * 保存されたdraftは`exerciseExecution`を持たない。`levelLink`と同じく版を上げずに
+ * 項目を足すため、欠落は既定（単一実行）として読む — 版を上げると`envelopeOf`の
+ * 完全一致判定で全利用者の保存データが破棄される。保存済みの`logLevel`は残す
+ * （通常戦闘のdraftは引き続きその値で実行し、演習は`DETAILED`固定で送る）。
+ */
+function exerciseExecutionOf(value: unknown): ExerciseExecutionInput {
+  if (value === undefined) {
+    return createInitialExerciseExecution();
+  }
+  if (!isRecord(value)) {
+    return fail();
+  }
+  const mode = value["mode"];
+  const seed = value["seed"];
+  if (!isMemberOf(EXERCISE_EXECUTION_MODES, mode) || typeof seed !== "string") {
+    return fail();
+  }
+  return { mode, runCount: levelOf(value["runCount"]), seed };
 }
 
 function isMemberOf<T extends string>(values: readonly T[], value: unknown): value is T {
@@ -273,6 +300,7 @@ export function parseStoredDraft(value: unknown): BattleDraft | undefined {
       ),
       turnLimit: levelOf(stored["turnLimit"]),
       logLevel,
+      exerciseExecution: exerciseExecutionOf(stored["exerciseExecution"]),
       allyEnhancement: sideEnhancementOf(stored["allyEnhancement"]),
       enemyEnhancement: sideEnhancementOf(stored["enemyEnhancement"]),
     };

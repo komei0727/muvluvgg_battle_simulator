@@ -12,6 +12,26 @@ export type UiColumn = 0 | 1 | 2;
  */
 export type LogLevel = "SUMMARY" | "DETAILED";
 
+/**
+ * 戦術演習の実行の使い分け（Issue #539）。`SINGLE`は1回だけ実行してログを読む用途、
+ * `STATISTICS`は同じ編成を大量に実行して統計量を見る用途である。演習では
+ * `logLevel`の選択をこの2択が置き換える — 演習で`SUMMARY`を選ぶ動機だった
+ * 「大量実行して集計を見る」は`STATISTICS`が担い、`SINGLE`は常に`DETAILED`で送る。
+ */
+export type ExerciseExecutionMode = "SINGLE" | "STATISTICS";
+
+/**
+ * 統計実行のパラメータ。`runCount`と`seed`は`STATISTICS`のときだけ送信へ効くが、
+ * モードを往復しても入力し直さなくて済むよう`SINGLE`の間も保持する。
+ * `seed`の空文字は「サーバー生成に任せる」を表す（`TacticalExerciseEvaluationRequest`
+ * の`seed`は任意項目）。
+ */
+export interface ExerciseExecutionInput {
+  readonly mode: ExerciseExecutionMode;
+  readonly runCount: number | "";
+  readonly seed: string;
+}
+
 // docs/ui-design/03_API・データ連携設計.md §3.1 (M11 強化入力).
 export type EnhancementUnitType = "PHYSICAL" | "ENERGY" | "AGILE";
 export type EnhancementAttribute = "AGGRESSIVE" | "SHY" | "CUTE" | "SMART" | "COMICAL" | "CLEVER";
@@ -108,6 +128,11 @@ export interface BattleDraft {
   readonly enemyMemoryDefinitionIds: readonly (string | undefined)[];
   readonly turnLimit: number | "";
   readonly logLevel: LogLevel;
+  /**
+   * 戦術演習モードだけが読む実行指定。draft型は両モードで共有しているため通常戦闘の
+   * draftにも載るが、通常戦闘のリクエスト生成も送信可否も参照しない。
+   */
+  readonly exerciseExecution: ExerciseExecutionInput;
   readonly allyEnhancement: SideEnhancementInput;
   readonly enemyEnhancement: SideEnhancementInput;
 }
@@ -120,6 +145,18 @@ export const GEAR_SLOT_COUNT = 9;
 const DEFAULT_ACADEMY_LEVEL = 1;
 /** R-ENH-05 #1: `baseStats`が表すレベル。UIの既定値もこれに合わせる。 */
 export const DEFAULT_UNIT_LEVEL = 200;
+/**
+ * 統計実行の既定試行数。`tools/exercise-lab`の`lab stats --runs`の既定と揃える
+ * （同じ編成をUIとローカル探索の双方で回したとき、既定のまま比べられる）。
+ */
+export const DEFAULT_EXERCISE_RUN_COUNT = 100;
+export const MIN_EXERCISE_RUN_COUNT = 1;
+/**
+ * UI-AC-041: 統計実行が許す総試行数の上限。1リクエストの上限（`EVALUATION_MAX_TOTAL_RUNS`）
+ * ではなく画面が受け付ける総数であり、これを超える分の分割送信は統計実行基盤が担う。
+ * 上限を置くのは、桁を打ち間違えた実行が延々とブラウザを占有するのを防ぐため。
+ */
+export const MAX_EXERCISE_RUN_COUNT = 2000;
 
 export function slotKeyOf(side: Side, row: UiRow, column: UiColumn): string {
   return `${side}:${row}:${column}`;
@@ -163,6 +200,11 @@ export function createInitialLevelLink(): LevelLinkInput {
   return { enabled: false, level: DEFAULT_UNIT_LEVEL };
 }
 
+/** UI-AC-041: 既定は単一実行。統計実行のパラメータは既定値を持って眠る。 */
+export function createInitialExerciseExecution(): ExerciseExecutionInput {
+  return { mode: "SINGLE", runCount: DEFAULT_EXERCISE_RUN_COUNT, seed: "" };
+}
+
 /** UI-AC-025: レベル既定200・ギア9枠すべて空。リンクからは外さない。 */
 export function createInitialUnitEnhancement(): UnitEnhancementInput {
   return {
@@ -188,6 +230,7 @@ export function createInitialDraft(allyPlayerEnhancement?: PlayerSideEnhancement
     // あり、必要なのは勝敗とユニット別集計だけ。詳細ログは効果発動を追うときに
     // 明示的に選ぶ（既定にすると毎回数MBのレスポンスを受け取ることになる）。
     logLevel: "SUMMARY",
+    exerciseExecution: createInitialExerciseExecution(),
     allyEnhancement:
       allyPlayerEnhancement === undefined
         ? allyEnhancement

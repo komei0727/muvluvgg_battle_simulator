@@ -479,8 +479,6 @@ describe("BattleSimulatorPage — exercise events in the timeline (UI-CT-031)", 
     await switchMode(user, "戦術演習");
     await placeUnit(user, "ally", "アルファ");
     await placeUnit(user, "enemy", "エクサ");
-    // 時系列イベントは詳細ログ実行のときだけ表示される（Issue #464）。
-    await user.selectOptions(screen.getByLabelText("ログレベル"), "DETAILED");
     await user.click(screen.getByRole("button", { name: "戦術演習を開始" }));
     await waitFor(() => {
       expect(screen.getByText("戦術演習が完了しました。")).toBeInTheDocument();
@@ -805,5 +803,90 @@ describe("BattleSimulatorPage — exercise mode as the default (UI-CT-058/059)",
         name: /前衛1: ブラボーを変更/,
       }),
     ).toBeInTheDocument();
+  });
+});
+
+// UI-CT-083 / UI-CT-084: Issue #539。演習の実行はログレベルではなく実行モードで
+// 選ぶ。統計実行の実行基盤は後続Issueなので、選んでも実行できないことを示す。
+describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-083/084)", () => {
+  it("UI-CT-083: swaps the log level select for the execution mode switch in the exercise mode only", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+    await waitForCatalog();
+
+    expect(screen.getByLabelText("実行モード")).toBeInTheDocument();
+    expect(screen.queryByLabelText("ログレベル")).not.toBeInTheDocument();
+
+    await switchMode(user, "通常戦闘");
+
+    expect(screen.getByLabelText("ログレベル")).toBeInTheDocument();
+    expect(screen.queryByLabelText("実行モード")).not.toBeInTheDocument();
+  });
+
+  it("UI-CT-084: blocks the run while the statistics mode is selected, and re-enables it on the way back", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+        simulateTacticalExerciseImpl={vi.fn(() =>
+          Promise.resolve({ ok: true as const, response: exerciseResponse() }),
+        )}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
+
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+
+    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeDisabled();
+    expect(screen.getByText(/準備中/)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("実行モード"), "SINGLE");
+
+    expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
+  });
+
+  it("UI-CT-084: shows the run count violation on the run count input", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+    await waitForCatalog();
+    await placeUnit(user, "ally", "アルファ");
+    await placeUnit(user, "enemy", "エクサ");
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+
+    await user.clear(screen.getByLabelText("実行回数"));
+
+    expect(screen.getByLabelText("実行回数")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getAllByText(/実行回数は1～2,000の整数/).length).toBeGreaterThan(0);
+  });
+
+  it("UI-CT-083: keeps the exercise execution input out of the battle mode draft", async () => {
+    const user = userEvent.setup();
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={readyGetCatalogImpl()}
+      />,
+    );
+    await waitForCatalog();
+    await user.selectOptions(screen.getByLabelText("実行モード"), "STATISTICS");
+
+    await switchMode(user, "通常戦闘");
+    await switchMode(user, "戦術演習");
+
+    expect(screen.getByLabelText("実行モード")).toHaveValue("STATISTICS");
   });
 });

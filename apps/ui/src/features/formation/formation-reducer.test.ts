@@ -200,6 +200,45 @@ describe("formationReducer — parameters", () => {
     });
     expect(next.draft.turnLimit).toBe("");
   });
+
+  // Issue #539: モードを往復しても統計実行のパラメータを入力し直させない。
+  it("updates the exercise execution mode, run count, and seed independently", () => {
+    const withMode = formationReducer(createInitialFormationState(), {
+      type: "exerciseExecutionModeChanged",
+      value: "STATISTICS",
+    });
+    expect(withMode.draft.exerciseExecution.mode).toBe("STATISTICS");
+    expect(withMode.draft.exerciseExecution.runCount).toBe(100);
+
+    const withRuns = formationReducer(withMode, {
+      type: "exerciseRunCountChanged",
+      value: 500,
+    });
+    const withSeed = formationReducer(withRuns, { type: "exerciseSeedChanged", value: "abc123" });
+    expect(withSeed.draft.exerciseExecution).toEqual({
+      mode: "STATISTICS",
+      runCount: 500,
+      seed: "abc123",
+    });
+
+    const backToSingle = formationReducer(withSeed, {
+      type: "exerciseExecutionModeChanged",
+      value: "SINGLE",
+    });
+    expect(backToSingle.draft.exerciseExecution).toEqual({
+      mode: "SINGLE",
+      runCount: 500,
+      seed: "abc123",
+    });
+  });
+
+  it("accepts the empty-input sentinel for the run count", () => {
+    const next = formationReducer(createInitialFormationState(), {
+      type: "exerciseRunCountChanged",
+      value: "",
+    });
+    expect(next.draft.exerciseExecution.runCount).toBe("");
+  });
 });
 
 describe("formationReducer — selection dialog", () => {
