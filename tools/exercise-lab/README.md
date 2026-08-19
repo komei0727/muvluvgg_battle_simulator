@@ -425,10 +425,27 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 
 チャンクが頻繁に欠けるなら `--chunk-size` を下げるか、dev サーバーの `WORKER_MAX_THREADS` を上げる。
 
+## UI統計ライブラリとの数値一致
+
+`apps/ui/src/features/exercise-stats/` は統計実行の画面のために、`stats.py` と
+`optimize/fitness.py` の統計量をTypeScriptへ移植している。統計の定義の正本はここ
+（Python側）であり、二重実装が黙って乖離しないよう、UI側のテストはこのツールが
+書き出した期待値を読む。
+
+```bash
+cd tools/exercise-lab
+uv run python scripts/export_ui_parity_fixture.py
+cd ../.. && pnpm exec prettier --write apps/ui/src/features/exercise-stats/__fixtures__/python-parity.ts
+```
+
+`stats.py` / `fitness.py` の統計量の定義を変えたら再生成し、UIのテストが通ることまで
+見ること。標本はスクリプト内のLCGで作るので、Pythonや依存の版が変わっても同じ入力が
+再現する。`prettier` を通すのは、生成した `.ts` がリポジトリの format ゲートに載るため。
+
 ## 開発
 
 ```bash
 uv run pytest
-uv run ruff check src tests
-uv run ruff format src tests
+uv run ruff check src tests scripts
+uv run ruff format src tests scripts
 ```
