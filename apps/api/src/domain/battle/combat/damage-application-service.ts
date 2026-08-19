@@ -21,6 +21,7 @@ import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervent
 import { applyConfirmedDamageSteps } from "./damage-hit-point-application.js";
 import { applyLinkedDamageSteps, applyReflectedDamageSteps } from "./damage-propagation.js";
 import { applySubUnitAdditionalDamageSteps } from "./sub-unit-additional-damage.js";
+import { applyAttackBonusAttacksSteps } from "./attack-bonus-attack.js";
 import {
   applyDamageToHealConversionSteps,
   resolveDamageToHealRate,
@@ -338,31 +339,25 @@ export function* applyDamageActionSteps(
       ...(confusionInput !== undefined ? { confusion: confusionInput } : {}),
     });
     // R-STS-03「新たな攻撃スキルによるダメージで解除する」「解除契機となった
-    // ダメージを凍結効果定義の増幅率だけ増加させる（既定値+50%）」＋
-    // ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004）: 対象が凍結中なら、この確定済みヒット
-    // （DAMAGE EffectAction、継続ダメージ・デバフのみのスキルは`applyDamageAction`自体を
-    // 経由しないため構造的に対象外）へ増幅を適用し凍結を解除する。攻撃者自身が保持する
-    // `APPLY_ATTACK_DAMAGE_BONUS`由来の`AppliedEffect`（`isAttackDamageBonus: true`、
-    // `magnitude`は付与時点で評価済みのFormula結果）も合算する（複数付与されていれば
-    // 全て加算）。`14_Catalog定義スキーマ.md`「凍結のダメージ解除倍率」の規約どおり
+    // ダメージを凍結効果定義の増幅率だけ増加させる（既定値+50%）」: 対象が凍結中なら、
+    // この確定済みヒット（DAMAGE EffectAction、継続ダメージ・デバフのみのスキルは
+    // `applyDamageAction`自体を経由しないため構造的に対象外）へ増幅を適用し凍結を
+    // 解除する。`14_Catalog定義スキーマ.md`「凍結のダメージ解除倍率」の規約どおり
     // `damageAmplificationOnBreak`は加算率（+50%を`0.5`で表す）であり、倍率
     // そのものではない — `1 + damageAmplificationOnBreak`が実際の倍率になる。
     // Q-DMG-01「ダメージ計算の途中では丸めず、最終結果で小数部分を切り捨てる」:
-    // 増幅・追加ダメージは`calculateDamage`が既に切り捨てた`finalDamage`にではなく、
-    // 丸め前の`preTruncationDamage`に適用し、この関数全体でただ一度だけ最終切り捨て・
+    // 増幅は`calculateDamage`が既に切り捨てた`finalDamage`にではなく、丸め前の
+    // `preTruncationDamage`に適用し、この関数全体でただ一度だけ最終切り捨て・
     // 最低1ダメージ（R-DMG-02 #1/#3/#4）を行う。
     const frozenEffect = activeStatusEffect(targetBeforeDamage, "FREEZE");
     const freezeMultiplier =
       frozenEffect !== undefined
         ? 1 + (frozenEffect.statusDetails?.damageAmplificationOnBreak ?? 0.5)
         : 1;
-    const attackDamageBonus = attackerBeforeDamage.appliedEffects
-      .filter((effect) => effect.isAttackDamageBonus === true)
-      .reduce((sum, effect) => sum + effect.magnitude, 0);
     // R-INT-02第2項（DMG-006）: 肩代わりが成立していれば、その軽減率を最終切り捨ての
     // **前**に適用する（Q-DMG-01「計算の途中では丸めない」）。
     const combinedPreTruncationDamage = guardedDamage(
-      rawDamageResult.preTruncationDamage * freezeMultiplier + attackDamageBonus,
+      rawDamageResult.preTruncationDamage * freezeMultiplier,
       intervention.guardRate,
     );
     const combinedFinalDamage = Math.max(1, Math.floor(combinedPreTruncationDamage));
@@ -443,13 +438,12 @@ export function* applyDamageActionSteps(
         actionDamageMultiplier: damageResult.actionDamageMultiplier,
         // R-CFS-02（DMG-009）: 混乱倍率は与ダメージ倍率とは別枠で公開する。
         confusionDamageMultiplier: damageResult.confusionDamageMultiplier,
-        // DMG-012: 倍率群だけの積と、そこへ凍結増幅・追加ダメージ・肩代わりを
-        // 適用した後の値を別の欄で公開する。前者が無いと記録済みの倍率から
-        // `preTruncationDamage`へ到達できない。
+        // DMG-012: 倍率群だけの積と、そこへ凍結増幅・肩代わりを適用した後の値を
+        // 別の欄で公開する。前者が無いと記録済みの倍率から`preTruncationDamage`へ
+        // 到達できない。
         rawPreTruncationDamage: rawDamageResult.preTruncationDamage,
         preTruncationDamage: damageResult.preTruncationDamage,
         freezeMultiplier,
-        attackDamageBonus,
         guardRate: intervention.guardRate,
         thresholdReductionMultiplier: thresholdReduction.multiplier,
         damageImmunityNullified: damageImmunity.nullified,
@@ -640,6 +634,23 @@ export function* applyDamageActionSteps(
   // 追加ヒットは`hits`に含まれないため`interruptedCount`へは足せない。中断の事実だけを
   // `interrupted`として外側へ伝える。
   interrupted = interrupted || additional.interrupted;
+
+  // R-DMG-06: 保持者が追加攻撃バフを持っていれば、この攻撃で実際に当てた対象ごとに
+  // 独立した1ヒットを加える。R-SUB-02と同じ位置（全ヒットの解決後）に置くのは、数える
+  // 単位がヒットではなくDAMAGE EffectActionと攻撃対象だからである。`outcomes`へは
+  // 積まないため、R-FUP-01の命中・会心集計とR-SKL-08の直前結果は汚れない。
+  const bonusAttacks = yield* applyAttackBonusAttacksSteps(
+    context,
+    working,
+    random,
+    attacker.battleUnitId,
+    outcomes,
+    damageAction,
+    interrupted,
+    lastEventId,
+  );
+  lastEventId = bonusAttacks.lastEventId;
+  interrupted = interrupted || bonusAttacks.interrupted;
 
   // `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`の消費で0になったインスタンスは、
   // このEffectAction（全ヒット）の解決が終わった今ここで初めて実際に失効させる

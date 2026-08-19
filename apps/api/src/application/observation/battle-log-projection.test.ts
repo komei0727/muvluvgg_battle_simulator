@@ -190,7 +190,6 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
       rawPreTruncationDamage: 10,
       preTruncationDamage: 10,
       freezeMultiplier: 1,
-      attackDamageBonus: 0,
       guardRate: 0,
       thresholdReductionMultiplier: 1,
       damageImmunityNullified: false,

@@ -307,8 +307,9 @@ export const EFFECT_KIND_COVERAGE: Readonly<Record<EffectActionKind, EffectKindC
       "UT-R-ACTN-01-009",
     ],
   },
-  // 付与時snapshotは effect-action-group-resolver.modifier、加算・無効上限・
-  // 回避時非加算は damage-application-service が検証する（R-DMG-06）。
+  // 付与時snapshotは effect-action-group-resolver.modifier、追加攻撃としての解決は
+  // damage-application-service が検証する（R-DMG-06）。実定義での通しは
+  // UNIT_ELENA_MOODMAKER のユニット単位結合テストが持つ。
   APPLY_ATTACK_DAMAGE_BONUS: {
     ruleIds: ["R-DMG-06"],
     testCaseIds: [
@@ -316,6 +317,16 @@ export const EFFECT_KIND_COVERAGE: Readonly<Record<EffectActionKind, EffectKindC
       "UT-R-BON-ATTACK-DMG-002",
       "UT-R-BON-ATTACK-DMG-003",
       "UT-R-BON-ATTACK-DMG-004",
+      "UT-R-BON-ATTACK-DMG-005",
+      "UT-R-BON-ATTACK-DMG-006",
+      "UT-R-BON-ATTACK-DMG-007",
+      "UT-R-BON-ATTACK-DMG-008",
+      "UT-R-BON-ATTACK-DMG-009",
+      "UT-R-BON-ATTACK-DMG-010",
+      "UT-R-BON-ATTACK-DMG-011",
+      "IT-UNIT-ELENA-MOODMAKER-007",
+      "IT-UNIT-ELENA-MOODMAKER-008",
+      "IT-UNIT-ELENA-MOODMAKER-017",
     ],
   },
   // 付与は effect-action-group-resolver.modifier、ライダー捕捉は

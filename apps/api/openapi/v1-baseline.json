@@ -4948,9 +4948,6 @@
                                   "freezeMultiplier": {
                                     "type": "number"
                                   },
-                                  "attackDamageBonus": {
-                                    "type": "number"
-                                  },
                                   "guardRate": {
                                     "type": "number"
                                   },
@@ -17698,9 +17695,6 @@
                                     "type": "number"
                                   },
                                   "freezeMultiplier": {
-                                    "type": "number"
-                                  },
-                                  "attackDamageBonus": {
                                     "type": "number"
                                   },
                                   "guardRate": {

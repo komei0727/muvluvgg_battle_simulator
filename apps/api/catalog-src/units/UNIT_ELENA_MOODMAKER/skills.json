@@ -75,34 +75,16 @@
           "elseSteps": []
         },
         {
-          "kind": "BRANCH",
-          "condition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_HIGH"
-              },
-              "categories": ["BUFF"],
-              "effectActionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"]
-            }
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_HIGH"
           },
-          "thenSteps": [
+          "actions": [
             {
-              "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_HIGH"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
-                }
-              ]
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
             }
-          ],
-          "elseSteps": []
+          ]
         },
         {
           "kind": "ACTION",
@@ -150,34 +132,16 @@
           "elseSteps": []
         },
         {
-          "kind": "BRANCH",
-          "condition": {
-            "kind": "NOT",
-            "condition": {
-              "kind": "TARGET_HAS_EFFECT",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_LOW"
-              },
-              "categories": ["BUFF"],
-              "effectActionDefinitionIds": ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"]
-            }
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOW"
           },
-          "thenSteps": [
+          "actions": [
             {
-              "kind": "ACTION",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_LOW"
-              },
-              "actions": [
-                {
-                  "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
-                }
-              ]
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE"
             }
-          ],
-          "elseSteps": []
+          ]
         }
       ]
     },
@@ -203,13 +167,19 @@
       "conditions": [
         {
           "kind": "TARGET_SET_COUNT",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW_HP_ALLIES" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOW_HP_ALLIES"
+          },
           "op": "GTE",
           "value": 1
         },
         {
           "kind": "TARGET_SET_COUNT",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_OTHER_ALLIES"
+          },
           "op": "GTE",
           "value": 1
         },
@@ -242,7 +212,13 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [{ "kind": "HP_RATIO", "op": "LT", "value": 0.7 }]
+            "filters": [
+              {
+                "kind": "HP_RATIO",
+                "op": "LT",
+                "value": 0.7
+              }
+            ]
           }
         },
         {
@@ -251,7 +227,14 @@
             "kind": "SELECT",
             "side": "ALLY",
             "count": "ALL",
-            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+            "filters": [
+              {
+                "kind": "EXCLUDE_RESOLVED_UNIT",
+                "reference": {
+                  "kind": "SELF"
+                }
+              }
+            ]
           }
         },
         {

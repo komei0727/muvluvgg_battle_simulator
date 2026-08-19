@@ -509,7 +509,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `RESET`＋閾値比較へ移した（Issue #554）。ヒット単位で進む契機では1回の効果処理中に
     // 周期を通り越し、到達後の余剰会心が次回へ繰り越されてしまうため。Unit・Skill・
     // Memoryの構成は変えておらず、差分は`skills.json`の trigger条件と`counterUpdates`だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-19.2");
+    // `2026-08-19.3` はエレーナEXの追加攻撃バフ（`ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE`）
+    // の是正（Issue #560）。加算量の基準を対象自身（`TARGET`）から付与者
+    // （`SKILL_SOURCE`）へ移し、重複を防いでいた`BRANCH`ガード2件を外して素の`ACTION`
+    // にした（R-DMG-06の追加攻撃は保持数がそのまま回数になるため重複させる）。
+    // Unit・Memoryの構成は変えておらず、差分は`effects.json`の`formula.source`と
+    // `skills.json`のstep構造だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-19.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

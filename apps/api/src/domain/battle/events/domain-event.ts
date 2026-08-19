@@ -421,14 +421,12 @@ export interface BattleDomainEventPayloadMap {
     readonly rawPreTruncationDamage: number;
     /**
      * 最終切り捨て・最低1ダメージ（R-DMG-02）を適用する前の値。`rawPreTruncationDamage`
-     * へ凍結解除増幅（R-STS-03）・攻撃時追加ダメージ（R-DMG-06）・肩代わり軽減
-     * （R-INT-02第2項）を適用した後の値であり、その3段はそれぞれ次の欄が表す。
+     * へ凍結解除増幅（R-STS-03）・肩代わり軽減（R-INT-02第2項）を適用した後の値であり、
+     * その2段はそれぞれ次の欄が表す。
      */
     readonly preTruncationDamage: number;
     /** R-STS-03の凍結解除増幅（`1 + damageAmplificationOnBreak`）。凍結していなければ`1`。 */
     readonly freezeMultiplier: number;
-    /** R-DMG-06の攻撃時追加ダメージ加算量（`APPLY_ATTACK_DAMAGE_BONUS`の合算）。 */
-    readonly attackDamageBonus: number;
     /**
      * R-INT-02第2項の肩代わり軽減率。肩代わりが成立していなければ0。同じ値を
      * `DamageRedirected`（`reason: COVER`）も持つが、このイベント単体で

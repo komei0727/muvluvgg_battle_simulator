@@ -203,10 +203,8 @@ export function* applyOneAdditionalAttackHitSteps(
       confusionDamageMultiplier: rawDamageResult.confusionDamageMultiplier,
       rawPreTruncationDamage: rawDamageResult.preTruncationDamage,
       preTruncationDamage,
-      // 凍結解除増幅（R-STS-03）と攻撃時追加ダメージ（R-DMG-06）は追加攻撃へ適用しない
-      // ため、この経路では常に中立値になる。
+      // 凍結解除増幅（R-STS-03）は追加攻撃へ適用しないため、この経路では常に中立値になる。
       freezeMultiplier: 1,
-      attackDamageBonus: 0,
       guardRate: intervention.guardRate,
       thresholdReductionMultiplier: thresholdReduction.multiplier,
       damageImmunityNullified: damageImmunity.nullified,

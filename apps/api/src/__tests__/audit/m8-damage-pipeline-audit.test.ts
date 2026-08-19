@@ -347,14 +347,13 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
   });
 
   it("IT-AUDIT-M8-004 (DMG-012, Issue #488): the DAMAGE_CALCULATED details alone reproduce preTruncationDamage and finalDamage on every production hit", () => {
-    // DMG-012以前、payloadの倍率群が生むのは凍結増幅・攻撃時追加ダメージ・肩代わりの
-    // **前**の値である一方、`preTruncationDamage`はそれらの後の値を載せていた。
+    // DMG-012以前、payloadの倍率群が生むのは凍結増幅・肩代わりの**前**の値である
+    // 一方、`preTruncationDamage`はそれらの後の値を載せていた。
     // `finalDamage`も閾値軽減（R-DMG-07）とダメージ無効（R-DMG-02 #2）を経ており、
     // 記録された項目を掛け合わせても記録された結果に届かなかった。この3段の断絶が
     // 埋まったままであることを、実 `catalog/` の全production戦闘で機械検証する。
     const violations: string[] = [];
     let freezeAmplifiedHits = 0;
-    let attackBonusHits = 0;
     let attributeAuditedHits = 0;
     let totalHits = 0;
 
@@ -382,13 +381,11 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
           num("actionDamageMultiplier", 1) *
           num("confusionDamageMultiplier", 1);
         const freezeMultiplier = num("freezeMultiplier", 1);
-        const attackDamageBonus = num("attackDamageBonus", 0);
         const guardRate = num("guardRate", 0);
         const thresholdMultiplier = num("thresholdReductionMultiplier", 1);
         const raw = num("rawPreTruncationDamage", NaN);
         const preTruncation = num("preTruncationDamage", NaN);
-        const preTruncationExpected =
-          (raw * freezeMultiplier + attackDamageBonus) * (1 - guardRate);
+        const preTruncationExpected = raw * freezeMultiplier * (1 - guardRate);
         const truncated = Math.max(1, Math.floor(preTruncation));
         const finalExpected =
           d["damageImmunityNullified"] === true
@@ -427,7 +424,6 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         }
 
         if (freezeMultiplier !== 1) freezeAmplifiedHits++;
-        if (attackDamageBonus !== 0) attackBonusHits++;
       }
     }
 
@@ -435,11 +431,11 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
       violations,
       `DAMAGE_CALCULATED payloads that no longer reproduce their own result: ${JSON.stringify(violations.slice(0, 20))}`,
     ).toEqual([]);
-    // 空振り防止: 恒等式が中立値だけで成立しているのではないこと。凍結増幅（R-STS-03）と
-    // 攻撃時追加ダメージ（R-DMG-06）は実データで踏まれるため、倍率群の積と
-    // `preTruncationDamage`が別の値になるヒットが必ず含まれる。
+    // 空振り防止: 恒等式が中立値だけで成立しているのではないこと。凍結増幅
+    // （R-STS-03）は実データで踏まれるため、倍率群の積と`preTruncationDamage`が
+    // 別の値になるヒットが必ず含まれる。
     expect(totalHits).toBeGreaterThan(0);
-    expect(freezeAmplifiedHits + attackBonusHits).toBeGreaterThan(0);
+    expect(freezeAmplifiedHits).toBeGreaterThan(0);
     expect(attributeAuditedHits).toBeGreaterThan(0);
     // `runProductionUnitBattle`は同一ユニットの鏡像戦であり、攻撃側と防御側の属性が
     // 常に一致する。有利属性（R-ATR-01）が成立するヒットは構造上生じないため件数を

@@ -323,10 +323,9 @@ function* applyOneSubUnitAdditionalDamageSteps(
         damageModifierMultipliers.outgoingMultiplier *
         damageModifierMultipliers.incomingMultiplier,
       preTruncationDamage,
-      // R-SUB-02: 凍結解除増幅（R-STS-03）と攻撃時追加ダメージ（R-DMG-06）は追加ヒットで
-      // 行わない（「同じ攻撃の中で二重に数えない」）ため、この経路では常に中立値になる。
+      // R-SUB-02: 凍結解除増幅（R-STS-03）は追加ヒットで行わない（「同じ攻撃の中で
+      // 二重に数えない」）ため、この経路では常に中立値になる。
       freezeMultiplier: 1,
-      attackDamageBonus: 0,
       guardRate: intervention.guardRate,
       thresholdReductionMultiplier: thresholdReduction.multiplier,
       damageImmunityNullified: damageImmunity.nullified,

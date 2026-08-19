@@ -2115,20 +2115,31 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
   },
-  // REF-022（Issue #351）でR-DMG-06「攻撃時追加ダメージ」を新設した。
-  // `APPLY_ATTACK_DAMAGE_BONUS`はM7-004が実装しテストも存在したが、
-  // `07_戦闘ルール詳細.md`にはR-SUB-02の除外条項しか無く、加算そのものの
-  // 規定とルール登録が欠けていた（R-HIT-04/05・R-CRT-03と同じ
-  // 「production定義だけが存在」の後追いルール化）。
+  // REF-022（Issue #351）でR-DMG-06「攻撃時追加ダメージ」を新設し、Issue #560で
+  // 実挙動どおりの「攻撃時追加攻撃」へ作り替えた（加算ではなく独立したヒット）。
   {
     ruleId: "R-DMG-06",
     testCaseIds: [
-      // #1 付与時snapshot（formulaの1回評価とAppliedEffect保持）。
+      // #1 付与時snapshot（付与者基準でのformula 1回評価とAppliedEffect保持）。
       "UT-R-BON-ATTACK-DMG-001",
-      // #2 ヒットへの加算、#3 ダメージ無効による上限、#4 回避時の非加算。
+      "IT-UNIT-ELENA-MOODMAKER-008",
+      // #2 独立ヒットとしての解決・防御力減衰なし、#4 ダメージ無効による上限。
       "UT-R-BON-ATTACK-DMG-002",
       "UT-R-BON-ATTACK-DMG-003",
+      "IT-UNIT-ELENA-MOODMAKER-007",
+      // #3 会心継承、属性相性・与ダメージ補正の適用。
+      "UT-R-BON-ATTACK-DMG-005",
+      "UT-R-BON-ATTACK-DMG-006",
+      // #2 発生単位（DAMAGE EffectActionごと・実際に当てた対象ごと）と重複可。
+      "UT-R-BON-ATTACK-DMG-007",
+      "UT-R-BON-ATTACK-DMG-008",
+      "UT-R-BON-ATTACK-DMG-009",
+      "IT-UNIT-ELENA-MOODMAKER-017",
+      // #5 全ヒットMISS・対象不在では発生しない。
       "UT-R-BON-ATTACK-DMG-004",
+      "UT-R-BON-ATTACK-DMG-010",
+      // #6 追加攻撃は追加攻撃・サブユニット追加ダメージを誘発しない。
+      "UT-R-BON-ATTACK-DMG-011",
     ],
     kinds: ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   },
