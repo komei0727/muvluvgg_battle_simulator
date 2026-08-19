@@ -25,6 +25,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { effectApplied, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_LILY_SINGER`（【想い響かせるヒーローシンガー】リリー・ラヴォア）のユニット単位
@@ -552,5 +553,30 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
     ]);
     expect(subjectIn(depleting.units).appliedEffects).toEqual([]);
     expect(subjectIn(depleting.units).combatStats.attack).toBe(1000);
+  });
+
+  it("IT-UNIT-LILY-SINGER-007 (R-CRT-04): EXの「自身の現在HP×75%のダメージを与えるEN攻撃」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+    const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
+      observeHitPointRatioCritical({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        skillDefinitionId,
+        attackerHoldsCriticalGuarantee: false,
+        battleId: `B_LILY_SINGER_CRT04_${effectActionDefinitionId}`,
+      });
+
+    // 会心率100%の盤面。結末を分けるのはCatalogの `critical.mode` 宣言だけである。
+    const ruled = probe("ACT_LILY_SINGER_EX_DAMAGE", "SKL_LILY_SINGER_EX");
+    const control = probe("ACT_LILY_SINGER_AS2_DAMAGE", "SKL_LILY_SINGER_AS2");
+
+    expect(ruled.criticalMode).toBe("PREVENTED");
+    expect(ruled.isCritical).toBe(false);
+    expect(ruled.criticalMultiplier).toBe(1);
+    expect(control.criticalMode).toBe("NORMAL");
+    expect(control.isCritical).toBe(true);
+    expect(control.criticalMultiplier).toBeGreaterThan(1);
+    // 会心判定を行った側だけが抽選を1本多く消費する。
+    expect(control.randomDraws - ruled.randomDraws).toBe(1);
   });
 });

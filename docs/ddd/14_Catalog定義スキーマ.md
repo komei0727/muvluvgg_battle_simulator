@@ -806,16 +806,20 @@ payload:
     enabled: false
 ```
 
-| フィールド        | 型                  | 必須 | 制約                                           |
-| ----------------- | ------------------- | ---- | ---------------------------------------------- |
-| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                              |
-| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                           |
-| `hitCount`        | integer             | —    | 省略時1                                        |
-| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`          |
-| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                        |
-| `piercing`        | object              | —    | 省略時0                                        |
-| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列 |
-| `link.enabled`    | boolean             | —    | 即時リンクダメージ                             |
+| フィールド        | 型                  | 必須 | 制約                                                   |
+| ----------------- | ------------------- | ---- | ------------------------------------------------------ |
+| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                                      |
+| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                                   |
+| `hitCount`        | integer             | —    | 省略時1                                                |
+| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`。省略時 `NORMAL` |
+| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                                |
+| `piercing`        | object              | —    | 省略時0                                                |
+| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列         |
+| `link.enabled`    | boolean             | —    | 即時リンクダメージ                                     |
+
+`formula` がHPから導かれる量を含む場合（`MAX_HP_RATIO`／`CURRENT_HP_RATIO`／`MISSING_HP_RATIO`／`LOST_HP_RATIO`。`source` を問わず、`MIN` 等の合成越しも含む）、`critical.mode` の**明示が必須**になる（R-CRT-04）。省略した定義はCatalogロード時点で拒否する。
+
+原文が「HP×N%**分**のダメージを与える」型なら `PREVENTED`、「HPを消費し、**消費分**HP×N%のダメージを与える」型なら `NORMAL` を書く。この区別はFormulaの形からは導けない — Catalogは「消費割合 × 倍率」を1つの比率へ掛け合わせて保持するため、`ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`（会心なし）と `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`（会心あり）は同じ `MAX_HP_RATIO` / `source: SKILL_SOURCE` / 1未満の比率になる。
 
 ### HEAL
 

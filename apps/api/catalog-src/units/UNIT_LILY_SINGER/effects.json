@@ -19,7 +19,8 @@
             "ratio": 0.75
           }
         ]
-      }
+      },
+      "critical": { "mode": "PREVENTED" }
     },
     "metadata": { "tags": [] }
   },

@@ -29,6 +29,7 @@ import {
   unitDefeated,
 } from "../../../testing/production-unit/trigger-events.js";
 import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_AOI_ELEGANT`（【優雅なる規律の花】生駒葵）のユニット単位production
@@ -910,5 +911,29 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     expect(observed.actions?.map((action) => action.effectActionDefinitionId) ?? []).toContain(
       "ACT_AOI_ELEGANT_PS2_MARKER_UKIASHI",
     );
+  });
+
+  it("IT-UNIT-AOI-ELEGANT-012 (R-CRT-04): AS2の「対象が「浮足」を所持している場合、追加で対象の現在HP×20%のダメージ」は会心判定を行わない — 同じAS2の威力84.8側は従来どおり会心する", () => {
+    const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
+      observeHitPointRatioCritical({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        skillDefinitionId,
+        attackerHoldsCriticalGuarantee: false,
+        battleId: `B_AOI_ELEGANT_CRT04_${effectActionDefinitionId}`,
+      });
+
+    // 会心率100%の盤面。規則に掛かる側だけが会心判定へ進まず、抽選も1本少ない。
+    const ruled = probe("ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE", "SKL_AOI_ELEGANT_AS2");
+    const control = probe("ACT_AOI_ELEGANT_AS2_DAMAGE", "SKL_AOI_ELEGANT_AS2");
+
+    expect(ruled.criticalMode).toBe("PREVENTED");
+    expect(ruled.isCritical).toBe(false);
+    expect(ruled.criticalMultiplier).toBe(1);
+    expect(control.criticalMode).toBe("NORMAL");
+    expect(control.isCritical).toBe(true);
+    expect(control.criticalMultiplier).toBeGreaterThan(1);
+    expect(control.randomDraws - ruled.randomDraws).toBe(1);
   });
 });

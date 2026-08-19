@@ -22,6 +22,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnCompleting, unitDefeated } from "../../../testing/production-unit/trigger-events.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_LILY_HERO`（【正義のヒーロー】リリー・ラヴォア）のユニット単位production結合テスト
@@ -368,5 +369,29 @@ describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリ�
     expect(reconstruct(initialSnapshotFor(floored.board.units), floored.recorder)).toEqual(
       initialSnapshotFor(floored.after),
     );
+  });
+
+  it("IT-UNIT-LILY-HERO-006 (R-CRT-04): AS1の「消費HP×319.8%のダメージ」は会心判定を行う — 消費した資源へ威力倍率を掛ける攻撃であり、同じ最大HP割合Formulaでもレイラの「最大HP×20%分」とは逆の宣言になる", () => {
+    const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
+      observeHitPointRatioCritical({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        skillDefinitionId,
+        attackerHoldsCriticalGuarantee: false,
+        battleId: `B_LILY_HERO_CRT04_${effectActionDefinitionId}`,
+      });
+
+    // 会心率100%の盤面。結末を分けるのはCatalogの `critical.mode` 宣言だけである。
+    const ruled = probe("ACT_LILY_HERO_AS1_DAMAGE_HPCOST", "SKL_LILY_HERO_AS1");
+    const control = probe("ACT_LILY_HERO_AS1_DAMAGE_FIXED", "SKL_LILY_HERO_AS1");
+
+    // 規則の族には入るが、宣言は `NORMAL`。威力ベースの対照とまったく同じ結末になる。
+    expect(ruled.criticalMode).toBe("NORMAL");
+    expect(ruled.isCritical).toBe(true);
+    expect(ruled.criticalMultiplier).toBeGreaterThan(1);
+    expect(control.criticalMode).toBe("NORMAL");
+    expect(control.isCritical).toBe(true);
+    expect(ruled.randomDraws).toBe(control.randomDraws);
   });
 });

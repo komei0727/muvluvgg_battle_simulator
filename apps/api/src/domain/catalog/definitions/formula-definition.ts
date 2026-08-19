@@ -155,6 +155,37 @@ export type FormulaDefinition =
       readonly max: number;
     };
 
+/**
+ * R-CRT-04「HP割合ダメージの会心可否」: このFormulaがHPから導かれる量を含むかを返す。
+ * `DAMAGE`の基礎ダメージFormulaがこれに該当する場合、`critical.mode`の明示を必須にする。
+ *
+ * 合成Formulaを再帰的に走査するのは、production定義の多くが「HP×N%」を`MIN`で
+ * 攻撃力上限と組にした形だからである。`source`は見ない — 会心の有無は「対象の
+ * HPか自身のHPか」では決まらないためで、根拠はR-CRT-04が挙げる
+ * `ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`（自身の最大HP×20%、会心なし）と
+ * `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`（消費した最大HP10%×319.8%、会心あり）の対比である。
+ * 両者は`MAX_HP_RATIO`の`source: SKILL_SOURCE`で形も比率の大小も同じであり、
+ * この関数が返せるのは「宣言が要る族か」までで、会心の有無そのものではない。
+ */
+export function referencesHitPointRatio(formula: FormulaDefinition): boolean {
+  switch (formula.kind) {
+    case "MAX_HP_RATIO":
+    case "CURRENT_HP_RATIO":
+    case "MISSING_HP_RATIO":
+    case "LOST_HP_RATIO":
+      return true;
+    case "SUM":
+    case "PRODUCT":
+    case "MIN":
+    case "MAX":
+      return formula.formulas.some(referencesHitPointRatio);
+    case "CLAMP":
+      return referencesHitPointRatio(formula.formula);
+    default:
+      return false;
+  }
+}
+
 export interface FormulaDefinitionInput {
   readonly kind: string;
   readonly value?: number;

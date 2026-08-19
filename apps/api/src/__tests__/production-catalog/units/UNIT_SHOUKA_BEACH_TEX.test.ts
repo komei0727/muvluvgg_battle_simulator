@@ -17,6 +17,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnStarted, unitBeingAttacked } from "../../../testing/production-unit/trigger-events.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_SHOUKA_BEACH_TEX`（【砂浜の策謀家】姜小花・戦術演習版）のユニット単位production結合
@@ -519,5 +520,29 @@ describe("production Catalog UNIT_SHOUKA_BEACH_TEX (【砂浜の策謀家】姜�
       "ACT_SHOUKA_BEACH_TEX_PS1_DEF_UP",
       "ACT_SHOUKA_BEACH_TEX_PS2_MAX_HP_UP",
     ]);
+  });
+
+  it("IT-UNIT-SHOUKA-BEACH-TEX-006 (R-CRT-04): 演習版EXの「対象の現在HP×35%のENダメージ」も会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+    const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
+      observeHitPointRatioCritical({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        skillDefinitionId,
+        attackerHoldsCriticalGuarantee: false,
+        battleId: `B_SHOUKA_BEACH_TEX_CRT04_${effectActionDefinitionId}`,
+      });
+
+    // 会心率100%の盤面。規則に掛かる側だけが会心判定へ進まず、抽選も1本少ない。
+    const ruled = probe("ACT_SHOUKA_BEACH_TEX_EX_DAMAGE", "SKL_SHOUKA_BEACH_TEX_EX");
+    const control = probe("ACT_SHOUKA_BEACH_TEX_AS2_DAMAGE", "SKL_SHOUKA_BEACH_TEX_AS2");
+
+    expect(ruled.criticalMode).toBe("PREVENTED");
+    expect(ruled.isCritical).toBe(false);
+    expect(ruled.criticalMultiplier).toBe(1);
+    expect(control.criticalMode).toBe("NORMAL");
+    expect(control.isCritical).toBe(true);
+    expect(control.criticalMultiplier).toBeGreaterThan(1);
+    expect(control.randomDraws - ruled.randomDraws).toBe(1);
   });
 });

@@ -62,8 +62,11 @@ describe("Rule coverage ledger", () => {
     // `R-ATM-01`／`R-ATM-02`はIssue #479が、`R-ATM-03`／`R-ATM-04`はIssue #480が
     // 実装した。実行可能テストを持たないRuleは`07_戦闘ルール詳細.md`の当該Rule節へ
     // 保留理由と追跡Issueを明記する（現在は`R-TGT-06`の列距離順キーのみ、Issue #273）。
+    // 「HP×N%分のダメージを与える」型の攻撃が会心判定を行わない実機仕様が判明した
+    // ため `R-CRT-04` を新設し140→141 — 該当する14定義はすべて`critical`を省略して
+    // おり、既定の`NORMAL`へ黙って倒れていた。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(140);
+    expect(RULE_COVERAGE).toHaveLength(141);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

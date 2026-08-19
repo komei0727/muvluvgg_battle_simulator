@@ -19,6 +19,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnStarted, unitBeingAttacked } from "../../../testing/production-unit/trigger-events.js";
+import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
 
 /**
  * `UNIT_SHOUKA_BEACH`（【砂浜の策謀家】姜小花）のユニット単位production結合テスト
@@ -513,5 +514,29 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
           (effect) => effect.effectActionDefinitionId === "ACT_SHOUKA_BEACH_PS1_DEF_UP",
         )?.magnitude,
     ).toBeCloseTo(0.085, 6);
+  });
+
+  it("IT-UNIT-SHOUKA-BEACH-005 (R-CRT-04): EXの「対象の現在HP×35%のENダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+    const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
+      observeHitPointRatioCritical({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        skillDefinitionId,
+        attackerHoldsCriticalGuarantee: false,
+        battleId: `B_SHOUKA_BEACH_CRT04_${effectActionDefinitionId}`,
+      });
+
+    // 会心率100%の盤面。規則に掛かる側だけが会心判定へ進まず、抽選も1本少ない。
+    const ruled = probe("ACT_SHOUKA_BEACH_EX_DAMAGE", "SKL_SHOUKA_BEACH_EX");
+    const control = probe("ACT_SHOUKA_BEACH_AS2_DAMAGE", "SKL_SHOUKA_BEACH_AS2");
+
+    expect(ruled.criticalMode).toBe("PREVENTED");
+    expect(ruled.isCritical).toBe(false);
+    expect(ruled.criticalMultiplier).toBe(1);
+    expect(control.criticalMode).toBe("NORMAL");
+    expect(control.isCritical).toBe(true);
+    expect(control.criticalMultiplier).toBeGreaterThan(1);
+    expect(control.randomDraws - ruled.randomDraws).toBe(1);
   });
 });

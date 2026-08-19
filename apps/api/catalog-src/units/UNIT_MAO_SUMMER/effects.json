@@ -106,7 +106,8 @@
         "kind": "CURRENT_HP_RATIO",
         "source": { "kind": "SKILL_SOURCE" },
         "ratio": 0.225
-      }
+      },
+      "critical": { "mode": "NORMAL" }
     },
     "metadata": { "tags": [] }
   },

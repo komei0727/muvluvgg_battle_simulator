@@ -105,7 +105,8 @@
         "kind": "DAMAGE_RECEIVED_RATIO",
         "sourceResult": "LAST_DAMAGE_RECEIVED",
         "ratio": 1.0
-      }
+      },
+      "critical": { "mode": "NORMAL" }
     },
     "metadata": { "tags": [] }
   },

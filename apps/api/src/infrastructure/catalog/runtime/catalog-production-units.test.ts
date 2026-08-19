@@ -498,7 +498,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 攻撃力・防御力・会心率20%→15%）と、`UNIT_CHIYURU_MAZE` の
     // `levelGrowth.hp`。Unit・Skill・Memoryの構成は変えておらず、差分は
     // `units.json` の数値だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-17.1");
+    // `2026-08-19.1` は非`SKILL_POWER`の`DAMAGE` 17件へ `critical.mode` を明示した
+    // （R-CRT-04）。HP由来Formulaの14件は宣言必須になったためで、うち8件は原文が
+    // 「HP×N%分のダメージ」型のため `PREVENTED`（既定の`NORMAL`からの挙動変更）、
+    // 5件は「消費分HP×N%」型のため `NORMAL`。反撃3件は族の外だが決定を記録するため
+    // 併せて明示した。Unit・Skill・Memoryの構成は変えておらず、差分は
+    // `effects.json` の `critical` だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-19.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

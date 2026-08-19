@@ -133,7 +133,10 @@ describe("calculateDamage", () => {
     expect(result.finalDamage).toBe(25);
   });
 
-  it("UT-DAMAGE-CALCULATOR-010 (R-NUM-04): a non-SKILL_POWER base damage still passes through attribute/critical/actionDamageMultiplier normally", () => {
+  // 実Catalogの`CURRENT_HP_RATIO`型攻撃のうち`critical.mode: PREVENTED`を宣言した
+  // ものは、この関数へ届く`criticalMultiplier`が常に1になる（R-CRT-04）。ここが
+  // 固定するのは計算器の契約 — 渡された倍率はFormula種別によらず素通しする。
+  it("UT-DAMAGE-CALCULATOR-010 (R-NUM-04): a non-SKILL_POWER base damage still passes the given attribute/critical/actionDamageMultiplier straight through", () => {
     const result = calculateDamage(
       input({
         skillPowerFormula: {

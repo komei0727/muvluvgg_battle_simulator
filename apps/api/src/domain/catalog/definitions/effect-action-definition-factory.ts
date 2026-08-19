@@ -49,6 +49,7 @@ import {
 } from "./effect-action-payload.js";
 import {
   createFormulaDefinition,
+  referencesHitPointRatio,
   type FormulaDefinition,
   type FormulaDefinitionInput,
 } from "./formula-definition.js";
@@ -517,6 +518,18 @@ function createPayload(
       }
       const criticalMode = criticalRaw?.mode ?? "NORMAL";
       assertEnumValue(criticalMode, CRITICAL_MODES, `${path}.critical.mode`);
+      const formula = createFormulaField(payload, "formula", path);
+      // R-CRT-04: HPから導かれる量を基礎ダメージにする`DAMAGE`は、会心判定の有無が
+      // Formulaの形から導けない（`ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`と
+      // `ACT_LILY_HERO_AS1_DAMAGE_HPCOST`は同じ`MAX_HP_RATIO`/`SKILL_SOURCE`で結論が
+      // 逆になる）。既定の`NORMAL`へ黙って倒すと、原文が「HP×N%分のダメージ」型の
+      // 定義を追加したときに会心する側へ黙って倒れるため、明示を必須にする。
+      if (criticalRaw?.mode === undefined && referencesHitPointRatio(formula)) {
+        throw new DomainValidationError(
+          `${path}.critical`,
+          "is required when the damage formula derives from a hit point ratio (R-CRT-04) — declare mode PREVENTED for 「HP×N%分のダメージ」 or NORMAL for 「消費分HP×N%のダメージ」",
+        );
+      }
       const accuracyRaw = payload["accuracy"] as { mode?: string } | undefined;
       if (accuracyRaw !== undefined) {
         assertKnownKeys(accuracyRaw, DAMAGE_ACCURACY_ALLOWED_KEYS, `${path}.accuracy`);
@@ -569,7 +582,7 @@ function createPayload(
         kind: "DAMAGE",
         payload: {
           damageType,
-          formula: createFormulaField(payload, "formula", path),
+          formula,
           hitCount,
           critical: { mode: criticalMode },
           accuracy: { mode: accuracyMode },

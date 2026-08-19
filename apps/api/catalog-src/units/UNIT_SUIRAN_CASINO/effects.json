@@ -151,7 +151,8 @@
           "kind": "SKILL_SOURCE"
         },
         "ratio": 0.424
-      }
+      },
+      "critical": { "mode": "NORMAL" }
     },
     "metadata": {
       "tags": []
