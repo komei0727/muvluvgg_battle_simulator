@@ -1340,6 +1340,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-PS-04-016",
       "UT-R-PS-04-017",
       "UT-R-PS-04-018",
+      // trigger条件の`RUNTIME_COUNTER`は候補検出時点のスナップショットで、
+      // `activationCondition`の`RUNTIME_COUNTER`は再確認時点の最新値で判定する。
+      "UT-R-PS-04-019",
+      "UT-R-PS-04-020",
       // 「所有者がチャージ中でない」を実`catalog/`のPS（`SKL_SIENA_OFFSTAGE_PS1`）と
       // 実CHARGE定義（`SKL_SIENA_OFFSTAGE_AS1`）で固定する。候補判定（R-PS-01）側の
       // 除外・直前確認の`OWNER_CHARGING`・解放後に制限が解けることを一度に見る。
@@ -1520,6 +1524,10 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ATM-01-005",
       "UT-R-ATM-01-006",
       "UT-R-ATM-01-007",
+      // 保留候補のtrigger条件`RUNTIME_COUNTER`が候補検出時点の値で判定されること
+      // （多段ヒットでN到達が最後の会心でない場合）。
+      "UT-R-ATM-01-008",
+      "UT-R-ATM-01-009",
       // 状態保守（R-EFF-09の検出粒度・R-EFF-10のMarker解除）は即時のまま、
       // 発動だけが後段フェーズへ移ることの証跡。
       "UT-R-EFF-09-030",

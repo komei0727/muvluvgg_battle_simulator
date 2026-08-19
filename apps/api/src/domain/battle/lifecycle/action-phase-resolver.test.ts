@@ -1556,6 +1556,169 @@ describe("resolveActionPhase", () => {
   });
 
   /**
+   * R-ATM-01「検出は各イベント発行時点の状態で照合する」+ R-PS-04の発動直前確認:
+   * 保留キューから発動する候補のtrigger条件`RUNTIME_COUNTER`は候補検出時点の値で
+   * 判定する。`SKL_LAYLA_ENTREPRENEUR_PS2`と同じ形（`CriticalCheckResolved`で
+   * SKILL_RUNTIME counterを加算し、N到達をtrigger条件のゲートにする）を多段ヒットの
+   * 全ヒット会心で流す。保留中もcounter加算は即時に確定する（R-ATM-01の状態保守）
+   * ため、N到達が最後の会心でない限り再確認時の最新値はゲートを外れる。
+   */
+  const resolveGuaranteedCriticalHits = (
+    hitCount: number,
+    gate: number,
+  ): {
+    readonly events: readonly ReturnType<EventRecorder["record"]>[];
+    readonly observerPassive: SkillDefinition;
+  } => {
+    const counterId = createRuntimeCounterId("CRIT_TRIGGER_COUNT");
+    const attackActionId = "ACT_CRIT_MULTI_HIT";
+    const attackAction: EffectActionDefinition = {
+      kind: "DAMAGE",
+      effectActionDefinitionId: createEffectActionDefinitionId(attackActionId),
+      metadata: { tags: [] },
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "SKILL_POWER", power: 1 },
+        hitCount,
+        critical: { mode: "GUARANTEED" },
+        accuracy: { mode: "NORMAL" },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+        damageModifiers: [],
+        link: { enabled: false },
+      },
+    };
+    const buffActionId = createEffectActionDefinitionId("ACT_CRIT_OBSERVER_BUFF");
+    const buffAction = statModEffectAction("ACT_CRIT_OBSERVER_BUFF", "ATTACK", "FIXED", 5);
+    const criticalTrigger = {
+      eventType: "CriticalCheckResolved",
+      category: "FACT",
+      sourceSelector: "ANY",
+      targetSelector: "ANY",
+      condition: { kind: "TRUE" },
+    } as const;
+    const observerPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_NTH_CRITICAL"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          ...criticalTrigger,
+          condition: { kind: "RUNTIME_COUNTER", counter: counterId, op: "EQ", value: gate },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "INCREMENT",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: criticalTrigger,
+          amount: 1,
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: buffActionId }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "NthCritical", tags: [] },
+    };
+
+    const attacker = unit("ALLY_1", "ALLY", {
+      unitDefinitionId: "UNIT_CRIT_ATTACKER",
+      attack: 30,
+      limits: { maximumAp: 1 },
+    });
+    const observer = {
+      ...unit("ALLY_2", "ALLY", {
+        unitDefinitionId: "UNIT_CRIT_OBSERVER",
+        limits: { maximumAp: 0, maximumPp: 3 },
+      }),
+      currentPp: 3,
+    };
+    const enemy = unit("ENEMY_1", "ENEMY", {
+      defense: 10,
+      maximumHp: 2000,
+      limits: { maximumAp: 0 },
+    });
+
+    const unitDefinitions = new DefaultUnitDefinitionMap();
+    const observerUnitDefinitionId = createUnitDefinitionId("UNIT_CRIT_OBSERVER");
+    unitDefinitions.set(observerUnitDefinitionId, {
+      ...unitDefinitions.get(observerUnitDefinitionId)!,
+      passiveSkillDefinitionIds: [observerPassive.skillDefinitionId],
+    });
+    const definitions: BattleDefinitions = {
+      activeSkillsByUnit: new Map([
+        [createUnitDefinitionId("UNIT_CRIT_ATTACKER"), [attackSkill(attackActionId, 1)]],
+      ]),
+      exSkillByUnit: new Map(),
+      effectActions: new Map([
+        [attackAction.effectActionDefinitionId, attackAction],
+        [buffActionId, buffAction],
+      ]),
+      unitDefinitions,
+      skillDefinitions: new Map([[observerPassive.skillDefinitionId, observerPassive]]),
+    };
+
+    const ctx = actionPhaseContext();
+    resolveActionPhase(
+      [attacker, observer],
+      [enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      ctx.recorder,
+      ctx.turnNumber,
+      ctx.turnRootEventId,
+      ctx.turnScopeParentEventId,
+    );
+    return { events: ctx.recorder.getEvents(), observerPassive };
+  };
+
+  const expectActivatedOnNthCritical = (hitCount: number, gate: number): void => {
+    const { events, observerPassive } = resolveGuaranteedCriticalHits(hitCount, gate);
+    const criticalChecks = events.filter((event) => event.eventType === "CriticalCheckResolved");
+    expect(criticalChecks).toHaveLength(hitCount);
+    const activations = events.filter(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        (event.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          observerPassive.skillDefinitionId,
+    );
+    expect(
+      activations,
+      "a pending candidate gated on the Nth critical must activate even when later criticals moved the counter past N",
+    ).toHaveLength(1);
+    expect(activations[0]!.payload).toMatchObject({
+      triggerEventId: criticalChecks[gate - 1]!.eventId,
+    });
+  };
+
+  it("UT-R-ATM-01-008 (R-PS-04): a pending PS gated on RUNTIME_COUNTER EQ N activates when N is reached on the 2nd of 4 guaranteed-critical hits (production例: SKL_LAYLA_ENTREPRENEUR_PS2 + 四連突)", () => {
+    expectActivatedOnNthCritical(4, 2);
+  });
+
+  it("UT-R-ATM-01-009 (R-PS-04): a pending PS gated on RUNTIME_COUNTER EQ N activates when N is reached on the 4th of 5 guaranteed-critical hits", () => {
+    expectActivatedOnNthCritical(5, 4);
+  });
+
+  /**
    * `HitConfirmed`/`CriticalCheckResolved`の子連鎖が対象を
    * 倒した場合、親ヒットは「次の判定・イベントへ進む前に」終了しなければならない。
    * production例: `SKL_EVIE_KYONSHI_PS1`・`SKL_LAYLA_ENTREPRENEUR_PS2`はどちらも
