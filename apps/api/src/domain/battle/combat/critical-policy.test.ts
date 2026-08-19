@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveCritical, resolveEffectiveCriticalMode } from "./critical-policy.js";
+import {
+  resolveCritical,
+  resolveDeclaredCriticalMode,
+  resolveEffectiveCriticalMode,
+} from "./critical-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
@@ -14,7 +18,9 @@ import {
   createEffectActionDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
-import type { StatusKind } from "../../catalog/definitions/catalog-enums.js";
+import type { CriticalMode, StatusKind } from "../../catalog/definitions/catalog-enums.js";
+import type { DamagePayload } from "../../catalog/definitions/effect-action-payload.js";
+import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -276,6 +282,117 @@ describe("resolveEffectiveCriticalMode (R-CRT-03)", () => {
 
     expect(prevented.isCritical).toBe(false);
     expect(guaranteed.isCritical).toBe(true);
+    random.assertFullyConsumed();
+  });
+});
+
+describe("resolveDeclaredCriticalMode (R-CRT-04)", () => {
+  function damagePayload(
+    formula: FormulaDefinition,
+    criticalMode: CriticalMode = "NORMAL",
+  ): DamagePayload {
+    return {
+      damageType: "PHYSICAL",
+      formula,
+      hitCount: 1,
+      critical: { mode: criticalMode },
+      accuracy: { mode: "NORMAL" },
+      piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      damageModifiers: [],
+      link: { enabled: false },
+    };
+  }
+
+  const targetCurrentHp: FormulaDefinition = {
+    kind: "CURRENT_HP_RATIO",
+    source: { kind: "TARGET" },
+    ratio: 0.125,
+  };
+  const attackCap: FormulaDefinition = {
+    kind: "STAT_RATIO",
+    source: { kind: "SKILL_SOURCE" },
+    stat: "ATTACK",
+    ratio: 0.5,
+  };
+
+  it("UT-R-CRT-04-001: a SKILL_POWER damage keeps its declared mode — the rule does not touch attack-based damage", () => {
+    const formula: FormulaDefinition = { kind: "SKILL_POWER", power: 1.56 };
+    expect(resolveDeclaredCriticalMode(damagePayload(formula))).toBe("NORMAL");
+    expect(resolveDeclaredCriticalMode(damagePayload(formula, "GUARANTEED"))).toBe("GUARANTEED");
+    expect(resolveDeclaredCriticalMode(damagePayload(formula, "PREVENTED"))).toBe("PREVENTED");
+  });
+
+  it("UT-R-CRT-04-002: a bare CURRENT_HP_RATIO on the target resolves to PREVENTED", () => {
+    expect(resolveDeclaredCriticalMode(damagePayload(targetCurrentHp))).toBe("PREVENTED");
+  });
+
+  it("UT-R-CRT-04-003: the target HP term is found through a MIN cap — the production shape MIN[CURRENT_HP_RATIO(TARGET), STAT_RATIO(ATTACK)]", () => {
+    const formula: FormulaDefinition = { kind: "MIN", formulas: [targetCurrentHp, attackCap] };
+    expect(resolveDeclaredCriticalMode(damagePayload(formula))).toBe("PREVENTED");
+  });
+
+  it("UT-R-CRT-04-004: MISSING_HP_RATIO and LOST_HP_RATIO on the target resolve to PREVENTED — both evaluate as maximumHp - currentHp", () => {
+    for (const kind of ["MISSING_HP_RATIO", "LOST_HP_RATIO"] as const) {
+      const formula: FormulaDefinition = { kind, source: { kind: "TARGET" }, ratio: 0.5 };
+      expect(resolveDeclaredCriticalMode(damagePayload(formula))).toBe("PREVENTED");
+      expect(
+        resolveDeclaredCriticalMode(damagePayload({ kind: "MIN", formulas: [formula, attackCap] })),
+      ).toBe("PREVENTED");
+    }
+  });
+
+  it("UT-R-CRT-04-005: the term is found through SUM / PRODUCT / MAX / CLAMP nesting as well", () => {
+    const nested: readonly FormulaDefinition[] = [
+      { kind: "SUM", formulas: [attackCap, targetCurrentHp] },
+      { kind: "PRODUCT", formulas: [targetCurrentHp, { kind: "CONSTANT", value: 2 }] },
+      { kind: "MAX", formulas: [attackCap, targetCurrentHp] },
+      { kind: "CLAMP", formula: { kind: "MIN", formulas: [targetCurrentHp] }, min: 0, max: 999 },
+    ];
+    for (const formula of nested) {
+      expect(resolveDeclaredCriticalMode(damagePayload(formula))).toBe("PREVENTED");
+    }
+  });
+
+  it("UT-R-CRT-04-006: an HP ratio sourced from the skill user is not covered — 自身のHPを消費して撃つ攻撃は従来どおり会心判定を行う", () => {
+    const selfHp: FormulaDefinition = {
+      kind: "CURRENT_HP_RATIO",
+      source: { kind: "SKILL_SOURCE" },
+      ratio: 0.5625,
+    };
+    expect(resolveDeclaredCriticalMode(damagePayload(selfHp))).toBe("NORMAL");
+    expect(
+      resolveDeclaredCriticalMode(damagePayload({ kind: "MIN", formulas: [selfHp, attackCap] })),
+    ).toBe("NORMAL");
+  });
+
+  it("UT-R-CRT-04-007: MAX_HP_RATIO and DAMAGE_RECEIVED_RATIO are not covered — 現在HPに依存しない量と反撃量は対象外", () => {
+    const maxHpOnTarget: FormulaDefinition = {
+      kind: "MAX_HP_RATIO",
+      source: { kind: "TARGET" },
+      ratio: 0.2,
+    };
+    const counter: FormulaDefinition = {
+      kind: "DAMAGE_RECEIVED_RATIO",
+      sourceResult: "LAST_DAMAGE_RECEIVED",
+      ratio: 1,
+    };
+    expect(resolveDeclaredCriticalMode(damagePayload(maxHpOnTarget))).toBe("NORMAL");
+    expect(resolveDeclaredCriticalMode(damagePayload(counter))).toBe("NORMAL");
+    expect(resolveDeclaredCriticalMode(damagePayload(counter, "GUARANTEED"))).toBe("GUARANTEED");
+  });
+
+  it("UT-R-CRT-04-008 (R-CRT-03): the derived PREVENTED survives an attacker-held CRITICAL_GUARANTEE and consumes no RandomSource", () => {
+    const random = new SequenceRandomSource([]);
+    const declared = resolveDeclaredCriticalMode(
+      damagePayload({ kind: "MIN", formulas: [targetCurrentHp, attackCap] }),
+    );
+
+    const effective = resolveEffectiveCriticalMode(holderOf("CRITICAL_GUARANTEE"), declared);
+    const result = resolveCritical(effective, createPercentage(1), 0.5, random);
+
+    expect(effective).toBe("PREVENTED");
+    expect(result.isCritical).toBe(false);
+    expect(result.multiplier).toBe(1);
     random.assertFullyConsumed();
   });
 });

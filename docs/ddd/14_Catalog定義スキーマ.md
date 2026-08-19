@@ -806,16 +806,18 @@ payload:
     enabled: false
 ```
 
-| フィールド        | 型                  | 必須 | 制約                                           |
-| ----------------- | ------------------- | ---- | ---------------------------------------------- |
-| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                              |
-| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                           |
-| `hitCount`        | integer             | —    | 省略時1                                        |
-| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`          |
-| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                        |
-| `piercing`        | object              | —    | 省略時0                                        |
-| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列 |
-| `link.enabled`    | boolean             | —    | 即時リンクダメージ                             |
+| フィールド        | 型                  | 必須 | 制約                                                   |
+| ----------------- | ------------------- | ---- | ------------------------------------------------------ |
+| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                                      |
+| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                                   |
+| `hitCount`        | integer             | —    | 省略時1                                                |
+| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`。省略時 `NORMAL` |
+| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                                |
+| `piercing`        | object              | —    | 省略時0                                                |
+| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列         |
+| `link.enabled`    | boolean             | —    | 即時リンクダメージ                                     |
+
+`formula` が攻撃対象の現在HPから基礎ダメージを求める場合（`CURRENT_HP_RATIO`／`MISSING_HP_RATIO`／`LOST_HP_RATIO` の `source: TARGET`。`MIN` 等の合成越しも含む）、その `DAMAGE` は R-CRT-04 により会心判定を行わず、宣言会心モードは `PREVENTED` へ導出される。この形の定義へ `PREVENTED` 以外の `critical.mode` を明示した場合、宣言が必ず黙殺されるためCatalogロード時点で拒否する。省略と `PREVENTED` の明示は受け入れる。
 
 ### HEAL
 

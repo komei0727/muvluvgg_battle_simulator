@@ -49,6 +49,7 @@ import {
 } from "./effect-action-payload.js";
 import {
   createFormulaDefinition,
+  referencesTargetCurrentHp,
   type FormulaDefinition,
   type FormulaDefinitionInput,
 } from "./formula-definition.js";
@@ -517,6 +518,20 @@ function createPayload(
       }
       const criticalMode = criticalRaw?.mode ?? "NORMAL";
       assertEnumValue(criticalMode, CRITICAL_MODES, `${path}.critical.mode`);
+      const formula = createFormulaField(payload, "formula", path);
+      // R-CRT-04: 基礎ダメージが攻撃対象の現在HPから求まる攻撃は会心判定を行わない。
+      // 実効モードは`critical-policy.ts`が`PREVENTED`へ導出するため、`PREVENTED`以外の
+      // 明示宣言は必ず黙殺される。書いた宣言が効かない定義を作らせない。
+      if (
+        criticalRaw?.mode !== undefined &&
+        criticalMode !== "PREVENTED" &&
+        referencesTargetCurrentHp(formula)
+      ) {
+        throw new DomainValidationError(
+          `${path}.critical.mode`,
+          `must be PREVENTED or omitted when the damage formula derives from the target's current HP (R-CRT-04), got ${criticalMode}`,
+        );
+      }
       const accuracyRaw = payload["accuracy"] as { mode?: string } | undefined;
       if (accuracyRaw !== undefined) {
         assertKnownKeys(accuracyRaw, DAMAGE_ACCURACY_ALLOWED_KEYS, `${path}.accuracy`);
@@ -569,7 +584,7 @@ function createPayload(
         kind: "DAMAGE",
         payload: {
           damageType,
-          formula: createFormulaField(payload, "formula", path),
+          formula,
           hitCount,
           critical: { mode: criticalMode },
           accuracy: { mode: accuracyMode },

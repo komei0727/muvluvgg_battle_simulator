@@ -90,10 +90,15 @@ export interface DamageCalculationResult {
  * 等）はスキル威力の倍率ではなく、評価結果そのものが基礎ダメージとなる —
  * 攻撃力・防御力を経由しない。実Catalogの`ACT_FLUTE_VAMPIRE_AS1_HP_COST`
  * （対象の現在HP×0.25を直接ダメージ量とする定義）を攻撃側の攻撃力でさらに
- * 乗算してしまうと、意図した量から桁違いに拡大される。属性倍率・会心倍率・
- * Action内追加ダメージ倍率はFormula種別によらず通常どおり適用する
- * （`ACT_AOI_GUARDIAN_PS2_COUNTER`等はcritical/accuracy/piercingを上書きせず、
- * 通常の会心・命中判定を経る前提であるため）。
+ * 乗算してしまうと、意図した量から桁違いに拡大される。属性倍率・Action内追加
+ * ダメージ倍率はFormula種別によらず通常どおり適用する（`ACT_AOI_GUARDIAN_PS2_COUNTER`
+ * 等はaccuracy/piercingを上書きせず、通常の命中判定を経る前提であるため）。
+ *
+ * 会心倍率もこの関数にとっては入力（`criticalMultiplier`）であり、Formula種別で
+ * 分岐しない。対象の現在HP割合を基礎とする攻撃が会心しないのはR-CRT-04であり、
+ * 会心モードを`PREVENTED`へ導出する呼び出し側（`critical-policy.ts`の
+ * `resolveDeclaredCriticalMode`）の責務である — この関数は`AppliedEffect`も
+ * 会心率も知らない純粋な数値計算に保つ。
  */
 function resolveBaseDamageAndSkillPower(
   formula: FormulaDefinition,

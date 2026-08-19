@@ -1,6 +1,7 @@
 import { activeStatusEffect, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { calculateDamage, type ConfusionDamageInput } from "./damage-calculator.js";
 import { composePiercing } from "./piercing-policy.js";
+import { resolveDeclaredCriticalMode } from "./critical-policy.js";
 import { damageResultsFor, recordDamageResult } from "../skill/formula-evaluator.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
@@ -195,7 +196,9 @@ export function* applyDamageActionSteps(
         hitIndex: hit.hitIndex,
         damageType: damageAction.payload.damageType,
         accuracyMode: damageAction.payload.accuracy.mode,
-        criticalMode: damageAction.payload.critical.mode,
+        // R-CRT-04: 宣言会心モードは基礎ダメージFormulaから導出する（対象の現在HP
+        // 割合を基礎とする攻撃は会心判定を行わない）。
+        criticalMode: resolveDeclaredCriticalMode(damageAction.payload),
         // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003）: この定義自身の静的な貫通率へ、
         // 攻撃側が保持している`APPLY_PIERCING_MOD`の一時貫通を合成する。ヒットごとに
         // 評価するのは、同じEffectActionの途中でPS連鎖が新たな貫通を付与・解除しうるため

@@ -155,6 +155,42 @@ export type FormulaDefinition =
       readonly max: number;
     };
 
+/**
+ * R-CRT-04「対象HP割合ダメージの会心不可」: このFormulaが「攻撃対象の現在HPから
+ * 導かれる量」を含むかを返す。`DAMAGE`の基礎ダメージFormulaがこれに該当する攻撃は、
+ * 会心判定を行わない（`critical-policy.ts`の`resolveDeclaredCriticalMode`）。
+ *
+ * 合成Formulaを再帰的に走査するのは、production定義の多く（`ACT_ELENA_MOODMAKER_AS2_DAMAGE`
+ * など）が「対象の現在HP×N%」を`MIN`で攻撃力上限と組にした形だからである。上限が
+ * 効いたヒットだけ会心し得る、といった評価結果依存の判定にはしない — 原文が
+ * 「対象の現在HP×N%分のダメージを与える攻撃」という定義そのものだからで、上限は
+ * その量の頭打ちにすぎない。
+ *
+ * `MISSING_HP_RATIO`／`LOST_HP_RATIO`を含めるのは、どちらも`maximumHp - currentHp`
+ * として評価される（`formula-evaluator.ts`）現在HP由来の量だからである。
+ * `MAX_HP_RATIO`は現在HPに依存しないため含めない。
+ *
+ * `source`は`TARGET`だけを見る。`DAMAGE`の解決中に「このヒットの適用対象」を必ず指す
+ * 参照はこれだけであり、`SKILL_SOURCE`（自身のHPを消費して撃つ攻撃）は別系統である。
+ */
+export function referencesTargetCurrentHp(formula: FormulaDefinition): boolean {
+  switch (formula.kind) {
+    case "CURRENT_HP_RATIO":
+    case "MISSING_HP_RATIO":
+    case "LOST_HP_RATIO":
+      return formula.source.kind === "TARGET";
+    case "SUM":
+    case "PRODUCT":
+    case "MIN":
+    case "MAX":
+      return formula.formulas.some(referencesTargetCurrentHp);
+    case "CLAMP":
+      return referencesTargetCurrentHp(formula.formula);
+    default:
+      return false;
+  }
+}
+
 export interface FormulaDefinitionInput {
   readonly kind: string;
   readonly value?: number;
