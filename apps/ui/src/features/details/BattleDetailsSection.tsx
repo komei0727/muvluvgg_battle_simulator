@@ -131,7 +131,7 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
       ) : null}
       {activeTab === "effectTrace" ? (
         <div role="tabpanel" id="tabpanel-effectTrace" aria-labelledby="tab-effectTrace">
-          <EffectTraceSection events={response.events} roster={roster} />
+          <EffectTraceSection response={response} roster={roster} />
         </div>
       ) : null}
     </div>
