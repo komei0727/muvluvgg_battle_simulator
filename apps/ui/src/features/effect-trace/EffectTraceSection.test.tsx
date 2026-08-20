@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { EffectTraceSection } from "./EffectTraceSection.js";
 import { buildRosterIndex } from "../details/event-formatters.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type {
+  BattleLogEventResponse,
+  BattleLogResponse,
+  BattleUnitStateResponse,
+  StateTransitionResponse,
+} from "../simulation/api-contract.js";
 
 const SUIRAN_DEBUFF = "ACT_SUIRAN_CHAOS_AS1_DEBUFF";
 const ELENA_BUFF = "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH";
@@ -156,6 +161,46 @@ const EVENTS: readonly BattleLogEventResponse[] = [
   event({ sequence: 30, turnNumber: 3, type: "TURN_COMPLETING" }),
 ];
 
+function unitState(battleUnitId: string, side: string, attack: number): BattleUnitStateResponse {
+  return {
+    battleUnitId,
+    unitDefinitionId: "UNIT_X",
+    side,
+    combatStatus: "ACTIVE",
+    combatStats: {
+      attack,
+      defense: 100,
+      criticalRate: 20,
+      actionSpeed: 500,
+      affinityBonus: 25,
+      criticalDamageBonus: 50,
+    },
+    hp: { current: 1000, maximum: 1000 },
+  };
+}
+
+const UNIT_STATES: readonly BattleUnitStateResponse[] = [
+  unitState("bu-ally-1", "ALLY", 1200),
+  unitState("bu-ally-2", "ALLY", 900),
+  unitState("bu-ally-3", "ALLY", 800),
+  unitState("bu-enemy-1", "ENEMY", 5000),
+];
+
+function responseOf(
+  events: readonly BattleLogEventResponse[],
+  stateTransitions: readonly StateTransitionResponse[] = [],
+): BattleLogResponse {
+  return {
+    schemaVersion: 1,
+    battleId: "b-1",
+    catalogRevision: "rev-1",
+    initialState: { units: UNIT_STATES },
+    unitSummaries: [],
+    events,
+    stateTransitions,
+  };
+}
+
 function detailRows(): readonly HTMLElement[] {
   const table = screen.getByRole("table", { name: /効果トレース明細/ });
   return within(table).getAllByRole("row").slice(1);
@@ -164,7 +209,7 @@ function detailRows(): readonly HTMLElement[] {
 describe("EffectTraceSection", () => {
   // UI-AC-045: 注目効果2件が初期選択であり、プリセット外はログにあっても最初は出ない。
   it("opens with the two focused effects selected and the rest available but unselected (UI-CT-095)", () => {
-    render(<EffectTraceSection events={EVENTS} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
     const suiran = screen.getByRole("checkbox", { name: SUIRAN_DEBUFF });
     const elena = screen.getByRole("checkbox", { name: ELENA_BUFF });
@@ -183,7 +228,7 @@ describe("EffectTraceSection", () => {
 
   // UI-AC-045: 消費者と付与先を何ターン目のものか読める。
   it("names the consumer of a debuff held by the enemy and the holder of a buff, with their turns (UI-CT-095)", () => {
-    render(<EffectTraceSection events={EVENTS} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
     const [debuffRow, buffRow] = detailRows();
     expect(debuffRow).toHaveTextContent("エネミーα");
@@ -246,7 +291,7 @@ describe("EffectTraceSection", () => {
       }),
     ];
 
-    render(<EffectTraceSection events={events} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
 
     const [row] = detailRows();
     expect(row).toHaveTextContent("消費を残して終了");
@@ -308,7 +353,7 @@ describe("EffectTraceSection", () => {
       }),
     ];
 
-    render(<EffectTraceSection events={events} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
 
     const texts = detailRows().map((row) => row.textContent ?? "");
     expect(texts[0]).toContain("ブレイクで解除");
@@ -319,7 +364,7 @@ describe("EffectTraceSection", () => {
   // UI-AC-045: 追跡対象を足せる／外せる。
   it("adds and removes tracked effects from the list of effects that appeared in the log (UI-CT-096)", async () => {
     const user = userEvent.setup();
-    render(<EffectTraceSection events={EVENTS} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
     await user.click(screen.getByRole("checkbox", { name: OTHER_EFFECT }));
     expect(detailRows()).toHaveLength(3);
@@ -333,7 +378,7 @@ describe("EffectTraceSection", () => {
   // BreakTimelineと同じ方針: 0件でも「起きなかった」ことが分かる。
   it("says the selected effects never appeared instead of rendering an empty grid (UI-CT-097)", async () => {
     const user = userEvent.setup();
-    render(<EffectTraceSection events={EVENTS} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
     await user.click(screen.getByRole("checkbox", { name: SUIRAN_DEBUFF }));
     await user.click(screen.getByRole("checkbox", { name: ELENA_BUFF }));
@@ -345,7 +390,7 @@ describe("EffectTraceSection", () => {
   it("says no effect was applied at all when the log has no grants (UI-CT-097)", () => {
     render(
       <EffectTraceSection
-        events={[event({ sequence: 1, turnNumber: 1, type: "TURN_STARTED" })]}
+        response={responseOf([event({ sequence: 1, turnNumber: 1, type: "TURN_STARTED" })])}
         roster={roster}
       />,
     );
@@ -385,7 +430,7 @@ describe("EffectTraceSection", () => {
       }),
     ];
 
-    render(<EffectTraceSection events={events} roster={roster} />);
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
 
     const [row] = detailRows();
     // 撃破由来の解除をブレイク解除と読み違えない（`UNIT_BROKEN`は演習にしか現れない）。
@@ -393,10 +438,83 @@ describe("EffectTraceSection", () => {
     expect(row).not.toHaveTextContent("ブレイクで解除");
   });
 
+  // UI-AC-046: 順位セレクタ由来の付与からだけ、解決時点の候補比較を開ける。
+  it("offers the candidate comparison only for a grant a rank selector chose (UI-CT-103)", async () => {
+    const user = userEvent.setup();
+    const events: readonly BattleLogEventResponse[] = [
+      event({
+        sequence: 10,
+        turnNumber: 1,
+        type: "SKILL_USE_STARTED",
+        skillUseId: "su-elena",
+        sourceUnitId: "bu-ally-2",
+      }),
+      grant(
+        11,
+        1,
+        {
+          effectInstanceId: "ei-elena",
+          effectActionDefinitionId: ELENA_BUFF,
+          targetUnitId: "bu-ally-1",
+        },
+        { skillUseId: "su-elena", sourceUnitId: "bu-ally-2", parentSequence: 10 },
+      ),
+      grant(
+        12,
+        1,
+        { effectInstanceId: "ei-suiran", effectActionDefinitionId: SUIRAN_DEBUFF },
+        { sourceUnitId: "bu-ally-3" },
+      ),
+    ];
+
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
+
+    // 翠蘭AS1デバフは順位セレクタで選ばれていないので比較を持たない。
+    expect(screen.getAllByRole("button", { name: /候補比較/ })).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: /候補比較/ }));
+    const table = screen.getByRole("table", { name: /解決時点の候補/ });
+    // 味方3人が候補、敵は入らない。攻撃力の降順。
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual([
+      expect.stringContaining("アタッカー"),
+      expect.stringContaining("エレーナ"),
+      expect.stringContaining("翠蘭"),
+    ]);
+    expect(screen.getByText(/次点との差/)).toHaveTextContent("300");
+  });
+
+  it("closes the comparison again and states the inference limit while open (UI-CT-103)", async () => {
+    const user = userEvent.setup();
+    const events: readonly BattleLogEventResponse[] = [
+      grant(11, 1, {
+        effectInstanceId: "ei-elena",
+        effectActionDefinitionId: ELENA_BUFF,
+        targetUnitId: "bu-ally-1",
+      }),
+    ];
+
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
+
+    const toggle = screen.getByRole("button", { name: /候補比較/ });
+    await user.click(toggle);
+    expect(screen.getByText(/逆算/)).toBeVisible();
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(toggle);
+    expect(screen.queryByRole("table", { name: /解決時点の候補/ })).toBeNull();
+  });
+
   // 05_非機能・アクセシビリティ設計.md: CSPが`style-src 'self'`のため、スイムレーンは
   // inline styleを1つも持てない。
   it("draws the swimlane with turn columns and without any inline style attribute (UI-CT-097)", () => {
-    const { container } = render(<EffectTraceSection events={EVENTS} roster={roster} />);
+    const { container } = render(
+      <EffectTraceSection response={responseOf(EVENTS)} roster={roster} />,
+    );
 
     const swimlane = screen.getByRole("table", { name: /効果トレース スイムレーン/ });
     expect(

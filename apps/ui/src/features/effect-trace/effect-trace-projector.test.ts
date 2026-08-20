@@ -448,3 +448,51 @@ describe("projectEffectTrace", () => {
     expect(trace.instances[0]).toMatchObject({ effectInstanceId: "ei-1", outcome: "ONGOING" });
   });
 });
+
+describe("projectEffectTrace resolution start", () => {
+  // 順位セレクタの対象決定はスキル解決の**起点**で1度だけ行われ、以降のstepは同じbindingを
+  // 使い回す。付与ごとの時点で候補を比べると、同じ解決の前段が起こしたバフを織り込んで
+  // しまい、実際とは違う順位になる（実測: エレーナEXのDMGUP_LOWが6件中0件しか一致しない）。
+  it("carries the first sequence of the skill use that applied the effect (UI-UT-TRC-011)", () => {
+    const events = [
+      event({
+        sequence: 10,
+        type: "SKILL_USE_STARTED",
+        turnNumber: 1,
+        skillUseId: "su-elena",
+        sourceUnitId: "bu-ally-2",
+      }),
+      event({
+        sequence: 11,
+        type: "EFFECT_APPLIED",
+        turnNumber: 1,
+        skillUseId: "su-elena",
+        parentSequence: 10,
+        details: applied({ effectInstanceId: "ei-first" }),
+      }),
+      event({
+        sequence: 18,
+        type: "EFFECT_APPLIED",
+        turnNumber: 1,
+        skillUseId: "su-elena",
+        parentSequence: 11,
+        details: applied({ effectInstanceId: "ei-later" }),
+      }),
+      // 同じスキル解決に属さない付与は自分の付与sequenceが起点になる。
+      event({
+        sequence: 30,
+        type: "EFFECT_APPLIED",
+        turnNumber: 2,
+        details: applied({ effectInstanceId: "ei-standalone" }),
+      }),
+    ];
+
+    const byId = new Map(
+      projectEffectTrace(events).instances.map((instance) => [instance.effectInstanceId, instance]),
+    );
+
+    expect(byId.get("ei-first")?.resolutionStartSequence).toBe(10);
+    expect(byId.get("ei-later")?.resolutionStartSequence).toBe(10);
+    expect(byId.get("ei-standalone")?.resolutionStartSequence).toBe(30);
+  });
+});

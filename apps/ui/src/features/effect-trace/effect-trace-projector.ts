@@ -66,6 +66,14 @@ export interface EffectTraceInstance {
   readonly originSide?: string;
   readonly appliedSequence: number;
   readonly appliedTurnNumber: number;
+  /**
+   * この付与を行ったスキル解決の起点`sequence`（同じ`skillUseId`を持つ最初のイベント）。
+   * `targetBindings`の対象決定は解決の起点で1度だけ行われ、以降のstepは同じbindingを使い回す
+   * ため、順位セレクタの候補比較はこの時点で評価しなければならない。付与時点で比べると、
+   * 同じ解決の前段が起こしたバフを織り込んでしまう。`skillUseId`を持たない付与では
+   * 付与自身の`sequence`になる。
+   */
+  readonly resolutionStartSequence: number;
   /** `DurationDefinition.consumption.maxCount`。消費条件を持つ付与だけが持つ。残量ロスの分母。 */
   readonly consumptionMaxCount?: number;
   readonly consumptions: readonly EffectTraceConsumption[];
@@ -93,6 +101,7 @@ interface MutableInstance {
   readonly originSide?: string;
   readonly appliedSequence: number;
   readonly appliedTurnNumber: number;
+  readonly resolutionStartSequence: number;
   /**
    * 消費条件（`DurationDefinition.consumption`）を宣言した付与かどうか。「未消費で失効」を
    * 「そもそも消費条件を持たない効果の自然な終わり」と区別するために要る。
@@ -187,6 +196,25 @@ function resolveConsumerUnitId(
     }
   }
   return undefined;
+}
+
+/**
+ * この付与を行ったスキル解決の起点。同じ`skillUseId`を持つイベントのうち最小の`sequence`で、
+ * `targetBindings`が解決された時点にあたる。`skillUseId`が無い付与（Memory由来など）は
+ * 付与自身を起点とする。
+ */
+function resolutionStartSequenceOf(
+  event: BattleLogEventResponse,
+  eventsBySkillUseId: ReadonlyMap<string, readonly BattleLogEventResponse[]>,
+): number {
+  const sequence = sequenceOf(event);
+  const skillUseId = stringOf(event["skillUseId"]);
+  if (skillUseId === undefined) {
+    return sequence;
+  }
+  // `eventsBySkillUseId`は`sequence`昇順に積んであるので先頭が起点になる。
+  const first = eventsBySkillUseId.get(skillUseId)?.[0];
+  return first === undefined ? sequence : Math.min(sequenceOf(first), sequence);
 }
 
 /**
@@ -285,6 +313,7 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
         ...(originUnitId === undefined && originSide !== undefined ? { originSide } : {}),
         appliedSequence: sequenceOf(event),
         appliedTurnNumber: turnNumberOf(event),
+        resolutionStartSequence: resolutionStartSequenceOf(event, eventsBySkillUseId),
         hasConsumptionCondition: stringOf(details["consumptionKind"]) !== undefined,
         ...(numberOf(details["consumptionMaxCount"]) !== undefined
           ? { consumptionMaxCount: numberOf(details["consumptionMaxCount"])! }
@@ -348,6 +377,7 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
       ...(instance.originSide !== undefined ? { originSide: instance.originSide } : {}),
       appliedSequence: instance.appliedSequence,
       appliedTurnNumber: instance.appliedTurnNumber,
+      resolutionStartSequence: instance.resolutionStartSequence,
       ...(instance.consumptionMaxCount !== undefined
         ? { consumptionMaxCount: instance.consumptionMaxCount }
         : {}),

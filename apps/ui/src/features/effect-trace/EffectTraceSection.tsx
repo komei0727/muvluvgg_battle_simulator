@@ -1,18 +1,30 @@
-import { useId, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
+import { Button } from "../../components/Button.js";
+import { CandidateComparison } from "./CandidateComparison.js";
+import { compareRankCandidates } from "./candidate-comparison.js";
+import { buildCombatStatTimeline } from "./combat-stat-timeline.js";
 import { projectEffectTrace } from "./effect-trace-projector.js";
 import type { EffectTraceInstance, EffectTraceOutcome } from "./effect-trace-projector.js";
 import { FOCUSED_EFFECT_ACTION_DEFINITION_IDS } from "./focused-effects.js";
 import { resolveDisplayName } from "../details/event-presentation.js";
 import type { RosterIndex } from "../details/event-presentation.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogResponse } from "../simulation/api-contract.js";
 import styles from "./EffectTraceSection.module.css";
 
 export interface EffectTraceSectionProps {
-  readonly events: readonly BattleLogEventResponse[];
+  /**
+   * 候補比較（`UI-AC-046`）が`initialState`と`stateTransitions`を読むため、イベント列だけでなく
+   * 応答そのものを受け取る。実効ステータスの復元元は差分であってイベントのdetailsではない
+   * （`combat-stat-timeline.ts`）。
+   */
+  readonly response: BattleLogResponse;
   readonly roster: RosterIndex;
 }
 
 const NO_VALUE_PLACEHOLDER = "-";
+
+/** 明細表の列数。比較を開いた行はこの幅いっぱいに広げる。 */
+const COMPARISON_ROW_COLUMN_COUNT = 9;
 
 /** `effect-event-formatters.ts`の`resolveOrigin`と同じ規約: 発生源がユニットでなければ陣営で表す。 */
 const MEMORY_ORIGIN_SUFFIX = "陣営のMemory";
@@ -140,10 +152,17 @@ function barSpanOf(
 //
 // スイムレーンはCSS Modulesと`colSpan`だけで組む。`index.html`のCSPが`style-src 'self'`
 // であり、inline styleを持つ図はブラウザで描画されないため（統計チャートと同じ制約）。
-export function EffectTraceSection({ events, roster }: EffectTraceSectionProps) {
+export function EffectTraceSection({ response, roster }: EffectTraceSectionProps) {
   const headingId = useId();
   const selectionHintId = useId();
-  const trace = useMemo(() => projectEffectTrace(events), [events]);
+  const trace = useMemo(() => projectEffectTrace(response.events), [response]);
+  const timeline = useMemo(() => buildCombatStatTimeline(response), [response]);
+  // 候補の母集団を付与先と同じ陣営に限るために要る（`candidate-comparison.ts`）。
+  const sideByUnitId = useMemo(
+    () => new Map([...roster].map(([battleUnitId, entry]) => [battleUnitId, entry.side] as const)),
+    [roster],
+  );
+  const [expandedInstanceIds, setExpandedInstanceIds] = useState<ReadonlySet<string>>(new Set());
 
   // 初期選択はプリセットのうちログに現れたものだけ。現れなかったプリセットを選択状態で
   // 持つと、追加・削除の一覧に無いものが選ばれていることになる。
@@ -160,6 +179,18 @@ export function EffectTraceSection({ events, roster }: EffectTraceSectionProps) 
     selectedIds.has(instance.effectActionDefinitionId),
   );
   const rows = toSwimlaneRows(visible);
+
+  function toggleComparison(effectInstanceId: string) {
+    setExpandedInstanceIds((current) => {
+      const next = new Set(current);
+      if (next.has(effectInstanceId)) {
+        next.delete(effectInstanceId);
+      } else {
+        next.add(effectInstanceId);
+      }
+      return next;
+    });
+  }
 
   function toggle(effectActionDefinitionId: string) {
     setSelectedIds((current) => {
@@ -275,25 +306,58 @@ export function EffectTraceSection({ events, roster }: EffectTraceSectionProps) 
                       <th scope="col">終了理由</th>
                       <th scope="col">消費</th>
                       <th scope="col">消費者</th>
+                      <th scope="col">候補比較</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visible.map((instance) => (
-                      <tr key={instance.effectInstanceId}>
-                        <td className={styles["mono"]}>#{instance.appliedSequence}</td>
-                        <td className={styles["mono"]}>
-                          {instance.endedTurnNumber !== undefined
-                            ? `T${instance.appliedTurnNumber.toString()} → T${instance.endedTurnNumber.toString()}`
-                            : `T${instance.appliedTurnNumber.toString()} →`}
-                        </td>
-                        <td className={styles["mono"]}>{instance.effectActionDefinitionId}</td>
-                        <td>{resolveDisplayName(roster, instance.holderUnitId)}</td>
-                        <td>{originLabelOf(instance, roster)}</td>
-                        <td>{endLabelOf(instance)}</td>
-                        <td className={styles["mono"]}>{consumptionCountLabelOf(instance)}</td>
-                        <td>{consumerLabelOf(instance, roster)}</td>
-                      </tr>
-                    ))}
+                    {visible.map((instance) => {
+                      const comparison = compareRankCandidates({
+                        instance,
+                        timeline,
+                        sideByUnitId,
+                      });
+                      const expanded = expandedInstanceIds.has(instance.effectInstanceId);
+                      return (
+                        <Fragment key={instance.effectInstanceId}>
+                          <tr>
+                            <td className={styles["mono"]}>#{instance.appliedSequence}</td>
+                            <td className={styles["mono"]}>
+                              {instance.endedTurnNumber !== undefined
+                                ? `T${instance.appliedTurnNumber.toString()} → T${instance.endedTurnNumber.toString()}`
+                                : `T${instance.appliedTurnNumber.toString()} →`}
+                            </td>
+                            <td className={styles["mono"]}>{instance.effectActionDefinitionId}</td>
+                            <td>{resolveDisplayName(roster, instance.holderUnitId)}</td>
+                            <td>{originLabelOf(instance, roster)}</td>
+                            <td>{endLabelOf(instance)}</td>
+                            <td className={styles["mono"]}>{consumptionCountLabelOf(instance)}</td>
+                            <td>{consumerLabelOf(instance, roster)}</td>
+                            <td>
+                              {comparison === undefined ? (
+                                NO_VALUE_PLACEHOLDER
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  aria-expanded={expanded}
+                                  onClick={() => {
+                                    toggleComparison(instance.effectInstanceId);
+                                  }}
+                                >
+                                  {`候補比較 #${instance.appliedSequence.toString()}`}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                          {comparison !== undefined && expanded ? (
+                            <tr>
+                              <td colSpan={COMPARISON_ROW_COLUMN_COUNT}>
+                                <CandidateComparison comparison={comparison} roster={roster} />
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
