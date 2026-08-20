@@ -55,6 +55,9 @@ describe("BattleDetailsSection", () => {
 
     await user.click(screen.getByRole("tab", { name: "因果ツリー" }));
     expect(screen.getByRole("button", { name: /BATTLE_STARTED/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "効果トレース" }));
+    expect(screen.getByRole("heading", { name: /効果トレース/ })).toBeInTheDocument();
   });
 
   it("jumps from an event's state transition link to the transitions tab", async () => {
@@ -202,6 +205,7 @@ describe("BattleDetailsSection", () => {
       "レスポンスJSON",
       "ユニット状態",
       "因果ツリー",
+      "効果トレース",
     ]);
   });
 });
