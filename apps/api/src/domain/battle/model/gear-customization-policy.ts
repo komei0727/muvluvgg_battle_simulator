@@ -12,6 +12,15 @@ export type GearGrade = (typeof GEAR_GRADES)[number];
 /** R-ENH-04 #1: 1ユニットへ指定できるギアの上限。 */
 export const MAX_GEARS_PER_UNIT = 9;
 
+/**
+ * R-ENH-04 #6: 1ユニットへ指定できる**同一対象ステータス**のギアの上限。実ゲームの
+ * ギアカスタムが同種ギアを3個までしか装備できないためで、この上限が無いと規則が
+ * 実ゲームより広くなり、実在しない構成（同一ステータス9枚など）を受理してしまう。
+ * `MAX_GEARS_PER_UNIT`との併用により、9枠を埋めるには最低3種類のステータスへ散らす
+ * ことになる。
+ */
+export const MAX_GEARS_PER_STAT = 3;
+
 /** ユニット単位で指定する1個のギア（R-ENH-01 #1）。対象は強化対象7ステータス。 */
 export interface GearSpecification {
   readonly stat: StatKind;

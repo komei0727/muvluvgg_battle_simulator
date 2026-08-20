@@ -3,11 +3,12 @@ import type {
   MemoryDefinitionId,
   UnitDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
-import { STAT_KINDS } from "../../domain/catalog/definitions/catalog-enums.js";
+import { STAT_KINDS, type StatKind } from "../../domain/catalog/definitions/catalog-enums.js";
 import type { AcademyLevels } from "../../domain/battle/model/academy-level-policy.js";
 import {
   GEAR_GRADES,
   GEAR_TIERS,
+  MAX_GEARS_PER_STAT,
   MAX_GEARS_PER_UNIT,
   type GearSpecification,
 } from "../../domain/battle/model/gear-customization-policy.js";
@@ -189,6 +190,44 @@ function validateSlotEnhancement(
       });
     }
     gears.forEach((gear, index) => validateGear(gear, `${path}.gears[${index}]`, violations));
+    validateGearStatCounts(gears, `${path}.gears`, violations);
+  }
+}
+
+/**
+ * R-ENH-04 #6: 同一の対象ステータスのギアは最大3個。総数上限（#1）とは独立に効く
+ * ため、両方を破る指定では両方の違反を返す（片方だけ直しても受理されないことを
+ * 1度の応答で示す）。
+ *
+ * pathへ超過したステータス名を載せるのは、`gears`だけでは「どれを外せばよいか」が
+ * 分からないためである（`10_API設計.md`「ViolationResponse」。配列そのものではなく
+ * 「そのステータスのギア群」を指す合成pathで、`/options/logLevel`と同じく送信DTOの
+ * 実体を指すものではない）。
+ *
+ * 列挙値として不正な`stat`はここでは数えない — `validateGear`が既に不正を指して
+ * おり、集計へ混ぜると存在しないステータス名がpathへ現れる。並びは`STAT_KINDS`の
+ * 宣言順に固定し、入力の並びで応答が揺れないようにする。
+ */
+function validateGearStatCounts(
+  gears: readonly GearInput[],
+  path: string,
+  violations: Violation[],
+): void {
+  const counts = new Map<StatKind, number>();
+  for (const gear of gears) {
+    if (!STAT_KINDS.includes(gear.stat)) {
+      continue;
+    }
+    counts.set(gear.stat, (counts.get(gear.stat) ?? 0) + 1);
+  }
+  for (const stat of STAT_KINDS) {
+    const count = counts.get(stat) ?? 0;
+    if (count > MAX_GEARS_PER_STAT) {
+      violations.push({
+        path: `${path}.${stat}`,
+        reason: `must contain at most ${MAX_GEARS_PER_STAT} gears with the same stat, got ${count} (R-ENH-04 #6)`,
+      });
+    }
   }
 }
 
