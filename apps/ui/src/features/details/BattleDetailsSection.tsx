@@ -6,6 +6,7 @@ import { EventTimeline } from "./EventTimeline.js";
 import { RawJsonView } from "./RawJsonView.js";
 import { StateTransitionTable } from "./StateTransitionTable.js";
 import { UnitActionStateSection } from "./UnitActionStateSection.js";
+import { EffectTraceSection } from "../effect-trace/EffectTraceSection.js";
 import { selectRoster } from "../summary/summary-projector.js";
 import type { LogLevel } from "../formation/types.js";
 import type {
@@ -20,7 +21,13 @@ export interface BattleDetailsSectionProps {
   readonly logLevel: LogLevel;
 }
 
-type DetailsTab = "events" | "transitions" | "json" | "actionState" | "causalityTree";
+type DetailsTab =
+  | "events"
+  | "transitions"
+  | "json"
+  | "actionState"
+  | "causalityTree"
+  | "effectTrace";
 
 // causalityTreeを"events"と"transitions"の間へ挿入すると、
 // 既存e2e/keyboard.spec.tsが検証する「時系列イベント --ArrowRight--> 状態遷移」
@@ -31,6 +38,7 @@ const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] 
   { id: "json", label: "レスポンスJSON" },
   { id: "actionState", label: "ユニット状態" },
   { id: "causalityTree", label: "因果ツリー" },
+  { id: "effectTrace", label: "効果トレース" },
 ];
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -67,7 +75,7 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
     return (
       <div className={styles["panel"]}>
         <p className={styles["notice"]}>
-          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・レスポンスJSONを閲覧できます。
+          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・効果トレース・レスポンスJSONを閲覧できます。
         </p>
       </div>
     );
@@ -119,6 +127,11 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
       {activeTab === "causalityTree" ? (
         <div role="tabpanel" id="tabpanel-causalityTree" aria-labelledby="tab-causalityTree">
           <EventCausalityTree events={response.events} roster={roster} />
+        </div>
+      ) : null}
+      {activeTab === "effectTrace" ? (
+        <div role="tabpanel" id="tabpanel-effectTrace" aria-labelledby="tab-effectTrace">
+          <EffectTraceSection events={response.events} roster={roster} />
         </div>
       ) : null}
     </div>
