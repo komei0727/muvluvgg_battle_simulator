@@ -159,6 +159,27 @@ describe("parseStoredDraft", () => {
     expect(restored?.logLevel).toBe("DETAILED");
   });
 
+  it("restores a draft whose unit exceeds the three-gears-per-stat limit instead of discarding it", () => {
+    // 上限（`MAX_GEARS_PER_STAT`）はUI入力が持つ制約であり、保存データの契約ではない。
+    // 版を上げずに読み捨てると、上限導入前に入力した手持ちデータとドラフトが
+    // 利用者から黙って消える（違反はクライアント検証が警告として示す）。
+    const overLimit = createInitialUnitEnhancement().gears.map((_, index) =>
+      index < 4 ? GEAR : undefined,
+    );
+    const stored = toStoredDraft(
+      withAllySlot(
+        createInitialDraft(),
+        slotKeyOf("ally", "FRONT", 0),
+        "UNIT_A",
+        enhancementOf(200, overLimit),
+      ),
+    );
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored?.allySlots[0]?.enhancement?.gears).toStrictEqual(overLimit);
+  });
+
   it("keeps a slot that only holds a unit id", () => {
     const stored = toStoredDraft(
       withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 1), "UNIT_A"),

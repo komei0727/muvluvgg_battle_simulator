@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 import { selectCanSubmit, validateDraft } from "./draft-validation.js";
 import { createInitialDraft, slotKeyOf } from "./types.js";
-import type { BattleDraft, FormationSlotInput } from "./types.js";
+import type { BattleDraft, FormationSlotInput, GearInput } from "./types.js";
 
 function catalogWith(
   units: BattleSimulationCatalogResponse["units"] = [],
@@ -411,6 +411,123 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
         severity: "error",
       }),
     );
+  });
+
+  describe("同一ステータス3枚の上限 (UI-UT-VAL-013)", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+
+    function draftWithGears(gears: readonly (GearInput | undefined)[]): BattleDraft {
+      const base = enabledAllyDraft();
+      return {
+        ...base,
+        allySlots: base.allySlots.map((slot) =>
+          slot.slotKey === slotKey
+            ? { ...slot, enhancement: { level: 200, linkExcluded: false, gears } }
+            : slot,
+        ),
+      };
+    }
+
+    const attack: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
+
+    it("accepts three gears of the same stat", () => {
+      const draft = draftWithGears([
+        attack,
+        attack,
+        attack,
+        ...Array<undefined>(6).fill(undefined),
+      ]);
+
+      expect(validateDraft(draft, catalog)).toEqual([]);
+    });
+
+    it("reports a fourth gear of the same stat, naming the unit and the stat", () => {
+      const draft = draftWithGears([
+        attack,
+        attack,
+        attack,
+        { stat: "ATTACK", tier: "II", grade: "D" },
+        ...Array<undefined>(5).fill(undefined),
+      ]);
+
+      const violations = validateDraft(draft, catalog);
+
+      expect(violations).toContainEqual(
+        expect.objectContaining({
+          path: "/allyFormation/units/enhancement/gears",
+          slotKey,
+          gearIndex: 3,
+          code: "GEAR_STAT_COUNT_OVER_LIMIT",
+          message: "UNIT_Aの攻撃力のギアが4枚あります。同一ステータスのギアは3枚までです。",
+          severity: "warning",
+        }),
+      );
+    });
+
+    it("does not block submission — the API still accepts the over-limit draft in this stage", () => {
+      const draft = draftWithGears([
+        attack,
+        attack,
+        attack,
+        attack,
+        ...Array<undefined>(5).fill(undefined),
+      ]);
+
+      const violations = validateDraft(draft, catalog);
+
+      expect(violations.some((violation) => violation.code === "GEAR_STAT_COUNT_OVER_LIMIT")).toBe(
+        true,
+      );
+      expect(selectCanSubmit(violations)).toBe(true);
+    });
+
+    it("marks every gear past the limit so each one can be pointed at", () => {
+      const draft = draftWithGears([
+        attack,
+        attack,
+        attack,
+        attack,
+        attack,
+        ...Array<undefined>(4).fill(undefined),
+      ]);
+
+      const overLimit = validateDraft(draft, catalog).filter(
+        (violation) => violation.code === "GEAR_STAT_COUNT_OVER_LIMIT",
+      );
+
+      expect(overLimit.map((violation) => violation.gearIndex)).toEqual([3, 4]);
+    });
+
+    it("counts each stat on its own, and does not look across units", () => {
+      const defense: GearInput = { stat: "DEFENSE", tier: "III", grade: "S" };
+      const draft = draftWithGears([
+        attack,
+        attack,
+        attack,
+        defense,
+        defense,
+        defense,
+        ...Array<undefined>(3).fill(undefined),
+      ]);
+
+      expect(validateDraft(draft, catalog)).toEqual([]);
+    });
+
+    it("does not validate a side whose enhancement toggle is off", () => {
+      const base = draftWithGears([
+        attack,
+        attack,
+        attack,
+        attack,
+        ...Array<undefined>(5).fill(undefined),
+      ]);
+      const draft: BattleDraft = {
+        ...base,
+        allyEnhancement: { ...base.allyEnhancement, enabled: false },
+      };
+
+      expect(validateDraft(draft, catalog)).toEqual([]);
+    });
   });
 
   describe("レベルリンク (UI-UT-VAL-008/009/010)", () => {

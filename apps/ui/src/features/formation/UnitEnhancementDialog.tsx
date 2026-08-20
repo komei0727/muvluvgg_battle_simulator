@@ -1,7 +1,14 @@
 import { useId, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
 import type { UiViolation } from "./draft-validation.js";
-import { GEAR_GRADES, GEAR_STATS, GEAR_TIERS } from "./types.js";
+import {
+  GEAR_GRADES,
+  GEAR_STAT_LABELS,
+  GEAR_STATS,
+  GEAR_TIERS,
+  MAX_GEARS_PER_STAT,
+  gearStatCounts,
+} from "./types.js";
 import { isLevelLinked } from "./level-link.js";
 import type {
   GearGrade,
@@ -37,16 +44,6 @@ export interface UnitEnhancementDialogProps {
   readonly onClose: () => void;
 }
 
-const GEAR_STAT_LABELS: Readonly<Record<GearStat, string>> = {
-  MAXIMUM_HP: "HP",
-  ATTACK: "攻撃力",
-  DEFENSE: "防御力",
-  ACTION_SPEED: "行動速度",
-  CRITICAL_RATE: "会心率",
-  CRITICAL_DAMAGE_BONUS: "会心ダメージ",
-  AFFINITY_BONUS: "属性相性",
-};
-
 /**
  * この枠のviolationだけを拾う。クライアント検証のpathは送信DTOのindexを持たない
  * 固定文字列、サーバー違反のpathは`units/{n}/...`のindex付きになるため、
@@ -71,6 +68,7 @@ function gearMessages(
   violations: readonly UiViolation[],
   slotKey: string,
   gearIndex: number,
+  severity: UiViolation["severity"],
 ): readonly string[] {
   return Array.from(
     new Set(
@@ -78,7 +76,7 @@ function gearMessages(
         .filter(
           (violation) =>
             violation.slotKey === slotKey &&
-            violation.severity === "error" &&
+            violation.severity === severity &&
             violation.gearIndex === gearIndex,
         )
         .map((violation) => violation.message),
@@ -146,7 +144,10 @@ interface GearSlotFieldsProps {
   readonly gearIndex: number;
   readonly gear: GearInput | undefined;
   readonly invalid: boolean;
-  readonly errorId: string | undefined;
+  /** エラー・警告など、この枠の3つのselectへ結びつける説明のid列。 */
+  readonly describedBy: string | undefined;
+  /** このユニットが確定済みギアで使っているステータス別の枚数（この枠の分も含む）。 */
+  readonly statCounts: ReadonlyMap<GearStat, number>;
   readonly gearEffects: readonly CatalogGearEffect[] | undefined;
   readonly onChange: (gear?: GearInput) => void;
 }
@@ -159,13 +160,15 @@ function GearSlotFields({
   gearIndex,
   gear,
   invalid,
-  errorId,
+  describedBy,
+  statCounts,
   gearEffects,
   onChange,
 }: GearSlotFieldsProps) {
   const statId = useId();
   const tierId = useId();
   const gradeId = useId();
+  const statExhaustedId = useId();
   const slotNumber = gearIndex + 1;
   // 3つ揃うまではギアとして確定できないが、選択途中の値は画面に残す必要が
   // あるため、未確定の組み合わせだけをこのcomponentが持つ。draftへは確定した
@@ -197,6 +200,14 @@ function GearSlotFields({
   const effect = gearEffects?.find((candidate) => candidate.stat === selection.stat);
   const tierLabels = gearOptionLabels(effect, "tier", selection.grade);
   const gradeLabels = gearOptionLabels(effect, "grade", selection.tier);
+  // 同一ステータス3枚の上限（`MAX_GEARS_PER_STAT`）に達したステータスは選べない。
+  // この枠が既に持っているステータスだけは残す — 外すと、同じ値のまま種別・ランクを
+  // 変えられなくなる（`statCounts`はこの枠自身の1枚も数えているため、上限ちょうどの
+  // ときに自分の値が消える）。
+  const selectableStats = GEAR_STATS.filter(
+    (stat) => (statCounts.get(stat) ?? 0) < MAX_GEARS_PER_STAT || stat === selection.stat,
+  );
+  const statExhausted = selectableStats.length === 0;
 
   return (
     <div className={styles["gearSlot"]}>
@@ -208,19 +219,32 @@ function GearSlotFields({
             id={statId}
             value={selection.stat ?? ""}
             aria-invalid={invalid}
-            aria-describedby={errorId}
+            aria-describedby={
+              [describedBy, statExhausted ? statExhaustedId : undefined]
+                .filter((id): id is string => id !== undefined)
+                .join(" ") || undefined
+            }
             onChange={(event) => {
               const raw = event.target.value;
               emit({ stat: raw === "" ? undefined : (raw as GearStat) });
             }}
           >
             <option value="">未設定</option>
-            {GEAR_STATS.map((stat) => (
+            {selectableStats.map((stat) => (
               <option key={stat} value={stat}>
                 {GEAR_STAT_LABELS[stat]}
               </option>
             ))}
           </select>
+          {/*
+            選べるステータスが1つも無い枠でも入力欄は消さない。消すと枠数が画面上で
+            変わり、どのギア枠の話なのかが追えなくなる（空枠のまま理由を示す）。
+          */}
+          {statExhausted ? (
+            <p id={statExhaustedId} className={styles["hint"]}>
+              選べるステータスがありません
+            </p>
+          ) : null}
         </div>
         <div className={styles["field"]}>
           <label htmlFor={tierId}>ギア{slotNumber} の種別</label>
@@ -228,7 +252,7 @@ function GearSlotFields({
             id={tierId}
             value={selection.tier ?? ""}
             aria-invalid={invalid}
-            aria-describedby={errorId}
+            aria-describedby={describedBy}
             onChange={(event) => {
               const raw = event.target.value;
               emit(raw === "" ? { tier: undefined } : { tier: raw as GearTier });
@@ -249,7 +273,7 @@ function GearSlotFields({
             id={gradeId}
             value={selection.grade ?? ""}
             aria-invalid={invalid}
-            aria-describedby={errorId}
+            aria-describedby={describedBy}
             onChange={(event) => {
               const raw = event.target.value;
               emit(raw === "" ? { grade: undefined } : { grade: raw as GearGrade });
@@ -296,6 +320,8 @@ export function UnitEnhancementDialog({
   const linkExclusionId = useId();
   const gearErrorIdPrefix = useId();
   const levelErrors = levelMessages(violations, slotKey);
+  // 上限（`MAX_GEARS_PER_STAT`）の判定はユニット単位のため、9枠を1度だけ数えて配る。
+  const statCounts = gearStatCounts(enhancement.gears);
   const { levelLink } = sideEnhancement;
   const linked = isLevelLinked(enhancement, sideEnhancement);
   // UI-AC-039: 逃げ道の文言も入力へ結びつける。`readOnly`を選んだ理由（focusできる
@@ -374,15 +400,22 @@ export function UnitEnhancementDialog({
 
         <div className={styles["gears"]}>
           {enhancement.gears.map((gear, gearIndex) => {
-            const messages = gearMessages(violations, slotKey, gearIndex);
+            const messages = gearMessages(violations, slotKey, gearIndex, "error");
+            const warnings = gearMessages(violations, slotKey, gearIndex, "warning");
             const errorId = `${gearErrorIdPrefix}-${String(gearIndex)}`;
+            const warningId = `${gearErrorIdPrefix}-warning-${String(gearIndex)}`;
+            const describedBy = [
+              messages.length > 0 ? errorId : undefined,
+              warnings.length > 0 ? warningId : undefined,
+            ].filter((id): id is string => id !== undefined);
             return (
               <div key={gearIndex}>
                 <GearSlotFields
                   gearIndex={gearIndex}
                   gear={gear}
                   invalid={messages.length > 0}
-                  errorId={messages.length > 0 ? errorId : undefined}
+                  describedBy={describedBy.length > 0 ? describedBy.join(" ") : undefined}
+                  statCounts={statCounts}
                   gearEffects={gearEffects}
                   onChange={(next) => {
                     onGearChange(gearIndex, next);
@@ -391,6 +424,16 @@ export function UnitEnhancementDialog({
                 {messages.length > 0 ? (
                   <p id={errorId} className={styles["fieldError"]}>
                     {messages.join(" ")}
+                  </p>
+                ) : null}
+                {/*
+                  同一ステータス3枚の上限超過（`GEAR_STAT_COUNT_OVER_LIMIT`）はこの段では
+                  送信を止めない警告のため、`aria-invalid`は立てない。既存の保存データが
+                  上限を超えていても実行できる必要がある（APIはまだ受理する）。
+                */}
+                {warnings.length > 0 ? (
+                  <p id={warningId} className={styles["fieldWarning"]}>
+                    {warnings.join(" ")}
                   </p>
                 ) : null}
               </div>

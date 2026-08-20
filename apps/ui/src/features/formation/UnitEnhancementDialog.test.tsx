@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
 import type { UiViolation } from "./draft-validation.js";
-import { createInitialDraft, createInitialUnitEnhancement } from "./types.js";
+import { GEAR_STATS, createInitialDraft, createInitialUnitEnhancement } from "./types.js";
 import type { GearInput, LevelLinkInput, UnitEnhancementInput } from "./types.js";
 import type { CatalogGearEffect } from "../simulation/api-contract.js";
 
@@ -137,6 +137,90 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     await user.selectOptions(screen.getByLabelText("ギア2 のランク"), "S");
 
     expect(onGearChange).toHaveBeenLastCalledWith(1, { stat: "ATTACK", tier: "II", grade: "S" });
+  });
+
+  it("UI-CT-092: drops a stat that already fills its three gears from the other slots' options", () => {
+    const attack: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
+    renderDialog({
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [attack, attack, attack, ...Array<undefined>(6).fill(undefined)],
+      },
+    });
+
+    // 空枠からは選べない（同一ステータスは3枚まで）。
+    const empty = screen.getByLabelText("ギア4 の対象ステータス");
+    expect(within(empty).queryByRole("option", { name: "攻撃力" })).not.toBeInTheDocument();
+    // 上限に達していない他のステータスはそのまま選べる。
+    expect(within(empty).getByRole("option", { name: "防御力" })).toBeInTheDocument();
+  });
+
+  it("UI-CT-092: keeps the editing slot's own stat selectable so its tier and rank stay editable", async () => {
+    const user = userEvent.setup();
+    const attack: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
+    const { onGearChange } = renderDialog({
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [attack, attack, attack, ...Array<undefined>(6).fill(undefined)],
+      },
+    });
+
+    // 3枚目の枠自身は「攻撃力」を持っているため、選択肢から外さない。外すと
+    // 同じ値のまま種別・ランクだけを変えられなくなる。
+    const third = screen.getByLabelText("ギア3 の対象ステータス");
+    expect(within(third).getByRole("option", { name: "攻撃力" })).toBeInTheDocument();
+    expect(third).toHaveValue("ATTACK");
+
+    await user.selectOptions(screen.getByLabelText("ギア3 の種別"), "II");
+
+    expect(onGearChange).toHaveBeenLastCalledWith(2, { stat: "ATTACK", tier: "II", grade: "S" });
+  });
+
+  it("UI-CT-093: keeps the fields of a slot that has no selectable stat left, and says so", () => {
+    // 7ステータスすべてが3枚ずつ埋まった枠。`GEAR_SLOT_COUNT`が9である限り
+    // 実データでは起こらないが、選択肢が空の枠でも入力欄を消さないことを固定する。
+    const filled = GEAR_STATS.flatMap((stat) =>
+      Array.from({ length: 3 }, (): GearInput => ({ stat, tier: "III", grade: "S" })),
+    );
+    renderDialog({
+      enhancement: { level: 200, linkExcluded: false, gears: [...filled, undefined] },
+    });
+
+    const empty = screen.getByLabelText(`ギア${String(filled.length + 1)} の対象ステータス`);
+    expect(empty).toBeInTheDocument();
+    expect(within(empty).queryByRole("option", { name: "攻撃力" })).not.toBeInTheDocument();
+    expect(screen.getByText("選べるステータスがありません")).toBeInTheDocument();
+  });
+
+  it("UI-CT-094: shows the over-limit warning on the gear slot it belongs to", () => {
+    const attack: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
+    renderDialog({
+      enhancement: {
+        level: 200,
+        linkExcluded: false,
+        gears: [attack, attack, attack, attack, ...Array<undefined>(5).fill(undefined)],
+      },
+      violations: [
+        {
+          path: "/allyFormation/units/enhancement/gears",
+          slotKey: "ally:FRONT:0",
+          gearIndex: 3,
+          code: "GEAR_STAT_COUNT_OVER_LIMIT",
+          message: "アルファの攻撃力のギアが4枚あります。同一ステータスのギアは3枚までです。",
+          severity: "warning",
+        },
+      ],
+    });
+
+    const warning = screen.getByText(
+      "アルファの攻撃力のギアが4枚あります。同一ステータスのギアは3枚までです。",
+    );
+    // 警告はエラーではないため`aria-invalid`は立てないが、入力へは結びつける。
+    const stat = screen.getByLabelText("ギア4 の対象ステータス");
+    expect(stat).toHaveAttribute("aria-invalid", "false");
+    expect(stat.getAttribute("aria-describedby")?.split(" ")).toContain(warning.id);
   });
 
   it("UI-CT-037: shows a server level violation on the level input", () => {
