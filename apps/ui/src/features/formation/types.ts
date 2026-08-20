@@ -71,10 +71,43 @@ export const GEAR_STATS: readonly GearStat[] = [
 export const GEAR_TIERS: readonly GearTier[] = ["II", "III"];
 export const GEAR_GRADES: readonly GearGrade[] = ["D", "C", "B", "A", "S"];
 
+/** 入力欄とクライアント違反の双方が同じ語でステータスを名指すため、表はここに1つだけ置く。 */
+export const GEAR_STAT_LABELS: Readonly<Record<GearStat, string>> = {
+  MAXIMUM_HP: "HP",
+  ATTACK: "攻撃力",
+  DEFENSE: "防御力",
+  ACTION_SPEED: "行動速度",
+  CRITICAL_RATE: "会心率",
+  CRITICAL_DAMAGE_BONUS: "会心ダメージ",
+  AFFINITY_BONUS: "属性相性",
+};
+
+/**
+ * 実ゲームのギアカスタムは、1ユニットにつき同一の対象ステータスのギアを最大3個までしか
+ * 装備できない。R-ENH-04 #4 は「同一の対象ステータスのギアを複数指定でき、補正割合は
+ * 単純加算する」と述べるだけで枚数を制限していないため、この上限はUI入力が持つ
+ * （APIの検証は後続。上限が無いと、実際には組めない構成を最適解として扱ってしまう）。
+ */
+export const MAX_GEARS_PER_STAT = 3;
+
 export interface GearInput {
   readonly stat: GearStat;
   readonly tier: GearTier;
   readonly grade: GearGrade;
+}
+
+/** ユニットの9枠から、確定済みギアだけをステータス別に数える。 */
+export function gearStatCounts(
+  gears: readonly (GearInput | undefined)[],
+): ReadonlyMap<GearStat, number> {
+  const counts = new Map<GearStat, number>();
+  for (const gear of gears) {
+    if (gear === undefined) {
+      continue;
+    }
+    counts.set(gear.stat, (counts.get(gear.stat) ?? 0) + 1);
+  }
+  return counts;
 }
 
 export interface UnitEnhancementInput {

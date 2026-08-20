@@ -5,8 +5,21 @@ import { aptitudeMatches } from "../../lib/aptitude.js";
 import { PLAYABLE_CATEGORY, unitCategoryOf } from "../catalog-selection/unit-pool.js";
 import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
 import { isSlotLevelLinked } from "./level-link.js";
-import { enhancementForSide, memorySlotKeyOf } from "./types.js";
-import type { BattleDraft, FormationSlotInput, Side, SideEnhancementInput } from "./types.js";
+import {
+  GEAR_STAT_LABELS,
+  MAX_GEARS_PER_STAT,
+  enhancementForSide,
+  gearStatCounts,
+  memorySlotKeyOf,
+} from "./types.js";
+import type {
+  BattleDraft,
+  FormationSlotInput,
+  GearInput,
+  GearStat,
+  Side,
+  SideEnhancementInput,
+} from "./types.js";
 
 export type UiViolationSeverity = "error" | "warning";
 
@@ -321,6 +334,49 @@ function validateLevelLink(side: Side, enhancement: SideEnhancementInput): UiVio
 }
 
 /**
+ * R-ENH-04 #4 は同一ステータスの重複を許すが、実ゲームのギアカスタムは1ユニットに
+ * つき同一ステータス3個までしか装備できない（`MAX_GEARS_PER_STAT`）。上限超過は
+ * **警告**として出す — この段のAPIはまだ受理するため、送信を止めると既存の保存
+ * データが上限を超えている利用者は入力し直すまで実行できなくなる。送信を止めるのは
+ * APIが422を返すようになってからでよい。
+ *
+ * 4枚目以降のギア枠それぞれへ`gearIndex`を付けるのは、ダイアログで「どの枠を外せば
+ * よいか」を指せるようにするため。メッセージはユニットとステータスを名指す
+ * （集約表示は文言で重複を畳むため、枠ごとに同じ文言になる）。
+ */
+function validateGearStatLimit(
+  side: Side,
+  slot: FormationSlotInput,
+  gears: readonly (GearInput | undefined)[],
+  unitDisplayName: string,
+): UiViolation[] {
+  const counts = gearStatCounts(gears);
+  const seen = new Map<GearStat, number>();
+  const violations: UiViolation[] = [];
+  gears.forEach((gear, gearIndex) => {
+    if (gear === undefined) {
+      return;
+    }
+    const occurrence = (seen.get(gear.stat) ?? 0) + 1;
+    seen.set(gear.stat, occurrence);
+    if (occurrence <= MAX_GEARS_PER_STAT) {
+      return;
+    }
+    violations.push({
+      path: `${formationPath(side)}/units/enhancement/gears`,
+      slotKey: slot.slotKey,
+      gearIndex,
+      code: "GEAR_STAT_COUNT_OVER_LIMIT",
+      message: `${unitDisplayName}の${GEAR_STAT_LABELS[gear.stat]}のギアが${String(
+        counts.get(gear.stat) ?? 0,
+      )}枚あります。同一ステータスのギアは${String(MAX_GEARS_PER_STAT)}枚までです。`,
+      severity: "warning",
+    });
+  });
+  return violations;
+}
+
+/**
  * ユニット強化の違反はslotKeyで枠を特定する。pathは送信DTOのindexを持たない
  * 固定文字列にし、ダイアログ側はslotKeyとpathの末尾で入力を対応づける
  * （サーバー違反のpathは`units/{n}/...`のindex付きになるため、
@@ -336,6 +392,7 @@ function validateUnitEnhancements(
   side: Side,
   slots: readonly FormationSlotInput[],
   enhancement: SideEnhancementInput,
+  catalog: BattleSimulationCatalogResponse,
 ): UiViolation[] {
   if (!enhancement.enabled) {
     return [];
@@ -368,6 +425,13 @@ function validateUnitEnhancements(
         severity: "error",
       });
     }
+    // Catalogに無い定義（`UNKNOWN_DEFINITION`が別に指す）とユニット未選択の枠は
+    // 定義IDをそのまま名前に使う。名指しできないことを理由に上限超過を伏せない。
+    const displayName =
+      catalog.units.find((unit) => unit.unitDefinitionId === slot.unitDefinitionId)?.displayName ??
+      slot.unitDefinitionId ??
+      "このユニット";
+    violations.push(...validateGearStatLimit(side, slot, unitEnhancement.gears, displayName));
   }
   return violations;
 }
@@ -400,8 +464,18 @@ export function validateDraftWithRules(
     ...validateAcademyLevels("enemy", enhancementForSide(draft, "enemy")),
     ...validateLevelLink("ally", enhancementForSide(draft, "ally")),
     ...validateLevelLink("enemy", enhancementForSide(draft, "enemy")),
-    ...validateUnitEnhancements("ally", draft.allySlots, enhancementForSide(draft, "ally")),
-    ...validateUnitEnhancements("enemy", draft.enemySlots, enhancementForSide(draft, "enemy")),
+    ...validateUnitEnhancements(
+      "ally",
+      draft.allySlots,
+      enhancementForSide(draft, "ally"),
+      catalog,
+    ),
+    ...validateUnitEnhancements(
+      "enemy",
+      draft.enemySlots,
+      enhancementForSide(draft, "enemy"),
+      catalog,
+    ),
   ];
 }
 

@@ -94,6 +94,15 @@
   font-size: 10px;
 }
 
+/* 送信は止めない上限超過（同一ステータス3枚）。エラーと同じ赤にすると
+   「直さないと実行できない」と読めてしまうため、警告色で分ける。 */
+.fieldWarning {
+  margin: 5px 0 0;
+  color: var(--color-warning);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .hint {
   margin: 5px 0 0;
   color: var(--color-text-muted);
