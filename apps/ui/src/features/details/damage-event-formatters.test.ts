@@ -294,7 +294,6 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
           rawPreTruncationDamage: 300,
           preTruncationDamage: 450,
           freezeMultiplier: 1.5,
-          attackDamageBonus: 0,
           guardRate: 0,
           thresholdReductionMultiplier: 1,
           damageImmunityNullified: false,
@@ -322,6 +321,61 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
     expect(presentation.summary).toContain("有利属性");
     expect(presentation.summary).toContain("凍結増幅1.5");
     expect(presentation.summary).toContain("計算ダメージ450");
+  });
+
+  // UI-UT-DMG-029 (R-DMG-06, Issue #560): 加算モデルの`attackDamageBonus`は廃止された。
+  // 廃止前に録取したログはこの項目を持ち続けるが、監査行はもう項目として出さない
+  // （R-DMG-06の追加攻撃は独立したヒットとして自分の`DAMAGE_CALCULATED`を持つため、
+  // 元のヒットの計算過程に加算段は存在しない）。
+  it("does not surface the retired attackDamageBonus term for a log recorded before R-DMG-06 became an additional attack", () => {
+    const presentation = formatEvent(
+      event({
+        type: "DAMAGE_CALCULATED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          skillDefinitionId: "SKL_A",
+          effectActionDefinitionId: "ACT_ATTACK",
+          hitIndex: 0,
+          targetUnitId: "enemy:1",
+          attackerAttack: 500,
+          defenderDefense: 200,
+          effectiveDefense: 200,
+          defenseIgnoreRate: 0,
+          shieldIgnoreRate: 0,
+          damageReductionIgnoreRate: 0,
+          baseDamage: 300,
+          skillPower: 1,
+          skillPowerFormulaKind: "SKILL_POWER",
+          attributeMultiplier: 1,
+          attackerAttribute: "AGGRESSIVE",
+          defenderAttribute: "SHY",
+          isFavorableAttribute: true,
+          attackerAffinityBonus: 0,
+          criticalMultiplier: 1,
+          outgoingDamageMultiplier: 1,
+          incomingDamageMultiplier: 1,
+          actionDamageMultiplier: 1,
+          confusionDamageMultiplier: 1,
+          rawPreTruncationDamage: 300,
+          preTruncationDamage: 306,
+          freezeMultiplier: 1,
+          // 廃止済みの項目。値を持っていても読まない。
+          attackDamageBonus: 6,
+          guardRate: 0,
+          thresholdReductionMultiplier: 1,
+          damageImmunityNullified: false,
+          finalDamage: 306,
+          damageType: "PHYSICAL",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).not.toContain("攻撃時追加ダメージ");
+    // 監査行そのものは従来どおり組み立てる（項目1つが消えるだけ）。
+    expect(presentation.summary).toContain("凍結増幅1");
+    expect(presentation.summary).toContain("切り捨て前306");
   });
 
   // UI-UT-DMG-027 (DMG-012): M4〜M7のfixtureは新項目を持たない。欠けていても
@@ -402,7 +456,6 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
           rawPreTruncationDamage: 0,
           preTruncationDamage: 0,
           freezeMultiplier: 1,
-          attackDamageBonus: 0,
           guardRate: 0,
           thresholdReductionMultiplier: 1,
           damageImmunityNullified: false,

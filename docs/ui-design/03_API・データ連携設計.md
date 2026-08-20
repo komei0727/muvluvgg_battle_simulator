@@ -706,7 +706,7 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
     基礎ダメージ{baseDamage}、スキル威力{skillPower}、Formula {skillPowerFormulaKind}、
     属性倍率{attributeMultiplier}、有利属性ダメージ{attackerAffinityBonus} {攻撃側}→{防御側}、
     会心倍率、与/被ダメージ倍率、Action内追加倍率、混乱倍率、
-    倍率適用後{rawPreTruncationDamage}、凍結増幅、攻撃時追加ダメージ、肩代わり軽減、
+    倍率適用後{rawPreTruncationDamage}、凍結増幅、肩代わり軽減、
     切り捨て前{preTruncationDamage}、閾値軽減倍率、ダメージ無効あり|なし）
 ```
 

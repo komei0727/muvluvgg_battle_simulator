@@ -224,7 +224,6 @@ function formatDamageCalculated(
     auditTerm("混乱倍率", details["confusionDamageMultiplier"]),
     auditTerm("倍率適用後", details["rawPreTruncationDamage"]),
     auditTerm("凍結増幅", details["freezeMultiplier"]),
-    auditTerm("攻撃時追加ダメージ", details["attackDamageBonus"]),
     auditRateTerm("肩代わり軽減", details["guardRate"]),
     auditTerm("切り捨て前", details["preTruncationDamage"]),
     auditTerm("閾値軽減倍率", details["thresholdReductionMultiplier"]),
