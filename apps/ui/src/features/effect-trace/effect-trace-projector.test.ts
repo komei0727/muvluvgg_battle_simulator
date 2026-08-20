@@ -232,7 +232,109 @@ describe("projectEffectTrace", () => {
     );
 
     expect(byId.get("ei-1")).toMatchObject({ outcome: "UNUSED_EXPIRED", endReason: "TIME_LIMIT" });
+    expect(byId.get("ei-1")?.consumptionMaxCount).toBe(1);
     expect(byId.get("ei-buff")).toMatchObject({ outcome: "ENDED", endReason: "TIME_LIMIT" });
+  });
+
+  // R-EFF-07は消費条件と時間制限を別に持たせ、同じイベントで両方が成立する場合だけ消費を
+  // 先に評価する。`consumptionMaxCount`が2以上の効果は、使い切る前に時間制限が先に効いて
+  // `TIME_LIMIT`で終わり得る（本番Catalogでは`ACT_KATE_PALADIN_AS2_SELF_EVASION`が
+  // `INCOMING_HIT maxCount:2`に対し寿命`ACTION 1`であり、これが普通の終わり方になる）。
+  // 消費回数の有無だけで「消費された」と判定すると、この残量ロスが成功扱いに隠れる。
+  it("distinguishes running out of consumption from timing out with consumption left (UI-UT-TRC-009)", () => {
+    const events = [
+      event({
+        sequence: 5,
+        type: "EFFECT_APPLIED",
+        turnNumber: 1,
+        details: applied({ consumptionKind: "INCOMING_HIT", consumptionMaxCount: 2 }),
+      }),
+      event({
+        sequence: 6,
+        type: "EFFECT_APPLIED",
+        turnNumber: 1,
+        details: applied({
+          effectInstanceId: "ei-spent",
+          targetUnitId: "bu-enemy-2",
+          consumptionKind: "INCOMING_HIT",
+          consumptionMaxCount: 2,
+        }),
+      }),
+      event({
+        sequence: 10,
+        type: "EFFECT_CONSUMPTION_CHANGED",
+        turnNumber: 1,
+        sourceUnitId: HOLDER,
+        details: {
+          effectInstanceId: "ei-1",
+          battleUnitId: HOLDER,
+          kind: "INCOMING_HIT",
+          before: 2,
+          after: 1,
+        },
+      }),
+      event({
+        sequence: 11,
+        type: "EFFECT_CONSUMPTION_CHANGED",
+        turnNumber: 1,
+        details: {
+          effectInstanceId: "ei-spent",
+          battleUnitId: "bu-enemy-2",
+          kind: "INCOMING_HIT",
+          before: 2,
+          after: 0,
+        },
+      }),
+      // 使い切った側は`CONSUMPTION`で失効する。
+      event({
+        sequence: 12,
+        type: "EFFECT_EXPIRED",
+        turnNumber: 1,
+        details: lifecycleEnd({
+          effectInstanceId: "ei-spent",
+          battleUnitId: "bu-enemy-2",
+          reason: "CONSUMPTION",
+        }),
+      }),
+      // 残1のまま寿命が尽きた側は`TIME_LIMIT`で失効する。
+      event({
+        sequence: 20,
+        type: "EFFECT_EXPIRED",
+        turnNumber: 2,
+        details: lifecycleEnd({ reason: "TIME_LIMIT" }),
+      }),
+    ];
+
+    const byId = new Map(
+      projectEffectTrace(events).instances.map((instance) => [instance.effectInstanceId, instance]),
+    );
+
+    expect(byId.get("ei-spent")).toMatchObject({ outcome: "CONSUMED", endReason: "CONSUMPTION" });
+    expect(byId.get("ei-1")).toMatchObject({
+      outcome: "PARTIALLY_CONSUMED_EXPIRED",
+      endReason: "TIME_LIMIT",
+      consumptionMaxCount: 2,
+    });
+  });
+
+  // 消費イベントが公開レベルで間引かれても、`EffectExpired.reason`が使い切りの正本である。
+  it("trusts the CONSUMPTION expiry reason even when no consumption event is visible (UI-UT-TRC-010)", () => {
+    const events = [
+      event({
+        sequence: 5,
+        type: "EFFECT_APPLIED",
+        turnNumber: 1,
+        details: applied({ consumptionKind: "INCOMING_HIT", consumptionMaxCount: 1 }),
+      }),
+      event({
+        sequence: 20,
+        type: "EFFECT_EXPIRED",
+        turnNumber: 2,
+        details: lifecycleEnd({ reason: "CONSUMPTION" }),
+      }),
+    ];
+
+    expect(projectEffectTrace(events).instances[0]).toMatchObject({ outcome: "CONSUMED" });
   });
 
   it("leaves an instance still held at the end of the battle open instead of inventing an end (UI-UT-TRC-004)", () => {

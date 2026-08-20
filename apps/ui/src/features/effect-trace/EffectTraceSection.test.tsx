@@ -198,6 +198,63 @@ describe("EffectTraceSection", () => {
     expect(buffRow).toHaveTextContent("エレーナ");
   });
 
+  // UI-AC-045: 消費上限に達した終わりと、消費を残したまま時間切れになった終わりを混同しない。
+  // 後者も「調整で潰せるロス」であり、成功扱いの色へ隠さない。
+  it("marks an instance that timed out with consumption left as a loss, showing how much was left (UI-CT-099)", () => {
+    const events: readonly BattleLogEventResponse[] = [
+      grant(1, 1, {
+        effectInstanceId: "ei-partial",
+        effectActionDefinitionId: SUIRAN_DEBUFF,
+        consumptionKind: "INCOMING_HIT",
+        consumptionMaxCount: 2,
+      }),
+      event({
+        sequence: 2,
+        turnNumber: 1,
+        type: "SKILL_USE_STARTED",
+        skillUseId: "su-hit",
+        sourceUnitId: "bu-ally-1",
+      }),
+      event({
+        sequence: 3,
+        turnNumber: 1,
+        type: "EFFECT_CONSUMPTION_CHANGED",
+        skillUseId: "su-hit",
+        sourceUnitId: "bu-enemy-1",
+        parentSequence: 2,
+        details: {
+          effectInstanceId: "ei-partial",
+          battleUnitId: "bu-enemy-1",
+          kind: "INCOMING_HIT",
+          before: 2,
+          after: 1,
+        },
+      }),
+      event({
+        sequence: 4,
+        turnNumber: 2,
+        type: "EFFECT_EXPIRED",
+        details: {
+          effectInstanceId: "ei-partial",
+          battleUnitId: "bu-enemy-1",
+          effectActionDefinitionId: SUIRAN_DEBUFF,
+          kindKey: "K",
+          reason: "TIME_LIMIT",
+          linkedEffectGroupId: null,
+          cascaded: false,
+        },
+      }),
+    ];
+
+    render(<EffectTraceSection events={events} roster={roster} />);
+
+    const [row] = detailRows();
+    expect(row).toHaveTextContent("消費を残して終了");
+    expect(row).not.toHaveTextContent("消費された");
+    // 2回中1回しか使えなかったことを数で示す。
+    expect(row).toHaveTextContent("1/2");
+  });
+
   // UI-AC-045: 終了理由を色だけでなく文言でも区別する。
   it("distinguishes consumed / break-removed / unused-expired / ongoing outcomes in text (UI-CT-096)", () => {
     const events: readonly BattleLogEventResponse[] = [

@@ -21,6 +21,7 @@ const OUTCOME_LABELS: Readonly<Record<EffectTraceOutcome, string>> = {
   CONSUMED: "消費された",
   BREAK_REMOVED: "ブレイクで解除",
   UNUSED_EXPIRED: "未消費で失効",
+  PARTIALLY_CONSUMED_EXPIRED: "消費を残して終了",
   ONGOING: "継続中",
   ENDED: "失効・解除",
 };
@@ -31,6 +32,7 @@ const OUTCOME_CLASS_NAMES: Readonly<Record<EffectTraceOutcome, string>> = {
   CONSUMED: "barConsumed",
   BREAK_REMOVED: "barBreakRemoved",
   UNUSED_EXPIRED: "barUnusedExpired",
+  PARTIALLY_CONSUMED_EXPIRED: "barPartiallyConsumedExpired",
   ONGOING: "barOngoing",
   ENDED: "barEnded",
 };
@@ -39,6 +41,7 @@ const LEGEND_ORDER: readonly EffectTraceOutcome[] = [
   "CONSUMED",
   "BREAK_REMOVED",
   "UNUSED_EXPIRED",
+  "PARTIALLY_CONSUMED_EXPIRED",
   "ONGOING",
   "ENDED",
 ];
@@ -67,6 +70,18 @@ function consumerLabelOf(instance: EffectTraceInstance, roster: RosterIndex): st
         : `T${consumption.turnNumber.toString()} ${NO_VALUE_PLACEHOLDER}`,
     )
     .join(" / ");
+}
+
+/**
+ * 消費条件を持つインスタンスの使用量を「消費回数/上限」で表す。上限が読めない場合（消費条件を
+ * 持たない付与、または`consumptionMaxCount`を持たない古い応答）は数を出さない —— 分母を1と
+ * 決め打つと、使い切ったのか残したのかを取り違える。
+ */
+function consumptionCountLabelOf(instance: EffectTraceInstance): string {
+  if (instance.consumptionMaxCount === undefined) {
+    return NO_VALUE_PLACEHOLDER;
+  }
+  return `${instance.consumptions.length.toString()}/${instance.consumptionMaxCount.toString()}`;
 }
 
 function endLabelOf(instance: EffectTraceInstance): string {
@@ -258,6 +273,7 @@ export function EffectTraceSection({ events, roster }: EffectTraceSectionProps) 
                       <th scope="col">保持</th>
                       <th scope="col">付与元</th>
                       <th scope="col">終了理由</th>
+                      <th scope="col">消費</th>
                       <th scope="col">消費者</th>
                     </tr>
                   </thead>
@@ -274,6 +290,7 @@ export function EffectTraceSection({ events, roster }: EffectTraceSectionProps) 
                         <td>{resolveDisplayName(roster, instance.holderUnitId)}</td>
                         <td>{originLabelOf(instance, roster)}</td>
                         <td>{endLabelOf(instance)}</td>
+                        <td className={styles["mono"]}>{consumptionCountLabelOf(instance)}</td>
                         <td>{consumerLabelOf(instance, roster)}</td>
                       </tr>
                     ))}

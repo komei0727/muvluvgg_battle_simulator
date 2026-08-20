@@ -141,9 +141,20 @@
   text-overflow: ellipsis;
 }
 
-/* 未消費で失効だけが「調整で潰せるロス」なので、警告色を割り当てる。 */
+/* 「調整で潰せるロス」の2種は同じ警告色の系統で並べる。1度も使われなかった分（べた塗り）と、
+   消費上限に届かず時間切れになった残り分（斜線）は、原因が違うので塗り分ける。斜線は
+   stylesheet側のgradientで作る —— inline styleはCSPの`style-src 'self'`で描画されない。 */
 .barUnusedExpired {
   background: var(--color-warning);
+}
+
+.barPartiallyConsumedExpired {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-warning) 0 6px,
+    var(--color-surface-strong) 6px 10px
+  );
+  color: var(--color-text);
 }
 
 .barConsumed {

@@ -17,16 +17,27 @@ import type { BattleLogEventResponse } from "../simulation/api-contract.js";
  *
  * - `ONGOING`: 戦闘終了時点で保持されたまま。終端を持たない。
  * - `BREAK_REMOVED`: ブレイク復活に連動した解除（R-TEX-05 #2）。
- * - `CONSUMED`: 1回以上消費されて終わった（R-EFF-07）。
- * - `UNUSED_EXPIRED`: 消費条件を持ちながら1度も消費されずに終わった。調整で潰せるロスであり、
- *   この機能の主目的。
+ * - `CONSUMED`: 消費上限に達して失効した（R-EFF-07）。
+ * - `UNUSED_EXPIRED`: 消費条件を持ちながら1度も消費されずに終わった。
+ * - `PARTIALLY_CONSUMED_EXPIRED`: 消費を残したまま別の理由で終わった（時間制限・特殊失効のほか、
+ *   ブレイク以外の明示解除も含む —— どれも「使い切れなかった」ロスである）。
  * - `ENDED`: 消費条件を持たない効果の時間失効・特殊失効・明示解除。
+ *
+ * 「消費を使い切ったか」の正本は`EffectExpired.reason === "CONSUMPTION"`であって、消費イベントを
+ * 観測した回数ではない。R-EFF-07は消費条件と時間制限を別に保持し、両方が同じイベントで成立した
+ * 場合だけ消費を先に評価すると定める —— したがって`consumptionMaxCount`が2以上の効果は、
+ * 使い切る前に時間制限が先に効いて`TIME_LIMIT`で終わり得る（本番Catalogの
+ * `ACT_KATE_PALADIN_AS2_SELF_EVASION`は`INCOMING_HIT maxCount:2`に対し寿命が`ACTION 1`であり、
+ * これが例外ではなく普通の終わり方である）。消費回数が1以上であることを`CONSUMED`の根拠にすると、
+ * この残量ロスが成功扱いの色に隠れる。`UNUSED_EXPIRED`と`PARTIALLY_CONSUMED_EXPIRED`は
+ * どちらも「調整で潰せるロス」であり、同系色で並べて区別する。
  */
 export type EffectTraceOutcome =
   | "ONGOING"
   | "BREAK_REMOVED"
   | "CONSUMED"
   | "UNUSED_EXPIRED"
+  | "PARTIALLY_CONSUMED_EXPIRED"
   | "ENDED";
 
 export interface EffectTraceConsumption {
@@ -55,6 +66,8 @@ export interface EffectTraceInstance {
   readonly originSide?: string;
   readonly appliedSequence: number;
   readonly appliedTurnNumber: number;
+  /** `DurationDefinition.consumption.maxCount`。消費条件を持つ付与だけが持つ。残量ロスの分母。 */
+  readonly consumptionMaxCount?: number;
   readonly consumptions: readonly EffectTraceConsumption[];
   readonly endedSequence?: number;
   readonly endedTurnNumber?: number;
@@ -85,6 +98,7 @@ interface MutableInstance {
    * 「そもそも消費条件を持たない効果の自然な終わり」と区別するために要る。
    */
   readonly hasConsumptionCondition: boolean;
+  readonly consumptionMaxCount?: number;
   readonly consumptions: EffectTraceConsumption[];
   endedSequence?: number;
   endedTurnNumber?: number;
@@ -193,6 +207,9 @@ function hasBrokenAncestor(
   return false;
 }
 
+/** R-EFF-04/06/07/08: 消費を使い切ったことによる失効の理由。 */
+const CONSUMPTION_EXHAUSTED_REASON = "CONSUMPTION";
+
 function outcomeOf(instance: MutableInstance): EffectTraceOutcome {
   if (instance.endedSequence === undefined) {
     return "ONGOING";
@@ -200,10 +217,15 @@ function outcomeOf(instance: MutableInstance): EffectTraceOutcome {
   if (instance.endEventType === REMOVAL_EVENT_TYPE && instance.brokenAncestor === true) {
     return "BREAK_REMOVED";
   }
-  if (instance.consumptions.length > 0) {
+  // 使い切りの判定はreasonで行う。消費イベント自体が公開レベルで間引かれていても、
+  // `EffectExpired.reason`は残る。
+  if (instance.endReason === CONSUMPTION_EXHAUSTED_REASON) {
     return "CONSUMED";
   }
-  return instance.hasConsumptionCondition ? "UNUSED_EXPIRED" : "ENDED";
+  if (!instance.hasConsumptionCondition) {
+    return "ENDED";
+  }
+  return instance.consumptions.length > 0 ? "PARTIALLY_CONSUMED_EXPIRED" : "UNUSED_EXPIRED";
 }
 
 function turnRangeOf(events: readonly BattleLogEventResponse[]): readonly number[] {
@@ -264,6 +286,9 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
         appliedSequence: sequenceOf(event),
         appliedTurnNumber: turnNumberOf(event),
         hasConsumptionCondition: stringOf(details["consumptionKind"]) !== undefined,
+        ...(numberOf(details["consumptionMaxCount"]) !== undefined
+          ? { consumptionMaxCount: numberOf(details["consumptionMaxCount"])! }
+          : {}),
         consumptions: [],
       });
       continue;
@@ -323,6 +348,9 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
       ...(instance.originSide !== undefined ? { originSide: instance.originSide } : {}),
       appliedSequence: instance.appliedSequence,
       appliedTurnNumber: instance.appliedTurnNumber,
+      ...(instance.consumptionMaxCount !== undefined
+        ? { consumptionMaxCount: instance.consumptionMaxCount }
+        : {}),
       consumptions: [...instance.consumptions],
       ...(instance.endedSequence !== undefined ? { endedSequence: instance.endedSequence } : {}),
       ...(instance.endedTurnNumber !== undefined
