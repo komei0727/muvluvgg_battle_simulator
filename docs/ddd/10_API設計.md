@@ -393,7 +393,7 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 | プロパティ | 型              | 必須 | 制約                                                                                                                         |
 | ---------- | --------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `level`    | integer         | 任意 | 1以上（上限なし）。省略時は200。`levelGrowth` を持たないユニットへの200以外の指定はアプリケーション検証の `422` として拒否。 |
-| `gears`    | `GearRequest[]` | 任意 | 0～9件。省略時は0件。                                                                                                        |
+| `gears`    | `GearRequest[]` | 任意 | 0～9件、かつ同一の対象ステータスは3件まで（R-ENH-04 #1/#6）。省略時は0件。                                                   |
 
 ### GearRequest
 
@@ -403,7 +403,7 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 | `tier`     | string | 必須 | `II` または `III`。                                                                                             |
 | `grade`    | string | 必須 | `D`、`C`、`B`、`A`、`S`。                                                                                       |
 
-同じ `stat` のギアを複数指定できる。補正割合は効果表（R-ENH-04）に従い単純加算する。
+同じ `stat` のギアを複数指定できる。補正割合は効果表（R-ENH-04）に従い単純加算する。ただし同じ `stat` は**3件まで**とし（R-ENH-04 #6）、4件目以降は `422 INVALID_COMMAND` として拒否する。JSON Schemaは「配列要素の特定プロパティごとの出現回数上限」を表せないため公開スキーマでは `description` に示し、判定はアプリケーション検証が行う（候補数上限と同じ扱い）。違反の `path` は超過したステータスを名指す（例: `/allyFormation/units/0/enhancement/gears/ATTACK`）— `gears` だけではどれを外せばよいか判らないためで、送信本文の実体を指すpathではない（`/options/logLevel` と同じ合成path）。
 
 ### FormationPositionRequest
 

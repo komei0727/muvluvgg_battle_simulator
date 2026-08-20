@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
+import { validateTacticalExerciseCommandShape } from "./simulate-tactical-exercise-command.js";
+import {
+  DEFAULT_EVALUATION_LIMITS,
+  validateEvaluateTacticalExerciseCandidatesCommandShape,
+} from "./evaluate-tactical-exercise-candidates-command.js";
+import { validatePreviewFormationStatsCommandShape } from "./preview-formation-stats-command.js";
 import {
   createMemoryDefinitionId,
   createUnitDefinitionId,
@@ -294,6 +300,93 @@ describe("validateCommandShape", () => {
     );
   });
 
+  it("UT-CMD-023 (R-ENH-04 #6): rejects a fourth gear of the same stat, naming that stat in the path", () => {
+    const attack = { stat: "ATTACK", tier: "III", grade: "S" } as const;
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { gears: [attack, attack, attack, attack] } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        path: "allyFormation.slots[0].enhancement.gears.ATTACK",
+        reason: "must contain at most 3 gears with the same stat, got 4 (R-ENH-04 #6)",
+      }),
+    );
+  });
+
+  it("UT-CMD-024 (R-ENH-04 #6, BOUNDARY): accepts the fullest legal loadout — nine gears spread over three stats, three each", () => {
+    const gearsOf = (stat: "ATTACK" | "DEFENSE" | "MAXIMUM_HP") =>
+      Array.from({ length: 3 }, () => ({ stat, tier: "III" as const, grade: "S" as const }));
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            {
+              ...slot(0),
+              enhancement: {
+                gears: [...gearsOf("ATTACK"), ...gearsOf("DEFENSE"), ...gearsOf("MAXIMUM_HP")],
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("UT-CMD-025 (R-ENH-04 #1/#6): keeps both the total-count violation and the per-stat one when a loadout breaks both", () => {
+    const attack = { stat: "ATTACK", tier: "III", grade: "S" } as const;
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { gears: Array.from({ length: 10 }, () => attack) } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    expect(violations.map((violation) => violation.path)).toEqual([
+      "allyFormation.slots[0].enhancement.gears",
+      "allyFormation.slots[0].enhancement.gears.ATTACK",
+    ]);
+  });
+
+  it("UT-CMD-026 (R-ENH-04 #6): reports one violation per over-limit stat, in a stable order", () => {
+    const gearsOf = (stat: "ATTACK" | "DEFENSE") =>
+      Array.from({ length: 4 }, () => ({ stat, tier: "III" as const, grade: "S" as const }));
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            { ...slot(0), enhancement: { gears: [...gearsOf("DEFENSE"), ...gearsOf("ATTACK")] } },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    // 並びは入力順ではなく`STAT_KINDS`の宣言順にする（同じ入力がいつも同じ順で返る）。
+    expect(
+      violations
+        .map((violation) => violation.path)
+        .filter((path) => path?.endsWith("ATTACK") === true || path?.endsWith("DEFENSE") === true),
+    ).toEqual([
+      "allyFormation.slots[0].enhancement.gears.ATTACK",
+      "allyFormation.slots[0].enhancement.gears.DEFENSE",
+    ]);
+  });
+
   it("UT-CMD-020 (R-ENH-01 #3): rejects a unit enhancement when its own side has no formation enhancement", () => {
     const violations = validateCommandShape(
       validCommand({
@@ -320,5 +413,69 @@ describe("validateCommandShape", () => {
       }),
     );
     expect(violations).toEqual([]);
+  });
+});
+
+/**
+ * R-ENH-04 #6の同一ステータス上限は`validateFormationShape`（このモジュール）が持ち、
+ * 強化指定を受け取る4エンドポイントはいずれもそこを通る。どれか1つが別経路を持つと、
+ * そのエンドポイントだけ実在しない構成を受理してしまうため、同じ入力が同じpathの
+ * 違反になることを1か所で固定する（`code`は各UseCaseが`INVALID_COMMAND`として包む）。
+ */
+describe("同一ステータス上限は強化指定を受け取る全エンドポイントで同じ違反になる (R-ENH-04 #6)", () => {
+  const overLimitSlot = {
+    ...slot(0),
+    enhancement: {
+      gears: Array.from({ length: 4 }, () => ({
+        stat: "ATTACK" as const,
+        tier: "III" as const,
+        grade: "S" as const,
+      })),
+    },
+  };
+  const overLimitFormation = {
+    slots: [overLimitSlot],
+    memoryDefinitionIds: [],
+    enhancement: {},
+  };
+  const REASON = "must contain at most 3 gears with the same stat, got 4 (R-ENH-04 #6)";
+
+  it("UT-CMD-027 (R-ENH-04 #6): battle / tactical exercise / candidate evaluation / stat preview all reject it with the stat in the path", () => {
+    const battle = validateCommandShape(validCommand({ allyFormation: overLimitFormation }));
+    const exercise = validateTacticalExerciseCommandShape({
+      allyFormation: overLimitFormation,
+      enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+      logLevel: "DETAILED",
+    });
+    const evaluation = validateEvaluateTacticalExerciseCandidatesCommandShape(
+      {
+        enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+        candidates: [{ allyFormation: overLimitFormation }],
+        runsPerCandidate: 1,
+      },
+      DEFAULT_EVALUATION_LIMITS,
+    );
+    const preview = validatePreviewFormationStatsCommandShape({
+      allyFormation: overLimitFormation,
+      enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+    });
+
+    expect(battle).toContainEqual({
+      path: "allyFormation.slots[0].enhancement.gears.ATTACK",
+      reason: REASON,
+    });
+    expect(exercise).toContainEqual({
+      path: "allyFormation.slots[0].enhancement.gears.ATTACK",
+      reason: REASON,
+    });
+    // 一括評価だけは候補ごとの編成なのでprefixが変わる。ステータス名の載る末尾は同じ。
+    expect(evaluation).toContainEqual({
+      path: "candidates[0].allyFormation.slots[0].enhancement.gears.ATTACK",
+      reason: REASON,
+    });
+    expect(preview).toContainEqual({
+      path: "allyFormation.slots[0].enhancement.gears.ATTACK",
+      reason: REASON,
+    });
   });
 });

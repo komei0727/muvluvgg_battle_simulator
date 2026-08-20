@@ -190,13 +190,26 @@ const gearRequestDocSchema = {
   },
 } as const;
 
-/** R-ENH-04 #1: 最大9個。R-ENH-05 #4: 現在レベルは1以上の整数で上限なし。 */
+/**
+ * R-ENH-04 #1: 最大9個。R-ENH-04 #6: 同一の対象ステータスは最大3個。R-ENH-05 #4:
+ * 現在レベルは1以上の整数で上限なし。
+ *
+ * #6はJSON Schemaでは表せない（「配列要素の特定プロパティごとの出現回数上限」に
+ * 対応する語彙が無い）ため、`description`で示しアプリケーション検証が422で拒否する
+ * — 候補数上限（`candidates`）と同じ扱い。
+ */
 const unitEnhancementRequestDocSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
     level: { type: "integer", minimum: 1 },
-    gears: { type: "array", items: gearRequestDocSchema, maxItems: 9 },
+    gears: {
+      type: "array",
+      items: gearRequestDocSchema,
+      maxItems: 9,
+      description:
+        "At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path.",
+    },
   },
 } as const;
 

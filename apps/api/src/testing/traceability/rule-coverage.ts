@@ -3551,6 +3551,13 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
       "UT-R-ENH-04-005",
       "UT-CMD-018",
       "UT-CMD-019",
+      // #6 同一ステータス最大3個（Issue #566）。超過の拒否とpathのステータス名、
+      // 総数上限との独立、3種類×3個の境界、強化指定を受け取る4経路での同一性。
+      "UT-CMD-023",
+      "UT-CMD-024",
+      "UT-CMD-025",
+      "UT-CMD-026",
+      "UT-CMD-027",
     ],
     kinds: ["POSITIVE", "BOUNDARY", "NEGATIVE"],
   },
