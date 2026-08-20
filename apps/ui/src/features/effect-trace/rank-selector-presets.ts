@@ -1,14 +1,24 @@
 // 順位セレクタで対象が決まる効果の表。`effect-trace-projector.ts`と同じく、
 // ロジック側は効果IDで分岐せず、この表だけが「どの効果がどの順位で選ばれたか」を知っている。
 //
-// **この対応はCatalogから機械的に導いた**（catalogRevision 2026-08-19.3 時点）。採用条件は
-// 「`targetBindings`の`selector`が`kind: SELECT`／`count: 1`／filterなしで、
-// `order`の先頭がステータス由来の順位キー1つだけ」であり、その binding へ適用される
-// `effectActionDefinitionId`を集めたもの。複数の順位キーから到達する効果は「どちらで選ばれたか」を
-// 逆算できないため表に入れない（ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE）。
+// **この対応はCatalogから機械的に導いた**（catalogRevision 2026-08-19.3 時点）。ある効果を表へ載せるのは、
+// **その効果を適用しうる全ての経路**が「`selector`が`kind: SELECT`／`count: 1`／filterなしで、
+// `order`の先頭がステータス由来の順位キー1つ」を満たし、かつ全経路の順位キーが一致する場合だけである。
+//
+// 「満たさない経路は無視して、満たす経路だけを見る」ではないことが要点である。1つでも別種の経路が
+// あると、付与を見ただけではどちらで選ばれたのか分からず、単一勝者として比較すると
+// 正しく選ばれた対象に「一致しません」と誤警告を出す。実例として
+// `SKL_SUIRAN_CASINO_AS1`は同じ`ACT_SUIRAN_CASINO_AS1_DAMAGE`を
+// `MARKER_SUIRAN_CASINO_THREE_CARD`の有無で`count: 3`の binding と`count: 1`の binding へ振り分ける。
+// 上位3体すべてが正当な対象であるのに、2件が「一致しません」になっていた。
+//
+// 除外した効果（順位セレクタからも到達するが、別種の経路も持つもの）:
+//   - ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE（他経路: HIGHEST_ATTACK, LOWEST_ATTACK）
+//   - ACT_SUIRAN_CASINO_AS1_DAMAGE（他経路: TGT_TRIPLE）
 //
 // HP割合・EXゲージ割合の順位キー（`HIGHEST_HP_RATIO`等）は扱わない。比較に要る系列が
 // `combatStats`ではなく`hp`／`resources`にあり、`combat-stat-timeline.ts`が復元しないためである。
+// 複数体が同時に選ばれる順位セレクタ（`count`が2以上）も扱わない —— 比較が単一勝者を前提にしている。
 //
 // Catalogが増えてもこの表が古いだけなら、その効果に比較が出ないだけで表示は壊れない
 // （`UI-CMP-006`「黙って切り捨てない」と同じく、知らないものは知らないと扱う）。
@@ -68,7 +78,6 @@ const RANK_SELECTED_EFFECTS: Readonly<Record<string, RankOrderKey>> = {
   ACT_SHOUKA_SCHEMER_AS2_ATK_DOWN: "HIGHEST_ATTACK",
   ACT_SHOUKA_SCHEMER_AS2_DAMAGE: "HIGHEST_ATTACK",
   ACT_SHOUKA_SCHEMER_AS2_DEF_UP: "HIGHEST_ATTACK",
-  ACT_SUIRAN_CASINO_AS1_DAMAGE: "HIGHEST_MAX_HP",
   ACT_TATIANA_SAGE_AS1_CLEAR_OMEN: "HIGHEST_ATTACK",
   ACT_TATIANA_SAGE_AS1_DAMAGE: "HIGHEST_ATTACK",
   ACT_TATIANA_SAGE_AS1_DAZZLE: "HIGHEST_ATTACK",
@@ -82,7 +91,7 @@ const RANK_SELECTED_EFFECTS: Readonly<Record<string, RankOrderKey>> = {
   ACT_URUU_TIMID_PS2_CRIT_UP: "HIGHEST_ATTACK",
 };
 
-/** 順位セレクタで選ばれた効果なら、その比較軸を返す。 */
+/** 順位セレクタで**単一の**対象が決まった効果なら、その比較軸を返す。 */
 export function rankSelectorSpecOf(effectActionDefinitionId: string): RankSelectorSpec | undefined {
   const orderKey = RANK_SELECTED_EFFECTS[effectActionDefinitionId];
   if (orderKey === undefined) {
