@@ -98,13 +98,53 @@ def phases_for_climb(settings: ClimbSettings) -> tuple[EvaluationPhase, Evaluati
 
 
 def iteration_cost(settings: ClimbSettings, *, move_count: int) -> int:
-    """1反復で払いうる最大試行数。予算の見張りはこの上限で行う。
+    """1反復で払いうる最大試行数。何も評価していない状態から始めた場合の額である。
 
-    実際の消費はこれ以下になる（基点は前の反復で評価済みのことが多い）。上限で見るのは、
-    反復を始めてから予算を食い破らないためである（`lab optimize` と同じ規約）。
+    予算の内訳を実行前に示すのはこの値だが、**見張りに使うのは
+    `remaining_iteration_cost`** である。前の反復で測った候補や校正で測った基点は
+    キャッシュから読むので、そのぶんを二重に要求しないためである。
     """
     survivors = min(settings.survivors, move_count)
     return (1 + move_count) * settings.screen_runs + (1 + survivors) * settings.confirm_runs
+
+
+def remaining_iteration_cost(
+    current: Allocation,
+    moves: Sequence[Move],
+    evaluator: BudgetedSampleSource[Allocation],
+    *,
+    settings: ClimbSettings,
+) -> int:
+    """この反復がこれから払う試行数の上限。評価済みのぶんを差し引く。
+
+    篩いは候補が確定しているので正確に引ける。確定段はどの手が通るか篩う前には
+    決まらないため、上限（`survivors` 件が未評価）のまま見積もる——**多めに見積もる**
+    ぶんには予算を食い破らないが、少なく見積もると上限を超える。
+    """
+    screen_phase, confirm_phase = phases_for_climb(settings)
+    variants = [applied for move in moves if (applied := move.apply(current)) is not None]
+    screening = sum(
+        _unpaid(evaluator, candidate, screen_phase, settings.screen_runs)
+        for candidate in (current, *variants)
+    )
+    confirming = (
+        _unpaid(evaluator, current, confirm_phase, settings.confirm_runs)
+        + min(settings.survivors, len(variants)) * settings.confirm_runs
+    )
+    return screening + confirming
+
+
+def _unpaid(
+    evaluator: BudgetedSampleSource[Allocation],
+    candidate: Allocation,
+    phase: EvaluationPhase,
+    target: int,
+) -> int:
+    """その位相でまだ払っていない試行数。評価は発行しない。"""
+    record = evaluator.record_for(candidate, phase)
+    if record is None:
+        return target
+    return max(0, target - record.sample_count)
 
 
 @dataclass(frozen=True)
@@ -179,7 +219,8 @@ def hill_climb(
         if not moves:
             stopped = LOCAL_OPTIMUM
             break
-        if evaluator.consumed_runs + iteration_cost(settings, move_count=len(moves)) > budget_runs:
+        remaining = remaining_iteration_cost(current, moves, evaluator, settings=settings)
+        if evaluator.consumed_runs + remaining > budget_runs:
             stopped = BUDGET_EXHAUSTED
             break
 

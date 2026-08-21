@@ -122,17 +122,18 @@ def plan_budget(settings: PlanSettings, *, move_count: int) -> dict[str, int]:
 
 
 def minimum_budget(settings: PlanSettings, *, move_count: int) -> int:
-    """1反復を実際に回すのに要る最低試行数。校正の1回ぶんを含む。
+    """1反復を回しきるのに要る最低試行数。**校正のぶんを別に足さない。**
 
-    校正は基点を篩いの深さで測るだけであり、その結果は反復1がキャッシュから読む——
-    無駄打ちではない。それでも上乗せが要るのは、反復を始める前の見張りが1反復の
-    **上限**で判定するためで、校正で先に使ったぶんだけ余裕が無いと1反復も始まらない。
+    校正は基点を篩いの深さで測るだけで、その結果は反復1の篩いがキャッシュから読む。
+    したがって校正込みの実消費はちょうど1反復ぶんであり、上乗せすると
+    `iteration_cost <= --budget < iteration_cost + screen_runs` の予算を「1反復も
+    回せない」と誤って拒むことになる。
 
     予算がこれに満たなければ、校正も含めて1試行も投げずに終える。`--budget` を
     「これを超えて評価を発行しない」上限として示している以上、校正だけが例外に
     なってはいけない。
     """
-    return settings.climb.screen_runs + iteration_cost(settings.climb, move_count=move_count)
+    return iteration_cost(settings.climb, move_count=move_count)
 
 
 def observation_count(settings: PlanSettings) -> int:

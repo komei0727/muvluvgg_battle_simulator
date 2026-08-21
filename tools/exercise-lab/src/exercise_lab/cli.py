@@ -1442,8 +1442,8 @@ def gear_plan(
             # 校正リクエストを投げる前に落とす。校正も予算の内であり、1反復も回せない
             # 予算で「校正だけ実行して何も探索しない」結果を返さない。
             _abort(
-                f"予算 {budget:,} 試行では1反復も回せない"
-                f"（校正 {settings.climb.screen_runs:,} + 1反復 {plan['perIteration']:,}）。"
+                f"予算 {budget:,} 試行では1反復も回せない（1反復 {minimum:,} 試行。"
+                "校正で測る基点は篩いがキャッシュから読むので別勘定にはならない）。"
                 f"--budget を {minimum:,} 以上にするか、--screen-runs / --confirm-runs /"
                 " --survivors を下げる"
             )
@@ -1648,7 +1648,7 @@ def _print_plan_budget(
     )
     table.add_row("全体", f"基点 + 再スタート {settings.restarts} 本", f"{plan['total']:,}")
     table.add_row("上限（--budget）", "これを超えて評価を発行しない", f"{budget:,}")
-    table.add_row("最低予算", "校正 + 1反復。届かなければ実行前に失敗する", f"{minimum:,}")
+    table.add_row("最低予算", "1反復ぶん。届かなければ実行前に失敗する", f"{minimum:,}")
     console.print(table)
     console.print(f"単発実行（レジーム観測）は最大 {observations} 回。試行数の予算とは別勘定")
 

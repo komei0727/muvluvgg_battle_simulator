@@ -351,6 +351,47 @@ def test_the_evaluated_runs_stay_within_the_budget(tmp_path):
 
 
 @respx.mock
+def test_a_budget_of_exactly_one_iteration_runs_that_iteration(tmp_path):
+    server = mock_api()
+    # 1手近傍25手・篩い4試行・確定8試行・上位4手 = (1+25)*4 + (1+4)*8。
+    budget = 144
+
+    result = runner.invoke(
+        app,
+        [
+            "gear-plan",
+            str(write_formation(tmp_path)),
+            "--seed",
+            "abc",
+            "--out",
+            str(tmp_path / "reports"),
+            "--budget",
+            str(budget),
+            "--screen-runs",
+            "4",
+            "--confirm-runs",
+            "8",
+            "--survivors",
+            "4",
+            "--max-iterations",
+            "5",
+            "--restarts",
+            "0",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    summary = json.loads((tmp_path / "reports" / "gear-plan.json").read_text(encoding="utf-8"))
+    # 校正のぶんを二重に要求していれば、ここで拒まれるか1反復も回らない。
+    assert summary["baseClimb"]["steps"]
+    consumed = sum(
+        len(body["candidates"]) * body["runsPerCandidate"] for body in server.evaluation_calls
+    )
+    assert consumed <= budget
+
+
+@respx.mock
 def test_the_minimum_budget_is_shown_with_the_breakdown(tmp_path):
     mock_api()
 

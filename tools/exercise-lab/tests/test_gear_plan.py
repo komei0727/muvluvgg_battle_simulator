@@ -190,7 +190,7 @@ def test_the_budget_breakdown_counts_every_climb():
     assert observation_count(settings) == 1 + 1 + 4 * (4 + 1)
 
 
-def test_the_minimum_budget_covers_the_calibration_and_one_iteration():
+def test_the_minimum_budget_is_one_iteration_including_the_calibration():
     settings = PlanSettings(
         climb=ClimbSettings(screen_runs=10, confirm_runs=30, survivors=16, max_iterations=12),
         restarts=4,
@@ -198,9 +198,8 @@ def test_the_minimum_budget_covers_the_calibration_and_one_iteration():
 
     minimum = minimum_budget(settings, move_count=120)
 
-    # 校正は基点を篩いの深さで測る1回ぶん。反復を始める前の見張りは1反復の上限で
-    # 判定するので、その手前で使ったぶんだけ余裕が要る。
-    assert minimum == 10 + plan_budget(settings, move_count=120)["perIteration"]
+    # 校正で測る基点は1反復の篩いがキャッシュから読む。二重には数えない。
+    assert minimum == plan_budget(settings, move_count=120)["perIteration"]
 
 
 def test_the_same_input_reproduces_the_same_plan():

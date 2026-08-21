@@ -9,7 +9,14 @@ from exercise_lab.gear.allocation import (
     GearPiece,
     UnitAllocation,
 )
-from exercise_lab.gear.search import ClimbSettings, hill_climb, iteration_cost
+from exercise_lab.gear.neighborhood import neighborhood
+from exercise_lab.gear.search import (
+    ClimbSettings,
+    hill_climb,
+    iteration_cost,
+    phases_for_climb,
+    remaining_iteration_cost,
+)
 from exercise_lab.optimize.evaluator import CandidateRecord, EvaluationPhase
 from exercise_lab.optimize.fitness import Objective
 
@@ -210,6 +217,39 @@ def test_it_stops_before_starting_an_iteration_it_cannot_pay_for():
 
     assert result.stopped_because == "BUDGET"
     assert evaluator.consumed_runs <= budget
+
+
+def test_an_already_evaluated_base_is_not_paid_for_twice():
+    """校正で基点を先に測っても、1反復ぶんの予算で1反復が回りきること。
+
+    篩いは基点をキャッシュから読むので、校正のぶんは1反復の費用に含まれている。
+    見張りが素の上限で判定すると、その重なりぶんだけ余分な予算を要求してしまう。
+    """
+    start = allocation({"CRITICAL_RATE": 3})
+    evaluator = FakeGearEvaluator()
+    moves = len(neighborhood(start))
+    budget = iteration_cost(SETTINGS, move_count=moves)
+    screen_phase, _ = phases_for_climb(SETTINGS)
+    # 校正リクエスト相当。基点だけを篩いの深さで先に測る。
+    evaluator.ensure([start], SETTINGS.screen_runs, phase=screen_phase)
+
+    result = climb(start, evaluator, settings=replace(SETTINGS, max_iterations=1), budget=budget)
+
+    assert len(result.steps) == 1
+    assert evaluator.consumed_runs <= budget
+
+
+def test_the_guard_counts_only_the_runs_that_are_not_cached_yet():
+    start = allocation({"CRITICAL_RATE": 3})
+    evaluator = FakeGearEvaluator()
+    moves = neighborhood(start)
+    screen_phase, _ = phases_for_climb(SETTINGS)
+    evaluator.ensure([start], SETTINGS.screen_runs, phase=screen_phase)
+
+    remaining = remaining_iteration_cost(start, moves, evaluator, settings=SETTINGS)
+
+    # 基点の篩いは済んでいる。残りはその1候補ぶんだけ安い。
+    assert remaining == iteration_cost(SETTINGS, move_count=len(moves)) - SETTINGS.screen_runs
 
 
 def test_a_budget_too_small_for_one_iteration_stops_without_evaluating():
