@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 
 from ..api import Catalog
 from ..stats import NORMAL_QUANTILE_95, summarize_scores
+from .candidate import Candidate
 from .fitness import MIN_RELIABLE_EFFECTIVE_SAMPLES
 from .racing import RacedCandidate
 from .search_config import SearchConfig
@@ -31,7 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover - 型検査のためだけの読み込み
 
 
 def build_optimization_summary(
-    top: Sequence[RacedCandidate],
+    top: Sequence[RacedCandidate[Candidate]],
     *,
     config: SearchConfig,
     catalog: Catalog,
@@ -83,7 +84,7 @@ def build_optimization_summary(
 
 
 def _formation_summary(
-    entry: RacedCandidate, *, rank: int, config: SearchConfig, catalog: Catalog
+    entry: RacedCandidate[Candidate], *, rank: int, config: SearchConfig, catalog: Catalog
 ) -> dict[str, Any]:
     scores = entry.record.scores_at(entry.sample_count)
     stats = summarize_scores(scores)
@@ -114,7 +115,7 @@ def _formation_summary(
 
 
 def formation_rows(
-    entry: RacedCandidate, *, config: SearchConfig, catalog: Catalog
+    entry: RacedCandidate[Candidate], *, config: SearchConfig, catalog: Catalog
 ) -> dict[str, Any]:
     """UIへ入力するための編成表。IDだけでは画面上で探せないため表示名を添える。
 
@@ -153,7 +154,7 @@ def formation_rows(
     }
 
 
-def _warnings(top: Sequence[RacedCandidate], config: SearchConfig) -> list[str]:
+def _warnings(top: Sequence[RacedCandidate[Candidate]], config: SearchConfig) -> list[str]:
     warnings: list[str] = []
     objective = config.objective
     thin = [entry for entry in top if not objective.is_reliable(entry.sample_count)]

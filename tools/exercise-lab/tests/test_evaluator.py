@@ -293,3 +293,80 @@ def test_phases_reject_overlapping_seed_ranges():
                 EvaluationPhase(name="final", checkpoints=(50,), seed_offset=8),
             )
         )
+
+
+class GearVariant:
+    """`Candidate` ではない候補型。配置とメモリーの遺伝子型を持たない。
+
+    ギア配分を変える候補が「編成の `enhancement` だけが違う候補」であることを
+    写している。評価器がこれを扱えるなら、候補型からは切り離せている。
+    """
+
+    def __init__(self, label: str, *unit_ids: str):
+        self.label = label
+        self.unit_ids = unit_ids
+
+    def canonical_key(self) -> str:
+        return self.label
+
+
+class VariantFormations:
+    """候補を送信JSONの編成へ直す係。評価器が候補へ触れる唯一の経路。"""
+
+    def enemy_formation(self) -> dict:
+        return {
+            "units": [{"unitDefinitionId": "UNIT_ENEMY", "position": {"column": 1, "row": "REAR"}}],
+            "memoryDefinitionIds": [],
+        }
+
+    def ally_formation(self, candidate: GearVariant) -> dict:
+        return {
+            "units": [
+                {
+                    "unitDefinitionId": unit_id,
+                    "position": {"column": index, "row": "FRONT"},
+                    "enhancement": {"level": 200, "gears": []},
+                }
+                for index, unit_id in enumerate(candidate.unit_ids)
+            ],
+            "memoryDefinitionIds": [],
+        }
+
+
+def test_a_candidate_type_that_is_not_the_formation_genotype_can_be_evaluated():
+    client = FakeClient()
+    evaluator = Evaluator(
+        client,
+        VariantFormations(),
+        base_seed="s",
+        phases=(SEARCH_PHASE, FINAL_PHASE),
+    )
+
+    variants = [GearVariant("A#gear1", "UNIT_A"), GearVariant("A#gear2", "UNIT_A")]
+
+    records = evaluator.ensure(variants, 8)
+
+    assert [len(record.scores) for record in records] == [8, 8]
+    assert [record.candidate.label for record in records] == ["A#gear1", "A#gear2"]
+    assert client.requests[0]["candidates"][0]["allyFormation"]["units"][0]["enhancement"] == {
+        "level": 200,
+        "gears": [],
+    }
+    assert client.requests[0]["enemyFormation"]["units"][0]["unitDefinitionId"] == "UNIT_ENEMY"
+
+
+def test_the_cache_of_a_generic_candidate_is_keyed_by_its_canonical_key_alone():
+    """評価器が候補から読むのは正準キーだけである。"""
+    client = FakeClient()
+    evaluator = Evaluator(
+        client,
+        VariantFormations(),
+        base_seed="s",
+        phases=(SEARCH_PHASE, FINAL_PHASE),
+    )
+
+    evaluator.ensure([GearVariant("A#gear1", "UNIT_A")], 8)
+    before = len(client.requests)
+    evaluator.ensure([GearVariant("A#gear1", "UNIT_B")], 8)
+
+    assert len(client.requests) == before
