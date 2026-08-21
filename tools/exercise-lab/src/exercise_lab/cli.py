@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import json
 import secrets
+import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from random import Random
 from typing import Annotated, Any, NoReturn
@@ -45,13 +46,26 @@ from .gear.allocation import (
 )
 from .gear.formation import GearFormationSource
 from .gear.neighborhood import Move, neighborhood
+from .gear.plan import (
+    PlanResult,
+    PlanSettings,
+    SignatureObserver,
+    observation_count,
+    plan_budget,
+    plan_gear_allocation,
+)
+from .gear.plan import minimum_budget as minimum_plan_budget
+from .gear.regime import RegimeSignature, observe_signature
 from .gear.report import (
     STAT_LABELS,
+    allocation_rows,
+    build_plan_summary,
     build_sensitivity_summary,
     move_text,
     utility_rows,
     write_moves_csv,
 )
+from .gear.search import ClimbSettings, phases_for_climb
 from .gear.sensitivity import (
     DetectableMargins,
     SensitivityResult,
@@ -116,6 +130,9 @@ SUMMARY_JSON = "summary.json"
 SCORE_HISTOGRAM_PNG = "score-histogram.png"
 BREAK_COUNT_PNG = "break-count-distribution.png"
 
+GEAR_PLAN_JSON = "gear-plan.json"
+GEAR_PLAN_EVALUATIONS_CSV = "gear-plan-evaluations.csv"
+
 GEAR_SENSITIVITY_JSON = "gear-sensitivity.json"
 GEAR_MOVES_CSV = "gear-moves.csv"
 GEAR_EVALUATIONS_CSV = "gear-evaluations.csv"
@@ -137,6 +154,16 @@ DEFAULT_CONFIRM_RUNS = 200
 DEFAULT_VERIFY_RUNS = 200
 DEFAULT_SURVIVORS = 10
 DEFAULT_TOP_MOVES = 5
+
+# 理論値探索の既定。1反復の近傍は5ユニット×約24手＝約120候補で、評価APIの上限
+# （候補数≦32・候補数×試行数≦300）に収まるよう篩いは30候補×10試行＝1リクエストにする。
+DEFAULT_CLIMB_SCREEN_RUNS = 10
+DEFAULT_CLIMB_CONFIRM_RUNS = 30
+DEFAULT_CLIMB_SURVIVORS = 16
+DEFAULT_MAX_ITERATIONS = 12
+DEFAULT_RESTARTS = 4
+DEFAULT_PUSH_STEPS = 4
+DEFAULT_PLAN_BUDGET_RUNS = 60000
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
 FORMATION_SCHEMA_JSON = "formation.schema.json"
@@ -1189,6 +1216,13 @@ class _ProgressEvaluator:
     evaluator: Evaluator
     advance: Any
 
+    @property
+    def consumed_runs(self) -> int:
+        return self.evaluator.consumed_runs
+
+    def record_for(self, candidate, phase):
+        return self.evaluator.record_for(candidate, phase)
+
     def ensure(self, candidates, target, *, phase):
         self.advance(f"{phase.name} ({len(candidates)} 候補 × {target} 試行)")
         records = self.evaluator.ensure(candidates, target, phase=phase)
@@ -1298,6 +1332,422 @@ def _print_gear_sensitivity(
     )
     for warning in result.warnings:
         error_console.print(f"[yellow]warning[/]: {warning}")
+
+
+@app.command("gear-plan")
+def gear_plan(
+    config_path: Annotated[Path, typer.Argument(help="基点となる編成定義YAML", exists=True)],
+    budget: Annotated[
+        int, typer.Option("--budget", min=1, help="シミュレーション総試行数の上限")
+    ] = DEFAULT_PLAN_BUDGET_RUNS,
+    seed: Annotated[str | None, typer.Option("--seed", help="省略時は生成して表示する")] = None,
+    out: Annotated[Path, typer.Option("--out", help="レポート出力先")] = Path("reports"),
+    base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
+    player_data: Annotated[
+        Path | None,
+        typer.Option("--player-data", help="localStorage `mlgg:player-data` のJSON", exists=True),
+    ] = None,
+    screen_runs: Annotated[
+        int, typer.Option("--screen-runs", min=2, help="篩いの試行数（1反復の全手ぶん）")
+    ] = DEFAULT_CLIMB_SCREEN_RUNS,
+    confirm_runs: Annotated[
+        int, typer.Option("--confirm-runs", min=2, help="確定の試行数")
+    ] = DEFAULT_CLIMB_CONFIRM_RUNS,
+    survivors: Annotated[
+        int, typer.Option("--survivors", min=1, help="確定へ通す手の上限")
+    ] = DEFAULT_CLIMB_SURVIVORS,
+    max_iterations: Annotated[
+        int, typer.Option("--max-iterations", min=1, help="1本の山登りの最大反復数")
+    ] = DEFAULT_MAX_ITERATIONS,
+    restarts: Annotated[
+        int, typer.Option("--restarts", min=0, help="レジーム再スタートの本数")
+    ] = DEFAULT_RESTARTS,
+    push_steps: Annotated[
+        int, typer.Option("--push-steps", min=1, help="1本の再スタートで押す最大手数")
+    ] = DEFAULT_PUSH_STEPS,
+    include_rank: Annotated[
+        bool, typer.Option("--include-rank", help="種別・ランクの変更も近傍へ含める")
+    ] = False,
+    add_rank: Annotated[
+        str, typer.Option("--add-rank", help="空枠へ挿す1枚の種別・ランク（例 II-C）")
+    ] = DEFAULT_ADD_RANK.label,
+    assume_yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="所要時間の確認を省いて実行する")
+    ] = False,
+    max_candidates: Annotated[
+        int, typer.Option("--max-candidates", min=1, help="1リクエストの候補数上限")
+    ] = 32,
+    max_total_runs: Annotated[
+        int, typer.Option("--max-total-runs", min=1, help="1リクエストの総試行数上限")
+    ] = 300,
+    timeout_seconds: Annotated[
+        float, typer.Option("--timeout", min=1.0, help="1リクエストの待ち時間（秒）")
+    ] = DEFAULT_TIMEOUT_SECONDS,
+) -> None:
+    """現状の手持ちを起点に、理論値のギア配分を探す（Phase A→B→C）。
+
+    探索変数はギア配分だけである。ユニット・配置・メモリー・敵・レベル・学園レベルは
+    基点編成のまま固定する。**基点を変えたら結果は無効になる。**
+    """
+    base_seed = seed if seed is not None else secrets.token_hex(8)
+    objective = Objective()
+    config = _load(config_path, player_data)
+    try:
+        settings = PlanSettings(
+            climb=ClimbSettings(
+                screen_runs=screen_runs,
+                confirm_runs=confirm_runs,
+                survivors=survivors,
+                max_iterations=max_iterations,
+                include_rank=include_rank,
+                add_rank=rank_from_label(add_rank),
+            ),
+            restarts=restarts,
+            push_steps=push_steps,
+        )
+        source = GearFormationSource(config)
+    except (ConfigError, GearAllocationError) as error:
+        _abort(str(error))
+
+    start = source.base_allocation()
+    moves = neighborhood(
+        start, include_rank=settings.climb.include_rank, add_rank=settings.climb.add_rank
+    )
+    if not moves:
+        _abort("1手も生成できなかった。基点編成のギアが動かせる状態にない")
+    plan = plan_budget(settings, move_count=len(moves))
+    # `optimize` 側の `minimum_budget` と名前が衝突するため別名で読む。
+    minimum = minimum_plan_budget(settings, move_count=len(moves))
+    observations = observation_count(settings)
+
+    out.mkdir(parents=True, exist_ok=True)
+    with LabApiClient(base_url, timeout_seconds=timeout_seconds) as client:
+        try:
+            catalog = client.fetch_catalog()
+        except LabApiError as error:
+            _abort(str(error))
+        _reject_catalog_violations(config, catalog)
+        console.print(
+            f"catalogRevision: [bold]{catalog.catalog_revision}[/] / seed: [bold]{base_seed}[/]"
+        )
+        _print_plan_budget(
+            settings,
+            moves=len(moves),
+            plan=plan,
+            budget=budget,
+            minimum=minimum,
+            observations=observations,
+        )
+        if budget < minimum:
+            # 校正リクエストを投げる前に落とす。校正も予算の内であり、1反復も回せない
+            # 予算で「校正だけ実行して何も探索しない」結果を返さない。
+            _abort(
+                f"予算 {budget:,} 試行では1反復も回せない（1反復 {minimum:,} 試行。"
+                "校正で測る基点は篩いがキャッシュから読むので別勘定にはならない）。"
+                f"--budget を {minimum:,} 以上にするか、--screen-runs / --confirm-runs /"
+                " --survivors を下げる"
+            )
+        evaluator = Evaluator(
+            client,
+            source,
+            base_seed=base_seed,
+            phases=phases_for_climb(settings.climb),
+            max_candidates=max_candidates,
+            max_total_runs=max_total_runs,
+            log_path=out / GEAR_PLAN_EVALUATIONS_CSV,
+        )
+        observer = _CachingObserver(client, source)
+        try:
+            _calibrate(
+                evaluator,
+                observer,
+                start,
+                settings=settings,
+                budget=min(budget, plan["total"]),
+                observations=observations,
+                assume_yes=assume_yes,
+            )
+            result = _run_plan_with_progress(
+                start,
+                evaluator,
+                observer,
+                settings=settings,
+                objective=objective,
+                budget=budget,
+                total=min(budget, plan["total"]),
+            )
+        except (LabApiError, ValueError) as error:
+            _abort(str(error))
+        catalog_revision = evaluator.catalog_revision or catalog.catalog_revision
+
+    summary = build_plan_summary(
+        result,
+        config=config,
+        catalog=catalog,
+        settings=settings,
+        objective=objective,
+        seed=base_seed,
+        catalog_revision=catalog_revision,
+        budget=plan,
+        budget_runs=budget,
+        observations=observer.calls,
+    )
+    (out / GEAR_PLAN_JSON).write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    _print_plan(result, summary, catalog)
+    console.print(f"レポート: [bold]{out}[/]")
+
+
+@dataclass
+class _CachingObserver:
+    """単発実行でレジーム署名を取る。同じ配分は1度しか観測しない。
+
+    単発実行はseedを受け取らない（`10_API設計.md`「TacticalExerciseRequest」）ので、
+    同じ配分を2度観測しても同じ署名が返る保証が無い。畳んでおかないと、押した手を
+    1つ戻しただけで「レジームが変わった」と読める結果が出うる。
+    """
+
+    client: LabApiClient
+    source: GearFormationSource
+    cache: dict[str, RegimeSignature] = field(default_factory=dict)
+    calls: int = 0
+    elapsed_seconds: float = 0.0
+
+    def observe(self, allocation) -> RegimeSignature:
+        key = allocation.canonical_key()
+        cached = self.cache.get(key)
+        if cached is not None:
+            return cached
+        started = time.perf_counter()
+        signature, _ = observe_signature(self.client, self.source, allocation)
+        self.elapsed_seconds += time.perf_counter() - started
+        self.calls += 1
+        self.cache[key] = signature
+        return signature
+
+
+def _calibrate(
+    evaluator: Evaluator,
+    observer: _CachingObserver,
+    start,
+    *,
+    settings: PlanSettings,
+    budget: int,
+    observations: int,
+    assume_yes: bool,
+) -> None:
+    """実測してから総所要時間を出し、続行を確認する。
+
+    校正に使うのは捨て実行ではない——基点の観測（Phase A で要る）と、基点の篩い評価
+    （最初の反復で要る）をそのまま計る。数万試行を投げる前に、待ち時間が見合うかを
+    利用者が決められるようにする。
+    """
+    observer.observe(start)
+    screen_phase, _ = phases_for_climb(settings.climb)
+    started = time.perf_counter()
+    record = evaluator.ensure([start], settings.climb.screen_runs, phase=screen_phase)[0]
+    elapsed = time.perf_counter() - started
+    if record.sample_count < 1 or elapsed <= 0.0:
+        _abort("校正リクエストで1試行も完了しなかった。devサーバーの状態を確かめる")
+    rate = record.sample_count / elapsed
+    estimate = budget / rate + observations * observer.elapsed_seconds / max(1, observer.calls)
+    console.print(
+        f"校正: {rate:,.0f} 試行/秒（{record.sample_count} 試行を {elapsed:.1f} 秒）/"
+        f" 単発実行 {observer.elapsed_seconds / max(1, observer.calls):.1f} 秒"
+    )
+    console.print(
+        f"上限まで回した場合の見積り: [bold]{_duration(estimate)}[/]"
+        f"（評価 {budget:,} 試行 + 単発実行 {observations} 回）"
+    )
+    if assume_yes:
+        return
+    if not typer.confirm("続行する？", default=True):
+        raise typer.Exit(code=0)
+
+
+def _duration(seconds: float) -> str:
+    if seconds < 90:
+        return f"{seconds:.0f} 秒"
+    if seconds < 5400:
+        return f"{seconds / 60:.0f} 分"
+    return f"{seconds / 3600:.1f} 時間"
+
+
+def _run_plan_with_progress(
+    start,
+    evaluator: Evaluator,
+    observer: SignatureObserver,
+    *,
+    settings: PlanSettings,
+    objective: Objective,
+    budget: int,
+    total: int,
+) -> PlanResult:
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total} runs"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Phase B", total=total, completed=evaluator.consumed_runs)
+
+        def advance(description: str) -> None:
+            progress.update(
+                task, completed=min(total, evaluator.consumed_runs), description=description
+            )
+
+        try:
+            return plan_gear_allocation(
+                start,
+                _ProgressEvaluator(evaluator, lambda name: advance(name)),
+                _ProgressObserver(observer, advance),
+                settings=settings,
+                objective=objective,
+                budget_runs=budget,
+            )
+        except (LabApiError, ValueError):
+            progress.stop()
+            raise
+
+
+@dataclass
+class _ProgressObserver:
+    """観測のたびに進捗の説明を書き換えるだけの覆い。"""
+
+    observer: SignatureObserver
+    advance: Any
+
+    def observe(self, allocation):
+        self.advance("Phase A/C 観測")
+        return self.observer.observe(allocation)
+
+
+def _print_plan_budget(
+    settings: PlanSettings,
+    *,
+    moves: int,
+    plan: dict[str, int],
+    budget: int,
+    minimum: int,
+    observations: int,
+) -> None:
+    table = Table(title=f"予算の内訳（1手近傍 {moves} 手）")
+    table.add_column("項目")
+    table.add_column("内訳")
+    table.add_column("試行数", justify="right")
+    table.add_row(
+        "1反復",
+        f"篩い {1 + moves} 候補 × {settings.climb.screen_runs} +"
+        f" 確定 {1 + min(settings.climb.survivors, moves)} 候補 × {settings.climb.confirm_runs}",
+        f"{plan['perIteration']:,}",
+    )
+    table.add_row(
+        "1本の山登り", f"最大 {settings.climb.max_iterations} 反復", f"{plan['perClimb']:,}"
+    )
+    table.add_row("全体", f"基点 + 再スタート {settings.restarts} 本", f"{plan['total']:,}")
+    table.add_row("上限（--budget）", "これを超えて評価を発行しない", f"{budget:,}")
+    table.add_row("最低予算", "1反復ぶん。届かなければ実行前に失敗する", f"{minimum:,}")
+    console.print(table)
+    console.print(f"単発実行（レジーム観測）は最大 {observations} 回。試行数の予算とは別勘定")
+
+
+def _print_plan(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -> None:
+    _print_signature(result.base_signature, title="基点のレジーム署名")
+
+    climb = Table(title=f"Phase B: 基点からの山登り（{result.base_climb.stopped_because}）")
+    for column in ("反復", "ユニット", "手", "Δ確定", "Δ自ユニット与ダメ"):
+        climb.add_column(column, justify="left" if column in ("ユニット", "手") else "right")
+    for step in summary["baseClimb"]["steps"]:
+        climb.add_row(
+            str(step["iteration"]),
+            step["displayName"],
+            step["move"],
+            _diff(step["fitnessGain"]),
+            _diff(step["damageGain"]),
+        )
+    console.print(climb)
+    if not summary["baseClimb"]["steps"]:
+        console.print("基点は既に1手近傍の局所最適だった")
+
+    if result.restarts:
+        restarts = Table(title="Phase C: レジーム再スタート")
+        for column in ("本", "成分", "向き", "枠", "押した手", "結果", "Δ確定"):
+            restarts.add_column(
+                column, justify="left" if column not in ("本", "Δ確定") else "right"
+            )
+        for attempt, reported in zip(result.restarts, summary["restarts"], strict=True):
+            gain = "-"
+            if attempt.climb is not None and result.ranking:
+                gain = _diff(_gain_over_base(result, attempt.climb.best))
+            restarts.add_row(
+                str(attempt.index),
+                attempt.component,
+                attempt.direction,
+                str(attempt.slot_index),
+                str(len(attempt.moves)),
+                reported["stoppedBecause"],
+                gain,
+            )
+        console.print(restarts)
+
+    best = Table(title="到達したギア配分（括弧は基点からの増減）")
+    best.add_column("ユニット")
+    for stat in SEARCHED_STATS:
+        best.add_column(STAT_LABELS[stat], justify="right")
+    for label, values in allocation_rows(result.best, result.start, catalog):
+        best.add_row(label, *values)
+    console.print(best)
+
+    signatures = Table(title="到達したレジーム署名")
+    for column in ("署名", "観測点", "成分の当て先"):
+        signatures.add_column(column)
+    for entry in result.signatures:
+        signatures.add_row(
+            entry.signature.digest(),
+            entry.origin,
+            ", ".join(
+                f"{component}→{recipient}"
+                for component, recipient in sorted(entry.signature.assignments.items())
+            )
+            or "-",
+        )
+    console.print(signatures)
+    untouched = [
+        f"{attempt.component} を {attempt.direction} へ押しても署名が変わらなかった"
+        for attempt in result.restarts
+        if not attempt.changed
+    ]
+    for line in untouched:
+        console.print(f"[dim]{line}[/]")
+
+    console.print(f"[yellow]{summary['caveat']}[/]")
+    console.print(f"[dim]{summary['rankingCaveat']}[/]")
+    for warning in result.warnings:
+        error_console.print(f"[yellow]warning[/]: {warning}")
+
+
+def _gain_over_base(result: PlanResult, allocation) -> float:
+    """基点から登った枝の到達点に対する差。枝どうしの比較はこの差で読む。"""
+    ranked = {candidate.canonical_key(): fitness for candidate, fitness in result.ranking}
+    baseline = ranked.get(result.base_climb.best.canonical_key())
+    fitness = ranked.get(allocation.canonical_key())
+    if baseline is None or fitness is None:
+        return 0.0
+    return fitness - baseline
+
+
+def _print_signature(signature: RegimeSignature, *, title: str) -> None:
+    table = Table(title=f"{title}（{signature.digest()}）")
+    table.add_column("成分")
+    table.add_column("当て先")
+    table.add_row("行動順", " → ".join(signature.action_order) or "-")
+    for component, recipient in sorted(signature.assignments.items()):
+        table.add_row(component, recipient)
+    for component, consumer in sorted(signature.consumers.items()):
+        table.add_row(f"{component}（消費）", consumer or "-")
+    console.print(table)
 
 
 def _abort(message: str) -> NoReturn:

@@ -21,7 +21,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any, Protocol
 
-from ..api import EvaluationResponse
+from ..api import CandidateEvaluation, EvaluationResponse
 from ..stats import ALLY_DEFEATED
 from .search_config import (
     DEFAULT_FINAL_STAGE_RUNS,
@@ -118,10 +118,18 @@ class CandidateRecord[C]:
     scores: list[int] = field(default_factory=list)
     break_counts: list[int] = field(default_factory=list)
     completion_reasons: list[str] = field(default_factory=list)
+    # 試行ごとの、味方枠別の与ダメージ（`allyUnitDamageTotals` の1行）。ギア探索の篩いが
+    # 「自ユニットの与ダメージ」で順位を付けるために要る——総スコアより分散が小さく、
+    # 動かした1枠の効果を切り出せる。応答に無ければ空のままで、読む側が扱う。
+    unit_damage_totals: list[tuple[int, ...]] = field(default_factory=list)
 
     @property
     def sample_count(self) -> int:
         return len(self.scores)
+
+    def unit_damage_at(self, slot_index: int, *, count: int) -> list[int]:
+        """1枠ぶんの、先頭 `count` 試行の与ダメージ。候補間で試行数を揃えて比べる。"""
+        return [row[slot_index] for row in self.unit_damage_totals[:count]]
 
     def scores_at(self, count: int) -> list[int]:
         """先頭 `count` 件。候補間で試行数を揃えて比べるために使う。"""
@@ -132,6 +140,25 @@ class CandidateRecord[C]:
         if not reasons:
             return 0.0
         return sum(1 for reason in reasons if reason == ALLY_DEFEATED) / len(reasons)
+
+
+def _unit_damage_rows(
+    evaluation: CandidateEvaluation, formation: dict[str, Any]
+) -> list[tuple[int, ...]]:
+    """応答のユニット別与ダメージを、試行ごとの行として取り出す。
+
+    列番号と編成順の対応は `CandidateEvaluation.ally_unit_series` に集約されている
+    （`10_API設計.md`「内側はリクエストの `allyFormation.units` と同じ順」）。ここで
+    二重配列を直接読むと、その対応を2か所で組むことになる。
+    """
+    if not evaluation.ally_unit_damage_totals:
+        return []
+    unit_ids = [unit["unitDefinitionId"] for unit in formation["units"]]
+    series = evaluation.ally_unit_series(unit_ids)
+    return [
+        tuple(entry.damage_totals[run] for entry in series)
+        for run in range(evaluation.completed_runs)
+    ]
 
 
 def common_sample_count(records: Sequence[CandidateRecord[Any]]) -> int:
@@ -284,13 +311,11 @@ class Evaluator[C: EvaluationCandidate]:
         seed: str,
         runs: int,
     ) -> None:
+        formations = [self._formations.ally_formation(record.candidate) for record in batch]
         response = self._client.evaluate(
             {
                 "enemyFormation": self._enemy_formation,
-                "candidates": [
-                    {"allyFormation": self._formations.ally_formation(record.candidate)}
-                    for record in batch
-                ],
+                "candidates": [{"allyFormation": formation} for formation in formations],
                 "runsPerCandidate": runs,
                 "seed": seed,
             }
@@ -298,7 +323,10 @@ class Evaluator[C: EvaluationCandidate]:
         self._catalog_revision = response.catalog_revision
         rows: list[dict[str, Any]] = []
         # 応答の候補はリクエストと同じ順・同じ件数で返る（`10_API設計.md`）。
-        for record, evaluation in zip(batch, response.candidates, strict=True):
+        for record, evaluation, formation in zip(
+            batch, response.candidates, formations, strict=True
+        ):
+            record.unit_damage_totals.extend(_unit_damage_rows(evaluation, formation))
             for index in range(evaluation.completed_runs):
                 record.scores.append(evaluation.scores[index])
                 record.break_counts.append(evaluation.break_counts[index])

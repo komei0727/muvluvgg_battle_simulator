@@ -370,3 +370,47 @@ def test_the_cache_of_a_generic_candidate_is_keyed_by_its_canonical_key_alone():
     evaluator.ensure([GearVariant("A#gear1", "UNIT_B")], 8)
 
     assert len(client.requests) == before
+
+
+# --- ユニット別与ダメージ ---------------------------------------------------
+#
+# ギア探索の篩いは自ユニットの与ダメージで行う（総スコアより分散が小さく、自分の手の
+# 効果を切り出せる）。評価器がこの列を捨てると、篩いのたびに同じ試行を投げ直すことになる。
+
+
+class DamageClient(FakeClient):
+    def evaluate(self, body: dict) -> EvaluationResponse:
+        response = super().evaluate(body)
+        for index, candidate in enumerate(body["candidates"]):
+            units = len(candidate["allyFormation"]["units"])
+            evaluation = response.candidates[index]
+            evaluation.ally_unit_damage_totals = [
+                [100 * (slot + 1) + run for slot in range(units)]
+                for run in range(evaluation.completed_runs)
+            ]
+            evaluation.ally_unit_break_counts = [
+                [0] * units for _ in range(evaluation.completed_runs)
+            ]
+        return response
+
+
+def test_the_record_keeps_the_per_unit_damage_of_each_run(config):
+    client = DamageClient()
+    evaluator = Evaluator(client, config, base_seed="s", phases=(SEARCH_PHASE,))
+    candidate = make_candidate("UNIT_A", "UNIT_B")
+
+    record = evaluator.ensure([candidate], 8, phase=SEARCH_PHASE)[0]
+
+    assert record.unit_damage_totals[0] == (100, 200)
+    assert record.unit_damage_at(0, count=8) == [100 + run for run in range(8)]
+    assert record.unit_damage_at(1, count=3) == [200, 201, 202]
+
+
+def test_a_response_without_the_per_unit_arrays_leaves_the_damage_empty(config):
+    evaluator = Evaluator(FakeClient(), config, base_seed="s", phases=(SEARCH_PHASE,))
+
+    record = evaluator.ensure([make_candidate("UNIT_A")], 8, phase=SEARCH_PHASE)[0]
+
+    # `lab optimize` は与ダメージを読まない。欠けていても評価そのものは成立させる。
+    assert record.unit_damage_totals == []
+    assert record.unit_damage_at(0, count=8) == []

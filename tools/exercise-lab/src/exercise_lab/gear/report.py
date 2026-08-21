@@ -18,8 +18,10 @@ from typing import Any
 from ..api import Catalog
 from ..models import FormationConfig
 from ..optimize.fitness import Objective
-from .allocation import SEARCHED_STATS
+from .allocation import SEARCHED_STATS, Allocation
 from .neighborhood import Move
+from .plan import PlanResult, PlanSettings, RestartAttempt
+from .search import ClimbResult
 from .sensitivity import (
     CombinedResult,
     MoveEntry,
@@ -88,7 +90,7 @@ def build_sensitivity_summary(
         "seed": seed,
         "catalogRevision": catalog_revision,
         "caveat": BASE_FORMATION_CAVEAT,
-        "baseFormation": _base_formation(result, config, catalog),
+        "baseFormation": _base_formation(result.base_allocation, config, catalog),
         "settings": {
             "screenRuns": settings.screen_runs,
             "confirmRuns": settings.confirm_runs,
@@ -142,8 +144,9 @@ def build_sensitivity_summary(
 
 
 def _base_formation(
-    result: SensitivityResult, config: FormationConfig, catalog: Catalog
+    allocation: Allocation, config: FormationConfig, catalog: Catalog
 ) -> dict[str, Any]:
+    """基点編成の写し。ギアは配分側から出す（どちらを評価したのかを1つに決める）。"""
     return {
         "units": [
             {
@@ -156,7 +159,7 @@ def _base_formation(
                 "gears": [piece.label for piece in unit.pieces],
             }
             for index, (unit, spec) in enumerate(
-                zip(result.base_allocation.units, config.ally.units, strict=True)
+                zip(allocation.units, config.ally.units, strict=True)
             )
         ],
         "memoryDefinitionIds": list(config.ally.memory_definition_ids),
@@ -342,3 +345,150 @@ def _cell_text(cell: Any) -> str:
     value = cell.entry.deepest.expected_best_diff
     text = f"{value:+,.0f}"
     return text if cell.entry.deepest.expected_best_significant else f"({text})"
+
+
+# --- 理論値探索（`lab gear-plan`）のレポート ---------------------------------
+
+PLAN_CAVEAT = (
+    "この配分は基点編成に固有である。ユニット・配置・メモリー・レベル・学園レベルの"
+    "いずれかを変えるとレジームが変わり、最適なギア配分も変わる"
+)
+
+RANGE_CAVEAT = (
+    "枝の順位は探索が使ったのと同じ乱数範囲で付けている。別の乱数範囲での確定"
+    "（最終選抜）はこのコマンドの担当ではない"
+)
+
+
+def build_plan_summary(
+    result: PlanResult,
+    *,
+    config: FormationConfig,
+    catalog: Catalog,
+    settings: PlanSettings,
+    objective: Objective,
+    seed: str,
+    catalog_revision: str,
+    budget: Mapping[str, int],
+    budget_runs: int,
+    observations: int,
+) -> dict[str, Any]:
+    return {
+        "seed": seed,
+        "catalogRevision": catalog_revision,
+        "caveat": PLAN_CAVEAT,
+        "rankingCaveat": RANGE_CAVEAT,
+        "baseFormation": _base_formation(result.start, config, catalog),
+        "settings": {
+            "screenRuns": settings.climb.screen_runs,
+            "confirmRuns": settings.climb.confirm_runs,
+            "survivors": settings.climb.survivors,
+            "maxIterations": settings.climb.max_iterations,
+            "includeRank": settings.climb.include_rank,
+            "restarts": settings.restarts,
+            "pushSteps": settings.push_steps,
+        },
+        "objective": {
+            "bestOf": objective.best_of,
+            "lambda": objective.expected_weight,
+            "guardQuantile": objective.guard_quantile,
+        },
+        "budgetRuns": budget_runs,
+        "plannedRuns": dict(budget),
+        "consumedRuns": result.consumed_runs,
+        "observationRuns": observations,
+        "baseSignature": result.base_signature.to_dict(),
+        "signatures": [
+            {
+                "origin": entry.origin,
+                "digest": entry.signature.digest(),
+                "allocation": _allocation_summary(entry.allocation, catalog),
+                **entry.signature.to_dict(),
+            }
+            for entry in result.signatures
+        ],
+        "baseClimb": _climb_summary(result.base_climb, catalog),
+        "restarts": [_restart_summary(attempt, catalog) for attempt in result.restarts],
+        "best": _allocation_summary(result.best, catalog),
+        "ranking": [
+            {"allocation": _allocation_summary(allocation, catalog), "fitness": fitness}
+            for allocation, fitness in result.ranking
+        ],
+        "warnings": list(result.warnings),
+    }
+
+
+def _climb_summary(climb: ClimbResult, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "start": _allocation_summary(climb.start, catalog),
+        "best": _allocation_summary(climb.best, catalog),
+        "stoppedBecause": climb.stopped_because,
+        "steps": [
+            {
+                "iteration": step.iteration,
+                "unitDefinitionId": step.move.unit_definition_id,
+                "displayName": _display_name(catalog, step.move.unit_definition_id),
+                "slotIndex": step.move.slot_index,
+                "move": step.move.label,
+                "fitnessGain": step.fitness_gain,
+                "damageGain": step.damage_gain,
+                "scoreGain": step.score_gain,
+            }
+            for step in climb.steps
+        ],
+        # 自ユニット与ダメが伸びていないのに総スコアが伸びた手。レジーム変更の疑い。
+        "regimeCandidates": [
+            {
+                "iteration": candidate.iteration,
+                "unitDefinitionId": candidate.move.unit_definition_id,
+                "slotIndex": candidate.move.slot_index,
+                "move": candidate.move.label,
+                "damageGain": candidate.damage_gain,
+                "scoreGain": candidate.score_gain,
+            }
+            for candidate in climb.regime_candidates
+        ],
+    }
+
+
+def _restart_summary(attempt: RestartAttempt, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "index": attempt.index,
+        "component": attempt.component,
+        "direction": attempt.direction,
+        "slotIndex": attempt.slot_index,
+        "pushedMoves": [move.label for move in attempt.moves],
+        "changed": attempt.changed,
+        "stoppedBecause": attempt.stopped_because,
+        "signature": None if attempt.signature is None else attempt.signature.to_dict(),
+        "climb": None if attempt.climb is None else _climb_summary(attempt.climb, catalog),
+    }
+
+
+def _allocation_summary(allocation: Allocation, catalog: Catalog) -> list[dict[str, Any]]:
+    return [
+        {
+            "slotIndex": index,
+            "unitDefinitionId": unit.unit_definition_id,
+            "displayName": _display_name(catalog, unit.unit_definition_id),
+            "gears": [piece.label for piece in unit.pieces],
+            "counts": {stat: unit.count(stat) for stat in SEARCHED_STATS},
+        }
+        for index, unit in enumerate(allocation.units)
+    ]
+
+
+def allocation_rows(
+    allocation: Allocation, start: Allocation, catalog: Catalog
+) -> list[tuple[str, list[str]]]:
+    """配分をコンソール表の行へ直す。基点からの増減を添える。"""
+    rows: list[tuple[str, list[str]]] = []
+    for index, unit in enumerate(allocation.units):
+        before = start.units[index]
+        values = []
+        for stat in SEARCHED_STATS:
+            count = unit.count(stat)
+            delta = count - before.count(stat)
+            values.append(f"{count}" if delta == 0 else f"{count} ({delta:+d})")
+        rows.append((f"{index}: {_display_name(catalog, unit.unit_definition_id)}", values))
+    return rows
