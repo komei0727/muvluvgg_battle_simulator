@@ -54,6 +54,7 @@ from .gear.plan import (
     plan_budget,
     plan_gear_allocation,
 )
+from .gear.plan import minimum_budget as minimum_plan_budget
 from .gear.regime import RegimeSignature, observe_signature
 from .gear.report import (
     STAT_LABELS,
@@ -1415,6 +1416,8 @@ def gear_plan(
     if not moves:
         _abort("1手も生成できなかった。基点編成のギアが動かせる状態にない")
     plan = plan_budget(settings, move_count=len(moves))
+    # `optimize` 側の `minimum_budget` と名前が衝突するため別名で読む。
+    minimum = minimum_plan_budget(settings, move_count=len(moves))
     observations = observation_count(settings)
 
     out.mkdir(parents=True, exist_ok=True)
@@ -1428,8 +1431,22 @@ def gear_plan(
             f"catalogRevision: [bold]{catalog.catalog_revision}[/] / seed: [bold]{base_seed}[/]"
         )
         _print_plan_budget(
-            settings, moves=len(moves), plan=plan, budget=budget, observations=observations
+            settings,
+            moves=len(moves),
+            plan=plan,
+            budget=budget,
+            minimum=minimum,
+            observations=observations,
         )
+        if budget < minimum:
+            # 校正リクエストを投げる前に落とす。校正も予算の内であり、1反復も回せない
+            # 予算で「校正だけ実行して何も探索しない」結果を返さない。
+            _abort(
+                f"予算 {budget:,} 試行では1反復も回せない"
+                f"（校正 {settings.climb.screen_runs:,} + 1反復 {plan['perIteration']:,}）。"
+                f"--budget を {minimum:,} 以上にするか、--screen-runs / --confirm-runs /"
+                " --survivors を下げる"
+            )
         evaluator = Evaluator(
             client,
             source,
@@ -1608,7 +1625,13 @@ class _ProgressObserver:
 
 
 def _print_plan_budget(
-    settings: PlanSettings, *, moves: int, plan: dict[str, int], budget: int, observations: int
+    settings: PlanSettings,
+    *,
+    moves: int,
+    plan: dict[str, int],
+    budget: int,
+    minimum: int,
+    observations: int,
 ) -> None:
     table = Table(title=f"予算の内訳（1手近傍 {moves} 手）")
     table.add_column("項目")
@@ -1625,6 +1648,7 @@ def _print_plan_budget(
     )
     table.add_row("全体", f"基点 + 再スタート {settings.restarts} 本", f"{plan['total']:,}")
     table.add_row("上限（--budget）", "これを超えて評価を発行しない", f"{budget:,}")
+    table.add_row("最低予算", "校正 + 1反復。届かなければ実行前に失敗する", f"{minimum:,}")
     console.print(table)
     console.print(f"単発実行（レジーム観測）は最大 {observations} 回。試行数の予算とは別勘定")
 

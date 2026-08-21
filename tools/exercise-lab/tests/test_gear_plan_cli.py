@@ -279,6 +279,87 @@ def test_declining_the_confirmation_stops_before_the_search(tmp_path):
 
 
 @respx.mock
+def test_a_budget_below_one_iteration_stops_before_any_evaluation(tmp_path):
+    server = mock_api()
+
+    result = runner.invoke(
+        app,
+        [
+            "gear-plan",
+            str(write_formation(tmp_path)),
+            "--seed",
+            "abc",
+            "--out",
+            str(tmp_path / "reports"),
+            "--budget",
+            "1",
+            "--screen-runs",
+            "4",
+            "--confirm-runs",
+            "8",
+            "--max-iterations",
+            "2",
+            "--restarts",
+            "0",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 1
+    # 校正リクエストも予算の内である。1反復を回せない予算では1試行も投げない。
+    assert server.evaluation_calls == []
+    assert server.exercise_calls == []
+    assert "--budget" in result.output
+
+
+@respx.mock
+def test_the_evaluated_runs_stay_within_the_budget(tmp_path):
+    server = mock_api()
+    budget = 200
+
+    result = runner.invoke(
+        app,
+        [
+            "gear-plan",
+            str(write_formation(tmp_path)),
+            "--seed",
+            "abc",
+            "--out",
+            str(tmp_path / "reports"),
+            "--budget",
+            str(budget),
+            "--screen-runs",
+            "4",
+            "--confirm-runs",
+            "8",
+            "--survivors",
+            "4",
+            "--max-iterations",
+            "5",
+            "--restarts",
+            "1",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    consumed = sum(
+        len(body["candidates"]) * body["runsPerCandidate"] for body in server.evaluation_calls
+    )
+    # 校正リクエストのぶんも含めて上限を超えない。
+    assert consumed <= budget
+
+
+@respx.mock
+def test_the_minimum_budget_is_shown_with_the_breakdown(tmp_path):
+    mock_api()
+
+    result = run(tmp_path, tmp_path / "reports")
+
+    assert "最低予算" in result.output
+
+
+@respx.mock
 def test_no_request_exceeds_the_evaluation_api_limits(tmp_path):
     server = mock_api()
 

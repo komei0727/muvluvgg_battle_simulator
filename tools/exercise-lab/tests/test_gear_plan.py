@@ -5,6 +5,7 @@ from dataclasses import replace
 from exercise_lab.gear.allocation import Allocation, GearPiece, UnitAllocation
 from exercise_lab.gear.plan import (
     PlanSettings,
+    minimum_budget,
     observation_count,
     plan_budget,
     plan_gear_allocation,
@@ -187,6 +188,19 @@ def test_the_budget_breakdown_counts_every_climb():
     assert plan["perClimb"] == per_iteration * 12
     assert plan["total"] == per_iteration * 12 * (1 + 4)
     assert observation_count(settings) == 1 + 1 + 4 * (4 + 1)
+
+
+def test_the_minimum_budget_covers_the_calibration_and_one_iteration():
+    settings = PlanSettings(
+        climb=ClimbSettings(screen_runs=10, confirm_runs=30, survivors=16, max_iterations=12),
+        restarts=4,
+    )
+
+    minimum = minimum_budget(settings, move_count=120)
+
+    # 校正は基点を篩いの深さで測る1回ぶん。反復を始める前の見張りは1反復の上限で
+    # 判定するので、その手前で使ったぶんだけ余裕が要る。
+    assert minimum == 10 + plan_budget(settings, move_count=120)["perIteration"]
 
 
 def test_the_same_input_reproduces_the_same_plan():
