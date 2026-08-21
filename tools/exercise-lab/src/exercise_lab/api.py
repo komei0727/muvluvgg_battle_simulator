@@ -1,9 +1,13 @@
 """ローカルdevサーバー（`mise run dev`）向けのHTTPクライアント。
 
-対象は `GET /api/v1/battle-simulation-catalog` と
-`POST /api/v1/tactical-exercise-evaluations`（`docs/ddd/10_API設計.md`）。
-本番Cloud Runでは後者が `EVALUATION_ENDPOINT_ENABLED=false` で閉じているため、
-このツールはローカル配備だけを相手にする。
+対象は `GET /api/v1/battle-simulation-catalog`・
+`POST /api/v1/tactical-exercise-evaluations`・`POST /api/v1/tactical-exercises`
+（`docs/ddd/10_API設計.md`）。本番Cloud Runでは一括評価が
+`EVALUATION_ENDPOINT_ENABLED=false` で閉じているため、このツールはローカル配備だけを
+相手にする。
+
+単発実行（`tactical-exercises`）を読むのはレジーム署名の観測（`gear/regime.py`）のため
+だけである。一括評価は数値しか返さず、誰へ効果が付いたかはイベント列にしか無い。
 """
 
 from __future__ import annotations
@@ -20,6 +24,11 @@ from .models import FormationConfig
 
 CATALOG_PATH = "/api/v1/battle-simulation-catalog"
 EVALUATION_PATH = "/api/v1/tactical-exercise-evaluations"
+EXERCISE_PATH = "/api/v1/tactical-exercises"
+
+# `10_API設計.md`「SimulationOptions」。既定は `SUMMARY` でイベントを1件も返さない。
+# レジーム署名はイベント列からしか取れないので、単発実行では常にこちらを指定する。
+DETAILED_LOG_LEVEL = "DETAILED"
 
 DEFAULT_BASE_URL = "http://localhost:3000"
 # 1チャンクはサーバー側の `SIMULATION_TIMEOUT_MS`（既定30秒）まで掛かり得る。
@@ -143,6 +152,73 @@ class CandidateEvaluation(_Response):
                 )
 
 
+class BattleUnitState(_Response):
+    """`BattleStateResponse.units` の1件。参加枠IDとユニット定義IDの対応を取るために読む。"""
+
+    battle_unit_id: str = Field(alias="battleUnitId")
+    unit_definition_id: str = Field(alias="unitDefinitionId")
+    side: str
+    formation_position: dict[str, Any] = Field(default_factory=dict, alias="formationPosition")
+
+
+class BattleState(_Response):
+    units: list[BattleUnitState] = Field(default_factory=list)
+
+
+class BattleLogEvent(_Response):
+    """`BattleLogEventResponse`。`details` は種別ごとに形が違うので生のまま持つ。
+
+    公開イベントの `type` は大文字スネークケースであり、v1内で意味を変えない
+    （`10_API設計.md`「BattleLogEventResponse」）。未知の `type` で応答全体を
+    拒まないよう、`details` の検証は読む側（`gear/regime.py`）が必要な分だけ行う。
+    """
+
+    sequence: int
+    type: str
+    category: str = ""
+    source_unit_id: str | None = Field(default=None, alias="sourceUnitId")
+    target_unit_ids: list[str] = Field(default_factory=list, alias="targetUnitIds")
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExerciseResult(_Response):
+    completion_reason: str = Field(alias="completionReason")
+    completed_turn: int = Field(alias="completedTurn")
+    total_score: int = Field(alias="totalScore")
+    break_count: int = Field(alias="breakCount")
+
+
+class TacticalExerciseResponse(_Response):
+    """`POST /api/v1/tactical-exercises` の成功レスポンス。
+
+    読むのはレジーム署名に要る3つ——参加枠の名簿・イベント列・結果——だけである。
+    """
+
+    catalog_revision: str = Field(alias="catalogRevision")
+    result: ExerciseResult
+    initial_state: BattleState = Field(default_factory=BattleState, alias="initialState")
+    events: list[BattleLogEvent] = Field(default_factory=list)
+
+    @property
+    def total_score(self) -> int:
+        return self.result.total_score
+
+    def roster(self) -> dict[str, BattleUnitState]:
+        """参加枠ID → 枠の状態。イベントは参加枠IDしか持たないため対応表が要る。"""
+        return {unit.battle_unit_id: unit for unit in self.initial_state.units}
+
+
+def build_exercise_request(
+    *, ally_formation: dict[str, Any], enemy_formation: dict[str, Any]
+) -> dict[str, Any]:
+    """単発実行のリクエスト本文。`turnLimit` は持たない（`10_API設計.md`）。"""
+    return {
+        "allyFormation": ally_formation,
+        "enemyFormation": enemy_formation,
+        "options": {"logLevel": DETAILED_LOG_LEVEL},
+    }
+
+
 class EvaluationResponse(_Response):
     catalog_revision: str = Field(alias="catalogRevision")
     seed: str
@@ -178,6 +254,9 @@ class LabApiClient:
 
     def evaluate(self, body: dict[str, Any]) -> EvaluationResponse:
         return _parse(EvaluationResponse, self._post(EVALUATION_PATH, body))
+
+    def simulate_exercise(self, body: dict[str, Any]) -> TacticalExerciseResponse:
+        return _parse(TacticalExerciseResponse, self._post(EXERCISE_PATH, body))
 
     def _get(self, path: str) -> Any:
         try:

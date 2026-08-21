@@ -104,6 +104,12 @@ def restore_evaluator(
 
 
 def _dump_records(evaluator: Evaluator[Candidate], phase: EvaluationPhase) -> list[dict[str, Any]]:
+    """再開に要る列だけを書き出す。
+
+    ユニット別与ダメージ（`CandidateRecord.unit_damage_totals`）は載せない。編成探索は
+    読まない列であり、状態ファイルを候補数×試行数×枠数で膨らませる意味が無い。ギア探索
+    （`gear/`）は中断・再開を持たないので、落ちて困る利用者も居ない。
+    """
     return [
         {
             "candidate": encode_candidate(record.candidate),
