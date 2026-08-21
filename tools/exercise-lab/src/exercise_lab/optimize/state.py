@@ -39,7 +39,7 @@ def capture_state(
     population: tuple[Candidate, ...],
     history: tuple[dict[str, Any], ...],
     rng: Random,
-    evaluator: Evaluator,
+    evaluator: Evaluator[Candidate],
     phases: tuple[EvaluationPhase, ...],
 ) -> SearchState:
     return SearchState(
@@ -82,7 +82,7 @@ def read_state(path: Path) -> SearchState:
 
 
 def restore_evaluator(
-    evaluator: Evaluator, state: SearchState, phases: tuple[EvaluationPhase, ...]
+    evaluator: Evaluator[Candidate], state: SearchState, phases: tuple[EvaluationPhase, ...]
 ) -> None:
     """保存済みの評価履歴を評価器へ戻す。戻した試行は予算を消費済みとして数える。"""
     by_name = {phase.name: phase for phase in phases}
@@ -103,7 +103,7 @@ def restore_evaluator(
     evaluator.adopt_consumed_runs(state.consumed_runs)
 
 
-def _dump_records(evaluator: Evaluator, phase: EvaluationPhase) -> list[dict[str, Any]]:
+def _dump_records(evaluator: Evaluator[Candidate], phase: EvaluationPhase) -> list[dict[str, Any]]:
     return [
         {
             "candidate": encode_candidate(record.candidate),

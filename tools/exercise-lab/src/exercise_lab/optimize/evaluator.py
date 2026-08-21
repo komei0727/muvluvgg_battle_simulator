@@ -22,14 +22,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from ..api import EvaluationResponse
-from ..models import build_ally_formation, build_enemy_formation
 from ..stats import ALLY_DEFEATED
-from .candidate import Candidate
 from .search_config import (
     DEFAULT_FINAL_STAGE_RUNS,
     DEFAULT_STAGE_RUNS,
     ScheduleSpec,
-    SearchConfig,
 )
 
 # devサーバーの既定（`EVALUATION_MAX_CANDIDATES` / `EVALUATION_MAX_TOTAL_RUNS`）。
@@ -50,6 +47,29 @@ LOG_COLUMNS = (
 
 class EvaluationClient(Protocol):
     def evaluate(self, body: dict[str, Any]) -> EvaluationResponse: ...
+
+
+class EvaluationCandidate(Protocol):
+    """評価器が候補へ求めるものすべて。
+
+    求めるのは等価な候補を同一視する鍵だけである。候補が「6マスへのユニット割当＋
+    メモリー」なのか「ギア配分」なのかを評価器は知らない——共通乱数法・増量評価の
+    はしご・キャッシュ・分割送信は遺伝子型に依らない仕組みであり、遺伝子型を1つに
+    決め打つと、別の遺伝子型を探すたびに同じ仕組みを書き直すことになる。
+    """
+
+    def canonical_key(self) -> str: ...
+
+
+class FormationSource[C](Protocol):
+    """候補を送信JSONの編成へ直す係。評価器と候補型はここだけで繋がる。
+
+    敵編成は候補によらず一定なので、評価器は最初に一度だけ引く。
+    """
+
+    def enemy_formation(self) -> dict[str, Any]: ...
+
+    def ally_formation(self, candidate: C) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -91,10 +111,10 @@ def phases_for(schedule: ScheduleSpec) -> tuple[EvaluationPhase, EvaluationPhase
 
 
 @dataclass
-class CandidateRecord:
+class CandidateRecord[C]:
     """1候補ぶんの評価履歴。位相ごとに別々に積む。"""
 
-    candidate: Candidate
+    candidate: C
     scores: list[int] = field(default_factory=list)
     break_counts: list[int] = field(default_factory=list)
     completion_reasons: list[str] = field(default_factory=list)
@@ -114,7 +134,7 @@ class CandidateRecord:
         return sum(1 for reason in reasons if reason == ALLY_DEFEATED) / len(reasons)
 
 
-def common_sample_count(records: Sequence[CandidateRecord]) -> int:
+def common_sample_count(records: Sequence[CandidateRecord[Any]]) -> int:
     """比較に使える試行数。
 
     順序統計量ベースの適応度は標本数で偏りが変わるため、試行数の違う候補どうしを
@@ -126,13 +146,13 @@ def common_sample_count(records: Sequence[CandidateRecord]) -> int:
     return min(record.sample_count for record in records)
 
 
-class Evaluator:
+class Evaluator[C: EvaluationCandidate]:
     """一括評価APIの薄いラッパー。予算の消費と評価ログの記録もここが持つ。"""
 
     def __init__(
         self,
         client: EvaluationClient,
-        config: SearchConfig,
+        formations: FormationSource[C],
         *,
         base_seed: str,
         phases: Sequence[EvaluationPhase],
@@ -142,16 +162,16 @@ class Evaluator:
     ) -> None:
         self.validate_phases(phases)
         self._client = client
-        self._config = config
+        self._formations = formations
         self._base_seed = base_seed
         self._phases = tuple(phases)
         self._max_candidates = max_candidates
         self._max_total_runs = max_total_runs
         self._log_path = log_path
-        self._records: dict[tuple[str, str], CandidateRecord] = {}
+        self._records: dict[tuple[str, str], CandidateRecord[C]] = {}
         self._consumed_runs = 0
         self._catalog_revision = ""
-        self._enemy_formation = build_enemy_formation(config.enemy)
+        self._enemy_formation = formations.enemy_formation()
 
     @staticmethod
     def validate_phases(phases: Sequence[EvaluationPhase]) -> None:
@@ -173,13 +193,13 @@ class Evaluator:
     def catalog_revision(self) -> str:
         return self._catalog_revision
 
-    def evaluated_records(self, phase: EvaluationPhase) -> list[CandidateRecord]:
+    def evaluated_records(self, phase: EvaluationPhase) -> list[CandidateRecord[C]]:
         return [record for (name, _), record in self._records.items() if name == phase.name]
 
-    def record_for(self, candidate: Candidate, phase: EvaluationPhase) -> CandidateRecord | None:
+    def record_for(self, candidate: C, phase: EvaluationPhase) -> CandidateRecord[C] | None:
         return self._records.get((phase.name, candidate.canonical_key()))
 
-    def adopt_record(self, phase: EvaluationPhase, record: CandidateRecord) -> None:
+    def adopt_record(self, phase: EvaluationPhase, record: CandidateRecord[C]) -> None:
         """保存済みの評価履歴を取り込む（中断からの再開）。
 
         取り込んだ試行はもう一度投げない。同じ候補を評価し直すと予算の消費が
@@ -192,11 +212,11 @@ class Evaluator:
 
     def ensure(
         self,
-        candidates: Sequence[Candidate],
+        candidates: Sequence[C],
         target: int,
         *,
         phase: EvaluationPhase | None = None,
-    ) -> list[CandidateRecord]:
+    ) -> list[CandidateRecord[C]]:
         """すべての候補を `target` 件まで評価して履歴を返す。
 
         すでに足りている候補は再評価しない。探索中の再評価はノイズ対策として割に合わず
@@ -221,10 +241,10 @@ class Evaluator:
         return records
 
     def _records_for(
-        self, candidates: Sequence[Candidate], phase: EvaluationPhase
-    ) -> list[CandidateRecord]:
+        self, candidates: Sequence[C], phase: EvaluationPhase
+    ) -> list[CandidateRecord[C]]:
         """正準キーで同一視して履歴を引く。等価な編成へ二度予算を使わない。"""
-        records: list[CandidateRecord] = []
+        records: list[CandidateRecord[C]] = []
         seen: set[str] = set()
         for candidate in candidates:
             key = (phase.name, candidate.canonical_key())
@@ -238,7 +258,12 @@ class Evaluator:
         return records
 
     def _run_segment(
-        self, phase: EvaluationPhase, records: Sequence[CandidateRecord], *, start: int, runs: int
+        self,
+        phase: EvaluationPhase,
+        records: Sequence[CandidateRecord[C]],
+        *,
+        start: int,
+        runs: int,
     ) -> None:
         if runs > self._max_total_runs:
             raise ValueError(
@@ -254,7 +279,7 @@ class Evaluator:
     def _send(
         self,
         phase: EvaluationPhase,
-        batch: Sequence[CandidateRecord],
+        batch: Sequence[CandidateRecord[C]],
         *,
         seed: str,
         runs: int,
@@ -263,11 +288,7 @@ class Evaluator:
             {
                 "enemyFormation": self._enemy_formation,
                 "candidates": [
-                    {
-                        "allyFormation": build_ally_formation(
-                            self._config.formation_config(record.candidate)
-                        )
-                    }
+                    {"allyFormation": self._formations.ally_formation(record.candidate)}
                     for record in batch
                 ],
                 "runsPerCandidate": runs,

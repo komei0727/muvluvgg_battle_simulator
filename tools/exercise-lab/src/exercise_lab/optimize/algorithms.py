@@ -63,7 +63,7 @@ class GenerationReport:
 @dataclass
 class SearchContext:
     config: SearchConfig
-    evaluator: Evaluator
+    evaluator: Evaluator[Candidate]
     search_phase: EvaluationPhase
     final_phase: EvaluationPhase
     rng: Random
@@ -129,7 +129,7 @@ class ExplorationResult:
 @dataclass(frozen=True)
 class OptimizationResult:
     algorithm: str
-    top: tuple[RacedCandidate, ...]
+    top: tuple[RacedCandidate[Candidate], ...]
     history: tuple[GenerationReport, ...]
     consumed_runs: int
     stopped_because: str
@@ -330,7 +330,7 @@ class _GenerationalSearch:
         raise NotImplementedError
 
     def next_population(
-        self, context: SearchContext, ranked: Sequence[RacedCandidate]
+        self, context: SearchContext, ranked: Sequence[RacedCandidate[Candidate]]
     ) -> list[Candidate]:
         raise NotImplementedError
 
@@ -378,7 +378,7 @@ class IteratedLocalSearch(_GenerationalSearch):
         )
 
     def next_population(
-        self, context: SearchContext, ranked: Sequence[RacedCandidate]
+        self, context: SearchContext, ranked: Sequence[RacedCandidate[Candidate]]
     ) -> list[Candidate]:
         space = context.neighborhood
         size = context.config.schedule.population_size
@@ -416,7 +416,7 @@ class RandomSearch(_GenerationalSearch):
         return self._draw(context)
 
     def next_population(
-        self, context: SearchContext, ranked: Sequence[RacedCandidate]
+        self, context: SearchContext, ranked: Sequence[RacedCandidate[Candidate]]
     ) -> list[Candidate]:
         del ranked
         return self._draw(context)

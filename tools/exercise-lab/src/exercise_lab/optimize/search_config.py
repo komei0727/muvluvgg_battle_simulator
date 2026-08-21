@@ -26,6 +26,8 @@ from ..models import (
     FormationConfig,
     Position,
     _Spec,
+    build_ally_formation,
+    build_enemy_formation,
 )
 from ..player_data import PlayerData, resolved_level
 from .candidate import (
@@ -238,6 +240,18 @@ class SearchConfig(_Spec):
     def max_seed_count(self) -> int:
         """初期母集団へ入れてよい種の上限。多様性を失わせないための頭打ち。"""
         return max(1, int(self.schedule.population_size * MAX_SEED_SHARE))
+
+    def enemy_formation(self) -> dict[str, Any]:
+        """送信JSONの敵編成。候補によらず一定である（`R-TEX-01` #3）。"""
+        return build_enemy_formation(self.enemy)
+
+    def ally_formation(self, candidate: Candidate) -> dict[str, Any]:
+        """候補を送信JSONの味方編成へ直す（評価器の `FormationSource`）。
+
+        評価器は候補の中身を知らないので、遺伝子型を送信JSONへ写すのは設定側の仕事に
+        なる。ギア配分を探す候補は、同じ役目を持つ別の `FormationSource` を用意する。
+        """
+        return build_ally_formation(self.formation_config(candidate))
 
     def formation_config(self, candidate: Candidate) -> FormationConfig:
         """候補を `lab stats` と同じ編成定義へ直す。送信JSONの組み立てはそこへ委ねる。

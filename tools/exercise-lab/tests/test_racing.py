@@ -401,3 +401,47 @@ def test_candidates_with_no_samples_are_ignored_rather_than_zeroing_the_round():
 def test_plan_stages_rejects_an_empty_schedule():
     with pytest.raises(ValueError, match="1段以上"):
         plan_stages((), POLICY)
+
+
+class GearVariant:
+    """`Candidate` ではない候補型。レーシングは候補の中身を見ない。"""
+
+    def __init__(self, label: str):
+        self.label = label
+
+    def canonical_key(self) -> str:
+        return self.label
+
+
+class KeyedEvaluator:
+    """正準キーだけで固定スコア列を引く評価器。候補型を問わない。"""
+
+    def __init__(self, scores: dict[str, list[int]]):
+        self._scores = scores
+
+    def ensure(self, candidates, target, *, phase=SEARCH_PHASE):
+        del phase
+        return [
+            CandidateRecord(
+                candidate=item,
+                scores=list(self._scores[item.canonical_key()][:target]),
+                break_counts=[0] * target,
+                completion_reasons=["TURN_LIMIT_REACHED"] * target,
+            )
+            for item in candidates
+        ]
+
+
+def test_racing_ranks_candidates_whose_type_it_does_not_know():
+    """ギア変種のような別の遺伝子型も、そのままレーシングに載る。"""
+    evaluator = KeyedEvaluator({"gear#1": flat(1000), "gear#2": flat(1200), "gear#3": flat(900)})
+
+    ranked = successive_halving(
+        [GearVariant("gear#1"), GearVariant("gear#2"), GearVariant("gear#3")],
+        evaluator,
+        policy=POLICY,
+        stages=plan_stages((8, 24), POLICY),
+        phase=SEARCH_PHASE,
+    )
+
+    assert [entry.candidate.label for entry in ranked] == ["gear#2", "gear#1"]

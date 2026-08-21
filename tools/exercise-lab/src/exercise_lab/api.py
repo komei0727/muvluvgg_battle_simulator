@@ -8,7 +8,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
+from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, Self
 
@@ -73,12 +74,73 @@ class Catalog(_Response):
         return any(memory.memory_definition_id == memory_definition_id for memory in self.memories)
 
 
+@dataclass(frozen=True)
+class AllyUnitSeries:
+    """味方1枠ぶんの、試行ごとの与ダメージとブレイク回数。
+
+    `formation_index` は送信した `allyFormation.units` の何番目かであり、これがユニット別
+    配列の列番号でもある。同じユニットを2マスへ置ける（`allowDuplicateUnits`）以上、
+    枠はIDでは特定できないので、両方を持たせる。
+    """
+
+    formation_index: int
+    unit_definition_id: str
+    damage_totals: tuple[int, ...]
+    break_counts: tuple[int, ...]
+
+
 class CandidateEvaluation(_Response):
     completed_runs: int = Field(alias="completedRuns")
     scores: list[int]
     break_counts: list[int] = Field(alias="breakCounts")
     completed_turns: list[int] = Field(alias="completedTurns")
     completion_reasons: list[str] = Field(alias="completionReasons")
+    # ユニット別の集計。読まない用途（`lab stats`）を欠損で止めないため既定を空にする。
+    # 形の検査は読むとき（`ally_unit_series`）に行う。
+    ally_unit_damage_totals: list[list[int]] = Field(
+        default_factory=list, alias="allyUnitDamageTotals"
+    )
+    ally_unit_break_counts: list[list[int]] = Field(
+        default_factory=list, alias="allyUnitBreakCounts"
+    )
+
+    def ally_unit_series(self, unit_definition_ids: Sequence[str]) -> list[AllyUnitSeries]:
+        """ユニット別の配列を、送信した編成順のユニットIDと組にして返す。
+
+        `unit_definition_ids` はリクエストの `candidates[i].allyFormation.units` と同じ順で
+        なければならない（`10_API設計.md`）。生の二重配列のまま渡すと、列番号と編成順の
+        対応を読む側が各所で組み直すことになり、1か所でも取り違えると「別のユニットの
+        与ダメージ」を黙って分析してしまう。対応を作れる入口をここ1つに絞る。
+        """
+        units = len(unit_definition_ids)
+        self._reject_ragged("allyUnitDamageTotals", self.ally_unit_damage_totals, units)
+        self._reject_ragged("allyUnitBreakCounts", self.ally_unit_break_counts, units)
+        return [
+            AllyUnitSeries(
+                formation_index=index,
+                unit_definition_id=unit_definition_id,
+                damage_totals=tuple(row[index] for row in self.ally_unit_damage_totals),
+                break_counts=tuple(row[index] for row in self.ally_unit_break_counts),
+            )
+            for index, unit_definition_id in enumerate(unit_definition_ids)
+        ]
+
+    def _reject_ragged(self, name: str, rows: Sequence[Sequence[int]], units: int) -> None:
+        """行数（試行）と列数（編成枠）を確かめる。
+
+        期限に達した候補は完了ぶんだけを返す（Q-TEX-18）ので、比べる相手は要求試行数では
+        なく `completedRuns` である。
+        """
+        if len(rows) != self.completed_runs:
+            raise LabApiError(
+                f"{name} の行数 {len(rows)} が completedRuns {self.completed_runs} と合わない"
+            )
+        for index, row in enumerate(rows):
+            if len(row) != units:
+                raise LabApiError(
+                    f"{name}[{index}] の要素数 {len(row)} が味方ユニット数 {units} と合わない"
+                    "（内側はリクエストの allyFormation.units と同じ順・同じ長さ）"
+                )
 
 
 class EvaluationResponse(_Response):

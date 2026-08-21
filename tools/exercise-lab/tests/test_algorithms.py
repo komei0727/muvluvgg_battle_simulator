@@ -126,6 +126,31 @@ def test_the_same_seed_reproduces_the_same_result(tmp_path):
     assert first.consumed_runs == second.consumed_runs
 
 
+def test_the_result_of_a_fixed_seed_is_pinned_so_refactoring_cannot_move_it(tmp_path):
+    """同一seed・同一設定・同一予算の結果を値で固定する。
+
+    2回実行して突き合わせるだけの再現性テストは、評価器の内部を作り替えたときに
+    「両方とも同じように変わった」場合を捕まえられない。送った試行数・リクエスト数と
+    返ってきた上位の3つを固定して、共通乱数法の当たり方が変わったら落ちるようにする。
+    """
+    config = make_config(tmp_path)
+    client = ArenaClient()
+
+    result = optimize(IteratedLocalSearch(), make_context(config, client, seed=11))
+
+    assert result.consumed_runs == 1616
+    assert client.request_count == 57
+    assert [entry.candidate.canonical_key() for entry in result.top] == [
+        "FRONT0=UNIT_A|FRONT1=UNIT_B|FRONT2=UNIT_E|REAR0=UNIT_D|REAR1=UNIT_C"
+        "#MEM_1>MEM_2>MEM_3>MEM_5>MEM_8",
+        "FRONT0=UNIT_A|FRONT1=UNIT_D|FRONT2=UNIT_B|REAR0=UNIT_C|REAR1=UNIT_E"
+        "#MEM_1>MEM_2>MEM_3>MEM_8",
+        "FRONT0=UNIT_A|FRONT1=UNIT_D|FRONT2=UNIT_B|REAR1=UNIT_E|REAR2=UNIT_C"
+        "#MEM_1>MEM_2>MEM_3>MEM_8",
+    ]
+    assert result.top[0].record.scores[:5] == [2862, 2565, 2268, 2771, 2474]
+
+
 def test_a_different_seed_explores_differently(tmp_path):
     config = make_config(tmp_path)
 

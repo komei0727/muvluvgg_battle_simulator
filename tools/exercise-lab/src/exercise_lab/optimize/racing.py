@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from .candidate import Candidate
 from .evaluator import CandidateRecord, EvaluationPhase, common_sample_count
 from .fitness import Objective
 
@@ -38,16 +37,16 @@ SURVIVAL_RATIO = 0.5
 FINAL_SURVIVAL_DIVISOR = 3
 
 
-class SampleSource(Protocol):
-    """`Evaluator.ensure` だけを使う。レーシングはHTTPもseedも知らない。"""
+class SampleSource[C](Protocol):
+    """`Evaluator.ensure` だけを使う。レーシングはHTTPもseedも候補の中身も知らない。"""
 
     def ensure(
         self,
-        candidates: Sequence[Candidate],
+        candidates: Sequence[C],
         target: int,
         *,
         phase: EvaluationPhase,
-    ) -> list[CandidateRecord]: ...
+    ) -> list[CandidateRecord[C]]: ...
 
 
 @dataclass(frozen=True)
@@ -57,15 +56,15 @@ class RacingStage:
 
 
 @dataclass(frozen=True)
-class RacedCandidate:
+class RacedCandidate[C]:
     """1候補の評価結果。順位付けに使った試行数も一緒に持つ。
 
     `sample_count` を添えるのは、順序統計量ベースの比較が同じ試行数どうしでしか
     成り立たないためで、レポートを読む側がどの条件で並べた順位かを確かめられるようにする。
     """
 
-    candidate: Candidate
-    record: CandidateRecord
+    candidate: C
+    record: CandidateRecord[C]
     sample_count: int
     mean: float
     median: float
@@ -93,17 +92,17 @@ def plan_stages(stage_runs: Sequence[int], policy: Objective) -> tuple[RacingSta
     )
 
 
-def successive_halving(
-    candidates: Sequence[Candidate],
-    evaluator: SampleSource,
+def successive_halving[C](
+    candidates: Sequence[C],
+    evaluator: SampleSource[C],
     *,
     policy: Objective,
     stages: Sequence[RacingStage],
     phase: EvaluationPhase,
-) -> list[RacedCandidate]:
+) -> list[RacedCandidate[C]]:
     """段ごとに上位半分だけを次へ送る。最終段は篩わず、順位を付けて返す。"""
     survivors = list(candidates)
-    ranked: list[RacedCandidate] = []
+    ranked: list[RacedCandidate[C]] = []
     for index, stage in enumerate(stages):
         if not survivors:
             break
@@ -121,22 +120,22 @@ def successive_halving(
     return ranked
 
 
-def select_top_k(
-    candidates: Sequence[Candidate],
-    evaluator: SampleSource,
+def select_top_k[C](
+    candidates: Sequence[C],
+    evaluator: SampleSource[C],
     *,
     policy: Objective,
     stages: Sequence[RacingStage],
     phase: EvaluationPhase,
     k: int,
-) -> list[RacedCandidate]:
+) -> list[RacedCandidate[C]]:
     """最終選抜。段階的に棄却し、最後に上位k件へ深い評価を積んでから確定する。
 
     上位1件だけを再評価して確定する方式にはしない。報告するのはk件であり、
     2位以下も「ノイズで紛れ込んだ候補」ではないことを同じ強さで確かめる必要がある。
     """
     survivors = list(candidates)
-    ranked: list[RacedCandidate] = []
+    ranked: list[RacedCandidate[C]] = []
     for index, stage in enumerate(stages):
         if not survivors:
             break
@@ -155,7 +154,7 @@ def select_top_k(
     return collapse_equivalent(ranked)[:k]
 
 
-def collapse_equivalent(ranked: Sequence[RacedCandidate]) -> list[RacedCandidate]:
+def collapse_equivalent[C](ranked: Sequence[RacedCandidate[C]]) -> list[RacedCandidate[C]]:
     """同じ乱数列で同じスコア列になった候補を1件へ畳む。
 
     共通乱数法のもとでスコア列が完全に一致するなら、その2つは戦闘の上で同じ編成である
@@ -166,7 +165,7 @@ def collapse_equivalent(ranked: Sequence[RacedCandidate]) -> list[RacedCandidate
     残すのは順位が上の方（同点なら先に出た方）である。
     """
     seen: set[tuple[int, ...]] = set()
-    unique: list[RacedCandidate] = []
+    unique: list[RacedCandidate[C]] = []
     for entry in ranked:
         behaviour = tuple(entry.record.scores_at(entry.sample_count))
         if behaviour in seen:
@@ -176,13 +175,13 @@ def collapse_equivalent(ranked: Sequence[RacedCandidate]) -> list[RacedCandidate
     return unique
 
 
-def rank(
-    records: Sequence[CandidateRecord],
+def rank[C](
+    records: Sequence[CandidateRecord[C]],
     policy: Objective,
     statistic: Statistic,
     *,
     target: int = 0,
-) -> list[RacedCandidate]:
+) -> list[RacedCandidate[C]]:
     """同じ試行数へ揃えて並べる。
 
     試行数の違う候補を生の値で比べない。順序統計量ベースの推定量は標本数で偏りが
@@ -204,7 +203,7 @@ def rank(
     return sorted(entries, key=lambda entry: entry.value(statistic), reverse=True)
 
 
-def _measure(record: CandidateRecord, policy: Objective, count: int) -> RacedCandidate:
+def _measure[C](record: CandidateRecord[C], policy: Objective, count: int) -> RacedCandidate[C]:
     scores = record.scores_at(count)
     return RacedCandidate(
         candidate=record.candidate,
