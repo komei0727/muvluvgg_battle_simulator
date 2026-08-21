@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import secrets
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from random import Random
 from typing import Annotated, Any, NoReturn
@@ -35,6 +36,33 @@ from .api import (
     validate_pools_against_catalog,
 )
 from .draft import DraftError, load_exercise_draft
+from .gear.allocation import (
+    DEFAULT_ADD_RANK,
+    SEARCHED_STATS,
+    Allocation,
+    GearAllocationError,
+    rank_from_label,
+)
+from .gear.formation import GearFormationSource
+from .gear.neighborhood import Move, neighborhood
+from .gear.report import (
+    STAT_LABELS,
+    build_sensitivity_summary,
+    move_text,
+    utility_rows,
+    write_moves_csv,
+)
+from .gear.sensitivity import (
+    DetectableMargins,
+    SensitivityResult,
+    SensitivitySettings,
+    analyse,
+    detectable_margins,
+    planned_runs,
+)
+from .gear.sensitivity import (
+    phases_for as gear_phases_for,
+)
 from .models import (
     ConfigError,
     FormationConfig,
@@ -55,6 +83,7 @@ from .optimize.algorithms import (
     optimize as run_optimization,
 )
 from .optimize.evaluator import Evaluator, phases_for
+from .optimize.fitness import Objective
 from .optimize.operators import UnitHint
 from .optimize.report import (
     build_optimization_summary,
@@ -87,6 +116,10 @@ SUMMARY_JSON = "summary.json"
 SCORE_HISTOGRAM_PNG = "score-histogram.png"
 BREAK_COUNT_PNG = "break-count-distribution.png"
 
+GEAR_SENSITIVITY_JSON = "gear-sensitivity.json"
+GEAR_MOVES_CSV = "gear-moves.csv"
+GEAR_EVALUATIONS_CSV = "gear-evaluations.csv"
+
 OPTIMIZATION_JSON = "optimization.json"
 EVALUATIONS_CSV = "evaluations.csv"
 BEST_SO_FAR_PNG = "best-so-far.png"
@@ -96,6 +129,14 @@ COMPARISON_PNG = "comparison.png"
 
 DEFAULT_ALGORITHM = "local-search"
 DEFAULT_BUDGET_RUNS = 5000
+
+# ギア感度分析の既定。篩いは平均のペア差なので浅くてよいが、確定は期待日次ベストで
+# 実効サンプルが試行数の36%（k=5）しかないため、平均を見るときの約3倍を積む。
+DEFAULT_SCREEN_RUNS = 60
+DEFAULT_CONFIRM_RUNS = 200
+DEFAULT_VERIFY_RUNS = 200
+DEFAULT_SURVIVORS = 10
+DEFAULT_TOP_MOVES = 5
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
 FORMATION_SCHEMA_JSON = "formation.schema.json"
@@ -491,6 +532,15 @@ def _print_summary(summary: dict[str, Any]) -> None:
             f"[yellow]warning[/]: 部分結果 — 要求 {summary['requestedRuns']} 件に対し "
             f"{summary['completedRuns']} 件で集計した"
         )
+
+
+def _diff(value: float) -> str:
+    """差は符号つきで出す。0を挟む向きが読み取れないと限界効用の表として使えない。"""
+    return f"{value:+,.0f}"
+
+
+def _diff_interval(low: float, high: float) -> str:
+    return f"[{_diff(low)}, {_diff(high)}]"
 
 
 def _interval(low: float | None, high: float | None) -> str:
@@ -910,6 +960,344 @@ def _formation_lines(formation: dict[str, Any]) -> str:
             f"  memory {memory['order']}  {memory['displayName']} ({memory['memoryDefinitionId']})"
         )
     return "\n".join(lines)
+
+
+@app.command("gear-sensitivity")
+def gear_sensitivity(
+    config_path: Annotated[Path, typer.Argument(help="基点となる編成定義YAML", exists=True)],
+    seed: Annotated[str | None, typer.Option("--seed", help="省略時は生成して表示する")] = None,
+    out: Annotated[Path, typer.Option("--out", help="レポート出力先")] = Path("reports"),
+    base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
+    player_data: Annotated[
+        Path | None,
+        typer.Option("--player-data", help="localStorage `mlgg:player-data` のJSON", exists=True),
+    ] = None,
+    screen_runs: Annotated[
+        int, typer.Option("--screen-runs", min=2, help="篩いの試行数（全手ぶん）")
+    ] = DEFAULT_SCREEN_RUNS,
+    confirm_runs: Annotated[
+        int, typer.Option("--confirm-runs", min=2, help="確定の試行数（篩いを通った手）")
+    ] = DEFAULT_CONFIRM_RUNS,
+    verify_runs: Annotated[
+        int, typer.Option("--verify-runs", min=2, help="確認走の試行数（上位手と同時適用）")
+    ] = DEFAULT_VERIFY_RUNS,
+    survivors: Annotated[
+        int, typer.Option("--survivors", min=1, help="確定へ通す手の上限")
+    ] = DEFAULT_SURVIVORS,
+    top_moves: Annotated[
+        int, typer.Option("--top", min=1, help="確認走と同時適用に載せる上位手の数")
+    ] = DEFAULT_TOP_MOVES,
+    include_rank: Annotated[
+        bool, typer.Option("--include-rank", help="種別・ランクの変更（単価表）も近傍へ含める")
+    ] = False,
+    add_rank: Annotated[
+        str, typer.Option("--add-rank", help="追加の手が挿す1枚の種別・ランク（例 II-C）")
+    ] = DEFAULT_ADD_RANK.label,
+    max_candidates: Annotated[
+        int, typer.Option("--max-candidates", min=1, help="1リクエストの候補数上限")
+    ] = 32,
+    max_total_runs: Annotated[
+        int, typer.Option("--max-total-runs", min=1, help="1リクエストの総試行数上限")
+    ] = 300,
+    timeout_seconds: Annotated[
+        float, typer.Option("--timeout", min=1.0, help="1リクエストの待ち時間（秒）")
+    ] = DEFAULT_TIMEOUT_SECONDS,
+) -> None:
+    """基点編成に対し、ギア1手の限界効用を実測する。
+
+    探索変数はギア配分だけである。ユニット・配置・メモリー・敵・レベル・学園レベルは
+    基点編成のまま固定する。**基点を変えたら結果は無効になる。**
+    """
+    base_seed = seed if seed is not None else secrets.token_hex(8)
+    objective = Objective()
+    config = _load(config_path, player_data)
+    try:
+        settings = SensitivitySettings(
+            screen_runs=screen_runs,
+            confirm_runs=confirm_runs,
+            verify_runs=verify_runs,
+            survivors=survivors,
+            top_moves=top_moves,
+            include_rank=include_rank,
+            add_rank=rank_from_label(add_rank),
+        )
+        source = GearFormationSource(config)
+    except (ConfigError, GearAllocationError) as error:
+        _abort(str(error))
+
+    base = source.base_allocation()
+    moves = neighborhood(base, include_rank=settings.include_rank, add_rank=settings.add_rank)
+    if not moves:
+        _abort(
+            "1手も生成できなかった。基点編成のギアが動かせる状態にない"
+            f"（探索対象は {', '.join(SEARCHED_STATS)} の5種）"
+        )
+    plan = planned_runs(settings, move_count=len(moves))
+
+    with LabApiClient(base_url, timeout_seconds=timeout_seconds) as client:
+        try:
+            catalog = client.fetch_catalog()
+        except LabApiError as error:
+            _abort(str(error))
+        _reject_catalog_violations(config, catalog)
+        console.print(
+            f"catalogRevision: [bold]{catalog.catalog_revision}[/] / seed: [bold]{base_seed}[/]"
+        )
+        _print_gear_plan(settings, moves=len(moves), plan=plan)
+        result = _run_gear_sensitivity(
+            client,
+            source,
+            base,
+            moves,
+            settings=settings,
+            objective=objective,
+            base_seed=base_seed,
+            out=out,
+            plan=plan,
+            max_candidates=max_candidates,
+            max_total_runs=max_total_runs,
+        )
+        catalog_revision = result.catalog_revision or catalog.catalog_revision
+
+    summary = build_sensitivity_summary(
+        result.analysis,
+        config=config,
+        catalog=catalog,
+        settings=settings,
+        objective=objective,
+        seed=base_seed,
+        catalog_revision=catalog_revision,
+        planned_runs=plan,
+        consumed_runs=result.consumed_runs,
+    )
+    out.mkdir(parents=True, exist_ok=True)
+    (out / GEAR_SENSITIVITY_JSON).write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    write_moves_csv(result.analysis, out / GEAR_MOVES_CSV)
+    _print_gear_sensitivity(result.analysis, summary, catalog)
+    console.print(f"レポート: [bold]{out}[/]")
+
+
+@dataclass
+class _GearRun:
+    analysis: SensitivityResult
+    consumed_runs: int
+    catalog_revision: str
+
+
+def _run_gear_sensitivity(
+    client: LabApiClient,
+    source: GearFormationSource,
+    base: Allocation,
+    moves: Sequence[Move],
+    *,
+    settings: SensitivitySettings,
+    objective: Objective,
+    base_seed: str,
+    out: Path,
+    plan: dict[str, int],
+    max_candidates: int,
+    max_total_runs: int,
+) -> _GearRun:
+    out.mkdir(parents=True, exist_ok=True)
+    phases = gear_phases_for(settings)
+    evaluator = Evaluator(
+        client,
+        source,
+        base_seed=base_seed,
+        phases=phases,
+        max_candidates=max_candidates,
+        max_total_runs=max_total_runs,
+        log_path=out / GEAR_EVALUATIONS_CSV,
+    )
+    try:
+        # 基点だけ先に測る。「この予算では ±X までしか見えない」を、近傍を投げる前に
+        # 出すためで、見えない差を追って数千試行を払う前に予算を見直せる。
+        base_record = evaluator.ensure([base], settings.screen_runs, phase=phases[0])[0]
+        if base_record.sample_count < 2:
+            _abort(
+                f"基点編成の試行が {base_record.sample_count} 件しか完了しなかった。"
+                "--screen-runs を下げるか、devサーバーの WORKER_MAX_THREADS を上げる"
+            )
+        _print_detectable(
+            detectable_margins(base_record.scores, runs=settings.screen_runs, objective=objective),
+            confirm_runs=settings.confirm_runs,
+            objective=objective,
+        )
+        analysis = _analyse_with_progress(
+            base,
+            moves,
+            evaluator,
+            settings=settings,
+            objective=objective,
+            seed=base_seed,
+            total=plan["total"],
+            done=evaluator.consumed_runs,
+        )
+    except (LabApiError, ValueError) as error:
+        _abort(str(error))
+    return _GearRun(
+        analysis=analysis,
+        consumed_runs=evaluator.consumed_runs,
+        catalog_revision=evaluator.catalog_revision,
+    )
+
+
+def _analyse_with_progress(
+    base: Allocation,
+    moves: Sequence[Move],
+    evaluator: Evaluator,
+    *,
+    settings: SensitivitySettings,
+    objective: Objective,
+    seed: str,
+    total: int,
+    done: int,
+) -> SensitivityResult:
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total} runs"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(f"1手近傍 {len(moves)} 手", total=total, completed=done)
+
+        def advance(phase_name: str) -> None:
+            progress.update(task, completed=evaluator.consumed_runs, description=phase_name)
+
+        try:
+            return analyse(
+                base,
+                moves,
+                _ProgressEvaluator(evaluator, advance),
+                settings=settings,
+                objective=objective,
+                seed=seed,
+            )
+        except (LabApiError, ValueError):
+            # 進捗バーを畳んでからエラーを出す。開いたままだとrichが再描画で上書きする。
+            progress.stop()
+            raise
+
+
+@dataclass
+class _ProgressEvaluator:
+    """`ensure` の前後で進捗を進めるだけの薄い覆い。分析は評価器の他の面を使わない。"""
+
+    evaluator: Evaluator
+    advance: Any
+
+    def ensure(self, candidates, target, *, phase):
+        self.advance(f"{phase.name} ({len(candidates)} 候補 × {target} 試行)")
+        records = self.evaluator.ensure(candidates, target, phase=phase)
+        self.advance(phase.name)
+        return records
+
+
+def _print_gear_plan(settings: SensitivitySettings, *, moves: int, plan: dict[str, int]) -> None:
+    table = Table(title=f"予算の内訳（1手近傍 {moves} 手）")
+    table.add_column("段")
+    table.add_column("指標")
+    table.add_column("候補", justify="right")
+    table.add_column("試行/候補", justify="right")
+    table.add_column("試行数", justify="right")
+    table.add_row(
+        "篩い", "平均のペア差", str(1 + moves), str(settings.screen_runs), f"{plan['screen']:,}"
+    )
+    table.add_row(
+        "確定",
+        "期待日次ベスト＋保証値",
+        str(1 + min(settings.survivors, moves)),
+        str(settings.confirm_runs),
+        f"{plan['confirm']:,}",
+    )
+    table.add_row(
+        "確認走",
+        "別の乱数範囲",
+        str(2 + min(settings.top_moves, moves)),
+        str(settings.verify_runs),
+        f"{plan['verify']:,}",
+    )
+    table.add_row("合計", "", "", "", f"{plan['total']:,}")
+    console.print(table)
+
+
+def _print_detectable(
+    margins: DetectableMargins, *, confirm_runs: int, objective: Objective
+) -> None:
+    console.print(
+        f"この予算で見える差: 篩い（{margins.runs} 試行）±{margins.mean_absolute:,.0f}"
+        f"（±{margins.mean_ratio:.1%}） / 期待日次ベスト ±{margins.expected_best_absolute:,.0f}"
+        f"（±{margins.expected_best_ratio:.1%}）。"
+        f"期待日次ベストは実効サンプルが試行数の "
+        f"{objective.effective_samples(confirm_runs) / confirm_runs:.0%} しかなく、"
+        "平均を見るときの約3倍の試行数が要る"
+    )
+
+
+def _print_gear_sensitivity(
+    result: SensitivityResult, summary: dict[str, Any], catalog: Catalog
+) -> None:
+    map_table = Table(title="限界効用マップ（Δ期待日次ベスト / 1枚積んだとき）")
+    map_table.add_column("ユニット")
+    for stat in SEARCHED_STATS:
+        map_table.add_column(STAT_LABELS[stat], justify="right")
+    for label, values in utility_rows(result, catalog):
+        map_table.add_row(label, *values)
+    console.print(map_table)
+    console.print(
+        "括弧付きは信頼区間が0を跨いだ手（効果ゼロではなく、この試行数では見えない）。"
+        "`上限3枚` は積む手が存在しない欄"
+    )
+
+    top = Table(title=f"上位 {len(result.top_moves)} 手（確定順 = 期待日次ベスト＋保証値）")
+    for column in ("順位", "ユニット", "手", "Δ確定", "95% CI", "Δ確認走", "平均差", "敗北率"):
+        top.add_column(column, justify="left" if column in ("順位", "ユニット", "手") else "right")
+    for rank, (entry, reported) in enumerate(
+        zip(result.top_moves, summary["topMoves"], strict=True), start=1
+    ):
+        confirm = entry.confirm
+        verify = entry.verify
+        top.add_row(
+            str(rank),
+            reported["displayName"],
+            move_text(entry.move),
+            _diff(confirm.expected_best_diff),
+            _diff_interval(confirm.expected_best_ci_low, confirm.expected_best_ci_high),
+            "-" if verify is None else _diff(verify.expected_best_diff),
+            _diff(confirm.mean_diff),
+            f"{confirm.defeat_rate:.1%}",
+        )
+    console.print(top)
+
+    combined = summary["combined"]
+    if combined is not None and result.combined is not None:
+        applied = "\n".join(
+            f"  {entry['displayName']}: {move_text(move)}"
+            for entry, move in zip(combined["applied"], result.combined.applied, strict=True)
+        )
+        verify = combined["verify"]
+        console.print(
+            f"[bold]上位 {len(combined['applied'])} 手を同時適用[/]\n{applied}\n"
+            f"  Δ期待日次ベスト {_diff(verify['expectedBestDiff'])}"
+            f" {_diff_interval(verify['expectedBestCiLow'], verify['expectedBestCiHigh'])}"
+            " / 1手ずつの合計とは一致しない"
+        )
+        for skipped, move in zip(combined["skipped"], result.combined.skipped, strict=True):
+            error_console.print(
+                f"[yellow]warning[/]: {skipped['unitDefinitionId']} {move_text(move)}"
+                " は先の手と両立せず同時適用から外した"
+            )
+
+    console.print(f"[yellow]{summary['caveat']}[/]")
+    console.print(
+        "なぜ動いたかは評価APIからは出ない（数値しか返らない）。上位手を適用した編成で"
+        "単体実行を1回回し、UIの効果トレースで確認する"
+    )
+    for warning in result.warnings:
+        error_console.print(f"[yellow]warning[/]: {warning}")
 
 
 def _abort(message: str) -> NoReturn:

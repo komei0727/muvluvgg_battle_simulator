@@ -1,0 +1,344 @@
+"""ギア感度分析のレポート。
+
+数値は分析と同じ `Objective` で出す。レポート側で別の計算をすると、上位に並んだ理由と
+報告された値が食い違う。
+
+**基点編成を変えたら本レポートの結論は無効になる。** ギアの限界効用は順位で決まる効果
+（`HIGHEST_ATTACK` / `LOWEST_ATTACK`・単発消費デバフ）の当て先に依存し、その当て先は
+メモリーやユニットの入れ替えで変わるためである。その旨をレポート自身に残す。
+"""
+
+from __future__ import annotations
+
+import csv
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+from ..api import Catalog
+from ..models import FormationConfig
+from ..optimize.fitness import Objective
+from .allocation import SEARCHED_STATS
+from .neighborhood import Move
+from .sensitivity import (
+    CombinedResult,
+    MoveEntry,
+    PairedDiff,
+    SensitivityResult,
+    SensitivitySettings,
+)
+
+# コンソール表の見出し。ID そのままでは5列が端末幅に収まらない。
+STAT_LABELS: Mapping[str, str] = {
+    "ATTACK": "攻撃力",
+    "ACTION_SPEED": "行動速度",
+    "CRITICAL_RATE": "会心率",
+    "CRITICAL_DAMAGE_BONUS": "会心DMG",
+    "AFFINITY_BONUS": "属性相性",
+}
+
+BASE_FORMATION_CAVEAT = (
+    "この結果は基点編成に固有である。ユニット・配置・メモリー・レベル・学園レベルの"
+    "いずれかを変えると、順位で当て先が決まる効果の受け先が変わり、限界効用も変わる"
+)
+
+MOVE_CSV_COLUMNS = (
+    "slot_index",
+    "unit_definition_id",
+    "kind",
+    "removed",
+    "added",
+    "gained_stat",
+    "deepest_stage",
+    "screen_runs",
+    "screen_mean_diff",
+    "screen_mean_ci_low",
+    "screen_mean_ci_high",
+    "screen_defeat_rate",
+    "confirm_runs",
+    "confirm_expected_best_diff",
+    "confirm_expected_best_ci_low",
+    "confirm_expected_best_ci_high",
+    "confirm_guard_diff",
+    "confirm_fitness_diff",
+    "confirm_defeat_rate",
+    "verify_runs",
+    "verify_expected_best_diff",
+    "verify_expected_best_ci_low",
+    "verify_expected_best_ci_high",
+    "verify_guard_diff",
+    "verify_fitness_diff",
+    "verify_defeat_rate",
+)
+
+
+def build_sensitivity_summary(
+    result: SensitivityResult,
+    *,
+    config: FormationConfig,
+    catalog: Catalog,
+    settings: SensitivitySettings,
+    objective: Objective,
+    seed: str,
+    catalog_revision: str,
+    planned_runs: Mapping[str, int],
+    consumed_runs: int,
+) -> dict[str, Any]:
+    return {
+        "seed": seed,
+        "catalogRevision": catalog_revision,
+        "caveat": BASE_FORMATION_CAVEAT,
+        "baseFormation": _base_formation(result, config, catalog),
+        "settings": {
+            "screenRuns": settings.screen_runs,
+            "confirmRuns": settings.confirm_runs,
+            "verifyRuns": settings.verify_runs,
+            "survivors": settings.survivors,
+            "topMoves": settings.top_moves,
+            "includeRank": settings.include_rank,
+            "addRank": settings.add_rank.label,
+        },
+        "objective": {
+            "bestOf": objective.best_of,
+            "lambda": objective.expected_weight,
+            "guardQuantile": objective.guard_quantile,
+        },
+        "plannedRuns": dict(planned_runs),
+        "consumedRuns": consumed_runs,
+        "basePhases": {
+            name: {
+                "runs": record.sample_count,
+                "mean": objective.mean(record.scores),
+                "expectedBest": objective.expected_best(record.scores),
+                "guard": objective.guard(record.scores),
+                "defeatRate": record.defeat_rate(),
+            }
+            for name, record in result.base_records.items()
+            if record.sample_count > 0
+        },
+        "utilityMap": [
+            {
+                "slotIndex": cell.slot_index,
+                "unitDefinitionId": cell.unit_definition_id,
+                "displayName": _display_name(catalog, cell.unit_definition_id),
+                "stat": cell.stat,
+                "expectedBestDiff": None
+                if cell.entry is None
+                else cell.entry.deepest.expected_best_diff,
+                "significant": None
+                if cell.entry is None
+                else cell.entry.deepest.expected_best_significant,
+                "stage": None if cell.entry is None else cell.entry.deepest_stage,
+                "move": None if cell.entry is None else cell.entry.move.label,
+                "unavailableBecause": cell.unavailable_because,
+            }
+            for cell in result.utility_map()
+        ],
+        "moves": [_move_summary(entry, catalog) for entry in result.moves],
+        "topMoves": [_move_summary(entry, catalog) for entry in result.top_moves],
+        "combined": _combined_summary(result.combined, catalog),
+        "warnings": list(result.warnings),
+    }
+
+
+def _base_formation(
+    result: SensitivityResult, config: FormationConfig, catalog: Catalog
+) -> dict[str, Any]:
+    return {
+        "units": [
+            {
+                "slotIndex": index,
+                "unitDefinitionId": unit.unit_definition_id,
+                "displayName": _display_name(catalog, unit.unit_definition_id),
+                "row": spec.position.row,
+                "column": spec.position.column,
+                "level": spec.level,
+                "gears": [piece.label for piece in unit.pieces],
+            }
+            for index, (unit, spec) in enumerate(
+                zip(result.base_allocation.units, config.ally.units, strict=True)
+            )
+        ],
+        "memoryDefinitionIds": list(config.ally.memory_definition_ids),
+        "enemyUnitDefinitionId": config.enemy.unit_definition_id,
+    }
+
+
+def _move_summary(entry: MoveEntry, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "slotIndex": entry.move.slot_index,
+        "unitDefinitionId": entry.move.unit_definition_id,
+        "displayName": _display_name(catalog, entry.move.unit_definition_id),
+        "kind": entry.move.kind,
+        "label": entry.move.label,
+        "gainedStat": entry.move.gained_stat(),
+        "deepestStage": entry.deepest_stage,
+        "screen": _difference(entry.screen),
+        "confirm": _difference(entry.confirm),
+        "verify": _difference(entry.verify),
+    }
+
+
+def _combined_summary(combined: CombinedResult | None, catalog: Catalog) -> dict[str, Any] | None:
+    if combined is None:
+        return None
+    return {
+        "applied": [
+            {
+                "slotIndex": move.slot_index,
+                "unitDefinitionId": move.unit_definition_id,
+                "displayName": _display_name(catalog, move.unit_definition_id),
+                "label": move.label,
+            }
+            for move in combined.applied
+        ],
+        # 重ねられなかった手。「k手を適用した」という報告が実際と食い違わないよう残す。
+        "skipped": [
+            {"unitDefinitionId": move.unit_definition_id, "label": move.label}
+            for move in combined.skipped
+        ],
+        "allocation": [
+            {
+                "slotIndex": index,
+                "unitDefinitionId": unit.unit_definition_id,
+                "gears": [piece.label for piece in unit.pieces],
+            }
+            for index, unit in enumerate(combined.allocation.units)
+        ],
+        "verify": _difference(combined.difference),
+    }
+
+
+def _difference(diff: PairedDiff | None) -> dict[str, Any] | None:
+    if diff is None:
+        return None
+    return {
+        "runs": diff.count,
+        "meanDiff": diff.mean_diff,
+        "meanCiLow": diff.mean_ci_low,
+        "meanCiHigh": diff.mean_ci_high,
+        "meanSignificant": diff.mean_significant,
+        "expectedBestDiff": diff.expected_best_diff,
+        "expectedBestCiLow": diff.expected_best_ci_low,
+        "expectedBestCiHigh": diff.expected_best_ci_high,
+        "expectedBestSignificant": diff.expected_best_significant,
+        "guardDiff": diff.guard_diff,
+        "fitnessDiff": diff.fitness_diff,
+        "baseMean": diff.base_mean,
+        "defeatRate": diff.defeat_rate,
+        "baseDefeatRate": diff.base_defeat_rate,
+    }
+
+
+def write_moves_csv(result: SensitivityResult, path: Path) -> None:
+    """手ごとの生値。後から pandas で横断分析するための正本。
+
+    列は固定である。篩いまでしか進まなかった手は確定・確認走の列が空になり、深さの
+    違いが表から読める。
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(MOVE_CSV_COLUMNS), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(_move_row(entry) for entry in result.moves)
+
+
+def _move_row(entry: MoveEntry) -> dict[str, Any]:
+    row: dict[str, Any] = {
+        "slot_index": entry.move.slot_index,
+        "unit_definition_id": entry.move.unit_definition_id,
+        "kind": entry.move.kind,
+        "removed": "" if entry.move.removed is None else entry.move.removed.label,
+        "added": "" if entry.move.added is None else entry.move.added.label,
+        "gained_stat": entry.move.gained_stat() or "",
+        "deepest_stage": entry.deepest_stage,
+    }
+    row.update(_screen_columns(entry.screen))
+    for stage, diff in (("confirm", entry.confirm), ("verify", entry.verify)):
+        row.update(_deep_columns(stage, diff))
+    return row
+
+
+def _screen_columns(diff: PairedDiff) -> dict[str, Any]:
+    return {
+        "screen_runs": diff.count,
+        "screen_mean_diff": diff.mean_diff,
+        "screen_mean_ci_low": diff.mean_ci_low,
+        "screen_mean_ci_high": diff.mean_ci_high,
+        "screen_defeat_rate": diff.defeat_rate,
+    }
+
+
+def _deep_columns(stage: str, diff: PairedDiff | None) -> dict[str, Any]:
+    if diff is None:
+        return {
+            f"{stage}_{name}": ""
+            for name in (
+                "runs",
+                "expected_best_diff",
+                "expected_best_ci_low",
+                "expected_best_ci_high",
+                "guard_diff",
+                "fitness_diff",
+                "defeat_rate",
+            )
+        }
+    return {
+        f"{stage}_runs": diff.count,
+        f"{stage}_expected_best_diff": diff.expected_best_diff,
+        f"{stage}_expected_best_ci_low": diff.expected_best_ci_low,
+        f"{stage}_expected_best_ci_high": diff.expected_best_ci_high,
+        f"{stage}_guard_diff": diff.guard_diff,
+        f"{stage}_fitness_diff": diff.fitness_diff,
+        f"{stage}_defeat_rate": diff.defeat_rate,
+    }
+
+
+def _display_name(catalog: Catalog, unit_definition_id: str) -> str:
+    unit = catalog.unit(unit_definition_id)
+    return unit.display_name if unit is not None else unit_definition_id
+
+
+def move_text(move: Move) -> str:
+    """コンソール用の手の表記。ステータスIDは長すぎて表の列に収まらない。
+
+    JSON・CSVの `label` はIDのまま残す（機械可読の側は表示都合で変えない）。
+    """
+    if move.kind == "move":
+        return (
+            f"{STAT_LABELS[move.removed.stat]} {move.removed.rank.label}"
+            f" → {STAT_LABELS[move.added.stat]}"
+        )
+    if move.kind == "add":
+        return f"{STAT_LABELS[move.added.stat]} {move.added.rank.label} を追加"
+    if move.kind == "remove":
+        return f"{STAT_LABELS[move.removed.stat]} {move.removed.rank.label} を外す"
+    return f"{STAT_LABELS[move.removed.stat]} {move.removed.rank.label} → {move.added.rank.label}"
+
+
+def utility_rows(result: SensitivityResult, catalog: Catalog) -> list[tuple[str, list[str]]]:
+    """限界効用マップをコンソール表の行へ直す。値の表記規則をここへ集約する。
+
+    - `(+120)` — 信頼区間が0を跨いだ手。「効果ゼロ」ではなく「この試行数では見えない」。
+    - `上限3枚` — そのステータスが既に上限で、積む手が存在しない。
+    - `-` — 上限ではないが積む手が無い（9枠が埋まっていて動かせる駒が無い等）。
+    """
+    cells = result.utility_map()
+    rows: list[tuple[str, list[str]]] = []
+    for slot_index, unit in enumerate(result.base_allocation.units):
+        values: list[str] = []
+        for stat in SEARCHED_STATS:
+            cell = next(
+                entry for entry in cells if entry.slot_index == slot_index and entry.stat == stat
+            )
+            values.append(_cell_text(cell))
+        rows.append((f"{slot_index}: {_display_name(catalog, unit.unit_definition_id)}", values))
+    return rows
+
+
+def _cell_text(cell: Any) -> str:
+    if cell.entry is None:
+        return cell.unavailable_because or "-"
+    value = cell.entry.deepest.expected_best_diff
+    text = f"{value:+,.0f}"
+    return text if cell.entry.deepest.expected_best_significant else f"({text})"
