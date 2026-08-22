@@ -163,7 +163,7 @@ describe("reconfirmPassiveCandidate", () => {
     ).toEqual({ ok: false, reason: "OWNER_STUNNED" });
   });
 
-  it("UT-R-STS-03-001-CONSEQUENCE (R-STS-03 'AS、PS、EXスキルを使用できない'): a frozen owner discards the candidate with reason OWNER_FROZEN", () => {
+  it("UT-R-STS-03-017 (R-STS-03 'AS、PS、EXスキルを使用できない'): a frozen owner discards the candidate with reason OWNER_FROZEN", () => {
     const unit = owner("ALLY", {
       appliedEffects: [statusEffectOf("FREEZE", createBattleUnitId("OWNER"))],
     });

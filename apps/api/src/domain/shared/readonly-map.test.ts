@@ -36,7 +36,7 @@ describe("toReadonlyMap", () => {
     expect(calls).toEqual([[1, "a", true]]);
   });
 
-  it("UT-SHARED-ROMAP-003b: forEach binds the callback's `this` to thisArg, like Map.prototype.forEach", () => {
+  it("UT-SHARED-ROMAP-006: forEach binds the callback's `this` to thisArg, like Map.prototype.forEach", () => {
     const wrapped = toReadonlyMap(new Map([["a", 1]]));
     const ctx = { label: "ctx" };
     const seenThis: unknown[] = [];

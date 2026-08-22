@@ -311,7 +311,7 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     expect(skillUseCompleted).toBeGreaterThan(followUpDamageIndices[0]!);
   });
 
-  it("UT-R-FUP-01-008B: when every hit of the original attack misses, no follow-up occurs and the rider is still consumed", () => {
+  it("UT-R-FUP-01-014: when every hit of the original attack misses, no follow-up occurs and the rider is still consumed", () => {
     const evasion: AppliedEffect = {
       effectInstanceId: createEffectInstanceId("EVADE_1"),
       effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEST_FUP_EVASION"),

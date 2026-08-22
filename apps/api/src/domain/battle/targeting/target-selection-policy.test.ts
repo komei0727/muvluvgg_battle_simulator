@@ -1171,7 +1171,7 @@ describe("resolveTargets", () => {
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("LOW")]);
     });
 
-    it("UT-TGT-002-003B (Issue #585, R-NUM-02): HP_RATIO filter matches EQ 1 for a full-HP unit even when combatStats.maximumHp is fractional", () => {
+    it("UT-TGT-002-024 (Issue #585, R-NUM-02): HP_RATIO filter matches EQ 1 for a full-HP unit even when combatStats.maximumHp is fractional", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const full = unit(
         "FULL",
@@ -1340,7 +1340,7 @@ describe("resolveTargets", () => {
       );
     });
 
-    it("UT-TGT-002-009B: MARKER_IN_AREA ignores a defeated marker holder", () => {
+    it("UT-TGT-002-025: MARKER_IN_AREA ignores a defeated marker holder", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const markerId = createMarkerId("MARKER_CLARA_SANTA_TAG");
       // The only marked unit in the LEFT column is defeated, so the column

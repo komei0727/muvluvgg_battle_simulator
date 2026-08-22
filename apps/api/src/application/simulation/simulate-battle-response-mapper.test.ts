@@ -264,7 +264,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(ally.cooldowns).toEqual([]);
   });
 
-  it("API-RESP-006b (R-NUM-01 / 10_API設計.md CombatStatsResponse): converts criticalRate/affinityBonus/criticalDamageBonus from Domain's 1.0=100% ratio to percentage points, while leaving attack/defense/actionSpeed as raw magnitudes", () => {
+  it("API-RESP-015 (R-NUM-01 / 10_API設計.md CombatStatsResponse): converts criticalRate/affinityBonus/criticalDamageBonus from Domain's 1.0=100% ratio to percentage points, while leaving attack/defense/actionSpeed as raw magnitudes", () => {
     const base = baseResult();
     const distinctCombatStats = {
       ...ALLY_COMBAT_STATS,
@@ -339,7 +339,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(body.finalState!.units[1]!.markers).toEqual([]);
   });
 
-  it("API-RESP-012C (M7-009, Issue #182): classifies an APPLY_STATUS-derived AppliedEffect as STATUS_ABNORMALITY and publishes its statusKind, instead of deriving BUFF from a zero magnitude", () => {
+  it("API-RESP-020 (M7-009, Issue #182): classifies an APPLY_STATUS-derived AppliedEffect as STATUS_ABNORMALITY and publishes its statusKind, instead of deriving BUFF from a zero magnitude", () => {
     const base = baseResult();
     const withStatus = baseResult({
       finalState: {
@@ -387,7 +387,7 @@ describe("toBattleSimulationResponseBody", () => {
     ]);
   });
 
-  it("API-RESP-012E: classifies an advantageous APPLY_STATUS (STEALTH etc., outside STATUS_AILMENT_KINDS) as BUFF while still publishing its statusKind, matching effectCategoriesOf", () => {
+  it("API-RESP-022: classifies an advantageous APPLY_STATUS (STEALTH etc., outside STATUS_AILMENT_KINDS) as BUFF while still publishing its statusKind, matching effectCategoriesOf", () => {
     const base = baseResult();
     const withAdvantageousStatus = baseResult({
       finalState: {
@@ -434,7 +434,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.map((effect) => effect.statusKind)).toEqual(["STEALTH", "DAMAGE_IMMUNITY"]);
   });
 
-  it("API-RESP-012F: classifies every STATUS_AILMENT_KINDS member as STATUS_ABNORMALITY", () => {
+  it("API-RESP-023: classifies every STATUS_AILMENT_KINDS member as STATUS_ABNORMALITY", () => {
     const base = baseResult();
     const withAilments = baseResult({
       finalState: {
@@ -472,7 +472,7 @@ describe("toBattleSimulationResponseBody", () => {
     );
   });
 
-  it("API-RESP-012D (M7-009, Issue #182): keeps deriving BUFF/DEBUFF from the magnitude sign for effects without a statusKind, and omits statusKind entirely", () => {
+  it("API-RESP-021 (M7-009, Issue #182): keeps deriving BUFF/DEBUFF from the magnitude sign for effects without a statusKind, and omits statusKind entirely", () => {
     const base = baseResult();
     const withStatMods = baseResult({
       finalState: {
@@ -516,7 +516,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 
-  it("API-RESP-012G: classifies continuous damage from the Domain categories, so a positive-magnitude 毒/炎上 is STATUS_ABNORMALITY and 固定継続ダメージ is DEBUFF, not BUFF", () => {
+  it("API-RESP-024: classifies continuous damage from the Domain categories, so a positive-magnitude 毒/炎上 is STATUS_ABNORMALITY and 固定継続ダメージ is DEBUFF, not BUFF", () => {
     // `APPLY_CONTINUOUS_DAMAGE`は`statusKind`を持たず`magnitude`（ダメージ量）が
     // 正値のため、符号だけで分類すると毒・炎上・固定継続ダメージがすべて`BUFF`に
     // なる。R-EFF-02/R-STS-01の分類（`AppliedEffect.categories`）を正本にする。
@@ -569,7 +569,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(effects.every((effect) => !("statusKind" in effect))).toBe(true);
   });
 
-  it("API-RESP-012B (R-MEM-04, REL-008): publishes a Memory-granted MarkerState with sourceSide and no sourceUnitId instead of failing on the granter-less source", () => {
+  it("API-RESP-019 (R-MEM-04, REL-008): publishes a Memory-granted MarkerState with sourceSide and no sourceUnitId instead of failing on the granter-less source", () => {
     const base = baseResult();
     const withMemoryMarker = baseResult({
       finalState: {
@@ -715,7 +715,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-013B (M7-001B review fix, Issue #243): maps a StateTransition's effects delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined), so an EFFECT_IMMUNITY (or any AppliedEffect) grant that persists to battle end is visible in stateTransitions, not just finalState", () => {
+  it("API-RESP-025 (M7-001B review fix, Issue #243): maps a StateTransition's effects delta into an EntityCollectionDelta (added/updated/removed derived from before/after undefined), so an EFFECT_IMMUNITY (or any AppliedEffect) grant that persists to battle end is visible in stateTransitions, not just finalState", () => {
     const effectInstanceId = createEffectInstanceId("battle-1:effect:1");
     const granted: EffectSnapshot = {
       effectInstanceId,
@@ -972,7 +972,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-010B (REL-004, Issue #203, R-SKL-04): serializes an ACTION cooldown that has no setting scope by omitting setAtActionId, because a Passive Skill activated outside any action legitimately produces one", () => {
+  it("API-RESP-016 (REL-004, Issue #203, R-SKL-04): serializes an ACTION cooldown that has no setting scope by omitting setAtActionId, because a Passive Skill activated outside any action legitimately produces one", () => {
     // `startCooldown`は`scope === undefined`（ターン開始・終了などのトップレベル
     // イベントからのPS発動）で設定scopeなしのエントリを作る。ここで例外にしていた
     // ため、実在Unit`UNIT_LUCIE_MAID`のレスポンスが500になっていた。
@@ -1018,7 +1018,7 @@ describe("toBattleSimulationResponseBody", () => {
     expect(cooldowns?.[0] && "setAtActionId" in cooldowns[0]).toBe(false);
   });
 
-  it("API-RESP-010C: throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {
+  it("API-RESP-017: throws instead of silently dropping the opposite-side scope field when a Domain cooldown has both setActionId and setTurnNumber set (unit ACTION with a stray setTurnNumber)", () => {
     expect(() =>
       toBattleSimulationResponseBody(
         baseResult({
@@ -1129,7 +1129,7 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
-  it("API-RESP-010D: CooldownStateResponseBody rejects a value with both setAtActionId and setAtTurnNumber at the type level, even through an intermediate variable (not just via excess-property-check on a literal)", () => {
+  it("API-RESP-018: CooldownStateResponseBody rejects a value with both setAtActionId and setAtTurnNumber at the type level, even through an intermediate variable (not just via excess-property-check on a literal)", () => {
     const both = {
       skillDefinitionId: "SKL_1",
       unit: "ACTION" as const,

@@ -1070,7 +1070,7 @@ describe("evaluateTriggerCondition", () => {
       ).toBe(false);
     });
 
-    it("UT-R-PS-01-043b: an absent marker stays false even for countCondition operators that a stackCount of 0 would satisfy (EQ 0, LTE 1)", () => {
+    it("UT-R-PS-01-143: an absent marker stays false even for countCondition operators that a stackCount of 0 would satisfy (EQ 0, LTE 1)", () => {
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
       const eqZero: ConditionDefinition = {
         kind: "TARGET_HAS_MARKER",

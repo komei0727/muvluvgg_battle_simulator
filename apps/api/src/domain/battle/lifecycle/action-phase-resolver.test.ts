@@ -2385,7 +2385,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-005B (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it", () => {
+  it("UT-ACTION-PHASE-021 (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_THEN_AS");
     // AP is 1 (not consumed by EX) and the EX gauge starts full: cycle 1 must
     // reserve EX (R-ORD-03), and only after the gauge drains does cycle 2's
@@ -3002,7 +3002,7 @@ describe("resolveActionPhase", () => {
     ]);
   });
 
-  it("UT-ACTION-PHASE-012B (06_戦闘状態遷移.md「チャージ効果発動」#1-5): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ChargeReleaseCompleted that follows DamageApplied", () => {
+  it("UT-ACTION-PHASE-022 (06_戦闘状態遷移.md「チャージ効果発動」#1-5): the charge-clearing StateDelta is observed after effect resolution, not on ChargeReleased itself — ChargeReleased carries no delta of its own, and the terminating delta is owned by the ChargeReleaseCompleted that follows DamageApplied", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const skill = chargeSkill("ACT_CHARGE_HIT", 1);
     const ally = unit("ALLY_1", "ALLY", {
@@ -3242,7 +3242,7 @@ describe("resolveActionPhase", () => {
     expect(held.sequence).toBeLessThan(actionCompletingForWait.sequence);
   });
 
-  it("UT-R-ACT-01-004B: if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
+  it("UT-R-ACT-01-006: if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
     // The frozen unit itself can't hold a reacting PS here (R-STS-03: a frozen
     // owner can't newly activate PS either, `OWNER_FROZEN` in
     // reconfirm-passive-candidate.ts) — a separate, unfrozen ally's PS reacts
