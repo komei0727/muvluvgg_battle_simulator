@@ -3,6 +3,7 @@ import {
   clearBreakPending,
   createBattleUnit,
   createBattleUnitsFromParty,
+  hitPointRatio,
   isBreakPending,
   isDefeated,
   markBreakPending,
@@ -106,6 +107,40 @@ describe("isDefeated", () => {
   it("UT-BATTLE-UNIT-004: a unit at 0 HP is defeated (05_ドメインモデル.md: HPが0になったユニットを即時に戦闘不能とする)", () => {
     const unit = { ...createBattleUnit(member(), "ALLY", LIMITS), currentHp: 0 };
     expect(isDefeated(unit)).toBe(true);
+  });
+});
+
+describe("hitPointRatio", () => {
+  it("UT-BATTLE-UNIT-011 (Issue #585, R-NUM-02): a full-HP unit with a fractional combatStats.maximumHp has a ratio of exactly 1, not floor(max)/max", () => {
+    // 33623 × 1.2 = 40347.6 のように編成補正で端数が生じたユニットでも、
+    // 満タン時の割合は必ず1.0にならなければならない。分母を切り捨て前の
+    // combatStats.maximumHp のままにすると 40347/40347.6 ≒ 0.9999851... になり、
+    // 整数maxHpの他ユニット（1.0）との同率判定が壊れる（発端の再現条件）。
+    const fractional = { ...member().combatStats, maximumHp: 40347.6 };
+    const unit = createBattleUnit(member({ combatStats: fractional }), "ALLY", LIMITS);
+
+    expect(unit.currentHp).toBe(40347);
+    expect(hitPointRatio(unit)).toBe(1);
+  });
+
+  it("UT-BATTLE-UNIT-012: a partially damaged unit divides currentHp by the truncated maximum, not the full-precision one", () => {
+    const fractional = { ...member().combatStats, maximumHp: 40347.6 };
+    const unit = {
+      ...createBattleUnit(member({ combatStats: fractional }), "ALLY", LIMITS),
+      currentHp: 20000,
+    };
+
+    expect(hitPointRatio(unit)).toBeCloseTo(20000 / 40347);
+  });
+
+  it("UT-BATTLE-UNIT-013: a maximumHp that truncates to 0 yields a ratio of 0 instead of dividing by zero", () => {
+    const zeroed = { ...member().combatStats, maximumHp: 0.5 };
+    const unit = {
+      ...createBattleUnit(member({ combatStats: zeroed }), "ALLY", LIMITS),
+      currentHp: 0,
+    };
+
+    expect(hitPointRatio(unit)).toBe(0);
   });
 });
 

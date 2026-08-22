@@ -505,6 +505,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_KOTOHA_REBEL_EX",
+    intent:
+      "(Issue #585, R-NUM-02) 自身のHPが満タンのときの腕: maximumHpが小数の盤面でも通る（分母を切り捨て後の値へ揃えないと満タンでもHP_RATIO EQ 1が恒偽になる）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_KOTOHA_REBEL_EX" },
+    board: { combatStats: { maximumHp: 40347.6 }, subject: { state: { currentHp: 40347 } } },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_KOTOHA_REBEL_EX_DAMAGE_PIERCE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: {
+        "enemy:front": -2798,
+      },
+    },
+  },
+  {
+    skillDefinitionId: "SKL_KOTOHA_REBEL_EX",
     intent: "自身のHPが半分（50%以上・満タン未満）のときの腕",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_KOTOHA_REBEL_EX" },
     expected: {

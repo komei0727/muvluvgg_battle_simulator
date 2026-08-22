@@ -690,6 +690,32 @@ describe("evaluateTriggerCondition", () => {
       ).toBe(true);
     });
 
+    it("UT-R-PS-01-141 (Issue #585, R-NUM-02): HP_RATIO EQ 1 is true for a full-HP target even when combatStats.maximumHp is fractional", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const target = unitAt("TARGET", "ENEMY", "FRONT", "LEFT", {
+        currentHp: 100,
+        combatStats: { ...owner.combatStats, maximumHp: 100.5 },
+      });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: { kind: "TRIGGER_TARGET" },
+        field: "HP_RATIO",
+        op: "EQ",
+        value: 1,
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {}, targetUnitIds: [target.battleUnitId] },
+          {
+            owner,
+            skillDefinitionId: SKILL_ID,
+            getUnit: (id) => (id === target.battleUnitId ? target : undefined),
+          },
+        ),
+      ).toBe(true);
+    });
+
     it("UT-R-PS-01-031: ATTRIBUTE/POSITION_ROW/POSITION_COLUMN/RESOURCE_* resolve from the target's own BattleUnit fields", () => {
       const owner = unitAt("OWNER", "ALLY", "BACK", "RIGHT", {
         attribute: "SHY",

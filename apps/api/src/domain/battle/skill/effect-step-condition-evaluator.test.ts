@@ -532,6 +532,23 @@ describe("evaluateEffectStepCondition", () => {
       ).toThrow(DomainValidationError);
     });
 
+    it("UT-R-SKL-06-071 (Issue #585, R-NUM-02): TARGET_STATE HP_RATIO EQ 1 is true for a full-HP target even when combatStats.maximumHp is fractional", () => {
+      const full = unit("enemy", "UNIT_PHYSICAL", {
+        currentHp: 100,
+        combatStats: { ...unit("enemy", "UNIT_PHYSICAL").combatStats, maximumHp: 100.5 },
+      });
+      const condition: ConditionDefinition = {
+        kind: "TARGET_STATE",
+        target: STEP_TARGET,
+        field: "HP_RATIO",
+        op: "EQ",
+        value: 1,
+      };
+      expect(
+        evaluateEffectStepCondition(condition, undefined, undefined, () => [full], unitDefinitions),
+      ).toBe(true);
+    });
+
     it("UT-R-SKL-06-047: TARGET_HAS_MARKER evaluates the single unit resolveTargetSet resolves, including countCondition, when no EffectStepTargetContext is given (BRANCH scope)", () => {
       const markerId = createMarkerId("MARKER_CURSE");
       const marked = unit("enemy", "UNIT_PHYSICAL", {

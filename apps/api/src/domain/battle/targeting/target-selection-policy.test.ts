@@ -1171,6 +1171,28 @@ describe("resolveTargets", () => {
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("LOW")]);
     });
 
+    it("UT-TGT-002-003B (Issue #585, R-NUM-02): HP_RATIO filter matches EQ 1 for a full-HP unit even when combatStats.maximumHp is fractional", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const full = unit(
+        "FULL",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { currentHp: 100, combatStats: { ...actor.combatStats, maximumHp: 100.5 } },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [{ kind: "HP_RATIO", op: "EQ", value: 1 }],
+        }),
+        actor,
+        [actor, full],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("FULL")]);
+    });
+
     it("UT-TGT-002-004: AND/OR/NOT combinators evaluate recursively", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const leftFront = unit("LEFT_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
@@ -1422,6 +1444,38 @@ describe("resolveTargets", () => {
           [actor, low, high],
         ).map((t) => t.battleUnitId),
       ).toEqual([createBattleUnitId("HIGH"), createBattleUnitId("LOW")]);
+    });
+
+    it("UT-TGT-002-023 (Issue #585, R-NUM-02): all-full-HP candidates with a fractional maximumHp tie at ratio 1 and fall back to the default order (R-TGT-02), instead of the integer-maxHp candidate always winning", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const near = unit(
+        "NEAR",
+        "ENEMY",
+        { column: "CENTER", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 100.5 }, currentHp: 100 },
+      );
+      const far = unit(
+        "FAR",
+        "ENEMY",
+        { column: "LEFT", row: "BACK" },
+        { combatStats: { ...actor.combatStats, maximumHp: 100 }, currentHp: 100 },
+      );
+
+      expect(
+        resolveTargets(
+          selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_HP_RATIO"] }),
+          actor,
+          [actor, far, near],
+        ).map((t) => t.battleUnitId),
+      ).toEqual([createBattleUnitId("NEAR"), createBattleUnitId("FAR")]);
+
+      expect(
+        resolveTargets(
+          selector({ side: "ENEMY", count: "ALL", order: ["LOWEST_HP_RATIO"] }),
+          actor,
+          [actor, far, near],
+        ).map((t) => t.battleUnitId),
+      ).toEqual([createBattleUnitId("NEAR"), createBattleUnitId("FAR")]);
     });
 
     it("UT-TGT-002-013: HIGHEST_ATTACK orders by combatStats.attack descending", () => {

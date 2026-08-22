@@ -517,6 +517,8 @@ selector:
 | `MARKER_COUNT`           | `markerId`, `direction`（`ASC`/`DESC`） | 指定Marker所持数の昇順/降順 |
 | `UNIT_TYPE_PRIORITY`     | `unitType`                              | 指定unitTypeの対象を優先    |
 
+`LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`の「HP割合」は、`HP_RATIO`フィルタ・`TARGET_STATE.field`・DamageModifierの`HP_RATIO_COMPARISON`と同じ基準（R-NUM-02）で、現在HP÷切り捨て後の最大HPとする。分母を切り捨て前の`combatStats.maximumHp`のまま使うと、満タンのHP割合がユニットごとに異なる値になり、同率判定が成立しない（Issue #585）。
+
 ### TargetFilterDefinition
 
 ```yaml
@@ -2204,6 +2206,8 @@ resolution:
 | `RESOURCE_AP`       | integer |
 | `RESOURCE_PP`       | integer |
 | `RESOURCE_EX_GAUGE` | integer |
+
+`HP_RATIO`（`UNIT_STATE.field`・`TargetOrderKey`の`LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`・`HP_RATIO`フィルタも同じ）は現在HP÷切り捨て後の最大HPとする（R-NUM-02、Issue #585）。`combatStats.maximumHp`は編成補正で小数を保持するため、分母をそのまま使うと満タンの割合が1.0にならない。
 
 `UNIT_TYPE` / `ROLE` はCatalogの`UnitDefinition`を参照して解決する（M7-001E、Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）。ACTION step条件・BRANCH条件では`EffectStepTargetContext.unitDefinitions`が、PSのtrigger／`activationCondition`では`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`が候補検出へ、`reconfirm-passive-candidate.ts`が発動直前再確認へ、同じ参照表を渡す）が正本になる。参照表を渡さない呼び出しでこれらの`field`へ到達した場合は、黙って不成立にせず`DomainValidationError`で隔離する。
 

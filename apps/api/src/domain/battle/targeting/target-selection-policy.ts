@@ -1,4 +1,4 @@
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -251,7 +251,7 @@ function matchesFilter(
     }
     case "HP_RATIO":
       return compareNumeric(
-        candidate.currentHp / candidate.combatStats.maximumHp,
+        hitPointRatio(candidate),
         filter.op as "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ",
         filter.value,
       );
@@ -329,10 +329,6 @@ function compareRowPriority(priorityRow: BattleUnit["position"]["row"]) {
   };
 }
 
-function hpRatio(unit: BattleUnit): number {
-  return unit.currentHp / unit.combatStats.maximumHp;
-}
-
 function exGaugeRatio(unit: BattleUnit): number {
   return unit.maximumExtraGauge === 0 ? 0 : unit.currentExtraGauge / unit.maximumExtraGauge;
 }
@@ -350,11 +346,11 @@ function compareLeftToRight(a: BattleUnit, b: BattleUnit): number {
 }
 
 function compareLowestHpRatio(a: BattleUnit, b: BattleUnit): number {
-  return hpRatio(a) - hpRatio(b);
+  return hitPointRatio(a) - hitPointRatio(b);
 }
 
 function compareHighestHpRatio(a: BattleUnit, b: BattleUnit): number {
-  return hpRatio(b) - hpRatio(a);
+  return hitPointRatio(b) - hitPointRatio(a);
 }
 
 function compareHighestAttack(a: BattleUnit, b: BattleUnit): number {

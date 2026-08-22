@@ -8,7 +8,7 @@ import type { JsonPrimitive } from "../../catalog/definitions/condition-definiti
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 
 /** R-DMG-04の集計文脈。1ヒットの攻撃側・防御側と、そのヒットのダメージタイプ。 */
 export interface DamageModifierCompositionInput {
@@ -29,10 +29,6 @@ export interface DamageModifierComposition {
   readonly incomingMultiplier: number;
 }
 
-function hpRatio(unit: BattleUnit): number {
-  return unit.combatStats.maximumHp > 0 ? unit.currentHp / unit.combatStats.maximumHp : 0;
-}
-
 /**
  * `DamageModStateField`を`BattleUnit`から解決する（`skill/effect-step-condition-
  * evaluator.ts`・`triggering/trigger-condition-evaluator.ts`の`resolveTargetStateField`
@@ -45,7 +41,7 @@ function stateFieldValue(unit: BattleUnit, field: DamageModStateField): JsonPrim
     case "IS_ALIVE":
       return !isDefeated(unit);
     case "HP_RATIO":
-      return hpRatio(unit);
+      return hitPointRatio(unit);
     case "ATTRIBUTE":
       return unit.attribute;
     case "POSITION_ROW":
@@ -120,9 +116,9 @@ export function evaluateDamageModCondition(
     }
     case "HP_RATIO_COMPARISON":
       return compareWithOperator(
-        hpRatio(referencedUnit(condition.left, owner, opponent)),
+        hitPointRatio(referencedUnit(condition.left, owner, opponent)),
         condition.op,
-        hpRatio(referencedUnit(condition.right, owner, opponent)),
+        hitPointRatio(referencedUnit(condition.right, owner, opponent)),
       );
   }
 }
