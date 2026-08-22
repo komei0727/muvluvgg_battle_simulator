@@ -148,6 +148,36 @@ describe("evaluateFormula", () => {
     expect(evaluateFormula(formula, ctx)).toBeCloseTo(30);
   });
 
+  it("UT-R-NUM-04-035 (Issue #586, R-NUM-02): MISSING_HP_RATIO is exactly 0 for a full-HP target even when combatStats.maximumHp is fractional", () => {
+    const target = {
+      ...unitAt("U_TARGET", "ENEMY"),
+      combatStats: { ...unitAt("U_TARGET", "ENEMY").combatStats, maximumHp: 100.5 },
+      currentHp: 100,
+    };
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "MISSING_HP_RATIO",
+      source: { kind: "TARGET" },
+      ratio: 0.5,
+    };
+    expect(evaluateFormula(formula, ctx)).toBe(0);
+  });
+
+  it("UT-R-NUM-04-036 (Issue #586, R-NUM-02): LOST_HP_RATIO is exactly 0 for a full-HP target even when combatStats.maximumHp is fractional", () => {
+    const target = {
+      ...unitAt("U_TARGET", "ENEMY"),
+      combatStats: { ...unitAt("U_TARGET", "ENEMY").combatStats, maximumHp: 100.5 },
+      currentHp: 100,
+    };
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "LOST_HP_RATIO",
+      source: { kind: "TARGET" },
+      ratio: 0.5,
+    };
+    expect(evaluateFormula(formula, ctx)).toBe(0);
+  });
+
   it("UT-R-NUM-04-009: MARKER_COUNT_SCALE reads the target's MarkerState.stackCount at evaluation time", () => {
     const skillSource = unitAt("U_SOURCE", "ALLY", {
       markerStates: [marker(unitAt("U_SOURCE", "ALLY"), "MARKER_MOCHI", 3)],
@@ -541,6 +571,22 @@ describe("evaluateFormula", () => {
     expect(evaluateFormula(lower, context({ target: empty, allUnits: [empty] }))).toBeCloseTo(1.6);
     expect(evaluateFormula(higher, context({ target: full, allUnits: [full] }))).toBeCloseTo(1.6);
     expect(evaluateFormula(higher, context({ target: empty, allUnits: [empty] }))).toBeCloseTo(0.1);
+  });
+
+  it("UT-R-NUM-04-037 (Issue #586, R-NUM-02): HP_RATIO_SCALE with HIGHER_HP_IS_MAX returns exactly max for a full-HP target even when combatStats.maximumHp is fractional", () => {
+    const target = {
+      ...unitAt("U_TARGET", "ENEMY"),
+      combatStats: { ...unitAt("U_TARGET", "ENEMY").combatStats, maximumHp: 100.5 },
+      currentHp: 100,
+    };
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0.1,
+      max: 1.6,
+      direction: "HIGHER_HP_IS_MAX",
+    };
+    expect(evaluateFormula(formula, context({ target, allUnits: [target] }))).toBe(1.6);
   });
 });
 

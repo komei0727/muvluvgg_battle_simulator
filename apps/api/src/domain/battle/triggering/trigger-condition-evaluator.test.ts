@@ -1351,5 +1351,26 @@ describe("evaluateTriggerCondition", () => {
         ),
       ).toThrow(DomainValidationError);
     });
+
+    it("UT-R-PS-01-142 (Issue #586, R-NUM-02): the boundary is exactly hit against the truncated maximum HP even when combatStats.maximumHp is fractional", () => {
+      const owner = {
+        ...unitAt("OWNER", "ALLY", "FRONT", "LEFT"),
+        combatStats: { ...unitAt("OWNER", "ALLY", "FRONT", "LEFT").combatStats, maximumHp: 100.5 },
+      };
+      const context = {
+        owner,
+        skillDefinitionId: SKILL_ID,
+        getUnit: () => owner,
+      };
+      // 切り捨て後の最大HP100に対し15ダメージ＝ちょうど15%（GTE 0.15は成立）。
+      // 分母を切り捨て前の100.5のまま使うと15/100.5≒0.1492…となり不成立になる。
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hitPointDamage: 15 }, targetUnitIds: [owner.battleUnitId] },
+          context,
+        ),
+      ).toBe(true);
+    });
   });
 });
