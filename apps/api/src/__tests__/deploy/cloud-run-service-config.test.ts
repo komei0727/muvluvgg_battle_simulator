@@ -123,7 +123,7 @@ describe("Cloud Run service manifest", () => {
     expect(simulationTimeoutMs).toBeLessThan(requestTimeoutMs);
   });
 
-  it("IT-INFRA-CLOUDRUN-010b: declares a dedicated runtime service account rather than relying on the project default Compute Engine SA (P1 security review)", () => {
+  it("IT-INFRA-CLOUDRUN-019: declares a dedicated runtime service account rather than relying on the project default Compute Engine SA (P1 security review)", () => {
     // service.jsonが`serviceAccountName`を指定しないと、Cloud Runはproject既定の
     // Compute Engine SA(既定でroles/editorを持つ)をallUsersへ公開されたcontainer
     // のruntime identityとして使ってしまう。専用の最小権限runtime SAを常に明示する。

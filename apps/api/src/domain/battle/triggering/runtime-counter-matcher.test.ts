@@ -510,7 +510,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-006b: reports no change at all when neither the value nor the carry moved (trigger did not match / 0 damage)", () => {
+  it("UT-RCOUNTER-M-018: reports no change at all when neither the value nor the carry moved (trigger did not match / 0 damage)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",

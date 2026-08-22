@@ -23,6 +23,16 @@ function extractRuleIdsFromSpec(): string[] {
 // 正当な形として許容する。
 const INTENTIONALLY_SHARED_TEST_CASE_IDS: ReadonlySet<string> = new Set(["SCN-BTL-001"]);
 
+// `E2E-GOLDEN-PARTY`・`E2E-GOLDEN-PARTY-GUARD`・`E2E-GOLDEN-TEX`は`12_テスト戦略.md`
+// 「Golden battle 回帰層」が`E2E-GOLDEN-PARTY-*`のように明示する、1つの`it.each`が展開する
+// 全行を束ねる集合IDであり、`<NUMBER>`を持たない意図的な命名（REF-047/Issue #592の
+// 対象41件には含まれない、既存の別カテゴリ）。
+const NON_NUMERIC_TERMINAL_TEST_CASE_IDS: ReadonlySet<string> = new Set([
+  "E2E-GOLDEN-PARTY",
+  "E2E-GOLDEN-PARTY-GUARD",
+  "E2E-GOLDEN-TEX",
+]);
+
 describe("Rule coverage ledger", () => {
   it("UT-TRACEABILITY-001: ledger contains exactly 136 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
@@ -130,6 +140,22 @@ describe("Rule coverage ledger", () => {
     expect(
       ambiguous,
       `testCaseIds shared by multiple executable tests: ${JSON.stringify(ambiguous)}`,
+    ).toEqual([]);
+  }, 30000);
+
+  it("UT-TRACEABILITY-010: every collected testCaseId's trailing segment is digits-only", () => {
+    // `12_テスト戦略.md`「テストケース識別子」の`<NUMBER>`は数字だけにする規則を機械強制する。
+    // `API-CONTRACT-015b`のような英小文字サフィックスは収集器（`TEST_CASE_ID_PATTERN`）から
+    // 見て別IDにも同一IDにもなり得ず一意性検査（UT-TRACEABILITY-005）をすり抜けるため、
+    // その検査の手前でこちらが機械的に弾く。
+    const definitions = collectTestCaseDefinitions(apiSrcPath);
+    const violations = [...definitions.keys()]
+      .filter((id) => !NON_NUMERIC_TERMINAL_TEST_CASE_IDS.has(id))
+      .filter((id) => !/\d+$/.test(id))
+      .sort();
+    expect(
+      violations,
+      `testCaseIds whose trailing segment is not digits-only: ${JSON.stringify(violations)}`,
     ).toEqual([]);
   }, 30000);
 });

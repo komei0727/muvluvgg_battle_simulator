@@ -92,7 +92,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-005B: rejects EFFECT_IMMUNITY when maxBlocks is omitted entirely", () => {
+  it("UT-CAT-ACT-121: rejects EFFECT_IMMUNITY when maxBlocks is omitted entirely", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -108,7 +108,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-005C: rejects EFFECT_IMMUNITY when maxBlocks is a non-integer, non-null value", () => {
+  it("UT-CAT-ACT-122: rejects EFFECT_IMMUNITY when maxBlocks is a non-integer, non-null value", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -150,7 +150,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-006B: rejects APPLY_DEATH_SURVIVAL when trigger.lethalDamageOnly is not a boolean", () => {
+  it("UT-CAT-ACT-123: rejects APPLY_DEATH_SURVIVAL when trigger.lethalDamageOnly is not a boolean", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -247,7 +247,7 @@ describe("EffectActionDefinition", () => {
     expect(result.kind).toBe("APPLY_REFLECT");
   });
 
-  it("UT-CAT-ACT-010B: rejects APPLY_REFLECT when allowRecursiveReflect is not a boolean", () => {
+  it("UT-CAT-ACT-124: rejects APPLY_REFLECT when allowRecursiveReflect is not a boolean", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -784,7 +784,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-029B: rejects APPLY_MARKER stack.max that is not an integer or null", () => {
+  it("UT-CAT-ACT-125: rejects APPLY_MARKER stack.max that is not an integer or null", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -1239,7 +1239,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-036B: rejects DAMAGE when link.enabled is not a boolean", () => {
+  it("UT-CAT-ACT-126: rejects DAMAGE when link.enabled is not a boolean", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -1256,7 +1256,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-036C: rejects DAMAGE when damageModifiers is not an array", () => {
+  it("UT-CAT-ACT-127: rejects DAMAGE when damageModifiers is not an array", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -1602,7 +1602,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-048B: rejects REMOVE_EFFECTS with effectActionDefinitionIds but no SPECIFIC_EFFECT category (would otherwise be silently dropped, widening the removal to every DEBUFF)", () => {
+  it("UT-CAT-ACT-128: rejects REMOVE_EFFECTS with effectActionDefinitionIds but no SPECIFIC_EFFECT category (would otherwise be silently dropped, widening the removal to every DEBUFF)", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -1673,7 +1673,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-064B: rejects REMOVE_EFFECTS with a non-integer maxRemovals", () => {
+  it("UT-CAT-ACT-130: rejects REMOVE_EFFECTS with a non-integer maxRemovals", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -1788,7 +1788,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-051B: rejects APPLY_STATUS damageThreshold on a status other than DAMAGE_IMMUNITY (e.g. STUN)", () => {
+  it("UT-CAT-ACT-129: rejects APPLY_STATUS damageThreshold on a status other than DAMAGE_IMMUNITY (e.g. STUN)", () => {
     expect(() =>
       createEffectActionDefinition(
         {

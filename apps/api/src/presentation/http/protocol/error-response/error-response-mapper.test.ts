@@ -23,7 +23,7 @@ describe("httpStatusForErrorCode", () => {
     ["EXECUTION_LIMIT_EXCEEDED", 503],
     ["EXECUTION_CANCELLED", 503],
     ["EXECUTION_TIMEOUT", 504],
-  ] as const)("API-ERR-STATUS-%#: %s -> %i", (code, status) => {
+  ] as const)("API-ERR-STATUS-001: %s -> %i", (code, status) => {
     expect(httpStatusForErrorCode(code)).toBe(status);
   });
 });
@@ -96,7 +96,7 @@ describe("fromApplicationError", () => {
     ]);
   });
 
-  it("API-ERR-004b: leaves definitionId/ruleId-only violations (no path) untouched", () => {
+  it("API-ERR-009: leaves definitionId/ruleId-only violations (no path) untouched", () => {
     const error = new ApplicationError("DEFINITION_NOT_FOUND", [
       {
         path: "allyFormation.slots[0].unitDefinitionId",

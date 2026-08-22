@@ -571,7 +571,7 @@ describe("applyEffectActionGroups", () => {
       expect(completed.payload.resultKind).toBe("SKIPPED");
     });
 
-    it("UT-R-ACTN-01-002B: APPLY_MARKER rejects a context that has neither an actor BattleUnit nor a Memory source side, instead of granting a MarkerState with no recorded granter", () => {
+    it("UT-R-ACTN-01-011: APPLY_MARKER rejects a context that has neither an actor BattleUnit nor a Memory source side, instead of granting a MarkerState with no recorded granter", () => {
       const actor = unit("ACTOR", "ALLY");
       const enemy = unit("ENEMY", "ENEMY");
       const markerId = createMarkerId("MARKER_TEST");
