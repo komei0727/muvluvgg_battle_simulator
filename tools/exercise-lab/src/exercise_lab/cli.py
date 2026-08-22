@@ -13,7 +13,7 @@ import json
 import secrets
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from random import Random
 from typing import Annotated, Any, NoReturn
@@ -58,7 +58,7 @@ from .gear.plan import (
 from .gear.plan import minimum_budget as minimum_plan_budget
 from .gear.rank_tuning import RankTuningSettings
 from .gear.ranks import RankLadder, rank_ladder_from_catalog
-from .gear.regime import RegimeSignature, observe_signature
+from .gear.regime import CachingObserver, RegimeSignature
 from .gear.report import (
     STAT_LABELS,
     allocation_rows,
@@ -72,7 +72,7 @@ from .gear.report import (
     write_moves_csv,
     write_steps_csv,
 )
-from .gear.search import ClimbSettings, phases_for_climb
+from .gear.search import BudgetedSampleSource, ClimbSettings, phases_for_climb
 from .gear.sensitivity import (
     DetectableMargins,
     SensitivityResult,
@@ -84,6 +84,7 @@ from .gear.sensitivity import (
 from .gear.sensitivity import (
     phases_for as gear_phases_for,
 )
+from .gear.state import CheckpointingSource, PlanCheckpoint, plan_digest, plan_phases
 from .gear.steps import max_step_count
 from .models import (
     ConfigError,
@@ -312,11 +313,18 @@ def schema(
 
     編成定義（`lab stats`）と探索設定（`lab optimize`）で書式が違うため、
     Schemaも2つ出す。どちらも実IDを enum に焼くので、Catalog を更新したら作り直す。
+
+    ギア分析（`lab gear-sensitivity` / `lab gear-plan`）が読むのは編成定義YAMLであり、
+    設定はCLIオプションで渡す。専用のSchemaは無い。
     """
     catalog = _fetch_catalog(base_url)
     out.mkdir(parents=True, exist_ok=True)
     written = [
-        (out / FORMATION_SCHEMA_JSON, build_formation_json_schema(catalog), "編成定義YAML"),
+        (
+            out / FORMATION_SCHEMA_JSON,
+            build_formation_json_schema(catalog),
+            "編成定義YAML（stats・ギア分析）",
+        ),
         (out / SEARCH_SCHEMA_JSON, build_search_json_schema(catalog), "探索設定YAML"),
     ]
     for path, document, _ in written:
@@ -1232,7 +1240,7 @@ def _analyse_with_progress(
 class _ProgressEvaluator:
     """`ensure` の前後で進捗を進めるだけの薄い覆い。分析は評価器の他の面を使わない。"""
 
-    evaluator: Evaluator
+    evaluator: BudgetedSampleSource[Allocation]
     advance: Any
 
     @property
@@ -1404,6 +1412,9 @@ def gear_plan(
     assume_yes: Annotated[
         bool, typer.Option("--yes", "-y", help="所要時間の確認を省いて実行する")
     ] = False,
+    resume: Annotated[
+        bool, typer.Option("--resume", help="出力先の state.json から中断した探索を再開する")
+    ] = False,
     max_candidates: Annotated[
         int, typer.Option("--max-candidates", min=1, help="1リクエストの候補数上限")
     ] = 32,
@@ -1482,16 +1493,30 @@ def gear_plan(
                 f"--budget を {minimum:,} 以上にするか、--screen-runs / --confirm-runs /"
                 " --survivors / --final-runs を下げる"
             )
+        phases = plan_phases(settings)
         evaluator = Evaluator(
             client,
             source,
             base_seed=base_seed,
-            phases=phases_for_climb(settings.climb),
+            phases=phases,
             max_candidates=max_candidates,
             max_total_runs=max_total_runs,
             log_path=out / GEAR_PLAN_EVALUATIONS_CSV,
         )
-        observer = _CachingObserver(client, source)
+        observer = CachingObserver(client=client, source=source)
+        checkpoint = PlanCheckpoint(
+            path=out / STATE_JSON,
+            evaluator=evaluator,
+            observer=observer,
+            seed=base_seed,
+            digest=plan_digest(start, settings),
+            phases=phases,
+        )
+        # 新しい署名を観測したときも書き出す。観測はseedで再現できないので、
+        # 落とすと再開後に別の署名が返り得る。
+        observer.on_observed = checkpoint.save
+        if resume:
+            _restore_plan(checkpoint)
         try:
             _calibrate(
                 evaluator,
@@ -1502,9 +1527,10 @@ def gear_plan(
                 observations=observations,
                 assume_yes=assume_yes,
             )
+            checkpoint.save()
             result = _run_plan_with_progress(
                 start,
-                evaluator,
+                CheckpointingSource(evaluator, checkpoint),
                 observer,
                 settings=settings,
                 objective=objective,
@@ -1527,7 +1553,10 @@ def gear_plan(
         catalog_revision=catalog_revision,
         budget=plan,
         budget_runs=budget,
-        observations=observer.calls,
+        requested_runs=evaluator.requested_runs,
+        # 観測した配分の件数で数える。単発実行の発行回数で数えると、再開した実行だけ
+        # 「読み戻したぶんを観測していない」ことになり、中断なしの実行と食い違う。
+        observations=len(observer.cache),
     )
     (out / GEAR_PLAN_JSON).write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -1579,37 +1608,30 @@ def _write_plan_player_data(out: Path, player_data_path: Path | None, best: Allo
     )
 
 
-@dataclass
-class _CachingObserver:
-    """単発実行でレジーム署名を取る。同じ配分は1度しか観測しない。
+def _restore_plan(checkpoint: PlanCheckpoint) -> None:
+    """保存した状態を読み戻す。読めない状態で走り出さない。
 
-    単発実行はseedを受け取らない（`10_API設計.md`「TacticalExerciseRequest」）ので、
-    同じ配分を2度観測しても同じ署名が返る保証が無い。畳んでおかないと、押した手を
-    1つ戻しただけで「レジームが変わった」と読める結果が出うる。
+    条件（seed・基点編成・探索設定）が違う状態から再開すると、評価済みスコアと
+    これから測るスコアが別の乱数列のものになる。黙って混ぜずに落とす。
     """
-
-    client: LabApiClient
-    source: GearFormationSource
-    cache: dict[str, RegimeSignature] = field(default_factory=dict)
-    calls: int = 0
-    elapsed_seconds: float = 0.0
-
-    def observe(self, allocation) -> RegimeSignature:
-        key = allocation.canonical_key()
-        cached = self.cache.get(key)
-        if cached is not None:
-            return cached
-        started = time.perf_counter()
-        signature, _ = observe_signature(self.client, self.source, allocation)
-        self.elapsed_seconds += time.perf_counter() - started
-        self.calls += 1
-        self.cache[key] = signature
-        return signature
+    if not checkpoint.path.exists():
+        _abort(
+            f"{checkpoint.path} が無い。--resume は中断した実行と同じ --out を指す"
+            "（state.json は評価のたびに書き出される）"
+        )
+    try:
+        state = checkpoint.restore()
+    except (ValueError, KeyError, json.JSONDecodeError, OSError) as error:
+        _abort(str(error))
+    console.print(
+        f"再開: 評価 {state.consumed_runs:,} 試行 / レジーム署名 {len(state.signatures)} 件を"
+        f" [bold]{checkpoint.path}[/] から読み戻した"
+    )
 
 
 def _calibrate(
     evaluator: Evaluator,
-    observer: _CachingObserver,
+    observer: CachingObserver,
     start,
     *,
     settings: PlanSettings,
@@ -1617,28 +1639,41 @@ def _calibrate(
     observations: int,
     assume_yes: bool,
 ) -> None:
-    """実測してから総所要時間を出し、続行を確認する。
+    """実測してから残りの所要時間を出し、続行を確認する。
 
     校正に使うのは捨て実行ではない——基点の観測（Phase A で要る）と、基点の篩い評価
     （最初の反復で要る）をそのまま計る。数万試行を投げる前に、待ち時間が見合うかを
     利用者が決められるようにする。
+
+    再開した実行では、どちらも保存済みの状態から読めてしまうので実測できない。
+    測っていない速度で見積りを出さず、その旨だけを伝えて先へ進む。
     """
+    requested_before = evaluator.requested_runs
     observer.observe(start)
     screen_phase, _ = phases_for_climb(settings.climb)
     started = time.perf_counter()
     record = evaluator.ensure([start], settings.climb.screen_runs, phase=screen_phase)[0]
     elapsed = time.perf_counter() - started
+    if evaluator.requested_runs == requested_before:
+        console.print(
+            "[dim]校正: 基点は保存済みの状態から読めたため実測しない"
+            "（所要時間の見積りは出せない）[/]"
+        )
+        return
     if record.sample_count < 1 or elapsed <= 0.0:
         _abort("校正リクエストで1試行も完了しなかった。devサーバーの状態を確かめる")
     rate = record.sample_count / elapsed
-    estimate = budget / rate + observations * observer.elapsed_seconds / max(1, observer.calls)
+    # 残りぶんで見積もる。校正と、再開で読み戻したぶんは既に払っている。
+    remaining_runs = max(0, budget - evaluator.consumed_runs)
+    remaining_observations = max(0, observations - observer.calls)
+    estimate = remaining_runs / rate + remaining_observations * observer.seconds_per_call
     console.print(
         f"校正: {rate:,.0f} 試行/秒（{record.sample_count} 試行を {elapsed:.1f} 秒）/"
-        f" 単発実行 {observer.elapsed_seconds / max(1, observer.calls):.1f} 秒"
+        f" 単発実行 {observer.seconds_per_call:.1f} 秒"
     )
     console.print(
         f"上限まで回した場合の見積り: [bold]{_duration(estimate)}[/]"
-        f"（評価 {budget:,} 試行 + 単発実行 {observations} 回）"
+        f"（残り 評価 {remaining_runs:,} 試行 + 単発実行 {remaining_observations} 回）"
     )
     if assume_yes:
         return
@@ -1656,7 +1691,7 @@ def _duration(seconds: float) -> str:
 
 def _run_plan_with_progress(
     start,
-    evaluator: Evaluator,
+    evaluator: BudgetedSampleSource[Allocation],
     observer: SignatureObserver,
     *,
     settings: PlanSettings,
@@ -1833,7 +1868,7 @@ def _print_plan(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -
 
     console.print(f"[yellow]{summary['caveat']}[/]")
     console.print(f"[dim]{summary['rankingCaveat']}[/]")
-    for warning in result.warnings:
+    for warning in summary["warnings"]:
         error_console.print(f"[yellow]warning[/]: {warning}")
 
 

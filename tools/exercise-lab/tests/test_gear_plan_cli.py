@@ -31,11 +31,19 @@ runner = CliRunner()
 class Server:
     """一括評価と単発実行の両方を返すモック。"""
 
-    def __init__(self):
+    def __init__(self, *, missing_runs=0):
         self.exercise_calls: list[dict] = []
         self.evaluation_calls: list[dict] = []
+        # 期限に届かなかった試行数。1リクエストあたりこれだけ少なく返す（Q-TEX-18）。
+        self.missing_runs = missing_runs
+        # ここまで応答したら落ちる。中断をまねる。
+        self.calls_until_failure: int | None = None
 
     def evaluate(self, body):
+        if self.calls_until_failure is not None:
+            if self.calls_until_failure <= 0:
+                raise httpx.ConnectError("中断")
+            self.calls_until_failure -= 1
         self.evaluation_calls.append(body)
         runs = body["runsPerCandidate"]
         return {
@@ -49,17 +57,18 @@ class Server:
         }
 
     def _candidate(self, formation, seed, runs):
+        completed = max(1, runs - self.missing_runs)
         strengths = [self._unit_strength(unit) for unit in formation["units"]]
-        damage = [[value * 10 + run for value in strengths] for run in range(runs)]
+        damage = [[value * 10 + run for value in strengths] for run in range(completed)]
         scores = [sum(row) + _noise(seed, run) for run, row in enumerate(damage)]
         return {
-            "completedRuns": runs,
+            "completedRuns": completed,
             "scores": scores,
-            "breakCounts": [2] * runs,
-            "completedTurns": [5] * runs,
-            "completionReasons": ["TURN_LIMIT_REACHED"] * runs,
+            "breakCounts": [2] * completed,
+            "completedTurns": [5] * completed,
+            "completionReasons": ["TURN_LIMIT_REACHED"] * completed,
             "allyUnitDamageTotals": damage,
-            "allyUnitBreakCounts": [[0] * len(strengths) for _ in range(runs)],
+            "allyUnitBreakCounts": [[0] * len(strengths) for _ in range(completed)],
         }
 
     @staticmethod
@@ -135,8 +144,8 @@ def _noise(seed: str, run: int) -> int:
     return ((sum(ord(char) for char in seed) * 2654435761 + run * 40503) % 20) - 10
 
 
-def mock_api():
-    server = Server()
+def mock_api(**kwargs):
+    server = Server(**kwargs)
     respx.get(f"{BASE_URL}{CATALOG_PATH}").mock(return_value=httpx.Response(200, json=CATALOG))
     respx.post(f"{BASE_URL}{EVALUATION_PATH}").mock(
         side_effect=lambda request: httpx.Response(
@@ -203,6 +212,7 @@ def test_it_writes_the_plan_report(tmp_path):
         "best-so-far.png",
         "evaluations.csv",
         "gear-plan.json",
+        "state.json",
         "steps.csv",
     ]
 
@@ -569,6 +579,7 @@ def test_it_writes_every_artifact(tmp_path):
         "evaluations.csv",
         "gear-plan.json",
         "player-data.json",
+        "state.json",
         "steps.csv",
     ]
 
@@ -721,3 +732,112 @@ def test_the_best_so_far_curve_is_written(tmp_path):
         point["bestFitness"] for point in curve
     )
     assert (out / "best-so-far.png").stat().st_size > 0
+
+
+# 通しで回すと一括評価は8リクエストである。どの段で切れても再開が一致することを見る。
+@pytest.mark.parametrize("calls_until_failure", [1, 3, 5, 7])
+@respx.mock
+def test_resuming_reproduces_the_uninterrupted_trajectory(tmp_path, calls_until_failure):
+    """中断して `--resume` した実行は、中断せず走らせた実行と同じレポートを出す。"""
+    server = mock_api()
+    whole = tmp_path / "whole"
+    assert run(tmp_path, whole).exit_code == 0
+
+    interrupted = tmp_path / "interrupted"
+    server.calls_until_failure = calls_until_failure
+    broken = run(tmp_path, interrupted)
+
+    assert broken.exit_code == 1
+    assert (interrupted / "state.json").exists()
+
+    server.calls_until_failure = None
+    resumed = run(tmp_path, interrupted, "--resume")
+
+    assert resumed.exit_code == 0, resumed.output
+    assert json.loads((interrupted / "gear-plan.json").read_text(encoding="utf-8")) == json.loads(
+        (whole / "gear-plan.json").read_text(encoding="utf-8")
+    )
+
+
+@respx.mock
+def test_resuming_does_not_pay_for_the_saved_evaluations_again(tmp_path):
+    """再開した実行は、保存済みの評価を投げ直さない。"""
+    server = mock_api()
+    run(tmp_path, tmp_path / "whole")
+    whole_calls = len(server.evaluation_calls)
+
+    out = tmp_path / "resumed"
+    server.calls_until_failure = 6
+    run(tmp_path, out)
+
+    server.calls_until_failure = None
+    server.evaluation_calls.clear()
+    run(tmp_path, out, "--resume")
+
+    assert 0 < len(server.evaluation_calls) < whole_calls
+
+
+@respx.mock
+def test_resuming_a_state_from_another_base_is_rejected(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+    run(tmp_path, out)
+
+    result = run(tmp_path, out, "--resume", "--restarts", "2")
+
+    assert result.exit_code == 1
+    assert "探索設定" in result.output
+
+
+@respx.mock
+def test_partial_results_are_reported_as_a_shortfall(tmp_path):
+    """部分結果は再送しない。不足は要求数と完了数の差として残す（`lab stats` と同じ）。"""
+    mock_api(missing_runs=1)
+    out = tmp_path / "reports"
+
+    result = run(tmp_path, out)
+
+    assert result.exit_code == 0, result.output
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    assert summary["requestedRuns"] > summary["consumedRuns"]
+    assert any("部分結果" in warning for warning in summary["warnings"])
+    assert summary["best"]
+
+
+@respx.mock
+def test_resuming_without_a_saved_state_stops_before_evaluating(tmp_path):
+    server = mock_api()
+
+    result = run(tmp_path, tmp_path / "reports", "--resume")
+
+    assert result.exit_code == 1
+    assert "state.json" in result.output
+    assert server.evaluation_calls == []
+
+
+@respx.mock
+def test_resuming_at_a_tight_budget_stops_at_the_same_point(tmp_path):
+    """予算ぎりぎりの実行でも、再開後の予算判定が中断なしの実行と食い違わない。
+
+    山登りの予算判定（`remaining_iteration_cost`）は `record_for` を読んで「もう
+    払った試行」を差し引く。読み戻した（staged な）記録がそこに見えないと、復元
+    直後の候補を「未払い」と誤認し、中断なしの実行なら BUDGET_EXHAUSTED で止まって
+    いたはずの反復を続けてしまう。
+    """
+    server = mock_api()
+    budget = "1400"
+    whole = tmp_path / "whole"
+    assert run(tmp_path, whole, "--budget", budget).exit_code == 0
+    whole_summary = json.loads((whole / "gear-plan.json").read_text(encoding="utf-8"))
+    assert whole_summary["baseClimb"]["stoppedBecause"] == "BUDGET"
+
+    interrupted = tmp_path / "interrupted"
+    server.calls_until_failure = 2
+    assert run(tmp_path, interrupted, "--budget", budget).exit_code == 1
+
+    server.calls_until_failure = None
+    resumed = run(tmp_path, interrupted, "--budget", budget, "--resume")
+
+    assert resumed.exit_code == 0, resumed.output
+    resumed_summary = json.loads((interrupted / "gear-plan.json").read_text(encoding="utf-8"))
+    assert resumed_summary == whole_summary

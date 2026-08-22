@@ -17,7 +17,7 @@ from exercise_lab.gear.search import (
     phases_for_climb,
     remaining_iteration_cost,
 )
-from exercise_lab.optimize.evaluator import CandidateRecord, EvaluationPhase
+from exercise_lab.optimize.evaluator import CandidateRecord, EvaluationPhase, Evaluator
 from exercise_lab.optimize.fitness import Objective
 
 OBJECTIVE = Objective(best_of=5)
@@ -250,6 +250,48 @@ def test_the_guard_counts_only_the_runs_that_are_not_cached_yet():
 
     # 基点の篩いは済んでいる。残りはその1候補ぶんだけ安い。
     assert remaining == iteration_cost(SETTINGS, move_count=len(moves)) - SETTINGS.screen_runs
+
+
+class _StubSource:
+    """実際の `Evaluator` を動かすためだけの薄いスタブ。送信内容は問わない。"""
+
+    def enemy_formation(self):
+        return {"units": []}
+
+    def ally_formation(self, candidate):
+        return {
+            "units": [{"unitDefinitionId": unit.unit_definition_id} for unit in candidate.units],
+            "memoryDefinitionIds": [],
+        }
+
+
+class _RaisingClient:
+    def evaluate(self, body):
+        raise AssertionError("読み戻し済みのはずの候補へ評価を発行した")
+
+
+def test_a_staged_record_from_a_resumed_run_counts_as_already_paid():
+    """`--resume` の直後、まだ `ensure` が求めていない読み戻しぶんも「払い済み」に数える。
+
+    これを見落とすと、復元直後の予算判定（`remaining_iteration_cost`）が読み戻した
+    候補を「未評価」と誤認して残り試行数を過大に見積もり、中断なしの実行なら通った
+    はずの反復を BUDGET_EXHAUSTED で止めてしまう（`optimize/evaluator.py` の
+    `Evaluator.record_for` が staged も見るようにして直す）。
+    """
+    start = allocation({"CRITICAL_RATE": 3})
+    moves = neighborhood(start)
+    screen_phase, _ = phases_for_climb(SETTINGS)
+    evaluator = Evaluator(_RaisingClient(), _StubSource(), base_seed="abc", phases=(screen_phase,))
+    # `ensure` を呼ばずに、再開直後の状態を模す（`gear/state.py` の `PlanCheckpoint.restore`）。
+    evaluator.stage_record(
+        screen_phase, CandidateRecord(candidate=start, scores=[1] * SETTINGS.screen_runs)
+    )
+
+    remaining = remaining_iteration_cost(start, moves, evaluator, settings=SETTINGS)
+
+    # 基点の篩いは読み戻し済み。残りはその1候補ぶんだけ安い（評価は1件も発行しない）。
+    assert remaining == iteration_cost(SETTINGS, move_count=len(moves)) - SETTINGS.screen_runs
+    assert evaluator.consumed_runs == 0
 
 
 def test_a_budget_too_small_for_one_iteration_stops_without_evaluating():
