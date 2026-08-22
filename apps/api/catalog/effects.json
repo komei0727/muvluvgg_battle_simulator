@@ -4815,6 +4815,142 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.025 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_EX_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.5 }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.25,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        },
+        "debuff": { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L" }
+      },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_PS1_REMOVE_DEBUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["DEBUFF"], "maxRemovals": 1 },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_PS1_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.5 }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.25,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        },
+        "debuff": { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L" }
+      },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
+    "kind": "APPLY_SUBUNIT",
+    "payload": {
+      "durability": {
+        "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.15 }
+      },
+      "additionalDamage": {
+        "formula": {
+          "kind": "SUBUNIT_ADDITIONAL_DAMAGE",
+          "ownerAttack": "CURRENT_ATTACK",
+          "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
+          "skillMultiplier": 0.085,
+          "targetDefense": "TARGET_CURRENT_DEFENSE"
+        },
+        "debuff": { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S" }
+      },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.848 },
+      "accuracy": { "mode": "GUARANTEED" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_AS1_BACKROW_BONUS",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "MIN",
+        "formulas": [
+          { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.075 },
+          {
+            "kind": "STAT_RATIO",
+            "source": { "kind": "SKILL_SOURCE" },
+            "stat": "ATTACK",
+            "ratio": 0.15
+          }
+        ]
+      },
+      "critical": { "mode": "PREVENTED" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_AS2_DAMAGE_CENTER",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.696 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LYDIA_SUMMER_AS2_DAMAGE_OTHERS",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.156 } },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MAIA_LAZY_EX_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.55 }, "overheal": "DISCARD" },

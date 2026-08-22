@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_LYDIA_SUMMER",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 28017,
+    "attack": 21932,
+    "defense": 11218,
+    "criticalRate": 0.2,
+    "actionSpeed": 858,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 252,
+    "attack": 197,
+    "defense": 101,
+    "actionSpeed": 3
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_LYDIA_SUMMER_AS1", "SKL_LYDIA_SUMMER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_LYDIA_SUMMER_PS1", "SKL_LYDIA_SUMMER_PS2"],
+  "extraSkillDefinitionId": "SKL_LYDIA_SUMMER_EX",
+  "metadata": {
+    "affiliations": ["AFF_TRINITY_JEWEL"],
+    "tags": [],
+    "displayName": "【おたすけさんぽ・イン・サマー】リディア・エルドリッジ",
+    "characterName": "リディア・エルドリッジ",
+    "characterId": "CHAR_LYDIA_ELDRIDGE"
+  }
+}
