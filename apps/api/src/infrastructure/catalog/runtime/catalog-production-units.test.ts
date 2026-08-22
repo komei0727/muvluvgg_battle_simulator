@@ -515,7 +515,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // にした（R-DMG-06の追加攻撃は保持数がそのまま回数になるため重複させる）。
     // Unit・Memoryの構成は変えておらず、差分は`effects.json`の`formula.source`と
     // `skills.json`のstep構造だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-19.3");
+    // `2026-08-22.1` は `UNIT_LYDIA_SUMMER`（【おたすけさんぽ・イン・サマー】
+    // リディア・エルドリッジ）の新規投入。既存の`APPLY_SUBUNIT`（R-SUB-01/02）
+    // ・`REMOVE_EFFECTS`・`targetCondition`のみで全スキルを表現でき、
+    // ドメイン層（`src/domain/**`）の変更は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-08-22.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

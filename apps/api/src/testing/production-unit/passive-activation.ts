@@ -9,6 +9,7 @@ import type {
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { DamageResultRegistry } from "../../domain/battle/skill/formula-evaluator.js";
+import type { ResolutionPhase } from "../../domain/catalog/definitions/condition-definition.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { ActionId, DomainEventId, ResolutionScopeId } from "../../domain/shared/event-ids.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
@@ -79,6 +80,13 @@ export interface OpenPassiveChainOptions {
    * registryを共有させる。反撃系（`DAMAGE_RECEIVED_RATIO`）はこれを読む。
    */
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * R-EFF-08系の`RESOLUTION_PHASE`条件（「戦闘開始時・ターン開始時・ターン終了時
+   * には発動しない」等）を実際に評価可能にする。省略時は`battle.ts`が渡さない
+   * 通常行動中と同じ`undefined`のままで、`RESOLUTION_PHASE`はどのphase指定にも
+   * 一致しない（`negate: true`側だけが常に成立する）。
+   */
+  readonly resolutionPhase?: ResolutionPhase;
 }
 
 /** `ActionStarted` を根に持つ行動envelopeを開き、PS連鎖を流せる状態にする。 */
@@ -140,6 +148,9 @@ export function openPassiveChain(options: OpenPassiveChainOptions): PassiveChain
           resolutionScopeId,
           rootEventId: actionStarted.eventId,
           actionId,
+          ...(options.resolutionPhase === undefined
+            ? {}
+            : { resolutionPhase: options.resolutionPhase }),
         },
         units,
       );
