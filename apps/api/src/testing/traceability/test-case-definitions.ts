@@ -21,9 +21,12 @@ export interface TestCaseDefinition {
  *
  * `API`（API契約テスト）を含むのは、この層のIDが一意性検査の外に居ると
  * 同じIDを別のテストが名乗っても誰も気づかないため（REL-004／Issue #203で
- * `API-OPENAPI-005`〜`008`が実際に各2回使われていた）。
+ * `API-OPENAPI-005`〜`008`が実際に各2回使われていた）。同じ理由で`INT`（Worker・
+ * Bootstrap統合テスト）・`APP`（アプリケーション層契約テスト）も含める
+ * （`INT-WORKER-006`が実際に2回使われていた）。
  */
-export const TEST_CASE_ID_PATTERN = /\b(?:UT|IT|SCN|E2E|PROP|API)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
+export const TEST_CASE_ID_PATTERN =
+  /\b(?:UT|IT|INT|SCN|E2E|PROP|API|APP)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
 const NON_EXECUTING_TEST_MODIFIERS = new Set(["skip", "skipIf", "todo", "runIf"]);
 export const VITEST_TEST_FUNCTIONS = new Set(["it", "test"]);
 const VITEST_SUITE_FUNCTIONS = new Set(["describe", "suite"]);
@@ -107,22 +110,74 @@ function unwrapExpression(expression: ts.Expression): ts.Expression {
   return expression;
 }
 
-function parameterizedCases(expression: ts.Expression): ts.Expression | undefined {
+/**
+ * `it.each(識別子)`の識別子を、同一ファイル内の`const`宣言までTypeCheckerの
+ * シンボル解決で辿り、配列リテラルの初期化子であればそれを返す。`let`/`var`や
+ * 関数呼び出し・他ファイルからのimportなど、実行前に値が変わりうる／静的に
+ * 配列の中身を確認できないものは解決しない（`undefined`を返す）。
+ */
+function resolveConstArrayLiteral(
+  identifier: ts.Identifier,
+  checker: ts.TypeChecker,
+): ts.ArrayLiteralExpression | undefined {
+  const declarations = checker.getSymbolAtLocation(identifier)?.declarations;
+  if (declarations === undefined || declarations.length !== 1) {
+    return undefined;
+  }
+  const declaration = declarations[0]!;
+  if (
+    !ts.isVariableDeclaration(declaration) ||
+    declaration.initializer === undefined ||
+    (ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) === 0
+  ) {
+    return undefined;
+  }
+  const initializer = unwrapExpression(declaration.initializer);
+  return ts.isArrayLiteralExpression(initializer) ? initializer : undefined;
+}
+
+/**
+ * `it.each`/`test.each`のテーブル引数を解決する。テーブルを静的な配列リテラルへ
+ * 解決できたときだけ`"array"`を返し、テーブルが無い（`it.each`ではない）ときは
+ * `"none"`、それ以外（`let`宣言・他ファイル由来・関数呼び出しの戻り値など、実行有無を
+ * 静的に断定できないもの）は`"unresolved"`を返す。`"unresolved"`はタイトル文字列からの
+ * ID収集は妨げない（呼び出し側が判断する）が、テーブル行からのID収集はできない。
+ */
+type ParameterizedTable =
+  | { readonly kind: "none" }
+  | { readonly kind: "array"; readonly node: ts.ArrayLiteralExpression }
+  | { readonly kind: "unresolved" };
+
+function parameterizedTable(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+): ParameterizedTable {
   if (
     ts.isCallExpression(expression) &&
     ts.isPropertyAccessExpression(expression.expression) &&
     (expression.expression.name.text === "each" || expression.expression.name.text === "for")
   ) {
     const table = expression.arguments[0];
-    return table === undefined ? undefined : unwrapExpression(table);
+    if (table === undefined) {
+      return { kind: "none" };
+    }
+    const unwrapped = unwrapExpression(table);
+    if (ts.isArrayLiteralExpression(unwrapped)) {
+      return { kind: "array", node: unwrapped };
+    }
+    if (ts.isIdentifier(unwrapped)) {
+      const resolved = resolveConstArrayLiteral(unwrapped, checker);
+      return resolved === undefined ? { kind: "unresolved" } : { kind: "array", node: resolved };
+    }
+    return { kind: "unresolved" };
   }
   if (ts.isPropertyAccessExpression(expression)) {
-    return parameterizedCases(expression.expression);
+    return parameterizedTable(expression.expression, checker);
   }
   if (ts.isCallExpression(expression)) {
-    return parameterizedCases(expression.expression);
+    return parameterizedTable(expression.expression, checker);
   }
-  return undefined;
+  return { kind: "none" };
 }
 
 /**
@@ -131,13 +186,16 @@ function parameterizedCases(expression: ts.Expression): ts.Expression | undefine
  * タイトルが `"%s: ..."` のようにテーブル列を参照する場合、IDはタイトル文字列ではなく
  * テーブル行のセルに存在するため、こちらから抽出する必要がある。
  */
-function parameterizedCaseIdLiterals(expression: ts.Expression): [string, number][] {
-  const cases = parameterizedCases(expression);
-  if (cases === undefined || !ts.isArrayLiteralExpression(cases)) {
+function parameterizedCaseIdLiterals(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+): [string, number][] {
+  const table = parameterizedTable(expression, checker);
+  if (table.kind !== "array") {
     return [];
   }
   const found: [string, number][] = [];
-  const sourceFile = cases.getSourceFile();
+  const sourceFile = table.node.getSourceFile();
   function scan(node: ts.Node): void {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       for (const match of node.text.matchAll(TEST_CASE_ID_PATTERN)) {
@@ -146,17 +204,21 @@ function parameterizedCaseIdLiterals(expression: ts.Expression): [string, number
     }
     ts.forEachChild(node, scan);
   }
-  scan(cases);
+  scan(table.node);
   return found;
 }
 
-function hasExecutableParameterizedCases(expression: ts.Expression): boolean {
-  const cases = parameterizedCases(expression);
+function hasExecutableParameterizedCases(
+  expression: ts.Expression,
+  checker: ts.TypeChecker,
+): boolean {
+  const table = parameterizedTable(expression, checker);
+  if (table.kind !== "array") {
+    return true;
+  }
   return (
-    cases === undefined ||
-    (ts.isArrayLiteralExpression(cases) &&
-      cases.elements.length > 0 &&
-      cases.elements.every((element) => !ts.isSpreadElement(element)))
+    table.node.elements.length > 0 &&
+    table.node.elements.every((element) => !ts.isSpreadElement(element))
   );
 }
 
@@ -228,7 +290,7 @@ function isInsideNonExecutingSuite(node: ts.Node, checker: ts.TypeChecker): bool
       ts.isCallExpression(ancestor) &&
       hasVitestFunctionRoot(ancestor.expression, checker, VITEST_SUITE_FUNCTIONS) &&
       (hasNonExecutingModifier(ancestor.expression) ||
-        !hasExecutableParameterizedCases(ancestor.expression) ||
+        !hasExecutableParameterizedCases(ancestor.expression, checker) ||
         !hasStaticallyExecutingCallback(ancestor))
     ) {
       return true;
@@ -248,7 +310,7 @@ function isSuiteCallback(
     parent.arguments.some((argument) => argument === node) &&
     hasVitestFunctionRoot(parent.expression, checker, VITEST_SUITE_FUNCTIONS) &&
     !hasNonExecutingModifier(parent.expression) &&
-    hasExecutableParameterizedCases(parent.expression) &&
+    hasExecutableParameterizedCases(parent.expression, checker) &&
     hasStaticallyExecutingCallback(parent)
   );
 }
@@ -389,7 +451,7 @@ export function collectTestCaseDefinitionsFromSource(
       ts.isCallExpression(node) &&
       hasVitestFunctionRoot(node.expression, checker, VITEST_TEST_FUNCTIONS) &&
       !hasNonExecutingModifier(node.expression) &&
-      hasExecutableParameterizedCases(node.expression) &&
+      hasExecutableParameterizedCases(node.expression, checker) &&
       hasStaticallyExecutingCallback(node) &&
       !isInsideNonExecutingSuite(node, checker) &&
       !isConditionallyRegisteredTest(node, checker)
@@ -405,7 +467,7 @@ export function collectTestCaseDefinitionsFromSource(
       }
       // `it.each([["UT-...", ...]])("%s: ...", ...)` のように、IDがタイトルではなく
       // 静的テーブルのセルに存在するパラメタライズドテストからも収集する。
-      for (const [id, position] of parameterizedCaseIdLiterals(node.expression)) {
+      for (const [id, position] of parameterizedCaseIdLiterals(node.expression, checker)) {
         definitions.push([id, { file, position }]);
       }
     }

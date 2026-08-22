@@ -84,7 +84,7 @@ describe("bootstrap (compiled build)", () => {
     await assertPortIsClosed(port);
   });
 
-  it("INT-BOOTSTRAP-002: resolves and actually listens once Worker Catalog initialization succeeds (positive control for INT-BOOTSTRAP-001)", async () => {
+  it("INT-BOOTSTRAP-002: resolves and actually listens once Worker Catalog initialization succeeds (positive control for the Catalog-init failure case above)", async () => {
     const port = 20580;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
@@ -146,7 +146,7 @@ describe("bootstrap (compiled build)", () => {
     }
   });
 
-  it("INT-BOOTSTRAP-005 (listen失敗時はシグナルハンドラーとWorker Poolが残る): when app.listen() itself fails (e.g. the port is already bound by another process), bootstrap() still disposes the SIGTERM/SIGINT listeners and closes the Worker Pool it already created — not just the earlier Worker-Catalog-init failure path (INT-BOOTSTRAP-001), which fails before any of that is created", async () => {
+  it("INT-BOOTSTRAP-005 (listen失敗時はシグナルハンドラーとWorker Poolが残る): when app.listen() itself fails (e.g. the port is already bound by another process), bootstrap() still disposes the SIGTERM/SIGINT listeners and closes the Worker Pool it already created — not just the earlier Worker-Catalog-init failure path, which fails before any of that is created", async () => {
     const port = 20583;
     process.env["PORT"] = String(port);
     process.env["HOST"] = "127.0.0.1";
