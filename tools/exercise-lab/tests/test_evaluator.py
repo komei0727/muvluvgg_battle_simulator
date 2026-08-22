@@ -462,3 +462,23 @@ def test_staged_records_are_listed_until_they_are_taken(config):
 
     assert evaluator.staged_records(SEARCH_PHASE) == []
     assert len(evaluator.evaluated_records(SEARCH_PHASE)) == 1
+
+
+def test_record_for_sees_a_staged_record_before_it_is_taken(config):
+    """予算判定（`unpaid_runs`）は `record_for` を読む。staged を見落とすと、復元直後の
+
+    候補を「まだ何も払っていない」と誤認し、中断なしの実行なら止まったはずの反復を
+    続けてしまう（あるいは逆に、必要ない評価をもう一度要求してしまう）。
+    """
+    client = FakeClient()
+    evaluator = make_evaluator(config, client)
+    candidate = make_candidate("UNIT_A")
+    evaluator.stage_record(SEARCH_PHASE, CandidateRecord(candidate=candidate, scores=[1] * 8))
+
+    record = evaluator.record_for(candidate, SEARCH_PHASE)
+
+    assert record is not None
+    assert record.sample_count == 8
+    # 読んだだけでは消費に数えない（`ensure` が実際に求めるまで待つ）。
+    assert evaluator.consumed_runs == 0
+    assert client.requests == []

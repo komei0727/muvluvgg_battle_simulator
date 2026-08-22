@@ -237,7 +237,15 @@ class Evaluator[C: EvaluationCandidate]:
         return [record for (name, _), record in self._records.items() if name == phase.name]
 
     def record_for(self, candidate: C, phase: EvaluationPhase) -> CandidateRecord[C] | None:
-        return self._records.get((phase.name, candidate.canonical_key()))
+        """既存の履歴を読む。**まだ探索が求めていない読み戻しぶんも見る。**
+
+        予算判定（`gear/search.py` の `unpaid_runs`）はここを読んで「もう払ったか」を
+        決める。staged を除外すると、復元直後の候補を「未払い」と誤認し、中断なしの
+        実行なら止まっていたはずの反復を続けてしまう——実際には已に持っている評価を
+        無いものとして見積もるため、残り試行数を過大に見繕う。
+        """
+        key = (phase.name, candidate.canonical_key())
+        return self._records.get(key) or self._staged.get(key)
 
     def staged_records(self, phase: EvaluationPhase) -> list[CandidateRecord[C]]:
         """まだ探索が求めていない、読み戻し済みの履歴。"""

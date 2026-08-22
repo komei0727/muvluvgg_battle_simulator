@@ -813,3 +813,31 @@ def test_resuming_without_a_saved_state_stops_before_evaluating(tmp_path):
     assert result.exit_code == 1
     assert "state.json" in result.output
     assert server.evaluation_calls == []
+
+
+@respx.mock
+def test_resuming_at_a_tight_budget_stops_at_the_same_point(tmp_path):
+    """予算ぎりぎりの実行でも、再開後の予算判定が中断なしの実行と食い違わない。
+
+    山登りの予算判定（`remaining_iteration_cost`）は `record_for` を読んで「もう
+    払った試行」を差し引く。読み戻した（staged な）記録がそこに見えないと、復元
+    直後の候補を「未払い」と誤認し、中断なしの実行なら BUDGET_EXHAUSTED で止まって
+    いたはずの反復を続けてしまう。
+    """
+    server = mock_api()
+    budget = "1400"
+    whole = tmp_path / "whole"
+    assert run(tmp_path, whole, "--budget", budget).exit_code == 0
+    whole_summary = json.loads((whole / "gear-plan.json").read_text(encoding="utf-8"))
+    assert whole_summary["baseClimb"]["stoppedBecause"] == "BUDGET"
+
+    interrupted = tmp_path / "interrupted"
+    server.calls_until_failure = 2
+    assert run(tmp_path, interrupted, "--budget", budget).exit_code == 1
+
+    server.calls_until_failure = None
+    resumed = run(tmp_path, interrupted, "--budget", budget, "--resume")
+
+    assert resumed.exit_code == 0, resumed.output
+    resumed_summary = json.loads((interrupted / "gear-plan.json").read_text(encoding="utf-8"))
+    assert resumed_summary == whole_summary
