@@ -9,6 +9,7 @@ from exercise_lab.optimize.candidate import Candidate, Cell, Placement
 from exercise_lab.optimize.evaluator import (
     FINAL_PHASE,
     SEARCH_PHASE,
+    CandidateRecord,
     EvaluationPhase,
     Evaluator,
     common_sample_count,
@@ -414,3 +415,50 @@ def test_a_response_without_the_per_unit_arrays_leaves_the_damage_empty(config):
     # `lab optimize` は与ダメージを読まない。欠けていても評価そのものは成立させる。
     assert record.unit_damage_totals == []
     assert record.unit_damage_at(0, count=8) == []
+
+
+def test_requested_runs_keeps_what_the_partial_results_did_not_return(config):
+    """要求と完了を別々に数える。差が部分結果の不足であり、要求数へ丸めない。"""
+    client = FakeClient(completed_runs=lambda body: body["runsPerCandidate"] - 3)
+    evaluator = make_evaluator(config, client)
+
+    evaluator.ensure([make_candidate("UNIT_A")], 8)
+
+    assert evaluator.requested_runs == 8
+    assert evaluator.consumed_runs == 5
+
+
+def test_a_staged_record_is_counted_when_the_search_asks_for_it(config):
+    """再開時の履歴は、探索がその候補を求めた時点で予算を消費済みにする。
+
+    まとめて数え上げると、再開後の best-so-far 曲線の横軸が復元した時点で跳ね上がり、
+    中断せず走らせた軌跡と食い違う。
+    """
+    client = FakeClient()
+    evaluator = make_evaluator(config, client)
+    candidate = make_candidate("UNIT_A")
+    evaluator.stage_record(SEARCH_PHASE, CandidateRecord(candidate=candidate, scores=[1] * 8))
+
+    assert evaluator.consumed_runs == 0
+
+    records = evaluator.ensure([candidate], 8)
+
+    assert client.requests == []
+    assert evaluator.consumed_runs == 8
+    assert records[0].scores == [1] * 8
+
+
+def test_staged_records_are_listed_until_they_are_taken(config):
+    client = FakeClient()
+    evaluator = make_evaluator(config, client)
+    candidate = make_candidate("UNIT_A")
+    evaluator.stage_record(SEARCH_PHASE, CandidateRecord(candidate=candidate, scores=[1] * 8))
+
+    staged = evaluator.staged_records(SEARCH_PHASE)
+
+    assert [record.candidate.canonical_key() for record in staged] == [candidate.canonical_key()]
+
+    evaluator.ensure([candidate], 8)
+
+    assert evaluator.staged_records(SEARCH_PHASE) == []
+    assert len(evaluator.evaluated_records(SEARCH_PHASE)) == 1

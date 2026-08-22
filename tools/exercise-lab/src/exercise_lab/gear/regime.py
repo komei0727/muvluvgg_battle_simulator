@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping, Sequence
+import time
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -239,3 +240,42 @@ def observe_signature(
         )
     )
     return extract_signature(response), response
+
+
+@dataclass
+class CachingObserver:
+    """単発実行でレジーム署名を取る。同じ配分は1度しか観測しない。
+
+    単発実行はseedを受け取らない（`10_API設計.md`「TacticalExerciseRequest」）ので、
+    同じ配分を2度観測しても同じ署名が返る保証が無い。畳んでおかないと、押した手を
+    1つ戻しただけで「レジームが変わった」と読める結果が出うる。
+
+    観測は乱数を固定できない以上、中断・再開をまたいで同じ軌跡を辿るにはこの表を
+    そのまま持ち越すしかない（`gear/state.py`）。新しく観測したときだけ
+    `on_observed` を呼び、状態の書き出しをそこへ繋ぐ。
+    """
+
+    client: LabApiClient
+    source: GearFormationSource
+    cache: dict[str, RegimeSignature] = field(default_factory=dict)
+    calls: int = 0
+    elapsed_seconds: float = 0.0
+    on_observed: Callable[[], None] | None = None
+
+    def observe(self, allocation: Allocation) -> RegimeSignature:
+        key = allocation.canonical_key()
+        cached = self.cache.get(key)
+        if cached is not None:
+            return cached
+        started = time.perf_counter()
+        signature, _ = observe_signature(self.client, self.source, allocation)
+        self.elapsed_seconds += time.perf_counter() - started
+        self.calls += 1
+        self.cache[key] = signature
+        if self.on_observed is not None:
+            self.on_observed()
+        return signature
+
+    @property
+    def seconds_per_call(self) -> float:
+        return self.elapsed_seconds / max(1, self.calls)

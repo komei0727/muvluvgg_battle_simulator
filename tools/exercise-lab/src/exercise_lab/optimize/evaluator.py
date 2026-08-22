@@ -196,7 +196,11 @@ class Evaluator[C: EvaluationCandidate]:
         self._max_total_runs = max_total_runs
         self._log_path = log_path
         self._records: dict[tuple[str, str], CandidateRecord[C]] = {}
+        # 再開時に読み戻した履歴。探索がその候補を求めるまで `_records` へは入れない
+        # （`stage_record`）。
+        self._staged: dict[tuple[str, str], CandidateRecord[C]] = {}
         self._consumed_runs = 0
+        self._requested_runs = 0
         self._catalog_revision = ""
         self._enemy_formation = formations.enemy_formation()
 
@@ -217,6 +221,15 @@ class Evaluator[C: EvaluationCandidate]:
         return self._consumed_runs
 
     @property
+    def requested_runs(self) -> int:
+        """要求した試行数。完了した数（`consumed_runs`）との差が部分結果の不足である。
+
+        要求数へ丸めない。期限で切れたぶんを「回した」ことにすると、統計の分母が実際より
+        大きくなる（`stats.py` の `requestedRuns` / `completedRuns` と同じ扱い）。
+        """
+        return self._requested_runs
+
+    @property
     def catalog_revision(self) -> str:
         return self._catalog_revision
 
@@ -225,6 +238,19 @@ class Evaluator[C: EvaluationCandidate]:
 
     def record_for(self, candidate: C, phase: EvaluationPhase) -> CandidateRecord[C] | None:
         return self._records.get((phase.name, candidate.canonical_key()))
+
+    def staged_records(self, phase: EvaluationPhase) -> list[CandidateRecord[C]]:
+        """まだ探索が求めていない、読み戻し済みの履歴。"""
+        return [record for (name, _), record in self._staged.items() if name == phase.name]
+
+    def stage_record(self, phase: EvaluationPhase, record: CandidateRecord[C]) -> None:
+        """保存済みの評価履歴を、使うときまで待たせて取り込む（中断からの再開）。
+
+        `adopt_record` と違い、消費した試行数は**探索がその候補を求めた時点**で数える。
+        再開した瞬間に全部を数え上げると、best-so-far 曲線の横軸が復元した時点で跳ね
+        上がり、中断せず走らせた軌跡と食い違う。
+        """
+        self._staged[(phase.name, record.candidate.canonical_key())] = record
 
     def adopt_record(self, phase: EvaluationPhase, record: CandidateRecord[C]) -> None:
         """保存済みの評価履歴を取り込む（中断からの再開）。
@@ -236,6 +262,9 @@ class Evaluator[C: EvaluationCandidate]:
 
     def adopt_consumed_runs(self, consumed_runs: int) -> None:
         self._consumed_runs = consumed_runs
+
+    def adopt_requested_runs(self, requested_runs: int) -> None:
+        self._requested_runs = requested_runs
 
     def ensure(
         self,
@@ -277,7 +306,12 @@ class Evaluator[C: EvaluationCandidate]:
             key = (phase.name, candidate.canonical_key())
             record = self._records.get(key)
             if record is None:
-                record = CandidateRecord(candidate=candidate)
+                # 読み戻した履歴があればそれを使う。ここで初めて予算を消費済みに数える。
+                record = self._staged.pop(key, None)
+                if record is None:
+                    record = CandidateRecord(candidate=candidate)
+                else:
+                    self._consumed_runs += record.sample_count
                 self._records[key] = record
             if key[1] not in seen:
                 seen.add(key[1])
@@ -321,6 +355,7 @@ class Evaluator[C: EvaluationCandidate]:
             }
         )
         self._catalog_revision = response.catalog_revision
+        self._requested_runs += len(batch) * runs
         rows: list[dict[str, Any]] = []
         # 応答の候補はリクエストと同じ順・同じ件数で返る（`10_API設計.md`）。
         for record, evaluation, formation in zip(

@@ -100,3 +100,13 @@ def test_an_unreachable_server_is_reported_without_a_traceback(tmp_path):
 
     assert result.exit_code == 1
     assert "APIへ到達できない" in result.output
+
+
+@respx.mock
+def test_the_console_says_which_commands_read_the_formation_schema(tmp_path):
+    """ギア分析（gear-sensitivity / gear-plan）が読むのも編成定義YAMLである。"""
+    mock_catalog()
+
+    result = runner.invoke(app, ["schema", "--out", str(tmp_path / ".schema")])
+
+    assert "ギア分析" in result.output

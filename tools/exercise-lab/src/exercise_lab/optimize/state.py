@@ -107,8 +107,8 @@ def _dump_records(evaluator: Evaluator[Candidate], phase: EvaluationPhase) -> li
     """再開に要る列だけを書き出す。
 
     ユニット別与ダメージ（`CandidateRecord.unit_damage_totals`）は載せない。編成探索は
-    読まない列であり、状態ファイルを候補数×試行数×枠数で膨らませる意味が無い。ギア探索
-    （`gear/`）は中断・再開を持たないので、落ちて困る利用者も居ない。
+    読まない列であり、状態ファイルを候補数×試行数×枠数で膨らませる意味が無い。読む側
+    （ギア探索の篩い）は自前の状態ファイルへ書き出す（`gear/state.py`）。
     """
     return [
         {

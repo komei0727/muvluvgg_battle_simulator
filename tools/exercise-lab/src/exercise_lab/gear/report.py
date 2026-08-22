@@ -403,6 +403,7 @@ def build_plan_summary(
     catalog_revision: str,
     budget: Mapping[str, int],
     budget_runs: int,
+    requested_runs: int,
     observations: int,
 ) -> dict[str, Any]:
     return {
@@ -430,6 +431,9 @@ def build_plan_summary(
         },
         "budgetRuns": budget_runs,
         "plannedRuns": dict(budget),
+        # 要求した試行数と完了した試行数を別々に残す。差が期限で欠けたぶんであり、
+        # 要求数へ丸めない（`stats.py` の `requestedRuns` / `completedRuns` と同じ）。
+        "requestedRuns": requested_runs,
         "consumedRuns": result.consumed_runs,
         "observationRuns": observations,
         "baseSignature": result.base_signature.to_dict(),
@@ -467,8 +471,23 @@ def build_plan_summary(
             }
             for point in result.history
         ],
-        "warnings": list(result.warnings),
+        "warnings": [*result.warnings, *_shortfall_warnings(requested_runs, result.consumed_runs)],
     }
+
+
+def _shortfall_warnings(requested_runs: int, consumed_runs: int) -> list[str]:
+    """部分結果の不足。**再送はしない** ——同じseedで投げ直しても同じところで切れる。
+
+    要求数へ丸めず、差として残す（`stats.py` の `requestedRuns` / `completedRuns` と
+    同じ扱い）。丸めると、期限で欠けた試行を「回した」ことにして分母が実際より大きくなる。
+    """
+    if requested_runs <= consumed_runs:
+        return []
+    return [
+        f"部分結果 — 要求 {requested_runs:,} 試行に対し {consumed_runs:,} 試行で分析した"
+        f"（不足 {requested_runs - consumed_runs:,}）。devサーバーの SIMULATION_TIMEOUT_MS を"
+        "延ばすか、--screen-runs / --confirm-runs / --final-runs を下げる"
+    ]
 
 
 def _lowered_summary(entry: LoweredRank, catalog: Catalog) -> dict[str, Any]:
