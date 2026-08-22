@@ -115,26 +115,41 @@ def remaining_iteration_cost(
     *,
     settings: ClimbSettings,
 ) -> int:
-    """この反復がこれから払う試行数の上限。評価済みのぶんを差し引く。
+    """この反復がこれから払う試行数の上限。評価済みのぶんを差し引く。"""
+    return remaining_round_cost(
+        current,
+        [applied for move in moves if (applied := move.apply(current)) is not None],
+        evaluator,
+        settings=settings,
+    )
 
-    篩いは候補が確定しているので正確に引ける。確定段はどの手が通るか篩う前には
+
+def remaining_round_cost(
+    current: Allocation,
+    variants: Sequence[Allocation],
+    evaluator: BudgetedSampleSource[Allocation],
+    *,
+    settings: ClimbSettings,
+) -> int:
+    """基点と候補を1巡（篩い→確定）測るのに、これから払う試行数の上限。
+
+    篩いは候補が確定しているので正確に引ける。確定段はどの候補が通るか篩う前には
     決まらないため、上限（`survivors` 件が未評価）のまま見積もる——**多めに見積もる**
     ぶんには予算を食い破らないが、少なく見積もると上限を超える。
     """
     screen_phase, confirm_phase = phases_for_climb(settings)
-    variants = [applied for move in moves if (applied := move.apply(current)) is not None]
     screening = sum(
-        _unpaid(evaluator, candidate, screen_phase, settings.screen_runs)
+        unpaid_runs(evaluator, candidate, screen_phase, settings.screen_runs)
         for candidate in (current, *variants)
     )
     confirming = (
-        _unpaid(evaluator, current, confirm_phase, settings.confirm_runs)
+        unpaid_runs(evaluator, current, confirm_phase, settings.confirm_runs)
         + min(settings.survivors, len(variants)) * settings.confirm_runs
     )
     return screening + confirming
 
 
-def _unpaid(
+def unpaid_runs(
     evaluator: BudgetedSampleSource[Allocation],
     candidate: Allocation,
     phase: EvaluationPhase,
@@ -185,7 +200,9 @@ class ClimbResult:
 
 
 @dataclass
-class _Screened:
+class ScreenedMove:
+    """篩いを通った手1つと、そのときのペア差。確定段と単価表の入力になる。"""
+
     move: Move
     allocation: Allocation
     damage_gain: float
@@ -224,8 +241,11 @@ def hill_climb(
             stopped = BUDGET_EXHAUSTED
             break
 
-        screened = _screen(
-            current, moves, evaluator, settings=settings, phase=screen_phase, warnings=warnings
+        variants = [
+            (move, applied) for move in moves if (applied := move.apply(current)) is not None
+        ]
+        screened = screen_variants(
+            current, variants, evaluator, settings=settings, phase=screen_phase, warnings=warnings
         )
         candidates.extend(
             RegimeCandidate(
@@ -242,7 +262,7 @@ def hill_climb(
         )
 
         survivors = screened[: settings.survivors]
-        best = _confirm(
+        ranked = confirm_variants(
             current,
             survivors,
             evaluator,
@@ -250,10 +270,10 @@ def hill_climb(
             phase=confirm_phase,
             objective=objective,
         )
-        if best is None or best[1] <= 0.0:
+        if not ranked or ranked[0][1] <= 0.0:
             stopped = LOCAL_OPTIMUM
             break
-        entry, gain = best
+        entry, gain = ranked[0]
         current = entry.allocation
         steps.append(
             ClimbStep(
@@ -276,17 +296,20 @@ def hill_climb(
     )
 
 
-def _screen(
+def screen_variants(
     current: Allocation,
-    moves: Sequence[Move],
+    variants: Sequence[tuple[Move, Allocation]],
     evaluator: BudgetedSampleSource[Allocation],
     *,
     settings: ClimbSettings,
     phase: EvaluationPhase,
     warnings: list[str],
-) -> list[_Screened]:
-    """全手を浅く評価し、動かした枠の与ダメージのペア差で並べる。"""
-    variants = [(move, applied) for move in moves if (applied := move.apply(current)) is not None]
+) -> list[ScreenedMove]:
+    """候補を浅く評価し、動かした枠の与ダメージのペア差で並べる。
+
+    手と着いた配分の組で受け取るのは、1手先とは限らない候補（ランク微調整の walk は
+    数段先まで進む）を同じ篩いに掛けるためである。与ダメージの列は最後の手の枠で取る。
+    """
     records = evaluator.ensure(
         [current, *(allocation for _, allocation in variants)],
         settings.screen_runs,
@@ -294,7 +317,7 @@ def _screen(
     )
     by_key = {record.candidate.canonical_key(): record for record in records}
     base = by_key[current.canonical_key()]
-    screened: list[_Screened] = []
+    screened: list[ScreenedMove] = []
     for move, allocation in variants:
         record = by_key[allocation.canonical_key()]
         count = min(settings.screen_runs, base.sample_count, record.sample_count)
@@ -306,7 +329,7 @@ def _screen(
             warnings.append(MISSING_DAMAGE_WARNING)
             damage_gain = score_gain
         screened.append(
-            _Screened(
+            ScreenedMove(
                 move=move, allocation=allocation, damage_gain=damage_gain, score_gain=score_gain
             )
         )
@@ -314,24 +337,28 @@ def _screen(
     return screened
 
 
-def _confirm(
+def confirm_variants(
     current: Allocation,
-    survivors: Sequence[_Screened],
+    survivors: Sequence[ScreenedMove],
     evaluator: BudgetedSampleSource[Allocation],
     *,
     settings: ClimbSettings,
     phase: EvaluationPhase,
     objective: Objective,
-) -> tuple[_Screened, float] | None:
-    """篩いを通った手を深く評価し、期待日次ベスト＋保証値のペア差で1手を選ぶ。"""
+) -> list[tuple[ScreenedMove, float]]:
+    """篩いを通った手を深く評価し、期待日次ベスト＋保証値のペア差の降順で返す。
+
+    最良の1手だけでなく全件を返す。単価表（`rank_tuning.py`）は採用しなかった手の差も
+    要るので、ここで畳むと同じ評価をもう一度読み直すことになる。
+    """
     if not survivors:
-        return None
+        return []
     records = evaluator.ensure(
         [current, *(entry.allocation for entry in survivors)], settings.confirm_runs, phase=phase
     )
     by_key = {record.candidate.canonical_key(): record for record in records}
     base = by_key[current.canonical_key()]
-    ranked: list[tuple[_Screened, float]] = []
+    ranked: list[tuple[ScreenedMove, float]] = []
     for entry in survivors:
         record = by_key[entry.allocation.canonical_key()]
         count = min(settings.confirm_runs, base.sample_count, record.sample_count)
@@ -339,9 +366,8 @@ def _confirm(
             continue
         gain = objective.fitness(record.scores_at(count)) - objective.fitness(base.scores_at(count))
         ranked.append((entry, gain))
-    if not ranked:
-        return None
-    return max(ranked, key=lambda pair: pair[1])
+    ranked.sort(key=lambda pair: pair[1], reverse=True)
+    return ranked
 
 
 def _mean_gain(base: Sequence[int], variant: Sequence[int]) -> float:

@@ -10,9 +10,12 @@ from exercise_lab.gear.plan import (
     plan_budget,
     plan_gear_allocation,
 )
+from exercise_lab.gear.rank_tuning import RankTuningSettings
+from exercise_lab.gear.ranks import EMPTY_LADDER
 from exercise_lab.gear.regime import RegimeSignature
 from exercise_lab.gear.search import ClimbSettings, hill_climb
 from exercise_lab.optimize.fitness import Objective
+from test_gear_ranks import attack_ladder
 from test_gear_search import FakeGearEvaluator
 
 OBJECTIVE = Objective(best_of=5)
@@ -72,7 +75,7 @@ CLIMB = ClimbSettings(screen_runs=4, confirm_runs=8, survivors=6, max_iterations
 SETTINGS = PlanSettings(climb=CLIMB, restarts=2, push_steps=4)
 
 
-def run_plan(settings=SETTINGS, budget=1_000_000, evaluator=None, observer=None):
+def run_plan(settings=SETTINGS, budget=1_000_000, evaluator=None, observer=None, ladder=None):
     evaluator = evaluator or FakeGearEvaluator(unit_strength=valley_strength)
     observer = observer or FakeObserver()
     result = plan_gear_allocation(
@@ -82,6 +85,7 @@ def run_plan(settings=SETTINGS, budget=1_000_000, evaluator=None, observer=None)
         settings=settings,
         objective=OBJECTIVE,
         budget_runs=budget,
+        ladder=EMPTY_LADDER if ladder is None else ladder,
     )
     return result, evaluator, observer
 
@@ -210,3 +214,67 @@ def test_the_same_input_reproduces_the_same_plan():
     assert [attempt.direction for attempt in first.restarts] == [
         attempt.direction for attempt in second.restarts
     ]
+
+
+# --- Phase D: ランク微調整 ---------------------------------------------------
+
+
+def test_without_an_effect_table_the_rank_pass_does_not_run():
+    result, _, _ = run_plan()
+
+    assert result.rank_tuning is None
+
+
+def test_the_rank_pass_targets_the_slots_the_restart_moved_the_effect_between():
+    result, _, _ = run_plan(ladder=attack_ladder())
+
+    tuning = result.rank_tuning
+    assert tuning is not None
+    # 再スタートで受け先が 0:UNIT_A → 1:UNIT_B へ動いた。境界はその両端である。
+    assert {target.slot_index for target in tuning.targets} == {0, 1}
+    assert all(target.stat == "ATTACK" for target in tuning.targets)
+
+
+def test_the_rank_pass_starts_from_the_allocation_the_earlier_phases_reached():
+    result, _, _ = run_plan(ladder=attack_ladder())
+
+    assert result.rank_tuning is not None
+    assert result.rank_tuning.start.canonical_key() != START.canonical_key()
+
+
+def test_the_rank_pass_signatures_are_listed_with_where_they_came_from():
+    result, _, _ = run_plan(ladder=attack_ladder())
+
+    origins = {entry.origin for entry in result.signatures}
+    assert any(origin.startswith("rank") for origin in origins)
+
+
+def test_turning_the_rank_pass_off_skips_it_even_with_an_effect_table():
+    settings = replace(SETTINGS, rank=RankTuningSettings(steps=0))
+
+    result, _, _ = run_plan(settings=settings, ladder=attack_ladder())
+
+    assert result.rank_tuning is None
+
+
+def test_the_budget_breakdown_counts_the_rank_pass():
+    settings = PlanSettings(
+        climb=ClimbSettings(screen_runs=10, confirm_runs=30, survivors=16, max_iterations=12),
+        restarts=4,
+        rank=RankTuningSettings(steps=4),
+    )
+
+    plan = plan_budget(settings, move_count=120, unit_count=5)
+
+    candidates = 5 * 4
+    rank = (1 + candidates) * 10 + (1 + min(16, candidates)) * 30
+    assert plan["rankTuning"] == rank
+    assert plan["total"] == plan["perClimb"] * 5 + rank
+    assert observation_count(settings, unit_count=5) == 1 + 1 + 4 * (4 + 1) + 1 + 5 * 4
+
+
+def test_the_rank_pass_never_pushes_the_run_past_the_budget():
+    result, evaluator, _ = run_plan(budget=2_000, ladder=attack_ladder())
+
+    assert evaluator.consumed_runs <= 2_000
+    assert result.consumed_runs == evaluator.consumed_runs

@@ -20,7 +20,7 @@ from typing import Any, Self
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .models import FormationConfig
+from .models import FormationConfig, GearGrade, GearStat, GearTier
 
 CATALOG_PATH = "/api/v1/battle-simulation-catalog"
 EVALUATION_PATH = "/api/v1/tactical-exercise-evaluations"
@@ -69,10 +69,27 @@ class CatalogMemory(_Response):
     display_name: str = Field(alias="displayName")
 
 
+class CatalogGearEffectValue(_Response):
+    tier: GearTier
+    grade: GearGrade
+    # `R-ENH-04` #3 の表の値をパーセントポイントのまま受ける。内部表現（`/100`）へは
+    # 直さない——このツールが要るのはランクどうしの大小と差だけで、換算は要らない。
+    percentage_points: float = Field(alias="percentagePoints")
+
+
+class CatalogGearEffect(_Response):
+    stat: GearStat
+    application: str = ""
+    values: list[CatalogGearEffectValue] = Field(default_factory=list)
+
+
 class Catalog(_Response):
     catalog_revision: str = Field(alias="catalogRevision")
     units: list[CatalogUnit]
     memories: list[CatalogMemory]
+    # ギア効果表（`R-ENH-04` #3）。ランクの「1段下」を決めるのに要る。応答へ後から
+    # 加わった項目なので、欠けても他のコマンドが止まらないよう既定を空にする。
+    gear_effects: list[CatalogGearEffect] = Field(default_factory=list, alias="gearEffects")
 
     def unit(self, unit_definition_id: str) -> CatalogUnit | None:
         return next(

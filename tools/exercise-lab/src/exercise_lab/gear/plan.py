@@ -15,13 +15,16 @@
 到達した署名は origin つきで残す。**探索が触れなかった署名は列挙できない**（列挙できる
 なら探索は要らない）が、「押したのに署名が変わらなかった向き」は残せる——そこは触れて
 いない、と読めるようにする。
+
+配分が収束したら Phase D（`rank_tuning.py`）へ渡す。ここまでは枚数だけを動かしており、
+ランクは近傍に入れていない（1枚あたり9通りの替えで近傍が2桁増えるため）。**枚数では
+刻めない閾値**を、境界に関わる枠に限ってランクで刻むのが最後の段である。
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Protocol
 
 from ..optimize.fitness import Objective
 from .allocation import (
@@ -33,7 +36,18 @@ from .allocation import (
     UnitAllocation,
 )
 from .neighborhood import Move
-from .regime import RegimeSignature
+from .rank_tuning import (
+    RankTuningResult,
+    RankTuningSettings,
+    focus_targets,
+    rank_round_cost,
+    tune_ranks,
+)
+from .rank_tuning import (
+    observation_count as rank_observation_count,
+)
+from .ranks import EMPTY_LADDER, RankLadder
+from .regime import RegimeSignature, SignatureObserver, slot_index_of
 from .search import (
     BudgetedSampleSource,
     ClimbResult,
@@ -63,12 +77,8 @@ class PlanSettings:
     restarts: int = 4
     # 1本で押す最大手数。これを超えても署名が変わらなければ、その向きは諦める。
     push_steps: int = 4
-
-
-class SignatureObserver(Protocol):
-    """1配分の署名を取る係。実体は単発実行1回（`regime.observe_signature`）。"""
-
-    def observe(self, allocation: Allocation) -> RegimeSignature: ...
+    # Phase D。収束した配分のランクを、境界に関わる枠だけ下げて刻む。
+    rank: RankTuningSettings = field(default_factory=RankTuningSettings)
 
 
 @dataclass(frozen=True)
@@ -103,21 +113,29 @@ class PlanResult:
     base_signature: RegimeSignature
     base_climb: ClimbResult
     restarts: tuple[RestartAttempt, ...] = ()
+    # Phase D を回さなかった実行（効果表が無い・`--rank-steps 0`）では `None`。
+    rank_tuning: RankTuningResult | None = None
     signatures: tuple[ObservedSignature, ...] = ()
     ranking: tuple[tuple[Allocation, float], ...] = ()
     consumed_runs: int = 0
     warnings: tuple[str, ...] = ()
 
 
-def plan_budget(settings: PlanSettings, *, move_count: int) -> dict[str, int]:
-    """試行数の内訳。上限であって実測ではない（改善が止まれば途中で終わる）。"""
+def plan_budget(settings: PlanSettings, *, move_count: int, unit_count: int = 0) -> dict[str, int]:
+    """試行数の内訳。上限であって実測ではない（改善が止まれば途中で終わる）。
+
+    Phase D の額は**全枠が境界に関わった場合**で見積もる。実際の対象は署名を観測して
+    から決まるので事前には分からず、少なく見積もると上限を超えうる。
+    """
     per_iteration = iteration_cost(settings.climb, move_count=move_count)
     per_climb = per_iteration * settings.climb.max_iterations
+    rank = rank_round_cost(settings.rank, settings.climb, target_count=unit_count)
     return {
         "perIteration": per_iteration,
         "perClimb": per_climb,
         "climbs": 1 + settings.restarts,
-        "total": per_climb * (1 + settings.restarts),
+        "rankTuning": rank,
+        "total": per_climb * (1 + settings.restarts) + rank,
     }
 
 
@@ -136,13 +154,18 @@ def minimum_budget(settings: PlanSettings, *, move_count: int) -> int:
     return iteration_cost(settings.climb, move_count=move_count)
 
 
-def observation_count(settings: PlanSettings) -> int:
-    """単発実行の回数。基点・基点の解・各再スタートの押し1手ごとと登った先。
+def observation_count(settings: PlanSettings, *, unit_count: int = 0) -> int:
+    """単発実行の回数。基点・基点の解・各再スタートの押し1手ごとと登った先・Phase D。
 
     一括評価の試行数とは別勘定にする。1リクエスト1試行で `DETAILED` のイベント列を
     返すため、所要時間の性質が違う。
     """
-    return 1 + 1 + settings.restarts * (settings.push_steps + 1)
+    return (
+        1
+        + 1
+        + settings.restarts * (settings.push_steps + 1)
+        + rank_observation_count(settings.rank, target_count=unit_count)
+    )
 
 
 def plan_gear_allocation(
@@ -153,8 +176,9 @@ def plan_gear_allocation(
     settings: PlanSettings,
     objective: Objective,
     budget_runs: int,
+    ladder: RankLadder = EMPTY_LADDER,
 ) -> PlanResult:
-    """Phase A（観測）→ B（山登り）→ C（レジーム再スタート）を通す。"""
+    """Phase A（観測）→ B（山登り）→ C（レジーム再スタート）→ D（ランク微調整）を通す。"""
     base_signature = observer.observe(start)
     observations = [ObservedSignature(origin="base", allocation=start, signature=base_signature)]
 
@@ -200,17 +224,76 @@ def plan_gear_allocation(
     for attempt in attempts:
         if attempt.climb is not None:
             warnings.extend(attempt.climb.warnings)
+
+    tuning = _tune_ranks(
+        best,
+        evaluator,
+        observer,
+        observations,
+        ladder=ladder,
+        settings=settings,
+        objective=objective,
+        budget_runs=budget_runs,
+    )
+    if tuning is not None:
+        warnings.extend(tuning.warnings)
+        winners.extend(entry.allocation for entry in tuning.signatures)
+        ranking = _rank(winners, evaluator, settings=settings, objective=objective)
+        best = ranking[0][0] if ranking else best
+
     return PlanResult(
         start=start,
         best=best,
         base_signature=base_signature,
         base_climb=base_climb,
         restarts=tuple(attempts),
+        rank_tuning=tuning,
         signatures=tuple(observations),
         ranking=tuple(ranking),
         consumed_runs=evaluator.consumed_runs,
         warnings=tuple(dict.fromkeys(warnings)),
     )
+
+
+def _tune_ranks(
+    best: Allocation,
+    evaluator: BudgetedSampleSource[Allocation],
+    observer: SignatureObserver,
+    observations: list[ObservedSignature],
+    *,
+    ladder: RankLadder,
+    settings: PlanSettings,
+    objective: Objective,
+    budget_runs: int,
+) -> RankTuningResult | None:
+    """Phase D。**ここまでに観測した署名すべて**から境界を決めて渡す。
+
+    基点・各再スタート・登った先を通して当て先が動いた成分だけが境界の証拠であり、
+    どれか1回の観測だけでは「動いた」を判定できない。
+    """
+    if ladder.is_empty() or settings.rank.steps < 1:
+        return None
+    result = tune_ranks(
+        best,
+        evaluator,
+        observer,
+        ladder=ladder,
+        targets=focus_targets([entry.signature for entry in observations]),
+        settings=settings.rank,
+        climb=settings.climb,
+        objective=objective,
+        budget_runs=budget_runs,
+    )
+    observations.extend(
+        ObservedSignature(
+            origin=f"rank{index}-step{stop.step}",
+            allocation=stop.allocation,
+            signature=stop.signature,
+        )
+        for index, walk in enumerate(result.walks, start=1)
+        for stop in walk.stops
+    )
+    return result
 
 
 def _restart_directions(
@@ -226,17 +309,13 @@ def _restart_directions(
         component
         for component, recipient in sorted(signature.assignments.items())
         # 押せるのは味方枠だけである。敵が受け先の効果はギアでは動かせない。
-        if _slot_of(recipient) is not None
+        if slot_index_of(recipient) is not None
     ]
-    components.sort(key=lambda name: (_slot_of(signature.assignments[name]) not in suspected, name))
+    components.sort(
+        key=lambda name: (slot_index_of(signature.assignments[name]) not in suspected, name)
+    )
     pairs = [(component, direction) for component in components for direction in DIRECTIONS]
     return pairs[: settings.restarts]
-
-
-def _slot_of(recipient: str) -> int | None:
-    """`0:UNIT_A` 形式の呼び名から枠の索引。敵（`enemy:`）は `None`。"""
-    head, _, _ = recipient.partition(":")
-    return int(head) if head.isdigit() else None
 
 
 def _restart(
@@ -253,7 +332,7 @@ def _restart(
     objective: Objective,
     budget_runs: int,
 ) -> RestartAttempt:
-    slot_index = _slot_of(origin_signature.assignments[component])
+    slot_index = slot_index_of(origin_signature.assignments[component])
     assert slot_index is not None
     allocation = origin
     moves: list[Move] = []

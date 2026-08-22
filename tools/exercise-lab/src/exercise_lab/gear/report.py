@@ -21,6 +21,7 @@ from ..optimize.fitness import Objective
 from .allocation import SEARCHED_STATS, Allocation
 from .neighborhood import Move
 from .plan import PlanResult, PlanSettings, RestartAttempt
+from .rank_tuning import RankTuningResult, RankWalk
 from .search import ClimbResult
 from .sensitivity import (
     CombinedResult,
@@ -359,6 +360,11 @@ RANGE_CAVEAT = (
     "（最終選抜）はこのコマンドの担当ではない"
 )
 
+PRICE_CAVEAT = (
+    "単価はランク微調整で測った枠のぶんだけである（境界に関わらない枠は測っていない）。"
+    "1段のΔは測った時点の配分に依存し、段どうしを足し合わせられない"
+)
+
 
 def build_plan_summary(
     result: PlanResult,
@@ -387,6 +393,7 @@ def build_plan_summary(
             "includeRank": settings.climb.include_rank,
             "restarts": settings.restarts,
             "pushSteps": settings.push_steps,
+            "rankSteps": settings.rank.steps,
         },
         "objective": {
             "bestOf": objective.best_of,
@@ -409,12 +416,89 @@ def build_plan_summary(
         ],
         "baseClimb": _climb_summary(result.base_climb, catalog),
         "restarts": [_restart_summary(attempt, catalog) for attempt in result.restarts],
+        "rankTuning": _rank_tuning_summary(result.rank_tuning, catalog),
+        "priceCaveat": PRICE_CAVEAT,
         "best": _allocation_summary(result.best, catalog),
         "ranking": [
             {"allocation": _allocation_summary(allocation, catalog), "fitness": fitness}
             for allocation, fitness in result.ranking
         ],
         "warnings": list(result.warnings),
+    }
+
+
+def _rank_tuning_summary(
+    tuning: RankTuningResult | None, catalog: Catalog
+) -> dict[str, Any] | None:
+    """Phase D の結果。回さなかった実行では `null`（`--rank-steps 0`・効果表なし）。"""
+    if tuning is None:
+        return None
+    return {
+        "stoppedBecause": tuning.stopped_because,
+        "start": _allocation_summary(tuning.start, catalog),
+        "best": _allocation_summary(tuning.best, catalog),
+        "bestGain": tuning.best_gain,
+        "targets": [
+            {
+                "slotIndex": target.slot_index,
+                "unitDefinitionId": tuning.start.units[target.slot_index].unit_definition_id,
+                "displayName": _display_name(
+                    catalog, tuning.start.units[target.slot_index].unit_definition_id
+                ),
+                "stat": target.stat,
+                # そう判断した根拠。観測のあいだに当て先が動いた成分の名前である。
+                "components": list(target.components),
+            }
+            for target in tuning.targets
+        ],
+        "walks": [_walk_summary(walk, catalog) for walk in tuning.walks],
+        "prices": [
+            {
+                "stepIndex": price.step_index,
+                "slotIndex": price.slot_index,
+                "unitDefinitionId": price.unit_definition_id,
+                "displayName": _display_name(catalog, price.unit_definition_id),
+                "stat": price.stat,
+                "step": price.rank_step.label,
+                "pointsDelta": price.rank_step.points_delta,
+                "expectedBestDelta": price.expected_best_delta,
+                "fitnessDelta": price.fitness_delta,
+                "runs": price.runs,
+            }
+            for price in tuning.prices
+        ],
+        "signatures": [
+            {
+                "digest": entry.digest,
+                "fitness": entry.fitness,
+                "move": None if entry.move is None else entry.move.label,
+                "allocation": _allocation_summary(entry.allocation, catalog),
+                **entry.signature.to_dict(),
+            }
+            for entry in tuning.signatures
+        ],
+        "warnings": list(tuning.warnings),
+    }
+
+
+def _walk_summary(walk: RankWalk, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "slotIndex": walk.target.slot_index,
+        "stat": walk.target.stat,
+        "stoppedBecause": walk.stopped_because,
+        "stops": [
+            {
+                "step": stop.step,
+                "unitDefinitionId": stop.move.unit_definition_id,
+                "displayName": _display_name(catalog, stop.move.unit_definition_id),
+                "move": stop.move.label,
+                "digest": stop.signature.digest(),
+                "changed": stop.changed,
+                "fitnessGain": stop.fitness_gain,
+                "expectedBestGain": stop.expected_best_gain,
+            }
+            for stop in walk.stops
+        ],
     }
 
 
@@ -475,6 +559,21 @@ def _allocation_summary(allocation: Allocation, catalog: Catalog) -> list[dict[s
             "counts": {stat: unit.count(stat) for stat in SEARCHED_STATS},
         }
         for index, unit in enumerate(allocation.units)
+    ]
+
+
+def rank_price_rows(tuning: RankTuningResult, catalog: Catalog) -> list[list[str]]:
+    """単価表をコンソール表の行へ直す。**上げる向き**で読む。"""
+    return [
+        [
+            f"{price.slot_index}: {_display_name(catalog, price.unit_definition_id)}",
+            STAT_LABELS.get(price.stat, price.stat),
+            price.rank_step.label,
+            f"{price.rank_step.points_delta:+.2f}pt",
+            f"{price.expected_best_delta:+,.0f}",
+            str(price.step_index),
+        ]
+        for price in tuning.prices
     ]
 
 

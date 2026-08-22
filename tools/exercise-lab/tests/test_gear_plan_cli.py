@@ -3,6 +3,7 @@
 import json
 
 import httpx
+import pytest
 import respx
 import yaml
 from typer.testing import CliRunner
@@ -181,6 +182,8 @@ def run(tmp_path, out, *extra, **kwargs):
             "--restarts",
             "1",
             "--push-steps",
+            "2",
+            "--rank-steps",
             "2",
             "--yes",
             *extra,
@@ -470,3 +473,55 @@ def test_a_base_allocation_that_breaks_the_gear_rule_stops_before_any_evaluation
     assert result.exit_code == 1
     assert "R-ENH-04" in result.output
     assert route.call_count == 0
+
+
+# --- Phase D: ランク微調整 ---------------------------------------------------
+
+
+@respx.mock
+def test_the_report_carries_the_rank_pass_and_its_price_table(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    # 再スタートを両方向とも回すと、DOWN 側で受け先が 0:UNIT_A → 1:UNIT_B へ動く。
+    result = run(tmp_path, out, "--restarts", "2", "--budget", "20000")
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    tuning = summary["rankTuning"]
+    assert tuning is not None
+    # 単発実行のモックは攻撃力の枚数で受け先を決める。再スタートでそこが動いた枠だけが対象。
+    assert tuning["targets"]
+    assert all(target["stat"] in ("ATTACK", "ACTION_SPEED") for target in tuning["targets"])
+    assert summary["settings"]["rankSteps"] == 2
+    # UNIT_B の Ⅲ-D(1.0) を1段下げると Ⅱ-D(0.75)。段と補正差はCatalogの効果表から出る。
+    price = next(entry for entry in tuning["prices"] if entry["slotIndex"] == 1)
+    assert price["step"] == "II-D → III-D"
+    assert price["pointsDelta"] == pytest.approx(0.25)
+    assert price["runs"] == 8
+    assert "ランク1段の単価" in result.output
+
+
+@respx.mock
+def test_the_rank_pass_never_touches_a_slot_outside_the_boundary(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    run(tmp_path, out, "--restarts", "2", "--budget", "20000")
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    tuning = summary["rankTuning"]
+    focused = {target["slotIndex"] for target in tuning["targets"]}
+    assert focused
+    assert {walk["slotIndex"] for walk in tuning["walks"]} <= focused
+
+
+@respx.mock
+def test_turning_the_rank_pass_off_leaves_it_out_of_the_report(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    result = run(tmp_path, out, "--rank-steps", "0")
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    assert summary["rankTuning"] is None
+    assert result.exit_code == 0
