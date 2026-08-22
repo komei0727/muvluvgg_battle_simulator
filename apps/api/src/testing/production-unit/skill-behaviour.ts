@@ -27,6 +27,7 @@ import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { FormationPosition } from "../../domain/battle/model/formation-input.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type { Attribute, UnitType } from "../../domain/catalog/definitions/catalog-enums.js";
+import type { ResolutionPhase } from "../../domain/catalog/definitions/condition-definition.js";
 import {
   createEffectActionDefinitionId,
   createSkillDefinitionId,
@@ -402,6 +403,12 @@ export type SkillUse =
       readonly triggeredBy?: string;
       /** `TURN_NUMBER` を読む条件のための評価ターン。既定は1。 */
       readonly turnNumber?: number;
+      /**
+       * `RESOLUTION_PHASE` 条件（「戦闘開始時・ターン開始時・ターン終了時には
+       * 発動しない」等）を実際に評価可能にする。省略時は`undefined`のままで、
+       * どのphase指定にも一致しない（`negate: true`側だけが常に成立する）。
+       */
+      readonly resolutionPhase?: ResolutionPhase;
     };
 
 function effectSummaries(units: readonly BattleUnit[]): readonly ObservedEffect[] {
@@ -940,6 +947,9 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
       battleId: "B_BEHAVIOUR",
       damageResults,
       ...(options.use.turnNumber === undefined ? {} : { turnNumber: options.use.turnNumber }),
+      ...(options.use.resolutionPhase === undefined
+        ? {}
+        : { resolutionPhase: options.use.resolutionPhase }),
     });
     if (isRealDamage(trigger)) {
       // 契機は実pipelineに出させる。ここで減ったHPはPS自身が起こした変化と

@@ -336,7 +336,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
-    intent: "(不成立): このスキルは戦闘開始時・ターン開始時・ターン終了時には発動しない",
+    intent: "(不成立): 敵からバフ（デバフ以外）が付与されても発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
@@ -361,6 +361,54 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         effectKind: "APPLY_STAT_MOD",
         categories: ["DEBUFF"],
       }),
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
+    intent: "(不成立): このスキルは戦闘開始時には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
+      trigger: effectApplied({
+        source: "enemy:front",
+        target: "ally:subject",
+        effectKind: "APPLY_STAT_MOD",
+        categories: ["DEBUFF"],
+      }),
+      resolutionPhase: "BATTLE_START",
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
+    intent: "(不成立): このスキルはターン開始時には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
+      trigger: effectApplied({
+        source: "enemy:front",
+        target: "ally:subject",
+        effectKind: "APPLY_STAT_MOD",
+        categories: ["DEBUFF"],
+      }),
+      resolutionPhase: "TURN_START",
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
+    intent: "(不成立): このスキルはターン終了時には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_LYDIA_SUMMER_PS1",
+      trigger: effectApplied({
+        source: "enemy:front",
+        target: "ally:subject",
+        effectKind: "APPLY_STAT_MOD",
+        categories: ["DEBUFF"],
+      }),
+      resolutionPhase: "TURN_END",
     },
     expected: { activated: false },
   },
