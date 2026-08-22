@@ -40,6 +40,7 @@ from .rank_tuning import (
     RankTuningResult,
     RankTuningSettings,
     focus_targets,
+    max_target_count,
     rank_round_cost,
     tune_ranks,
 )
@@ -124,12 +125,13 @@ class PlanResult:
 def plan_budget(settings: PlanSettings, *, move_count: int, unit_count: int = 0) -> dict[str, int]:
     """試行数の内訳。上限であって実測ではない（改善が止まれば途中で終わる）。
 
-    Phase D の額は**全枠が境界に関わった場合**で見積もる。実際の対象は署名を観測して
-    から決まるので事前には分からず、少なく見積もると上限を超えうる。
+    Phase D の額は**全枠がどちらの境界にも関わった場合**（`max_target_count`）で
+    見積もる。実際の対象は署名を観測してから決まるので事前には分からず、少なく
+    見積もると内訳・所要時間・進捗バーの総数が過小になる。
     """
     per_iteration = iteration_cost(settings.climb, move_count=move_count)
     per_climb = per_iteration * settings.climb.max_iterations
-    rank = rank_round_cost(settings.rank, settings.climb, target_count=unit_count)
+    rank = rank_round_cost(settings.rank, settings.climb, target_count=max_target_count(unit_count))
     return {
         "perIteration": per_iteration,
         "perClimb": per_climb,
@@ -164,7 +166,7 @@ def observation_count(settings: PlanSettings, *, unit_count: int = 0) -> int:
         1
         + 1
         + settings.restarts * (settings.push_steps + 1)
-        + rank_observation_count(settings.rank, target_count=unit_count)
+        + rank_observation_count(settings.rank, target_count=max_target_count(unit_count))
     )
 
 

@@ -10,7 +10,11 @@ from exercise_lab.gear.plan import (
     plan_budget,
     plan_gear_allocation,
 )
-from exercise_lab.gear.rank_tuning import RankTuningSettings
+from exercise_lab.gear.rank_tuning import (
+    RankTuningSettings,
+    focus_targets,
+    max_target_count,
+)
 from exercise_lab.gear.ranks import EMPTY_LADDER
 from exercise_lab.gear.regime import RegimeSignature
 from exercise_lab.gear.search import ClimbSettings, hill_climb
@@ -266,11 +270,36 @@ def test_the_budget_breakdown_counts_the_rank_pass():
 
     plan = plan_budget(settings, move_count=120, unit_count=5)
 
-    candidates = 5 * 4
+    # 対象は (枠, ステータス) 単位である。同じ枠が順位効果（攻撃力）と行動順
+    # （行動速度）の両方の境界に現れ得るので、上限は1枠あたり2本になる。
+    targets = 5 * 2
+    candidates = targets * 4
     rank = (1 + candidates) * 10 + (1 + min(16, candidates)) * 30
     assert plan["rankTuning"] == rank
     assert plan["total"] == plan["perClimb"] * 5 + rank
-    assert observation_count(settings, unit_count=5) == 1 + 1 + 4 * (4 + 1) + 1 + 5 * 4
+    assert observation_count(settings, unit_count=5) == 1 + 1 + 4 * (4 + 1) + 1 + targets * 4
+
+
+def test_the_estimated_target_count_covers_a_slot_on_two_boundaries():
+    """1枠が2本の境界に現れる署名。見積りの上限がこれを下回ってはいけない。"""
+    signatures = (
+        RegimeSignature(
+            action_order=("0:UNIT_A", "1:UNIT_B"), assignments={REGIME_COMPONENT: "0:UNIT_A"}
+        ),
+        RegimeSignature(
+            action_order=("1:UNIT_B", "0:UNIT_A"), assignments={REGIME_COMPONENT: "1:UNIT_B"}
+        ),
+    )
+
+    targets = focus_targets(signatures)
+
+    assert len(targets) == max_target_count(2)
+    assert {(target.slot_index, target.stat) for target in targets} == {
+        (0, "ATTACK"),
+        (1, "ATTACK"),
+        (0, "ACTION_SPEED"),
+        (1, "ACTION_SPEED"),
+    }
 
 
 def test_the_rank_pass_never_pushes_the_run_past_the_budget():

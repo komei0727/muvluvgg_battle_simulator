@@ -64,6 +64,10 @@ MAX_STEPS = "MAX_STEPS"
 ACTION_ORDER_STAT: GearStat = "ACTION_SPEED"
 DEFAULT_TARGET_STAT: GearStat = "ATTACK"
 
+# 1枠が対象になりうるステータス。順位効果の境界（攻撃力）と行動順の境界（行動速度）は
+# 別の成分から来るので、**同じ枠が両方の対象になり得る**。
+TARGET_STATS: tuple[GearStat, ...] = (DEFAULT_TARGET_STAT, ACTION_ORDER_STAT)
+
 
 @dataclass(frozen=True)
 class RankTuningSettings:
@@ -233,6 +237,16 @@ def _lowering_moves(
     ]
 
 
+def max_target_count(unit_count: int) -> int:
+    """実行前に見積もれる対象数の上限。
+
+    対象は `(枠, ステータス)` 単位であり、1枠につき境界は最大 `TARGET_STATS` 本ある。
+    枠数をそのまま上限に使うと、予算の内訳・所要時間の見積り・進捗バーの総数が
+    最大で半分に過小評価される（`--budget` 自体は実行時に見張るので超えない）。
+    """
+    return unit_count * len(TARGET_STATS)
+
+
 def observation_count(settings: RankTuningSettings, *, target_count: int) -> int:
     """単発実行の回数の上限。基点1回と、対象ごとの walk の各段。"""
     if settings.steps < 1 or target_count < 1:
@@ -245,8 +259,8 @@ def rank_round_cost(
 ) -> int:
     """1巡（篩い→確定）で払いうる最大試行数。
 
-    実行前は対象が決まっていない（署名を観測してから決まる）ので、呼び出し側は全枠を
-    対象と見なした数を渡す。少なく見積もると予算の内訳が上限として機能しない。
+    実行前は対象が決まっていない（署名を観測してから決まる）ので、呼び出し側は
+    `max_target_count` の数を渡す。少なく見積もると予算の内訳が上限として機能しない。
     """
     if settings.steps < 1 or target_count < 1:
         return 0
