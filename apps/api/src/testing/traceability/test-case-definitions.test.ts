@@ -43,8 +43,6 @@ describe("test case definition collector", () => {
           const it = (_title: string, _callback: () => void) => {};
           it("IT-TRACE-015: a shadowed it binding is not evidence", () => {});
         });
-        const dynamicCases = [[1]];
-        test.each(dynamicCases)("IT-TRACE-016: a dynamic parameter table is not evidence", () => {});
         it("IT-TRACE-020: options-based skipped test is not evidence", { skip: true }, () => {});
         test("IT-TRACE-021: options-based todo test is not evidence", { todo: true }, () => {});
         it("IT-TRACE-022: a test without a callback is not evidence");
@@ -213,5 +211,102 @@ describe("test case definition collector", () => {
       "static-options.test.ts",
     );
     expect(staticOptionsDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-025"]);
+
+    // `it.each(識別子)`は、同一ファイル内の`const`宣言（`TypeChecker`のシンボル解決で
+    // 辿る）が配列リテラルへ解決できるときだけテーブル行のIDまで収集し、それ以外は
+    // タイトル文字列のIDだけを収集対象とする（テーブルの実行有無を過大に断定しない）。
+    const resolvedIdentifierTableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { test } from "vitest";
+        const dynamicCases = [[1]];
+        test.each(dynamicCases)("IT-TRACE-016: a same-file const array table is evidence", () => {});
+      `,
+      "resolved-identifier-table.test.ts",
+    );
+    expect(resolvedIdentifierTableDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-016"]);
+
+    const resolvedIdentifierTableCellDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { test } from "vitest";
+        const CASES = [["IT-TRACE-044: first row"], ["IT-TRACE-045: second row"]];
+        test.each(CASES)("%s", (title) => {});
+      `,
+      "resolved-identifier-table-cell.test.ts",
+    );
+    expect(resolvedIdentifierTableCellDefinitions.map(([id]) => id)).toEqual([
+      "IT-TRACE-044",
+      "IT-TRACE-045",
+    ]);
+
+    const letDeclaredTableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { test } from "vitest";
+        let mutableCases = [["IT-TRACE-046: a let-bound table row is not evidence"]];
+        test.each(mutableCases)("IT-TRACE-047: a let-bound table falls back to the title", () => {});
+      `,
+      "let-declared-table.test.ts",
+    );
+    expect(letDeclaredTableDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-047"]);
+
+    const computedTableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { test } from "vitest";
+        function loadCases() { return [[1]]; }
+        const COMPUTED_CASES = loadCases();
+        test.each(COMPUTED_CASES)("IT-TRACE-048: a computed const table falls back to the title", () => {});
+      `,
+      "computed-table.test.ts",
+    );
+    expect(computedTableDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-048"]);
+
+    const emptyResolvedTableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { test } from "vitest";
+        const EMPTY_CASES = [];
+        test.each(EMPTY_CASES)("IT-TRACE-049: an empty same-file const table is not evidence", () => {});
+      `,
+      "empty-resolved-table.test.ts",
+    );
+    expect(emptyResolvedTableDefinitions).toEqual([]);
+
+    const spreadResolvedTableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { test } from "vitest";
+        const BASE_CASES = [[1]];
+        const SPREAD_CASES = [...BASE_CASES, [2]];
+        test.each(SPREAD_CASES)("IT-TRACE-050: a same-file const table with a spread element is not evidence", () => {});
+      `,
+      "spread-resolved-table.test.ts",
+    );
+    expect(spreadResolvedTableDefinitions).toEqual([]);
+
+    // `moduleSpecificDirs`（`module-boundary.test.ts`）のように、describeコールバック
+    // 内で宣言されたブロックスコープのconstを複数の兄弟`it.each`が参照する形も、
+    // シンボル解決（宣言箇所ではなく参照箇所のスコープ）で正しく辿れる。
+    const nestedScopeTableDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { describe, it } from "vitest";
+        describe("module-specific rules", () => {
+          const dirs = ["a", "b"];
+          it.each(dirs)("IT-TRACE-051: %s cannot import from application", () => {});
+          it.each(dirs)("IT-TRACE-052: %s cannot import Node.js built-ins", () => {});
+        });
+      `,
+      "nested-scope-table.test.ts",
+    );
+    expect(nestedScopeTableDefinitions.map(([id]) => id)).toEqual(["IT-TRACE-051", "IT-TRACE-052"]);
+
+    // `INT`（Worker・Bootstrap統合テスト）・`APP`（アプリケーション層契約テスト）は
+    // 一意性検査の外に居ると同じIDを別のテストが名乗っても誰も気づかない
+    // （`INT-WORKER-006`が実際に2回使われていた）ため、`API`と同様に検査対象へ含める。
+    const intAppPatternDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { it } from "vitest";
+        it("INT-TRACE-001: an INT-prefixed id is evidence", () => {});
+        it("APP-TRACE-001: an APP-prefixed id is evidence", () => {});
+      `,
+      "int-app-pattern.test.ts",
+    );
+    expect(intAppPatternDefinitions.map(([id]) => id)).toEqual(["INT-TRACE-001", "APP-TRACE-001"]);
   });
 });

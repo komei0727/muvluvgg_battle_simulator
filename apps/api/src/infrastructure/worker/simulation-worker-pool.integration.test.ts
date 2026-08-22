@@ -173,7 +173,7 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
       pool.execute(minimalRequest(), freshContext("req-3", Date.now() - 1_000)),
     ).rejects.toMatchObject({ code: "EXECUTION_TIMEOUT" });
   });
-  it("INT-WORKER-006 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定から受け取る」): the configured execution limits cross the Worker Thread boundary via workerData, so SIMULATION_MAX_* bounds the compiled production path", async () => {
+  it("INT-WORKER-007 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」「上限値は設定から受け取る」): the configured execution limits cross the Worker Thread boundary via workerData, so SIMULATION_MAX_* bounds the compiled production path", async () => {
     pool = await SimulationWorkerPool.create({
       catalogDir: CATALOG_DIR,
       catalogRevision: CATALOG_REVISION,
