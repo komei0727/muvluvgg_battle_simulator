@@ -200,8 +200,10 @@ def test_it_writes_the_plan_report(tmp_path):
 
     assert result.exit_code == 0, result.output
     assert sorted(path.name for path in out.iterdir()) == [
-        "gear-plan-evaluations.csv",
+        "best-so-far.png",
+        "evaluations.csv",
         "gear-plan.json",
+        "steps.csv",
     ]
 
 
@@ -318,7 +320,7 @@ def test_a_budget_below_one_iteration_stops_before_any_evaluation(tmp_path):
 @respx.mock
 def test_the_evaluated_runs_stay_within_the_budget(tmp_path):
     server = mock_api()
-    budget = 200
+    budget = 2000
 
     result = runner.invoke(
         app,
@@ -354,10 +356,10 @@ def test_the_evaluated_runs_stay_within_the_budget(tmp_path):
 
 
 @respx.mock
-def test_a_budget_of_exactly_one_iteration_runs_that_iteration(tmp_path):
+def test_a_budget_of_exactly_the_minimum_runs_one_iteration(tmp_path):
     server = mock_api()
-    # 1手近傍25手・篩い4試行・確定8試行・上位4手 = (1+25)*4 + (1+4)*8。
-    budget = 144
+    # 1反復 = (1+25)*4 + (1+4)*8 = 144。取り置き = 最終選抜 2×8 + 到達手順 (1+2*18)*8。
+    budget = 144 + 2 * 8 + (1 + 2 * 18) * 8
 
     result = runner.invoke(
         app,
@@ -380,6 +382,10 @@ def test_a_budget_of_exactly_one_iteration_runs_that_iteration(tmp_path):
             "5",
             "--restarts",
             "0",
+            "--final-pool",
+            "2",
+            "--final-runs",
+            "8",
             "--yes",
         ],
     )
@@ -525,3 +531,193 @@ def test_turning_the_rank_pass_off_leaves_it_out_of_the_report(tmp_path):
     summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
     assert summary["rankTuning"] is None
     assert result.exit_code == 0
+
+
+# --- 最終選抜・到達手順・書き戻し --------------------------------------------
+
+PLAYER_DATA = {
+    "schemaVersion": 1,
+    "academyLevels": {"unitTypes": {"PHYSICAL": 50}, "attributes": {}},
+    "levelLink": {"enabled": True, "level": 210},
+    "units": {
+        "UNIT_A": {
+            "level": 240,
+            "linkExcluded": True,
+            "gears": [{"stat": "ATTACK", "tier": "III", "grade": "S"}, *([None] * 8)],
+        },
+        "UNIT_BENCH": {"level": 120, "gears": [None] * 9},
+    },
+}
+
+
+def write_player_data(tmp_path):
+    path = tmp_path / "player-data.json"
+    path.write_text(json.dumps(PLAYER_DATA), encoding="utf-8")
+    return path
+
+
+@respx.mock
+def test_it_writes_every_artifact(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    result = run(tmp_path, out, "--player-data", str(write_player_data(tmp_path)))
+
+    assert result.exit_code == 0, result.output
+    assert sorted(path.name for path in out.iterdir()) == [
+        "best-so-far.png",
+        "evaluations.csv",
+        "gear-plan.json",
+        "player-data.json",
+        "steps.csv",
+    ]
+
+
+@respx.mock
+def test_no_write_back_without_the_player_data_to_overlay(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    run(tmp_path, out)
+
+    assert not (out / "player-data.json").exists()
+    assert (out / "steps.csv").exists()
+
+
+@respx.mock
+def test_the_written_player_data_carries_the_theoretical_gears(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    run(tmp_path, out, "--player-data", str(write_player_data(tmp_path)))
+
+    written = json.loads((out / "player-data.json").read_text(encoding="utf-8"))
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    best = {entry["unitDefinitionId"]: entry["gears"] for entry in summary["best"]}
+    stored = [
+        f"{gear['stat']}:{gear['tier']}-{gear['grade']}"
+        for gear in written["units"]["UNIT_A"]["gears"]
+        if gear
+    ]
+    assert sorted(stored) == sorted(best["UNIT_A"])
+    # 編成外の記録・レベル・学園レベル・レベルリンクは入力のまま残る。
+    assert written["units"]["UNIT_BENCH"] == PLAYER_DATA["units"]["UNIT_BENCH"]
+    assert written["units"]["UNIT_A"]["level"] == 240
+    assert written["academyLevels"] == PLAYER_DATA["academyLevels"]
+    assert written["levelLink"] == PLAYER_DATA["levelLink"]
+
+
+@respx.mock
+def test_the_written_player_data_is_accepted_as_input(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+    run(tmp_path, out, "--player-data", str(write_player_data(tmp_path)))
+
+    # 書き戻したものをそのまま次の実行へ渡せる（`lab optimize` も同じ読み手を使う）。
+    second = run(tmp_path, tmp_path / "again", "--player-data", str(out / "player-data.json"))
+
+    assert second.exit_code == 0, second.output
+
+
+@respx.mock
+def test_the_final_selection_sends_seeds_the_search_never_used(tmp_path):
+    server = mock_api()
+    out = tmp_path / "reports"
+
+    run(tmp_path, out, "--final-runs", "12", "--final-pool", "3")
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    assert summary["finalSelection"]["candidates"]
+    # 篩い4 + 確定8 の先から始まる。探索が使った通し試行番号とは重ならない。
+    assert any(body["seed"] == "abc#12" for body in server.evaluation_calls)
+    assert all(body["seed"] in ("abc#0", "abc#4", "abc#12") for body in server.evaluation_calls)
+
+
+@respx.mock
+def test_the_reach_path_is_reported_with_groups_and_a_cumulative_delta(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    result = run(tmp_path, out)
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    rows = summary["steps"]["rows"]
+    assert rows
+    assert [row["index"] for row in rows] == list(range(1, len(rows) + 1))
+    assert all(row["group"] >= 1 for row in rows)
+    assert rows[-1]["cumulativeExpectedBestDelta"] is not None
+    assert "到達手順" in result.output
+
+    written = (out / "steps.csv").read_text(encoding="utf-8").splitlines()
+    assert written[0].startswith("index,group,slot_index")
+    assert len(written) == len(rows) + 1
+
+
+@respx.mock
+def test_an_answer_identical_to_the_current_allocation_reports_no_difference(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+    # 人工目的関数の最適配分そのもの（効き目の高い3ステータス×各3枚＝9枠）。1手近傍の
+    # どの手も損になるので、探索は基点から動かない。
+    optimal = [
+        {"stat": stat, "tier": "III", "grade": grade}
+        for stat in ("CRITICAL_DAMAGE_BONUS", "ATTACK", "CRITICAL_RATE")
+        for grade in ("S", "A", "B")
+    ]
+
+    document = formation_document(gears=optimal)
+    for unit in document["ally"]["units"]:
+        unit["gears"] = optimal
+    path = tmp_path / "formation.yaml"
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "gear-plan",
+            str(path),
+            "--seed",
+            "abc",
+            "--out",
+            str(out),
+            "--budget",
+            "4000",
+            "--screen-runs",
+            "4",
+            "--confirm-runs",
+            "8",
+            "--survivors",
+            "4",
+            "--max-iterations",
+            "3",
+            "--restarts",
+            "0",
+            "--rank-steps",
+            "0",
+            "--yes",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    assert summary["steps"]["rows"] == []
+    assert summary["steps"]["startIsAnswer"] is True
+    assert "差分なし" in result.output
+    # 見出しだけの steps.csv を残す（走っていないのか差分が無いのかを区別できるように）。
+    assert (out / "steps.csv").read_text(encoding="utf-8").strip().count("\n") == 0
+
+
+@respx.mock
+def test_the_best_so_far_curve_is_written(tmp_path):
+    mock_api()
+    out = tmp_path / "reports"
+
+    run(tmp_path, out)
+
+    summary = json.loads((out / "gear-plan.json").read_text(encoding="utf-8"))
+    curve = summary["bestSoFar"]
+    assert curve
+    assert [point["bestFitness"] for point in curve] == sorted(
+        point["bestFitness"] for point in curve
+    )
+    assert (out / "best-so-far.png").stat().st_size > 0

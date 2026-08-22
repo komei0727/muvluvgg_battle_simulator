@@ -10,8 +10,11 @@ YAMLに書かれた値が常に優先する。手持ちデータは「書かな�
 
 from __future__ import annotations
 
+import copy
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field, ValidationError
 
@@ -82,7 +85,12 @@ def resolved_level(stored: StoredUnitEnhancement | None, data: PlayerData) -> in
     return DEFAULT_UNIT_LEVEL if stored is None else stored.level
 
 
-def load_player_data(path: Path) -> PlayerData:
+def read_player_data_document(path: Path) -> dict[str, Any]:
+    """検証したうえで**生のJSONのまま**返す。書き戻しはこれへ重ねる。
+
+    模型（`PlayerData`）へ通してから組み直すと、このツールが読まない項目が書き戻しで
+    落ちる。書き戻すのは編成に居る5体のギアだけであり、それ以外は入力の写しでよい。
+    """
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
@@ -96,9 +104,65 @@ def load_player_data(path: Path) -> PlayerData:
             f"（このツールは {SUPPORTED_SCHEMA_VERSION} だけを読む）"
         )
     try:
-        return PlayerData.model_validate(raw)
+        PlayerData.model_validate(raw)
     except ValidationError as error:
         raise PlayerDataError(f"{path}: {error}") from error
+    return raw
+
+
+def load_player_data(path: Path) -> PlayerData:
+    return PlayerData.model_validate(read_player_data_document(path))
+
+
+def overlaid_player_data(
+    document: Mapping[str, Any],
+    data: PlayerData,
+    allocations: Sequence[tuple[str, Sequence[Gear]]],
+) -> tuple[dict[str, Any], list[str]]:
+    """入力の手持ちデータへ、編成に居るユニットのギアだけを重ねた文書を返す。
+
+    **ゼロから組み立てない。** このコマンドが知っているのは編成5体のギアだけであり、
+    レベル・学園レベル・レベルリンク・編成外のユニットの記録は入力のものをそのまま
+    引き継ぐ。組み直すとそれらが失われ、次の編成探索が別の育成状態で走る。
+
+    記録の無いユニットには、**実際に評価に使ったレベル**（`resolved_level`）で記録を
+    作る。既定200と書くと、リンクで別のレベルを評価していた場合に書き戻した瞬間から
+    前提が変わる。
+
+    同じユニットを2枠へ置いた編成は枠ごとのギアを持てない（記録はIDで引く）。最初の枠の
+    ぶんだけを書き、落とした枠を警告に残す。
+    """
+    written = copy.deepcopy(dict(document))
+    units = dict(written.get("units") or {})
+    warnings: list[str] = []
+    seen: set[str] = set()
+    for unit_definition_id, gears in allocations:
+        if unit_definition_id in seen:
+            warnings.append(
+                f"{unit_definition_id} は編成に2枠あるが、手持ちデータはユニットIDで引くため"
+                "枠ごとのギアを持てない。最初の枠のぶんだけを書き戻した"
+            )
+            continue
+        seen.add(unit_definition_id)
+        stored = units.get(unit_definition_id)
+        if stored is None:
+            level = resolved_level(None, data)
+            warnings.append(
+                f"{unit_definition_id} は手持ちデータに記録が無かったため、"
+                f"評価に使ったレベル{level}で新しい記録を作った"
+            )
+            units[unit_definition_id] = {"level": level, "gears": _gear_slots(gears)}
+            continue
+        units[unit_definition_id] = {**stored, "gears": _gear_slots(gears)}
+    written["units"] = units
+    return written, warnings
+
+
+def _gear_slots(gears: Sequence[Gear]) -> list[dict[str, str] | None]:
+    """9枠ぶんの並び。空枠は `null` で埋める（`persistence.ts` と同じ形）。"""
+    slots: list[dict[str, str] | None] = [gear.model_dump() for gear in gears]
+    slots.extend([None] * (MAX_GEARS - len(slots)))
+    return slots
 
 
 def apply_player_data(

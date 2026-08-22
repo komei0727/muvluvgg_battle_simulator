@@ -3,12 +3,14 @@
 from dataclasses import replace
 
 from exercise_lab.gear.allocation import Allocation, GearPiece, UnitAllocation
+from exercise_lab.gear.final import FinalSelectionSettings, final_phase
 from exercise_lab.gear.plan import (
     PlanSettings,
     minimum_budget,
     observation_count,
     plan_budget,
     plan_gear_allocation,
+    reserved_budget,
 )
 from exercise_lab.gear.rank_tuning import (
     RankTuningSettings,
@@ -17,7 +19,8 @@ from exercise_lab.gear.rank_tuning import (
 )
 from exercise_lab.gear.ranks import EMPTY_LADDER
 from exercise_lab.gear.regime import RegimeSignature
-from exercise_lab.gear.search import ClimbSettings, hill_climb
+from exercise_lab.gear.search import ClimbSettings, hill_climb, phases_for_climb
+from exercise_lab.optimize.evaluator import Evaluator
 from exercise_lab.optimize.fitness import Objective
 from test_gear_ranks import attack_ladder
 from test_gear_search import FakeGearEvaluator
@@ -194,20 +197,22 @@ def test_the_budget_breakdown_counts_every_climb():
     per_iteration = (1 + 120) * 10 + (1 + 16) * 30
     assert plan["perIteration"] == per_iteration
     assert plan["perClimb"] == per_iteration * 12
-    assert plan["total"] == per_iteration * 12 * (1 + 4)
+    # 枠数が分からない呼び方では到達手順の額が立たない（0件と見なす）。
+    assert plan["total"] == per_iteration * 12 * (1 + 4) + plan["finalSelection"]
     assert observation_count(settings) == 1 + 1 + 4 * (4 + 1)
 
 
-def test_the_minimum_budget_is_one_iteration_including_the_calibration():
+def test_the_minimum_budget_is_one_iteration_plus_what_is_reserved():
     settings = PlanSettings(
         climb=ClimbSettings(screen_runs=10, confirm_runs=30, survivors=16, max_iterations=12),
         restarts=4,
     )
 
-    minimum = minimum_budget(settings, move_count=120)
+    minimum = minimum_budget(settings, move_count=120, unit_count=5)
 
     # 校正で測る基点は1反復の篩いがキャッシュから読む。二重には数えない。
-    assert minimum == plan_budget(settings, move_count=120)["perIteration"]
+    plan = plan_budget(settings, move_count=120, unit_count=5)
+    assert minimum == plan["perIteration"] + reserved_budget(settings, unit_count=5)
 
 
 def test_the_same_input_reproduces_the_same_plan():
@@ -276,7 +281,7 @@ def test_the_budget_breakdown_counts_the_rank_pass():
     candidates = targets * 4
     rank = (1 + candidates) * 10 + (1 + min(16, candidates)) * 30
     assert plan["rankTuning"] == rank
-    assert plan["total"] == plan["perClimb"] * 5 + rank
+    assert plan["total"] == (plan["perClimb"] * 5 + rank + plan["steps"] + plan["finalSelection"])
     assert observation_count(settings, unit_count=5) == 1 + 1 + 4 * (4 + 1) + 1 + targets * 4
 
 
@@ -307,3 +312,84 @@ def test_the_rank_pass_never_pushes_the_run_past_the_budget():
 
     assert evaluator.consumed_runs <= 2_000
     assert result.consumed_runs == evaluator.consumed_runs
+
+
+# --- 最終選抜と到達手順 ------------------------------------------------------
+
+
+FINAL = FinalSelectionSettings(pool=4, runs=16)
+WITH_FINAL = replace(SETTINGS, final=FINAL)
+
+
+def test_the_final_selection_uses_a_range_the_search_never_touched():
+    result, evaluator, _ = run_plan(settings=WITH_FINAL)
+
+    assert result.final.entries
+    phase = final_phase(WITH_FINAL.climb, FINAL)
+    assert evaluator.record_for(result.best, phase) is not None
+    # 探索の位相と重ならない（重なりは評価器が拒む）。
+    Evaluator.validate_phases((*phases_for_climb(WITH_FINAL.climb), phase))
+
+
+def test_the_reported_best_comes_from_the_final_selection():
+    result, _, _ = run_plan(settings=WITH_FINAL)
+
+    assert result.final.best is not None
+    assert result.best.canonical_key() == result.final.best.canonical_key()
+
+
+def test_the_reach_path_runs_from_the_current_allocation_to_the_reported_best():
+    result, _, _ = run_plan(settings=WITH_FINAL)
+
+    assert result.steps is not None
+    assert not result.steps.is_empty
+    assert result.steps.start.canonical_key() == START.canonical_key()
+    assert result.steps.steps[-1].allocation.canonical_key() == result.best.canonical_key()
+
+
+def test_an_answer_equal_to_the_current_allocation_leaves_the_path_empty():
+    result, _, _ = run_plan(settings=replace(WITH_FINAL, restarts=0))
+
+    assert result.best.canonical_key() == START.canonical_key()
+    assert result.steps is not None
+    assert result.steps.is_empty
+
+
+def test_the_best_so_far_curve_never_goes_down():
+    result, _, _ = run_plan(settings=WITH_FINAL)
+
+    assert result.history
+    fitnesses = [point.best_fitness for point in result.history]
+    assert fitnesses == sorted(fitnesses)
+    consumed = [point.consumed_runs for point in result.history]
+    assert consumed == sorted(consumed)
+
+
+def test_the_budget_breakdown_reserves_the_final_selection_and_the_path():
+    settings = PlanSettings(
+        climb=ClimbSettings(screen_runs=10, confirm_runs=30, survivors=16, max_iterations=12),
+        restarts=4,
+        final=FinalSelectionSettings(pool=8, runs=100),
+    )
+
+    plan = plan_budget(settings, move_count=120, unit_count=5)
+
+    assert plan["finalSelection"] == 8 * 100
+    assert plan["steps"] == (1 + 2 * 45) * 30
+    assert plan["total"] == plan["perClimb"] * 5 + plan["rankTuning"] + 800 + plan["steps"]
+    assert minimum_budget(settings, move_count=120, unit_count=5) == (
+        plan["perIteration"] + 800 + plan["steps"]
+    )
+
+
+def test_the_search_never_spends_the_reserved_budget():
+    settings = replace(WITH_FINAL, restarts=0)
+    budget = 900
+
+    result, evaluator, _ = run_plan(settings=settings, budget=budget)
+
+    reserve = reserved_budget(settings, unit_count=len(START.units))
+    # 探索が使い切ってから「最終選抜のぶんが無い」とならないよう先に取り置く。
+    assert evaluator.consumed_runs <= budget
+    assert result.base_climb.best is not None
+    assert reserve > 0

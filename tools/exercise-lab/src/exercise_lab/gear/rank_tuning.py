@@ -153,6 +153,57 @@ class RankTuningResult:
     warnings: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class LoweredRank:
+    """到達した配分でランクを下げている枠1つと、その理由。
+
+    理由は「観測のあいだに当て先が動いた成分」である（`FocusTarget.components`）。これが
+    書かれていないと、手で再現するときに「Ⅲ-Sへ替えたら弱くなった」が起きる。
+    """
+
+    slot_index: int
+    unit_definition_id: str
+    stat: GearStat
+    step: RankStep
+    components: tuple[str, ...]
+    # その段で観測した署名。どの順位を保っているのかを読む手掛かりになる。
+    signature: RegimeSignature
+
+
+def lowered_ranks(
+    tuning: RankTuningResult | None, allocation: Allocation
+) -> tuple[LoweredRank, ...]:
+    """その配分がランクを下げている箇所と、下げている理由。
+
+    walk の途中の点として一致するものを探す。**差分から推測しない** ——ランクの上下は
+    種別・ランクの字面順では決まらない（`ranks.py`）ので、字面で比べると「下げた」と
+    「上げた」を取り違える。walk は梯子を1段ずつ下りた記録そのものであり、そこに一致
+    するなら、そこまでの各段がまさに下げた段である。
+
+    最終選抜がランク微調整より前の配分を選んだ実行では空になる——下げていないのだから
+    理由も無い。
+    """
+    if tuning is None:
+        return ()
+    key = allocation.canonical_key()
+    for walk in tuning.walks:
+        for index, stop in enumerate(walk.stops):
+            if stop.allocation.canonical_key() != key:
+                continue
+            return tuple(
+                LoweredRank(
+                    slot_index=entry.move.slot_index,
+                    unit_definition_id=entry.move.unit_definition_id,
+                    stat=entry.target.stat,
+                    step=entry.rank_step,
+                    components=entry.target.components,
+                    signature=entry.signature,
+                )
+                for entry in walk.stops[: index + 1]
+            )
+    return ()
+
+
 def focus_targets(signatures: Sequence[RegimeSignature]) -> tuple[FocusTarget, ...]:
     """順位の境界に関わる枠。**当て先が動いた成分の両端だけ**を返す。
 
