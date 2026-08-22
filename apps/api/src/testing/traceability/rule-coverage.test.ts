@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
-import { collectTestCaseDefinitions } from "./test-case-definitions.js";
+import { collectTestCaseDefinitions, LOOSE_TEST_CASE_ID_PATTERN } from "./test-case-definitions.js";
 
 const specPath = fileURLToPath(
   new URL("../../../../../docs/ddd/07_戦闘ルール詳細.md", import.meta.url),
@@ -143,19 +143,27 @@ describe("Rule coverage ledger", () => {
     ).toEqual([]);
   }, 30000);
 
-  it("UT-TRACEABILITY-010: every collected testCaseId's trailing segment is digits-only", () => {
+  it("UT-TRACEABILITY-010: every candidate testCaseId token's trailing segment is digits-only", () => {
     // `12_テスト戦略.md`「テストケース識別子」の`<NUMBER>`は数字だけにする規則を機械強制する。
-    // `API-CONTRACT-015b`のような英小文字サフィックスは収集器（`TEST_CASE_ID_PATTERN`）から
-    // 見て別IDにも同一IDにもなり得ず一意性検査（UT-TRACEABILITY-005）をすり抜けるため、
-    // その検査の手前でこちらが機械的に弾く。
-    const definitions = collectTestCaseDefinitions(apiSrcPath);
-    const violations = [...definitions.keys()]
+    // `TEST_CASE_ID_PATTERN`（一意性検査 UT-TRACEABILITY-005 が使う収集結果）で検査すると
+    // `API-CONTRACT-015b`のような英小文字サフィックスを見逃す — 収集器から見て語境界で
+    // 途切れ、末尾セグメントが2つなら丸ごと不可視、3つ以上ならサフィックスだけ落ちて
+    // 前方一致IDに化けるため、化けた後のIDがたまたま数字で終わる場合（`UT-R-PS-01-043b`が
+    // `UT-R-PS-01`に化ける等）は検査をすり抜けてしまう。そこで実際に書かれた完全な
+    // トークンを`LOOSE_TEST_CASE_ID_PATTERN`（末尾に英小文字も許容）で捕捉し、
+    // その末尾セグメントを検査する。
+    const looseTokens = collectTestCaseDefinitions(
+      apiSrcPath,
+      undefined,
+      LOOSE_TEST_CASE_ID_PATTERN,
+    );
+    const violations = [...looseTokens.keys()]
       .filter((id) => !NON_NUMERIC_TERMINAL_TEST_CASE_IDS.has(id))
-      .filter((id) => !/\d+$/.test(id))
+      .filter((id) => !/^\d+$/.test(id.split("-").at(-1) ?? ""))
       .sort();
     expect(
       violations,
-      `testCaseIds whose trailing segment is not digits-only: ${JSON.stringify(violations)}`,
+      `candidate testCaseId tokens whose trailing segment is not digits-only: ${JSON.stringify(violations)}`,
     ).toEqual([]);
   }, 30000);
 });

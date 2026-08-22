@@ -27,6 +27,16 @@ export interface TestCaseDefinition {
  */
 export const TEST_CASE_ID_PATTERN =
   /\b(?:UT|IT|INT|SCN|E2E|PROP|API|APP)-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g;
+
+/**
+ * `TEST_CASE_ID_PATTERN`と同じプレフィックス集合だが、末尾セグメントに英小文字も
+ * 許容する「候補トークン」用パターン。`API-CONTRACT-015b`のような小文字サフィックスは
+ * `TEST_CASE_ID_PATTERN`から見て語境界で途切れる（末尾セグメントが2つなら丸ごと
+ * 不可視、3つ以上ならサフィックスだけ落ちて前方一致IDに化ける）ため、書式検査
+ * （`UT-TRACEABILITY-010`）は実際に書かれた完全なトークンをこちらで捕捉する。
+ */
+export const LOOSE_TEST_CASE_ID_PATTERN =
+  /\b(?:UT|IT|INT|SCN|E2E|PROP|API|APP)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+\b/g;
 const NON_EXECUTING_TEST_MODIFIERS = new Set(["skip", "skipIf", "todo", "runIf"]);
 export const VITEST_TEST_FUNCTIONS = new Set(["it", "test"]);
 const VITEST_SUITE_FUNCTIONS = new Set(["describe", "suite"]);
@@ -189,6 +199,7 @@ function parameterizedTable(
 function parameterizedCaseIdLiterals(
   expression: ts.Expression,
   checker: ts.TypeChecker,
+  pattern: RegExp,
 ): [string, number][] {
   const table = parameterizedTable(expression, checker);
   if (table.kind !== "array") {
@@ -198,7 +209,7 @@ function parameterizedCaseIdLiterals(
   const sourceFile = table.node.getSourceFile();
   function scan(node: ts.Node): void {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-      for (const match of node.text.matchAll(TEST_CASE_ID_PATTERN)) {
+      for (const match of node.text.matchAll(pattern)) {
         found.push([match[0], node.getStart(sourceFile)]);
       }
     }
@@ -430,6 +441,7 @@ function isConditionallyRegisteredTest(node: ts.Node, checker: ts.TypeChecker): 
 export function collectTestCaseDefinitionsFromSource(
   sourceText: string,
   file: string,
+  pattern: RegExp = TEST_CASE_ID_PATTERN,
 ): readonly [string, TestCaseDefinition][] {
   const sourceFile = ts.createSourceFile(
     file,
@@ -461,13 +473,13 @@ export function collectTestCaseDefinitionsFromSource(
         title !== undefined &&
         (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))
       ) {
-        for (const match of title.text.matchAll(TEST_CASE_ID_PATTERN)) {
+        for (const match of title.text.matchAll(pattern)) {
           definitions.push([match[0], { file, position: title.getStart(sourceFile) }]);
         }
       }
       // `it.each([["UT-...", ...]])("%s: ...", ...)` のように、IDがタイトルではなく
       // 静的テーブルのセルに存在するパラメタライズドテストからも収集する。
-      for (const [id, position] of parameterizedCaseIdLiterals(node.expression, checker)) {
+      for (const [id, position] of parameterizedCaseIdLiterals(node.expression, checker, pattern)) {
         definitions.push([id, { file, position }]);
       }
     }
@@ -481,11 +493,12 @@ export function collectTestCaseDefinitionsFromSource(
 export function collectTestCaseDefinitions(
   directory: string,
   into = new Map<string, TestCaseDefinition[]>(),
+  pattern: RegExp = TEST_CASE_ID_PATTERN,
 ): Map<string, TestCaseDefinition[]> {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = `${directory}/${entry.name}`;
     if (entry.isDirectory()) {
-      collectTestCaseDefinitions(path, into);
+      collectTestCaseDefinitions(path, into, pattern);
       continue;
     }
     if (!entry.isFile() || !entry.name.endsWith(".test.ts")) {
@@ -494,6 +507,7 @@ export function collectTestCaseDefinitions(
     for (const [id, definition] of collectTestCaseDefinitionsFromSource(
       readFileSync(path, "utf8"),
       path,
+      pattern,
     )) {
       const definitions = into.get(id) ?? [];
       definitions.push(definition);
