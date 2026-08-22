@@ -55,6 +55,8 @@ from .gear.plan import (
     plan_gear_allocation,
 )
 from .gear.plan import minimum_budget as minimum_plan_budget
+from .gear.rank_tuning import RankTuningSettings
+from .gear.ranks import RankLadder, rank_ladder_from_catalog
 from .gear.regime import RegimeSignature, observe_signature
 from .gear.report import (
     STAT_LABELS,
@@ -62,6 +64,7 @@ from .gear.report import (
     build_plan_summary,
     build_sensitivity_summary,
     move_text,
+    rank_price_rows,
     utility_rows,
     write_moves_csv,
 )
@@ -163,6 +166,9 @@ DEFAULT_CLIMB_SURVIVORS = 16
 DEFAULT_MAX_ITERATIONS = 12
 DEFAULT_RESTARTS = 4
 DEFAULT_PUSH_STEPS = 4
+# ランク微調整で1本の walk が下げる最大段数。攻撃力の梯子は10段なので、4段あれば
+# 隣接差 0.04pt を含む細かい刻みを何度か使える。
+DEFAULT_RANK_STEPS = 4
 DEFAULT_PLAN_BUDGET_RUNS = 60000
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
@@ -1365,6 +1371,10 @@ def gear_plan(
     push_steps: Annotated[
         int, typer.Option("--push-steps", min=1, help="1本の再スタートで押す最大手数")
     ] = DEFAULT_PUSH_STEPS,
+    rank_steps: Annotated[
+        int,
+        typer.Option("--rank-steps", min=0, help="ランク微調整で下げる最大段数（0で行わない）"),
+    ] = DEFAULT_RANK_STEPS,
     include_rank: Annotated[
         bool, typer.Option("--include-rank", help="種別・ランクの変更も近傍へ含める")
     ] = False,
@@ -1384,7 +1394,7 @@ def gear_plan(
         float, typer.Option("--timeout", min=1.0, help="1リクエストの待ち時間（秒）")
     ] = DEFAULT_TIMEOUT_SECONDS,
 ) -> None:
-    """現状の手持ちを起点に、理論値のギア配分を探す（Phase A→B→C）。
+    """現状の手持ちを起点に、理論値のギア配分を探す（Phase A→B→C→D）。
 
     探索変数はギア配分だけである。ユニット・配置・メモリー・敵・レベル・学園レベルは
     基点編成のまま固定する。**基点を変えたら結果は無効になる。**
@@ -1404,6 +1414,7 @@ def gear_plan(
             ),
             restarts=restarts,
             push_steps=push_steps,
+            rank=RankTuningSettings(steps=rank_steps),
         )
         source = GearFormationSource(config)
     except (ConfigError, GearAllocationError) as error:
@@ -1415,10 +1426,11 @@ def gear_plan(
     )
     if not moves:
         _abort("1手も生成できなかった。基点編成のギアが動かせる状態にない")
-    plan = plan_budget(settings, move_count=len(moves))
+    units = len(start.units)
+    plan = plan_budget(settings, move_count=len(moves), unit_count=units)
     # `optimize` 側の `minimum_budget` と名前が衝突するため別名で読む。
     minimum = minimum_plan_budget(settings, move_count=len(moves))
-    observations = observation_count(settings)
+    observations = observation_count(settings, unit_count=units)
 
     out.mkdir(parents=True, exist_ok=True)
     with LabApiClient(base_url, timeout_seconds=timeout_seconds) as client:
@@ -1475,6 +1487,8 @@ def gear_plan(
                 objective=objective,
                 budget=budget,
                 total=min(budget, plan["total"]),
+                # ランクの梯子はCatalogの効果表が正本である（`gear/ranks.py`）。
+                ladder=rank_ladder_from_catalog(catalog),
             )
         except (LabApiError, ValueError) as error:
             _abort(str(error))
@@ -1583,6 +1597,7 @@ def _run_plan_with_progress(
     objective: Objective,
     budget: int,
     total: int,
+    ladder: RankLadder,
 ) -> PlanResult:
     with Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -1606,6 +1621,7 @@ def _run_plan_with_progress(
                 settings=settings,
                 objective=objective,
                 budget_runs=budget,
+                ladder=ladder,
             )
         except (LabApiError, ValueError):
             progress.stop()
@@ -1646,6 +1662,12 @@ def _print_plan_budget(
     table.add_row(
         "1本の山登り", f"最大 {settings.climb.max_iterations} 反復", f"{plan['perClimb']:,}"
     )
+    if plan["rankTuning"]:
+        table.add_row(
+            "ランク微調整",
+            f"境界の枠を最大 {settings.rank.steps} 段（対象は署名から決まる）",
+            f"{plan['rankTuning']:,}",
+        )
     table.add_row("全体", f"基点 + 再スタート {settings.restarts} 本", f"{plan['total']:,}")
     table.add_row("上限（--budget）", "これを超えて評価を発行しない", f"{budget:,}")
     table.add_row("最低予算", "1反復ぶん。届かなければ実行前に失敗する", f"{minimum:,}")
@@ -1722,10 +1744,54 @@ def _print_plan(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -
     for line in untouched:
         console.print(f"[dim]{line}[/]")
 
+    _print_rank_tuning(result, summary, catalog)
+
     console.print(f"[yellow]{summary['caveat']}[/]")
     console.print(f"[dim]{summary['rankingCaveat']}[/]")
     for warning in result.warnings:
         error_console.print(f"[yellow]warning[/]: {warning}")
+
+
+def _print_rank_tuning(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -> None:
+    """Phase D の対象と単価表。回さなかった実行では理由を1行出す。"""
+    tuning = result.rank_tuning
+    reported = summary["rankTuning"]
+    if tuning is None or reported is None:
+        console.print("[dim]ランク微調整は行っていない（--rank-steps 0 または効果表なし）[/]")
+        return
+    if not tuning.targets:
+        console.print(
+            "[dim]ランク微調整の対象なし——観測のあいだに当て先が動いた成分が無く、"
+            "順位の境界に関わる枠を特定できなかった[/]"
+        )
+        return
+
+    targets = Table(title="ランク微調整の対象（署名で絞った枠だけ）")
+    for column in ("枠", "ステータス", "根拠の成分"):
+        targets.add_column(column)
+    for entry in reported["targets"]:
+        targets.add_row(
+            f"{entry['slotIndex']}: {entry['displayName']}",
+            STAT_LABELS.get(entry["stat"], entry["stat"]),
+            ", ".join(entry["components"]),
+        )
+    console.print(targets)
+
+    if not tuning.prices:
+        console.print("[dim]下げられる段が無く、単価は測れなかった[/]")
+        return
+    prices = Table(title="ランク1段の単価（Δ期待日次ベスト / 1段上げたとき）")
+    for column in ("枠", "ステータス", "段", "補正差", "Δ期待日次ベスト", "測った段"):
+        prices.add_column(
+            column, justify="left" if column in ("枠", "ステータス", "段") else "right"
+        )
+    for row in rank_price_rows(tuning, catalog):
+        prices.add_row(*row)
+    console.print(prices)
+    console.print(
+        "負の単価は「上げ直すと損をする」段であり、そこが順位の閾値である。"
+        f"[dim]{summary['priceCaveat']}[/]"
+    )
 
 
 def _gain_over_base(result: PlanResult, allocation) -> float:

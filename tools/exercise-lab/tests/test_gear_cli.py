@@ -48,7 +48,22 @@ CATALOG = {
         },
     ],
     "memories": [{"memoryDefinitionId": "MEM_1", "displayName": "記憶1"}],
-    "gearEffects": [],
+    # `R-ENH-04` #3 の効果表。ランクの「1段下」はこれが正本である。
+    "gearEffects": [
+        {
+            "stat": stat,
+            "application": "RATIO",
+            "values": [
+                {"tier": tier, "grade": grade, "percentagePoints": points}
+                for tier, grades in (
+                    ("II", {"D": 0.75, "C": 1.18, "B": 1.62, "A": 2.06, "S": 2.49}),
+                    ("III", {"D": 1, "C": 1.58, "B": 2.16, "A": 2.75, "S": 3.33}),
+                )
+                for grade, points in grades.items()
+            ],
+        }
+        for stat in ("ATTACK", "ACTION_SPEED")
+    ],
 }
 
 # ステータスごとの1枚あたりの効き目。会心ダメージが最も伸びる基点にしてある。
@@ -132,7 +147,8 @@ def formation_document(gears=None, academy=True):
                     "unitDefinitionId": "UNIT_B",
                     "position": {"column": 1, "row": "REAR"},
                     "level": 200,
-                    "gears": [{"stat": "ATTACK", "tier": "II", "grade": "D"}],
+                    # 梯子の最下段（Ⅱ-D）にしない。1段下げる手が存在しない駒になる。
+                    "gears": [{"stat": "ATTACK", "tier": "III", "grade": "D"}],
                 },
             ],
             "memoryDefinitionIds": ["MEM_1"],

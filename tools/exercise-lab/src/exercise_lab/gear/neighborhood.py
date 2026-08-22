@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -113,7 +114,7 @@ def neighborhood(
             if kind == "rank" and not include_rank:
                 continue
             moves.extend(_moves_of_kind(kind, slot_index, unit, add_rank))
-    return _deduplicated(moves, allocation)
+    return deduplicated(moves, allocation)
 
 
 def _moves_of_kind(kind: MoveKind, slot_index: int, unit, add_rank: GearRank) -> list[Move]:
@@ -164,8 +165,12 @@ class _Builder:
         )
 
 
-def _deduplicated(moves: list[Move], allocation: Allocation) -> tuple[Move, ...]:
-    """同じ配分へ着く手と、適用できない手を落とす。並びは生成順のまま。"""
+def deduplicated(moves: Sequence[Move], allocation: Allocation) -> tuple[Move, ...]:
+    """同じ配分へ着く手と、適用できない手を落とす。並びは生成順のまま。
+
+    近傍を作るところが増えても（`rank_tuning.py`）畳み方は1つに保つ。別々に書くと、
+    同じ配分の候補へ二重に予算を払う経路が片方にだけ残る。
+    """
     seen: set[str] = set()
     unique: list[Move] = []
     for move in moves:

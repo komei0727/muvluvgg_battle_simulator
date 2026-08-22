@@ -28,7 +28,7 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from ..api import BattleLogEvent, LabApiClient, TacticalExerciseResponse, build_exercise_request
 from .allocation import Allocation
@@ -52,6 +52,22 @@ def slot_label(slot_index: int, unit_definition_id: str) -> str:
 
 def enemy_label(unit_definition_id: str) -> str:
     return f"enemy:{unit_definition_id}"
+
+
+def slot_index_of(label: str) -> int | None:
+    """`0:UNIT_A` 形式の呼び名から枠の索引。敵（`enemy:`）は `None`。
+
+    署名の当て先は味方枠と敵が同じ文字列空間に居る。読む側それぞれが接頭辞を切ると、
+    1か所でも取り違えたときに「敵の枠へギアを挿す手」が黙って生成される。
+    """
+    head, _, _ = label.partition(":")
+    return int(head) if head.isdigit() else None
+
+
+class SignatureObserver(Protocol):
+    """1配分の署名を取る係。実体は単発実行1回（`observe_signature`）。"""
+
+    def observe(self, allocation: Allocation) -> RegimeSignature: ...
 
 
 @dataclass(frozen=True)
