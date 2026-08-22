@@ -11,7 +11,8 @@ import type {
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { SkillUseId } from "../../shared/event-ids.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { truncateFraction } from "../model/resource-gauge.js";
 import type { Side } from "../../shared/side.js";
 import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
 
@@ -369,9 +370,11 @@ export function evaluateFormula(
       // `BattleUnit`は累積被ダメージを別途追跡していないため、「不足HP」と
       // 「失ったHP」はどちらも`maximumHp - currentHp`として同じ値になる
       // （両者が乖離するのは戦闘中にmaximumHp自体が変化した場合だが、それを
-      // 区別する専用フィールドは現行モデルに存在しない）。
+      // 区別する専用フィールドは現行モデルに存在しない）。分母はR-NUM-02に
+      // 従い切り捨て後の最大HPで揃える — 切り捨て前のまま引くと、満タンでも
+      // 「不足HP」が最大1未満の端数として残ってしまう（Issue #586）。
       const source = resolveSourceUnit(formula.source, context, `${path}.source`);
-      return (source.combatStats.maximumHp - source.currentHp) * formula.ratio;
+      return (truncateFraction(source.combatStats.maximumHp) - source.currentHp) * formula.ratio;
     }
     case "DAMAGE_DEALT_RATIO":
     case "DAMAGE_RECEIVED_RATIO":
@@ -387,10 +390,10 @@ export function evaluateFormula(
       // `HIGHER_HP_IS_MAX`はHPが多いほど`max`へ近づく。ここでは丸めない
       // （このEvaluator全体の契約 — 整数化は適用側の責務、R-NUM-02）。
       const target = resolveSourceUnit(formula.target, context, `${path}.target`);
-      const maximumHp = target.combatStats.maximumHp;
-      // 最大HPが0以下（理論上のみ）ならHP割合を0とみなす。0除算でNaNを
-      // 伝播させると、以降のダメージ計算全体が静かに壊れるため。
-      const hpRatio = maximumHp > 0 ? Math.min(1, Math.max(0, target.currentHp / maximumHp)) : 0;
+      // R-NUM-02: 分母は切り捨て後の最大HPで揃える（`hitPointRatio`）。最大HPが
+      // 0以下（理論上のみ）ならHP割合を0とみなす — 0除算でNaNを伝播させると、
+      // 以降のダメージ計算全体が静かに壊れるため（Issue #586）。
+      const hpRatio = Math.min(1, Math.max(0, hitPointRatio(target)));
       const towardMax = formula.direction === "HIGHER_HP_IS_MAX" ? hpRatio : 1 - hpRatio;
       return formula.min + (formula.max - formula.min) * towardMax;
     }

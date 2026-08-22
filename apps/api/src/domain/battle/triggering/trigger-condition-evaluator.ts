@@ -12,6 +12,7 @@ import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { truncateFraction } from "../model/resource-gauge.js";
 import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
@@ -294,14 +295,15 @@ export function evaluateTriggerCondition(
       const { getUnit } = context;
       return (event.targetUnitIds ?? []).some((id) => {
         const target = getUnit(id);
-        if (target === undefined || target.combatStats.maximumHp <= 0) {
+        if (target === undefined) {
           return false;
         }
-        return compareWithOperator(
-          damage / target.combatStats.maximumHp,
-          condition.op,
-          condition.value,
-        );
+        // R-NUM-02: 分母は切り捨て後の最大HPで揃える（Issue #586）。
+        const maximumHp = truncateFraction(target.combatStats.maximumHp);
+        if (maximumHp <= 0) {
+          return false;
+        }
+        return compareWithOperator(damage / maximumHp, condition.op, condition.value);
       });
     }
     case "RUNTIME_COUNTER": {
