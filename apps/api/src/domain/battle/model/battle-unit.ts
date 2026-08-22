@@ -189,6 +189,20 @@ export function isDefeated(unit: BattleUnit): boolean {
   return unit.currentHp === 0 && unit.breakPending !== true;
 }
 
+/**
+ * R-NUM-02: HPゲージ上の比率（Issue #585）。`currentHp` は既に切り捨て済みの
+ * 整数のため、分母を `combatStats.maximumHp`（R-NUM-01・R-STA-01で全精度の
+ * まま保持される再計算基準）のまま割ると、満タンでも1.0にならずユニットごとに
+ * 値がずれる。他のHPゲージ境界（`heal-application-service.ts`等）と同じ
+ * `truncateFraction` を分母にも適用し、切り捨て後の最大HPで揃える。
+ * `targeting`/`skill`/`triggering`/`combat` いずれからも依存できる層は
+ * `domain/battle/model` だけであり、ここに一本化する。
+ */
+export function hitPointRatio(unit: BattleUnit): number {
+  const maximum = truncateFraction(unit.combatStats.maximumHp);
+  return maximum > 0 ? unit.currentHp / maximum : 0;
+}
+
 /** R-TEX-03 #5: HP0到達時にブレイクの解決を保留したことを表す印を立てる。 */
 export function markBreakPending(unit: BattleUnit): BattleUnit {
   return { ...unit, breakPending: true };

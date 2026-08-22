@@ -12,7 +12,7 @@ import {
 import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "./comparison-operator.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
 
 /** R-SKL-06: `LastEffectActionResult`を`LAST_RESULT`の`field`が参照できる平坦なrecordへ変換する。 */
@@ -87,7 +87,7 @@ function resolveTargetStateField(
     case "IS_ALIVE":
       return !isDefeated(target);
     case "HP_RATIO":
-      return target.combatStats.maximumHp > 0 ? target.currentHp / target.combatStats.maximumHp : 0;
+      return hitPointRatio(target);
     case "ATTRIBUTE":
       return target.attribute;
     case "POSITION_ROW":

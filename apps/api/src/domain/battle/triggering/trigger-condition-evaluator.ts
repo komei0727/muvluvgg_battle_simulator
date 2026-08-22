@@ -11,7 +11,7 @@ import type { TargetReference } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
-import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
@@ -175,7 +175,7 @@ function resolveTargetStateField(
     case "IS_ALIVE":
       return !isDefeated(target);
     case "HP_RATIO":
-      return target.combatStats.maximumHp > 0 ? target.currentHp / target.combatStats.maximumHp : 0;
+      return hitPointRatio(target);
     case "ATTRIBUTE":
       return target.attribute;
     case "POSITION_ROW":

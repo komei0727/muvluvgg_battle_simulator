@@ -176,6 +176,57 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
+    skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_EX",
+    intent:
+      "(Issue #585, R-NUM-02発端の再現ケース) 敵全員が満タンでも、最近接の敵がmaximumHpを小数で持つ盤面では分母を切り捨て後の値へ揃えないと同率が成立せず、最近接ではなく整数maxHpの敵へ外れる",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_EX" },
+    board: {
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          combatStats: { maximumHp: 40347.6 },
+          state: { currentHp: 40347 },
+        },
+        {
+          id: "enemy:left",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 10000 },
+        },
+        {
+          id: "enemy:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 10000 },
+        },
+      ],
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE_LINK",
+          targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_AP_COST", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_AP_DRAIN", targets: ["enemy:front"] },
+      ],
+      // 現在HP40347の35%＝14121.45より、攻撃力1000の75%＝750の方が小さいため上限側が効く。
+      hpDeltas: { "enemy:front": -750 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_EX_DAMAGE_LINK",
+          magnitude: 0.025,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "enemy:front", resource: "AP", delta: -2 },
+      ],
+    },
+  },
+  {
     skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_AS1",
     intent: "自身の攻撃力を15%上昇させる。さらに自身に対し「暑気」を付与する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_BEACH_TEX_AS1" },

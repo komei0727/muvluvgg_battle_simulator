@@ -243,6 +243,22 @@ describe("composeDamageModifiers (R-DMG-04, R-DMG-03)", () => {
     expect(compose(withCurrentHp(attacker, 10), wounded).incomingMultiplier).toBe(1);
   });
 
+  it("UT-R-DMG-04-016 (Issue #585, R-NUM-02): HP_RATIO_COMPARISON is a draw (GT is false) between two full-HP units even when one has a fractional combatStats.maximumHp", () => {
+    const fractionalDefender = {
+      ...unitAt("U_DEF", "ENEMY"),
+      combatStats: { ...unitAt("U_DEF", "ENEMY").combatStats, maximumHp: 100.5 },
+      currentHp: 100,
+    };
+    const modifier: DamageModifierState = {
+      direction: "INCOMING",
+      damageType: null,
+      condition: { kind: "HP_RATIO_COMPARISON", left: "OPPONENT", op: "GT", right: "EFFECT_OWNER" },
+    };
+    const guarded = holding(fractionalDefender, damageMod(fractionalDefender, -0.1, modifier));
+    const fullAttacker = unitAt("U_ATK", "ALLY");
+    expect(compose(fullAttacker, guarded).incomingMultiplier).toBe(1);
+  });
+
   it("UT-R-DMG-04-009: NOT/AND/OR compose the leaf conditions", () => {
     const defender = unitAt("U_DEF", "ENEMY");
     const modifier: DamageModifierState = {
