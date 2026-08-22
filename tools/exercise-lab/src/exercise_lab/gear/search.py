@@ -84,7 +84,7 @@ def phases_for_climb(settings: ClimbSettings) -> tuple[EvaluationPhase, Evaluati
 
     反復をまたいで同じ位相を使い回す。前の反復で評価済みの配分が次の反復の基点になる
     ので、キャッシュがそのまま効いて基点の評価をもう一度払わずに済む。同じ乱数範囲で
-    登り続けることになるため、その範囲への過適合は最終選抜（別Issue）で洗う。
+    登り続けることになるため、その範囲への過適合は最終選抜（`final.py`）で洗う。
     """
     screen = EvaluationPhase(
         name=SCREEN_PHASE_NAME, checkpoints=(settings.screen_runs,), seed_offset=0
@@ -164,7 +164,12 @@ def unpaid_runs(
 
 @dataclass(frozen=True)
 class ClimbStep:
-    """採用した1手。"""
+    """採用した1手。
+
+    `consumed_runs` と `fitness` は best-so-far 曲線のためにある。利得（`fitness_gain`）は
+    直前の基点に対する差なので、枝をまたいで並べられない——曲線には確定段の履歴から読んだ
+    絶対値を使う。
+    """
 
     iteration: int
     move: Move
@@ -172,6 +177,8 @@ class ClimbStep:
     fitness_gain: float
     damage_gain: float
     score_gain: float
+    consumed_runs: int = 0
+    fitness: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -283,6 +290,8 @@ def hill_climb(
                 fitness_gain=gain,
                 damage_gain=entry.damage_gain,
                 score_gain=entry.score_gain,
+                consumed_runs=evaluator.consumed_runs,
+                fitness=absolute_fitness(current, evaluator, confirm_phase, objective, settings),
             )
         )
 
@@ -384,3 +393,21 @@ def _damage_gain(
     if not base_damage or not variant_damage:
         return None
     return _mean_gain(base_damage, variant_damage)
+
+
+def absolute_fitness(
+    allocation: Allocation,
+    evaluator: BudgetedSampleSource[Allocation],
+    phase: EvaluationPhase,
+    objective: Objective,
+    settings: ClimbSettings,
+) -> float:
+    """確定段の履歴から読んだ適応度。**新しい評価は発行しない。**
+
+    枝をまたいで比べられる絶対値がここでしか取れない。利得は直前の基点に対する差であり、
+    別の枝の点と並べると基点の違いが値に混ざる。
+    """
+    record = evaluator.record_for(allocation, phase)
+    if record is None or record.sample_count < 1:
+        return 0.0
+    return objective.fitness(record.scores_at(min(settings.confirm_runs, record.sample_count)))

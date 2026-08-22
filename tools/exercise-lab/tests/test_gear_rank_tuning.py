@@ -12,6 +12,7 @@ from exercise_lab.gear.rank_tuning import (
     FocusTarget,
     RankTuningSettings,
     focus_targets,
+    lowered_ranks,
     rank_moves,
     tune_ranks,
 )
@@ -372,3 +373,40 @@ def test_every_measured_step_appears_in_the_price_table():
     assert {(entry.slot_index, entry.step_index) for entry in result.prices} == {
         (stop.move.slot_index, stop.step) for stop in measured
     }
+
+
+# --- ランクを下げている理由 --------------------------------------------------
+
+
+def test_the_reached_allocation_carries_why_each_rank_was_lowered():
+    result, _, _ = tune()
+
+    lowered = lowered_ranks(result, result.best)
+
+    assert lowered
+    assert all(entry.slot_index == 0 for entry in lowered)
+    assert all(entry.stat == "ATTACK" for entry in lowered)
+    # 根拠は「観測のあいだに当て先が動いた成分」である。
+    assert all(entry.components == (COMPONENT,) for entry in lowered)
+    # 段は補正値で並ぶ。字面順（Ⅲ-C の1つ上は Ⅱ-B）では上下を取り違える。
+    assert all(entry.step.points_delta > 0 for entry in lowered)
+
+
+def test_the_chain_of_lowerings_stops_at_the_reached_allocation():
+    result, _, _ = tune()
+
+    walk = next(walk for walk in result.walks if walk.target.slot_index == 0)
+    lowered = lowered_ranks(result, result.best)
+
+    # 3段目で署名が変わり、そこが到達点。4段目以降は理由に数えない。
+    assert len(lowered) == len(walk.stops)
+
+
+def test_an_allocation_the_rank_pass_never_reached_has_no_reason():
+    result, _, _ = tune()
+
+    assert lowered_ranks(result, START) == ()
+
+
+def test_without_a_rank_pass_there_is_no_reason_to_report():
+    assert lowered_ranks(None, START) == ()

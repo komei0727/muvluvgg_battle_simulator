@@ -19,9 +19,10 @@ from ..api import Catalog
 from ..models import FormationConfig
 from ..optimize.fitness import Objective
 from .allocation import SEARCHED_STATS, Allocation
+from .final import FinalSelection
 from .neighborhood import Move
 from .plan import PlanResult, PlanSettings, RestartAttempt
-from .rank_tuning import RankTuningResult, RankWalk
+from .rank_tuning import LoweredRank, RankTuningResult, RankWalk, lowered_ranks
 from .search import ClimbResult
 from .sensitivity import (
     CombinedResult,
@@ -30,6 +31,7 @@ from .sensitivity import (
     SensitivityResult,
     SensitivitySettings,
 )
+from .steps import GearStep, StepPlan
 
 # コンソール表の見出し。ID そのままでは5列が端末幅に収まらない。
 STAT_LABELS: Mapping[str, str] = {
@@ -356,8 +358,32 @@ PLAN_CAVEAT = (
 )
 
 RANGE_CAVEAT = (
-    "枝の順位は探索が使ったのと同じ乱数範囲で付けている。別の乱数範囲での確定"
-    "（最終選抜）はこのコマンドの担当ではない"
+    "枝の順位（`ranking`）は探索が使ったのと同じ乱数範囲で付けている。その範囲へ"
+    "過適合した枝が上に来うるので、報告する配分は `finalSelection` の順位で決める"
+)
+
+FINAL_CAVEAT = (
+    "最終選抜は探索が1回も使っていない乱数範囲で行っている。探索中の順位（`ranking`）とは"
+    "別の乱数列で測った値なので、両者の適応度を並べて比べてはいけない"
+)
+
+STEPS_CAVEAT = (
+    "同じグループの手はセットで適用する。グループの途中で止めると現状より弱くなる"
+    "——1手ずつの効果は加法ではなく、順位が動くまで損が先に立つためである"
+)
+
+STEP_CSV_COLUMNS = (
+    "index",
+    "group",
+    "slot_index",
+    "unit_definition_id",
+    "display_name",
+    "kind",
+    "removed",
+    "added",
+    "solo_expected_best_delta",
+    "cumulative_expected_best_delta",
+    "allocation",
 )
 
 PRICE_CAVEAT = (
@@ -394,6 +420,8 @@ def build_plan_summary(
             "restarts": settings.restarts,
             "pushSteps": settings.push_steps,
             "rankSteps": settings.rank.steps,
+            "finalPool": settings.final.pool,
+            "finalRuns": settings.final.runs,
         },
         "objective": {
             "bestOf": objective.best_of,
@@ -419,12 +447,176 @@ def build_plan_summary(
         "rankTuning": _rank_tuning_summary(result.rank_tuning, catalog),
         "priceCaveat": PRICE_CAVEAT,
         "best": _allocation_summary(result.best, catalog),
+        "loweredRanks": [
+            _lowered_summary(entry, catalog)
+            for entry in lowered_ranks(result.rank_tuning, result.best)
+        ],
         "ranking": [
             {"allocation": _allocation_summary(allocation, catalog), "fitness": fitness}
             for allocation, fitness in result.ranking
         ],
+        "finalSelection": _final_summary(result.final, catalog),
+        "finalCaveat": FINAL_CAVEAT,
+        "steps": _steps_summary(result.steps, catalog),
+        "stepsCaveat": STEPS_CAVEAT,
+        "bestSoFar": [
+            {
+                "stage": point.stage,
+                "consumedRuns": point.consumed_runs,
+                "bestFitness": point.best_fitness,
+            }
+            for point in result.history
+        ],
         "warnings": list(result.warnings),
     }
+
+
+def _lowered_summary(entry: LoweredRank, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "slotIndex": entry.slot_index,
+        "unitDefinitionId": entry.unit_definition_id,
+        "displayName": _display_name(catalog, entry.unit_definition_id),
+        "stat": entry.stat,
+        "step": entry.step.label,
+        "pointsDelta": entry.step.points_delta,
+        # 下げている理由。観測のあいだに当て先が動いた成分の名前である。
+        "components": list(entry.components),
+        "digest": entry.signature.digest(),
+        "assignments": dict(sorted(entry.signature.assignments.items())),
+    }
+
+
+def _final_summary(final: FinalSelection, catalog: Catalog) -> dict[str, Any]:
+    """最終選抜の順位。**探索の順位とは別の乱数範囲で測っている。**"""
+    return {
+        "candidates": [
+            {
+                "rank": rank,
+                "runs": entry.sample_count,
+                "fitness": entry.fitness,
+                "expectedBest": entry.expected_best,
+                "guaranteedBest": entry.guard,
+                "median": entry.median,
+                "mean": entry.mean,
+                "defeatRate": entry.defeat_rate,
+                "allocation": _allocation_summary(entry.candidate, catalog),
+            }
+            for rank, entry in enumerate(final.entries, start=1)
+        ],
+        "warnings": list(final.warnings),
+    }
+
+
+def _steps_summary(plan: StepPlan | None, catalog: Catalog) -> dict[str, Any] | None:
+    if plan is None:
+        return None
+    return {
+        "startIsAnswer": plan.is_empty,
+        "groupEnds": list(plan.group_ends()),
+        "rows": [_step_summary(step, catalog) for step in plan.steps],
+        "warnings": list(plan.warnings),
+    }
+
+
+def _step_summary(step: GearStep, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "index": step.index,
+        "group": step.group,
+        "slotIndex": step.slot_index,
+        "unitDefinitionId": step.unit_definition_id,
+        "displayName": _display_name(catalog, step.unit_definition_id),
+        "kind": step.move.kind,
+        "removed": None if step.removed is None else step.removed.label,
+        "added": None if step.added is None else step.added.label,
+        "soloExpectedBestDelta": step.solo_delta,
+        "cumulativeExpectedBestDelta": step.cumulative_delta,
+    }
+
+
+def write_steps_csv(plan: StepPlan | None, path: Path, catalog: Catalog) -> None:
+    """到達手順の各行。差分が無い実行でも見出しだけのファイルを残す。
+
+    「まだ走っていない」と「走った結果、差分が無かった」を後から区別できるようにする。
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(STEP_CSV_COLUMNS), lineterminator="\n")
+        writer.writeheader()
+        if plan is None:
+            return
+        writer.writerows(_step_row(step, catalog) for step in plan.steps)
+
+
+def _step_row(step: GearStep, catalog: Catalog) -> dict[str, Any]:
+    return {
+        "index": step.index,
+        "group": step.group,
+        "slot_index": step.slot_index,
+        "unit_definition_id": step.unit_definition_id,
+        "display_name": _display_name(catalog, step.unit_definition_id),
+        "kind": step.move.kind,
+        "removed": "" if step.removed is None else step.removed.label,
+        "added": "" if step.added is None else step.added.label,
+        "solo_expected_best_delta": "" if step.solo_delta is None else step.solo_delta,
+        "cumulative_expected_best_delta": (
+            "" if step.cumulative_delta is None else step.cumulative_delta
+        ),
+        "allocation": step.allocation.canonical_key(),
+    }
+
+
+def step_rows(plan: StepPlan, catalog: Catalog) -> list[list[str]]:
+    """到達手順をコンソール表の行へ直す。値の表記規則をここへ集約する。"""
+    return [
+        [
+            str(step.group),
+            str(step.index),
+            f"{step.slot_index}: {_display_name(catalog, step.unit_definition_id)}",
+            "-" if step.removed is None else _piece_text(step.removed),
+            "-" if step.added is None else _piece_text(step.added),
+            _delta_text(step.solo_delta),
+            _delta_text(step.cumulative_delta),
+        ]
+        for step in plan.steps
+    ]
+
+
+def _piece_text(piece: Any) -> str:
+    return f"{STAT_LABELS.get(piece.stat, piece.stat)} {piece.rank.label}"
+
+
+def _delta_text(value: float | None) -> str:
+    return "-" if value is None else f"{value:+,.0f}"
+
+
+def lowered_rank_notes(result: PlanResult, catalog: Catalog) -> dict[int, str]:
+    """枠ごとの注記。**なぜランクを下げているか**（どの順位を維持するため）を書く。
+
+    ランクが揃っていないのに理由が書けない枠には、そう書く。手持ちのまま動かしていない
+    だけの枠と、閾値の直下へ意図的に置いた枠を取り違えると、上等なギアへ替えて弱くなる。
+    """
+    notes: dict[int, list[str]] = {}
+    for entry in lowered_ranks(result.rank_tuning, result.best):
+        kept = ", ".join(
+            f"{component}→{entry.signature.assignments[component]}"
+            if component in entry.signature.assignments
+            else component
+            for component in entry.components
+        )
+        notes.setdefault(entry.slot_index, []).append(
+            f"{STAT_LABELS.get(entry.stat, entry.stat)} {entry.step.label} を下げたまま"
+            f"（{kept} の順位を保つため）"
+        )
+    return {
+        index: " / ".join(lines) if (lines := notes.get(index)) else _default_note(unit)
+        for index, unit in enumerate(result.best.units)
+    }
+
+
+def _default_note(unit: Any) -> str:
+    """理由の無い枠。ランクが揃っていれば空、揃っていなければ手持ちのままと書く。"""
+    ranks = {piece.rank.label for piece in unit.pieces if piece.stat in SEARCHED_STATS}
+    return "" if len(ranks) <= 1 else "手持ちのまま（意図的に下げてはいない）"
 
 
 def _rank_tuning_summary(
@@ -578,10 +770,13 @@ def rank_price_rows(tuning: RankTuningResult, catalog: Catalog) -> list[list[str
 
 
 def allocation_rows(
-    allocation: Allocation, start: Allocation, catalog: Catalog
-) -> list[tuple[str, list[str]]]:
-    """配分をコンソール表の行へ直す。基点からの増減を添える。"""
-    rows: list[tuple[str, list[str]]] = []
+    allocation: Allocation,
+    start: Allocation,
+    catalog: Catalog,
+    notes: Mapping[int, str] | None = None,
+) -> list[tuple[str, list[str], str]]:
+    """配分をコンソール表の行へ直す。基点からの増減と、ランクを下げている理由を添える。"""
+    rows: list[tuple[str, list[str], str]] = []
     for index, unit in enumerate(allocation.units):
         before = start.units[index]
         values = []
@@ -589,5 +784,11 @@ def allocation_rows(
             count = unit.count(stat)
             delta = count - before.count(stat)
             values.append(f"{count}" if delta == 0 else f"{count} ({delta:+d})")
-        rows.append((f"{index}: {_display_name(catalog, unit.unit_definition_id)}", values))
+        rows.append(
+            (
+                f"{index}: {_display_name(catalog, unit.unit_definition_id)}",
+                values,
+                (notes or {}).get(index, ""),
+            )
+        )
     return rows

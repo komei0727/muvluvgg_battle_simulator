@@ -44,6 +44,7 @@ from .gear.allocation import (
     GearAllocationError,
     rank_from_label,
 )
+from .gear.final import FinalSelectionSettings
 from .gear.formation import GearFormationSource
 from .gear.neighborhood import Move, neighborhood
 from .gear.plan import (
@@ -63,10 +64,13 @@ from .gear.report import (
     allocation_rows,
     build_plan_summary,
     build_sensitivity_summary,
+    lowered_rank_notes,
     move_text,
     rank_price_rows,
+    step_rows,
     utility_rows,
     write_moves_csv,
+    write_steps_csv,
 )
 from .gear.search import ClimbSettings, phases_for_climb
 from .gear.sensitivity import (
@@ -80,6 +84,7 @@ from .gear.sensitivity import (
 from .gear.sensitivity import (
     phases_for as gear_phases_for,
 )
+from .gear.steps import max_step_count
 from .models import (
     ConfigError,
     FormationConfig,
@@ -118,6 +123,8 @@ from .player_data import (
     StoredUnitEnhancement,
     apply_player_data,
     load_player_data,
+    overlaid_player_data,
+    read_player_data_document,
     resolved_level,
 )
 from .runner import ChunkPlan, EvaluationRun, plan_chunks, run_evaluation
@@ -134,7 +141,9 @@ SCORE_HISTOGRAM_PNG = "score-histogram.png"
 BREAK_COUNT_PNG = "break-count-distribution.png"
 
 GEAR_PLAN_JSON = "gear-plan.json"
-GEAR_PLAN_EVALUATIONS_CSV = "gear-plan-evaluations.csv"
+GEAR_PLAN_EVALUATIONS_CSV = "evaluations.csv"
+GEAR_PLAN_STEPS_CSV = "steps.csv"
+GEAR_PLAN_PLAYER_DATA_JSON = "player-data.json"
 
 GEAR_SENSITIVITY_JSON = "gear-sensitivity.json"
 GEAR_MOVES_CSV = "gear-moves.csv"
@@ -169,6 +178,10 @@ DEFAULT_PUSH_STEPS = 4
 # ランク微調整で1本の walk が下げる最大段数。攻撃力の梯子は10段なので、4段あれば
 # 隣接差 0.04pt を含む細かい刻みを何度か使える。
 DEFAULT_RANK_STEPS = 4
+# 最終選抜。候補は署名ごとに1件しか残らないので8件も見れば足り、確定は報告に耐える
+# 実効サンプル数（`fitness.MIN_RELIABLE_EFFECTIVE_SAMPLES`）を満たす深さまで積む。
+DEFAULT_FINAL_POOL = 8
+DEFAULT_FINAL_RUNS = 100
 DEFAULT_PLAN_BUDGET_RUNS = 60000
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
@@ -1375,6 +1388,13 @@ def gear_plan(
         int,
         typer.Option("--rank-steps", min=0, help="ランク微調整で下げる最大段数（0で行わない）"),
     ] = DEFAULT_RANK_STEPS,
+    final_pool: Annotated[
+        int,
+        typer.Option("--final-pool", min=1, help="最終選抜へ送る署名ごとのベストの件数（上限）"),
+    ] = DEFAULT_FINAL_POOL,
+    final_runs: Annotated[
+        int, typer.Option("--final-runs", min=2, help="最終選抜で1候補へ積む試行数")
+    ] = DEFAULT_FINAL_RUNS,
     include_rank: Annotated[
         bool, typer.Option("--include-rank", help="種別・ランクの変更も近傍へ含める")
     ] = False,
@@ -1415,6 +1435,7 @@ def gear_plan(
             restarts=restarts,
             push_steps=push_steps,
             rank=RankTuningSettings(steps=rank_steps),
+            final=FinalSelectionSettings(pool=final_pool, runs=final_runs),
         )
         source = GearFormationSource(config)
     except (ConfigError, GearAllocationError) as error:
@@ -1429,7 +1450,7 @@ def gear_plan(
     units = len(start.units)
     plan = plan_budget(settings, move_count=len(moves), unit_count=units)
     # `optimize` 側の `minimum_budget` と名前が衝突するため別名で読む。
-    minimum = minimum_plan_budget(settings, move_count=len(moves))
+    minimum = minimum_plan_budget(settings, move_count=len(moves), unit_count=units)
     observations = observation_count(settings, unit_count=units)
 
     out.mkdir(parents=True, exist_ok=True)
@@ -1445,6 +1466,7 @@ def gear_plan(
         _print_plan_budget(
             settings,
             moves=len(moves),
+            units=units,
             plan=plan,
             budget=budget,
             minimum=minimum,
@@ -1454,10 +1476,11 @@ def gear_plan(
             # 校正リクエストを投げる前に落とす。校正も予算の内であり、1反復も回せない
             # 予算で「校正だけ実行して何も探索しない」結果を返さない。
             _abort(
-                f"予算 {budget:,} 試行では1反復も回せない（1反復 {minimum:,} 試行。"
-                "校正で測る基点は篩いがキャッシュから読むので別勘定にはならない）。"
+                f"予算 {budget:,} 試行では探索1反復と取り置き（最終選抜・到達手順）に届かない"
+                f"（最低 {minimum:,} 試行。校正で測る基点は篩いがキャッシュから読むので"
+                "別勘定にはならない）。"
                 f"--budget を {minimum:,} 以上にするか、--screen-runs / --confirm-runs /"
-                " --survivors を下げる"
+                " --survivors / --final-runs を下げる"
             )
         evaluator = Evaluator(
             client,
@@ -1509,8 +1532,51 @@ def gear_plan(
     (out / GEAR_PLAN_JSON).write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    write_steps_csv(result.steps, out / GEAR_PLAN_STEPS_CSV, catalog)
+    write_best_so_far_chart(
+        [
+            GenerationReport(
+                generation=index,
+                consumed_runs=point.consumed_runs,
+                best_fitness=point.best_fitness,
+            )
+            for index, point in enumerate(result.history, start=1)
+        ],
+        out / BEST_SO_FAR_PNG,
+        title="gear-plan best so far",
+    )
+    _write_plan_player_data(out, player_data, result.best)
     _print_plan(result, summary, catalog)
     console.print(f"レポート: [bold]{out}[/]")
+
+
+def _write_plan_player_data(out: Path, player_data_path: Path | None, best: Allocation) -> None:
+    """理論値配分を `mlgg:player-data` の形で書き出す。`lab optimize` へそのまま渡せる。
+
+    **入力の手持ちデータへ重ねる形で出す。** このコマンドが知っているのは編成に居る5体の
+    ギアだけであり、レベル・学園レベル・レベルリンク・編成外のユニットの記録は入力の
+    ものを引き継ぐ。`--player-data` を渡していない実行では重ねる先が無いので書かない。
+    """
+    if player_data_path is None:
+        return
+    try:
+        document = read_player_data_document(player_data_path)
+        written, warnings = overlaid_player_data(
+            document,
+            PlayerData.model_validate(document),
+            [(unit.unit_definition_id, unit.to_gears()) for unit in best.units],
+        )
+    except PlayerDataError as error:
+        _abort(str(error))
+    for warning in warnings:
+        error_console.print(f"[yellow]warning[/]: {warning}")
+    (out / GEAR_PLAN_PLAYER_DATA_JSON).write_text(
+        json.dumps(written, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    console.print(
+        f"手持ちデータへの書き戻し: [bold]{out / GEAR_PLAN_PLAYER_DATA_JSON}[/]"
+        "（次の編成探索へ --player-data で渡す）"
+    )
 
 
 @dataclass
@@ -1644,11 +1710,13 @@ def _print_plan_budget(
     settings: PlanSettings,
     *,
     moves: int,
+    units: int,
     plan: dict[str, int],
     budget: int,
     minimum: int,
     observations: int,
 ) -> None:
+    """予算の内訳。最終選抜と到達手順は**探索より先に取り置く**ぶんである。"""
     table = Table(title=f"予算の内訳（1手近傍 {moves} 手）")
     table.add_column("項目")
     table.add_column("内訳")
@@ -1668,9 +1736,21 @@ def _print_plan_budget(
             f"境界の枠を最大 {settings.rank.steps} 段（対象は署名から決まる）",
             f"{plan['rankTuning']:,}",
         )
+    table.add_row(
+        "最終選抜",
+        f"署名ごとのベスト {settings.final.pool} 件 × {settings.final.runs}"
+        "（探索が使っていない乱数範囲）",
+        f"{plan['finalSelection']:,}",
+    )
+    if plan["steps"]:
+        table.add_row(
+            "到達手順",
+            f"現状 → 理論値の差分を単独・累積で測る（最大 {max_step_count(units)} 手）",
+            f"{plan['steps']:,}",
+        )
     table.add_row("全体", f"基点 + 再スタート {settings.restarts} 本", f"{plan['total']:,}")
     table.add_row("上限（--budget）", "これを超えて評価を発行しない", f"{budget:,}")
-    table.add_row("最低予算", "1反復ぶん。届かなければ実行前に失敗する", f"{minimum:,}")
+    table.add_row("最低予算", "1反復 + 取り置き。届かなければ実行前に失敗する", f"{minimum:,}")
     console.print(table)
     console.print(f"単発実行（レジーム観測）は最大 {observations} 回。試行数の予算とは別勘定")
 
@@ -1718,9 +1798,12 @@ def _print_plan(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -
     best.add_column("ユニット")
     for stat in SEARCHED_STATS:
         best.add_column(STAT_LABELS[stat], justify="right")
-    for label, values in allocation_rows(result.best, result.start, catalog):
-        best.add_row(label, *values)
+    best.add_column("注記")
+    notes = lowered_rank_notes(result, catalog)
+    for label, values, note in allocation_rows(result.best, result.start, catalog, notes):
+        best.add_row(label, *values, note)
     console.print(best)
+    console.print(f"レジーム署名: [bold]{_best_digest(result)}[/]")
 
     signatures = Table(title="到達したレジーム署名")
     for column in ("署名", "観測点", "成分の当て先"):
@@ -1745,11 +1828,76 @@ def _print_plan(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -
         console.print(f"[dim]{line}[/]")
 
     _print_rank_tuning(result, summary, catalog)
+    _print_final_selection(summary)
+    _print_steps(result, summary, catalog)
 
     console.print(f"[yellow]{summary['caveat']}[/]")
     console.print(f"[dim]{summary['rankingCaveat']}[/]")
     for warning in result.warnings:
         error_console.print(f"[yellow]warning[/]: {warning}")
+
+
+def _best_digest(result: PlanResult) -> str:
+    """到達した配分の署名。観測できていなければその旨を返す。
+
+    最終選抜は別の乱数範囲で測るだけで観測はしないので、選ばれた配分の署名は探索中の
+    観測から引く。押しの途中で通り過ぎただけの配分が選ばれることは無い（最終選抜の
+    候補は確定段まで測った配分に限る）。
+    """
+    for entry in result.signatures:
+        if entry.allocation.canonical_key() == result.best.canonical_key():
+            return entry.signature.digest()
+    return "未観測"
+
+
+def _print_final_selection(summary: dict[str, Any]) -> None:
+    """最終選抜の順位。探索の順位とは別の乱数範囲で測っている。"""
+    candidates = summary["finalSelection"]["candidates"]
+    if not candidates:
+        console.print("[dim]最終選抜は行っていない（予算の残りが1候補ぶんに届かなかった）[/]")
+        return
+    table = Table(title="最終選抜（探索が使っていない乱数範囲で測り直した順位）")
+    for column in ("順位", "試行数", "適応度", "期待日次ベスト", "保証値", "敗北率", "配分"):
+        table.add_column(column, justify="left" if column == "配分" else "right")
+    for entry in candidates:
+        table.add_row(
+            str(entry["rank"]),
+            f"{entry['runs']:,}",
+            f"{entry['fitness']:,.0f}",
+            f"{entry['expectedBest']:,.0f}",
+            f"{entry['guaranteedBest']:,.0f}",
+            f"{entry['defeatRate']:.1%}",
+            " / ".join(_allocation_text(unit) for unit in entry["allocation"]),
+        )
+    console.print(table)
+    console.print(f"[dim]{summary['finalCaveat']}[/]")
+
+
+def _allocation_text(unit: dict[str, Any]) -> str:
+    """1枠ぶんの配分を1行へ畳む。順位表の候補を見分けるのに枚数の並びが要る。"""
+    counts = ",".join(
+        f"{STAT_LABELS[stat]}{count}" for stat, count in unit["counts"].items() if count
+    )
+    return f"{unit['slotIndex']}:{unit['displayName']}[{counts or '-'}]"
+
+
+def _print_steps(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -> None:
+    """到達手順。**同じグループの手はセットで適用する。**"""
+    reported = summary["steps"]
+    if reported is None:
+        return
+    if not reported["rows"]:
+        console.print("到達手順: [bold]差分なし[/]（現状の手持ちが理論値と一致している）")
+        return
+    table = Table(title="到達手順（現状 → 理論値。同じグループはセットで適用する）")
+    for column in ("組", "順", "ユニット", "外す", "付ける", "単独Δ", "累積Δ"):
+        table.add_column(column, justify="right" if column.endswith("Δ") else "left")
+    rows = step_rows(result.steps, catalog)
+    # 区切り線はグループの**末尾**へ引く。次の行と組が違うかどうかで決める。
+    for row, following in zip(rows, [*rows[1:], None], strict=True):
+        table.add_row(*row, end_section=following is not None and following[0] != row[0])
+    console.print(table)
+    console.print(f"[yellow]{summary['stepsCaveat']}[/]")
 
 
 def _print_rank_tuning(result: PlanResult, summary: dict[str, Any], catalog: Catalog) -> None:

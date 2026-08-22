@@ -35,6 +35,13 @@ from .allocation import (
     GearPiece,
     UnitAllocation,
 )
+from .final import (
+    FinalSelection,
+    FinalSelectionSettings,
+    final_selection_cost,
+    select_final,
+    signature_bests,
+)
 from .neighborhood import Move
 from .rank_tuning import (
     RankTuningResult,
@@ -53,10 +60,12 @@ from .search import (
     BudgetedSampleSource,
     ClimbResult,
     ClimbSettings,
+    absolute_fitness,
     hill_climb,
     iteration_cost,
     phases_for_climb,
 )
+from .steps import StepPlan, build_step_plan, max_step_count, step_plan_cost
 
 UP = "UP"
 DOWN = "DOWN"
@@ -80,6 +89,8 @@ class PlanSettings:
     push_steps: int = 4
     # Phase D。収束した配分のランクを、境界に関わる枠だけ下げて刻む。
     rank: RankTuningSettings = field(default_factory=RankTuningSettings)
+    # 最終選抜。探索が使っていない乱数範囲で署名ごとのベストを並べ直す。
+    final: FinalSelectionSettings = field(default_factory=FinalSelectionSettings)
 
 
 @dataclass(frozen=True)
@@ -108,6 +119,20 @@ class RestartAttempt:
 
 
 @dataclass(frozen=True)
+class PlanProgress:
+    """best-so-far 曲線の1点。横軸は消費試行数である。
+
+    世代ではなく消費試行数を横軸にするのは、Phase ごとに1歩の重さが違うためである
+    （`optimize/report.py` の比較曲線と同じ理由）。最終選抜は別の乱数範囲で測るので
+    この曲線には載せない——同じ縦軸に見えて別の量になる。
+    """
+
+    stage: str
+    consumed_runs: int
+    best_fitness: float
+
+
+@dataclass(frozen=True)
 class PlanResult:
     start: Allocation
     best: Allocation
@@ -118,6 +143,10 @@ class PlanResult:
     rank_tuning: RankTuningResult | None = None
     signatures: tuple[ObservedSignature, ...] = ()
     ranking: tuple[tuple[Allocation, float], ...] = ()
+    final: FinalSelection = field(default_factory=FinalSelection)
+    # 現状から `best` までの到達手順。差分が無ければ空の手順表になる。
+    steps: StepPlan | None = None
+    history: tuple[PlanProgress, ...] = ()
     consumed_runs: int = 0
     warnings: tuple[str, ...] = ()
 
@@ -132,28 +161,49 @@ def plan_budget(settings: PlanSettings, *, move_count: int, unit_count: int = 0)
     per_iteration = iteration_cost(settings.climb, move_count=move_count)
     per_climb = per_iteration * settings.climb.max_iterations
     rank = rank_round_cost(settings.rank, settings.climb, target_count=max_target_count(unit_count))
+    steps = step_plan_cost(settings.climb, step_count=max_step_count(unit_count))
+    final = final_selection_cost(settings.final)
     return {
         "perIteration": per_iteration,
         "perClimb": per_climb,
         "climbs": 1 + settings.restarts,
         "rankTuning": rank,
-        "total": per_climb * (1 + settings.restarts) + rank,
+        "steps": steps,
+        "finalSelection": final,
+        "total": per_climb * (1 + settings.restarts) + rank + steps + final,
     }
 
 
-def minimum_budget(settings: PlanSettings, *, move_count: int) -> int:
-    """1反復を回しきるのに要る最低試行数。**校正のぶんを別に足さない。**
+def reserved_budget(settings: PlanSettings, *, unit_count: int) -> int:
+    """探索へ回さずに取り置く試行数。最終選抜と到達手順のぶんである。
 
-    校正は基点を篩いの深さで測るだけで、その結果は反復1の篩いがキャッシュから読む。
-    したがって校正込みの実消費はちょうど1反復ぶんであり、上乗せすると
-    `iteration_cost <= --budget < iteration_cost + screen_runs` の予算を「1反復も
-    回せない」と誤って拒むことになる。
+    探索が予算を使い切ってから「別の乱数範囲で確かめる試行が無い」「手順表を組む試行が
+    無い」となると、報告できるのは過適合を含んだ配分だけになる。どちらも成果物なので、
+    先に取り置く（`optimize/algorithms.py` の `exploration_budget` と同じ規約）。
+
+    到達手順の額は**全枠が9枚とも入れ替わった場合**で見積もる。実際の差分は探索が
+    終わるまで分からず、少なく見積もると手順表が途中で切れる。
+    """
+    return final_selection_cost(settings.final) + step_plan_cost(
+        settings.climb, step_count=max_step_count(unit_count)
+    )
+
+
+def minimum_budget(settings: PlanSettings, *, move_count: int, unit_count: int = 0) -> int:
+    """レポートを1つ出すのに要る最低試行数。探索1反復 + 取り置き。
+
+    **校正のぶんを別に足さない。** 校正は基点を篩いの深さで測るだけで、その結果は反復1の
+    篩いがキャッシュから読む。したがって校正込みの実消費はちょうど1反復ぶんであり、
+    上乗せすると `iteration_cost <= --budget < iteration_cost + screen_runs` の予算を
+    「1反復も回せない」と誤って拒むことになる。
 
     予算がこれに満たなければ、校正も含めて1試行も投げずに終える。`--budget` を
     「これを超えて評価を発行しない」上限として示している以上、校正だけが例外に
     なってはいけない。
     """
-    return iteration_cost(settings.climb, move_count=move_count)
+    return iteration_cost(settings.climb, move_count=move_count) + reserved_budget(
+        settings, unit_count=unit_count
+    )
 
 
 def observation_count(settings: PlanSettings, *, unit_count: int = 0) -> int:
@@ -180,7 +230,12 @@ def plan_gear_allocation(
     budget_runs: int,
     ladder: RankLadder = EMPTY_LADDER,
 ) -> PlanResult:
-    """Phase A（観測）→ B（山登り）→ C（レジーム再スタート）→ D（ランク微調整）を通す。"""
+    """Phase A（観測）→ B（山登り）→ C（再スタート）→ D（ランク）→ 選抜→手順を通す。
+
+    最終選抜と到達手順のぶんは**探索の前に取り置く**（`reserved_budget`）。探索が予算を
+    使い切ってからでは、別の乱数範囲での確定も手順表も出せない。
+    """
+    search_budget = max(0, budget_runs - reserved_budget(settings, unit_count=len(start.units)))
     base_signature = observer.observe(start)
     observations = [ObservedSignature(origin="base", allocation=start, signature=base_signature)]
 
@@ -189,7 +244,7 @@ def plan_gear_allocation(
         evaluator,
         settings=settings.climb,
         objective=objective,
-        budget_runs=budget_runs,
+        budget_runs=search_budget,
     )
     solved_signature = observer.observe(base_climb.best)
     observations.append(
@@ -214,7 +269,7 @@ def plan_gear_allocation(
             observations,
             settings=settings,
             objective=objective,
-            budget_runs=budget_runs,
+            budget_runs=search_budget,
         )
         attempts.append(attempt)
         if attempt.climb is not None:
@@ -235,13 +290,50 @@ def plan_gear_allocation(
         ladder=ladder,
         settings=settings,
         objective=objective,
-        budget_runs=budget_runs,
+        budget_runs=search_budget,
     )
     if tuning is not None:
         warnings.extend(tuning.warnings)
         winners.extend(entry.allocation for entry in tuning.signatures)
         ranking = _rank(winners, evaluator, settings=settings, objective=objective)
         best = ranking[0][0] if ranking else best
+
+    history = _history(
+        start, base_climb, attempts, evaluator, settings=settings, objective=objective
+    )
+    # 探索の終端。Phase D を回した実行ではその到達点が、回さなかった実行では Phase C
+    # までの到達点がここに立つ。
+    history = _with_stage(
+        history, "search-end", evaluator, best, settings=settings, objective=objective
+    )
+
+    final = select_final(
+        signature_bests(
+            observations,
+            evaluator,
+            climb=settings.climb,
+            objective=objective,
+            required=best,
+            limit=settings.final.pool,
+        ),
+        evaluator,
+        objective=objective,
+        settings=settings.final,
+        climb=settings.climb,
+        budget_runs=budget_runs,
+    )
+    warnings.extend(final.warnings)
+    best = final.best or best
+
+    reach = build_step_plan(
+        start,
+        best,
+        evaluator,
+        climb=settings.climb,
+        objective=objective,
+        budget_runs=budget_runs,
+    )
+    warnings.extend(reach.warnings)
 
     return PlanResult(
         start=start,
@@ -252,9 +344,86 @@ def plan_gear_allocation(
         rank_tuning=tuning,
         signatures=tuple(observations),
         ranking=tuple(ranking),
+        final=final,
+        steps=reach,
+        history=history,
         consumed_runs=evaluator.consumed_runs,
         warnings=tuple(dict.fromkeys(warnings)),
     )
+
+
+def _history(
+    start: Allocation,
+    base_climb: ClimbResult,
+    attempts: Sequence[RestartAttempt],
+    evaluator: BudgetedSampleSource[Allocation],
+    *,
+    settings: PlanSettings,
+    objective: Objective,
+) -> tuple[PlanProgress, ...]:
+    """消費試行数に対する暫定ベストの曲線。採用した手の時点を並べる。
+
+    枝をまたいで並べるので、値は確定段の履歴から読んだ**絶対値**である（利得は直前の
+    基点に対する差なので、枝が違えば基準も違う）。曲線は下がらない——後から見つけた
+    点が悪ければ、それまでのベストがそのまま横へ伸びる。
+    """
+    _, confirm = phases_for_climb(settings.climb)
+    points = [
+        PlanProgress(
+            stage="base",
+            consumed_runs=0,
+            best_fitness=absolute_fitness(start, evaluator, confirm, objective, settings.climb),
+        )
+    ]
+    points.extend(
+        PlanProgress(
+            stage="base-climb", consumed_runs=step.consumed_runs, best_fitness=step.fitness
+        )
+        for step in base_climb.steps
+    )
+    points.extend(
+        PlanProgress(
+            stage=f"restart{attempt.index}",
+            consumed_runs=step.consumed_runs,
+            best_fitness=step.fitness,
+        )
+        for attempt in attempts
+        if attempt.climb is not None
+        for step in attempt.climb.steps
+    )
+    return _monotone(points)
+
+
+def _with_stage(
+    history: Sequence[PlanProgress],
+    stage: str,
+    evaluator: BudgetedSampleSource[Allocation],
+    allocation: Allocation,
+    *,
+    settings: PlanSettings,
+    objective: Objective,
+) -> tuple[PlanProgress, ...]:
+    """今の消費試行数における到達点を曲線へ足す。"""
+    _, confirm = phases_for_climb(settings.climb)
+    fitness = absolute_fitness(allocation, evaluator, confirm, objective, settings.climb)
+    return _monotone(
+        [
+            *history,
+            PlanProgress(stage=stage, consumed_runs=evaluator.consumed_runs, best_fitness=fitness),
+        ]
+    )
+
+
+def _monotone(points: Sequence[PlanProgress]) -> tuple[PlanProgress, ...]:
+    ordered = sorted(points, key=lambda point: point.consumed_runs)
+    best = float("-inf")
+    curve: list[PlanProgress] = []
+    for point in ordered:
+        best = max(best, point.best_fitness)
+        curve.append(
+            PlanProgress(stage=point.stage, consumed_runs=point.consumed_runs, best_fitness=best)
+        )
+    return tuple(curve)
 
 
 def _tune_ranks(
@@ -508,7 +677,7 @@ def _rank(
     ぶんまで追加の試行を投げることになり、予算が上限である約束を破る。
 
     **これは最終選抜ではない** —— 探索が使ったのと同じ乱数範囲で並べているため、その
-    範囲へ過適合した枝が上に来うる。別の乱数範囲での確定は最終選抜（別Issue）が行う。
+    範囲へ過適合した枝が上に来うる。別の乱数範囲での確定は `final.py` が行う。
     """
     unique: list[Allocation] = []
     seen: set[str] = set()
