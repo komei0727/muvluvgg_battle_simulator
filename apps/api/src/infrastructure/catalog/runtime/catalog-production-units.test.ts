@@ -519,7 +519,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // リディア・エルドリッジ）の新規投入。既存の`APPLY_SUBUNIT`（R-SUB-01/02）
     // ・`REMOVE_EFFECTS`・`targetCondition`のみで全スキルを表現でき、
     // ドメイン層（`src/domain/**`）の変更は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-08-22.1");
+    // `2026-08-23.1` は既存Unit 33件の数値是正（`baseStats`/`levelGrowth`のHP・
+    // 攻撃力・防御力）。Unit・Skill・Memoryの構成は変えておらず、差分は
+    // `units.json` の数値だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-23.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
