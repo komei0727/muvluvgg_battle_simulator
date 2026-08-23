@@ -448,7 +448,7 @@ export function collectTestCaseDefinitionsFromSource(
     sourceText,
     ts.ScriptTarget.Latest,
     true,
-    ts.ScriptKind.TS,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   );
   const compilerOptions: ts.CompilerOptions = { noLib: true, noResolve: true, types: [] };
   const compilerHost = ts.createCompilerHost(compilerOptions, true);
@@ -501,7 +501,7 @@ export function collectTestCaseDefinitions(
       collectTestCaseDefinitions(path, into, pattern);
       continue;
     }
-    if (!entry.isFile() || !entry.name.endsWith(".test.ts")) {
+    if (!entry.isFile() || !(entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.tsx"))) {
       continue;
     }
     for (const [id, definition] of collectTestCaseDefinitionsFromSource(

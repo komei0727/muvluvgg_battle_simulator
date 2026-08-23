@@ -30,7 +30,7 @@ function responseWith(overrides: {
 }
 
 describe("UnitActionStateSection", () => {
-  it("shows AP/PP/EX for each battleUnitId in the ally and enemy groups (UI-UT-ACT-010)", () => {
+  it("UI-UT-ACT-010: shows AP/PP/EX for each battleUnitId in the ally and enemy groups", () => {
     const response = responseWith({
       units: [
         {
@@ -174,7 +174,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/SUMMARYログ/)).toBeInTheDocument();
   });
 
-  it("lists finalState effects with their kind, category and remaining duration (UI-CT-017)", () => {
+  it("UI-CT-017: lists finalState effects with their kind, category and remaining duration", () => {
     const response = responseWith({
       units: [
         {
@@ -208,7 +208,7 @@ describe("UnitActionStateSection", () => {
 
   // Issue #519: `effectKindKey`はCatalog宣言由来の同種グループ鍵になり、複数の
   // 定義が共有し得る。効果そのものの名前は`effectDefinitionId`で表す。
-  it("names an effect by its definition id, not by the kindKey group it belongs to (UI-CT-074)", () => {
+  it("UI-CT-074: names an effect by its definition id, not by the kindKey group it belongs to", () => {
     const response = responseWith({
       units: [
         {
@@ -239,7 +239,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.queryByText(/KIND_ELENA_MOODMAKER_EX_ATK_UP/)).not.toBeInTheDocument();
   });
 
-  it("names a status abnormality by its statusKind and marks a superseded duplicate as inactive (UI-CT-018)", () => {
+  it("UI-CT-018: names a status abnormality by its statusKind and marks a superseded duplicate as inactive", () => {
     const response = responseWith({
       units: [
         {
@@ -281,7 +281,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/次点/)).toBeInTheDocument();
   });
 
-  it("labels an advantageous APPLY_STATUS by the API's BUFF category rather than as a status abnormality (UI-CT-021)", () => {
+  it("UI-CT-021: labels an advantageous APPLY_STATUS by the API's BUFF category rather than as a status abnormality", () => {
     const response = responseWith({
       units: [
         {
@@ -312,7 +312,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.queryByText(/STATUS_ABNORMALITY/)).not.toBeInTheDocument();
   });
 
-  it("says effects are unknown, not absent, for a fixture whose finalState has no effects array (UI-CT-019)", () => {
+  it("UI-CT-019: says effects are unknown, not absent, for a fixture whose finalState has no effects array", () => {
     const response = responseWith({
       units: [{ battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" }],
     });
@@ -323,7 +323,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/効果.*不明/)).toBeInTheDocument();
   });
 
-  it("says there is no effect when finalState reports a truthfully empty effects array (UI-CT-020)", () => {
+  it("UI-CT-020: says there is no effect when finalState reports a truthfully empty effects array", () => {
     const response = responseWith({
       units: [
         {
@@ -354,7 +354,7 @@ describe("UnitActionStateSection", () => {
 
   // DMG-010（Issue #191）: 「shield吸収、HP damage内訳」
   // 「sub unit」をUnit詳細へ追加する（サマリ列は増やさない）。
-  it("shows the shield pools and sub unit instances of finalState (UI-CT-022)", () => {
+  it("UI-CT-022: shows the shield pools and sub unit instances of finalState", () => {
     const response = responseWith({
       units: [
         {
@@ -382,7 +382,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/ACT_SUBUNIT_DRONE.*20 \/ 50/)).toBeInTheDocument();
   });
 
-  it("says there is no shield or sub unit when finalState truthfully reports zero and an empty list (UI-CT-023)", () => {
+  it("UI-CT-023: says there is no shield or sub unit when finalState truthfully reports zero and an empty list", () => {
     const response = responseWith({
       units: [
         {
@@ -405,7 +405,7 @@ describe("UnitActionStateSection", () => {
 
   // DMG-004後・DMG-005前のように片方だけを持つレスポンスでは、
   // 欠落側が何も描画されず「不明」とも読めなくなっていた。個別に不明表示する。
-  it("says only the missing side is unknown when a response carries shields but not subUnits (UI-CT-025)", () => {
+  it("UI-CT-025: says only the missing side is unknown when a response carries shields but not subUnits", () => {
     const response = responseWith({
       units: [
         {
@@ -427,7 +427,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.queryByText(/シールド.*不明/)).not.toBeInTheDocument();
   });
 
-  it("says only the missing side is unknown when a response carries subUnits but not shields (UI-CT-026)", () => {
+  it("UI-CT-026: says only the missing side is unknown when a response carries subUnits but not shields", () => {
     const response = responseWith({
       units: [
         {
@@ -448,7 +448,7 @@ describe("UnitActionStateSection", () => {
     expect(screen.queryByText("シールドなし")).not.toBeInTheDocument();
   });
 
-  it("says shields and sub units are unknown, not absent, for a fixture recorded before the M8 contract (UI-CT-024)", () => {
+  it("UI-CT-024: says shields and sub units are unknown, not absent, for a fixture recorded before the M8 contract", () => {
     const response = responseWith({
       units: [
         {

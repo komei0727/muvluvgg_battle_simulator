@@ -151,7 +151,7 @@ describe("ExecutionParameterForm", () => {
     expect(screen.getByLabelText("ログレベル")).toBeDisabled();
   });
 
-  it("marks the turn limit input invalid and shows the message for a /turnLimit violation (UI-API-004, UI-CT-016)", () => {
+  it("UI-API-004/UI-CT-016: marks the turn limit input invalid and shows the message for a /turnLimit violation", () => {
     render(
       <ExecutionParameterForm
         turnLimit={10}
@@ -253,7 +253,7 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     );
   }
 
-  it("UI-CT-083: replaces the log level select with the execution mode switch", () => {
+  it("UI-CT-104: replaces the log level select with the execution mode switch", () => {
     renderExercise({ mode: "SINGLE", runCount: 100, seed: "" });
 
     expect(screen.queryByLabelText("ログレベル")).not.toBeInTheDocument();
@@ -262,14 +262,14 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     expect(screen.queryByLabelText("シード")).not.toBeInTheDocument();
   });
 
-  it("UI-CT-083: shows the run count and seed only in the statistics mode", () => {
+  it("UI-CT-105: shows the run count and seed only in the statistics mode", () => {
     renderExercise({ mode: "STATISTICS", runCount: 100, seed: "abc123" });
 
     expect(screen.getByLabelText("実行回数")).toHaveValue(100);
     expect(screen.getByLabelText("シード")).toHaveValue("abc123");
   });
 
-  it("UI-CT-083: reports the selected execution mode", async () => {
+  it("UI-CT-106: reports the selected execution mode", async () => {
     const user = userEvent.setup();
     const onModeChange = vi.fn();
     renderExercise({ mode: "SINGLE", runCount: 100, seed: "" }, { onModeChange });
@@ -318,7 +318,7 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     );
   }
 
-  it("UI-CT-083: reports the numeric run count and the empty-input sentinel", async () => {
+  it("UI-CT-107: reports the numeric run count and the empty-input sentinel", async () => {
     const user = userEvent.setup();
     const onRunCountChange = vi.fn();
     render(<StatisticsHarness onRunCountChange={onRunCountChange} onSeedChange={vi.fn()} />);
@@ -330,7 +330,7 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     expect(onRunCountChange).toHaveBeenLastCalledWith(500);
   });
 
-  it("UI-CT-083: reports the seed as free text", async () => {
+  it("UI-CT-108: reports the seed as free text", async () => {
     const user = userEvent.setup();
     const onSeedChange = vi.fn();
     render(<StatisticsHarness onRunCountChange={vi.fn()} onSeedChange={onSeedChange} />);
@@ -340,7 +340,7 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     expect(onSeedChange).toHaveBeenLastCalledWith("abc123");
   });
 
-  it("UI-CT-084: marks the run count invalid and shows the message for a /runsPerCandidate violation", () => {
+  it("UI-CT-111: marks the run count invalid and shows the message for a /runsPerCandidate violation", () => {
     renderExercise({ mode: "STATISTICS", runCount: 5000, seed: "" }, {}, [
       {
         path: "/runsPerCandidate",

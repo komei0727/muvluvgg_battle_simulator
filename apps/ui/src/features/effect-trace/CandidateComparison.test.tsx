@@ -50,7 +50,7 @@ function candidateRows(): readonly HTMLElement[] {
 
 describe("CandidateComparison", () => {
   // UI-AC-046: 候補一覧・選択先・次点との差が読める。
-  it("lists the candidates in resolution order and marks the chosen one (UI-CT-100)", () => {
+  it("UI-CT-100: lists the candidates in resolution order and marks the chosen one", () => {
     render(<CandidateComparison comparison={comparison()} roster={roster} />);
 
     const rows = candidateRows();
@@ -63,7 +63,7 @@ describe("CandidateComparison", () => {
     expect(within(rows[1]!).queryByText("選択")).toBeNull();
   });
 
-  it("shows the gap to the runner-up as both an amount and a percentage (UI-CT-100)", () => {
+  it("UI-CT-131: shows the gap to the runner-up as both an amount and a percentage", () => {
     render(<CandidateComparison comparison={comparison()} roster={roster} />);
 
     const gap = screen.getByText(/次点との差/);
@@ -73,7 +73,7 @@ describe("CandidateComparison", () => {
   });
 
   // UI-AC-046: 割合バフの寄与が内訳として分かる。
-  it("breaks the chosen value into its starting value and the effects in force (UI-CT-101)", () => {
+  it("UI-CT-101: breaks the chosen value into its starting value and the effects in force", () => {
     render(<CandidateComparison comparison={comparison()} roster={roster} />);
 
     const chosenRow = candidateRows()[0]!;
@@ -83,13 +83,13 @@ describe("CandidateComparison", () => {
   });
 
   // UI-AC-046: 逆算であるという限界が明示されている。
-  it("always states that the comparison is inferred from the grant, not observed (UI-CT-101)", () => {
+  it("UI-CT-132: always states that the comparison is inferred from the grant, not observed", () => {
     render(<CandidateComparison comparison={comparison()} roster={roster} />);
 
     expect(screen.getByText(/逆算/)).toBeVisible();
   });
 
-  it("warns when the reconstructed top candidate is not the one that was actually chosen (UI-CT-102)", () => {
+  it("UI-CT-102: warns when the reconstructed top candidate is not the one that was actually chosen", () => {
     render(
       <CandidateComparison
         comparison={comparison({ matchesReconstruction: false })}
@@ -100,7 +100,7 @@ describe("CandidateComparison", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/一致しません/);
   });
 
-  it("warns when a candidate's value could not be read instead of presenting a partial ranking as complete (UI-CT-102)", () => {
+  it("UI-CT-129: warns when a candidate's value could not be read instead of presenting a partial ranking as complete", () => {
     render(
       <CandidateComparison
         comparison={comparison({
@@ -121,7 +121,7 @@ describe("CandidateComparison", () => {
     expect(lastRow).toHaveTextContent("-");
   });
 
-  it("renders without a gap when the chosen candidate has no runner-up (UI-CT-102)", () => {
+  it("UI-CT-130: renders without a gap when the chosen candidate has no runner-up", () => {
     const { gapToRunnerUp: _omitted, ...withoutGap } = comparison();
     render(
       <CandidateComparison

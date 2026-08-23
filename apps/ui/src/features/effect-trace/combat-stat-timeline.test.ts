@@ -115,7 +115,7 @@ function response(overrides: Partial<BattleLogResponse> = {}): BattleLogResponse
 }
 
 describe("buildCombatStatTimeline", () => {
-  it("reads the effective value strictly before a sequence, so a grant's own change is excluded (UI-UT-CST-001)", () => {
+  it("UI-UT-CST-001: reads the effective value strictly before a sequence, so a grant's own change is excluded", () => {
     const timeline = buildCombatStatTimeline(
       response({
         events: statChangeByEffect(10, 11, "ACT_BUFF", "ally:1"),
@@ -131,7 +131,7 @@ describe("buildCombatStatTimeline", () => {
     expect(timeline.valueBefore("ally:1", "attack", 12)).toBe(1350);
   });
 
-  it("folds buff, expiry and break enhancement in sequence order (R-TEX-04, UI-UT-CST-002)", () => {
+  it("UI-UT-CST-002: folds buff, expiry and break enhancement in sequence order (R-TEX-04)", () => {
     const timeline = buildCombatStatTimeline(
       response({
         stateTransitions: [
@@ -148,7 +148,7 @@ describe("buildCombatStatTimeline", () => {
     expect(timeline.valueBefore("enemy:1", "attack", 45)).toBe(5500);
   });
 
-  it("folds hpMaximum, which the delta carries outside combatStats (UI-UT-CST-003)", () => {
+  it("UI-UT-CST-003: folds hpMaximum, which the delta carries outside combatStats", () => {
     const timeline = buildCombatStatTimeline(
       response({
         stateTransitions: [
@@ -167,7 +167,7 @@ describe("buildCombatStatTimeline", () => {
     expect(timeline.valueBefore("enemy:1", "maximumHp", 30)).toBe(1800);
   });
 
-  it("reports a series as unknown rather than guessing when the initial snapshot lacks it (UI-UT-CST-004)", () => {
+  it("UI-UT-CST-004: reports a series as unknown rather than guessing when the initial snapshot lacks it", () => {
     const timeline = buildCombatStatTimeline(
       response({ initialState: { units: [unit("ally:1", 1000)] } }),
     );
@@ -180,7 +180,7 @@ describe("buildCombatStatTimeline", () => {
   // `initialState`と`stateTransitions`はパーセントポイント（20）である。取り違えると
   // 桁違いの値を自信満々に出すことになるため、`before`が手元の値と合わない系列は
   // 「値が読めない」に倒す。
-  it("refuses to report a value once a delta's before does not match the folded value (UI-UT-CST-005)", () => {
+  it("UI-UT-CST-005: refuses to report a value once a delta's before does not match the folded value", () => {
     const timeline = buildCombatStatTimeline(
       response({
         stateTransitions: [
@@ -203,7 +203,7 @@ describe("buildCombatStatTimeline", () => {
     expect(timeline.valueBefore("ally:1", "attack", 30)).toBe(1000);
   });
 
-  it("breaks the value down into the net contribution of each effect that is still in force (UI-UT-CST-006)", () => {
+  it("UI-UT-CST-006: breaks the value down into the net contribution of each effect that is still in force", () => {
     const timeline = buildCombatStatTimeline(
       response({
         events: [
@@ -240,7 +240,7 @@ describe("buildCombatStatTimeline", () => {
     expect(timeline.initialValue("ally:1", "attack")).toBe(1000);
   });
 
-  it("keeps a change whose cause cannot be attributed to an effect instead of dropping it from the total (UI-UT-CST-007)", () => {
+  it("UI-UT-CST-007: keeps a change whose cause cannot be attributed to an effect instead of dropping it from the total", () => {
     const timeline = buildCombatStatTimeline(
       response({
         events: [

@@ -157,7 +157,7 @@ function responseWith(overrides: {
 }
 
 describe("selectUnitActionStates", () => {
-  it("reads AP/PP/EX current and maximum from finalState.units[].resources (UI-UT-ACT-001)", () => {
+  it("UI-UT-ACT-001: reads AP/PP/EX current and maximum from finalState.units[].resources", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -197,7 +197,7 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.cooldownChargeKnown).toBe(true);
   });
 
-  it("tracks a cooldown from COOLDOWN_STARTED for the acting battleUnitId (UI-UT-ACT-002)", () => {
+  it("UI-UT-ACT-002: tracks a cooldown from COOLDOWN_STARTED for the acting battleUnitId", () => {
     const response = responseWith({
       finalUnits: [{ battleUnitId: "ally:1" }, { battleUnitId: "enemy:1" }],
       events: [
@@ -296,7 +296,7 @@ describe("selectUnitActionStates", () => {
     expect(selectUnitActionStates(released, roster, "DETAILED")[0]?.charge).toBeUndefined();
   });
 
-  it("ignores a cooldown/charge event with a malformed details shape instead of crashing (UI-AC-011)", () => {
+  it("UI-AC-048: ignores a cooldown/charge event with a malformed details shape instead of crashing", () => {
     const response = responseWith({
       finalUnits: [{ battleUnitId: "ally:1" }, { battleUnitId: "enemy:1" }],
       events: [
@@ -384,7 +384,7 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.cooldownChargeKnown).toBe(true);
     expect(states[0]?.cooldowns).toEqual([]);
   });
-  it("reads finalState.units[].effects into per-unit effect states, keeping the API's category/statusKind (UI-UT-EFF-001)", () => {
+  it("UI-UT-EFF-001: reads finalState.units[].effects into per-unit effect states, keeping the API's category/statusKind", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -446,7 +446,7 @@ describe("selectUnitActionStates", () => {
     expect(states[1]?.effectsKnown).toBe(true);
   });
 
-  it("keeps a permanent effect (no duration) and a superseded duplicate (isEffective=false) instead of dropping them (UI-UT-EFF-002)", () => {
+  it("UI-UT-EFF-002: keeps a permanent effect (no duration) and a superseded duplicate (isEffective=false) instead of dropping them", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -481,7 +481,7 @@ describe("selectUnitActionStates", () => {
     ]);
   });
 
-  it("reports effects as unknown, not as an empty list, when finalState has no effects array (M4〜M6 fixture back-compat, UI-UT-EFF-003)", () => {
+  it("UI-UT-EFF-003: reports effects as unknown, not as an empty list, when finalState has no effects array (M4〜M6 fixture back-compat)", () => {
     const response = responseWith({
       finalUnits: [{ battleUnitId: "ally:1" }, { battleUnitId: "enemy:1" }],
     });
@@ -492,7 +492,7 @@ describe("selectUnitActionStates", () => {
     expect(states[0]?.effectsKnown).toBe(false);
   });
 
-  it("skips an effect entry whose required shape is broken without dropping the well-formed ones (UI-UT-EFF-004)", () => {
+  it("UI-UT-EFF-004: skips an effect entry whose required shape is broken without dropping the well-formed ones", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -529,7 +529,7 @@ describe("selectUnitActionStates", () => {
 // 「sub unit」。`finalState.units[].shields`（プール合計、R-SHD-01第3項）と
 // `subUnits`（インスタンス単位、R-SUB-01第3項）を正本として読む。
 describe("selectUnitActionStates shields and sub units (DMG-010)", () => {
-  it("reads the three shield pools from finalState.units[].shields (UI-UT-DMG-022)", () => {
+  it("UI-UT-DMG-022: reads the three shield pools from finalState.units[].shields", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -550,7 +550,7 @@ describe("selectUnitActionStates shields and sub units (DMG-010)", () => {
     expect(states[1]?.shields).toBeUndefined();
   });
 
-  it("keeps sub units as instances with their durability instead of a pool total (UI-UT-DMG-023)", () => {
+  it("UI-UT-DMG-023: keeps sub units as instances with their durability instead of a pool total", () => {
     const response = responseWith({
       finalUnits: [
         {
@@ -594,7 +594,7 @@ describe("selectUnitActionStates shields and sub units (DMG-010)", () => {
     expect(states[0]?.subUnitsKnown).toBe(true);
   });
 
-  it("reports sub units as unknown, not as none, for a fixture recorded before the DMG-005 contract (UI-UT-DMG-024)", () => {
+  it("UI-UT-DMG-024: reports sub units as unknown, not as none, for a fixture recorded before the DMG-005 contract", () => {
     const response = responseWith({
       finalUnits: [
         { battleUnitId: "ally:1", cooldowns: [], effects: [] },
@@ -609,7 +609,7 @@ describe("selectUnitActionStates shields and sub units (DMG-010)", () => {
     expect(states[0]?.subUnitsKnown).toBe(false);
   });
 
-  it("skips a sub unit entry whose required shape is broken without dropping the well-formed ones (UI-UT-DMG-025)", () => {
+  it("UI-UT-DMG-025: skips a sub unit entry whose required shape is broken without dropping the well-formed ones", () => {
     const response = responseWith({
       finalUnits: [
         {

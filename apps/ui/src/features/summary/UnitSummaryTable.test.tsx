@@ -25,7 +25,7 @@ function row(overrides: Partial<SummaryRow> & { battleUnitId: string }): Summary
 }
 
 describe("UnitSummaryTable", () => {
-  it("shows the DAMAGE/DEFENSE/HEAL/STATUS columns (UI-AC-009)", () => {
+  it("UI-AC-009: shows the DAMAGE/DEFENSE/HEAL/STATUS columns", () => {
     render(<UnitSummaryTable side="ally" rows={[row({ battleUnitId: "ally:1" })]} />);
 
     expect(screen.getByRole("columnheader", { name: /DAMAGE/ })).toBeInTheDocument();
@@ -37,7 +37,7 @@ describe("UnitSummaryTable", () => {
     expect(screen.getByText("ACTIVE")).toBeInTheDocument();
   });
 
-  it("renders duplicate unitDefinitionId participants as separate rows keyed by battleUnitId (UI-AC-008)", () => {
+  it("UI-AC-008: renders duplicate unitDefinitionId participants as separate rows keyed by battleUnitId", () => {
     render(
       <UnitSummaryTable
         side="ally"

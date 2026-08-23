@@ -208,7 +208,7 @@ function detailRows(): readonly HTMLElement[] {
 
 describe("EffectTraceSection", () => {
   // UI-AC-045: 注目効果2件が初期選択であり、プリセット外はログにあっても最初は出ない。
-  it("opens with the two focused effects selected and the rest available but unselected (UI-CT-095)", () => {
+  it("UI-CT-095: opens with the two focused effects selected and the rest available but unselected", () => {
     render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
     const suiran = screen.getByRole("checkbox", { name: SUIRAN_DEBUFF });
@@ -227,7 +227,7 @@ describe("EffectTraceSection", () => {
   });
 
   // UI-AC-045: 消費者と付与先を何ターン目のものか読める。
-  it("names the consumer of a debuff held by the enemy and the holder of a buff, with their turns (UI-CT-095)", () => {
+  it("UI-CT-133: names the consumer of a debuff held by the enemy and the holder of a buff, with their turns", () => {
     render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
     const [debuffRow, buffRow] = detailRows();
@@ -245,7 +245,7 @@ describe("EffectTraceSection", () => {
 
   // UI-AC-045: 消費上限に達した終わりと、消費を残したまま時間切れになった終わりを混同しない。
   // 後者も「調整で潰せるロス」であり、成功扱いの色へ隠さない。
-  it("marks an instance that timed out with consumption left as a loss, showing how much was left (UI-CT-099)", () => {
+  it("UI-CT-099: marks an instance that timed out with consumption left as a loss, showing how much was left", () => {
     const events: readonly BattleLogEventResponse[] = [
       grant(1, 1, {
         effectInstanceId: "ei-partial",
@@ -301,7 +301,7 @@ describe("EffectTraceSection", () => {
   });
 
   // UI-AC-045: 終了理由を色だけでなく文言でも区別する。
-  it("distinguishes consumed / break-removed / unused-expired / ongoing outcomes in text (UI-CT-096)", () => {
+  it("UI-CT-096: distinguishes consumed / break-removed / unused-expired / ongoing outcomes in text", () => {
     const events: readonly BattleLogEventResponse[] = [
       grant(1, 1, {
         effectInstanceId: "ei-broken",
@@ -362,7 +362,7 @@ describe("EffectTraceSection", () => {
   });
 
   // UI-AC-045: 追跡対象を足せる／外せる。
-  it("adds and removes tracked effects from the list of effects that appeared in the log (UI-CT-096)", async () => {
+  it("UI-CT-139: adds and removes tracked effects from the list of effects that appeared in the log", async () => {
     const user = userEvent.setup();
     render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
@@ -376,7 +376,7 @@ describe("EffectTraceSection", () => {
   });
 
   // BreakTimelineと同じ方針: 0件でも「起きなかった」ことが分かる。
-  it("says the selected effects never appeared instead of rendering an empty grid (UI-CT-097)", async () => {
+  it("UI-CT-135: says the selected effects never appeared instead of rendering an empty grid", async () => {
     const user = userEvent.setup();
     render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
@@ -387,7 +387,7 @@ describe("EffectTraceSection", () => {
     expect(screen.queryByRole("table", { name: /効果トレース明細/ })).toBeNull();
   });
 
-  it("says no effect was applied at all when the log has no grants (UI-CT-097)", () => {
+  it("UI-CT-136: says no effect was applied at all when the log has no grants", () => {
     render(
       <EffectTraceSection
         response={responseOf([event({ sequence: 1, turnNumber: 1, type: "TURN_STARTED" })])}
@@ -400,7 +400,7 @@ describe("EffectTraceSection", () => {
   });
 
   // 演習専用にしない: ブレイクを持たない通常戦闘のログでも同じtabが成立する。
-  it("works on an ordinary battle log that has no UNIT_BROKEN at all (UI-CT-098)", () => {
+  it("UI-CT-098: works on an ordinary battle log that has no UNIT_BROKEN at all", () => {
     const events: readonly BattleLogEventResponse[] = [
       grant(
         1,
@@ -439,7 +439,7 @@ describe("EffectTraceSection", () => {
   });
 
   // UI-AC-046: 順位セレクタ由来の付与からだけ、解決時点の候補比較を開ける。
-  it("offers the candidate comparison only for a grant a rank selector chose (UI-CT-103)", async () => {
+  it("UI-CT-103: offers the candidate comparison only for a grant a rank selector chose", async () => {
     const user = userEvent.setup();
     const events: readonly BattleLogEventResponse[] = [
       event({
@@ -488,7 +488,7 @@ describe("EffectTraceSection", () => {
     expect(screen.getByText(/次点との差/)).toHaveTextContent("300");
   });
 
-  it("closes the comparison again and states the inference limit while open (UI-CT-103)", async () => {
+  it("UI-CT-134: closes the comparison again and states the inference limit while open", async () => {
     const user = userEvent.setup();
     const events: readonly BattleLogEventResponse[] = [
       grant(11, 1, {
@@ -511,7 +511,7 @@ describe("EffectTraceSection", () => {
 
   // 05_非機能・アクセシビリティ設計.md: CSPが`style-src 'self'`のため、スイムレーンは
   // inline styleを1つも持てない。
-  it("draws the swimlane with turn columns and without any inline style attribute (UI-CT-097)", () => {
+  it("UI-CT-097: draws the swimlane with turn columns and without any inline style attribute", () => {
     const { container } = render(
       <EffectTraceSection response={responseOf(EVENTS)} roster={roster} />,
     );

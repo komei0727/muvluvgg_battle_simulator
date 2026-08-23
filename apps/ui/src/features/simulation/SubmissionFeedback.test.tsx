@@ -86,7 +86,7 @@ describe("SubmissionFeedback — submitting (UI-UC-002)", () => {
     expect(region).toHaveAttribute("aria-live", "polite");
   });
 
-  it("shows a dirty indicator for the carried-over previous success while rerunning (UI-CMP-003)", () => {
+  it("UI-CMP-031: shows a dirty indicator for the carried-over previous success while rerunning", () => {
     const state: ExecutionState = {
       status: "submitting",
       executionId: "exec-2",
@@ -140,7 +140,7 @@ describe("SubmissionFeedback — succeeded (UI-UC-003)", () => {
     expect(screen.getByText(/srv-req-1/)).toBeInTheDocument();
   });
 
-  it("shows a dirty indicator when the draft has changed since the shown result (UI-CMP-003)", () => {
+  it("UI-CMP-003: shows a dirty indicator when the draft has changed since the shown result", () => {
     const state: ExecutionState = {
       status: "succeeded",
       executionId: "exec-1",
@@ -245,7 +245,7 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
     expect(screen.getByText(/Server busy\./)).toBeInTheDocument();
   });
 
-  it("shows a dirty indicator for the previous success shown alongside the error (UI-CMP-003)", () => {
+  it("UI-CMP-032: shows a dirty indicator for the previous success shown alongside the error", () => {
     const state: ExecutionState = {
       status: "failed",
       executionId: "exec-2",
@@ -271,7 +271,7 @@ describe("SubmissionFeedback — failed (UI-UC-002, UI-AC-012)", () => {
     expect(screen.getByText(/変更前の条件/)).toBeInTheDocument();
   });
 
-  it("prompts a catalog reload for a DEFINITION_NOT_FOUND validation error (UI-API-004)", async () => {
+  it("UI-API-028: prompts a catalog reload for a DEFINITION_NOT_FOUND validation error", async () => {
     const user = userEvent.setup();
     const onReloadCatalog = vi.fn();
     const state: ExecutionState = {
@@ -448,7 +448,7 @@ describe("SubmissionFeedback — cancelled (UI-UC-002)", () => {
     expect(screen.getByText(/battle-01J/)).toBeInTheDocument();
   });
 
-  it("shows a dirty indicator for the previous success shown alongside the cancellation (UI-CMP-003)", () => {
+  it("UI-CMP-033: shows a dirty indicator for the previous success shown alongside the cancellation", () => {
     const state: ExecutionState = {
       status: "cancelled",
       executionId: "exec-2",

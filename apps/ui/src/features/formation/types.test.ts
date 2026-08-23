@@ -110,7 +110,7 @@ describe("createInitialDraft — レベルリンク (UI-AC-035)", () => {
     expect(draft.enemyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
   });
 
-  it("prefills the ally academy levels and level link from the player data (UI-AC-040)", () => {
+  it("UI-AC-040: prefills the ally academy levels and level link from the player data", () => {
     const draft = createInitialDraft({
       academyLevels: createInitialDraft().allyEnhancement.academyLevels,
       levelLink: { enabled: true, level: 250 },
@@ -130,7 +130,7 @@ describe("enhancementForSide / createInitialUnitEnhancement", () => {
     expect(enhancementForSide(draft, "enemy")).toBe(draft.enemyEnhancement);
   });
 
-  it("starts a unit enhancement at level 200 with nine empty gear slots (UI-AC-025)", () => {
+  it("UI-AC-025: starts a unit enhancement at level 200 with nine empty gear slots", () => {
     const enhancement = createInitialUnitEnhancement();
 
     expect(enhancement.level).toBe(200);

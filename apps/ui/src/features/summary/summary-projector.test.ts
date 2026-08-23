@@ -85,7 +85,7 @@ function responseWith(overrides: {
 }
 
 describe("selectRoster", () => {
-  it("resolves displayName from the catalog and keeps initialState.units order (UI-UT-SUM-010)", () => {
+  it("UI-UT-SUM-010: resolves displayName from the catalog and keeps initialState.units order", () => {
     const catalog = catalogWith([
       unitDefinition("UNIT_B", "ビー"),
       unitDefinition("UNIT_A", "エー"),

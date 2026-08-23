@@ -26,7 +26,15 @@ import { describe, expect, it } from "vitest";
 const uiSrcPath = join(process.cwd(), "src");
 const crossCuttingBucket = join(uiSrcPath, "__tests__");
 
-const NAMING_EXCEPTIONS: readonly string[] = [];
+const NAMING_EXCEPTIONS: readonly string[] = [
+  // 収集器（apps/api/src/testing/traceability/test-case-definitions.ts）が
+  // `apps/ui/src`を走査してID衝突そのものを検査するテストであり、対象実装は
+  // UI側に存在しない（REF-057／Issue #602）。apps/api側の`traceability/`ディレクトリの
+  // 同種テスト（rule-coverage.test.ts等）も対象実装を持たない、この検査自体の置き場所。
+  "testing/traceability/test-case-id-collision",
+  // `UI-AC-*`と設計書の突合を一覧出力するだけの非failing監査（同上、Issue #602）。
+  "testing/traceability/ac-coverage-report",
+];
 
 function collectTestFiles(dirPath: string): string[] {
   const files: string[] = [];

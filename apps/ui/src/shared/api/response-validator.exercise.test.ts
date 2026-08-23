@@ -98,9 +98,9 @@ describe("validateTacticalExerciseResponse", () => {
     expect(validateTacticalExerciseResponse(body).ok).toBe(false);
   });
 
-  // UI-UT-API-017 / R-TEX-03 #2: 発生源は載っていれば非空文字列、無ければ
+  // UI-UT-API-017／UI-UT-API-020 / R-TEX-03 #2: 発生源は載っていれば非空文字列、無ければ
   // メモリー由来（`R-MEM-04`）。この項目を返さない旧APIの応答も受理し続ける。
-  it("accepts a break entry with a source unit definition id (UI-UT-API-017)", () => {
+  it("UI-UT-API-020: accepts a break entry with a source unit definition id", () => {
     const body = validResponse({
       result: validResult({
         breakCount: 1,
@@ -118,7 +118,7 @@ describe("validateTacticalExerciseResponse", () => {
     expect(validateTacticalExerciseResponse(body).ok).toBe(true);
   });
 
-  it("rejects a break entry whose source unit definition id is not a non-empty string (UI-UT-API-017)", () => {
+  it("UI-UT-API-017: rejects a break entry whose source unit definition id is not a non-empty string", () => {
     for (const invalid of ["", 42, null]) {
       const body = validResponse({
         result: validResult({

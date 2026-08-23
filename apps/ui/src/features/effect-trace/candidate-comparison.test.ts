@@ -98,7 +98,7 @@ function compare(overrides: Partial<EffectTraceInstance> = {}) {
 }
 
 describe("compareRankCandidates", () => {
-  it("ranks the target's own side by the effective value at the moment of resolution (UI-UT-CMP-001)", () => {
+  it("UI-UT-CMP-001: ranks the target's own side by the effective value at the moment of resolution", () => {
     const comparison = compare();
 
     expect(comparison).toBeDefined();
@@ -114,7 +114,7 @@ describe("compareRankCandidates", () => {
     expect(comparison?.candidates.some((c) => c.battleUnitId === "enemy:1")).toBe(false);
   });
 
-  it("marks the chosen candidate and reports the gap to the runner-up as both an amount and a ratio (UI-UT-CMP-002)", () => {
+  it("UI-UT-CMP-002: marks the chosen candidate and reports the gap to the runner-up as both an amount and a ratio", () => {
     const comparison = compare();
 
     expect(comparison?.candidates[0]).toMatchObject({ battleUnitId: "ally:1", isChosen: true });
@@ -127,14 +127,14 @@ describe("compareRankCandidates", () => {
     });
   });
 
-  it("breaks the chosen value into its starting value and the effects in force (UI-UT-CMP-003)", () => {
+  it("UI-UT-CMP-003: breaks the chosen value into its starting value and the effects in force", () => {
     const chosen = compare()?.candidates[0];
 
     expect(chosen?.initialValue).toBe(1000);
     expect(chosen?.contributions).toEqual([{ effectActionDefinitionId: "ACT_BOOST", amount: 500 }]);
   });
 
-  it("orders ascending for a LOWEST_* selector (UI-UT-CMP-004)", () => {
+  it("UI-UT-CMP-004: orders ascending for a LOWEST_* selector", () => {
     const comparison = compare({
       effectActionDefinitionId: "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
       holderUnitId: "ally:3",
@@ -155,12 +155,12 @@ describe("compareRankCandidates", () => {
     });
   });
 
-  it("returns nothing for an effect that no rank selector chose (UI-UT-CMP-005)", () => {
+  it("UI-UT-CMP-005: returns nothing for an effect that no rank selector chose", () => {
     expect(compare({ effectActionDefinitionId: "ACT_SUIRAN_CHAOS_AS1_DEBUFF" })).toBeUndefined();
   });
 
   // 逆算であることの限界: 同点や、順位以外の要因で対象が決まった場合は一致しない。
-  it("still renders, and flags the mismatch, when the chosen unit is not the reconstructed extremum (UI-UT-CMP-006)", () => {
+  it("UI-UT-CMP-006: still renders, and flags the mismatch, when the chosen unit is not the reconstructed extremum", () => {
     const comparison = compare({ holderUnitId: "ally:3" });
 
     expect(comparison?.matchesReconstruction).toBe(false);
@@ -168,7 +168,7 @@ describe("compareRankCandidates", () => {
     expect(comparison?.candidates[0]?.battleUnitId).toBe("ally:1");
   });
 
-  it("marks the comparison as incomplete rather than ranking on values it could not read (UI-UT-CMP-007)", () => {
+  it("UI-UT-CMP-007: marks the comparison as incomplete rather than ranking on values it could not read", () => {
     const comparison = compareRankCandidates({
       instance: instance(),
       timeline: buildCombatStatTimeline({
@@ -192,7 +192,7 @@ describe("compareRankCandidates", () => {
 
   // 同じスキル解決の前段が起こしたバフを織り込まない。実測でエレーナEXの
   // `DMGUP_LOW` は付与時点だと6件中0件しか一致せず、解決起点だと6/6一致した。
-  it("evaluates candidates at the start of the skill resolution, not at the grant (UI-UT-CMP-009)", () => {
+  it("UI-UT-CMP-009: evaluates candidates at the start of the skill resolution, not at the grant", () => {
     // 付与は seq 50 だが、解決は seq 5 に始まっている。seq 11 のバフはまだ効いていない。
     const comparison = compare({ resolutionStartSequence: 5 });
 
@@ -203,7 +203,7 @@ describe("compareRankCandidates", () => {
     expect(comparison?.matchesReconstruction).toBe(false);
   });
 
-  it("reports no runner-up when the side has a single candidate (UI-UT-CMP-008)", () => {
+  it("UI-UT-CMP-008: reports no runner-up when the side has a single candidate", () => {
     const comparison = compareRankCandidates({
       instance: instance({ holderUnitId: "enemy:1" }),
       timeline: buildCombatStatTimeline(RESPONSE),

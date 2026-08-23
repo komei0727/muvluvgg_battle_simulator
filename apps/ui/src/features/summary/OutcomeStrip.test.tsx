@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { OutcomeStrip } from "./OutcomeStrip.js";
 
 describe("OutcomeStrip", () => {
-  it("shows the outcome, completion reason, completed turn, battle ID, and catalog revision (UI-AC-007)", () => {
+  it("UI-AC-007: shows the outcome, completion reason, completed turn, battle ID, and catalog revision", () => {
     render(
       <OutcomeStrip
         result={{ outcome: "ALLY_WIN", completionReason: "ENEMY_DEFEATED", completedTurn: 5 }}

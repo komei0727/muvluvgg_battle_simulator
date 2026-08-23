@@ -42,7 +42,7 @@ describe("resolveSlotLevel (UI-UT-REQ-009〜012)", () => {
     expect(resolveSlotLevel(slot(enhancement), side)).toBe(180);
   });
 
-  it("links a slot whose enhancement was never opened (UI-API-024)", () => {
+  it("UI-API-024: links a slot whose enhancement was never opened", () => {
     const side = sideEnhancement({ levelLink: { enabled: true, level: 260 } });
 
     expect(resolveSlotLevel(slot(), side)).toBe(260);

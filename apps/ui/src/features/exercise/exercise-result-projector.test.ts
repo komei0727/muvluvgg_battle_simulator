@@ -77,7 +77,7 @@ describe("selectExerciseResultView", () => {
   });
 
   // UI-AC-021 / R-TEX-03 #2: 発生源ユニットをCatalogの表示名で名指しする。
-  it("resolves the break source unit display name from the catalog (UI-UT-EXR-001)", () => {
+  it("UI-UT-EXR-001: resolves the break source unit display name from the catalog", () => {
     const view = selectExerciseResultView(
       result({
         breakCount: 1,
@@ -97,7 +97,7 @@ describe("selectExerciseResultView", () => {
   });
 
   // Catalog未取得や、Catalog更新で消えた定義でも履歴を出し続ける（`UI-CMP-012`）。
-  it("falls back to the raw definition id for an unknown source unit (UI-UT-EXR-002)", () => {
+  it("UI-UT-EXR-002: falls back to the raw definition id for an unknown source unit", () => {
     const breaks = [
       {
         breakNumber: 1,
@@ -118,7 +118,7 @@ describe("selectExerciseResultView", () => {
 
   // R-MEM-04: 発生源ユニットを持たないブレイクはメモリー由来である。この項目を
   // 返さない旧レスポンスも同じ経路で表示できる（後方互換）。
-  it("labels a break without a source unit as a memory effect (UI-UT-EXR-003)", () => {
+  it("UI-UT-EXR-003: labels a break without a source unit as a memory effect", () => {
     const view = selectExerciseResultView(result());
 
     expect(view.breaks.map((row) => row.sourceLabel)).toEqual(["メモリー効果", "メモリー効果"]);

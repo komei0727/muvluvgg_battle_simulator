@@ -95,7 +95,7 @@ describe("mapServerViolationsToUiViolations (UI-API-004)", () => {
     expect(result[1]?.slotKey).toBe("enemy:FRONT:1");
   });
 
-  it("maps an ally memoryDefinitionIds violation via the submission-time memory slot map (UI-CT-016)", () => {
+  it("UI-CT-137: maps an ally memoryDefinitionIds violation via the submission-time memory slot map", () => {
     const result = map([
       { path: "/allyFormation/memoryDefinitionIds/0", message: "Unknown memory." },
     ]);
@@ -103,7 +103,7 @@ describe("mapServerViolationsToUiViolations (UI-API-004)", () => {
     expect(result[0]?.slotKey).toBe("ally:memory:0");
   });
 
-  it("maps an enemy memoryDefinitionIds violation via the submission-time memory slot map (UI-CT-016)", () => {
+  it("UI-CT-138: maps an enemy memoryDefinitionIds violation via the submission-time memory slot map", () => {
     const result = map([
       { path: "/enemyFormation/memoryDefinitionIds/0", message: "Unknown memory." },
     ]);
@@ -146,7 +146,7 @@ describe("mapServerViolationsToUiViolations (UI-API-004)", () => {
     expect(result[0]?.path).toBe("/options/logLevel");
   });
 
-  it("UI-API-019: maps an academyLevels violation to its own field, without a slotKey", () => {
+  it("UI-API-030: maps an academyLevels violation to its own field, without a slotKey", () => {
     const result = map([
       {
         path: "/allyFormation/enhancement/academyLevels/unitTypes/PHYSICAL",
@@ -169,7 +169,7 @@ describe("mapServerViolationsToUiViolations (UI-API-004)", () => {
     expect(result[0]?.slotKey).toBe("ally:FRONT:2");
   });
 
-  it("UI-API-019: maps a gears[m] violation back to the original gear slot index (empty slots were dropped on send)", () => {
+  it("UI-API-031: maps a gears[m] violation back to the original gear slot index (empty slots were dropped on send)", () => {
     const result = mapServerViolationsToUiViolations(
       [{ path: "/allyFormation/units/0/enhancement/gears/1/tier", message: "Unknown tier." }],
       allySlotKeys,

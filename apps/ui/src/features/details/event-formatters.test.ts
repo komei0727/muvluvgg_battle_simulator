@@ -54,7 +54,7 @@ describe("formatEvent", () => {
     expect(presentation.severity).toBe("negative");
   });
 
-  it("falls back to a generic presentation for an unknown event type without crashing (UI-AC-011)", () => {
+  it("UI-AC-047: falls back to a generic presentation for an unknown event type without crashing", () => {
     const rosterIndex = buildRosterIndex(roster);
     const presentation = formatEvent(
       event({
@@ -997,7 +997,7 @@ describe("formatEvent", () => {
     expect(blind.severity).toBe("negative");
   });
 
-  it("falls back to the generic presentation when an M7 event's details are malformed (UI-AC-011)", () => {
+  it("UI-AC-049: falls back to the generic presentation when an M7 event's details are malformed", () => {
     const rosterIndex = buildRosterIndex(roster);
     const presentation = formatEvent(
       event({
