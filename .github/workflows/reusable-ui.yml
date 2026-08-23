@@ -36,6 +36,9 @@ jobs:
       - name: UI OpenAPI type generation drift check
         run: mise run ui:openapi:check
 
+      - name: UI circular dependency check
+        run: mise run ui:check:circular
+
       - name: UI unit / component tests with coverage
         run: mise run ui:test:coverage
 
