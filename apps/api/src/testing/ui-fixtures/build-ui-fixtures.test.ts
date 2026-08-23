@@ -71,22 +71,30 @@ describe("buildUiFixtures", () => {
     expect(knownTypes.has(events[events.length - 1]!["type"])).toBe(false);
   });
 
-  it("error-invalid-command.json is the real 422 out-of-range-turnLimit contract violation (same scenario as build-server.test.ts's out-of-range turnLimit case)", async () => {
+  it("error-invalid-command.json carries the real HTTP 422 status alongside the out-of-range-turnLimit body (same scenario as build-server.test.ts's out-of-range turnLimit case)", async () => {
     const fixtures = await buildUiFixtures();
-    const body = fixtures["error-invalid-command.json"] as Record<string, unknown>;
-    const error = body["error"] as Record<string, unknown>;
+    const fixture = fixtures["error-invalid-command.json"] as {
+      status: number;
+      body: Record<string, unknown>;
+    };
 
+    expect(fixture.status).toBe(422);
+    const error = fixture.body["error"] as Record<string, unknown>;
     expect(error["code"]).toBe("INVALID_COMMAND");
     const violations = error["violations"] as Array<Record<string, unknown>>;
     expect(violations.length).toBeGreaterThan(0);
     expect(violations[0]!["path"]).toBe("/turnLimit");
   });
 
-  it("error-capacity.json is the real 503 capacity-exceeded envelope (same scenario as build-server.test.ts's capacity-exceeded case)", async () => {
+  it("error-capacity.json carries the real HTTP 503 status alongside the capacity-exceeded body (same scenario as build-server.test.ts's capacity-exceeded case)", async () => {
     const fixtures = await buildUiFixtures();
-    const body = fixtures["error-capacity.json"] as Record<string, unknown>;
-    const error = body["error"] as Record<string, unknown>;
+    const fixture = fixtures["error-capacity.json"] as {
+      status: number;
+      body: Record<string, unknown>;
+    };
 
+    expect(fixture.status).toBe(503);
+    const error = fixture.body["error"] as Record<string, unknown>;
     expect(error["code"]).toBe("CAPACITY_EXCEEDED");
   });
 

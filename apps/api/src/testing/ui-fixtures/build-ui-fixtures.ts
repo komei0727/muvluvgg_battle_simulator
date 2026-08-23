@@ -186,7 +186,28 @@ function dropUnitSummaries(success: Record<string, unknown>): Record<string, unk
   return withoutUnitSummaries;
 }
 
-async function buildInvalidCommandErrorFixture(): Promise<Record<string, unknown>> {
+/**
+ * error normalizerはHTTP status（429/503/504等）を意味づけに使う
+ * （`error-normalizer.ts`の`kindByStatus`）ため、error fixtureはbodyだけでなく
+ * statusも運ぶ。statusを外へ出さずbodyだけをdrift検査すると、例えば容量超過が
+ * 503から500へ変わってもbodyが同じ形のままなら生成差分が出ず気づけない。
+ */
+export interface HttpFixture {
+  readonly status: number;
+  readonly body: Record<string, unknown>;
+}
+
+/** 期待するstatusと違えば、生成時点で気づけるよう即座に失敗させる。 */
+function requireStatus(response: { readonly statusCode: number }, expected: number): number {
+  if (response.statusCode !== expected) {
+    throw new Error(
+      `REF-053 fixture generator expected HTTP ${expected} but the server returned ${response.statusCode}`,
+    );
+  }
+  return response.statusCode;
+}
+
+async function buildInvalidCommandErrorFixture(): Promise<HttpFixture> {
   const app = await buildServer(buildFixtureUseCase("B_UI_FIXTURE_UNUSED"));
   try {
     const response = await app.inject({
@@ -205,13 +226,13 @@ async function buildInvalidCommandErrorFixture(): Promise<Record<string, unknown
         turnLimit: 0,
       },
     });
-    return response.json<Record<string, unknown>>();
+    return { status: requireStatus(response, 422), body: response.json<Record<string, unknown>>() };
   } finally {
     await app.close();
   }
 }
 
-async function buildCapacityErrorFixture(): Promise<Record<string, unknown>> {
+async function buildCapacityErrorFixture(): Promise<HttpFixture> {
   // API-CONTRACT-021: 容量超過はUseCase自体を実行しないため、Worker Pool不足を
   // 表す最小のstub UseCaseで足りる（実装済みの契約テストと同じ形）。
   const app = await buildServer({
@@ -235,7 +256,7 @@ async function buildCapacityErrorFixture(): Promise<Record<string, unknown>> {
         turnLimit: 3,
       },
     });
-    return response.json<Record<string, unknown>>();
+    return { status: requireStatus(response, 503), body: response.json<Record<string, unknown>>() };
   } finally {
     await app.close();
   }
