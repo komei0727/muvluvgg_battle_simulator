@@ -54,12 +54,25 @@ export default defineConfig({
         "src/main.tsx",
         "src/vite-env.d.ts",
       ],
-      // Floor matches the API-side gate (apps/api/vitest.config.ts). The
-      // measured baseline at introduction already exceeds it (lines 90% /
-      // functions 94% / branches 85% / statements 90%), so 80% starts as a
-      // regression guard; raise stepwise toward the baseline as the suite
-      // stabilizes, never lower to admit a regression (06_UIテスト戦略.md §10).
-      thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
+      // Floor matches the API-side gate (apps/api/vitest.config.ts): baseline
+      // (measured at Issue #593: lines 93.50 / branches 87.60 / functions
+      // 96.98 / statements 93.59) minus a ~3pt regression margin, rounded
+      // down. Raise stepwise as the suite grows; never lower to admit a
+      // regression (06_UIテスト戦略.md §10).
+      thresholds: {
+        lines: 90,
+        functions: 93,
+        branches: 84,
+        statements: 90,
+        // 06_UIテスト戦略.md §10: request mapper / validator / summary
+        // projector / error normalizer target 100% branch coverage. Enforced
+        // per-file at the measured baseline (Issue #593) so it guards against
+        // regression even where the target isn't fully reached yet.
+        "src/features/formation/request-mapper.ts": { branches: 94 },
+        "src/features/simulation/response-validator.ts": { branches: 88 },
+        "src/features/simulation/error-normalizer.ts": { branches: 91 },
+        "src/features/summary/summary-projector.ts": { branches: 100 },
+      },
     },
   },
 });
