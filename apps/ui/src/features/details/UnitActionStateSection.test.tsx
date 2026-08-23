@@ -4,7 +4,7 @@ import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 function catalogWith(
   units: BattleSimulationCatalogResponse["units"],

@@ -10,7 +10,7 @@
 // APIの契約は変更していない。`DETAILED`ログが返すイベントのエンベロープと`details`だけを読む。
 
 import { isRecord, numberOf, stringOf } from "../../lib/unknown-narrowing.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 /**
  * 効果インスタンスの終わり方。バーの色はこれで分ける。

@@ -3,7 +3,7 @@
 
 import type { BattleMode } from "../exercise/ModeTabs.js";
 import type { Side } from "../formation/types.js";
-import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogUnitSummary } from "../../shared/api/api-contract.js";
 
 export const PLAYABLE_CATEGORY = "PLAYABLE";
 export const EXERCISE_ENEMY_CATEGORY = "EXERCISE_ENEMY";

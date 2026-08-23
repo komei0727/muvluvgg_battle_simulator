@@ -6,7 +6,7 @@ import type {
 } from "./execution-reducer.js";
 import { selectDisplayedSuccess } from "./execution-reducer.js";
 import { ERROR_KIND_GUIDANCE } from "./error-guidance.js";
-import type { UiApiError } from "./api-contract.js";
+import type { UiApiError } from "../../shared/api/api-contract.js";
 import styles from "./SubmissionFeedback.module.css";
 
 type AnyExecutionState = ExecutionState<unknown, ExecutionResponseLike>;

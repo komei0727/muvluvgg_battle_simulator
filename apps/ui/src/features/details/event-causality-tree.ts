@@ -10,7 +10,7 @@
 // （UI-CMP-006「100件超のイベントも黙って切り捨てない」と同じ「削除しない」
 // 方針）。
 
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import { numberOf } from "../../lib/unknown-narrowing.js";
 
 export interface CausalityTreeNode {

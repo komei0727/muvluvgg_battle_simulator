@@ -5,7 +5,7 @@ import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
 import type { UiViolation } from "./draft-validation.js";
 import { GEAR_STATS, createInitialDraft, createInitialUnitEnhancement } from "./types.js";
 import type { GearInput, LevelLinkInput, UnitEnhancementInput } from "./types.js";
-import type { CatalogGearEffect } from "../simulation/api-contract.js";
+import type { CatalogGearEffect } from "../../shared/api/api-contract.js";
 
 function renderDialog(
   overrides: {

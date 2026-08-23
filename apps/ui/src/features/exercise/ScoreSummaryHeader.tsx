@@ -1,5 +1,5 @@
 import { selectExerciseResultView } from "./exercise-result-projector.js";
-import type { ExerciseResultResponse } from "../simulation/api-contract.js";
+import type { ExerciseResultResponse } from "../../shared/api/api-contract.js";
 import styles from "./ScoreSummaryHeader.module.css";
 
 export interface ScoreSummaryHeaderProps {

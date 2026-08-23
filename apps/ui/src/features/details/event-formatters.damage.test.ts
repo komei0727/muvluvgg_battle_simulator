@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { buildRosterIndex, formatEvent } from "./event-formatters.js";
 import type { RosterEntry } from "../summary/summary-projector.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 const roster: readonly RosterEntry[] = [
   { battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY", displayName: "エー" },

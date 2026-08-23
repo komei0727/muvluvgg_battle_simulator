@@ -5,7 +5,7 @@ import { UnitSummaryTable } from "./UnitSummaryTable.js";
 import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 import styles from "./BattleSummarySection.module.css";
 
 export interface BattleSummarySectionProps {

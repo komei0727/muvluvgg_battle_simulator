@@ -9,8 +9,8 @@ import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SimulateOptions } from "../features/simulation/api-client.js";
-import type { GetCatalogOptions } from "../features/simulation/api-client.js";
+import type { SimulateOptions } from "../shared/api/api-client.js";
+import type { GetCatalogOptions } from "../shared/api/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
@@ -18,7 +18,7 @@ import type {
   FormationStatPreviewApiResult,
   FormationStatPreviewUnit,
   SimulationApiResult,
-} from "../features/simulation/api-contract.js";
+} from "../shared/api/api-contract.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
 import type {
   BattleSimulationRequest,

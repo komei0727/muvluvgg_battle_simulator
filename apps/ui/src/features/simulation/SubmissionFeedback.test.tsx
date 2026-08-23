@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { SubmissionFeedback } from "./SubmissionFeedback.js";
 import type { ExecutionState, SuccessfulExecutionSnapshot } from "./execution-reducer.js";
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
-import type { BattleSimulationResponse } from "./api-contract.js";
+import type { BattleSimulationResponse } from "../../shared/api/api-contract.js";
 
 function request(): BattleSimulationRequest {
   return {

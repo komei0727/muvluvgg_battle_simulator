@@ -3,7 +3,7 @@ import type {
   UiApiError,
   UiApiErrorKind,
   ViolationResponseBody,
-} from "./api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 // docs/ui-design/03_API・データ連携設計.md §13: エラー正規化.
 // 既知のHTTP失敗をthrowだけで表現せず、判別可能なUiApiErrorへ正規化する。

@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
-import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogUnitSummary } from "../../shared/api/api-contract.js";
 import { filterUnits } from "./catalog-filter.js";
 import type { UnitFilter } from "./catalog-filter.js";
 import { SelectionDialogList } from "./SelectionDialogList.js";

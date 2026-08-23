@@ -8,7 +8,7 @@
 // （`runOffset`）を埋めた別のseed文字列を送ることで重複を避ける。この規約の帰結として、
 // 実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）の3つになる。
 
-import type { TacticalExerciseCandidateEvaluationResponse } from "../simulation/api-contract.js";
+import type { TacticalExerciseCandidateEvaluationResponse } from "../../shared/api/api-contract.js";
 import type { ExerciseStatisticsSample } from "../exercise-stats/types.js";
 
 /**

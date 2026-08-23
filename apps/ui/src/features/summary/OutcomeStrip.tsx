@@ -1,4 +1,4 @@
-import type { BattleResultResponse } from "../simulation/api-contract.js";
+import type { BattleResultResponse } from "../../shared/api/api-contract.js";
 import styles from "./OutcomeStrip.module.css";
 
 export interface OutcomeStripProps {

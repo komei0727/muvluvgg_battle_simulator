@@ -3,7 +3,7 @@
 
 import { aptitudeMatches } from "../../lib/aptitude.js";
 import { PLAYABLE_CATEGORY, unitCategoryOf } from "../catalog-selection/unit-pool.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { isSlotLevelLinked } from "./level-link.js";
 import {
   GEAR_STAT_LABELS,

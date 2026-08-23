@@ -2,12 +2,12 @@ import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-
 import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { GetCatalogOptions, SimulateOptions } from "../features/simulation/api-client.js";
+import type { GetCatalogOptions, SimulateOptions } from "../shared/api/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
   CatalogApiResult,
   SimulationApiResult,
-} from "../features/simulation/api-contract.js";
+} from "../shared/api/api-contract.js";
 import { BattleSimulatorApp } from "./BattleSimulatorApp.js";
 import type { BattleSimulationRequest } from "../features/formation/request-mapper.js";
 

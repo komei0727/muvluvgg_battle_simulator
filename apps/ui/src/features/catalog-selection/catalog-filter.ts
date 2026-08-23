@@ -1,5 +1,5 @@
 import { aptitudeMatches } from "../../lib/aptitude.js";
-import type { CatalogMemorySummary, CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogMemorySummary, CatalogUnitSummary } from "../../shared/api/api-contract.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §8: Filter state.
 

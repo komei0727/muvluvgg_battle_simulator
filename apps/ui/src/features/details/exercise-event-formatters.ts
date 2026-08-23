@@ -8,7 +8,7 @@
 import { resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 function formatExerciseScoreAccumulated(
   event: BattleLogEventResponse,

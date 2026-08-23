@@ -8,7 +8,7 @@ import type {
   BattleLogResponse,
   BattleUnitStateResponse,
   StateTransitionResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 const SUIRAN_DEBUFF = "ACT_SUIRAN_CHAOS_AS1_DEBUFF";
 const ELENA_BUFF = "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH";

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ExerciseEnemyFormation } from "./ExerciseEnemyFormation.js";
 import { createInitialDraft, slotKeyOf, slotsForSide } from "../formation/types.js";
 import type { FormationSlotInput } from "../formation/types.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 
 const catalog: BattleSimulationCatalogResponse = {
   schemaVersion: 1,

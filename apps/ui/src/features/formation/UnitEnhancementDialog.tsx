@@ -18,7 +18,7 @@ import type {
   SideEnhancementInput,
   UnitEnhancementInput,
 } from "./types.js";
-import type { CatalogGearEffect } from "../simulation/api-contract.js";
+import type { CatalogGearEffect } from "../../shared/api/api-contract.js";
 import styles from "./UnitEnhancementDialog.module.css";
 
 export interface UnitEnhancementDialogProps {

@@ -5,7 +5,7 @@ import { OutcomeStrip } from "./OutcomeStrip.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 const catalog: BattleSimulationCatalogResponse = {
   schemaVersion: 1,

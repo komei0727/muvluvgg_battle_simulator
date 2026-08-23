@@ -8,7 +8,7 @@
 
 import type { StatisticsRunSubmission } from "./use-exercise-statistics-run.js";
 import type { UiViolation } from "../formation/draft-validation.js";
-import type { ViolationResponseBody } from "../simulation/api-contract.js";
+import type { ViolationResponseBody } from "../../shared/api/api-contract.js";
 import { mapServerViolationsToUiViolations } from "../simulation/violation-mapper.js";
 
 /** 送信した唯一の候補。これ以外のindexが来たら対応づけない（枠を取り違えるより無印にする）。 */

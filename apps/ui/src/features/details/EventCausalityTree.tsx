@@ -4,7 +4,7 @@ import { buildCausalityTree } from "./event-causality-tree.js";
 import type { CausalityTreeNode } from "./event-causality-tree.js";
 import { formatEvent } from "./event-formatters.js";
 import type { RosterIndex } from "./event-formatters.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import styles from "./EventCausalityTree.module.css";
 
 export interface EventCausalityTreeProps {

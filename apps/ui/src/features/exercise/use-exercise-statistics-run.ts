@@ -15,14 +15,14 @@ import type {
   EvaluationMergeResult,
 } from "./evaluation-chunk-plan.js";
 import type { TacticalExerciseEvaluationRequest } from "./exercise-request-mapper.js";
-import { evaluateTacticalExercise as defaultEvaluate } from "../simulation/api-client.js";
-import type { SimulateOptions } from "../simulation/api-client.js";
+import { evaluateTacticalExercise as defaultEvaluate } from "../../shared/api/api-client.js";
+import type { SimulateOptions } from "../../shared/api/api-client.js";
 import { ERROR_KIND_GUIDANCE } from "../simulation/error-guidance.js";
 import type {
   TacticalExerciseEvaluationApiResult,
   UiApiError,
   ViolationResponseBody,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 import type { BattleDraft } from "../formation/types.js";
 
 // 統計実行の実行経路。指定回数を評価APIの1リクエスト上限（`EVALUATION_CHUNK_SIZE`）へ

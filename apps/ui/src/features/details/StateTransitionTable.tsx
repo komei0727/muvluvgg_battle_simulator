@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/Button.js";
 import { flattenDelta } from "./delta-flattener.js";
-import type { StateTransitionResponse } from "../simulation/api-contract.js";
+import type { StateTransitionResponse } from "../../shared/api/api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import styles from "./StateTransitionTable.module.css";
 

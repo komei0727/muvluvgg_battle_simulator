@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildCombatStatTimeline } from "./combat-stat-timeline.js";
 import { compareRankCandidates } from "./candidate-comparison.js";
-import type { BattleLogResponse, BattleUnitStateResponse } from "../simulation/api-contract.js";
+import type { BattleLogResponse, BattleUnitStateResponse } from "../../shared/api/api-contract.js";
 import type { EffectTraceInstance } from "./effect-trace-projector.js";
 
 function unit(battleUnitId: string, attack: number): BattleUnitStateResponse {

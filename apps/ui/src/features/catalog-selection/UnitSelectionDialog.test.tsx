@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogUnitSummary } from "../../shared/api/api-contract.js";
 import { UnitSelectionDialog } from "./UnitSelectionDialog.js";
 
 const units: readonly CatalogUnitSummary[] = [

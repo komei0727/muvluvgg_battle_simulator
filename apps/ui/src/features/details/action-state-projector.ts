@@ -21,7 +21,7 @@
 
 import type { RosterEntry } from "../summary/summary-projector.js";
 import type { LogLevel } from "../formation/types.js";
-import type { BattleLogEventResponse, BattleLogResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse, BattleLogResponse } from "../../shared/api/api-contract.js";
 import { isRecord, numberOf } from "../../lib/unknown-narrowing.js";
 
 export interface ResourceValue {

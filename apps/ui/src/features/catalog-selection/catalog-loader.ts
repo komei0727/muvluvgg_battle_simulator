@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { getCatalog as defaultGetCatalog } from "../simulation/api-client.js";
-import type { BattleSimulationCatalogResponse, UiApiError } from "../simulation/api-contract.js";
+import { getCatalog as defaultGetCatalog } from "../../shared/api/api-client.js";
+import type { BattleSimulationCatalogResponse, UiApiError } from "../../shared/api/api-contract.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §4: CatalogLoadState.
 export type CatalogLoadState =

@@ -16,7 +16,7 @@ import type {
 import type { BattleDraft, Side, UnitEnhancementInput } from "../features/formation/types.js";
 import type { UiViolation } from "../features/formation/draft-validation.js";
 import type { BattleMode } from "../features/exercise/ModeTabs.js";
-import type { BattleSimulationCatalogResponse } from "../features/simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../shared/api/api-contract.js";
 
 export interface SelectionDialogsProps {
   readonly selectionDialog: SelectionDialogState;

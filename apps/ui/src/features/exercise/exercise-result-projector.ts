@@ -6,7 +6,7 @@ import { EXERCISE_TURN_LIMIT } from "./exercise-draft-validation.js";
 import type {
   BattleSimulationCatalogResponse,
   ExerciseResultResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 export interface ExerciseBreakRow {
   readonly breakNumber: number;

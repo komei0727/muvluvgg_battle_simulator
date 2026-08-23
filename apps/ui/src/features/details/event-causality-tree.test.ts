@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCausalityTree } from "./event-causality-tree.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 function event(
   overrides: Partial<BattleLogEventResponse> & { sequence: number; type: string },

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { CatalogMemorySummary } from "../simulation/api-contract.js";
+import type { CatalogMemorySummary } from "../../shared/api/api-contract.js";
 import { MemorySlot } from "./MemorySlot.js";
 
 const memory: CatalogMemorySummary = {

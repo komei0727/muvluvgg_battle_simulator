@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { previewFormationStats } from "./api-client.js";
-import type { FormationStatPreviewRequest } from "../formation/request-mapper.js";
+import type { FormationStatPreviewRequest } from "../../features/formation/request-mapper.js";
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {

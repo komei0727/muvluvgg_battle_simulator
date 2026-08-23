@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { FormationEditor } from "./FormationEditor.js";
 import { createInitialDraft, slotKeyOf } from "./types.js";
 

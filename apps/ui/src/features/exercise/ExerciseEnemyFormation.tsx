@@ -3,7 +3,7 @@ import type { UiViolation } from "../formation/draft-validation.js";
 import { FormationGrid } from "../formation/FormationGrid.js";
 import type { FormationStatPreviewView } from "../formation/FormationGrid.js";
 import type { FormationSlotInput } from "../formation/types.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import styles from "./ExerciseEnemyFormation.module.css";
 
 export interface ExerciseEnemyFormationProps {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { simulate } from "./api-client.js";
-import type { BattleSimulationRequest } from "../formation/request-mapper.js";
+import type { BattleSimulationRequest } from "../../features/formation/request-mapper.js";
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {

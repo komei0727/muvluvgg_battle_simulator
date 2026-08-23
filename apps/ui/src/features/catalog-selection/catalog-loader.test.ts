@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { GetCatalogOptions } from "../simulation/api-client.js";
+import type { GetCatalogOptions } from "../../shared/api/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
   CatalogApiResult,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 import { useCatalogLoader } from "./catalog-loader.js";
 
 function catalogResponse(catalogRevision: string): BattleSimulationCatalogResponse {

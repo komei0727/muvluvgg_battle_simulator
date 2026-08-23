@@ -12,7 +12,7 @@
 // only what `response-validator.ts` actually checks is narrowed, and unknown nested properties
 // are preserved via index signatures. That predates this Issue and is out of its scope — see
 // the PR/Issue discussion for the full list of generated-vs-mirror differences this Issue found.
-import type { paths } from "../../shared/api/generated/v1.js";
+import type { paths } from "./generated/v1.js";
 
 /** Recursively applies `readonly`, matching the immutability this file has always exposed. */
 type DeepReadonly<T> = T extends readonly (infer U)[]

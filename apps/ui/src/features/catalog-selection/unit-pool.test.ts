@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogUnitSummary } from "../../shared/api/api-contract.js";
 import { isExerciseEnemyUnit, selectUnitPool } from "./unit-pool.js";
 
 const playableWithoutCategory: CatalogUnitSummary = {

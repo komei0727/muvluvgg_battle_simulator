@@ -5,7 +5,7 @@ import type {
   BattleLogResponse,
   BattleUnitStateResponse,
   StateTransitionResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 function unit(
   battleUnitId: string,

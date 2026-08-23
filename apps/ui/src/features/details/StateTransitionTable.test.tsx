@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { StateTransitionTable } from "./StateTransitionTable.js";
-import type { StateTransitionResponse } from "../simulation/api-contract.js";
+import type { StateTransitionResponse } from "../../shared/api/api-contract.js";
 
 describe("StateTransitionTable", () => {
   it("renders rows in stateTransitions array order with version/causedBy/target columns (§8.2)", () => {
