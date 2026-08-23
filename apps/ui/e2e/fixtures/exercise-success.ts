@@ -5,6 +5,12 @@ import { CATALOG_REVISION } from "./catalog.js";
 // event (score/break/revive) plus an unknown one, so the mock-API E2E suite
 // exercises both the exercise formatters and the generic fallback
 // (UI-AC-022, UI-API-016).
+//
+// REF-053 (Issue #598): kept hand-written rather than sourced from a
+// generated fixture — apps/ui/src/test/fixtures/*.json has no tactical
+// exercise scenario (the target list is battle-simulation and catalog
+// only), and this fixture's break/score narrative (a specific break turn
+// and cumulative score) has no generated equivalent to fall back to.
 export const exerciseSuccessFixture = {
   schemaVersion: 1,
   battleId: "exercise-e2e-001",

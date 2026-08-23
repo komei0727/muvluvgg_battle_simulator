@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "error": {
+    "code": "CAPACITY_EXCEEDED",
+    "message": "The server is at capacity.",
+    "violations": []
+  }
+}

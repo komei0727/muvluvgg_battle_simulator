@@ -1,5 +1,12 @@
 // Regression fixture: a minimal but realistic Catalog response used by the
 // mock-API E2E suite.
+//
+// REF-053 (Issue #598): kept hand-written rather than sourced from
+// apps/ui/src/test/fixtures/m4.5-catalog.json — this fixture's exact unit
+// names/ids are pinned to visual-regression.spec.ts's Linux-only screenshot
+// baselines, which a content swap would invalidate. The generated fixture
+// gives independent structural coverage via
+// response-validator.contract-fixtures.test.ts.
 export const CATALOG_REVISION = "e2e-catalog-rev-1";
 
 export const catalogFixture = {

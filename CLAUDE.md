@@ -38,6 +38,8 @@ pnpm install
 | `mise run validate-catalog`          | Catalog ディレクトリのスキーマ検証（引数: `<catalog-dir>`。パスは `apps/api/` 相対）                                                                                 |
 | `mise run generate-catalog`          | `catalog-src/` から `catalog/` を決定的に再生成（引数: `<catalog-src-dir> <catalog-dir> <catalogRevision>`。パスは `apps/api/` 相対）                                |
 | `mise run check-catalog-src`         | `catalog/` が `catalog-src/` からの再生成結果と drift していないか検査（引数: `<catalog-src-dir> <catalog-dir>`。パスは `apps/api/` 相対）                           |
+| `mise run generate-ui-fixtures`      | 実サーバーへの実際のPOST/GETから `apps/ui/src/test/fixtures/*.json` を再生成（REF-053）                                                                              |
+| `mise run check-ui-fixtures`         | `apps/ui/src/test/fixtures/*.json` が再生成結果と drift していないか検査（REF-053）                                                                                  |
 | `mise run render-cloud-run-manifest` | Cloud Run Knative manifest を stdout へ描画（`MANIFEST_TEMPLATE_PATH` `IMAGE` `REVISION_NAME` `PREVIOUS_REVISION_NAME` `RUNTIME_SERVICE_ACCOUNT_EMAIL` の env 必須） |
 | `mise run ui:typecheck`              | apps/ui の TypeScript 型検査                                                                                                                                         |
 | `mise run ui:lint`                   | apps/ui の ESLint                                                                                                                                                    |
@@ -59,7 +61,7 @@ PR 相当のローカル検証の**正本は `scripts/run-quality-gates.sh` の1
 ```bash
 bash scripts/run-quality-gates.sh
 # changes:   format:check → ci:test
-# quality:   typecheck → lint → test:coverage → check:circular
+# quality:   typecheck → lint → test:coverage → check:circular → check-ui-fixtures
 # container: test:container（Docker 必須 — daemon 未起動なら冒頭で fail する）
 # ui:        ui:typecheck → ui:lint → ui:test:coverage → ui:build
 #            → playwright install chromium → ui:e2e

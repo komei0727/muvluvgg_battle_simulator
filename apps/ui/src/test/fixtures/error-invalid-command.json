@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "error": {
+    "code": "INVALID_COMMAND",
+    "message": "The request contains invalid battle conditions.",
+    "violations": [
+      {
+        "message": "must be an integer between 1 and 99, got 0",
+        "path": "/turnLimit"
+      }
+    ]
+  }
+}

@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 1,
+  "catalogRevision": "ui-fixture-catalog-rev-1",
+  "units": [
+    {
+      "unitDefinitionId": "UNIT_UI_FIXTURE_ALLY",
+      "displayName": "UI Fixture Ally",
+      "characterName": "UI Fixture Ally",
+      "category": "PLAYABLE",
+      "attribute": "AGGRESSIVE",
+      "unitType": "PHYSICAL",
+      "role": "PHYSICAL_ATTACKER",
+      "positionAptitudes": ["FRONT", "BACK"]
+    },
+    {
+      "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+      "displayName": "UI Fixture Enemy",
+      "characterName": "UI Fixture Enemy",
+      "category": "PLAYABLE",
+      "attribute": "AGGRESSIVE",
+      "unitType": "PHYSICAL",
+      "role": "PHYSICAL_ATTACKER",
+      "positionAptitudes": ["FRONT", "BACK"]
+    },
+    {
+      "unitDefinitionId": "UNIT_UI_FIXTURE_EXERCISE",
+      "displayName": "UI Fixture Exercise Enemy",
+      "characterName": "UI Fixture Exercise Enemy",
+      "category": "EXERCISE_ENEMY",
+      "attribute": "AGGRESSIVE",
+      "unitType": "PHYSICAL",
+      "role": "TANK",
+      "positionAptitudes": ["FRONT"],
+      "exerciseActive": true
+    }
+  ],
+  "memories": [
+    {
+      "memoryDefinitionId": "MEM_UI_FIXTURE",
+      "displayName": "UI Fixture Memory"
+    }
+  ],
+  "gearEffects": [
+    {
+      "stat": "MAXIMUM_HP",
+      "application": "RATIO",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 0.75
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 1.18
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 1.62
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 2.06
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 2.49
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 1
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 1.58
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 2.16
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 2.75
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 3.33
+        }
+      ]
+    },
+    {
+      "stat": "ATTACK",
+      "application": "RATIO",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 0.75
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 1.18
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 1.62
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 2.06
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 2.49
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 1
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 1.58
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 2.16
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 2.75
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 3.33
+        }
+      ]
+    },
+    {
+      "stat": "DEFENSE",
+      "application": "RATIO",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 0.75
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 1.18
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 1.62
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 2.06
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 2.49
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 1
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 1.58
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 2.16
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 2.75
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 3.33
+        }
+      ]
+    },
+    {
+      "stat": "CRITICAL_RATE",
+      "application": "POINT",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 1.5
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 2.62
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 3.59
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 4.49
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 5.25
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 2
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 3.5
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 4.8
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 6
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 7
+        }
+      ]
+    },
+    {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "application": "POINT",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 3.75
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 6.37
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 8.62
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 10.5
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 12.37
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 5
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 8.5
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 11.5
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 14
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 16.5
+        }
+      ]
+    },
+    {
+      "stat": "AFFINITY_BONUS",
+      "application": "POINT",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 3.75
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 4.87
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 5.43
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 6
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 6.37
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 5
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 6.5
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 7.25
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 8
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 8.5
+        }
+      ]
+    },
+    {
+      "stat": "ACTION_SPEED",
+      "application": "RATIO",
+      "values": [
+        {
+          "tier": "II",
+          "grade": "D",
+          "percentagePoints": 1.5
+        },
+        {
+          "tier": "II",
+          "grade": "C",
+          "percentagePoints": 2.62
+        },
+        {
+          "tier": "II",
+          "grade": "B",
+          "percentagePoints": 3.37
+        },
+        {
+          "tier": "II",
+          "grade": "A",
+          "percentagePoints": 4.49
+        },
+        {
+          "tier": "II",
+          "grade": "S",
+          "percentagePoints": 5.4
+        },
+        {
+          "tier": "III",
+          "grade": "D",
+          "percentagePoints": 2
+        },
+        {
+          "tier": "III",
+          "grade": "C",
+          "percentagePoints": 3.5
+        },
+        {
+          "tier": "III",
+          "grade": "B",
+          "percentagePoints": 4.5
+        },
+        {
+          "tier": "III",
+          "grade": "A",
+          "percentagePoints": 6
+        },
+        {
+          "tier": "III",
+          "grade": "S",
+          "percentagePoints": 7.19
+        }
+      ]
+    }
+  ]
+}

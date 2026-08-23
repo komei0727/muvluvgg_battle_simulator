@@ -5,6 +5,14 @@ import { CATALOG_REVISION } from "./catalog.js";
 // event type (MYSTERIOUS_FUTURE_EVENT) so the mock-API E2E suite exercises
 // the generic event fallback end-to-end (UI-AC-011, UI-TEST-003) without
 // waiting for a real future-milestone event contract.
+//
+// REF-053 (Issue #598): kept hand-written rather than sourced from
+// apps/ui/src/test/fixtures/success-unknown-event.json — this fixture's
+// exact unit names/HP/damage numbers are pinned to visual-regression.spec.ts's
+// Linux-only screenshot baselines. The generated fixture (produced the same
+// way, by appending one unrecognized event type to a real engine output)
+// gives independent structural coverage via
+// response-validator.contract-fixtures.test.ts.
 export const battleSuccessFixture = {
   schemaVersion: 1,
   battleId: "battle-e2e-001",

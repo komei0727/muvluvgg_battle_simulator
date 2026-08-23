@@ -30,6 +30,7 @@ mise run typecheck
 mise run lint
 mise run test:coverage
 mise run check:circular
+mise run check-ui-fixtures
 
 # container job (apps/api, Docker required)
 mise run test:container
