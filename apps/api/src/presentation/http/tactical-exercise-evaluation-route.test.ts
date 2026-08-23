@@ -20,6 +20,11 @@ import {
   unitDefinition,
 } from "../../testing/scenario/definition-builders.js";
 
+/**
+ * 検証対象は`routes/tactical-exercise-evaluation-route.ts`だが、protocol header・
+ * エラー変換は`buildServer`が組み立てた実サーバーを通さないと観測できないため、
+ * `tactical-exercise-route.test.ts`と同じくここへ置く。
+ */
 const PATH = "/api/v1/tactical-exercise-evaluations";
 
 const UNUSED_BATTLE_USE_CASE: SimulateBattleUseCasePort = {
