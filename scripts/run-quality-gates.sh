@@ -39,6 +39,7 @@ mise run test:container
 mise run ui:typecheck
 mise run ui:lint
 mise run ui:openapi:check
+mise run ui:check:circular
 mise run ui:test:coverage
 mise run ui:build
 if [[ "$(uname -s)" == "Linux" ]]; then

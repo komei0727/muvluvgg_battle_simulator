@@ -101,6 +101,7 @@ depends = [
   "ui:typecheck",
   "ui:lint",
   "ui:openapi:check",
+  "ui:check:circular",
   "ui:test",
   "ui:build",
   "ci:test",
@@ -121,6 +122,10 @@ run = "pnpm --filter ui run openapi:check"
 [tasks."ui:openapi:generate"]
 description = "Regenerate src/shared/api/generated/v1.d.ts from apps/api/openapi/v1-baseline.json (REF-052)"
 run = "pnpm --filter ui run openapi:generate"
+
+[tasks."ui:check:circular"]
+description = "Detect circular dependencies between apps/ui source files (REF-056)"
+run = "pnpm --filter ui run check:circular"
 
 [tasks."ui:test"]
 description = "Run apps/ui/ unit and component tests"

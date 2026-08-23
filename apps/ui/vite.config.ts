@@ -70,7 +70,7 @@ export default defineConfig({
         // regression even where the target isn't fully reached yet.
         "src/features/formation/request-mapper.ts": { branches: 94 },
         "src/shared/api/response-validator.ts": { branches: 88 },
-        "src/features/simulation/error-normalizer.ts": { branches: 91 },
+        "src/shared/api/error-normalizer.ts": { branches: 91 },
         "src/features/summary/summary-projector.ts": { branches: 100 },
         // REF-055 (Issue #600): selectRoster moved out of summary-projector.ts
         // into entities/roster.ts along with RosterEntry; it carries the same

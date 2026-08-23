@@ -14,7 +14,7 @@ import {
   normalizeHttpErrorResponse,
   normalizeRequestException,
   parseRetryAfterSeconds,
-} from "../../features/simulation/error-normalizer.js";
+} from "./error-normalizer.js";
 import {
   validateCatalogResponse,
   validateFormationStatPreviewResponse,

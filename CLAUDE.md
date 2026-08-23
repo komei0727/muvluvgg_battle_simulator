@@ -43,6 +43,7 @@ pnpm install
 | `mise run render-cloud-run-manifest` | Cloud Run Knative manifest を stdout へ描画（`MANIFEST_TEMPLATE_PATH` `IMAGE` `REVISION_NAME` `PREVIOUS_REVISION_NAME` `RUNTIME_SERVICE_ACCOUNT_EMAIL` の env 必須） |
 | `mise run ui:typecheck`              | apps/ui の TypeScript 型検査                                                                                                                                         |
 | `mise run ui:lint`                   | apps/ui の ESLint                                                                                                                                                    |
+| `mise run ui:check:circular`         | apps/ui の循環依存検査 (`madge --circular ...`、REF-056)                                                                                                             |
 | `mise run ui:test`                   | apps/ui の unit / component テスト (Vitest)                                                                                                                          |
 | `mise run ui:test:coverage`          | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                                                                                                                  |
 | `mise run ui:build`                  | apps/ui の production ビルド (Vite)                                                                                                                                  |
