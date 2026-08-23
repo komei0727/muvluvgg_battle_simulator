@@ -68,6 +68,14 @@ run = "pnpm --filter api run generate-catalog"
 description = "Fail if catalog/ drifted from what regenerating from catalog-src/ would produce (args: <catalog-src-dir> <catalog-dir>, paths relative to apps/api/)"
 run = "pnpm --filter api run check-catalog-src"
 
+[tasks.generate-ui-fixtures]
+description = "Regenerate apps/ui/src/test/fixtures/*.json from real API contract responses (REF-053)"
+run = "pnpm --filter api run generate-ui-fixtures"
+
+[tasks.check-ui-fixtures]
+description = "Fail if apps/ui/src/test/fixtures/*.json drifted from what regenerating them would produce (REF-053)"
+run = "pnpm --filter api run check-ui-fixtures"
+
 [tasks.render-cloud-run-manifest]
 description = "Render the Cloud Run Knative service manifest to stdout (env: MANIFEST_TEMPLATE_PATH, IMAGE, REVISION_NAME, PREVIOUS_REVISION_NAME, RUNTIME_SERVICE_ACCOUNT_EMAIL required)"
 run = "pnpm --filter api run render-cloud-run-manifest"
@@ -89,6 +97,7 @@ depends = [
   "test",
   "build",
   "check:circular",
+  "check-ui-fixtures",
   "ui:typecheck",
   "ui:lint",
   "ui:openapi:check",

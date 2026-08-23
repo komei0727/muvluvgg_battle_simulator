@@ -1,5 +1,14 @@
 // Regression fixtures: API error envelopes for the mock-API E2E suite.
 // docs/ui-design/03_API・データ連携設計.md §13 (error normalization).
+//
+// REF-053 (Issue #598): kept hand-written rather than sourced from
+// apps/ui/src/test/fixtures/error-invalid-command.json /
+// error-capacity.json — those are generated from a different trigger
+// (an out-of-range turnLimit) than this fixture's scenario (a position
+// conflict on the first ally slot), so swapping content here would mean
+// rewriting error-handling.spec.ts's scenario, not a pure input swap. The
+// generated fixtures give independent structural coverage via
+// error-normalizer.contract-fixtures.test.ts.
 
 // 422: server-side validation rejects the first ally unit slot.
 export const battleValidationErrorFixture = {

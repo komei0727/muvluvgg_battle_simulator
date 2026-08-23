@@ -9,6 +9,10 @@ import { CATALOG_REVISION } from "./catalog.js";
 // effectAppliedDetailsSchema) and schemas/simulation/simulation-schema.ts
 // (effectStateResponseSchema).
 //
+// REF-053 (Issue #598): none of apps/ui/src/test/fixtures/*.json target this
+// M7 heal/effect/status contract, and this fixture's visual-regression pin
+// (above) rules out sourcing it from a generated fixture anyway.
+//
 // HEAL expectations: of the 60 HP requested, 10 goes to the R-HEAL-04 healing
 // link, 40 actually raises the healer's HP (60 → 100) and the remaining 10 is
 // discarded as overheal; the transferred 10 then raises the link destination

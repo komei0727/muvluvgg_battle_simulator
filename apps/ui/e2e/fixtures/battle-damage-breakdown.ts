@@ -13,6 +13,10 @@ import { CATALOG_REVISION } from "./catalog.js";
 // schemas/simulation/simulation-schema.ts (shieldStateResponseSchema,
 // subUnitStateResponseSchema).
 //
+// REF-053 (Issue #598): none of apps/ui/src/test/fixtures/*.json target this
+// M8 advanced-damage contract, and this fixture's visual-regression pin
+// (above) rules out sourcing it from a generated fixture anyway.
+//
 // The single hit deals 250 calculated damage against a defender holding a
 // 30-point PHYSICAL shield pool, a 10-point untyped pool and a 50-durability
 // sub unit. 08_ドメインイベント.md invariant #6 then reads:
