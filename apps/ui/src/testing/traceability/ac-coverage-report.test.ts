@@ -45,9 +45,13 @@ describe("UI-AC-* traceability report (non-failing)", () => {
     const coveragePercent = Math.round(
       ((definedIds.size - uncovered.length) / definedIds.size) * 100,
     );
-    console.log(
+    // `console.log`の出力はVitestの既定reporter（`vitest run`、品質ゲートが使う）では
+    // 成功したテストについて捨てられ、`--reporter=verbose`のときだけ出る。一覧出力を
+    // 品質ゲートのログで実際に見えるようにするため、captureされない`process.stdout`へ
+    // 直接書く。
+    process.stdout.write(
       `UI-AC-* coverage: ${definedIds.size - uncovered.length}/${definedIds.size} (${coveragePercent}%). ` +
-        `Uncovered: ${uncovered.length === 0 ? "none" : uncovered.join(", ")}`,
+        `Uncovered: ${uncovered.length === 0 ? "none" : uncovered.join(", ")}\n`,
     );
 
     expect(definedIds.size).toBeGreaterThan(0);
