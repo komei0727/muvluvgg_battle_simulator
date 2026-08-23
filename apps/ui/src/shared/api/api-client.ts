@@ -10,7 +10,7 @@ import {
   normalizeHttpErrorResponse,
   normalizeRequestException,
   parseRetryAfterSeconds,
-} from "./error-normalizer.js";
+} from "../../features/simulation/error-normalizer.js";
 import {
   validateCatalogResponse,
   validateFormationStatPreviewResponse,
@@ -21,11 +21,11 @@ import {
 import type {
   TacticalExerciseEvaluationRequest,
   TacticalExerciseRequest,
-} from "../exercise/exercise-request-mapper.js";
+} from "../../features/exercise/exercise-request-mapper.js";
 import type {
   BattleSimulationRequest,
   FormationStatPreviewRequest,
-} from "../formation/request-mapper.js";
+} from "../../features/formation/request-mapper.js";
 
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 // docs/ui-design/03_API・データ連携設計.md §7: 「一覧GETには10秒のUI待機上限を

@@ -4,7 +4,7 @@ import type { RosterEntry } from "../summary/summary-projector.js";
 import type {
   BattleLogEventResponse,
   BattleSimulationResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 const roster: readonly RosterEntry[] = [
   { battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY", displayName: "エー" },

@@ -4,7 +4,7 @@
 // features/formation/request-mapper.ts の allyUnitSlotKeys/enemyUnitSlotKeys。
 
 import type { UiViolation } from "../formation/draft-validation.js";
-import type { ViolationResponseBody } from "./api-contract.js";
+import type { ViolationResponseBody } from "../../shared/api/api-contract.js";
 
 const UNIT_PATH_PATTERN = /^\/(allyFormation|enemyFormation)\/units\/(\d+)(?:\/.*)?$/;
 const MEMORY_PATH_PATTERN = /^\/(allyFormation|enemyFormation)\/memoryDefinitionIds\/(\d+)$/;

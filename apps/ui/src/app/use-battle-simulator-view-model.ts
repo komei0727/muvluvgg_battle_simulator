@@ -10,7 +10,7 @@ import type { CatalogLoadState } from "../features/catalog-selection/catalog-loa
 import type { UiViolation } from "../features/formation/draft-validation.js";
 import type { BattleDraft } from "../features/formation/types.js";
 import type { RequestBuildResult } from "../features/formation/request-mapper.js";
-import type { BattleSimulationCatalogResponse } from "../features/simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../shared/api/api-contract.js";
 import type {
   ExecutionResponseLike,
   ExecutionState,

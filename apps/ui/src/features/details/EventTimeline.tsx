@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "../../components/Button.js";
 import { formatEvent, resolveDisplayName } from "./event-formatters.js";
 import type { RosterIndex } from "./event-formatters.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import { numberOf, stringOf } from "../../lib/unknown-narrowing.js";
 import styles from "./EventTimeline.module.css";
 

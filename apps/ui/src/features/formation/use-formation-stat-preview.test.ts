@@ -6,7 +6,7 @@ import type { BattleDraft, Side, UiColumn, UiRow } from "./types.js";
 import type {
   FormationStatPreviewApiResult,
   FormationStatPreviewUnit,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 function withUnit(
   draft: BattleDraft,

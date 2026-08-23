@@ -3,7 +3,7 @@ import type { UiViolation } from "./draft-validation.js";
 import type {
   BattleSimulationCatalogResponse,
   FormationStatPreviewUnit,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 import type { FormationSlotInput, UiColumn, UiRow } from "./types.js";
 import { UnitSlot } from "./UnitSlot.js";
 import styles from "./FormationGrid.module.css";

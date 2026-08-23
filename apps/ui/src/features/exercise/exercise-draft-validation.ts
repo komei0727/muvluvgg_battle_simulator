@@ -6,7 +6,7 @@ import { validateDraftWithRules } from "../formation/draft-validation.js";
 import type { DraftValidationRules, UiViolation } from "../formation/draft-validation.js";
 import { MAX_EXERCISE_RUN_COUNT, MIN_EXERCISE_RUN_COUNT } from "../formation/types.js";
 import type { BattleDraft, ExerciseExecutionInput } from "../formation/types.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 
 /** R-TEX-01: 演習のターン数は固定で、リクエストにも入力にも現れない。 */
 export const EXERCISE_TURN_LIMIT = 5;

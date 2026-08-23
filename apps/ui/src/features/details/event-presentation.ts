@@ -3,7 +3,7 @@
 // Issue #191）の両方が使う型とhelperをここへ置き、両ファイル間の循環importを避ける。
 
 import type { RosterEntry } from "../summary/summary-projector.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 export type EventSeverity = "neutral" | "positive" | "negative";
 

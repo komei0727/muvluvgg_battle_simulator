@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogMemorySummary, CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogMemorySummary, CatalogUnitSummary } from "../../shared/api/api-contract.js";
 import { filterMemories, filterUnits } from "./catalog-filter.js";
 
 const units: readonly CatalogUnitSummary[] = [

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { projectEffectTrace } from "./effect-trace-projector.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 const HOLDER = "bu-enemy-1";
 const ATTACKER = "bu-ally-1";

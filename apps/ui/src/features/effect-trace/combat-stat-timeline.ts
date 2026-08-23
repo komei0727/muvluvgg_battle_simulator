@@ -16,7 +16,7 @@
 // 必要なステータスの系列だけである。
 
 import { isRecord, numberOf, stringOf } from "../../lib/unknown-narrowing.js";
-import type { BattleLogEventResponse, BattleLogResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse, BattleLogResponse } from "../../shared/api/api-contract.js";
 
 /**
  * `CombatStatsResponse`のフィールド名。`maximumHp`だけは公開レスポンス上の置き場所が

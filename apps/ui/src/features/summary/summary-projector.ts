@@ -12,7 +12,7 @@ import type {
   BattleLogResponse,
   BattleResultResponse,
   BattleSimulationCatalogResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 /** `SubmissionFeedback`の1行要約。演習側の対応は`describeExerciseResult`。 */
 export function describeBattleResult(result: BattleResultResponse): string {

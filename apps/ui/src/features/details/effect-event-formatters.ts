@@ -5,7 +5,7 @@
 import { resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 // 付与元はユニット(sourceUnitId)か陣営(sourceSide、R-MEM-04のMemory由来)の
 // どちらかであり、どちらも無いイベントは詳細側で"-"表示にする。

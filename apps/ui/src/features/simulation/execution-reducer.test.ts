@@ -8,7 +8,7 @@ import {
 } from "./execution-reducer.js";
 import type { SuccessfulExecutionSnapshot } from "./execution-reducer.js";
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
-import type { BattleSimulationResponse, UiApiError } from "./api-contract.js";
+import type { BattleSimulationResponse, UiApiError } from "../../shared/api/api-contract.js";
 
 function request(overrides: Partial<BattleSimulationRequest> = {}): BattleSimulationRequest {
   return {

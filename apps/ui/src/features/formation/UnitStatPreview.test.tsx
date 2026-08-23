@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { UnitStatPreview } from "./UnitStatPreview.js";
-import type { FormationStatPreviewUnit } from "../simulation/api-contract.js";
+import type { FormationStatPreviewUnit } from "../../shared/api/api-contract.js";
 
 const UNIT: FormationStatPreviewUnit = {
   side: "ALLY",

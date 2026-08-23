@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { simulateTacticalExercise } from "./api-client.js";
-import type { TacticalExerciseRequest } from "../exercise/exercise-request-mapper.js";
+import type { TacticalExerciseRequest } from "../../features/exercise/exercise-request-mapper.js";
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {

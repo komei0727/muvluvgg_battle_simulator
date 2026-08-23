@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
-import type { CatalogMemorySummary } from "../simulation/api-contract.js";
+import type { CatalogMemorySummary } from "../../shared/api/api-contract.js";
 import { filterMemories } from "./catalog-filter.js";
 import type { MemoryFilter } from "./catalog-filter.js";
 import { SelectionDialogList } from "./SelectionDialogList.js";

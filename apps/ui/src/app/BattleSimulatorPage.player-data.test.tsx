@@ -2,11 +2,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GetCatalogOptions } from "../features/simulation/api-client.js";
+import type { GetCatalogOptions } from "../shared/api/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
   CatalogApiResult,
-} from "../features/simulation/api-contract.js";
+} from "../shared/api/api-contract.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
 
 vi.mock("../features/catalog-selection/definition-image-map.js", () => ({

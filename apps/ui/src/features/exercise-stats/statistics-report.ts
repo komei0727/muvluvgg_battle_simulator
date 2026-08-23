@@ -24,7 +24,7 @@ import {
 } from "./unit-statistics.js";
 import type { AllyUnitBreakSummary, AllyUnitDamageSummary } from "./unit-statistics.js";
 import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 
 /** ベストスコア比較で選べる上位run数。既定は先頭の10。 */
 export const TOP_RUN_CHOICES = [10, 25, 50] as const;

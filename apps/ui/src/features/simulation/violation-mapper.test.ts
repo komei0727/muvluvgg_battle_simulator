@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mapServerViolationsToUiViolations } from "./violation-mapper.js";
-import type { ViolationResponseBody } from "./api-contract.js";
+import type { ViolationResponseBody } from "../../shared/api/api-contract.js";
 
 const allySlotKeys = ["ally:FRONT:0", "ally:FRONT:2"];
 const enemySlotKeys = ["enemy:FRONT:1"];

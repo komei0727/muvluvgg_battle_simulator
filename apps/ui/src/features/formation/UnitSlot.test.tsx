@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { CatalogUnitSummary, FormationStatPreviewUnit } from "../simulation/api-contract.js";
+import type {
+  CatalogUnitSummary,
+  FormationStatPreviewUnit,
+} from "../../shared/api/api-contract.js";
 import { UnitSlot } from "./UnitSlot.js";
 
 const unit: CatalogUnitSummary = {

@@ -7,11 +7,11 @@ import {
 import type { TacticalExerciseEvaluationRequest } from "./exercise-request-mapper.js";
 import { createInitialDraft, slotKeyOf } from "../formation/types.js";
 import type { BattleDraft, Side, UiColumn, UiRow } from "../formation/types.js";
-import type { SimulateOptions } from "../simulation/api-client.js";
+import type { SimulateOptions } from "../../shared/api/api-client.js";
 import type {
   TacticalExerciseEvaluationApiResult,
   TacticalExerciseEvaluationResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 function withUnit(
   draft: BattleDraft,

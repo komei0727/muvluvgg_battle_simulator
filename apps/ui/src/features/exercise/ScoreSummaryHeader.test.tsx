@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ScoreSummaryHeader } from "./ScoreSummaryHeader.js";
-import type { ExerciseResultResponse } from "../simulation/api-contract.js";
+import type { ExerciseResultResponse } from "../../shared/api/api-contract.js";
 
 function result(overrides: Partial<ExerciseResultResponse> = {}): ExerciseResultResponse {
   return {

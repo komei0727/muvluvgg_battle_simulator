@@ -1,5 +1,5 @@
 import { DefinitionImage } from "../../components/DefinitionImage.js";
-import type { CatalogMemorySummary } from "../simulation/api-contract.js";
+import type { CatalogMemorySummary } from "../../shared/api/api-contract.js";
 import styles from "./MemorySlot.module.css";
 
 export interface MemorySlotProps {

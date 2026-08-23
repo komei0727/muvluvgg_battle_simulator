@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { BattleDetailsSection } from "./BattleDetailsSection.js";
-import type { BattleSimulationResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationResponse } from "../../shared/api/api-contract.js";
 
 const response: BattleSimulationResponse = {
   schemaVersion: 1,

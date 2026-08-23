@@ -6,7 +6,7 @@ import {
   resolveAllyUnitLabels,
 } from "./statistics-report.js";
 import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 
 function aggregate(overrides: Partial<EvaluationAggregate> = {}): EvaluationAggregate {
   const scores = [100, 300, 200, 400];

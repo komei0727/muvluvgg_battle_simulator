@@ -64,7 +64,7 @@ import {
   memoryImageMap,
   unitImageMap,
 } from "../features/catalog-selection/definition-image-map.js";
-import { simulateTacticalExercise } from "../features/simulation/api-client.js";
+import { simulateTacticalExercise } from "../shared/api/api-client.js";
 import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js";
 import type { UseSimulationExecutionOptions } from "../features/simulation/use-simulation-execution.js";
 import { useSimulationExecution } from "../features/simulation/use-simulation-execution.js";
@@ -75,7 +75,7 @@ import type { TacticalExerciseRequest } from "../features/exercise/exercise-requ
 import type {
   BattleSimulationCatalogResponse,
   TacticalExerciseResponse,
-} from "../features/simulation/api-contract.js";
+} from "../shared/api/api-contract.js";
 import { SelectionDialogs } from "./SelectionDialogs.js";
 import { useBattleSimulatorViewModel } from "./use-battle-simulator-view-model.js";
 

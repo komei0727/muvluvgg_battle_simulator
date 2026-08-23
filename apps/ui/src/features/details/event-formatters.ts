@@ -19,7 +19,7 @@ import {
 import { resourceEventFormatters } from "./resource-event-formatters.js";
 import { skillEventFormatters } from "./skill-event-formatters.js";
 import type { EventPresentation, EventSeverity, RosterIndex } from "./event-presentation.js";
-import type { BattleLogEventResponse } from "../simulation/api-contract.js";
+import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 // 共通の型・helperは`event-presentation.ts`が持つ（DMG-010／Issue #191で
 // M8ダメージformatterを別ファイルへ分けた際に循環importを避けるため）。

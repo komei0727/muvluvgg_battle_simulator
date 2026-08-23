@@ -1,4 +1,4 @@
-import type { FormationStatPreviewUnit } from "../simulation/api-contract.js";
+import type { FormationStatPreviewUnit } from "../../shared/api/api-contract.js";
 import styles from "./UnitStatPreview.module.css";
 
 export interface UnitStatPreviewProps {

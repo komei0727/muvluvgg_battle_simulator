@@ -8,7 +8,7 @@ import type { EffectTraceInstance, EffectTraceOutcome } from "./effect-trace-pro
 import { FOCUSED_EFFECT_ACTION_DEFINITION_IDS } from "./focused-effects.js";
 import { resolveDisplayName } from "../details/event-presentation.js";
 import type { RosterIndex } from "../details/event-presentation.js";
-import type { BattleLogResponse } from "../simulation/api-contract.js";
+import type { BattleLogResponse } from "../../shared/api/api-contract.js";
 import styles from "./EffectTraceSection.module.css";
 
 export interface EffectTraceSectionProps {

@@ -2,7 +2,7 @@
 // BattleSimulatorAction「submission*」slice) and §6 (state transition table).
 
 import type { BattleSimulationRequest } from "../formation/request-mapper.js";
-import type { BattleSimulationResponse, UiApiError } from "./api-contract.js";
+import type { BattleSimulationResponse, UiApiError } from "../../shared/api/api-contract.js";
 
 // UI-CMP-013: 実行stateはモード（通常戦闘／戦術演習）ごとに分かれ、リクエストDTOも
 // レスポンスDTOも異なる。遷移規則自体はモードに依らないため、DTOだけを型引数にする。

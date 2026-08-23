@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BattleSimulationCatalogResponse } from "../simulation/api-contract.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { selectCanSubmit, validateDraft } from "./draft-validation.js";
 import { createInitialDraft, slotKeyOf } from "./types.js";
 import type { BattleDraft, FormationSlotInput, GearInput } from "./types.js";

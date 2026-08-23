@@ -1,4 +1,4 @@
-import type { UiApiErrorKind } from "./api-contract.js";
+import type { UiApiErrorKind } from "../../shared/api/api-contract.js";
 
 // docs/ui-design/03_API・データ連携設計.md §13: エラー種別ごとの表示文言。
 // サーバーの生message/violationsはこの下にそのままtext表示し、HTMLとして解釈

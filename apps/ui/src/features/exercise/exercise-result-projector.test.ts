@@ -3,7 +3,7 @@ import { selectExerciseResultView } from "./exercise-result-projector.js";
 import type {
   BattleSimulationCatalogResponse,
   ExerciseResultResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 
 function catalog(
   units: readonly { readonly unitDefinitionId: string; readonly displayName: string }[],

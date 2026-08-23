@@ -12,7 +12,7 @@ import type { LogLevel } from "../formation/types.js";
 import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
-} from "../simulation/api-contract.js";
+} from "../../shared/api/api-contract.js";
 import styles from "./BattleDetailsSection.module.css";
 
 export interface BattleDetailsSectionProps {
