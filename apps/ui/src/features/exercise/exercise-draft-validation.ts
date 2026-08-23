@@ -1,15 +1,12 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §2.3 and 01_UI要求・画面設計.md
 // §5 (UI-AC-019/020): 戦術演習は敵ちょうど1体・敵メモリー0件・ターン上限5固定。
-
 import { EXERCISE_ENEMY_CATEGORY, PLAYABLE_CATEGORY } from "../catalog-selection/unit-pool.js";
 import { validateDraftWithRules } from "../formation/draft-validation.js";
-import type { DraftValidationRules, UiViolation } from "../formation/draft-validation.js";
-import { MAX_EXERCISE_RUN_COUNT, MIN_EXERCISE_RUN_COUNT } from "../formation/types.js";
-import type { BattleDraft, ExerciseExecutionInput } from "../formation/types.js";
+import type { BattleDraft, ExerciseExecutionInput } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
-
-/** R-TEX-01: 演習のターン数は固定で、リクエストにも入力にも現れない。 */
-export const EXERCISE_TURN_LIMIT = 5;
+import type { DraftValidationRules } from "../formation/draft-validation.js";
+import { MAX_EXERCISE_RUN_COUNT, MIN_EXERCISE_RUN_COUNT } from "../formation/types.js";
 
 const EXERCISE_RULES: DraftValidationRules = {
   enemyUnitCount: { min: 1, max: 1, message: "戦術演習では敵ユニットを1体だけ設定してください。" },

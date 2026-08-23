@@ -4,8 +4,8 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ExecutionParameterForm } from "./ExecutionParameterForm.js";
 import type { ExerciseExecutionFormProps } from "./ExecutionParameterForm.js";
-import type { ExerciseExecutionInput } from "./types.js";
-import type { UiViolation } from "./draft-validation.js";
+import type { ExerciseExecutionInput } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 
 // The component is a fully controlled input; a fixed prop value would snap
 // back on every keystroke and produce meaningless intermediate digits, so

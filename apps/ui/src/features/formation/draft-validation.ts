@@ -1,8 +1,16 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §6 (client validation table)
 // and docs/ui-design/04_コンポーネント・状態管理設計.md §9 (UiViolation shape).
-
 import { aptitudeMatches } from "../../lib/aptitude.js";
 import { PLAYABLE_CATEGORY, unitCategoryOf } from "../catalog-selection/unit-pool.js";
+import type {
+  BattleDraft,
+  FormationSlotInput,
+  GearInput,
+  GearStat,
+  Side,
+  SideEnhancementInput,
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { isSlotLevelLinked } from "./level-link.js";
 import {
@@ -12,30 +20,6 @@ import {
   gearStatCounts,
   memorySlotKeyOf,
 } from "./types.js";
-import type {
-  BattleDraft,
-  FormationSlotInput,
-  GearInput,
-  GearStat,
-  Side,
-  SideEnhancementInput,
-} from "./types.js";
-
-export type UiViolationSeverity = "error" | "warning";
-
-export interface UiViolation {
-  readonly path: string;
-  readonly slotKey?: string;
-  /**
-   * M11: ギア違反が指すUIのギア枠index（03_API・データ連携設計.md §13）。
-   * 送信配列は空枠を除外するため、サーバーの`gears[m]`をそのまま枠番号として
-   * 使えない。`slotKey`と対で、ユニット強化ダイアログの該当selectへ表示する。
-   */
-  readonly gearIndex?: number;
-  readonly code: string;
-  readonly message: string;
-  readonly severity: UiViolationSeverity;
-}
 
 const MIN_UNITS_PER_SIDE = 1;
 const MAX_UNITS_PER_SIDE = 5;

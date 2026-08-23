@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { selectBattleSummary, selectRoster } from "./summary-projector.js";
+import { selectBattleSummary } from "./summary-projector.js";
+import { selectRoster } from "../../entities/roster.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,

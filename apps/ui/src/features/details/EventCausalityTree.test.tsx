@@ -3,7 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { EventCausalityTree } from "./EventCausalityTree.js";
 import { buildRosterIndex } from "./event-formatters.js";
-import type { RosterEntry } from "../summary/summary-projector.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 const roster: readonly RosterEntry[] = [

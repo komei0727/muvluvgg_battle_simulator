@@ -4,14 +4,14 @@ import {
   describeStatisticsRunError,
   useExerciseStatisticsRun,
 } from "./use-exercise-statistics-run.js";
-import type { TacticalExerciseEvaluationRequest } from "./exercise-request-mapper.js";
-import { createInitialDraft, slotKeyOf } from "../formation/types.js";
-import type { BattleDraft, Side, UiColumn, UiRow } from "../formation/types.js";
-import type { SimulateOptions } from "../../shared/api/api-client.js";
+import type { BattleDraft, Side, UiColumn, UiRow } from "../../entities/battle-draft.js";
 import type {
   TacticalExerciseEvaluationApiResult,
+  TacticalExerciseEvaluationRequest,
   TacticalExerciseEvaluationResponse,
 } from "../../shared/api/api-contract.js";
+import { createInitialDraft, slotKeyOf } from "../formation/types.js";
+import type { SimulateOptions } from "../../shared/api/api-client.js";
 
 function withUnit(
   draft: BattleDraft,

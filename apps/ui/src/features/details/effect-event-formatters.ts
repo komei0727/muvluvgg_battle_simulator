@@ -1,7 +1,6 @@
 // M7-009（Issue #182）: 「M7 効果・状態異常・
 // 回復拡張」。回復・効果ライフサイクル・状態異常・命中判定のイベント。共通の型・helperは
 // `event-presentation.ts`が持つ（formatter群の各ファイル間で循環importを避けるため）。
-
 import { resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";

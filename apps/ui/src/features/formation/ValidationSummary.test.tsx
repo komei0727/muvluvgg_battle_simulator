@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ValidationSummary } from "./ValidationSummary.js";
-import type { UiViolation } from "./draft-validation.js";
+import type { UiViolation } from "../../entities/violation.js";
 
 describe("ValidationSummary", () => {
   it("renders nothing when there are no violations", () => {

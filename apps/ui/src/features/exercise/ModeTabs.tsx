@@ -1,10 +1,5 @@
 import { Tabs } from "../../components/Tabs.js";
-
-/**
- * docs/ui-design/02_フロントエンドアーキテクチャ設計.md §「戦闘モード」:
- * ルーターを導入せず、単一ページ内のタブで切り替える最上位状態。
- */
-export type BattleMode = "battle" | "exercise";
+import type { BattleMode } from "../../entities/battle-mode.js";
 
 export interface ModeTabsProps {
   readonly mode: BattleMode;

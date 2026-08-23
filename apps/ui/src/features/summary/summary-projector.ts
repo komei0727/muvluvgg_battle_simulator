@@ -7,7 +7,8 @@
 // (`CONTINUOUS_DAMAGE_APPLIED`) を経路ごと取りこぼしDoT主体のユニットが0に見える
 // こと、そして `SUMMARY` ではこれらのイベント自体が公開されないため全ユニットが
 // 警告なく0表示になることである。集計の正本はサーバー側にしかない。
-
+import { selectRoster } from "../../entities/roster.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type {
   BattleLogResponse,
   BattleResultResponse,
@@ -17,13 +18,6 @@ import type {
 /** `SubmissionFeedback`の1行要約。演習側の対応は`describeExerciseResult`。 */
 export function describeBattleResult(result: BattleResultResponse): string {
   return `${result.outcome} / ${result.completionReason} (turn ${result.completedTurn})`;
-}
-
-export interface RosterEntry {
-  readonly battleUnitId: string;
-  readonly unitDefinitionId: string;
-  readonly side: string;
-  readonly displayName: string;
 }
 
 export interface UnitBattleSummary {
@@ -45,28 +39,6 @@ export interface SummaryProjection {
   readonly allyRows: readonly SummaryRow[];
   readonly enemyRows: readonly SummaryRow[];
   readonly hasProjectionWarning: boolean;
-}
-
-// docs/ui-design/03_API・データ連携設計.md §10「表示用Roster」の生成手順:
-// initialState.units を入力順で走査し、Catalog未解決なら
-// displayName = unitDefinitionId とする。
-export function selectRoster(
-  response: BattleLogResponse,
-  catalog: BattleSimulationCatalogResponse,
-): readonly RosterEntry[] {
-  const catalogByDefinitionId = new Map(
-    catalog.units.map((unit) => [unit.unitDefinitionId, unit] as const),
-  );
-
-  return response.initialState.units.map((unit) => {
-    const definition = catalogByDefinitionId.get(unit.unitDefinitionId);
-    return {
-      battleUnitId: unit.battleUnitId,
-      unitDefinitionId: unit.unitDefinitionId,
-      side: unit.side,
-      displayName: definition?.displayName ?? unit.unitDefinitionId,
-    };
-  });
 }
 
 // `unitSummaries`がRosterの全ユニットを覆うことは response-validator.ts が成功

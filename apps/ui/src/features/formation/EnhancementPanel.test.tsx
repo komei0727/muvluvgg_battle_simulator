@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EnhancementPanel } from "./EnhancementPanel.js";
-import type { UiViolation } from "./draft-validation.js";
-import type { SideEnhancementInput } from "./types.js";
+import type { SideEnhancementInput } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 
 function enhancement(overrides: Partial<SideEnhancementInput> = {}): SideEnhancementInput {
   return {

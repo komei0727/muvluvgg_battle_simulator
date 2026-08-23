@@ -13,17 +13,15 @@ import type { SimulateOptions } from "../shared/api/api-client.js";
 import type { GetCatalogOptions } from "../shared/api/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
+  BattleSimulationRequest,
   BattleSimulationResponse,
   CatalogApiResult,
   FormationStatPreviewApiResult,
+  FormationStatPreviewRequest,
   FormationStatPreviewUnit,
   SimulationApiResult,
 } from "../shared/api/api-contract.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
-import type {
-  BattleSimulationRequest,
-  FormationStatPreviewRequest,
-} from "../features/formation/request-mapper.js";
 
 // The real definition-image-map.ts globs locally-synced, gitignored assets
 // (apps/ui/scripts/sync-character-images.mjs) that are absent in CI. Mock it

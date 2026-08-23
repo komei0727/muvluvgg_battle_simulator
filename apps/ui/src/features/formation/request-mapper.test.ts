@@ -3,9 +3,8 @@ import {
   buildBattleSimulationRequest,
   buildFormationStatPreviewRequest,
 } from "./request-mapper.js";
+import type { BattleDraft, GearInput, UnitEnhancementInput } from "../../entities/battle-draft.js";
 import { createInitialDraft, enhancementForSide, memorySlotKeyOf, slotKeyOf } from "./types.js";
-import type { GearInput, UnitEnhancementInput } from "./types.js";
-import type { BattleDraft } from "./types.js";
 
 function withUnit(
   draft: BattleDraft,

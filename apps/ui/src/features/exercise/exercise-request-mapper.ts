@@ -1,17 +1,14 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §2.3 and docs/ddd/10_API設計.md
 // 「TacticalExerciseRequest」: 編成部分は戦闘シミュレーションと同じ`FormationRequest`
 // を再利用し、`turnLimit`を持たない。
-
 import { buildFormation } from "../formation/request-mapper.js";
-import type { FormationRequest, RequestBuildResult } from "../formation/request-mapper.js";
+import type { RequestBuildResult } from "../formation/request-mapper.js";
 import { enhancementForSide } from "../formation/types.js";
-import type { BattleDraft, LogLevel, SideEnhancementInput } from "../formation/types.js";
-
-export interface TacticalExerciseRequest {
-  readonly allyFormation: FormationRequest;
-  readonly enemyFormation: FormationRequest;
-  readonly options: { readonly logLevel: LogLevel };
-}
+import type { BattleDraft, LogLevel, SideEnhancementInput } from "../../entities/battle-draft.js";
+import type {
+  TacticalExerciseEvaluationRequest,
+  TacticalExerciseRequest,
+} from "../../shared/api/api-contract.js";
 
 const EXERCISE_ENEMY_UNIT_COUNT = 1;
 
@@ -76,22 +73,6 @@ export function buildTacticalExerciseRequest(
     allyGearSlotIndices: ally.gearSlotIndices,
     enemyGearSlotIndices: enemy.gearSlotIndices,
   };
-}
-
-/**
- * `10_API設計.md`「TacticalExerciseEvaluationRequest」。統計実行の1チャンク分の本文。
- * `options`（`logLevel`）を持たない —— 返るのは試行ごとの数値だけで、イベント列も
- * 状態遷移も返らないため、公開レベルという概念自体が無い。
- */
-export interface TacticalExerciseEvaluationRequest {
-  readonly enemyFormation: FormationRequest;
-  readonly candidates: readonly { readonly allyFormation: FormationRequest }[];
-  readonly runsPerCandidate: number;
-  /**
-   * 送信seed。省略するとサーバーが生成する（Q-TEX-17）が、統計実行はチャンクごとに
-   * `#<runOffset>`を付けた別seedを送る必要があるため常に指定する。
-   */
-  readonly seed: string;
 }
 
 export interface TacticalExerciseEvaluationRequestOptions {

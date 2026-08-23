@@ -8,9 +8,12 @@
 // 解決点をこのファイル1つに閉じ、リクエスト生成・送信前検証・表示が同じ規則を
 // 共有する。同じ規則を`tools/exercise-lab`の`resolved_level`（`player_data.py`）が
 // 写しており、片方だけ変えるとUIとlabが別のレベルで同じ編成を評価する。
-
 import { DEFAULT_UNIT_LEVEL } from "./types.js";
-import type { FormationSlotInput, SideEnhancementInput, UnitEnhancementInput } from "./types.js";
+import type {
+  FormationSlotInput,
+  SideEnhancementInput,
+  UnitEnhancementInput,
+} from "../../entities/battle-draft.js";
 
 function isPositiveInteger(value: number | ""): value is number {
   return value !== "" && Number.isInteger(value) && value >= 1;

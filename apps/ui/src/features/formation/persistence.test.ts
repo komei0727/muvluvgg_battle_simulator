@@ -18,8 +18,8 @@ import {
   createInitialUnitEnhancement,
   slotKeyOf,
 } from "./types.js";
-import type { BattleDraft, GearInput, UnitEnhancementInput } from "./types.js";
-import type { UiViolation } from "./draft-validation.js";
+import type { BattleDraft, GearInput, UnitEnhancementInput } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 
 const GEAR: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
 

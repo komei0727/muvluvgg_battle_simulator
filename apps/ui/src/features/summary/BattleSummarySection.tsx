@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { selectBattleSummary } from "./summary-projector.js";
-import { UnitSummaryTable } from "./UnitSummaryTable.js";
 import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
 } from "../../shared/api/api-contract.js";
+import { UnitSummaryTable } from "./UnitSummaryTable.js";
 import styles from "./BattleSummarySection.module.css";
 
 export interface BattleSummarySectionProps {

@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 import { selectCanSubmit } from "../features/formation/draft-validation.js";
+import type { BattleDraft } from "../entities/battle-draft.js";
+import type { UiViolation } from "../entities/violation.js";
+import type { BattleSimulationCatalogResponse } from "../shared/api/api-contract.js";
 import {
   selectDisplayedSuccess,
   selectIsCatalogRevisionMismatch,
@@ -7,10 +10,8 @@ import {
 } from "../features/simulation/execution-reducer.js";
 import { mapServerViolationsToUiViolations } from "../features/simulation/violation-mapper.js";
 import type { CatalogLoadState } from "../features/catalog-selection/catalog-loader.js";
-import type { UiViolation } from "../features/formation/draft-validation.js";
-import type { BattleDraft } from "../features/formation/types.js";
+
 import type { RequestBuildResult } from "../features/formation/request-mapper.js";
-import type { BattleSimulationCatalogResponse } from "../shared/api/api-contract.js";
 import type {
   ExecutionResponseLike,
   ExecutionState,

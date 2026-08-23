@@ -6,7 +6,6 @@
 //
 // このファイルはイベントカテゴリ別のregistryを合成して`formatEvent`を公開する
 // だけを担う。formatter本体はカテゴリ別ファイルが持つ。
-
 import { battleFlowEventFormatters } from "./battle-flow-event-formatters.js";
 import { damageEventFormatters } from "./damage-event-formatters.js";
 import { effectEventFormatters } from "./effect-event-formatters.js";

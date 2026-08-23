@@ -2,10 +2,9 @@
 // 「calculated、shield absorbed、HP damageを混同せず表示する」。
 // 各payloadの正本は apps/api/src/domain/battle/events/domain-event.ts と
 // apps/api/src/presentation/http/schemas/battle-log/battle-log-schema.ts。
-
 import { describe, expect, it } from "vitest";
 import { buildRosterIndex, formatEvent } from "./event-formatters.js";
-import type { RosterEntry } from "../summary/summary-projector.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 const roster: readonly RosterEntry[] = [

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ModeTabs } from "./ModeTabs.js";
-import type { BattleMode } from "./ModeTabs.js";
+import type { BattleMode } from "../../entities/battle-mode.js";
 
 // UI-CT-027 / UI-AC-018: モードタブをkeyboardで切り替えられ、`aria-selected`が
 // 現在モードを示す。

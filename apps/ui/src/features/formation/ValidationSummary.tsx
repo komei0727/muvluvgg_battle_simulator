@@ -1,4 +1,4 @@
-import type { UiViolation } from "./draft-validation.js";
+import type { UiViolation } from "../../entities/violation.js";
 import styles from "./ValidationSummary.module.css";
 
 export interface ValidationSummaryProps {

@@ -1,10 +1,10 @@
 import { useId, useState } from "react";
 import { DefinitionImage } from "../../components/DefinitionImage.js";
+import type { UiColumn, UiRow } from "../../entities/battle-draft.js";
 import type {
   CatalogUnitSummary,
   FormationStatPreviewUnit,
 } from "../../shared/api/api-contract.js";
-import type { UiColumn, UiRow } from "./types.js";
 import { UnitStatPreview } from "./UnitStatPreview.js";
 import styles from "./UnitSlot.module.css";
 

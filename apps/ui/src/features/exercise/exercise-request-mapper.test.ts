@@ -4,13 +4,13 @@ import {
   buildTacticalExerciseRequest,
   evaluationFormationSignature,
 } from "./exercise-request-mapper.js";
+import type { BattleDraft, Side, UiColumn, UiRow } from "../../entities/battle-draft.js";
 import {
   createInitialDraft,
   createInitialUnitEnhancement,
   memorySlotKeyOf,
   slotKeyOf,
 } from "../formation/types.js";
-import type { BattleDraft, Side, UiColumn, UiRow } from "../formation/types.js";
 
 function withUnit(
   draft: BattleDraft,

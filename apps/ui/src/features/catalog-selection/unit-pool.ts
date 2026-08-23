@@ -1,8 +1,7 @@
 // Mirrors docs/ddd/07_戦闘ルール詳細.md `R-TEX-11` and
 // docs/ui-design/01_UI要求・画面設計.md §5.2 (UI-AC-033).
-
-import type { BattleMode } from "../exercise/ModeTabs.js";
-import type { Side } from "../formation/types.js";
+import type { Side } from "../../entities/battle-draft.js";
+import type { BattleMode } from "../../entities/battle-mode.js";
 import type { CatalogUnitSummary } from "../../shared/api/api-contract.js";
 
 export const PLAYABLE_CATEGORY = "PLAYABLE";

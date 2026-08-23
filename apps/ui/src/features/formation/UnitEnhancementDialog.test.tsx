@@ -2,10 +2,14 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
-import type { UiViolation } from "./draft-validation.js";
-import { GEAR_STATS, createInitialDraft, createInitialUnitEnhancement } from "./types.js";
-import type { GearInput, LevelLinkInput, UnitEnhancementInput } from "./types.js";
+import type {
+  GearInput,
+  LevelLinkInput,
+  UnitEnhancementInput,
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type { CatalogGearEffect } from "../../shared/api/api-contract.js";
+import { GEAR_STATS, createInitialDraft, createInitialUnitEnhancement } from "./types.js";
 
 function renderDialog(
   overrides: {

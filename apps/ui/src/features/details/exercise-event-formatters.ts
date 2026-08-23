@@ -4,7 +4,6 @@
 //
 // `UI-API-016`: 演習イベントも未知イベントと同じ許容規則で扱う。detailsが想定
 // shapeでなければ`undefined`を返し、`formatEvent`のgeneric fallbackへ落とす。
-
 import { resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";

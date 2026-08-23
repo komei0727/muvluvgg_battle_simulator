@@ -7,12 +7,13 @@ import { RawJsonView } from "./RawJsonView.js";
 import { StateTransitionTable } from "./StateTransitionTable.js";
 import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import { EffectTraceSection } from "../effect-trace/EffectTraceSection.js";
-import { selectRoster } from "../summary/summary-projector.js";
-import type { LogLevel } from "../formation/types.js";
+import type { LogLevel } from "../../entities/battle-draft.js";
+import { selectRoster } from "../../entities/roster.js";
 import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
 } from "../../shared/api/api-contract.js";
+
 import styles from "./BattleDetailsSection.module.css";
 
 export interface BattleDetailsSectionProps {

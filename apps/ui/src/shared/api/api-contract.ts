@@ -13,6 +13,7 @@
 // are preserved via index signatures. That predates this Issue and is out of its scope — see
 // the PR/Issue discussion for the full list of generated-vs-mirror differences this Issue found.
 import type { paths } from "./generated/v1.js";
+import type { GearInput, LogLevel, UiColumn, UiRow } from "../../entities/battle-draft.js";
 
 /** Recursively applies `readonly`, matching the immutability this file has always exposed. */
 type DeepReadonly<T> = T extends readonly (infer U)[]
@@ -305,3 +306,76 @@ export type FormationStatPreviewApiResult =
       readonly error: UiApiError;
       readonly requestId?: string;
     };
+
+// Mirrors docs/ui-design/03_API・データ連携設計.md §4-5 (request generation
+// rules). リクエスト本文の型。組み立て（`features/formation/request-mapper.ts`
+// `features/exercise/exercise-request-mapper.ts`）は編成機能固有のロジックとして
+// featureに残るが、送信本文の形そのものは`shared/api/api-client.ts`が直接送る
+// wire型であり、レスポンス型と同じくここが正本（REF-055）。
+
+/** docs/ui-design/03_API・データ連携設計.md §5.1 (M11). */
+export interface UnitEnhancementRequest {
+  readonly level: number;
+  readonly gears: readonly GearInput[];
+}
+
+export interface FormationEnhancementRequest {
+  readonly academyLevels: {
+    readonly unitTypes: Readonly<Record<string, number>>;
+    readonly attributes: Readonly<Record<string, number>>;
+  };
+}
+
+export interface BattleSimulationUnitRequest {
+  readonly unitDefinitionId: string;
+  readonly position: { readonly column: UiColumn; readonly row: UiRow };
+  readonly enhancement?: UnitEnhancementRequest;
+}
+
+export interface FormationRequest {
+  readonly units: readonly BattleSimulationUnitRequest[];
+  readonly memoryDefinitionIds: readonly string[];
+  readonly enhancement?: FormationEnhancementRequest;
+}
+
+export interface BattleSimulationRequest {
+  readonly allyFormation: FormationRequest;
+  readonly enemyFormation: FormationRequest;
+  readonly turnLimit: number;
+  readonly options: { readonly logLevel: LogLevel };
+}
+
+/** `10_API設計.md`「FormationStatPreviewRequest」の`mode`。省略時は`NORMAL`。 */
+export type FormationStatPreviewMode = "NORMAL" | "TACTICAL_EXERCISE";
+
+/** docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは編成部分だけを送る。 */
+export interface FormationStatPreviewRequest {
+  readonly allyFormation: FormationRequest;
+  readonly enemyFormation: FormationRequest;
+  /** R-TEX-11 #5: 編成プール検証にだけ使う。ステータス計算へは影響しない。 */
+  readonly mode?: FormationStatPreviewMode;
+}
+
+// docs/ddd/10_API設計.md「TacticalExerciseRequest」: 編成部分は戦闘シミュレーションと
+// 同じ`FormationRequest`を再利用し、`turnLimit`を持たない。
+export interface TacticalExerciseRequest {
+  readonly allyFormation: FormationRequest;
+  readonly enemyFormation: FormationRequest;
+  readonly options: { readonly logLevel: LogLevel };
+}
+
+/**
+ * `10_API設計.md`「TacticalExerciseEvaluationRequest」。統計実行の1チャンク分の本文。
+ * `options`（`logLevel`）を持たない —— 返るのは試行ごとの数値だけで、イベント列も
+ * 状態遷移も返らないため、公開レベルという概念自体が無い。
+ */
+export interface TacticalExerciseEvaluationRequest {
+  readonly enemyFormation: FormationRequest;
+  readonly candidates: readonly { readonly allyFormation: FormationRequest }[];
+  readonly runsPerCandidate: number;
+  /**
+   * 送信seed。省略するとサーバーが生成する（Q-TEX-17）が、統計実行はチャンクごとに
+   * `#<runOffset>`を付けた別seedを送る必要があるため常に指定する。
+   */
+  readonly seed: string;
+}

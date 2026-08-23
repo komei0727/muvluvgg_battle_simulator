@@ -2,8 +2,7 @@
 // サーバー violations[].path を元のslotKeyへ対応づける
 // (UI-API-004)。送信DTOの units[n] とslotKeyの対応表は
 // features/formation/request-mapper.ts の allyUnitSlotKeys/enemyUnitSlotKeys。
-
-import type { UiViolation } from "../formation/draft-validation.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type { ViolationResponseBody } from "../../shared/api/api-contract.js";
 
 const UNIT_PATH_PATTERN = /^\/(allyFormation|enemyFormation)\/units\/(\d+)(?:\/.*)?$/;

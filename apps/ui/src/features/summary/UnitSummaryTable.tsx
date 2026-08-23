@@ -1,5 +1,5 @@
 import { DefinitionImage } from "../../components/DefinitionImage.js";
-import type { Side } from "../formation/types.js";
+import type { Side } from "../../entities/battle-draft.js";
 import type { SummaryRow } from "./summary-projector.js";
 import styles from "./UnitSummaryTable.module.css";
 

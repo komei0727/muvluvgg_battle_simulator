@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { useSimulationExecution } from "./use-simulation-execution.js";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
 import type { SubmitInput } from "./use-simulation-execution.js";
-import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 import type {
+  BattleSimulationRequest,
   BattleSimulationResponse,
   SimulationApiResult,
 } from "../../shared/api/api-contract.js";

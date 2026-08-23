@@ -1,7 +1,6 @@
 // docs/ui-design/03_API・データ連携設計.md §12「イベント表示」のうち、リソース
 // （HP・AP・PPなど）とEXゲージの増減を表すイベント。共通の型・helperは
 // `event-presentation.ts`が持つ（formatter群の各ファイル間で循環importを避けるため）。
-
 import { resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";

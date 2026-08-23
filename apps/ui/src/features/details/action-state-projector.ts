@@ -18,10 +18,10 @@
 // logLevel=SUMMARYだとapps/api/src/application/observation/battle-log-projection.tsの
 // SUMMARY_EVENT_TYPESにCooldown*/Charge*が含まれずevents[]へ載らないため、
 // `cooldownChargeKnown`で呼び出し側に不明であることを伝える。
-
-import type { RosterEntry } from "../summary/summary-projector.js";
-import type { LogLevel } from "../formation/types.js";
+import type { LogLevel } from "../../entities/battle-draft.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type { BattleLogEventResponse, BattleLogResponse } from "../../shared/api/api-contract.js";
+
 import { isRecord, numberOf } from "../../lib/unknown-narrowing.js";
 
 export interface ResourceValue {

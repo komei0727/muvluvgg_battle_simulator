@@ -5,7 +5,7 @@ import {
   resolveDisplayName,
 } from "./event-presentation.js";
 import type { EventFormatter, EventPresentation } from "./event-presentation.js";
-import type { RosterEntry } from "../summary/summary-projector.js";
+import type { RosterEntry } from "../../entities/roster.js";
 
 function formatterStub(summary: string): EventFormatter {
   return (event): EventPresentation => ({

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { isLevelLinked, isSlotLevelLinked, resolveSlotLevel } from "./level-link.js";
 import { createInitialDraft, createInitialUnitEnhancement, slotKeyOf } from "./types.js";
-import type { FormationSlotInput, SideEnhancementInput, UnitEnhancementInput } from "./types.js";
+import type {
+  FormationSlotInput,
+  SideEnhancementInput,
+  UnitEnhancementInput,
+} from "../../entities/battle-draft.js";
 
 function sideEnhancement(overrides: Partial<SideEnhancementInput> = {}): SideEnhancementInput {
   return { ...createInitialDraft().allyEnhancement, enabled: true, ...overrides };
