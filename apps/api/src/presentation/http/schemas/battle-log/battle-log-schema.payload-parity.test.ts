@@ -196,12 +196,20 @@ type JsonSchemaLike = {
   readonly oneOf?: readonly JsonSchemaLike[];
 };
 
-/** detail schemaが宣言する`required`集合を集める。`oneOf`があれば各branchを個別の要素として返す。 */
+/**
+ * detail schemaが宣言する`required`集合を集める。`oneOf`があれば各branchを個別の
+ * 要素として返すが、JSON Schemaでは`oneOf`と同階層の`required`は選ばれたbranchと
+ * 同時に適用される（`oneOf`が親の`required`を上書きするわけではない）ため、
+ * 親の`required`を各branchへ合成してから返す。
+ */
 function requiredSetsOf(detailsSchema: JsonSchemaLike): readonly ReadonlySet<string>[] {
+  const ownRequired = detailsSchema.required ?? [];
   if (detailsSchema.oneOf !== undefined) {
-    return detailsSchema.oneOf.flatMap((branch) => requiredSetsOf(branch));
+    return detailsSchema.oneOf.flatMap((branch) =>
+      requiredSetsOf(branch).map((branchRequired) => new Set([...ownRequired, ...branchRequired])),
+    );
   }
-  return [new Set(detailsSchema.required ?? [])];
+  return [new Set(ownRequired)];
 }
 
 function collectVariants(docSchema: {
@@ -360,5 +368,28 @@ describe("battle-log event schema ⇄ domain event payload parity (REF-051 / Iss
         payloadBranches,
       ),
     ).toBeDefined();
+  });
+
+  it("API-OPENAPI-041: `requiredSetsOf` folds a `oneOf`'s own sibling `required` into every branch, since JSON Schema applies both simultaneously", () => {
+    // `oneOf`と同階層の`required`は、選ばれたbranchのrequiredと同時に適用される
+    // （`oneOf`が親のrequiredを置き換えるわけではない）。ここを見落とすと、
+    // 親レベルにpayloadへ実在しないkeyを混入させても検出できなくなる。
+    const schemaWithSiblingRequired: JsonSchemaLike = {
+      required: ["notInPayload"],
+      oneOf: [{ required: ["ownerUnitId"] }, { required: ["scope"] }],
+    };
+    expect(requiredSetsOf(schemaWithSiblingRequired)).toEqual([
+      new Set(["notInPayload", "ownerUnitId"]),
+      new Set(["notInPayload", "scope"]),
+    ]);
+
+    // 兄弟`required`が無ければ、これまで通りbranchのrequiredだけを返す。
+    const schemaWithoutSiblingRequired: JsonSchemaLike = {
+      oneOf: [{ required: ["ownerUnitId"] }, { required: ["scope"] }],
+    };
+    expect(requiredSetsOf(schemaWithoutSiblingRequired)).toEqual([
+      new Set(["ownerUnitId"]),
+      new Set(["scope"]),
+    ]);
   });
 });
