@@ -16,6 +16,7 @@ import type {
   BattleSimulationResponse,
   CatalogApiResult,
   FormationStatPreviewApiResult,
+  FormationStatPreviewUnit,
   SimulationApiResult,
 } from "../features/simulation/api-contract.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
@@ -1004,7 +1005,7 @@ describe("BattleSimulatorPage — レベルリンク (UI-CT-075〜081)", () => {
 });
 
 describe("BattleSimulatorPage — 編成ステータスプレビュー (UI-AC-027)", () => {
-  function previewUnit(side: string, maximumHp: number) {
+  function previewUnit(side: "ALLY" | "ENEMY", maximumHp: number): FormationStatPreviewUnit {
     return {
       side,
       unitDefinitionId: "UNIT_A",

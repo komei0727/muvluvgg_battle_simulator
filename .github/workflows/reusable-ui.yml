@@ -33,6 +33,9 @@ jobs:
       - name: UI lint
         run: mise run ui:lint
 
+      - name: UI OpenAPI type generation drift check
+        run: mise run ui:openapi:check
+
       - name: UI unit / component tests with coverage
         run: mise run ui:test:coverage
 

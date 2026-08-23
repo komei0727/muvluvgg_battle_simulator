@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { CatalogUnitSummary } from "../simulation/api-contract.js";
+import type { CatalogUnitSummary, FormationStatPreviewUnit } from "../simulation/api-contract.js";
 import { UnitSlot } from "./UnitSlot.js";
 
 const unit: CatalogUnitSummary = {
@@ -196,7 +196,7 @@ describe("UnitSlot — ユニット強化の起動 (M11, UI-AC-025/026)", () => 
 });
 
 describe("UnitSlot — ステータスプレビュー (UI-CT-038)", () => {
-  const preview = {
+  const preview: FormationStatPreviewUnit = {
     side: "ALLY",
     unitDefinitionId: "UNIT_A",
     formationPosition: { column: 0, row: "FRONT" },

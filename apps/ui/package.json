@@ -19,7 +19,9 @@
     "test:e2e": "playwright test --grep-invert @visual",
     "test:e2e:visual": "playwright test --grep @visual",
     "test:e2e:live": "playwright test --config=playwright.live.config.ts",
-    "assets:sync": "node scripts/sync-character-images.mjs"
+    "assets:sync": "node scripts/sync-character-images.mjs",
+    "openapi:generate": "node scripts/generate-openapi-types.mjs",
+    "openapi:check": "node scripts/check-openapi-types.mjs"
   },
   "dependencies": {
     "react": "19.2.7",
@@ -42,6 +44,8 @@
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-react-refresh": "0.5.3",
     "jsdom": "29.1.1",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.8.4",
     "sharp": "^0.35.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.62.0",
