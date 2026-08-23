@@ -172,7 +172,7 @@ describe("BattleSimulatorPage — formation editing once the catalog is ready", 
     expect(screen.getByText("敵ユニットを1～5体設定してください。")).toBeInTheDocument();
   });
 
-  it("opens the unit selection dialog from an empty slot, focused on the search input (UI-CT-003)", async () => {
+  it("UI-CT-003: opens the unit selection dialog from an empty slot, focused on the search input", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -190,7 +190,7 @@ describe("BattleSimulatorPage — formation editing once the catalog is ready", 
     expect(screen.getByLabelText("ユニットを検索")).toHaveFocus();
   });
 
-  it("selects a unit into the slot, closes the dialog, and returns focus to the slot (UI-CT-004)", async () => {
+  it("UI-CT-113: selects a unit into the slot, closes the dialog, and returns focus to the slot", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -233,7 +233,7 @@ describe("BattleSimulatorPage — formation editing once the catalog is ready", 
     }
   });
 
-  it("blocks a 6th ally unit selection with a capacity notice instead of a state change (UI-CT-007)", async () => {
+  it("UI-CT-007: blocks a 6th ally unit selection with a capacity notice instead of a state change", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -418,7 +418,7 @@ describe("BattleSimulatorPage — battle execution (UI-UC-002)", () => {
     expect(simulateImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("prompts and performs a catalog reload on a DEFINITION_NOT_FOUND failure (UI-API-004)", async () => {
+  it("UI-API-027: prompts and performs a catalog reload on a DEFINITION_NOT_FOUND failure", async () => {
     const user = userEvent.setup();
     const getCatalogImpl = vi
       .fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>()
@@ -791,7 +791,7 @@ describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
     expect(dialog.getByText(/declares no levelGrowth/)).toBeInTheDocument();
   });
 
-  it("UI-CT-033/UI-CMP-014: turning the toggle back off after editing a unit level keeps the submit available and sends no enhancement", async () => {
+  it("UI-CT-115/UI-CMP-030: turning the toggle back off after editing a unit level keeps the submit available and sends no enhancement", async () => {
     const user = userEvent.setup();
     const simulateImpl = vi.fn<
       (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
@@ -1400,7 +1400,7 @@ describe("BattleSimulatorPage — input persistence", () => {
     expect(screen.getByLabelText("現在レベル")).toHaveValue(220);
   });
 
-  it("keeps the saved growth data when the edited slot is swapped with an unedited one (UI-CT-049 × unitMoved)", async () => {
+  it("UI-CT-128: keeps the saved growth data when the edited slot is swapped with an unedited one (× unitMoved)", async () => {
     const user = userEvent.setup();
     renderPage();
     await waitForCatalog();
@@ -1467,7 +1467,7 @@ describe("BattleSimulatorPage — input persistence", () => {
     expect(screen.getByLabelText(/ターン上限/)).toHaveValue(10);
   });
 
-  it("UI-AC-031: ignores a stored draft written by a different schema version", async () => {
+  it("UI-AC-050: ignores a stored draft written by a different schema version", async () => {
     window.localStorage.setItem(
       "mlgg:last-draft",
       JSON.stringify({ schemaVersion: 0, draft: { turnLimit: 77 } }),

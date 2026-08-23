@@ -826,3 +826,9 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-024`: 強化入力を一度も開いていない枠（`enhancement === undefined`）もリンク対象とし、リンクONなら解決済みレベルとギア0件の`enhancement`を出力する。解決済みレベルが200かつギア0件の枠は従来どおり出力しない。
 - `UI-API-025`: リンクレベルが1以上の整数でない場合に`LEVEL_LINK_INVALID`で送信を止め、その間はリンクを適用せず枠の値へフォールバックする（プレビューを陣営ごと落とさない）。リンク中の枠へは`UNIT_LEVEL_INVALID`を出さず、強化トグルOFFの陣営ではリンクを検証しない。
 - `UI-API-026`: 編成ステータスプレビューへも戦闘POSTと同じ解決済みレベルを送る（`UI-API-020`の対応づけを維持する）。
+- `UI-API-027`: 422 `DEFINITION_NOT_FOUND`をCatalog版差異として扱い、Catalogの再読込を促し、再読込操作で一覧APIを取得し直す（§13）。
+- `UI-API-028`: 422 `DEFINITION_NOT_FOUND`のときだけCatalog再読込ボタンを表示し、押下で再読込コールバックを呼ぶ（`UI-API-027`の拡張）。
+- `UI-API-029`: 送信時点の枠マップ（ユニット・メモリー）を実行stateへ保持し、以降の編成変更で再計算しない（`UI-API-004`の拡張）。
+- `UI-API-030`: enhancement配下の422 JSON Pointerのうち`academyLevels`違反を該当フィールドへ対応づけ、slotKeyは付けない（`UI-API-019`の一部）。
+- `UI-API-031`: enhancement配下の422 JSON Pointerのうち`gears[m]`違反を元のギア枠indexへ対応づける（`UI-API-019`の一部）。
+- `UI-API-032`: 強化トグルONの陣営で、ユニットのギア入力から空枠を除外し、残りを元の枠順のまま送る（`UI-API-018`の一部）。

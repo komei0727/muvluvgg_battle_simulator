@@ -139,7 +139,7 @@ describe("useSimulationExecution — submit (UI-UT-EXEC-HOOK-001)", () => {
 });
 
 describe("useSimulationExecution — cancel (UI-UT-EXEC-HOOK-002)", () => {
-  it("aborts the in-flight request and transitions to cancelled synchronously (UI-AC-006)", () => {
+  it("UI-AC-006: aborts the in-flight request and transitions to cancelled synchronously", () => {
     const pending = deferred<SimulationApiResult>();
     const simulateImpl = vi.fn<
       (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>

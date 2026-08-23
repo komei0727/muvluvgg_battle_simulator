@@ -35,7 +35,7 @@ describe("Dialog", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
   });
 
-  it("moves focus to the first focusable element on open (UI-CT-003)", () => {
+  it("UI-CT-114: moves focus to the first focusable element on open", () => {
     render(
       <Dialog titleId="t" title="ユニットを選択" onClose={vi.fn()}>
         <input type="search" aria-label="ユニットを検索" />
@@ -46,7 +46,7 @@ describe("Dialog", () => {
     expect(screen.getByLabelText("ユニットを検索")).toHaveFocus();
   });
 
-  it("closes on Escape (UI-CT-004)", async () => {
+  it("UI-CT-004: closes on Escape", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -60,7 +60,7 @@ describe("Dialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("returns focus to the triggering element after closing (UI-CT-004)", async () => {
+  it("UI-CT-112: returns focus to the triggering element after closing", async () => {
     const user = userEvent.setup();
     render(<Harness onClose={() => {}} />);
 

@@ -31,7 +31,7 @@ describe("Tabs", () => {
     expect(onChange).toHaveBeenCalledWith("transitions");
   });
 
-  it("switches to the next/previous tab with ArrowRight/ArrowLeft, wrapping at the ends (UI-CT-013)", async () => {
+  it("UI-CT-013: switches to the next/previous tab with ArrowRight/ArrowLeft, wrapping at the ends", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Tabs label="戦闘詳細" items={items} activeId="json" onChange={onChange} />);

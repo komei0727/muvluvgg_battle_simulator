@@ -33,7 +33,7 @@ describe("BreakTimeline", () => {
   });
 
   // UI-CT-082 / UI-AC-021: 誰の攻撃でブレイクしたかを列として名指しする。
-  it("names the break source unit in its own labelled column (UI-CT-082)", () => {
+  it("UI-CT-082: names the break source unit in its own labelled column", () => {
     render(
       <BreakTimeline
         breaks={[

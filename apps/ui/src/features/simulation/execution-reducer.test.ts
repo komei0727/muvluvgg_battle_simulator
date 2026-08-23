@@ -154,7 +154,7 @@ describe("executionReducer — submissionSucceeded (UI-UT-EXEC-002)", () => {
     });
   });
 
-  it("ignores a stale executionId (UI-CMP-002)", () => {
+  it("UI-CMP-002: ignores a stale executionId", () => {
     let state = createInitialExecutionState();
     state = executionReducer(state, {
       type: "submissionStarted",
@@ -228,7 +228,7 @@ describe("executionReducer — submissionFailed (UI-UT-EXEC-003)", () => {
     expect(state.previousSuccess?.executionId).toBe("exec-1");
   });
 
-  it("carries forward the submission-time slot map, not a recomputed one (UI-API-004)", () => {
+  it("UI-API-029: carries forward the submission-time slot map, not a recomputed one", () => {
     let state = createInitialExecutionState();
     state = executionReducer(state, {
       type: "submissionStarted",

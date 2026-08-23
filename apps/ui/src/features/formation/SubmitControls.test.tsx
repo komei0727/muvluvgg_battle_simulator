@@ -31,7 +31,7 @@ describe("SubmitControls", () => {
     expect(screen.getByRole("button", { name: "戦闘を開始" })).toBeDisabled();
   });
 
-  it("shows a disabled in-progress button and a cancel button while submitting (UI-UC-002)", async () => {
+  it("UI-UC-002: shows a disabled in-progress button and a cancel button while submitting", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
     render(<SubmitControls canSubmit isSubmitting={true} onSubmit={vi.fn()} onCancel={onCancel} />);

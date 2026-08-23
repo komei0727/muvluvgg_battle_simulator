@@ -38,7 +38,7 @@ const response: BattleSimulationResponse = {
 };
 
 describe("BattleDetailsSection", () => {
-  it("switches between events, transitions, JSON, unit state, and the causality tree within a single page (UI-AC-010)", async () => {
+  it("UI-AC-010: switches between events, transitions, JSON, unit state, and the causality tree within a single page", async () => {
     const user = userEvent.setup();
     render(<BattleDetailsSection response={response} logLevel="DETAILED" />);
 

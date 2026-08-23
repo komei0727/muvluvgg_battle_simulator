@@ -76,7 +76,7 @@ describe("EventTimeline", () => {
     expect(screen.getByText(/"hitPointDamage": 200/)).toBeInTheDocument();
   });
 
-  it("renders an unknown event type as a generic row without crashing (UI-CT-014)", () => {
+  it("UI-CT-014: renders an unknown event type as a generic row without crashing", () => {
     const events = [baseEvent({ sequence: 1, type: "SOME_FUTURE_EVENT", details: { odd: true } })];
 
     render(<EventTimeline events={events} roster={rosterIndex} />);
@@ -84,7 +84,7 @@ describe("EventTimeline", () => {
     expect(screen.getByRole("button", { name: /SOME_FUTURE_EVENT/ })).toBeInTheDocument();
   });
 
-  it("shows only the first 50 events initially and reveals more without silently truncating (UI-CMP-006)", async () => {
+  it("UI-CMP-006: shows only the first 50 events initially and reveals more without silently truncating", async () => {
     const user = userEvent.setup();
     const events = Array.from({ length: 55 }, (_, index) =>
       baseEvent({ sequence: index + 1, type: "TURN_STARTED", details: { turnNumber: 1 } }),

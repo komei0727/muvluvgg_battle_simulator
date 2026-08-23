@@ -66,7 +66,7 @@ function lifecycleEnd(overrides: Record<string, unknown>): Record<string, unknow
 }
 
 describe("projectEffectTrace", () => {
-  it("follows one instance from grant through consumption to expiry, attributing the consumer to the skill user (UI-UT-TRC-001)", () => {
+  it("UI-UT-TRC-001: follows one instance from grant through consumption to expiry, attributing the consumer to the skill user", () => {
     const events = [
       event({
         sequence: 10,
@@ -152,7 +152,7 @@ describe("projectEffectTrace", () => {
     ]);
   });
 
-  it("reports an instance removed under a UNIT_BROKEN ancestor as a break removal even when the reason vocabulary cannot say so (UI-UT-TRC-002)", () => {
+  it("UI-UT-TRC-002: reports an instance removed under a UNIT_BROKEN ancestor as a break removal even when the reason vocabulary cannot say so", () => {
     const events = [
       event({ sequence: 5, type: "EFFECT_APPLIED", turnNumber: 1, details: applied({}) }),
       event({ sequence: 30, type: "DAMAGE_APPLIED", turnNumber: 3, sourceUnitId: ATTACKER }),
@@ -186,7 +186,7 @@ describe("projectEffectTrace", () => {
     });
   });
 
-  it("separates an unused expiry of a consumable effect from the ordinary end of an effect that never had a consumption condition (UI-UT-TRC-003)", () => {
+  it("UI-UT-TRC-003: separates an unused expiry of a consumable effect from the ordinary end of an effect that never had a consumption condition", () => {
     const events = [
       event({
         sequence: 5,
@@ -241,7 +241,7 @@ describe("projectEffectTrace", () => {
   // `TIME_LIMIT`で終わり得る（本番Catalogでは`ACT_KATE_PALADIN_AS2_SELF_EVASION`が
   // `INCOMING_HIT maxCount:2`に対し寿命`ACTION 1`であり、これが普通の終わり方になる）。
   // 消費回数の有無だけで「消費された」と判定すると、この残量ロスが成功扱いに隠れる。
-  it("distinguishes running out of consumption from timing out with consumption left (UI-UT-TRC-009)", () => {
+  it("UI-UT-TRC-009: distinguishes running out of consumption from timing out with consumption left", () => {
     const events = [
       event({
         sequence: 5,
@@ -318,7 +318,7 @@ describe("projectEffectTrace", () => {
   });
 
   // 消費イベントが公開レベルで間引かれても、`EffectExpired.reason`が使い切りの正本である。
-  it("trusts the CONSUMPTION expiry reason even when no consumption event is visible (UI-UT-TRC-010)", () => {
+  it("UI-UT-TRC-010: trusts the CONSUMPTION expiry reason even when no consumption event is visible", () => {
     const events = [
       event({
         sequence: 5,
@@ -337,7 +337,7 @@ describe("projectEffectTrace", () => {
     expect(projectEffectTrace(events).instances[0]).toMatchObject({ outcome: "CONSUMED" });
   });
 
-  it("leaves an instance still held at the end of the battle open instead of inventing an end (UI-UT-TRC-004)", () => {
+  it("UI-UT-TRC-004: leaves an instance still held at the end of the battle open instead of inventing an end", () => {
     const events = [
       event({ sequence: 5, type: "EFFECT_APPLIED", turnNumber: 2, details: applied({}) }),
       event({ sequence: 60, type: "BATTLE_COMPLETED", turnNumber: 5 }),
@@ -352,7 +352,7 @@ describe("projectEffectTrace", () => {
     expect(trace.turnNumbers).toEqual([2, 3, 4, 5]);
   });
 
-  it("leaves the consumer unattributed when the consuming chain has no source unit (R-MEM-04, UI-UT-TRC-005)", () => {
+  it("UI-UT-TRC-005: leaves the consumer unattributed when the consuming chain has no source unit (R-MEM-04)", () => {
     const events = [
       event({ sequence: 5, type: "EFFECT_APPLIED", turnNumber: 1, details: applied({}) }),
       event({ sequence: 20, type: "MEMORY_TRIGGERED", turnNumber: 2, sourceSide: "ALLY" }),
@@ -377,7 +377,7 @@ describe("projectEffectTrace", () => {
     expect(instance.consumptions[0]?.consumerUnitId).toBeUndefined();
   });
 
-  it("tracks two instances of the same effectActionDefinitionId independently (UI-UT-TRC-006)", () => {
+  it("UI-UT-TRC-006: tracks two instances of the same effectActionDefinitionId independently", () => {
     const events = [
       event({
         sequence: 5,
@@ -410,7 +410,7 @@ describe("projectEffectTrace", () => {
     ]);
   });
 
-  it("lists every effectActionDefinitionId that appeared, so the selection layer never needs a hard-coded table (UI-UT-TRC-007)", () => {
+  it("UI-UT-TRC-007: lists every effectActionDefinitionId that appeared, so the selection layer never needs a hard-coded table", () => {
     const events = [
       event({ sequence: 5, type: "EFFECT_APPLIED", turnNumber: 1, details: applied({}) }),
       event({
@@ -430,7 +430,7 @@ describe("projectEffectTrace", () => {
     expect(projectEffectTrace(events).effectActionDefinitionIds).toEqual(["ACT_A", "ACT_X"]);
   });
 
-  it("keeps a grant whose end event arrives before it in sequence order out of the way, and ignores malformed details (UI-UT-TRC-008)", () => {
+  it("UI-UT-TRC-008: keeps a grant whose end event arrives before it in sequence order out of the way, and ignores malformed details", () => {
     const events = [
       event({ sequence: 9, type: "EFFECT_APPLIED", turnNumber: 1, details: { broken: true } }),
       event({
@@ -453,7 +453,7 @@ describe("projectEffectTrace resolution start", () => {
   // 順位セレクタの対象決定はスキル解決の**起点**で1度だけ行われ、以降のstepは同じbindingを
   // 使い回す。付与ごとの時点で候補を比べると、同じ解決の前段が起こしたバフを織り込んで
   // しまい、実際とは違う順位になる（実測: エレーナEXのDMGUP_LOWが6件中0件しか一致しない）。
-  it("carries the first sequence of the skill use that applied the effect (UI-UT-TRC-011)", () => {
+  it("UI-UT-TRC-011: carries the first sequence of the skill use that applied the effect", () => {
     const events = [
       event({
         sequence: 10,

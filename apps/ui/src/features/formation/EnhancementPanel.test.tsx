@@ -52,7 +52,7 @@ function renderPanel(
 }
 
 describe("EnhancementPanel (UI-CMP-014)", () => {
-  it("UI-CT-034: shows all nine academy level inputs — three unit types and six attributes", () => {
+  it("UI-CT-116: shows all nine academy level inputs — three unit types and six attributes", () => {
     renderPanel();
 
     for (const label of ["物理", "EN", "敏捷"]) {
@@ -106,7 +106,7 @@ describe("EnhancementPanel (UI-CMP-014)", () => {
     expect(onAcademyLevelChange).toHaveBeenLastCalledWith("attributes", "CLEVER", "");
   });
 
-  it("UI-CT-034/UI-CT-037: shows the violation of one academy level on that input only", () => {
+  it("UI-CT-117: shows the violation of one academy level on that input only", () => {
     renderPanel({
       violations: [
         {

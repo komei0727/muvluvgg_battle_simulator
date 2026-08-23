@@ -629,7 +629,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
     });
   });
 
-  it("UI-CMP-014: keeps a submit valid after the toggle goes back off, even though the edited unit enhancement is still in the draft", () => {
+  it("UI-CMP-016: keeps a submit valid after the toggle goes back off, even though the edited unit enhancement is still in the draft", () => {
     // トグルOFFへ戻しても入力値はdraftへ保持し、送信対象からだけ外す
     // （request-mapperがOFF側のユニット強化を出力しない）。保持しているだけの
     // 値で送信を止めてはならない。
@@ -654,7 +654,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
     expect(validateDraft(draft, catalog)).toEqual([]);
   });
 
-  it("UI-CMP-014: does not validate a retained unit level that is blank while the side's toggle is off", () => {
+  it("UI-CMP-029: does not validate a retained unit level that is blank while the side's toggle is off", () => {
     const base = draftWithAllyCount(1);
     const slotKey = slotKeyOf("ally", "FRONT", 0);
     const draft: BattleDraft = {

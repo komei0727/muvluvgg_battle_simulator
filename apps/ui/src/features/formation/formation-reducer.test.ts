@@ -291,7 +291,7 @@ describe("formationReducer — 強化入力 (M11)", () => {
     expect(state.draft.enemyEnhancement.academyLevels.attributes.AGGRESSIVE).toBe(1);
   });
 
-  it("keeps the enhancement inputs when the toggle goes back off (UI-CMP-014)", () => {
+  it("UI-CMP-014: keeps the enhancement inputs when the toggle goes back off", () => {
     let state = formationReducer(createInitialFormationState(), {
       type: "enhancementToggled",
       side: "ally",
@@ -356,7 +356,7 @@ describe("formationReducer — 強化入力 (M11)", () => {
     ).toBe(initial);
   });
 
-  it("ignores opening the unit enhancement dialog while that side's toggle is off (UI-CMP-015)", () => {
+  it("UI-CMP-015: ignores opening the unit enhancement dialog while that side's toggle is off", () => {
     const initial = createInitialFormationState();
     const blocked = formationReducer(initial, {
       type: "selectionOpened",
@@ -597,7 +597,7 @@ describe("formationReducer — レベルリンク (UI-AC-035/036)", () => {
     expect(off.draft.allySlots[0]?.enhancement?.level).toBe(180);
   });
 
-  it("seeds the slot level with the link level when the slot is excluded (UI-AC-036)", () => {
+  it("UI-AC-036: seeds the slot level with the link level when the slot is excluded", () => {
     const next = formationReducer(linkedState(), {
       type: "unitLinkExclusionChanged",
       slotKey: allySlotKey,

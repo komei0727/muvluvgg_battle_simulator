@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { collectTestCaseDefinitionsFromSource } from "./test-case-definitions.js";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  collectTestCaseDefinitions,
+  collectTestCaseDefinitionsFromSource,
+} from "./test-case-definitions.js";
 
 /**
  * `collectTestCaseDefinitionsFromSource` は「実行対象のテストだけをテストケースIDの
@@ -308,5 +314,76 @@ describe("test case definition collector", () => {
       "int-app-pattern.test.ts",
     );
     expect(intAppPatternDefinitions.map(([id]) => id)).toEqual(["INT-TRACE-001", "APP-TRACE-001"]);
+
+    // A `.tsx` file's helper functions commonly render JSX with a
+    // destructured-default parameter and a trailing `return`. Parsing it
+    // under `ScriptKind.TS` (JSX disabled) misreads the `<Tag>` as a
+    // type-assertion expression; the resulting parse desync can silently
+    // swallow every later `it()` in the file, not just the malformed
+    // statement, so the source's own `ts.ScriptKind` must track its
+    // extension (verified against this exact shape, reduced from a real
+    // failure on `UnitEnhancementDialog.test.tsx` where it hid all 6
+    // `it()` definitions).
+    const tsxDefinitions = collectTestCaseDefinitionsFromSource(
+      `
+        import { render } from "@testing-library/react";
+        import { it, vi } from "vitest";
+
+        function renderDialog(overrides = {}) {
+          const onLevelChange = overrides.onLevelChange ?? vi.fn();
+          render(
+            <UnitEnhancementDialog
+              unitDisplayName="alpha"
+              {...(overrides.gearEffects !== undefined ? { gearEffects: overrides.gearEffects } : {})}
+              sideEnhancement={{
+                ...createInitialDraft().allyEnhancement,
+                enabled: true,
+              }}
+              onLevelChange={onLevelChange}
+            />,
+          );
+          return { onLevelChange };
+        }
+
+        it("UI-CT-001: opens on the unit", () => {
+          const x = 1;
+        });
+      `,
+      "UnitEnhancementDialog.test.tsx",
+      /\bUI-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g,
+    );
+    expect(tsxDefinitions.map(([id]) => id)).toEqual(["UI-CT-001"]);
+  });
+
+  describe("collectTestCaseDefinitions directory walk", () => {
+    let dir: string;
+
+    afterEach(() => {
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("UT-TESTDEFS-002: scans both .test.ts and .test.tsx files, and ignores non-test files", () => {
+      dir = mkdtempSync(join(tmpdir(), "test-case-definitions-"));
+      writeFileSync(
+        join(dir, "logic.test.ts"),
+        'import { it } from "vitest";\nit("UI-UT-VAL-001: a .test.ts file is scanned", () => {});\n',
+      );
+      writeFileSync(
+        join(dir, "Component.test.tsx"),
+        'import { it } from "vitest";\nit("UI-CT-001: a .test.tsx file is scanned", () => { const el = <div />; });\n',
+      );
+      writeFileSync(
+        join(dir, "helpers.ts"),
+        'import { it } from "vitest";\nit("UI-CT-999: a non-test file is not scanned", () => {});\n',
+      );
+
+      const definitions = collectTestCaseDefinitions(
+        dir,
+        undefined,
+        /\bUI-[A-Z0-9]+(?:-[A-Z0-9]+)+\b/g,
+      );
+
+      expect([...definitions.keys()].sort()).toEqual(["UI-CT-001", "UI-UT-VAL-001"]);
+    });
   });
 });

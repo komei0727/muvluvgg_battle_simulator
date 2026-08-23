@@ -73,7 +73,7 @@ const GEAR_EFFECTS: readonly CatalogGearEffect[] = [
 ];
 
 describe("UnitEnhancementDialog (UI-CMP-015)", () => {
-  it("UI-CT-035: opens on the unit with a level input defaulted to 200 and nine gear slots", () => {
+  it("UI-CT-120: opens on the unit with a level input defaulted to 200 and nine gear slots", () => {
     renderDialog();
 
     expect(screen.getByRole("dialog", { name: /アルファ/ })).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(screen.getAllByLabelText(/ギア\d のランク/)).toHaveLength(9);
   });
 
-  it("UI-CT-035: reports the edited level", async () => {
+  it("UI-CT-121: reports the edited level", async () => {
     const user = userEvent.setup();
     const { onLevelChange } = renderDialog();
 
@@ -92,7 +92,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(onLevelChange).toHaveBeenLastCalledWith("");
   });
 
-  it("UI-CT-035: completes a gear slot only once stat, tier and grade are all chosen", async () => {
+  it("UI-CT-122: completes a gear slot only once stat, tier and grade are all chosen", async () => {
     const user = userEvent.setup();
     const { onGearChange } = renderDialog();
 
@@ -102,7 +102,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(onGearChange).toHaveBeenLastCalledWith(0, undefined);
   });
 
-  it("UI-CT-035: reports a fully specified gear, and clears it when the stat is emptied", async () => {
+  it("UI-CT-123: reports a fully specified gear, and clears it when the stat is emptied", async () => {
     const user = userEvent.setup();
     const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
     const { onGearChange } = renderDialog({
@@ -122,7 +122,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(onGearChange).toHaveBeenLastCalledWith(0, undefined);
   });
 
-  it("UI-CT-035: allows the same stat in more than one gear slot", async () => {
+  it("UI-CT-124: allows the same stat in more than one gear slot", async () => {
     const user = userEvent.setup();
     const gear: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
     const { onGearChange } = renderDialog({
@@ -160,7 +160,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(within(empty).getByRole("option", { name: "防御力" })).toBeInTheDocument();
   });
 
-  it("UI-CT-092: keeps the editing slot's own stat selectable so its tier and rank stay editable", async () => {
+  it("UI-CT-125: keeps the editing slot's own stat selectable so its tier and rank stay editable", async () => {
     const user = userEvent.setup();
     const attack: GearInput = { stat: "ATTACK", tier: "III", grade: "S" };
     const { onGearChange } = renderDialog({
@@ -227,7 +227,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(stat.getAttribute("aria-describedby")?.split(" ")).toContain(warning.id);
   });
 
-  it("UI-CT-037: shows a server level violation on the level input", () => {
+  it("UI-CT-118: shows a server level violation on the level input", () => {
     renderDialog({
       violations: [
         {
@@ -244,7 +244,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(screen.getByText(/declares no levelGrowth/)).toBeInTheDocument();
   });
 
-  it("UI-CT-037: shows a server gear violation on the gear slot it came from, not on the sent array index", () => {
+  it("UI-CT-119: shows a server gear violation on the gear slot it came from, not on the sent array index", () => {
     renderDialog({
       violations: [
         {
@@ -308,7 +308,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(grade.getByRole("option", { name: "S（+3.33%）" })).toBeInTheDocument();
   });
 
-  it("UI-CT-041: distinguishes a point addition from a ratio correction in the notation (R-ENH-06)", () => {
+  it("UI-CT-126: distinguishes a point addition from a ratio correction in the notation (R-ENH-06)", () => {
     const gear: GearInput = { stat: "CRITICAL_RATE", tier: "III", grade: "S" };
     renderDialog({
       gearEffects: GEAR_EFFECTS,
@@ -354,7 +354,7 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(screen.queryByText(/%pt/)).not.toBeInTheDocument();
   });
 
-  it("UI-CT-043: falls back to plain names for a stat the published table does not cover", () => {
+  it("UI-CT-127: falls back to plain names for a stat the published table does not cover", () => {
     const gear: GearInput = { stat: "DEFENSE", tier: "III", grade: "S" };
     renderDialog({
       gearEffects: GEAR_EFFECTS,

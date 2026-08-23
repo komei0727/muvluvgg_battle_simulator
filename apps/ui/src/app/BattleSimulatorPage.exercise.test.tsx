@@ -863,7 +863,7 @@ describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-083/084)
     expect(screen.getByRole("button", { name: "戦術演習を開始" })).toBeEnabled();
   });
 
-  it("UI-CT-084: shows the run count violation on the run count input", async () => {
+  it("UI-CT-110: shows the run count violation on the run count input", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage
@@ -882,7 +882,7 @@ describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-083/084)
     expect(screen.getAllByText(/実行回数は1～2,000の整数/).length).toBeGreaterThan(0);
   });
 
-  it("UI-CT-083: keeps the exercise execution input out of the battle mode draft", async () => {
+  it("UI-CT-109: keeps the exercise execution input out of the battle mode draft", async () => {
     const user = userEvent.setup();
     render(
       <BattleSimulatorPage

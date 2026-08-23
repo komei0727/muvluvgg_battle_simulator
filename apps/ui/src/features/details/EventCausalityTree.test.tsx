@@ -110,7 +110,7 @@ describe("EventCausalityTree", () => {
     expect(screen.getAllByRole("button", { name: /TURN_STARTED/ })).toHaveLength(60);
   });
 
-  it("renders an unknown future event type without crashing (UI-AC-011)", () => {
+  it("UI-AC-011: renders an unknown future event type without crashing", () => {
     const events = [baseEvent({ sequence: 1, type: "SOME_FUTURE_EVENT", details: { odd: true } })];
 
     render(<EventCausalityTree events={events} roster={rosterIndex} />);

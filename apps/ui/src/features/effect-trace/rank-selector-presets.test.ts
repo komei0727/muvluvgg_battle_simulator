@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rankSelectorSpecOf } from "./rank-selector-presets.js";
 
 describe("rankSelectorSpecOf", () => {
-  it("maps a single-winner rank selector to its comparison axis (UI-UT-RSP-001)", () => {
+  it("UI-UT-RSP-001: maps a single-winner rank selector to its comparison axis", () => {
     expect(rankSelectorSpecOf("ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH")).toEqual({
       orderKey: "HIGHEST_ATTACK",
       field: "attack",
@@ -15,7 +15,7 @@ describe("rankSelectorSpecOf", () => {
     });
   });
 
-  it("has no entry for an effect no rank selector chooses (UI-UT-RSP-002)", () => {
+  it("UI-UT-RSP-002: has no entry for an effect no rank selector chooses", () => {
     expect(rankSelectorSpecOf("ACT_SUIRAN_CHAOS_AS1_DEBUFF")).toBeUndefined();
     expect(rankSelectorSpecOf("ACT_NOT_IN_ANY_CATALOG")).toBeUndefined();
   });
@@ -29,12 +29,12 @@ describe("rankSelectorSpecOf", () => {
    * `count: 1`の経路だけを見て表へ載せると、3体へ正当に付与された場合に2件が
    * 「復元した1位と一致しません」になる（付与を見ただけではどちらの経路か分からないため）。
    */
-  it("has no entry for an effect that a multi-target selector can also apply (UI-UT-RSP-003)", () => {
+  it("UI-UT-RSP-003: has no entry for an effect that a multi-target selector can also apply", () => {
     expect(rankSelectorSpecOf("ACT_SUIRAN_CASINO_AS1_DAMAGE")).toBeUndefined();
   });
 
   /** 複数の順位キーから到達する効果も、どちらで選ばれたか逆算できないので載せない。 */
-  it("has no entry for an effect reachable from two different rank keys (UI-UT-RSP-004)", () => {
+  it("UI-UT-RSP-004: has no entry for an effect reachable from two different rank keys", () => {
     expect(rankSelectorSpecOf("ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE")).toBeUndefined();
   });
 });

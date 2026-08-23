@@ -322,7 +322,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     expect(result.request.enemyFormation).not.toHaveProperty("enhancement");
   });
 
-  it("UI-API-018: drops empty gear slots and keeps the remaining gears in slot order", () => {
+  it("UI-API-032: drops empty gear slots and keeps the remaining gears in slot order", () => {
     let draft = enabledSide(baseDraft(), "ally");
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 220,
