@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useFormationStatPreview } from "./use-formation-stat-preview.js";
 import { createInitialDraft, slotKeyOf } from "./types.js";
-import type { BattleDraft, Side, UiColumn, UiRow } from "./types.js";
+import type { BattleDraft, Side, UiColumn, UiRow } from "../../entities/battle-draft.js";
 import type {
   FormationStatPreviewApiResult,
   FormationStatPreviewUnit,

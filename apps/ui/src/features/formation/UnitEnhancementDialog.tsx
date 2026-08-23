@@ -1,6 +1,15 @@
 import { useId, useState } from "react";
 import { Dialog } from "../../components/Dialog.js";
-import type { UiViolation } from "./draft-validation.js";
+import type {
+  GearGrade,
+  GearInput,
+  GearStat,
+  GearTier,
+  SideEnhancementInput,
+  UnitEnhancementInput,
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
+import type { CatalogGearEffect } from "../../shared/api/api-contract.js";
 import {
   GEAR_GRADES,
   GEAR_STAT_LABELS,
@@ -10,15 +19,7 @@ import {
   gearStatCounts,
 } from "./types.js";
 import { isLevelLinked } from "./level-link.js";
-import type {
-  GearGrade,
-  GearInput,
-  GearStat,
-  GearTier,
-  SideEnhancementInput,
-  UnitEnhancementInput,
-} from "./types.js";
-import type { CatalogGearEffect } from "../../shared/api/api-contract.js";
+
 import styles from "./UnitEnhancementDialog.module.css";
 
 export interface UnitEnhancementDialogProps {

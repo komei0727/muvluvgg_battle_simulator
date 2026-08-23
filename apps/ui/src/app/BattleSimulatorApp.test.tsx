@@ -5,11 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { GetCatalogOptions, SimulateOptions } from "../shared/api/api-client.js";
 import type {
   BattleSimulationCatalogResponse,
+  BattleSimulationRequest,
   CatalogApiResult,
   SimulationApiResult,
 } from "../shared/api/api-contract.js";
 import { BattleSimulatorApp } from "./BattleSimulatorApp.js";
-import type { BattleSimulationRequest } from "../features/formation/request-mapper.js";
 
 /**
  * 既定モードは戦術演習（`UI-AC-018`）。ここで見るのは通常戦闘モードの配線なので、

@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { buildFormationStatPreviewRequest } from "./request-mapper.js";
-import type { FormationStatPreviewMode, FormationStatPreviewRequest } from "./request-mapper.js";
-import type { BattleDraft } from "./types.js";
+import type { BattleDraft } from "../../entities/battle-draft.js";
+import type {
+  FormationStatPreviewMode,
+  FormationStatPreviewRequest,
+  FormationStatPreviewUnit,
+} from "../../shared/api/api-contract.js";
+
 import { previewFormationStats as defaultPreviewFormationStats } from "../../shared/api/api-client.js";
-import type { FormationStatPreviewUnit } from "../../shared/api/api-contract.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §4「ステータスプレビュー状態」.
 export type FormationStatPreviewState =

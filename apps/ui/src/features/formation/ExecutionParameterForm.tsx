@@ -1,7 +1,11 @@
 import { useId } from "react";
-import type { UiViolation } from "./draft-validation.js";
+import type {
+  ExerciseExecutionInput,
+  ExerciseExecutionMode,
+  LogLevel,
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 import { MAX_EXERCISE_RUN_COUNT, MIN_EXERCISE_RUN_COUNT } from "./types.js";
-import type { ExerciseExecutionInput, ExerciseExecutionMode, LogLevel } from "./types.js";
 import styles from "./ExecutionParameterForm.module.css";
 
 /**

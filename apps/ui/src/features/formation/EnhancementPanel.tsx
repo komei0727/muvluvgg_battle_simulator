@@ -1,12 +1,12 @@
 import { useId } from "react";
-import type { UiViolation } from "./draft-validation.js";
-import { ENHANCEMENT_ATTRIBUTES, ENHANCEMENT_UNIT_TYPES } from "./types.js";
 import type {
   EnhancementAttribute,
   EnhancementUnitType,
   Side,
   SideEnhancementInput,
-} from "./types.js";
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
+import { ENHANCEMENT_ATTRIBUTES, ENHANCEMENT_UNIT_TYPES } from "./types.js";
 import styles from "./EnhancementPanel.module.css";
 
 export interface EnhancementPanelProps {

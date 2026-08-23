@@ -4,7 +4,14 @@ import { Panel } from "../components/Panel.js";
 import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
 import { BreakTimeline } from "../features/exercise/BreakTimeline.js";
 import { ExerciseEnemyFormation } from "../features/exercise/ExerciseEnemyFormation.js";
-import { EXERCISE_TURN_LIMIT } from "../features/exercise/exercise-draft-validation.js";
+import type { Side } from "../entities/battle-draft.js";
+import type { BattleMode } from "../entities/battle-mode.js";
+import { EXERCISE_TURN_LIMIT } from "../entities/tactical-exercise.js";
+import type {
+  BattleSimulationCatalogResponse,
+  TacticalExerciseRequest,
+  TacticalExerciseResponse,
+} from "../shared/api/api-contract.js";
 import { validateExerciseDraft } from "../features/exercise/exercise-draft-validation.js";
 import { buildTacticalExerciseRequest } from "../features/exercise/exercise-request-mapper.js";
 import {
@@ -20,7 +27,6 @@ import {
 } from "../features/exercise/exercise-request-mapper.js";
 import { useExerciseStatisticsRun } from "../features/exercise/use-exercise-statistics-run.js";
 import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
-import type { BattleMode } from "../features/exercise/ModeTabs.js";
 import { ScoreSummaryHeader } from "../features/exercise/ScoreSummaryHeader.js";
 import { ExerciseStatisticsSummary } from "../features/exercise-stats/ExerciseStatisticsSummary.js";
 import { UnitStatisticsSection } from "../features/exercise-stats/UnitStatisticsSection.js";
@@ -55,7 +61,6 @@ import {
   memorySlotsForSide,
   slotsForSide,
 } from "../features/formation/types.js";
-import type { Side } from "../features/formation/types.js";
 import { ValidationSummary } from "../features/formation/ValidationSummary.js";
 import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
@@ -71,11 +76,7 @@ import { useSimulationExecution } from "../features/simulation/use-simulation-ex
 import { BattleSummarySection } from "../features/summary/BattleSummarySection.js";
 import { describeBattleResult } from "../features/summary/summary-projector.js";
 import { OutcomeStrip } from "../features/summary/OutcomeStrip.js";
-import type { TacticalExerciseRequest } from "../features/exercise/exercise-request-mapper.js";
-import type {
-  BattleSimulationCatalogResponse,
-  TacticalExerciseResponse,
-} from "../shared/api/api-contract.js";
+
 import { SelectionDialogs } from "./SelectionDialogs.js";
 import { useBattleSimulatorViewModel } from "./use-battle-simulator-view-model.js";
 

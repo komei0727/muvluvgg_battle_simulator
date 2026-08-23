@@ -1,6 +1,6 @@
 // 腐敗防止層（Anti-Corruption Layer）。サーバーのレスポンスをTypeScript型だけで
 // 信頼せず、契約違反ならUI表示より前に RESPONSE_CONTRACT_MISMATCH として落とす。
-
+import { EXERCISE_TURN_LIMIT } from "../../entities/tactical-exercise.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
@@ -12,7 +12,6 @@ import type {
   UiApiError,
 } from "./api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
-import { EXERCISE_TURN_LIMIT } from "../../features/exercise/exercise-draft-validation.js";
 
 // docs/ui-design/03_API・データ連携設計.md §8: 一覧レスポンスの検証.
 // 契約違反時は編成を有効にせず RESPONSE_CONTRACT_MISMATCH を返す。

@@ -8,7 +8,6 @@
 // この module は変わらない。
 //
 // APIの契約は変更していない。`DETAILED`ログが返すイベントのエンベロープと`details`だけを読む。
-
 import { isRecord, numberOf, stringOf } from "../../lib/unknown-narrowing.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 

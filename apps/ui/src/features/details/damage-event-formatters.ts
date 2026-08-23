@@ -13,7 +13,6 @@
 // domain-event.ts（意味）。`reason`/`damageType`/`continuousDamageKind`のような
 // 列挙値は 03_API・データ連携設計.md §12 のとおり翻訳せずそのまま出す
 // （UI側で列挙値の部分集合を持つとDomainの分類と黙って乖離するため）。
-
 import { resolveDisplayName } from "./event-presentation.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";

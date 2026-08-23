@@ -1,7 +1,6 @@
 // Mirrors docs/ui-design/04_コンポーネント・状態管理設計.md §4-5, scoped to the
 // draft/selection-dialog slice. Catalog load state and execution state are
 // separate slices (catalog-loader.ts / execution-reducer.ts).
-
 import { isSlotLevelLinked } from "./level-link.js";
 import {
   createInitialDraft,
@@ -18,11 +17,11 @@ import type {
   GearInput,
   LevelLinkInput,
   LogLevel,
-  PlayerSideEnhancement,
   Side,
   SideEnhancementInput,
   UnitEnhancementInput,
-} from "./types.js";
+} from "../../entities/battle-draft.js";
+import type { PlayerSideEnhancement } from "./types.js";
 
 export const MAX_UNITS_PER_SIDE = 5;
 

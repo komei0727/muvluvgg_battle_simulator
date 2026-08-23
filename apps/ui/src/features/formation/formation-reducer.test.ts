@@ -10,8 +10,8 @@ import {
   memorySlotKeyOf,
   slotKeyOf,
 } from "./types.js";
+import type { UnitEnhancementInput } from "../../entities/battle-draft.js";
 import type { FormationState } from "./formation-reducer.js";
-import type { UnitEnhancementInput } from "./types.js";
 
 function fillAllySlots(state: FormationState, count: number): FormationState {
   let next = state;

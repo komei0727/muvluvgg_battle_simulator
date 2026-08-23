@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { selectUnitActionStates } from "./action-state-projector.js";
-import type { RosterEntry } from "../summary/summary-projector.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type {
   BattleLogEventResponse,
   BattleSimulationResponse,

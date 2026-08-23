@@ -3,6 +3,13 @@ import {
   buildTacticalExerciseEvaluationRequest,
   evaluationFormationSignature,
 } from "./exercise-request-mapper.js";
+import type { BattleDraft } from "../../entities/battle-draft.js";
+import type {
+  TacticalExerciseEvaluationApiResult,
+  TacticalExerciseEvaluationRequest,
+  UiApiError,
+  ViolationResponseBody,
+} from "../../shared/api/api-contract.js";
 import {
   EVALUATION_CHUNK_SIZE,
   generateEvaluationSeed,
@@ -14,16 +21,9 @@ import type {
   EvaluationChunkResult,
   EvaluationMergeResult,
 } from "./evaluation-chunk-plan.js";
-import type { TacticalExerciseEvaluationRequest } from "./exercise-request-mapper.js";
 import { evaluateTacticalExercise as defaultEvaluate } from "../../shared/api/api-client.js";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
 import { ERROR_KIND_GUIDANCE } from "../simulation/error-guidance.js";
-import type {
-  TacticalExerciseEvaluationApiResult,
-  UiApiError,
-  ViolationResponseBody,
-} from "../../shared/api/api-contract.js";
-import type { BattleDraft } from "../formation/types.js";
 
 // 統計実行の実行経路。指定回数を評価APIの1リクエスト上限（`EVALUATION_CHUNK_SIZE`）へ
 // 割り、1リクエストずつ直列に送る。同時に複数投げないのは、サーバーが1リクエストを

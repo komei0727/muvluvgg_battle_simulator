@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import type { UiViolation } from "./draft-validation.js";
+import type { FormationSlotInput, UiColumn, UiRow } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type {
   BattleSimulationCatalogResponse,
   FormationStatPreviewUnit,
 } from "../../shared/api/api-contract.js";
-import type { FormationSlotInput, UiColumn, UiRow } from "./types.js";
+
 import { UnitSlot } from "./UnitSlot.js";
 import styles from "./FormationGrid.module.css";
 

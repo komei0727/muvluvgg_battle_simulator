@@ -1,9 +1,13 @@
 import type {
+  BattleSimulationRequest,
   CatalogApiResult,
   FormationStatPreviewApiResult,
+  FormationStatPreviewRequest,
   SimulationApiResult,
   TacticalExerciseApiResult,
   TacticalExerciseEvaluationApiResult,
+  TacticalExerciseEvaluationRequest,
+  TacticalExerciseRequest,
   UiApiError,
 } from "./api-contract.js";
 import {
@@ -18,14 +22,6 @@ import {
   validateTacticalExerciseEvaluationResponse,
   validateTacticalExerciseResponse,
 } from "./response-validator.js";
-import type {
-  TacticalExerciseEvaluationRequest,
-  TacticalExerciseRequest,
-} from "../../features/exercise/exercise-request-mapper.js";
-import type {
-  BattleSimulationRequest,
-  FormationStatPreviewRequest,
-} from "../../features/formation/request-mapper.js";
 
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 // docs/ui-design/03_API・データ連携設計.md §7: 「一覧GETには10秒のUI待機上限を

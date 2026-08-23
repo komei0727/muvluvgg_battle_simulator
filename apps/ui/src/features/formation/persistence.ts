@@ -6,7 +6,6 @@
 //
 // ここは純関数だけを置く。localStorageへの読み書きは `lib/storage.ts`、
 // stateの持ち回りは `use-formation-persistence.ts` が担う。
-
 import { isRecord, stringOf } from "../../lib/unknown-narrowing.js";
 import {
   DEFAULT_UNIT_LEVEL,
@@ -29,11 +28,11 @@ import type {
   GearInput,
   LevelLinkInput,
   LogLevel,
-  PlayerSideEnhancement,
   SideEnhancementInput,
   UnitEnhancementInput,
-} from "./types.js";
-import type { UiViolation } from "./draft-validation.js";
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
+import type { PlayerSideEnhancement } from "./types.js";
 
 export const PLAYER_DATA_STORAGE_KEY = "mlgg:player-data";
 export const LAST_DRAFT_STORAGE_KEY = "mlgg:last-draft";

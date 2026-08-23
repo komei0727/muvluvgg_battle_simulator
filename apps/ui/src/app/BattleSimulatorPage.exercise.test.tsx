@@ -3,28 +3,25 @@ import userEvent from "@testing-library/user-event";
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GetCatalogOptions, SimulateOptions } from "../shared/api/api-client.js";
+import type { BattleDraft } from "../entities/battle-draft.js";
 import type {
   BattleSimulationCatalogResponse,
+  BattleSimulationRequest,
   BattleSimulationResponse,
   CatalogApiResult,
   ExecutionApiResult,
   FormationStatPreviewApiResult,
+  FormationStatPreviewRequest,
   SimulationApiResult,
   TacticalExerciseEvaluationApiResult,
+  TacticalExerciseEvaluationRequest,
   TacticalExerciseEvaluationResponse,
+  TacticalExerciseRequest,
   TacticalExerciseResponse,
 } from "../shared/api/api-contract.js";
-import type {
-  TacticalExerciseEvaluationRequest,
-  TacticalExerciseRequest,
-} from "../features/exercise/exercise-request-mapper.js";
-import type {
-  BattleSimulationRequest,
-  FormationStatPreviewRequest,
-} from "../features/formation/request-mapper.js";
+
 import { toStoredDraft } from "../features/formation/persistence.js";
 import { createInitialDraft, slotKeyOf } from "../features/formation/types.js";
-import type { BattleDraft } from "../features/formation/types.js";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
 
 type EvaluateImpl = (

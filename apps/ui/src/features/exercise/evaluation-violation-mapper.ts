@@ -5,9 +5,8 @@
 // 共有の敵編成と`runsPerCandidate`は候補indexを持たない。統計実行は候補を常に1件しか
 // 送らないため、`/candidates/0`を落とせば単一実行とまったく同じ対応づけになる
 // （`violation-mapper.ts`。UI-API-004）。
-
 import type { StatisticsRunSubmission } from "./use-exercise-statistics-run.js";
-import type { UiViolation } from "../formation/draft-validation.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type { ViolationResponseBody } from "../../shared/api/api-contract.js";
 import { mapServerViolationsToUiViolations } from "../simulation/violation-mapper.js";
 

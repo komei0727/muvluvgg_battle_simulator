@@ -2,7 +2,6 @@
 // 計算せず、`descriptive-statistics` / `daily-best` / `unit-statistics` の結果を並べ
 // 直すだけにする —— 定義の正本は `tools/exercise-lab` であり、表示の都合で式を触ると
 // Python実装との一致（`__fixtures__/python-parity.ts`）から外れる。
-
 import {
   buildScoreHistogram,
   summarizeBreakCounts,

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { validateExerciseDraft } from "./exercise-draft-validation.js";
+import type { BattleDraft, Side, UiColumn, UiRow } from "../../entities/battle-draft.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { selectCanSubmit } from "../formation/draft-validation.js";
 import { MAX_EXERCISE_RUN_COUNT, createInitialDraft, slotKeyOf } from "../formation/types.js";
-import type { BattleDraft, Side, UiColumn, UiRow } from "../formation/types.js";
-import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 
 const catalog: BattleSimulationCatalogResponse = {
   schemaVersion: 1,

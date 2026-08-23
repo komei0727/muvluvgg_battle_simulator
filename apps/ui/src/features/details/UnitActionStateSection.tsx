@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import { selectUnitActionStates } from "./action-state-projector.js";
-import { selectRoster } from "../summary/summary-projector.js";
-import type { RosterEntry } from "../summary/summary-projector.js";
-import type { UnitActionState } from "./action-state-projector.js";
-import type { LogLevel } from "../formation/types.js";
+import type { LogLevel } from "../../entities/battle-draft.js";
+import { selectRoster } from "../../entities/roster.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
 } from "../../shared/api/api-contract.js";
+import type { UnitActionState } from "./action-state-projector.js";
+
 import styles from "./UnitActionStateSection.module.css";
 
 export interface UnitActionStateSectionProps {

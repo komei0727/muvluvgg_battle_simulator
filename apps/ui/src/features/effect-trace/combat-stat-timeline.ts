@@ -14,7 +14,6 @@
 //
 // 状態全体は復元しない（`delta-flattener.ts`／`StateTransitionTable`の担当）。ここが持つのは
 // 必要なステータスの系列だけである。
-
 import { isRecord, numberOf, stringOf } from "../../lib/unknown-narrowing.js";
 import type { BattleLogEventResponse, BattleLogResponse } from "../../shared/api/api-contract.js";
 

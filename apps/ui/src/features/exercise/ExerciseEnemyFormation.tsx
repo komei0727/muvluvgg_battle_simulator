@@ -1,9 +1,10 @@
 import { useId } from "react";
-import type { UiViolation } from "../formation/draft-validation.js";
+import type { FormationSlotInput } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { FormationGrid } from "../formation/FormationGrid.js";
 import type { FormationStatPreviewView } from "../formation/FormationGrid.js";
-import type { FormationSlotInput } from "../formation/types.js";
-import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
+
 import styles from "./ExerciseEnemyFormation.module.css";
 
 export interface ExerciseEnemyFormationProps {

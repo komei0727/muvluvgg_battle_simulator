@@ -16,9 +16,10 @@ import {
 } from "./persistence.js";
 import type { StoredPlayerData } from "./persistence.js";
 import { createInitialDraft } from "./types.js";
+import type { BattleDraft, Side, UnitEnhancementInput } from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
 import type { FormationAction, FormationState } from "./formation-reducer.js";
-import type { UiViolation } from "./draft-validation.js";
-import type { BattleDraft, PlayerSideEnhancement, Side, UnitEnhancementInput } from "./types.js";
+import type { PlayerSideEnhancement } from "./types.js";
 import type { CatalogLoadState } from "../catalog-selection/catalog-loader.js";
 
 /**

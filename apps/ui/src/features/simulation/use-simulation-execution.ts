@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
 import { simulate as defaultSimulate } from "../../shared/api/api-client.js";
-import type { ExecutionApiResult } from "../../shared/api/api-contract.js";
+import type {
+  BattleSimulationRequest,
+  BattleSimulationResponse,
+  ExecutionApiResult,
+} from "../../shared/api/api-contract.js";
 import { createInitialExecutionState, executionReducer } from "./execution-reducer.js";
 import type { ExecutionResponseLike, ExecutionState } from "./execution-reducer.js";
-import type { BattleSimulationResponse } from "../../shared/api/api-contract.js";
-import type { BattleSimulationRequest } from "../formation/request-mapper.js";
 
 // docs/ui-design/03_API・データ連携設計.md §7 「タイムアウトとキャンセル」:
 // AbortControllerを1実行につき1つ作り、利用者キャンセル・page unload・UI待機

@@ -1,50 +1,23 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §4-5 (coordinate conversion
 // and request generation rules).
-
 import { resolveSlotLevel } from "./level-link.js";
 import { DEFAULT_UNIT_LEVEL, enhancementForSide, memorySlotKeyOf } from "./types.js";
 import type {
   BattleDraft,
   FormationSlotInput,
   GearInput,
-  LogLevel,
   Side,
   SideEnhancementInput,
-  UiColumn,
   UiRow,
-} from "./types.js";
-
-/** docs/ui-design/03_API・データ連携設計.md §5.1 (M11). */
-export interface UnitEnhancementRequest {
-  readonly level: number;
-  readonly gears: readonly GearInput[];
-}
-
-export interface FormationEnhancementRequest {
-  readonly academyLevels: {
-    readonly unitTypes: Readonly<Record<string, number>>;
-    readonly attributes: Readonly<Record<string, number>>;
-  };
-}
-
-export interface BattleSimulationUnitRequest {
-  readonly unitDefinitionId: string;
-  readonly position: { readonly column: UiColumn; readonly row: UiRow };
-  readonly enhancement?: UnitEnhancementRequest;
-}
-
-export interface FormationRequest {
-  readonly units: readonly BattleSimulationUnitRequest[];
-  readonly memoryDefinitionIds: readonly string[];
-  readonly enhancement?: FormationEnhancementRequest;
-}
-
-export interface BattleSimulationRequest {
-  readonly allyFormation: FormationRequest;
-  readonly enemyFormation: FormationRequest;
-  readonly turnLimit: number;
-  readonly options: { readonly logLevel: LogLevel };
-}
+} from "../../entities/battle-draft.js";
+import type {
+  BattleSimulationRequest,
+  FormationEnhancementRequest,
+  FormationRequest,
+  FormationStatPreviewMode,
+  FormationStatPreviewRequest,
+  UnitEnhancementRequest,
+} from "../../shared/api/api-contract.js";
 
 const ROW_ORDER: Readonly<Record<UiRow, number>> = { FRONT: 0, REAR: 1 };
 
@@ -205,17 +178,6 @@ export function buildFormation(
     memorySlotKeys: filledMemories.map((entry) => memorySlotKeyOf(side, entry.index)),
     gearSlotIndices: builtUnits.map((built) => built?.gearSlotIndices ?? []),
   };
-}
-
-/** `10_API設計.md`「FormationStatPreviewRequest」の`mode`。省略時は`NORMAL`。 */
-export type FormationStatPreviewMode = "NORMAL" | "TACTICAL_EXERCISE";
-
-/** docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは編成部分だけを送る。 */
-export interface FormationStatPreviewRequest {
-  readonly allyFormation: FormationRequest;
-  readonly enemyFormation: FormationRequest;
-  /** R-TEX-11 #5: 編成プール検証にだけ使う。ステータス計算へは影響しない。 */
-  readonly mode?: FormationStatPreviewMode;
 }
 
 export type PreviewRequestBuildResult =

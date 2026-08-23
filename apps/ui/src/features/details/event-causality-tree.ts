@@ -9,7 +9,6 @@
 // 親だけが除外された等）でも、そのeventはroot levelへ落として保持する
 // （UI-CMP-006「100件超のイベントも黙って切り捨てない」と同じ「削除しない」
 // 方針）。
-
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import { numberOf } from "../../lib/unknown-narrowing.js";
 

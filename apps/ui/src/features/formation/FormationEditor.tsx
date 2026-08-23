@@ -1,12 +1,16 @@
 import { useId } from "react";
-import type { UiViolation } from "./draft-validation.js";
+import type {
+  FormationSlotInput,
+  Side,
+  SideEnhancementInput,
+} from "../../entities/battle-draft.js";
+import type { UiViolation } from "../../entities/violation.js";
+import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { EnhancementPanel } from "./EnhancementPanel.js";
 import { FormationGrid } from "./FormationGrid.js";
 import type { FormationStatPreviewView } from "./FormationGrid.js";
 import { MemorySlot } from "./MemorySlot.js";
-import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { memorySlotKeyOf } from "./types.js";
-import type { FormationSlotInput, Side, SideEnhancementInput } from "./types.js";
 import styles from "./FormationEditor.module.css";
 
 export type { FormationStatPreviewView };

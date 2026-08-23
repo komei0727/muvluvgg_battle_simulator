@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildRosterIndex, formatEvent } from "./event-formatters.js";
-import type { RosterEntry } from "../summary/summary-projector.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 const roster: readonly RosterEntry[] = [

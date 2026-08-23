@@ -1,8 +1,7 @@
 // Mirrors docs/ui-design/01_UI要求・画面設計.md `UI-UC-006` step 5 と
 // 04_コンポーネント・状態管理設計.md `UI-CMP-012`: 演習結果の表示値をpure function
 // として導出し、componentはこの投影だけを描画する（`UI-CMP-005`）。
-
-import { EXERCISE_TURN_LIMIT } from "./exercise-draft-validation.js";
+import { EXERCISE_TURN_LIMIT } from "../../entities/tactical-exercise.js";
 import type {
   BattleSimulationCatalogResponse,
   ExerciseResultResponse,
