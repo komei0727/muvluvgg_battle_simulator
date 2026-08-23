@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { RETIRED_TEST_CASE_IDS } from "./retired-test-case-ids.js";
 import { collectTestCaseDefinitions } from "./test-case-definitions.js";
 
 /**
@@ -12,25 +14,38 @@ import { collectTestCaseDefinitions } from "./test-case-definitions.js";
 
 const apiSrcPath = fileURLToPath(new URL("../../", import.meta.url));
 
-/**
- * 凍結する基準シナリオ集合。`SCN-BTL-001`〜`023` のうち退役分を除く22件。
- * 新しいシナリオを追加するときは末尾へ番号を足し、この集合へ同じ PR で追記する。
- */
-const BASELINE_SCENARIO_IDS: readonly string[] = Array.from(
-  { length: 23 },
-  (_unused, index) => `SCN-BTL-${String(index + 1).padStart(3, "0")}`,
-).filter((scenarioId) => scenarioId !== "SCN-BTL-022");
+const specPath = fileURLToPath(
+  new URL("../../../../../docs/ddd/12_テスト戦略.md", import.meta.url),
+);
 
 /**
- * 欠番のまま残すシナリオID。`SCN-BTL-022`（未実装Capabilityの拒否）は
- * Capability概念ごと廃止された（Issue #352）ため、検証対象そのものが存在しない。
- * 番号の再利用は過去の証跡との衝突を生むので、復活も再割当もしない。
+ * `12_テスト戦略.md`「基準シナリオ」表からIDを抽出する。`rule-coverage.test.ts`の
+ * `extractRuleIdsFromSpec` と同じ手法 — 凍結集合を手書きの決め打ちにせず、
+ * 表そのものを正本にすることで、表への追記漏れが検査をすり抜けるのを防ぐ。
+ * 退役した`SCN-BTL-022`は表自体に行が無いため、この抽出だけで自然に除外される。
  */
-const RETIRED_SCENARIO_IDS: readonly string[] = ["SCN-BTL-022"];
+function extractBaselineScenarioIdsFromSpec(): string[] {
+  const content = readFileSync(specPath, "utf-8");
+  return [...content.matchAll(/^\| `(SCN-BTL-\d+)` \|/gm)].map((m) => m[1]!);
+}
+
+/**
+ * 凍結する基準シナリオ集合。生成元は`12_テスト戦略.md`「基準シナリオ」表であり、
+ * 新しいシナリオを追加するときは同じPRで表へ行を足せばこの集合へ自動反映される。
+ */
+const BASELINE_SCENARIO_IDS: readonly string[] = extractBaselineScenarioIdsFromSpec();
+
+/**
+ * 欠番のまま残すシナリオID。台帳（`retired-test-case-ids.ts`）から`SCN-BTL-*`分だけを
+ * 導出する — 退役IDの正本は台帳の1か所とし、ここでの二重管理を避ける。
+ */
+const RETIRED_SCENARIO_IDS: readonly string[] = RETIRED_TEST_CASE_IDS.map(
+  (entry) => entry.id,
+).filter((id) => id.startsWith("SCN-BTL-"));
 
 describe("baseline scenario coverage", () => {
   it("UT-SCN-COVERAGE-001: every baseline scenario exists as an executable test, and retired IDs stay gaps", () => {
-    expect(BASELINE_SCENARIO_IDS).toHaveLength(22);
+    expect(BASELINE_SCENARIO_IDS).toHaveLength(27);
 
     // 実行対象のテストとして実在すること。`it.skip`/`todo`/条件付き無効化・
     // コメント内・文字列内は `collectTestCaseDefinitions` が除いている。
