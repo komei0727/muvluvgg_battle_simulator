@@ -42,17 +42,30 @@ function toUpperSnakeCase(eventType: string): string {
   return eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase();
 }
 
-function requiredKeysOfTypeLiteral(
+/** payloadの1 variant（1 union branch）が持つkeyの内訳。 */
+interface PayloadBranch {
+  /** 非optionalな（`?`を持たない）key。 */
+  readonly requiredKeys: ReadonlySet<string>;
+  /** optional込みの全key。 */
+  readonly allKeys: ReadonlySet<string>;
+}
+
+function payloadBranchOfTypeLiteral(
   node: ts.TypeLiteralNode,
   sourceFile: ts.SourceFile,
-): Set<string> {
-  const keys = new Set<string>();
+): PayloadBranch {
+  const requiredKeys = new Set<string>();
+  const allKeys = new Set<string>();
   for (const member of node.members) {
-    if (ts.isPropertySignature(member) && member.questionToken === undefined) {
-      keys.add(member.name.getText(sourceFile));
+    if (ts.isPropertySignature(member)) {
+      const name = member.name.getText(sourceFile);
+      allKeys.add(name);
+      if (member.questionToken === undefined) {
+        requiredKeys.add(name);
+      }
     }
   }
-  return keys;
+  return { requiredKeys, allKeys };
 }
 
 /**
@@ -60,15 +73,15 @@ function requiredKeysOfTypeLiteral(
  * 形が変わる）を表す。各variantを1要素として返し、呼び出し側でどちらか一方との
  * 適合を見る。
  */
-function requiredKeyBranchesOf(
+function payloadBranchesOf(
   typeNode: ts.TypeNode,
   sourceFile: ts.SourceFile,
-): readonly ReadonlySet<string>[] {
+): readonly PayloadBranch[] {
   if (ts.isTypeLiteralNode(typeNode)) {
-    return [requiredKeysOfTypeLiteral(typeNode, sourceFile)];
+    return [payloadBranchOfTypeLiteral(typeNode, sourceFile)];
   }
   if (ts.isUnionTypeNode(typeNode)) {
-    return typeNode.types.flatMap((member) => requiredKeyBranchesOf(member, sourceFile));
+    return typeNode.types.flatMap((member) => payloadBranchesOf(member, sourceFile));
   }
   throw new Error(
     `BattleDomainEventPayloadMap member has an unsupported type node (${ts.SyntaxKind[typeNode.kind]}); ` +
@@ -78,11 +91,11 @@ function requiredKeyBranchesOf(
 
 /**
  * `BattleDomainEventPayloadMap`をソーステキストから静的解析し、event種別（PascalCase）
- * ごとの必須keyの集合を得る。`keyof`は型であって値ではなく実行時に読めないため、
+ * ごとのpayload branchを得る。`keyof`は型であって値ではなく実行時に読めないため、
  * 型チェッカーではなくASTを直接走査する（`testing/traceability/test-case-definitions.ts`
  * の`collectTestCaseDefinitionsFromSource`と同じ手法）。
  */
-function collectPayloadRequiredKeyBranches(): ReadonlyMap<string, readonly ReadonlySet<string>[]> {
+function collectPayloadBranches(): ReadonlyMap<string, readonly PayloadBranch[]> {
   const sourceText = readFileSync(DOMAIN_EVENT_SOURCE_PATH, "utf-8");
   const sourceFile = ts.createSourceFile(
     DOMAIN_EVENT_SOURCE_PATH,
@@ -92,7 +105,7 @@ function collectPayloadRequiredKeyBranches(): ReadonlyMap<string, readonly Reado
     ts.ScriptKind.TS,
   );
 
-  const result = new Map<string, readonly ReadonlySet<string>[]>();
+  const result = new Map<string, readonly PayloadBranch[]>();
   let interfaceFound = false;
 
   function visit(node: ts.Node): void {
@@ -100,10 +113,7 @@ function collectPayloadRequiredKeyBranches(): ReadonlyMap<string, readonly Reado
       interfaceFound = true;
       for (const member of node.members) {
         if (ts.isPropertySignature(member) && member.type !== undefined) {
-          result.set(
-            member.name.getText(sourceFile),
-            requiredKeyBranchesOf(member.type, sourceFile),
-          );
+          result.set(member.name.getText(sourceFile), payloadBranchesOf(member.type, sourceFile));
         }
       }
       return;
@@ -124,22 +134,60 @@ function isSubsetOf(subset: ReadonlySet<string>, superset: ReadonlySet<string>):
   return [...subset].every((key) => superset.has(key));
 }
 
+function intersectAll(sets: readonly ReadonlySet<string>[]): ReadonlySet<string> {
+  return sets.reduce((common, current) => new Set([...common].filter((key) => current.has(key))));
+}
+
 /**
- * schemaの`required`が、対応payloadのいずれかのbranchの部分集合であるかを検証する
- * （完全一致ではない——理由はファイル先頭のコメント参照）。適合するbranchが1つも
- * 無ければ、差分を読める形の失敗理由を返す。
+ * schemaの`required`集合（複数あれば`oneOf`の各branch）が、対応payloadのいずれかの
+ * branchと整合するかを検証する（完全一致ではない——理由はファイル先頭のコメント参照）。
+ * 不整合があれば、差分を読める形の失敗理由を返す。
+ *
+ * `schemaRequiredSets`が2件以上なのは、`RuntimeCounterChanged`
+ * （`runtimeCounterChangedDetailsSchema`）のように`scope`の値で
+ * `skillDefinitionId`／`effectInstanceId`のどちらが必須かが変わる discriminated union を
+ * `oneOf`で表す場合だけである。この場合は2段で検証する:
+ * 1. 各branchが要求するkeyは、そのbranchだけの話であっても必ずpayloadの実在するkey
+ *    （必須・任意問わず）でなければならない——ここを「全branch共通のkey（積集合）」だけに
+ *    緩めると、1つのbranchだけへ実在しないkeyを足しても積集合から消えて検出できなくなる。
+ * 2. 全branchに共通して要求されるkey（discriminatorに関係なく常に必須なkey）は、
+ *    payload側でも常に必須（非optional）でなければならない。
  */
 function findRequiredKeyMismatch(
   eventType: string,
-  schemaRequired: ReadonlySet<string>,
-  branches: readonly ReadonlySet<string>[],
+  schemaRequiredSets: readonly ReadonlySet<string>[],
+  payloadBranches: readonly PayloadBranch[],
 ): string | undefined {
-  if (branches.some((branch) => isSubsetOf(schemaRequired, branch))) {
+  if (schemaRequiredSets.length === 1) {
+    const schemaRequired = schemaRequiredSets[0]!;
+    if (payloadBranches.some((branch) => isSubsetOf(schemaRequired, branch.requiredKeys))) {
+      return undefined;
+    }
+    return (
+      `${eventType}: schema required=[${[...schemaRequired].sort().join(", ")}] is not a subset of any payload branch's required keys ` +
+      `[${payloadBranches.map((branch) => `{${[...branch.requiredKeys].sort().join(", ")}}`).join(" | ")}]`
+    );
+  }
+
+  const branchWithUnknownKey = schemaRequiredSets.find(
+    (branchRequired) =>
+      !payloadBranches.some((payload) => isSubsetOf(branchRequired, payload.allKeys)),
+  );
+  if (branchWithUnknownKey !== undefined) {
+    return (
+      `${eventType}: a oneOf branch requires=[${[...branchWithUnknownKey].sort().join(", ")}], which includes a key ` +
+      `absent from the payload entirely (required or optional) ` +
+      `[${payloadBranches.map((branch) => `{${[...branch.allKeys].sort().join(", ")}}`).join(" | ")}]`
+    );
+  }
+
+  const commonRequired = intersectAll(schemaRequiredSets);
+  if (payloadBranches.some((branch) => isSubsetOf(commonRequired, branch.requiredKeys))) {
     return undefined;
   }
   return (
-    `${eventType}: schema required=[${[...schemaRequired].sort().join(", ")}] is not a subset of any payload branch ` +
-    `[${branches.map((branch) => `{${[...branch].sort().join(", ")}}`).join(" | ")}]`
+    `${eventType}: keys required by every oneOf branch=[${[...commonRequired].sort().join(", ")}] are not all required by the payload ` +
+    `[${payloadBranches.map((branch) => `{${[...branch.requiredKeys].sort().join(", ")}}`).join(" | ")}]`
   );
 }
 
@@ -148,20 +196,12 @@ type JsonSchemaLike = {
   readonly oneOf?: readonly JsonSchemaLike[];
 };
 
-/**
- * detail schemaの「常に成立するrequired」を得る。多くは`type: "object"`直下の
- * `required`だが、`RuntimeCounterChanged`（`runtimeCounterChangedDetailsSchema`）は
- * `scope`の値によって`skillDefinitionId`／`effectInstanceId`のどちらが必須かが変わる
- * discriminated unionを`oneOf`で表すため、トップレベルに`required`を持たない。
- * その場合は全branchに共通するkey（積集合）だけを「常に成立する」required とみなす。
- */
-function effectiveRequiredKeysOf(detailsSchema: JsonSchemaLike): Set<string> {
+/** detail schemaが宣言する`required`集合を集める。`oneOf`があれば各branchを個別の要素として返す。 */
+function requiredSetsOf(detailsSchema: JsonSchemaLike): readonly ReadonlySet<string>[] {
   if (detailsSchema.oneOf !== undefined) {
-    return detailsSchema.oneOf
-      .map((branch) => effectiveRequiredKeysOf(branch))
-      .reduce((common, branchKeys) => new Set([...common].filter((key) => branchKeys.has(key))));
+    return detailsSchema.oneOf.flatMap((branch) => requiredSetsOf(branch));
   }
-  return new Set(detailsSchema.required ?? []);
+  return [new Set(detailsSchema.required ?? [])];
 }
 
 function collectVariants(docSchema: {
@@ -174,13 +214,13 @@ function collectVariants(docSchema: {
     };
     return {
       upperType: properties.type.const,
-      required: effectiveRequiredKeysOf(properties.details),
+      requiredSets: requiredSetsOf(properties.details),
     };
   });
 }
 
 describe("battle-log event schema ⇄ domain event payload parity (REF-051 / Issue #596)", () => {
-  const payloadRequiredKeyBranchesByPascalName = collectPayloadRequiredKeyBranches();
+  const payloadBranchesByPascalName = collectPayloadBranches();
   const pascalNameByUpperSnake = new Map(
     Object.keys(BATTLE_DOMAIN_EVENT_TYPES).map((pascalName) => [
       toUpperSnakeCase(pascalName),
@@ -199,16 +239,16 @@ describe("battle-log event schema ⇄ domain event payload parity (REF-051 / Iss
     expect(variants.length).toBeGreaterThan(0);
 
     const mismatches = variants
-      .map(({ upperType, required }) => {
+      .map(({ upperType, requiredSets }) => {
         const pascalName = pascalNameByUpperSnake.get(upperType);
         if (pascalName === undefined) {
           return `${upperType}: no BattleDomainEventPayloadMap member maps to this schema type`;
         }
-        const branches = payloadRequiredKeyBranchesByPascalName.get(pascalName);
-        if (branches === undefined) {
+        const payloadBranches = payloadBranchesByPascalName.get(pascalName);
+        if (payloadBranches === undefined) {
           return `${pascalName}: not found while parsing BattleDomainEventPayloadMap`;
         }
-        return findRequiredKeyMismatch(pascalName, required, branches);
+        return findRequiredKeyMismatch(pascalName, requiredSets, payloadBranches);
       })
       .filter((mismatch) => mismatch !== undefined);
 
@@ -216,48 +256,109 @@ describe("battle-log event schema ⇄ domain event payload parity (REF-051 / Iss
   });
 
   it("API-OPENAPI-039: the parity check rejects a schema `required` key the payload doesn't guarantee, while still allowing the payload to require more than the wire promises", () => {
-    const branches = [new Set(["turnLimit", "allySlotCount", "enemySlotCount"])];
+    const payloadBranches: readonly PayloadBranch[] = [
+      {
+        requiredKeys: new Set(["turnLimit", "allySlotCount", "enemySlotCount"]),
+        allKeys: new Set(["turnLimit", "allySlotCount", "enemySlotCount"]),
+      },
+    ];
     // schemaがpayloadに無いkeyを要求している——実際には保証されない値を約束しており不合格。
     expect(
       findRequiredKeyMismatch(
         "BattleStarted",
-        new Set(["turnLimit", "allySlotCount", "enemySlotCount", "notInPayload"]),
-        branches,
+        [new Set(["turnLimit", "allySlotCount", "enemySlotCount", "notInPayload"])],
+        payloadBranches,
       ),
     ).toBeDefined();
     // 完全一致は合格。
     expect(
       findRequiredKeyMismatch(
         "BattleStarted",
-        new Set(["turnLimit", "allySlotCount", "enemySlotCount"]),
-        branches,
+        [new Set(["turnLimit", "allySlotCount", "enemySlotCount"])],
+        payloadBranches,
       ),
     ).toBeUndefined();
     // payloadの方が多く必須を持つ（DMG-005等と同じ後方互換のための意図的な非対称）のは合格。
     expect(
-      findRequiredKeyMismatch("BattleStarted", new Set(["turnLimit", "allySlotCount"]), branches),
+      findRequiredKeyMismatch(
+        "BattleStarted",
+        [new Set(["turnLimit", "allySlotCount"])],
+        payloadBranches,
+      ),
     ).toBeUndefined();
     // unionの片方のbranchの部分集合であれば通す（`BattleCompleted`の通常戦闘／演習分岐）。
-    const unionBranches = [
-      new Set(["outcome", "completionReason", "completedTurn"]),
-      new Set(["completionReason", "completedTurn", "totalScore", "breakCount"]),
+    const unionPayloadBranches: readonly PayloadBranch[] = [
+      {
+        requiredKeys: new Set(["outcome", "completionReason", "completedTurn"]),
+        allKeys: new Set(["outcome", "completionReason", "completedTurn"]),
+      },
+      {
+        requiredKeys: new Set(["completionReason", "completedTurn", "totalScore", "breakCount"]),
+        allKeys: new Set(["completionReason", "completedTurn", "totalScore", "breakCount"]),
+      },
     ];
     expect(
       findRequiredKeyMismatch(
         "BattleCompleted",
-        new Set(["completionReason", "completedTurn", "totalScore", "breakCount"]),
-        unionBranches,
+        [new Set(["completionReason", "completedTurn", "totalScore", "breakCount"])],
+        unionPayloadBranches,
       ),
     ).toBeUndefined();
   });
 
-  it("API-OPENAPI-040 (RuntimeCounterChanged, discriminated by `scope`): the parity check treats a `oneOf`-wrapped details schema's cross-branch common `required` as its effective required set", () => {
-    const oneOfSchema: JsonSchemaLike = {
-      oneOf: [
-        { required: ["ownerUnitId", "scope", "skillDefinitionId"] },
-        { required: ["ownerUnitId", "scope", "effectInstanceId"] },
-      ],
-    };
-    expect(effectiveRequiredKeysOf(oneOfSchema)).toEqual(new Set(["ownerUnitId", "scope"]));
+  it("API-OPENAPI-040 (RuntimeCounterChanged, discriminated by `scope`): the parity check catches a required key that only one `oneOf` branch adds and the payload never defines", () => {
+    // `runtimeCounterChangedDetailsSchema`と同じ形: payloadはunionではなく、
+    // 両方のdiscriminator値で共通の必須keyに加え、`skillDefinitionId`／
+    // `effectInstanceId`をoptionalとして両方持つ1つのTS型。
+    const payloadBranches: readonly PayloadBranch[] = [
+      {
+        requiredKeys: new Set(["ownerUnitId", "scope", "counter"]),
+        allKeys: new Set([
+          "ownerUnitId",
+          "scope",
+          "counter",
+          "skillDefinitionId",
+          "effectInstanceId",
+        ]),
+      },
+    ];
+
+    // 正常系: 各branchの必須keyはpayloadに実在し、全branch共通の必須keyもpayload側で必須。
+    expect(
+      findRequiredKeyMismatch(
+        "RuntimeCounterChanged",
+        [
+          new Set(["ownerUnitId", "scope", "counter", "skillDefinitionId"]),
+          new Set(["ownerUnitId", "scope", "counter", "effectInstanceId"]),
+        ],
+        payloadBranches,
+      ),
+    ).toBeUndefined();
+
+    // 1つのbranchだけに実在しないkeyを混入させても、積集合を取ると消えて見逃してしまう
+    // 退行を防ぐ回帰テスト。
+    expect(
+      findRequiredKeyMismatch(
+        "RuntimeCounterChanged",
+        [
+          new Set(["ownerUnitId", "scope", "counter", "skillDefinitionId", "notInPayload"]),
+          new Set(["ownerUnitId", "scope", "counter", "effectInstanceId"]),
+        ],
+        payloadBranches,
+      ),
+    ).toBeDefined();
+
+    // 全branch共通の必須keyがpayload側ではoptionalな場合は不合格
+    // （skillDefinitionIdが両branchに共通して必須になっているが、payloadは常には保証しない）。
+    expect(
+      findRequiredKeyMismatch(
+        "RuntimeCounterChanged",
+        [
+          new Set(["ownerUnitId", "scope", "counter", "skillDefinitionId"]),
+          new Set(["ownerUnitId", "scope", "counter", "skillDefinitionId"]),
+        ],
+        payloadBranches,
+      ),
+    ).toBeDefined();
   });
 });
