@@ -9,7 +9,9 @@
  * 前提がそもそも無いため（本ファイル自身を含む）、走査から除外する。
  *
  * 現時点の `apps/ui/src` に例外は無い（`NAMING_EXCEPTIONS` は空）。将来この形の
- * テストを追加するときは、対象実装名で判別できない理由のコメント付きでここへ追記する。
+ * テストを追加するときは、`uiSrcPath`からの相対パス（`.test.ts(x)`拡張子を除く）で、
+ * 対象実装名で判別できない理由のコメント付きでここへ追記する — basenameだけで照合すると
+ * 別ディレクトリの無関係な同名ファイルまで誤って例外に一致してしまう。
  *
  * `tsconfig.app.json` はブラウザ実行を前提に `types: ["vite/client"]` のみを持ち
  * Node組み込みの型を含まないため、このファイルだけ明示的に `node` 型を参照する。
@@ -51,10 +53,6 @@ function leadingSegmentOf(testFilePath: string): string {
   );
 }
 
-function baseNameOf(testFilePath: string): string {
-  return basename(testFilePath).replace(/\.test\.tsx?$/, "");
-}
-
 function hasSiblingImplementation(testFilePath: string): boolean {
   const dir = dirname(testFilePath);
   const leadingSegment = leadingSegmentOf(testFilePath);
@@ -63,11 +61,26 @@ function hasSiblingImplementation(testFilePath: string): boolean {
   );
 }
 
+/** `uiSrcPath`からの相対パス（`.test.ts(x)`拡張子を除く）。`NAMING_EXCEPTIONS`の照合キー。 */
+function exceptionKeyOf(testFilePath: string): string {
+  return relative(uiSrcPath, testFilePath).replace(/\.test\.tsx?$/, "");
+}
+
+/** 例外キーに対応する実在の `.test.ts(x)` の絶対パス。無ければ`undefined`。 */
+function testFilePathForExceptionKey(key: string): string | undefined {
+  const tsPath = join(uiSrcPath, `${key}.test.ts`);
+  if (existsSync(tsPath)) {
+    return tsPath;
+  }
+  const tsxPath = join(uiSrcPath, `${key}.test.tsx`);
+  return existsSync(tsxPath) ? tsxPath : undefined;
+}
+
 describe("Co-location naming convention (REF-013 / #316, enforced by REF-050 / #595)", () => {
   it("every co-located test file's leading segment matches a sibling implementation file, or is a registered exception", () => {
     const testFiles = collectTestFiles(uiSrcPath);
     const violations = testFiles
-      .filter((f) => !hasSiblingImplementation(f) && !NAMING_EXCEPTIONS.includes(baseNameOf(f)))
+      .filter((f) => !hasSiblingImplementation(f) && !NAMING_EXCEPTIONS.includes(exceptionKeyOf(f)))
       .map((f) => relative(uiSrcPath, f))
       .sort();
     expect(
@@ -77,10 +90,8 @@ describe("Co-location naming convention (REF-013 / #316, enforced by REF-050 / #
   });
 
   it("every registered exception still needs to be one", () => {
-    const testFiles = collectTestFiles(uiSrcPath);
-    const byBaseName = new Map(testFiles.map((f) => [baseNameOf(f), f]));
-    const stale = NAMING_EXCEPTIONS.filter((name) => {
-      const filePath = byBaseName.get(name);
+    const stale = NAMING_EXCEPTIONS.filter((key) => {
+      const filePath = testFilePathForExceptionKey(key);
       return filePath === undefined || hasSiblingImplementation(filePath);
     }).sort();
     expect(

@@ -24,34 +24,37 @@ const crossCuttingBucket = join(apiSrcPath, "__tests__");
 
 /**
  * 対象モジュール名を名乗らない co-location 側テストの例外一覧（正本）。
+ * `apiSrcPath`からの相対パス（`.test.ts(x)`拡張子を除く）で管理する — basenameだけで
+ * 照合すると、別ディレクトリにある無関係な同名ファイル（例: 別ディレクトリの
+ * `openapi.test.ts`）まで誤って例外に一致し、規約違反を見逃す。
  * 新しくこの形のテストを追加するときはここへ、対象実装名で判別できない理由の
  * コメント付きで追記する。
  */
 const NAMING_EXCEPTIONS: readonly string[] = [
   // 対象ディレクトリ内の実装群を総なめする不変条件（1ファイルに分散すると守れない）
-  "immutability", // domain/catalog/definitions — 定義ファクトリ横断の凍結不変条件
-  "fixtures", // testing/fixtures — 共有ヘルパ群の契約をディレクトリ単位で固定
-  "catalog-production-units", // infrastructure/catalog/runtime — Issue #46 由来の Catalog 昇格ゲート
-  "catalog-src-inventory", // infrastructure/catalog/source — catalog-src/ 変換件数の正本
-  "catalog-src-production", // infrastructure/catalog/source — catalog-src/ ⇄ catalog/ の再生成一致
+  "domain/catalog/definitions/immutability", // 定義ファクトリ横断の凍結不変条件
+  "testing/fixtures/fixtures", // 共有ヘルパ群の契約をディレクトリ単位で固定
+  "infrastructure/catalog/runtime/catalog-production-units", // Issue #46 由来の Catalog 昇格ゲート
+  "infrastructure/catalog/source/catalog-src-inventory", // catalog-src/ 変換件数の正本
+  "infrastructure/catalog/source/catalog-src-production", // catalog-src/ ⇄ catalog/ の再生成一致
 
   // `docs/` の台帳自体を対象とする照合
-  "scenario-coverage", // testing/traceability — 12_テスト戦略.md の基準シナリオ表の実在監視
+  "testing/traceability/scenario-coverage", // 12_テスト戦略.md の基準シナリオ表の実在監視
 
   // 実サーバー経由でしか観測できないHTTP契約（対象はroutes/配下だがhttp/直下に置く）
-  "battle-simulation-catalog-route", // 対象は routes/catalog-route.ts
-  "formation-stat-preview-route", // 対象は routes/formation-stat-preview-route.ts
-  "tactical-exercise-route", // 対象は routes/tactical-exercise-route.ts
-  "tactical-exercise-evaluation-route", // 対象は routes/tactical-exercise-evaluation-route.ts
-  "simulation-route.log-level-projection", // 対象は routes/simulation-route.ts
-  "simulation-route.memory-granted-marker", // 対象は routes/simulation-route.ts
+  "presentation/http/battle-simulation-catalog-route", // 対象は routes/catalog-route.ts
+  "presentation/http/formation-stat-preview-route", // 対象は routes/formation-stat-preview-route.ts
+  "presentation/http/tactical-exercise-route", // 対象は routes/tactical-exercise-route.ts
+  "presentation/http/tactical-exercise-evaluation-route", // 対象は routes/tactical-exercise-evaluation-route.ts
+  "presentation/http/simulation-route.log-level-projection", // 対象は routes/simulation-route.ts
+  "presentation/http/simulation-route.memory-granted-marker", // 対象は routes/simulation-route.ts
 
   // 特定の1モジュールに対応しない横断的なOpenAPI文書検査
-  "openapi",
-  "openapi-compatibility",
+  "presentation/http/openapi",
+  "presentation/http/openapi-compatibility",
 
   // 複数エンドポイントの状態復元契約を横断する文書検査
-  "state-restoration",
+  "presentation/http/state-restoration",
 ];
 
 function collectTestFiles(dirPath: string): string[] {
@@ -79,10 +82,6 @@ function leadingSegmentOf(testFilePath: string): string {
   );
 }
 
-function baseNameOf(testFilePath: string): string {
-  return basename(testFilePath).replace(/\.test\.tsx?$/, "");
-}
-
 function hasSiblingImplementation(testFilePath: string): boolean {
   const dir = dirname(testFilePath);
   const leadingSegment = leadingSegmentOf(testFilePath);
@@ -91,11 +90,26 @@ function hasSiblingImplementation(testFilePath: string): boolean {
   );
 }
 
+/** `apiSrcPath`からの相対パス（`.test.ts(x)`拡張子を除く）。`NAMING_EXCEPTIONS`の照合キー。 */
+function exceptionKeyOf(testFilePath: string): string {
+  return relative(apiSrcPath, testFilePath).replace(/\.test\.tsx?$/, "");
+}
+
+/** 例外キーに対応する実在の `.test.ts(x)` の絶対パス。無ければ`undefined`。 */
+function testFilePathForExceptionKey(key: string): string | undefined {
+  const tsPath = join(apiSrcPath, `${key}.test.ts`);
+  if (existsSync(tsPath)) {
+    return tsPath;
+  }
+  const tsxPath = join(apiSrcPath, `${key}.test.tsx`);
+  return existsSync(tsxPath) ? tsxPath : undefined;
+}
+
 describe("Co-location naming convention (REF-013 / #316, enforced by REF-050 / #595)", () => {
   it("UT-COLOC-001: every co-located test file's leading segment matches a sibling implementation file, or is a registered exception", () => {
     const testFiles = collectTestFiles(apiSrcPath);
     const violations = testFiles
-      .filter((f) => !hasSiblingImplementation(f) && !NAMING_EXCEPTIONS.includes(baseNameOf(f)))
+      .filter((f) => !hasSiblingImplementation(f) && !NAMING_EXCEPTIONS.includes(exceptionKeyOf(f)))
       .map((f) => relative(apiSrcPath, f))
       .sort();
     expect(
@@ -105,10 +119,8 @@ describe("Co-location naming convention (REF-013 / #316, enforced by REF-050 / #
   });
 
   it("UT-COLOC-002: every registered exception still needs to be one", () => {
-    const testFiles = collectTestFiles(apiSrcPath);
-    const byBaseName = new Map(testFiles.map((f) => [baseNameOf(f), f]));
-    const stale = NAMING_EXCEPTIONS.filter((name) => {
-      const filePath = byBaseName.get(name);
+    const stale = NAMING_EXCEPTIONS.filter((key) => {
+      const filePath = testFilePathForExceptionKey(key);
       return filePath === undefined || hasSiblingImplementation(filePath);
     }).sort();
     expect(
