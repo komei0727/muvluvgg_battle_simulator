@@ -37,6 +37,7 @@ mise run test:container
 # ui job (apps/ui)
 mise run ui:typecheck
 mise run ui:lint
+mise run ui:openapi:check
 mise run ui:test:coverage
 mise run ui:build
 if [[ "$(uname -s)" == "Linux" ]]; then

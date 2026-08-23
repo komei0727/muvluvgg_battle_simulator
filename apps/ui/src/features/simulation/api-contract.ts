@@ -1,51 +1,56 @@
 // Mirrors docs/ddd/10_API設計.md and docs/ui-design/03_API・データ連携設計.md §2, §7, §8, §13.
-// The UI keeps its own type mirror rather than importing apps/api types: HTTP wire
-// contracts are the source of truth, not the server's internal TypeScript types.
+//
+// REF-052 (Issue #597): the Catalog / FormationStatPreview / TacticalExerciseEvaluation wire
+// types below are derived from `shared/api/generated/v1.d.ts`, which
+// `scripts/generate-openapi-types.mjs` regenerates from `apps/api/openapi/v1-baseline.json`
+// (drift is caught by `scripts/check-openapi-types.mjs` / `mise run ui:openapi:check`). This
+// replaces the hand-written mirror those three previously had, so API additions can no longer
+// go silently unnoticed by the UI's types (02_フロントエンドアーキテクチャ設計.md §8).
+//
+// The battle-simulation / tactical-exercise event-log family below (`BattleLogResponse` and
+// everything it composes) stays hand-written and deliberately looser than the generated shape:
+// only what `response-validator.ts` actually checks is narrowed, and unknown nested properties
+// are preserved via index signatures. That predates this Issue and is out of its scope — see
+// the PR/Issue discussion for the full list of generated-vs-mirror differences this Issue found.
+import type { paths } from "../../shared/api/generated/v1.js";
 
-export interface CatalogUnitSummary {
-  readonly unitDefinitionId: string;
-  readonly displayName: string;
-  readonly characterName: string;
+/** Recursively applies `readonly`, matching the immutability this file has always exposed. */
+type DeepReadonly<T> = T extends readonly (infer U)[]
+  ? readonly DeepReadonly<U>[]
+  : T extends object
+    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+    : T;
+
+// docs/ddd/10_API設計.md「BattleSimulationCatalogResponse」.
+type GeneratedCatalogResponse = DeepReadonly<
+  paths["/api/v1/battle-simulation-catalog"]["get"]["responses"][200]["content"]["application/json"]
+>;
+type GeneratedCatalogUnitSummary = GeneratedCatalogResponse["units"][number];
+type GeneratedCatalogGearEffect = GeneratedCatalogResponse["gearEffects"][number];
+
+export type CatalogUnitSummary = Omit<GeneratedCatalogUnitSummary, "category"> & {
   /**
    * R-TEX-11 #1: 編成プールの区分（`PLAYABLE`／`EXERCISE_ENEMY`）。`gearEffects`と
-   * 同じく、この項目を返さない旧APIと組み合わせても壊さないため任意項目にする。
-   * 不在は`PLAYABLE`として扱う。
+   * 同じく、この項目を返さない旧APIと組み合わせても壊さないため任意項目にする
+   * （生成型は必須項目として文書化しているが、それより前にデプロイされたAPIとの
+   * 組み合わせを許すためUI側で緩めている）。不在は`PLAYABLE`として扱う。
    */
   readonly category?: string;
-  /** R-TEX-11 #4: 開催中バッジ用の表示専用情報。`EXERCISE_ENEMY`のときだけ届く。 */
-  readonly exerciseActive?: boolean;
-  readonly attribute: string;
-  readonly unitType: string;
-  readonly role: string;
-  readonly positionAptitudes: readonly string[];
-}
+};
 
-export interface CatalogMemorySummary {
-  readonly memoryDefinitionId: string;
-  readonly displayName: string;
-}
+export type CatalogMemorySummary = GeneratedCatalogResponse["memories"][number];
 
 // docs/ddd/10_API設計.md「CatalogGearEffectResponse」(R-ENH-04 #3 の効果表)。
 // `percentagePoints` はパーセントポイントのまま届く（内部表現の小数ではない）。
-export interface CatalogGearEffectValue {
-  readonly tier: string;
-  readonly grade: string;
-  readonly percentagePoints: number;
-}
+export type CatalogGearEffectValue = GeneratedCatalogGearEffect["values"][number];
+export type CatalogGearEffect = GeneratedCatalogGearEffect;
 
-export interface CatalogGearEffect {
-  readonly stat: string;
-  /** R-ENH-06: `RATIO` は基本値への割合補正、`POINT` は値そのものへの加算。 */
-  readonly application: string;
-  readonly values: readonly CatalogGearEffectValue[];
-}
-
-export interface BattleSimulationCatalogResponse {
-  readonly schemaVersion: 1;
-  readonly catalogRevision: string;
+export interface BattleSimulationCatalogResponse extends Omit<
+  GeneratedCatalogResponse,
+  "units" | "gearEffects"
+> {
   readonly units: readonly CatalogUnitSummary[];
-  readonly memories: readonly CatalogMemorySummary[];
-  /** 効果表を公開しない旧APIと組み合わせても壊さないため任意項目にする。 */
+  /** 効果表を公開しない旧APIと組み合わせても壊さないため任意項目にする（生成型は必須）。 */
   readonly gearEffects?: readonly CatalogGearEffect[];
 }
 
@@ -236,67 +241,45 @@ export type TacticalExerciseApiResult = ExecutionApiResult<TacticalExerciseRespo
 // 返らない（Q-TEX-16）ため、UIは試行ごとの生値だけを受け取って自分で集計する。
 // 6つの配列は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。
 // `allyUnit*`の内側はリクエストの`candidates[i].allyFormation.units`と同じ長さ・同じ順。
-export interface TacticalExerciseCandidateEvaluationResponse {
-  /** 期限内に完了した試行数。期限到達時は要求より小さい（Q-TEX-18）。 */
-  readonly completedRuns: number;
-  readonly scores: readonly number[];
-  readonly breakCounts: readonly number[];
-  readonly completedTurns: readonly number[];
-  readonly completionReasons: readonly string[];
-  readonly allyUnitDamageTotals: readonly (readonly number[])[];
-  readonly allyUnitBreakCounts: readonly (readonly number[])[];
-}
+type GeneratedEvaluationResponse = DeepReadonly<
+  paths["/api/v1/tactical-exercise-evaluations"]["post"]["responses"][200]["content"]["application/json"]
+>;
+
+export type TacticalExerciseCandidateEvaluationResponse =
+  GeneratedEvaluationResponse["candidates"][number];
 
 // docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」。
-export interface TacticalExerciseEvaluationResponse {
-  readonly schemaVersion: number;
-  readonly catalogRevision: string;
-  /** 実際に使われたseed。省略して送った場合のサーバー生成分も載る（Q-TEX-17）。 */
-  readonly seed: string;
-  readonly runsPerCandidate: number;
-  readonly candidates: readonly TacticalExerciseCandidateEvaluationResponse[];
-}
+export type TacticalExerciseEvaluationResponse = GeneratedEvaluationResponse;
 
 export type TacticalExerciseEvaluationApiResult =
   ExecutionApiResult<TacticalExerciseEvaluationResponse>;
 
 // docs/ddd/10_API設計.md「FormationStatPreviewResponse」/
 // docs/ui-design/03_API・データ連携設計.md §2.5, §9.1.
-export interface FormationStatPreviewCombatStats {
-  readonly attack: number;
-  readonly defense: number;
-  readonly criticalRate: number;
-  readonly actionSpeed: number;
-  readonly affinityBonus: number;
-  readonly criticalDamageBonus: number;
-}
+type GeneratedPreviewResponse = DeepReadonly<
+  paths["/api/v1/formation-stat-previews"]["post"]["responses"][200]["content"]["application/json"]
+>;
+type GeneratedPreviewUnit = GeneratedPreviewResponse["units"][number];
+
+export type FormationStatPreviewCombatStats = GeneratedPreviewUnit["combatStats"];
 
 /**
  * R-ENH-06の強化後基本ステータス。編成ボーナス・配置適性補正を適用する**前**の値で、
  * `combatStats`と同じ単位（割合3項目はパーセントポイント）に最大HPを加えた形。
  */
-export interface FormationStatPreviewBaseStats extends FormationStatPreviewCombatStats {
-  readonly maximumHp: number;
-}
+export type FormationStatPreviewBaseStats = GeneratedPreviewUnit["enhancedBaseStats"];
 
-export interface FormationStatPreviewUnit {
-  readonly side: string;
-  readonly unitDefinitionId: string;
-  readonly formationPosition: { readonly column: number; readonly row: string };
-  /** 戦闘の`initialState.units[].hp.maximum`と同じ、丸めていない最大HP。 */
-  readonly maximumHp: number;
-  readonly combatStats: FormationStatPreviewCombatStats;
+export type FormationStatPreviewUnit = Omit<GeneratedPreviewUnit, "enhancedBaseStats"> & {
   /**
    * 補正前ステータス。**optional** —— APIとUIは別々にデプロイされ、本フィールドを
-   * 持たないサーバーの応答も届き得る（10_API設計.md「ローリングデプロイ中の可用性」）。
+   * 持たないサーバーの応答も届き得る（10_API設計.md「ローリングデプロイ中の可用性」。
+   * 生成型は必須項目として文書化しているが、それより前にデプロイされたAPIとの
+   * 組み合わせを許すためUI側で緩めている）。
    */
   readonly enhancedBaseStats?: FormationStatPreviewBaseStats;
-  readonly [key: string]: unknown;
-}
+};
 
-export interface FormationStatPreviewResponse {
-  readonly schemaVersion: number;
-  readonly catalogRevision: string;
+export interface FormationStatPreviewResponse extends Omit<GeneratedPreviewResponse, "units"> {
   readonly units: readonly FormationStatPreviewUnit[];
 }
 

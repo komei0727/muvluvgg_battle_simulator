@@ -4,6 +4,7 @@ import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
   BattleUnitStateResponse,
+  CatalogUnitSummary,
   UnitBattleSummaryResponse,
 } from "../simulation/api-contract.js";
 
@@ -13,7 +14,7 @@ function catalogWith(
   return { schemaVersion: 1, catalogRevision: "rev-1", units, memories: [] };
 }
 
-function unitDefinition(unitDefinitionId: string, displayName: string) {
+function unitDefinition(unitDefinitionId: string, displayName: string): CatalogUnitSummary {
   return {
     unitDefinitionId,
     displayName,
