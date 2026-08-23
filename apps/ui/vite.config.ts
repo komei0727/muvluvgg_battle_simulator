@@ -69,7 +69,7 @@ export default defineConfig({
         // per-file at the measured baseline (Issue #593) so it guards against
         // regression even where the target isn't fully reached yet.
         "src/features/formation/request-mapper.ts": { branches: 94 },
-        "src/features/simulation/response-validator.ts": { branches: 88 },
+        "src/shared/api/response-validator.ts": { branches: 88 },
         "src/features/simulation/error-normalizer.ts": { branches: 91 },
         "src/features/summary/summary-projector.ts": { branches: 100 },
       },
