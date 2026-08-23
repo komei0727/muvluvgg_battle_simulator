@@ -28,7 +28,10 @@ type GeneratedCatalogResponse = DeepReadonly<
 type GeneratedCatalogUnitSummary = GeneratedCatalogResponse["units"][number];
 type GeneratedCatalogGearEffect = GeneratedCatalogResponse["gearEffects"][number];
 
-export type CatalogUnitSummary = Omit<GeneratedCatalogUnitSummary, "category"> & {
+export type CatalogUnitSummary = Omit<
+  GeneratedCatalogUnitSummary,
+  "category" | "exerciseActive"
+> & {
   /**
    * R-TEX-11 #1: 編成プールの区分（`PLAYABLE`／`EXERCISE_ENEMY`）。`gearEffects`と
    * 同じく、この項目を返さない旧APIと組み合わせても壊さないため任意項目にする
@@ -36,6 +39,13 @@ export type CatalogUnitSummary = Omit<GeneratedCatalogUnitSummary, "category"> &
    * 組み合わせを許すためUI側で緩めている）。不在は`PLAYABLE`として扱う。
    */
   readonly category?: string;
+  /**
+   * R-TEX-11 #4: 開催中バッジ用の表示専用情報。`EXERCISE_ENEMY`のときだけ届く。
+   * 生成型も現状は任意項目だが、`category`と同じ理由でUI側にも明示しておく
+   * ——生成型がOpenAPI側の変更で必須化されても、この項目を返さない旧APIの
+   * 応答をUIが受け入れ続けられるようにするため（暗黙の一致に依存しない）。
+   */
+  readonly exerciseActive?: boolean;
 };
 
 export type CatalogMemorySummary = GeneratedCatalogResponse["memories"][number];
