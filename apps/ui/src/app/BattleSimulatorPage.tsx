@@ -1,85 +1,21 @@
-import { useCallback, useMemo, useReducer, useState } from "react";
+import { useCallback, useState } from "react";
 import { AppShell } from "../components/AppShell.js";
-import { Panel } from "../components/Panel.js";
-import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
-import { BreakTimeline } from "../features/exercise/BreakTimeline.js";
-import { ExerciseEnemyFormation } from "../features/exercise/ExerciseEnemyFormation.js";
 import type { BattleMode } from "../entities/battle-mode.js";
-import { EXERCISE_TURN_LIMIT } from "../entities/tactical-exercise.js";
 import type {
-  BattleSimulationCatalogResponse,
   TacticalExerciseRequest,
   TacticalExerciseResponse,
 } from "../shared/api/api-contract.js";
-import { validateExerciseDraft } from "../features/exercise/exercise-draft-validation.js";
-import { buildTacticalExerciseRequest } from "../features/exercise/exercise-request-mapper.js";
-import {
-  describeExerciseResult,
-  selectExerciseResultView,
-} from "../features/exercise/exercise-result-projector.js";
-import { mapEvaluationViolationsToUiViolations } from "../features/exercise/evaluation-violation-mapper.js";
 import { ModeTabs } from "../features/exercise/ModeTabs.js";
-import { StatisticsRunFeedback } from "../features/exercise/StatisticsRunFeedback.js";
-import {
-  buildTacticalExerciseEvaluationRequest,
-  evaluationFormationSignature,
-} from "../features/exercise/exercise-request-mapper.js";
-import { useExerciseStatisticsRun } from "../features/exercise/use-exercise-statistics-run.js";
-import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
-import { ScoreSummaryHeader } from "../features/exercise/ScoreSummaryHeader.js";
-import { ExerciseStatisticsSummary } from "../features/exercise-stats/ExerciseStatisticsSummary.js";
-import { UnitStatisticsSection } from "../features/exercise-stats/UnitStatisticsSection.js";
-import {
-  buildScoreStatisticsReport,
-  resolveAllyUnitLabels,
-} from "../features/exercise-stats/statistics-report.js";
-import { BattleSetupLayout } from "../features/formation/BattleSetupLayout.js";
-import { ExecutionParameterForm } from "../features/formation/ExecutionParameterForm.js";
-import type { ExerciseExecutionFormProps } from "../features/formation/ExecutionParameterForm.js";
-import { FormationEditor } from "../features/formation/FormationEditor.js";
-import { StatPreviewModeToggle } from "../features/formation/StatPreviewModeToggle.js";
-import { FormationResetControls } from "../features/formation/FormationResetControls.js";
-import { formationReducer } from "../features/formation/formation-reducer.js";
 import type { SelectionDialogState } from "../features/formation/formation-reducer.js";
-import { validateDraft } from "../features/formation/draft-validation.js";
-import { buildBattleSimulationRequest } from "../features/formation/request-mapper.js";
-import { withPlayerEnhancement } from "../features/formation/effective-draft.js";
-import {
-  EXERCISE_DRAFT_STORAGE_KEY,
-  LAST_DRAFT_STORAGE_KEY,
-} from "../features/formation/persistence.js";
-import {
-  createPersistedInitialState,
-  usePersistedDraft,
-} from "../features/formation/use-formation-persistence.js";
 import { usePlayerEnhancementPersistence } from "../features/formation/use-player-enhancement-persistence.js";
-import { SubmitControls } from "../features/formation/SubmitControls.js";
 import type { UseFormationStatPreviewOptions } from "../features/formation/use-formation-stat-preview.js";
-import { useFormationStatPreview } from "../features/formation/use-formation-stat-preview.js";
-import {
-  canOpenUnitEnhancementDialog,
-  enhancementForSide,
-  memorySlotsForSide,
-  slotsForSide,
-} from "../features/formation/types.js";
-import { ValidationSummary } from "../features/formation/ValidationSummary.js";
 import type { UseCatalogLoaderOptions } from "../features/catalog-selection/catalog-loader.js";
 import { useCatalogLoader } from "../features/catalog-selection/catalog-loader.js";
-import {
-  definitionImageMap,
-  memoryImageMap,
-  unitImageMap,
-} from "../features/catalog-selection/definition-image-map.js";
-import { simulateTacticalExercise } from "../shared/api/api-client.js";
-import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js";
 import type { UseSimulationExecutionOptions } from "../features/simulation/use-simulation-execution.js";
-import { useSimulationExecution } from "../features/simulation/use-simulation-execution.js";
-import { BattleSummarySection } from "../features/summary/BattleSummarySection.js";
-import { describeBattleResult } from "../features/summary/summary-projector.js";
-import { OutcomeStrip } from "../features/summary/OutcomeStrip.js";
+import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-exercise-statistics-run.js";
 
-import { SelectionDialogs } from "./SelectionDialogs.js";
-import { useBattleSimulatorViewModel } from "./use-battle-simulator-view-model.js";
+import { NormalBattleMode } from "./NormalBattleMode.js";
+import { TacticalExerciseMode } from "./TacticalExerciseMode.js";
 
 export interface BattleSimulatorPageProps {
   readonly apiBaseUrl: string;
@@ -94,9 +30,15 @@ export interface BattleSimulatorPageProps {
   readonly evaluateTacticalExerciseImpl?: UseExerciseStatisticsRunOptions["evaluateImpl"];
 }
 
-const SIMULATION_ENDPOINT = "POST /api/v1/battle-simulations";
-const EXERCISE_ENDPOINT = "POST /api/v1/tactical-exercises";
-
+/**
+ * モード選択・Catalog取得・味方の共有育成データ（学園レベル・レベルリンク・
+ * ユニット強化）だけを持つ（REF-059 / Issue #604）。編成draft・実行状態・
+ * 統計実行はモード別コンテナ（`NormalBattleMode`／`TacticalExerciseMode`）が持つ。
+ *
+ * 両コンテナは常時マウントしたまま、非活性時は`active=false`でnullを返すだけに
+ * する——実行状態・統計実行はlocalStorageへ永続化されないため、タブ切替でアン
+ * マウントすると再訪時に消えてしまう（`UI-CT-032`）。
+ */
 export function BattleSimulatorPage({
   apiBaseUrl,
   buildRevision,
@@ -115,289 +57,18 @@ export function BattleSimulatorPage({
   // UI-AC-034: プレビューの表示モード。編成の内容ではなく見え方なので、
   // formation-reducerのstateへ入れず保存対象にもしない。両陣営・全枠で共有する。
   const [showBaseStats, setShowBaseStats] = useState(false);
-  // ダイアログ選択状態はモードに紐づかないコンテナのlocal state
+  // ダイアログ選択状態はモードに紐づかないPageのlocal state
   // （04_コンポーネント・状態管理設計.md §4、REF-058 / Issue #603）。
+  // どのモードのcontainerを起点に開いたかに関わらず、開閉のON/OFFだけをここが持つ。
   const [selectionDialog, setSelectionDialog] = useState<SelectionDialogState>({ kind: "closed" });
-  // UI-AC-029: 前回セッションのdraftはlazy initで復元する（reducerを不純にしない）。
-  const [battleState, battleDispatch] = useReducer(
-    formationReducer,
-    LAST_DRAFT_STORAGE_KEY,
-    createPersistedInitialState,
-  );
-  // UI-AC-018: 演習draftはモード別の独立したsliceとして持ち、保存先も別キーにする
-  // （01_UI要求・画面設計.md §5.9）。同じキーを2つのdraftが奪い合うと、
-  // 後から保存した側でもう片方の編成が消える。
-  const [exerciseState, exerciseDispatch] = useReducer(
-    formationReducer,
-    EXERCISE_DRAFT_STORAGE_KEY,
-    createPersistedInitialState,
-  );
-  const catalog = catalogLoader.state;
-  // 味方の学園レベル・レベルリンク・ユニット強化はモードに依らない単一slice
-  // （REF-058 / Issue #603）。モード別draftへは`withPlayerEnhancement`で重ね合わせる。
-  // どちらの入力も変わっていない再描画で新しい参照を作らないよう`useMemo`で包む
-  // ——`useBattleSimulatorViewModel`側の`useMemo`（`draft`を依存に持つ）が
-  // 無意味に再計算されるのを防ぐ。
-  const playerEnhancement = usePlayerEnhancementPersistence(catalog);
-  const battleEffectiveDraft = useMemo(
-    () => withPlayerEnhancement(battleState.draft, playerEnhancement.state),
-    [battleState.draft, playerEnhancement.state],
-  );
-  const exerciseEffectiveDraft = useMemo(
-    () => withPlayerEnhancement(exerciseState.draft, playerEnhancement.state),
-    [exerciseState.draft, playerEnhancement.state],
-  );
-
-  // UI-CMP-013: 実行stateをモードごとに分ける。abort controllerもexecutionIdの
-  // 発番もhookインスタンスに閉じるため、旧モードの遅延応答は自分のsliceへしか
-  // 届かず、他モードの最新stateを上書きできない。
-  const battleExecution = useSimulationExecution(
-    apiBaseUrl,
-    simulateImpl !== undefined ? { simulateImpl } : {},
-  );
-  const exerciseExecution = useSimulationExecution<
-    TacticalExerciseRequest,
-    TacticalExerciseResponse
-  >(apiBaseUrl, { simulateImpl: simulateTacticalExerciseImpl ?? simulateTacticalExercise });
-  // 統計実行は1回のPOSTでは終わらない（チャンク分割・進捗・部分結果）ため、単一実行の
-  // 実行stateとは別のsliceが要る。両者は同時に走らない —— 実行モードがどちらか一方を
-  // 選ぶ。
-  const statisticsRun = useExerciseStatisticsRun(
-    apiBaseUrl,
-    evaluateTacticalExerciseImpl !== undefined
-      ? { evaluateImpl: evaluateTacticalExerciseImpl }
-      : {},
-  );
-
-  const battleView = useBattleSimulatorViewModel({
-    catalog,
-    draft: battleEffectiveDraft,
-    execution: battleExecution.state,
-    validate: validateDraft,
-    buildRequest: buildBattleSimulationRequest,
-  });
-  const exerciseView = useBattleSimulatorViewModel({
-    catalog,
-    draft: exerciseEffectiveDraft,
-    execution: exerciseExecution.state,
-    validate: validateExerciseDraft,
-    buildRequest: buildTacticalExerciseRequest,
-  });
-
-  const isExercise = mode === "exercise";
-  const effectiveDraft = isExercise ? exerciseEffectiveDraft : battleEffectiveDraft;
-  const dispatch = isExercise ? exerciseDispatch : battleDispatch;
-  const view = isExercise ? exerciseView : battleView;
-  const execution = isExercise ? exerciseExecution : battleExecution;
-  const { displayedViolations: viewViolations } = view;
-
-  // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
-  // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
-  const statPreview = useFormationStatPreview(apiBaseUrl, effectiveDraft, {
-    mode: isExercise ? "TACTICAL_EXERCISE" : "NORMAL",
-    ...(previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {}),
-  });
-
-  // 01_UI要求・画面設計.md §5.9: 入力の保存・復元・プリフィル。保存の失敗は
-  // 画面へ出さず、保存以外の機能をそのまま続ける。draftはモードごとに別キーへ保存し
-  // （味方の学園レベル・レベルリンク・ユニット強化は含まない生のdraft——それらは
-  // `mlgg:player-data`が正本のため、モード別キーへ重複させない。REF-058 / Issue #603）、
-  // 孤児IDのクリアもそれぞれのviolationで判定する。
-  usePersistedDraft({
-    storageKey: LAST_DRAFT_STORAGE_KEY,
-    draft: battleState.draft,
-    catalog,
-    violations: battleView.violations,
-    dispatch: battleDispatch,
-  });
-  usePersistedDraft({
-    storageKey: EXERCISE_DRAFT_STORAGE_KEY,
-    draft: exerciseState.draft,
-    catalog,
-    violations: exerciseView.violations,
-    dispatch: exerciseDispatch,
-  });
-
-  const resetActiveDraft = useCallback(() => {
-    dispatch({ type: "draftReset" });
-  }, [dispatch]);
-
-  // UI-AC-041: 演習の実行指定。ログレベル選択の置き換えなので、通常戦闘モードへは
-  // 渡さない（通常戦闘のdraftも同じ項目を持つが、実行にも送信にも効かない）。
-  const exerciseExecutionForm: ExerciseExecutionFormProps = {
-    value: exerciseState.draft.exerciseExecution,
-    onModeChange: (value) => {
-      exerciseDispatch({ type: "exerciseExecutionModeChanged", value });
-    },
-    onRunCountChange: (value) => {
-      exerciseDispatch({ type: "exerciseRunCountChanged", value });
-    },
-    onSeedChange: (value) => {
-      exerciseDispatch({ type: "exerciseSeedChanged", value });
-    },
-  };
-
-  const { mode: exerciseExecutionMode, runCount, seed } = exerciseState.draft.exerciseExecution;
-  const isStatisticsRun = isExercise && exerciseExecutionMode === "STATISTICS";
-  // 実行中のロックは演習タブに閉じる。進捗も中断ボタンも演習タブにしか無いため、
-  // 通常戦闘まで無効化すると止める手段が無いまま実行の終わりを待たせることになる。
-  const isStatisticsRunning = isStatisticsRun && statisticsRun.state.status === "running";
-
-  // 統計実行の422も単一実行と同じく枠・実行回数入力へ結びつける（UI-API-004）。評価APIの
-  // pathは候補indexを含むため、専用のmapperを通す。
-  //
-  // 表示は統計実行の中に閉じる。slotKeyは`side:row:column`でモード間共通なので、絞らないと
-  // 通常戦闘の同じ座標の枠が、説明の無いまま赤くなる（`ValidationSummary`はdraft検証しか
-  // 出さない）。単一実行のサーバー違反が`view`ごとにモードで分かれているのと同じ扱い。
-  const statisticsViolations =
-    isStatisticsRun &&
-    statisticsRun.state.status === "failed" &&
-    statisticsRun.state.error.kind === "API" &&
-    statisticsRun.state.error.error.violations !== undefined
-      ? mapEvaluationViolationsToUiViolations(
-          statisticsRun.state.error.error.violations,
-          statisticsRun.state.submission,
-        )
-      : [];
-
-  // 完了した統計結果が、その後編集された編成のものでないか。実行回数とシードは結果表示に
-  // 出ているため、画面から読み取れない編成の変化だけを見る。
-  const currentEvaluationBuild = isStatisticsRun
-    ? buildTacticalExerciseEvaluationRequest(exerciseEffectiveDraft, {
-        runsPerCandidate: 1,
-        seed: "-",
-      })
-    : { ok: false as const };
-  const statisticsAggregate =
-    statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
-      ? statisticsRun.state.aggregate
-      : undefined;
-  const statisticsResultDirty =
-    statisticsAggregate !== undefined &&
-    currentEvaluationBuild.ok &&
-    evaluationFormationSignature(currentEvaluationBuild.request) !==
-      (statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
-        ? statisticsRun.state.submission.formationSignature
-        : "");
-  const displayedViolations = [...viewViolations, ...statisticsViolations];
-  const statisticsCatalogRevisionMismatch =
-    statisticsAggregate !== undefined &&
-    (catalog.status !== "ready" ||
-      statisticsAggregate.catalogRevision !== catalog.response.catalogRevision);
-  // 走っているチャンクは実行開始時のdraftで送られ続けるため、実行中の編集を許すと
-  // 画面と結果が食い違う。単一実行（`formationDisabled`）と同じ扱いにする。
-  const formationDisabled = view.formationDisabled || isStatisticsRunning;
-
-  // 統計実行の結果表示。中断は失敗ではなく「完了済みチャンクまでで確定した結果」
-  // なので、成功と同じ形で読む（`selectStatisticsAggregate`と同じ扱い）。
-  const completedStatisticsRun =
-    statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"
-      ? statisticsRun.state
-      : undefined;
-  const readyCatalogResponse = catalog.status === "ready" ? catalog.response : undefined;
-  // 統計は最大2,000試行の並べ替えと分位点を通るため、編成の1文字編集ごとにやり直さない。
-  const statisticsDisplay = useMemo(
-    () =>
-      // Catalogが切り替わった後の結果は、いま表示している定義と対応しない。数値だけを
-      // 残すと別の編成の結果として読まれるため、`StatisticsRunFeedback`が再読込を促す
-      // のと同じ条件でパネルも出さない。
-      completedStatisticsRun === undefined || statisticsCatalogRevisionMismatch
-        ? undefined
-        : {
-            aggregate: completedStatisticsRun.aggregate,
-            score: buildScoreStatisticsReport(completedStatisticsRun.aggregate, {
-              seed: completedStatisticsRun.seed,
-              // 集約が持つのは送信したチャンクの合計であり、中断すると要求より小さくなる。
-              // 利用者が入力した実行回数は進捗の側にある。
-              requestedRuns: completedStatisticsRun.progress.requestedRuns,
-            }),
-            // 列に名前を付けられるのは送信時の編成だけである。実行後もdraftは編集
-            // できるので、現在の編成から引くと別のユニット名が列へ付く。
-            labels: resolveAllyUnitLabels(
-              completedStatisticsRun.submission.allyUnitDefinitionIds,
-              readyCatalogResponse,
-            ),
-          },
-    [completedStatisticsRun, statisticsCatalogRevisionMismatch, readyCatalogResponse],
-  );
-
-  const submit = () => {
-    if (isStatisticsRun) {
-      // 実行回数の値域は送信前検証が押さえている（`exercise-draft-validation.ts`）ため、
-      // ここへ来る時点で整数である。
-      if (runCount !== "") {
-        statisticsRun.start({ draft: exerciseEffectiveDraft, runCount, seed });
-      }
-      return;
-    }
-    if (isExercise) {
-      if (exerciseView.requestBuild.ok) {
-        const { ok: _ok, ...input } = exerciseView.requestBuild;
-        exerciseExecution.submit(input);
-      }
-      return;
-    }
-    if (battleView.requestBuild.ok) {
-      const { ok: _ok, ...input } = battleView.requestBuild;
-      battleExecution.submit(input);
-    }
-  };
-
-  // ダイアログ選択状態はコンテナのlocal state（REF-058 / Issue #603）。
-  const openSelection = useCallback(
-    (selection: Exclude<SelectionDialogState, { kind: "closed" }>) => {
-      if (
-        selection.kind === "unitEnhancement" &&
-        !canOpenUnitEnhancementDialog(effectiveDraft, selection.slotKey)
-      ) {
-        return;
-      }
-      setSelectionDialog(selection);
-    },
-    [effectiveDraft],
-  );
-  const closeSelection = useCallback(() => {
+  const closeSelectionDialog = useCallback(() => {
     setSelectionDialog({ kind: "closed" });
   }, []);
 
-  const renderAllyEditor = (readyCatalog: BattleSimulationCatalogResponse) => (
-    <FormationEditor
-      side="ally"
-      slots={slotsForSide(effectiveDraft, "ally")}
-      memoryDefinitionIds={memorySlotsForSide(effectiveDraft, "ally")}
-      catalog={readyCatalog}
-      violations={displayedViolations}
-      disabled={formationDisabled}
-      imageMap={definitionImageMap}
-      enhancement={enhancementForSide(effectiveDraft, "ally")}
-      statPreview={statPreview}
-      showBaseStats={showBaseStats}
-      onOpenUnitSelection={(slotKey) => {
-        openSelection({ kind: "unit", slotKey });
-      }}
-      onOpenMemorySelection={(side, index) => {
-        openSelection({ kind: "memory", side, index });
-      }}
-      onOpenUnitEnhancement={(slotKey) => {
-        openSelection({ kind: "unitEnhancement", slotKey });
-      }}
-      onEnhancementToggle={(side, enabled) => {
-        dispatch({ type: "enhancementToggled", side, enabled });
-      }}
-      onAcademyLevelChange={(_side, group, key, value) => {
-        playerEnhancement.dispatch({ type: "academyLevelChanged", group, key, value });
-      }}
-      onLevelLinkToggle={(_side, enabled) => {
-        playerEnhancement.dispatch({ type: "levelLinkToggled", enabled });
-      }}
-      onLevelLinkChange={(_side, value) => {
-        playerEnhancement.dispatch({ type: "levelLinkLevelChanged", value });
-      }}
-      onMoveUnit={(fromSlotKey, toSlotKey) => {
-        dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
-      }}
-    />
-  );
+  const catalog = catalogLoader.state;
+  // 味方の学園レベル・レベルリンク・ユニット強化はモードに依らない単一slice
+  // （REF-058 / Issue #603）。モード別コンテナへは`withPlayerEnhancement`で重ね合わせる。
+  const playerEnhancement = usePlayerEnhancementPersistence(catalog);
 
   return (
     <AppShell {...(buildRevision !== undefined ? { buildRevision } : {})}>
@@ -405,267 +76,39 @@ export function BattleSimulatorPage({
         mode={mode}
         onChange={(nextMode) => {
           setMode(nextMode);
-          closeSelection();
+          closeSelectionDialog();
         }}
       />
 
-      {/* WAI-ARIA APG: `Tabs`が出す`aria-controls`の指す先を実在させる。モード
-          切替はページ全体（設定・実行結果・詳細）を入れ替えるため、活性モードの
-          内容全体を1つのtabpanelとして持つ。 */}
-      <div role="tabpanel" id={`tabpanel-${mode}`} aria-labelledby={`tab-${mode}`}>
-        <Panel
-          step="01"
-          title={isExercise ? "演習パラメータ" : "戦闘パラメータ"}
-          meta={isExercise ? "FORMATION / MEMORY / EXERCISE" : "FORMATION / MEMORY / EXECUTION"}
-        >
-          {catalog.status === "loading" ? <p>Catalogを読込中…</p> : null}
-          {catalog.status === "failed" ? (
-            <div role="alert">
-              <p>{catalog.error.message}</p>
-              <button type="button" onClick={catalogLoader.reload}>
-                再読込
-              </button>
-            </div>
-          ) : null}
-
-          {catalog.status === "ready" ? (
-            <>
-              <StatPreviewModeToggle showBaseStats={showBaseStats} onChange={setShowBaseStats} />
-
-              <BattleSetupLayout
-                ally={renderAllyEditor(catalog.response)}
-                enemy={
-                  isExercise ? (
-                    <ExerciseEnemyFormation
-                      slots={slotsForSide(effectiveDraft, "enemy")}
-                      catalog={catalog.response}
-                      violations={displayedViolations}
-                      disabled={formationDisabled}
-                      imageMap={definitionImageMap}
-                      statPreview={statPreview}
-                      showBaseStats={showBaseStats}
-                      onOpenUnitSelection={(slotKey) => {
-                        openSelection({ kind: "unit", slotKey });
-                      }}
-                      onMoveUnit={(fromSlotKey, toSlotKey) => {
-                        dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
-                      }}
-                    />
-                  ) : (
-                    <FormationEditor
-                      side="enemy"
-                      slots={slotsForSide(effectiveDraft, "enemy")}
-                      memoryDefinitionIds={memorySlotsForSide(effectiveDraft, "enemy")}
-                      catalog={catalog.response}
-                      violations={displayedViolations}
-                      disabled={formationDisabled}
-                      imageMap={definitionImageMap}
-                      enhancement={enhancementForSide(effectiveDraft, "enemy")}
-                      statPreview={statPreview}
-                      showBaseStats={showBaseStats}
-                      onOpenUnitSelection={(slotKey) => {
-                        openSelection({ kind: "unit", slotKey });
-                      }}
-                      onOpenMemorySelection={(side, index) => {
-                        openSelection({ kind: "memory", side, index });
-                      }}
-                      onOpenUnitEnhancement={(slotKey) => {
-                        openSelection({ kind: "unitEnhancement", slotKey });
-                      }}
-                      onEnhancementToggle={(side, enabled) => {
-                        dispatch({ type: "enhancementToggled", side, enabled });
-                      }}
-                      onAcademyLevelChange={(side, group, key, value) => {
-                        dispatch({ type: "academyLevelChanged", side, group, key, value });
-                      }}
-                      onLevelLinkToggle={(side, enabled) => {
-                        dispatch({ type: "levelLinkToggled", side, enabled });
-                      }}
-                      onLevelLinkChange={(side, value) => {
-                        dispatch({ type: "levelLinkLevelChanged", side, value });
-                      }}
-                      onMoveUnit={(fromSlotKey, toSlotKey) => {
-                        dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
-                      }}
-                    />
-                  )
-                }
-              />
-
-              <ExecutionParameterForm
-                turnLimit={effectiveDraft.turnLimit}
-                logLevel={effectiveDraft.logLevel}
-                endpoint={isExercise ? EXERCISE_ENDPOINT : SIMULATION_ENDPOINT}
-                disabled={formationDisabled}
-                violations={displayedViolations}
-                {...(isExercise
-                  ? {
-                      fixedTurnLimit: EXERCISE_TURN_LIMIT,
-                      exerciseExecution: exerciseExecutionForm,
-                    }
-                  : {})}
-                onTurnLimitChange={(value) => {
-                  dispatch({ type: "turnLimitChanged", value });
-                }}
-                onLogLevelChange={(value) => {
-                  dispatch({ type: "logLevelChanged", value });
-                }}
-              />
-
-              <ValidationSummary violations={view.violations} />
-
-              <SubmitControls
-                canSubmit={view.canSubmit && !isStatisticsRunning}
-                isSubmitting={view.isSubmitting || isStatisticsRunning}
-                submitLabel={isExercise ? "戦術演習を開始" : "戦闘を開始"}
-                onSubmit={submit}
-                onCancel={isStatisticsRun ? statisticsRun.cancel : execution.cancel}
-              />
-
-              <FormationResetControls
-                disabled={formationDisabled}
-                onResetDraft={resetActiveDraft}
-                onClearPlayerData={() => {
-                  playerEnhancement.dispatch({ type: "cleared" });
-                }}
-              />
-            </>
-          ) : null}
-        </Panel>
-
-        {isStatisticsRun ? (
-          <StatisticsRunFeedback
-            state={statisticsRun.state}
-            onCancel={statisticsRun.cancel}
-            isDirty={statisticsResultDirty}
-            catalogRevisionMismatch={statisticsCatalogRevisionMismatch}
-            onReloadCatalog={catalogLoader.reload}
-          />
-        ) : null}
-
-        {isExercise && !isStatisticsRun ? (
-          <SubmissionFeedback
-            state={exerciseExecution.state}
-            isDirty={exerciseView.isDirty}
-            successMessage="戦術演習が完了しました。"
-            resultSummary={
-              exerciseView.displayedSuccess === undefined
-                ? ""
-                : describeExerciseResult(exerciseView.displayedSuccess.response.result)
-            }
-            catalogRevisionMismatch={exerciseView.catalogRevisionMismatch}
-            onReloadCatalog={catalogLoader.reload}
-          />
-        ) : null}
-
-        {!isExercise ? (
-          <SubmissionFeedback
-            state={battleExecution.state}
-            isDirty={battleView.isDirty}
-            successMessage="戦闘が完了しました。"
-            resultSummary={
-              battleView.displayedSuccess === undefined
-                ? ""
-                : describeBattleResult(battleView.displayedSuccess.response.result)
-            }
-            catalogRevisionMismatch={battleView.catalogRevisionMismatch}
-            onReloadCatalog={catalogLoader.reload}
-          />
-        ) : null}
-
-        {isStatisticsRun && statisticsDisplay !== undefined ? (
-          <>
-            <Panel step="02" title="演習統計サマリ" meta="SCORE / DAILY BEST / DISTRIBUTION">
-              <ExerciseStatisticsSummary report={statisticsDisplay.score} />
-            </Panel>
-            <Panel step="03" title="キャラ別統計" meta="DAMAGE / BREAK / EXPORT">
-              <UnitStatisticsSection
-                aggregate={statisticsDisplay.aggregate}
-                labels={statisticsDisplay.labels}
-                score={statisticsDisplay.score}
-              />
-            </Panel>
-          </>
-        ) : null}
-
-        {view.displayedSuccess !== undefined &&
-        !isStatisticsRun &&
-        !view.catalogRevisionMismatch ? (
-          <>
-            <Panel
-              step="02"
-              title={isExercise ? "演習サマリ" : "戦闘サマリ"}
-              meta={isExercise ? "SCORE / BREAK / ROSTER" : "OUTCOME / ROSTER"}
-            >
-              {isExercise && exerciseView.displayedSuccess !== undefined ? (
-                <BattleSummarySection
-                  response={exerciseView.displayedSuccess.response}
-                  {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
-                  header={
-                    <>
-                      <ScoreSummaryHeader
-                        result={exerciseView.displayedSuccess.response.result}
-                        battleId={exerciseView.displayedSuccess.response.battleId}
-                        catalogRevision={exerciseView.displayedSuccess.response.catalogRevision}
-                      />
-                      <BreakTimeline
-                        breaks={
-                          selectExerciseResultView(
-                            exerciseView.displayedSuccess.response.result,
-                            catalog.status === "ready" ? catalog.response : undefined,
-                          ).breaks
-                        }
-                      />
-                    </>
-                  }
-                  imageMap={unitImageMap}
-                />
-              ) : null}
-              {!isExercise && battleView.displayedSuccess !== undefined ? (
-                <BattleSummarySection
-                  response={battleView.displayedSuccess.response}
-                  {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
-                  header={
-                    <OutcomeStrip
-                      result={battleView.displayedSuccess.response.result}
-                      turnLimit={battleView.displayedSuccess.request.turnLimit}
-                      battleId={battleView.displayedSuccess.response.battleId}
-                      catalogRevision={battleView.displayedSuccess.response.catalogRevision}
-                    />
-                  }
-                  imageMap={unitImageMap}
-                />
-              ) : null}
-            </Panel>
-            <Panel
-              step="03"
-              title={isExercise ? "演習詳細データ" : "戦闘詳細データ"}
-              meta="AUDIT TRAIL / RAW RESPONSE"
-            >
-              <BattleDetailsSection
-                response={view.displayedSuccess.response}
-                logLevel={view.displayedSuccess.request.options.logLevel}
-                {...(catalog.status === "ready" ? { catalog: catalog.response } : {})}
-              />
-            </Panel>
-          </>
-        ) : null}
-      </div>
-
-      {catalog.status === "ready" ? (
-        <SelectionDialogs
-          selectionDialog={selectionDialog}
-          draft={effectiveDraft}
-          mode={mode}
-          catalog={catalog.response}
-          unitImageMap={unitImageMap}
-          memoryImageMap={memoryImageMap}
-          violations={displayedViolations}
-          dispatch={dispatch}
-          playerEnhancementDispatch={playerEnhancement.dispatch}
-          onClose={closeSelection}
-        />
-      ) : null}
+      <NormalBattleMode
+        active={mode === "battle"}
+        apiBaseUrl={apiBaseUrl}
+        catalog={catalog}
+        onReloadCatalog={catalogLoader.reload}
+        showBaseStats={showBaseStats}
+        onShowBaseStatsChange={setShowBaseStats}
+        playerEnhancement={playerEnhancement}
+        selectionDialog={selectionDialog}
+        onRequestSelectionDialog={setSelectionDialog}
+        onCloseSelectionDialog={closeSelectionDialog}
+        {...(simulateImpl !== undefined ? { simulateImpl } : {})}
+        {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
+      />
+      <TacticalExerciseMode
+        active={mode === "exercise"}
+        apiBaseUrl={apiBaseUrl}
+        catalog={catalog}
+        onReloadCatalog={catalogLoader.reload}
+        showBaseStats={showBaseStats}
+        onShowBaseStatsChange={setShowBaseStats}
+        playerEnhancement={playerEnhancement}
+        selectionDialog={selectionDialog}
+        onRequestSelectionDialog={setSelectionDialog}
+        onCloseSelectionDialog={closeSelectionDialog}
+        {...(simulateTacticalExerciseImpl !== undefined ? { simulateTacticalExerciseImpl } : {})}
+        {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
+        {...(evaluateTacticalExerciseImpl !== undefined ? { evaluateTacticalExerciseImpl } : {})}
+      />
     </AppShell>
   );
 }

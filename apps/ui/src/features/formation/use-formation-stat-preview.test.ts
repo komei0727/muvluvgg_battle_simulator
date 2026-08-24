@@ -134,6 +134,22 @@ describe("useFormationStatPreview (UI-CMP-017/UI-API-020/021)", () => {
     expect(previewImpl).not.toHaveBeenCalled();
   });
 
+  // REF-059: モード別コンテナは非活性中も常時マウントされたままになるため、
+  // `enabled: false`は非表示のコンテナが裏でプレビューを取り続けないことを保証する。
+  it("reports unavailable without calling the API while disabled, even with a placeable formation", () => {
+    const previewImpl = vi.fn();
+
+    const { result } = renderHook(() =>
+      useFormationStatPreview("https://api.example", baseDraft(), {
+        previewImpl,
+        enabled: false,
+      }),
+    );
+
+    expect(result.current.status).toBe("unavailable");
+    expect(previewImpl).not.toHaveBeenCalled();
+  });
+
   it("fails a response whose unit count does not match the request, rather than shifting stats onto the wrong slots", async () => {
     const previewImpl = vi.fn().mockResolvedValue(okResult([previewUnit()]));
 
