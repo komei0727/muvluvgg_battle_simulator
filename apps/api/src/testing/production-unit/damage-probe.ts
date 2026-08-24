@@ -1,7 +1,7 @@
 import { applyDamageAction } from "../../domain/battle/combat/damage-application-service.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { applyEffectActionGroups } from "../../domain/battle/resolution/effect-action-group-resolver.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import {
@@ -11,7 +11,7 @@ import {
 import {
   recordPreAttackObservation,
   shouldObserve,
-} from "../../domain/battle/lifecycle/pre-attack-observation-service.js";
+} from "../../domain/battle/resolution/pre-attack-observation-service.js";
 import type {
   AccuracyMode,
   CriticalMode,

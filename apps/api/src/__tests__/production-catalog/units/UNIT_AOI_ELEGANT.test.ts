@@ -5,7 +5,7 @@ import {
   loadProductionSnapshot,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
-import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../../domain/battle/events/state-delta-reducer.js";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import {
   unexecutedEffectActionIds,

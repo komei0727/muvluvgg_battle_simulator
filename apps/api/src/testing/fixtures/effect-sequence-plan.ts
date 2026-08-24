@@ -27,7 +27,7 @@ import type { ConditionDefinition } from "../../domain/catalog/definitions/condi
 import type {
   EffectActionGroupContext,
   EffectActionGroupsResult,
-} from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+} from "../../domain/battle/resolution/effect-action-group-resolver.js";
 import { UNUSED_ENHANCED_BASE_STATS } from "./battle-actors.js";
 
 /**

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { advanceBattle, createBattle, startBattle } from "./battle.js";
 import { captureBattleState } from "./battle-state-snapshot.js";
-import { reduceStateDeltas } from "./state-delta-reducer.js";
+import { reduceStateDeltas } from "../events/state-delta-reducer.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import {
   CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY,

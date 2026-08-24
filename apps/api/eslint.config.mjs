@@ -169,16 +169,16 @@ export default tseslint.config(
   // silently discard an earlier one's patterns for the same rule.
   //
   // Forbidden lists follow the one-directional chain fixed by 04_境界づけられたコンテキスト.md
-  // 「モジュールの依存順序」: model → outcome/targeting → action/skill → events → combat →
-  // lifecycle, and model → formation (formation depends on model; nothing in battle/* may
-  // depend back on formation).
+  // 「モジュールの依存順序」: model → outcome/targeting → action/skill → events →
+  // combat/effects/triggering → resolution → lifecycle, and model → formation (formation
+  // depends on model; nothing in battle/* may depend back on formation).
   {
     files: ["src/domain/battle/model/**/*.ts"],
     ignores: ["src/domain/battle/model/**/*.test.ts", "src/domain/battle/model/**/*.spec.ts"],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
         regex:
-          "(^|.+\\/)(outcome|targeting|action|skill|events|combat|lifecycle|triggering|effects|formation)(\\/|$)",
+          "(^|.+\\/)(outcome|targeting|action|skill|events|combat|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message:
           "domain/battle/model must not depend on any other domain/battle/* submodule or on domain/formation.",
       }),
@@ -190,7 +190,7 @@ export default tseslint.config(
     rules: {
       "no-restricted-imports": domainRestrictedImports({
         regex:
-          "(^|.+\\/)(targeting|action|skill|events|combat|lifecycle|triggering|effects|formation)(\\/|$)",
+          "(^|.+\\/)(targeting|action|skill|events|combat|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message: "domain/battle/outcome must depend only on domain/battle/model.",
       }),
     },
@@ -204,7 +204,7 @@ export default tseslint.config(
     rules: {
       "no-restricted-imports": domainRestrictedImports({
         regex:
-          "(^|.+\\/)(outcome|action|skill|events|combat|lifecycle|triggering|effects|formation)(\\/|$)",
+          "(^|.+\\/)(outcome|action|skill|events|combat|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message: "domain/battle/targeting must depend only on domain/battle/model.",
       }),
     },
@@ -215,7 +215,7 @@ export default tseslint.config(
     rules: {
       "no-restricted-imports": domainRestrictedImports({
         regex:
-          "(^|.+\\/)(outcome|skill|events|combat|lifecycle|triggering|effects|formation)(\\/|$)",
+          "(^|.+\\/)(outcome|skill|events|combat|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message:
           "domain/battle/action must depend only on domain/battle/model and domain/battle/targeting.",
       }),
@@ -227,7 +227,7 @@ export default tseslint.config(
     rules: {
       "no-restricted-imports": domainRestrictedImports({
         regex:
-          "(^|.+\\/)(outcome|action|events|combat|lifecycle|triggering|effects|formation)(\\/|$)",
+          "(^|.+\\/)(outcome|action|events|combat|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message:
           "domain/battle/skill must depend only on domain/battle/model and domain/battle/targeting.",
       }),
@@ -238,9 +238,9 @@ export default tseslint.config(
     ignores: ["src/domain/battle/events/**/*.test.ts", "src/domain/battle/events/**/*.spec.ts"],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
-        regex: "(^|.+\\/)(combat|lifecycle|triggering|effects|formation)(\\/|$)",
+        regex: "(^|.+\\/)(combat|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message:
-          "domain/battle/events must not depend on combat, lifecycle, triggering, effects, or formation.",
+          "domain/battle/events must not depend on combat, resolution, lifecycle, triggering, effects, or formation.",
       }),
     },
   },
@@ -249,9 +249,9 @@ export default tseslint.config(
     ignores: ["src/domain/battle/combat/**/*.test.ts", "src/domain/battle/combat/**/*.spec.ts"],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
-        regex: "(^|.+\\/)(outcome|action|lifecycle|triggering|effects|formation)(\\/|$)",
+        regex: "(^|.+\\/)(outcome|action|resolution|lifecycle|triggering|effects|formation)(\\/|$)",
         message:
-          "domain/battle/combat must depend only on domain/battle/model, domain/battle/skill, domain/battle/targeting, and domain/battle/events; it must not depend on domain/battle/effects.",
+          "domain/battle/combat must depend only on domain/battle/model, domain/battle/skill, domain/battle/targeting, and domain/battle/events; it must not depend on domain/battle/effects, domain/battle/resolution, or domain/battle/lifecycle.",
       }),
     },
   },
@@ -260,9 +260,9 @@ export default tseslint.config(
     ignores: ["src/domain/battle/effects/**/*.test.ts", "src/domain/battle/effects/**/*.spec.ts"],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
-        regex: "(^|.+\\/)(combat|triggering|lifecycle|formation)(\\/|$)",
+        regex: "(^|.+\\/)(combat|triggering|resolution|lifecycle|formation)(\\/|$)",
         message:
-          "domain/battle/effects must not depend on domain/battle/combat (mutual ban), domain/battle/triggering (parallel sibling node under lifecycle, mutual ban), domain/battle/lifecycle, or domain/formation.",
+          "domain/battle/effects must not depend on domain/battle/combat (mutual ban), domain/battle/triggering (parallel sibling node under lifecycle, mutual ban), domain/battle/resolution, domain/battle/lifecycle, or domain/formation.",
       }),
     },
   },
@@ -274,9 +274,27 @@ export default tseslint.config(
     ],
     rules: {
       "no-restricted-imports": domainRestrictedImports({
-        regex: "(^|.+\\/)(effects|combat|lifecycle|formation)(\\/|$)",
+        regex: "(^|.+\\/)(effects|combat|resolution|lifecycle|formation)(\\/|$)",
         message:
-          "domain/battle/triggering must not depend on domain/battle/effects (parallel sibling node under lifecycle, mutual ban), domain/battle/combat, domain/battle/lifecycle, or domain/formation.",
+          "domain/battle/triggering must not depend on domain/battle/effects (parallel sibling node under lifecycle, mutual ban), domain/battle/combat, domain/battle/resolution, domain/battle/lifecycle, or domain/formation.",
+      }),
+    },
+  },
+  // Module boundary: `resolution` absorbs the action-resolution / effect-resolution machinery
+  // promoted out of `lifecycle` (REF-064, #609). It may depend on combat/effects/triggering/
+  // events/action/skill/model (everything below the old lifecycle position) but not on
+  // `lifecycle` itself (which now sits above it, consuming it) or `formation`.
+  {
+    files: ["src/domain/battle/resolution/**/*.ts"],
+    ignores: [
+      "src/domain/battle/resolution/**/*.test.ts",
+      "src/domain/battle/resolution/**/*.spec.ts",
+    ],
+    rules: {
+      "no-restricted-imports": domainRestrictedImports({
+        regex: "(^|.+\\/)(lifecycle|formation)(\\/|$)",
+        message:
+          "domain/battle/resolution must not depend on domain/battle/lifecycle (reverse dependency) or domain/formation.",
       }),
     },
   },

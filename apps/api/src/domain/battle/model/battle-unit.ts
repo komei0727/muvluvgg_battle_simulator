@@ -250,8 +250,8 @@ export function isFrozen(unit: BattleUnit): boolean {
 }
 
 /**
- * `lifecycle/action-resolution-shared.ts`の`requireUnit`と同じ実装。
- * `domain/battle/effects`は`domain/battle/lifecycle`に依存できない
+ * `resolution/action-resolution-shared.ts`の`requireUnit`と同じ実装。
+ * `domain/battle/effects`は`domain/battle/resolution`に依存できない
  * （モジュール境界、eslint.config.mjs）ため、`model`側に複製を持つ。
  */
 export function requireUnit(units: readonly BattleUnit[], id: BattleUnitId): BattleUnit {

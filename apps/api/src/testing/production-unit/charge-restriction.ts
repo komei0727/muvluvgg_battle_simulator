@@ -12,9 +12,9 @@ import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import {
   resolveChargeRelease,
   resolveChargeStart,
-} from "../../domain/battle/lifecycle/action-charge-resolver.js";
-import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+} from "../../domain/battle/resolution/action-charge-resolver.js";
+import { resolveSkillUse } from "../../domain/battle/resolution/action-skill-use-resolver.js";
+import { PassiveActivationRuntime } from "../../domain/battle/resolution/passive-activation-service.js";
 import { createEmptyPassiveActivationGuard } from "../../domain/battle/triggering/passive-activation-guard.js";
 import { detectPassiveCandidates } from "../../domain/battle/triggering/passive-trigger-matcher.js";
 import { reconfirmPassiveCandidate } from "../../domain/battle/triggering/reconfirm-passive-candidate.js";
@@ -24,7 +24,7 @@ import {
   createSkillDefinitionId,
   createTargetBindingId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../domain/battle/events/state-delta-reducer.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import {

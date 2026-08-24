@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { applyEffectActionGroups } from "../../../domain/battle/resolution/effect-action-group-resolver.js";
+import { applyStateDelta } from "../../../domain/battle/events/state-delta-reducer.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
 import {

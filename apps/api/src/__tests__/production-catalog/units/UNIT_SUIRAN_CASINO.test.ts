@@ -8,8 +8,8 @@ import {
 } from "../../../testing/fixtures/index.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
-import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { applyStateDelta } from "../../../domain/battle/events/state-delta-reducer.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { decrementActionEffectDurations } from "../../../domain/battle/model/applied-effect-duration.js";
 import { expireEffects } from "../../../domain/battle/effects/duration-expiry-service.js";

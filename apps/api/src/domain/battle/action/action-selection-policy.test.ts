@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { isCoolingDown, isExUsable, selectAsCandidate } from "./action-selection-policy.js";
-// Test-only: exercises the real ActivationConditionEvaluator (domain/battle/lifecycle) the same
+// Test-only: exercises the real ActivationConditionEvaluator (domain/battle/resolution) the same
 // way action-phase-resolver.ts injects it in production. domain/battle/action itself must not
-// depend on domain/battle/lifecycle (module boundary, eslint.config.mjs); test files are exempt.
-import { evaluateActivationCondition } from "../lifecycle/activation-condition-evaluator.js";
+// depend on domain/battle/resolution (module boundary, eslint.config.mjs); test files are exempt.
+import { evaluateActivationCondition } from "../resolution/activation-condition-evaluator.js";
 import {
   createBattleUnit,
   type BattleUnit,

@@ -1,7 +1,8 @@
-import type { BattleStateSnapshot, BattleUnitSnapshot } from "./battle-state-snapshot.js";
 import {
   isExerciseBattleResult,
   type BattleResultSnapshot,
+  type BattleStateSnapshot,
+  type BattleUnitSnapshot,
   type ChargeState,
   type CooldownState,
   type EffectSnapshot,
@@ -10,7 +11,7 @@ import {
   type StateDelta,
   type UnitStateDelta,
   type ValueChange,
-} from "../events/state-delta.js";
+} from "./state-delta.js";
 import type { ExerciseStateSnapshot } from "../model/exercise-runtime.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";

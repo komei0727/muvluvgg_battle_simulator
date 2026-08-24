@@ -29,8 +29,8 @@ import {
 } from "../../../testing/production-unit/trigger-events.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
-import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { applyStateDelta } from "../../../domain/battle/events/state-delta-reducer.js";
 import type { BattleDefinitions } from "../../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {

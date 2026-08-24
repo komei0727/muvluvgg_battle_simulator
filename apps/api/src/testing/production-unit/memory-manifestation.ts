@@ -24,7 +24,7 @@ import {
   captureBattleState,
   type BattleStateSnapshot,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../domain/battle/events/state-delta-reducer.js";
 import {
   definitionsWith,
   effectActionFrom,

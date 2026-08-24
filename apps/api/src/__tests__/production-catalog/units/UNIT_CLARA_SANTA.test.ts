@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
-import { resolveBindingSelections } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { resolveBindingSelections } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,

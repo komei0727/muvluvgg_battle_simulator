@@ -24,8 +24,8 @@ import {
   createRuntimeCounterUpdateDefinition,
   type RuntimeCounterUpdateDefinition,
 } from "../../catalog/definitions/runtime-counter-update-definition.js";
-import { applyStateDelta } from "./state-delta-reducer.js";
-import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
+import { applyStateDelta } from "../events/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../lifecycle/battle-state-snapshot.js";
 import { ExecutionGuardExceededError } from "../../shared/errors.js";
 import {
   contextOf,

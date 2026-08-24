@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
-import { applyStateDelta } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { applyStateDelta } from "../../../domain/battle/events/state-delta-reducer.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
   initialSnapshotFor,

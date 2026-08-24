@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { captureBattleState } from "../../../domain/battle/lifecycle/battle-state-snapshot.js";
-import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../../domain/battle/events/state-delta-reducer.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
   memoryEffectActionClosure,

@@ -7,10 +7,10 @@ import {
 } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
-import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
+import type { BattleStateSnapshot } from "../lifecycle/battle-state-snapshot.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import { reduceStateDeltas } from "./state-delta-reducer.js";
+import { reduceStateDeltas } from "../events/state-delta-reducer.js";
 import { createActionPoint, createExtraGauge, createHitPoint } from "../model/resource-gauge.js";
 import {
   effectKindKeyFromDefinitionId,

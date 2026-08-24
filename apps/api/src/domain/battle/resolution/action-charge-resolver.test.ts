@@ -5,7 +5,7 @@ import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import { EventRecorder } from "../events/event-recorder.js";
-import { reduceStateDeltas } from "./state-delta-reducer.js";
+import { reduceStateDeltas } from "../events/state-delta-reducer.js";
 import { initialSnapshotFor } from "../../../testing/fixtures/index.js";
 import { createActionId } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";

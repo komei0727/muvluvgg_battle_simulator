@@ -11,16 +11,16 @@ import {
   effectKindKeyFromDefinitionId,
   type AppliedEffect,
 } from "../../domain/battle/model/applied-effect.js";
-import { evaluateActivationCondition } from "../../domain/battle/lifecycle/activation-condition-evaluator.js";
+import { evaluateActivationCondition } from "../../domain/battle/resolution/activation-condition-evaluator.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import {
   resolveChargeRelease,
   resolveChargeStart,
-} from "../../domain/battle/lifecycle/action-charge-resolver.js";
-import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { recordPreAttackObservation } from "../../domain/battle/lifecycle/pre-attack-observation-service.js";
-import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+} from "../../domain/battle/resolution/action-charge-resolver.js";
+import { resolveSkillUse } from "../../domain/battle/resolution/action-skill-use-resolver.js";
+import { recordPreAttackObservation } from "../../domain/battle/resolution/pre-attack-observation-service.js";
+import { applyEffectActionGroups } from "../../domain/battle/resolution/effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
@@ -838,7 +838,7 @@ export function observeSkillUse(options: ObserveSkillUseOptions): SkillUseObserv
     const actionType = options.use.actionType ?? (skill.skillType === "EX" ? "EX" : "AS");
     // 発動可否は行動選択層が持つ（`activationCondition`・クールタイム・AP・対象候補）。
     // `resolveSkillUse` はこれらを評価しないため、先にゲートを通す。
-    // `activationCondition` の実evaluatorは `domain/battle/lifecycle` が供給する。
+    // `activationCondition` の実evaluatorは `domain/battle/resolution` が供給する。
     // 注入しないと `TRUE` 以外の条件で行動選択層が例外を投げる。
     const usable =
       actionType === "EX"

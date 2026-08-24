@@ -3,7 +3,7 @@ import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import {
   resolveChargeRelease,
   resolveChargeStart,
-} from "../../../domain/battle/lifecycle/action-charge-resolver.js";
+} from "../../../domain/battle/resolution/action-charge-resolver.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleId } from "../../../domain/shared/ids.js";
 import {

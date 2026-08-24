@@ -4,7 +4,7 @@ import {
   expireEffects,
   type ExpirationSeed,
 } from "../../domain/battle/effects/duration-expiry-service.js";
-import { recordActionCompletion } from "../../domain/battle/lifecycle/action-completion.js";
+import { recordActionCompletion } from "../../domain/battle/resolution/action-completion.js";
 import { decrementTurnEffectDurations } from "../../domain/battle/model/applied-effect-duration.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";

@@ -152,7 +152,7 @@ export function computeResourceCapacities(
 
 /**
  * `combat-stat-recalculation-service.ts`の`RecalculateContext`と同じ形。
- * `domain/battle/effects`は`domain/battle/lifecycle`へ依存できない（モジュール境界、
+ * `domain/battle/effects`は`domain/battle/resolution`へ依存できない（モジュール境界、
  * `eslint.config.mjs`）ため`ResourceChangeRecordContext`を再利用できず、また
  * `combat-stat-recalculation-service.ts`は本モジュールへ依存する側であるため、
  * そこからの型輸入は循環依存になる（`madge --circular`）。構造的に同じ形を持つ。

@@ -6,7 +6,7 @@ import {
   unitFrom,
 } from "../../../testing/fixtures/index.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
-import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../../domain/battle/events/state-delta-reducer.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,

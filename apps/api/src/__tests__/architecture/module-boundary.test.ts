@@ -1,9 +1,10 @@
 /**
- * UT-MOD-001 through UT-MOD-028
+ * UT-MOD-001 through UT-MOD-032
  * Verifies that the ESLint `no-restricted-imports` rules enforce the Domain-internal
  * module boundaries fixed by `#132` (04_境界づけられたコンテキスト.md「モジュール依存規則」),
  * and that no stray production file reappears directly under `domain/battle` or
- * `application` (the flattening `#132` exists to prevent).
+ * `application` (the flattening `#132` exists to prevent), and that `domain/battle/lifecycle`
+ * only contains the aggregate-root files it was reduced to by REF-064 (#609).
  * Mirrors the approach in layer-boundary.test.ts: type-checked rules are disabled so
  * that lintText works with virtual file paths, since no-restricted-imports is
  * syntax-only and does not need type information.
@@ -46,6 +47,26 @@ function assertOnlyDirectories(dirPath: string, allowedNames: readonly string[])
     if (!allowedNames.includes(entry.name)) {
       throw new Error(
         `${dirPath} contains an unrecognized subdirectory "${entry.name}"; expected one of: ${allowedNames.join(", ")}.`,
+      );
+    }
+  }
+}
+
+// REF-064 (#609): `domain/battle/lifecycle` was reduced to the Battle aggregate root itself
+// (everything else promoted to `domain/battle/resolution` or `domain/battle/events`). This
+// stops the directory from regrowing into a catch-all by rejecting any production file whose
+// name is not on the allow-list (test files are exempt so co-located `*.test.ts` files stay free).
+function assertOnlyFiles(dirPath: string, allowedFileNames: readonly string[]): void {
+  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      throw new Error(`${dirPath} must not contain a subdirectory ("${entry.name}").`);
+    }
+    if (entry.name.endsWith(".test.ts") || entry.name.endsWith(".spec.ts")) {
+      continue;
+    }
+    if (!allowedFileNames.includes(entry.name)) {
+      throw new Error(
+        `${dirPath} contains an unrecognized file "${entry.name}"; expected one of: ${allowedFileNames.join(", ")}.`,
       );
     }
   }
@@ -261,11 +282,57 @@ describe("Module boundary — reverse dependency on battle/lifecycle", () => {
         "import type {} from '../skill/skill-resolution-service.js';",
         "import type {} from '../events/event-recorder.js';",
         "import type {} from '../combat/damage-application-service.js';",
+        "import type {} from '../resolution/passive-activation-service.js';",
       ].join("\n") + "\n",
       "src/domain/battle/lifecycle/ok.ts",
     );
     expect(violations).toHaveLength(0);
   });
+});
+
+describe("Module boundary — domain/battle/resolution (REF-064, #609)", () => {
+  it("UT-MOD-029: battle/resolution cannot import from battle/lifecycle (reverse dependency)", async () => {
+    const violations = await lint(
+      "import type {} from '../lifecycle/battle.js';\n",
+      "src/domain/battle/resolution/bad.ts",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-MOD-030: battle/resolution cannot import from formation (reverse dependency)", async () => {
+    const violations = await lint(
+      "import type {} from '../../formation/formation-factory.js';\n",
+      "src/domain/battle/resolution/bad.ts",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("UT-MOD-031: battle/resolution CAN import from model/action/skill/events/combat/effects/triggering", async () => {
+    const violations = await lint(
+      [
+        "import type {} from '../model/battle-party.js';",
+        "import type {} from '../action/action-queue.js';",
+        "import type {} from '../skill/skill-resolution-service.js';",
+        "import type {} from '../events/event-recorder.js';",
+        "import type {} from '../combat/damage-application-service.js';",
+        "import type {} from '../effects/applied-effect.js';",
+        "import type {} from '../triggering/passive-trigger-matcher.js';",
+      ].join("\n") + "\n",
+      "src/domain/battle/resolution/ok.ts",
+    );
+    expect(violations).toHaveLength(0);
+  });
+
+  it.each(["model", "events", "action", "combat"])(
+    "UT-MOD-032: battle/%s cannot import from battle/resolution (reverse dependency)",
+    async (dir) => {
+      const violations = await lint(
+        "import type {} from '../resolution/passive-activation-service.js';\n",
+        `src/domain/battle/${dir}/bad.ts`,
+      );
+      expect(violations.length).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe("Module boundary — Domain Layer rules still apply inside every module-specific block", () => {
@@ -288,6 +355,7 @@ describe("Module boundary — Domain Layer rules still apply inside every module
     "src/domain/battle/combat",
     "src/domain/battle/effects",
     "src/domain/battle/triggering",
+    "src/domain/battle/resolution",
     "src/domain/battle/lifecycle",
   ];
 
@@ -337,6 +405,7 @@ describe("Module boundary — no stray top-level files under domain/battle or ap
         "lifecycle",
         "triggering",
         "effects",
+        "resolution",
       ]),
     ).not.toThrow();
   });
@@ -349,6 +418,16 @@ describe("Module boundary — no stray top-level files under domain/battle or ap
         "observation",
         "contracts",
         "shared",
+      ]),
+    ).not.toThrow();
+  });
+
+  it("UT-MOD-033: domain/battle/lifecycle contains only the Battle aggregate root files (REF-064, #609)", () => {
+    expect(() =>
+      assertOnlyFiles(join(srcDir, "domain", "battle", "lifecycle"), [
+        "battle.ts",
+        "battle-state-snapshot.ts",
+        "turn-state.ts",
       ]),
     ).not.toThrow();
   });

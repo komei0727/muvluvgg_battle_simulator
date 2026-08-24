@@ -1,5 +1,5 @@
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import { applyEffectActionGroups } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { applyEffectActionGroups } from "../../domain/battle/resolution/effect-action-group-resolver.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { resolveSkillOrder } from "../../domain/battle/skill/skill-resolution-service.js";
