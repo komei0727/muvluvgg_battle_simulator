@@ -14,14 +14,11 @@ import {
   type UnitsBox,
 } from "./effect-action-group-resolver.js";
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
-import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
-import { findMarkersRemovedOnSourceDefeat } from "./marker-source-defeat-service.js";
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
-import { removeMarkers, removeMarkersSteps } from "../effects/marker-removal-service.js";
 import {
   resolveBreakSteps,
   type BreakResolutionContext,
@@ -69,6 +66,14 @@ import {
   applyEffectSequenceRuntimeCounterUpdates as applyEffectSequenceRuntimeCounterUpdatesService,
   type RuntimeCounterUpdateContext,
 } from "./runtime-counter-update-service.js";
+import {
+  applyExpirationConditions as applyExpirationConditionsService,
+  applyExpirationConditionsForChain as applyExpirationConditionsForChainService,
+  applyMarkerSourceDefeatRemovals as applyMarkerSourceDefeatRemovalsService,
+  applyMarkerSourceDefeatRemovalsForChain as applyMarkerSourceDefeatRemovalsForChainService,
+  type ChainExpirationDepthState,
+  type ExpirationMarkerRemovalContext,
+} from "./expiration-marker-removal-application-service.js";
 import { resetRuntimeCounter } from "../model/runtime-counter-state.js";
 import type { RuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -209,9 +214,11 @@ export class PassiveActivationRuntime {
    * `EffectExpired`/`CombatStatChanged`がさらに別の`expiration.conditions`を
    * 成立させ続ける）を検出する再帰深度。`RuntimeCounterChanged`の再帰とは
    * 独立した別の自己再誘発経路のため、専用のカウンタで管理する（上限値は
-   * 同じ`maxEffectRuntimeCounterDepth`を共有する）。
+   * 同じ`maxEffectRuntimeCounterDepth`を共有する）。`applyMarkerSourceDefeatRemovalsForChain`
+   * と共有する可変の保持先のため、`./expiration-marker-removal-application-service.js`
+   * が定義する`ChainExpirationDepthState`をそのまま使う。
    */
-  private expirationConditionDepth = 0;
+  private readonly chainExpirationDepth: ChainExpirationDepthState = { depth: 0 };
   /**
    * `applyEffectRuntimeCounterUpdates`は`onFactEvent`の
    * トップレベル呼び出し（`event`自身の状態変更を確定させ、原因となった
@@ -1052,227 +1059,106 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * `applyExpirationConditions`/`applyMarkerSourceDefeatRemovals`とその
+   * `ForChain`版（`./expiration-marker-removal-application-service.js`、
+   * REF-063 #2）へ渡す共通envelope。
+   */
+  private expirationMarkerRemovalContext(): ExpirationMarkerRemovalContext {
+    return {
+      recorder: this.context.recorder,
+      turnNumber: this.context.turnNumber,
+      cycleNumber: this.context.cycleNumber,
+      ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+      resolutionScopeId: this.context.resolutionScopeId,
+      rootEventId: this.context.rootEventId,
+    };
+  }
+
+  /**
    * R-EFF-08: `event`に対して`expiration.conditions`が成立した効果インスタンスを
-   * 即時に失効させる（トップレベルの`onFactEvent`専用）。新たに発行された
-   * イベント（`EffectExpired`・`CombatStatChanged`等）は`this.onFactEvent`へ
-   * 再帰させ、`RuntimeCounterChanged`検出・自身の`expiration.conditions`評価・
-   * PS候補解決を含めて完全に解決する（このメソッドは常にトップレベルの
-   * `onFactEvent`から呼ばれ、進行中の`resolvePassiveChain`の内側からは呼ばれない
-   * ため、新しい`resolvePassiveChain`呼び出しを起こしても安全）。
+   * 即時に失効させる（トップレベルの`onFactEvent`専用）。実装・詳細な理由は
+   * `./expiration-marker-removal-application-service.js`（REF-063 #2）へ抽出した。
    */
   private applyExpirationConditions(
     event: BattleDomainEvent,
     depth: number,
   ): readonly BattleUnit[] {
-    const matches = findEffectsMatchingExpirationCondition(this.units, event);
-    if (matches.length === 0) {
-      return this.units;
-    }
-    if (depth > this.limits.maxEffectRuntimeCounterDepth) {
-      throw new ExecutionGuardExceededError(
-        `expiration.conditions self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
-      );
-    }
-    const seeds: ExpirationSeed[] = matches.map((match) => ({
-      battleUnitId: match.battleUnitId,
-      effectInstanceId: match.effectInstanceId,
-      reason: "EXPIRATION_CONDITION",
-    }));
-    // 通知は`expireEffects`が1インスタンスの失効ごとに行う
-    // （R-EFF-09カスケードで巻き込まれた子効果・子Markerを含む）。ここでまとめて
-    // 通知すると、子の`EffectExpired`をtriggerにするPSが親の除去済み状態を見る。
-    const expiry = expireEffects(
-      {
-        recorder: this.context.recorder,
-        turnNumber: this.context.turnNumber,
-        cycleNumber: this.context.cycleNumber,
-        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-        resolutionScopeId: this.context.resolutionScopeId,
-        rootEventId: this.context.rootEventId,
-        onFactEventForPassiveChain: (newEvent, unitsForChain) =>
-          this.onFactEvent(newEvent, unitsForChain, depth).units,
-      },
-      this.units,
-      seeds,
+    return applyExpirationConditionsService(
+      this.expirationMarkerRemovalContext(),
       this.context.definitions.effectActions,
-      event.eventId,
+      this.units,
+      event,
+      depth,
+      this.limits.maxEffectRuntimeCounterDepth,
+      (newEvent, unitsForChain) => this.onFactEvent(newEvent, unitsForChain, depth).units,
     );
-    return expiry.units;
   }
 
   /**
    * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020）: `event`が
    * `UnitDefeated`のとき、`duration.removeOnSourceDefeated`を宣言し付与者が
-   * その戦闘不能ユニットであるMarkerを即時に解除する（トップレベルの
-   * `onFactEvent`専用、`applyExpirationConditions`と同じ形・同じ制約）。
-   *
-   * 解除は`removeMarkers`へ流し込むため、同じ`linkedEffectGroupId`を持つ子効果は
-   * R-EFF-09のcross-typeカスケードが自動で巻き込む（`ACT_AOI_ELEGANT_AS1_KOUYOU_
-   * CRIT_DOWN`／`..._DOT`）。`onFactEventForPassiveChain`を渡すことで、1インスタンス
-   * の除去ごとに（カスケード分もseed分も）PS/Memoryの即時連鎖へ通知する
-   * （R-EFF-09）。
+   * その戦闘不能ユニットであるMarkerを即時に解除する。実装・詳細な理由は
+   * `./expiration-marker-removal-application-service.js`（REF-063 #2）へ抽出した。
    */
   private applyMarkerSourceDefeatRemovals(
     event: BattleDomainEvent,
     depth: number,
   ): readonly BattleUnit[] {
-    const seeds = findMarkersRemovedOnSourceDefeat(this.units, event);
-    if (seeds.length === 0) {
-      return this.units;
-    }
-    if (depth > this.limits.maxEffectRuntimeCounterDepth) {
-      throw new ExecutionGuardExceededError(
-        `removeOnSourceDefeated self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
-      );
-    }
-    const removal = removeMarkers(
-      {
-        recorder: this.context.recorder,
-        turnNumber: this.context.turnNumber,
-        cycleNumber: this.context.cycleNumber,
-        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-        resolutionScopeId: this.context.resolutionScopeId,
-        rootEventId: this.context.rootEventId,
-        onFactEventForPassiveChain: (newEvent, unitsForChain) =>
-          this.onFactEvent(newEvent, unitsForChain, depth).units,
-      },
-      this.units,
-      seeds,
+    return applyMarkerSourceDefeatRemovalsService(
+      this.expirationMarkerRemovalContext(),
       this.context.definitions.effectActions,
-      event.eventId,
+      this.units,
+      event,
+      depth,
+      this.limits.maxEffectRuntimeCounterDepth,
+      (newEvent, unitsForChain) => this.onFactEvent(newEvent, unitsForChain, depth).units,
     );
-    return removal.units;
   }
 
   /**
-   * R-EFF-08: `event`に対して`expiration.conditions`が成立した効果インスタンスを
-   * 即時に失効させ、新たに発行されたイベント（`EffectExpired`・
-   * `CombatStatChanged`等）を`TriggerCandidateEvent`として返す。`resolveEvent`
-   * （`triggering/resolve-passive-chain.ts`）が`deps.applyExpirationConditions`
-   * として呼び出し、返されたイベントそれぞれを自身へ再帰させて候補解決する。
-   * これは`applyExpirationConditions`（上記、トップレベルの`event`専用）を
-   * 補完し、PS連鎖の内部（`activatePassiveCandidate`が直接yieldする
-   * `PassiveActivated`・`EffectActionStarting`等、`onFactEvent`を経由しない
-   * イベント）にも同じ評価を届ける。このメソッド自身は`this.onFactEvent`を
-   * 呼ばない（進行中の`resolvePassiveChain`呼び出しの内側から呼ばれる可能性が
-   * あり、新しい`resolvePassiveChain`を起こすと進行中のguard/stackを上書き
-   * してしまうため、`onFactEvent`と同じ制約を持つ）。再帰depthは
-   * `applyExpirationConditions`とは別の専用カウンタ
-   * （`this.expirationConditionDepth`）で管理する。
+   * R-EFF-08: `applyExpirationConditions`のPS連鎖内部版。実装・詳細な理由は
+   * `./expiration-marker-removal-application-service.js`（REF-063 #2）へ抽出した。
    */
   private applyExpirationConditionsForChain(
     event: TriggerCandidateEvent,
   ): readonly TriggerCandidateEvent[] {
-    const matches = findEffectsMatchingExpirationCondition(this.units, event);
-    if (matches.length === 0) {
-      return [];
-    }
-    this.expirationConditionDepth += 1;
-    try {
-      if (this.expirationConditionDepth > this.limits.maxEffectRuntimeCounterDepth) {
-        throw new ExecutionGuardExceededError(
-          `expiration.conditions self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; an expiration.conditions definition likely re-triggers itself from the EffectExpired/CombatStatChanged event it causes (infinite regeneration)`,
-        );
-      }
-      const seeds: ExpirationSeed[] = matches.map((match) => ({
-        battleUnitId: match.battleUnitId,
-        effectInstanceId: match.effectInstanceId,
-        reason: "EXPIRATION_CONDITION",
-      }));
-      const eventsStart = this.context.recorder.getEvents().length;
-      const expiry = expireEffects(
-        {
-          recorder: this.context.recorder,
-          turnNumber: this.context.turnNumber,
-          cycleNumber: this.context.cycleNumber,
-          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-          resolutionScopeId: this.context.resolutionScopeId,
-          rootEventId: this.context.rootEventId,
-        },
-        this.units,
-        seeds,
-        this.context.definitions.effectActions,
-        this.eventIdOf(event),
-      );
-      this.units = expiry.units;
-      return this.context.recorder
-        .getEvents()
-        .slice(eventsStart)
-        .map((newEvent) => this.toTriggerEvent(newEvent));
-    } finally {
-      this.expirationConditionDepth -= 1;
-    }
+    const result = applyExpirationConditionsForChainService(
+      this.expirationMarkerRemovalContext(),
+      this.context.definitions.effectActions,
+      this.chainExpirationDepth,
+      this.limits.maxEffectRuntimeCounterDepth,
+      this.units,
+      event,
+      this.eventIdOf(event),
+      (recorded) => this.toTriggerEvent(recorded),
+    );
+    this.units = result.units;
+    return result.events;
   }
 
   /**
-   * R-EFF-10（M7-020）: `applyMarkerSourceDefeatRemovals`の
-   * PS連鎖内部版。`applyExpirationConditionsForChain`と同じ理由で必要になる —
-   * PSのEffectSequenceが与えたダメージによる`UnitDefeated`は`onFactEvent`を
-   * 経由しないため（`UT-R-EFF-11-017`と同じ経路）、トップレベル側の配線だけでは
-   * 「PSがとどめを刺した付与者のMarkerが解除されない」取りこぼしになる
-   * （`UT-R-EFF-10-033`が固定）。
-   *
-   * `applyExpirationConditionsForChain`のように「全メンバーを
-   * 除去してからイベント配列を返す」形にはできない。Marker解除はR-EFF-09の
-   * カスケードでlinked group全体を巻き込むため、その形では最初の子`EffectExpired`
-   * をPS/Memoryへ渡す時点で親Markerが既に消えており、R-EFF-09「各インスタンスの
-   * 失効イベントは次のインスタンスへ進む前にPS/Memoryの即時連鎖へ渡す」に反する
-   * （親Markerを条件にするPS/Memoryが、同じ`UnitDefeated`でもトップレベル経路では
-   * 発動しこの経路では発動しない差を生む。`UT-R-EFF-10-034`が固定）。
-   * `removeMarkersSteps`を1メンバーずつ駆動し、各ステップのイベントを
-   * `resolveChild`（＝`resolveEvent`自身への再帰、進行中のguard/stackを維持する）で
-   * 完全に解決してから`.next()`で次のメンバーへ進む。`this.onFactEvent`は呼ばない
-   * （`applyExpirationConditionsForChain`と同じ制約 — 新しい`resolvePassiveChain`を
-   * 起こすと進行中のguard/stackを上書きしてしまう）。
+   * R-EFF-10（M7-020）: `applyMarkerSourceDefeatRemovals`のPS連鎖内部版。
+   * 実装・詳細な理由は`./expiration-marker-removal-application-service.js`
+   * （REF-063 #2）へ抽出した。
    */
   private applyMarkerSourceDefeatRemovalsForChain(
     event: TriggerCandidateEvent,
     resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
   ): PassiveChainLimitViolationReason | undefined {
-    const seeds = findMarkersRemovedOnSourceDefeat(this.units, event);
-    if (seeds.length === 0) {
-      return undefined;
-    }
-    this.expirationConditionDepth += 1;
-    try {
-      if (this.expirationConditionDepth > this.limits.maxEffectRuntimeCounterDepth) {
-        throw new ExecutionGuardExceededError(
-          `removeOnSourceDefeated self-triggering recursion exceeded ${this.limits.maxEffectRuntimeCounterDepth} rounds; a Marker removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
-        );
-      }
-      const steps = removeMarkersSteps(
-        {
-          recorder: this.context.recorder,
-          turnNumber: this.context.turnNumber,
-          cycleNumber: this.context.cycleNumber,
-          ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
-          resolutionScopeId: this.context.resolutionScopeId,
-          rootEventId: this.context.rootEventId,
-        },
-        this.units,
-        seeds,
-        this.context.definitions.effectActions,
-        this.eventIdOf(event),
-      );
-      let step = steps.next();
-      while (!step.done) {
-        // このステップ分の除去は`this.units`へ即時反映してから候補解決へ渡す
-        // （解決中のPS/Memoryが最新の状態を観測できるようにする）。
-        this.units = step.value.units;
-        for (const recorded of step.value.events) {
-          const violation = resolveChild(this.toTriggerEvent(recorded));
-          if (violation !== undefined) {
-            return violation;
-          }
-        }
-        // 候補解決が`this.units`を書き換えた分を次のステップの起点へ注入する。
-        step = steps.next(this.units);
-      }
-      this.units = step.value.units;
-      return undefined;
-    } finally {
-      this.expirationConditionDepth -= 1;
-    }
+    return applyMarkerSourceDefeatRemovalsForChainService(
+      this.expirationMarkerRemovalContext(),
+      this.context.definitions.effectActions,
+      this.chainExpirationDepth,
+      this.limits.maxEffectRuntimeCounterDepth,
+      () => this.units,
+      (units) => {
+        this.units = units;
+      },
+      (recorded) => this.toTriggerEvent(recorded),
+      event,
+      this.eventIdOf(event),
+      resolveChild,
+    );
   }
 
   /**
