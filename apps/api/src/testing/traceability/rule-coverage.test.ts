@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { RULE_COVERAGE } from "./rule-coverage.js";
+import { collectRuleDeclarations } from "./rule-declarations.js";
 import { collectTestCaseDefinitions, LOOSE_TEST_CASE_ID_PATTERN } from "./test-case-definitions.js";
 
 const specPath = fileURLToPath(
@@ -164,6 +165,20 @@ describe("Rule coverage ledger", () => {
     expect(
       violations,
       `candidate testCaseId tokens whose trailing segment is not digits-only: ${JSON.stringify(violations)}`,
+    ).toEqual([]);
+  }, 30000);
+
+  it("UT-TRACEABILITY-013: every declared ruleId (推定・明示宣言のどちらも) is a real rule in the spec", () => {
+    // レビュー指摘: `RULE_COVERAGE`は`RULE_KINDS`（既知のルールID集合）だけを列挙するため、
+    // 誤字を含む明示宣言（例: `[R-NUM-99]`）はRULE_KINDSに無いキーとして`collectRuleDeclarations`
+    // の戻り値には現れるが、`RULE_COVERAGE`側からは見えず黙って握りつぶされる。設計書の
+    // 実在ルールID集合と、実際に収集された宣言のルールID集合を直接突合してこれを検出する。
+    const specIds = new Set(extractRuleIdsFromSpec());
+    const declared = collectRuleDeclarations(apiSrcPath);
+    const unknown = [...declared.keys()].filter((ruleId) => !specIds.has(ruleId)).sort();
+    expect(
+      unknown,
+      `declared ruleId(s) that do not correspond to a real rule in 07_戦闘ルール詳細.md: ${JSON.stringify(unknown)}`,
     ).toEqual([]);
   }, 30000);
 });

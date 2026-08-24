@@ -14,7 +14,7 @@ import { collectTestCaseDefinitions } from "./test-case-definitions.js";
  *    テストは必ずこの形を使う。
  */
 
-const RULE_ID_TOKEN_PATTERN = /R-[A-Z]+-\d+/;
+const RULE_ID_TOKEN_PATTERN = /^R-[A-Z]+-\d+$/;
 
 /** 推定規則: testCaseId自身がルールIDを名乗っている場合、それを返す。 */
 export function inferRuleIdFromTestCaseId(testCaseId: string): string | undefined {
