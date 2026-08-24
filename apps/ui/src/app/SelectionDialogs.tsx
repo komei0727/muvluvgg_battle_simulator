@@ -2,6 +2,7 @@ import { MemorySelectionDialog } from "../features/catalog-selection/MemorySelec
 import { UnitSelectionDialog } from "../features/catalog-selection/UnitSelectionDialog.js";
 import { selectUnitPool } from "../features/catalog-selection/unit-pool.js";
 import { MAX_UNITS_PER_SIDE } from "../features/formation/formation-reducer.js";
+import { isSlotLevelLinked } from "../features/formation/level-link.js";
 import { UnitEnhancementDialog } from "../features/formation/UnitEnhancementDialog.js";
 import {
   createInitialUnitEnhancement,
@@ -9,7 +10,7 @@ import {
   memorySlotsForSide,
   slotsForSide,
 } from "../features/formation/types.js";
-import type { BattleDraft, Side, UnitEnhancementInput } from "../entities/battle-draft.js";
+import type { BattleDraft } from "../entities/battle-draft.js";
 import type { BattleMode } from "../entities/battle-mode.js";
 import type { UiViolation } from "../entities/violation.js";
 import type { BattleSimulationCatalogResponse } from "../shared/api/api-contract.js";
@@ -17,6 +18,7 @@ import type {
   FormationAction,
   SelectionDialogState,
 } from "../features/formation/formation-reducer.js";
+import type { PlayerEnhancementAction } from "../features/formation/player-enhancement-reducer.js";
 
 export interface SelectionDialogsProps {
   readonly selectionDialog: SelectionDialogState;
@@ -27,15 +29,14 @@ export interface SelectionDialogsProps {
   readonly unitImageMap: Readonly<Record<string, string>>;
   readonly memoryImageMap: Readonly<Record<string, string>>;
   readonly violations: readonly UiViolation[];
-  /**
-   * 手持ちデータからのプリフィル値（01_UI要求・画面設計.md §5.9）。dispatch前に
-   * ストアを引き、actionのpayloadへ乗せる。敵枠は`undefined`を返す。
-   */
-  readonly prefillEnhancementFor: (
-    side: Side,
-    unitDefinitionId: string,
-  ) => UnitEnhancementInput | undefined;
+  /** 編成枠・実行パラメータなど、モード別draftへ効くaction。 */
   readonly dispatch: (action: FormationAction) => void;
+  /**
+   * 味方のユニット強化編集（学園レベル・レベルリンクの外の、ユニット単位の
+   * 編集）が向かう先。モードに依らない単一slice（REF-058 / Issue #603）。
+   */
+  readonly playerEnhancementDispatch: (action: PlayerEnhancementAction) => void;
+  readonly onClose: () => void;
 }
 
 // 04_コンポーネント・状態管理設計.md §2: dialogはDOM上でPage直下に置き、起点slotは
@@ -49,8 +50,9 @@ export function SelectionDialogs({
   unitImageMap,
   memoryImageMap,
   violations,
-  prefillEnhancementFor,
   dispatch,
+  playerEnhancementDispatch,
+  onClose,
 }: SelectionDialogsProps) {
   if (selectionDialog.kind === "unit") {
     const slotKey = selectionDialog.slotKey;
@@ -74,21 +76,22 @@ export function SelectionDialogs({
         atCapacity={atCapacity}
         imageMap={unitImageMap}
         onSelect={(unitDefinitionId) => {
-          const enhancement = prefillEnhancementFor(slot.side, unitDefinitionId);
+          // 味方のユニット強化は`unitDefinitionId`単位の単一sliceから読むため
+          // （REF-058 / Issue #603）、配置時のプリフィルは不要——どの枠へ置いても
+          // 同じ記録を指す。
           dispatch({
             type: "unitSelected",
             slotKey,
             unitDefinitionId,
-            ...(enhancement === undefined ? {} : { enhancement }),
             ...(exclusiveForSide ? { exclusiveForSide } : {}),
           });
+          onClose();
         }}
         onRemove={() => {
           dispatch({ type: "unitRemoved", slotKey });
+          onClose();
         }}
-        onClose={() => {
-          dispatch({ type: "selectionClosed" });
-        }}
+        onClose={onClose}
       />
     );
   }
@@ -103,13 +106,13 @@ export function SelectionDialogs({
         imageMap={memoryImageMap}
         onSelect={(memoryDefinitionId) => {
           dispatch({ type: "memorySelected", side, index, memoryDefinitionId });
+          onClose();
         }}
         onRemove={() => {
           dispatch({ type: "memoryRemoved", side, index });
+          onClose();
         }}
-        onClose={() => {
-          dispatch({ type: "selectionClosed" });
-        }}
+        onClose={onClose}
       />
     );
   }
@@ -118,9 +121,10 @@ export function SelectionDialogs({
     const slotKey = selectionDialog.slotKey;
     const slot = [...draft.allySlots, ...draft.enemySlots].find((s) => s.slotKey === slotKey);
     const unit = catalog.units.find((u) => u.unitDefinitionId === slot?.unitDefinitionId);
-    if (slot === undefined || unit === undefined) {
+    if (slot === undefined || unit === undefined || slot.unitDefinitionId === undefined) {
       return null;
     }
+    const { unitDefinitionId, side } = slot;
     return (
       <UnitEnhancementDialog
         unitDisplayName={unit.displayName}
@@ -128,11 +132,28 @@ export function SelectionDialogs({
         enhancement={slot.enhancement ?? createInitialUnitEnhancement()}
         violations={violations}
         {...(catalog.gearEffects !== undefined ? { gearEffects: catalog.gearEffects } : {})}
-        sideEnhancement={enhancementForSide(draft, slot.side)}
+        sideEnhancement={enhancementForSide(draft, side)}
         onLevelChange={(value) => {
+          if (side === "ally") {
+            playerEnhancementDispatch({
+              type: "unitEnhancementLevelChanged",
+              unitDefinitionId,
+              value,
+            });
+            return;
+          }
           dispatch({ type: "unitEnhancementLevelChanged", slotKey, value });
         }}
         onGearChange={(gearIndex, gear) => {
+          if (side === "ally") {
+            playerEnhancementDispatch({
+              type: "unitEnhancementGearChanged",
+              unitDefinitionId,
+              gearIndex,
+              ...(gear === undefined ? {} : { gear }),
+            });
+            return;
+          }
           dispatch({
             type: "unitEnhancementGearChanged",
             slotKey,
@@ -141,11 +162,22 @@ export function SelectionDialogs({
           });
         }}
         onLinkExclusionChange={(excluded) => {
+          if (side === "ally") {
+            const sideEnhancement = enhancementForSide(draft, side);
+            // UI-AC-036: 外した瞬間、その時点のリンクレベルでユニットのレベルを
+            // シードする（`formation-reducer.ts`の同actionと同じ規約）。
+            const seeded = excluded && isSlotLevelLinked(slot, sideEnhancement);
+            playerEnhancementDispatch({
+              type: "unitLinkExclusionChanged",
+              unitDefinitionId,
+              excluded,
+              ...(seeded ? { seedLevel: sideEnhancement.levelLink.level } : {}),
+            });
+            return;
+          }
           dispatch({ type: "unitLinkExclusionChanged", slotKey, excluded });
         }}
-        onClose={() => {
-          dispatch({ type: "selectionClosed" });
-        }}
+        onClose={onClose}
       />
     );
   }

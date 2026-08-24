@@ -18,7 +18,6 @@ import {
   createInitialDraft,
   createInitialExerciseExecution,
   createInitialLevelLink,
-  createInitialUnitEnhancement,
 } from "./types.js";
 import type {
   BattleDraft,
@@ -32,7 +31,6 @@ import type {
   UnitEnhancementInput,
 } from "../../entities/battle-draft.js";
 import type { UiViolation } from "../../entities/violation.js";
-import type { PlayerSideEnhancement } from "./types.js";
 
 export const PLAYER_DATA_STORAGE_KEY = "mlgg:player-data";
 export const LAST_DRAFT_STORAGE_KEY = "mlgg:last-draft";
@@ -59,10 +57,13 @@ export const PERSISTENCE_SCHEMA_VERSION = 1;
 export type AcademyLevels = SideEnhancementInput["academyLevels"];
 
 /**
- * 長寿命の「手持ちデータ」。味方側の入力だけを記録する。陣営単位の育成情報
- * （学園レベル・レベルリンク）は`PlayerSideEnhancement`としてdraftへプリフィルする。
+ * 手持ちデータ（味方の育成情報、モード非依存の単一slice。REF-058 / Issue #603）。
+ * `player-enhancement-reducer.ts`の生きた状態でもあり、`mlgg:player-data`へ
+ * 保存する形でもある——両者は同じ形なので、そのまま読み書きする。
  */
-export interface StoredPlayerData extends PlayerSideEnhancement {
+export interface StoredPlayerData {
+  readonly academyLevels: SideEnhancementInput["academyLevels"];
+  readonly levelLink: LevelLinkInput;
   readonly units: Readonly<Record<string, UnitEnhancementInput>>;
 }
 
@@ -397,7 +398,7 @@ function isSamePlayerData(a: StoredPlayerData, b: StoredPlayerData): boolean {
   );
 }
 
-function mergedAcademyLevels(previous: AcademyLevels, next: AcademyLevels): AcademyLevels {
+export function mergedAcademyLevels(previous: AcademyLevels, next: AcademyLevels): AcademyLevels {
   // 未入力（`""`）は「その項目を消した」ではなく入力途中なので、前回値を残す。
   return {
     unitTypes: Object.fromEntries(
@@ -417,64 +418,42 @@ function mergedAcademyLevels(previous: AcademyLevels, next: AcademyLevels): Acad
   };
 }
 
-function mergedLevelLink(previous: LevelLinkInput, next: LevelLinkInput): LevelLinkInput {
+export function mergedLevelLink(previous: LevelLinkInput, next: LevelLinkInput): LevelLinkInput {
   // 未入力（`""`）は「リンクレベルを消した」ではなく入力途中なので、前回値を残す
   // （`mergedAcademyLevels`と同じ規約）。保存形式は未入力を表現しない。
   return { enabled: next.enabled, level: next.level === "" ? previous.level : next.level };
 }
 
 /**
- * 味方draftから手持ちデータを導出する。敵側は都度入力の方針なので読まない。
- * 変化が無ければ`previous`をそのまま返し、保存effectと再レンダーを起こさない。
- *
- * 手持ちデータはユニット定義ID単位だが、同じ定義は複数枠へ配置できる
- * （01_UI要求・画面設計.md §5.1）。全枠を走査して上書きすると、編集した枠の値が
- * 同じユニットを持つ未編集の枠の値で潰れる。書き戻す枠を`editedSlotKey`
- * （直近に強化入力を編集した枠）だけに限定し、どの枠の値を残すかを一意に決める。
- * 未指定・敵枠・ユニットが外れた枠では、ユニットの記録を変更しない。
+ * `player-enhancement-reducer.ts`の生きたstate（`next`）から、保存へ書き出す値を
+ * 導出する。生きたstateは入力欄の表示のため未入力（`""`）をそのまま持てるが、
+ * 保存データはそれを表現できない——書き出す直前に、直前まで保存されていた値
+ * （`previous`）で未入力を埋める（`mergedAcademyLevels`・`mergedLevelLink`と同じ
+ * 規約）。`gears`・`linkExcluded`はテキスト入力ではなく未入力になり得ないため、
+ * `next`の値をそのまま使う。変化が無ければ`previous`をそのまま返し、保存effectと
+ * 再レンダーを起こさない。
  */
-export function mergePlayerDataFromDraft(
+export function mergeForPersistence(
   previous: StoredPlayerData,
-  draft: BattleDraft,
-  editedSlotKey?: string,
+  next: StoredPlayerData,
 ): StoredPlayerData {
-  const next: StoredPlayerData = {
-    academyLevels: mergedAcademyLevels(previous.academyLevels, draft.allyEnhancement.academyLevels),
-    levelLink: mergedLevelLink(previous.levelLink, draft.allyEnhancement.levelLink),
-    units: mergedUnits(previous.units, draft, editedSlotKey),
+  const merged: StoredPlayerData = {
+    academyLevels: mergedAcademyLevels(previous.academyLevels, next.academyLevels),
+    levelLink: mergedLevelLink(previous.levelLink, next.levelLink),
+    units: Object.fromEntries(
+      Object.entries(next.units).map(([unitDefinitionId, enhancement]) => [
+        unitDefinitionId,
+        {
+          ...enhancement,
+          level:
+            enhancement.level === ""
+              ? (previous.units[unitDefinitionId]?.level ?? DEFAULT_UNIT_LEVEL)
+              : enhancement.level,
+        },
+      ]),
+    ),
   };
-  return isSamePlayerData(previous, next) ? previous : next;
-}
-
-function mergedUnits(
-  previous: StoredPlayerData["units"],
-  draft: BattleDraft,
-  editedSlotKey: string | undefined,
-): StoredPlayerData["units"] {
-  const slot = draft.allySlots.find((candidate) => candidate.slotKey === editedSlotKey);
-  const unitDefinitionId = slot?.unitDefinitionId;
-  const enhancement = slot?.enhancement;
-  if (unitDefinitionId === undefined || enhancement === undefined) {
-    return previous;
-  }
-  // 未入力（`""`）は「レベルを消した」ではなく入力途中なので、前回値を残す。
-  const recordedLevel = previous[unitDefinitionId]?.level ?? DEFAULT_UNIT_LEVEL;
-  return {
-    ...previous,
-    [unitDefinitionId]: {
-      level: enhancement.level === "" ? recordedLevel : enhancement.level,
-      linkExcluded: enhancement.linkExcluded,
-      gears: enhancement.gears,
-    },
-  };
-}
-
-/** 記録が無いユニットは既定値（レベル200・ギア9枠すべて空・リンク対象）を返す。 */
-export function prefillUnitEnhancement(
-  data: StoredPlayerData,
-  unitDefinitionId: string,
-): UnitEnhancementInput {
-  return data.units[unitDefinitionId] ?? createInitialUnitEnhancement();
+  return isSamePlayerData(previous, merged) ? previous : merged;
 }
 
 /** Catalogから消えたユニットのエントリだけを落とす。学園レベルは定義に依存しないため残す。 */
