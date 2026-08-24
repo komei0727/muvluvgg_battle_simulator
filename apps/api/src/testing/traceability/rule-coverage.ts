@@ -3301,8 +3301,8 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // （`IT-UNIT-HIIRO-LONEWOLF-005`／`IT-UNIT-MIKOTO-SURVIVOR-005`）。
   // `AppliedEffect`／`EffectSequence`スコープは利用するproduction定義が現状
   // 存在しないため、明示的Scenarioで検証した
-  // （`passive-activation-service.test.ts`のRuntimeCounter APPLIED_EFFECT/
-  // EFFECT_SEQUENCEスコープdescribe）。
+  // （`passive-activation-service.runtime-counter.test.ts`のRuntimeCounter
+  // APPLIED_EFFECT/EFFECT_SEQUENCEスコープdescribe）。
   {
     ruleId: "R-EFF-11",
     testCaseIds: [
