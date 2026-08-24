@@ -113,7 +113,7 @@ function baseResult(
 }
 
 describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResponse」)", () => {
-  it("API-TEXRESP-001 (R-TEX-10 #1): publishes the exercise result — completionReason/completedTurn/totalScore/breakCount/breaks — and no outcome", () => {
+  it("API-TEXRESP-001 [R-TEX-10] (R-TEX-10 #1): publishes the exercise result — completionReason/completedTurn/totalScore/breakCount/breaks — and no outcome", () => {
     const body = toTacticalExerciseResponseBody(baseResult());
 
     expect(body.schemaVersion).toBe(1);
@@ -132,7 +132,7 @@ describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResp
     expect(body.result).not.toHaveProperty("outcome");
   });
 
-  it("API-TEXRESP-007 (R-TEX-10 #2): publishes the break's source unit definition id, and omits it for a break with no source unit (R-MEM-04)", () => {
+  it("API-TEXRESP-007 [R-TEX-10] (R-TEX-10 #2): publishes the break's source unit definition id, and omits it for a break with no source unit (R-MEM-04)", () => {
     const body = toTacticalExerciseResponseBody(
       baseResult({
         breaks: [
@@ -178,7 +178,7 @@ describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResp
     expect(body.stateTransitions[0]?.delta.battle).toEqual({ turnNumber: { before: 0, after: 1 } });
   });
 
-  it("API-TEXRESP-003 (R-TEX-02/03、10_API設計.md「BattleStateDeltaResponse」): publishes the exercise state delta (totalScore/breakCount) that only a tactical exercise produces", () => {
+  it("API-TEXRESP-003 [R-TEX-02, R-TEX-03] (R-TEX-02/03、10_API設計.md「BattleStateDeltaResponse」): publishes the exercise state delta (totalScore/breakCount) that only a tactical exercise produces", () => {
     const body = toTacticalExerciseResponseBody(
       baseResult({
         stateTransitions: [
@@ -206,7 +206,7 @@ describe("toTacticalExerciseResponseBody (10_API設計.md「TacticalExerciseResp
     });
   });
 
-  it("API-TEXRESP-004 (R-TEX-04、10_API設計.md「UnitStateDeltaResponse」): publishes UnitRevived's baseCombatStats delta as raw ratios — it has no published state to apply to, so it matches UNIT_REVIVED.details rather than CombatStatsResponse's percentage points", () => {
+  it("API-TEXRESP-004 [R-TEX-04] (R-TEX-04、10_API設計.md「UnitStateDeltaResponse」): publishes UnitRevived's baseCombatStats delta as raw ratios — it has no published state to apply to, so it matches UNIT_REVIVED.details rather than CombatStatsResponse's percentage points", () => {
     const body = toTacticalExerciseResponseBody(
       baseResult({
         stateTransitions: [

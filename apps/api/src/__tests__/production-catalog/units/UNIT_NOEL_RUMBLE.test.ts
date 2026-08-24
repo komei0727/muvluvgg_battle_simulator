@@ -453,7 +453,7 @@ describe("production Catalog UNIT_NOEL_RUMBLE (【体育祭の暴れん坊】ノ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-NOEL-RUMBLE-004 (R-EFF-02/R-SKL-07): AS1の炎上判定は単一BRANCHで一度だけ確定するため、強化ダメージの着弾と同時に連鎖が炎上を解除しても通常版は走らない", () => {
+  it("IT-UNIT-NOEL-RUMBLE-004 [R-EFF-02] (R-EFF-02/R-SKL-07): AS1の炎上判定は単一BRANCHで一度だけ確定するため、強化ダメージの着弾と同時に連鎖が炎上を解除しても通常版は走らない", () => {
     const skillId = "SKL_NOEL_RUMBLE_AS1";
     const skill = skillFrom(snapshot, skillId);
     // 「条件」と「NOT(条件)」を2つのACTION stepへ分けると、`targetCondition`は各stepの
@@ -518,7 +518,7 @@ describe("production Catalog UNIT_NOEL_RUMBLE (【体育祭の暴れん坊】ノ
     expect(completedTargetIdsOf(recorder, "ACT_NOEL_RUMBLE_AS1_DAMAGE")).toEqual([]);
   });
 
-  it("IT-UNIT-NOEL-RUMBLE-005 (R-EFF-02): PS2の「バフをすべて解除」は件数上限を持たず、バフ／デバフの別は `magnitude` の符号ではなく被ダメージ補正の向きで決まる", () => {
+  it("IT-UNIT-NOEL-RUMBLE-005 [R-EFF-02] (R-EFF-02): PS2の「バフをすべて解除」は件数上限を持たず、バフ／デバフの別は `magnitude` の符号ではなく被ダメージ補正の向きで決まる", () => {
     // `-001` のPS2行は解除対象を1つしか持たないため、「すべて」も「1つまで」も
     // 同じ観測になる。上限が無いことは複数件でしか現れない。あわせて負の
     // `magnitude` を持つ被ダメージ**減少**（`direction: INCOMING`＝保持者に有利

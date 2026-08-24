@@ -527,7 +527,7 @@ describe("EffectSequence", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SEQ-027 (EFF-006 Issue #212): maps counterUpdates with scope EFFECT_SEQUENCE", () => {
+  it("UT-CAT-SEQ-027 [R-EFF-11] (EFF-006 Issue #212): maps counterUpdates with scope EFFECT_SEQUENCE", () => {
     const result = createEffectSequence(
       {
         targetBindings: [],
@@ -562,7 +562,7 @@ describe("EffectSequence", () => {
     ]);
   });
 
-  it("UT-CAT-SEQ-028 (EFF-006 Issue #212): omits counterUpdates when not declared", () => {
+  it("UT-CAT-SEQ-028 [R-EFF-11] (EFF-006 Issue #212): omits counterUpdates when not declared", () => {
     const result = createEffectSequence(
       {
         targetBindings: [],
@@ -580,7 +580,7 @@ describe("EffectSequence", () => {
     expect(result).not.toHaveProperty("counterUpdates");
   });
 
-  it("UT-CAT-SEQ-029 (EFF-006 Issue #212): rejects counterUpdates with a scope other than EFFECT_SEQUENCE", () => {
+  it("UT-CAT-SEQ-029 [R-EFF-11] (EFF-006 Issue #212): rejects counterUpdates with a scope other than EFFECT_SEQUENCE", () => {
     expect(() =>
       createEffectSequence(
         {
@@ -635,7 +635,7 @@ describe("EffectSequence", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-SEQ-030 (EFF-006 Issue #212): rejects a non-array counterUpdates", () => {
+  it("UT-CAT-SEQ-030 [R-EFF-11] (EFF-006 Issue #212): rejects a non-array counterUpdates", () => {
     expect(() =>
       createEffectSequence(
         {
@@ -917,7 +917,7 @@ describe("EffectSequence", () => {
   describe("targetBinding optional (Issue #494)", () => {
     const selector = { kind: "SELECT" as const, side: "ENEMY" as const, count: 1 };
 
-    it("UT-CAT-SEQ-041: keeps optional off the binding entirely when the input omits it, so a binding is required by default", () => {
+    it("UT-CAT-SEQ-041 [R-TGT-10]: keeps optional off the binding entirely when the input omits it, so a binding is required by default", () => {
       const result = createEffectSequence(
         {
           targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector }],
@@ -935,7 +935,7 @@ describe("EffectSequence", () => {
       expect(result.targetBindings[0]).not.toHaveProperty("optional");
     });
 
-    it("UT-CAT-SEQ-042: carries optional: true through to the definition", () => {
+    it("UT-CAT-SEQ-042 [R-TGT-10]: carries optional: true through to the definition", () => {
       const result = createEffectSequence(
         {
           targetBindings: [{ targetBindingId: "TGT_PRIMARY", selector, optional: true }],
@@ -953,7 +953,7 @@ describe("EffectSequence", () => {
       expect(result.targetBindings[0]?.optional).toBe(true);
     });
 
-    it("UT-CAT-SEQ-043: rejects a non-boolean optional", () => {
+    it("UT-CAT-SEQ-043 [R-TGT-10]: rejects a non-boolean optional", () => {
       expect(() =>
         createEffectSequence(
           {

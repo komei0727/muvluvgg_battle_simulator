@@ -349,7 +349,7 @@ describe("production Catalog UNIT_CLARA_SANTA (【聖夜のサンタシンガー
     ).toEqual([]);
   });
 
-  it("IT-UNIT-CLARA-SANTA-004 (R-TGT-09/R-TGT-10): AS2の実 `MARKER_IN_AREA` は候補自身の列に「サンタタグ」が在るかを見るため基準敵はタグ保持者とは限らず、タグを持つ敵が居なければ非空filtersが候補0件になり `fallback` が基準を供給する", () => {
+  it("IT-UNIT-CLARA-SANTA-004 [R-TGT-09, R-TGT-10] (R-TGT-09/R-TGT-10): AS2の実 `MARKER_IN_AREA` は候補自身の列に「サンタタグ」が在るかを見るため基準敵はタグ保持者とは限らず、タグを持つ敵が居なければ非空filtersが候補0件になり `fallback` が基準を供給する", () => {
     const skill = skillFrom(snapshot, "SKL_CLARA_SANTA_AS2");
     const targetBindings =
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.targetBindings : [];

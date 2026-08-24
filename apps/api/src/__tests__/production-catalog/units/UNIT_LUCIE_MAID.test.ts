@@ -366,7 +366,7 @@ describe("production Catalog UNIT_LUCIE_MAID (【忠義の狂犬メイド】リ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-LUCIE-MAID-004 (R-TGT-09): SKL_LUCIE_MAID_AS2's BINDING_DERIVED+ADJACENT_ORTHOGONAL binding reaches only the enemies orthogonally adjacent to the resolved base — an enemy in neither the base's row nor its column takes nothing", () => {
+  it("IT-UNIT-LUCIE-MAID-004 [R-TGT-09] (R-TGT-09): SKL_LUCIE_MAID_AS2's BINDING_DERIVED+ADJACENT_ORTHOGONAL binding reaches only the enemies orthogonally adjacent to the resolved base — an enemy in neither the base's row nor its column takes nothing", () => {
     expect(
       observeSkillUse({
         snapshot,
@@ -399,7 +399,7 @@ describe("production Catalog UNIT_LUCIE_MAID (【忠義の狂犬メイド】リ�
     });
   });
 
-  it("IT-UNIT-LUCIE-MAID-005 (R-PS-01): SKL_LUCIE_MAID_PS1's trigger condition reads the attacker's UnitDefinition — a PHYSICAL and an AGILE attacker both activate it, an ENERGY one does not", () => {
+  it("IT-UNIT-LUCIE-MAID-005 [R-PS-01] (R-PS-01): SKL_LUCIE_MAID_PS1's trigger condition reads the attacker's UnitDefinition — a PHYSICAL and an AGILE attacker both activate it, an ENERGY one does not", () => {
     const guardedBy = (enemies: readonly BoardUnitSpec[]): boolean =>
       observeSkillUse({
         snapshot,
@@ -425,7 +425,7 @@ describe("production Catalog UNIT_LUCIE_MAID (【忠義の狂犬メイド】リ�
     expect(guardedBy(attackerOfType("ENERGY"))).toBe(false);
   });
 
-  it("IT-UNIT-LUCIE-MAID-006 (R-SKL-06): AS1の対象別条件 `OR(UNIT_TYPE PHYSICAL, AGILE)` は同じ対象集合の中で対象ごとに評価され、混在した列では物理型だけが気絶を受け取る（速度低下は全員が受ける）", () => {
+  it("IT-UNIT-LUCIE-MAID-006 [R-SKL-06] (R-SKL-06): AS1の対象別条件 `OR(UNIT_TYPE PHYSICAL, AGILE)` は同じ対象集合の中で対象ごとに評価され、混在した列では物理型だけが気絶を受け取る（速度低下は全員が受ける）", () => {
     expect(
       observeSkillUse({
         snapshot,
@@ -476,7 +476,7 @@ describe("production Catalog UNIT_LUCIE_MAID (【忠義の狂犬メイド】リ�
     });
   });
 
-  it("IT-UNIT-LUCIE-MAID-007 (R-SKL-06): PS2の同じ対象別条件も対象ごとに評価され、混在した列では物理型のPPだけが削られる（攻撃は全員が受ける）", () => {
+  it("IT-UNIT-LUCIE-MAID-007 [R-SKL-06] (R-SKL-06): PS2の同じ対象別条件も対象ごとに評価され、混在した列では物理型のPPだけが削られる（攻撃は全員が受ける）", () => {
     expect(
       observeSkillUse({
         snapshot,

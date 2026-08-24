@@ -557,7 +557,7 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-KARINA-DOWNER-004 (R-PS-01): PS2の実 `TurnCompleting` SELF/SELF trigger は、`battle.ts` の発行どおり `sourceUnitId`/`targetUnitIds` を持たないターン境界イベントに対して保持者自身で成立する", () => {
+  it("IT-UNIT-KARINA-DOWNER-004 [R-PS-01] (R-PS-01): PS2の実 `TurnCompleting` SELF/SELF trigger は、`battle.ts` の発行どおり `sourceUnitId`/`targetUnitIds` を持たないターン境界イベントに対して保持者自身で成立する", () => {
     // `TurnStarted`/`TurnCompleting` は特定のBattleUnitに帰属しないグローバル
     // イベントで、`battle.ts` はどちらの欄も設定せずに発行する。production Catalog
     // はそれでも「自身のターン終了時」を `SELF`/`SELF` で表す（`TurnStarted` 27件・
@@ -585,7 +585,7 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     expect(activatedPassiveSkillIds(chain)).toContain("SKL_KARINA_DOWNER_PS2");
   });
 
-  it("IT-UNIT-KARINA-DOWNER-005 (R-INT-01 #1/#2): PS1が攻撃者へ付けた引き寄せは付与時点でカリナ自身へ焼き込まれ、その攻撃者が別の味方を名指しで殴っても防御側がカリナへ差し替わる", () => {
+  it("IT-UNIT-KARINA-DOWNER-005 [R-INT-01] (R-INT-01 #1/#2): PS1が攻撃者へ付けた引き寄せは付与時点でカリナ自身へ焼き込まれ、その攻撃者が別の味方を名指しで殴っても防御側がカリナへ差し替わる", () => {
     // 引き寄せ・肩代わりは**付与とその効果が働く攻撃が別のスキル使用**である。
     // `-001` の振る舞い表はスキル使用1回を単位に取るため、付与された
     // `AppliedEffect` の `magnitude` までしか表せず、`redirectTo: SELF` が誰へ
@@ -637,7 +637,7 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     expect(hit.hpDeltas).toEqual({ "ally:subject": -150 });
   });
 
-  it("IT-UNIT-KARINA-DOWNER-006 (R-EFF-04): PS1の「1行動の間」4件は`owner: BATTLE`で、保持者でも付与者でもない誰か1体の行動終了で揃って失効する。同じPSが配る`owner`省略の3行動デバフはその行動終了では動かない", () => {
+  it("IT-UNIT-KARINA-DOWNER-006 [R-EFF-04] (R-EFF-04): PS1の「1行動の間」4件は`owner: BATTLE`で、保持者でも付与者でもない誰か1体の行動終了で揃って失効する。同じPSが配る`owner`省略の3行動デバフはその行動終了では動かない", () => {
     // 付与と `timeLimit: { unit: ACTION, count: 1, owner: BATTLE }` の宣言は
     // `-001` のPS1行が持つ。`BATTLE` は「誰の行動終了でも減る」ことでしか
     // `EFFECT_TARGET`／`EFFECT_SOURCE` と区別できず、それは保持者・付与者の
@@ -709,7 +709,7 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     ]);
   });
 
-  it("IT-UNIT-KARINA-DOWNER-007 (R-DMG-01/R-NUM-04): AS1の1回のAOE解決は、対象ごとに**その対象自身**の「警棒」所持数からAction内追加ダメージ倍率を決める。`DamageCalculated` の集計欄が対象別に分かれ、別Markerは何段持っていても寄与しない", () => {
+  it("IT-UNIT-KARINA-DOWNER-007 [R-DMG-01, R-NUM-04] (R-DMG-01/R-NUM-04): AS1の1回のAOE解決は、対象ごとに**その対象自身**の「警棒」所持数からAction内追加ダメージ倍率を決める。`DamageCalculated` の集計欄が対象別に分かれ、別Markerは何段持っていても寄与しない", () => {
     // `-001` の行は所持数ごとのHP減少（265／344／384）までを固定する。R-DMG-01が
     // 定める倍率そのもの（`1 + 補正合計`）は `DamageCalculated` の集計欄にしかなく、
     // 「同じ1回の解決の中で対象ごとに分かれる」ことも合計値だけからは
@@ -766,7 +766,7 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     });
   });
 
-  it("IT-UNIT-KARINA-DOWNER-008 (R-ACT-03/G-05): PS2が配るEXゲージ獲得量増加は、**保持している味方の以後の行動**が得るEXゲージを1.5倍にする。基礎量そのもの（消費APと同量）は動かない", () => {
+  it("IT-UNIT-KARINA-DOWNER-008 [R-ACT-04] (R-ACT-03/G-05): PS2が配るEXゲージ獲得量増加は、**保持している味方の以後の行動**が得るEXゲージを1.5倍にする。基礎量そのもの（消費APと同量）は動かない", () => {
     // `-001` のPS2行は付与そのもの（`magnitude: 0.5`・1行動・味方全体）までを
     // 固定する。「獲得量が変わる」のは保持者の**次の行動**に属し、スキル使用1回の
     // 観測には載らない（`ActionStarted` を出すのは保持者自身の行動である）。
@@ -802,7 +802,7 @@ describe("production Catalog UNIT_KARINA_DOWNER (【ダウナーギャルな副�
     });
   });
 
-  it("IT-UNIT-KARINA-DOWNER-009 (Q-CAT-EFF-16, R-STA-03): EXの攻撃力30%低下は原文に「重複可」が無く重複しない — 2行動の効果が残っているうちにEXを撃ち直しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-KARINA-DOWNER-009 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): EXの攻撃力30%低下は原文に「重複可」が無く重複しない — 2行動の効果が残っているうちにEXを撃ち直しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,

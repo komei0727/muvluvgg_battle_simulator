@@ -419,7 +419,7 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-CHIYURU-MAZE-004 (R-SKL-06/R-STS-01): EXの `categories: [STATUS]` 照会はAOEの対象ごとに評価され、`APPLY_CONTINUOUS_DAMAGE` の毒でも `APPLY_STATUS` の気絶でも成立し、状態異常ではない単なるデバフでは成立しない。成立した付与は `stateDelta` だけからも独立Reducerが同じ最終状態へ復元する", () => {
+  it("IT-UNIT-CHIYURU-MAZE-004 [R-SKL-06, R-STS-01] (R-SKL-06/R-STS-01): EXの `categories: [STATUS]` 照会はAOEの対象ごとに評価され、`APPLY_CONTINUOUS_DAMAGE` の毒でも `APPLY_STATUS` の気絶でも成立し、状態異常ではない単なるデバフでは成立しない。成立した付与は `stateDelta` だけからも独立Reducerが同じ最終状態へ復元する", () => {
     const skillId = "SKL_CHIYURU_MAZE_EX";
     const skill = skillFrom(snapshot, skillId);
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
@@ -514,7 +514,7 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
       "ACT_CHIYURU_MAZE_EX_STUN",
     ]);
   });
-  it("IT-UNIT-CHIYURU-MAZE-005 (R-DOT-01/R-DOT-04): PS1・PS2が配る毒は、保持者**自身**の行動開始でだけ発生し、発火のたびにその時点の現在HPを読み直す。同じ保持者への毒の再付与はインスタンスを増やさない", () => {
+  it("IT-UNIT-CHIYURU-MAZE-005 [R-DOT-01, R-DOT-04] (R-DOT-01/R-DOT-04): PS1・PS2が配る毒は、保持者**自身**の行動開始でだけ発生し、発火のたびにその時点の現在HPを読み直す。同じ保持者への毒の再付与はインスタンスを増やさない", () => {
     // `-001` のPS1・PS2行は付与そのもの（付与時点の現在HP×10%のsnapshotと2行動）
     // までを固定する。R-DOT-01「付与対象の行動開始時に発生する」は保持者の以後の
     // 行動に属するため、スキル使用1回の観測には載らない — 他のユニットの行動開始で
@@ -591,7 +591,7 @@ describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求�
     ).toEqual([tick("ACT_CHIYURU_MAZE_PS1_POISON", 5000)]);
   });
 
-  it("IT-UNIT-CHIYURU-MAZE-006 (R-FUP-01): PS2の追撃バフを保持した味方が実ASで攻撃すると、当該攻撃の後に威力38.16の追撃が味方のステータスで入り、ヒットした敵へ毒が付与され、バフはその1回で失効する", () => {
+  it("IT-UNIT-CHIYURU-MAZE-006 [R-FUP-01] (R-FUP-01): PS2の追撃バフを保持した味方が実ASで攻撃すると、当該攻撃の後に威力38.16の追撃が味方のステータスで入り、ヒットした敵へ毒が付与され、バフはその1回で失効する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     // 付与は実productionの`APPLY_FOLLOW_UP_ATTACK` resolver経由（PS発動から付与までは
     // `-001`表が固定済み。ここは相乗りの解決だけを観測する）。

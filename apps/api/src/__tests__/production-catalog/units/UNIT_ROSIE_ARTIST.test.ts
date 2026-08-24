@@ -474,7 +474,7 @@ describe("production Catalog UNIT_ROSIE_ARTIST (【空想造形アーティス�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-ROSIE-ARTIST-004 (R-SKL-08): AS1の会心分岐が読む `LAST_RESULT.criticalHitCount` は直前のACTION step全体のスコープを持つ — 横一列2体のうち1体だけが会心した回でも、追撃は2体ともへ入る", () => {
+  it("IT-UNIT-ROSIE-ARTIST-004 [R-SKL-08] (R-SKL-08): AS1の会心分岐が読む `LAST_RESULT.criticalHitCount` は直前のACTION step全体のスコープを持つ — 横一列2体のうち1体だけが会心した回でも、追撃は2体ともへ入る", () => {
     // `-001` の会心行は会心率を0/1へ倒して表を決定的にするため、step内の全ヒットが
     // 揃って会心するか揃って非会心かのどちらかにしかならず、「最後に処理した対象1体が
     // 会心したか」との違いが差として現れない。会心率を0.5に置き、抽選列で1発目だけを

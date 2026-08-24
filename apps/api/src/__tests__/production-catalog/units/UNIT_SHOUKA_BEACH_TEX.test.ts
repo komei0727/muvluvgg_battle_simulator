@@ -573,7 +573,7 @@ describe("production Catalog UNIT_SHOUKA_BEACH_TEX (【砂浜の策謀家】姜�
     ]);
   });
 
-  it("IT-UNIT-SHOUKA-BEACH-TEX-006 (R-CRT-04): 演習版EXの「対象の現在HP×35%のENダメージ」も会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+  it("IT-UNIT-SHOUKA-BEACH-TEX-006 [R-CRT-04] (R-CRT-04): 演習版EXの「対象の現在HP×35%のENダメージ」も会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

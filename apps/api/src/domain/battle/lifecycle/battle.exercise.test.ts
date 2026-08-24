@@ -782,7 +782,7 @@ function expectStateRestoration(
 }
 
 describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
-  it("SCN-BTL-025: a break applies the table's enhancement to the original baseline, fully heals to the enhanced maximum, and carries AP/PP/EX gauges, cooldowns and the action reservation across it", () => {
+  it("SCN-BTL-025 [R-TEX-04, R-TEX-06]: a break applies the table's enhancement to the original baseline, fully heals to the enhanced maximum, and carries AP/PP/EX gauges, cooldowns and the action reservation across it", () => {
     const enemyBefore = {
       currentAp: 2,
       currentPp: 1,
@@ -856,7 +856,7 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     expectStateRestoration(initialState, recorder, afterTurn);
   });
 
-  it("SCN-BTL-026: a revival clears the enemy's unit-granted effects and markers while Memory-granted ones persist (R-TEX-05 #2 / R-MEM-04)", () => {
+  it("SCN-BTL-026 [R-TEX-05]: a revival clears the enemy's unit-granted effects and markers while Memory-granted ones persist (R-TEX-05 #2 / R-MEM-04)", () => {
     const buffDefinitionId = createEffectActionDefinitionId("ACT_ENEMY_ATK_UP");
     const enemyId = createBattleUnitId("enemy:1");
     const unitGranted = {
@@ -921,7 +921,7 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
     expectStateRestoration(initialState, recorder, afterTurn);
   });
 
-  it("SCN-BTL-027: a break mid multi-hit defers to the end of the effect processing — the remaining hits land on the pending (HP 0) enemy, the overkill is fully counted, and the defeat trigger still fires", () => {
+  it("SCN-BTL-027 [R-TEX-02, R-TEX-03, R-TEX-06]: a break mid multi-hit defers to the end of the effect processing — the remaining hits land on the pending (HP 0) enemy, the overkill is fully counted, and the defeat trigger still fires", () => {
     const onDefeatDamageId = createEffectActionDefinitionId("ACT_ON_DEFEAT_MARK");
     // R-TEX-03 #2: Catalog定義は`UnitDefeated`のままで、ブレイクでも発動する。
     const onDefeatPassive: SkillDefinition = {
@@ -1365,7 +1365,7 @@ describe("exercise end conditions and result (R-TEX-09／10)", () => {
     expect(projectBreakHistory(recorder).length).toBe(completed.exercise?.breakCount);
   });
 
-  it("SCN-BTL-028: an ally wipe ends the exercise early with ALLY_DEFEATED, the score and break history at that point, and no further processing", () => {
+  it("SCN-BTL-028 [R-TEX-09]: an ally wipe ends the exercise early with ALLY_DEFEATED, the score and break history at that point, and no further processing", () => {
     const { recorder, completed, initialState } = runExerciseToCompletion(
       mutualAttackerDefinitions({ allyDamage: 150, enemyDamage: 1000 }),
     );
@@ -1599,7 +1599,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     expect(run.afterTurn.enemyUnits[0]!.appliedEffects).toEqual([]);
   }
 
-  it("UT-R-TEX-03-012 (MODIFY_RESOURCE path): a PS-driven MODIFY_RESOURCE(HP) break detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
+  it("UT-R-TEX-03-012 [R-TEX-03, R-TEX-06] (MODIFY_RESOURCE path): a PS-driven MODIFY_RESOURCE(HP) break detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
     const drain: EffectActionDefinition = {
       effectActionDefinitionId: HP_DRAIN,
       kind: "MODIFY_RESOURCE",
@@ -1686,7 +1686,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     expect(activated).not.toContain("SKL_BYSTANDER_ON_DEFEAT");
   });
 
-  it("UT-R-TEX-03-016 (sub-unit additional-damage debuff path): a MAXIMUM_HP debuff that clamps the enemy to 0 detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
+  it("UT-R-TEX-03-016 [R-TEX-03, R-TEX-06] (sub-unit additional-damage debuff path): a MAXIMUM_HP debuff that clamps the enemy to 0 detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
     // R-SUB-02第3項: サブユニットの追加ダメージに付随するデバフ。ここでは最大HPを
     // -100%にして、追加ダメージそのものではなく再計算のHP clampでブレイクさせる。
     const MAX_HP_DEBUFF = createEffectActionDefinitionId("ACT_SUBUNIT_MAX_HP_DEBUFF");
@@ -1853,7 +1853,7 @@ describe("break resolution notifies the defeat trigger before the removal on eve
     expect(run.afterTurn.exercise?.breakCount).toBeGreaterThan(0);
   });
 
-  it("UT-R-TEX-03-013 (MODIFY_RESOURCE_CAPACITY path): a maximum-HP drop that clamps the enemy to 0 detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
+  it("UT-R-TEX-03-013 [R-TEX-03, R-TEX-06] (MODIFY_RESOURCE_CAPACITY path): a maximum-HP drop that clamps the enemy to 0 detects the defeat trigger on UnitBroken and activates it after the effect processing (R-ATM-01)", () => {
     const capacityDrop: EffectActionDefinition = {
       effectActionDefinitionId: MAX_HP_DROP,
       kind: "MODIFY_RESOURCE_CAPACITY",

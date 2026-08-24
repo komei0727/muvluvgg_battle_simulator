@@ -209,7 +209,7 @@ const BATTLES = PRODUCTION_UNIT_IDS.map((unitDefinitionId) => ({
 }));
 
 describe("M8 damage pipeline audit (DMG-011)", () => {
-  it("IT-AUDIT-M8-001 (R-DMG-05): every hit in every production battle emits the 8 damage steps in order, and each hit individually carries the steps its outcome requires", () => {
+  it("IT-AUDIT-M8-001 [R-ACTN-02, R-DMG-05] (R-DMG-05): every hit in every production battle emits the 8 damage steps in order, and each hit individually carries the steps its outcome requires", () => {
     const orderViolations: string[] = [];
     const spineViolations: string[] = [];
     let observedHits = 0;
@@ -302,7 +302,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
     // まず「production Catalogにその経路が現れた」ことを監査結果として扱う。
   });
 
-  it("IT-AUDIT-M8-002 (08_ドメインイベント.md 不変条件#6): shield, sub unit, HP, and discarded damage always account for the calculated damage", () => {
+  it("IT-AUDIT-M8-002 [R-ACTN-02, R-DMG-05] (08_ドメインイベント.md 不変条件#6): shield, sub unit, HP, and discarded damage always account for the calculated damage", () => {
     const violations: string[] = [];
     let typedShieldAbsorptions = 0;
     let untypedShieldAbsorptions = 0;
@@ -444,7 +444,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
     // `UT-DAMAGE-APPLICATION-020`／`021`が各段を個別に踏む。
   });
 
-  it("IT-AUDIT-M8-003 (R-LNK-03 / R-INT-03): linked and reflected damage never generates further linked or reflected damage", () => {
+  it("IT-AUDIT-M8-003 [R-DMG-05] (R-LNK-03 / R-INT-03): linked and reflected damage never generates further linked or reflected damage", () => {
     // リンク・反射の適用は防御介入の評価（`R-INT-01`）自体を通らないことで再発を
     // 防いでいる。実データでは「直前に確定した`DAMAGE_APPLIED`が
     // `isLinkedDamage`／`isReflectedDamage`を持つ状態で、さらに

@@ -81,7 +81,7 @@ function actionCompletedEvent(sourceUnitId: BattleUnit["battleUnitId"]): Trigger
 }
 
 describe("matchEffectSequenceRuntimeCounterUpdates", () => {
-  it("UT-RCOUNTER-SEQ-001 (EFF-006 Issue #212): matches an active resolution's own counterUpdates when its trigger matches", () => {
+  it("UT-RCOUNTER-SEQ-001 [R-EFF-11] (EFF-006 Issue #212): matches an active resolution's own counterUpdates when its trigger matches", () => {
     const actor = unit("actor-1", "ALLY");
     const resolution = resolutionWithCounterUpdates(actor.battleUnitId, [
       {
@@ -110,7 +110,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-SEQ-002: does not match a resolution with no counterUpdates", () => {
+  it("UT-RCOUNTER-SEQ-002 [R-EFF-11]: does not match a resolution with no counterUpdates", () => {
     const actor = unit("actor-1", "ALLY");
     const resolution = resolutionWithCounterUpdates(actor.battleUnitId, []);
     const activeResolutions = new Map([[SKILL_USE_ID, resolution]]);
@@ -124,7 +124,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
     expect(matched).toHaveLength(0);
   });
 
-  it("UT-RCOUNTER-SEQ-003: skips a resolution whose actor is defeated", () => {
+  it("UT-RCOUNTER-SEQ-003 [R-EFF-11]: skips a resolution whose actor is defeated", () => {
     const actor = { ...unit("actor-1", "ALLY"), currentHp: 0 };
     const resolution = resolutionWithCounterUpdates(actor.battleUnitId, [
       {
@@ -146,7 +146,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
     expect(matched).toHaveLength(0);
   });
 
-  it("UT-RCOUNTER-SEQ-004: skips a resolution whose actor is no longer present in units", () => {
+  it("UT-RCOUNTER-SEQ-004 [R-EFF-11]: skips a resolution whose actor is no longer present in units", () => {
     const resolution = resolutionWithCounterUpdates(createBattleUnitId("gone"), [
       {
         kind: "INCREMENT",
@@ -167,7 +167,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
     expect(matched).toHaveLength(0);
   });
 
-  it("UT-RCOUNTER-SEQ-005: multiple active resolutions are matched independently, each against its own counters", () => {
+  it("UT-RCOUNTER-SEQ-005 [R-EFF-11]: multiple active resolutions are matched independently, each against its own counters", () => {
     const actorA = unit("actor-a", "ALLY");
     const actorB = unit("actor-b", "ALLY");
     const skillUseIdA = createSkillUseId("skilluse-a");
@@ -208,7 +208,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
     expect(matched.map((m) => m.skillUseId)).toEqual([skillUseIdA, skillUseIdB]);
   });
 
-  it("UT-RCOUNTER-SEQ-006: throws when a resolution declares a non-EFFECT_SEQUENCE scope (defensive, Catalog validation should already reject this)", () => {
+  it("UT-RCOUNTER-SEQ-006 [R-EFF-11]: throws when a resolution declares a non-EFFECT_SEQUENCE scope (defensive, Catalog validation should already reject this)", () => {
     const actor = unit("actor-1", "ALLY");
     const resolution: ActiveEffectSequenceResolution = {
       actorUnitId: actor.battleUnitId,
@@ -239,7 +239,7 @@ describe("matchEffectSequenceRuntimeCounterUpdates", () => {
 });
 
 describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
-  it("UT-RCOUNTER-SEQ-007: increments the matched resolution's own counter and reports the change", () => {
+  it("UT-RCOUNTER-SEQ-007 [R-EFF-11]: increments the matched resolution's own counter and reports the change", () => {
     const actor = unit("actor-1", "ALLY");
     const resolution = resolutionWithCounterUpdates(actor.battleUnitId, [
       {
@@ -279,7 +279,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     });
   });
 
-  it("UT-RCOUNTER-SEQ-008: a second update only replaces the changed counter for the same SkillUseId", () => {
+  it("UT-RCOUNTER-SEQ-008 [R-EFF-11]: a second update only replaces the changed counter for the same SkillUseId", () => {
     const actor = unit("actor-1", "ALLY");
     const update = resolutionWithCounterUpdates(actor.battleUnitId, [
       {
@@ -320,7 +320,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
     });
   });
 
-  it("UT-RCOUNTER-SEQ-009: throws when the actor battleUnitId disappears from units", () => {
+  it("UT-RCOUNTER-SEQ-009 [R-EFF-11]: throws when the actor battleUnitId disappears from units", () => {
     const actor = unit("actor-1", "ALLY");
     const update = resolutionWithCounterUpdates(actor.battleUnitId, [
       {

@@ -517,7 +517,7 @@ describe("production Catalog UNIT_AOI_GUARDIAN (【厳格な規律の守護者�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-AOI-GUARDIAN-004 (R-EFF-03): EXが配る「気絶無効」は `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
+  it("IT-UNIT-AOI-GUARDIAN-004 [R-EFF-03] (R-EFF-03): EXが配る「気絶無効」は `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
     // `-001` のEX行は付与そのもの（`magnitude: 0`・2行動）までを固定する。
     // `EFFECT_IMMUNITY.statusKinds` の絞り込みは**以後に飛んでくる付与**を弾くか
     // 通すかにしか現れず、これは別のスキル使用に属する。弾かれる側だけを見ても
@@ -577,7 +577,7 @@ describe("production Catalog UNIT_AOI_GUARDIAN (【厳格な規律の守護者�
     });
   });
 
-  it("IT-UNIT-AOI-GUARDIAN-005 (R-SHD-02/R-SHD-03): AS1が配る実シールドはタイプなしプールとして被ダメージを吸収し、プールを超えた分だけがHPへ抜ける。1ヒットの振り分け（シールド吸収・HPダメージ・超過破棄）の合計は常に計算ダメージと一致する", () => {
+  it("IT-UNIT-AOI-GUARDIAN-005 [R-SHD-02, R-SHD-03] (R-SHD-02/R-SHD-03): AS1が配る実シールドはタイプなしプールとして被ダメージを吸収し、プールを超えた分だけがHPへ抜ける。1ヒットの振り分け（シールド吸収・HPダメージ・超過破棄）の合計は常に計算ダメージと一致する", () => {
     // `-001` のAS1行は付与そのもの（`magnitude: 1200`＝攻撃力×120%・戦闘終了まで）
     // までを固定する。吸収は**以後に飛んでくる攻撃**＝別のスキル使用に属するため、
     // スキル使用1回の観測には載らない。

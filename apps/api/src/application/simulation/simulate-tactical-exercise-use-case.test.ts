@@ -75,7 +75,7 @@ function captureApplicationError(execute: () => unknown): ApplicationError {
 }
 
 describe("SimulateTacticalExerciseUseCase", () => {
-  it("UT-TEXUSECASE-001 (R-TEX-01 #4 / R-TEX-09 #1 / R-TEX-10 #1): runs the exercise for the fixed 5 turns and returns an exercise result with no outcome", () => {
+  it("UT-TEXUSECASE-001 [R-TEX-01, R-TEX-09, R-TEX-10] (R-TEX-01 #4 / R-TEX-09 #1 / R-TEX-10 #1): runs the exercise for the fixed 5 turns and returns an exercise result with no outcome", () => {
     const result = useCaseWith(exerciseCatalog()).execute(exerciseCommand(), CONTEXT);
 
     expect(result.completionReason).toBe("TURN_LIMIT_REACHED");
@@ -85,7 +85,7 @@ describe("SimulateTacticalExerciseUseCase", () => {
     expect(result.catalogRevision).toBe("test-rev-1");
   });
 
-  it("UT-TEXUSECASE-002 (R-TEX-10 #3): totalScore equals the accumulated amounts minus the deducted ones, and the final state's accumulated score", () => {
+  it("UT-TEXUSECASE-002 [R-TEX-10] (R-TEX-10 #3): totalScore equals the accumulated amounts minus the deducted ones, and the final state's accumulated score", () => {
     const result = useCaseWith(exerciseCatalog()).execute(exerciseCommand(), CONTEXT);
 
     const amountsOf = (type: string): readonly number[] =>
@@ -101,7 +101,7 @@ describe("SimulateTacticalExerciseUseCase", () => {
     expect(result.finalState!.exercise?.totalScore).toBe(result.totalScore);
   });
 
-  it("UT-TEXUSECASE-003 (R-TEX-01 #3): rejects an enemy formation that is not exactly one unit with INVALID_COMMAND, without loading the Catalog", () => {
+  it("UT-TEXUSECASE-003 [R-TEX-01] (R-TEX-01 #3): rejects an enemy formation that is not exactly one unit with INVALID_COMMAND, without loading the Catalog", () => {
     const catalog = exerciseCatalog();
 
     const error = captureApplicationError(() =>
@@ -123,7 +123,7 @@ describe("SimulateTacticalExerciseUseCase", () => {
     expect(catalog.loadSnapshotCallCount).toBe(0);
   });
 
-  it("UT-TEXUSECASE-004 (R-TEX-01 #3): rejects an enemy formation with no unit with INVALID_COMMAND", () => {
+  it("UT-TEXUSECASE-004 [R-TEX-01] (R-TEX-01 #3): rejects an enemy formation with no unit with INVALID_COMMAND", () => {
     const error = captureApplicationError(() =>
       useCaseWith(exerciseCatalog()).execute(
         exerciseCommand({ enemyFormation: { slots: [], memoryDefinitionIds: [] } }),
@@ -137,7 +137,7 @@ describe("SimulateTacticalExerciseUseCase", () => {
     );
   });
 
-  it("UT-TEXUSECASE-005 (R-TEX-01 #3): rejects an enemy formation that specifies a memory with INVALID_COMMAND", () => {
+  it("UT-TEXUSECASE-005 [R-TEX-01] (R-TEX-01 #3): rejects an enemy formation that specifies a memory with INVALID_COMMAND", () => {
     const error = captureApplicationError(() =>
       useCaseWith(exerciseCatalog()).execute(
         exerciseCommand({

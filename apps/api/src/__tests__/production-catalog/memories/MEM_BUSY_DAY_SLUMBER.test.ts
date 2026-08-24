@@ -131,7 +131,7 @@ describe("production Catalog MEM_BUSY_DAY_SLUMBER (忙しい時のまどろみ)"
     ).toEqual([]);
   });
 
-  it("IT-MEM-BUSY-DAY-SLUMBER-004 (R-MEM-01): the TurnStarted triggeredEffect re-grants the back-row incoming-damage reduction on every turn while the BattleStarted one never repeats", () => {
+  it("IT-MEM-BUSY-DAY-SLUMBER-004 [R-MEM-01] (R-MEM-01): the TurnStarted triggeredEffect re-grants the back-row incoming-damage reduction on every turn while the BattleStarted one never repeats", () => {
     const { turnStarts } = observeMemoryTurnStarts(MEMORY_DEFINITION_ID, "ALLY", 2);
     expect(turnStarts.map((turn) => turn.turnNumber)).toEqual([1, 2]);
     for (const turn of turnStarts) {

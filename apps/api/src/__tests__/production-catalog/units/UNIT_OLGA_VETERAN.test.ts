@@ -456,7 +456,7 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
     });
   });
 
-  it("IT-UNIT-OLGA-VETERAN-005 (R-CFS-01/R-CFS-02, BOUNDARY): EXが配る混乱は、保持者がアクティブスキルで攻撃する行動でTargetSelectorの陣営を反転させ、そのダメージを30%減らす。攻撃力が実効防御力以下の相手には攻撃力×10%へ差し替わる", () => {
+  it("IT-UNIT-OLGA-VETERAN-005 [R-CFS-01, R-CFS-02] (R-CFS-01/R-CFS-02, BOUNDARY): EXが配る混乱は、保持者がアクティブスキルで攻撃する行動でTargetSelectorの陣営を反転させ、そのダメージを30%減らす。攻撃力が実効防御力以下の相手には攻撃力×10%へ差し替わる", () => {
     // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` のEX行は付与しか
     // 表せない。混乱を保持したユニットが実際に攻撃する場面は、そのユニットの
     // スキル構成に依存するため、混乱を配る当のオルガ自身へ実定義で付けて観測する。
@@ -579,7 +579,7 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
     expect(against("enemy:left").calculated.finalDamage).toBe(70);
   });
 
-  it("IT-UNIT-OLGA-VETERAN-006 (R-EFF-02): PS1の解除は `SHIELD` と `SUBUNIT` の2カテゴリを取り、同じstepで付与される「カムラッドⅡ」3体より前に走る", () => {
+  it("IT-UNIT-OLGA-VETERAN-006 [R-EFF-02] (R-EFF-02): PS1の解除は `SHIELD` と `SUBUNIT` の2カテゴリを取り、同じstepで付与される「カムラッドⅡ」3体より前に走る", () => {
     // `-001` のPS1行は前提にサブユニット1体しか置かないため、宣言の2カテゴリのうち
     // `SHIELD` 側が働いているかは現れない。シールドと旧サブユニット2体を実 production
     // 定義で積み、解除が両方を空にしたうえで新しい3体だけが残ることを固定する
@@ -676,7 +676,7 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
     });
   });
 
-  it("IT-UNIT-OLGA-VETERAN-007 (R-SUB-01/R-SUB-02): 「3つ付与する」カムラッドⅠは**以後の自分の攻撃**へ3ヒットぶんの追加ENダメージを足し、存続期間を書かないため行動終了を跨いでも失効しない。2行動のカムラッドⅡだけが2回目の行動終了で揃って失効する", () => {
+  it("IT-UNIT-OLGA-VETERAN-007 [R-SUB-01, R-SUB-02] (R-SUB-01/R-SUB-02): 「3つ付与する」カムラッドⅠは**以後の自分の攻撃**へ3ヒットぶんの追加ENダメージを足し、存続期間を書かないため行動終了を跨いでも失効しない。2行動のカムラッドⅡだけが2回目の行動終了で揃って失効する", () => {
     // `-001` のPS1／PS2行は付与そのもの（耐久力1500の3件と、カムラッドⅡだけが持つ
     // 2行動）までを固定する。ここが引き受けるのは (a) 保持数だけ追加ヒットが増える
     // こと（R-SUB-02第2項）と (b) 存続期間を持たないインスタンスが行動終了で減らない
@@ -783,7 +783,7 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
     ).toEqual([1500, 1500, 1500]);
   });
 
-  it("IT-UNIT-OLGA-VETERAN-008 (Q-CAT-EFF-16): AS2の「警戒」所持相手からの被ダメージ35%減少は原文に「重複可」が無く重複しない — 既に保持していればAS2を撃ち直しても付与stepごと実行されない", () => {
+  it("IT-UNIT-OLGA-VETERAN-008 [R-SKL-06] (Q-CAT-EFF-16): AS2の「警戒」所持相手からの被ダメージ35%減少は原文に「重複可」が無く重複しない — 既に保持していればAS2を撃ち直しても付与stepごと実行されない", () => {
     // `APPLY_DAMAGE_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
     // 無いため、2件目を作らないことで重複なしへ揃える（`BRANCH` のelse腕）。
     const observed = observeSkillUse({

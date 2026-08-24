@@ -14,6 +14,39 @@ import * as ts from "typescript";
 export interface TestCaseDefinition {
   readonly file: string;
   readonly position: number;
+  /**
+   * REF-065／#610: マッチしたIDトークン直後の絶対ソースオフセット。ルール宣言
+   * ブラケット（`[R-XXX, R-YYY]`）の検出・挿入に使う（{@link rule-declarations.ts}）。
+   */
+  readonly idEnd: number;
+  /**
+   * REF-065／#610: IDトークン直後から一定長の生テキスト（デコード済み、囲みクォート内）。
+   * ルール宣言ブラケットの検出に使う。
+   */
+  readonly trailingText: string;
+}
+
+const TRAILING_TEXT_LENGTH = 200;
+
+/**
+ * 文字列リテラル/テンプレートリテラルノード内で見つかったIDマッチから、
+ * {@link TestCaseDefinition.idEnd}／{@link TestCaseDefinition.trailingText}を算出する。
+ * IDは規約上タイトル・テーブルセルの先頭に置かれるため、マッチ位置より前にエスケープ
+ * シーケンスによる生/デコード済みテキストのずれが生じることはない（マッチ位置までは
+ * 単純に開き引用符1文字分のオフセットで足りる）。
+ */
+function idOccurrence(
+  node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral,
+  sourceFile: ts.SourceFile,
+  text: string,
+  match: RegExpMatchArray,
+): { idEnd: number; trailingText: string } {
+  const matchIndex = match.index ?? 0;
+  const matchEnd = matchIndex + match[0].length;
+  return {
+    idEnd: node.getStart(sourceFile) + 1 + matchEnd,
+    trailingText: text.slice(matchEnd, matchEnd + TRAILING_TEXT_LENGTH),
+  };
 }
 
 /**
@@ -200,17 +233,23 @@ function parameterizedCaseIdLiterals(
   expression: ts.Expression,
   checker: ts.TypeChecker,
   pattern: RegExp,
-): [string, number][] {
+): [string, number, number, string][] {
   const table = parameterizedTable(expression, checker);
   if (table.kind !== "array") {
     return [];
   }
-  const found: [string, number][] = [];
+  const found: [string, number, number, string][] = [];
   const sourceFile = table.node.getSourceFile();
   function scan(node: ts.Node): void {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       for (const match of node.text.matchAll(pattern)) {
-        found.push([match[0], node.getStart(sourceFile)]);
+        const occurrence = idOccurrence(node, sourceFile, node.text, match);
+        found.push([
+          match[0],
+          node.getStart(sourceFile),
+          occurrence.idEnd,
+          occurrence.trailingText,
+        ]);
       }
     }
     ts.forEachChild(node, scan);
@@ -474,13 +513,21 @@ export function collectTestCaseDefinitionsFromSource(
         (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))
       ) {
         for (const match of title.text.matchAll(pattern)) {
-          definitions.push([match[0], { file, position: title.getStart(sourceFile) }]);
+          const occurrence = idOccurrence(title, sourceFile, title.text, match);
+          definitions.push([
+            match[0],
+            { file, position: title.getStart(sourceFile), ...occurrence },
+          ]);
         }
       }
       // `it.each([["UT-...", ...]])("%s: ...", ...)` のように、IDがタイトルではなく
       // 静的テーブルのセルに存在するパラメタライズドテストからも収集する。
-      for (const [id, position] of parameterizedCaseIdLiterals(node.expression, checker, pattern)) {
-        definitions.push([id, { file, position }]);
+      for (const [id, position, idEnd, trailingText] of parameterizedCaseIdLiterals(
+        node.expression,
+        checker,
+        pattern,
+      )) {
+        definitions.push([id, { file, position, idEnd, trailingText }]);
       }
     }
     ts.forEachChild(node, visit);

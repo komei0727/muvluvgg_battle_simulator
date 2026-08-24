@@ -604,7 +604,7 @@ describe("advanceBattle", () => {
     expect(() => advanceBattle(completed, NO_RANDOM(), recorder())).toThrow(DomainValidationError);
   });
 
-  it("UT-BATTLE-010 (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): AS attacks reduce the target's HP within the action phase, once per AP spent (maximumAp: 3, cost: 1)", () => {
+  it("UT-BATTLE-010 [R-END-01] (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): AS attacks reduce the target's HP within the action phase, once per AP spent (maximumAp: 3, cost: 1)", () => {
     const battle = createBattle(
       createBattleId("B_1"),
       [unitWithStats("ally:1", "ALLY", { attack: 30 })],
@@ -625,7 +625,7 @@ describe("advanceBattle", () => {
     expect(advanced.allyUnits[0]!.currentAp).toBe(0);
   });
 
-  it("UT-BATTLE-011 (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): repeated AS attacks defeat the enemy and resolve ALLY_WIN/ENEMY_DEFEATED without a turn limit", () => {
+  it("UT-BATTLE-011 [R-END-01] (Issue #9 acceptance: ダメージから勝敗までDomain内で完結する): repeated AS attacks defeat the enemy and resolve ALLY_WIN/ENEMY_DEFEATED without a turn limit", () => {
     let battle = startBattle(
       createBattle(
         createBattleId("B_1"),
@@ -648,7 +648,7 @@ describe("advanceBattle", () => {
     });
   });
 
-  it("UT-BATTLE-012 (Issue #9 acceptance: 同時全滅, R-END-02): a single AS use that deals lethal damage to the enemy and then to its own user resolves SIMULTANEOUS_DEFEAT/ALLY_WIN", () => {
+  it("UT-BATTLE-012 [R-END-02] (Issue #9 acceptance: 同時全滅, R-END-02): a single AS use that deals lethal damage to the enemy and then to its own user resolves SIMULTANEOUS_DEFEAT/ALLY_WIN", () => {
     let battle = startBattle(
       createBattle(
         createBattleId("B_1"),
@@ -671,7 +671,7 @@ describe("advanceBattle", () => {
     });
   });
 
-  it("UT-BATTLE-013 (R-SKL-04 ターン単位): does not decrement a TURN-unit cooldown set on the current turn, but decrements it at the next turn's end", () => {
+  it("UT-BATTLE-013 [R-SKL-04] (R-SKL-04 ターン単位): does not decrement a TURN-unit cooldown set on the current turn, but decrements it at the next turn's end", () => {
     const cooldownSkillId = createSkillDefinitionId("SKL_TURN_COOLDOWN");
     let battle = startBattle(
       createBattle(
@@ -1089,7 +1089,7 @@ describe("advanceBattle", () => {
     expect(types.indexOf("TurnCompleted")).toBeGreaterThan(activatedIndex);
   });
 
-  it("UT-R-PS-05-003 (Issue #34 integration): a PS that triggers on TurnStarted activates during TURN_STARTING, before the action phase runs (PP consumed, EX gauge increased)", () => {
+  it("UT-R-PS-05-003 [R-ACT-04, R-PS-05] (Issue #34 integration): a PS that triggers on TurnStarted activates during TURN_STARTING, before the action phase runs (PP consumed, EX gauge increased)", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_001");
     const passiveSkillDefinitionId = createSkillDefinitionId("SKL_PS_ON_TURN_STARTED");
     const passiveSkill: SkillDefinition = {

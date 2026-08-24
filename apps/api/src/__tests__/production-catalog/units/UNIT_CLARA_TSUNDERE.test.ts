@@ -489,7 +489,7 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-CLARA-TSUNDERE-004 (R-EFF-04): PS1の防御力低下は`owner: EFFECT_SOURCE`なので、効果を保持している敵ではなく**付与したクララ自身**の行動終了で減り、0で失効して防御力が戻る", () => {
+  it("IT-UNIT-CLARA-TSUNDERE-004 [R-EFF-04] (R-EFF-04): PS1の防御力低下は`owner: EFFECT_SOURCE`なので、効果を保持している敵ではなく**付与したクララ自身**の行動終了で減り、0で失効して防御力が戻る", () => {
     // 付与そのものと `timeLimit: { unit: ACTION, count: 1, owner: EFFECT_SOURCE }`
     // の宣言は `-001` のAS1行が持つ。ここが引き受けるのは、その `owner` が実際に
     // 誰の行動終了を指すか — `EFFECT_TARGET`（既定）との差は保持者以外の行動を
@@ -537,7 +537,7 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
     ]);
   });
 
-  it("IT-UNIT-CLARA-TSUNDERE-005 (Q-CAT-EFF-16, R-STA-03): AS2の防御力20%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へAS2を撃ち直しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-CLARA-TSUNDERE-005 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): AS2の防御力20%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へAS2を撃ち直しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -552,7 +552,7 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
     expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.2), 10);
   });
 
-  it("IT-UNIT-CLARA-TSUNDERE-006 (Q-CAT-EFF-16, R-STA-03): AS2の攻撃力20%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へAS2を撃ち直しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-CLARA-TSUNDERE-006 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): AS2の攻撃力20%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へAS2を撃ち直しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -567,7 +567,7 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
     expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.2), 10);
   });
 
-  it("IT-UNIT-CLARA-TSUNDERE-007 (BOUNDARY, R-FRM-03, R-STA-03): 同じUnitDefinitionを2枠編成し同じ敵を殴っても、「重複可」の無いAS2デバフは1件分のまま。同じ2枠から配られる「重複可」付きPS1デバフは積み増す", () => {
+  it("IT-UNIT-CLARA-TSUNDERE-007 [R-STA-03] (BOUNDARY, R-FRM-03, R-STA-03): 同じUnitDefinitionを2枠編成し同じ敵を殴っても、「重複可」の無いAS2デバフは1件分のまま。同じ2枠から配られる「重複可」付きPS1デバフは積み増す", () => {
     // R-FRM-03は同じ`UnitDefinitionId`を同一陣営へ複数指定でき、効果は
     // `BattleUnitId`単位で保持すると定める。一方R-STA-03の同種グループの鍵は
     // `EffectKindKey`（宣言が無ければ`EffectActionDefinitionId`）であり付与元を

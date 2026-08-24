@@ -395,7 +395,7 @@ describe("production Catalog UNIT_LUCIE_COMPANION (【連れ添い歩む傍ら�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-LUCIE-COMPANION-004 (R-HEAL-01, HEAL_DISTRIBUTE): `ACT_LUCIE_COMPANION_AS3_HEAL` は威力65の回復量**1つ**を味方全員へ均等配分する（各自が満額を受け取るのではない）", () => {
+  it("IT-UNIT-LUCIE-COMPANION-004 [R-HEAL-01] (R-HEAL-01, HEAL_DISTRIBUTE): `ACT_LUCIE_COMPANION_AS3_HEAL` は威力65の回復量**1つ**を味方全員へ均等配分する（各自が満額を受け取るのではない）", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, PS1_ON_COOLDOWN);
     const recorder = new EventRecorder(createBattleId("B_LUCIE_HEAL"));
     resolveSkillUse(
@@ -432,7 +432,7 @@ describe("production Catalog UNIT_LUCIE_COMPANION (【連れ添い歩む傍ら�
     }
   });
 
-  it("IT-UNIT-LUCIE-COMPANION-005 (R-HEAL-03): `ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL` は付与時点では回復せず、production の ACTION(2) 期間を持つ効果として載る。その `EffectApplied` の StateDelta だけからも独立Reducerが同じ効果を復元する", () => {
+  it("IT-UNIT-LUCIE-COMPANION-005 [R-HEAL-03] (R-HEAL-03): `ACT_LUCIE_COMPANION_PS1_CONTINUOUS_HEAL` は付与時点では回復せず、production の ACTION(2) 期間を持つ効果として載る。その `EffectApplied` の StateDelta だけからも独立Reducerが同じ効果を復元する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -478,7 +478,7 @@ describe("production Catalog UNIT_LUCIE_COMPANION (【連れ添い歩む傍ら�
       duration: { unit: "ACTION", remaining: 2 },
     });
   });
-  it("IT-UNIT-LUCIE-COMPANION-006 (R-DOT-04): EXが配る毒は発火のたびに保持者の**現在**HPを読み直し、付与時攻撃力×100%で頭打ちになる。シールドが張ってあっても吸われない", () => {
+  it("IT-UNIT-LUCIE-COMPANION-006 [R-DOT-04] (R-DOT-04): EXが配る毒は発火のたびに保持者の**現在**HPを読み直し、付与時攻撃力×100%で頭打ちになる。シールドが張ってあっても吸われない", () => {
     // `-001` のEX行は付与そのもの（付与時点の現在HP×20%＝400のsnapshotと1行動）
     // までを固定する。R-DOT-04の本体——発火時点のHPで評価し直すこと・上限で
     // 頭打ちになること・シールドを素通りすること——は保持者の以後の行動に属し、

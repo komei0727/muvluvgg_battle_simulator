@@ -122,7 +122,7 @@ describe("production Catalog MEM_TRINITY_JEWEL (Trinity Jewel)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-TRINITY-JEWEL-004 (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_TRINITY_JEWEL, while the party-wide one still resolves", () => {
+  it("IT-MEM-TRINITY-JEWEL-004 [R-MEM-01] (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_TRINITY_JEWEL, while the party-wide one still resolves", () => {
     // 境界（`08_ドメインイベント.md`「発動直前の再確認」）: 対象0件の
     // `triggeredEffect` は`MemoryTriggered`自体を発行しない。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");

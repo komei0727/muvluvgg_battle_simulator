@@ -143,7 +143,7 @@ const sign = (n: number): number => Math.sign(n);
  * 変えても結果順が変わらないこと。入力配列順を暗黙のtie-breakerにしない）。
  */
 describe("compareActionOrder properties (R-ORD-02)", () => {
-  it("PROP-ORD-02-001: is deterministic (same inputs give the same sign)", () => {
+  it("PROP-ORD-02-001 [R-ORD-02]: is deterministic (same inputs give the same sign)", () => {
     fc.assert(
       fc.property(battleUnitArb, battleUnitArb, (a, b) => {
         return sign(compareActionOrder(a, b)) === sign(compareActionOrder(a, b));
@@ -152,7 +152,7 @@ describe("compareActionOrder properties (R-ORD-02)", () => {
     );
   });
 
-  it("PROP-ORD-02-002: is antisymmetric (sign(cmp(a,b)) === -sign(cmp(b,a)))", () => {
+  it("PROP-ORD-02-002 [R-ORD-02]: is antisymmetric (sign(cmp(a,b)) === -sign(cmp(b,a)))", () => {
     fc.assert(
       fc.property(battleUnitArb, battleUnitArb, (a, b) => {
         return sign(compareActionOrder(a, b)) === -sign(compareActionOrder(b, a));
@@ -161,7 +161,7 @@ describe("compareActionOrder properties (R-ORD-02)", () => {
     );
   });
 
-  it("PROP-ORD-02-003: is transitive (a<=b and b<=c imply a<=c)", () => {
+  it("PROP-ORD-02-003 [R-ORD-02]: is transitive (a<=b and b<=c imply a<=c)", () => {
     fc.assert(
       fc.property(battleUnitArb, battleUnitArb, battleUnitArb, (a, b, c) => {
         if (compareActionOrder(a, b) <= 0 && compareActionOrder(b, c) <= 0) {
@@ -173,7 +173,7 @@ describe("compareActionOrder properties (R-ORD-02)", () => {
     );
   });
 
-  it("PROP-ORD-02-004: sort order is independent of input array order (no implicit tie-breaker)", () => {
+  it("PROP-ORD-02-004 [R-ORD-02]: sort order is independent of input array order (no implicit tie-breaker)", () => {
     fc.assert(
       fc.property(
         distinctPositionUnitsArb.chain((units) =>

@@ -106,7 +106,7 @@ describe("effectCategoriesOf", () => {
     expect([...categories]).toEqual(["BUFF"]);
   });
 
-  it("UT-R-EFF-02-004: classifies a 状態異常 APPLY_STATUS (STUN) as both STATUS and DEBUFF (R-STS-01)", () => {
+  it("UT-R-EFF-02-004 [R-EFF-02, R-STS-01]: classifies a 状態異常 APPLY_STATUS (STUN) as both STATUS and DEBUFF (R-STS-01)", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: 0, statusKind: "STUN" }),
       statusDefinition("ACT_STUN", "STUN"),
@@ -132,7 +132,7 @@ describe("effectCategoriesOf", () => {
     expect([...categories]).toEqual(["DEBUFF"]);
   });
 
-  it("UT-R-EFF-02-028 (R-CFS-01/R-DTH-01, DMG-009/Issue #193): classifies CONFUSION and DAMAGE_TO_HEAL as DEBUFF only — neither is one of the defined 状態異常", () => {
+  it("UT-R-EFF-02-028 [R-DTH-01] (R-CFS-01/R-DTH-01, DMG-009/Issue #193): classifies CONFUSION and DAMAGE_TO_HEAL as DEBUFF only — neither is one of the defined 状態異常", () => {
     const confusion = createEffectActionDefinition(
       {
         effectActionDefinitionId: "ACT_CONFUSION",
@@ -193,7 +193,7 @@ describe("effectCategoriesOf", () => {
     );
   }
 
-  it("UT-R-EFF-02-007 (RES-004-STATUS-CONDITION, Issue #224): classifies POISON continuous damage as STATUS+DEBUFF", () => {
+  it("UT-R-EFF-02-007 [R-EFF-02, R-STS-01] (RES-004-STATUS-CONDITION, Issue #224): classifies POISON continuous damage as STATUS+DEBUFF", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: 120 }),
       continuousDamageDefinition("ACT_POISON", "POISON"),
@@ -201,7 +201,7 @@ describe("effectCategoriesOf", () => {
     expect(new Set(categories)).toEqual(new Set(["STATUS", "DEBUFF"]));
   });
 
-  it("UT-R-EFF-02-008 (RES-004-STATUS-CONDITION, Issue #224): classifies BURN continuous damage as STATUS+DEBUFF", () => {
+  it("UT-R-EFF-02-008 [R-EFF-02, R-STS-01] (RES-004-STATUS-CONDITION, Issue #224): classifies BURN continuous damage as STATUS+DEBUFF", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: 120 }),
       continuousDamageDefinition("ACT_BURN", "BURN"),
@@ -209,7 +209,7 @@ describe("effectCategoriesOf", () => {
     expect(new Set(categories)).toEqual(new Set(["STATUS", "DEBUFF"]));
   });
 
-  it("UT-R-EFF-02-009 (RES-004-STATUS-CONDITION, Issue #224): classifies FIXED continuous damage as DEBUFF only, not STATUS", () => {
+  it("UT-R-EFF-02-009 [R-EFF-02, R-STS-01] (RES-004-STATUS-CONDITION, Issue #224): classifies FIXED continuous damage as DEBUFF only, not STATUS", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: 120 }),
       continuousDamageDefinition("ACT_FIXED_DOT", "FIXED"),

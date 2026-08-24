@@ -10,7 +10,7 @@ const baseTrigger = {
 } as const;
 
 describe("RuntimeCounterUpdateDefinition", () => {
-  it("UT-CAT-RCU-001: maps an INCREMENT update definition (Issue #143)", () => {
+  it("UT-CAT-RCU-001 [R-EFF-11]: maps an INCREMENT update definition (Issue #143)", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -36,7 +36,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     });
   });
 
-  it("UT-CAT-RCU-002: maps a CUMULATIVE_DAMAGE_THRESHOLD update definition (Issue #143)", () => {
+  it("UT-CAT-RCU-002 [R-EFF-11]: maps a CUMULATIVE_DAMAGE_THRESHOLD update definition (Issue #143)", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -67,7 +67,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     });
   });
 
-  it("UT-CAT-RCU-003: rejects an unknown kind", () => {
+  it("UT-CAT-RCU-003 [R-EFF-11]: rejects an unknown kind", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -82,7 +82,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-004: rejects an invalid scope", () => {
+  it("UT-CAT-RCU-004 [R-EFF-11]: rejects an invalid scope", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -97,7 +97,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-005: rejects INCREMENT missing amount", () => {
+  it("UT-CAT-RCU-005 [R-EFF-11]: rejects INCREMENT missing amount", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -111,7 +111,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-006: rejects INCREMENT with a zero amount", () => {
+  it("UT-CAT-RCU-006 [R-EFF-11]: rejects INCREMENT with a zero amount", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -126,7 +126,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-007: rejects CUMULATIVE_DAMAGE_THRESHOLD missing maxHpRatio", () => {
+  it("UT-CAT-RCU-007 [R-EFF-11]: rejects CUMULATIVE_DAMAGE_THRESHOLD missing maxHpRatio", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -140,7 +140,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-008: rejects a zero maxHpRatio", () => {
+  it("UT-CAT-RCU-008 [R-EFF-11]: rejects a zero maxHpRatio", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -155,7 +155,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-009: rejects a maxHpRatio greater than 1", () => {
+  it("UT-CAT-RCU-009 [R-EFF-11]: rejects a maxHpRatio greater than 1", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -170,7 +170,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-010: rejects a typo'd sibling key (maxHpRatio on INCREMENT)", () => {
+  it("UT-CAT-RCU-010 [R-EFF-11]: rejects a typo'd sibling key (maxHpRatio on INCREMENT)", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -186,7 +186,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-RCU-012: maps an INCREMENT update definition with resetScope: RESOLUTION_SCOPE", () => {
+  it("UT-CAT-RCU-012 [R-EFF-11]: maps an INCREMENT update definition with resetScope: RESOLUTION_SCOPE", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -208,7 +208,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     });
   });
 
-  it("UT-CAT-RCU-013: omitting resetScope means the counter persists for the whole battle (no resetScope key on the result)", () => {
+  it("UT-CAT-RCU-013 [R-EFF-11]: omitting resetScope means the counter persists for the whole battle (no resetScope key on the result)", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -222,7 +222,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     expect(result).not.toHaveProperty("resetScope");
   });
 
-  it("UT-CAT-RCU-014: rejects an invalid resetScope value", () => {
+  it("UT-CAT-RCU-014 [R-EFF-11]: rejects an invalid resetScope value", () => {
     expect(() =>
       createRuntimeCounterUpdateDefinition(
         {
@@ -239,7 +239,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
   });
 
   it.each(["BATTLE", "BATTLE_UNIT"])(
-    "UT-CAT-RCU-011 (EFF-006 Issue #212): rejects scope %s at Catalog load time (only SKILL_RUNTIME/APPLIED_EFFECT/EFFECT_SEQUENCE are implemented; Catalog must not accept a scope the runtime rejects)",
+    "UT-CAT-RCU-011 [R-EFF-11] (EFF-006 Issue #212): rejects scope %s at Catalog load time (only SKILL_RUNTIME/APPLIED_EFFECT/EFFECT_SEQUENCE are implemented; Catalog must not accept a scope the runtime rejects)",
     (scope) => {
       expect(() =>
         createRuntimeCounterUpdateDefinition(
@@ -256,7 +256,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     },
   );
 
-  it("UT-CAT-RCU-015 (EFF-005 Issue #162): accepts scope APPLIED_EFFECT", () => {
+  it("UT-CAT-RCU-015 [R-EFF-11] (EFF-005 Issue #162): accepts scope APPLIED_EFFECT", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -270,7 +270,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     expect(result.scope).toBe("APPLIED_EFFECT");
   });
 
-  it("UT-CAT-RCU-016 (EFF-006 Issue #212): accepts scope EFFECT_SEQUENCE", () => {
+  it("UT-CAT-RCU-016 [R-EFF-11] (EFF-006 Issue #212): accepts scope EFFECT_SEQUENCE", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "INCREMENT",
@@ -284,7 +284,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     expect(result.scope).toBe("EFFECT_SEQUENCE");
   });
 
-  it("UT-CAT-RCU-017 (Issue #553): maps a RESET update definition", () => {
+  it("UT-CAT-RCU-017 [R-EFF-11] (Issue #553): maps a RESET update definition", () => {
     const result = createRuntimeCounterUpdateDefinition(
       {
         kind: "RESET",
@@ -320,7 +320,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     });
   });
 
-  it("UT-CAT-RCU-018 (Issue #553): rejects a RESET that carries another kind's sibling key (amount / maxHpRatio / resetScope)", () => {
+  it("UT-CAT-RCU-018 [R-EFF-11] (Issue #553): rejects a RESET that carries another kind's sibling key (amount / maxHpRatio / resetScope)", () => {
     for (const extra of [{ amount: 1 }, { maxHpRatio: 0.4 }, { resetScope: "RESOLUTION_SCOPE" }]) {
       expect(() =>
         createRuntimeCounterUpdateDefinition(
@@ -337,7 +337,7 @@ describe("RuntimeCounterUpdateDefinition", () => {
     }
   });
 
-  it("UT-CAT-RCU-019 (Issue #553): rejects a RESET whose scope is not SKILL_RUNTIME (APPLIED_EFFECT / EFFECT_SEQUENCE discard their counters on their own lifecycle)", () => {
+  it("UT-CAT-RCU-019 [R-EFF-11] (Issue #553): rejects a RESET whose scope is not SKILL_RUNTIME (APPLIED_EFFECT / EFFECT_SEQUENCE discard their counters on their own lifecycle)", () => {
     for (const scope of ["APPLIED_EFFECT", "EFFECT_SEQUENCE"]) {
       expect(() =>
         createRuntimeCounterUpdateDefinition(

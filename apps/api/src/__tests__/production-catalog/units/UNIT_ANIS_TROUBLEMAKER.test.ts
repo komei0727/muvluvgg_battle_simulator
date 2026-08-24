@@ -513,7 +513,7 @@ describe("production Catalog UNIT_ANIS_TROUBLEMAKER (【愛を求めるトラブ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-ANIS-TROUBLEMAKER-004 (R-HIT-02): EXが味方全体へ配る実 ACT_ANIS_TROUBLEMAKER_EX_EVASION は、受け取った味方がチャージ中だと発動しない。チャージ開始だけを抜いた対照では同じ回避が1ヒット目を回避する", () => {
+  it("IT-UNIT-ANIS-TROUBLEMAKER-004 [R-HIT-02] (R-HIT-02): EXが味方全体へ配る実 ACT_ANIS_TROUBLEMAKER_EX_EVASION は、受け取った味方がチャージ中だと発動しない。チャージ開始だけを抜いた対照では同じ回避が1ヒット目を回避する", () => {
     // この機構は**どの単一定義にも帰属しない** — 抑止するのはチャージ側のスキルで、
     // 抑止されるのはこのユニットの回避効果である。`12_テスト戦略.md`「`IT-CAP-*` の
     // retire 基準」3に従い、チャージ側（`IT-UNIT-MIRIAM-MAGE-005`）と同じ観測を

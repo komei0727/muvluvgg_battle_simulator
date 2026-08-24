@@ -458,7 +458,7 @@ describe("production Catalog UNIT_MIHIME_SNIPER (【稀代の狙撃手】珠瀬�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-MIHIME-SNIPER-004 (R-EFF-02): PS1の「デバフを3つまで解除」は `maxRemovals` で頭打ちになる — 4つ持っていても3つしか解除されず、4つ目は残る", () => {
+  it("IT-UNIT-MIHIME-SNIPER-004 [R-EFF-02] (R-EFF-02): PS1の「デバフを3つまで解除」は `maxRemovals` で頭打ちになる — 4つ持っていても3つしか解除されず、4つ目は残る", () => {
     // `-001` のPS1行は解除対象を1つしか持たないため、上限そのものは現れない
     // （上限が無くても、上限が10でも同じ観測になる）。上限より1つ多い前提を
     // 実 production 定義で積んで、解除件数が3で止まることを固定する。

@@ -15,7 +15,7 @@ const ACTION_1 = createActionId("B_1:action:1");
 const ACTION_2 = createActionId("B_1:action:2");
 
 describe("startCooldown", () => {
-  it("UT-COOLDOWN-001 (R-SKL-04): sets an ACTION-unit cooldown with the skill's declared count, scoped to the setting actionId", () => {
+  it("UT-COOLDOWN-001 [R-SKL-04] (R-SKL-04): sets an ACTION-unit cooldown with the skill's declared count, scoped to the setting actionId", () => {
     const result = startCooldown({}, SKL_A, { unit: "ACTION", count: 2 }, { actionId: ACTION_1 });
 
     expect(result.before).toBe(0);
@@ -26,20 +26,20 @@ describe("startCooldown", () => {
     });
   });
 
-  it("UT-COOLDOWN-002 (R-SKL-04): sets a TURN-unit cooldown scoped to the setting turnNumber", () => {
+  it("UT-COOLDOWN-002 [R-SKL-04] (R-SKL-04): sets a TURN-unit cooldown scoped to the setting turnNumber", () => {
     const result = startCooldown({}, SKL_A, { unit: "TURN", count: 3 }, { turnNumber: 1 });
 
     expect(result.cooldowns[SKL_A]).toEqual({ unit: "TURN", remaining: 3, setTurnNumber: 1 });
   });
 
-  it("UT-COOLDOWN-003: a cooldown.count of 0 records no entry (never enters COOLING)", () => {
+  it("UT-COOLDOWN-003 [R-SKL-04]: a cooldown.count of 0 records no entry (never enters COOLING)", () => {
     const result = startCooldown({}, SKL_A, { unit: "ACTION", count: 0 }, { actionId: ACTION_1 });
 
     expect(result.cooldowns).toEqual({});
     expect(result.before).toBe(0);
   });
 
-  it("UT-COOLDOWN-004: re-using a skill after its cooldown completed reports the prior remaining (0) as `before` and resets scope", () => {
+  it("UT-COOLDOWN-004 [R-SKL-04]: re-using a skill after its cooldown completed reports the prior remaining (0) as `before` and resets scope", () => {
     const first = startCooldown({}, SKL_A, { unit: "ACTION", count: 1 }, { actionId: ACTION_1 });
     const { cooldowns: afterDecrement } = decrementActionCooldowns(first.cooldowns, ACTION_2);
 
@@ -60,7 +60,7 @@ describe("startCooldown", () => {
     });
   });
 
-  it("UT-COOLDOWN-005: leaves other skills' cooldowns untouched", () => {
+  it("UT-COOLDOWN-005 [R-SKL-04]: leaves other skills' cooldowns untouched", () => {
     const withA = startCooldown(
       {},
       SKL_A,
@@ -91,7 +91,7 @@ describe("startCooldown", () => {
 });
 
 describe("decrementActionCooldowns", () => {
-  it("UT-COOLDOWN-006 (R-SKL-04): does not decrement a cooldown set in the same action", () => {
+  it("UT-COOLDOWN-006 [R-SKL-04] (R-SKL-04): does not decrement a cooldown set in the same action", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -107,7 +107,7 @@ describe("decrementActionCooldowns", () => {
     expect(result.changes).toEqual([]);
   });
 
-  it("UT-COOLDOWN-007 (R-SKL-04): decrements by 1 on a subsequent action, reporting the change", () => {
+  it("UT-COOLDOWN-007 [R-SKL-04] (R-SKL-04): decrements by 1 on a subsequent action, reporting the change", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -125,7 +125,7 @@ describe("decrementActionCooldowns", () => {
     ]);
   });
 
-  it("UT-COOLDOWN-008: reaching 0 is reported once and further decrements are skipped (already READY)", () => {
+  it("UT-COOLDOWN-008 [R-SKL-04]: reaching 0 is reported once and further decrements are skipped (already READY)", () => {
     let cooldowns = startCooldown(
       {},
       SKL_A,
@@ -146,7 +146,7 @@ describe("decrementActionCooldowns", () => {
     expect(second.cooldowns[SKL_A]!.remaining).toBe(0);
   });
 
-  it("UT-COOLDOWN-009: ignores TURN-unit cooldowns entirely", () => {
+  it("UT-COOLDOWN-009 [R-SKL-04]: ignores TURN-unit cooldowns entirely", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -162,7 +162,7 @@ describe("decrementActionCooldowns", () => {
 });
 
 describe("decrementTurnCooldowns", () => {
-  it("UT-COOLDOWN-010 (R-SKL-04): does not decrement a cooldown set in the same turn", () => {
+  it("UT-COOLDOWN-010 [R-SKL-04] (R-SKL-04): does not decrement a cooldown set in the same turn", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -176,7 +176,7 @@ describe("decrementTurnCooldowns", () => {
     expect(result.changes).toEqual([]);
   });
 
-  it("UT-COOLDOWN-011 (R-SKL-04): decrements by 1 at a subsequent turn end", () => {
+  it("UT-COOLDOWN-011 [R-SKL-04] (R-SKL-04): decrements by 1 at a subsequent turn end", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -192,7 +192,7 @@ describe("decrementTurnCooldowns", () => {
     ]);
   });
 
-  it("UT-COOLDOWN-012: ignores ACTION-unit cooldowns entirely", () => {
+  it("UT-COOLDOWN-012 [R-SKL-04]: ignores ACTION-unit cooldowns entirely", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -208,7 +208,7 @@ describe("decrementTurnCooldowns", () => {
     expect(result.cooldowns[SKL_A]!.remaining).toBe(2);
   });
 
-  it("UT-COOLDOWN-013: an empty cooldown map decrements to itself with no changes", () => {
+  it("UT-COOLDOWN-013 [R-SKL-04]: an empty cooldown map decrements to itself with no changes", () => {
     const empty: CooldownMap = {};
     const result = decrementTurnCooldowns(empty, 1);
 
@@ -218,7 +218,7 @@ describe("decrementTurnCooldowns", () => {
 });
 
 describe("manipulateCooldown", () => {
-  it("UT-COOLDOWN-014: RESET sets a cooling skill's remaining to 0 and reports the change", () => {
+  it("UT-COOLDOWN-014 [R-SKL-09]: RESET sets a cooling skill's remaining to 0 and reports the change", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -237,7 +237,7 @@ describe("manipulateCooldown", () => {
     });
   });
 
-  it("UT-COOLDOWN-015: REDUCE decreases remaining by the given amount and reports the change", () => {
+  it("UT-COOLDOWN-015 [R-SKL-09]: REDUCE decreases remaining by the given amount and reports the change", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -256,7 +256,7 @@ describe("manipulateCooldown", () => {
     });
   });
 
-  it("UT-COOLDOWN-016: REDUCE never drops remaining below 0", () => {
+  it("UT-COOLDOWN-016 [R-SKL-09]: REDUCE never drops remaining below 0", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,
@@ -275,21 +275,21 @@ describe("manipulateCooldown", () => {
     });
   });
 
-  it("UT-COOLDOWN-017: RESET on an unregistered (READY) skill is a no-op with no reported change", () => {
+  it("UT-COOLDOWN-017 [R-SKL-09]: RESET on an unregistered (READY) skill is a no-op with no reported change", () => {
     const result = manipulateCooldown({}, SKL_A, "RESET");
 
     expect(result.cooldowns).toEqual({});
     expect(result.change).toBeUndefined();
   });
 
-  it("UT-COOLDOWN-018: REDUCE on an unregistered (READY) skill is a no-op with no reported change", () => {
+  it("UT-COOLDOWN-018 [R-SKL-09]: REDUCE on an unregistered (READY) skill is a no-op with no reported change", () => {
     const result = manipulateCooldown({}, SKL_A, "REDUCE", 1);
 
     expect(result.cooldowns).toEqual({});
     expect(result.change).toBeUndefined();
   });
 
-  it("UT-COOLDOWN-019: RESET on an already-READY (remaining 0) skill is a no-op with no reported change", () => {
+  it("UT-COOLDOWN-019 [R-SKL-09]: RESET on an already-READY (remaining 0) skill is a no-op with no reported change", () => {
     let cooldowns = startCooldown(
       {},
       SKL_A,
@@ -305,7 +305,7 @@ describe("manipulateCooldown", () => {
     expect(result.cooldowns[SKL_A]!.remaining).toBe(0);
   });
 
-  it("UT-COOLDOWN-020: leaves other skills' cooldowns untouched", () => {
+  it("UT-COOLDOWN-020 [R-SKL-09]: leaves other skills' cooldowns untouched", () => {
     let cooldowns = startCooldown(
       {},
       SKL_A,
@@ -324,7 +324,7 @@ describe("manipulateCooldown", () => {
     expect(result.cooldowns[SKL_B]).toEqual({ unit: "TURN", remaining: 2, setTurnNumber: 1 });
   });
 
-  it("UT-COOLDOWN-021: RESET applies even to a cooldown set in the current action/turn scope (manipulation is not natural decay)", () => {
+  it("UT-COOLDOWN-021 [R-SKL-09]: RESET applies even to a cooldown set in the current action/turn scope (manipulation is not natural decay)", () => {
     const cooldowns = startCooldown(
       {},
       SKL_A,

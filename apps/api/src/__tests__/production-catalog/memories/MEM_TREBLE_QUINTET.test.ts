@@ -124,7 +124,7 @@ describe("production Catalog MEM_TREBLE_QUINTET (Treble Quintet)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-TREBLE-QUINTET-004 (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_TREBLE_QUINTET, while the party-wide one still resolves", () => {
+  it("IT-MEM-TREBLE-QUINTET-004 [R-MEM-01] (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_TREBLE_QUINTET, while the party-wide one still resolves", () => {
     // 境界（`08_ドメインイベント.md`「発動直前の再確認」）: 対象0件の
     // `triggeredEffect` は`MemoryTriggered`自体を発行しない。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
@@ -137,7 +137,7 @@ describe("production Catalog MEM_TREBLE_QUINTET (Treble Quintet)", () => {
     }
   });
 
-  it("IT-MEM-TREBLE-QUINTET-005 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+  it("IT-MEM-TREBLE-QUINTET-005 [R-MEM-02] (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
     // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
     // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
     const observed = observeCoDeclaredMemories(

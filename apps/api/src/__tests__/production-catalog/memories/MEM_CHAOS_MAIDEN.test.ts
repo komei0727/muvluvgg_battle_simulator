@@ -102,7 +102,7 @@ describe("production Catalog MEM_CHAOS_MAIDEN (Chaos Maiden)", () => {
     }
   });
 
-  it("IT-MEM-CHAOS-MAIDEN-002 (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
+  it("IT-MEM-CHAOS-MAIDEN-002 [R-MEM-04] (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
     // 敵陣営の前衛左も同じ所属を名乗るが、ALLY宣言では一切影響を受けない
     // （`-001` の表が味方スロットだけで閉じている）。
     expect(observeMemoryGrants(MEMORY_DEFINITION_ID, "ENEMY", BOARD)).toEqual(
@@ -122,7 +122,7 @@ describe("production Catalog MEM_CHAOS_MAIDEN (Chaos Maiden)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-CHAOS-MAIDEN-004 (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_CHAOS_MAIDEN, while the party-wide one still resolves", () => {
+  it("IT-MEM-CHAOS-MAIDEN-004 [R-MEM-01] (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_CHAOS_MAIDEN, while the party-wide one still resolves", () => {
     // 境界（`08_ドメインイベント.md`「発動直前の再確認」）: 対象0件の
     // `triggeredEffect` は`MemoryTriggered`自体を発行しない。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
@@ -132,7 +132,7 @@ describe("production Catalog MEM_CHAOS_MAIDEN (Chaos Maiden)", () => {
     ]);
   });
 
-  it("IT-MEM-CHAOS-MAIDEN-005 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+  it("IT-MEM-CHAOS-MAIDEN-005 [R-MEM-02] (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
     // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
     // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
     const observed = observeCoDeclaredMemories(

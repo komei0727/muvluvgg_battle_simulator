@@ -340,7 +340,7 @@ describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-02
     });
   }
 
-  it("UT-R-EFF-10-030 (R-EFF-10/R-EFF-09 M7-020): a UnitDefeated for the granter removes the declaring Marker (reason SOURCE_DEFEATED) and cascades its CHILD AppliedEffect", () => {
+  it("UT-R-EFF-10-030 [R-EFF-09, R-EFF-10] (R-EFF-10/R-EFF-09 M7-020): a UnitDefeated for the granter removes the declaring Marker (reason SOURCE_DEFEATED) and cascades its CHILD AppliedEffect", () => {
     const granter = unit("GRANTER", "ALLY", { currentHp: 0 });
     const holder = unit("HOLDER", "ENEMY", {
       attack: 10,
@@ -562,7 +562,7 @@ describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-02
     });
   });
 
-  it("UT-R-EFF-10-034 (R-EFF-09 逐次通知 / R-ATM-01 再確認): inside the PS chain too, the cascaded CHILD's EffectExpired is delivered while the parent Marker still exists, but a candidate gated on that Marker is discarded by the R-PS-04 reconfirmation once the pending queue drains", () => {
+  it("UT-R-EFF-10-034 [R-ATM-01, R-EFF-09, R-EFF-10] (R-EFF-09 逐次通知 / R-ATM-01 再確認): inside the PS chain too, the cascaded CHILD's EffectExpired is delivered while the parent Marker still exists, but a candidate gated on that Marker is discarded by the R-PS-04 reconfirmation once the pending queue drains", () => {
     const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_ATTACKER");
     const victimUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_SEQ_VICTIM");
     const attackDamage = damageEffectAction("ACT_KOUYOU_SEQ_ATTACK_DAMAGE");

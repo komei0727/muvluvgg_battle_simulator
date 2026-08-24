@@ -470,7 +470,7 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
     expect(heal).toBeGreaterThan(followUp * 0.6);
   });
 
-  it("IT-UNIT-FLUTE-VAMPIRE-005 (R-ACTN-03, MODIFY_RESOURCE_CAPACITY): SKL_FLUTE_VAMPIRE_PS1 は最大APだけを1上げ、現在APと不変の基準値は動かさない。上がった上限は次のターンのリソース回復が実際に満たす", () => {
+  it("IT-UNIT-FLUTE-VAMPIRE-005 [R-ACTN-03] (R-ACTN-03, MODIFY_RESOURCE_CAPACITY): SKL_FLUTE_VAMPIRE_PS1 は最大APだけを1上げ、現在APと不変の基準値は動かさない。上がった上限は次のターンのリソース回復が実際に満たす", () => {
     // 発動条件（HPが最大の10%以下）を満たし、APを使い切った局面から始める。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       subject: { state: { currentHp: 1000, currentAp: 0 } },
@@ -531,7 +531,7 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
     expect(restored.units[subject.battleUnitId]!.hp).toBe(subject.currentHp);
   });
 
-  it("IT-UNIT-FLUTE-VAMPIRE-006 (R-HIT-04): PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION は、受け取った味方がチャージ中だと発動せず、回避が成立しなかった被ヒットでその被ヒット消費も減らさない", () => {
+  it("IT-UNIT-FLUTE-VAMPIRE-006 [R-HIT-04] (R-HIT-04): PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION は、受け取った味方がチャージ中だと発動せず、回避が成立しなかった被ヒットでその被ヒット消費も減らさない", () => {
     // この機構は**どの単一定義にも帰属しない** — 抑止するのはチャージ側のスキルで、
     // 抑止されるのはこのユニットの `HIT_EVASION` である。`12_テスト戦略.md`
     // 「`IT-CAP-*` の retire 基準」3に従い、チャージ側（`IT-UNIT-SIENA-OFFSTAGE-007`）と
@@ -603,7 +603,7 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
     });
   });
 
-  it("IT-UNIT-FLUTE-VAMPIRE-008 (R-HIT-04): PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION は被ヒット1回ぶんだけ回避する — 同じ2ヒット攻撃の1ヒット目を回避してその被ヒットで消費し切って失効し、2ヒット目はそのまま命中する。公開差分だけからも同じ状態へ復元できる", () => {
+  it("IT-UNIT-FLUTE-VAMPIRE-008 [R-HIT-04] (R-HIT-04): PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION は被ヒット1回ぶんだけ回避する — 同じ2ヒット攻撃の1ヒット目を回避してその被ヒットで消費し切って失効し、2ヒット目はそのまま命中する。公開差分だけからも同じ状態へ復元できる", () => {
     // `-001` のPS2行は付与そのもの（`ACTION(1)` + `INCOMING_HIT(1)`）までを固定する。
     // 「Nヒット回避のNが1である」ことは、回避したヒットと命中したヒットが**同じ攻撃の
     // 中で分かれる**ことでしか現れず、これは保持者以外の別のスキル使用に属する。
@@ -669,7 +669,7 @@ describe("production Catalog UNIT_FLUTE_VAMPIRE (【＃激カワ吸血鬼配信�
     ).toEqual(initialSnapshotFor(attacked.units, { include: ["effects"] }));
   });
 
-  it("IT-UNIT-FLUTE-VAMPIRE-009 (R-HIT-05): 実 ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT を保持する攻撃側は、PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION を貫通して2ヒットとも当てる", () => {
+  it("IT-UNIT-FLUTE-VAMPIRE-009 [R-HIT-05] (R-HIT-05): 実 ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT を保持する攻撃側は、PS2が配る実 ACT_FLUTE_VAMPIRE_PS2_EVASION を貫通して2ヒットとも当てる", () => {
     // この機構も**どの単一定義にも帰属しない** — 貫通するのはレイラの必中バフで、
     // 貫通されるのはこのユニットの `HIT_EVASION` である。`12_テスト戦略.md`
     // 「`IT-CAP-*` の retire 基準」3に従い、必中側（`IT-UNIT-LAYLA-ENTREPRENEUR-005`）と

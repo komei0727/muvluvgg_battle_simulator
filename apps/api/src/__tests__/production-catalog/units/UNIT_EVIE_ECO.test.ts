@@ -334,7 +334,7 @@ describe("production Catalog UNIT_EVIE_ECO (【省エネ主義の天才ハッカ
     });
   });
 
-  it("IT-UNIT-EVIE-ECO-005 (R-INT-01 #1/#2, R-INT-02): PS1が攻撃者へ付けた引き寄せ＋肩代わりは、以後の1発を味方からエヴィへ移したうえで production の `guardRate: 0.5` ぶんだけ軽減する", () => {
+  it("IT-UNIT-EVIE-ECO-005 [R-INT-01, R-INT-02] (R-INT-01 #1/#2, R-INT-02): PS1が攻撃者へ付けた引き寄せ＋肩代わりは、以後の1発を味方からエヴィへ移したうえで production の `guardRate: 0.5` ぶんだけ軽減する", () => {
     // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` の振る舞い表は
     // 前者しか表せない。`damageShareRate`（＝`magnitude`）までは `-001` が持つが、
     // 「誰が肩代わり者として焼き込まれたか」と「軽減率が実際に効く量」は持てない。

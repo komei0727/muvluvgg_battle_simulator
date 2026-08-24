@@ -69,14 +69,14 @@ function idsWithMode(mode: string): readonly string[] {
 }
 
 describe("R-CRT-04 production catalog audit", () => {
-  it("IT-AUDIT-CRT-001: the production hit point ratio DAMAGE definitions split exactly into the PREVENTED and NORMAL lists", () => {
+  it("IT-AUDIT-CRT-001 [R-CRT-04]: the production hit point ratio DAMAGE definitions split exactly into the PREVENTED and NORMAL lists", () => {
     expect(idsWithMode("PREVENTED")).toEqual([...PREVENTED].sort());
     expect(idsWithMode("NORMAL")).toEqual([...ROLLING].sort());
     // GUARANTEED はこの族に1件も無い。両リストの和が族の全件であることを固定する。
     expect(HIT_POINT_RATIO_DAMAGE).toHaveLength(PREVENTED.length + ROLLING.length);
   });
 
-  it("IT-AUDIT-CRT-002: the non-SKILL_POWER DAMAGE definitions outside the rule are the counters, and they keep rolling for a critical", () => {
+  it("IT-AUDIT-CRT-002 [R-CRT-04]: the non-SKILL_POWER DAMAGE definitions outside the rule are the counters, and they keep rolling for a critical", () => {
     // 反撃（`DAMAGE_RECEIVED_RATIO`）はHP由来の量ではないため宣言必須の族に入らない。
     // 実機での会心可否は未確認で、`NORMAL` を明示したまま据え置いている。R-CRT-04を
     // この3件へ広げるとしたら、まず境界がここで動く。

@@ -452,7 +452,7 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
     return { board, recorder, units: resolved.units };
   }
 
-  it("IT-UNIT-SUIRAN-CASINO-004 (R-LNK-01/02/03): AS1が配る実ダメージリンクは、味方が受けたダメージの50%を**追加で**劉翠蘭へ発生させる。元ダメージは減らず、リンクダメージは `isLinkedDamage` を持ち、リンク先自身のシールドで受ける", () => {
+  it("IT-UNIT-SUIRAN-CASINO-004 [R-LNK-01] (R-LNK-01/02/03): AS1が配る実ダメージリンクは、味方が受けたダメージの50%を**追加で**劉翠蘭へ発生させる。元ダメージは減らず、リンクダメージは `isLinkedDamage` を持ち、リンク先自身のシールドで受ける", () => {
     // `-001` のAS1行は付与そのもの（`linkTo: SELF`の解決先・50%・期間の所有者）を持つが、
     // 転送は**別のスキル使用**である被弾でしか起きないため表の外にある。
     const { board, recorder, units } = grantDamageLink("B_SUIRAN_LINK");
@@ -531,7 +531,7 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
     expect(hit.hpDeltas).toEqual({ "ally:front": -500 });
   });
 
-  it("IT-UNIT-SUIRAN-CASINO-005 (R-EFF-01): 味方が保持するリンクの「2行動」は付与者（劉翠蘭）の時計で減る。素早い味方が2回行動してもリンクは残り、劉翠蘭が2回行動して初めて親の2枚目シールドと同時に失効する", () => {
+  it("IT-UNIT-SUIRAN-CASINO-005 [R-LNK-01] (R-EFF-01): 味方が保持するリンクの「2行動」は付与者（劉翠蘭）の時計で減る。素早い味方が2回行動してもリンクは残り、劉翠蘭が2回行動して初めて親の2枚目シールドと同時に失効する", () => {
     // `-001` のAS1行は `timeLimit: { unit: ACTION, count: 2, owner: EFFECT_SOURCE }` を
     // 宣言として持つが、**誰の行動で減るか**は行動を跨がないと現れない。
     const { recorder, units: granted } = grantDamageLink("B_SUIRAN_LINK_CLOCK");

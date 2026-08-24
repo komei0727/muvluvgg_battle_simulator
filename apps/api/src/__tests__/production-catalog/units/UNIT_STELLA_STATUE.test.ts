@@ -482,7 +482,7 @@ describe("production Catalog UNIT_STELLA_STATUE (【スタチュービューテ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-STELLA-STATUE-004 (R-CRT-04): PS1の「対象の現在HP×90%のダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+  it("IT-UNIT-STELLA-STATUE-004 [R-CRT-04] (R-CRT-04): PS1の「対象の現在HP×90%のダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

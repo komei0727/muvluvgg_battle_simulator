@@ -127,7 +127,7 @@ describe("production Catalog MEM_DISCONTENT_AND_ANXIETY (不満と不安)", () =
     ).toEqual([]);
   });
 
-  it("IT-MEM-DISCONTENT-AND-ANXIETY-004 (R-MEM-01): the TurnStarted triggeredEffect re-grants the front-row ATTACK buff on every turn while the BattleStarted one never repeats", () => {
+  it("IT-MEM-DISCONTENT-AND-ANXIETY-004 [R-MEM-01] (R-MEM-01): the TurnStarted triggeredEffect re-grants the front-row ATTACK buff on every turn while the BattleStarted one never repeats", () => {
     const { turnStarts } = observeMemoryTurnStarts(MEMORY_DEFINITION_ID, "ALLY", 2);
     expect(turnStarts.map((turn) => turn.turnNumber)).toEqual([1, 2]);
     for (const turn of turnStarts) {
@@ -163,7 +163,7 @@ describe("production Catalog MEM_DISCONTENT_AND_ANXIETY (不満と不安)", () =
     }
   });
 
-  it("IT-MEM-DISCONTENT-AND-ANXIETY-006 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+  it("IT-MEM-DISCONTENT-AND-ANXIETY-006 [R-MEM-02] (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
     // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
     // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
     const observed = observeCoDeclaredMemories({

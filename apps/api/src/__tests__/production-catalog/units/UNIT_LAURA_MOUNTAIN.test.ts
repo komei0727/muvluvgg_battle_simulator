@@ -565,7 +565,7 @@ describe("production Catalog UNIT_LAURA_MOUNTAIN (【みんなを見守る山ガ
     ).toEqual(["SKL_LAURA_MOUNTAIN_PS2"]);
   });
 
-  it("IT-UNIT-LAURA-MOUNTAIN-005 (Q-CAT-EFF-16, R-STA-03): EXの攻撃力15%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へEXを撃ち直しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-LAURA-MOUNTAIN-005 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): EXの攻撃力15%低下は原文に「重複可」が無く重複しない — 戦闘終了まで残る効果へEXを撃ち直しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,

@@ -489,7 +489,7 @@ describe("production Catalog UNIT_CHIZURU_DOMESTIC (【ドメスティックな�
     });
   });
 
-  it("IT-UNIT-CHIZURU-DOMESTIC-006 (R-LNK-01/02/03): PS1が配る実ダメージリンクは `linkTo: BINDING` の解決先（最大HPが最も低い敵）を付与時点で焼き込み、以後に自身が受けたダメージの35%をそこへ送る。転送量はR-DMG-02で切り捨てられ、自身の被ダメージは減らない", () => {
+  it("IT-UNIT-CHIZURU-DOMESTIC-006 [R-LNK-01] (R-LNK-01/02/03): PS1が配る実ダメージリンクは `linkTo: BINDING` の解決先（最大HPが最も低い敵）を付与時点で焼き込み、以後に自身が受けたダメージの35%をそこへ送る。転送量はR-DMG-02で切り捨てられ、自身の被ダメージは減らない", () => {
     // `-001` のPS1行は付与そのもの（0.35・1ターン）を持つが、`linkTo` がどの敵へ
     // 解決したかと転送そのものは、**別のスキル使用**である被弾でしか現れない。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, { enemies: LOWEST_MAX_HP_BACK });

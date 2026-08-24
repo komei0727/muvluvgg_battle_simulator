@@ -444,7 +444,7 @@ describe("production Catalog UNIT_MERU_FLATSPIN (【蒼き穹舞うフラット�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-MERU-FLATSPIN-004 (R-SKL-06): AS2の総称「対象が状態異常だった場合」は `categories: [STATUS]` 一本で照会するため、`APPLY_STATUS` の気絶だけでなく `APPLY_CONTINUOUS_DAMAGE` の毒でも成立し、状態異常ではない単なるデバフでは成立しない", () => {
+  it("IT-UNIT-MERU-FLATSPIN-004 [R-SKL-06] (R-SKL-06): AS2の総称「対象が状態異常だった場合」は `categories: [STATUS]` 一本で照会するため、`APPLY_STATUS` の気絶だけでなく `APPLY_CONTINUOUS_DAMAGE` の毒でも成立し、状態異常ではない単なるデバフでは成立しない", () => {
     const extraAttackTargets = (precedingActions: readonly PrecedingAction[]): readonly string[] =>
       (
         observeSkillUse({
@@ -479,7 +479,7 @@ describe("production Catalog UNIT_MERU_FLATSPIN (【蒼き穹舞うフラット�
     expect(extraAttackTargets([])).toEqual([]);
   });
 
-  it("IT-UNIT-MERU-FLATSPIN-005 (R-CRT-04): EXの「対象の失ったHP×50%のダメージ」は会心判定を行わない — 同じEXの威力ベース攻撃は従来どおり会心する", () => {
+  it("IT-UNIT-MERU-FLATSPIN-005 [R-CRT-04] (R-CRT-04): EXの「対象の失ったHP×50%のダメージ」は会心判定を行わない — 同じEXの威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

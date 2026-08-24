@@ -415,7 +415,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-SIENA-DIVA-004 (R-EFF-12/R-STS-02): 「対象に1行動の気絶が付与されていた場合は、2行動の気絶に上書きする」— PS1の気絶は既存インスタンスの残り回数だけを2へ差し替え、`StunDurationChanged` として記録する", () => {
+  it("IT-UNIT-SIENA-DIVA-004 [R-EFF-12] (R-EFF-12/R-STS-02): 「対象に1行動の気絶が付与されていた場合は、2行動の気絶に上書きする」— PS1の気絶は既存インスタンスの残り回数だけを2へ差し替え、`StunDurationChanged` として記録する", () => {
     // 既存の気絶は別スキル（EX）由来。原文は付与元を限定しないため、EX由来の
     // 1行動の気絶も上書きの契機になる。
     const { baseline, events, stuns } = activatePs1(ENEMY_ALREADY_STUNNED);
@@ -446,7 +446,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     ).toMatchObject({ duration: { unit: "ACTION", remaining: 2 } });
   });
 
-  it("IT-UNIT-SIENA-DIVA-005 (R-EFF-12 boundary): 残り2行動の気絶は「1行動の気絶が付与されていた場合」に当たらず、さらなるPS1の気絶は残り回数を延ばさない", () => {
+  it("IT-UNIT-SIENA-DIVA-005 [R-EFF-12] (R-EFF-12 boundary): 残り2行動の気絶は「1行動の気絶が付与されていた場合」に当たらず、さらなるPS1の気絶は残り回数を延ばさない", () => {
     // 1回目のPS1で1→2へ上書き済みの状態を、同じ前提を2件重ねて作る。
     const { events, stuns } = activatePs1([
       ...ENEMY_ALREADY_STUNNED,
@@ -459,7 +459,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     expect(stunDurationChanges(events)).toEqual([]);
   });
 
-  it("IT-UNIT-SIENA-DIVA-006 (R-EFF-06): PS2の「1ターンの間」会心率上昇は行動終了では減らず、ターン終了で減って0で失効し、会心率が戻る", () => {
+  it("IT-UNIT-SIENA-DIVA-006 [R-EFF-06] (R-EFF-06): PS2の「1ターンの間」会心率上昇は行動終了では減らず、ターン終了で減って0で失効し、会心率が戻る", () => {
     // 付与そのものと `timeLimit: { unit: TURN, count: 1 }` の宣言は `-001` の
     // PS2行が持つ。ターン単位期間は**行動単位期間と減る契機が違う**ことでしか
     // 区別できず、それは行動終了とターン終了の両方を跨がないと現れない。
@@ -513,7 +513,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     ]);
   });
 
-  it("IT-UNIT-SIENA-DIVA-007 (R-PS-01/R-STS-01): PS1の「敵に状態異常が付与された際」は、実 resolver が `EffectApplied` へ載せた分類だけで判定される — `STATUS` は `APPLY_STATUS` より狭く、デバフより狭い", () => {
+  it("IT-UNIT-SIENA-DIVA-007 [R-PS-01, R-STS-01] (R-PS-01/R-STS-01): PS1の「敵に状態異常が付与された際」は、実 resolver が `EffectApplied` へ載せた分類だけで判定される — `STATUS` は `APPLY_STATUS` より狭く、デバフより狭い", () => {
     // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
     // 実 resolver に発行させたイベントにしか現れない。
@@ -561,7 +561,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     });
   });
 
-  it("IT-UNIT-SIENA-DIVA-008 (Q-CAT-EFF-16, R-STA-03): PS2の味方会心率15%上昇は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-SIENA-DIVA-008 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS2の味方会心率15%上昇は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -576,7 +576,7 @@ describe("production Catalog UNIT_SIENA_DIVA (【旋律を紡ぐ静謐のディ�
     expect(effectiveValue).toBeCloseTo(baseValue + 0.15, 10);
   });
 
-  it("IT-UNIT-SIENA-DIVA-009 (Q-CAT-EFF-16, R-STA-03): PS2の敵会心ダメージ50%減少は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-SIENA-DIVA-009 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS2の敵会心ダメージ50%減少は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,

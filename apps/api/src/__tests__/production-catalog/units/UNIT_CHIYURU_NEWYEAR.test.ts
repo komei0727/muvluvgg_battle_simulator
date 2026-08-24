@@ -534,7 +534,7 @@ describe("production Catalog UNIT_CHIYURU_NEWYEAR (【新春のメイズ研究�
     });
   });
 
-  it("IT-UNIT-CHIYURU-NEWYEAR-005 (R-NUM-04): AS1の `MARKER_COUNT_SCALE`（`target: SKILL_SOURCE`）が評価した効果量は `AppliedEffect.magnitude` に留まらず実CombatStatへ届き、公開差分だけを当て直しても同じ効果量・同じ所持数へ復元できる", () => {
+  it("IT-UNIT-CHIYURU-NEWYEAR-005 [R-NUM-04] (R-NUM-04): AS1の `MARKER_COUNT_SCALE`（`target: SKILL_SOURCE`）が評価した効果量は `AppliedEffect.magnitude` に留まらず実CombatStatへ届き、公開差分だけを当て直しても同じ効果量・同じ所持数へ復元できる", () => {
     // `-001` の各行は「所持数がいくつなら効果量がいくつか」（0・2・6）と、その
     // 効果量が乗った与ダメージまでを固定する。ここが引き受けるのは、評価結果が
     // **どこへ届いたか**の2点 — 実 `CombatStats` の再計算と、StateDelta だけを

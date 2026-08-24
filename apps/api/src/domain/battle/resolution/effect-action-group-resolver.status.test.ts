@@ -112,7 +112,7 @@ describe("applyEffectActionGroups", () => {
     expect(completed.payload.resultKind).toBe("SKIPPED");
   });
 
-  it("UT-R-EFF-01-046 (TGT-004フェーズ3、Issue #167): an APPLY_STATUS payload with probability/appliesTo/damageThreshold/damageAmplificationOnBreak (R-STS-01〜04 scope, not yet implemented) throws a clear error instead of silently granting unconditionally", () => {
+  it("UT-R-EFF-01-046 [R-STS-02] (TGT-004フェーズ3、Issue #167): an APPLY_STATUS payload with probability/appliesTo/damageThreshold/damageAmplificationOnBreak (R-STS-01〜04 scope, not yet implemented) throws a clear error instead of silently granting unconditionally", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const status: EffectActionDefinition = {
@@ -144,7 +144,7 @@ describe("applyEffectActionGroups", () => {
     );
   });
 
-  it("UT-R-EFF-01-051 (Issue #180, M7-003, R-STS-02): a STUN APPLY_STATUS payload with NO extra fields (e.g. production ACT_CHIZURU_DOMESTIC_AS1_STUN's exact shape: just status+duration) grants the status", () => {
+  it("UT-R-EFF-01-051 [R-STS-02] (Issue #180, M7-003, R-STS-02): a STUN APPLY_STATUS payload with NO extra fields (e.g. production ACT_CHIZURU_DOMESTIC_AS1_STUN's exact shape: just status+duration) grants the status", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const status: EffectActionDefinition = {
@@ -177,7 +177,7 @@ describe("applyEffectActionGroups", () => {
     expect(target.appliedEffects[0]).toMatchObject({ statusKind: "STUN" });
   });
 
-  it("UT-R-HIT-03-010 (R-HIT-03/R-STS-04, Issue #183, CAP_STATUS_EFFECT_KIND): an APPLY_STATUS(BLIND) ACTION step grants a statusKind BLIND AppliedEffect carrying statusDetails.probability through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
+  it("UT-R-HIT-03-010 [R-HIT-03, R-STS-04] (R-HIT-03/R-STS-04, Issue #183, CAP_STATUS_EFFECT_KIND): an APPLY_STATUS(BLIND) ACTION step grants a statusKind BLIND AppliedEffect carrying statusDetails.probability through the real Catalog -> EffectSequence -> AppliedEffect pipeline", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const status: EffectActionDefinition = {
@@ -572,7 +572,7 @@ describe("applyEffectActionGroups", () => {
     }
   });
 
-  it("UT-R-STS-02-004 (R-SKL-05/R-STS-02, Issue #180): granting STUN to a unit with a pending charge cancels it and records ChargeCancelled", () => {
+  it("UT-R-STS-02-004 [R-SKL-05, R-STS-02] (R-SKL-05/R-STS-02, Issue #180): granting STUN to a unit with a pending charge cancels it and records ChargeCancelled", () => {
     const actor = unit("ACTOR", "ALLY");
     const chargedSkill = skillOf({ kind: "IMMEDIATE", targetBindings: [], steps: [] });
     const startedActionId = createActionId("B_TEST:action:1");

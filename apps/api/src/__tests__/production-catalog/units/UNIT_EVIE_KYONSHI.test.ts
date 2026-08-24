@@ -339,7 +339,7 @@ describe("production Catalog UNIT_EVIE_KYONSHI (【キョンシーハッカー�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-EVIE-KYONSHI-004 (R-DMG-03): EXの静的貫通は防御力だけでなくシールドも半分無視する — シールドを張った敵だけがHPへちょうど半分を受ける", () => {
+  it("IT-UNIT-EVIE-KYONSHI-004 [R-DMG-03] (R-DMG-03): EXの静的貫通は防御力だけでなくシールドも半分無視する — シールドを張った敵だけがHPへちょうど半分を受ける", () => {
     // `-001` のEX行は「防御力50%無視で実効防御250」までを hpDeltas で固定するが、
     // 盤面に吸収体が無いため `shieldIgnoreRate: 0.5` は一切現れない。シールドは実
     // production 定義（ルナのEXが配る最大HP×40%）で用意し、シールドを持たない

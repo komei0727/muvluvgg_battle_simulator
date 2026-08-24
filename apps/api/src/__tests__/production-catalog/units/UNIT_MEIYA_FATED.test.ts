@@ -457,7 +457,7 @@ describe("production Catalog UNIT_MEIYA_FATED (【天命を受けし剣術乙女
     ).toEqual([]);
   });
 
-  it("IT-UNIT-MEIYA-FATED-004 (R-PS-01): PS1の「自身にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類で判定される — 同じ負の`magnitude`でも与ダメージ低下はデバフ、被ダメージ低下はバフになる", () => {
+  it("IT-UNIT-MEIYA-FATED-004 [R-PS-01] (R-PS-01): PS1の「自身にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類で判定される — 同じ負の`magnitude`でも与ダメージ低下はデバフ、被ダメージ低下はバフになる", () => {
     // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
     // 実 resolver に発行させたイベントにしか現れない。

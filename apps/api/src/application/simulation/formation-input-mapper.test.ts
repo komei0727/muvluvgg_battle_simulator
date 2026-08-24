@@ -57,7 +57,7 @@ describe("toDomainFormationInput", () => {
     });
   });
 
-  it("UT-FORMATION-MAPPER-005 (R-ENH-01): carries the formation-level and unit-level enhancement into the Domain input", () => {
+  it("UT-FORMATION-MAPPER-005 [R-ENH-01] (R-ENH-01): carries the formation-level and unit-level enhancement into the Domain input", () => {
     const result = toDomainFormationInput({
       slots: [
         {
@@ -77,7 +77,7 @@ describe("toDomainFormationInput", () => {
     });
   });
 
-  it("UT-FORMATION-MAPPER-006: leaves the Domain input free of enhancement keys when the Command has none", () => {
+  it("UT-FORMATION-MAPPER-006 [R-ENH-01]: leaves the Domain input free of enhancement keys when the Command has none", () => {
     const result = toDomainFormationInput({
       slots: [
         {

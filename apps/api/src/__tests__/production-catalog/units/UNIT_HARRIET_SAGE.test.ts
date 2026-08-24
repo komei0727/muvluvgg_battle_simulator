@@ -542,7 +542,7 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-HARRIET-SAGE-004 (R-EFF-09): AS1の攻撃力低下と与ダメージ低下は`HARRIET_CURSE_LINK`で連動し、片方が失効するともう片方も巻き添えで失効する", () => {
+  it("IT-UNIT-HARRIET-SAGE-004 [R-EFF-09] (R-EFF-09): AS1の攻撃力低下と与ダメージ低下は`HARRIET_CURSE_LINK`で連動し、片方が失効するともう片方も巻き添えで失効する", () => {
     // どちらも `timeLimit: { unit: BATTLE, count: 1 }` かつ `dispellable: false` で、
     // 実戦闘には失効させる契機が存在しない。連動そのものを見るために、片方1件だけを
     // 名指しで失効させる（契機の側は R-EFF-04/06/07・R-EFF-02 が持つ責務）。
@@ -585,7 +585,7 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
     expect(after.combatStats.attack).toBe(1000);
   });
 
-  it("IT-UNIT-HARRIET-SAGE-005 (R-EFF-09/R-EFF-07): AS2のダメージ無効が実被弾2回で消費し切って失効すると、`HARRIET_BARRIER`の子である継続回復も巻き添えで失効する — カスケードは親の失効理由に依存しない", () => {
+  it("IT-UNIT-HARRIET-SAGE-005 [R-EFF-09] (R-EFF-09/R-EFF-07): AS2のダメージ無効が実被弾2回で消費し切って失効すると、`HARRIET_BARRIER`の子である継続回復も巻き添えで失効する — カスケードは親の失効理由に依存しない", () => {
     // `-004` の親は `TIME_LIMIT` で失効させたが、こちらの親は実ダメージpipelineの
     // 被弾で `CONSUMPTION` として失効する。カスケードの成立が親の失効理由に依らない
     // ことは、この2件を並べて初めて固定される。

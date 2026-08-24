@@ -74,7 +74,7 @@ describe("published response conforms to the v1 doc schema across the production
     expect(publishedEventTypes.size).toBeGreaterThan(20);
   }, 60000);
 
-  it("IT-REL-004-DOC-SCHEMA-002 (R-SKL-04): a cooldown started by a Passive Skill outside any action serializes with no setting scope instead of failing the response mapper", () => {
+  it("IT-REL-004-DOC-SCHEMA-002 [R-SKL-04] (R-SKL-04): a cooldown started by a Passive Skill outside any action serializes with no setting scope instead of failing the response mapper", () => {
     // `unit: "ACTION"`のクールタイムを持つPSが行動外のトップレベルイベントから
     // 発動すると、設定scope（`setActionId`）を持たないエントリになる
     // （`cooldown-state.ts`の`startCooldown`、`scope === undefined`）。

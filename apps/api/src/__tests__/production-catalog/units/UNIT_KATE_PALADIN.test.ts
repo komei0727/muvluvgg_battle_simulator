@@ -493,7 +493,7 @@ describe("production Catalog UNIT_KATE_PALADIN (【人見知りの聖騎士】�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-KATE-PALADIN-004 (R-SKL-07, WEIGHTED_ONE): `SKL_KATE_PALADIN_EX` の実 RANDOM_BRANCH は定義順の累積weightへ乱数を1回だけ対応づけて腕を選び、選択結果を `RandomBranchSelected` へ記録する。公開差分だけからも同じ盤面へ復元できる", () => {
+  it("IT-UNIT-KATE-PALADIN-004 [R-SKL-07] (R-SKL-07, WEIGHTED_ONE): `SKL_KATE_PALADIN_EX` の実 RANDOM_BRANCH は定義順の累積weightへ乱数を1回だけ対応づけて腕を選び、選択結果を `RandomBranchSelected` へ記録する。公開差分だけからも同じ盤面へ復元できる", () => {
     // `-001` の表は「腕ごとに何が起きたか」を見る。ここは選択そのものが
     // FACTイベントとして残り、StateDeltaが実状態と一致することを見る。
     const selections = [0.1, 0.5, 0.9].map((roll) => {
@@ -545,7 +545,7 @@ describe("production Catalog UNIT_KATE_PALADIN (【人見知りの聖騎士】�
     }
   });
 
-  it("IT-UNIT-KATE-PALADIN-005 (R-PS-01/R-STS-01): PS1の「敵に凍結が付与された際」は、実 resolver が `EffectApplied` へ載せた `statusKind` で判定される — 気絶でも有利な `APPLY_STATUS` でも発動しない", () => {
+  it("IT-UNIT-KATE-PALADIN-005 [R-PS-01] (R-PS-01/R-STS-01): PS1の「敵に凍結が付与された際」は、実 resolver が `EffectApplied` へ載せた `statusKind` で判定される — 気絶でも有利な `APPLY_STATUS` でも発動しない", () => {
     // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `statusKind` はテスト側の宣言でしかない。**実装がその欄を載せているか**は
     // 実 resolver に発行させたイベントにしか現れない（この trigger は M7-011 以前、

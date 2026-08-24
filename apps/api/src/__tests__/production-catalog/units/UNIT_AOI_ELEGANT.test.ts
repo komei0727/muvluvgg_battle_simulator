@@ -580,7 +580,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     ).toEqual([]);
   });
 
-  it("IT-UNIT-AOI-ELEGANT-004 (R-EFF-10/R-EFF-09): 「高揚」は付与者が倒れると同時に解除され、会心率デバフと継続ダメージも連動して失効する", () => {
+  it("IT-UNIT-AOI-ELEGANT-004 [R-EFF-09, R-EFF-10] (R-EFF-10/R-EFF-09): 「高揚」は付与者が倒れると同時に解除され、会心率デバフと継続ダメージも連動して失効する", () => {
     // 会心率デバフが実効値へ効いたことを見るため、基礎会心率を0以外へ置く。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       combatStats: { criticalRate: BASE_CRITICAL_RATE },
@@ -648,7 +648,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     );
   });
 
-  it("IT-UNIT-AOI-ELEGANT-005 (R-SKL-06): EXの対象別条件 `TARGET_HAS_MARKER(「浮足」)` は対象ごとに評価され、同じ前後列でも「浮足」を持つ敵だけが攻撃力低下を受ける（攻撃は両方が受ける）", () => {
+  it("IT-UNIT-AOI-ELEGANT-005 [R-SKL-06] (R-SKL-06): EXの対象別条件 `TARGET_HAS_MARKER(「浮足」)` は対象ごとに評価され、同じ前後列でも「浮足」を持つ敵だけが攻撃力低下を受ける（攻撃は両方が受ける）", () => {
     expect(
       observeSkillUse({
         snapshot,
@@ -694,7 +694,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     });
   });
 
-  it("IT-UNIT-AOI-ELEGANT-006 (R-DMG-04): PS2の実 被ダメージ補正が持つ `UNIT_HAS_MARKER(OPPONENT)` 条件はヒットごとに攻撃側を見て評価され、同じ1回の付与でも「浮足」を持つ敵からの攻撃だけが40%減る", () => {
+  it("IT-UNIT-AOI-ELEGANT-006 [R-DMG-04] (R-DMG-04): PS2の実 被ダメージ補正が持つ `UNIT_HAS_MARKER(OPPONENT)` 条件はヒットごとに攻撃側を見て評価され、同じ1回の付与でも「浮足」を持つ敵からの攻撃だけが40%減る", () => {
     // PS2は同じ解決の中で敵単体へ「浮足」を、自身へこの被ダメージ補正を配る。
     // 条件が見るのは**攻撃してきた相手**なので、付与時点では成立も不成立も決まらない。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
@@ -748,7 +748,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     });
   });
 
-  it("IT-UNIT-AOI-ELEGANT-007 (R-EFF-09第1項): 「高揚」の子効果は `REMOVE_EFFECTS` では解除できないが、PS2の実 `REMOVE_MARKER` で親が外れると同時に失効する", () => {
+  it("IT-UNIT-AOI-ELEGANT-007 [R-EFF-09] (R-EFF-09第1項): 「高揚」の子効果は `REMOVE_EFFECTS` では解除できないが、PS2の実 `REMOVE_MARKER` で親が外れると同時に失効する", () => {
     // raw原文「会心率デバフと継続ダメージデバフは解除不可だが、「高揚」が解除されると
     // 同時に解除される」。`dispellable: false` と `linkedEffectGroupId` の両方を宣言
     // することで両立する（R-EFF-09）。`-004` は同じグループを**付与者の戦闘不能**
@@ -841,7 +841,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     });
   });
 
-  it("IT-UNIT-AOI-ELEGANT-008 (Q-CAT-EFF-16, R-STA-03): PS1の攻撃力35%低下は原文に「重複可」が無く重複しない — EXがクールタイムをリセットして再発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-AOI-ELEGANT-008 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS1の攻撃力35%低下は原文に「重複可」が無く重複しない — EXがクールタイムをリセットして再発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -856,7 +856,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.35), 10);
   });
 
-  it("IT-UNIT-AOI-ELEGANT-009 (Q-CAT-EFF-16, R-STA-03): PS2の会心率7.5%低下は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-AOI-ELEGANT-009 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS2の会心率7.5%低下は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -871,7 +871,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     expect(effectiveValue).toBeCloseTo(baseValue - 0.075, 10);
   });
 
-  it("IT-UNIT-AOI-ELEGANT-010 (Q-CAT-EFF-16, R-STA-03): PS2の会心ダメージ25%低下は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-AOI-ELEGANT-010 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS2の会心ダメージ25%低下は原文に「重複可」が無く重複しない — 毎ターン発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -886,7 +886,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     expect(effectiveValue).toBeCloseTo(baseValue - 0.25, 10);
   });
 
-  it("IT-UNIT-AOI-ELEGANT-011 (Q-CAT-EFF-16): PS2の「浮足」所持相手からの被ダメージ40%減少は原文に「重複可」が無く重複しない — 既に保持していれば毎ターンの発動でも付与stepごと実行されない", () => {
+  it("IT-UNIT-AOI-ELEGANT-011 [R-SKL-06] (Q-CAT-EFF-16): PS2の「浮足」所持相手からの被ダメージ40%減少は原文に「重複可」が無く重複しない — 既に保持していれば毎ターンの発動でも付与stepごと実行されない", () => {
     // `APPLY_DAMAGE_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
     // 無いため、2件目を作らないことで重複なしへ揃える（`BRANCH` のelse腕）。
     // 期間が `BATTLE` である以上、ターン開始ごとの再発動は必ず重なる。
@@ -913,7 +913,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     );
   });
 
-  it("IT-UNIT-AOI-ELEGANT-012 (R-CRT-04): AS2の「対象が「浮足」を所持している場合、追加で対象の現在HP×20%のダメージ」は会心判定を行わない — 同じAS2の威力84.8側は従来どおり会心する", () => {
+  it("IT-UNIT-AOI-ELEGANT-012 [R-CRT-04] (R-CRT-04): AS2の「対象が「浮足」を所持している場合、追加で対象の現在HP×20%のダメージ」は会心判定を行わない — 同じAS2の威力84.8側は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

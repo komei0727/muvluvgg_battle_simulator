@@ -131,7 +131,7 @@ describe("PreviewFormationStatsUseCase", () => {
     ]);
   });
 
-  it("UT-STAT-PREVIEW-011 (R-STA-01/R-ENH-01 #2): an enhanced side reports higher base stats than the same slot without an enhancement specification", () => {
+  it("UT-STAT-PREVIEW-011 [R-ENH-01] (R-STA-01/R-ENH-01 #2): an enhanced side reports higher base stats than the same slot without an enhancement specification", () => {
     const plain = useCase().execute(command());
     const enhanced = useCase().execute(
       command({
@@ -202,7 +202,7 @@ describe("PreviewFormationStatsUseCase", () => {
     );
   });
 
-  it("UT-STAT-PREVIEW-014 (R-ENH-05 #5): rejects a level other than 200 for a unit without levelGrowth, and accepts it for a unit that has one", () => {
+  it("UT-STAT-PREVIEW-014 [R-ENH-05] (R-ENH-05 #5): rejects a level other than 200 for a unit without levelGrowth, and accepts it for a unit that has one", () => {
     const withLevel = (unitId: string): PreviewFormationStatsCommand =>
       command({
         allyFormation: {
@@ -284,7 +284,7 @@ describe("PreviewFormationStatsUseCase", () => {
     expect(result.units[0]!.combatStats.maximumHp).toBeGreaterThan(0);
   });
 
-  it("UT-STAT-PREVIEW-024 (09_アプリケーション設計.md「FormationStatPreviewResult」/R-ENH-06): reports the enhanced base stats alongside the corrected combat stats", () => {
+  it("UT-STAT-PREVIEW-024 [R-ENH-06] (09_アプリケーション設計.md「FormationStatPreviewResult」/R-ENH-06): reports the enhanced base stats alongside the corrected combat stats", () => {
     const result = useCase().execute(
       command({
         allyFormation: {
@@ -301,7 +301,7 @@ describe("PreviewFormationStatsUseCase", () => {
     expect(result.units[1]!.enhancedBaseStats).toEqual(GROWING.baseStats);
   });
 
-  it("UT-STAT-PREVIEW-025 (R-STA-01): the reported enhanced base stats exclude the aptitude penalty that the combat stats include", () => {
+  it("UT-STAT-PREVIEW-025 [R-STA-01] (R-STA-01): the reported enhanced base stats exclude the aptitude penalty that the combat stats include", () => {
     // 前衛適性しか持たないユニットを後衛へ置き、適性補正-5%だけを成立させる
     // （1体編成のため役は成立せず、編成補正は0）。
     const frontOnly = unitDefinition("UNIT_FRONT_ONLY", { positionAptitudes: ["FRONT"] });
@@ -344,7 +344,7 @@ describe("PreviewFormationStatsUseCase", () => {
     expect((error as ApplicationError).code).toBe("DEFINITION_NOT_FOUND");
   });
 
-  it("UT-STAT-PREVIEW-019 (R-TEX-11 #5): mode TACTICAL_EXERCISE previews an EXERCISE_ENEMY enemy that the default NORMAL mode rejects", () => {
+  it("UT-STAT-PREVIEW-019 [R-TEX-11] (R-TEX-11 #5): mode TACTICAL_EXERCISE previews an EXERCISE_ENEMY enemy that the default NORMAL mode rejects", () => {
     const exerciseEnemy = unitDefinition("UNIT_TEX", {
       category: "EXERCISE_ENEMY",
       exerciseActive: true,
@@ -370,7 +370,7 @@ describe("PreviewFormationStatsUseCase", () => {
     }
   });
 
-  it("UT-STAT-PREVIEW-022: rejects an unknown mode as INVALID_COMMAND without touching the Catalog", () => {
+  it("UT-STAT-PREVIEW-022 [R-TEX-11]: rejects an unknown mode as INVALID_COMMAND without touching the Catalog", () => {
     try {
       useCase().execute(command({ mode: "RANKED" as unknown as "NORMAL" }));
       expect.fail("expected the preview to reject the unknown mode");

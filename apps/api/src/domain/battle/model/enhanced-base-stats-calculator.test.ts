@@ -223,7 +223,7 @@ describe("calculateEnhancedBaseStats properties (R-ENH-05/06)", () => {
     actionSpeed: fc.integer({ min: 0, max: 10 }),
   });
 
-  it("PROP-ENH-06-001: spelling out the defaults yields the same result as omitting them", () => {
+  it("PROP-ENH-06-001 [R-ENH-06]: spelling out the defaults yields the same result as omitting them", () => {
     fc.assert(
       fc.property(growthArb, (levelGrowth) => {
         const unit = target({ levelGrowth });
@@ -248,7 +248,7 @@ describe("calculateEnhancedBaseStats properties (R-ENH-05/06)", () => {
     );
   });
 
-  it("PROP-ENH-06-002: no stat drops below 0 and maximum HP never drops below 1", () => {
+  it("PROP-ENH-06-002 [R-ENH-06]: no stat drops below 0 and maximum HP never drops below 1", () => {
     fc.assert(
       fc.property(levelArb, growthArb, (level, levelGrowth) => {
         const stats = calculateEnhancedBaseStats(target({ levelGrowth }), { level });
@@ -264,7 +264,7 @@ describe("calculateEnhancedBaseStats properties (R-ENH-05/06)", () => {
     );
   });
 
-  it("PROP-ENH-05-001: a higher level never lowers a stat (growth values are non-negative)", () => {
+  it("PROP-ENH-05-001 [R-ENH-05]: a higher level never lowers a stat (growth values are non-negative)", () => {
     fc.assert(
       fc.property(levelArb, levelArb, growthArb, (a, b, levelGrowth) => {
         const lower = Math.min(a, b);

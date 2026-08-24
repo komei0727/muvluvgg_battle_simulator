@@ -1351,7 +1351,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_SUBUNIT_WITH_DEBUFF" as never)).toBeDefined();
   });
 
-  it("UT-CAT-IDX-105 (Issue #474, R-FUP-01): rejects an APPLY_FOLLOW_UP_ATTACK whose onHitEffect references a missing EffectActionDefinition", () => {
+  it("UT-CAT-IDX-105 [R-FUP-01] (Issue #474, R-FUP-01): rejects an APPLY_FOLLOW_UP_ATTACK whose onHitEffect references a missing EffectActionDefinition", () => {
     const defs = baseDefinitions();
     const withDangling: CatalogDefinitions = {
       ...defs,
@@ -1373,7 +1373,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-106 (Issue #474, R-FUP-01): rejects an APPLY_FOLLOW_UP_ATTACK whose onHitEffect references a kind that is neither APPLY_STAT_MOD nor APPLY_CONTINUOUS_DAMAGE", () => {
+  it("UT-CAT-IDX-106 [R-FUP-01] (Issue #474, R-FUP-01): rejects an APPLY_FOLLOW_UP_ATTACK whose onHitEffect references a kind that is neither APPLY_STAT_MOD nor APPLY_CONTINUOUS_DAMAGE", () => {
     const defs = baseDefinitions();
     const withNonGrantable: CatalogDefinitions = {
       ...defs,
@@ -1395,7 +1395,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-107 (Issue #474, R-FUP-01): accepts APPLY_FOLLOW_UP_ATTACK onHitEffect references to APPLY_STAT_MOD and APPLY_CONTINUOUS_DAMAGE", () => {
+  it("UT-CAT-IDX-107 [R-FUP-01] (Issue #474, R-FUP-01): accepts APPLY_FOLLOW_UP_ATTACK onHitEffect references to APPLY_STAT_MOD and APPLY_CONTINUOUS_DAMAGE", () => {
     const defs = baseDefinitions();
     const withRiders: CatalogDefinitions = {
       ...defs,
@@ -1428,7 +1428,7 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_STUN_IMMUNITY" as never)).toBeDefined();
   });
 
-  it("UT-CAT-IDX-017: rejects a COOLDOWN_MANIPULATION payload.targetSkillDefinitionId referencing a missing SkillDefinition (Issue #129)", () => {
+  it("UT-CAT-IDX-017 [R-SKL-09]: rejects a COOLDOWN_MANIPULATION payload.targetSkillDefinitionId referencing a missing SkillDefinition (Issue #129)", () => {
     const defs = baseDefinitions();
     const withDangling: CatalogDefinitions = {
       ...defs,
@@ -1452,7 +1452,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-018: rejects a COOLDOWN_MANIPULATION targeting a SkillDefinition owned by a different Unit (Issue #129)", () => {
+  it("UT-CAT-IDX-018 [R-SKL-09]: rejects a COOLDOWN_MANIPULATION targeting a SkillDefinition owned by a different Unit (Issue #129)", () => {
     const defs = baseDefinitions();
     const withUnowned: CatalogDefinitions = {
       ...defs,
@@ -1484,7 +1484,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-019: accepts a COOLDOWN_MANIPULATION targeting a SkillDefinition owned by the same Unit (Issue #129)", () => {
+  it("UT-CAT-IDX-019 [R-SKL-09]: accepts a COOLDOWN_MANIPULATION targeting a SkillDefinition owned by the same Unit (Issue #129)", () => {
     const defs = baseDefinitions();
     const withOwned: CatalogDefinitions = {
       ...defs,
@@ -2707,7 +2707,7 @@ describe("buildCatalogIndex", () => {
       });
     }
 
-    it("UT-CAT-IDX-092 (Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
+    it("UT-CAT-IDX-092 [R-EFF-02] (Issue #248): rejects an AS activationCondition whose TARGET_HAS_EFFECT references a BINDING that can resolve to more than one unit", () => {
       const defs = baseDefinitions();
       const skill = activationConditionSkill(
         {
@@ -2725,7 +2725,7 @@ describe("buildCatalogIndex", () => {
       ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
     });
 
-    it("UT-CAT-IDX-093 (Issue #248): applies the same rule to TARGET_STATE/TARGET_HAS_MARKER, which share the AS/EX activationCondition evaluation path", () => {
+    it("UT-CAT-IDX-093 [R-EFF-02] (Issue #248): applies the same rule to TARGET_STATE/TARGET_HAS_MARKER, which share the AS/EX activationCondition evaluation path", () => {
       const defs = baseDefinitions();
       const multiSelector: TargetSelectorDefinitionInput = {
         kind: "SELECT",
@@ -2756,7 +2756,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-094 (Issue #248): accepts a count:1 BINDING on an AS activationCondition", () => {
+    it("UT-CAT-IDX-094 [R-EFF-02] (Issue #248): accepts a count:1 BINDING on an AS activationCondition", () => {
       const defs = baseDefinitions();
       expect(() =>
         buildCatalogIndex({
@@ -2776,7 +2776,7 @@ describe("buildCatalogIndex", () => {
       ).not.toThrow();
     });
 
-    it("UT-CAT-IDX-095 (Issue #248): rejects an AS/EX activationCondition referencing a TargetReference kind that evaluateActivationCondition cannot resolve (only SELF/BINDING exist at action-selection time)", () => {
+    it("UT-CAT-IDX-095 [R-EFF-02] (Issue #248): rejects an AS/EX activationCondition referencing a TargetReference kind that evaluateActivationCondition cannot resolve (only SELF/BINDING exist at action-selection time)", () => {
       const defs = baseDefinitions();
       const singleSelector: TargetSelectorDefinitionInput = {
         kind: "SELECT",
@@ -2806,7 +2806,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-096 (Issue #248): rejects a PS activationCondition referencing a BINDING, which evaluateTriggerCondition cannot resolve, while still accepting its own trigger-context kinds", () => {
+    it("UT-CAT-IDX-096 [R-EFF-02] (Issue #248): rejects a PS activationCondition referencing a BINDING, which evaluateTriggerCondition cannot resolve, while still accepting its own trigger-context kinds", () => {
       const defs = baseDefinitions();
       const psSkill = (target: TargetReferenceInput, selector: TargetSelectorDefinitionInput) =>
         activationConditionSkill(
@@ -2851,7 +2851,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-097 (Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
+    it("UT-CAT-IDX-097 [R-EFF-02] (Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
       const defs = baseDefinitions();
       const chargeSkill = (
         activationCondition: ConditionDefinitionInput,
@@ -2977,7 +2977,7 @@ describe("buildCatalogIndex", () => {
    * check under test stays isolated from that separate invariant.
    */
 
-  it("UT-CAT-IDX-079 (Issue #247 M7-001D): accepts EffectStep EVENT_PAYLOAD stepCondition on a PS skill once both CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are declared", () => {
+  it("UT-CAT-IDX-079 [R-SKL-06] (Issue #247 M7-001D): accepts EffectStep EVENT_PAYLOAD stepCondition on a PS skill once both CAP_EFFECT_STEP_CONDITION and CAP_TRIGGER_PAYLOAD_IN_RESOLUTION are declared", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({
@@ -2993,7 +2993,7 @@ describe("buildCatalogIndex", () => {
   });
 
   it.each([{ skillType: "AS" as const }, { skillType: "EX" as const }])(
-    "UT-CAT-IDX-080 (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill — the triggering event's payload only exists during a PS activation",
+    "UT-CAT-IDX-080 [R-SKL-06] (Issue #247 M7-001D): rejects EffectStep EVENT_PAYLOAD stepCondition on a $skillType skill — the triggering event's payload only exists during a PS activation",
     ({ skillType }) => {
       const defs = baseDefinitions();
       expect(() =>
@@ -3215,7 +3215,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
   });
 
-  it("UT-CAT-IDX-036: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
+  it("UT-CAT-IDX-036 [R-EFF-11]: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
     const defs = baseDefinitions();
     const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
 
@@ -3228,7 +3228,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/references unknown eventType "NotARealEvent"/);
   });
 
-  it("UT-CAT-IDX-037: rejects a Skill counterUpdates trigger whose declared category mismatches the eventType's documented category", () => {
+  it("UT-CAT-IDX-037 [R-EFF-11]: rejects a Skill counterUpdates trigger whose declared category mismatches the eventType's documented category", () => {
     const defs = baseDefinitions();
     const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];
 
@@ -3245,7 +3245,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/is documented as category/);
   });
 
-  it("UT-CAT-IDX-038 (EFF-005 Issue #162): rejects APPLY_MARKER duration.counterUpdates (Marker RuntimeCounter is not implemented)", () => {
+  it("UT-CAT-IDX-038 [R-EFF-11] (EFF-005 Issue #162): rejects APPLY_MARKER duration.counterUpdates (Marker RuntimeCounter is not implemented)", () => {
     const defs = baseDefinitions();
     const withCounterUpdates: CatalogDefinitions = {
       ...defs,
@@ -3267,7 +3267,7 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-CAT-IDX-040 (EFF-005 Issue #162): accepts APPLY_STAT_MOD duration.counterUpdates that declares CAP_EFFECT_RUNTIME_COUNTER", () => {
+  it("UT-CAT-IDX-040 [R-EFF-11] (EFF-005 Issue #162): accepts APPLY_STAT_MOD duration.counterUpdates that declares CAP_EFFECT_RUNTIME_COUNTER", () => {
     const defs = baseDefinitions();
     const index = buildCatalogIndex({
       ...defs,
@@ -3317,7 +3317,7 @@ describe("buildCatalogIndex", () => {
         });
     }
 
-    it("UT-CAT-IDX-042: rejects a first ACTION step whose condition references LAST_RESULT (nothing precedes it)", () => {
+    it("UT-CAT-IDX-042 [R-SKL-08]: rejects a first ACTION step whose condition references LAST_RESULT (nothing precedes it)", () => {
       expect(
         buildWith([
           {
@@ -3328,15 +3328,15 @@ describe("buildCatalogIndex", () => {
       ).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-043: rejects a first BRANCH step whose own condition references LAST_RESULT", () => {
+    it("UT-CAT-IDX-043 [R-SKL-08]: rejects a first BRANCH step whose own condition references LAST_RESULT", () => {
       expect(buildWith([lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-044: accepts a LAST_RESULT condition once a preceding always-true ACTION step exists", () => {
+    it("UT-CAT-IDX-044 [R-SKL-08]: accepts a LAST_RESULT condition once a preceding always-true ACTION step exists", () => {
       expect(buildWith([selfAction, lastResultBranch])).not.toThrow();
     });
 
-    it("UT-CAT-IDX-045: rejects LAST_RESULT after a BRANCH where only one side (thenSteps) produces a result", () => {
+    it("UT-CAT-IDX-045 [R-SKL-08]: rejects LAST_RESULT after a BRANCH where only one side (thenSteps) produces a result", () => {
       const branch = {
         kind: "BRANCH",
         condition: { kind: "TRUE" },
@@ -3346,7 +3346,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([branch, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-046: accepts LAST_RESULT after a BRANCH where both then/elseSteps produce a result", () => {
+    it("UT-CAT-IDX-046 [R-SKL-08]: accepts LAST_RESULT after a BRANCH where both then/elseSteps produce a result", () => {
       const branch = {
         kind: "BRANCH",
         condition: { kind: "TRUE" },
@@ -3356,7 +3356,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([branch, lastResultBranch])).not.toThrow();
     });
 
-    it("UT-CAT-IDX-047: rejects LAST_RESULT after RANDOM_BRANCH WEIGHTED_ONE where one reachable branch is missing a result", () => {
+    it("UT-CAT-IDX-047 [R-SKL-08]: rejects LAST_RESULT after RANDOM_BRANCH WEIGHTED_ONE where one reachable branch is missing a result", () => {
       const randomBranch = {
         kind: "RANDOM_BRANCH",
         mode: "WEIGHTED_ONE",
@@ -3368,7 +3368,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([randomBranch, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-048: a weight-0 (unreachable) WEIGHTED_ONE branch missing a result does not block LAST_RESULT afterward", () => {
+    it("UT-CAT-IDX-048 [R-SKL-08]: a weight-0 (unreachable) WEIGHTED_ONE branch missing a result does not block LAST_RESULT afterward", () => {
       const randomBranch = {
         kind: "RANDOM_BRANCH",
         mode: "WEIGHTED_ONE",
@@ -3380,7 +3380,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([randomBranch, lastResultBranch])).not.toThrow();
     });
 
-    it("UT-CAT-IDX-049: rejects LAST_RESULT after RANDOM_BRANCH INDEPENDENT relying solely on branch-interior ACTIONs (0-branch-success path is always live)", () => {
+    it("UT-CAT-IDX-049 [R-SKL-08]: rejects LAST_RESULT after RANDOM_BRANCH INDEPENDENT relying solely on branch-interior ACTIONs (0-branch-success path is always live)", () => {
       const randomBranch = {
         kind: "RANDOM_BRANCH",
         mode: "INDEPENDENT",
@@ -3392,7 +3392,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([randomBranch, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-050: accepts LAST_RESULT after RANDOM_BRANCH INDEPENDENT when already definitely-assigned beforehand", () => {
+    it("UT-CAT-IDX-050 [R-SKL-08]: accepts LAST_RESULT after RANDOM_BRANCH INDEPENDENT when already definitely-assigned beforehand", () => {
       const randomBranch = {
         kind: "RANDOM_BRANCH",
         mode: "INDEPENDENT",
@@ -3401,7 +3401,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([selfAction, randomBranch, lastResultBranch])).not.toThrow();
     });
 
-    it("UT-CAT-IDX-051: rejects LAST_RESULT after a REPEAT whose body only conditionally produces a result", () => {
+    it("UT-CAT-IDX-051 [R-SKL-08]: rejects LAST_RESULT after a REPEAT whose body only conditionally produces a result", () => {
       const repeat = {
         kind: "REPEAT",
         count: 2,
@@ -3410,12 +3410,12 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([repeat, lastResultBranch])).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-052: accepts LAST_RESULT after a REPEAT whose body unconditionally produces a result", () => {
+    it("UT-CAT-IDX-052 [R-SKL-08]: accepts LAST_RESULT after a REPEAT whose body unconditionally produces a result", () => {
       const repeat = { kind: "REPEAT", count: 2, steps: [selfAction] } as const;
       expect(buildWith([repeat, lastResultBranch])).not.toThrow();
     });
 
-    it("UT-CAT-IDX-053: rejects a nested BRANCH (inside thenSteps) whose own condition references LAST_RESULT with nothing preceding it", () => {
+    it("UT-CAT-IDX-053 [R-SKL-08]: rejects a nested BRANCH (inside thenSteps) whose own condition references LAST_RESULT with nothing preceding it", () => {
       const outer = {
         kind: "BRANCH",
         condition: { kind: "TRUE" },
@@ -3425,7 +3425,7 @@ describe("buildCatalogIndex", () => {
       expect(buildWith([outer])).toThrowError(/MISSING_PRECEDING_RESULT/);
     });
 
-    it("UT-CAT-IDX-054: rejects a first ACTION step targeting LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS", () => {
+    it("UT-CAT-IDX-054 [R-SKL-08]: rejects a first ACTION step targeting LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS", () => {
       for (const kind of ["LAST_ACTION_TARGETS", "LAST_DAMAGED_TARGETS"] as const) {
         expect(
           buildWith([
@@ -3439,7 +3439,7 @@ describe("buildCatalogIndex", () => {
       }
     });
 
-    it("UT-CAT-IDX-055: violation carries the Catalog path and rule id", () => {
+    it("UT-CAT-IDX-055 [R-SKL-08]: violation carries the Catalog path and rule id", () => {
       try {
         buildWith([lastResultBranch])();
         expect.unreachable();
@@ -3452,7 +3452,7 @@ describe("buildCatalogIndex", () => {
       }
     });
   });
-  it("UT-CAT-IDX-081 (R-MEM-04): rejects a Memory triggeredEffect whose EffectAction needs a source BattleUnit", () => {
+  it("UT-CAT-IDX-081 [R-MEM-04] (R-MEM-04): rejects a Memory triggeredEffect whose EffectAction needs a source BattleUnit", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({
@@ -3493,7 +3493,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/requires a source BattleUnit/);
   });
 
-  it("UT-CAT-IDX-082 (R-MEM-04): rejects a Memory triggeredEffect that references SELF as a target", () => {
+  it("UT-CAT-IDX-082 [R-MEM-04] (R-MEM-04): rejects a Memory triggeredEffect that references SELF as a target", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({
@@ -3528,7 +3528,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/cannot use the "SELF" target reference/);
   });
 
-  it("UT-CAT-IDX-083 (R-MEM-04): rejects a Memory targetBinding ordered relative to the source unit", () => {
+  it("UT-CAT-IDX-083 [R-MEM-04] (R-MEM-04): rejects a Memory targetBinding ordered relative to the source unit", () => {
     const defs = baseDefinitions();
     expect(() =>
       buildCatalogIndex({
@@ -3573,7 +3573,7 @@ describe("buildCatalogIndex", () => {
       }),
     ).toThrowError(/resolves relative to the source unit/);
   });
-  it("UT-CAT-IDX-084 (R-MEM-04): rejects a Memory EffectAction whose Formula references SKILL_SOURCE", () => {
+  it("UT-CAT-IDX-084 [R-MEM-04] (R-MEM-04): rejects a Memory EffectAction whose Formula references SKILL_SOURCE", () => {
     const defs = baseDefinitions();
     const skillSourceStatMod = createEffectActionDefinition(
       {
@@ -3605,7 +3605,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/references the source BattleUnit/);
   });
 
-  it("UT-CAT-IDX-085 (R-MEM-04): rejects a Memory EffectAction payload that targets the source unit (APPLY_HEALING_LINK transferTo SELF)", () => {
+  it("UT-CAT-IDX-085 [R-MEM-04] (R-MEM-04): rejects a Memory EffectAction payload that targets the source unit (APPLY_HEALING_LINK transferTo SELF)", () => {
     const defs = baseDefinitions();
     const healingLink = createEffectActionDefinition(
       {
@@ -3628,7 +3628,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/references the source BattleUnit/);
   });
 
-  it("UT-CAT-IDX-086 (R-MEM-04): rejects Memory trigger conditions that need an owner BattleUnit", () => {
+  it("UT-CAT-IDX-086 [R-MEM-04] (R-MEM-04): rejects Memory trigger conditions that need an owner BattleUnit", () => {
     const defs = baseDefinitions();
     const withMemory = (memory: ReturnType<typeof memoryWithTrigger>) => ({
       ...defs,
@@ -3709,7 +3709,7 @@ describe("buildCatalogIndex", () => {
       ),
     ).not.toThrow();
   });
-  it("UT-CAT-IDX-087: accepts a Memory effect whose expiration.conditions reference SELF (the effect holder, not the Memory source)", () => {
+  it("UT-CAT-IDX-087 [R-MEM-04]: accepts a Memory effect whose expiration.conditions reference SELF (the effect holder, not the Memory source)", () => {
     const defs = baseDefinitions();
     // `DurationDefinition.expiration.conditions`の`SELF`は効果保持者を指す
     // （`effect-expiration-condition-service.ts`が保持者を`context.owner`として渡す）。
@@ -3752,7 +3752,7 @@ describe("buildCatalogIndex", () => {
     ).not.toThrow();
   });
 
-  it("UT-CAT-IDX-088 (R-MEM-04): rejects a Memory EffectAction whose Formula reads a preceding DAMAGE result", () => {
+  it("UT-CAT-IDX-088 [R-MEM-04] (R-MEM-04): rejects a Memory EffectAction whose Formula reads a preceding DAMAGE result", () => {
     const defs = baseDefinitions();
     // `LAST_DAMAGE_*`/`SUM_DAMAGE_*`は使用者ごとの直前DAMAGE結果であり、
     // 使用者を持たないMemoryの解決では`lastResults`自体が評価contextへ渡らない。
@@ -3788,7 +3788,7 @@ describe("buildCatalogIndex", () => {
       }),
     ).toThrowError(/references the source BattleUnit/);
   });
-  it("UT-CAT-IDX-089 (R-MEM-04): rejects a Memory effect whose timeLimit.owner is the granting unit", () => {
+  it("UT-CAT-IDX-089 [R-MEM-04] (R-MEM-04): rejects a Memory effect whose timeLimit.owner is the granting unit", () => {
     const defs = baseDefinitions();
     // `EFFECT_SOURCE`は「付与者の行動・ターン完了で減算する」意味であり、
     // 付与者を持たないMemoryでは減算契機を特定できない。
@@ -3819,7 +3819,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/timeLimit.owner "EFFECT_SOURCE"/);
   });
 
-  it("UT-CAT-IDX-090 (R-EFF-12, M7-014 Issue #268): rejects an APPLY_MARKER with duration.reapply, since MarkerState grant does not resolve it", () => {
+  it("UT-CAT-IDX-090 [R-EFF-12] (R-EFF-12, M7-014 Issue #268): rejects an APPLY_MARKER with duration.reapply, since MarkerState grant does not resolve it", () => {
     const defs = baseDefinitions();
     // `marker-apply-service.ts`は`stack.policy`（ADD/REFRESH/KEEP_EXISTING/
     // REPLACE、R-EFF-10）で再付与を解決し、`resolveDurationOnReapply`を通らない。
@@ -3854,7 +3854,7 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/duration\.reapply is not/);
   });
 
-  it("UT-CAT-IDX-091 (R-EFF-12/R-STS-03, M7-014 Issue #268): rejects a FREEZE APPLY_STATUS with duration.reapply, since freeze re-grant is a no-op", () => {
+  it("UT-CAT-IDX-091 [R-EFF-12] (R-EFF-12/R-STS-03, M7-014 Issue #268): rejects a FREEZE APPLY_STATUS with duration.reapply, since freeze re-grant is a no-op", () => {
     const defs = baseDefinitions();
     // R-STS-03「再付与時に期間延長や増幅率加算を行わない」により
     // `grantFreezeStatus`は既存インスタンスをそのまま返す。`reapply`を宣言しても
@@ -3946,7 +3946,7 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
     }
   }
 
-  it("UT-CAT-IDX-108: accepts a kindKey group whose definitions agree on stacking and stat", () => {
+  it("UT-CAT-IDX-108 [R-STA-03]: accepts a kindKey group whose definitions agree on stacking and stat", () => {
     const index = buildCatalogIndex(
       catalogWith([
         statModWithKindKey("ACT_ELENA_ATK_UP_HIGH", "KIND_ELENA_ATK_UP"),
@@ -3960,7 +3960,7 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
 
   // 上限は`EffectKindKey`単位で数えるため、鍵を共有する定義が違う`max`を宣言すると
   // 「どの定義で付与しようとしたか」によって同じ保持数の判定が変わる。
-  it("UT-CAT-IDX-109: rejects a kindKey group whose definitions declare different stacking.max values", () => {
+  it("UT-CAT-IDX-109 [R-EFF-05]: rejects a kindKey group whose definitions declare different stacking.max values", () => {
     const violations = violationsOf(
       catalogWith([
         statModWithKindKey("ACT_MAX_A", "KIND_SHARED_MAX", { mode: "STACKABLE", max: 3 }),
@@ -3974,7 +3974,7 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
     ).toBe(true);
   });
 
-  it("UT-CAT-IDX-110: accepts a kindKey group whose definitions declare the same stacking.max", () => {
+  it("UT-CAT-IDX-110 [R-EFF-05]: accepts a kindKey group whose definitions declare the same stacking.max", () => {
     const index = buildCatalogIndex(
       catalogWith([
         statModWithKindKey("ACT_MAX_A", "KIND_SHARED_MAX", { mode: "STACKABLE", max: 3 }),
@@ -3985,7 +3985,7 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
   });
 
   // 片方が重複あり・片方が重複なしだと、同じグループの一部だけが最強選択に入る。
-  it("UT-CAT-IDX-111: rejects a kindKey group mixing STACKABLE and NON_STACKABLE", () => {
+  it("UT-CAT-IDX-111 [R-STA-03]: rejects a kindKey group mixing STACKABLE and NON_STACKABLE", () => {
     const violations = violationsOf(
       catalogWith([
         statModWithKindKey("ACT_MODE_A", "KIND_SHARED_MODE", { mode: "NON_STACKABLE" }),
@@ -4009,7 +4009,7 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
       b: { stat: "ATTACK" as const, valueType: "FIXED" as const },
     },
   ])(
-    "UT-CAT-IDX-112: rejects a kindKey group whose APPLY_STAT_MOD definitions differ in $label",
+    "UT-CAT-IDX-112 [R-STA-03]: rejects a kindKey group whose APPLY_STAT_MOD definitions differ in $label",
     ({ a, b }) => {
       const violations = violationsOf(
         catalogWith([
@@ -4025,7 +4025,7 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
     },
   );
 
-  it("UT-CAT-IDX-113: does not group definitions that declare no kindKey, even with identical payloads", () => {
+  it("UT-CAT-IDX-113 [R-STA-03]: does not group definitions that declare no kindKey, even with identical payloads", () => {
     const noKindKey = (id: string): EffectActionDefinition =>
       createEffectActionDefinition(
         {

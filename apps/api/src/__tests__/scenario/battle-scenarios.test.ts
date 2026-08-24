@@ -332,7 +332,7 @@ describe("battle scenarios (harness)", () => {
     expect(finalState.units[defenderUnitId]!.extraGauge).toBe(4);
   });
 
-  it("SCN-BTL-023 (Issue #251 acceptance): a same-cycle DEFEATED reservation removal, whose own PS reaction chain further changes state, still satisfies the full-battle invariants (parent/root determinism, independent StateDelta reapplication) enforced end-to-end by the public use case", () => {
+  it("SCN-BTL-023 [R-ORD-01] (Issue #251 acceptance): a same-cycle DEFEATED reservation removal, whose own PS reaction chain further changes state, still satisfies the full-battle invariants (parent/root determinism, independent StateDelta reapplication) enforced end-to-end by the public use case", () => {
     const skillId = "SKL_KILL_NEAREST";
     const effectActionId = "ACT_KILL_NEAREST";
     const passiveSkillId = "SKL_PS_ON_RESERVATION_REMOVED";
@@ -1409,7 +1409,7 @@ describe("battle scenarios (harness)", () => {
       { damageType: "PHYSICAL" as const, untouched: "EN" as const },
       { damageType: "EN" as const, untouched: "PHYSICAL" as const },
     ])(
-      "SCN-BTL-015 (R-SHD-01〜03/R-SUB-01, $damageType damage): one hit drains the matching typed shield, then the untyped shield, then the sub unit, and only the remainder reaches HP — while the $untouched shield is untouched",
+      "SCN-BTL-015 [R-ACTN-02, R-DMG-05] (R-SHD-01〜03/R-SUB-01, $damageType damage): one hit drains the matching typed shield, then the untyped shield, then the sub unit, and only the remainder reaches HP — while the $untouched shield is untouched",
       ({ damageType, untouched }) => {
         // 攻撃力100 - 防御力20 = 計算ダメージ80（会心PREVENTED・属性相性1・貫通なし）。
         // 対応シールド10 → 無属性10 → サブユニット10 → HP50 の順で振り分けられる。
@@ -1494,7 +1494,7 @@ describe("battle scenarios (harness)", () => {
       },
     );
 
-    it("SCN-BTL-016 (R-LNK-01〜03): both link destinations take the same undivided amount, absorb it with their own shields, and generate no further link", () => {
+    it("SCN-BTL-016 [R-DMG-05] (R-LNK-01〜03): both link destinations take the same undivided amount, absorb it with their own shields, and generate no further link", () => {
       // リンク元（LEFT）への1ヒットが、CENTER と RIGHT の2つのリンク先へ
       // それぞれ 元ダメージ×50% を発生させる（対象数で分割しない）。CENTER だけが
       // 自前のシールドを持ち、そのシールドでリンクダメージを吸収する。
@@ -1691,7 +1691,7 @@ describe("battle scenarios (harness)", () => {
     });
   });
   describe("M11 base stat enhancement (ENH-003)", () => {
-    it("IT-ENH-001 (R-ENH-01/06): an enhanced side's starting combatStats are computed from the enhanced base stats, while the other side keeps its Unit definition's baseStats", () => {
+    it("IT-ENH-001 [R-ENH-01, R-ENH-06] (R-ENH-01/06): an enhanced side's starting combatStats are computed from the enhanced base stats, while the other side keeps its Unit definition's baseStats", () => {
       const catalog = new CatalogBuilder()
         .withUnit(
           unitDefinition("UNIT_ALLY", {
@@ -1746,7 +1746,7 @@ describe("battle scenarios (harness)", () => {
       expect(enemy.hp).toBe(100);
     });
 
-    it("IT-ENH-002 (backward compatibility): a request with no enhancement produces exactly the same battle as before the M11 fields existed", () => {
+    it("IT-ENH-002 [R-ENH-01] (backward compatibility): a request with no enhancement produces exactly the same battle as before the M11 fields existed", () => {
       const catalog = new CatalogBuilder()
         .withUnit(unitDefinition("UNIT_ALLY"), unitDefinition("UNIT_ENEMY"))
         .build();
@@ -1830,7 +1830,7 @@ describe("battle scenarios (harness)", () => {
         .build();
     }
 
-    it("SCN-BTL-024 (R-TEX-01 #4 / R-TEX-09 #1 / R-TEX-10): a tactical exercise runs the full five turns, ends with TURN_LIMIT_REACHED and no outcome, and its totalScore equals the sum of every accumulated amount", () => {
+    it("SCN-BTL-024 [R-TEX-01, R-TEX-09, R-TEX-10] (R-TEX-01 #4 / R-TEX-09 #1 / R-TEX-10): a tactical exercise runs the full five turns, ends with TURN_LIMIT_REACHED and no outcome, and its totalScore equals the sum of every accumulated amount", () => {
       const result = runExerciseScenario({
         catalog: exerciseCatalog(100_000),
         command: tacticalExerciseCommand(),
@@ -1871,7 +1871,7 @@ describe("battle scenarios (harness)", () => {
       ).toEqual(result.finalState);
     });
 
-    it("IT-TEX-001 (R-TEX-10 #2, break history through the use case): the projected breaks match breakCount and stay in occurrence order with the cumulative score at each break", () => {
+    it("IT-TEX-001 [R-TEX-10] (R-TEX-10 #2, break history through the use case): the projected breaks match breakCount and stay in occurrence order with the cumulative score at each break", () => {
       const result = runExerciseScenario({
         catalog: exerciseCatalog(100),
         command: tacticalExerciseCommand(),
@@ -1897,7 +1897,7 @@ describe("battle scenarios (harness)", () => {
       expect(result.breaks.at(-1)!.cumulativeScoreAtBreak).toBeLessThanOrEqual(result.totalScore);
     });
 
-    it("IT-TEX-002 (R-TEX-10 #2, break history under SUMMARY): a SUMMARY exercise keeps the full break history even though score events are filtered out of the public log", () => {
+    it("IT-TEX-002 [R-TEX-10] (R-TEX-10 #2, break history under SUMMARY): a SUMMARY exercise keeps the full break history even though score events are filtered out of the public log", () => {
       const command = tacticalExerciseCommand({ logLevel: "SUMMARY" });
       const detailed = runExerciseScenario({
         catalog: exerciseCatalog(100),
@@ -1919,7 +1919,7 @@ describe("battle scenarios (harness)", () => {
       expect(summary.totalScore).toBe(detailed.totalScore);
     });
 
-    it("IT-TEX-003 (R-TEX-10 #2 / R-TEX-03 #2, break source through the use case): every break attributes the attacking ally's unit definition id, matching the UNIT_BROKEN envelope", () => {
+    it("IT-TEX-003 [R-TEX-10] (R-TEX-10 #2 / R-TEX-03 #2, break source through the use case): every break attributes the attacking ally's unit definition id, matching the UNIT_BROKEN envelope", () => {
       const result = runExerciseScenario({
         catalog: exerciseCatalog(100),
         command: tacticalExerciseCommand(),
@@ -1943,7 +1943,7 @@ describe("battle scenarios (harness)", () => {
       }
     });
 
-    it("IT-UNIT-SUMMARY-001 (10_API設計.md「集計セマンティクス」/ R-TEX-02 #2): in an exercise that breaks the enemy repeatedly, the allies' damageDealt adds up to the whole score because the overkill discarded at each break is counted", () => {
+    it("IT-UNIT-SUMMARY-001 [R-TEX-02] (10_API設計.md「集計セマンティクス」/ R-TEX-02 #2): in an exercise that breaks the enemy repeatedly, the allies' damageDealt adds up to the whole score because the overkill discarded at each break is counted", () => {
       const result = runExerciseScenario({
         catalog: exerciseCatalog(100),
         command: tacticalExerciseCommand(),
@@ -1981,7 +1981,7 @@ describe("battle scenarios (harness)", () => {
       expect(dealtByAllies - hpReduced).toBe(discarded);
     });
 
-    it("IT-UNIT-SUMMARY-002 (10_API設計.md「集計セマンティクス」/ R-TEX-02 #3): when the enemy damages itself, the score follows the enemy's damageTaken — the allies' damageDealt alone falls short by exactly the self-inflicted amount", () => {
+    it("IT-UNIT-SUMMARY-002 [R-TEX-02] (10_API設計.md「集計セマンティクス」/ R-TEX-02 #3): when the enemy damages itself, the score follows the enemy's damageTaken — the allies' damageDealt alone falls short by exactly the self-inflicted amount", () => {
       const result = runExerciseScenario({
         catalog: selfHarmingExerciseCatalog(100_000),
         command: tacticalExerciseCommand(),

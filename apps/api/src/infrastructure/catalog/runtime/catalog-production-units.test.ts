@@ -1000,7 +1000,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expected: [{ kind: "EVENT_PAYLOAD", field: "categories", op: "CONTAINS", value: "DEBUFF" }],
     },
   ])(
-    "IT-CAT-PROD-013 (M7-011, Issue #265, EFFECT_APPLIED_CLASSIFICATION_PAYLOAD): $skillId filters its EffectApplied trigger by the effect classification the raw text names ($raw), instead of firing on any effect application ($unitId)",
+    "IT-CAT-PROD-013 [R-PS-01] (M7-011, Issue #265, EFFECT_APPLIED_CLASSIFICATION_PAYLOAD): $skillId filters its EffectApplied trigger by the effect classification the raw text names ($raw), instead of firing on any effect application ($unitId)",
     ({ unitId, skillId, expected }) => {
       const catalog = loadCatalogFromDirectory(catalogPath());
       const snapshot = catalog.loadSnapshot([unitId] as never[], []);

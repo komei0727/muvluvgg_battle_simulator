@@ -356,7 +356,7 @@ describe("applyStateDelta", () => {
     expect(() => applyStateDelta(initialState(), delta)).toThrow(DomainValidationError);
   });
 
-  it("UT-STATE-REDUCER-017 (R-SKL-05 regression): a ChargeStarted->ChargeReleased StateDelta pair restores correctly even though `before`/`after` are structurally-equal but distinct ChargeState object instances (as real events produce, since each event builds its own payload object)", () => {
+  it("UT-STATE-REDUCER-017 [R-SKL-05] (R-SKL-05 regression): a ChargeStarted->ChargeReleased StateDelta pair restores correctly even though `before`/`after` are structurally-equal but distinct ChargeState object instances (as real events produce, since each event builds its own payload object)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
     const startedActionId = createActionId("battle-1:action:1");
 
@@ -521,7 +521,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-021 (RuntimeCounter, Issue #143): applies a RuntimeCounterChanged delta, keyed by SkillDefinitionId then RuntimeCounterId", () => {
+  it("UT-STATE-REDUCER-021 [R-EFF-11] (RuntimeCounter, Issue #143): applies a RuntimeCounterChanged delta, keyed by SkillDefinitionId then RuntimeCounterId", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
 
     const next = applyStateDelta(initialState(), {
@@ -539,7 +539,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-022 (RuntimeCounter, Issue #143): a second update only replaces the changed counter, leaving sibling counters untouched", () => {
+  it("UT-STATE-REDUCER-022 [R-EFF-11] (RuntimeCounter, Issue #143): a second update only replaces the changed counter, leaving sibling counters untouched", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -567,7 +567,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-023 (RuntimeCounter, Issue #143): throws when a counter's before does not match the current value (dropped or reordered delta)", () => {
+  it("UT-STATE-REDUCER-023 [R-EFF-11] (RuntimeCounter, Issue #143): throws when a counter's before does not match the current value (dropped or reordered delta)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -590,7 +590,7 @@ describe("applyStateDelta", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-STATE-REDUCER-024 (RuntimeCounter, Issue #143): a value change landing on 0 keeps the counter key (distinct from RuntimeCounterReset's key deletion below)", () => {
+  it("UT-STATE-REDUCER-024 [R-EFF-11] (RuntimeCounter, Issue #143): a value change landing on 0 keeps the counter key (distinct from RuntimeCounterReset's key deletion below)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -613,7 +613,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-025 (RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 which keeps it", () => {
+  it("UT-STATE-REDUCER-025 [R-EFF-11] (RuntimeCounterReset, Issue #143): after: undefined deletes the counter key entirely, unlike after: 0 which keeps it", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -649,7 +649,7 @@ describe("applyStateDelta", () => {
     ).toBe(false);
   });
 
-  it("UT-STATE-REDUCER-026: a counter re-created after being deleted validates its before against 0 again (the deletion is not distinguishable from never having existed)", () => {
+  it("UT-STATE-REDUCER-026 [R-EFF-11]: a counter re-created after being deleted validates its before against 0 again (the deletion is not distinguishable from never having existed)", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -681,7 +681,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-027: skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters which keeps a landed-on-0 key", () => {
+  it("UT-STATE-REDUCER-027 [R-EFF-11]: skillCounterCarry deletes the counter key (and prunes the now-empty skillDefinitionId entry entirely) when after is undefined, unlike skillCounters which keeps a landed-on-0 key", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withCarry = applyStateDelta(initialState(), {
       units: {
@@ -719,7 +719,7 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_A]!.skillCounterCarry).toBeUndefined();
   });
 
-  it("UT-STATE-REDUCER-028: skillCounterCarry does not prune a skillDefinitionId entry that still has a sibling counter with nonzero carry", () => {
+  it("UT-STATE-REDUCER-028 [R-EFF-11]: skillCounterCarry does not prune a skillDefinitionId entry that still has a sibling counter with nonzero carry", () => {
     const skillDefinitionId = createSkillDefinitionId("SKL_PS1");
     const withBoth = applyStateDelta(initialState(), {
       units: {
@@ -749,7 +749,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-029 (EFF-006 Issue #212): applies an effectSequenceCounters delta, keyed by SkillUseId then RuntimeCounterId", () => {
+  it("UT-STATE-REDUCER-029 [R-EFF-11] (EFF-006 Issue #212): applies an effectSequenceCounters delta, keyed by SkillUseId then RuntimeCounterId", () => {
     const skillUseId = createSkillUseId("skilluse-1");
 
     const next = applyStateDelta(initialState(), {
@@ -767,7 +767,7 @@ describe("applyStateDelta", () => {
     });
   });
 
-  it("UT-STATE-REDUCER-030 (EFF-006 Issue #212): a RuntimeCounterReset delta (after: undefined) deletes the counter key and prunes the now-empty SkillUseId entry, removing effectSequenceCounters entirely once empty", () => {
+  it("UT-STATE-REDUCER-030 [R-EFF-11] (EFF-006 Issue #212): a RuntimeCounterReset delta (after: undefined) deletes the counter key and prunes the now-empty SkillUseId entry, removing effectSequenceCounters entirely once empty", () => {
     const skillUseId = createSkillUseId("skilluse-1");
     const withOne = applyStateDelta(initialState(), {
       units: {
@@ -802,7 +802,7 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_A]!.effectSequenceCounters).toBeUndefined();
   });
 
-  it("UT-STATE-REDUCER-031 (EFF-006 Issue #212): effectSequenceCounterCarry deletes the counter key and prunes the now-empty SkillUseId entry when after is undefined", () => {
+  it("UT-STATE-REDUCER-031 [R-EFF-11] (EFF-006 Issue #212): effectSequenceCounterCarry deletes the counter key and prunes the now-empty SkillUseId entry when after is undefined", () => {
     const skillUseId = createSkillUseId("skilluse-1");
     const withCarry = applyStateDelta(initialState(), {
       units: {
@@ -886,7 +886,7 @@ describe("applyStateDelta", () => {
     expect(next.units[UNIT_B]!.effects).toEqual([first, second]);
   });
 
-  it("UT-STATE-REDUCER-032 (M7-006、Issue #179、R-MEM-04): rejects an effects delta whose before.sourceSide disagrees with the stored Memory-granted effect", () => {
+  it("UT-STATE-REDUCER-032 [R-MEM-04] (M7-006、Issue #179、R-MEM-04): rejects an effects delta whose before.sourceSide disagrees with the stored Memory-granted effect", () => {
     // Memory由来の効果は`sourceUnitId`を持たず`sourceSide`を持つ。`sourceSide`が
     // 比較対象から漏れていると、発生源が欠落・破損したStateDeltaでも復元一致
     // 検証を通過してしまう。

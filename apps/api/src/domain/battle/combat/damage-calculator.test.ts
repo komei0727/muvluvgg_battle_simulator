@@ -454,7 +454,7 @@ function inputFromScalars(s: {
 }
 
 describe("calculateDamage properties (R-DMG-01)", () => {
-  it("PROP-DMG-01-001: finalDamage is always an integer of at least 1 (min-1 + final truncation)", () => {
+  it("PROP-DMG-01-001 [R-DMG-01]: finalDamage is always an integer of at least 1 (min-1 + final truncation)", () => {
     fc.assert(
       fc.property(damageScalarsArb, (s) => {
         const { finalDamage } = calculateDamage(inputFromScalars(s));
@@ -464,7 +464,7 @@ describe("calculateDamage properties (R-DMG-01)", () => {
     );
   });
 
-  it("PROP-DMG-01-002: preTruncationDamage is non-negative and finalDamage = max(1, floor(preTruncation))", () => {
+  it("PROP-DMG-01-002 [R-DMG-01]: preTruncationDamage is non-negative and finalDamage = max(1, floor(preTruncation))", () => {
     fc.assert(
       fc.property(damageScalarsArb, (s) => {
         const result = calculateDamage(inputFromScalars(s));
@@ -477,7 +477,7 @@ describe("calculateDamage properties (R-DMG-01)", () => {
     );
   });
 
-  it("PROP-DMG-01-003: finalDamage is monotonic non-decreasing in attacker attack", () => {
+  it("PROP-DMG-01-003 [R-DMG-01]: finalDamage is monotonic non-decreasing in attacker attack", () => {
     fc.assert(
       fc.property(
         damageScalarsArb,
@@ -499,7 +499,7 @@ describe("calculateDamage properties (R-DMG-01)", () => {
     );
   });
 
-  it("PROP-DMG-01-004: effectiveDefense equals defenderDefense scaled by the defense-ignore rate", () => {
+  it("PROP-DMG-01-004 [R-DMG-01]: effectiveDefense equals defenderDefense scaled by the defense-ignore rate", () => {
     fc.assert(
       fc.property(damageScalarsArb, (s) => {
         const result = calculateDamage(inputFromScalars(s));

@@ -145,7 +145,7 @@ describe("production Catalog MEM_ALWAYS_PICO_BESIDE_YOU (お傍にいるのは�
     ).toEqual([]);
   });
 
-  it("IT-MEM-ALWAYS-PICO-BESIDE-YOU-004 (R-MEM-04/R-EFF-10): the Marker and the one-action ATTACK buff both record a source side and no granter unit, and only the buff carries the ACTION time limit", () => {
+  it("IT-MEM-ALWAYS-PICO-BESIDE-YOU-004 [R-EFF-10, R-MEM-04] (R-MEM-04/R-EFF-10): the Marker and the one-action ATTACK buff both record a source side and no granter unit, and only the buff carries the ACTION time limit", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     const backCenter = observed.started.allyUnits.find(
       (unit) => unit.battleUnitId === "ally:BACK_CENTER",
@@ -180,7 +180,7 @@ describe("production Catalog MEM_ALWAYS_PICO_BESIDE_YOU (お傍にいるのは�
     expect(markerApplied[0]?.sourceSide).toBe("ALLY");
   });
 
-  it("IT-MEM-ALWAYS-PICO-BESIDE-YOU-005: the StateDeltas alone reconstruct the started battle, Marker and source side included", () => {
+  it("IT-MEM-ALWAYS-PICO-BESIDE-YOU-005 [R-MEM-04]: the StateDeltas alone reconstruct the started battle, Marker and source side included", () => {
     // 独立Reducer復元: 開始前スナップショットへ`BattleStarted`以降のStateDeltaだけを
     // 適用すると、実際に開始した戦闘と同じ状態が再構成できる。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");

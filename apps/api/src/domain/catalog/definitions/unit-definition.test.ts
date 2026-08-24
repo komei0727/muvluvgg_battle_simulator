@@ -130,13 +130,13 @@ describe("UnitDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-UNIT-015: defaults category to PLAYABLE and leaves exerciseActive undefined", () => {
+  it("UT-CAT-UNIT-015 [R-TEX-11]: defaults category to PLAYABLE and leaves exerciseActive undefined", () => {
     const result = createUnitDefinition(minimalUnitInput());
     expect(result.category).toBe("PLAYABLE");
     expect(result.exerciseActive).toBeUndefined();
   });
 
-  it("UT-CAT-UNIT-016: maps an EXERCISE_ENEMY unit with its exerciseActive flag", () => {
+  it("UT-CAT-UNIT-016 [R-TEX-11]: maps an EXERCISE_ENEMY unit with its exerciseActive flag", () => {
     const active = createUnitDefinition({
       ...minimalUnitInput(),
       category: "EXERCISE_ENEMY",
@@ -153,19 +153,19 @@ describe("UnitDefinition", () => {
     expect(inactive.exerciseActive).toBe(false);
   });
 
-  it("UT-CAT-UNIT-017: rejects an unknown category", () => {
+  it("UT-CAT-UNIT-017 [R-TEX-11]: rejects an unknown category", () => {
     expect(() => createUnitDefinition({ ...minimalUnitInput(), category: "BOSS" })).toThrow(
       DomainValidationError,
     );
   });
 
-  it("UT-CAT-UNIT-018: rejects an EXERCISE_ENEMY unit without exerciseActive", () => {
+  it("UT-CAT-UNIT-018 [R-TEX-11]: rejects an EXERCISE_ENEMY unit without exerciseActive", () => {
     expect(() =>
       createUnitDefinition({ ...minimalUnitInput(), category: "EXERCISE_ENEMY" }),
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-UNIT-019: rejects exerciseActive on a PLAYABLE unit", () => {
+  it("UT-CAT-UNIT-019 [R-TEX-11]: rejects exerciseActive on a PLAYABLE unit", () => {
     expect(() => createUnitDefinition({ ...minimalUnitInput(), exerciseActive: true })).toThrow(
       DomainValidationError,
     );

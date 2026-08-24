@@ -148,7 +148,7 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(recorder.getEvents().filter((ev) => ev.eventType === "EffectRemoved")).toHaveLength(0);
   });
 
-  it("UT-R-EFF-02-011 (REMOVE_BUFF_CATEGORY): removes every BUFF, emits EffectRemoved (reason REMOVED) + CombatStatChanged, and reverts the stat", () => {
+  it("UT-R-EFF-02-011 [R-ACTN-02, R-EFF-02] (REMOVE_BUFF_CATEGORY): removes every BUFF, emits EffectRemoved (reason REMOVED) + CombatStatChanged, and reverts the stat", () => {
     const buffDef = statModDefinition("ACT_ATK_UP");
     const target = unit("target-1");
     const buff = effect("effect-1", target.battleUnitId, buffDef.effectActionDefinitionId, {
@@ -180,7 +180,7 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(statChanges[0]!.payload).toMatchObject({ reason: "EFFECT_REMOVED" });
   });
 
-  it("UT-R-EFF-02-012 (REMOVE_EFFECTS_COUNT_LIMIT): removes only maxRemovals debuffs in grant order (oldest first)", () => {
+  it("UT-R-EFF-02-012 [R-ACTN-02, R-EFF-02] (REMOVE_EFFECTS_COUNT_LIMIT): removes only maxRemovals debuffs in grant order (oldest first)", () => {
     const debuffDef = statModDefinition("ACT_ATK_DOWN");
     const target = unit("target-1");
     const debuffs = [1, 2, 3, 4].map((n) =>
@@ -208,7 +208,7 @@ describe("removeEffects (R-EFF-02)", () => {
     ]);
   });
 
-  it("UT-R-EFF-02-013 (R-STS-01): DEBUFF removal also clears 状態異常 statuses (STUN)", () => {
+  it("UT-R-EFF-02-013 [R-EFF-02, R-STS-01] (R-STS-01): DEBUFF removal also clears 状態異常 statuses (STUN)", () => {
     const statusDef = statusDefinition("ACT_STUN");
     const target = unit("target-1");
     const stun = effect("effect-1", target.battleUnitId, statusDef.effectActionDefinitionId, {
@@ -278,7 +278,7 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(recorder.getEvents().filter((ev) => ev.eventType === "EffectRemoved")).toHaveLength(0);
   });
 
-  it("UT-R-EFF-02-016 (R-EFF-09): when a linked parent and child both match, the child is removed first (LINKED_GROUP_CASCADE) and the parent last (REMOVED)", () => {
+  it("UT-R-EFF-02-016 [R-ACTN-02, R-EFF-02] (R-EFF-09): when a linked parent and child both match, the child is removed first (LINKED_GROUP_CASCADE) and the parent last (REMOVED)", () => {
     const buffDef = statModDefinition("ACT_ATK_UP");
     const target = unit("target-1");
     // Granted parent-first (appliedEffects order [parent, child]); both are BUFFs

@@ -594,7 +594,7 @@ describe("grantEffect", () => {
     });
   });
 
-  it("UT-R-EFF-01-061 (M7-011、Issue #265、R-STS-01): classifies a status-ailment APPLY_STATUS as both STATUS and DEBUFF, in a deterministic order", () => {
+  it("UT-R-EFF-01-061 [R-EFF-01, R-STS-01] (M7-011、Issue #265、R-STS-01): classifies a status-ailment APPLY_STATUS as both STATUS and DEBUFF, in a deterministic order", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -627,7 +627,7 @@ describe("grantEffect", () => {
     });
   });
 
-  it("UT-R-EFF-01-062 (M7-011、Issue #265、R-STS-01境界): classifies a beneficial APPLY_STATUS (STEALTH) as BUFF only, so a STATUS-filtered trigger does not match it", () => {
+  it("UT-R-EFF-01-062 [R-EFF-01, R-STS-01] (M7-011、Issue #265、R-STS-01境界): classifies a beneficial APPLY_STATUS (STEALTH) as BUFF only, so a STATUS-filtered trigger does not match it", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();

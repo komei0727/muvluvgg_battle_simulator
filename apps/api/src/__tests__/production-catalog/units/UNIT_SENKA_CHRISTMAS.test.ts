@@ -436,7 +436,7 @@ describe("production Catalog UNIT_SENKA_CHRISTMAS (【クリスマスコーデ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-SENKA-CHRISTMAS-004 (R-EFF-02): PS2の「バフを全て解除」は件数上限を持たず、解除先は契機の対象（`TGT_TRIGGER_TARGET`）だけ — 攻撃していない敵のバフは同じ盤面に残る", () => {
+  it("IT-UNIT-SENKA-CHRISTMAS-004 [R-EFF-02] (R-EFF-02): PS2の「バフを全て解除」は件数上限を持たず、解除先は契機の対象（`TGT_TRIGGER_TARGET`）だけ — 攻撃していない敵のバフは同じ盤面に残る", () => {
     // `-001` のPS2行は解除対象を1つしか持たないため「全て」は現れない。また
     // 契機の対象が誰であっても最も近い敵を剥がす実装だと、`-001` の行（契機の
     // 対象＝最も近い敵）では区別が付かない。契機の対象だけを敵前列から敵左列へ

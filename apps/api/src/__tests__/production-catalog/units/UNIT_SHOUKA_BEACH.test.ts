@@ -516,7 +516,7 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
     ).toBeCloseTo(0.085, 6);
   });
 
-  it("IT-UNIT-SHOUKA-BEACH-005 (R-CRT-04): EXの「対象の現在HP×35%のENダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+  it("IT-UNIT-SHOUKA-BEACH-005 [R-CRT-04] (R-CRT-04): EXの「対象の現在HP×35%のENダメージ」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

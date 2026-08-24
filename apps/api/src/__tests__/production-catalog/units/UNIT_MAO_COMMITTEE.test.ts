@@ -576,7 +576,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-MAO-COMMITTEE-004 (R-TGT-08, Q-TGT-05): PS2が付けた実「ステルス」は敵の対象選択を他の味方へ逸らし、その1回で消費される", () => {
+  it("IT-UNIT-MAO-COMMITTEE-004 [R-TGT-08] (R-TGT-08, Q-TGT-05): PS2が付けた実「ステルス」は敵の対象選択を他の味方へ逸らし、その1回で消費される", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -634,7 +634,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
     expect(afterAttack.appliedEffects).toEqual([]);
   });
 
-  it("IT-UNIT-MAO-COMMITTEE-005 (R-ACTN-03, R-TGT-08): PS2の実「ステルス」は `statusKind: STEALTH`・`SKILL_USE(3)`・リンクグループを宣言どおり持ち、その `EffectApplied` の StateDelta だけからも独立Reducerが同じ効果を復元する", () => {
+  it("IT-UNIT-MAO-COMMITTEE-005 [R-TGT-08] (R-ACTN-03, R-TGT-08): PS2の実「ステルス」は `statusKind: STEALTH`・`SKILL_USE(3)`・リンクグループを宣言どおり持ち、その `EffectApplied` の StateDelta だけからも独立Reducerが同じ効果を復元する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -681,7 +681,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
     });
   });
 
-  it("IT-UNIT-MAO-COMMITTEE-006 (R-ACT-02): AS1の実 TARGET_STATE(HP_RATIO GTE 0.6) は行動選択層で評価され、HPが60%未満だとAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
+  it("IT-UNIT-MAO-COMMITTEE-006 [R-ACT-02] (R-ACT-02): AS1の実 TARGET_STATE(HP_RATIO GTE 0.6) は行動選択層で評価され、HPが60%未満だとAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
     // 既定盤面のHP割合は50%で不成立。60%ちょうどは `GTE 0.6` に当たる（境界）。
     expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
       "SKL_MAO_COMMITTEE_AS2",
@@ -702,7 +702,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
     ).toBe("SKL_MAO_COMMITTEE_AS2");
   });
 
-  it("IT-UNIT-MAO-COMMITTEE-007 (R-DMG-03, R-DMG-04): PS2の実 被ダメージ補正は付与時のHP割合で焼き込まれ、以後の被弾で被ダメージ倍率へ合成される。攻撃側の `damageReductionIgnoreRate` はその負の補正だけを割合で無視する", () => {
+  it("IT-UNIT-MAO-COMMITTEE-007 [R-DMG-03] (R-DMG-03, R-DMG-04): PS2の実 被ダメージ補正は付与時のHP割合で焼き込まれ、以後の被弾で被ダメージ倍率へ合成される。攻撃側の `damageReductionIgnoreRate` はその負の補正だけを割合で無視する", () => {
     // `-001` のPS2行は付与時点の `magnitude`（HP50%で-0.25）までを持つが、その効果が
     // **別のスキル使用**である被弾でどう効くかは表の外にある。
     const grantAt = (currentHp: number): readonly BattleUnit[] => {
@@ -757,7 +757,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
     });
   });
 
-  it("IT-UNIT-MAO-COMMITTEE-008 (R-EFF-02): PS2の解除は `categories: [BUFF, DEBUFF]` の2カテゴリだけを取り、シールドは残る。解除が出す `EffectRemoved`／`CombatStatChanged` の公開差分だけからも実効値まで復元できる", () => {
+  it("IT-UNIT-MAO-COMMITTEE-008 [R-EFF-02] (R-EFF-02): PS2の解除は `categories: [BUFF, DEBUFF]` の2カテゴリだけを取り、シールドは残る。解除が出す `EffectRemoved`／`CombatStatChanged` の公開差分だけからも実効値まで復元できる", () => {
     // `-001` のPS2行は解除対象をデバフ1件しか持たないため、2カテゴリのうち
     // `BUFF` 側が本当に取られているか・`SHIELD` が巻き込まれていないかは現れない。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
@@ -817,7 +817,7 @@ describe("production Catalog UNIT_MAO_COMMITTEE (【ポンコツいいんちょ�
       ),
     ).toEqual(initialSnapshotFor(after, { include: ["effects"] }));
   });
-  it("IT-UNIT-MAO-COMMITTEE-009 (R-DOT-02): AS2が配る固定継続ダメージは保持者自身の行動開始でENダメージとして発生し、炎上・毒と違って**シールドで受けられる**。シールドを削り切った分だけHPへ抜け、枯渇したシールドはその場で失効する", () => {
+  it("IT-UNIT-MAO-COMMITTEE-009 [R-DOT-02] (R-DOT-02): AS2が配る固定継続ダメージは保持者自身の行動開始でENダメージとして発生し、炎上・毒と違って**シールドで受けられる**。シールドを削り切った分だけHPへ抜け、枯渇したシールドはその場で失効する", () => {
     // `-001` のAS2行は付与そのもの（付与時攻撃力×20%＝200のsnapshotと3行動）までを
     // 固定する。R-DOT-02の適用順（タイプありシールド → タイプなしシールド → HP）は
     // 保持者の以後の行動に属し、スキル使用1回の観測には載らない。

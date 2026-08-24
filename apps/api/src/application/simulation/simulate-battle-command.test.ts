@@ -170,7 +170,7 @@ describe("validateCommandShape", () => {
     expect(violations.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("UT-CMD-014 (R-ENH-01/02/04): accepts a fully specified enhancement", () => {
+  it("UT-CMD-014 [R-ENH-01] (R-ENH-01/02/04): accepts a fully specified enhancement", () => {
     const violations = validateCommandShape(
       validCommand({
         allyFormation: {
@@ -193,7 +193,7 @@ describe("validateCommandShape", () => {
     expect(violations).toEqual([]);
   });
 
-  it("UT-CMD-015 (R-ENH-01 #4): accepts the defaults spelled out explicitly", () => {
+  it("UT-CMD-015 [R-ENH-01] (R-ENH-01 #4): accepts the defaults spelled out explicitly", () => {
     const violations = validateCommandShape(
       validCommand({
         allyFormation: {
@@ -206,7 +206,7 @@ describe("validateCommandShape", () => {
     expect(violations).toEqual([]);
   });
 
-  it("UT-CMD-016 (R-ENH-02 #1): rejects an academy level below 1 or non-integer", () => {
+  it("UT-CMD-016 [R-ENH-02] (R-ENH-02 #1): rejects an academy level below 1 or non-integer", () => {
     const violations = validateCommandShape(
       validCommand({
         allyFormation: {
@@ -230,7 +230,7 @@ describe("validateCommandShape", () => {
     );
   });
 
-  it("UT-CMD-017 (R-ENH-05 #4): rejects a unit level below 1 or non-integer", () => {
+  it("UT-CMD-017 [R-ENH-05] (R-ENH-05 #4): rejects a unit level below 1 or non-integer", () => {
     const violations = validateCommandShape(
       validCommand({
         enemyFormation: {
@@ -245,7 +245,7 @@ describe("validateCommandShape", () => {
     );
   });
 
-  it("UT-CMD-018 (R-ENH-04 #1): rejects more than 9 gears on one unit", () => {
+  it("UT-CMD-018 [R-ENH-04] (R-ENH-04 #1): rejects more than 9 gears on one unit", () => {
     const gears = Array.from({ length: 10 }, () => ({
       stat: "MAXIMUM_HP" as const,
       tier: "II" as const,
@@ -265,7 +265,7 @@ describe("validateCommandShape", () => {
     );
   });
 
-  it("UT-CMD-019 (R-ENH-04 #2): rejects a gear whose stat, tier or grade is not a defined enum value", () => {
+  it("UT-CMD-019 [R-ENH-04] (R-ENH-04 #2): rejects a gear whose stat, tier or grade is not a defined enum value", () => {
     const violations = validateCommandShape(
       validCommand({
         allyFormation: {
@@ -300,7 +300,7 @@ describe("validateCommandShape", () => {
     );
   });
 
-  it("UT-CMD-023 (R-ENH-04 #6): rejects a fourth gear of the same stat, naming that stat in the path", () => {
+  it("UT-CMD-023 [R-ENH-04] (R-ENH-04 #6): rejects a fourth gear of the same stat, naming that stat in the path", () => {
     const attack = { stat: "ATTACK", tier: "III", grade: "S" } as const;
     const violations = validateCommandShape(
       validCommand({
@@ -320,7 +320,7 @@ describe("validateCommandShape", () => {
     );
   });
 
-  it("UT-CMD-024 (R-ENH-04 #6, BOUNDARY): accepts the fullest legal loadout — nine gears spread over three stats, three each", () => {
+  it("UT-CMD-024 [R-ENH-04] (R-ENH-04 #6, BOUNDARY): accepts the fullest legal loadout — nine gears spread over three stats, three each", () => {
     const gearsOf = (stat: "ATTACK" | "DEFENSE" | "MAXIMUM_HP") =>
       Array.from({ length: 3 }, () => ({ stat, tier: "III" as const, grade: "S" as const }));
     const violations = validateCommandShape(
@@ -343,7 +343,7 @@ describe("validateCommandShape", () => {
     expect(violations).toEqual([]);
   });
 
-  it("UT-CMD-025 (R-ENH-04 #1/#6): keeps both the total-count violation and the per-stat one when a loadout breaks both", () => {
+  it("UT-CMD-025 [R-ENH-04] (R-ENH-04 #1/#6): keeps both the total-count violation and the per-stat one when a loadout breaks both", () => {
     const attack = { stat: "ATTACK", tier: "III", grade: "S" } as const;
     const violations = validateCommandShape(
       validCommand({
@@ -361,7 +361,7 @@ describe("validateCommandShape", () => {
     ]);
   });
 
-  it("UT-CMD-026 (R-ENH-04 #6): reports one violation per over-limit stat, in a stable order", () => {
+  it("UT-CMD-026 [R-ENH-04] (R-ENH-04 #6): reports one violation per over-limit stat, in a stable order", () => {
     const gearsOf = (stat: "ATTACK" | "DEFENSE") =>
       Array.from({ length: 4 }, () => ({ stat, tier: "III" as const, grade: "S" as const }));
     const violations = validateCommandShape(
@@ -387,7 +387,7 @@ describe("validateCommandShape", () => {
     ]);
   });
 
-  it("UT-CMD-020 (R-ENH-01 #3): rejects a unit enhancement when its own side has no formation enhancement", () => {
+  it("UT-CMD-020 [R-ENH-01] (R-ENH-01 #3): rejects a unit enhancement when its own side has no formation enhancement", () => {
     const violations = validateCommandShape(
       validCommand({
         allyFormation: {
@@ -401,7 +401,7 @@ describe("validateCommandShape", () => {
     );
   });
 
-  it("UT-CMD-021 (R-ENH-01 #6): the two sides' enhancement specifications are independent", () => {
+  it("UT-CMD-021 [R-ENH-01] (R-ENH-01 #6): the two sides' enhancement specifications are independent", () => {
     const violations = validateCommandShape(
       validCommand({
         allyFormation: {
@@ -440,7 +440,7 @@ describe("同一ステータス上限は強化指定を受け取る全エンド�
   };
   const REASON = "must contain at most 3 gears with the same stat, got 4 (R-ENH-04 #6)";
 
-  it("UT-CMD-027 (R-ENH-04 #6): battle / tactical exercise / candidate evaluation / stat preview all reject it with the stat in the path", () => {
+  it("UT-CMD-027 [R-ENH-04] (R-ENH-04 #6): battle / tactical exercise / candidate evaluation / stat preview all reject it with the stat in the path", () => {
     const battle = validateCommandShape(validCommand({ allyFormation: overLimitFormation }));
     const exercise = validateTacticalExerciseCommandShape({
       allyFormation: overLimitFormation,

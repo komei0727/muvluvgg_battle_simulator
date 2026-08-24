@@ -53,7 +53,7 @@ describe("manhattanDistance — R-POS-03 距離", () => {
  * （`12_テスト戦略.md`「Property／Modelテスト」: ターゲット距離が負にならず、対称性を満たす）。
  */
 describe("manhattanDistance properties (R-POS-03)", () => {
-  it("PROP-POS-03-001: distance is non-negative and integer", () => {
+  it("PROP-POS-03-001 [R-POS-03]: distance is non-negative and integer", () => {
     fc.assert(
       fc.property(globalCoordinateArb, globalCoordinateArb, (a, b) => {
         const d = manhattanDistance(a, b);
@@ -63,7 +63,7 @@ describe("manhattanDistance properties (R-POS-03)", () => {
     );
   });
 
-  it("PROP-POS-03-002: distance is symmetric", () => {
+  it("PROP-POS-03-002 [R-POS-03]: distance is symmetric", () => {
     fc.assert(
       fc.property(globalCoordinateArb, globalCoordinateArb, (a, b) => {
         return manhattanDistance(a, b) === manhattanDistance(b, a);
@@ -72,7 +72,7 @@ describe("manhattanDistance properties (R-POS-03)", () => {
     );
   });
 
-  it("PROP-POS-03-003: identity of indiscernibles (d(a,a) = 0 and d(a,b) = 0 iff a = b)", () => {
+  it("PROP-POS-03-003 [R-POS-03]: identity of indiscernibles (d(a,a) = 0 and d(a,b) = 0 iff a = b)", () => {
     fc.assert(
       fc.property(globalCoordinateArb, globalCoordinateArb, (a, b) => {
         expect(manhattanDistance(a, a)).toBe(0);
@@ -83,7 +83,7 @@ describe("manhattanDistance properties (R-POS-03)", () => {
     );
   });
 
-  it("PROP-POS-03-004: satisfies the triangle inequality", () => {
+  it("PROP-POS-03-004 [R-POS-03]: satisfies the triangle inequality", () => {
     fc.assert(
       fc.property(globalCoordinateArb, globalCoordinateArb, globalCoordinateArb, (a, b, c) => {
         return manhattanDistance(a, c) <= manhattanDistance(a, b) + manhattanDistance(b, c);

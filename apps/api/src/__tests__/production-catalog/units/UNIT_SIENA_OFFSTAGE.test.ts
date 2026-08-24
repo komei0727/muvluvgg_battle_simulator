@@ -440,7 +440,7 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
     expect(events.some((event) => event.eventType === "PassiveActivated")).toBe(true);
   });
 
-  it("IT-UNIT-SIENA-OFFSTAGE-005 (R-SKL-05): 実 SKL_SIENA_OFFSTAGE_AS1 のチャージ開始はEffectSequenceを一つも解決せず、チャージ状態だけを ChargeStarted の StateDelta へ載せる。終了差分は ChargeReleaseCompleted が単独で所有し、開始直後・解放後のどちらも独立Reducerで復元できる", () => {
+  it("IT-UNIT-SIENA-OFFSTAGE-005 [R-SKL-05] (R-SKL-05): 実 SKL_SIENA_OFFSTAGE_AS1 のチャージ開始はEffectSequenceを一つも解決せず、チャージ状態だけを ChargeStarted の StateDelta へ載せる。終了差分は ChargeReleaseCompleted が単独で所有し、開始直後・解放後のどちらも独立Reducerで復元できる", () => {
     // `-001` の CHARGE 行は `charge`／消費／クールタイムまでを持つが、`StateDelta` の
     // 所有者と独立Reducer復元、Catalog契約（開始側 `steps` が空であること）は
     // スキル使用1回の観測の外にある。
@@ -487,7 +487,7 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
     });
   });
 
-  it("IT-UNIT-SIENA-OFFSTAGE-006 (R-PS-04): SKL_SIENA_OFFSTAGE_AS1 でチャージ中は自身の SKL_SIENA_OFFSTAGE_PS1 が候補にならず、候補化済みの同じ候補も発動直前確認で OWNER_CHARGING として破棄される。解放でこの制限は解ける", () => {
+  it("IT-UNIT-SIENA-OFFSTAGE-006 [R-PS-04] (R-PS-04): SKL_SIENA_OFFSTAGE_AS1 でチャージ中は自身の SKL_SIENA_OFFSTAGE_PS1 が候補にならず、候補化済みの同じ候補も発動直前確認で OWNER_CHARGING として破棄される。解放でこの制限は解ける", () => {
     // `-001` のPS行は「発動して何が起きたか」を見るもので、チャージ中の破棄理由も、
     // 候補判定（R-PS-01）と発動直前確認（R-PS-04）のどちらで落ちたのかも表せない。
     expect(
@@ -507,7 +507,7 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
     });
   });
 
-  it("IT-UNIT-SIENA-OFFSTAGE-007 (R-HIT-04): SKL_SIENA_OFFSTAGE_AS1 でチャージ中のシエナは、保持している実 ACT_FLUTE_VAMPIRE_PS2_EVASION を発動させず、回避が成立しなかった被ヒットでその被ヒット消費も減らさない", () => {
+  it("IT-UNIT-SIENA-OFFSTAGE-007 [R-HIT-04] (R-HIT-04): SKL_SIENA_OFFSTAGE_AS1 でチャージ中のシエナは、保持している実 ACT_FLUTE_VAMPIRE_PS2_EVASION を発動させず、回避が成立しなかった被ヒットでその被ヒット消費も減らさない", () => {
     const options = {
       snapshot: WITH_EVASION_SOURCE,
       chargerUnitDefinitionId: UNIT_DEFINITION_ID,
