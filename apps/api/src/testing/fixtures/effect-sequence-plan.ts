@@ -34,7 +34,7 @@ import { UNUSED_ENHANCED_BASE_STATS } from "./battle-actors.js";
  * `applyEffectActionGroups`/`resolveEffectSequencePlan`をkind別ハンドラごとの
  * スイートへ分割した際に、各スイートが共有する`EffectSequencePlan`・
  * `EffectActionDefinition`・因果contextの最小ビルダー群。
- * `effect-action-group-resolver.*.test.ts`だけが使う。
+ * `effect-action-group-resolver.*.test.ts`／`effect-step-resolution.test.ts`が使う。
  */
 export const LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 };
 
