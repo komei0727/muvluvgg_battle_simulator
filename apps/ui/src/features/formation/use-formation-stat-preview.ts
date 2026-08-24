@@ -62,6 +62,12 @@ export interface UseFormationStatPreviewOptions {
    * `EXERCISE_ENEMY`である限り422になり、枠のステータス表示が落ちる。
    */
   readonly mode?: FormationStatPreviewMode;
+  /**
+   * REF-059: モード別コンテナは非活性中も常時マウントされたままになる
+   * （タブ切替でも実行中の状態を失わないため）。`false`にすると取得を
+   * 一切行わず`unavailable`のまま止め、非表示のモードが裏で送信し続けるのを防ぐ。
+   */
+  readonly enabled?: boolean;
 }
 
 /**
@@ -79,6 +85,7 @@ export function useFormationStatPreview(
   options: UseFormationStatPreviewOptions = {},
 ): FormationStatPreviewState {
   const previewImpl = options.previewImpl ?? defaultPreviewFormationStats;
+  const enabled = options.enabled ?? true;
   const [state, setState] = useState<FormationStatPreviewState>({ status: "unavailable" });
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestTokenRef = useRef(0);
@@ -87,7 +94,9 @@ export function useFormationStatPreview(
   // 参照は毎レンダー変わり、レンダー中にrefへ写す方式は並行レンダリング下で
   // 書き込みが破棄され得るため（`catalog-loader.ts`の同じ注記を参照）、
   // 直列化した1つの文字列を唯一の依存にして、effect側で復元する。
-  const build = buildFormationStatPreviewRequest(draft, options.mode ?? "NORMAL");
+  const build = enabled
+    ? buildFormationStatPreviewRequest(draft, options.mode ?? "NORMAL")
+    : ({ ok: false } as const);
   const payloadKey = build.ok
     ? JSON.stringify({
         request: build.request,
