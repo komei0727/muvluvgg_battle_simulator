@@ -2244,7 +2244,7 @@
     "positionAptitudes": ["FRONT"],
     "baseStats": {
       "maximumHp": 32264,
-      "attack": 18349,
+      "attack": 18309,
       "defense": 12625,
       "criticalRate": 0.2,
       "actionSpeed": 712,

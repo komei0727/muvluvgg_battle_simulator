@@ -525,7 +525,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-24.1` は既存Unit 3件（`UNIT_EVIE_ECO`・`UNIT_KOTOHA_REBEL`・
     // `UNIT_YURIA_WILDCARD`）の`baseStats`（最大HP・攻撃力・防御力）是正。
     // Unit・Skill・Memoryの構成は変えておらず、差分は`units.json`の数値だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-24.1");
+    // `2026-08-25.1` は `UNIT_YURIA_WILDCARD` の `baseStats.attack` 是正。
+    // Unit・Skill・Memoryの構成は変えておらず、差分は
+    // `units.json` の数値だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-25.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
