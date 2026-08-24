@@ -35,7 +35,7 @@ const NON_NUMERIC_TERMINAL_TEST_CASE_IDS: ReadonlySet<string> = new Set([
 ]);
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 136 rule IDs", () => {
+  it("UT-TRACEABILITY-001: ledger contains exactly 142 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
     // M7-018（Issue #272）でR-HIT-04（Nヒット回避）・R-HIT-05（必中付与）を
     // 追加し110→112 — どちらも`07_戦闘ルール詳細.md`にRule定義自体が無いまま
@@ -76,8 +76,11 @@ describe("Rule coverage ledger", () => {
     // 「HP×N%分のダメージを与える」型の攻撃が会心判定を行わない実機仕様が判明した
     // ため `R-CRT-04` を新設し140→141 — 該当する14定義はすべて`critical`を省略して
     // おり、既定の`NORMAL`へ黙って倒れていた。
+    // Issue #633（設計書改訂のみ）でユニットランク（`LR`〜`LR+5`）のR-ENH-07を新設し
+    // 141→142 — 実装は後続Issueが行うため、`ENH-001`（#409）と同じく空カバレッジ
+    // （`testCaseIds: []`・`kinds: []`）で登録する。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(141);
+    expect(RULE_COVERAGE).toHaveLength(142);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

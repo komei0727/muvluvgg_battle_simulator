@@ -209,6 +209,7 @@ interface GearInput {
 
 interface UnitEnhancementInput {
   readonly level: number | ""; // 既定200
+  readonly rank: number; // 既定5（LR+5）。0〜5の整数（0がLR、5がLR+5）
   readonly gears: readonly (GearInput | undefined)[]; // 常に9枠。空枠可
   readonly linkExcluded: boolean; // 既定false。陣営のレベルリンク（下記）から外す
 }
@@ -371,6 +372,7 @@ interface FormationEnhancementRequest {
 
 interface UnitEnhancementRequest {
   readonly level: number;
+  readonly rank: number;
   readonly gears: readonly GearInput[]; // 0～9件
 }
 ```
@@ -380,10 +382,10 @@ interface UnitEnhancementRequest {
 1. 強化トグルOFF（`enabled: false`）の陣営では、陣営・ユニットとも`enhancement`プロパティ自体を出力しない。既存契約と同一のペイロードとする。
 2. 強化トグルONの陣営では学園レベル9キーをすべて出力する。既定値1も省略しない。
 3. ユニットのギアは空枠を除外し、0～9件の配列として枠順のまま出力する。
-4. レベル200かつギア0件のユニットは`enhancement`を出力しない。省略時の既定と同値のため。
+4. レベル200・ランク5（`LR+5`）・ギア0件のユニットは`enhancement`を出力しない。省略時の既定と同値のため。
 5. ユニット単位の`enhancement`は陣営の`enhancement`があるときだけ出力する。陣営指定なしのユニット指定はAPIが422で拒否する。
-6. ユニットの`level`には解決済みレベル（§3.1の`resolveUnitLevel`）を出力する。送信するのは解決済みレベルであり、`levelLink`・`linkExcluded`は出力しない。`FormationEnhancementRequest`・`UnitEnhancementRequest`の形は変えない。
-7. 規則4（レベル200かつギア0件は出力しない）は解決済みレベルへ適用する。**強化入力を一度も開いていない枠（`enhancement === undefined`）もリンク対象**であり、リンクONで解決済みレベルが200以外ならギア0件の`enhancement`を出力する。リンクOFFなら従来どおり出力しない（省略時の既定と同値のため）。
+6. ユニットの`level`には解決済みレベル（§3.1の`resolveUnitLevel`）を出力する。送信するのは解決済みレベルであり、`levelLink`・`linkExcluded`は出力しない。`FormationEnhancementRequest`・`UnitEnhancementRequest`の形は変えない。`rank`はレベルリンクの対象外であり、枠の入力値（省略時5）をそのまま出力する。
+7. 規則4（レベル200・ランク5・ギア0件は出力しない）は解決済みレベルへ適用する。**強化入力を一度も開いていない枠（`enhancement === undefined`）もリンク対象**であり、リンクONで解決済みレベルが200以外ならギア0件の`enhancement`を出力する。リンクOFFなら従来どおり出力しない（省略時の既定と同値のため）。
 8. レベルリンクは規則1の後に効く。強化トグルOFFの陣営ではリンクONでも`enhancement`を出力しない。
 
 ## 6. クライアント検証
@@ -431,6 +433,7 @@ M11（`ENH-001`）で次を追加する。
 - 上表の強化3規則は、その陣営の強化トグルがONのときだけ検証する。OFFの陣営は入力値をdraftへ保持したまま送信対象から外す（`UI-CMP-014`）ため、保持しているだけの値で送信を止めてはならない。
 - 「陣営指定なしのユニット指定」（`R-ENH-01` #3）は送信前検証ではなくリクエスト生成で保証する。§5.1の変換規則1が、トグルOFFの陣営では陣営・ユニットとも `enhancement` プロパティ自体を出力しないため、この組み合わせは送信ペイロード上に表現され得ない。検証で重ねて検査すると、編集後にトグルをOFFへ戻しただけで送信が止まる（`UI-API-017` がこの不在を証跡として持つ）。
 - 成長値（levelGrowth）を持たないユニットへの200以外のレベル指定は事前検証しない。UIはユニット定義の成長値を持たず、APIの422を通常の入力エラーとして該当入力へ表示する。レベルリンクはこの422の発生確率を上げるが方針は変えない。リンク中でレベル入力を編集できない枠でも、サーバー違反の文言は`UI-API-019`の対応づけどおり該当入力へ表示する。
+- ランク上昇量（rankGrowth）を持たないユニットへの`LR+5`以外のランク指定も同じ理由で事前検証しない。ランクは6択のselectであり打ちかけの`""`が起きないため、レベルと異なりレベルリンクのような「未入力による送信停止」の考慮は不要である。
 
 Issue #565 で次を追加する。違反コードは `GEAR_STAT_COUNT_OVER_LIMIT`（**warning**）とする。
 
@@ -832,3 +835,6 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-030`: enhancement配下の422 JSON Pointerのうち`academyLevels`違反を該当フィールドへ対応づけ、slotKeyは付けない（`UI-API-019`の一部）。
 - `UI-API-031`: enhancement配下の422 JSON Pointerのうち`gears[m]`違反を元のギア枠indexへ対応づける（`UI-API-019`の一部）。
 - `UI-API-032`: 強化トグルONの陣営で、ユニットのギア入力から空枠を除外し、残りを元の枠順のまま送る（`UI-API-018`の一部）。
+- `UI-API-033`: 強化トグルONの陣営で、各ユニットの`enhancement.rank`へ入力値（省略時5）を出力する。
+- `UI-API-034`: レベル200・ランク5・ギア0件のときだけ`enhancement`を出力しない。いずれか一つでも既定から外れていれば出力する（規則4の拡張）。
+- `UI-API-035`: `enhancement`配下の422 JSON Pointerのうち`rank`違反を該当入力へ対応づける（`UI-API-019`の拡張）。
