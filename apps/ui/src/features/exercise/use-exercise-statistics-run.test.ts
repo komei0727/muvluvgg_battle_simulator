@@ -2,8 +2,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   describeStatisticsRunError,
+  selectStatisticsAggregate,
   useExerciseStatisticsRun,
 } from "./use-exercise-statistics-run.js";
+import type { ExerciseStatisticsRunState } from "./use-exercise-statistics-run.js";
+import type { EvaluationAggregate } from "./evaluation-chunk-plan.js";
 import type { BattleDraft, Side, UiColumn, UiRow } from "../../entities/battle-draft.js";
 import type {
   TacticalExerciseEvaluationApiResult,
@@ -109,6 +112,26 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
       "abc#4",
     ]);
     expect(evaluateImpl.mock.calls.map(([request]) => request.runsPerCandidate)).toEqual([2, 2, 1]);
+  });
+
+  it("forwards the configured timeout to every chunk request", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", {
+        evaluateImpl,
+        chunkSize: 2,
+        timeoutMs: 12_000,
+      }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 2, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("succeeded");
+    });
+    expect(evaluateImpl.mock.calls[0]?.[1]).toMatchObject({ timeoutMs: 12_000 });
   });
 
   it("generates a seed when none was entered and keeps it for the whole run", async () => {
@@ -549,6 +572,29 @@ describe("useExerciseStatisticsRun — failures", () => {
     ]);
   });
 
+  it("fails as a contract mismatch when the response carries no candidate", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
+      Promise.resolve({
+        ok: true,
+        response: { ...evaluationResponse(2, { seed: request.seed }), candidates: [] },
+      }),
+    );
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 2, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(result.current.state).toMatchObject({
+      error: { kind: "API", error: { kind: "RESPONSE_CONTRACT_MISMATCH" } },
+    });
+  });
+
   // ユニット別集計の列は編成順であり、列に名前を付けられるのは送信時の編成だけである。
   // 実行後に編成を編集できるため、現在のdraftから引くと別のユニット名が列へ付く。
   it("keeps the ally unit definition ids of the submitted formation in formation order", async () => {
@@ -653,5 +699,216 @@ describe("useExerciseStatisticsRun — failures", () => {
     });
     expect(result.current.state).toMatchObject({ error: { kind: "REQUEST_NOT_BUILDABLE" } });
     expect(evaluateImpl).not.toHaveBeenCalled();
+  });
+
+  it("keeps the retry-after seconds from the error body when the response carries none at top level", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({
+        ok: false,
+        status: 429,
+        error: {
+          kind: "RATE_LIMIT",
+          status: 429,
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "too many",
+          retryAfterSeconds: 45,
+        },
+      }),
+    );
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 4, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(result.current.state).toMatchObject({
+      error: { kind: "RATE_LIMITED", retryAfterSeconds: 45 },
+    });
+  });
+
+  it("reports a rate limit without a retry-after when neither the response nor the error body carries one", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({
+        ok: false,
+        status: 429,
+        error: {
+          kind: "RATE_LIMIT",
+          status: 429,
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "too many",
+        },
+      }),
+    );
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 4, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    const { state } = result.current;
+    expect(state.status === "failed" ? state.error : undefined).toEqual({ kind: "RATE_LIMITED" });
+  });
+
+  // UI-CMP-013と同じ規約: 中断は非同期であり、abort()は既に解決に向かっているPromiseを
+  // 取り消せない。実行状態(`asyncRequest.isCurrent`)が古い実行を「もう現在ではない」と
+  // 判定できることを、abortの成否に関係なく固定する。
+  it("does not let a superseded run's late response overwrite the run that replaced it", async () => {
+    let resolveStale: ((result: TacticalExerciseEvaluationApiResult) => void) | undefined;
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) => {
+      if (evaluateImpl.mock.calls.length === 1) {
+        return new Promise((resolve) => {
+          resolveStale = resolve;
+        });
+      }
+      return Promise.resolve({ ok: true, response: evaluationResponse(4, { seed: request.seed }) });
+    });
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 4 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 4, seed: "stale" }));
+    });
+    await waitFor(() => {
+      expect(evaluateImpl).toHaveBeenCalledTimes(1);
+    });
+    const staleRunId = result.current.state.status === "running" ? result.current.state.runId : "";
+
+    act(() => {
+      result.current.start(startInput({ runCount: 4, seed: "fresh" }));
+    });
+    const freshRunId = result.current.state.status === "running" ? result.current.state.runId : "";
+    expect(freshRunId).not.toBe(staleRunId);
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("succeeded");
+    });
+    expect(result.current.state).toMatchObject({ runId: freshRunId });
+
+    act(() => {
+      resolveStale?.({ ok: true, response: evaluationResponse(4, { seed: "stale#0" }) });
+    });
+
+    // 古い実行の遅延応答は無視され、新しい実行が確定したsucceeded stateのままである。
+    expect(result.current.state).toMatchObject({ status: "succeeded", runId: freshRunId });
+  });
+});
+
+describe("describeStatisticsRunError", () => {
+  it("describes a rate limit without a retry-after countdown", () => {
+    expect(describeStatisticsRunError({ kind: "RATE_LIMITED" }).guidance).toBe(
+      "実行が制限されました。時間をおいて再実行してください。",
+    );
+  });
+
+  it("describes a Catalog revision change mid-run", () => {
+    expect(
+      describeStatisticsRunError({
+        kind: "CATALOG_REVISION_CHANGED",
+        catalogRevision: "rev-1",
+        chunkCatalogRevision: "rev-2",
+      }).guidance,
+    ).toBe("実行中にCatalogがrev-1からrev-2へ切り替わりました。同じ条件で実行し直してください。");
+  });
+
+  it("describes a per-unit column count change mid-run", () => {
+    expect(
+      describeStatisticsRunError({
+        kind: "UNIT_COLUMN_COUNT_CHANGED",
+        unitCount: 3,
+        chunkUnitCount: 4,
+      }).guidance,
+    ).toBe("実行中にユニット別集計の列数が3から4へ変わりました。結果を集計できません。");
+  });
+
+  it("describes a seed the server did not echo back", () => {
+    expect(
+      describeStatisticsRunError({
+        kind: "SEED_NOT_ECHOED",
+        requestedSeed: "seed#0",
+        respondedSeed: "seed#1",
+      }).guidance,
+    ).toBe(
+      "サーバーが要求したseed（seed#0）ではなくseed#1で実行しました。試行が重複している可能性があるため結果を集計できません。",
+    );
+  });
+
+  it("describes a run that completed zero trials", () => {
+    expect(describeStatisticsRunError({ kind: "NO_COMPLETED_RUNS" }).guidance).toBe(
+      "1試行も完了しなかったため、統計を出せません。",
+    );
+  });
+
+  it("describes a request that could not be built from the draft", () => {
+    expect(describeStatisticsRunError({ kind: "REQUEST_NOT_BUILDABLE" }).guidance).toBe(
+      "編成からリクエストを組み立てられませんでした。編成を確認してください。",
+    );
+  });
+
+  it("keeps the diagnostic id of an API failure alongside its guidance", () => {
+    expect(
+      describeStatisticsRunError({
+        kind: "API",
+        error: { kind: "SERVER", message: "unexpected", diagnosticId: "diag-1" },
+      }),
+    ).toMatchObject({ diagnosticId: "diag-1" });
+  });
+});
+
+describe("selectStatisticsAggregate", () => {
+  it("returns undefined before a run has started", () => {
+    const idle: ExerciseStatisticsRunState = { status: "idle" };
+    expect(selectStatisticsAggregate(idle)).toBeUndefined();
+  });
+
+  it("returns the same aggregate for a succeeded and a cancelled run, and none for a failed one", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(4)));
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 4 }),
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 4, seed: "s" }));
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("succeeded");
+    });
+    const succeededAggregate: EvaluationAggregate | undefined = selectStatisticsAggregate(
+      result.current.state,
+    );
+    expect(succeededAggregate).toBeDefined();
+
+    const cancelled = {
+      ...result.current.state,
+      status: "cancelled",
+    } as ExerciseStatisticsRunState;
+    expect(selectStatisticsAggregate(cancelled)).toBe(succeededAggregate);
+
+    const failedEvaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({ ok: false, status: 500, error: { kind: "CAPACITY", message: "busy" } }),
+    );
+    const { result: failedResult } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", {
+        evaluateImpl: failedEvaluateImpl,
+        chunkSize: 4,
+      }),
+    );
+    act(() => {
+      failedResult.current.start(startInput({ runCount: 4, seed: "s" }));
+    });
+    await waitFor(() => {
+      expect(failedResult.current.state.status).toBe("failed");
+    });
+    expect(selectStatisticsAggregate(failedResult.current.state)).toBeUndefined();
   });
 });

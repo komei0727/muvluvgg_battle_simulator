@@ -76,6 +76,13 @@ export default defineConfig({
         // into entities/roster.ts along with RosterEntry; it carries the same
         // 100% branch target it had before the move.
         "src/entities/roster.ts": { branches: 100 },
+        // REF-060 (Issue #605): abort/token bookkeeping moved out into
+        // shared/async/, and the remaining error-classification/guidance
+        // branches gained direct tests, raising this file from the 71.79%
+        // called out in the Issue to a measured 91.02%. Floor set 1pt below
+        // to guard against regression without chasing the few branches that
+        // only a stale-response race after supersession could hit.
+        "src/features/exercise/use-exercise-statistics-run.ts": { branches: 90 },
       },
     },
   },

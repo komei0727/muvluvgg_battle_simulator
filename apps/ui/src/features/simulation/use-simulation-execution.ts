@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useReducer } from "react";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
 import { simulate as defaultSimulate } from "../../shared/api/api-client.js";
 import type {
@@ -8,6 +8,8 @@ import type {
 } from "../../shared/api/api-contract.js";
 import { createInitialExecutionState, executionReducer } from "./execution-reducer.js";
 import type { ExecutionResponseLike, ExecutionState } from "./execution-reducer.js";
+import { useAbortableRequest } from "../../shared/async/abortable-request.js";
+import { useAbortOnUnload } from "../../shared/async/abort-on-unload.js";
 
 // docs/ui-design/03_API・データ連携設計.md §7 「タイムアウトとキャンセル」:
 // AbortControllerを1実行につき1つ作り、利用者キャンセル・page unload・UI待機
@@ -82,16 +84,12 @@ export function useSimulationExecution<
     undefined,
     createInitialExecutionState<TRequest, TResponse>,
   );
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const currentExecutionIdRef = useRef<string | null>(null);
+  const asyncRequest = useAbortableRequest<string>();
 
   const submit = useCallback(
     (input: SubmitInput<TRequest>) => {
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
       const executionId = generateExecutionId();
-      currentExecutionIdRef.current = executionId;
+      const signal = asyncRequest.start(executionId);
       const startedAt = Date.now();
 
       dispatch({
@@ -110,7 +108,7 @@ export function useSimulationExecution<
       const requestId = generateRequestId();
       void simulateImpl(input.request, {
         baseUrl,
-        signal: controller.signal,
+        signal,
         ...(requestId !== undefined ? { requestId } : {}),
         ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       }).then((result) => {
@@ -136,34 +134,25 @@ export function useSimulationExecution<
         });
       });
     },
-    [baseUrl, simulateImpl, options.timeoutMs],
+    [baseUrl, simulateImpl, options.timeoutMs, asyncRequest],
   );
 
   const cancel = useCallback(() => {
-    abortControllerRef.current?.abort();
     // Transition to cancelled synchronously: abort() does not guarantee the
     // in-flight promise rejects (or rejects promptly), and a caller-supplied
     // simulateImpl could still resolve with a success after abort races with
     // the response. executionReducer's own executionId guard then makes any
     // later submissionSucceeded/Failed/Cancelled for this id a no-op.
-    const executionId = currentExecutionIdRef.current;
+    const executionId = asyncRequest.current();
+    asyncRequest.abort();
     if (executionId !== null) {
       dispatch({ type: "submissionCancelled", executionId });
     }
-  }, []);
+  }, [asyncRequest]);
 
-  useEffect(() => {
-    // page unload: an in-flight battle POST must not keep running after the
-    // tab is closed/navigated away (03_API・データ連携設計.md §7).
-    const handleUnload = () => {
-      abortControllerRef.current?.abort();
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      abortControllerRef.current?.abort();
-    };
-  }, []);
+  // page unload: an in-flight battle POST must not keep running after the
+  // tab is closed/navigated away (03_API・データ連携設計.md §7).
+  useAbortOnUnload(asyncRequest.abort);
 
   return { state, submit, cancel };
 }

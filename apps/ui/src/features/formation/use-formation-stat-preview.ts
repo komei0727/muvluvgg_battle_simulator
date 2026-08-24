@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildFormationStatPreviewRequest } from "./request-mapper.js";
 import type { BattleDraft } from "../../entities/battle-draft.js";
 import type {
@@ -8,6 +8,7 @@ import type {
 } from "../../shared/api/api-contract.js";
 
 import { previewFormationStats as defaultPreviewFormationStats } from "../../shared/api/api-client.js";
+import { useTokenedRequest } from "../../shared/async/abortable-request.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §4「ステータスプレビュー状態」.
 export type FormationStatPreviewState =
@@ -87,8 +88,7 @@ export function useFormationStatPreview(
   const previewImpl = options.previewImpl ?? defaultPreviewFormationStats;
   const enabled = options.enabled ?? true;
   const [state, setState] = useState<FormationStatPreviewState>({ status: "unavailable" });
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const requestTokenRef = useRef(0);
+  const asyncRequest = useTokenedRequest();
 
   // 送る内容（リクエストと枠の対応表）そのものをeffectの依存にする。オブジェクト
   // 参照は毎レンダー変わり、レンダー中にrefへ写す方式は並行レンダリング下で
@@ -108,23 +108,21 @@ export function useFormationStatPreview(
     : "";
 
   useEffect(() => {
-    abortControllerRef.current?.abort();
-    // 送信できる編成が無くなった場合もtokenを進める。abortは既に解決済みのPromiseを
-    // 取り消せないため、ここで進めておかないと、中断と競合して完了した古い結果が
-    // この後の`unavailable`を上書きし、現在のdraftと異なるステータスを表示し得る。
-    const token = ++requestTokenRef.current;
     if (payloadKey === "") {
+      // 送信できる編成が無くなった場合もtokenを進める。abortは既に解決済みのPromiseを
+      // 取り消せないため、ここで進めておかないと、中断と競合して完了した古い結果が
+      // この後の`unavailable`を上書きし、現在のdraftと異なるステータスを表示し得る。
+      asyncRequest.abort();
       setState({ status: "unavailable" });
       return;
     }
     const payload = JSON.parse(payloadKey) as PreviewPayload;
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    const { signal, token } = asyncRequest.start();
     setState({ status: "loading" });
 
-    void previewImpl(payload.request, { baseUrl, signal: controller.signal }).then((result) => {
-      if (requestTokenRef.current !== token) {
+    void previewImpl(payload.request, { baseUrl, signal }).then((result) => {
+      if (!asyncRequest.isCurrent(token)) {
         return;
       }
       if (!result.ok) {
@@ -138,9 +136,9 @@ export function useFormationStatPreview(
     });
 
     return () => {
-      controller.abort();
+      asyncRequest.abort();
     };
-  }, [payloadKey, baseUrl, previewImpl]);
+  }, [payloadKey, baseUrl, previewImpl, asyncRequest]);
 
   return state;
 }

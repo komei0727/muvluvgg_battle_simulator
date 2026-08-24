@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useReducer } from "react";
 import {
   buildTacticalExerciseEvaluationRequest,
   evaluationFormationSignature,
 } from "./exercise-request-mapper.js";
+import { useAbortableRequest } from "../../shared/async/abortable-request.js";
+import { useAbortOnUnload } from "../../shared/async/abort-on-unload.js";
 import type { BattleDraft } from "../../entities/battle-draft.js";
 import type {
   TacticalExerciseEvaluationApiResult,
@@ -340,16 +342,12 @@ export function useExerciseStatisticsRun(
 ): UseExerciseStatisticsRunResult {
   const { evaluateImpl = defaultEvaluate, timeoutMs, chunkSize = EVALUATION_CHUNK_SIZE } = options;
   const [state, dispatch] = useReducer(statisticsRunReducer, undefined, createInitialState);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const currentRunIdRef = useRef<string | null>(null);
+  const asyncRequest = useAbortableRequest<string>();
 
   const start = useCallback(
     (input: StatisticsRunInput) => {
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
       const runId = generateRunId();
-      currentRunIdRef.current = runId;
+      const signal = asyncRequest.start(runId);
 
       const trimmedSeed = input.seed.trim();
       const seed = trimmedSeed === "" ? generateEvaluationSeed() : trimmedSeed;
@@ -392,7 +390,7 @@ export function useExerciseStatisticsRun(
       }
       const { request } = build;
 
-      const isCurrent = () => currentRunIdRef.current === runId;
+      const isCurrent = () => asyncRequest.isCurrent(runId);
 
       const failWithMerge = (merged: EvaluationMergeResult & { ok: false }): void => {
         dispatch({
@@ -442,7 +440,7 @@ export function useExerciseStatisticsRun(
         const results: EvaluationChunkResult[] = [];
         for (const chunk of chunks) {
           // 中断がチャンクの切れ目に入った場合、次を送らずここで確定する。
-          if (controller.signal.aborted) {
+          if (signal.aborted) {
             finish(results, true);
             return;
           }
@@ -451,7 +449,7 @@ export function useExerciseStatisticsRun(
             { ...request, runsPerCandidate: chunk.runs, seed: chunk.seed },
             {
               baseUrl,
-              signal: controller.signal,
+              signal,
               ...(requestId !== undefined ? { requestId } : {}),
               ...(timeoutMs !== undefined ? { timeoutMs } : {}),
             },
@@ -517,7 +515,7 @@ export function useExerciseStatisticsRun(
         finish(results, false);
       })();
     },
-    [baseUrl, evaluateImpl, timeoutMs, chunkSize],
+    [baseUrl, evaluateImpl, timeoutMs, chunkSize, asyncRequest],
   );
 
   const cancel = useCallback(() => {
@@ -526,22 +524,11 @@ export function useExerciseStatisticsRun(
     // チャンクを積んでいる実行ループだけである。ループはabortで解決した応答（CANCELLED）と
     // チャンクの切れ目の`signal.aborted`の両方で確定へ入り、待ち時間は`api-client`の
     // 待機上限（35秒）で頭打ちになる。
-    abortControllerRef.current?.abort();
-  }, []);
+    asyncRequest.abort();
+  }, [asyncRequest]);
 
-  useEffect(() => {
-    // 実行中のチャンクをタブを閉じた後まで走らせない（03_API・データ連携設計.md §7）。
-    const handleUnload = () => {
-      abortControllerRef.current?.abort();
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      // unmount後に届いた応答をdispatchしないよう、runIdごと切り離す。
-      currentRunIdRef.current = null;
-      abortControllerRef.current?.abort();
-    };
-  }, []);
+  // 実行中のチャンクをタブを閉じた後まで走らせない（03_API・データ連携設計.md §7）。
+  useAbortOnUnload(asyncRequest.abort);
 
   return { state, start, cancel };
 }

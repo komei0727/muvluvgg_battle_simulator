@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { getCatalog as defaultGetCatalog } from "../../shared/api/api-client.js";
 import type { BattleSimulationCatalogResponse, UiApiError } from "../../shared/api/api-contract.js";
+import { useTokenedRequest } from "../../shared/async/abortable-request.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §4: CatalogLoadState.
 export type CatalogLoadState =
@@ -62,27 +63,23 @@ export function useCatalogLoader(
 ): UseCatalogLoaderResult {
   const getCatalogImpl = options.getCatalogImpl ?? defaultGetCatalog;
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const requestTokenRef = useRef(0);
+  const asyncRequest = useTokenedRequest();
 
   // 条件付き取得に使う直前のready snapshotは呼び出し側が引数で渡す。stateを
   // `load`の依存に含めるとmount effectが毎回再実行され、レンダー中にrefへ
   // stateを写すと並行レンダリング下で書き込みが破棄され得るため、どちらも取らない。
   const load = useCallback(
     (priorReady: ReadyCatalogLoadState | undefined) => {
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      const token = ++requestTokenRef.current;
+      const { signal, token } = asyncRequest.start();
 
       dispatch({ type: "started" });
 
       void getCatalogImpl({
         baseUrl,
-        signal: controller.signal,
+        signal,
         ...(priorReady?.etag !== undefined ? { etag: priorReady.etag } : {}),
       }).then((result) => {
-        if (requestTokenRef.current !== token) {
+        if (!asyncRequest.isCurrent(token)) {
           return;
         }
 
@@ -115,16 +112,16 @@ export function useCatalogLoader(
         });
       });
     },
-    [baseUrl, getCatalogImpl],
+    [baseUrl, getCatalogImpl, asyncRequest],
   );
 
   useEffect(() => {
     // mount時はready snapshotが存在しないため無条件取得。
     load(undefined);
     return () => {
-      abortControllerRef.current?.abort();
+      asyncRequest.abort();
     };
-  }, [load]);
+  }, [load, asyncRequest]);
 
   const reload = useCallback(() => {
     load(state.status === "ready" ? state : undefined);
