@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { summarizeEventSequence } from "./event-sequence-fingerprint.js";
+import { parseGoldenEventTypesCliRequest } from "./golden-event-types-cli-request.js";
 import {
   runProductionExerciseBattle,
   runProductionPartyBattle,
@@ -13,22 +14,17 @@ import {
  * `unitDefinitionId` / `ally`・`enemy` / `ally`・`enemyUnitDefinitionId`）をそのまま
  * このCLIへ渡すと、そのケースが発行した公開イベントのtype列を発生順に出力する。
  *
- * `pnpm run dump-golden-event-types -- unit <unitDefinitionId>`
- * `pnpm run dump-golden-event-types -- party <allyCsv> <enemyCsv>`
- * `pnpm run dump-golden-event-types -- exercise <allyCsv> <enemyUnitDefinitionId>`
+ * `pnpm run dump-golden-event-types unit <unitDefinitionId>`
+ * `pnpm run dump-golden-event-types party <allyCsv> <enemyCsv>`
+ * `pnpm run dump-golden-event-types exercise <allyCsv> <enemyUnitDefinitionId>`
+ *
+ * 引数解析（先頭の`--`を許容する理由を含む）は`golden-event-types-cli-request.ts`。
  *
  * battleIdは各goldenテストと違う固定値を使う——events配列の内容には影響しない識別子
  * のため、debug専用の値で足りる。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const DEBUG_BATTLE_ID = "B_GOLDEN_DEBUG";
-
-function parseIds(csv: string): readonly string[] {
-  return csv
-    .split(",")
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0);
-}
 
 function printEventTypeSequence(label: string, events: readonly { readonly type: string }[]): void {
   const summary = summarizeEventSequence(events);
@@ -44,37 +40,46 @@ function printEventTypeSequence(label: string, events: readonly { readonly type:
   );
 }
 
-const [kind, ...args] = process.argv.slice(2);
+const request = parseGoldenEventTypesCliRequest(process.argv.slice(2));
 
-if (kind === "unit" && args[0] !== undefined) {
-  const unitDefinitionId = args[0];
-  const result = runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
-    turnLimit: 5,
-    randomValue: 0.5,
-    logLevel: "DETAILED",
-  });
-  printEventTypeSequence(unitDefinitionId, result.events);
-} else if (kind === "party" && args[0] !== undefined && args[1] !== undefined) {
-  const ally = parseIds(args[0]);
-  const enemy = parseIds(args[1]);
-  const result = runProductionPartyBattle(
-    CATALOG_DIR,
-    { ally, enemy },
-    { turnLimit: 5, randomValue: 0.5, battleId: DEBUG_BATTLE_ID },
-  );
-  printEventTypeSequence(`ally=${ally.join("+")} enemy=${enemy.join("+")}`, result.events);
-} else if (kind === "exercise" && args[0] !== undefined && args[1] !== undefined) {
-  const ally = parseIds(args[0]);
-  const enemyUnitDefinitionId = args[1];
-  const result = runProductionExerciseBattle(
-    CATALOG_DIR,
-    { ally, enemyUnitDefinitionId },
-    { randomValue: 0.5, battleId: DEBUG_BATTLE_ID },
-  );
-  printEventTypeSequence(`ally=${ally.join("+")} enemy=${enemyUnitDefinitionId}`, result.events);
-} else {
-  console.error(
-    "Usage: dump-golden-event-types <unit <unitDefinitionId> | party <allyCsv> <enemyCsv> | exercise <allyCsv> <enemyUnitDefinitionId>>",
-  );
-  process.exitCode = 1;
+switch (request.kind) {
+  case "unit": {
+    const result = runProductionUnitBattle(CATALOG_DIR, request.unitDefinitionId, {
+      turnLimit: 5,
+      randomValue: 0.5,
+      logLevel: "DETAILED",
+    });
+    printEventTypeSequence(request.unitDefinitionId, result.events);
+    break;
+  }
+  case "party": {
+    const result = runProductionPartyBattle(
+      CATALOG_DIR,
+      { ally: request.ally, enemy: request.enemy },
+      { turnLimit: 5, randomValue: 0.5, battleId: DEBUG_BATTLE_ID },
+    );
+    printEventTypeSequence(
+      `ally=${request.ally.join("+")} enemy=${request.enemy.join("+")}`,
+      result.events,
+    );
+    break;
+  }
+  case "exercise": {
+    const result = runProductionExerciseBattle(
+      CATALOG_DIR,
+      { ally: request.ally, enemyUnitDefinitionId: request.enemyUnitDefinitionId },
+      { randomValue: 0.5, battleId: DEBUG_BATTLE_ID },
+    );
+    printEventTypeSequence(
+      `ally=${request.ally.join("+")} enemy=${request.enemyUnitDefinitionId}`,
+      result.events,
+    );
+    break;
+  }
+  case "usage":
+    console.error(
+      "Usage: dump-golden-event-types <unit <unitDefinitionId> | party <allyCsv> <enemyCsv> | exercise <allyCsv> <enemyUnitDefinitionId>>",
+    );
+    process.exitCode = 1;
+    break;
 }
