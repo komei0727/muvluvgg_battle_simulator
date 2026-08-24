@@ -5,6 +5,7 @@ import {
   allProductionUnitIds,
   runProductionPartyBattle,
 } from "../../testing/scenario/run-production-battle.js";
+import { summarizeEventSequence } from "../../testing/scenario/event-sequence-fingerprint.js";
 
 /**
  * Golden battle 回帰層の**混成編成**（`12_テスト戦略.md`「Golden battle 回帰層」）。
@@ -19,9 +20,10 @@ import {
  * 必ず混成編成の中で実戦闘を経験し、ユニット追加時も自動的にケースが増える
  * （snapshot未登録なら失敗する強制関数）。
  *
- * snapshotはイベント型ごとの件数マップに落とす。5対5の全イベント列は1対1の比では
- * なく大きい一方、**イベントの順序**は全 production ユニットに対して
- * `IT-AUDIT-M8-001` が既に検査しているため、ここで重複させない。
+ * snapshotは`summarizeEventSequence`（unit/exercise goldenと共通）でイベント種別
+ * ごとの件数マップと順序ハッシュに落とす。5対5の全イベント列は1対1の比ではなく
+ * 大きい一方、8手順のダメージパイプライン内の**順序**は全 production ユニットに
+ * 対して`IT-AUDIT-M8-001`が既に検査しているため、全文はここで重複させない。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const PARTY_SIZE = 5;
@@ -84,19 +86,13 @@ describe("production party golden battles", () => {
       expect(typeof result.completionReason).toBe("string");
       assertBattleInvariants(result);
 
-      const eventTypeCounts: Record<string, number> = {};
-      for (const event of result.events) {
-        eventTypeCounts[event.type] = (eventTypeCounts[event.type] ?? 0) + 1;
-      }
       expect({
         ally,
         enemy,
         outcome: result.outcome,
         completionReason: result.completionReason,
         completedTurn: result.completedTurn,
-        eventTypeCounts: Object.fromEntries(
-          Object.entries(eventTypeCounts).sort(([left], [right]) => left.localeCompare(right)),
-        ),
+        ...summarizeEventSequence(result.events),
       }).toMatchSnapshot();
     },
   );

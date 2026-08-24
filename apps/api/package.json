@@ -15,6 +15,7 @@
     "render-cloud-run-manifest": "tsx src/infrastructure/deploy/render-cloud-run-manifest-cli.ts",
     "generate-ui-fixtures": "tsx src/testing/ui-fixtures/write-ui-fixtures-cli.ts",
     "check-ui-fixtures": "tsx src/testing/ui-fixtures/check-ui-fixtures-cli.ts",
+    "dump-golden-event-types": "tsx src/testing/scenario/dump-golden-event-types-cli.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --enable-source-maps dist/main.js",
     "typecheck": "tsc --noEmit",

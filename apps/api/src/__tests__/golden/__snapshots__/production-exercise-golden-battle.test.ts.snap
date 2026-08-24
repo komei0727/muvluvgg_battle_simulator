@@ -50,6 +50,8 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_ANIS_SWEETDEVIL_TEX",
+  "eventCount": 8228,
+  "eventSequenceHash": "sha256:45567a613b9815fc",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 140,
     "ACTION_COMPLETING": 140,
@@ -158,6 +160,8 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_AOI_GUARDIAN_TEX",
+  "eventCount": 7026,
+  "eventSequenceHash": "sha256:141379ed5a383e6b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 140,
     "ACTION_COMPLETING": 140,
@@ -266,6 +270,8 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_MAO_SUMMER_TEX",
+  "eventCount": 7532,
+  "eventSequenceHash": "sha256:0c4469a048eb5796",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 139,
     "ACTION_COMPLETING": 139,
@@ -366,6 +372,8 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_SHOUKA_BEACH_TEX",
+  "eventCount": 7368,
+  "eventSequenceHash": "sha256:6993e5f7309aabde",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 135,
     "ACTION_COMPLETING": 135,
