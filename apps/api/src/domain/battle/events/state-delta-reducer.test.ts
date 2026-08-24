@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyStateDelta, reduceStateDeltas } from "./state-delta-reducer.js";
-import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
-import type { EffectSnapshot, StateDelta } from "../events/state-delta.js";
+import type { BattleStateSnapshot, EffectSnapshot, StateDelta } from "./state-delta.js";
 import {
   createActionId,
   createEffectInstanceId,

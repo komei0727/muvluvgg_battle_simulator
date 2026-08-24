@@ -7,7 +7,7 @@ import { detectRuntimeCounterUpdates } from "../../domain/battle/triggering/runt
 import { evaluateTriggerCondition } from "../../domain/battle/triggering/trigger-condition-evaluator.js";
 import { noMissNoCrit, skillFrom, testBattleUnit, unitFrom } from "../fixtures/index.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { resolveSkillUse } from "../../domain/battle/lifecycle/action-skill-use-resolver.js";
+import { resolveSkillUse } from "../../domain/battle/resolution/action-skill-use-resolver.js";
 import { createActionId } from "../../domain/shared/event-ids.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import type {

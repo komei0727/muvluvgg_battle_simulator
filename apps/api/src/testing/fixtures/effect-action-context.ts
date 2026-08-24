@@ -1,4 +1,4 @@
-import type { EffectActionGroupContext } from "../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import type { EffectActionGroupContext } from "../../domain/battle/resolution/effect-action-group-resolver.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { EventRecorder } from "../../domain/battle/events/event-recorder.js";

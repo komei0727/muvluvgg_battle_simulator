@@ -1,5 +1,5 @@
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import { PassiveActivationRuntime } from "../../domain/battle/resolution/passive-activation-service.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import type {
   BattleDomainEvent,

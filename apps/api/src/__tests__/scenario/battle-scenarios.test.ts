@@ -7,7 +7,7 @@ import {
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import type { SkillDefinition } from "../../domain/catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../domain/battle/events/state-delta-reducer.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import { CatalogBuilder } from "../../testing/scenario/catalog-builder.js";
 import {
@@ -45,8 +45,7 @@ import {
  */
 describe("battle scenarios (harness)", () => {
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {
-    const { reduceStateDeltas } =
-      await import("../../domain/battle/lifecycle/state-delta-reducer.js");
+    const { reduceStateDeltas } = await import("../../domain/battle/events/state-delta-reducer.js");
     const skillId = "SKL_ATTACK";
     const effectActionId = "ACT_ATTACK";
     // UNIT_001 (activeSkillDefinitionIds: []) always WAITs, exercising both

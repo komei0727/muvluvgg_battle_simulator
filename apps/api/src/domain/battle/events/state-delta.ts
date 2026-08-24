@@ -1,4 +1,5 @@
 import type { BattleStatus } from "../model/battle-status.js";
+import type { ExerciseStateSnapshot } from "../model/exercise-runtime.js";
 import type {
   AppliedEffect,
   ContinuousDamageState,
@@ -338,6 +339,82 @@ export function toMarkerSnapshot(marker: MarkerState): MarkerSnapshot {
       ? { consumptionRemaining: marker.duration.consumptionRemaining }
       : {}),
   };
+}
+
+export interface BattleUnitSnapshot {
+  readonly hp: number;
+  readonly ap: number;
+  readonly pp: number;
+  readonly extraGauge: number;
+  /**
+   * G-09（M7-002A／Issue #255）: `MODIFY_RESOURCE_CAPACITY`の付与・失効・解除の
+   * たびに再合成される現在の上限。`BattleUnitRosterEntry.maximumAp`等は
+   * `startBattle`前に1回だけ取る不変な開始時点の値であり、この時点の実効値とは
+   * 別物（`combatStats`と`BattleUnitRosterEntry.combatStats`の関係と同じ）。
+   */
+  readonly maximumAp: number;
+  readonly maximumPp: number;
+  readonly maximumExtraGauge: number;
+  /** R-STA-04: AppliedEffectの付与・失効・解除のたびに再計算される現在の実効値。常に存在する（`BattleUnitRosterEntry.combatStats`は不変な開始時点のスナップショット）。 */
+  readonly combatStats: CombatStats;
+  /**
+   * R-STA-04の2層構造の基礎側（編成補正・適性補正だけを反映した基準値）。通常戦闘では
+   * 戦闘中不変だが、戦術演習のブレイク強化（R-TEX-04、`UnitRevived`が所有する
+   * `units.<id>.baseCombatStats`差分）だけがこれを書き換えるため、可変状態として
+   * 射影する — これが無いと独立Reducerが強化差分を適用する先を持たず、
+   * `initialState + 全差分 = finalState`が演習で成立しない。
+   */
+  readonly baseCombatStats: CombatStats;
+  /** 空でない場合だけ持つ(`captureBattleState`はクールタイムが1件も無いユニットへ`{}`を書かない)。 */
+  readonly cooldowns?: Readonly<Record<SkillDefinitionId, CooldownState>>;
+  readonly charge?: ChargeState;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`SkillRuntime`スコープ（M6最小実装、
+   * Issue #143）。`cooldowns`と同様、1件も持たないユニットへは`{}`を書かない。
+   */
+  readonly skillCounters?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /**
+   * `CUMULATIVE_DAMAGE_THRESHOLD`の繰り越し端数（`carry`）専用の射影
+   * （Issue #143）。`carry`が0の（＝一度も繰り越しが
+   * 発生していない、または`INCREMENT`の）counterはキー自体を持たない
+   * （`skillCounters`と違い0はデフォルト値として省略する）。
+   */
+  readonly skillCounterCarry?: Readonly<
+    Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /**
+   * `05_ドメインモデル.md`「RuntimeCounter」の`EffectSequence`スコープ（EFF-006、
+   * Issue #212）。`skillCounters`と同じ射影だが、1段目のキーが`SkillUseId`
+   * （1回の解決を識別する既存の実行時識別子）である点だけが異なる。その解決が
+   * 完了した時点で必ずキー自体が削除されるため、進行中の解決だけが持つ。
+   */
+  readonly effectSequenceCounters?: Readonly<
+    Record<SkillUseId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /** `effectSequenceCounters`の`carry`専用射影。`skillCounterCarry`と同じ規約。 */
+  readonly effectSequenceCounterCarry?: Readonly<
+    Record<SkillUseId, Readonly<Record<RuntimeCounterId, number>>>
+  >;
+  /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
+  readonly effects?: readonly EffectSnapshot[];
+  /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
+  readonly markers?: readonly MarkerSnapshot[];
+}
+
+/**
+ * `08_ドメインイベント.md`「状態復元」のinitialState/finalStateに相当する、
+ * Battleの可変状態だけを抜き出した不変スナップショット。`result`は勝敗確定後
+ * だけ持つ（`Battle.result`と同じく、READY/RUNNING中は`undefined`）。
+ */
+export interface BattleStateSnapshot {
+  readonly status: BattleStatus;
+  readonly currentTurn: number;
+  readonly units: Readonly<Record<BattleUnitId, BattleUnitSnapshot>>;
+  readonly result?: BattleResultSnapshot;
+  /** 戦術演習だけが持つ演習状態（R-TEX-02／R-TEX-10）。通常戦闘ではキー自体を持たない。 */
+  readonly exercise?: ExerciseStateSnapshot;
 }
 
 /** `08_ドメインイベント.md`「StateDelta」: 変更した項目だけを持つ。 */

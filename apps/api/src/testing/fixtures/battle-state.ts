@@ -4,7 +4,7 @@ import type {
   BattleUnitSnapshot,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import type { EventRecorder } from "../../domain/battle/events/event-recorder.js";
-import { reduceStateDeltas } from "../../domain/battle/lifecycle/state-delta-reducer.js";
+import { reduceStateDeltas } from "../../domain/battle/events/state-delta-reducer.js";
 import { toEffectSnapshot, toMarkerSnapshot } from "../../domain/battle/events/state-delta.js";
 
 export interface InitialSnapshotOptions {

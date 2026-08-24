@@ -19,7 +19,7 @@ import {
   DEFAULT_MAX_TOTAL_EVENTS,
   EventRecorder,
 } from "../../domain/battle/events/event-recorder.js";
-import { DEFAULT_PASSIVE_CHAIN_LIMITS } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import { DEFAULT_PASSIVE_CHAIN_LIMITS } from "../../domain/battle/resolution/passive-activation-service.js";
 import type { PassiveChainLimits } from "../../domain/battle/model/passive-chain-limits.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";

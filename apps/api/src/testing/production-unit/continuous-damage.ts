@@ -1,7 +1,7 @@
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { expireEffectsSteps } from "../../domain/battle/effects/duration-expiry-service.js";
-import { fireContinuousHealsOnActionStart } from "../../domain/battle/lifecycle/continuous-heal-service.js";
-import { PassiveActivationRuntime } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import { fireContinuousHealsOnActionStart } from "../../domain/battle/resolution/continuous-heal-service.js";
+import { PassiveActivationRuntime } from "../../domain/battle/resolution/passive-activation-service.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";

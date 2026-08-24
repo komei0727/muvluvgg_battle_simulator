@@ -3,7 +3,7 @@ import type { BattlePartyMember } from "../../domain/battle/model/battle-party.j
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
 import type { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
-import type { PassiveActivationRuntimeContext } from "../../domain/battle/lifecycle/passive-activation-service.js";
+import type { PassiveActivationRuntimeContext } from "../../domain/battle/resolution/passive-activation-service.js";
 import type { createActionId } from "../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../domain/shared/ids.js";
 import {

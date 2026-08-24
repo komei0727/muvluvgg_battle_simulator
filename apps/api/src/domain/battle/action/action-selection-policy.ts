@@ -26,7 +26,7 @@ interface TargetBindingResolution {
  * `domain/battle/action`は`domain/battle/skill`へ依存できない（モジュール境界、
  * eslint.config.mjs — actionとskillは並列でどちらも他方へ依存できない）ため、
  * 実際の評価器（`evaluateEffectStepCondition`を再利用する実装）は依存可能な層
- * （`domain/battle/lifecycle`）が持ち、ここへ注入する。
+ * （`domain/battle/resolution`）が持ち、ここへ注入する。
  */
 export type ActivationConditionEvaluator = (
   condition: ConditionDefinition,
@@ -46,7 +46,7 @@ const defaultActivationConditionEvaluator: ActivationConditionEvaluator = (condi
   }
   throw new DomainValidationError(
     "skill.activationCondition",
-    `kind "${condition.kind}" is not supported without an injected ActivationConditionEvaluator (CAP_ACTION_ACTIVATION_CONDITION, domain/battle/lifecycle supplies the real evaluator)`,
+    `kind "${condition.kind}" is not supported without an injected ActivationConditionEvaluator (CAP_ACTION_ACTIVATION_CONDITION, domain/battle/resolution supplies the real evaluator)`,
   );
 };
 

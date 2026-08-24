@@ -1,6 +1,6 @@
-import { resolveActionPhase } from "./action-phase-resolver.js";
-import { PassiveActivationRuntime } from "./passive-activation-service.js";
-import { recordResourceChangeIfAny } from "./action-resolution-shared.js";
+import { resolveActionPhase } from "../resolution/action-phase-resolver.js";
+import { PassiveActivationRuntime } from "../resolution/passive-activation-service.js";
+import { recordResourceChangeIfAny } from "../resolution/action-resolution-shared.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattleStatus } from "../model/battle-status.js";
 import {

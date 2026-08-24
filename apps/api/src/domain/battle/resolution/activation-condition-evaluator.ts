@@ -16,7 +16,7 @@ import { DomainValidationError } from "../../shared/errors.js";
  *
  * `domain/battle/action`（`action-selection-policy.ts`）は`domain/battle/skill`
  * へ依存できない（モジュール境界、eslint.config.mjs — actionとskillは並列で
- * どちらも他方へ依存できない）ため、両方へ依存できる`domain/battle/lifecycle`が
+ * どちらも他方へ依存できない）ため、両方へ依存できる`domain/battle/resolution`が
  * この実装を持ち、`ActivationConditionEvaluator`として注入する
  * （`action-phase-resolver.ts`）。
  */

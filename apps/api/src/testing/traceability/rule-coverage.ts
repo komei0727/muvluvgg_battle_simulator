@@ -1355,7 +1355,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // `resolvePassiveChain`内の`recordActivation`呼び出しで実装済み。Issue #34が
   // 残り5ステップ（PP消費とEX増加、クールタイム設定、`PassiveActivated`発行、
   // EffectSequence解決、`PassiveResolved`/`PassiveInterrupted`発行）を
-  // `PassiveActivationRuntime`（`domain/battle/lifecycle/passive-activation-service.ts`）
+  // `PassiveActivationRuntime`（`domain/battle/resolution/passive-activation-service.ts`）
   // として実装した。
   {
     ruleId: "R-PS-05",
@@ -3229,7 +3229,7 @@ export const RULE_COVERAGE: readonly RuleTestCoverage[] = [
   // M7-020（Issue #279、`MARKER_REMOVAL_ON_SOURCE_DEATH`）: 付与者
   // （`MarkerState.sourceUnitId`）の戦闘不能を解除契機として宣言する
   // `DurationDefinition.removeOnSourceDefeated`（`APPLY_MARKER`専用）を追加した。
-  // 抽出は`lifecycle/marker-source-defeat-service.ts`、実ライフサイクル配線は
+  // 抽出は`resolution/marker-source-defeat-service.ts`、実ライフサイクル配線は
   // `passive-activation-service.ts`のトップレベル（`applyMarkerSourceDefeatRemovals`）
   // とPS連鎖内部（`applyMarkerSourceDefeatRemovalsForChain`、PSのEffectSequenceが
   // 与えたダメージによる`UnitDefeated`は`onFactEvent`を経由しないため）の2経路。

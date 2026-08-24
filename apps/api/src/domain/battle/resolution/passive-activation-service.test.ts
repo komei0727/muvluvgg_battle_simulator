@@ -20,8 +20,8 @@ import {
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
-import { applyStateDelta } from "./state-delta-reducer.js";
-import type { BattleStateSnapshot } from "./battle-state-snapshot.js";
+import { applyStateDelta } from "../events/state-delta-reducer.js";
+import type { BattleStateSnapshot } from "../lifecycle/battle-state-snapshot.js";
 import { ExecutionGuardExceededError } from "../../shared/errors.js";
 import {
   contextOf,

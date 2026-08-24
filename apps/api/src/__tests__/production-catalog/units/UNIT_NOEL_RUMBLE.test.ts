@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyEffectActionGroups } from "../../../domain/battle/lifecycle/effect-action-group-resolver.js";
+import { applyEffectActionGroups } from "../../../domain/battle/resolution/effect-action-group-resolver.js";
 import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {

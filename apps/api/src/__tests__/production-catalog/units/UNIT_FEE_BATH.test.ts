@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
-import { resolveSkillUse } from "../../../domain/battle/lifecycle/action-skill-use-resolver.js";
-import { reduceStateDeltas } from "../../../domain/battle/lifecycle/state-delta-reducer.js";
+import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { reduceStateDeltas } from "../../../domain/battle/events/state-delta-reducer.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { createActionId } from "../../../domain/shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";

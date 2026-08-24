@@ -18,7 +18,7 @@ import {
   sameChargeState,
   sameEffectSnapshot,
   sameMarkerSnapshot,
-} from "../../domain/battle/lifecycle/state-delta-reducer.js";
+} from "../../domain/battle/events/state-delta-reducer.js";
 import {
   isExerciseBattleResult,
   type CooldownState,
