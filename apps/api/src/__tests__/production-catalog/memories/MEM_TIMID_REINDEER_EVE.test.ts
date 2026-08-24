@@ -82,7 +82,7 @@ describe("production Catalog MEM_TIMID_REINDEER_EVE (臆病トナカイの聖夜
     ]);
   });
 
-  it("IT-MEM-TIMID-REINDEER-EVE-002 (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
+  it("IT-MEM-TIMID-REINDEER-EVE-002 [R-MEM-04] (R-MEM-04): the same Memory declared by the ENEMY side lands on the mirrored slots and records ENEMY as the source side, never a granter unit", () => {
     expect(observeMemoryGrants(MEMORY_DEFINITION_ID, "ENEMY")).toEqual(
       mirroredForEnemyDeclaration(EXPECTED_GRANTS),
     );

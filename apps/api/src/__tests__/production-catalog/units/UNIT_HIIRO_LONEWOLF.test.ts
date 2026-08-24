@@ -415,7 +415,7 @@ describe("production Catalog UNIT_HIIRO_LONEWOLF (【緋色の一匹狼】榊野
     });
   });
 
-  it("IT-UNIT-HIIRO-LONEWOLF-005 (R-EFF-11): SKL_HIIRO_LONEWOLF_PS1 の発動は RuntimeCounterChanged を PassiveActivated の子として発行し、書き込まれたcounterまで独立Reducerで復元できる。そのcounterがそのまま次のターン開始での発動を止める", () => {
+  it("IT-UNIT-HIIRO-LONEWOLF-005 [R-EFF-11] (R-EFF-11): SKL_HIIRO_LONEWOLF_PS1 の発動は RuntimeCounterChanged を PassiveActivated の子として発行し、書き込まれたcounterまで独立Reducerで復元できる。そのcounterがそのまま次のターン開始での発動を止める", () => {
     // `-001` の「一度しか発動しない」行は counter を盤面の前提として置いたもので、
     // 「発動が実際に counter を書き込む」ことは見ていない。ここは1回目の発動が
     // 残した状態をそのまま2回目の契機へ渡し、書き込み側と読み取り側を繋ぐ。
@@ -470,7 +470,7 @@ describe("production Catalog UNIT_HIIRO_LONEWOLF (【緋色の一匹狼】榊野
     expect(second.eventsOfType("PassiveActivated")).toEqual([]);
   });
 
-  it("IT-UNIT-HIIRO-LONEWOLF-006 (R-EFF-03): PS2が配る「気絶無効」も `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
+  it("IT-UNIT-HIIRO-LONEWOLF-006 [R-EFF-03] (R-EFF-03): PS2が配る「気絶無効」も `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
     // `-001` のPS2行は実 `UnitDefeated` 契機での付与（`consumption: INCOMING_HIT(3)`）
     // までを固定する。`statusKinds` の絞り込みは**以後に飛んでくる付与**を弾くか
     // 通すかにしか現れず、これは別のスキル使用に属する。葵（`maxBlocks: null` +

@@ -292,7 +292,7 @@ describe("removeMarkers", () => {
     expect(recorder.getEvents().slice(before)).toHaveLength(0);
   });
 
-  it("UT-R-EFF-10-010: a linkedEffectGroupId PARENT MarkerState removal cascades to its CHILD MarkerState", () => {
+  it("UT-R-EFF-10-010 [R-EFF-09, R-EFF-10]: a linkedEffectGroupId PARENT MarkerState removal cascades to its CHILD MarkerState", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -356,7 +356,7 @@ describe("removeMarkers", () => {
     expect(removedEvents[1]!.payload).toMatchObject({ markerId: parentMarkerId, cascaded: false });
   });
 
-  it("UT-R-EFF-10-011: a linkedEffectGroupId CHILD-only MarkerState removal does not cascade to its PARENT", () => {
+  it("UT-R-EFF-10-011 [R-EFF-09, R-EFF-10]: a linkedEffectGroupId CHILD-only MarkerState removal does not cascade to its PARENT", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();

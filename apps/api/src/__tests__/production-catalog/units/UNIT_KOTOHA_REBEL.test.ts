@@ -652,7 +652,7 @@ describe("production Catalog UNIT_KOTOHA_REBEL (【世界への反逆者】コ�
     });
   });
 
-  it("IT-UNIT-KOTOHA-REBEL-005 (R-DMG-04): PS2の実 与ダメージ補正が持つ `HP_RATIO_COMPARISON` 条件は付与時ではなくヒットごとに評価され、同じ `AppliedEffect` が相手のHP割合次第で効いたり効かなかったりする", () => {
+  it("IT-UNIT-KOTOHA-REBEL-005 [R-DMG-04] (R-DMG-04): PS2の実 与ダメージ補正が持つ `HP_RATIO_COMPARISON` 条件は付与時ではなくヒットごとに評価され、同じ `AppliedEffect` が相手のHP割合次第で効いたり効かなかったりする", () => {
     // `-001` のPS2行は付与時点の `magnitude`（+0.1）までを持つが、`damageModifier` の
     // `direction`／`condition` と、それが**別のスキル使用**である攻撃でどう効くかは
     // 表の外にある。同じ盤面・同じ1回の付与から2発撃ち分けて、差が相手のHP割合
@@ -720,7 +720,7 @@ describe("production Catalog UNIT_KOTOHA_REBEL (【世界への反逆者】コ�
     });
   });
 
-  it("IT-UNIT-KOTOHA-REBEL-006 (R-INT-01 #5, R-EFF-07): PS2が張った致死耐えは、後の致死ヒットをHP1で止めて `UnitDefeated` を出させず、最大HPの65%を回復したうえで自インスタンスの `LETHAL_DAMAGE` を1消費して失効する", () => {
+  it("IT-UNIT-KOTOHA-REBEL-006 [R-INT-01] (R-INT-01 #5, R-EFF-07): PS2が張った致死耐えは、後の致死ヒットをHP1で止めて `UnitDefeated` を出させず、最大HPの65%を回復したうえで自インスタンスの `LETHAL_DAMAGE` を1消費して失効する", () => {
     // `-001` のPS2行は付与時点の `consumption` 宣言までしか持てない。「致死かどうか」は
     // HPへ適用する量が確定して初めて決まるため、成立とその後始末は必ず**別のスキル
     // 使用**である被弾側の1発で起きる。

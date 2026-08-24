@@ -485,7 +485,7 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
     });
   });
 
-  it("IT-UNIT-LAYLA-ENTREPRENEUR-005 (R-HIT-05): PS1が配る実 ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT を保持する攻撃側は、実 ACT_FLUTE_VAMPIRE_PS2_EVASION を貫通して2ヒットとも当てる。回避を抜いた対照と、必中を抜いた対照の両方を並べる", () => {
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-005 [R-HIT-05] (R-HIT-05): PS1が配る実 ACT_LAYLA_ENTREPRENEUR_PS1_GUARANTEED_HIT を保持する攻撃側は、実 ACT_FLUTE_VAMPIRE_PS2_EVASION を貫通して2ヒットとも当てる。回避を抜いた対照と、必中を抜いた対照の両方を並べる", () => {
     // `-001` のPS1行は付与そのもの（`magnitude: 0`・`SKILL_USE(4)`・`GUARANTEED_HIT`）
     // までを固定する。必中が効くのは**保持者の以後の攻撃**＝別のスキル使用であり、
     // さらにこの機構は**どの単一定義にも帰属しない**（貫通される回避効果は別ユニット）。
@@ -532,7 +532,7 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
     expect(withoutGuaranteedHit.hpDeltas).toEqual({ "enemy:front": -500 });
   });
 
-  it("IT-UNIT-LAYLA-ENTREPRENEUR-007 (R-EFF-11 RESET, Issue #554): PS2の会心カウンタは、N到達がそのスキル最後の会心でなくても発動し、発動時に0へ戻る。到達後の余剰会心は次回へ繰り越さず、PS2自身の会心だけが0起点で乗る", () => {
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-007 [R-EFF-11] (R-EFF-11 RESET, Issue #554): PS2の会心カウンタは、N到達がそのスキル最後の会心でなくても発動し、発動時に0へ戻る。到達後の余剰会心は次回へ繰り越さず、PS2自身の会心だけが0起点で乗る", () => {
     // 実挙動: 会心が1ヒット出るたびに加算 → N到達で発動を予約 → スキルの全効果処理
     // 完了後にカウンタを0へ戻す → PSを実行（この攻撃の会心は0起点で加算される）。
     // `modulo` ゲートでは表せない — 1回の効果処理中に周期を通り越すため、到達後の
@@ -562,7 +562,7 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
     ]);
   });
 
-  it("IT-UNIT-LAYLA-ENTREPRENEUR-008 (R-EFF-11 RESET, Issue #554): 12ヒットのEXで全ヒット会心しても、PS2の発動は1回だけで、余剰の会心は破棄される", () => {
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-008 [R-EFF-11] (R-EFF-11 RESET, Issue #554): 12ヒットのEXで全ヒット会心しても、PS2の発動は1回だけで、余剰の会心は破棄される", () => {
     const cycle = observeCriticalCounterCycle({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -578,7 +578,7 @@ describe("production Catalog UNIT_LAYLA_ENTREPRENEUR (【戦うアントレプ�
     ]);
   });
 
-  it("IT-UNIT-LAYLA-ENTREPRENEUR-006 (R-CRT-04): PS2の「自身の最大HP×20%のダメージを与える攻撃」は会心判定を行わない — 同じPS2の威力159側は従来どおり会心する", () => {
+  it("IT-UNIT-LAYLA-ENTREPRENEUR-006 [R-CRT-04] (R-CRT-04): PS2の「自身の最大HP×20%のダメージを与える攻撃」は会心判定を行わない — 同じPS2の威力159側は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

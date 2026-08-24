@@ -120,7 +120,7 @@ describe("production Catalog MEM_THREE_MAIDS_HOSPITALITY (メイド３人のお�
     ).toEqual([]);
   });
 
-  it("IT-MEM-THREE-MAIDS-HOSPITALITY-004 (R-MEM-01): neither triggeredEffect emits MemoryTriggered when no ally carries CUTE or SMART", () => {
+  it("IT-MEM-THREE-MAIDS-HOSPITALITY-004 [R-MEM-01] (R-MEM-01): neither triggeredEffect emits MemoryTriggered when no ally carries CUTE or SMART", () => {
     // 境界（`08_ドメインイベント.md`「発動直前の再確認」）: 対象0件の
     // `triggeredEffect` は`MemoryTriggered`自体を発行しない。この Memory は
     // 2件とも属性で絞るため、既定の`AGGRESSIVE`だけの盤面では1件も発動しない。

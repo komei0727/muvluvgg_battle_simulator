@@ -107,7 +107,7 @@ describe("increaseExtraGaugeWithOverflow (R-ACT-03: EXゲージ増加後は最�
  * 「Property／Modelテスト」: EXゲージが最大値を超えない／リソースが負数にならない）。
  */
 describe("truncateFraction properties (R-NUM-02)", () => {
-  it("PROP-NUM-02-001: truncates toward zero and is idempotent", () => {
+  it("PROP-NUM-02-001 [R-NUM-02]: truncates toward zero and is idempotent", () => {
     fc.assert(
       fc.property(fc.double({ min: -1e6, max: 1e6, noNaN: true }), (value) => {
         const truncated = truncateFraction(value);
@@ -135,7 +135,7 @@ describe("increaseExtraGaugeWithOverflow properties (R-ACT-03)", () => {
       amount,
     }));
 
-  it("PROP-ACT-03-001: gauge never exceeds the maximum and stays non-negative", () => {
+  it("PROP-ACT-03-001 [R-ACT-03]: gauge never exceeds the maximum and stays non-negative", () => {
     fc.assert(
       fc.property(gaugeInputArb, ({ current, amount, max }) => {
         const result = increaseExtraGaugeWithOverflow(current, amount, max);
@@ -145,7 +145,7 @@ describe("increaseExtraGaugeWithOverflow properties (R-ACT-03)", () => {
     );
   });
 
-  it("PROP-ACT-03-002: conserves the requested amount (increased + discarded === amount)", () => {
+  it("PROP-ACT-03-002 [R-ACT-03]: conserves the requested amount (increased + discarded === amount)", () => {
     fc.assert(
       fc.property(gaugeInputArb, ({ current, amount, max }) => {
         const result = increaseExtraGaugeWithOverflow(current, amount, max);
@@ -159,7 +159,7 @@ describe("increaseExtraGaugeWithOverflow properties (R-ACT-03)", () => {
     );
   });
 
-  it("PROP-ACT-03-003: discards nothing while the result stays within capacity", () => {
+  it("PROP-ACT-03-003 [R-ACT-03]: discards nothing while the result stays within capacity", () => {
     fc.assert(
       fc.property(gaugeInputArb, ({ current, amount, max }) => {
         const result = increaseExtraGaugeWithOverflow(current, amount, max);

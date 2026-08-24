@@ -169,7 +169,7 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-PREFLIGHT-007 (R-ENH-05 #5): rejects with INVALID_COMMAND when a Unit without levelGrowth is given a level other than 200", () => {
+  it("UT-PREFLIGHT-007 [R-ENH-05] (R-ENH-05 #5): rejects with INVALID_COMMAND when a Unit without levelGrowth is given a level other than 200", () => {
     const cmd = command({
       allyFormation: {
         slots: [
@@ -196,7 +196,7 @@ describe("runPreflight", () => {
     }
   });
 
-  it("UT-PREFLIGHT-008 (R-ENH-05 #5): level 200 and an omitted level never consult levelGrowth", () => {
+  it("UT-PREFLIGHT-008 [R-ENH-05] (R-ENH-05 #5): level 200 and an omitted level never consult levelGrowth", () => {
     const withDefaultLevel = command({
       allyFormation: {
         slots: [
@@ -214,7 +214,7 @@ describe("runPreflight", () => {
     expect(() => runPreflight(withDefaultLevel, snapshot(), "NORMAL")).not.toThrow();
   });
 
-  it("UT-PREFLIGHT-009 (R-ENH-05 #2): a Unit that declares levelGrowth accepts any level", () => {
+  it("UT-PREFLIGHT-009 [R-ENH-05] (R-ENH-05 #2): a Unit that declares levelGrowth accepts any level", () => {
     const growingUnit: UnitDefinition = {
       ...unitDefinition("UNIT_001"),
       levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },

@@ -206,7 +206,7 @@ function assemble(
 }
 
 describe("assembleTacticalExerciseResult", () => {
-  it("UT-TEXASSEMBLER-001 (R-TEX-10 #1): packages the exercise result fields without an outcome", () => {
+  it("UT-TEXASSEMBLER-001 [R-TEX-10] (R-TEX-10 #1): packages the exercise result fields without an outcome", () => {
     const result = assemble({
       steps: [
         { kind: "SCORE", amount: 30, turnNumber: 1 },
@@ -223,7 +223,7 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result).not.toHaveProperty("outcome");
   });
 
-  it("UT-TEXASSEMBLER-002 (R-TEX-10 #2): projects breaks from UnitBroken in occurrence order, carrying breakNumber, turnNumber and the cumulative score at that break", () => {
+  it("UT-TEXASSEMBLER-002 [R-TEX-10] (R-TEX-10 #2): projects breaks from UnitBroken in occurrence order, carrying breakNumber, turnNumber and the cumulative score at that break", () => {
     const result = assemble({
       steps: [
         { kind: "SCORE", amount: 100, turnNumber: 1 },
@@ -243,7 +243,7 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.totalScore).toBe(145);
   });
 
-  it("UT-TEXASSEMBLER-003 (R-TEX-10 #2): projects breaks from the events before the log-level filter, so SUMMARY keeps the full break history", () => {
+  it("UT-TEXASSEMBLER-003 [R-TEX-10] (R-TEX-10 #2): projects breaks from the events before the log-level filter, so SUMMARY keeps the full break history", () => {
     const result = assemble({
       steps: [
         { kind: "SCORE", amount: 10, turnNumber: 1 },
@@ -264,7 +264,7 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.finalState).toBeUndefined();
   });
 
-  it("UT-TEXASSEMBLER-004 (R-TEX-10 #2): returns an empty break history when the enemy never broke", () => {
+  it("UT-TEXASSEMBLER-004 [R-TEX-10] (R-TEX-10 #2): returns an empty break history when the enemy never broke", () => {
     const result = assemble({
       steps: [{ kind: "SCORE", amount: 7, turnNumber: 1 }],
     });
@@ -273,7 +273,7 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.breakCount).toBe(0);
   });
 
-  it("UT-TEXASSEMBLER-008 (R-TEX-10 #2): resolves the break's source unit to its definition id through the roster", () => {
+  it("UT-TEXASSEMBLER-008 [R-TEX-10] (R-TEX-10 #2): resolves the break's source unit to its definition id through the roster", () => {
     const attackerId = createBattleUnitId("ally:1");
     const result = assemble({
       steps: [
@@ -294,7 +294,7 @@ describe("assembleTacticalExerciseResult", () => {
     ]);
   });
 
-  it("UT-TEXASSEMBLER-011 (R-TEX-10 #2／R-FRM-03): keeps the source participation slot distinguishable when two slots share one definition id", () => {
+  it("UT-TEXASSEMBLER-011 [R-TEX-10] (R-TEX-10 #2／R-FRM-03): keeps the source participation slot distinguishable when two slots share one definition id", () => {
     const firstSlotId = createBattleUnitId("ally:1");
     const secondSlotId = createBattleUnitId("ally:2");
     const sharedDefinitionId = createUnitDefinitionId("UNIT_KOTOHA_REBEL");
@@ -312,7 +312,7 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.breaks[0]?.sourceUnitId).toBe(secondSlotId);
   });
 
-  it("UT-TEXASSEMBLER-009 (R-TEX-10 #2／R-MEM-04): omits the source unit for a break with no source unit, such as a Memory-derived continuous damage", () => {
+  it("UT-TEXASSEMBLER-009 [R-TEX-10] (R-TEX-10 #2／R-MEM-04): omits the source unit for a break with no source unit, such as a Memory-derived continuous damage", () => {
     const result = assemble({
       steps: [
         { kind: "SCORE", amount: 40, turnNumber: 2 },
@@ -325,7 +325,7 @@ describe("assembleTacticalExerciseResult", () => {
     expect(result.breaks[0]).not.toHaveProperty("sourceUnitDefinitionId");
   });
 
-  it("UT-TEXASSEMBLER-010 (R-TEX-10 #2): rejects a break whose source unit is missing from the roster instead of silently reporting it as source-less", () => {
+  it("UT-TEXASSEMBLER-010 [R-TEX-10] (R-TEX-10 #2): rejects a break whose source unit is missing from the roster instead of silently reporting it as source-less", () => {
     const unknownId = createBattleUnitId("ally:absent");
     const input = {
       steps: [
@@ -343,7 +343,7 @@ describe("assembleTacticalExerciseResult", () => {
     }
   });
 
-  it("UT-TEXASSEMBLER-005 (R-TEX-10 #3): verifies state restoration over the exercise deltas, so initialState + every delta equals finalState", () => {
+  it("UT-TEXASSEMBLER-005 [R-TEX-10] (R-TEX-10 #3): verifies state restoration over the exercise deltas, so initialState + every delta equals finalState", () => {
     const result = assemble({
       steps: [
         { kind: "SCORE", amount: 60, turnNumber: 1 },
@@ -481,14 +481,14 @@ describe("assembleTacticalExerciseResult break enhancement restoration (R-TEX-04
     });
   }
 
-  it("UT-TEXASSEMBLER-006 (R-TEX-04 #4): accepts a revival whose baseCombatStats/combatStats deltas restore the enhanced stats of finalState", () => {
+  it("UT-TEXASSEMBLER-006 [R-TEX-04] (R-TEX-04 #4): accepts a revival whose baseCombatStats/combatStats deltas restore the enhanced stats of finalState", () => {
     const result = assembleRevival();
 
     expect(result.finalState!.units[ENEMY_ID]?.baseCombatStats).toEqual(ENHANCED_STATS);
     expect(result.breaks).toEqual([{ breakNumber: 1, turnNumber: 1, cumulativeScoreAtBreak: 0 }]);
   });
 
-  it("UT-TEXASSEMBLER-007 (R-TEX-04 #4): rejects a revival that changed the enhanced stats without carrying the baseCombatStats/combatStats deltas, because the restored state no longer matches finalState", () => {
+  it("UT-TEXASSEMBLER-007 [R-TEX-04] (R-TEX-04 #4): rejects a revival that changed the enhanced stats without carrying the baseCombatStats/combatStats deltas, because the restored state no longer matches finalState", () => {
     expect(() => assembleRevival({ omitStatsDelta: true })).toThrow(ApplicationError);
     try {
       assembleRevival({ omitStatsDelta: true });

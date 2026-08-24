@@ -132,7 +132,7 @@ describe("POST /api/v1/formation-stat-previews", () => {
     expect(unit.enhancedBaseStats.criticalRate).toBe(10);
   });
 
-  it("API-STAT-PREVIEW-008 (R-TEX-11 #5): passes mode through to the use case, and omits it when the request omits it", async () => {
+  it("API-STAT-PREVIEW-008 [R-TEX-11] (R-TEX-11 #5): passes mode through to the use case, and omits it when the request omits it", async () => {
     const commands: PreviewFormationStatsCommand[] = [];
     app = await buildServer(UNUSED_BATTLE_USE_CASE, {
       previewUseCase: previewUseCase((command) => {

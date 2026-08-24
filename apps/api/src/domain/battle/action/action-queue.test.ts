@@ -88,7 +88,7 @@ describe("createActionQueue", () => {
     expect(queue.entries).toEqual([]);
   });
 
-  it("UT-ACTION-QUEUE-003: reserves EX for a unit whose EX gauge is full, even with 0 AP", () => {
+  it("UT-ACTION-QUEUE-003 [R-ORD-03]: reserves EX for a unit whose EX gauge is full, even with 0 AP", () => {
     const exReady = unit("EX_READY", "ALLY", 10, { currentAp: 0, currentExtraGauge: 100 });
 
     const queue = createActionQueue([exReady]);
@@ -98,7 +98,7 @@ describe("createActionQueue", () => {
     ]);
   });
 
-  it("UT-ACTION-QUEUE-004: reserves AS for a unit with AP available and an EX gauge that is not full", () => {
+  it("UT-ACTION-QUEUE-004 [R-ORD-03]: reserves AS for a unit with AP available and an EX gauge that is not full", () => {
     const asReady = unit("AS_READY", "ALLY", 10, { currentAp: 3, currentExtraGauge: 0 });
 
     const queue = createActionQueue([asReady]);
@@ -120,7 +120,7 @@ describe("createActionQueue", () => {
     ]);
   });
 
-  it("UT-ACTION-QUEUE-007 (R-ORD-01 #3 部分実装: 気絶・凍結による阻害は対象外): a unit with 0 AP and a non-full EX gauge is still queue-eligible (as AS) while a charge is pending release", () => {
+  it("UT-ACTION-QUEUE-007 [R-ORD-01] (R-ORD-01 #3 部分実装: 気絶・凍結による阻害は対象外): a unit with 0 AP and a non-full EX gauge is still queue-eligible (as AS) while a charge is pending release", () => {
     const charging = unit("CHARGING", "ALLY", 10, {
       currentAp: 0,
       currentExtraGauge: 0,
@@ -147,7 +147,7 @@ describe("createActionQueue", () => {
 });
 
 describe("reorderRemainingQueue", () => {
-  it("UT-ACTION-QUEUE-008 (R-ORD-04 土台 / SCN-BTL-003): re-sorts entries by each unit's current action speed, preserving reservedActionKind", () => {
+  it("UT-ACTION-QUEUE-008 [R-ORD-03] (R-ORD-04 土台 / SCN-BTL-003): re-sorts entries by each unit's current action speed, preserving reservedActionKind", () => {
     const wasSlow = unit("WAS_SLOW", "ALLY", 5, { currentAp: 3 });
     const wasFast = unit("WAS_FAST", "ALLY", 20, { currentAp: 3, currentExtraGauge: 100 });
     const entries = createActionQueue([wasSlow, wasFast]).entries;
@@ -170,7 +170,7 @@ describe("reorderRemainingQueue", () => {
     expect(reordered.map((e) => e.reservedActionKind)).toEqual(["AS", "EX"]);
   });
 
-  it("UT-ACTION-QUEUE-009 (R-ORD-04): reorders only the given (unacted/remaining) entries, ignoring units absent from the entry list even if present in `units`", () => {
+  it("UT-ACTION-QUEUE-009 [R-ORD-04] (R-ORD-04): reorders only the given (unacted/remaining) entries, ignoring units absent from the entry list even if present in `units`", () => {
     const remaining = unit("REMAINING", "ALLY", 5, { currentAp: 3 });
     const alreadyActed = unit("ALREADY_ACTED", "ALLY", 20, { currentAp: 3 });
     const entries = createActionQueue([remaining]).entries;
@@ -182,7 +182,7 @@ describe("reorderRemainingQueue", () => {
     expect(reordered.map((e) => e.battleUnitId)).toEqual([createBattleUnitId("REMAINING")]);
   });
 
-  it("UT-ACTION-QUEUE-010: an empty entry list reorders to itself", () => {
+  it("UT-ACTION-QUEUE-010 [R-ORD-04]: an empty entry list reorders to itself", () => {
     expect(reorderRemainingQueue([], [])).toEqual([]);
   });
 });

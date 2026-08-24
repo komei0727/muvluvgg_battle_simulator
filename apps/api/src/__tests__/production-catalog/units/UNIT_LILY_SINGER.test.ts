@@ -367,7 +367,7 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
     ).toEqual([]);
   });
 
-  it("IT-UNIT-LILY-SINGER-004 (R-PS-01): PS1の「他の味方にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類で判定される — 被ダメージ補正のバフ／デバフは`magnitude`の符号ではなく`direction`で決まる", () => {
+  it("IT-UNIT-LILY-SINGER-004 [R-PS-01] (R-PS-01): PS1の「他の味方にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類で判定される — 被ダメージ補正のバフ／デバフは`magnitude`の符号ではなく`direction`で決まる", () => {
     // `-001` のPS1行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
     // 実 resolver に発行させたイベントにしか現れない。
@@ -402,7 +402,7 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
     });
   });
 
-  it("IT-UNIT-LILY-SINGER-005 (R-EFF-02): PS1の「デバフを5個解除」は `maxRemovals` で頭打ちになる — 6つ持っていても5つしか解除されず、6つ目は残る", () => {
+  it("IT-UNIT-LILY-SINGER-005 [R-EFF-02] (R-EFF-02): PS1の「デバフを5個解除」は `maxRemovals` で頭打ちになる — 6つ持っていても5つしか解除されず、6つ目は残る", () => {
     // `-001` のPS1行は解除対象を1つしか持たないため、上限そのものは現れない
     // （上限が無くても、上限が10でも同じ観測になる）。上限より1つ多い前提を
     // 実 production 定義で積んで、解除件数が5で止まることを固定する。
@@ -444,7 +444,7 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
     ]);
   });
 
-  it("IT-UNIT-LILY-SINGER-006 (R-SHD-01/R-EFF-09): PS2が配る実シールドは `EN` プールで、EN攻撃だけを受けて物理攻撃は素通りさせる。EN攻撃で削り切ると枯渇失効し、同じ連動グループの攻撃力バフも巻き添えで消える。付与の公開差分だけからも `EN` シールドを含む状態を復元できる", () => {
+  it("IT-UNIT-LILY-SINGER-006 [R-SHD-01] (R-SHD-01/R-EFF-09): PS2が配る実シールドは `EN` プールで、EN攻撃だけを受けて物理攻撃は素通りさせる。EN攻撃で削り切ると枯渇失効し、同じ連動グループの攻撃力バフも巻き添えで消える。付与の公開差分だけからも `EN` シールドを含む状態を復元できる", () => {
     // `-001` のPS2行は付与そのもの（`magnitude: 2500`＝自身の最大HP×25%・2行動）
     // までを固定するが、観測は `shieldType` も `linkedEffectGroupId` も持たない。
     // どちらも**以後に飛んでくる攻撃**で初めて差が出る（タイプなしプールでも同じ
@@ -555,7 +555,7 @@ describe("production Catalog UNIT_LILY_SINGER (【想い響かせるヒーロー
     expect(subjectIn(depleting.units).combatStats.attack).toBe(1000);
   });
 
-  it("IT-UNIT-LILY-SINGER-007 (R-CRT-04): EXの「自身の現在HP×75%のダメージを与えるEN攻撃」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
+  it("IT-UNIT-LILY-SINGER-007 [R-CRT-04] (R-CRT-04): EXの「自身の現在HP×75%のダメージを与えるEN攻撃」は会心判定を行わない — AS2の威力ベース攻撃は従来どおり会心する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

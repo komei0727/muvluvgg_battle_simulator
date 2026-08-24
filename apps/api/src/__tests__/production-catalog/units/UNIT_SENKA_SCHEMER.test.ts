@@ -339,7 +339,7 @@ describe("production Catalog UNIT_SENKA_SCHEMER (【自称腹黒の深謀策士�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-SENKA-SCHEMER-004 (R-SKL-07, R-ACTN-03): EXの実 `IS_ALIVE` BRANCHは `EffectStepStarting` を1件だけ発行し、その StateDelta だけからも独立Reducerが同じHPを復元する", () => {
+  it("IT-UNIT-SENKA-SCHEMER-004 [R-SKL-07] (R-SKL-07, R-ACTN-03): EXの実 `IS_ALIVE` BRANCHは `EffectStepStarting` を1件だけ発行し、その StateDelta だけからも独立Reducerが同じHPを復元する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       enemies: ENEMY_LEFT_LOWEST_HP,
     });
@@ -383,7 +383,7 @@ describe("production Catalog UNIT_SENKA_SCHEMER (【自称腹黒の深謀策士�
       expect(reconstructed.units[battleUnitId]?.hp).toBe(updated.currentHp);
     }
   });
-  it("IT-UNIT-SENKA-SCHEMER-005 (R-DOT-01/R-DOT-03): AS1が配る炎上は保持者自身の行動開始で発生し、付与時攻撃力×30%をシールドに一切吸われずHPへ通す。3つ重なった保持者では各インスタンスが2倍になる", () => {
+  it("IT-UNIT-SENKA-SCHEMER-005 [R-DOT-01, R-DOT-03] (R-DOT-01/R-DOT-03): AS1が配る炎上は保持者自身の行動開始で発生し、付与時攻撃力×30%をシールドに一切吸われずHPへ通す。3つ重なった保持者では各インスタンスが2倍になる", () => {
     // `-001` のAS1行は付与そのもの（`magnitude: 300`・3行動）までを固定する。
     // **発生**は保持者の以後の行動に属するためスキル使用1回の観測には載らない。
     // ここが引き受けるのは (1) 発生の契機が保持者自身の行動開始であること、
@@ -474,7 +474,7 @@ describe("production Catalog UNIT_SENKA_SCHEMER (【自称腹黒の深謀策士�
     ).toEqual(initialSnapshotFor(single.units, { include: ["effects"] }));
   });
 
-  it("IT-UNIT-SENKA-SCHEMER-006 (R-ACT-03/G-05): AS1が得るEXゲージの基礎量は消費APと同量で、保持中の獲得量補正がその一点だけを増減させる（-50%で1、+50%で3）", () => {
+  it("IT-UNIT-SENKA-SCHEMER-006 [R-ACT-04] (R-ACT-03/G-05): AS1が得るEXゲージの基礎量は消費APと同量で、保持中の獲得量補正がその一点だけを増減させる（-50%で1、+50%で3）", () => {
     // 獲得量補正は「抑止する側」（舞亜・カリナの定義）と「抑止される側」（AP2消費の
     // 実AS1を持つこのユニット）が別ユニットにあるためどの単一定義にも帰属しない。
     // retire基準3に従い、供給側（`IT-UNIT-MAIA-SALON-004`／`IT-UNIT-KARINA-DOWNER-008`）と

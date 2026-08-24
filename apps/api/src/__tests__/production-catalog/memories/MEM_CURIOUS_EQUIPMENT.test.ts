@@ -87,7 +87,7 @@ describe("production Catalog MEM_CURIOUS_EQUIPMENT (気になる装備)", () => 
     ]);
   });
 
-  it("IT-MEM-CURIOUS-EQUIPMENT-002 (R-MEM-03/R-MEM-04): the same Memory declared by the ENEMY side buffs that party instead and resolves side: ENEMY back onto the ALLY front row", () => {
+  it("IT-MEM-CURIOUS-EQUIPMENT-002 [R-MEM-03] (R-MEM-03/R-MEM-04): the same Memory declared by the ENEMY side buffs that party instead and resolves side: ENEMY back onto the ALLY front row", () => {
     expect(observeMemoryGrants(MEMORY_DEFINITION_ID, "ENEMY")).toEqual(
       mirroredForEnemyDeclaration(EXPECTED_GRANTS),
     );
@@ -105,7 +105,7 @@ describe("production Catalog MEM_CURIOUS_EQUIPMENT (気になる装備)", () => 
     ).toEqual([]);
   });
 
-  it("IT-MEM-CURIOUS-EQUIPMENT-004 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+  it("IT-MEM-CURIOUS-EQUIPMENT-004 [R-MEM-02] (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
     // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
     // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
     const observed = observeCoDeclaredMemories({

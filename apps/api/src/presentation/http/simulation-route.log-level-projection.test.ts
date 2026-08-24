@@ -137,7 +137,7 @@ describe("log level projection over the v1 API contract (REL-004)", () => {
     expect(summary.initialState.units.length).toBeGreaterThan(0);
   });
 
-  it("IT-REL-004-LOG-LEVEL-002 (10_API設計.md「公開レベル」): DETAILED publishes every event — skill/hit/damage/effect together with the two formerly DIAGNOSTIC-only ones", () => {
+  it("IT-REL-004-LOG-LEVEL-002 [R-ACT-03] (10_API設計.md「公開レベル」): DETAILED publishes every event — skill/hit/damage/effect together with the two formerly DIAGNOSTIC-only ones", () => {
     const types = new Set(detailed.events.map((event) => event.type));
     for (const required of [
       "SKILL_USE_STARTED",

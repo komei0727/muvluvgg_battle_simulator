@@ -42,7 +42,7 @@ describe("catalog-src/ inventory", () => {
     expect(source.memories.length).toBe(37);
   });
 
-  it("IT-CAT-INV-003: catalog-src/ has exactly the expected EXERCISE_ENEMY units", () => {
+  it("IT-CAT-INV-003 [R-TEX-11]: catalog-src/ has exactly the expected EXERCISE_ENEMY units", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     const exerciseEnemies = source.units
       .filter((unit) => (unit as { category?: string }).category === "EXERCISE_ENEMY")

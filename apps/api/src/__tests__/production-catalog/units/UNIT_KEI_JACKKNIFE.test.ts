@@ -416,7 +416,7 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-KEI-JACKKNIFE-004 (R-SKL-07, R-ACTN-03): AS2の実マーカーBRANCHは `EffectStepStarting` を1件だけ発行し、選ばれなかった腕のEffectActionを一切実行せず、その StateDelta だけからも独立Reducerが同じHPを復元する", () => {
+  it("IT-UNIT-KEI-JACKKNIFE-004 [R-SKL-07] (R-SKL-07, R-ACTN-03): AS2の実マーカーBRANCHは `EffectStepStarting` を1件だけ発行し、選ばれなかった腕のEffectActionを一切実行せず、その StateDelta だけからも独立Reducerが同じHPを復元する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, ROUSHIN);
     const skill = skillFrom(snapshot, "SKL_KEI_JACKKNIFE_AS2");
     const { recorder, rootEventId } = seedRecorder("B_KEI_BRANCH");
@@ -491,7 +491,7 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
     });
   });
 
-  it("IT-UNIT-KEI-JACKKNIFE-006 (R-ACTN-03, R-DMG-04): PS1の実 被ダメージ補正は `direction`／`damageType`／`UNIT_STATE` 条件を持ったまま `EffectApplied` の StateDelta へ載り、独立Reducerが同じ形を復元する。条件は被弾ごとに評価され、HP割合が65%を下回ると効かなくなる", () => {
+  it("IT-UNIT-KEI-JACKKNIFE-006 [R-DMG-04] (R-ACTN-03, R-DMG-04): PS1の実 被ダメージ補正は `direction`／`damageType`／`UNIT_STATE` 条件を持ったまま `EffectApplied` の StateDelta へ載り、独立Reducerが同じ形を復元する。条件は被弾ごとに評価され、HP割合が65%を下回ると効かなくなる", () => {
     // PS1は同じ解決で最大HPを20%上げるため、条件が見る割合の分母は12000になる。
     // `-001` のPS1行は付与時点の `magnitude`（-0.3）までを持つが、`damageModifier` の
     // 中身と、それが**別のスキル使用**である被弾でどう効くかは表の外にある。
@@ -560,7 +560,7 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
     expect(incomingMultiplierAt(5000)).toBe(1);
   });
 
-  it("IT-UNIT-KEI-JACKKNIFE-007 (R-PS-01/R-STS-01): PS2の「敵にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類だけで判定される — 状態異常はデバフを兼ね、被ダメージ補正は`magnitude`の符号ではなく`direction`で分かれる", () => {
+  it("IT-UNIT-KEI-JACKKNIFE-007 [R-PS-01, R-STS-01] (R-PS-01/R-STS-01): PS2の「敵にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類だけで判定される — 状態異常はデバフを兼ね、被ダメージ補正は`magnitude`の符号ではなく`direction`で分かれる", () => {
     // `-001` のPS2行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
     // 実 resolver に発行させたイベントにしか現れない。

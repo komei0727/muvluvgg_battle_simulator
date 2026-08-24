@@ -288,7 +288,7 @@ describe("assembleSimulationResult", () => {
     }
   });
 
-  it("UT-RESULT-ASSEMBLER-009 (R-SKL-05 regression): restores a real ChargeStarted->ChargeReleased StateDelta sequence without INTERNAL_INVARIANT_VIOLATION, even though each event independently builds its own ChargeState payload object", () => {
+  it("UT-RESULT-ASSEMBLER-009 [R-SKL-05] (R-SKL-05 regression): restores a real ChargeStarted->ChargeReleased StateDelta sequence without INTERNAL_INVARIANT_VIOLATION, even though each event independently builds its own ChargeState payload object", () => {
     const UNIT_A = createBattleUnitId("unit-a");
     const skillDefinitionId = createSkillDefinitionId("SKL_CHARGE");
     const startedActionId = createActionId("battle-1:action:1");

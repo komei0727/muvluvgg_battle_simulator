@@ -355,7 +355,7 @@ describe("production Catalog UNIT_SHOUKA_SCHEMER (【風紀委員会の策謀家
     ).toEqual([]);
   });
 
-  it("IT-UNIT-SHOUKA-SCHEMER-004 (R-EFF-02): AS3の分岐は `statKinds: [ATTACK]` で絞り込むため、防御力デバフを持つ対象では40%増加せず通常版が走る（絞り込みが無ければ「何らかのデバフ」への近似が残る）", () => {
+  it("IT-UNIT-SHOUKA-SCHEMER-004 [R-EFF-02] (R-EFF-02): AS3の分岐は `statKinds: [ATTACK]` で絞り込むため、防御力デバフを持つ対象では40%増加せず通常版が走る（絞り込みが無ければ「何らかのデバフ」への近似が残る）", () => {
     const observe = (precedingActions: readonly PrecedingAction[]) =>
       observeSkillUse({
         snapshot,
@@ -398,7 +398,7 @@ describe("production Catalog UNIT_SHOUKA_SCHEMER (【風紀委員会の策謀家
     });
   });
 
-  it("IT-UNIT-SHOUKA-SCHEMER-005 (R-EFF-02): EXは「3つまで」・AS3は「1つ」で解除件数が頭打ちになり、どちらも対象は敵であって使用者自身のバフには触れない", () => {
+  it("IT-UNIT-SHOUKA-SCHEMER-005 [R-EFF-02] (R-EFF-02): EXは「3つまで」・AS3は「1つ」で解除件数が頭打ちになり、どちらも対象は敵であって使用者自身のバフには触れない", () => {
     // `-001` のEX／AS3行は解除対象を敵1体につき1つしか持たないため、上限そのものは
     // 現れない（上限が無くても同じ観測になる）。上限より多い前提を実 production 定義で
     // 積み、あわせて同じバフを使用者自身にも持たせて、対象束縛が `SELF` へ倒れていない

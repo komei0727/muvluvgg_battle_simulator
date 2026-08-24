@@ -90,7 +90,7 @@ describe("ExerciseRuntime (R-TEX-02 スコア定義)", () => {
     expect(exercise.snapshot()).toEqual({ totalScore: 0, breakCount: 2 });
   });
 
-  it("PROP-TEX-006: the cumulative score stays within [0, sum of the accumulated amounts] under any interleaving of accumulation and deduction", () => {
+  it("PROP-TEX-006 [R-TEX-02]: the cumulative score stays within [0, sum of the accumulated amounts] under any interleaving of accumulation and deduction", () => {
     fc.assert(
       fc.property(
         fc.array(
@@ -123,7 +123,7 @@ describe("ExerciseRuntime (R-TEX-02 スコア定義)", () => {
     );
   });
 
-  it("PROP-TEX-001: accumulation alone never decreases the cumulative score and always equals the sum of the accountable amounts", () => {
+  it("PROP-TEX-001 [R-TEX-02]: accumulation alone never decreases the cumulative score and always equals the sum of the accountable amounts", () => {
     fc.assert(
       fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 40 }), (amounts) => {
         const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);

@@ -620,7 +620,7 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-TATIANA-SAGE-004: EXの対象別振り分けは1つの解決スコープ・1つの因果木に収まり、StateDeltaを伴うイベントだけが stateVersion を1進める", () => {
+  it("IT-UNIT-TATIANA-SAGE-004 [R-DMG-04, R-SKL-06]: EXの対象別振り分けは1つの解決スコープ・1つの因果木に収まり、StateDeltaを伴うイベントだけが stateVersion を1進める", () => {
     const { emitted, board } = fireEx();
 
     const root = emitted[0]!;
@@ -659,7 +659,7 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
     expect(board.units).toHaveLength(6);
   });
 
-  it("IT-UNIT-TATIANA-SAGE-005 (R-EFF-07/R-DMG-02): 「次の攻撃での与ダメージを100％減少」は与ダメージ倍率を0まで落とし、その攻撃で消費されて失効する。デバフを持たない対象は影響を受けない", () => {
+  it("IT-UNIT-TATIANA-SAGE-005 [R-DMG-02, R-DMG-04, R-EFF-07] (R-EFF-07/R-DMG-02): 「次の攻撃での与ダメージを100％減少」は与ダメージ倍率を0まで落とし、その攻撃で消費されて失効する。デバフを持たない対象は影響を受けない", () => {
     const fired = fireEx();
     const undebuffed = "enemy:front";
     const debuffed = "enemy:left";
@@ -703,7 +703,7 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
     ).toBe(controlDamage);
   });
 
-  it("IT-UNIT-TATIANA-SAGE-006: EXの混在解決は、公開差分だけを素の盤面へ当て直すだけで同じ状態へ復元できる", () => {
+  it("IT-UNIT-TATIANA-SAGE-006 [R-DMG-04, R-SKL-06]: EXの混在解決は、公開差分だけを素の盤面へ当て直すだけで同じ状態へ復元できる", () => {
     const { board, units, emitted } = fireEx();
     const snapshotOf = (state: readonly BattleUnit[]) =>
       initialSnapshotFor(state, { include: ["effects", "markers"] });
@@ -727,7 +727,7 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
     ).toBe(1);
   });
 
-  it("IT-UNIT-TATIANA-SAGE-007 (R-ACT-02): AS2の実 NOT(TARGET_HAS_MARKER「深慮」) は行動選択層で評価され、「深慮」を持つとAS2が候補から外れて宣言順の次のAS3が選ばれる", () => {
+  it("IT-UNIT-TATIANA-SAGE-007 [R-ACT-02] (R-ACT-02): AS2の実 NOT(TARGET_HAS_MARKER「深慮」) は行動選択層で評価され、「深慮」を持つとAS2が候補から外れて宣言順の次のAS3が選ばれる", () => {
     // 宣言順の先頭はAS1なので、AS2の発動条件が選択に効く局面はAS1が使えないとき。
     // クールタイム中（R-ACT-02の別条件）にして、その次のASから評価させる。
     const AS1_COOLING: BoardOverrides = {
@@ -755,7 +755,7 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
     ).toBe("SKL_TATIANA_SAGE_AS3");
   });
 
-  it("IT-UNIT-TATIANA-SAGE-008 (BOUNDARY, R-SKL-06): EXの対象別条件 `TARGET_HAS_MARKER(「凶兆」GTE 2)` としきい値未満の補集合は、同じ1回の使用の中で0個・1個・2個・3個の対象を取り違えずに振り分ける", () => {
+  it("IT-UNIT-TATIANA-SAGE-008 [R-SKL-06] (BOUNDARY, R-SKL-06): EXの対象別条件 `TARGET_HAS_MARKER(「凶兆」GTE 2)` としきい値未満の補集合は、同じ1回の使用の中で0個・1個・2個・3個の対象を取り違えずに振り分ける", () => {
     expect(
       observeSkillUse({
         snapshot,
@@ -874,7 +874,7 @@ describe("production Catalog UNIT_TATIANA_SAGE (【理解深き老成の智者�
     });
   });
 
-  it("IT-UNIT-TATIANA-SAGE-010 (R-DTH-01): AS1が付けた幻惑は、以後その敵が放つ攻撃を production の `healRate: 0.7` でタチアナへの回復へ変換する。HP変化のStateDeltaはこのイベントだけが持つ", () => {
+  it("IT-UNIT-TATIANA-SAGE-010 [R-DTH-01] (R-DTH-01): AS1が付けた幻惑は、以後その敵が放つ攻撃を production の `healRate: 0.7` でタチアナへの回復へ変換する。HP変化のStateDeltaはこのイベントだけが持つ", () => {
     // 付与とその効果が働く攻撃は別のスキル使用であり、`-001` の振る舞い表は
     // 前者しか表せない。`statusKind: DAMAGE_TO_HEAL` までは `-001` が持つが、
     // `healRate` と「ダメージが一切入らず回復になる」ことは持てない。

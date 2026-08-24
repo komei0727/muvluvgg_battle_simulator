@@ -152,7 +152,7 @@ function memoryCandidateOf(memoryDefinitionId: string, memoryIndex: number): Mem
 }
 
 describe("resolvePassiveChain", () => {
-  it("UT-R-PS-06-007 / SCN-BTL-007: a 3+ stage immediate chain resolves depth-first and returns to the parent group for its remaining candidate", () => {
+  it("UT-R-PS-06-007 [R-PS-06, R-PS-07] / SCN-BTL-007: a 3+ stage immediate chain resolves depth-first and returns to the parent group for its remaining candidate", () => {
     const unitA = unit("A");
     const unitB = unit("B");
     const unitC = unit("C");
@@ -228,7 +228,7 @@ describe("resolvePassiveChain", () => {
     }
   });
 
-  it("UT-R-ATM-01-001: a candidate detected mid-EffectSequence is held back until the whole effect processing finished (no interruption)", () => {
+  it("UT-R-ATM-01-001 [R-ATM-01, R-PS-06]: a candidate detected mid-EffectSequence is held back until the whole effect processing finished (no interruption)", () => {
     // R-ATM-01「1回のスキル効果処理の途中に、他のスキル効果処理を開始しない」:
     // 親の効果Aが子PSの候補を生んでも、親の効果Bと親の完了までは発動しない。
     const unitParent = unit("PARENT");
@@ -612,7 +612,7 @@ describe("resolvePassiveChain", () => {
     expect(result).toEqual({ ok: false, reason: "MAX_EFFECTS_PER_SCOPE_EXCEEDED" });
   });
 
-  it("UT-GUARD-012 (R-ATM-02): draining a pending queue shares the effects-resolved guard across every queued group — several groups that are each under the limit still trip it once their total exceeds it", () => {
+  it("UT-GUARD-012 [R-ATM-02] (R-ATM-02): draining a pending queue shares the effects-resolved guard across every queued group — several groups that are each under the limit still trip it once their total exceeds it", () => {
     // `R-ATM-02`「PS深度・効果解決数の実行ガードは従来どおり1解決スコープ単位で
     // 数える」: 保留キューをグループごとに別々の解決へ分けると、各グループが
     // 上限未満のまま合計が上限を超える連鎖を検出できなくなる。
@@ -644,7 +644,7 @@ describe("resolvePassiveChain", () => {
     expect(activated).toEqual(["SKL_E1", "SKL_E2", "SKL_E3"]);
   });
 
-  it("UT-GUARD-013 (R-ATM-02): the same pending queue completes when its total stays within the limit, so the shared counter does not over-trigger", () => {
+  it("UT-GUARD-013 [R-ATM-02] (R-ATM-02): the same pending queue completes when its total stays within the limit, so the shared counter does not over-trigger", () => {
     const owner = unit("A");
     const groups = ["E1", "E2"].map((eventType) => ({
       event: event(eventType),

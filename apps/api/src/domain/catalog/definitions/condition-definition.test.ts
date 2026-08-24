@@ -540,7 +540,7 @@ describe("ConditionDefinition", () => {
  * `EFFECT_IMMUNITY`のselector形と同じく、カテゴリ一致にANDで重ねる。
  */
 describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
-  it("UT-CAT-COND-037: maps a bare category query, defaulting every narrowing filter to absent", () => {
+  it("UT-CAT-COND-037 [R-EFF-02]: maps a bare category query, defaulting every narrowing filter to absent", () => {
     const result = createConditionDefinition(
       {
         kind: "TARGET_HAS_EFFECT",
@@ -558,7 +558,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     });
   });
 
-  it("UT-CAT-COND-038: maps both narrowing filters (continuousDamageKinds / statKinds)", () => {
+  it("UT-CAT-COND-038 [R-EFF-02]: maps both narrowing filters (continuousDamageKinds / statKinds)", () => {
     const result = createConditionDefinition(
       {
         kind: "TARGET_HAS_EFFECT",
@@ -580,7 +580,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     });
   });
 
-  it("UT-CAT-COND-039: rejects an empty categories array (a query that can never match)", () => {
+  it("UT-CAT-COND-039 [R-EFF-02]: rejects an empty categories array (a query that can never match)", () => {
     expect(() =>
       createConditionDefinition(
         { kind: "TARGET_HAS_EFFECT", target: { kind: "SELF" }, categories: [] },
@@ -590,7 +590,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-COND-040: rejects MARKER and SPECIFIC_EFFECT categories, which TARGET_HAS_MARKER and a definition-id match own instead", () => {
+  it("UT-CAT-COND-040 [R-EFF-02]: rejects MARKER and SPECIFIC_EFFECT categories, which TARGET_HAS_MARKER and a definition-id match own instead", () => {
     for (const category of ["MARKER", "SPECIFIC_EFFECT"]) {
       expect(() =>
         createConditionDefinition(
@@ -602,7 +602,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     }
   });
 
-  it("UT-CAT-COND-041: rejects an unknown or empty value in any narrowing filter", () => {
+  it("UT-CAT-COND-041 [R-EFF-02]: rejects an unknown or empty value in any narrowing filter", () => {
     for (const narrowing of [
       { continuousDamageKinds: ["NOT_A_DOT"] },
       { statKinds: ["NOT_A_STAT"] },
@@ -624,7 +624,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     }
   });
 
-  it("UT-CAT-COND-042: rejects a narrowing filter that its categories can never reach", () => {
+  it("UT-CAT-COND-042 [R-EFF-02]: rejects a narrowing filter that its categories can never reach", () => {
     // `continuousDamageKinds`は`APPLY_CONTINUOUS_DAMAGE`（`DEBUFF`、うち炎上・毒は
     // `STATUS`も）だけが、`statKinds`は`APPLY_STAT_MOD`（符号で`BUFF`/`DEBUFF`）だけが
     // 持つ。`SHIELD`だけを問い合わせる条件へ重ねると実行時に一切一致しない「黙って
@@ -760,7 +760,7 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     ).toMatchObject({ continuousDamageKinds: ["FIXED"] });
   });
 
-  it("UT-CAT-COND-043: rejects a typo'd sibling key and a BINDING target outside the declared scope", () => {
+  it("UT-CAT-COND-043 [R-EFF-02]: rejects a typo'd sibling key and a BINDING target outside the declared scope", () => {
     expect(() =>
       createConditionDefinition(
         {

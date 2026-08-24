@@ -299,7 +299,7 @@ describe("production Catalog UNIT_SHIRANA_LUCKY (【純白のラッキーガー�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-SHIRANA-LUCKY-004 (R-SHD-01第3項): EXが配る実シールドは1行動につき付与最大値の25%ずつ減り、4行動目でちょうど枯渇して `SHIELD_DEPLETED` で失効する。期間宣言を一切持たないため、漸減そのものが消滅契機になる", () => {
+  it("IT-UNIT-SHIRANA-LUCKY-004 [R-SHD-01] (R-SHD-01第3項): EXが配る実シールドは1行動につき付与最大値の25%ずつ減り、4行動目でちょうど枯渇して `SHIELD_DEPLETED` で失効する。期間宣言を一切持たないため、漸減そのものが消滅契機になる", () => {
     // `-001` のEX行は付与そのもの（`magnitude: 10000`＝最大HP×100%）までを固定し、
     // `timeLimit` を持たないことも `toEqual` の完全一致で表している。**漸減は以後の
     // 行動ごとに起きる**ためスキル使用1回の観測には載らず、`duration` を一切動かさない

@@ -295,7 +295,7 @@ describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-LILY-HERO-004 (R-ACT-02): AS1の実 NOT(TARGET_STATE HP_RATIO LT 0.2) は行動選択層で評価され、HP20%未満ではAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
+  it("IT-UNIT-LILY-HERO-004 [R-ACT-02] (R-ACT-02): AS1の実 NOT(TARGET_STATE HP_RATIO LT 0.2) は行動選択層で評価され、HP20%未満ではAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
     // 既定盤面のHP割合は50%。
     expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
       "SKL_LILY_HERO_AS1",
@@ -319,7 +319,7 @@ describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリ�
     ).toBe("SKL_LILY_HERO_AS2");
   });
 
-  it("IT-UNIT-LILY-HERO-005 (R-ACTN-02): AS1のHP支払いは公開差分を持つ `ResourceChanged` として現れ、開始前スナップショットへそれだけを当て直すと同じHPへ復元できる。残HPが支払い額に満たない場合は `bounds.min: 0` で0止まりになり、負のHPにはならない", () => {
+  it("IT-UNIT-LILY-HERO-005 [R-ACTN-02] (R-ACTN-02): AS1のHP支払いは公開差分を持つ `ResourceChanged` として現れ、開始前スナップショットへそれだけを当て直すと同じHPへ復元できる。残HPが支払い額に満たない場合は `bounds.min: 0` で0止まりになり、負のHPにはならない", () => {
     // `-001` のAS1行は支払い額そのもの（最大HP10000の10%＝1000。現在HP5000基準では
     // ないこと）を `hpDeltas` で固定する。ここが引き受けるのはその外側の2点 —
     // 支払いが「イベントに出ない副作用」になっていないことと、`bounds.min` の境界で
@@ -371,7 +371,7 @@ describe("production Catalog UNIT_LILY_HERO (【正義のヒーロー】リリ�
     );
   });
 
-  it("IT-UNIT-LILY-HERO-006 (R-CRT-04): AS1の「消費HP×319.8%のダメージ」は会心判定を行う — 消費した資源へ威力倍率を掛ける攻撃であり、同じ最大HP割合Formulaでもレイラの「最大HP×20%分」とは逆の宣言になる", () => {
+  it("IT-UNIT-LILY-HERO-006 [R-CRT-04] (R-CRT-04): AS1の「消費HP×319.8%のダメージ」は会心判定を行う — 消費した資源へ威力倍率を掛ける攻撃であり、同じ最大HP割合Formulaでもレイラの「最大HP×20%分」とは逆の宣言になる", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

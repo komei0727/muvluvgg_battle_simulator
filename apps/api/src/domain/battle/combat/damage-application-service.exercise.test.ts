@@ -394,7 +394,7 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
     });
   });
 
-  it("UT-R-TEX-03-005: resolves an exercise enemy's HP-0 arrival as a break — UnitBroken and UnitRevived instead of UnitDefeated, with the enemy never observable as DEFEATED", () => {
+  it("UT-R-TEX-03-005 [R-TEX-03, R-TEX-06]: resolves an exercise enemy's HP-0 arrival as a break — UnitBroken and UnitRevived instead of UnitDefeated, with the enemy never observable as DEFEATED", () => {
     const enemyStats = { defense: 10, maximumHp: 15 };
     const exercise = exerciseRuntime(enemyStats);
     const target = unit("TARGET", "ENEMY", enemyStats);

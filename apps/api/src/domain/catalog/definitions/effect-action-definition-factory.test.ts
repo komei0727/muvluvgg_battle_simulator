@@ -1101,7 +1101,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-075: rejects EFFECT_IMMUNITY statusKinds containing a StatusKind that is schema-valid but not a status ailment (R-STS-01 only classifies STUN/FREEZE/BLIND as STATUS at runtime — anything else, e.g. STEALTH, would silently never block)", () => {
+  it("UT-CAT-ACT-075 [R-STS-01]: rejects EFFECT_IMMUNITY statusKinds containing a StatusKind that is schema-valid but not a status ailment (R-STS-01 only classifies STUN/FREEZE/BLIND as STATUS at runtime — anything else, e.g. STEALTH, would silently never block)", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -1160,7 +1160,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-118 (R-CRT-04): rejects a DAMAGE whose formula derives from a hit point ratio when critical.mode is omitted", () => {
+  it("UT-CAT-ACT-118 [R-CRT-04] (R-CRT-04): rejects a DAMAGE whose formula derives from a hit point ratio when critical.mode is omitted", () => {
     const hpRatioFormulas = [
       { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.125 },
       { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: 0.2 },
@@ -1195,7 +1195,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-119 (R-CRT-04): accepts a hit point ratio DAMAGE with either declared mode — 「HP×N%分のダメージ」はPREVENTED、「消費分HP×N%のダメージ」はNORMAL", () => {
+  it("UT-CAT-ACT-119 [R-CRT-04] (R-CRT-04): accepts a hit point ratio DAMAGE with either declared mode — 「HP×N%分のダメージ」はPREVENTED、「消費分HP×N%のダメージ」はNORMAL", () => {
     const build = (mode: string) =>
       createEffectActionDefinition(
         {
@@ -1218,7 +1218,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-120 (R-CRT-04): formulas that are not hit point derived keep defaulting to NORMAL — 固定値と反撃量は宣言必須の族に入らない", () => {
+  it("UT-CAT-ACT-120 [R-CRT-04] (R-CRT-04): formulas that are not hit point derived keep defaulting to NORMAL — 固定値と反撃量は宣言必須の族に入らない", () => {
     const outside = [
       { kind: "CONSTANT", value: 100 },
       { kind: "DAMAGE_RECEIVED_RATIO", sourceResult: "LAST_DAMAGE_RECEIVED", ratio: 1.2 },
@@ -1956,7 +1956,7 @@ describe("EffectActionDefinition", () => {
 
   // --- Issue #129: COOLDOWN_MANIPULATION ---
 
-  it("UT-CAT-ACT-056: maps COOLDOWN_MANIPULATION with operation RESET and no amount", () => {
+  it("UT-CAT-ACT-056 [R-SKL-09]: maps COOLDOWN_MANIPULATION with operation RESET and no amount", () => {
     const result = createEffectActionDefinition(
       {
         effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_CD_RESET",
@@ -1973,7 +1973,7 @@ describe("EffectActionDefinition", () => {
     });
   });
 
-  it("UT-CAT-ACT-057: maps COOLDOWN_MANIPULATION with operation REDUCE and a required amount", () => {
+  it("UT-CAT-ACT-057 [R-SKL-09]: maps COOLDOWN_MANIPULATION with operation REDUCE and a required amount", () => {
     const result = createEffectActionDefinition(
       {
         effectActionDefinitionId: "ACT_MERU_PS1_CD_REDUCE",
@@ -1996,7 +1996,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-058: rejects COOLDOWN_MANIPULATION REDUCE without an amount", () => {
+  it("UT-CAT-ACT-058 [R-SKL-09]: rejects COOLDOWN_MANIPULATION REDUCE without an amount", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -2009,7 +2009,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-059: rejects COOLDOWN_MANIPULATION REDUCE with a non-positive amount", () => {
+  it("UT-CAT-ACT-059 [R-SKL-09]: rejects COOLDOWN_MANIPULATION REDUCE with a non-positive amount", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -2026,7 +2026,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-060: rejects COOLDOWN_MANIPULATION with an unknown operation", () => {
+  it("UT-CAT-ACT-060 [R-SKL-09]: rejects COOLDOWN_MANIPULATION with an unknown operation", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -2039,7 +2039,7 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-ACT-061: rejects COOLDOWN_MANIPULATION with a targetSkillDefinitionId missing the SKL_ prefix", () => {
+  it("UT-CAT-ACT-061 [R-SKL-09]: rejects COOLDOWN_MANIPULATION with a targetSkillDefinitionId missing the SKL_ prefix", () => {
     expect(() =>
       createEffectActionDefinition(
         {
@@ -2054,7 +2054,7 @@ describe("EffectActionDefinition", () => {
 
   // M7-012（Issue #266、R-EFF-05／`STACK_LIMIT_ON_STAT_MOD`）: `APPLY_STAT_MOD`の
   // 重複なし表現（`NON_STACKABLE`）と重複上限（`stacking.max`）。
-  it("UT-CAT-ACT-079: maps APPLY_STAT_MOD with NON_STACKABLE stacking (R-EFF-05)", () => {
+  it("UT-CAT-ACT-079 [R-EFF-05]: maps APPLY_STAT_MOD with NON_STACKABLE stacking (R-EFF-05)", () => {
     const result = createEffectActionDefinition(
       {
         effectActionDefinitionId: "ACT_STAT_MOD_NON_STACKABLE",
@@ -2075,7 +2075,7 @@ describe("EffectActionDefinition", () => {
     });
   });
 
-  it("UT-CAT-ACT-080: maps APPLY_STAT_MOD stacking.max and accepts an explicit null (no limit)", () => {
+  it("UT-CAT-ACT-080 [R-EFF-05]: maps APPLY_STAT_MOD stacking.max and accepts an explicit null (no limit)", () => {
     for (const [max, expected] of [
       [14, 14],
       [1, 1],
@@ -2102,7 +2102,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-081: rejects a non-positive or fractional APPLY_STAT_MOD stacking.max", () => {
+  it("UT-CAT-ACT-081 [R-EFF-05]: rejects a non-positive or fractional APPLY_STAT_MOD stacking.max", () => {
     for (const max of [0, -1, 1.5]) {
       expect(() =>
         createEffectActionDefinition(
@@ -2123,7 +2123,7 @@ describe("EffectActionDefinition", () => {
     }
   });
 
-  it("UT-CAT-ACT-082: rejects NON_STACKABLE and stacking.max on the other stacking-bearing kinds", () => {
+  it("UT-CAT-ACT-082 [R-EFF-05]: rejects NON_STACKABLE and stacking.max on the other stacking-bearing kinds", () => {
     const payloadsByKind = {
       APPLY_DAMAGE_MOD: {
         direction: "OUTGOING",
@@ -2184,7 +2184,7 @@ describe("EffectActionDefinition", () => {
       },
     } as const;
 
-    it("UT-CAT-ACT-115: maps a declared kindKey onto the definition", () => {
+    it("UT-CAT-ACT-115 [R-STA-03]: maps a declared kindKey onto the definition", () => {
       const result = createEffectActionDefinition(
         { ...base, kindKey: "KIND_ELENA_MOODMAKER_EX_ATK_UP" },
         "effectAction",
@@ -2192,13 +2192,13 @@ describe("EffectActionDefinition", () => {
       expect(result.kindKey).toBe("KIND_ELENA_MOODMAKER_EX_ATK_UP");
     });
 
-    it("UT-CAT-ACT-116: omits kindKey entirely when the definition does not declare one", () => {
+    it("UT-CAT-ACT-116 [R-STA-03]: omits kindKey entirely when the definition does not declare one", () => {
       const result = createEffectActionDefinition(base, "effectAction");
       expect(result.kindKey).toBeUndefined();
       expect("kindKey" in result).toBe(false);
     });
 
-    it("UT-CAT-ACT-117: rejects a kindKey missing the KIND_ prefix", () => {
+    it("UT-CAT-ACT-117 [R-STA-03]: rejects a kindKey missing the KIND_ prefix", () => {
       for (const kindKey of ["ACT_STAT_MOD_KIND_KEY", "ATK_UP", ""]) {
         expect(() => createEffectActionDefinition({ ...base, kindKey }, "effectAction")).toThrow(
           DomainValidationError,
@@ -2493,7 +2493,7 @@ describe("EffectActionDefinition", () => {
       dispellable: true,
     };
 
-    it("UT-CAT-ACT-111: maps APPLY_FOLLOW_UP_ATTACK with damage and an onHitEffect reference", () => {
+    it("UT-CAT-ACT-111 [R-FUP-01]: maps APPLY_FOLLOW_UP_ATTACK with damage and an onHitEffect reference", () => {
       const result = createEffectActionDefinition(
         {
           effectActionDefinitionId: "ACT_FOLLOW_UP_1",
@@ -2520,7 +2520,7 @@ describe("EffectActionDefinition", () => {
       }
     });
 
-    it("UT-CAT-ACT-112: maps APPLY_FOLLOW_UP_ATTACK without onHitEffect (damage only)", () => {
+    it("UT-CAT-ACT-112 [R-FUP-01]: maps APPLY_FOLLOW_UP_ATTACK without onHitEffect (damage only)", () => {
       const result = createEffectActionDefinition(
         {
           effectActionDefinitionId: "ACT_FOLLOW_UP_2",
@@ -2538,7 +2538,7 @@ describe("EffectActionDefinition", () => {
       }
     });
 
-    it("UT-CAT-ACT-113: rejects a duration whose consumption is missing or not NEXT_OUTGOING_ATTACK", () => {
+    it("UT-CAT-ACT-113 [R-FUP-01]: rejects a duration whose consumption is missing or not NEXT_OUTGOING_ATTACK", () => {
       for (const duration of [
         { timeLimit: { unit: "ACTION", count: 1 }, dispellable: true },
         { consumption: { kind: "OUTGOING_HIT", maxCount: 1 }, dispellable: true },
@@ -2559,7 +2559,7 @@ describe("EffectActionDefinition", () => {
       }
     });
 
-    it("UT-CAT-ACT-114: rejects unknown keys and missing damage fields", () => {
+    it("UT-CAT-ACT-114 [R-FUP-01]: rejects unknown keys and missing damage fields", () => {
       for (const payload of [
         {
           damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 }, extra: 1 },

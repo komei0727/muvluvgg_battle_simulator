@@ -106,7 +106,7 @@ describe("production Catalog MEM_STRANGERS (STRANGERS)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-STRANGERS-004 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+  it("IT-MEM-STRANGERS-004 [R-MEM-02] (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
     // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
     // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
     const observed = observeCoDeclaredMemories({

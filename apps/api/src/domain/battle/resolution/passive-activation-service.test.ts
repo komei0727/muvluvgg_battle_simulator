@@ -35,7 +35,7 @@ import {
 } from "../../../testing/fixtures/passive-activation-runtime.js";
 
 describe("PassiveActivationRuntime.onFactEvent", () => {
-  it("UT-R-PS-05-001: consumes PP, increases the EX gauge by the same amount, sets the cooldown, and emits PassiveActivated with correct before/after values in order", () => {
+  it("UT-R-PS-05-001 [R-ACT-03, R-PS-05]: consumes PP, increases the EX gauge by the same amount, sets the cooldown, and emits PassiveActivated with correct before/after values in order", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_PS", {
       ppCost: 2,
@@ -108,7 +108,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(events.find((e) => e.eventType === "TurnStarted")!.skillUseId).toBeUndefined();
   });
 
-  it("UT-R-PS-05-002: clamps the EX gain at the max and emits ExtraGaugeOverflowDiscarded with the requested/actual/discarded split", () => {
+  it("UT-R-PS-05-002 [R-ACT-03, R-PS-05]: clamps the EX gain at the max and emits ExtraGaugeOverflowDiscarded with the requested/actual/discarded split", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_OWNER");
     const skill = passiveSkillOf("SKL_PS", { ppCost: 3 });
     const owner = unit("OWNER", "ALLY", {
@@ -867,7 +867,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     expect(childPassiveActivatedEvents).toHaveLength(1);
   });
 
-  it("UT-R-EFF-09-030: a PS's own DAMAGE action against a frozen target with a linked-group sibling records the cascade's EffectExpired before FreezeRemoved (R-EFF-09 detection granularity), while the reacting child PS activates only after the parent's effect processing (R-ATM-01)", () => {
+  it("UT-R-EFF-09-030 [R-ATM-01, R-EFF-09]: a PS's own DAMAGE action against a frozen target with a linked-group sibling records the cascade's EffectExpired before FreezeRemoved (R-EFF-09 detection granularity), while the reacting child PS activates only after the parent's effect processing (R-ATM-01)", () => {
     const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_FREEZE");
     const childUnitDefinitionId = createUnitDefinitionId("UNIT_CHILD_REACT");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_FROZEN");
@@ -3324,7 +3324,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
       expect(watcherActivatedIndex).toBeGreaterThan(parentResolvedIndex);
     });
 
-    it("UT-R-EFF-09-008 (R-EFF-09): a Stealth holder whose AppliedEffect is PARENT-role in a linkedEffectGroupId cascades its CHILD-role sibling first, and both resulting EffectExpired events reach the PS chain in order via the same PS-own-EffectSequence path", () => {
+    it("UT-R-EFF-09-008 [R-EFF-09, R-TGT-08] (R-EFF-09): a Stealth holder whose AppliedEffect is PARENT-role in a linkedEffectGroupId cascades its CHILD-role sibling first, and both resulting EffectExpired events reach the PS chain in order via the same PS-own-EffectSequence path", () => {
       const parentUnitDefinitionId = createUnitDefinitionId("UNIT_PARENT_STEALTH_LINK");
       const cascadeWatcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_CASCADE");
       const consumptionWatcherUnitDefinitionId = createUnitDefinitionId("UNIT_WATCHER_CONSUMPTION");
@@ -4051,7 +4051,7 @@ describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTIO
     return { updatedUnits, enemyAlive, enemyDead, markAction };
   }
 
-  it("IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001: calculatedDamage<=10 — targetCondition (TARGET_STATE AND EVENT_PAYLOAD) admits the alive enemy and still excludes the already-defeated one", () => {
+  it("IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-001 [R-SKL-06]: calculatedDamage<=10 — targetCondition (TARGET_STATE AND EVENT_PAYLOAD) admits the alive enemy and still excludes the already-defeated one", () => {
     const { updatedUnits, enemyAlive, enemyDead, markAction } = setup(5);
     const alive = updatedUnits.find((u) => u.battleUnitId === enemyAlive.battleUnitId)!;
     const dead = updatedUnits.find((u) => u.battleUnitId === enemyDead.battleUnitId)!;
@@ -4063,7 +4063,7 @@ describe("targetCondition EVENT_PAYLOAD wiring (CAP_TRIGGER_PAYLOAD_IN_RESOLUTIO
     expect(dead.appliedEffects).toHaveLength(0);
   });
 
-  it("IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002: calculatedDamage>10 — the SAME alive enemy that passed TARGET_STATE is filtered out purely because the triggering event's payload changed, proving buildEffectStepPerTargetFilter actually threads triggerEventPayload through", () => {
+  it("IT-CAP-TRIGGER-PAYLOAD-TARGETCOND-002 [R-SKL-06]: calculatedDamage>10 — the SAME alive enemy that passed TARGET_STATE is filtered out purely because the triggering event's payload changed, proving buildEffectStepPerTargetFilter actually threads triggerEventPayload through", () => {
     const { updatedUnits, enemyAlive, markAction } = setup(11);
     const alive = updatedUnits.find((u) => u.battleUnitId === enemyAlive.battleUnitId)!;
     expect(
@@ -4240,7 +4240,7 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () 
     return { recorder, updatedUnits, events: recorder.getEvents() };
   }
 
-  it("UT-R-HEAL-04-017 (R-ATM-01「転送途中のPS/Memory発動は存在しない」): the child PS triggered by HealApplied is only detected there — the transfer completes untouched and the child activates after the parent's PassiveResolved", () => {
+  it("UT-R-HEAL-04-017 [R-ATM-01, R-HEAL-04] (R-ATM-01「転送途中のPS/Memory発動は存在しない」): the child PS triggered by HealApplied is only detected there — the transfer completes untouched and the child activates after the parent's PassiveResolved", () => {
     // HEALER(100) > DESTINATION(1)。旧仕様では子PSが転送前に割り込んで転送先を
     // 撃破し、転送が破棄されていた。R-ATM-01の保留方式ではその経路自体が存在しない。
     const { updatedUnits, events } = board(100, 1);
@@ -4274,7 +4274,7 @@ describe("PS-own EffectSequence HEAL with a healing link (R-HEAL-04 #4/#6)", () 
     ).toBe(50);
   });
 
-  it("UT-R-HEAL-04-018 (R-ATM-01): a HealApplied candidate that would defeat the skill user cannot interrupt the transfer any more — the transfer completes, and the user is only defeated in the post phase", () => {
+  it("UT-R-HEAL-04-018 [R-ATM-01, R-HEAL-04, R-SKL-01] (R-ATM-01): a HealApplied candidate that would defeat the skill user cannot interrupt the transfer any more — the transfer completes, and the user is only defeated in the post phase", () => {
     // HEALER(1) < DESTINATION(40)。子PSの対象は「最もHP割合の低い敵」であり、
     // 保留解決の時点でもHEALERが該当するため、後段フェーズで使用者が撃破される。
     // 旧仕様ではこれが転送の途中に割り込んで`HealingTransferred`を消していた。

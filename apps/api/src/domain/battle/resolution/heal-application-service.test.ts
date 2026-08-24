@@ -108,7 +108,7 @@ function context(
 }
 
 describe("applyHealAction (R-HEAL-01, M7-005 Issue #184)", () => {
-  it("UT-R-HEAL-01-001: HEAL(MAX_HP_RATIO 0.3) raises target HP by 30% of max and emits HealApplied carrying the hp StateDelta", () => {
+  it("UT-R-HEAL-01-001 [R-ACTN-02, R-HEAL-01]: HEAL(MAX_HP_RATIO 0.3) raises target HP by 30% of max and emits HealApplied carrying the hp StateDelta", () => {
     const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
     const target = unit("TARGET", "ALLY", { currentHp: 40, maximumHp: 100 });
     const action = healAction("ACT_HEAL", {
@@ -148,7 +148,7 @@ describe("applyHealAction (R-HEAL-01, M7-005 Issue #184)", () => {
     });
   });
 
-  it("UT-R-HEAL-01-002 (BOUNDARY): SKILL_POWER heals the healer's attack times the power, not the raw power value", () => {
+  it("UT-R-HEAL-01-002 [R-ACTN-02, R-HEAL-01] (BOUNDARY): SKILL_POWER heals the healer's attack times the power, not the raw power value", () => {
     const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100, attack: 200 });
     const target = unit("TARGET", "ALLY", { currentHp: 10, maximumHp: 500 });
     const action = healAction("ACT_HEAL", {
@@ -738,7 +738,7 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     expect(transferred.stateDelta).toBeUndefined();
   });
 
-  it("UT-R-HEAL-04-019 (NEGATIVE, R-SKL-02): when the first target's HealApplied chain defeats the skill user, the remaining targets are not healed and the result reports them as interrupted", () => {
+  it("UT-R-HEAL-04-019 [R-HEAL-04, R-SKL-01, R-SKL-02] (NEGATIVE, R-SKL-02): when the first target's HealApplied chain defeats the skill user, the remaining targets are not healed and the result reports them as interrupted", () => {
     const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
     const first = unit("TARGET_A", "ALLY", { currentHp: 10, maximumHp: 100 });
     const second = unit("TARGET_B", "ALLY", { currentHp: 10, maximumHp: 100 });
@@ -777,7 +777,7 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     expect(result.interrupted).toBe(true);
   });
 
-  it("UT-R-HEAL-04-020 (BOUNDARY, R-SKL-01): a link-less single-target heal whose HealApplied chain defeats the user is NOT reported as interrupted — there is no unresolved transfer left in this application", () => {
+  it("UT-R-HEAL-04-020 [R-HEAL-04, R-SKL-01] (BOUNDARY, R-SKL-01): a link-less single-target heal whose HealApplied chain defeats the user is NOT reported as interrupted — there is no unresolved transfer left in this application", () => {
     const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
     const target = unit("TARGET", "ALLY", { currentHp: 10, maximumHp: 100 });
     const { recorder, rootEventId } = seedRecorder();
@@ -809,7 +809,7 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     expect(result.interruptedCount).toBe(0);
   });
 
-  it("UT-R-HEAL-04-021 (BOUNDARY, R-SKL-01): a heal whose user dies in the LAST HealingTransferred chain is NOT reported as interrupted — every allocated transfer had already been applied", () => {
+  it("UT-R-HEAL-04-021 [R-HEAL-04, R-SKL-01] (BOUNDARY, R-SKL-01): a heal whose user dies in the LAST HealingTransferred chain is NOT reported as interrupted — every allocated transfer had already been applied", () => {
     const healer = unit("HEALER", "ALLY", { currentHp: 100, maximumHp: 100 });
     const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });
     const linked: BattleUnit = {

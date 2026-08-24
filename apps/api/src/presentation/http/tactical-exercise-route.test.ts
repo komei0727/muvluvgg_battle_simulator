@@ -210,7 +210,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     app = undefined;
   });
 
-  it("API-TEX-001 (R-TEX-10 #1、10_API設計.md「ExerciseResultResponse」): returns 200 with the exercise result — score and break history — and no outcome", async () => {
+  it("API-TEX-001 [R-TEX-10] (R-TEX-10 #1、10_API設計.md「ExerciseResultResponse」): returns 200 with the exercise result — score and break history — and no outcome", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, { exerciseUseCase: exerciseUseCase() });
 
     const response = await app.inject({
@@ -270,7 +270,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     ]);
   });
 
-  it("API-TEX-002 (10_API設計.md「TacticalExerciseResponse」「StateTransitionResponse」): serializes the exercise-only state deltas (exercise.totalScore/breakCount, units.<id>.baseCombatStats) instead of dropping them", async () => {
+  it("API-TEX-002 [R-TEX-02, R-TEX-03] (10_API設計.md「TacticalExerciseResponse」「StateTransitionResponse」): serializes the exercise-only state deltas (exercise.totalScore/breakCount, units.<id>.baseCombatStats) instead of dropping them", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, { exerciseUseCase: exerciseUseCase() });
 
     const response = await app.inject({
@@ -305,7 +305,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     expect(valid, JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2)).toBe(true);
   });
 
-  it("API-TEX-010 (12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」): a real exercise's 200 body — with the exercise-only events actually emitted — satisfies the doc schema, so BATTLE_COMPLETED and the break events cannot be published in a shape no client can decode", async () => {
+  it("API-TEX-010 [R-TEX-10] (12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」): a real exercise's 200 body — with the exercise-only events actually emitted — satisfies the doc schema, so BATTLE_COMPLETED and the break events cannot be published in a shape no client can decode", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, {
       exerciseUseCase: buildRealExerciseUseCase(),
     });
@@ -356,7 +356,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     expect(valid, JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2)).toBe(true);
   });
 
-  it("API-TEX-011 (R-TEX-11 #2): a PLAYABLE unit in the exercise enemy formation is rejected as 422 INVALID_COMMAND with the rule id", async () => {
+  it("API-TEX-011 [R-TEX-11] (R-TEX-11 #2): a PLAYABLE unit in the exercise enemy formation is rejected as 422 INVALID_COMMAND with the rule id", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, {
       exerciseUseCase: buildRealExerciseUseCase(),
     });
@@ -437,7 +437,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     }
   });
 
-  it("API-TEX-004 (10_API設計.md「TacticalExerciseRequest」「`turnLimit`は持たない」): rejects turnLimit as an undefined top-level property (400 MALFORMED_REQUEST), instead of silently ignoring it and running the fixed 5 turns", async () => {
+  it("API-TEX-004 [R-TEX-01] (10_API設計.md「TacticalExerciseRequest」「`turnLimit`は持たない」): rejects turnLimit as an undefined top-level property (400 MALFORMED_REQUEST), instead of silently ignoring it and running the fixed 5 turns", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, { exerciseUseCase: exerciseUseCase() });
 
     const response = await app.inject({
@@ -450,7 +450,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     expect(response.json<{ error: { code: string } }>().error.code).toBe("MALFORMED_REQUEST");
   });
 
-  it("API-TEX-005 (R-TEX-01 #3、10_API設計.md「敵編成のユニット数・メモリー数の違反は……422として返す」): maps the enemy-formation INVALID_COMMAND violations to 422 with wire paths", async () => {
+  it("API-TEX-005 [R-TEX-01] (R-TEX-01 #3、10_API設計.md「敵編成のユニット数・メモリー数の違反は……422として返す」): maps the enemy-formation INVALID_COMMAND violations to 422 with wire paths", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, {
       exerciseUseCase: exerciseUseCase(() => {
         throw new ApplicationError("INVALID_COMMAND", [
@@ -490,7 +490,7 @@ describe("POST /api/v1/tactical-exercises (10_API設計.md「戦術演習をシ�
     ]);
   });
 
-  it("API-TEX-006 (R-TEX-01 #3): an empty enemy formation is a 422 command violation too, not a structural 400", async () => {
+  it("API-TEX-006 [R-TEX-01] (R-TEX-01 #3): an empty enemy formation is a 422 command violation too, not a structural 400", async () => {
     app = await buildServer(UNUSED_BATTLE_USE_CASE, {
       exerciseUseCase: exerciseUseCase(() => {
         throw new ApplicationError("INVALID_COMMAND", [

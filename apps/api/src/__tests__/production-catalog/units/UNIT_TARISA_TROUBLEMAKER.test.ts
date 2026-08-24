@@ -513,7 +513,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-004 (R-EFF-05): 「負けん気」は最大14個まで — 攻撃力バフ側も同じ上限を宣言し、15回目の付与はインスタンスを増やさず `SKIPPED` で終わる", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-004 [R-EFF-05] (R-EFF-05): 「負けん気」は最大14個まで — 攻撃力バフ側も同じ上限を宣言し、15回目の付与はインスタンスを増やさず `SKIPPED` で終わる", () => {
     const atkUp = effectActionFrom(snapshot, PS1_ATK_UP);
     const marker = effectActionFrom(snapshot, PS1_MARKER);
     expect(atkUp.kind).toBe("APPLY_STAT_MOD");
@@ -556,7 +556,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     ).toBe(cappedAttack);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-006 (R-SKL-06): 条件付きstepは契機イベントのpayload（`calculatedDamage`）で分かれ、無条件stepと同じ1回の発動の中で解決される。公開差分だけからも同じ段数へ復元できる", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-006 [R-SKL-06] (R-SKL-06): 条件付きstepは契機イベントのpayload（`calculatedDamage`）で分かれ、無条件stepと同じ1回の発動の中で解決される。公開差分だけからも同じ段数へ復元できる", () => {
     // `-001` の表は「どちらの腕が走ったか」を見る。ここは同じ発動の中で
     // `MarkerUpdated` が2回（無条件の+1と条件付きの-3）出ることと、その公開差分
     // だけで最終段数が再構成できることを見る。
@@ -600,7 +600,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     ).toBe(3);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-005 (R-EFF-05): 上限で頭打ちになった攻撃力バフは、公開差分だけからも14インスタンスとして復元できる", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-005 [R-EFF-05] (R-EFF-05): 上限で頭打ちになった攻撃力バフは、公開差分だけからも14インスタンスとして復元できる", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const recorder = seedRecorder("B_TARISA_STACK_DELTA");
     const units = applyPrecedingActions(board, grantAtkUp(STACK_MAX + 1), { recorder });
@@ -617,7 +617,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     );
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-007 (R-EFF-09第1項): 攻撃力バフは `REMOVE_EFFECTS` では解除できないが、親の「負けん気」が実 `REMOVE_MARKER` で無くなると同時に全インスタンスが失効する。公開差分だけからも同じ状態へ復元できる", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-007 [R-EFF-09] (R-EFF-09第1項): 攻撃力バフは `REMOVE_EFFECTS` では解除できないが、親の「負けん気」が実 `REMOVE_MARKER` で無くなると同時に全インスタンスが失効する。公開差分だけからも同じ状態へ復元できる", () => {
     // raw原文「攻撃力バフは解除不可だが、「負けん気」が解除されると同時に解除される」。
     // 定義は `dispellable: false` と `linkedEffectGroupId` の両方を宣言しており、
     // 「解除できない」と「連動して消える」は両立する（R-EFF-09）。
@@ -703,7 +703,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(subject.combatStats.attack).toBe(1000);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-008 (R-EFF-09 通知順序 / R-ATM-01 再確認): カスケードで巻き込まれた子の `EffectExpired` は親の「負けん気」を所持している状態でPS/Memoryへ届き、そこで検出された候補は保留中に親Markerが消えるためR-PS-04で破棄される", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-008 [R-ATM-01, R-EFF-09] (R-EFF-09 通知順序 / R-ATM-01 再確認): カスケードで巻き込まれた子の `EffectExpired` は親の「負けん気」を所持している状態でPS/Memoryへ届き、そこで検出された候補は保留中に親Markerが消えるためR-PS-04で破棄される", () => {
     // R-EFF-09「各インスタンスの失効イベントは、次のインスタンスへ進む前にPS/Memoryの
     // 即時連鎖へ渡す」。この規約は**評価経路を問わない** — 実 `catalog/` で連動グループの
     // 親Markerを外す2定義（`ACT_TARISA_TROUBLEMAKER_PS1_REMOVE_MARKER`・
@@ -777,7 +777,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-009 (R-CRT-03 #1): AS1が配る実「会心不可」は保持者自身の攻撃だけを会心させない — 同じデバフを防御側が持っていても、攻撃側の会心は止まらない", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-009 [R-CRT-03] (R-CRT-03 #1): AS1が配る実「会心不可」は保持者自身の攻撃だけを会心させない — 同じデバフを防御側が持っていても、攻撃側の会心は止まらない", () => {
     // `-001` のAS1行は付与そのもの（`magnitude: 0`・1行動・`CRITICAL_PREVENTION`）
     // までを固定する。会心不可が効くのは**保持者の以後の攻撃**＝別のスキル使用で、
     // 「保持者側にしか働かない」という向きはそこにしか現れない。
@@ -828,7 +828,7 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(critical.hpDeltas).toEqual({ "enemy:front": -750 });
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-010 (R-EFF-02/R-EFF-03): AS1が配る実「会心不可」はデバフであって定義済み状態異常ではない — 実 resolver の分類が `DEBUFF` だけで、デバフ解除で消え、バフ解除では残り、EXが配る実デバフ免疫が付与そのものを弾く。公開差分だけからも同じ状態へ復元できる", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-010 [R-EFF-02, R-EFF-03] (R-EFF-02/R-EFF-03): AS1が配る実「会心不可」はデバフであって定義済み状態異常ではない — 実 resolver の分類が `DEBUFF` だけで、デバフ解除で消え、バフ解除では残り、EXが配る実デバフ免疫が付与そのものを弾く。公開差分だけからも同じ状態へ復元できる", () => {
     // `-001` の観測は分類欄（`categories`）を持たないため、`APPLY_STATUS` 由来でも
     // `STATUS` を受け取らないこと（R-STS-01の総称照会に載らないこと）は表から読めない。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);

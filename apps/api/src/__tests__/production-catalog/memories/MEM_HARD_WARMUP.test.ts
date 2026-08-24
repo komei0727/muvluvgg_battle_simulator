@@ -46,7 +46,7 @@ const EXPECTED_GRANTS: readonly MemoryGrant[] = [
 ];
 
 describe("production Catalog MEM_HARD_WARMUP (ハードな準備運動……？)", () => {
-  it("IT-MEM-HARD-WARMUP-001: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
+  it("IT-MEM-HARD-WARMUP-001 [R-MEM-01, R-MEM-03]: every EffectAction manifests on exactly the declared slots with the declared magnitude when the ALLY side brings the Memory", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");
     expect(observed.grants).toEqual(EXPECTED_GRANTS);
     // 対象集合の宣言。当たったスロットが1体だけの行では、`count: "ALL"`（対象と
@@ -100,7 +100,7 @@ describe("production Catalog MEM_HARD_WARMUP (ハードな準備運動……？)
     ).toEqual([]);
   });
 
-  it("IT-MEM-HARD-WARMUP-004 (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
+  it("IT-MEM-HARD-WARMUP-004 [R-MEM-02] (R-MEM-02): keeps its API-declared slot in the resolution order when other Memories are brought alongside it, stacks onto the same slots, and its StateDeltas alone still reconstruct the started battle", () => {
     // 跨Memoryの解決順・同一スロットへの重ね掛け・複数Memory分をまとめたStateDelta
     // 復元は、複数Memoryを**同時に**編成したときにしか現れない。
     const observed = observeCoDeclaredMemories({

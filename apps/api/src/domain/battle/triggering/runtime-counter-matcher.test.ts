@@ -160,7 +160,7 @@ function damageEvent(
 }
 
 describe("detectRuntimeCounterUpdates", () => {
-  it("UT-RCOUNTER-M-001 (RUNTIME_COUNTER_MODULO): increments a skill's own SKILL_RUNTIME counter when its trigger matches", () => {
+  it("UT-RCOUNTER-M-001 [R-EFF-11] (RUNTIME_COUNTER_MODULO): increments a skill's own SKILL_RUNTIME counter when its trigger matches", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -208,7 +208,7 @@ describe("detectRuntimeCounterUpdates", () => {
     });
   });
 
-  it("UT-RCOUNTER-M-016 (Issue #553, RESET): returns the current value as before and 0 as after, keeping the counter key so the RuntimeCounterChanged(after: 0) stateDelta restores the same state", () => {
+  it("UT-RCOUNTER-M-016 [R-EFF-11] (Issue #553, RESET): returns the current value as before and 0 as after, keeping the counter key so the RuntimeCounterChanged(after: 0) stateDelta restores the same state", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -270,7 +270,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toEqual({ value: 0, carry: 0 });
   });
 
-  it("UT-RCOUNTER-M-017 (Issue #553, RESET): a counter that holds no value yet is left untouched — no change is reported and no key is created (a key born without a stateDelta would diverge from the independent Reducer)", () => {
+  it("UT-RCOUNTER-M-017 [R-EFF-11] (Issue #553, RESET): a counter that holds no value yet is left untouched — no change is reported and no key is created (a key born without a stateDelta would diverge from the independent Reducer)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "RESET",
@@ -301,7 +301,7 @@ describe("detectRuntimeCounterUpdates", () => {
     expect(result.units[0]?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
   });
 
-  it("UT-RCOUNTER-M-002: accumulates across repeated matching events (N-th crossing reachable via modulo on the resulting value)", () => {
+  it("UT-RCOUNTER-M-002 [R-EFF-11]: accumulates across repeated matching events (N-th crossing reachable via modulo on the resulting value)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -347,7 +347,7 @@ describe("detectRuntimeCounterUpdates", () => {
     });
   });
 
-  it("UT-RCOUNTER-M-003: a SELF-scoped counterUpdates trigger only updates the unit that was actually the event source, not every unit owning the same skill", () => {
+  it("UT-RCOUNTER-M-003 [R-EFF-11]: a SELF-scoped counterUpdates trigger only updates the unit that was actually the event source, not every unit owning the same skill", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -390,7 +390,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-004: skips defeated owners", () => {
+  it("UT-RCOUNTER-M-004 [R-EFF-11]: skips defeated owners", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -423,7 +423,7 @@ describe("detectRuntimeCounterUpdates", () => {
     expect(result.changes).toEqual([]);
   });
 
-  it("UT-RCOUNTER-M-005 (CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): accumulates cumulative damage taken as a max-HP-ratio threshold count", () => {
+  it("UT-RCOUNTER-M-005 [R-EFF-11] (CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): accumulates cumulative damage taken as a max-HP-ratio threshold count", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -467,7 +467,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-006: still reports a change when the accumulated damage stays below the threshold, because the internal carry changed even though the public value did not (before === after but carry moved from 0 to 10)", () => {
+  it("UT-RCOUNTER-M-006 [R-EFF-11]: still reports a change when the accumulated damage stays below the threshold, because the internal carry changed even though the public value did not (before === after but carry moved from 0 to 10)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -542,7 +542,7 @@ describe("detectRuntimeCounterUpdates", () => {
     expect(result.changes).toEqual([]);
   });
 
-  it("UT-RCOUNTER-M-008 (review fix): the carry is persisted into the returned units even when it does not yet cross a threshold, so a later update can pick up where it left off", () => {
+  it("UT-RCOUNTER-M-008 [R-EFF-11] (review fix): the carry is persisted into the returned units even when it does not yet cross a threshold, so a later update can pick up where it left off", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "CUMULATIVE_DAMAGE_THRESHOLD",
@@ -610,7 +610,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-007: rejects a BATTLE-scoped counterUpdates entry as not yet supported (defense-in-depth; Catalog validation already rejects this scope before it can reach here)", () => {
+  it("UT-RCOUNTER-M-007 [R-EFF-11]: rejects a BATTLE-scoped counterUpdates entry as not yet supported (defense-in-depth; Catalog validation already rejects this scope before it can reach here)", () => {
     // `createRuntimeCounterUpdateDefinition` (Catalog layer) now rejects
     // BATTLE/BATTLE_UNIT scope outright, so a BATTLE-scoped entry can no
     // longer be constructed via `passiveSkillOf`. Build it directly to
@@ -652,7 +652,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-RCOUNTER-M-012: multiple counterUpdates definitions matching the same event and targeting the same counter are all applied, in array order, not collapsed into one", () => {
+  it("UT-RCOUNTER-M-012 [R-EFF-11]: multiple counterUpdates definitions matching the same event and targeting the same counter are all applied, in array order, not collapsed into one", () => {
     const skill = passiveSkillOf("SKL_PS_DUP_COUNTER", [
       {
         kind: "INCREMENT",
@@ -701,7 +701,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toEqual({ value: 3, carry: 0 });
   });
 
-  it("UT-RCOUNTER-M-013: the matched set is fixed from the state passed in, not re-evaluated after an earlier entry's own effect — a later entry that only becomes newly-true is not retroactively added", () => {
+  it("UT-RCOUNTER-M-013 [R-EFF-11]: the matched set is fixed from the state passed in, not re-evaluated after an earlier entry's own effect — a later entry that only becomes newly-true is not retroactively added", () => {
     const skill = passiveSkillOf("SKL_PS_NO_RETRO_MATCH", [
       {
         kind: "INCREMENT",
@@ -763,7 +763,7 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toBeUndefined();
   });
 
-  it("UT-RCOUNTER-M-014: an entry that matched against the state passed in is still applied even though an earlier entry in the same batch already changed the state its condition read", () => {
+  it("UT-RCOUNTER-M-014 [R-EFF-11]: an entry that matched against the state passed in is still applied even though an earlier entry in the same batch already changed the state its condition read", () => {
     const skill = passiveSkillOf("SKL_PS_NO_VANISH_MATCH", [
       {
         kind: "INCREMENT",
@@ -824,7 +824,7 @@ describe("detectRuntimeCounterUpdates", () => {
 });
 
 describe("collectResolutionScopeResets", () => {
-  it("UT-RCOUNTER-M-009: finds a counter declared with resetScope: RESOLUTION_SCOPE that currently holds a value", () => {
+  it("UT-RCOUNTER-M-009 [R-EFF-11]: finds a counter declared with resetScope: RESOLUTION_SCOPE that currently holds a value", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -865,7 +865,7 @@ describe("collectResolutionScopeResets", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-M-010: does not report a counter that has no resetScope (persists for the whole battle)", () => {
+  it("UT-RCOUNTER-M-010 [R-EFF-11]: does not report a counter that has no resetScope (persists for the whole battle)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",
@@ -899,7 +899,7 @@ describe("collectResolutionScopeResets", () => {
     expect(resets).toEqual([]);
   });
 
-  it("UT-RCOUNTER-M-011: does not report a resetScope counter that has no current value yet", () => {
+  it("UT-RCOUNTER-M-011 [R-EFF-11]: does not report a resetScope counter that has no current value yet", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
         kind: "INCREMENT",

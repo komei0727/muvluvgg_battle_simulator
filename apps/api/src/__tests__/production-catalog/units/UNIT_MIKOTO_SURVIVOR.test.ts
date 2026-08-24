@@ -612,7 +612,7 @@ describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーン�
     });
   });
 
-  it("IT-UNIT-MIKOTO-SURVIVOR-005 (R-EFF-11): 閾値に届かない被弾はcarryだけを進めて RuntimeCounterChanged を valueChanged: false で残し、2発目で公開値が動く。carryは公開差分に載らず、独立Reducerはcounterの公開値だけを復元する", () => {
+  it("IT-UNIT-MIKOTO-SURVIVOR-005 [R-EFF-11] (R-EFF-11): 閾値に届かない被弾はcarryだけを進めて RuntimeCounterChanged を valueChanged: false で残し、2発目で公開値が動く。carryは公開差分に載らず、独立Reducerはcounterの公開値だけを復元する", () => {
     // `-001` のPS1行は「1発で閾値へ届く被弾」と「届かない被弾」を持つが、**複数発に
     // 分かれた被弾が積み上がって跨ぐ**ことは表せない。契機の `DamageApplied` は
     // 積み上がりを刻むために手組みする（実pipelineを通した形そのものは
@@ -705,7 +705,7 @@ describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーン�
     ).toBeUndefined();
   });
 
-  it("IT-UNIT-MIKOTO-SURVIVOR-006 (R-CRT-03 #2): EXが配る実「会心保証」は、以後の攻撃の実効会心モードを `GUARANTEED` へ倒す — 会心率0%の盤面でも会心し、R-CRT-01の確率判定でRandomSourceを消費しない", () => {
+  it("IT-UNIT-MIKOTO-SURVIVOR-006 [R-CRT-03] (R-CRT-03 #2): EXが配る実「会心保証」は、以後の攻撃の実効会心モードを `GUARANTEED` へ倒す — 会心率0%の盤面でも会心し、R-CRT-01の確率判定でRandomSourceを消費しない", () => {
     // `-001` のEX行は付与そのもの（`magnitude: 0`・2行動・`CRITICAL_GUARANTEE`）までを
     // 固定する。会心保証が効くのは**以後の攻撃**＝別のスキル使用であり、スキル使用1回の
     // 観測には構造的に載らない。
@@ -748,7 +748,7 @@ describe("production Catalog UNIT_MIKOTO_SURVIVOR (【ナチュラルボーン�
     expect(plain.hpDeltas).toEqual({ "enemy:front": -500 });
   });
 
-  it("IT-UNIT-MIKOTO-SURVIVOR-007 (R-EFF-02/R-ACTN-03): EXが配る実「会心保証」はバフに分類される — 実 resolver の分類が `BUFF` で、実 production のバフ解除で消え、デバフ解除では残る。公開差分だけからも同じ状態へ復元できる", () => {
+  it("IT-UNIT-MIKOTO-SURVIVOR-007 [R-EFF-02] (R-EFF-02/R-ACTN-03): EXが配る実「会心保証」はバフに分類される — 実 resolver の分類が `BUFF` で、実 production のバフ解除で消え、デバフ解除では残る。公開差分だけからも同じ状態へ復元できる", () => {
     // `-001` の観測は分類欄（`categories`）を持たないため、`CRITICAL_GUARANTEE` が
     // 保持者に有利な効果として `BUFF` へ落ちること（対になる `CRITICAL_PREVENTION` の
     // `DEBUFF` と逆であること）は表からは読めない。

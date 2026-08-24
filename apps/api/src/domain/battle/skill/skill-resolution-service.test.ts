@@ -831,7 +831,7 @@ describe("resolveSkillOrder", () => {
 });
 
 describe("resolveChargeReleaseOrder", () => {
-  it("UT-SKILL-RESOLUTION-SERVICE-008 (R-SKL-05): resolves the chargeRelease EffectSequence's targetBindings and steps, independently of the CHARGE resolution's own (unused) steps", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-008 [R-SKL-05] (R-SKL-05): resolves the chargeRelease EffectSequence's targetBindings and steps, independently of the CHARGE resolution's own (unused) steps", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
     const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
     const hit = damageAction("ACT_RELEASE_HIT");
@@ -892,7 +892,7 @@ describe("resolveChargeReleaseOrder", () => {
 });
 
 describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {
-  it("UT-SKILL-RESOLUTION-SERVICE-010: a targetBinding whose first-priority candidate holds Stealth surfaces a stealthConsumption on the plan, and resolves to the redirected candidate", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-010 [R-TGT-08]: a targetBinding whose first-priority candidate holds Stealth surfaces a stealthConsumption on the plan, and resolves to the redirected candidate", () => {
     const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
     const nearestEnemy = unit(
       "NEAREST",
@@ -925,7 +925,7 @@ describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Iss
     ).toEqual([createBattleUnitId("FARTHER")]);
   });
 
-  it("UT-SKILL-RESOLUTION-SERVICE-011: no Stealth holder means an empty stealthConsumptions array", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-011 [R-TGT-08]: no Stealth holder means an empty stealthConsumptions array", () => {
     const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
     const enemy = unit("ENEMY_1", "ENEMY", { column: "CENTER", row: "FRONT" });
     const skill = skillOf({
@@ -941,7 +941,7 @@ describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Iss
     expect(plan.stealthConsumptions).toEqual([]);
   });
 
-  it("UT-SKILL-RESOLUTION-SERVICE-012 (R-TGT-10 definition order / R-TGT-08 #2 consume-on-first-priority): two targetBindings that both pick the same Stealth holder as first priority only redirect and consume once — the later binding sees the holder as no longer Stealthed", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-012 [R-TGT-08] (R-TGT-10 definition order / R-TGT-08 #2 consume-on-first-priority): two targetBindings that both pick the same Stealth holder as first priority only redirect and consume once — the later binding sees the holder as no longer Stealthed", () => {
     const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
     const nearestEnemy = unit(
       "NEAREST",

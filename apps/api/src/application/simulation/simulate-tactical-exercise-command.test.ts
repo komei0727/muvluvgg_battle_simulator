@@ -25,16 +25,16 @@ function validCommand(
 }
 
 describe("validateTacticalExerciseCommandShape", () => {
-  it("UT-TEXCMD-001 (R-TEX-01 #4): the exercise turn limit is the fixed value 5, which the Command cannot carry", () => {
+  it("UT-TEXCMD-001 [R-TEX-01] (R-TEX-01 #4): the exercise turn limit is the fixed value 5, which the Command cannot carry", () => {
     expect(EXERCISE_TURN_LIMIT).toBe(5);
     expect(validCommand()).not.toHaveProperty("turnLimit");
   });
 
-  it("UT-TEXCMD-002: returns no violations for an exercise command with exactly one memory-less enemy", () => {
+  it("UT-TEXCMD-002 [R-TEX-01]: returns no violations for an exercise command with exactly one memory-less enemy", () => {
     expect(validateTacticalExerciseCommandShape(validCommand())).toEqual([]);
   });
 
-  it("UT-TEXCMD-003 (R-TEX-01 #3): rejects an enemy formation with no unit", () => {
+  it("UT-TEXCMD-003 [R-TEX-01] (R-TEX-01 #3): rejects an enemy formation with no unit", () => {
     const violations = validateTacticalExerciseCommandShape(
       validCommand({ enemyFormation: { slots: [], memoryDefinitionIds: [] } }),
     );
@@ -45,7 +45,7 @@ describe("validateTacticalExerciseCommandShape", () => {
     });
   });
 
-  it("UT-TEXCMD-004 (R-TEX-01 #3): rejects an enemy formation with two units", () => {
+  it("UT-TEXCMD-004 [R-TEX-01] (R-TEX-01 #3): rejects an enemy formation with two units", () => {
     const violations = validateTacticalExerciseCommandShape(
       validCommand({ enemyFormation: { slots: [slot(0), slot(1)], memoryDefinitionIds: [] } }),
     );
@@ -56,7 +56,7 @@ describe("validateTacticalExerciseCommandShape", () => {
     });
   });
 
-  it("UT-TEXCMD-005 (R-TEX-01 #3): rejects an enemy formation that specifies a memory", () => {
+  it("UT-TEXCMD-005 [R-TEX-01] (R-TEX-01 #3): rejects an enemy formation that specifies a memory", () => {
     const violations = validateTacticalExerciseCommandShape(
       validCommand({
         enemyFormation: {
@@ -72,7 +72,7 @@ describe("validateTacticalExerciseCommandShape", () => {
     });
   });
 
-  it("UT-TEXCMD-006 (R-TEX-01 #2): keeps applying the ally formation rules (R-FRM-01～05) unchanged", () => {
+  it("UT-TEXCMD-006 [R-TEX-01] (R-TEX-01 #2): keeps applying the ally formation rules (R-FRM-01～05) unchanged", () => {
     const violations = validateTacticalExerciseCommandShape(
       validCommand({
         allyFormation: {

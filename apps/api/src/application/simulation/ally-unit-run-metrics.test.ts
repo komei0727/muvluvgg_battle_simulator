@@ -68,7 +68,7 @@ describe("projectAllyUnitRunMetrics", () => {
     expect(metrics.breakCounts).toEqual([1, 2]);
   });
 
-  it("UT-ALLYRUNMETRICS-003 (R-MEM-04): leaves a break with no source unit uncounted, so the residual against breakCount stays visible", () => {
+  it("UT-ALLYRUNMETRICS-003 [R-MEM-04] (R-MEM-04): leaves a break with no source unit uncounted, so the residual against breakCount stays visible", () => {
     const metrics = projectAllyUnitRunMetrics(
       run({ breaks: [exerciseBreak(1, ALLY_ONE), exerciseBreak(2)] }),
     );

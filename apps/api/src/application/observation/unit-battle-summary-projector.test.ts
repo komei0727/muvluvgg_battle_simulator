@@ -422,7 +422,7 @@ describe("projectUnitBattleSummaries", () => {
     ]);
   });
 
-  it("UT-UNIT-SUMMARY-007 (R-SHD-03第2項): the overkill discarded by the HP clamp on a defeating hit counts toward both damageDealt and damageTaken", () => {
+  it("UT-UNIT-SUMMARY-007 [R-SHD-03] (R-SHD-03第2項): the overkill discarded by the HP clamp on a defeating hit counts toward both damageDealt and damageTaken", () => {
     const recorder = new EventRecorder(BATTLE_ID);
     // 残HP30へ100を叩き込む。実際に減ったHPは30、残り70はクランプで破棄される。
     recordDamageApplied(recorder, {
@@ -441,7 +441,7 @@ describe("projectUnitBattleSummaries", () => {
     expect(summaryOf(summaries, DEFENDER).damageTaken).toBe(100);
   });
 
-  it("UT-UNIT-SUMMARY-008 (R-INT-01 #5): the damage a lethal-damage survival kept from applying counts toward both damageDealt and damageTaken, even though the target lived", () => {
+  it("UT-UNIT-SUMMARY-008 [R-INT-01] (R-INT-01 #5): the damage a lethal-damage survival kept from applying counts toward both damageDealt and damageTaken, even though the target lived", () => {
     const recorder = new EventRecorder(BATTLE_ID);
     // 残HP30へ100。致死耐えがHPを1で止めるため実減少は29、残り71が破棄される。
     recordDamageApplied(recorder, {

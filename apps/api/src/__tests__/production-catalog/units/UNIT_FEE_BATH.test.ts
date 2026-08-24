@@ -372,7 +372,7 @@ describe("production Catalog UNIT_FEE_BATH (【自己に揺れる白湯気】フ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-FEE-BATH-004 (R-DMG-01/R-NUM-04): AS2の3ヒットはいずれも、このスキル自身の `APPLY_MARKER` が1つ足す前の「ほてり」を同じ倍率として読む。倍率はR-DMG-01のAction内追加ダメージ倍率として `DamageCalculated` に載り、解決全体は1つの根と単調な `stateVersion` に閉じる", () => {
+  it("IT-UNIT-FEE-BATH-004 [R-DMG-01, R-NUM-04] (R-DMG-01/R-NUM-04): AS2の3ヒットはいずれも、このスキル自身の `APPLY_MARKER` が1つ足す前の「ほてり」を同じ倍率として読む。倍率はR-DMG-01のAction内追加ダメージ倍率として `DamageCalculated` に載り、解決全体は1つの根と単調な `stateVersion` に閉じる", () => {
     // `-001` の行は「所持数がいくつなら合計いくら減るか」までを固定する。ここが
     // 引き受けるのは (1) 倍率そのものが `DamageCalculated` の集計欄へ載ること、
     // (2) 3ヒットが**同じ**所持数を読むこと（後段の付与を読み込んで段階的に

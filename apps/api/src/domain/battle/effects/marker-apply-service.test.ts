@@ -309,7 +309,7 @@ describe("applyMarker", () => {
     expect(second.markerState.stackCount).toBe(1);
   });
 
-  it("UT-R-EFF-10-019: a Memory-granted Marker (R-MEM-04) carries sourceSide instead of a granter unit, in the MarkerState, the MarkerApplied envelope and its payload", () => {
+  it("UT-R-EFF-10-019 [R-EFF-10, R-MEM-04]: a Memory-granted Marker (R-MEM-04) carries sourceSide instead of a granter unit, in the MarkerState, the MarkerApplied envelope and its payload", () => {
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const context = baseContext(recorder, rootEventId);
@@ -345,7 +345,7 @@ describe("applyMarker", () => {
     expect(snapshot?.sourceSide).toBe("ALLY");
   });
 
-  it("UT-R-EFF-10-020: re-applying a Memory-granted Marker from a real unit records the granter, and vice versa", () => {
+  it("UT-R-EFF-10-020 [R-EFF-10, R-MEM-04]: re-applying a Memory-granted Marker from a real unit records the granter, and vice versa", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();

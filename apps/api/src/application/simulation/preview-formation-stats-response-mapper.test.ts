@@ -66,7 +66,7 @@ describe("toFormationStatPreviewResponseBody", () => {
     });
   });
 
-  it("API-STAT-PREVIEW-013 (10_API設計.md「FormationStatPreviewUnitResponse」/R-ENH-06): publishes the enhanced base stats in the same units as combatStats, without the resource maximums", () => {
+  it("API-STAT-PREVIEW-013 [R-ENH-06] (10_API設計.md「FormationStatPreviewUnitResponse」/R-ENH-06): publishes the enhanced base stats in the same units as combatStats, without the resource maximums", () => {
     const unit = toFormationStatPreviewResponseBody(RESULT).units[0]!;
 
     // 比率3項目は`combatStats`と同じくパーセントポイントで公開する。

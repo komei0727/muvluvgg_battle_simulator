@@ -446,7 +446,7 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-JULIE-SNOW-004 (Q-CAT-EFF-16): PS2の回復量30%減少は原文に「重複可」が無く重複しない — 対象が既に保持していれば付与stepごと実行されない", () => {
+  it("IT-UNIT-JULIE-SNOW-004 [R-SKL-06] (Q-CAT-EFF-16): PS2の回復量30%減少は原文に「重複可」が無く重複しない — 対象が既に保持していれば付与stepごと実行されない", () => {
     // `APPLY_HEALING_MOD` は `STACKABLE` しか受理せず合成側で最強1件を選ぶ経路が
     // 無いため、2件目を作らないことで重複なしへ揃える（`targetCondition` のfalse側）。
     const observed = observeSkillUse({
@@ -476,7 +476,7 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
     );
   });
 
-  it("IT-UNIT-JULIE-SNOW-005 (BOUNDARY, Q-CAT-EFF-16, R-SKL-06): 契機が複数の敵へ解決するとき、既に保持している対象だけが除外され、残りには付与される", () => {
+  it("IT-UNIT-JULIE-SNOW-005 [R-SKL-06] (BOUNDARY, Q-CAT-EFF-16, R-SKL-06): 契機が複数の敵へ解決するとき、既に保持している対象だけが除外され、残りには付与される", () => {
     // `TGT_ATTACKED` は `TRIGGER_TARGET` で複数体へ解決するため `BRANCH`
     // （step全体を一度だけ評価する）では表せない。ACTIONの `targetCondition` は
     // 対象ごとに評価されるという、この選択そのものを固定する。

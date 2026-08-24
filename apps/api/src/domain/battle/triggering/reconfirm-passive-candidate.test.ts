@@ -228,7 +228,7 @@ describe("reconfirmPassiveCandidate", () => {
     ).toEqual({ ok: false, reason: "CONDITION_NOT_MET" });
   });
 
-  it("UT-R-PS-04-007 / R-PS-07: already-activated-in-scope discards the candidate with reason ALREADY_ACTIVATED", () => {
+  it("UT-R-PS-04-007 [R-PS-04, R-PS-07] / R-PS-07: already-activated-in-scope discards the candidate with reason ALREADY_ACTIVATED", () => {
     const skill = skillOf();
     const unit = owner("ALLY");
     const candidate = candidateOf(unit, skill);

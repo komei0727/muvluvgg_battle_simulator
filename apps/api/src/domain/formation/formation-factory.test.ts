@@ -115,7 +115,7 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.formationBonus.attackBonus).toBeCloseTo(0);
   });
 
-  it("UT-R-FRM-FACTORY-002: assigns distinct BattleUnitIds to slots sharing the same UnitDefinitionId (R-FRM-03)", () => {
+  it("UT-R-FRM-FACTORY-002 [R-FRM-03]: assigns distinct BattleUnitIds to slots sharing the same UnitDefinitionId (R-FRM-03)", () => {
     const formation: FormationInput = {
       slots: [
         {
@@ -225,7 +225,7 @@ describe("createBattleParty — FormationFactory", () => {
     );
   });
 
-  it("UT-R-FRM-FACTORY-007: rejects duplicate BattleUnitIds across slots (R-FRM-03)", () => {
+  it("UT-R-FRM-FACTORY-007 [R-FRM-03]: rejects duplicate BattleUnitIds across slots (R-FRM-03)", () => {
     const formation: FormationInput = {
       slots: [
         {
@@ -334,7 +334,7 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.members[0]!.combatStats.attack).toBeCloseTo(10);
   });
 
-  it("UT-R-ENH-01-002 (R-ENH-01 #2/R-ENH-06): a side-level enhancement replaces the R-STA-01 base value for every unit of that side, including units with no enhancement of their own", () => {
+  it("UT-R-ENH-01-002 [R-ENH-01, R-ENH-03, R-ENH-06] (R-ENH-01 #2/R-ENH-06): a side-level enhancement replaces the R-STA-01 base value for every unit of that side, including units with no enhancement of their own", () => {
     const formation: FormationInput = {
       slots: [
         {
@@ -443,7 +443,7 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.members[0]!.combatStats.attack).toBeCloseTo(19416.6605, 4);
   });
 
-  it("UT-R-FRM-FACTORY-009 (R-ENH-06): exposes the enhanced base stats the member's combat stats were derived from", () => {
+  it("UT-R-FRM-FACTORY-009 [R-ENH-06] (R-ENH-06): exposes the enhanced base stats the member's combat stats were derived from", () => {
     const enhanced: UnitDefinition = {
       ...unitDefinition("UNIT_001", "AGGRESSIVE"),
       levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
@@ -480,7 +480,7 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.members[0]!.enhancedBaseStats.maximumPp).toBe(3);
   });
 
-  it("UT-R-FRM-FACTORY-010 (R-ENH-01 #2): a formation without an enhancement exposes the Unit definition's baseStats unchanged", () => {
+  it("UT-R-FRM-FACTORY-010 [R-ENH-01] (R-ENH-01 #2): a formation without an enhancement exposes the Unit definition's baseStats unchanged", () => {
     const definition = unitDefinition("UNIT_001", "AGGRESSIVE");
     const formation: FormationInput = {
       slots: [

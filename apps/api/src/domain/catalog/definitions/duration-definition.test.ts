@@ -171,7 +171,7 @@ describe("DurationDefinition", () => {
     targetSelector: "SELF",
   } as const;
 
-  it("UT-CAT-DUR-015 (EFF-005 Issue #162): maps counterUpdates with scope APPLIED_EFFECT", () => {
+  it("UT-CAT-DUR-015 [R-EFF-11] (EFF-005 Issue #162): maps counterUpdates with scope APPLIED_EFFECT", () => {
     const result = createDurationDefinition(
       {
         counterUpdates: [
@@ -198,12 +198,12 @@ describe("DurationDefinition", () => {
     ]);
   });
 
-  it("UT-CAT-DUR-016 (EFF-005 Issue #162): omits counterUpdates when not declared", () => {
+  it("UT-CAT-DUR-016 [R-EFF-11] (EFF-005 Issue #162): omits counterUpdates when not declared", () => {
     const result = createDurationDefinition({ dispellable: true }, "duration", undefined);
     expect(result).not.toHaveProperty("counterUpdates");
   });
 
-  it("UT-CAT-DUR-017 (EFF-005 Issue #162): rejects counterUpdates with a scope other than APPLIED_EFFECT", () => {
+  it("UT-CAT-DUR-017 [R-EFF-11] (EFF-005 Issue #162): rejects counterUpdates with a scope other than APPLIED_EFFECT", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -223,7 +223,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-018 (EFF-005 Issue #162): allows expiration.conditions to reference a counter declared in counterUpdates", () => {
+  it("UT-CAT-DUR-018 [R-EFF-11] (EFF-005 Issue #162): allows expiration.conditions to reference a counter declared in counterUpdates", () => {
     const result = createDurationDefinition(
       {
         counterUpdates: [
@@ -251,7 +251,7 @@ describe("DurationDefinition", () => {
     });
   });
 
-  it("UT-CAT-DUR-019 (EFF-005 Issue #162): rejects expiration.conditions RUNTIME_COUNTER reference not declared in counterUpdates", () => {
+  it("UT-CAT-DUR-019 [R-EFF-11] (EFF-005 Issue #162): rejects expiration.conditions RUNTIME_COUNTER reference not declared in counterUpdates", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -272,7 +272,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-020 (EFF-005 Issue #162): rejects a non-array counterUpdates", () => {
+  it("UT-CAT-DUR-020 [R-EFF-11] (EFF-005 Issue #162): rejects a non-array counterUpdates", () => {
     expect(() =>
       createDurationDefinition(
         { counterUpdates: "not-an-array" as unknown as never[] },
@@ -282,7 +282,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-021 (R-EFF-12 M7-014 Issue #268): maps reapply with an existingRemaining comparison and an override count", () => {
+  it("UT-CAT-DUR-021 [R-EFF-12] (R-EFF-12 M7-014 Issue #268): maps reapply with an existingRemaining comparison and an override count", () => {
     const result = createDurationDefinition(
       {
         timeLimit: { unit: "ACTION", count: 1 },
@@ -294,7 +294,7 @@ describe("DurationDefinition", () => {
     expect(result.reapply).toEqual({ existingRemaining: { op: "EQ", value: 1 }, count: 2 });
   });
 
-  it("UT-CAT-DUR-022 (R-EFF-12 M7-014 Issue #268): rejects reapply without a base timeLimit", () => {
+  it("UT-CAT-DUR-022 [R-EFF-12] (R-EFF-12 M7-014 Issue #268): rejects reapply without a base timeLimit", () => {
     expect(() =>
       createDurationDefinition(
         { reapply: { existingRemaining: { op: "EQ", value: 1 }, count: 2 } },
@@ -304,7 +304,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-023 (R-EFF-12 M7-014 Issue #268): rejects reapply.count below 1", () => {
+  it("UT-CAT-DUR-023 [R-EFF-12] (R-EFF-12 M7-014 Issue #268): rejects reapply.count below 1", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -317,7 +317,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-024 (R-EFF-12 M7-014 Issue #268): rejects a non-numeric existingRemaining operator", () => {
+  it("UT-CAT-DUR-024 [R-EFF-12] (R-EFF-12 M7-014 Issue #268): rejects a non-numeric existingRemaining operator", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -330,7 +330,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-025 (R-EFF-12 M7-014 Issue #268): rejects an unknown key inside reapply", () => {
+  it("UT-CAT-DUR-025 [R-EFF-12] (R-EFF-12 M7-014 Issue #268): rejects an unknown key inside reapply", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -347,7 +347,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-026 (R-EFF-12 M7-014 Issue #268): rejects a negative existingRemaining value", () => {
+  it("UT-CAT-DUR-026 [R-EFF-12] (R-EFF-12 M7-014 Issue #268): rejects a negative existingRemaining value", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -360,7 +360,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-027 (R-EFF-10 M7-020 Issue #279): maps removeOnSourceDefeated=true", () => {
+  it("UT-CAT-DUR-027 [R-EFF-10] (R-EFF-10 M7-020 Issue #279): maps removeOnSourceDefeated=true", () => {
     const result = createDurationDefinition(
       { timeLimit: { unit: "BATTLE", count: 1 }, removeOnSourceDefeated: true },
       "duration",
@@ -374,7 +374,7 @@ describe("DurationDefinition", () => {
     });
   });
 
-  it("UT-CAT-DUR-028 (R-EFF-10 M7-020 Issue #279): omits removeOnSourceDefeated when not declared", () => {
+  it("UT-CAT-DUR-028 [R-EFF-10] (R-EFF-10 M7-020 Issue #279): omits removeOnSourceDefeated when not declared", () => {
     const result = createDurationDefinition(
       { timeLimit: { unit: "BATTLE", count: 1 } },
       "duration",
@@ -384,7 +384,7 @@ describe("DurationDefinition", () => {
     expect(Object.hasOwn(result, "removeOnSourceDefeated")).toBe(false);
   });
 
-  it("UT-CAT-DUR-029 (R-EFF-10 M7-020 Issue #279): rejects a non-boolean removeOnSourceDefeated", () => {
+  it("UT-CAT-DUR-029 [R-EFF-10] (R-EFF-10 M7-020 Issue #279): rejects a non-boolean removeOnSourceDefeated", () => {
     expect(() =>
       createDurationDefinition(
         {
@@ -397,7 +397,7 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-030 (R-EFF-10 M7-020 Issue #279): keeps an explicit removeOnSourceDefeated=false", () => {
+  it("UT-CAT-DUR-030 [R-EFF-10] (R-EFF-10 M7-020 Issue #279): keeps an explicit removeOnSourceDefeated=false", () => {
     const result = createDurationDefinition(
       { timeLimit: { unit: "BATTLE", count: 1 }, removeOnSourceDefeated: false },
       "duration",

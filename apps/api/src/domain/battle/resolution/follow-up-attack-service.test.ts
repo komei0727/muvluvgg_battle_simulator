@@ -487,7 +487,7 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     expect(eventTypes).toContain("SkillUseInterrupted");
   });
 
-  it("UT-R-FUP-01-013 (R-TEX-06 #5): keeps the EffectSequence-scoped counter alive through the follow-up, so the follow-up hit's RuntimeCounterChanged precedes the RuntimeCounterReset", () => {
+  it("UT-R-FUP-01-013 [R-FUP-01, R-TEX-06] (R-TEX-06 #5): keeps the EffectSequence-scoped counter alive through the follow-up, so the follow-up hit's RuntimeCounterChanged precedes the RuntimeCounterReset", () => {
     // R-TEX-06 #5 が定めるフェーズ末尾の順序「全stepの解決 → 追撃 → 保留ブレイクの解決
     // → `EffectSequence`スコープの`RuntimeCounterReset` → 完了イベントの発行」のうち、
     // 「追撃 → reset」は演習に限らない通常戦闘の挙動である。resetを追撃より前に戻すと

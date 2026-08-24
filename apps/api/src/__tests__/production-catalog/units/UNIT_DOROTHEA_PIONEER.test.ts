@@ -439,7 +439,7 @@ describe("production Catalog UNIT_DOROTHEA_PIONEER (【新たなる時代の導�
     });
   });
 
-  it("IT-UNIT-DOROTHEA-PIONEER-005 (R-EFF-04): AS2の「2行動の間」は`owner`を省略した既定の`EFFECT_TARGET`で、保持者である敵自身の行動終了でだけ減り、0で失効して防御力が戻る", () => {
+  it("IT-UNIT-DOROTHEA-PIONEER-005 [R-EFF-04] (R-EFF-04): AS2の「2行動の間」は`owner`を省略した既定の`EFFECT_TARGET`で、保持者である敵自身の行動終了でだけ減り、0で失効して防御力が戻る", () => {
     // 付与そのものと `timeLimit: { unit: ACTION, count: 2 }` の宣言は `-001` の
     // AS2行が持つ。ここが引き受けるのは、**別の行動を跨いで**残り回数がどう動くか。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);

@@ -692,7 +692,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
   // 「以後の回復の転送」が別の時点で起こるため、単発のEffectAction観測では
   // 転送そのものが現れない。実スキルの対象選択と、リンク保持後の別経路の回復を通す。
 
-  it("IT-UNIT-ELENA-MOODMAKER-004 (R-HEAL-04): the real SKL_ELENA_MOODMAKER_AS1 heals the lowest-HP ally and grants ACT_ELENA_MOODMAKER_AS1_HEALING_LINK to both the lowest-HP-ratio enemy and Elena herself, each resolving transferTo: SELF to Elena at grant time", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-004 [R-HEAL-04] (R-HEAL-04): the real SKL_ELENA_MOODMAKER_AS1 heals the lowest-HP ally and grants ACT_ELENA_MOODMAKER_AS1_HEALING_LINK to both the lowest-HP-ratio enemy and Elena herself, each resolving transferTo: SELF to Elena at grant time", () => {
     const board = linkBoard();
     // Catalog自身に対して、回復リンクが近似なしで表現されていることも確かめる。
     expect(effectActionFrom(snapshot, AS1_HEALING_LINK_ID)).toMatchObject({
@@ -777,7 +777,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     ]);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-005 (R-HEAL-04): once the enemy holds the AS1 link, healing that enemy transfers 100% to Elena — the enemy's HP does not move, HealingTransferred carries the causality and the HP StateDelta, and the independent Reducer restores the same HP", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-005 [R-HEAL-04] (R-HEAL-04): once the enemy holds the AS1 link, healing that enemy transfers 100% to Elena — the enemy's HP does not move, HealingTransferred carries the causality and the HP StateDelta, and the independent Reducer restores the same HP", () => {
     const board = linkBoard();
     const recorder = new EventRecorder(createBattleId("B_ELENA"));
     const granted = useSkill(
@@ -843,7 +843,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(restored.units[board.woundedEnemy.battleUnitId]!.hp).toBe(300);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-006 (BOUNDARY, R-HEAL-04): the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-006 [R-HEAL-04] (BOUNDARY, R-HEAL-04): the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
     const board = linkBoard();
     const recorder = new EventRecorder(createBattleId("B_ELENA"));
     const granted = useSkill(
@@ -976,7 +976,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     };
   }
 
-  it("IT-UNIT-ELENA-MOODMAKER-007 (R-DMG-06): the granted buff reaches a real DAMAGE hit as its own additional attack — an extra DamageCalculated whose base damage is the granted magnitude, undiminished by the target's defense", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-007 [R-DMG-06] (R-DMG-06): the granted buff reaches a real DAMAGE hit as its own additional attack — an extra DamageCalculated whose base damage is the granted magnitude, undiminished by the target's defense", () => {
     const { holder, enemy } = grantBonusToElena();
     const bonus = holder.appliedEffects.find((effect) => effect.isAttackDamageBonus === true);
     expect(bonus?.effectActionDefinitionId).toBe(EX_BONUS_DAMAGE_ID);
@@ -1014,7 +1014,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(withBonus[1]!.finalDamage).toBe(Math.floor(202.5 * 1.1));
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-008 (BOUNDARY, R-DMG-06 #1): the bonus is a grant-time snapshot — raising the holder's ATTACK afterwards does not change the additional attack's base damage", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-008 [R-DMG-06] (BOUNDARY, R-DMG-06 #1): the bonus is a grant-time snapshot — raising the holder's ATTACK afterwards does not change the additional attack's base damage", () => {
     const { holder, enemy } = grantBonusToElena();
     const magnitude = holder.appliedEffects.find(
       (effect) => effect.isAttackDamageBonus === true,
@@ -1033,7 +1033,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(bonusHit!.baseDamage).toBeCloseTo(magnitude, 6);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-009 (R-ACT-02): AS1の実 AND(TARGET_SET_COUNT×2, TARGET_STATE) は行動選択層で評価され、いずれか1つでも崩れるとAS1は候補から外れて宣言順の次のAS2が選ばれる", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-009 [R-ACT-02] (R-ACT-02): AS1の実 AND(TARGET_SET_COUNT×2, TARGET_STATE) は行動選択層で評価され、いずれか1つでも崩れるとAS1は候補から外れて宣言順の次のAS2が選ばれる", () => {
     // 既定盤面は3つの条件がすべて成立する（味方は全員HP半減＝70%未満、自身以外の
     // 味方が2体、自身のHP割合50%≧40%）。
     expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
@@ -1085,7 +1085,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     ).toBe("SKL_ELENA_MOODMAKER_AS2");
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-010 (R-DMG-04, R-DMG-03): EXが配る実 与ダメージ補正は、以後のヒットの `DamageCalculated` へ与ダメージ倍率として現れる。被ダメージ倍率・貫通2割合も同じpayloadが実値で運ぶ", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-010 [R-DMG-04] (R-DMG-04, R-DMG-03): EXが配る実 与ダメージ補正は、以後のヒットの `DamageCalculated` へ与ダメージ倍率として現れる。被ダメージ倍率・貫通2割合も同じpayloadが実値で運ぶ", () => {
     // `-001` のEX行は付与そのものと `magnitude`（+0.1）を持つが、集計結果を運ぶ
     // `DamageCalculated` payload（R-DMG-04）はスキル使用1回の観測の外にある。
     const { holder, units } = grantBonusToElena();
@@ -1165,7 +1165,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     );
   }
 
-  it("IT-UNIT-ELENA-MOODMAKER-011 (Q-CAT-EFF-16, R-STA-03): 原文に「重複可」の無いEXの攻撃力35%増加は重複しない — EXを3回使っても対象の実効攻撃力は基準値の1.35倍にとどまる", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-011 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): 原文に「重複可」の無いEXの攻撃力35%増加は重複しない — EXを3回使っても対象の実効攻撃力は基準値の1.35倍にとどまる", () => {
     const { units, definitions } = useExRepeatedly(3);
 
     // `ally:front` は攻撃力2000で `HIGHEST_ATTACK` に固定、`ally:back` は1000で
@@ -1174,7 +1174,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(attackMultiplier(units, definitions, "ally:back")).toBeCloseTo(1.35, 10);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-012 (BOUNDARY, Q-CAT-EFF-23): 同一ユニットが HIGH / LOW 両方の対象になっても、共有`kindKey`が2定義を1グループへ括るため1.35倍にとどまる", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-012 [R-STA-03] (BOUNDARY, Q-CAT-EFF-23): 同一ユニットが HIGH / LOW 両方の対象になっても、共有`kindKey`が2定義を1グループへ括るため1.35倍にとどまる", () => {
     // 味方がエレーナ1体だけの盤面では `HIGHEST_ATTACK` と `LOWEST_ATTACK` が
     // どちらも自身へ解決し、`..._HIGH` と `..._LOW` を同時に保持する。
     const { units, definitions } = useExRepeatedly(1, {
@@ -1206,7 +1206,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     ).toHaveLength(2);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-013 (Q-CAT-EFF-16): 与ダメージ10%増加は付与側でガードされる — EXを3回使っても対象は1件しか保持しない", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-013 [R-SKL-06] (Q-CAT-EFF-16): 与ダメージ10%増加は付与側でガードされる — EXを3回使っても対象は1件しか保持しない", () => {
     const { units } = useExRepeatedly(3);
 
     for (const battleUnitId of ["ally:front", "ally:back"]) {
@@ -1223,7 +1223,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     }
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-017 (R-DMG-06, Q-CAT-EFF-16の例外): 追加攻撃バフは重複する — 2件保持すればその数だけ追加攻撃が発生する", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-017 [R-DMG-06] (R-DMG-06, Q-CAT-EFF-16の例外): 追加攻撃バフは重複する — 2件保持すればその数だけ追加攻撃が発生する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, BONUS_BOARD);
     // 実定義を同じ対象へ2回配る。原文に「重複可」は無いが、保持数がそのまま追加攻撃の
     // 回数になるという効果の性質から重複させる（R-FUP-01の追撃バフと同じ立場）。
@@ -1246,7 +1246,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     );
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-014 (REGRESSION, Q-CAT-EFF-16): 原文に「重複可」があるPS2の攻撃力60%上昇は従来どおり積み増す", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-014 [R-STA-03] (REGRESSION, Q-CAT-EFF-16): 原文に「重複可」があるPS2の攻撃力60%上昇は従来どおり積み増す", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, BONUS_BOARD);
     const units = applyPrecedingActions(board, [
       { effectActionDefinitionId: PS2_ATK_UP_ID, target: "SELF" },
@@ -1256,7 +1256,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(attackMultiplier(units, board.definitions, SUBJECT_ID)).toBeCloseTo(1 + 0.6 + 0.6, 10);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-015 (R-CRT-04): AS2の実「対象の現在HP×12.5%分のダメージ」は会心判定を行わない — 会心率100%かつ会心保証を保持していても非会心で、会心の抽選も消費しない", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-015 [R-CRT-04] (R-CRT-04): AS2の実「対象の現在HP×12.5%分のダメージ」は会心判定を行わない — 会心率100%かつ会心保証を保持していても非会心で、会心の抽選も消費しない", () => {
     const observed = observeHitPointRatioCritical({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -1285,7 +1285,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(control.criticalMultiplier).toBeGreaterThan(1);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-016 (R-CRT-04 boundary): 会心保証を持たない使用者でもAS2は会心判定へ進まない — 会心率100%の同じ盤面で、PS2のDAMAGEより抽選を1本少なく消費する", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-016 [R-CRT-04] (R-CRT-04 boundary): 会心保証を持たない使用者でもAS2は会心判定へ進まない — 会心率100%の同じ盤面で、PS2のDAMAGEより抽選を1本少なく消費する", () => {
     const probe = (effectActionDefinitionId: string, skillDefinitionId: string) =>
       observeHitPointRatioCritical({
         snapshot,

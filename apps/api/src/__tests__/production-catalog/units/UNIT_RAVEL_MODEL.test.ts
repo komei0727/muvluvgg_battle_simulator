@@ -404,7 +404,7 @@ describe("production Catalog UNIT_RAVEL_MODEL (【気高きランウェイモデ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-RAVEL-MODEL-004 (Q-CAT-EFF-16, R-STA-03): PS2の防御力30%低下は原文に「重複可」が無く重複しない — 2行動の効果が残っているうちにターン終了で再発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-RAVEL-MODEL-004 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS2の防御力30%低下は原文に「重複可」が無く重複しない — 2行動の効果が残っているうちにターン終了で再発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,

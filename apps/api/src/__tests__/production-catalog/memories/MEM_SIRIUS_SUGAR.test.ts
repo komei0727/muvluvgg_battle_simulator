@@ -122,7 +122,7 @@ describe("production Catalog MEM_SIRIUS_SUGAR (Sirius Sugar)", () => {
     ).toEqual([]);
   });
 
-  it("IT-MEM-SIRIUS-SUGAR-004 (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_SIRIUS_SUGAR, while the party-wide one still resolves", () => {
+  it("IT-MEM-SIRIUS-SUGAR-004 [R-MEM-01] (R-MEM-01): the affiliation triggeredEffect emits no MemoryTriggered at all when no unit on the board belongs to AFF_SIRIUS_SUGAR, while the party-wide one still resolves", () => {
     // 境界（`08_ドメインイベント.md`「発動直前の再確認」）: 対象0件の
     // `triggeredEffect` は`MemoryTriggered`自体を発行しない。
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY");

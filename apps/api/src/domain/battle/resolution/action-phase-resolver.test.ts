@@ -1087,7 +1087,7 @@ describe("resolveActionPhase", () => {
     expect(passiveActivated!.payload).toMatchObject({ triggerEventId: healApplied.eventId });
   });
 
-  it("UT-R-DOT-01-005 (DMG-008 Issue #189, full stack): a held APPLY_CONTINUOUS_DAMAGE damages its owner at the owner's own ActionStarted, and the ContinuousDamageApplied StateDelta reconstructs the same HP through the independent Reducer", () => {
+  it("UT-R-DOT-01-005 [R-DOT-01, R-DOT-02] (DMG-008 Issue #189, full stack): a held APPLY_CONTINUOUS_DAMAGE damages its owner at the owner's own ActionStarted, and the ContinuousDamageApplied StateDelta reconstructs the same HP through the independent Reducer", () => {
     const dotDefId = createEffectActionDefinitionId("ACT_DOT");
     const dotDef: EffectActionDefinition = {
       effectActionDefinitionId: dotDefId,
@@ -1831,7 +1831,7 @@ describe("resolveActionPhase", () => {
     return { ctx, result, eventsOfParent };
   }
 
-  it("UT-R-DMG-05-008 (R-ATM-01): a PS reacting to an AS DAMAGE's CriticalCheckResolved no longer cancels the parent hit — the hit runs its full R-DMG-05 sequence and the reacting PS lands after SkillUseCompleted (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
+  it("UT-R-DMG-05-008 [R-ATM-01, R-DMG-05] (R-ATM-01): a PS reacting to an AS DAMAGE's CriticalCheckResolved no longer cancels the parent hit — the hit runs its full R-DMG-05 sequence and the reacting PS lands after SkillUseCompleted (production shape: SKL_EVIE_KYONSHI_PS1 / SKL_LAYLA_ENTREPRENEUR_PS2 deal DAMAGE from CriticalCheckResolved)", () => {
     const { ctx, result, eventsOfParent } = lethalObserverChainSetup("CriticalCheckResolved");
 
     // 旧仕様では会心判定の直後にPSが割り込んで対象を倒し、親のヒットが
@@ -1855,7 +1855,7 @@ describe("resolveActionPhase", () => {
     expect(result.enemyUnits[0]!.currentHp).toBe(0);
   });
 
-  it("UT-R-DMG-05-009 (R-ATM-01): a PS reacting to an AS DAMAGE's HitConfirmed no longer cancels the parent hit — the critical check and the rest of R-DMG-05 still run for it", () => {
+  it("UT-R-DMG-05-009 [R-ATM-01, R-DMG-05] (R-ATM-01): a PS reacting to an AS DAMAGE's HitConfirmed no longer cancels the parent hit — the critical check and the rest of R-DMG-05 still run for it", () => {
     const { ctx, result, eventsOfParent } = lethalObserverChainSetup("HitConfirmed");
 
     expect(eventsOfParent("HitConfirmed")).toBe(1);
@@ -2072,7 +2072,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-003 (R-END-01 timing #1): resolving victory mid-phase stops processing the remaining queue immediately", () => {
+  it("UT-ACTION-PHASE-003 [R-END-01] (R-END-01 timing #1): resolving victory mid-phase stops processing the remaining queue immediately", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_ATTACKER");
     // ALLY_1 acts first (higher actionSpeed) and one-shots the only enemy; ALLY_2 must never get to act.
     const allyFast = unit("ALLY_1", "ALLY", {
@@ -2337,7 +2337,7 @@ describe("resolveActionPhase", () => {
     expect(events.indexOf(applied)).toBeLessThan(events.indexOf(expired));
   });
 
-  it("UT-ACTION-PHASE-005 (R-ACT-01 #4 / R-ACT-03 EX行): a reserved EX skill consumes the full EX gauge (not AP) and applies DAMAGE to the target", () => {
+  it("UT-ACTION-PHASE-005 [R-ACT-01] (R-ACT-01 #4 / R-ACT-03 EX行): a reserved EX skill consumes the full EX gauge (not AP) and applies DAMAGE to the target", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_ATTACKER");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_EX_ATTACKER",
@@ -2385,7 +2385,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-021 (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it", () => {
+  it("UT-ACTION-PHASE-021 [R-ORD-03] (Q-EX-04 / R-ORD-03: Queue再生成後の予約種別切り替え): a unit with AP still remaining after EX drains the gauge requeues next cycle with an AS reservation and actually uses it", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_EX_THEN_AS");
     // AP is 1 (not consumed by EX) and the EX gauge starts full: cycle 1 must
     // reserve EX (R-ORD-03), and only after the gauge drains does cycle 2's
@@ -2502,7 +2502,7 @@ describe("resolveActionPhase", () => {
     });
   });
 
-  it("UT-ACTION-PHASE-019 (Q-BTL-06 / R-ORD-01, Issue #517): an AS reservation whose AP is drained to 0 while its EX gauge fills in the same preceding action keeps its queue eligibility, and its NO_USABLE_ACTIVE_SKILL wait drains the full EX gauge instead of driving AP to -1", () => {
+  it("UT-ACTION-PHASE-019 [R-ACT-03, R-ORD-01] (Q-BTL-06 / R-ORD-01, Issue #517): an AS reservation whose AP is drained to 0 while its EX gauge fills in the same preceding action keeps its queue eligibility, and its NO_USABLE_ACTIVE_SKILL wait drains the full EX gauge instead of driving AP to -1", () => {
     const scenario = apDrainedWithFullGaugeScenario(10);
     const random = new SequenceRandomSource([]);
 
@@ -2647,7 +2647,7 @@ describe("resolveActionPhase", () => {
     },
   );
 
-  it("UT-ACTION-PHASE-020 (R-ACT-03 / Q-BTL-06 / Q-EX-03, Issue #517 review): an EX reservation that turns out to be unusable while its holder still has AP consumes 1 AP and keeps the gauge, and only the following cycle — which re-reserves EX because the gauge is still full — drains it at AP 0", () => {
+  it("UT-ACTION-PHASE-020 [R-ACT-03] (R-ACT-03 / Q-BTL-06 / Q-EX-03, Issue #517 review): an EX reservation that turns out to be unusable while its holder still has AP consumes 1 AP and keeps the gauge, and only the following cycle — which re-reserves EX because the gauge is still full — drains it at AP 0", () => {
     const scenario = unusableExWaitScenario(1);
     const random = new SequenceRandomSource([]);
 
@@ -2801,7 +2801,7 @@ describe("resolveActionPhase", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-ACTION-PHASE-009 (R-SKL-04): using a skill with an ACTION-unit cooldown sets it, and CooldownStarted is not emitted for the default count-0 fixture skills", () => {
+  it("UT-ACTION-PHASE-009 [R-SKL-04] (R-SKL-04): using a skill with an ACTION-unit cooldown sets it, and CooldownStarted is not emitted for the default count-0 fixture skills", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_COOLDOWN");
     const skill = attackSkill("ACT_CD_ATTACK", 1, ENEMY_ALL, { unit: "ACTION", count: 2 });
     const ally = unit("ALLY_1", "ALLY", {
@@ -2850,7 +2850,7 @@ describe("resolveActionPhase", () => {
     ).toMatchObject({ setActionId: cooldownEntry!.setActionId });
   });
 
-  it("UT-ACTION-PHASE-010 (R-SKL-04): does not emit CooldownStarted for a skill whose cooldown.count is 0", () => {
+  it("UT-ACTION-PHASE-010 [R-SKL-04] (R-SKL-04): does not emit CooldownStarted for a skill whose cooldown.count is 0", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_NO_COOLDOWN");
     const ally = unit("ALLY_1", "ALLY", {
       unitDefinitionId: "UNIT_NO_COOLDOWN",
@@ -2882,7 +2882,7 @@ describe("resolveActionPhase", () => {
     );
   });
 
-  it("UT-ACTION-PHASE-011 (R-SKL-04): does not decrement a cooldown set during the same action, but decrements it at the end of the actor's next own action", () => {
+  it("UT-ACTION-PHASE-011 [R-SKL-04] (R-SKL-04): does not decrement a cooldown set during the same action, but decrements it at the end of the actor's next own action", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_COOLDOWN_DECREMENT");
     // apCost 2 with 3 starting AP: cycle 1 affords the skill (sets
     // remaining=1, no decrement this same action). Cycle 2 only has 1 AP
@@ -2939,7 +2939,7 @@ describe("resolveActionPhase", () => {
     ).toHaveLength(1);
   });
 
-  it("UT-ACTION-PHASE-012 (R-SKL-05): selecting a CHARGE skill starts a charge (consumes cost, no effects yet) as one action, and the next action opportunity releases it as a separate action with distinct ActionIds", () => {
+  it("UT-ACTION-PHASE-012 [R-ORD-03, R-SKL-05] (R-SKL-05): selecting a CHARGE skill starts a charge (consumes cost, no effects yet) as one action, and the next action opportunity releases it as a separate action with distinct ActionIds", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const skill = chargeSkill("ACT_CHARGE_HIT", 1);
     const ally = unit("ALLY_1", "ALLY", {
@@ -3068,7 +3068,7 @@ describe("resolveActionPhase", () => {
     );
   });
 
-  it("UT-R-ACT-01-001 (R-ACT-01 #1, R-STS-02): a stunned unit WAITs instead of using an otherwise-usable AS", () => {
+  it("UT-R-ACT-01-001 [R-ACT-01, R-STS-02] (R-ACT-01 #1, R-STS-02): a stunned unit WAITs instead of using an otherwise-usable AS", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_STUNNED");
     const skill = attackSkill("ACT_STUNNED_HIT");
     const ally = {
@@ -3103,7 +3103,7 @@ describe("resolveActionPhase", () => {
     expect(ctx.recorder.getEvents().some((e) => e.eventType === "SkillUseStarting")).toBe(false);
   });
 
-  it("UT-R-ACT-01-002 (R-STS-02): a stunned unit with AP 0 and a full EX gauge WAITs consuming the EX gauge fully, not AP", () => {
+  it("UT-R-ACT-01-002 [R-ACT-01, R-STS-02] (R-STS-02): a stunned unit with AP 0 and a full EX gauge WAITs consuming the EX gauge fully, not AP", () => {
     const ally = {
       ...unit("ALLY_1", "ALLY", {
         limits: { maximumAp: 1, maximumExtraGauge: 10 },
@@ -3174,7 +3174,7 @@ describe("resolveActionPhase", () => {
     expect(ctx.recorder.getEvents().some((e) => e.eventType === "ChargeHeldByFreeze")).toBe(false);
   });
 
-  it("UT-R-ACT-01-004 (R-ACT-01 #2, R-SKL-05 '凍結中はチャージを維持し'): a frozen unit with a pending charge WAITs (recording ChargeHeldByFreeze) instead of releasing it while frozen remains active, then releases it once freeze naturally expires", () => {
+  it("UT-R-ACT-01-004 [R-ACT-01, R-SKL-05] (R-ACT-01 #2, R-SKL-05 '凍結中はチャージを維持し'): a frozen unit with a pending charge WAITs (recording ChargeHeldByFreeze) instead of releasing it while frozen remains active, then releases it once freeze naturally expires", () => {
     const chargedSkill = chargeSkill("ACT_RELEASE_HIT");
     const startedActionId = createActionId("B_TEST:action:1");
     const ally = {
@@ -3242,7 +3242,7 @@ describe("resolveActionPhase", () => {
     expect(held.sequence).toBeLessThan(actionCompletingForWait.sequence);
   });
 
-  it("UT-R-ACT-01-006: if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
+  it("UT-R-ACT-01-006 [R-ACT-01, R-SKL-05]: if an ally's PS reacts to the frozen unit's ActionWaited and cancels its charge mid-resolution (STUN), ChargeHeldByFreeze is NOT recorded — the hook re-reads the post-chain state, not a stale pre-wait snapshot", () => {
     // The frozen unit itself can't hold a reacting PS here (R-STS-03: a frozen
     // owner can't newly activate PS either, `OWNER_FROZEN` in
     // reconfirm-passive-candidate.ts) — a separate, unfrozen ally's PS reacts
@@ -4706,7 +4706,7 @@ describe("resolveActionPhase", () => {
     expect(waited.sequence).toBeLessThan(released.sequence);
   });
 
-  it("UT-ACTION-PHASE-013 (R-SKL-05): charge start sets the original skill's cooldown, scoped to the charge-start action; the release action (a later action for this actor) then decrements it like any other own-action-end", () => {
+  it("UT-ACTION-PHASE-013 [R-SKL-04, R-SKL-05] (R-SKL-05): charge start sets the original skill's cooldown, scoped to the charge-start action; the release action (a later action for this actor) then decrements it like any other own-action-end", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CHARGER_CD");
     const skill = chargeSkill("ACT_CHARGE_CD_HIT", 1, ENEMY_ALL, { unit: "ACTION", count: 2 });
     const ally = unit("ALLY_1", "ALLY", {
@@ -4756,7 +4756,7 @@ describe("resolveActionPhase", () => {
     expect(typeof cooldownEntry?.setActionId).toBe("string");
   });
 
-  it("UT-ACTION-PHASE-014 (R-SKL-05): repeated charge start+release cycles (2 cycles per AP spent, instead of 1) do not trip the cycle-count safety guard", () => {
+  it("UT-ACTION-PHASE-014 [R-SKL-05] (R-SKL-05): repeated charge start+release cycles (2 cycles per AP spent, instead of 1) do not trip the cycle-count safety guard", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_REPEAT_CHARGER");
     // No cooldown, so the same CHARGE skill is immediately selectable again
     // after each release. 2 AP means 2 full charge/release pairs = 4 cycles,
@@ -4798,7 +4798,7 @@ describe("resolveActionPhase", () => {
     );
   });
 
-  it("UT-ACTION-PHASE-015 (Issue #129 COOLDOWN_MANIPULATION): RESET sets a cooling target skill's remaining to 0 and emits CooldownReduced+CooldownCompleted", () => {
+  it("UT-ACTION-PHASE-015 [R-SKL-09] (Issue #129 COOLDOWN_MANIPULATION): RESET sets a cooling target skill's remaining to 0 and emits CooldownReduced+CooldownCompleted", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_RESET");
     const targetSkillDefinitionId = createSkillDefinitionId("SKL_TARGET_RESET");
     const skill = cooldownManipulationSkill("ACT_CD_RESET", 1);
@@ -4855,7 +4855,7 @@ describe("resolveActionPhase", () => {
     ).toHaveLength(1);
   });
 
-  it("UT-ACTION-PHASE-016 (Issue #129 COOLDOWN_MANIPULATION): REDUCE decreases a target skill's remaining by the given amount without completing it", () => {
+  it("UT-ACTION-PHASE-016 [R-SKL-09] (Issue #129 COOLDOWN_MANIPULATION): REDUCE decreases a target skill's remaining by the given amount without completing it", () => {
     // TURN-unit target skill: isolates REDUCE from R-SKL-04's own per-ACTION
     // natural decay (which only touches the actor's ACTION-unit cooldowns at
     // ActionCompleting and would otherwise also decrement this entry by 1).
@@ -4911,7 +4911,7 @@ describe("resolveActionPhase", () => {
     ).toHaveLength(0);
   });
 
-  it("UT-ACTION-PHASE-017 (Issue #129 COOLDOWN_MANIPULATION): manipulating a READY/unregistered target skill is a no-op and emits no CooldownReduced", () => {
+  it("UT-ACTION-PHASE-017 [R-SKL-09] (Issue #129 COOLDOWN_MANIPULATION): manipulating a READY/unregistered target skill is a no-op and emits no CooldownReduced", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_CD_MANIP_NOOP");
     const skill = cooldownManipulationSkill("ACT_CD_NOOP", 1);
     const effectAction = cooldownManipulationEffectAction(

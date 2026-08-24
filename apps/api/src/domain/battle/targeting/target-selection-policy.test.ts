@@ -1088,7 +1088,7 @@ describe("resolveTargets", () => {
   });
 
   describe("TGT-002: TargetFilterDefinition evaluation (CAP_TARGET_FILTER_ORDER, Issue #169)", () => {
-    it("UT-TGT-002-001: HAS_MARKER filter matches only candidates holding the marker", () => {
+    it("UT-TGT-002-001 [R-TGT-09]: HAS_MARKER filter matches only candidates holding the marker", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const markerId = createMarkerId("MARKER_TAG");
       const marked = unit(

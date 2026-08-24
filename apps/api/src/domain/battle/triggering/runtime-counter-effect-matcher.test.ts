@@ -96,7 +96,7 @@ function hitEvent(sourceUnitId: BattleUnit["battleUnitId"]): TriggerCandidateEve
 }
 
 describe("matchEffectRuntimeCounterUpdates", () => {
-  it("UT-RCOUNTER-EFF-001 (EFF-005 Issue #162): matches an effect instance's own counterUpdates when its trigger matches", () => {
+  it("UT-RCOUNTER-EFF-001 [R-EFF-11] (EFF-005 Issue #162): matches an effect instance's own counterUpdates when its trigger matches", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, [
@@ -124,7 +124,7 @@ describe("matchEffectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-EFF-002: does not match instances without counterUpdates", () => {
+  it("UT-RCOUNTER-EFF-002 [R-EFF-11]: does not match instances without counterUpdates", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, []);
@@ -138,7 +138,7 @@ describe("matchEffectRuntimeCounterUpdates", () => {
     expect(matched).toHaveLength(0);
   });
 
-  it("UT-RCOUNTER-EFF-003: skips defeated holders", () => {
+  it("UT-RCOUNTER-EFF-003 [R-EFF-11]: skips defeated holders", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = { ...unit("holder-1", "ALLY"), currentHp: 0 };
     const effect = effectWithCounterUpdates("effect-1", holder, [
@@ -160,7 +160,7 @@ describe("matchEffectRuntimeCounterUpdates", () => {
     expect(matched).toHaveLength(0);
   });
 
-  it("UT-RCOUNTER-EFF-004: each effect instance is matched independently, even when owned by the same unit", () => {
+  it("UT-RCOUNTER-EFF-004 [R-EFF-11]: each effect instance is matched independently, even when owned by the same unit", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effectA = effectWithCounterUpdates("effect-a", holder, [
@@ -196,7 +196,7 @@ describe("matchEffectRuntimeCounterUpdates", () => {
 });
 
 describe("detectEffectRuntimeCounterUpdates", () => {
-  it("UT-RCOUNTER-EFF-005: increments the matched effect instance's own counter and reports the change", () => {
+  it("UT-RCOUNTER-EFF-005 [R-EFF-11]: increments the matched effect instance's own counter and reports the change", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, [
@@ -233,7 +233,7 @@ describe("detectEffectRuntimeCounterUpdates", () => {
     });
   });
 
-  it("UT-RCOUNTER-EFF-006: leaves other effect instances and units untouched", () => {
+  it("UT-RCOUNTER-EFF-006 [R-EFF-11]: leaves other effect instances and units untouched", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const untouched = effectWithCounterUpdates("effect-untouched", holder, []);
@@ -260,7 +260,7 @@ describe("detectEffectRuntimeCounterUpdates", () => {
     });
   });
 
-  it("UT-RCOUNTER-EFF-007 (CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): accumulates damage as a max-HP-ratio threshold count against the holder's own maximumHp", () => {
+  it("UT-RCOUNTER-EFF-007 [R-EFF-11] (CUMULATIVE_DAMAGE_THRESHOLD_TRIGGER): accumulates damage as a max-HP-ratio threshold count against the holder's own maximumHp", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, [
@@ -294,7 +294,7 @@ describe("detectEffectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-EFF-008 (review-style carry tracking): reports a change when only the internal carry moved, even though the public value did not", () => {
+  it("UT-RCOUNTER-EFF-008 [R-EFF-11] (review-style carry tracking): reports a change when only the internal carry moved, even though the public value did not", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, [
@@ -328,7 +328,7 @@ describe("detectEffectRuntimeCounterUpdates", () => {
     ]);
   });
 
-  it("UT-RCOUNTER-EFF-009: reports no change at all when the event does not match (0 damage, no matching trigger)", () => {
+  it("UT-RCOUNTER-EFF-009 [R-EFF-11]: reports no change at all when the event does not match (0 damage, no matching trigger)", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, [
@@ -352,7 +352,7 @@ describe("detectEffectRuntimeCounterUpdates", () => {
     expect(result.changes).toHaveLength(0);
   });
 
-  it("UT-RCOUNTER-EFF-010 (defensive scope guard): rejects a non-APPLIED_EFFECT scoped counterUpdates entry reaching this matcher (Catalog validation already rejects this before it can reach here)", () => {
+  it("UT-RCOUNTER-EFF-010 [R-EFF-11] (defensive scope guard): rejects a non-APPLIED_EFFECT scoped counterUpdates entry reaching this matcher (Catalog validation already rejects this before it can reach here)", () => {
     const enemy = unit("enemy-1", "ENEMY");
     const holder = unit("holder-1", "ALLY");
     const effect = effectWithCounterUpdates("effect-1", holder, []);

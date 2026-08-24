@@ -750,7 +750,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
     ).toEqual(["SKL_SUIRAN_CHAOS_PS3"]);
   });
 
-  it("IT-UNIT-SUIRAN-CHAOS-011 (R-FUP-01): the rider SKL_SUIRAN_CHAOS_PS3 grants makes the ally's own AS deliver the follow-up — computed from the ally's stats, critical inherited from the boosted attack, speed-down applied to the hit enemy, and both buffs spent by that one attack", () => {
+  it("IT-UNIT-SUIRAN-CHAOS-011 [R-FUP-01] (R-FUP-01): the rider SKL_SUIRAN_CHAOS_PS3 grants makes the ally's own AS deliver the follow-up — computed from the ally's stats, critical inherited from the boosted attack, speed-down applied to the hit enemy, and both buffs spent by that one attack", () => {
     const board = passiveBoard();
     // PS3の付与は実trigger経由（IT-004と同じ）。会心+15%と追撃バフが味方へ載る。
     const realSkillUseStarting = emitRealSkillUseStarting(board);

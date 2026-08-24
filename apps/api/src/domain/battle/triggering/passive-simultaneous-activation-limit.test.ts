@@ -103,7 +103,7 @@ describe("applySimultaneousActivationLimit", () => {
     });
   });
 
-  it("UT-R-PS-03-003: preemptive candidates already sort first, so a preemptive simultaneousActivationLimited candidate wins over a normal one", () => {
+  it("UT-R-PS-03-003 [R-PS-03, R-PS-08]: preemptive candidates already sort first, so a preemptive simultaneousActivationLimited candidate wins over a normal one", () => {
     const preemptive = candidateOf(
       unit("PRE", "ALLY"),
       skillOf("SKL_PRE", { priorityAttack: true, simultaneousActivationLimited: true }),

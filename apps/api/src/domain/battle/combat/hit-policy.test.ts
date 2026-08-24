@@ -368,7 +368,7 @@ describe("resolveEffectiveAccuracyMode (R-HIT-05)", () => {
 });
 
 describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
-  it("UT-R-HIT-03-001: no BLIND effects never misses and does not consume RandomSource", () => {
+  it("UT-R-HIT-03-001 [R-HIT-03, R-STS-04]: no BLIND effects never misses and does not consume RandomSource", () => {
     const attacker = unit("ATTACKER");
     const random = new SequenceRandomSource([]);
 
@@ -378,7 +378,7 @@ describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
     random.assertFullyConsumed();
   });
 
-  it("UT-R-HIT-03-002: a single BLIND effect that rolls MISS makes the whole check missed", () => {
+  it("UT-R-HIT-03-002 [R-HIT-03, R-STS-04]: a single BLIND effect that rolls MISS makes the whole check missed", () => {
     const blind = darknessEffect("eff-1", "ATTACKER", { probability: 0.55 });
     const attacker = { ...unit("ATTACKER"), appliedEffects: [blind] };
     const random = new SequenceRandomSource([0.1]);
@@ -398,7 +398,7 @@ describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
     });
   });
 
-  it("UT-R-HIT-03-003: a single BLIND effect whose roll fails does not miss", () => {
+  it("UT-R-HIT-03-003 [R-HIT-03, R-STS-04]: a single BLIND effect whose roll fails does not miss", () => {
     const blind = darknessEffect("eff-1", "ATTACKER", { probability: 0.55 });
     const attacker = { ...unit("ATTACKER"), appliedEffects: [blind] };
     const random = new SequenceRandomSource([0.9]);
@@ -418,7 +418,7 @@ describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
     });
   });
 
-  it("UT-R-HIT-03-004 (R-HIT-03 #3/#5: independent per-effect rolls, probabilities not combined): two BLIND effects are each judged with their own roll, and any single MISS makes the whole check missed even if the other roll fails", () => {
+  it("UT-R-HIT-03-004 [R-HIT-03, R-STS-04] (R-HIT-03 #3/#5: independent per-effect rolls, probabilities not combined): two BLIND effects are each judged with their own roll, and any single MISS makes the whole check missed even if the other roll fails", () => {
     const first = darknessEffect("eff-1", "ATTACKER", { probability: 0.3 });
     const second = darknessEffect("eff-2", "ATTACKER", { probability: 0.3 });
     const attacker = { ...unit("ATTACKER"), appliedEffects: [first, second] };
@@ -448,7 +448,7 @@ describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
     random.assertFullyConsumed();
   });
 
-  it("UT-R-HIT-03-005 (R-HIT-03 #4: does not short-circuit on the first MISS — all checks are recorded for audit): both BLIND effects roll MISS and both are recorded", () => {
+  it("UT-R-HIT-03-005 [R-HIT-03, R-STS-04] (R-HIT-03 #4: does not short-circuit on the first MISS — all checks are recorded for audit): both BLIND effects roll MISS and both are recorded", () => {
     const first = darknessEffect("eff-1", "ATTACKER", { probability: 1 });
     const second = darknessEffect("eff-2", "ATTACKER", { probability: 0.5 });
     const attacker = { ...unit("ATTACKER"), appliedEffects: [first, second] };
@@ -474,7 +474,7 @@ describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
     random.assertFullyConsumed();
   });
 
-  it("UT-R-HIT-03-006 (missing probability defaults to certain MISS without consuming RandomSource): a BLIND effect without an explicit probability always misses", () => {
+  it("UT-R-HIT-03-006 [R-HIT-03, R-STS-04] (missing probability defaults to certain MISS without consuming RandomSource): a BLIND effect without an explicit probability always misses", () => {
     const blind = darknessEffect("eff-1", "ATTACKER", {});
     const attacker = { ...unit("ATTACKER"), appliedEffects: [blind] };
     const random = new SequenceRandomSource([]);
@@ -495,7 +495,7 @@ describe("resolveDarkness (R-HIT-03/R-STS-04)", () => {
     random.assertFullyConsumed();
   });
 
-  it("UT-R-HIT-03-007 (non-BLIND statusKind ignored): an unrelated status-kind AppliedEffect does not affect darkness resolution", () => {
+  it("UT-R-HIT-03-007 [R-HIT-03, R-STS-04] (non-BLIND statusKind ignored): an unrelated status-kind AppliedEffect does not affect darkness resolution", () => {
     const notBlind: AppliedEffect = { ...darknessEffect("eff-1", "ATTACKER"), statusKind: "STUN" };
     const attacker = { ...unit("ATTACKER"), appliedEffects: [notBlind] };
     const random = new SequenceRandomSource([]);

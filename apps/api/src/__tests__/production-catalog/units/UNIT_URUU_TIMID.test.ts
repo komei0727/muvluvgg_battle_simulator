@@ -565,7 +565,7 @@ describe("production Catalog UNIT_URUU_TIMID (【臆病な褒められたがり�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-URUU-TIMID-004 (R-PS-01): PS3の「敵から自身にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類と発生源の帰属で判定される", () => {
+  it("IT-UNIT-URUU-TIMID-004 [R-PS-01] (R-PS-01): PS3の「敵から自身にデバフが付与された際」は、実 resolver が `EffectApplied` へ載せた分類と発生源の帰属で判定される", () => {
     // `-001` のPS3行が使う契機イベントはハーネスが組み立てたもので、payload の
     // `categories` はテスト側の宣言でしかない。**実装がその効果をどう分類したか**は
     // 実 resolver に発行させたイベントにしか現れない。

@@ -137,7 +137,7 @@ describe("findBlockingImmunity", () => {
     expect(notBlockedFreeze).toBeUndefined();
   });
 
-  it("UT-R-EFF-03-017: statusKinds scoping cannot be bypassed via the DEBUFF category a status ailment also carries (R-STS-01)", () => {
+  it("UT-R-EFF-03-017 [R-EFF-03, R-STS-01]: statusKinds scoping cannot be bypassed via the DEBUFF category a status ailment also carries (R-STS-01)", () => {
     // categories includes both STATUS (scoped to FREEZE) and DEBUFF (unscoped
     // on its own). STUN is classified as {STATUS, DEBUFF} per R-STS-01, so
     // without gating DEBUFF too when the candidate is a status ailment, STUN

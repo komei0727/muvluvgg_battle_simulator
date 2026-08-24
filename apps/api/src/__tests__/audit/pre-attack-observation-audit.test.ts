@@ -47,7 +47,7 @@ function pairKey(event: BattleLogEvent, targetField: string): string {
 }
 
 describe("pre-attack observation audit (R-ATM-03)", () => {
-  it("IT-AUDIT-ATM-001 (R-ATM-03 #1/#3/#6, 08_ドメインイベント.md 不変条件#5): every production battle emits UnitBeingAttacked exactly once per skill use per attacked target, always before that skill use's first hit", () => {
+  it("IT-AUDIT-ATM-001 [R-ATM-03] (R-ATM-03 #1/#3/#6, 08_ドメインイベント.md 不変条件#5): every production battle emits UnitBeingAttacked exactly once per skill use per attacked target, always before that skill use's first hit", () => {
     const duplicates: string[] = [];
     const lateObservations: string[] = [];
     const unobservedHits: string[] = [];

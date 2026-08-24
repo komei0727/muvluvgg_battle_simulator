@@ -442,7 +442,7 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     });
   });
 
-  it("IT-UNIT-FEE-ACTOR-005 (R-EFF-07): PS1の会心率上昇は「次に行う攻撃」で消費されるが、失効はその攻撃の解決後まで遅らせるため、**消費させた当の一撃自身が会心する**", () => {
+  it("IT-UNIT-FEE-ACTOR-005 [R-EFF-07] (R-EFF-07): PS1の会心率上昇は「次に行う攻撃」で消費されるが、失効はその攻撃の解決後まで遅らせるため、**消費させた当の一撃自身が会心する**", () => {
     // 付与そのものと `consumption: { kind: NEXT_OUTGOING_ATTACK, maxCount: 1 }` の
     // 宣言は `-001` のPS1行が持つ。消費は**以後の別の攻撃**でしか起きないため、
     // 「いつ消費され、いつ失効し、その1発に効果が乗っているか」は表に現れない。
@@ -509,7 +509,7 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     expect(withoutBuff.hpDeltas).toEqual({ "enemy:front": -500 });
   });
 
-  it("IT-UNIT-FEE-ACTOR-006 (R-FUP-01): 他の味方が実ASで攻撃するとPS1がそのSkillUseStartingで発動して追撃バフを付与し、当該攻撃の後に威力28.08のEN追撃が味方のステータスで入り、バフはその1回で失効する", () => {
+  it("IT-UNIT-FEE-ACTOR-006 [R-FUP-01] (R-FUP-01): 他の味方が実ASで攻撃するとPS1がそのSkillUseStartingで発動して追撃バフを付与し、当該攻撃の後に威力28.08のEN追撃が味方のステータスで入り、バフはその1回で失効する", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     // 付与→捕捉→相乗りの全周を1本の実AS使用で観測する — 合成ASの`SkillUseStarting`で
     // フィーのPS1（OTHER_ALLY）が実際に発動し、その場で付与されたバフが同じ攻撃に
@@ -553,7 +553,7 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
   });
 
-  it("IT-UNIT-FEE-ACTOR-007 (Q-CAT-EFF-16, R-STA-03): PS3の味方後列攻撃力30%上昇は原文に「重複可」が無く重複しない — 後列の味方が攻撃されるたび再発動しても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-FEE-ACTOR-007 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS3の味方後列攻撃力30%上昇は原文に「重複可」が無く重複しない — 後列の味方が攻撃されるたび再発動しても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
@@ -568,7 +568,7 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     expect(effectiveValue).toBeCloseTo(baseValue * (1 + 0.3), 10);
   });
 
-  it("IT-UNIT-FEE-ACTOR-008 (Q-CAT-EFF-16, R-STA-03): PS3の行動速度100低下は原文に「重複可」が無く重複しない — 同じ敵が繰り返し攻撃してきても実効値は1件分にとどまる", () => {
+  it("IT-UNIT-FEE-ACTOR-008 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS3の行動速度100低下は原文に「重複可」が無く重複しない — 同じ敵が繰り返し攻撃してきても実効値は1件分にとどまる", () => {
     const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,

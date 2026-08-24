@@ -94,7 +94,7 @@ describe("resolveAcademyLevelAddition — R-ENH-02 系統の選択", () => {
  * 加算回数の合計は必ず `L − 1` に一致し、HP≧攻撃力≧防御力の順で1回以上離れない。
  */
 describe("calculateAcademyLevelAddition properties (R-ENH-02)", () => {
-  it("PROP-ENH-02-001: the three stats consume exactly L−1 rotation steps, HP first", () => {
+  it("PROP-ENH-02-001 [R-ENH-02]: the three stats consume exactly L−1 rotation steps, HP first", () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 10_000 }), (level) => {
         const addition = calculateAcademyLevelAddition("UNIT_TYPE", level);
@@ -112,7 +112,7 @@ describe("calculateAcademyLevelAddition properties (R-ENH-02)", () => {
     );
   });
 
-  it("PROP-ENH-02-002: the attribute system adds exactly twice the type system at every level", () => {
+  it("PROP-ENH-02-002 [R-ENH-02]: the attribute system adds exactly twice the type system at every level", () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 10_000 }), (level) => {
         const type = calculateAcademyLevelAddition("UNIT_TYPE", level);

@@ -513,7 +513,7 @@ describe("production Catalog UNIT_RAMI_NEWYEAR (【大吉ハッピーニュー�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-RAMI-NEWYEAR-004 (R-DMG-03): PS1の大吉が配る一時貫通は、以後の1発の**確定計算**で相手の防御力を半分無視する。同じPS1から貫通インスタンス1件だけを取り除いた対照では静的値のまま", () => {
+  it("IT-UNIT-RAMI-NEWYEAR-004 [R-DMG-03] (R-DMG-03): PS1の大吉が配る一時貫通は、以後の1発の**確定計算**で相手の防御力を半分無視する。同じPS1から貫通インスタンス1件だけを取り除いた対照では静的値のまま", () => {
     // 「後続の自身の攻撃へ一時的にpiercingを付与する」機構は、付与とそれが効く攻撃が
     // 別のスキル使用である。`-001` のPS1行は付与（どの腕が選ばれたか・消費条件）までを
     // 持つが、`APPLY_PIERCING_MOD` の `defenseIgnoreRate` は `magnitude` に載らないため

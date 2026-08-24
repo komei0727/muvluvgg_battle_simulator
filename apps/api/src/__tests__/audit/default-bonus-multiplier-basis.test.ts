@@ -99,19 +99,19 @@ function guaranteedCriticalMultiplier(): number {
 }
 
 describe("既定ボーナスと倍率基準の整合 (Issue #476)", () => {
-  it("IT-AUDIT-BONUS-001 (R-CRT-02 / Q-CAT-05): a unit carrying only the default criticalDamageBonus crits for exactly 150%", () => {
+  it("IT-AUDIT-BONUS-001 [R-CRT-02] (R-CRT-02 / Q-CAT-05): a unit carrying only the default criticalDamageBonus crits for exactly 150%", () => {
     expect(COMBAT_STATS.criticalDamageBonus).toBeCloseTo(0.5);
     expect(guaranteedCriticalMultiplier()).toBeCloseTo(1.5);
   });
 
-  it("IT-AUDIT-BONUS-002 (R-ATR-02 / Q-CAT-05): a unit carrying only the default affinityBonus hits a favorable defender for exactly 125%", () => {
+  it("IT-AUDIT-BONUS-002 [R-ATR-02] (R-ATR-02 / Q-CAT-05): a unit carrying only the default affinityBonus hits a favorable defender for exactly 125%", () => {
     expect(COMBAT_STATS.affinityBonus).toBeCloseTo(0.25);
     expect(
       resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(COMBAT_STATS.affinityBonus)),
     ).toBeCloseTo(1.25);
   });
 
-  it("IT-AUDIT-BONUS-003 (R-DMG-01): a critical hit on a favorable defender multiplies base damage by 1.5 x 1.25, not by the doubled defaults", () => {
+  it("IT-AUDIT-BONUS-003 [R-DMG-01] (R-DMG-01): a critical hit on a favorable defender multiplies base damage by 1.5 x 1.25, not by the doubled defaults", () => {
     const attacker = probeUnit("U_ATTACKER", "ALLY");
     const target = probeUnit("U_TARGET", "ENEMY");
 

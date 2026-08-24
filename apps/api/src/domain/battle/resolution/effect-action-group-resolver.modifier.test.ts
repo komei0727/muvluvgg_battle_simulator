@@ -12,7 +12,7 @@ import {
 } from "../../../testing/fixtures/effect-sequence-plan.js";
 
 describe("applyEffectActionGroups", () => {
-  it("UT-R-BON-ATTACK-DMG-001 (R-DMG-06 #1, mirrors SKL_ELENA_MOODMAKER_EX): an APPLY_ATTACK_DAMAGE_BONUS ACTION step evaluates its formula once at grant time (STAT_RATIO(SKILL_SOURCE, ATTACK, 0.15)) and stores the result as magnitude on an isAttackDamageBonus AppliedEffect", () => {
+  it("UT-R-BON-ATTACK-DMG-001 [R-DMG-06] (R-DMG-06 #1, mirrors SKL_ELENA_MOODMAKER_EX): an APPLY_ATTACK_DAMAGE_BONUS ACTION step evaluates its formula once at grant time (STAT_RATIO(SKILL_SOURCE, ATTACK, 0.15)) and stores the result as magnitude on an isAttackDamageBonus AppliedEffect", () => {
     // R-DMG-06 #1: 加算量の基準は**付与者**であり、バフを受け取る側の攻撃力ではない。
     // 対象へ違う攻撃力を持たせて、`SKILL_SOURCE`側が読まれていることを分ける。
     const actor = unit("ACTOR", "ALLY", {

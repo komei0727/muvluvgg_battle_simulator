@@ -405,7 +405,7 @@ describe("shield absorption conservation properties (R-SHD-03)", () => {
     shieldType: fc.constantFrom("PHYSICAL" as const, "EN" as const, null),
   });
 
-  it("PROP-SHD-03-001: typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage + discardedDamage === calculatedDamage", () => {
+  it("PROP-SHD-03-001 [R-SHD-03]: typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage + discardedDamage === calculatedDamage", () => {
     fc.assert(
       fc.property(
         fc.record({
@@ -490,7 +490,7 @@ describe("shield absorption conservation properties (R-SHD-03)", () => {
     );
   });
 
-  it("PROP-SHD-03-002: the shields absorb exactly min(pool total, damage - shieldIgnoreRate share) for the matching pools", () => {
+  it("PROP-SHD-03-002 [R-SHD-03]: the shields absorb exactly min(pool total, damage - shieldIgnoreRate share) for the matching pools", () => {
     fc.assert(
       fc.property(
         fc.record({

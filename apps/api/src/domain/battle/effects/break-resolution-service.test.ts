@@ -273,7 +273,7 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     ).toEqual(["mk-dispellable"]);
   });
 
-  it("UT-R-TEX-05-005: removes an undispellable child whose linkedEffectGroup parent the break removes (R-EFF-09)", () => {
+  it("UT-R-TEX-05-005 [R-EFF-09, R-TEX-05]: removes an undispellable child whose linkedEffectGroup parent the break removes (R-EFF-09)", () => {
     const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
     const enemyId = createBattleUnitId("enemy-1");
     const enemy = unit("enemy-1", "ENEMY", {
@@ -399,7 +399,7 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(false);
   });
 
-  it("UT-R-TEX-04-019: rewrites baseCombatStats from the original snapshot and fully heals to the enhanced maximum, emitting UnitRevived", () => {
+  it("UT-R-TEX-04-019 [R-TEX-04, R-TEX-05]: rewrites baseCombatStats from the original snapshot and fully heals to the enhanced maximum, emitting UnitRevived", () => {
     const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
     const enemy = unit("enemy-1", "ENEMY", { currentHp: createHitPoint(0, 1000) });
     const { ctx, recorder, rootEventId } = context(exercise);

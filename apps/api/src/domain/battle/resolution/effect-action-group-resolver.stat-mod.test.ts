@@ -21,7 +21,7 @@ import {
 } from "../../../testing/fixtures/effect-sequence-plan.js";
 
 describe("applyEffectActionGroups", () => {
-  it("UT-R-EFF-01-021 (R-EFF-01, real lifecycle wiring): an APPLY_STAT_MOD ACTION step grants an AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline, emitting EffectApplied before EffectActionCompleted(APPLIED)", () => {
+  it("UT-R-EFF-01-021 [R-ACTN-01, R-EFF-01] (R-EFF-01, real lifecycle wiring): an APPLY_STAT_MOD ACTION step grants an AppliedEffect through the real Catalog -> EffectSequence -> AppliedEffect -> event pipeline, emitting EffectApplied before EffectActionCompleted(APPLIED)", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const statMod = statModAction("ACT_ATK_UP");
@@ -96,7 +96,7 @@ describe("applyEffectActionGroups", () => {
     expect(completed.parentEventId).toBe(combatStatChanged.eventId);
   });
 
-  it("UT-R-EFF-01-022 (R-EFF-01, mirrors the R-SKL-06 FACT/TIMING case): onFactEventForPassiveChain is invoked for the EffectApplied event an APPLY_STAT_MOD grant records, not just DAMAGE/COOLDOWN_MANIPULATION's own hit-unit events", () => {
+  it("UT-R-EFF-01-022 [R-ACTN-01, R-EFF-01] (R-EFF-01, mirrors the R-SKL-06 FACT/TIMING case): onFactEventForPassiveChain is invoked for the EffectApplied event an APPLY_STAT_MOD grant records, not just DAMAGE/COOLDOWN_MANIPULATION's own hit-unit events", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const statMod = statModAction("ACT_ATK_UP");
@@ -119,7 +119,7 @@ describe("applyEffectActionGroups", () => {
     expect(observedEventTypes).toContain("EffectApplied");
   });
 
-  it("UT-R-NUM-04-027 (real lifecycle wiring): an APPLY_STAT_MOD formula can use any FormulaKind now that the general FormulaEvaluator is wired in, not just CONSTANT", () => {
+  it("UT-R-NUM-04-027 [R-ACTN-01, R-NUM-04] (real lifecycle wiring): an APPLY_STAT_MOD formula can use any FormulaKind now that the general FormulaEvaluator is wired in, not just CONSTANT", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const statMod: EffectActionDefinition = {

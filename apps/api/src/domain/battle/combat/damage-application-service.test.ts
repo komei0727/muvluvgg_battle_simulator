@@ -125,7 +125,7 @@ describe("applyDamageAction", () => {
     expect(isDefeated(updatedTarget)).toBe(true);
   });
 
-  it("UT-DAMAGE-APPLICATION-003 (R-SKL-03/R-ACTN-01): remaining hits on an already-defeated target are skipped, not applied", () => {
+  it("UT-DAMAGE-APPLICATION-003 [R-SKL-03] (R-SKL-03/R-ACTN-01): remaining hits on an already-defeated target are skipped, not applied", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
     const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 });
     const random = new SequenceRandomSource([]);
@@ -148,7 +148,7 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.currentHp).toBe(0);
   });
 
-  it("UT-DAMAGE-APPLICATION-015 (R-ACTN-01 #2): context.includeDefeated: true still applies hits against an already-defeated target, instead of skipping them", () => {
+  it("UT-DAMAGE-APPLICATION-015 [R-ACTN-01] (R-ACTN-01 #2): context.includeDefeated: true still applies hits against an already-defeated target, instead of skipping them", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
     const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 });
     const random = new SequenceRandomSource([]);
@@ -177,7 +177,7 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.currentHp).toBe(0);
   });
 
-  it("UT-DAMAGE-APPLICATION-016 (R-ACTN-01 #2): hits against a target that was already defeated BEFORE this EffectAction started never emit UnitDefeated, even with context.includeDefeated: true", () => {
+  it("UT-DAMAGE-APPLICATION-016 [R-ACTN-01] (R-ACTN-01 #2): hits against a target that was already defeated BEFORE this EffectAction started never emit UnitDefeated, even with context.includeDefeated: true", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
     const target = defeated(unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 }));
     const random = new SequenceRandomSource([]);
@@ -259,7 +259,7 @@ describe("applyDamageAction", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-DAMAGE-APPLICATION-007 (R-SKL-01/R-SKL-03): once the attacker itself becomes defeated mid-sequence, remaining hits (even against other targets) are interrupted", () => {
+  it("UT-DAMAGE-APPLICATION-007 [R-SKL-03] (R-SKL-01/R-SKL-03): once the attacker itself becomes defeated mid-sequence, remaining hits (even against other targets) are interrupted", () => {
     // A lethal SELF-targeting hit comes first, then a hit against an unrelated target.
     const attacker = unit("ATTACKER", "ALLY", { attack: 999, defense: 0, maximumHp: 10 });
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -292,7 +292,7 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.currentHp).toBe(100);
   });
 
-  it("UT-DAMAGE-APPLICATION-008 (R-SKL-01/R-SKL-03): an already-defeated attacker cannot apply any hit", () => {
+  it("UT-DAMAGE-APPLICATION-008 [R-SKL-03] (R-SKL-01/R-SKL-03): an already-defeated attacker cannot apply any hit", () => {
     const attacker = defeated(unit("ATTACKER", "ALLY", { attack: 999 }));
     const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 10 });
     const random = new SequenceRandomSource([]);
@@ -1882,7 +1882,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     return units.find((unit) => unit.battleUnitId === createBattleUnitId(id))!.currentHp;
   }
 
-  it("UT-R-BON-ATTACK-DMG-002 (R-DMG-06 #1/#2, mirrors SKL_ELENA_MOODMAKER_EX): the bonus resolves as its own hit after the attack — the target loses the attack's damage plus the whole magnitude, with no defense attenuation on the bonus", () => {
+  it("UT-R-BON-ATTACK-DMG-002 [R-DMG-06] (R-DMG-06 #1/#2, mirrors SKL_ELENA_MOODMAKER_EX): the bonus resolves as its own hit after the attack — the target loses the attack's damage plus the whole magnitude, with no defense attenuation on the bonus", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -1930,7 +1930,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     ).toHaveLength(1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-003 (R-DMG-06 interacts with R-DMG-02 #2): the bonus attack is capped to 1 by the target's DAMAGE_IMMUNITY, same as any other hit", () => {
+  it("UT-R-BON-ATTACK-DMG-003 [R-DMG-06] (R-DMG-06 interacts with R-DMG-02 #2): the bonus attack is capped to 1 by the target's DAMAGE_IMMUNITY, same as any other hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
@@ -1957,7 +1957,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET")).toBe(100 - 1 - 1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-004 (R-DMG-06, NEGATIVE): an attack whose every hit was evaded produces no bonus attack — the bonus rides on targets that were actually hit", () => {
+  it("UT-R-BON-ATTACK-DMG-004 [R-DMG-06] (R-DMG-06, NEGATIVE): an attack whose every hit was evaded produces no bonus attack — the bonus rides on targets that were actually hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const evasion = evasionEffect("eff-evasion", "TARGET", { probability: 1 });
@@ -1981,7 +1981,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET")).toBe(100);
   });
 
-  it("UT-R-BON-ATTACK-DMG-005 (R-DMG-06, critical inheritance): the bonus attack inherits the attack's critical — a critical attack multiplies the bonus by the holder's critical damage bonus without drawing again", () => {
+  it("UT-R-BON-ATTACK-DMG-005 [R-DMG-06] (R-DMG-06, critical inheritance): the bonus attack inherits the attack's critical — a critical attack multiplies the bonus by the holder's critical damage bonus without drawing again", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = {
       ...unit("ATTACKER", "ALLY", { attack: 30, criticalDamageBonus: 0.5 }),
@@ -2009,7 +2009,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET")).toBe(100 - 30 - 9);
   });
 
-  it("UT-R-BON-ATTACK-DMG-006 (R-DMG-06, R-ATR-02, R-DMG-04): the bonus attack takes the attribute multiplier and the holder's outgoing damage modifier, unlike a flat addition", () => {
+  it("UT-R-BON-ATTACK-DMG-006 [R-DMG-06] (R-DMG-06, R-ATR-02, R-DMG-04): the bonus attack takes the attribute multiplier and the holder's outgoing damage modifier, unlike a flat addition", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const outgoing: AppliedEffect = {
       effectInstanceId: createEffectInstanceId("DMG_MOD"),
@@ -2050,7 +2050,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET")).toBe(100 - 27 - 8);
   });
 
-  it("UT-R-BON-ATTACK-DMG-007 (R-DMG-06, per EffectAction): a 3-hit attack still produces exactly one bonus attack — the unit is the DAMAGE EffectAction, not the hit", () => {
+  it("UT-R-BON-ATTACK-DMG-007 [R-DMG-06] (R-DMG-06, per EffectAction): a 3-hit attack still produces exactly one bonus attack — the unit is the DAMAGE EffectAction, not the hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2069,7 +2069,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET")).toBe(100 - 20 * 3 - 6);
   });
 
-  it("UT-R-BON-ATTACK-DMG-008 (R-DMG-06, per target): a two-target attack produces one bonus attack per target that was actually hit", () => {
+  it("UT-R-BON-ATTACK-DMG-008 [R-DMG-06] (R-DMG-06, per target): a two-target attack produces one bonus attack per target that was actually hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2093,7 +2093,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET_2")).toBe(100 - 20 - 6);
   });
 
-  it("UT-R-BON-ATTACK-DMG-009 (R-DMG-06, stacking): holding two instances produces two bonus attacks, one per instance", () => {
+  it("UT-R-BON-ATTACK-DMG-009 [R-DMG-06] (R-DMG-06, stacking): holding two instances produces two bonus attacks, one per instance", () => {
     const attacker = {
       ...unit("ATTACKER", "ALLY", { attack: 30 }),
       appliedEffects: [
@@ -2117,7 +2117,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(hpOf(result.units, "TARGET")).toBe(100 - 20 - 6 - 4);
   });
 
-  it("UT-R-BON-ATTACK-DMG-010 (R-DMG-06, NEGATIVE): an already defeated target is skipped by the attack and gets no bonus attack either", () => {
+  it("UT-R-BON-ATTACK-DMG-010 [R-DMG-06] (R-DMG-06, NEGATIVE): an already defeated target is skipped by the attack and gets no bonus attack either", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const target = defeated(unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }));
@@ -2136,7 +2136,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(bonusDamageCalculated(context)).toEqual([]);
   });
 
-  it("UT-R-BON-ATTACK-DMG-012 (R-DMG-06 #9, R-SKL-08): the additional attack is recorded into the damage-result registry like any other hit — it does not appear in hits[] but it does count as damage dealt", () => {
+  it("UT-R-BON-ATTACK-DMG-012 [R-DMG-06] (R-DMG-06 #9, R-SKL-08): the additional attack is recorded into the damage-result registry like any other hit — it does not appear in hits[] but it does count as damage dealt", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2164,7 +2164,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     expect(received.sumDamageReceived?.get(context.skillUseId)).toBe(20 + 6);
   });
 
-  it("UT-R-BON-ATTACK-DMG-011 (R-DMG-06, R-SUB-02 boundary): the bonus attack neither triggers a further bonus attack nor a sub unit additional damage hit", () => {
+  it("UT-R-BON-ATTACK-DMG-011 [R-DMG-06] (R-DMG-06, R-SUB-02 boundary): the bonus attack neither triggers a further bonus attack nor a sub unit additional damage hit", () => {
     const SUBUNIT_DEFINITION_ID = createEffectActionDefinitionId("ACT_SUBUNIT_SUB_1");
     const subUnit: AppliedEffect = {
       effectInstanceId: createEffectInstanceId("SUB_1"),
@@ -2251,7 +2251,7 @@ describe("attack bonus attack interruption (R-DMG-06 #3)", () => {
     return { ...damageEventContext(), onFactEventForPassiveChain: (event) => chain(event) };
   }
 
-  it("UT-R-BON-ATTACK-DMG-013 (R-SKL-01): a chain that defeats the holder on the attack's own last event leaves the additional attacks unresolved and reports the interruption", () => {
+  it("UT-R-BON-ATTACK-DMG-013 [R-DMG-06] (R-SKL-01): a chain that defeats the holder on the attack's own last event leaves the additional attacks unresolved and reports the interruption", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2276,7 +2276,7 @@ describe("attack bonus attack interruption (R-DMG-06 #3)", () => {
     expect(bonusHitCount(context)).toBe(0);
   });
 
-  it("UT-R-BON-ATTACK-DMG-014 (R-SKL-01): a chain that defeats the holder during an additional attack interrupts that hit and the remaining targets", () => {
+  it("UT-R-BON-ATTACK-DMG-014 [R-DMG-06] (R-SKL-01): a chain that defeats the holder during an additional attack interrupts that hit and the remaining targets", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2302,7 +2302,7 @@ describe("attack bonus attack interruption (R-DMG-06 #3)", () => {
     expect(bonusHitCount(context)).toBe(0);
   });
 
-  it("UT-R-BON-ATTACK-DMG-017 (R-SKL-01): a chain that defeats the holder between two additional attacks leaves the remaining ones unresolved", () => {
+  it("UT-R-BON-ATTACK-DMG-017 [R-DMG-06] (R-SKL-01): a chain that defeats the holder between two additional attacks leaves the remaining ones unresolved", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2328,7 +2328,7 @@ describe("attack bonus attack interruption (R-DMG-06 #3)", () => {
     expect(bonusHitCount(context)).toBe(1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-015 (R-DMG-06 #6): a buff instance removed by the chain stops producing additional attacks for the remaining targets", () => {
+  it("UT-R-BON-ATTACK-DMG-015 [R-DMG-06] (R-DMG-06 #6): a buff instance removed by the chain stops producing additional attacks for the remaining targets", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });
@@ -2353,7 +2353,7 @@ describe("attack bonus attack interruption (R-DMG-06 #3)", () => {
     expect(bonusHitCount(context)).toBe(1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-016 (R-ACTN-01 #2): a target defeated by the chain is skipped without interrupting the remaining additional attacks", () => {
+  it("UT-R-BON-ATTACK-DMG-016 [R-DMG-06] (R-ACTN-01 #2): a target defeated by the chain is skipped without interrupting the remaining additional attacks", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const first = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 });

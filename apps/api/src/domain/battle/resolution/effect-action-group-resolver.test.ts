@@ -48,7 +48,7 @@ import {
 } from "../../../testing/fixtures/effect-sequence-plan.js";
 
 describe("applyEffectActionGroups", () => {
-  it("UT-R-SKL-06-008: a satisfied ACTION step emits EffectStepStarting/EffectActionStarting/EffectActionCompleted(APPLIED)/EffectStepCompleted in order", () => {
+  it("UT-R-SKL-06-008 [R-ACTN-01, R-SKL-06]: a satisfied ACTION step emits EffectStepStarting/EffectActionStarting/EffectActionCompleted(APPLIED)/EffectStepCompleted in order", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const attack = damageAction("ACT_ATTACK");
@@ -244,7 +244,7 @@ describe("applyEffectActionGroups", () => {
     expectInterrupted(result, 1, 1);
   });
 
-  it("UT-R-SKL-06-011: onFactEventForPassiveChain is invoked for FACT/TIMING events (not DIAGNOSTIC), and its returned units replace the working state", () => {
+  it("UT-R-SKL-06-011 [R-ACTN-01, R-SKL-02, R-SKL-06]: onFactEventForPassiveChain is invoked for FACT/TIMING events (not DIAGNOSTIC), and its returned units replace the working state", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY", { currentHp: 100 });
     const attack = damageAction("ACT_ATTACK");
@@ -357,7 +357,7 @@ describe("applyEffectActionGroups", () => {
     expect(completed.parentEventId).not.toBe(starting.eventId);
   });
 
-  it("UT-R-HIT-03-008 (R-HIT-03/R-STS-04, Issue #183): an actor whose own BLIND effect rolls MISS skips the entire EffectSequence — no ACTION step resolves, BlindnessCheckResolved and SkillMissed are recorded instead", () => {
+  it("UT-R-HIT-03-008 [R-HIT-03, R-STS-04] (R-HIT-03/R-STS-04, Issue #183): an actor whose own BLIND effect rolls MISS skips the entire EffectSequence — no ACTION step resolves, BlindnessCheckResolved and SkillMissed are recorded instead", () => {
     const blindEffectId = createEffectInstanceId("blind-1");
     const blindDefId = createEffectActionDefinitionId("ACT_BLIND");
     const actor = unit("ACTOR", "ALLY", {
@@ -430,7 +430,7 @@ describe("applyEffectActionGroups", () => {
     });
   });
 
-  it("UT-R-HIT-03-009 (R-HIT-03/R-STS-04, Issue #183): an actor whose BLIND effect roll does NOT miss still records BlindnessCheckResolved, but the EffectSequence proceeds normally", () => {
+  it("UT-R-HIT-03-009 [R-HIT-03, R-STS-04] (R-HIT-03/R-STS-04, Issue #183): an actor whose BLIND effect roll does NOT miss still records BlindnessCheckResolved, but the EffectSequence proceeds normally", () => {
     const blindEffectId = createEffectInstanceId("blind-1");
     const blindDefId = createEffectActionDefinitionId("ACT_BLIND");
     const actor = unit("ACTOR", "ALLY", {
@@ -1606,7 +1606,7 @@ describe("applyEffectActionGroups", () => {
       };
     }
 
-    it("UT-R-SKL-INT-001: BRANCH interrupted right after its own EffectStepStarting never enters thenSteps/elseSteps, and reports unresolvedEffectCount: 0", () => {
+    it("UT-R-SKL-INT-001 [R-SKL-01]: BRANCH interrupted right after its own EffectStepStarting never enters thenSteps/elseSteps, and reports unresolvedEffectCount: 0", () => {
       const actor = unit("ACTOR", "ALLY");
       const hit = damageAction("ACT_HIT");
       const effectActions = new Map([[hit.effectActionDefinitionId, hit]]);
@@ -1637,7 +1637,7 @@ describe("applyEffectActionGroups", () => {
       expectInterrupted(result, 0, 0);
     });
 
-    it("UT-R-SKL-INT-002: RANDOM_BRANCH (WEIGHTED_ONE) interrupted right after its own EffectStepStarting never consumes RNG or selects a branch", () => {
+    it("UT-R-SKL-INT-002 [R-SKL-01]: RANDOM_BRANCH (WEIGHTED_ONE) interrupted right after its own EffectStepStarting never consumes RNG or selects a branch", () => {
       const actor = unit("ACTOR", "ALLY");
       const { recorder, rootEventId } = seedRecorder();
       const random = new SequenceRandomSource([]);
@@ -1670,7 +1670,7 @@ describe("applyEffectActionGroups", () => {
       expectInterrupted(result, 0, 0);
     });
 
-    it("UT-R-SKL-INT-003: RANDOM_BRANCH (WEIGHTED_ONE) interrupted right after RandomBranchSelected never enters the chosen branch's steps", () => {
+    it("UT-R-SKL-INT-003 [R-SKL-01]: RANDOM_BRANCH (WEIGHTED_ONE) interrupted right after RandomBranchSelected never enters the chosen branch's steps", () => {
       const actor = unit("ACTOR", "ALLY");
       const hit = damageAction("ACT_HIT");
       const effectActions = new Map([[hit.effectActionDefinitionId, hit]]);
@@ -1707,7 +1707,7 @@ describe("applyEffectActionGroups", () => {
       expectInterrupted(result, 0, 0);
     });
 
-    it("UT-R-SKL-INT-004: REPEAT interrupted right after its own EffectStepStarting runs zero iterations", () => {
+    it("UT-R-SKL-INT-004 [R-SKL-01]: REPEAT interrupted right after its own EffectStepStarting runs zero iterations", () => {
       const actor = unit("ACTOR", "ALLY");
       const hit = damageAction("ACT_HIT");
       const effectActions = new Map([[hit.effectActionDefinitionId, hit]]);
@@ -1737,7 +1737,7 @@ describe("applyEffectActionGroups", () => {
       expectInterrupted(result, 0, 0);
     });
 
-    it("UT-R-SKL-INT-005: a trailing sibling in the same raw step list is never entered once an earlier sibling interrupts (structure: nested, trailing sibling)", () => {
+    it("UT-R-SKL-INT-005 [R-SKL-01]: a trailing sibling in the same raw step list is never entered once an earlier sibling interrupts (structure: nested, trailing sibling)", () => {
       const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
       const selfHit = damageAction("ACT_SELF_HIT");
       const neverRuns = damageAction("ACT_NEVER_RUNS");
@@ -1780,7 +1780,7 @@ describe("applyEffectActionGroups", () => {
       expectInterrupted(result, 1, 0);
     });
 
-    it("UT-R-SKL-INT-006: RANDOM_BRANCH (INDEPENDENT) actor defeated while resolving an earlier branch never rolls RNG for a later branch", () => {
+    it("UT-R-SKL-INT-006 [R-SKL-01]: RANDOM_BRANCH (INDEPENDENT) actor defeated while resolving an earlier branch never rolls RNG for a later branch", () => {
       const actor = unit("ACTOR", "ALLY", { currentHp: 5 });
       const selfHit = damageAction("ACT_SELF_HIT");
       const effectActions = new Map([[selfHit.effectActionDefinitionId, selfHit]]);
@@ -3201,7 +3201,7 @@ describe("applyEffectActionGroups", () => {
 });
 
 describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issue #167, Phase 2: AppliedEffect-based)", () => {
-  it("UT-SKILL-RESOLUTION-SERVICE-013: a plan.stealthConsumptions entry is applied before the first step, expiring the AppliedEffect and emitting EffectExpired(reason:CONSUMPTION)", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-013 [R-TGT-08]: a plan.stealthConsumptions entry is applied before the first step, expiring the AppliedEffect and emitting EffectExpired(reason:CONSUMPTION)", () => {
     const actor = unit("ACTOR", "ALLY");
     const stealthDefinitionId = createEffectActionDefinitionId("ACT_STEALTH_TEST");
     const stealthInstance: AppliedEffect = {
@@ -3247,7 +3247,7 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(nextHolder.appliedEffects).toHaveLength(0);
   });
 
-  it("UT-SKILL-RESOLUTION-SERVICE-014: an empty plan.stealthConsumptions emits no EffectExpired", () => {
+  it("UT-SKILL-RESOLUTION-SERVICE-014 [R-TGT-08]: an empty plan.stealthConsumptions emits no EffectExpired", () => {
     const actor = unit("ACTOR", "ALLY");
     const enemy = unit("ENEMY", "ENEMY");
     const attack = damageAction("ACT_ATTACK");

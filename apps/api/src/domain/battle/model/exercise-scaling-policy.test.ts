@@ -154,7 +154,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(enhanced.actionSpeed).toBe(49);
   });
 
-  it("PROP-TEX-004: for integer base stats every enhanced quantity stat equals the exactly-truncated rational value computed in integer arithmetic", () => {
+  it("PROP-TEX-004 [R-TEX-04]: for integer base stats every enhanced quantity stat equals the exactly-truncated rational value computed in integer arithmetic", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 1_000_000 }),
@@ -352,7 +352,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(mismatches.slice(0, 5)).toEqual([]);
   });
 
-  it("PROP-TEX-005: a fractional original base (aptitude-penalised) still yields the exact truncation of the stored value", () => {
+  it("PROP-TEX-005 [R-TEX-04]: a fractional original base (aptitude-penalised) still yields the exact truncation of the stored value", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 1_000_000 }),
@@ -396,7 +396,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(() => applyExerciseScaling(ORIGINAL, -1)).toThrow(DomainValidationError);
   });
 
-  it("PROP-TEX-002: every multiplier matches the literal cumulative-increment definition of R-TEX-04", () => {
+  it("PROP-TEX-002 [R-TEX-04]: every multiplier matches the literal cumulative-increment definition of R-TEX-04", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 200 }), (breakCount) => {
         const factors = exerciseScalingFactors(breakCount);
@@ -413,7 +413,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     );
   });
 
-  it("PROP-TEX-003: multipliers never decrease as breaks accumulate, and attack/defense is constant once capped", () => {
+  it("PROP-TEX-003 [R-TEX-04]: multipliers never decrease as breaks accumulate, and attack/defense is constant once capped", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 200 }), (breakCount) => {
         const current = exerciseScalingFactors(breakCount);

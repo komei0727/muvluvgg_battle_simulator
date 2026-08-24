@@ -55,7 +55,7 @@ describe("PreviewFormationStatsCommand", () => {
     ).toEqual([]);
   });
 
-  it("UT-STAT-PREVIEW-003 (R-ENH-01 #3): rejects a unit enhancement whose formation declares none, with the same path the battle command reports", () => {
+  it("UT-STAT-PREVIEW-003 [R-ENH-01] (R-ENH-01 #3): rejects a unit enhancement whose formation declares none, with the same path the battle command reports", () => {
     const violations = validatePreviewFormationStatsCommandShape(
       command({
         allyFormation: {

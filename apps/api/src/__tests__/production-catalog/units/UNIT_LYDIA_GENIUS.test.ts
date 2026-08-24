@@ -593,7 +593,7 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-LYDIA-GENIUS-004 (R-ACT-02): AS1の実 TARGET_SET_COUNT は行動選択層で評価され、右列にも左列にも敵が居ない盤面ではAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
+  it("IT-UNIT-LYDIA-GENIUS-004 [R-ACT-02] (R-ACT-02): AS1の実 TARGET_SET_COUNT は行動選択層で評価され、右列にも左列にも敵が居ない盤面ではAS1が候補から外れて宣言順の次のAS2が選ばれる", () => {
     // 既定盤面は左列に敵が居るため集合が1体以上ある。
     expect(selectedActiveSkill({ snapshot, unitDefinitionId: UNIT_DEFINITION_ID })).toBe(
       "SKL_LYDIA_GENIUS_AS1",
@@ -611,7 +611,7 @@ describe("production Catalog UNIT_LYDIA_GENIUS (【純真無垢なるジーニ�
     ).toBe("SKL_LYDIA_GENIUS_AS2");
   });
 
-  it("IT-UNIT-LYDIA-GENIUS-005 (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右が候補0件でも後列が候補を持つ限り、列側のstepが素通りするだけで済む", () => {
+  it("IT-UNIT-LYDIA-GENIUS-005 [R-TGT-09, R-TGT-10] (R-TGT-09/R-TGT-10): EXの実 `OR(POSITION_COLUMN RIGHT, LEFT)` は左右どちらの列も拾って中央列を外し、同じ使用の `POSITION_ROW BACK` は後列だけを拾う。左右が候補0件でも後列が候補を持つ限り、列側のstepが素通りするだけで済む", () => {
     expect(
       observeSkillUse({
         snapshot,

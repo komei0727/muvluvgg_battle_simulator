@@ -366,7 +366,7 @@ describe("production Catalog UNIT_MIRIAM_MAGE (【元気印の大魔導士】ミ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-MIRIAM-MAGE-004 (R-SKL-05): 実 SKL_MIRIAM_MAGE_AS2 のチャージ開始はEffectSequenceを一つも解決せず、チャージ状態だけを ChargeStarted の StateDelta へ載せる。終了差分は ChargeReleaseCompleted が単独で所有し、開始直後・解放後のどちらも独立Reducerで復元できる", () => {
+  it("IT-UNIT-MIRIAM-MAGE-004 [R-SKL-05] (R-SKL-05): 実 SKL_MIRIAM_MAGE_AS2 のチャージ開始はEffectSequenceを一つも解決せず、チャージ状態だけを ChargeStarted の StateDelta へ載せる。終了差分は ChargeReleaseCompleted が単独で所有し、開始直後・解放後のどちらも独立Reducerで復元できる", () => {
     // `-001` の CHARGE 行は `charge`／消費／クールタイムまでを持つが、`StateDelta` の
     // 所有者と独立Reducer復元、Catalog契約（開始側 `steps` が空であること）は
     // スキル使用1回の観測の外にある。
@@ -411,7 +411,7 @@ describe("production Catalog UNIT_MIRIAM_MAGE (【元気印の大魔導士】ミ
     });
   });
 
-  it("IT-UNIT-MIRIAM-MAGE-005 (R-HIT-02): SKL_MIRIAM_MAGE_AS2 でチャージ中のミリアムは、保持している実 ACT_ANIS_TROUBLEMAKER_EX_EVASION を発動させず2ヒットとも命中する。チャージ開始だけを抜いた対照では同じ回避が1ヒット目を回避するため、不発の原因はチャージ状態だけである", () => {
+  it("IT-UNIT-MIRIAM-MAGE-005 [R-HIT-02] (R-HIT-02): SKL_MIRIAM_MAGE_AS2 でチャージ中のミリアムは、保持している実 ACT_ANIS_TROUBLEMAKER_EX_EVASION を発動させず2ヒットとも命中する。チャージ開始だけを抜いた対照では同じ回避が1ヒット目を回避するため、不発の原因はチャージ状態だけである", () => {
     const options = {
       snapshot: WITH_EVASION_SOURCE,
       chargerUnitDefinitionId: UNIT_DEFINITION_ID,
