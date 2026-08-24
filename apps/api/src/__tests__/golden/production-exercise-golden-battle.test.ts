@@ -6,6 +6,7 @@ import {
   allProductionUnitIds,
   runProductionExerciseBattle,
 } from "../../testing/scenario/run-production-battle.js";
+import { summarizeEventSequence } from "../../testing/scenario/event-sequence-fingerprint.js";
 
 /**
  * Golden battle 回帰層の**戦術演習**（`12_テスト戦略.md`「Golden battle 回帰層」）。
@@ -58,10 +59,6 @@ describe("production tactical exercise golden battles", () => {
       expect(typeof result.completionReason).toBe("string");
       assertBattleInvariants(result);
 
-      const eventTypeCounts: Record<string, number> = {};
-      for (const event of result.events) {
-        eventTypeCounts[event.type] = (eventTypeCounts[event.type] ?? 0) + 1;
-      }
       expect({
         ally: ALLY_PARTY,
         enemyUnitDefinitionId,
@@ -70,9 +67,7 @@ describe("production tactical exercise golden battles", () => {
         totalScore: result.totalScore,
         breakCount: result.breakCount,
         breaks: result.breaks,
-        eventTypeCounts: Object.fromEntries(
-          Object.entries(eventTypeCounts).sort(([left], [right]) => left.localeCompare(right)),
-        ),
+        ...summarizeEventSequence(result.events),
       }).toMatchSnapshot();
     },
   );
