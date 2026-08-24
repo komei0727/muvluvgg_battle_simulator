@@ -5,8 +5,8 @@
   "role": "TANK",
   "positionAptitudes": ["FRONT"],
   "baseStats": {
-    "maximumHp": 35783,
-    "attack": 16246,
+    "maximumHp": 35769,
+    "attack": 16226,
     "defense": 17061,
     "criticalRate": 0.15,
     "actionSpeed": 630,
