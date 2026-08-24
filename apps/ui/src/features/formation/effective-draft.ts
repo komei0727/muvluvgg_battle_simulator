@@ -8,6 +8,15 @@
 import type { BattleDraft, FormationSlotInput } from "../../entities/battle-draft.js";
 import type { PlayerEnhancementState } from "./player-enhancement-reducer.js";
 
+/**
+ * 味方枠の`enhancement`は常に手持ちデータ（`playerEnhancement.units`）だけから
+ * 解決し、モード別draftが（移行前の保存データなどから）持っている値は無視する。
+ * `slot.enhancement`をfallbackにすると、共有sliceに記録が無い場合
+ * （＝「保存した育成データをクリア」直後や、REF-058以前に保存されたdraftを
+ * 復元した直後）に、`formationReducer`側へ残ったままの古い値がそのまま実効
+ * 編成へ漏れ出す——`unitEnhancementLevelChanged`等はもうこのslotへ書き込まない
+ * ため、一度書き込まれた古い値は放置しても永久に消えない。
+ */
 function withResolvedEnhancement(
   slot: FormationSlotInput,
   playerEnhancement: PlayerEnhancementState,
@@ -15,8 +24,9 @@ function withResolvedEnhancement(
   if (slot.unitDefinitionId === undefined) {
     return slot;
   }
+  const { enhancement: _stale, ...rest } = slot;
   const enhancement = playerEnhancement.units[slot.unitDefinitionId];
-  return enhancement === undefined ? slot : { ...slot, enhancement };
+  return enhancement === undefined ? rest : { ...rest, enhancement };
 }
 
 /**

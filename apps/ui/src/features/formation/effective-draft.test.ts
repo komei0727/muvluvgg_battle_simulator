@@ -65,6 +65,28 @@ describe("withPlayerEnhancement", () => {
     expect(slot?.enhancement).toBeUndefined();
   });
 
+  // レビュー指摘の回帰テスト: REF-058以前に保存されたdraft（味方slotが
+  // `enhancement`を直接持つ形式）を復元し、かつ手持ちデータが空（＝「保存した
+  // 育成データをクリア」直後、または移行前にそもそも記録が無い場合）でも、
+  // モード別draftに残った旧値が実効編成へ漏れてはならない。
+  it("strips a stale enhancement left on the ally slot by a pre-REF-058 saved draft once the shared slice has no record", () => {
+    const draft = withAllyUnit("UNIT_A");
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const staleDraft = {
+      ...draft,
+      allySlots: draft.allySlots.map((slot) =>
+        slot.slotKey === slotKey
+          ? { ...slot, enhancement: { ...createInitialUnitEnhancement(), level: 999 } }
+          : slot,
+      ),
+    };
+
+    const effective = withPlayerEnhancement(staleDraft, createEmptyPlayerData());
+
+    const slot = effective.allySlots.find((s) => s.slotKey === slotKey);
+    expect(slot?.enhancement).toBeUndefined();
+  });
+
   it("shows the same recorded enhancement on every ally slot holding the same unit", () => {
     const base = createInitialDraft();
     const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
