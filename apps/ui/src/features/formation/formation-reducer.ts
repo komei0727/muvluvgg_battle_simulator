@@ -1,6 +1,8 @@
 // Mirrors docs/ui-design/04_コンポーネント・状態管理設計.md §4-5, scoped to the
-// draft/selection-dialog slice. Catalog load state and execution state are
-// separate slices (catalog-loader.ts / execution-reducer.ts).
+// mode-local draft slice. Catalog load state, execution state, ダイアログ選択状態
+// （`app/BattleSimulatorPage.tsx`のlocal state）、そして味方の学園レベル・
+// レベルリンク・ユニット強化（`player-enhancement-reducer.ts`、モード非依存の
+// 単一slice、REF-058 / Issue #603）は別のsliceが持つ。
 import { isSlotLevelLinked } from "./level-link.js";
 import {
   createInitialDraft,
@@ -21,10 +23,12 @@ import type {
   SideEnhancementInput,
   UnitEnhancementInput,
 } from "../../entities/battle-draft.js";
-import type { PlayerSideEnhancement } from "./types.js";
 
 export const MAX_UNITS_PER_SIDE = 5;
 
+// ダイアログ選択状態自体はここでは持たない（`app/BattleSimulatorPage.tsx`の
+// local state、REF-058）が、slotKey・sideを組み立てるのは引き続き編成機能の
+// 語彙のため、型はここに置く。
 export type SelectionDialogState =
   | { readonly kind: "closed" }
   | { readonly kind: "unit"; readonly slotKey: string }
@@ -33,13 +37,6 @@ export type SelectionDialogState =
 
 export interface FormationState {
   readonly draft: BattleDraft;
-  readonly selectionDialog: SelectionDialogState;
-  /**
-   * 直近に強化入力を編集した枠。手持ちデータ（`persistence.ts`）はユニット定義ID
-   * 単位だが同じ定義を複数枠へ置けるため、どの枠の値を書き戻すかをこれで一意に
-   * 決める。draftの値ではないので、送信内容には影響しない。
-   */
-  readonly lastEditedSlotKey?: string;
 }
 
 export type FormationAction =
@@ -47,11 +44,6 @@ export type FormationAction =
       readonly type: "unitSelected";
       readonly slotKey: string;
       readonly unitDefinitionId: string;
-      /**
-       * 手持ちデータ由来のプリフィル値（`persistence.ts`）。味方枠への配置時だけ
-       * 載せる。伴わない場合は枠の入力を保持する（敵側は都度入力の方針）。
-       */
-      readonly enhancement?: UnitEnhancementInput;
       /**
        * その陣営へ1体しか置かない配置（戦術演習の敵、`R-TEX-01` #3）。空き枠を
        * 選んだときは既存の1体を配置先へ移し替え、2体目にはしない。移動と選択を
@@ -102,22 +94,16 @@ export type FormationAction =
       readonly gearIndex: number;
       readonly gear?: GearInput;
     }
-  | {
-      readonly type: "selectionOpened";
-      readonly selection: Exclude<SelectionDialogState, { kind: "closed" }>;
-    }
-  | { readonly type: "selectionClosed" }
   | { readonly type: "unitMoved"; readonly fromSlotKey: string; readonly toSlotKey: string }
-  // 「編成をクリア」。学園レベルとレベルリンクだけ手持ちデータからプリフィルし直す。
-  | { readonly type: "draftReset"; readonly allyPlayerEnhancement?: PlayerSideEnhancement }
-  // 「保存した育成データをクリア」に伴う味方育成入力の初期化。
-  | { readonly type: "allyEnhancementCleared" }
+  // 「編成をクリア」。味方の学園レベル・レベルリンク・ユニット強化は別sliceが
+  // 持つため、ここでは触れない（REF-058 / Issue #603）。
+  | { readonly type: "draftReset" }
   // 復元直後にCatalogから消えていた定義の枠を空にする。
   | { readonly type: "unknownDefinitionsCleared"; readonly slotKeys: readonly string[] };
 
 /** `draft`は`mlgg:last-draft`から復元した値（`persistence.ts`）。 */
 export function createInitialFormationState(draft?: BattleDraft): FormationState {
-  return { draft: draft ?? createInitialDraft(), selectionDialog: { kind: "closed" } };
+  return { draft: draft ?? createInitialDraft() };
 }
 
 function filledCount(slots: readonly FormationSlotInput[]): number {
@@ -197,25 +183,6 @@ function withOnlySlotFilled(draft: BattleDraft, side: Side, slotKey: string): Ba
     : { ...draft, enemySlots: clear(draft.enemySlots) };
 }
 
-function withSlotEnhancement(
-  draft: BattleDraft,
-  side: Side,
-  slotKey: string,
-  enhancement: UnitEnhancementInput | undefined,
-): BattleDraft {
-  const replace = (slots: readonly FormationSlotInput[]): readonly FormationSlotInput[] =>
-    slots.map((slot) => {
-      if (slot.slotKey !== slotKey) {
-        return slot;
-      }
-      const { enhancement: _discarded, ...rest } = slot;
-      return enhancement === undefined ? rest : { ...rest, enhancement };
-    });
-  return side === "ally"
-    ? { ...draft, allySlots: replace(draft.allySlots) }
-    : { ...draft, enemySlots: replace(draft.enemySlots) };
-}
-
 function replaceMemory(
   ids: readonly (string | undefined)[],
   index: number,
@@ -289,7 +256,7 @@ function editSlotEnhancement(
     slot.side === "ally"
       ? { ...state.draft, allySlots: replace(state.draft.allySlots) }
       : { ...state.draft, enemySlots: replace(state.draft.enemySlots) };
-  return { ...state, draft, lastEditedSlotKey: slotKey };
+  return { ...state, draft };
 }
 
 function withExerciseExecution(
@@ -327,25 +294,14 @@ export function formationReducer(state: FormationState, action: FormationAction)
         return state;
       }
       const placed = withSlotUnit(base, slot.side, action.slotKey, action.unitDefinitionId);
-      return {
-        ...state,
-        draft:
-          action.enhancement === undefined
-            ? placed
-            : withSlotEnhancement(placed, slot.side, action.slotKey, action.enhancement),
-        selectionDialog: { kind: "closed" },
-      };
+      return { ...state, draft: placed };
     }
     case "unitRemoved": {
       const slot = findSlot(state.draft, action.slotKey);
       if (slot === undefined) {
         return state;
       }
-      return {
-        ...state,
-        draft: withSlotUnit(state.draft, slot.side, action.slotKey, undefined),
-        selectionDialog: { kind: "closed" },
-      };
+      return { ...state, draft: withSlotUnit(state.draft, slot.side, action.slotKey, undefined) };
     }
     case "memorySelected": {
       const draft: BattleDraft =
@@ -366,7 +322,7 @@ export function formationReducer(state: FormationState, action: FormationAction)
                 action.memoryDefinitionId,
               ),
             };
-      return { ...state, draft, selectionDialog: { kind: "closed" } };
+      return { ...state, draft };
     }
     case "memoryRemoved": {
       const draft: BattleDraft =
@@ -387,7 +343,7 @@ export function formationReducer(state: FormationState, action: FormationAction)
                 undefined,
               ),
             };
-      return { ...state, draft, selectionDialog: { kind: "closed" } };
+      return { ...state, draft };
     }
     case "turnLimitChanged":
       return { ...state, draft: { ...state.draft, turnLimit: action.value } };
@@ -480,20 +436,6 @@ export function formationReducer(state: FormationState, action: FormationAction)
           index === action.gearIndex ? action.gear : gear,
         ),
       }));
-    case "selectionOpened": {
-      // UI-CMP-015: 陣営の強化トグルOFFではユニット強化ダイアログを開かない。
-      // `UnitSlot`側でも起動操作を無効化するが、draft操作以外の経路に備えて
-      // reducerでも同じ条件を守る。
-      if (action.selection.kind === "unitEnhancement") {
-        const slot = findSlot(state.draft, action.selection.slotKey);
-        if (slot === undefined || !enhancementForSide(state.draft, slot.side).enabled) {
-          return state;
-        }
-      }
-      return { ...state, selectionDialog: action.selection };
-    }
-    case "selectionClosed":
-      return { ...state, selectionDialog: { kind: "closed" } };
     case "unitMoved": {
       const from = findSlot(state.draft, action.fromSlotKey);
       const to = findSlot(state.draft, action.toSlotKey);
@@ -515,36 +457,13 @@ export function formationReducer(state: FormationState, action: FormationAction)
         from.side === "ally"
           ? { ...state.draft, allySlots: swap(state.draft.allySlots) }
           : { ...state.draft, enemySlots: swap(state.draft.enemySlots) };
-      // 移動は編集ではないため`lastEditedSlotKey`を落とす。残すと入れ替えで
-      // 旧座標へ移ってきた未編集ユニットの値が手持ちデータを上書きする
-      // （UI-CT-049の退行）。
-      const { lastEditedSlotKey: _edited, ...rest } = state;
-      return { ...rest, draft };
+      return { ...state, draft };
     }
     case "draftReset":
       // 実行状態と直近結果は別sliceが持つため、ここでは消さない（UI-CMP-020）。
-      return {
-        draft: createInitialDraft(action.allyPlayerEnhancement),
-        selectionDialog: { kind: "closed" },
-      };
-    case "allyEnhancementCleared": {
-      // 手持ちデータと味方の育成入力は同じ値の2つの置き場であり、片方だけ消しても
-      // もう片方から書き戻されるため対で初期化する（01_UI要求・画面設計.md §5.9）。
-      const initial = createInitialDraft();
-      const { lastEditedSlotKey: _discarded, ...rest } = state;
-      return {
-        ...rest,
-        draft: {
-          ...state.draft,
-          allySlots: state.draft.allySlots.map(({ enhancement: _discarded, ...slot }) => slot),
-          allyEnhancement: {
-            ...state.draft.allyEnhancement,
-            academyLevels: initial.allyEnhancement.academyLevels,
-            levelLink: initial.allyEnhancement.levelLink,
-          },
-        },
-      };
-    }
+      // 味方の学園レベル・レベルリンク・ユニット強化は別sliceが持つため、
+      // ここでは触れない（REF-058 / Issue #603）。
+      return { draft: createInitialDraft() };
     case "unknownDefinitionsCleared": {
       const slotKeys = new Set(action.slotKeys);
       if (slotKeys.size === 0) {

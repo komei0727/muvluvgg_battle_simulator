@@ -4,13 +4,7 @@ import {
   formationReducer,
   MAX_UNITS_PER_SIDE,
 } from "./formation-reducer.js";
-import {
-  createInitialDraft,
-  createInitialUnitEnhancement,
-  memorySlotKeyOf,
-  slotKeyOf,
-} from "./types.js";
-import type { UnitEnhancementInput } from "../../entities/battle-draft.js";
+import { createInitialDraft, memorySlotKeyOf, slotKeyOf } from "./types.js";
 import type { FormationState } from "./formation-reducer.js";
 
 function fillAllySlots(state: FormationState, count: number): FormationState {
@@ -39,7 +33,6 @@ describe("formationReducer — unitSelected", () => {
 
     const slot = next.draft.allySlots.find((s) => s.slotKey === slotKey);
     expect(slot?.unitDefinitionId).toBe("UNIT_A");
-    expect(next.selectionDialog).toEqual({ kind: "closed" });
   });
 
   it("does not affect other slots", () => {
@@ -241,30 +234,6 @@ describe("formationReducer — parameters", () => {
   });
 });
 
-describe("formationReducer — selection dialog", () => {
-  it("opens a unit selection and later closes it", () => {
-    const opened = formationReducer(createInitialFormationState(), {
-      type: "selectionOpened",
-      selection: { kind: "unit", slotKey: slotKeyOf("ally", "FRONT", 0) },
-    });
-    expect(opened.selectionDialog).toEqual({
-      kind: "unit",
-      slotKey: slotKeyOf("ally", "FRONT", 0),
-    });
-
-    const closed = formationReducer(opened, { type: "selectionClosed" });
-    expect(closed.selectionDialog).toEqual({ kind: "closed" });
-  });
-
-  it("opens a memory selection for a given side and index", () => {
-    const opened = formationReducer(createInitialFormationState(), {
-      type: "selectionOpened",
-      selection: { kind: "memory", side: "ally", index: 3 },
-    });
-    expect(opened.selectionDialog).toEqual({ kind: "memory", side: "ally", index: 3 });
-  });
-});
-
 describe("formationReducer — 強化入力 (M11)", () => {
   it("toggles a side's enhancement independently of the other side", () => {
     const state = formationReducer(createInitialFormationState(), {
@@ -354,29 +323,6 @@ describe("formationReducer — 強化入力 (M11)", () => {
         value: 5,
       }),
     ).toBe(initial);
-  });
-
-  it("UI-CMP-015: ignores opening the unit enhancement dialog while that side's toggle is off", () => {
-    const initial = createInitialFormationState();
-    const blocked = formationReducer(initial, {
-      type: "selectionOpened",
-      selection: { kind: "unitEnhancement", slotKey: slotKeyOf("ally", "FRONT", 0) },
-    });
-    expect(blocked.selectionDialog).toEqual({ kind: "closed" });
-
-    const enabled = formationReducer(initial, {
-      type: "enhancementToggled",
-      side: "ally",
-      enabled: true,
-    });
-    const opened = formationReducer(enabled, {
-      type: "selectionOpened",
-      selection: { kind: "unitEnhancement", slotKey: slotKeyOf("ally", "FRONT", 0) },
-    });
-    expect(opened.selectionDialog).toEqual({
-      kind: "unitEnhancement",
-      slotKey: "ally:FRONT:0",
-    });
   });
 });
 
@@ -494,7 +440,7 @@ describe("formationReducer — unitMoved (UI-AC-032)", () => {
     expect(next).toBe(state);
   });
 
-  it("does not touch the selection dialog, memories, other slots, or the other side", () => {
+  it("does not touch memories, other slots, or the other side", () => {
     const fromKey = slotKeyOf("ally", "FRONT", 0);
     let state = stateWithAllyUnit(fromKey, "UNIT_A");
     state = formationReducer(state, {
@@ -508,10 +454,6 @@ describe("formationReducer — unitMoved (UI-AC-032)", () => {
       index: 0,
       memoryDefinitionId: "MEM_A",
     });
-    state = formationReducer(state, {
-      type: "selectionOpened",
-      selection: { kind: "unit", slotKey: slotKeyOf("enemy", "FRONT", 0) },
-    });
 
     const next = formationReducer(state, {
       type: "unitMoved",
@@ -519,7 +461,6 @@ describe("formationReducer — unitMoved (UI-AC-032)", () => {
       toSlotKey: slotKeyOf("ally", "REAR", 0),
     });
 
-    expect(next.selectionDialog).toEqual(state.selectionDialog);
     expect(next.draft.allyMemoryDefinitionIds).toEqual(state.draft.allyMemoryDefinitionIds);
     expect(
       next.draft.allySlots.find((s) => s.slotKey === slotKeyOf("ally", "FRONT", 1))
@@ -608,7 +549,6 @@ describe("formationReducer — レベルリンク (UI-AC-035/036)", () => {
       level: 260,
       linkExcluded: true,
     });
-    expect(next.lastEditedSlotKey).toBe(allySlotKey);
   });
 
   it("seeds a slot whose enhancement was never opened", () => {
@@ -689,13 +629,6 @@ describe("formationReducer — レベルリンク (UI-AC-035/036)", () => {
 describe("formationReducer — persistence actions", () => {
   const allySlotKey = slotKeyOf("ally", "FRONT", 0);
   const enemySlotKey = slotKeyOf("enemy", "FRONT", 0);
-  const prefill: UnitEnhancementInput = {
-    level: 88,
-    linkExcluded: false,
-    gears: createInitialUnitEnhancement().gears.map((_gear, index) =>
-      index === 0 ? { stat: "ATTACK", tier: "III", grade: "S" } : undefined,
-    ),
-  };
 
   function stateWithAllyEnhancement(): FormationState {
     const placed = formationReducer(createInitialFormationState(), {
@@ -710,20 +643,7 @@ describe("formationReducer — persistence actions", () => {
     });
   }
 
-  it("replaces the slot enhancement with the prefilled payload", () => {
-    const previous = stateWithAllyEnhancement();
-
-    const next = formationReducer(previous, {
-      type: "unitSelected",
-      slotKey: allySlotKey,
-      unitDefinitionId: "UNIT_B",
-      enhancement: prefill,
-    });
-
-    expect(next.draft.allySlots[0]?.enhancement).toStrictEqual(prefill);
-  });
-
-  it("keeps the slot enhancement when no prefill payload is given (enemy side)", () => {
+  it("keeps the slot enhancement when the unit placed in a slot is replaced", () => {
     const placed = formationReducer(createInitialFormationState(), {
       type: "unitSelected",
       slotKey: enemySlotKey,
@@ -744,78 +664,15 @@ describe("formationReducer — persistence actions", () => {
     expect(next.draft.enemySlots[0]?.enhancement?.level).toBe(42);
   });
 
-  it("resets the draft and prefills the ally academy levels", () => {
+  it("resets the draft to its initial defaults, without touching the ally growth data slice", () => {
     const previous = formationReducer(stateWithAllyEnhancement(), {
       type: "turnLimitChanged",
       value: 33,
     });
-    const academyLevels = {
-      unitTypes: { PHYSICAL: 5, ENERGY: 6, AGILE: 7 },
-      attributes: { AGGRESSIVE: 1, SHY: 2, CUTE: 3, SMART: 4, COMICAL: 5, CLEVER: 6 },
-    } as const;
 
-    const next = formationReducer(previous, {
-      type: "draftReset",
-      allyPlayerEnhancement: { academyLevels, levelLink: { enabled: true, level: 250 } },
-    });
-
-    expect(next.draft.allySlots.every((slot) => slot.unitDefinitionId === undefined)).toBe(true);
-    expect(next.draft.turnLimit).toBe(createInitialDraft().turnLimit);
-    expect(next.draft.allyEnhancement.academyLevels).toStrictEqual(academyLevels);
-    expect(next.draft.allyEnhancement.levelLink).toStrictEqual({ enabled: true, level: 250 });
-    expect(next.draft.enemyEnhancement.academyLevels).toStrictEqual(
-      createInitialDraft().enemyEnhancement.academyLevels,
-    );
-    expect(next.selectionDialog).toEqual({ kind: "closed" });
-  });
-
-  it("resets the draft to defaults when no academy levels are supplied", () => {
-    const next = formationReducer(stateWithAllyEnhancement(), { type: "draftReset" });
+    const next = formationReducer(previous, { type: "draftReset" });
 
     expect(next.draft).toStrictEqual(createInitialDraft());
-  });
-
-  it("clears ally growth inputs without touching placement or the enemy side", () => {
-    const withEnemy = formationReducer(stateWithAllyEnhancement(), {
-      type: "unitSelected",
-      slotKey: enemySlotKey,
-      unitDefinitionId: "UNIT_E",
-    });
-    const enemyEdited = formationReducer(withEnemy, {
-      type: "unitEnhancementLevelChanged",
-      slotKey: enemySlotKey,
-      value: 7,
-    });
-    const allyAcademy = formationReducer(enemyEdited, {
-      type: "academyLevelChanged",
-      side: "ally",
-      group: "unitTypes",
-      key: "PHYSICAL",
-      value: 9,
-    });
-
-    const next = formationReducer(allyAcademy, { type: "allyEnhancementCleared" });
-
-    expect(next.draft.allySlots[0]?.unitDefinitionId).toBe("UNIT_A");
-    expect(next.draft.allySlots[0]?.enhancement).toBeUndefined();
-    expect(next.draft.allyEnhancement.academyLevels).toStrictEqual(
-      createInitialDraft().allyEnhancement.academyLevels,
-    );
-    expect(next.draft.enemySlots[0]?.enhancement?.level).toBe(7);
-  });
-
-  it("resets the ally level link along with the academy levels", () => {
-    const linked = formationReducer(stateWithAllyEnhancement(), {
-      type: "levelLinkToggled",
-      side: "ally",
-      enabled: true,
-    });
-
-    const next = formationReducer(linked, { type: "allyEnhancementCleared" });
-
-    expect(next.draft.allyEnhancement.levelLink).toStrictEqual(
-      createInitialDraft().allyEnhancement.levelLink,
-    );
   });
 
   it("clears only the slots named by unknownDefinitionsCleared", () => {
@@ -855,77 +712,5 @@ describe("formationReducer — persistence actions", () => {
     const restored = { ...createInitialDraft(), turnLimit: 21 } as const;
 
     expect(createInitialFormationState(restored).draft).toStrictEqual(restored);
-  });
-});
-
-describe("formationReducer — lastEditedSlotKey", () => {
-  const allySlotKey = slotKeyOf("ally", "FRONT", 0);
-  const otherSlotKey = slotKeyOf("ally", "REAR", 2);
-
-  function withUnitsPlaced(): FormationState {
-    const first = formationReducer(createInitialFormationState(), {
-      type: "unitSelected",
-      slotKey: allySlotKey,
-      unitDefinitionId: "UNIT_A",
-    });
-    return formationReducer(first, {
-      type: "unitSelected",
-      slotKey: otherSlotKey,
-      unitDefinitionId: "UNIT_A",
-    });
-  }
-
-  it("is unset until an enhancement is edited", () => {
-    expect(withUnitsPlaced().lastEditedSlotKey).toBeUndefined();
-  });
-
-  it("names the slot whose level was edited", () => {
-    const next = formationReducer(withUnitsPlaced(), {
-      type: "unitEnhancementLevelChanged",
-      slotKey: otherSlotKey,
-      value: 220,
-    });
-
-    expect(next.lastEditedSlotKey).toBe(otherSlotKey);
-  });
-
-  it("names the slot whose gear was edited", () => {
-    const next = formationReducer(withUnitsPlaced(), {
-      type: "unitEnhancementGearChanged",
-      slotKey: allySlotKey,
-      gearIndex: 2,
-      gear: { stat: "ATTACK", tier: "III", grade: "S" },
-    });
-
-    expect(next.lastEditedSlotKey).toBe(allySlotKey);
-  });
-
-  it("is dropped by the reset actions", () => {
-    const edited = formationReducer(withUnitsPlaced(), {
-      type: "unitEnhancementLevelChanged",
-      slotKey: allySlotKey,
-      value: 220,
-    });
-
-    expect(formationReducer(edited, { type: "draftReset" }).lastEditedSlotKey).toBeUndefined();
-    expect(
-      formationReducer(edited, { type: "allyEnhancementCleared" }).lastEditedSlotKey,
-    ).toBeUndefined();
-  });
-
-  it("is dropped by unitMoved, so a swap does not write back an unedited slot's values", () => {
-    const edited = formationReducer(withUnitsPlaced(), {
-      type: "unitEnhancementLevelChanged",
-      slotKey: allySlotKey,
-      value: 250,
-    });
-
-    const moved = formationReducer(edited, {
-      type: "unitMoved",
-      fromSlotKey: allySlotKey,
-      toSlotKey: otherSlotKey,
-    });
-
-    expect(moved.lastEditedSlotKey).toBeUndefined();
   });
 });

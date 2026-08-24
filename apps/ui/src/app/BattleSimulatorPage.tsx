@@ -4,7 +4,6 @@ import { Panel } from "../components/Panel.js";
 import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
 import { BreakTimeline } from "../features/exercise/BreakTimeline.js";
 import { ExerciseEnemyFormation } from "../features/exercise/ExerciseEnemyFormation.js";
-import type { Side } from "../entities/battle-draft.js";
 import type { BattleMode } from "../entities/battle-mode.js";
 import { EXERCISE_TURN_LIMIT } from "../entities/tactical-exercise.js";
 import type {
@@ -41,22 +40,24 @@ import { FormationEditor } from "../features/formation/FormationEditor.js";
 import { StatPreviewModeToggle } from "../features/formation/StatPreviewModeToggle.js";
 import { FormationResetControls } from "../features/formation/FormationResetControls.js";
 import { formationReducer } from "../features/formation/formation-reducer.js";
-import type { FormationAction } from "../features/formation/formation-reducer.js";
+import type { SelectionDialogState } from "../features/formation/formation-reducer.js";
 import { validateDraft } from "../features/formation/draft-validation.js";
 import { buildBattleSimulationRequest } from "../features/formation/request-mapper.js";
+import { withPlayerEnhancement } from "../features/formation/effective-draft.js";
 import {
   EXERCISE_DRAFT_STORAGE_KEY,
   LAST_DRAFT_STORAGE_KEY,
 } from "../features/formation/persistence.js";
 import {
   createPersistedInitialState,
-  useFormationPersistence,
   usePersistedDraft,
 } from "../features/formation/use-formation-persistence.js";
+import { usePlayerEnhancementPersistence } from "../features/formation/use-player-enhancement-persistence.js";
 import { SubmitControls } from "../features/formation/SubmitControls.js";
 import type { UseFormationStatPreviewOptions } from "../features/formation/use-formation-stat-preview.js";
 import { useFormationStatPreview } from "../features/formation/use-formation-stat-preview.js";
 import {
+  canOpenUnitEnhancementDialog,
   enhancementForSide,
   memorySlotsForSide,
   slotsForSide,
@@ -114,6 +115,9 @@ export function BattleSimulatorPage({
   // UI-AC-034: プレビューの表示モード。編成の内容ではなく見え方なので、
   // formation-reducerのstateへ入れず保存対象にもしない。両陣営・全枠で共有する。
   const [showBaseStats, setShowBaseStats] = useState(false);
+  // ダイアログ選択状態はモードに紐づかないコンテナのlocal state
+  // （04_コンポーネント・状態管理設計.md §4、REF-058 / Issue #603）。
+  const [selectionDialog, setSelectionDialog] = useState<SelectionDialogState>({ kind: "closed" });
   // UI-AC-029: 前回セッションのdraftはlazy initで復元する（reducerを不純にしない）。
   const [battleState, battleDispatch] = useReducer(
     formationReducer,
@@ -129,6 +133,20 @@ export function BattleSimulatorPage({
     createPersistedInitialState,
   );
   const catalog = catalogLoader.state;
+  // 味方の学園レベル・レベルリンク・ユニット強化はモードに依らない単一slice
+  // （REF-058 / Issue #603）。モード別draftへは`withPlayerEnhancement`で重ね合わせる。
+  // どちらの入力も変わっていない再描画で新しい参照を作らないよう`useMemo`で包む
+  // ——`useBattleSimulatorViewModel`側の`useMemo`（`draft`を依存に持つ）が
+  // 無意味に再計算されるのを防ぐ。
+  const playerEnhancement = usePlayerEnhancementPersistence(catalog);
+  const battleEffectiveDraft = useMemo(
+    () => withPlayerEnhancement(battleState.draft, playerEnhancement.state),
+    [battleState.draft, playerEnhancement.state],
+  );
+  const exerciseEffectiveDraft = useMemo(
+    () => withPlayerEnhancement(exerciseState.draft, playerEnhancement.state),
+    [exerciseState.draft, playerEnhancement.state],
+  );
 
   // UI-CMP-013: 実行stateをモードごとに分ける。abort controllerもexecutionIdの
   // 発番もhookインスタンスに閉じるため、旧モードの遅延応答は自分のsliceへしか
@@ -153,21 +171,21 @@ export function BattleSimulatorPage({
 
   const battleView = useBattleSimulatorViewModel({
     catalog,
-    draft: battleState.draft,
+    draft: battleEffectiveDraft,
     execution: battleExecution.state,
     validate: validateDraft,
     buildRequest: buildBattleSimulationRequest,
   });
   const exerciseView = useBattleSimulatorViewModel({
     catalog,
-    draft: exerciseState.draft,
+    draft: exerciseEffectiveDraft,
     execution: exerciseExecution.state,
     validate: validateExerciseDraft,
     buildRequest: buildTacticalExerciseRequest,
   });
 
   const isExercise = mode === "exercise";
-  const formState = isExercise ? exerciseState : battleState;
+  const effectiveDraft = isExercise ? exerciseEffectiveDraft : battleEffectiveDraft;
   const dispatch = isExercise ? exerciseDispatch : battleDispatch;
   const view = isExercise ? exerciseView : battleView;
   const execution = isExercise ? exerciseExecution : battleExecution;
@@ -175,13 +193,15 @@ export function BattleSimulatorPage({
 
   // UI-AC-027: 編成draftが変わるたびに開始時ステータスを取り直す。取得失敗は
   // 実行状態（`execution`）へ持ち込まない（docs/ui-design/03_API・データ連携設計.md §2.5）。
-  const statPreview = useFormationStatPreview(apiBaseUrl, formState.draft, {
+  const statPreview = useFormationStatPreview(apiBaseUrl, effectiveDraft, {
     mode: isExercise ? "TACTICAL_EXERCISE" : "NORMAL",
     ...(previewFormationStatsImpl !== undefined ? { previewImpl: previewFormationStatsImpl } : {}),
   });
 
   // 01_UI要求・画面設計.md §5.9: 入力の保存・復元・プリフィル。保存の失敗は
-  // 画面へ出さず、保存以外の機能をそのまま続ける。draftはモードごとに別キーへ保存し、
+  // 画面へ出さず、保存以外の機能をそのまま続ける。draftはモードごとに別キーへ保存し
+  // （味方の学園レベル・レベルリンク・ユニット強化は含まない生のdraft——それらは
+  // `mlgg:player-data`が正本のため、モード別キーへ重複させない。REF-058 / Issue #603）、
   // 孤児IDのクリアもそれぞれのviolationで判定する。
   usePersistedDraft({
     storageKey: LAST_DRAFT_STORAGE_KEY,
@@ -197,75 +217,10 @@ export function BattleSimulatorPage({
     violations: exerciseView.violations,
     dispatch: exerciseDispatch,
   });
-  const persistence = useFormationPersistence({
-    editedDraft: formState.draft,
-    editedDraftId: mode,
-    ...(formState.lastEditedSlotKey === undefined
-      ? {}
-      : { lastEditedSlotKey: formState.lastEditedSlotKey }),
-    catalog,
-    dispatch: battleDispatch,
-  });
 
-  const { createDraftResetAction } = persistence;
   const resetActiveDraft = useCallback(() => {
-    dispatch(createDraftResetAction());
-  }, [dispatch, createDraftResetAction]);
-
-  const { clearPlayerData } = persistence;
-  // 手持ちデータは両モードの味方強化入力の共通の出所なので、消すときは両方の
-  // draftから落とす（片方だけだと書き戻しeffectが残った値から復元してしまう）。
-  const clearPlayerDataEverywhere = useCallback(() => {
-    clearPlayerData();
-    const action: FormationAction = { type: "allyEnhancementCleared" };
-    exerciseDispatch(action);
-  }, [clearPlayerData]);
-
-  // 学園レベルは手持ちデータ（`mlgg:player-data`）の一部であり、モードに依らない
-  // 味方の育成情報である（01_UI要求・画面設計.md §5.9）。モードごとのdraftへ同じ
-  // 編集を配り、どちらのモードで開いても同じ値が出るようにする。敵側は都度入力の
-  // 方針なので、編集中のモードだけへ配る。
-  const changeAcademyLevel = useCallback(
-    (side: Side, group: "unitTypes" | "attributes", key: string, value: number | "") => {
-      const action: FormationAction = { type: "academyLevelChanged", side, group, key, value };
-      if (side !== "ally") {
-        dispatch(action);
-        return;
-      }
-      battleDispatch(action);
-      exerciseDispatch(action);
-    },
-    [dispatch],
-  );
-
-  // レベルリンクも学園レベルと同じ「陣営に1組の手持ちデータ」なので、味方の編集は
-  // 両モードのsliceへ配る。配り忘れると「通常戦闘でリンクを上げ、演習へ切り替えると
-  // 元のまま」というズレになる（UI-CMP-025）。
-  const dispatchAllyWideOrCurrent = useCallback(
-    (side: Side, action: FormationAction) => {
-      if (side !== "ally") {
-        dispatch(action);
-        return;
-      }
-      battleDispatch(action);
-      exerciseDispatch(action);
-    },
-    [dispatch],
-  );
-
-  const toggleLevelLink = useCallback(
-    (side: Side, enabled: boolean) => {
-      dispatchAllyWideOrCurrent(side, { type: "levelLinkToggled", side, enabled });
-    },
-    [dispatchAllyWideOrCurrent],
-  );
-
-  const changeLevelLinkLevel = useCallback(
-    (side: Side, value: number | "") => {
-      dispatchAllyWideOrCurrent(side, { type: "levelLinkLevelChanged", side, value });
-    },
-    [dispatchAllyWideOrCurrent],
-  );
+    dispatch({ type: "draftReset" });
+  }, [dispatch]);
 
   // UI-AC-041: 演習の実行指定。ログレベル選択の置き換えなので、通常戦闘モードへは
   // 渡さない（通常戦闘のdraftも同じ項目を持つが、実行にも送信にも効かない）。
@@ -308,7 +263,7 @@ export function BattleSimulatorPage({
   // 完了した統計結果が、その後編集された編成のものでないか。実行回数とシードは結果表示に
   // 出ているため、画面から読み取れない編成の変化だけを見る。
   const currentEvaluationBuild = isStatisticsRun
-    ? buildTacticalExerciseEvaluationRequest(exerciseState.draft, {
+    ? buildTacticalExerciseEvaluationRequest(exerciseEffectiveDraft, {
         runsPerCandidate: 1,
         seed: "-",
       })
@@ -371,7 +326,7 @@ export function BattleSimulatorPage({
       // 実行回数の値域は送信前検証が押さえている（`exercise-draft-validation.ts`）ため、
       // ここへ来る時点で整数である。
       if (runCount !== "") {
-        statisticsRun.start({ draft: exerciseState.draft, runCount, seed });
+        statisticsRun.start({ draft: exerciseEffectiveDraft, runCount, seed });
       }
       return;
     }
@@ -388,33 +343,56 @@ export function BattleSimulatorPage({
     }
   };
 
+  // ダイアログ選択状態はコンテナのlocal state（REF-058 / Issue #603）。
+  const openSelection = useCallback(
+    (selection: Exclude<SelectionDialogState, { kind: "closed" }>) => {
+      if (
+        selection.kind === "unitEnhancement" &&
+        !canOpenUnitEnhancementDialog(effectiveDraft, selection.slotKey)
+      ) {
+        return;
+      }
+      setSelectionDialog(selection);
+    },
+    [effectiveDraft],
+  );
+  const closeSelection = useCallback(() => {
+    setSelectionDialog({ kind: "closed" });
+  }, []);
+
   const renderAllyEditor = (readyCatalog: BattleSimulationCatalogResponse) => (
     <FormationEditor
       side="ally"
-      slots={slotsForSide(formState.draft, "ally")}
-      memoryDefinitionIds={memorySlotsForSide(formState.draft, "ally")}
+      slots={slotsForSide(effectiveDraft, "ally")}
+      memoryDefinitionIds={memorySlotsForSide(effectiveDraft, "ally")}
       catalog={readyCatalog}
       violations={displayedViolations}
       disabled={formationDisabled}
       imageMap={definitionImageMap}
-      enhancement={enhancementForSide(formState.draft, "ally")}
+      enhancement={enhancementForSide(effectiveDraft, "ally")}
       statPreview={statPreview}
       showBaseStats={showBaseStats}
       onOpenUnitSelection={(slotKey) => {
-        dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+        openSelection({ kind: "unit", slotKey });
       }}
       onOpenMemorySelection={(side, index) => {
-        dispatch({ type: "selectionOpened", selection: { kind: "memory", side, index } });
+        openSelection({ kind: "memory", side, index });
       }}
       onOpenUnitEnhancement={(slotKey) => {
-        dispatch({ type: "selectionOpened", selection: { kind: "unitEnhancement", slotKey } });
+        openSelection({ kind: "unitEnhancement", slotKey });
       }}
       onEnhancementToggle={(side, enabled) => {
         dispatch({ type: "enhancementToggled", side, enabled });
       }}
-      onAcademyLevelChange={changeAcademyLevel}
-      onLevelLinkToggle={toggleLevelLink}
-      onLevelLinkChange={changeLevelLinkLevel}
+      onAcademyLevelChange={(_side, group, key, value) => {
+        playerEnhancement.dispatch({ type: "academyLevelChanged", group, key, value });
+      }}
+      onLevelLinkToggle={(_side, enabled) => {
+        playerEnhancement.dispatch({ type: "levelLinkToggled", enabled });
+      }}
+      onLevelLinkChange={(_side, value) => {
+        playerEnhancement.dispatch({ type: "levelLinkLevelChanged", value });
+      }}
       onMoveUnit={(fromSlotKey, toSlotKey) => {
         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
       }}
@@ -423,7 +401,13 @@ export function BattleSimulatorPage({
 
   return (
     <AppShell {...(buildRevision !== undefined ? { buildRevision } : {})}>
-      <ModeTabs mode={mode} onChange={setMode} />
+      <ModeTabs
+        mode={mode}
+        onChange={(nextMode) => {
+          setMode(nextMode);
+          closeSelection();
+        }}
+      />
 
       {/* WAI-ARIA APG: `Tabs`が出す`aria-controls`の指す先を実在させる。モード
           切替はページ全体（設定・実行結果・詳細）を入れ替えるため、活性モードの
@@ -453,7 +437,7 @@ export function BattleSimulatorPage({
                 enemy={
                   isExercise ? (
                     <ExerciseEnemyFormation
-                      slots={slotsForSide(formState.draft, "enemy")}
+                      slots={slotsForSide(effectiveDraft, "enemy")}
                       catalog={catalog.response}
                       violations={displayedViolations}
                       disabled={formationDisabled}
@@ -461,7 +445,7 @@ export function BattleSimulatorPage({
                       statPreview={statPreview}
                       showBaseStats={showBaseStats}
                       onOpenUnitSelection={(slotKey) => {
-                        dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                        openSelection({ kind: "unit", slotKey });
                       }}
                       onMoveUnit={(fromSlotKey, toSlotKey) => {
                         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
@@ -470,36 +454,36 @@ export function BattleSimulatorPage({
                   ) : (
                     <FormationEditor
                       side="enemy"
-                      slots={slotsForSide(formState.draft, "enemy")}
-                      memoryDefinitionIds={memorySlotsForSide(formState.draft, "enemy")}
+                      slots={slotsForSide(effectiveDraft, "enemy")}
+                      memoryDefinitionIds={memorySlotsForSide(effectiveDraft, "enemy")}
                       catalog={catalog.response}
                       violations={displayedViolations}
                       disabled={formationDisabled}
                       imageMap={definitionImageMap}
-                      enhancement={enhancementForSide(formState.draft, "enemy")}
+                      enhancement={enhancementForSide(effectiveDraft, "enemy")}
                       statPreview={statPreview}
                       showBaseStats={showBaseStats}
                       onOpenUnitSelection={(slotKey) => {
-                        dispatch({ type: "selectionOpened", selection: { kind: "unit", slotKey } });
+                        openSelection({ kind: "unit", slotKey });
                       }}
                       onOpenMemorySelection={(side, index) => {
-                        dispatch({
-                          type: "selectionOpened",
-                          selection: { kind: "memory", side, index },
-                        });
+                        openSelection({ kind: "memory", side, index });
                       }}
                       onOpenUnitEnhancement={(slotKey) => {
-                        dispatch({
-                          type: "selectionOpened",
-                          selection: { kind: "unitEnhancement", slotKey },
-                        });
+                        openSelection({ kind: "unitEnhancement", slotKey });
                       }}
                       onEnhancementToggle={(side, enabled) => {
                         dispatch({ type: "enhancementToggled", side, enabled });
                       }}
-                      onAcademyLevelChange={changeAcademyLevel}
-                      onLevelLinkToggle={toggleLevelLink}
-                      onLevelLinkChange={changeLevelLinkLevel}
+                      onAcademyLevelChange={(side, group, key, value) => {
+                        dispatch({ type: "academyLevelChanged", side, group, key, value });
+                      }}
+                      onLevelLinkToggle={(side, enabled) => {
+                        dispatch({ type: "levelLinkToggled", side, enabled });
+                      }}
+                      onLevelLinkChange={(side, value) => {
+                        dispatch({ type: "levelLinkLevelChanged", side, value });
+                      }}
                       onMoveUnit={(fromSlotKey, toSlotKey) => {
                         dispatch({ type: "unitMoved", fromSlotKey, toSlotKey });
                       }}
@@ -509,8 +493,8 @@ export function BattleSimulatorPage({
               />
 
               <ExecutionParameterForm
-                turnLimit={formState.draft.turnLimit}
-                logLevel={formState.draft.logLevel}
+                turnLimit={effectiveDraft.turnLimit}
+                logLevel={effectiveDraft.logLevel}
                 endpoint={isExercise ? EXERCISE_ENDPOINT : SIMULATION_ENDPOINT}
                 disabled={formationDisabled}
                 violations={displayedViolations}
@@ -541,7 +525,9 @@ export function BattleSimulatorPage({
               <FormationResetControls
                 disabled={formationDisabled}
                 onResetDraft={resetActiveDraft}
-                onClearPlayerData={clearPlayerDataEverywhere}
+                onClearPlayerData={() => {
+                  playerEnhancement.dispatch({ type: "cleared" });
+                }}
               />
             </>
           ) : null}
@@ -668,15 +654,16 @@ export function BattleSimulatorPage({
 
       {catalog.status === "ready" ? (
         <SelectionDialogs
-          selectionDialog={formState.selectionDialog}
-          draft={formState.draft}
+          selectionDialog={selectionDialog}
+          draft={effectiveDraft}
           mode={mode}
           catalog={catalog.response}
           unitImageMap={unitImageMap}
           memoryImageMap={memoryImageMap}
           violations={displayedViolations}
-          prefillEnhancementFor={persistence.prefillEnhancementFor}
           dispatch={dispatch}
+          playerEnhancementDispatch={playerEnhancement.dispatch}
+          onClose={closeSelection}
         />
       ) : null}
     </AppShell>

@@ -81,15 +81,6 @@ export function gearStatCounts(
   return counts;
 }
 
-/**
- * 手持ちデータ（`persistence.ts`）が持つ味方の陣営単位の育成入力。学園レベルと
- * レベルリンクはどちらも「陣営に1組しかない値」であり、編成をクリアしても引き継ぐ。
- */
-export interface PlayerSideEnhancement {
-  readonly academyLevels: SideEnhancementInput["academyLevels"];
-  readonly levelLink: LevelLinkInput;
-}
-
 const ROWS: readonly UiRow[] = ["FRONT", "REAR"];
 const COLUMNS: readonly UiColumn[] = [0, 1, 2];
 const MEMORY_SLOT_COUNT = 6;
@@ -168,11 +159,12 @@ export function createInitialUnitEnhancement(): UnitEnhancementInput {
 }
 
 /**
- * `allyPlayerEnhancement`は手持ちデータ（`persistence.ts`）からのプリフィル値。
- * 学園レベルとレベルリンクはユニット定義に依存しないため、編成をクリアしても引き継ぐ。
+ * 味方の学園レベル・レベルリンク・ユニット強化はモード非依存の単一slice
+ * （`player-enhancement-reducer.ts`、REF-058 / Issue #603）が持つため、ここで
+ * 作る`allyEnhancement`はプリフィルされない既定値のまま据え置く。draftへは
+ * `effective-draft.ts`の`withPlayerEnhancement`が重ね合わせる。
  */
-export function createInitialDraft(allyPlayerEnhancement?: PlayerSideEnhancement): BattleDraft {
-  const allyEnhancement = createInitialSideEnhancement();
+export function createInitialDraft(): BattleDraft {
   return {
     allySlots: createSlots("ally"),
     enemySlots: createSlots("enemy"),
@@ -184,14 +176,7 @@ export function createInitialDraft(allyPlayerEnhancement?: PlayerSideEnhancement
     // 明示的に選ぶ（既定にすると毎回数MBのレスポンスを受け取ることになる）。
     logLevel: "SUMMARY",
     exerciseExecution: createInitialExerciseExecution(),
-    allyEnhancement:
-      allyPlayerEnhancement === undefined
-        ? allyEnhancement
-        : {
-            ...allyEnhancement,
-            academyLevels: allyPlayerEnhancement.academyLevels,
-            levelLink: allyPlayerEnhancement.levelLink,
-          },
+    allyEnhancement: createInitialSideEnhancement(),
     enemyEnhancement: createInitialSideEnhancement(),
   };
 }
@@ -209,4 +194,16 @@ export function memorySlotsForSide(
 
 export function enhancementForSide(draft: BattleDraft, side: Side): SideEnhancementInput {
   return side === "ally" ? draft.allyEnhancement : draft.enemyEnhancement;
+}
+
+/**
+ * UI-CMP-015: 陣営の強化トグルOFFではユニット強化ダイアログを開けない。
+ * `UnitSlot`側でも起動操作を無効化するが、draft操作以外の経路に備えて
+ * `app/BattleSimulatorPage.tsx`の`openSelection`でも同じ条件を守る。
+ */
+export function canOpenUnitEnhancementDialog(draft: BattleDraft, slotKey: string): boolean {
+  const slot = [...draft.allySlots, ...draft.enemySlots].find(
+    (candidate) => candidate.slotKey === slotKey,
+  );
+  return slot !== undefined && enhancementForSide(draft, slot.side).enabled;
 }

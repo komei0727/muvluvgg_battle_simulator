@@ -3,21 +3,16 @@ import {
   PERSISTENCE_SCHEMA_VERSION,
   createEmptyPlayerData,
   isEmptyPlayerData,
-  mergePlayerDataFromDraft,
+  mergeForPersistence,
   parsePlayerData,
   parseStoredDraft,
-  prefillUnitEnhancement,
   prunePlayerData,
   selectUnknownDefinitionSlotKeys,
   toStoredDraft,
   toStoredPlayerData,
 } from "./persistence.js";
-import {
-  DEFAULT_UNIT_LEVEL,
-  createInitialDraft,
-  createInitialUnitEnhancement,
-  slotKeyOf,
-} from "./types.js";
+import type { StoredPlayerData } from "./persistence.js";
+import { createInitialDraft, createInitialUnitEnhancement, slotKeyOf } from "./types.js";
 import type { BattleDraft, GearInput, UnitEnhancementInput } from "../../entities/battle-draft.js";
 import type { UiViolation } from "../../entities/violation.js";
 
@@ -53,6 +48,15 @@ function withAllySlot(
         : slot,
     ),
   };
+}
+
+/** `mergeForPersistence`のテスト用に、1ユニット分の記録を持つStoredPlayerDataを作る。 */
+function withUnit(
+  data: StoredPlayerData,
+  unitDefinitionId: string,
+  enhancement: UnitEnhancementInput,
+): StoredPlayerData {
+  return { ...data, units: { ...data.units, [unitDefinitionId]: enhancement } };
 }
 
 describe("parseStoredDraft", () => {
@@ -200,15 +204,10 @@ describe("parseStoredDraft", () => {
 describe("parsePlayerData", () => {
   // UI-UT-PST-004
   it("restores player data round-tripped through JSON", () => {
-    const data = mergePlayerDataFromDraft(
+    const data = withUnit(
       createEmptyPlayerData(),
-      withAllySlot(
-        createInitialDraft(),
-        slotKeyOf("ally", "FRONT", 0),
-        "UNIT_A",
-        enhancementOf(120, gearsWith(GEAR, 8)),
-      ),
-      slotKeyOf("ally", "FRONT", 0),
+      "UNIT_A",
+      enhancementOf(120, gearsWith(GEAR, 8)),
     );
 
     const restored = parsePlayerData(
@@ -243,28 +242,22 @@ describe("parsePlayerData", () => {
   });
 });
 
-describe("mergePlayerDataFromDraft", () => {
+describe("mergeForPersistence", () => {
   // UI-UT-PST-005
-  it("records ally unit level and gears", () => {
-    const draft = withAllySlot(
-      createInitialDraft(),
-      slotKeyOf("ally", "FRONT", 0),
+  it("records a unit's level and gears", () => {
+    const next = withUnit(
+      createEmptyPlayerData(),
       "UNIT_A",
       enhancementOf(180, gearsWith(GEAR, 0)),
     );
 
-    const merged = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      draft,
-      slotKeyOf("ally", "FRONT", 0),
-    );
+    const merged = mergeForPersistence(createEmptyPlayerData(), next);
 
     expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(180, gearsWith(GEAR, 0)));
   });
 
   // UI-UT-PST-005
-  it("records ally academy levels and skips blank inputs", () => {
-    const base = createInitialDraft();
+  it("records academy levels and skips blank inputs", () => {
     const previous = {
       ...createEmptyPlayerData(),
       academyLevels: {
@@ -279,136 +272,65 @@ describe("mergePlayerDataFromDraft", () => {
         },
       },
     } as const;
-    const draft: BattleDraft = {
-      ...base,
-      allyEnhancement: {
-        ...base.allyEnhancement,
-        academyLevels: {
-          unitTypes: { PHYSICAL: 3, ENERGY: "", AGILE: 1 },
-          attributes: base.allyEnhancement.academyLevels.attributes,
-        },
+    const next: StoredPlayerData = {
+      ...previous,
+      academyLevels: {
+        unitTypes: { PHYSICAL: 3, ENERGY: "", AGILE: 1 },
+        attributes: previous.academyLevels.attributes,
       },
     };
 
-    const merged = mergePlayerDataFromDraft(previous, draft);
+    const merged = mergeForPersistence(previous, next);
 
     expect(merged.academyLevels.unitTypes).toStrictEqual({ PHYSICAL: 3, ENERGY: 7, AGILE: 1 });
   });
 
   // UI-UT-PST-005
-  it("keeps the previously recorded level while the level input is blank", () => {
-    const previous = mergePlayerDataFromDraft(
+  it("keeps the previously recorded level while the level input is blank, but still updates gears", () => {
+    const previous = withUnit(
       createEmptyPlayerData(),
-      withAllySlot(
-        createInitialDraft(),
-        slotKeyOf("ally", "FRONT", 0),
-        "UNIT_A",
-        enhancementOf(180, gearsWith(GEAR, 0)),
-      ),
-      slotKeyOf("ally", "FRONT", 0),
-    );
-    const draft = withAllySlot(
-      createInitialDraft(),
-      slotKeyOf("ally", "FRONT", 0),
       "UNIT_A",
-      enhancementOf("", gearsWith(GEAR, 1)),
+      enhancementOf(180, gearsWith(GEAR, 0)),
     );
+    const next = withUnit(createEmptyPlayerData(), "UNIT_A", enhancementOf("", gearsWith(GEAR, 1)));
 
-    const merged = mergePlayerDataFromDraft(previous, draft, slotKeyOf("ally", "FRONT", 0));
+    const merged = mergeForPersistence(previous, next);
 
     expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(180, gearsWith(GEAR, 1)));
   });
 
-  // UI-UT-PST-005
-  it("ignores enemy slots and enemy academy levels", () => {
-    const base = createInitialDraft();
-    const draft: BattleDraft = {
-      ...base,
-      enemySlots: base.enemySlots.map((slot, index) =>
-        index === 0
-          ? { ...slot, unitDefinitionId: "UNIT_E", enhancement: enhancementOf(99, []) }
-          : slot,
-      ),
-      enemyEnhancement: {
-        ...base.enemyEnhancement,
-        enabled: true,
-        academyLevels: {
-          unitTypes: { PHYSICAL: 8, ENERGY: 8, AGILE: 8 },
-          attributes: {
-            AGGRESSIVE: 8,
-            SHY: 8,
-            CUTE: 8,
-            SMART: 8,
-            COMICAL: 8,
-            CLEVER: 8,
-          },
-        },
-      },
-    };
-
-    const merged = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      draft,
-      base.enemySlots[0]!.slotKey,
-    );
-
-    expect(merged).toStrictEqual(createEmptyPlayerData());
-  });
-
   // UI-UT-PST-006
   it("returns the same reference when nothing changed", () => {
-    const draft = withAllySlot(
-      createInitialDraft(),
-      slotKeyOf("ally", "FRONT", 0),
+    const next = withUnit(
+      createEmptyPlayerData(),
       "UNIT_A",
       enhancementOf(180, gearsWith(GEAR, 0)),
     );
-    const slotKey = slotKeyOf("ally", "FRONT", 0);
-    const first = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, slotKey);
+    const first = mergeForPersistence(createEmptyPlayerData(), next);
 
-    expect(mergePlayerDataFromDraft(first, draft, slotKey)).toBe(first);
+    expect(mergeForPersistence(first, next)).toBe(first);
   });
-});
 
-describe("prefillUnitEnhancement", () => {
-  // UI-UT-PST-007
-  it("returns the recorded enhancement for a known unit", () => {
-    const enhancement: UnitEnhancementInput = enhancementOf(88, gearsWith(GEAR, 2));
-    const data = mergePlayerDataFromDraft(
+  it("drops a unit entry the live state no longer has (e.g. after clearing)", () => {
+    const previous = withUnit(
       createEmptyPlayerData(),
-      withAllySlot(createInitialDraft(), slotKeyOf("ally", "FRONT", 0), "UNIT_A", enhancement),
-      slotKeyOf("ally", "FRONT", 0),
+      "UNIT_A",
+      enhancementOf(180, gearsWith(GEAR, 0)),
     );
 
-    expect(prefillUnitEnhancement(data, "UNIT_A")).toStrictEqual(enhancement);
-  });
+    const merged = mergeForPersistence(previous, createEmptyPlayerData());
 
-  // UI-UT-PST-007
-  it("falls back to the default enhancement for an unrecorded unit", () => {
-    expect(prefillUnitEnhancement(createEmptyPlayerData(), "UNIT_X")).toStrictEqual(
-      enhancementOf(DEFAULT_UNIT_LEVEL, createInitialUnitEnhancement().gears),
-    );
+    expect(merged.units).toStrictEqual({});
   });
 });
 
 describe("prunePlayerData", () => {
   // UI-UT-PST-009
   it("drops only the entries missing from the catalog", () => {
-    const draft = withAllySlot(
-      withAllySlot(
-        createInitialDraft(),
-        slotKeyOf("ally", "FRONT", 0),
-        "UNIT_A",
-        enhancementOf(10, gearsWith(GEAR, 0)),
-      ),
-      slotKeyOf("ally", "FRONT", 1),
+    const data = withUnit(
+      withUnit(createEmptyPlayerData(), "UNIT_A", enhancementOf(10, gearsWith(GEAR, 0))),
       "UNIT_GONE",
       enhancementOf(20, gearsWith(GEAR, 1)),
-    );
-    const data = mergePlayerDataFromDraft(
-      mergePlayerDataFromDraft(createEmptyPlayerData(), draft, slotKeyOf("ally", "FRONT", 0)),
-      draft,
-      slotKeyOf("ally", "FRONT", 1),
     );
 
     const pruned = prunePlayerData(data, ["UNIT_A"]);
@@ -419,16 +341,7 @@ describe("prunePlayerData", () => {
 
   // UI-UT-PST-006
   it("returns the same reference when every entry is known", () => {
-    const data = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      withAllySlot(
-        createInitialDraft(),
-        slotKeyOf("ally", "FRONT", 0),
-        "UNIT_A",
-        enhancementOf(10, gearsWith(GEAR, 0)),
-      ),
-      slotKeyOf("ally", "FRONT", 0),
-    );
+    const data = withUnit(createEmptyPlayerData(), "UNIT_A", enhancementOf(10, gearsWith(GEAR, 0)));
 
     expect(prunePlayerData(data, ["UNIT_A", "UNIT_B"])).toBe(data);
   });
@@ -603,77 +516,47 @@ describe("レベルリンクの保存 (UI-UT-PST-011/012)", () => {
   });
 
   // UI-UT-PST-012
-  it("writes the ally level link back to the player data", () => {
-    const base = createInitialDraft();
-    const draft: BattleDraft = {
-      ...base,
-      allyEnhancement: {
-        ...base.allyEnhancement,
-        levelLink: { enabled: true, level: 260 },
-      },
+  it("writes the level link back to the player data", () => {
+    const next: StoredPlayerData = {
+      ...createEmptyPlayerData(),
+      levelLink: { enabled: true, level: 260 },
     };
 
-    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), draft);
+    const merged = mergeForPersistence(createEmptyPlayerData(), next);
 
     expect(merged.levelLink).toEqual({ enabled: true, level: 260 });
   });
 
   it("keeps the recorded link level while the input is empty", () => {
-    const base = createInitialDraft();
-    const recorded = mergePlayerDataFromDraft(createEmptyPlayerData(), {
-      ...base,
-      allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level: 260 } },
+    const recorded = mergeForPersistence(createEmptyPlayerData(), {
+      ...createEmptyPlayerData(),
+      levelLink: { enabled: true, level: 260 },
     });
 
-    const merged = mergePlayerDataFromDraft(recorded, {
-      ...base,
-      allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level: "" } },
+    const merged = mergeForPersistence(recorded, {
+      ...createEmptyPlayerData(),
+      levelLink: { enabled: true, level: "" },
     });
 
     expect(merged.levelLink).toEqual({ enabled: true, level: 260 });
   });
 
-  it("ignores the enemy level link", () => {
-    const base = createInitialDraft();
-    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), {
-      ...base,
-      enemyEnhancement: {
-        ...base.enemyEnhancement,
-        levelLink: { enabled: true, level: 260 },
-      },
-    });
-
-    expect(merged.levelLink).toEqual({ enabled: false, level: 200 });
-  });
-
   it("records a change of linkExcluded alone", () => {
-    const draft = withAllySlot(createInitialDraft(), firstSlotKey, "UNIT_A", {
+    const next = withUnit(createEmptyPlayerData(), "UNIT_A", {
       ...createInitialUnitEnhancement(),
       linkExcluded: true,
     });
 
-    const merged = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, firstSlotKey);
+    const merged = mergeForPersistence(createEmptyPlayerData(), next);
 
     expect(merged.units["UNIT_A"]?.linkExcluded).toBe(true);
   });
 
-  it("prefills the exclusion flag from the player data", () => {
-    const draft = withAllySlot(createInitialDraft(), firstSlotKey, "UNIT_A", {
-      ...createInitialUnitEnhancement(),
-      linkExcluded: true,
-    });
-    const data = mergePlayerDataFromDraft(createEmptyPlayerData(), draft, firstSlotKey);
-
-    expect(prefillUnitEnhancement(data, "UNIT_A").linkExcluded).toBe(true);
-    expect(prefillUnitEnhancement(data, "UNIT_UNKNOWN").linkExcluded).toBe(false);
-  });
-
   // リンクだけを設定した状態でキーごと消すと、リロードでリンクが失われる。
   it("is not empty once the level link differs from the default", () => {
-    const base = createInitialDraft();
-    const data = mergePlayerDataFromDraft(createEmptyPlayerData(), {
-      ...base,
-      allyEnhancement: { ...base.allyEnhancement, levelLink: { enabled: true, level: 200 } },
+    const data = mergeForPersistence(createEmptyPlayerData(), {
+      ...createEmptyPlayerData(),
+      levelLink: { enabled: true, level: 200 },
     });
 
     expect(isEmptyPlayerData(data)).toBe(false);
@@ -686,133 +569,22 @@ describe("isEmptyPlayerData", () => {
   });
 
   it("is not empty once a unit is recorded", () => {
-    const data = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      withAllySlot(
-        createInitialDraft(),
-        slotKeyOf("ally", "FRONT", 0),
-        "UNIT_A",
-        enhancementOf(10, gearsWith(GEAR, 0)),
-      ),
-      slotKeyOf("ally", "FRONT", 0),
-    );
+    const data = withUnit(createEmptyPlayerData(), "UNIT_A", enhancementOf(10, gearsWith(GEAR, 0)));
 
     expect(isEmptyPlayerData(data)).toBe(false);
   });
 
   it("is not empty once an academy level differs from the default", () => {
-    const base = createInitialDraft();
-    const data = mergePlayerDataFromDraft(createEmptyPlayerData(), {
+    const base = createEmptyPlayerData();
+    const data: StoredPlayerData = {
       ...base,
-      allyEnhancement: {
-        ...base.allyEnhancement,
-        academyLevels: {
-          ...base.allyEnhancement.academyLevels,
-          unitTypes: { ...base.allyEnhancement.academyLevels.unitTypes, PHYSICAL: 4 },
-        },
+      academyLevels: {
+        ...base.academyLevels,
+        unitTypes: { ...base.academyLevels.unitTypes, PHYSICAL: 4 },
       },
-    });
-
-    expect(isEmptyPlayerData(data)).toBe(false);
-  });
-});
-
-describe("mergePlayerDataFromDraft — duplicate placement", () => {
-  const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
-  const secondSlotKey = slotKeyOf("ally", "REAR", 2);
-
-  /** 同じユニットを2枠へ置き、後方の枠だけ既定値のまま残した状態。 */
-  function draftWithDuplicate(editedLevel: number): BattleDraft {
-    return withAllySlot(
-      withAllySlot(
-        createInitialDraft(),
-        firstSlotKey,
-        "UNIT_A",
-        enhancementOf(editedLevel, gearsWith(GEAR, 0)),
-      ),
-      secondSlotKey,
-      "UNIT_A",
-      createInitialUnitEnhancement(),
-    );
-  }
-
-  // 同じ定義を複数枠へ配置できる（01_UI要求・画面設計.md §5.1）ため、
-  // 編集した枠の値が未編集の同一ユニット枠に上書きされてはならない。
-  it("records the edited slot even when a later slot holds the same unit", () => {
-    const merged = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      draftWithDuplicate(220),
-      firstSlotKey,
-    );
-
-    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(220, gearsWith(GEAR, 0)));
-  });
-
-  it("keeps the recorded value stable across unrelated draft changes", () => {
-    const recorded = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      draftWithDuplicate(220),
-      firstSlotKey,
-    );
-
-    const next = mergePlayerDataFromDraft(
-      recorded,
-      { ...draftWithDuplicate(220), turnLimit: 7 },
-      firstSlotKey,
-    );
-
-    expect(next).toBe(recorded);
-  });
-
-  it("lets the most recently edited slot win", () => {
-    const first = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      draftWithDuplicate(220),
-      firstSlotKey,
-    );
-    const edited = withAllySlot(
-      draftWithDuplicate(220),
-      secondSlotKey,
-      "UNIT_A",
-      enhancementOf(150, gearsWith(GEAR, 3)),
-    );
-
-    const merged = mergePlayerDataFromDraft(first, edited, secondSlotKey);
-
-    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(150, gearsWith(GEAR, 3)));
-  });
-
-  it("records nothing for a slot key that no longer holds a unit", () => {
-    const recorded = mergePlayerDataFromDraft(
-      createEmptyPlayerData(),
-      draftWithDuplicate(220),
-      firstSlotKey,
-    );
-
-    const merged = mergePlayerDataFromDraft(recorded, createInitialDraft(), firstSlotKey);
-
-    expect(merged.units["UNIT_A"]).toStrictEqual(enhancementOf(220, gearsWith(GEAR, 0)));
-  });
-
-  it("ignores an edited slot on the enemy side", () => {
-    const base = createInitialDraft();
-    const enemySlotKey = base.enemySlots[0]!.slotKey;
-    const draft: BattleDraft = {
-      ...base,
-      enemySlots: base.enemySlots.map((slot, index) =>
-        index === 0
-          ? {
-              ...slot,
-              unitDefinitionId: "UNIT_A",
-              enhancement: enhancementOf(333, gearsWith(GEAR, 0)),
-            }
-          : slot,
-      ),
     };
 
-    expect(mergePlayerDataFromDraft(createEmptyPlayerData(), draft, enemySlotKey)).toStrictEqual(
-      createEmptyPlayerData(),
-    );
+    expect(isEmptyPlayerData(data)).toBe(false);
   });
 });
 

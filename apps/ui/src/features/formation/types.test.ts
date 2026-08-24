@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_EXERCISE_RUN_COUNT,
+  canOpenUnitEnhancementDialog,
   createInitialDraft,
   createInitialUnitEnhancement,
   enhancementForSide,
@@ -109,17 +110,6 @@ describe("createInitialDraft — レベルリンク (UI-AC-035)", () => {
     expect(draft.allyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
     expect(draft.enemyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
   });
-
-  it("UI-AC-040: prefills the ally academy levels and level link from the player data", () => {
-    const draft = createInitialDraft({
-      academyLevels: createInitialDraft().allyEnhancement.academyLevels,
-      levelLink: { enabled: true, level: 250 },
-    });
-
-    expect(draft.allyEnhancement.levelLink).toEqual({ enabled: true, level: 250 });
-    // 敵側は都度入力なので手持ちデータを引き継がない。
-    expect(draft.enemyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
-  });
 });
 
 describe("enhancementForSide / createInitialUnitEnhancement", () => {
@@ -138,5 +128,33 @@ describe("enhancementForSide / createInitialUnitEnhancement", () => {
     expect(enhancement.gears.every((gear) => gear === undefined)).toBe(true);
     // リンクからの除外は既定でOFF（置いただけの枠もリンク対象。UI-AC-035）。
     expect(enhancement.linkExcluded).toBe(false);
+  });
+});
+
+describe("canOpenUnitEnhancementDialog", () => {
+  it("allows opening the dialog once that side's enhancement toggle is on", () => {
+    const base = createInitialDraft();
+    const draft = { ...base, allyEnhancement: { ...base.allyEnhancement, enabled: true } };
+
+    expect(canOpenUnitEnhancementDialog(draft, slotKeyOf("ally", "FRONT", 0))).toBe(true);
+  });
+
+  it("UI-CMP-015: refuses to open the dialog while that side's enhancement toggle is off", () => {
+    const draft = createInitialDraft();
+
+    expect(canOpenUnitEnhancementDialog(draft, slotKeyOf("ally", "FRONT", 0))).toBe(false);
+  });
+
+  it("checks the toggle of the slot's own side, not the other side", () => {
+    const base = createInitialDraft();
+    const draft = { ...base, allyEnhancement: { ...base.allyEnhancement, enabled: true } };
+
+    expect(canOpenUnitEnhancementDialog(draft, slotKeyOf("enemy", "FRONT", 0))).toBe(false);
+  });
+
+  it("refuses an unknown slotKey", () => {
+    const draft = createInitialDraft();
+
+    expect(canOpenUnitEnhancementDialog(draft, "ally:FRONT:9")).toBe(false);
   });
 });
