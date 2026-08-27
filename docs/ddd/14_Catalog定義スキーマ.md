@@ -183,6 +183,11 @@ levelGrowth:
   attack: 209
   defense: 106
   actionSpeed: 2
+rankGrowth:
+  hp: 1419
+  attack: 1161
+  defense: 589
+  criticalRate: 0.01
 extraGaugeMaximum: 7
 activeSkillDefinitionIds:
   - SKL_001_AS1
@@ -225,6 +230,11 @@ metadata:
 | `levelGrowth.attack`            | integer  | ✓    | >= 0                                                                           |
 | `levelGrowth.defense`           | integer  | ✓    | >= 0                                                                           |
 | `levelGrowth.actionSpeed`       | integer  | ✓    | >= 0                                                                           |
+| `rankGrowth`                    | object   |      | 任意。ユニットランク1段あたりの上昇量（R-ENH-07）。下4行はobject内で必須       |
+| `rankGrowth.hp`                 | integer  | ✓    | >= 0                                                                           |
+| `rankGrowth.attack`             | integer  | ✓    | >= 0                                                                           |
+| `rankGrowth.defense`            | integer  | ✓    | >= 0                                                                           |
+| `rankGrowth.criticalRate`       | number   | ✓    | >= 0。内部表現の小数（`baseStats.criticalRate` と同じ単位）                    |
 | `extraGaugeMaximum`             | integer  | ✓    | >= 1。Catalog作成時はEXスキル `cost.amount` と同値で生成                       |
 | `activeSkillDefinitionIds`      | string[] | ✓    | AS選択優先順                                                                   |
 | `passiveSkillDefinitionIds`     | string[] | ✓    | 0件可。PSタイブレーカー順                                                      |
@@ -260,6 +270,12 @@ metadata:
 - `actionSpeed`: 2（実ゲームではユニットに応じて2または3）
 
 仮値は生成スクリプトで注入せず、`catalog-src/units/<id>/unit.json` へ明示的に保持する。目視確認した実測値でこの実データを直接上書きし、更新の要否をdiffで追跡できるようにする。`levelGrowth` を持たないユニットへ現在レベル200以外を指定したAPIリクエストは、アプリケーション検証で拒否される（R-ENH-05）。
+
+### rankGrowthの仮値を作らない方針
+
+`levelGrowth` と異なり、`rankGrowth` は仮値を作らない。実測値が確認できたユニットだけへ明示的に投入し、確認できないユニットは `rankGrowth` を持たせずCatalogへ登録する。
+
+`rankGrowth` を持たないユニットは `rank ≠ 5`（`LR+5` 以外）の指定を422で拒否する（R-ENH-07 #5）ため、未投入は「`LR+5` 固定でだけ動く」という安全側の欠落として現れる。仮値を置くと実測前の推測値がそのまま強化計算へ混入し、`levelGrowth` の仮値（Q-ENH-07）のように目視確認まで気づかれない誤差を生む——`rankGrowth` は要件どおりランクごとの固定値上昇であり、仮値の近似（200レベル値からの比率換算など）が成立する根拠が無い。
 
 ---
 
