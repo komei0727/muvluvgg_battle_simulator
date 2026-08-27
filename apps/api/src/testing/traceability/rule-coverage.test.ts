@@ -78,7 +78,9 @@ describe("Rule coverage ledger", () => {
     // おり、既定の`NORMAL`へ黙って倒れていた。
     // Issue #633（設計書改訂のみ）でユニットランク（`LR`〜`LR+5`）のR-ENH-07を新設し
     // 141→142 — 実装は後続Issueが行うため、`ENH-001`（#409）と同じく空カバレッジ
-    // （`testCaseIds: []`・`kinds: []`）で登録する。
+    // （`testCaseIds: []`・`kinds: []`）で登録する。Issue #634が
+    // `enhanced-base-stats-calculator.ts`のドメイン実装を完了し、`kinds`を
+    // `R-ENH-05`と同じ4種（POSITIVE/BOUNDARY/NEGATIVE/PROPERTY）で埋めた（総数は変わらない）。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
     expect(RULE_COVERAGE).toHaveLength(142);
   });

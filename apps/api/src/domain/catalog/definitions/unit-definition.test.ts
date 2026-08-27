@@ -165,6 +165,54 @@ describe("UnitDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-UNIT-020 [R-ENH-07]: leaves rankGrowth undefined when the input omits it", () => {
+    const result = createUnitDefinition(minimalUnitInput());
+    expect(result.rankGrowth).toBeUndefined();
+  });
+
+  it("UT-CAT-UNIT-021 [R-ENH-07]: maps a rankGrowth with all four stats", () => {
+    const result = createUnitDefinition({
+      ...minimalUnitInput(),
+      rankGrowth: { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 },
+    });
+    expect(result.rankGrowth).toEqual({ hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 });
+  });
+
+  it("UT-CAT-UNIT-022 [R-ENH-07]: rejects a negative rankGrowth stat", () => {
+    expect(() =>
+      createUnitDefinition({
+        ...minimalUnitInput(),
+        rankGrowth: { hp: -1, attack: 0, defense: 0, criticalRate: 0 },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-UNIT-023 [R-ENH-07]: rejects a fractional rankGrowth hp/attack/defense stat", () => {
+    expect(() =>
+      createUnitDefinition({
+        ...minimalUnitInput(),
+        rankGrowth: { hp: 0.5, attack: 0, defense: 0, criticalRate: 0 },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-UNIT-024 [R-ENH-07]: accepts a fractional rankGrowth criticalRate", () => {
+    const result = createUnitDefinition({
+      ...minimalUnitInput(),
+      rankGrowth: { hp: 0, attack: 0, defense: 0, criticalRate: 0.015 },
+    });
+    expect(result.rankGrowth).toEqual({ hp: 0, attack: 0, defense: 0, criticalRate: 0.015 });
+  });
+
+  it("UT-CAT-UNIT-025 [R-ENH-07]: rejects a negative rankGrowth criticalRate", () => {
+    expect(() =>
+      createUnitDefinition({
+        ...minimalUnitInput(),
+        rankGrowth: { hp: 0, attack: 0, defense: 0, criticalRate: -0.01 },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-UNIT-019 [R-TEX-11]: rejects exerciseActive on a PLAYABLE unit", () => {
     expect(() => createUnitDefinition({ ...minimalUnitInput(), exerciseActive: true })).toThrow(
       DomainValidationError,

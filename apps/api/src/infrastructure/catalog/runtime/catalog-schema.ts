@@ -96,6 +96,18 @@ export const unitDefinitionSchema = {
         actionSpeed: { type: "integer", minimum: 0 },
       },
     },
+    /** R-ENH-07: 任意。持つ場合は4ステータスすべてを非負値で埋める。 */
+    rankGrowth: {
+      type: "object",
+      additionalProperties: false,
+      required: ["hp", "attack", "defense", "criticalRate"],
+      properties: {
+        hp: { type: "integer", minimum: 0 },
+        attack: { type: "integer", minimum: 0 },
+        defense: { type: "integer", minimum: 0 },
+        criticalRate: { type: "number", minimum: 0 },
+      },
+    },
     extraGaugeMaximum: { type: "integer", minimum: 1 },
     activeSkillDefinitionIds: { type: "array", items: idSchema("SKL_") },
     passiveSkillDefinitionIds: { type: "array", items: idSchema("SKL_") },

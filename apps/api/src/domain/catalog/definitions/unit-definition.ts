@@ -13,6 +13,7 @@ import {
   assertFinite,
   assertInteger,
   assertNonEmptyArray,
+  assertRange,
 } from "../../shared/validate.js";
 
 const ATTRIBUTES = ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] as const;
@@ -50,6 +51,18 @@ export interface LevelGrowth {
   readonly actionSpeed: number;
 }
 
+/**
+ * R-ENH-07: ランク1段あたりの上昇量。`baseStats`が`LR+5`時点の値であるため、
+ * ユニットランク`R`の指定時に`(R − 5) × rankGrowth`として加算・減算に使う。
+ * `criticalRate`は内部表現の小数（`baseStats.criticalRate`と同じ単位、R-NUM-01）。
+ */
+export interface RankGrowth {
+  readonly hp: number;
+  readonly attack: number;
+  readonly defense: number;
+  readonly criticalRate: number;
+}
+
 export interface UnitMetadata {
   readonly displayName: string;
   readonly characterName: string;
@@ -74,6 +87,8 @@ export interface UnitDefinition {
   readonly baseStats: BaseStats;
   /** R-ENH-05: 実測値が未投入のユニットが存在するため任意。 */
   readonly levelGrowth?: LevelGrowth;
+  /** R-ENH-07: 実測値が未投入のユニットが存在するため任意。 */
+  readonly rankGrowth?: RankGrowth;
   readonly extraGaugeMaximum: number;
   readonly activeSkillDefinitionIds: readonly SkillDefinitionId[];
   readonly passiveSkillDefinitionIds: readonly SkillDefinitionId[];
@@ -111,6 +126,7 @@ export interface UnitDefinitionInput {
   readonly positionAptitudes: readonly string[];
   readonly baseStats: BaseStatsInput;
   readonly levelGrowth?: LevelGrowth;
+  readonly rankGrowth?: RankGrowth;
   readonly extraGaugeMaximum: number;
   readonly activeSkillDefinitionIds: readonly string[];
   readonly passiveSkillDefinitionIds: readonly string[];
@@ -161,6 +177,20 @@ function createLevelGrowth(input: LevelGrowth, path: string): LevelGrowth {
     attack: input.attack,
     defense: input.defense,
     actionSpeed: input.actionSpeed,
+  };
+}
+
+function createRankGrowth(input: RankGrowth, path: string): RankGrowth {
+  assertInteger(input.hp, `${path}.hp`, { min: 0 });
+  assertInteger(input.attack, `${path}.attack`, { min: 0 });
+  assertInteger(input.defense, `${path}.defense`, { min: 0 });
+  assertRange(input.criticalRate, `${path}.criticalRate`, { min: 0 });
+
+  return {
+    hp: input.hp,
+    attack: input.attack,
+    defense: input.defense,
+    criticalRate: input.criticalRate,
   };
 }
 
@@ -221,6 +251,9 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     ...(input.levelGrowth === undefined
       ? {}
       : { levelGrowth: createLevelGrowth(input.levelGrowth, `${path}.levelGrowth`) }),
+    ...(input.rankGrowth === undefined
+      ? {}
+      : { rankGrowth: createRankGrowth(input.rankGrowth, `${path}.rankGrowth`) }),
     extraGaugeMaximum: input.extraGaugeMaximum,
     activeSkillDefinitionIds,
     passiveSkillDefinitionIds,
