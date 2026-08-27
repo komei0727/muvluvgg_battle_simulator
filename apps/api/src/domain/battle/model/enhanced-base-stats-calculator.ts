@@ -20,6 +20,9 @@ const MODULE_RATIO = 0.09;
 /** R-ENH-05 #1: `baseStats`が表すレベル。指定が無いユニットはこのレベルとして扱う。 */
 export const DEFAULT_UNIT_LEVEL = 200;
 
+/** R-ENH-07 #1: `baseStats`が表すランク（`LR+5`）。指定が無いユニットはこのランクとして扱う。 */
+export const DEFAULT_UNIT_RANK = 5;
+
 /**
  * ユニット単位の強化指定と、陣営から降りてくる学園レベル（R-ENH-01 #1）。
  * 各項目は「無指定＝既定値」であり、呼び出し側が任意フィールドを素通しで
@@ -28,13 +31,14 @@ export const DEFAULT_UNIT_LEVEL = 200;
 export interface UnitEnhancement {
   readonly academyLevels?: AcademyLevels | undefined;
   readonly level?: number | undefined;
+  readonly rank?: number | undefined;
   readonly gears?: readonly GearSpecification[] | undefined;
 }
 
 /** 強化計算が参照するユニット定義の部分集合。 */
 export type EnhancementTarget = Pick<
   UnitDefinition,
-  "attribute" | "unitType" | "baseStats" | "levelGrowth"
+  "attribute" | "unitType" | "baseStats" | "levelGrowth" | "rankGrowth"
 >;
 
 /**
@@ -49,11 +53,12 @@ function clampAtLeast(value: number, minimum: number): number {
  * R-ENH-06: 強化後基本ステータスを算出する純関数。R-STA-01の基本値としてだけ使い、
  * 編成補正・適性補正・戦闘中補正はこの値に対して既存規則のまま合成する。
  *
- * 強化指定の値域（学園レベル・現在レベルが1以上の整数、ギア0〜9個）と、
- * `levelGrowth`を持たないユニットへの`level ≠ 200`の拒否（R-ENH-05 #5）は
+ * 強化指定の値域（学園レベル・現在レベルが1以上の整数、ランクが0〜5の整数、ギア0〜9個）と、
+ * `levelGrowth`を持たないユニットへの`level ≠ 200`の拒否（R-ENH-05 #5）・
+ * `rankGrowth`を持たないユニットへの`rank ≠ 5`の拒否（R-ENH-07 #5）は
  * Command検証・参照検証の責務であり、ここでは検査しない
  * （`09_アプリケーション設計.md`「Command検証」）。成長値が無いユニットは
- * 成長量0として扱うため、既定レベル200では両者の結果が一致する。
+ * 成長量0として扱うため、既定レベル200・既定ランク5では両者の結果が一致する。
  */
 export function calculateEnhancedBaseStats(
   definition: EnhancementTarget,
@@ -67,7 +72,9 @@ export function calculateEnhancedBaseStats(
   );
   const gearRatios = calculateGearRatios(enhancement.gears);
   const levelDelta = (enhancement.level ?? DEFAULT_UNIT_LEVEL) - DEFAULT_UNIT_LEVEL;
+  const rankDelta = (enhancement.rank ?? DEFAULT_UNIT_RANK) - DEFAULT_UNIT_RANK;
   const growth = definition.levelGrowth;
+  const rankGrowth = definition.rankGrowth;
 
   /**
    * R-ENH-06: HP・攻撃力・防御力の共通式。固定加算をすべて足したあとに
@@ -79,6 +86,7 @@ export function calculateEnhancedBaseStats(
     readonly typeEquipment: number;
     readonly moduleFixed: number;
     readonly growthPerLevel: number;
+    readonly growthPerRank: number;
     readonly gearRatio: number;
   }): number {
     const additive =
@@ -86,7 +94,8 @@ export function calculateEnhancedBaseStats(
       parts.academyAddition +
       parts.typeEquipment +
       parts.moduleFixed +
-      levelDelta * parts.growthPerLevel;
+      levelDelta * parts.growthPerLevel +
+      rankDelta * parts.growthPerRank;
     return additive * (1 + MODULE_RATIO + parts.gearRatio);
   }
 
@@ -98,6 +107,7 @@ export function calculateEnhancedBaseStats(
         typeEquipment: TYPE_EQUIPMENT_ADDITION.hp,
         moduleFixed: MODULE_FIXED_ADDITION.hp,
         growthPerLevel: growth?.hp ?? 0,
+        growthPerRank: rankGrowth?.hp ?? 0,
         gearRatio: gearRatios.MAXIMUM_HP,
       }),
       1,
@@ -109,6 +119,7 @@ export function calculateEnhancedBaseStats(
         typeEquipment: TYPE_EQUIPMENT_ADDITION.attack,
         moduleFixed: MODULE_FIXED_ADDITION.attack,
         growthPerLevel: growth?.attack ?? 0,
+        growthPerRank: rankGrowth?.attack ?? 0,
         gearRatio: gearRatios.ATTACK,
       }),
       0,
@@ -120,6 +131,7 @@ export function calculateEnhancedBaseStats(
         typeEquipment: TYPE_EQUIPMENT_ADDITION.defense,
         moduleFixed: MODULE_FIXED_ADDITION.defense,
         growthPerLevel: growth?.defense ?? 0,
+        growthPerRank: rankGrowth?.defense ?? 0,
         gearRatio: gearRatios.DEFENSE,
       }),
       0,
@@ -131,9 +143,15 @@ export function calculateEnhancedBaseStats(
         (1 + gearRatios.ACTION_SPEED),
       0,
     ),
-    // R-ENH-06: 会心率・会心ダメージボーナス・属性相性ボーナスはギア合計割合の
+    // R-ENH-06/07: 会心率・会心ダメージボーナス・属性相性ボーナスはギア合計割合の
     // 単純加算のみ（既に内部表現の小数なので割合補正としては掛けない）。
-    criticalRate: clampAtLeast(baseStats.criticalRate + gearRatios.CRITICAL_RATE, 0),
+    // 会心率だけはランク上昇量も同じ加算項へ合流する（R-ENH-07 #2）。
+    criticalRate: clampAtLeast(
+      baseStats.criticalRate +
+        rankDelta * (rankGrowth?.criticalRate ?? 0) +
+        gearRatios.CRITICAL_RATE,
+      0,
+    ),
     criticalDamageBonus: clampAtLeast(
       baseStats.criticalDamageBonus + gearRatios.CRITICAL_DAMAGE_BONUS,
       0,

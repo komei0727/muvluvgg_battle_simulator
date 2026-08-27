@@ -278,6 +278,48 @@ describe("Catalog v2 DTO JSON Schema", () => {
     ).toBe(false);
   });
 
+  it("UT-INFRA-SCHEMA-018 [R-ENH-07]: accepts a UnitDefinition DTO carrying rankGrowth, and still accepts one without it", () => {
+    const withRankGrowth = {
+      ...unitDto(),
+      rankGrowth: { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 },
+    };
+    expect(validateUnitDefinitionDto(withRankGrowth)).toBe(true);
+    expect(validateUnitDefinitionDto(unitDto())).toBe(true);
+  });
+
+  it("UT-INFRA-SCHEMA-019 [R-ENH-07]: rejects a rankGrowth that is negative, fractional (hp/attack/defense), incomplete, or carries an unknown stat", () => {
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        rankGrowth: { hp: -1, attack: 0, defense: 0, criticalRate: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        rankGrowth: { hp: 0.5, attack: 0, defense: 0, criticalRate: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        rankGrowth: { hp: 1, attack: 1, defense: 1 },
+      }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        rankGrowth: { hp: 1, attack: 1, defense: 1, criticalRate: 0.01, actionSpeed: 2 },
+      }),
+    ).toBe(false);
+    expect(
+      validateUnitDefinitionDto({
+        ...unitDto(),
+        rankGrowth: { hp: 0, attack: 0, defense: 0, criticalRate: -0.01 },
+      }),
+    ).toBe(false);
+  });
+
   it("UT-INFRA-SCHEMA-016: accepts a UnitDefinition DTO carrying category and exerciseActive, and still accepts one without them", () => {
     expect(
       validateUnitDefinitionDto({ ...unitDto(), category: "EXERCISE_ENEMY", exerciseActive: true }),

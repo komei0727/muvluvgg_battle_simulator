@@ -10,7 +10,11 @@ import {
   GEAR_STAT_APPLICATIONS,
 } from "./gear-customization-policy.js";
 import { STAT_KINDS, type StatKind } from "../../catalog/definitions/catalog-enums.js";
-import type { BaseStats, LevelGrowth } from "../../catalog/definitions/unit-definition.js";
+import type {
+  BaseStats,
+  LevelGrowth,
+  RankGrowth,
+} from "../../catalog/definitions/unit-definition.js";
 import { fc, PROPERTY_ASSERT_CONFIG } from "../../../testing/property/index.js";
 
 const BASE_STATS: BaseStats = {
@@ -26,6 +30,7 @@ const BASE_STATS: BaseStats = {
 };
 
 const LEVEL_GROWTH: LevelGrowth = { hp: 255, attack: 209, defense: 106, actionSpeed: 2 };
+const RANK_GROWTH: RankGrowth = { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 };
 
 function target(overrides: Partial<EnhancementTarget> = {}): EnhancementTarget {
   return {
@@ -81,6 +86,58 @@ describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
     const withoutGrowth = calculateEnhancedBaseStats(target(), { level: DEFAULT_UNIT_LEVEL });
     expect(withGrowth).toEqual(withoutGrowth);
     expect(withoutGrowth).toEqual(calculateEnhancedBaseStats(target(), {}));
+  });
+});
+
+describe("calculateEnhancedBaseStats — R-ENH-07 ユニットランク", () => {
+  it("UT-R-ENH-07-001: rank 0 (LR) subtracts 5 × rankGrowth from HP/attack/defense/critical rate", () => {
+    const stats = calculateEnhancedBaseStats(target({ rankGrowth: RANK_GROWTH }), { rank: 0 });
+    // (28375 + 21600 + 3628 − 5×1200) × 1.09 など、ランク減算は固定加算の内側に入る。
+    expect(stats.maximumHp).toBeCloseTo(51887.27, 6);
+    expect(stats.attack).toBeCloseTo(40833.58, 6);
+    expect(stats.defense).toBeCloseTo(21490.44, 6);
+    expect(stats.criticalRate).toBeCloseTo(0.2, 12);
+  });
+
+  it("UT-R-ENH-07-002: rank 5 is the neutral point and never reads rankGrowth", () => {
+    const withGrowth = calculateEnhancedBaseStats(target({ rankGrowth: RANK_GROWTH }), { rank: 5 });
+    const withoutGrowth = calculateEnhancedBaseStats(target(), { rank: 5 });
+    expect(withGrowth).toEqual(withoutGrowth);
+    expect(withoutGrowth).toEqual(calculateEnhancedBaseStats(target(), {}));
+  });
+
+  it("UT-R-ENH-07-003: a unit without rankGrowth treats the growth amount as zero", () => {
+    const withRank = calculateEnhancedBaseStats(target(), { rank: 0 });
+    const withoutRank = calculateEnhancedBaseStats(target(), {});
+    expect(withRank).toEqual(withoutRank);
+  });
+
+  it("UT-R-ENH-07-004: rank's addition sits inside the module ratio and gear ratio", () => {
+    const gearRatio = GEAR_EFFECT_PERCENTAGE_POINTS.MAXIMUM_HP.III.S / 100;
+    const rankContribution = (gears: UnitEnhancement["gears"]): number =>
+      calculateEnhancedBaseStats(target({ rankGrowth: RANK_GROWTH }), { rank: 0, gears })
+        .maximumHp -
+      calculateEnhancedBaseStats(target({ rankGrowth: RANK_GROWTH }), { rank: 5, gears }).maximumHp;
+
+    const withoutGear = rankContribution([]);
+    const withGear = rankContribution([{ stat: "MAXIMUM_HP", tier: "III", grade: "S" }]);
+
+    // 割合の内側にあるなら、寄与量は(1+0.09)から(1+0.09+gearRatio)へ比例して増える。
+    expect(withGear).toBeCloseTo((withoutGear * (1 + 0.09 + gearRatio)) / (1 + 0.09), 6);
+    expect(withGear).not.toBeCloseTo(withoutGear, 6);
+  });
+
+  it("UT-R-ENH-07-005: critical rate combines the rank contribution as a plain addition, same term as the gear ratio", () => {
+    const delta = (baseStats: BaseStats): number =>
+      calculateEnhancedBaseStats(target({ baseStats, rankGrowth: RANK_GROWTH }), { rank: 0 })
+        .criticalRate -
+      calculateEnhancedBaseStats(target({ baseStats, rankGrowth: RANK_GROWTH }), {}).criticalRate;
+
+    expect(delta(BASE_STATS)).toBeCloseTo(-5 * RANK_GROWTH.criticalRate, 12);
+    expect(delta({ ...BASE_STATS, criticalRate: BASE_STATS.criticalRate * 2 })).toBeCloseTo(
+      delta(BASE_STATS),
+      12,
+    );
   });
 });
 
@@ -277,6 +334,33 @@ describe("calculateEnhancedBaseStats properties (R-ENH-05/06)", () => {
           higherStats.attack >= lowerStats.attack &&
           higherStats.defense >= lowerStats.defense &&
           higherStats.actionSpeed >= lowerStats.actionSpeed
+        );
+      }),
+      PROPERTY_ASSERT_CONFIG,
+    );
+  });
+
+  const rankArb = fc.integer({ min: 0, max: 5 });
+  const rankGrowthArb = fc.record({
+    hp: fc.integer({ min: 0, max: 2000 }),
+    attack: fc.integer({ min: 0, max: 2000 }),
+    defense: fc.integer({ min: 0, max: 2000 }),
+    criticalRate: fc.double({ min: 0, max: 0.1, noNaN: true }),
+  });
+
+  it("PROP-ENH-07-001 [R-ENH-07]: a higher rank never lowers a stat (rankGrowth values are non-negative)", () => {
+    fc.assert(
+      fc.property(rankArb, rankArb, rankGrowthArb, (a, b, rankGrowth) => {
+        const lower = Math.min(a, b);
+        const higher = Math.max(a, b);
+        const unit = target({ rankGrowth });
+        const lowerStats = calculateEnhancedBaseStats(unit, { rank: lower });
+        const higherStats = calculateEnhancedBaseStats(unit, { rank: higher });
+        return (
+          higherStats.maximumHp >= lowerStats.maximumHp &&
+          higherStats.attack >= lowerStats.attack &&
+          higherStats.defense >= lowerStats.defense &&
+          higherStats.criticalRate >= lowerStats.criticalRate
         );
       }),
       PROPERTY_ASSERT_CONFIG,
