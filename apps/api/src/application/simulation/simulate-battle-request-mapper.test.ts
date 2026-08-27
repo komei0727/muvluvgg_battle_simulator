@@ -105,6 +105,26 @@ describe("toSimulateBattleCommand", () => {
     });
   });
 
+  it("API-SIM-010 [R-ENH-07]: maps a unit-level rank alongside level and gears", () => {
+    const command = toSimulateBattleCommand(
+      requestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "unit-001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: { rank: 0 },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    expect(command.allyFormation.slots[0]?.enhancement).toEqual({ rank: 0 });
+  });
+
   it("API-SIM-008: leaves enhancement undefined on both levels when the request omits it (backward compatibility)", () => {
     const command = toSimulateBattleCommand(requestBody());
 

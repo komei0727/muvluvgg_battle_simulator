@@ -20,11 +20,12 @@ export interface FormationPosition {
 }
 
 /**
- * R-ENH-01 #1: ユニット単位の強化指定（現在レベル・ギアカスタム）。
+ * R-ENH-01 #1: ユニット単位の強化指定（現在レベル・ユニットランク・ギアカスタム）。
  * 値域はCommand検証が保証済みの前提で、`FormationFactory`は算出にだけ使う。
  */
 export interface SlotEnhancement {
   readonly level?: number;
+  readonly rank?: number;
   readonly gears?: readonly GearSpecification[];
 }
 

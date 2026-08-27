@@ -28,6 +28,11 @@ const GROWING = unitDefinition("UNIT_GROWING", {
   attribute: "SHY",
   levelGrowth: { hp: 10, attack: 2, defense: 1, actionSpeed: 0.5 },
 });
+/** ランク成長値を持つユニット。R-ENH-07 #5 の受理側を確かめるために使う。 */
+const RANKING = unitDefinition("UNIT_RANKING", {
+  attribute: "CUTE",
+  rankGrowth: { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 },
+});
 
 /**
  * プレビューはMemoryの`triggeredEffects`を解決しない（R-MEM-03の発動は
@@ -316,6 +321,22 @@ describe("PreviewFormationStatsUseCase", () => {
 
     expect(result.units[0]!.enhancedBaseStats.attack).toBeCloseTo(10, 6);
     expect(result.units[0]!.combatStats.attack).toBeCloseTo(9.5, 6);
+  });
+
+  it("UT-STAT-PREVIEW-026 [R-ENH-07] (R-ENH-07): reports a lower enhanced base attack for a lower rank when rankGrowth is positive", () => {
+    const atRank = (rank: number): number =>
+      useCase([ALLY, RANKING]).execute(
+        command({
+          allyFormation: {
+            slots: [{ ...slot("UNIT_RANKING", 0), enhancement: { rank } }],
+            memoryDefinitionIds: [],
+            enhancement: {},
+          },
+          enemyFormation: { slots: [slot("UNIT_ALLY", 0)], memoryDefinitionIds: [] },
+        }),
+      ).units[0]!.enhancedBaseStats.attack;
+
+    expect(atRank(0)).toBeLessThan(atRank(5));
   });
 
   it("UT-STAT-PREVIEW-016 (09_アプリケーション設計.md「PreviewFormationStatsUseCase」): is deterministic — the same command produces the same stats on every call", () => {

@@ -245,6 +245,59 @@ describe("validateCommandShape", () => {
     );
   });
 
+  it("UT-CMD-028 [R-ENH-07] (R-ENH-07 #4): rejects a rank below 0, above 5, or non-integer; accepts 0 and 5", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { rank: -1 } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement.rank" }),
+    );
+
+    expect(
+      validateCommandShape(
+        validCommand({
+          allyFormation: {
+            slots: [{ ...slot(0), enhancement: { rank: 6 } }],
+            memoryDefinitionIds: [],
+            enhancement: {},
+          },
+        }),
+      ),
+    ).toContainEqual(expect.objectContaining({ path: "allyFormation.slots[0].enhancement.rank" }));
+
+    expect(
+      validateCommandShape(
+        validCommand({
+          allyFormation: {
+            slots: [{ ...slot(0), enhancement: { rank: 2.5 } }],
+            memoryDefinitionIds: [],
+            enhancement: {},
+          },
+        }),
+      ),
+    ).toContainEqual(expect.objectContaining({ path: "allyFormation.slots[0].enhancement.rank" }));
+
+    for (const rank of [0, 5]) {
+      expect(
+        validateCommandShape(
+          validCommand({
+            allyFormation: {
+              slots: [{ ...slot(0), enhancement: { rank } }],
+              memoryDefinitionIds: [],
+              enhancement: {},
+            },
+          }),
+        ),
+      ).toEqual([]);
+    }
+  });
+
   it("UT-CMD-018 [R-ENH-04] (R-ENH-04 #1): rejects more than 9 gears on one unit", () => {
     const gears = Array.from({ length: 10 }, () => ({
       stat: "MAXIMUM_HP" as const,
@@ -475,6 +528,59 @@ describe("同一ステータス上限は強化指定を受け取る全エンド�
     });
     expect(preview).toContainEqual({
       path: "allyFormation.slots[0].enhancement.gears.ATTACK",
+      reason: REASON,
+    });
+  });
+});
+
+/**
+ * R-ENH-07 #4の値域（0〜5の整数）検証は`validateFormationShape`が持ち、強化指定を
+ * 受け取る4エンドポイントはいずれもそこを通る。`level`（R-ENH-05）と同じ経路のため、
+ * どれか1つが取りこぼすと他と食い違う受理条件になる。
+ */
+describe("rankの値域は強化指定を受け取る全エンドポイントで同じ違反になる (R-ENH-07 #4)", () => {
+  const outOfRangeSlot = { ...slot(0), enhancement: { rank: 6 } };
+  const outOfRangeFormation = {
+    slots: [outOfRangeSlot],
+    memoryDefinitionIds: [],
+    enhancement: {},
+  };
+  const REASON = "must be an integer between 0 and 5, got 6";
+
+  it("UT-CMD-029 [R-ENH-07] (R-ENH-07 #4): battle / tactical exercise / candidate evaluation / stat preview all reject it with the same path", () => {
+    const battle = validateCommandShape(validCommand({ allyFormation: outOfRangeFormation }));
+    const exercise = validateTacticalExerciseCommandShape({
+      allyFormation: outOfRangeFormation,
+      enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+      logLevel: "DETAILED",
+    });
+    const evaluation = validateEvaluateTacticalExerciseCandidatesCommandShape(
+      {
+        enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+        candidates: [{ allyFormation: outOfRangeFormation }],
+        runsPerCandidate: 1,
+      },
+      DEFAULT_EVALUATION_LIMITS,
+    );
+    const preview = validatePreviewFormationStatsCommandShape({
+      allyFormation: outOfRangeFormation,
+      enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+    });
+
+    expect(battle).toContainEqual({
+      path: "allyFormation.slots[0].enhancement.rank",
+      reason: REASON,
+    });
+    expect(exercise).toContainEqual({
+      path: "allyFormation.slots[0].enhancement.rank",
+      reason: REASON,
+    });
+    expect(evaluation).toContainEqual({
+      path: "candidates[0].allyFormation.slots[0].enhancement.rank",
+      reason: REASON,
+    });
+    expect(preview).toContainEqual({
+      path: "allyFormation.slots[0].enhancement.rank",
       reason: REASON,
     });
   });

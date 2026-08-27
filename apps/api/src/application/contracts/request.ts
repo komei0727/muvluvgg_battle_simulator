@@ -25,6 +25,7 @@ export interface GearRequestBody {
 /** `10_API設計.md`「UnitEnhancementRequest」（M11）。 */
 export interface UnitEnhancementRequestBody {
   readonly level?: number;
+  readonly rank?: number;
   readonly gears?: readonly GearRequestBody[];
 }
 

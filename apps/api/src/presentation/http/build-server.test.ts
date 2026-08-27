@@ -455,6 +455,53 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.json<ErrorResponseBody>().error.code).toBe("INVALID_COMMAND");
   });
 
+  it("API-CONTRACT-034 [R-ENH-07] (10_API設計.md「UnitEnhancementRequest」): accepts a request carrying a unit-level rank", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "UNIT_001",
+              position: { column: 0, row: "FRONT" },
+              // UNIT_001はrankGrowth未宣言のため、rankGrowthを参照しない既定値5を使う
+              // （R-ENH-07 #5）。0など他の値は422 INVALID_COMMANDになる別経路。
+              enhancement: { rank: 5 },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("API-CONTRACT-035 [R-ENH-07] (R-ENH-07 #4): returns 422 INVALID_COMMAND for a rank outside 0..5", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "UNIT_001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: { rank: 6 },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json<ErrorResponseBody>().error.code).toBe("INVALID_COMMAND");
+  });
+
   it("API-CONTRACT-031 (R-ENH-01 #3): returns 422 INVALID_COMMAND for a unit enhancement without its own formation enhancement", async () => {
     const response = await app.inject({
       method: "POST",

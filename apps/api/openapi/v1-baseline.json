@@ -670,6 +670,11 @@
                                   "type": "integer",
                                   "minimum": 1
                                 },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
+                                },
                                 "gears": {
                                   "type": "array",
                                   "items": {
@@ -819,6 +824,11 @@
                                 "level": {
                                   "type": "integer",
                                   "minimum": 1
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
                                 },
                                 "gears": {
                                   "type": "array",
@@ -13395,6 +13405,11 @@
                                   "type": "integer",
                                   "minimum": 1
                                 },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
+                                },
                                 "gears": {
                                   "type": "array",
                                   "items": {
@@ -13544,6 +13559,11 @@
                                 "level": {
                                   "type": "integer",
                                   "minimum": 1
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
                                 },
                                 "gears": {
                                   "type": "array",
@@ -26745,6 +26765,11 @@
                                   "type": "integer",
                                   "minimum": 1
                                 },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
+                                },
                                 "gears": {
                                   "type": "array",
                                   "items": {
@@ -26902,6 +26927,11 @@
                                       "level": {
                                         "type": "integer",
                                         "minimum": 1
+                                      },
+                                      "rank": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 5
                                       },
                                       "gears": {
                                         "type": "array",
@@ -28139,6 +28169,11 @@
                                   "type": "integer",
                                   "minimum": 1
                                 },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
+                                },
                                 "gears": {
                                   "type": "array",
                                   "items": {
@@ -28288,6 +28323,11 @@
                                 "level": {
                                   "type": "integer",
                                   "minimum": 1
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
                                 },
                                 "gears": {
                                   "type": "array",

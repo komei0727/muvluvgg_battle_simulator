@@ -35,6 +35,7 @@ export type GearInput = GearSpecification;
 /** `10_API設計.md`「UnitEnhancementRequest」に対応するCommand入力（R-ENH-01 #1）。 */
 export interface UnitEnhancementInput {
   readonly level?: number;
+  readonly rank?: number;
   readonly gears?: readonly GearInput[];
 }
 
@@ -124,6 +125,16 @@ function validateEnhancementLevel(level: number, path: string, violations: Viola
   }
 }
 
+/** R-ENH-07 #4: ユニットランクは0以上5以下の整数。 */
+function validateEnhancementRank(rank: number, path: string, violations: Violation[]): void {
+  if (!Number.isInteger(rank) || rank < 0 || rank > 5) {
+    violations.push({
+      path,
+      reason: `must be an integer between 0 and 5, got ${JSON.stringify(rank)}`,
+    });
+  }
+}
+
 /** R-ENH-02 #1: タイプ3系統・属性6系統それぞれのレベルを検証する。省略した系統は1として扱う。 */
 function validateAcademyLevels(
   academyLevels: AcademyLevels,
@@ -180,6 +191,9 @@ function validateSlotEnhancement(
   }
   if (enhancement.level !== undefined) {
     validateEnhancementLevel(enhancement.level, `${path}.level`, violations);
+  }
+  if (enhancement.rank !== undefined) {
+    validateEnhancementRank(enhancement.rank, `${path}.rank`, violations);
   }
   const gears = enhancement.gears;
   if (gears !== undefined) {

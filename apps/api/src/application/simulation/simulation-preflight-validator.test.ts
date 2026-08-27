@@ -246,6 +246,83 @@ describe("runPreflight", () => {
     ).not.toThrow();
   });
 
+  it("UT-PREFLIGHT-011 [R-ENH-07] (R-ENH-07 #5): rejects with INVALID_COMMAND when a Unit without rankGrowth is given a rank other than 5", () => {
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+            position: { column: 0, row: "FRONT" },
+            enhancement: { rank: 0 },
+          },
+        ],
+        memoryDefinitionIds: [],
+        enhancement: {},
+      },
+    });
+
+    try {
+      runPreflight(cmd, snapshot(), "NORMAL");
+      expect.fail("expected runPreflight to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      expect((error as ApplicationError).code).toBe("INVALID_COMMAND");
+      expect((error as ApplicationError).violations).toContainEqual(
+        expect.objectContaining({ path: "allyFormation.slots[0].enhancement.rank" }),
+      );
+    }
+  });
+
+  it("UT-PREFLIGHT-012 [R-ENH-07] (R-ENH-07 #5): rank 5 and an omitted rank never consult rankGrowth", () => {
+    const withDefaultRank = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+            position: { column: 0, row: "FRONT" },
+            enhancement: { rank: 5, gears: [{ stat: "ATTACK", tier: "II", grade: "D" }] },
+          },
+        ],
+        memoryDefinitionIds: [],
+        enhancement: {},
+      },
+    });
+
+    expect(() => runPreflight(withDefaultRank, snapshot(), "NORMAL")).not.toThrow();
+  });
+
+  it("UT-PREFLIGHT-013 [R-ENH-07] (R-ENH-07 #2): a Unit that declares rankGrowth accepts every rank from 0 to 5", () => {
+    const growingUnit: UnitDefinition = {
+      ...unitDefinition("UNIT_001"),
+      rankGrowth: { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 },
+    };
+    const cmd = command({
+      allyFormation: {
+        slots: [
+          {
+            unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+            position: { column: 0, row: "FRONT" },
+            enhancement: { rank: 0 },
+          },
+        ],
+        memoryDefinitionIds: [],
+        enhancement: {},
+      },
+    });
+
+    expect(() =>
+      runPreflight(
+        cmd,
+        snapshot({
+          units: new Map<UnitDefinitionId, UnitDefinition>([
+            [createUnitDefinitionId("UNIT_001"), growingUnit],
+          ]),
+        }),
+        "NORMAL",
+      ),
+    ).not.toThrow();
+  });
+
   it("UT-PREFLIGHT-010: an unknown Unit reference still wins over the levelGrowth check, since the growth check needs a resolved definition", () => {
     const cmd = command({
       allyFormation: {

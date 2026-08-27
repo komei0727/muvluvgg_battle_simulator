@@ -51,6 +51,7 @@ function toUnitEnhancementInput(
 ): UnitEnhancementInput {
   return {
     ...(enhancement.level === undefined ? {} : { level: enhancement.level }),
+    ...(enhancement.rank === undefined ? {} : { rank: enhancement.rank }),
     ...(enhancement.gears === undefined
       ? {}
       : { gears: enhancement.gears.map((gear) => gear as GearInput) }),
