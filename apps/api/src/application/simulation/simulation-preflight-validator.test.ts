@@ -296,31 +296,29 @@ describe("runPreflight", () => {
       ...unitDefinition("UNIT_001"),
       rankGrowth: { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 },
     };
-    const cmd = command({
-      allyFormation: {
-        slots: [
-          {
-            unitDefinitionId: createUnitDefinitionId("UNIT_001"),
-            position: { column: 0, row: "FRONT" },
-            enhancement: { rank: 0 },
-          },
-        ],
-        memoryDefinitionIds: [],
-        enhancement: {},
-      },
+    const growingSnapshot = snapshot({
+      units: new Map<UnitDefinitionId, UnitDefinition>([
+        [createUnitDefinitionId("UNIT_001"), growingUnit],
+      ]),
     });
 
-    expect(() =>
-      runPreflight(
-        cmd,
-        snapshot({
-          units: new Map<UnitDefinitionId, UnitDefinition>([
-            [createUnitDefinitionId("UNIT_001"), growingUnit],
-          ]),
-        }),
-        "NORMAL",
-      ),
-    ).not.toThrow();
+    for (const rank of [0, 1, 2, 3, 4, 5]) {
+      const cmd = command({
+        allyFormation: {
+          slots: [
+            {
+              unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+              position: { column: 0, row: "FRONT" },
+              enhancement: { rank },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      });
+
+      expect(() => runPreflight(cmd, growingSnapshot, "NORMAL"), `rank ${rank}`).not.toThrow();
+    }
   });
 
   it("UT-PREFLIGHT-010: an unknown Unit reference still wins over the levelGrowth check, since the growth check needs a resolved definition", () => {

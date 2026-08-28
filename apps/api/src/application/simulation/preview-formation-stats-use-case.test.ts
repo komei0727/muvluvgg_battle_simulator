@@ -339,6 +339,26 @@ describe("PreviewFormationStatsUseCase", () => {
     expect(atRank(0)).toBeLessThan(atRank(5));
   });
 
+  it("UT-STAT-PREVIEW-027 [R-ENH-07] (R-ENH-07 #5): rejects a rank other than 5 for a unit without rankGrowth, and accepts it for a unit that has one", () => {
+    const withRank = (unitId: string): PreviewFormationStatsCommand =>
+      command({
+        allyFormation: {
+          slots: [{ ...slot(unitId, 0), enhancement: { rank: 0 } }],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+        enemyFormation: { slots: [slot("UNIT_ALLY", 0)], memoryDefinitionIds: [] },
+      });
+
+    expect(() => useCase([ALLY, RANKING]).execute(withRank("UNIT_ALLY"))).toThrow(
+      expect.objectContaining({
+        code: "INVALID_COMMAND",
+        violations: [expect.objectContaining({ path: "allyFormation.slots[0].enhancement.rank" })],
+      }),
+    );
+    expect(useCase([ALLY, RANKING]).execute(withRank("UNIT_RANKING")).units).toHaveLength(2);
+  });
+
   it("UT-STAT-PREVIEW-016 (09_アプリケーション設計.md「PreviewFormationStatsUseCase」): is deterministic — the same command produces the same stats on every call", () => {
     const preview = useCase();
     expect(preview.execute(command())).toEqual(preview.execute(command()));
