@@ -1,7 +1,12 @@
 // Mirrors docs/ui-design/03_API・データ連携設計.md §4-5 (coordinate conversion
 // and request generation rules).
 import { resolveSlotLevel } from "./level-link.js";
-import { DEFAULT_UNIT_LEVEL, enhancementForSide, memorySlotKeyOf } from "./types.js";
+import {
+  DEFAULT_UNIT_LEVEL,
+  DEFAULT_UNIT_RANK,
+  enhancementForSide,
+  memorySlotKeyOf,
+} from "./types.js";
 import type {
   BattleDraft,
   FormationSlotInput,
@@ -97,11 +102,13 @@ interface BuiltUnitEnhancement {
 
 /**
  * UI-API-018: 空枠を除外した0〜9件のギア配列を枠順のまま出力する。
- * レベル200かつギア0件は省略時の既定と同値のため`enhancement`自体を出力しない。
+ * レベル200・ランクLR+5（5）・ギア0件は省略時の既定と同値のため`enhancement`自体を
+ * 出力しない。
  *
  * UI-API-023/024: 送信するのは解決済みレベル（`level-link.ts`）であり、
  * `levelLink`・`linkExcluded`は出力しない。強化入力を一度も開いていない枠
  * （`slot.enhancement === undefined`）もリンク対象なので、ここで早期returnしない。
+ * `rank`はレベルリンクの対象外であり、枠の入力値（省略時5）をそのまま出力する。
  */
 function buildUnitEnhancement(
   slot: FormationSlotInput,
@@ -111,14 +118,15 @@ function buildUnitEnhancement(
   if (!isPositiveInteger(level)) {
     return undefined;
   }
+  const rank = slot.enhancement?.rank ?? DEFAULT_UNIT_RANK;
   const filledGears = (slot.enhancement?.gears ?? [])
     .map((gear, index) => ({ gear, index }))
     .filter((entry): entry is { gear: GearInput; index: number } => entry.gear !== undefined);
-  if (level === DEFAULT_UNIT_LEVEL && filledGears.length === 0) {
+  if (level === DEFAULT_UNIT_LEVEL && rank === DEFAULT_UNIT_RANK && filledGears.length === 0) {
     return { gearSlotIndices: [] };
   }
   return {
-    enhancement: { level, gears: filledGears.map((entry) => entry.gear) },
+    enhancement: { level, rank, gears: filledGears.map((entry) => entry.gear) },
     gearSlotIndices: filledGears.map((entry) => entry.index),
   };
 }

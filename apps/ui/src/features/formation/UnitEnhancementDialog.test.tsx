@@ -13,17 +13,19 @@ import { GEAR_STATS, createInitialDraft, createInitialUnitEnhancement } from "./
 
 function renderDialog(
   overrides: {
-    readonly enhancement?: UnitEnhancementInput;
+    readonly enhancement?: Partial<UnitEnhancementInput>;
     readonly violations?: readonly UiViolation[];
     readonly gearEffects?: readonly CatalogGearEffect[];
     readonly levelLink?: LevelLinkInput;
     readonly onLevelChange?: (value: number | "") => void;
+    readonly onRankChange?: (value: number) => void;
     readonly onGearChange?: (gearIndex: number, gear?: GearInput) => void;
     readonly onLinkExclusionChange?: (excluded: boolean) => void;
     readonly onClose?: () => void;
   } = {},
 ) {
   const onLevelChange = overrides.onLevelChange ?? vi.fn();
+  const onRankChange = overrides.onRankChange ?? vi.fn();
   const onGearChange = overrides.onGearChange ?? vi.fn();
   const onLinkExclusionChange = overrides.onLinkExclusionChange ?? vi.fn();
   const onClose = overrides.onClose ?? vi.fn();
@@ -31,7 +33,7 @@ function renderDialog(
     <UnitEnhancementDialog
       unitDisplayName="アルファ"
       slotKey="ally:FRONT:0"
-      enhancement={overrides.enhancement ?? createInitialUnitEnhancement()}
+      enhancement={{ ...createInitialUnitEnhancement(), ...overrides.enhancement }}
       violations={overrides.violations ?? []}
       {...(overrides.gearEffects !== undefined ? { gearEffects: overrides.gearEffects } : {})}
       sideEnhancement={{
@@ -40,12 +42,13 @@ function renderDialog(
         levelLink: overrides.levelLink ?? { enabled: false, level: 200 },
       }}
       onLevelChange={onLevelChange}
+      onRankChange={onRankChange}
       onGearChange={onGearChange}
       onLinkExclusionChange={onLinkExclusionChange}
       onClose={onClose}
     />,
   );
-  return { onLevelChange, onGearChange, onLinkExclusionChange, onClose };
+  return { onLevelChange, onRankChange, onGearChange, onLinkExclusionChange, onClose };
 }
 
 /** APIが公開する効果表（R-ENH-04 #3）のうち、このテストが使う2ステータス分。 */
@@ -90,6 +93,59 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     await user.clear(screen.getByLabelText("現在レベル"));
 
     expect(onLevelChange).toHaveBeenLastCalledWith("");
+  });
+
+  // Issue #638: ユニットランク選択（LR〜LR+5の6択）。
+  it("UI-CT-140: opens with the rank select defaulted to LR+5, offering all 6 choices", () => {
+    renderDialog();
+
+    const rank = screen.getByLabelText("ランク");
+    expect(rank).toHaveValue("5");
+    expect(
+      within(rank)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["LR", "LR+1", "LR+2", "LR+3", "LR+4", "LR+5"]);
+  });
+
+  it("UI-CT-141: reports the selected rank", async () => {
+    const user = userEvent.setup();
+    const { onRankChange } = renderDialog();
+
+    await user.selectOptions(screen.getByLabelText("ランク"), "LR+2");
+
+    expect(onRankChange).toHaveBeenLastCalledWith(2);
+  });
+
+  // UI-AC-039と同じ調子: rankGrowthを持たないユニットへの422はランク欄へ結び、
+  // 逃げ道（LR+5へ戻す）を示す。
+  it("UI-CT-142: shows a server rank violation on the rank select, with the way out", () => {
+    renderDialog({
+      violations: [
+        {
+          path: "/allyFormation/units/0/enhancement/rank",
+          slotKey: "ally:FRONT:0",
+          code: "SERVER_VIOLATION",
+          message: 'must be 5 because "UNIT_A" declares no rankGrowth, got 3',
+          severity: "error",
+        },
+      ],
+    });
+
+    const rank = screen.getByLabelText("ランク");
+    expect(rank).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(/declares no rankGrowth/)).toBeInTheDocument();
+    const wayOut = screen.getByText(
+      "ランク上昇量を持たないユニットはLR+5だけを受け付けます。ランクをLR+5に戻してください。",
+    );
+    expect(wayOut).toBeInTheDocument();
+    expect(rank.getAttribute("aria-describedby")?.split(" ")).toContain(wayOut.id);
+  });
+
+  it("does not show the rank way-out hint while the rank is valid", () => {
+    renderDialog();
+
+    expect(screen.queryByText(/ランクをLR\+5に戻してください/)).not.toBeInTheDocument();
   });
 
   it("UI-CT-122: completes a gear slot only once stat, tier and grade are all chosen", async () => {

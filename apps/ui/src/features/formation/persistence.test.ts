@@ -464,6 +464,7 @@ describe("レベルリンクの保存 (UI-UT-PST-011/012)", () => {
     expect(restored?.allyEnhancement.levelLink).toEqual({ enabled: false, level: 200 });
     expect(restored?.allySlots[0]?.enhancement).toEqual({
       level: 240,
+      rank: 5,
       linkExcluded: false,
       gears: emptyGears(),
     });
@@ -560,6 +561,65 @@ describe("レベルリンクの保存 (UI-UT-PST-011/012)", () => {
     });
 
     expect(isEmptyPlayerData(data)).toBe(false);
+  });
+});
+
+// UI-UT-PST-014〜016: Issue #638。`rank`も`levelLink`・`linkExcluded`と同じ理由
+// （PERSISTENCE_SCHEMA_VERSIONを上げると全利用者の手持ちデータが破棄される）で
+// 版を上げずに足す新項目。欠落は既定値LR+5（内部値5）として読む。
+describe("ユニットランクの保存 (UI-UT-PST-014〜016)", () => {
+  const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
+
+  it("UI-UT-PST-014: restores a v1 draft that predates rank with the default LR+5", () => {
+    const base = createInitialDraft();
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: {
+        ...base,
+        allySlots: base.allySlots.map((slot) =>
+          slot.slotKey === firstSlotKey
+            ? {
+                ...slot,
+                unitDefinitionId: "UNIT_A",
+                enhancement: { level: 240, linkExcluded: false, gears: emptyGears() },
+              }
+            : slot,
+        ),
+      },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored?.allySlots.find((slot) => slot.slotKey === firstSlotKey)?.enhancement).toEqual({
+      level: 240,
+      rank: 5,
+      linkExcluded: false,
+      gears: emptyGears(),
+    });
+  });
+
+  it("UI-UT-PST-015: restores v1 player data that predates rank with the default LR+5", () => {
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      academyLevels: createInitialDraft().allyEnhancement.academyLevels,
+      units: { UNIT_A: { level: 240, linkExcluded: false, gears: emptyGears() } },
+    };
+
+    const restored = parsePlayerData(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(restored?.units["UNIT_A"]?.rank).toBe(5);
+  });
+
+  it("UI-UT-PST-016: round-trips a non-default rank", () => {
+    const base = createInitialDraft();
+    const draft: BattleDraft = withAllySlot(base, firstSlotKey, "UNIT_A", {
+      ...createInitialUnitEnhancement(),
+      rank: 2,
+    });
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(toStoredDraft(draft))) as unknown);
+
+    expect(restored).toStrictEqual(draft);
   });
 });
 

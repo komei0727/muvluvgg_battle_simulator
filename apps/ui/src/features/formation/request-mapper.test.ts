@@ -4,7 +4,13 @@ import {
   buildFormationStatPreviewRequest,
 } from "./request-mapper.js";
 import type { BattleDraft, GearInput, UnitEnhancementInput } from "../../entities/battle-draft.js";
-import { createInitialDraft, enhancementForSide, memorySlotKeyOf, slotKeyOf } from "./types.js";
+import {
+  DEFAULT_UNIT_RANK,
+  createInitialDraft,
+  enhancementForSide,
+  memorySlotKeyOf,
+  slotKeyOf,
+} from "./types.js";
 
 function withUnit(
   draft: BattleDraft,
@@ -253,8 +259,9 @@ function unitEnhancement(
   level: number | "",
   gears: readonly (GearInput | undefined)[],
   linkExcluded = false,
+  rank = DEFAULT_UNIT_RANK,
 ): UnitEnhancementInput {
-  return { level, linkExcluded, gears };
+  return { level, rank, linkExcluded, gears };
 }
 
 /** 陣営強化トグルONに加えてレベルリンクをONにする。 */
@@ -281,6 +288,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     let draft = baseDraft();
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 220,
+      rank: 5,
       linkExcluded: false,
       gears: [{ stat: "ATTACK", tier: "III", grade: "S" }, ...Array<undefined>(8).fill(undefined)],
     });
@@ -326,6 +334,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     let draft = enabledSide(baseDraft(), "ally");
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 220,
+      rank: 5,
       linkExcluded: false,
       gears: [
         undefined,
@@ -346,6 +355,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     if (!result.ok) return;
     expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
       level: 220,
+      rank: 5,
       gears: [
         { stat: "ATTACK", tier: "III", grade: "S" },
         { stat: "MAXIMUM_HP", tier: "II", grade: "D" },
@@ -359,6 +369,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     let draft = enabledSide(baseDraft(), "ally");
     draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
       level: 200,
+      rank: 5,
       linkExcluded: false,
       gears: Array(9).fill(undefined),
     });
@@ -400,6 +411,95 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
   });
 });
 
+// Issue #638: 03_API・データ連携設計.md §5.1 規則4「レベル200・ランク5・ギア0件は
+// 出力しない」（旧規則はレベル200・ギア0件のみ）。
+describe("buildBattleSimulationRequest — ユニットランク (UI-UT-REQ-016〜)", () => {
+  // UI-UT-REQ-016
+  it("outputs the rank alongside level and gears", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(220, Array(9).fill(undefined), false, 3),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
+      level: 220,
+      rank: 3,
+      gears: [],
+    });
+  });
+
+  // UI-UT-REQ-017
+  it("omits the unit enhancement when level 200, rank LR+5 (5), and no gears all hold at once", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(200, Array(9).fill(undefined), false, DEFAULT_UNIT_RANK),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]).not.toHaveProperty("enhancement");
+  });
+
+  // UI-UT-REQ-018: 旧規則（レベル200・ギア0件のみ）ならここは省略されていたはず。
+  // ランクが既定から外れている限り、レベル・ギアが既定と同値でも出力する。
+  it("outputs the unit enhancement when the rank alone differs from the default, even at level 200 with no gears", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(200, Array(9).fill(undefined), false, 0),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
+      level: 200,
+      rank: 0,
+      gears: [],
+    });
+  });
+
+  // UI-UT-REQ-019: レベルリンクの対象外。解決済みレベルとは独立に枠の入力値を出す。
+  it("is unaffected by the level link and always outputs the slot's own rank input", () => {
+    let draft = linkedSide(baseDraft(), "ally", 260);
+    draft = withSlotEnhancement(
+      draft,
+      "ally",
+      "FRONT",
+      0,
+      unitEnhancement(180, Array(9).fill(undefined), false, 2),
+    );
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
+      level: 260,
+      rank: 2,
+      gears: [],
+    });
+  });
+});
+
 describe("buildBattleSimulationRequest — レベルリンク (UI-UT-REQ-009〜012)", () => {
   const gear = { stat: "ATTACK", tier: "III", grade: "S" } as const;
 
@@ -424,9 +524,9 @@ describe("buildBattleSimulationRequest — レベルリンク (UI-UT-REQ-009〜0
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const [first, second] = result.request.allyFormation.units;
-    expect(first?.enhancement).toEqual({ level: 260, gears: [gear] });
+    expect(first?.enhancement).toEqual({ level: 260, rank: DEFAULT_UNIT_RANK, gears: [gear] });
     // 強化入力を一度も開いていない枠もリンク対象（UI-API-024）。
-    expect(second?.enhancement).toEqual({ level: 260, gears: [] });
+    expect(second?.enhancement).toEqual({ level: 260, rank: DEFAULT_UNIT_RANK, gears: [] });
     expect(result.allyGearSlotIndices).toEqual([[0], []]);
   });
 
@@ -446,8 +546,8 @@ describe("buildBattleSimulationRequest — レベルリンク (UI-UT-REQ-009〜0
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const [first, second] = result.request.allyFormation.units;
-    expect(first?.enhancement).toEqual({ level: 180, gears: [] });
-    expect(second?.enhancement).toEqual({ level: 260, gears: [] });
+    expect(first?.enhancement).toEqual({ level: 180, rank: DEFAULT_UNIT_RANK, gears: [] });
+    expect(second?.enhancement).toEqual({ level: 260, rank: DEFAULT_UNIT_RANK, gears: [] });
   });
 
   // UI-UT-REQ-011
@@ -516,7 +616,7 @@ describe("buildBattleSimulationRequest — レベルリンク (UI-UT-REQ-009〜0
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const [first, second] = result.request.allyFormation.units;
-    expect(first?.enhancement).toEqual({ level: 180, gears: [] });
+    expect(first?.enhancement).toEqual({ level: 180, rank: DEFAULT_UNIT_RANK, gears: [] });
     // 未編集の枠は既定200のままなので、既定と同値の強化は出力しない。
     expect(second).not.toHaveProperty("enhancement");
   });

@@ -63,6 +63,11 @@ export interface GearInput {
 export interface UnitEnhancementInput {
   readonly level: number | "";
   /**
+   * ユニットランク（`LR`〜`LR+5`）。0〜5の整数（0が`LR`、5が`LR+5`）。
+   * 6択のselectであり自由入力ではないため、`level`と違い`""`（未入力状態）を持たない。
+   */
+  readonly rank: number;
+  /**
    * UI-AC-036: 陣営のレベルリンクから外した枠。リンクの反映は参照時解決
    * （`level-link.ts`）で、外れていない枠の`level`はリンク中だけ読まれない。
    */

@@ -292,6 +292,32 @@ describe("formationReducer — 強化入力 (M11)", () => {
     expect(slot?.enhancement?.gears).toHaveLength(9);
   });
 
+  // Issue #638: ユニットランク選択。学園レベル・ギアと同じくスロット単位の任意入力。
+  it("starts a slot's unit enhancement rank from the default LR+5 on the first edit", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const state = formationReducer(createInitialFormationState(), {
+      type: "unitEnhancementRankChanged",
+      slotKey,
+      value: 3,
+    });
+
+    const slot = state.draft.allySlots.find((s) => s.slotKey === slotKey);
+    expect(slot?.enhancement?.rank).toBe(3);
+    expect(slot?.enhancement?.level).toBe(200);
+  });
+
+  it("ignores a rank edit addressed to an unknown slotKey", () => {
+    const initial = createInitialFormationState();
+
+    expect(
+      formationReducer(initial, {
+        type: "unitEnhancementRankChanged",
+        slotKey: "ally:FRONT:9",
+        value: 3,
+      }),
+    ).toBe(initial);
+  });
+
   it("sets and clears a single gear slot, leaving the others empty", () => {
     const slotKey = slotKeyOf("enemy", "REAR", 2);
     let state = formationReducer(createInitialFormationState(), {

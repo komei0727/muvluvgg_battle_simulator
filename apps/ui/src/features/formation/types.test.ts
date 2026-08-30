@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_EXERCISE_RUN_COUNT,
+  DEFAULT_UNIT_RANK,
+  UNIT_RANKS,
+  UNIT_RANK_LABELS,
   canOpenUnitEnhancementDialog,
   createInitialDraft,
   createInitialUnitEnhancement,
@@ -128,6 +131,31 @@ describe("enhancementForSide / createInitialUnitEnhancement", () => {
     expect(enhancement.gears.every((gear) => gear === undefined)).toBe(true);
     // リンクからの除外は既定でOFF（置いただけの枠もリンク対象。UI-AC-035）。
     expect(enhancement.linkExcluded).toBe(false);
+  });
+
+  // Issue #638: ユニットランクの既定は`LR+5`（内部値5）。
+  it("starts a unit enhancement at rank LR+5 (5)", () => {
+    const enhancement = createInitialUnitEnhancement();
+
+    expect(enhancement.rank).toBe(5);
+    expect(DEFAULT_UNIT_RANK).toBe(5);
+  });
+});
+
+describe("UNIT_RANKS / UNIT_RANK_LABELS (Issue #638)", () => {
+  it("lists the 6 rank values LR (0) through LR+5 (5) in ascending order", () => {
+    expect(UNIT_RANKS).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it("labels each rank value as LR or LR+n", () => {
+    expect(UNIT_RANK_LABELS).toEqual({
+      0: "LR",
+      1: "LR+1",
+      2: "LR+2",
+      3: "LR+3",
+      4: "LR+4",
+      5: "LR+5",
+    });
   });
 });
 

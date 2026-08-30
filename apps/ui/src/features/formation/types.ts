@@ -48,6 +48,22 @@ export const GEAR_STATS: readonly GearStat[] = [
 export const GEAR_TIERS: readonly GearTier[] = ["II", "III"];
 export const GEAR_GRADES: readonly GearGrade[] = ["D", "C", "B", "A", "S"];
 
+/**
+ * ユニットランクの内部値（0〜5）。`LR`が0、`LR+5`が5
+ * （01_UI要求・画面設計.md §5.7、03_API・データ連携設計.md §3.1）。
+ */
+export const UNIT_RANKS: readonly number[] = [0, 1, 2, 3, 4, 5];
+
+/** selectの表示ラベル。`LR`とその後の`LR+n`で書式が変わるため、算出せず表で持つ。 */
+export const UNIT_RANK_LABELS: Readonly<Record<number, string>> = {
+  0: "LR",
+  1: "LR+1",
+  2: "LR+2",
+  3: "LR+3",
+  4: "LR+4",
+  5: "LR+5",
+};
+
 /** 入力欄とクライアント違反の双方が同じ語でステータスを名指すため、表はここに1つだけ置く。 */
 export const GEAR_STAT_LABELS: Readonly<Record<GearStat, string>> = {
   MAXIMUM_HP: "HP",
@@ -89,6 +105,8 @@ export const GEAR_SLOT_COUNT = 9;
 const DEFAULT_ACADEMY_LEVEL = 1;
 /** R-ENH-05 #1: `baseStats`が表すレベル。UIの既定値もこれに合わせる。 */
 export const DEFAULT_UNIT_LEVEL = 200;
+/** 既定は`LR+5`（内部値5）。手持ちがLR+5に届いていない運用は明示的に選び直す。 */
+export const DEFAULT_UNIT_RANK = 5;
 /**
  * 統計実行の既定試行数。`tools/exercise-lab`の`lab stats --runs`の既定と揃える
  * （同じ編成をUIとローカル探索の双方で回したとき、既定のまま比べられる）。
@@ -149,10 +167,11 @@ export function createInitialExerciseExecution(): ExerciseExecutionInput {
   return { mode: "SINGLE", runCount: DEFAULT_EXERCISE_RUN_COUNT, seed: "" };
 }
 
-/** UI-AC-025: レベル既定200・ギア9枠すべて空。リンクからは外さない。 */
+/** UI-AC-025: レベル既定200・ランク既定LR+5・ギア9枠すべて空。リンクからは外さない。 */
 export function createInitialUnitEnhancement(): UnitEnhancementInput {
   return {
     level: DEFAULT_UNIT_LEVEL,
+    rank: DEFAULT_UNIT_RANK,
     linkExcluded: false,
     gears: Array.from({ length: GEAR_SLOT_COUNT }, () => undefined),
   };

@@ -144,6 +144,17 @@ export function SelectionDialogs({
           }
           dispatch({ type: "unitEnhancementLevelChanged", slotKey, value });
         }}
+        onRankChange={(value) => {
+          if (side === "ally") {
+            playerEnhancementDispatch({
+              type: "unitEnhancementRankChanged",
+              unitDefinitionId,
+              value,
+            });
+            return;
+          }
+          dispatch({ type: "unitEnhancementRankChanged", slotKey, value });
+        }}
         onGearChange={(gearIndex, gear) => {
           if (side === "ally") {
             playerEnhancementDispatch({

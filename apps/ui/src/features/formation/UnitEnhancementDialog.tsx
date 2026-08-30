@@ -16,6 +16,8 @@ import {
   GEAR_STATS,
   GEAR_TIERS,
   MAX_GEARS_PER_STAT,
+  UNIT_RANKS,
+  UNIT_RANK_LABELS,
   gearStatCounts,
 } from "./types.js";
 import { isLevelLinked } from "./level-link.js";
@@ -40,6 +42,7 @@ export interface UnitEnhancementDialogProps {
    */
   readonly sideEnhancement: SideEnhancementInput;
   readonly onLevelChange: (value: number | "") => void;
+  readonly onRankChange: (value: number) => void;
   readonly onGearChange: (gearIndex: number, gear?: GearInput) => void;
   readonly onLinkExclusionChange: (excluded: boolean) => void;
   readonly onClose: () => void;
@@ -59,6 +62,22 @@ function levelMessages(violations: readonly UiViolation[], slotKey: string): rea
             violation.slotKey === slotKey &&
             violation.severity === "error" &&
             violation.path.endsWith("/enhancement/level"),
+        )
+        .map((violation) => violation.message),
+    ),
+  );
+}
+
+/** `levelMessages`と同じ規約。パスのsuffix照合でこの枠の`rank`違反だけを拾う。 */
+function rankMessages(violations: readonly UiViolation[], slotKey: string): readonly string[] {
+  return Array.from(
+    new Set(
+      violations
+        .filter(
+          (violation) =>
+            violation.slotKey === slotKey &&
+            violation.severity === "error" &&
+            violation.path.endsWith("/enhancement/rank"),
         )
         .map((violation) => violation.message),
     ),
@@ -309,6 +328,7 @@ export function UnitEnhancementDialog({
   gearEffects,
   sideEnhancement,
   onLevelChange,
+  onRankChange,
   onGearChange,
   onLinkExclusionChange,
   onClose,
@@ -318,9 +338,13 @@ export function UnitEnhancementDialog({
   const levelErrorId = useId();
   const levelHintId = useId();
   const levelWayOutId = useId();
+  const rankId = useId();
+  const rankErrorId = useId();
+  const rankWayOutId = useId();
   const linkExclusionId = useId();
   const gearErrorIdPrefix = useId();
   const levelErrors = levelMessages(violations, slotKey);
+  const rankErrors = rankMessages(violations, slotKey);
   // 上限（`MAX_GEARS_PER_STAT`）の判定はユニット単位のため、9枠を1度だけ数えて配る。
   const statCounts = gearStatCounts(enhancement.gears);
   const { levelLink } = sideEnhancement;
@@ -375,6 +399,48 @@ export function UnitEnhancementDialog({
           {showsWayOut ? (
             <p id={levelWayOutId} className={styles["hint"]}>
               成長値を持たないユニットはレベル200だけを受け付けます。「レベルリンクから外す」を選び、レベルを200に戻してください。
+            </p>
+          ) : null}
+        </div>
+
+        <div className={styles["field"]}>
+          <label htmlFor={rankId}>ランク</label>
+          <select
+            id={rankId}
+            value={enhancement.rank}
+            aria-invalid={rankErrors.length > 0}
+            aria-describedby={
+              [
+                rankErrors.length > 0 ? rankErrorId : undefined,
+                rankErrors.length > 0 ? rankWayOutId : undefined,
+              ]
+                .filter((id): id is string => id !== undefined)
+                .join(" ") || undefined
+            }
+            onChange={(event) => {
+              onRankChange(Number(event.target.value));
+            }}
+          >
+            {UNIT_RANKS.map((rank) => (
+              <option key={rank} value={rank}>
+                {UNIT_RANK_LABELS[rank]}
+              </option>
+            ))}
+          </select>
+          {rankErrors.length > 0 ? (
+            <p id={rankErrorId} className={styles["fieldError"]}>
+              {rankErrors.join(" ")}
+            </p>
+          ) : null}
+          {/*
+            rankGrowthを持たないユニットへLR+5以外を指定するとAPIが422で拒否する。
+            UIは事前検証しないため、レベル欄のUI-AC-039と同じ調子で解決手段
+            （LR+5へ戻す）を示す。ランクにレベルリンク相当の機能は無いため、
+            レベル欄と違い常に編集可能で、逃げ道の表示条件もエラーの有無だけで決まる。
+          */}
+          {rankErrors.length > 0 ? (
+            <p id={rankWayOutId} className={styles["hint"]}>
+              ランク上昇量を持たないユニットはLR+5だけを受け付けます。ランクをLR+5に戻してください。
             </p>
           ) : null}
         </div>
