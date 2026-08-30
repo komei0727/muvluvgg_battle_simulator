@@ -16,6 +16,7 @@ import {
   GEAR_SLOT_COUNT,
   GEAR_STATS,
   GEAR_TIERS,
+  UNIT_RANKS,
   createInitialDraft,
   createInitialExerciseExecution,
   createInitialLevelLink,
@@ -131,13 +132,15 @@ function levelOf(value: unknown): number | "" {
 
 /**
  * 新項目のため欠落を許す（既定はLR+5＝内部値5）。6択のselectであり`level`と違い
- * 未入力状態（`""`）を持たないため、届いた値はそのまま数値として検証する。
+ * 未入力状態（`""`）を持たないため、届いた値は`UNIT_RANKS`（R-ENH-07: 0〜5の整数）
+ * のメンバーかまで検証する。範囲外・小数を許すと、そのまま次の送信へ乗って
+ * APIの422で実行不能になる。
  */
 function rankOf(value: unknown): number {
   if (value === undefined) {
     return DEFAULT_UNIT_RANK;
   }
-  if (typeof value === "number" && Number.isFinite(value)) {
+  if (typeof value === "number" && UNIT_RANKS.includes(value)) {
     return value;
   }
   return fail();

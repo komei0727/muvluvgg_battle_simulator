@@ -621,6 +621,59 @@ describe("ユニットランクの保存 (UI-UT-PST-014〜016)", () => {
 
     expect(restored).toStrictEqual(draft);
   });
+
+  // UI-UT-PST-017: R-ENH-07はランクを0〜5の整数に限定する。localStorageの不正値を
+  // そのまま復元すると、次の送信が422で拒否され実行不能になる（レビュー指摘）。
+  it.each([[-1], [6], [2.5]])(
+    "UI-UT-PST-017: discards the whole draft when a slot's stored rank is %p (out of 0-5 integer range)",
+    (rank) => {
+      const base = createInitialDraft();
+      const stored = {
+        schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+        draft: {
+          ...base,
+          allySlots: base.allySlots.map((slot) =>
+            slot.slotKey === firstSlotKey
+              ? {
+                  ...slot,
+                  unitDefinitionId: "UNIT_A",
+                  enhancement: { level: 200, rank, linkExcluded: false, gears: emptyGears() },
+                }
+              : slot,
+          ),
+        },
+      };
+
+      expect(parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown)).toBeUndefined();
+    },
+  );
+
+  it.each([[-1], [6], [2.5]])(
+    "UI-UT-PST-018: discards the whole player data when a unit's stored rank is %p (out of 0-5 integer range)",
+    (rank) => {
+      const stored = {
+        schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+        academyLevels: createInitialDraft().allyEnhancement.academyLevels,
+        units: { UNIT_A: { level: 200, rank, linkExcluded: false, gears: emptyGears() } },
+      };
+
+      expect(parsePlayerData(JSON.parse(JSON.stringify(stored)) as unknown)).toBeUndefined();
+    },
+  );
+
+  it.each([[0], [5]])("UI-UT-PST-019: restores the boundary rank %p", (rank) => {
+    const base = createInitialDraft();
+    const draft: BattleDraft = withAllySlot(base, firstSlotKey, "UNIT_A", {
+      ...createInitialUnitEnhancement(),
+      rank,
+    });
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(toStoredDraft(draft))) as unknown);
+
+    expect(
+      restored?.allySlots.find((slot) => slot.slotKey === firstSlotKey)?.enhancement?.rank,
+    ).toBe(rank);
+  });
 });
 
 describe("isEmptyPlayerData", () => {
