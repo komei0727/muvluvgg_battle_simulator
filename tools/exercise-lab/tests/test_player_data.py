@@ -152,6 +152,26 @@ def test_stored_rank_out_of_range_is_rejected(tmp_path, rank):
         load_player_data(write_json(tmp_path, player_data))
 
 
+@pytest.mark.parametrize(
+    "rank",
+    [
+        pytest.param(True, id="bool"),
+        pytest.param(3.0, id="float"),
+        pytest.param("3", id="numeric-string"),
+    ],
+)
+def test_stored_rank_that_is_not_a_strict_integer_is_rejected(tmp_path, rank):
+    # `rank` は契約上「0〜5の整数」。Pydanticの標準変換だとbool・float・数値文字列まで
+    # 整数として通ってしまい、`3` と `"3"` の取り違えのような入力ミスに気づけなくなる。
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": rank}},
+    }
+
+    with pytest.raises(PlayerDataError, match="rank"):
+        load_player_data(write_json(tmp_path, player_data))
+
+
 def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
     yaml_text = CONFIG_YAML.replace(
         "      position: { column: 0, row: FRONT }",

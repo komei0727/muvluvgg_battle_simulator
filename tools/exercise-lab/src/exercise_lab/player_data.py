@@ -16,7 +16,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, ValidationError
+from pydantic import Field, StrictInt, ValidationError
 
 from .models import (
     DEFAULT_UNIT_LEVEL,
@@ -55,7 +55,9 @@ class StoredUnitEnhancement(_Spec):
     # ランク導入前のエクスポートを取り直させないため既定値付き（`link_excluded` と同じ扱い）。
     # 値域は `AllyUnitSpec.rank` と同じ0〜5（`10_API設計.md`「UnitEnhancementRequest」）。
     # ここで弾かないと、範囲外の値がそのまま評価リクエストへ載りAPIの422で初めて気づく。
-    rank: int = Field(default=DEFAULT_UNIT_RANK, ge=0, le=5)
+    # `StrictInt`: bool・float・数値文字列への標準変換を止める。`true` や `"3"` を
+    # 3・整数と黙って同一視すると、書き間違いに気づけなくなる。
+    rank: StrictInt = Field(default=DEFAULT_UNIT_RANK, ge=0, le=5)
     # 枠は9固定で、空枠はJSON上 `null` として並ぶ。
     gears: list[Gear | None]
 
