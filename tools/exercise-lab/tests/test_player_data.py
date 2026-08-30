@@ -99,6 +99,104 @@ def test_unit_absent_from_player_data_is_warned_and_left_at_defaults(tmp_path):
     assert "enhancement" not in units[1]
 
 
+def test_stored_rank_is_applied_to_the_matching_unit(tmp_path):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": 3}},
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[0]["enhancement"]["rank"] == 3
+
+
+def test_export_without_the_rank_field_defaults_to_five(tmp_path):
+    """ランク導入前に書き出した player-data.json をそのまま読める（取り直させない）。"""
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, PLAYER_DATA))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    # rank 5 は省略時の既定と同値なので `enhancement` へは出ない。
+    assert "rank" not in units[0]["enhancement"]
+
+
+@pytest.mark.parametrize("rank", [0, 5])
+def test_stored_rank_at_the_boundary_is_accepted(tmp_path, rank):
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": rank}},
+    }
+
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    assert data.units["UNIT_A"].rank == rank
+
+
+@pytest.mark.parametrize("rank", [-1, 6])
+def test_stored_rank_out_of_range_is_rejected(tmp_path, rank):
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": rank}},
+    }
+
+    with pytest.raises(PlayerDataError, match="rank"):
+        load_player_data(write_json(tmp_path, player_data))
+
+
+@pytest.mark.parametrize(
+    "rank",
+    [
+        pytest.param(True, id="bool"),
+        pytest.param(3.0, id="float"),
+        pytest.param("3", id="numeric-string"),
+    ],
+)
+def test_stored_rank_that_is_not_a_strict_integer_is_rejected(tmp_path, rank):
+    # `rank` は契約上「0〜5の整数」。Pydanticの標準変換だとbool・float・数値文字列まで
+    # 整数として通ってしまい、`3` と `"3"` の取り違えのような入力ミスに気づけなくなる。
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": rank}},
+    }
+
+    with pytest.raises(PlayerDataError, match="rank"):
+        load_player_data(write_json(tmp_path, player_data))
+
+
+def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
+    yaml_text = CONFIG_YAML.replace(
+        "      position: { column: 0, row: FRONT }",
+        "      position: { column: 0, row: FRONT }\n      rank: 1",
+        1,
+    ).replace(
+        "ally:\n",
+        "ally:\n  academyLevels:\n    unitTypes: { PHYSICAL: 3 }\n",
+        1,
+    )
+    config = load_formation_config(write(tmp_path, "formation.yaml", yaml_text))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": 3}},
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[0]["enhancement"]["rank"] == 1
+
+
 def test_yaml_values_win_over_stored_values(tmp_path):
     yaml_text = CONFIG_YAML.replace(
         "      position: { column: 0, row: FRONT }",

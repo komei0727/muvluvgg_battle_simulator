@@ -16,10 +16,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, ValidationError
+from pydantic import Field, StrictInt, ValidationError
 
 from .models import (
     DEFAULT_UNIT_LEVEL,
+    DEFAULT_UNIT_RANK,
     MAX_GEARS,
     AcademyLevels,
     AllyUnitSpec,
@@ -51,6 +52,12 @@ class StoredUnitEnhancement(_Spec):
     level: int
     # 陣営のレベルリンクから外した枠。リンク導入前のエクスポートには無い。
     link_excluded: bool = Field(default=False, alias="linkExcluded")
+    # ランク導入前のエクスポートを取り直させないため既定値付き（`link_excluded` と同じ扱い）。
+    # 値域は `AllyUnitSpec.rank` と同じ0〜5（`10_API設計.md`「UnitEnhancementRequest」）。
+    # ここで弾かないと、範囲外の値がそのまま評価リクエストへ載りAPIの422で初めて気づく。
+    # `StrictInt`: bool・float・数値文字列への標準変換を止める。`true` や `"3"` を
+    # 3・整数と黙って同一視すると、書き間違いに気づけなくなる。
+    rank: StrictInt = Field(default=DEFAULT_UNIT_RANK, ge=0, le=5)
     # 枠は9固定で、空枠はJSON上 `null` として並ぶ。
     gears: list[Gear | None]
 
@@ -83,6 +90,11 @@ def resolved_level(stored: StoredUnitEnhancement | None, data: PlayerData) -> in
     if link is not None and link.enabled and link.level >= 1 and not excluded:
         return link.level
     return DEFAULT_UNIT_LEVEL if stored is None else stored.level
+
+
+def resolved_rank(stored: StoredUnitEnhancement | None) -> int:
+    """実効ランク。レベルと違いリンクの仕組みを持たないため、手持ちの値をそのまま使う。"""
+    return DEFAULT_UNIT_RANK if stored is None else stored.rank
 
 
 def read_player_data_document(path: Path) -> dict[str, Any]:
@@ -187,6 +199,7 @@ def apply_player_data(
 def _apply_unit(unit: AllyUnitSpec, data: PlayerData, warnings: list[str]) -> AllyUnitSpec:
     stored = data.units.get(unit.unit_definition_id)
     level = resolved_level(stored, data)
+    rank = resolved_rank(stored)
     if stored is None:
         # ギアが無いことは実際の欠落なので警告は残す。レベルはリンクで決まり得るため
         # 200と断定せず、実際に評価する値を書く。
@@ -201,6 +214,8 @@ def _apply_unit(unit: AllyUnitSpec, data: PlayerData, warnings: list[str]) -> Al
     update = {}
     if unit.level is None:
         update["level"] = level
+    if unit.rank is None:
+        update["rank"] = rank
     if unit.gears is None and stored is not None:
         # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
         update["gears"] = [gear for gear in stored.gears if gear is not None]

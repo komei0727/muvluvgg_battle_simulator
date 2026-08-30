@@ -37,6 +37,8 @@ ATTRIBUTES: tuple[str, ...] = ("AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", 
 
 # `10_API設計.md`「UnitEnhancementRequest」の `level` 省略時の値。
 DEFAULT_UNIT_LEVEL = 200
+# 同「rank」省略時の値（`LR+5`）。
+DEFAULT_UNIT_RANK = 5
 # `R-ENH-01`: 学園レベル省略時は全系統1（加算なし）。
 DEFAULT_ACADEMY_LEVEL = 1
 # `R-TEX-01` #2: 味方は1〜5体、メモリーは最大6件。
@@ -75,6 +77,7 @@ class AllyUnitSpec(_Spec):
     unit_definition_id: str = Field(alias="unitDefinitionId", min_length=1)
     position: Position
     level: int | None = Field(default=None, ge=1)
+    rank: int | None = Field(default=None, ge=0, le=5)
     gears: list[Gear] | None = Field(default=None, max_length=MAX_GEARS)
 
 
@@ -135,9 +138,9 @@ def _validate(config: FormationConfig, path: Path) -> None:
         _reject_unknown_academy_keys(config.ally.academy_levels, path)
         return
     for unit in config.ally.units:
-        if unit.level is not None or unit.gears is not None:
+        if unit.level is not None or unit.rank is not None or unit.gears is not None:
             raise ConfigError(
-                f"{path}: ally.academyLevels が無いユニットへ level / gears は指定できない"
+                f"{path}: ally.academyLevels が無いユニットへ level / rank / gears は指定できない"
                 f"（{unit.unit_definition_id}）。強化を使うなら ally.academyLevels を書く"
             )
 
@@ -194,12 +197,16 @@ def _ally_unit(unit: AllyUnitSpec, enhancement_enabled: bool) -> dict[str, Any]:
     if not enhancement_enabled:
         return built
     level = DEFAULT_UNIT_LEVEL if unit.level is None else unit.level
+    rank = DEFAULT_UNIT_RANK if unit.rank is None else unit.rank
     gears = [] if unit.gears is None else [gear.model_dump() for gear in unit.gears]
     # 既定と同値の強化はキーごと落とす。APIの省略時既定と同じ意味であり、
     # 出力すると送信JSONがUIの生成物と無用に食い違う。
-    if level == DEFAULT_UNIT_LEVEL and not gears:
+    if level == DEFAULT_UNIT_LEVEL and rank == DEFAULT_UNIT_RANK and not gears:
         return built
-    built["enhancement"] = {"level": level, "gears": gears}
+    enhancement: dict[str, Any] = {"level": level, "gears": gears}
+    if rank != DEFAULT_UNIT_RANK:
+        enhancement["rank"] = rank
+    built["enhancement"] = enhancement
     return built
 
 

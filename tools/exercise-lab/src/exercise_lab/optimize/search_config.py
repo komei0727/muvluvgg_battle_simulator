@@ -29,7 +29,7 @@ from ..models import (
     build_ally_formation,
     build_enemy_formation,
 )
-from ..player_data import PlayerData, resolved_level
+from ..player_data import PlayerData, resolved_level, resolved_rank
 from .candidate import (
     MAX_MEMORIES,
     MAX_UNITS,
@@ -362,19 +362,23 @@ def resolve_unit_enhancements(
     for unit_definition_id in config.unit_pool:
         stored = data.units.get(unit_definition_id)
         level = resolved_level(stored, data)
+        rank = resolved_rank(stored)
         if stored is None:
             warnings.append(
                 f"{unit_definition_id} は手持ちデータに無い"
-                f"（レベル{level}・ギアなしとして評価する）"
+                f"（レベル{level}・ランク{rank}・ギアなしとして評価する）"
             )
             if level == DEFAULT_UNIT_LEVEL:
                 # 既定と同値の強化は送信時にキーごと落ちる（`models.py` の `_ally_unit`）。
                 # エントリを作らず、リンクが効かないときの形を現行と同じに保つ。
+                # rank は stored が無ければ常に既定値（`resolved_rank`）になるため、
+                # ここを level だけで判定しても取りこぼさない。
                 continue
         enhancements[unit_definition_id] = AllyUnitSpec.model_construct(
             unit_definition_id=unit_definition_id,
             position=Position(column=0, row="FRONT"),
             level=level,
+            rank=rank,
             # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
             gears=[] if stored is None else [gear for gear in stored.gears if gear is not None],
         )
