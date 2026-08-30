@@ -53,7 +53,9 @@ class StoredUnitEnhancement(_Spec):
     # 陣営のレベルリンクから外した枠。リンク導入前のエクスポートには無い。
     link_excluded: bool = Field(default=False, alias="linkExcluded")
     # ランク導入前のエクスポートを取り直させないため既定値付き（`link_excluded` と同じ扱い）。
-    rank: int = Field(default=DEFAULT_UNIT_RANK)
+    # 値域は `AllyUnitSpec.rank` と同じ0〜5（`10_API設計.md`「UnitEnhancementRequest」）。
+    # ここで弾かないと、範囲外の値がそのまま評価リクエストへ載りAPIの422で初めて気づく。
+    rank: int = Field(default=DEFAULT_UNIT_RANK, ge=0, le=5)
     # 枠は9固定で、空枠はJSON上 `null` として並ぶ。
     gears: list[Gear | None]
 

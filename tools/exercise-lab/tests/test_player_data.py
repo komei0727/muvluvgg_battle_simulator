@@ -129,6 +129,29 @@ def test_export_without_the_rank_field_defaults_to_five(tmp_path):
     assert "rank" not in units[0]["enhancement"]
 
 
+@pytest.mark.parametrize("rank", [0, 5])
+def test_stored_rank_at_the_boundary_is_accepted(tmp_path, rank):
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": rank}},
+    }
+
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    assert data.units["UNIT_A"].rank == rank
+
+
+@pytest.mark.parametrize("rank", [-1, 6])
+def test_stored_rank_out_of_range_is_rejected(tmp_path, rank):
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": rank}},
+    }
+
+    with pytest.raises(PlayerDataError, match="rank"):
+        load_player_data(write_json(tmp_path, player_data))
+
+
 def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
     yaml_text = CONFIG_YAML.replace(
         "      position: { column: 0, row: FRONT }",
