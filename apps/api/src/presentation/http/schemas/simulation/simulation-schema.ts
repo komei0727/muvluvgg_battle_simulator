@@ -80,6 +80,7 @@ const unitEnhancementRequestSchema = {
   additionalProperties: false,
   properties: {
     level: { type: "integer" },
+    rank: { type: "integer" },
     gears: { type: "array", items: gearRequestSchema },
   },
 } as const;
@@ -192,7 +193,7 @@ const gearRequestDocSchema = {
 
 /**
  * R-ENH-04 #1: 最大9個。R-ENH-04 #6: 同一の対象ステータスは最大3個。R-ENH-05 #4:
- * 現在レベルは1以上の整数で上限なし。
+ * 現在レベルは1以上の整数で上限なし。R-ENH-07 #4: ユニットランクは0以上5以下の整数。
  *
  * #6はJSON Schemaでは表せない（「配列要素の特定プロパティごとの出現回数上限」に
  * 対応する語彙が無い）ため、`description`で示しアプリケーション検証が422で拒否する
@@ -203,6 +204,7 @@ const unitEnhancementRequestDocSchema = {
   additionalProperties: false,
   properties: {
     level: { type: "integer", minimum: 1 },
+    rank: { type: "integer", minimum: 0, maximum: 5 },
     gears: {
       type: "array",
       items: gearRequestDocSchema,

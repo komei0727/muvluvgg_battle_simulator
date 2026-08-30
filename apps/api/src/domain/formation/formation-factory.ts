@@ -98,6 +98,7 @@ export function createBattleParty(
     return calculateEnhancedBaseStats(unitDefinition, {
       academyLevels: enhancement.academyLevels,
       level: slot.enhancement?.level,
+      rank: slot.enhancement?.rank,
       gears: slot.enhancement?.gears,
     });
   }

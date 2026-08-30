@@ -122,6 +122,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */
@@ -170,6 +171,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */
@@ -3882,6 +3884,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */
@@ -3930,6 +3933,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */
@@ -7803,6 +7807,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */
@@ -7852,6 +7857,7 @@ export interface paths {
                   };
                   enhancement?: {
                     level?: number;
+                    rank?: number;
                     /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                     gears?: {
                       /** @enum {string} */
@@ -8332,6 +8338,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */
@@ -8380,6 +8387,7 @@ export interface paths {
                 };
                 enhancement?: {
                   level?: number;
+                  rank?: number;
                   /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
                   gears?: {
                     /** @enum {string} */

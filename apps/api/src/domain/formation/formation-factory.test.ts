@@ -418,6 +418,42 @@ describe("createBattleParty — FormationFactory", () => {
     expect(party.members[0]!.combatStats.actionSpeed).toBeCloseTo(50, 6);
   });
 
+  it("UT-R-ENH-07-006 [R-ENH-07] (R-ENH-07): composes rankGrowth into the base value alongside level growth and gears", () => {
+    const enhanced: UnitDefinition = {
+      ...unitDefinition("UNIT_001", "AGGRESSIVE"),
+      levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+      rankGrowth: { hp: 1200, attack: 900, defense: 500, criticalRate: 0.01 },
+    };
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+          enhancement: {
+            level: 220,
+            rank: 0,
+            gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+          },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: {
+        academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+      },
+    };
+
+    const party = createBattleParty(
+      "ALLY",
+      formation,
+      [createBattleUnitId("BU_1")],
+      unitsMap(enhanced),
+      NO_MEMORIES,
+    );
+
+    // 攻撃力 (10 + 1440 + 2880 + 16020 + 2721 + 20×209 − 5×900) × (1 + 0.09 + 0.0333)
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(25556.1983, 4);
+  });
+
   it("UT-R-ENH-06-008 (R-ENH-06): the aptitude penalty still applies on top of the enhanced base value", () => {
     const formation: FormationInput = {
       slots: [

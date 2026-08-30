@@ -3,7 +3,10 @@ import type { FormationInput, FormationPairCommand } from "./simulate-battle-com
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { BattleMode } from "../../domain/battle/model/exercise-runtime.js";
 import type { UnitCategory } from "../../domain/catalog/definitions/unit-definition.js";
-import { DEFAULT_UNIT_LEVEL } from "../../domain/battle/model/enhanced-base-stats-calculator.js";
+import {
+  DEFAULT_UNIT_LEVEL,
+  DEFAULT_UNIT_RANK,
+} from "../../domain/battle/model/enhanced-base-stats-calculator.js";
 
 const FORMATIONS: readonly ["allyFormation", "enemyFormation"] = [
   "allyFormation",
@@ -75,6 +78,37 @@ function validateLevelGrowth(
 }
 
 /**
+ * R-ENH-07 #5: `rankGrowth`を持たないユニットへ5以外のユニットランクを指定した
+ * リクエストを拒否する。`validateLevelGrowth`（R-ENH-05 #5）と同じ理由・同じ段階で行う。
+ */
+function validateRankGrowth(
+  command: FormationPairCommand,
+  snapshot: BattleCatalogSnapshot,
+): Violation[] {
+  const violations: Violation[] = [];
+
+  for (const key of FORMATIONS) {
+    const formation: FormationInput = command[key];
+    formation.slots.forEach((slot, index) => {
+      const rank = slot.enhancement?.rank;
+      if (rank === undefined || rank === DEFAULT_UNIT_RANK) {
+        return;
+      }
+      const unitDefinition = snapshot.units.get(slot.unitDefinitionId);
+      if (unitDefinition?.rankGrowth === undefined) {
+        violations.push({
+          path: `${key}.slots[${index}].enhancement.rank`,
+          definitionId: slot.unitDefinitionId,
+          reason: `must be ${DEFAULT_UNIT_RANK} because "${slot.unitDefinitionId}" declares no rankGrowth, got ${rank}`,
+        });
+      }
+    });
+  }
+
+  return violations;
+}
+
+/**
  * R-TEX-11: 戦闘モードごとの編成プール。通常戦闘は両陣営とも`PLAYABLE`のみ、
  * 戦術演習は味方`PLAYABLE`・敵`EXERCISE_ENEMY`のみを受理する。`exerciseActive`
  * は表示専用の開催情報であり、ここでは参照しない（開催終了ユニットも受理する）。
@@ -124,13 +158,14 @@ export function runPreflight(
 ): void {
   const referenceViolations = validateReferences(command, snapshot);
   if (referenceViolations.length > 0) {
-    // 未解決の参照を先に返す。`levelGrowth`・カテゴリ検査は解決済み定義を前提に
-    // するため、存在しないユニットについては参照エラーが正しい。
+    // 未解決の参照を先に返す。`levelGrowth`・`rankGrowth`・カテゴリ検査は解決済み
+    // 定義を前提にするため、存在しないユニットについては参照エラーが正しい。
     throw new ApplicationError("DEFINITION_NOT_FOUND", referenceViolations);
   }
 
   const commandViolations = [
     ...validateLevelGrowth(command, snapshot),
+    ...validateRankGrowth(command, snapshot),
     ...validateUnitCategories(command, snapshot, mode),
   ];
   if (commandViolations.length > 0) {
