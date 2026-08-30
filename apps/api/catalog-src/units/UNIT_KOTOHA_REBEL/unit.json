@@ -5,10 +5,10 @@
   "role": "PHYSICAL_ATTACKER",
   "positionAptitudes": ["FRONT"],
   "baseStats": {
-    "maximumHp": 26250,
-    "attack": 19570,
-    "defense": 11698,
-    "criticalRate": 0.15,
+    "maximumHp": 28355,
+    "attack": 21130,
+    "defense": 12648,
+    "criticalRate": 0.2,
     "actionSpeed": 680,
     "maximumAp": 4,
     "maximumPp": 4
@@ -18,6 +18,12 @@
     "attack": 194,
     "defense": 118,
     "actionSpeed": 2
+  },
+  "rankGrowth": {
+    "hp": 421,
+    "attack": 312,
+    "defense": 190,
+    "criticalRate": 0.01
   },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_KOTOHA_REBEL_AS1", "SKL_KOTOHA_REBEL_AS2"],

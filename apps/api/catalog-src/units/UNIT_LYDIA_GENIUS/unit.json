@@ -19,6 +19,12 @@
     "defense": 106,
     "actionSpeed": 2
   },
+  "rankGrowth": {
+    "hp": 420,
+    "attack": 348,
+    "defense": 175,
+    "criticalRate": 0.01
+  },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"],
   "passiveSkillDefinitionIds": ["SKL_LYDIA_GENIUS_PS1", "SKL_LYDIA_GENIUS_PS2"],

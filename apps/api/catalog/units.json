@@ -334,15 +334,16 @@
     "role": "PHYSICAL_ATTACKER",
     "positionAptitudes": ["FRONT"],
     "baseStats": {
-      "maximumHp": 25546,
-      "attack": 21877,
-      "defense": 10950,
-      "criticalRate": 0.15,
+      "maximumHp": 27586,
+      "attack": 23652,
+      "defense": 11830,
+      "criticalRate": 0.2,
       "actionSpeed": 796,
       "maximumAp": 4,
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 253, "attack": 218, "defense": 106, "actionSpeed": 3 },
+    "rankGrowth": { "hp": 408, "attack": 355, "defense": 176, "criticalRate": 0.01 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_DOROTHEA_GRACE_AS1"],
     "passiveSkillDefinitionIds": [
@@ -622,15 +623,16 @@
     "role": "PHYSICAL_ATTACKER",
     "positionAptitudes": ["FRONT"],
     "baseStats": {
-      "maximumHp": 26734,
-      "attack": 19721,
-      "defense": 10750,
-      "criticalRate": 0.15,
+      "maximumHp": 28884,
+      "attack": 21301,
+      "defense": 11610,
+      "criticalRate": 0.2,
       "actionSpeed": 786,
       "maximumAp": 4,
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 265, "attack": 194, "defense": 106, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 430, "attack": 316, "defense": 172, "criticalRate": 0.01 },
     "extraGaugeMaximum": 6,
     "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],
     "passiveSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_PS1", "SKL_HIIRO_LONEWOLF_PS2"],
@@ -826,15 +828,16 @@
     "role": "PHYSICAL_ATTACKER",
     "positionAptitudes": ["FRONT"],
     "baseStats": {
-      "maximumHp": 26250,
-      "attack": 19570,
-      "defense": 11698,
-      "criticalRate": 0.15,
+      "maximumHp": 28355,
+      "attack": 21130,
+      "defense": 12648,
+      "criticalRate": 0.2,
       "actionSpeed": 680,
       "maximumAp": 4,
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 259, "attack": 194, "defense": 118, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 421, "attack": 312, "defense": 190, "criticalRate": 0.01 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_KOTOHA_REBEL_AS1", "SKL_KOTOHA_REBEL_AS2"],
     "passiveSkillDefinitionIds": ["SKL_KOTOHA_REBEL_PS1", "SKL_KOTOHA_REBEL_PS2"],
@@ -1071,6 +1074,7 @@
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 259, "attack": 218, "defense": 106, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 420, "attack": 348, "defense": 175, "criticalRate": 0.01 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_LYDIA_GENIUS_AS1", "SKL_LYDIA_GENIUS_AS2"],
     "passiveSkillDefinitionIds": ["SKL_LYDIA_GENIUS_PS1", "SKL_LYDIA_GENIUS_PS2"],
@@ -1303,6 +1307,7 @@
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 253, "attack": 230, "defense": 94, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 410, "attack": 368, "defense": 152, "criticalRate": 0.01 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": [
       "SKL_MERU_FLATSPIN_AS1",
@@ -1539,6 +1544,7 @@
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 295, "attack": 188, "defense": 112, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 472, "attack": 304, "defense": 184, "criticalRate": 0.01 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
     "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],
@@ -2164,6 +2170,7 @@
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 265, "attack": 206, "defense": 106, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 422, "attack": 332, "defense": 170, "criticalRate": 0.01 },
     "extraGaugeMaximum": 8,
     "activeSkillDefinitionIds": ["SKL_URUU_SUMMER_AS1"],
     "passiveSkillDefinitionIds": [

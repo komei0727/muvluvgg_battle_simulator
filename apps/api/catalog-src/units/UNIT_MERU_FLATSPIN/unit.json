@@ -19,6 +19,12 @@
     "defense": 94,
     "actionSpeed": 2
   },
+  "rankGrowth": {
+    "hp": 410,
+    "attack": 368,
+    "defense": 152,
+    "criticalRate": 0.01
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": [
     "SKL_MERU_FLATSPIN_AS1",

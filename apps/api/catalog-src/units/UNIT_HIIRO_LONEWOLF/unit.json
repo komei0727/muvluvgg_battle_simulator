@@ -5,10 +5,10 @@
   "role": "PHYSICAL_ATTACKER",
   "positionAptitudes": ["FRONT"],
   "baseStats": {
-    "maximumHp": 26734,
-    "attack": 19721,
-    "defense": 10750,
-    "criticalRate": 0.15,
+    "maximumHp": 28884,
+    "attack": 21301,
+    "defense": 11610,
+    "criticalRate": 0.2,
     "actionSpeed": 786,
     "maximumAp": 4,
     "maximumPp": 4
@@ -18,6 +18,12 @@
     "attack": 194,
     "defense": 106,
     "actionSpeed": 2
+  },
+  "rankGrowth": {
+    "hp": 430,
+    "attack": 316,
+    "defense": 172,
+    "criticalRate": 0.01
   },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_HIIRO_LONEWOLF_AS1", "SKL_HIIRO_LONEWOLF_AS2"],

@@ -21,6 +21,12 @@
     "defense": 106,
     "actionSpeed": 2
   },
+  "rankGrowth": {
+    "hp": 422,
+    "attack": 332,
+    "defense": 170,
+    "criticalRate": 0.01
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_URUU_SUMMER_AS1"],
   "passiveSkillDefinitionIds": [

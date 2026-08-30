@@ -19,6 +19,12 @@
     "defense": 112,
     "actionSpeed": 2
   },
+  "rankGrowth": {
+    "hp": 472,
+    "attack": 304,
+    "defense": 184,
+    "criticalRate": 0.01
+  },
   "extraGaugeMaximum": 8,
   "activeSkillDefinitionIds": ["SKL_OLGA_VETERAN_AS1", "SKL_OLGA_VETERAN_AS2"],
   "passiveSkillDefinitionIds": ["SKL_OLGA_VETERAN_PS1", "SKL_OLGA_VETERAN_PS2"],

@@ -5,10 +5,10 @@
   "role": "PHYSICAL_ATTACKER",
   "positionAptitudes": ["FRONT"],
   "baseStats": {
-    "maximumHp": 25546,
-    "attack": 21877,
-    "defense": 10950,
-    "criticalRate": 0.15,
+    "maximumHp": 27586,
+    "attack": 23652,
+    "defense": 11830,
+    "criticalRate": 0.2,
     "actionSpeed": 796,
     "maximumAp": 4,
     "maximumPp": 4
@@ -18,6 +18,12 @@
     "attack": 218,
     "defense": 106,
     "actionSpeed": 3
+  },
+  "rankGrowth": {
+    "hp": 408,
+    "attack": 355,
+    "defense": 176,
+    "criticalRate": 0.01
   },
   "extraGaugeMaximum": 6,
   "activeSkillDefinitionIds": ["SKL_DOROTHEA_GRACE_AS1"],
