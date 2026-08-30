@@ -528,7 +528,15 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-08-25.1` は `UNIT_YURIA_WILDCARD` の `baseStats.attack` 是正。
     // Unit・Skill・Memoryの構成は変えておらず、差分は
     // `units.json` の数値だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-25.1");
+    // `2026-08-30.1` はENH-007（Issue #636）のコミカル・クレバー7Unit
+    // （`UNIT_DOROTHEA_GRACE`・`UNIT_HIIRO_LONEWOLF`・`UNIT_KOTOHA_REBEL`・
+    // `UNIT_LYDIA_GENIUS`・`UNIT_MERU_FLATSPIN`・`UNIT_OLGA_VETERAN`・
+    // `UNIT_URUU_SUMMER`）への`rankGrowth`投入。前者3件は併せて`baseStats`
+    // （最大HP・攻撃力・防御力・会心率）も実測値へ是正した。`rankGrowth`は
+    // フィールドの追加であり、既定ランク（`LR+5`）ではリクエスト結果が変わらない
+    // （R-ENH-07。`levelGrowth`と同じ性格、`2026-08-11.1`参照）。Unit・Skill・
+    // Memoryの構成は変えておらず、差分は`units.json`の数値だけである。
+    expect(catalog.catalogRevision).toBe("2026-08-30.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
@@ -1037,5 +1045,35 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     }
 
     expect(violations, `Units without a usable levelGrowth: ${violations.join(", ")}`).toEqual([]);
+  });
+
+  it("IT-CAT-PROD-016 [R-ENH-07] (ENH-007, Issue #636, R-ENH-07 #2): every COMICAL/CLEVER playable production Unit declares a rankGrowth, so a rank other than 5 is usable for all of them", () => {
+    const catalog = loadCatalogFromDirectory(catalogPath());
+    const unitDefinitionIds = allProductionUnitIds(catalogPath());
+    expect(unitDefinitionIds.length).toBeGreaterThan(0);
+
+    const snapshot = catalog.loadSnapshot(unitDefinitionIds as never[], []);
+    const violations: string[] = [];
+    for (const unitDefinitionId of unitDefinitionIds) {
+      const unit = snapshot.units.get(unitDefinitionId as never);
+      if (unit?.attribute !== "COMICAL" && unit?.attribute !== "CLEVER") {
+        continue;
+      }
+      const growth = unit.rankGrowth;
+      if (growth === undefined) {
+        violations.push(`${unitDefinitionId}: no rankGrowth`);
+        continue;
+      }
+      for (const [stat, value] of Object.entries(growth)) {
+        if (!Number.isFinite(value) || value < 0) {
+          violations.push(`${unitDefinitionId}.${stat}: ${String(value)}`);
+        }
+      }
+    }
+
+    expect(
+      violations,
+      `COMICAL/CLEVER units without a usable rankGrowth: ${violations.join(", ")}`,
+    ).toEqual([]);
   });
 });
