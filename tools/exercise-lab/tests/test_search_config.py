@@ -178,7 +178,7 @@ def test_academy_levels_in_the_yaml_enable_enhancement(tmp_path):
     assert formation.ally.academy_levels.unit_types["PHYSICAL"] == 99
 
 
-def player_data_file(tmp_path, *, level_link=None, link_excluded=False):
+def player_data_file(tmp_path, *, level_link=None, link_excluded=False, rank=None):
     path = tmp_path / "player-data.json"
     unit = {
         "level": 250,
@@ -186,6 +186,8 @@ def player_data_file(tmp_path, *, level_link=None, link_excluded=False):
     }
     if link_excluded:
         unit["linkExcluded"] = True
+    if rank is not None:
+        unit["rank"] = rank
     path.write_text(
         json.dumps(
             {
@@ -223,6 +225,42 @@ def test_player_data_supplies_level_and_gears_for_the_pool(tmp_path):
     # キーごと落とすのが `lab stats` と同じ規則で、そのことを警告に残す。
     assert "enhancement" not in unit_b
     assert any("UNIT_B" in warning for warning in warnings)
+
+
+def test_player_data_supplies_rank_for_the_pool(tmp_path):
+    config = load(tmp_path)
+    data = load_player_data(player_data_file(tmp_path, rank=3))
+
+    enhanced, _ = resolve_unit_enhancements(config, data)
+    candidate = Candidate(
+        (
+            Placement("UNIT_A", Cell(column=0, row="FRONT")),
+            Placement("UNIT_B", Cell(column=1, row="FRONT")),
+        ),
+        (),
+    )
+    sent = build_ally_formation(enhanced.formation_config(candidate))
+
+    unit_a, _ = sent["units"]
+    assert unit_a["enhancement"]["rank"] == 3
+
+
+def test_pool_rank_equal_to_the_default_is_omitted(tmp_path):
+    config = load(tmp_path)
+    data = load_player_data(player_data_file(tmp_path))
+
+    enhanced, _ = resolve_unit_enhancements(config, data)
+    candidate = Candidate(
+        (
+            Placement("UNIT_A", Cell(column=0, row="FRONT")),
+            Placement("UNIT_B", Cell(column=1, row="FRONT")),
+        ),
+        (),
+    )
+    sent = build_ally_formation(enhanced.formation_config(candidate))
+
+    unit_a, _ = sent["units"]
+    assert "rank" not in unit_a["enhancement"]
 
 
 def test_level_link_resolves_the_pool_levels(tmp_path):

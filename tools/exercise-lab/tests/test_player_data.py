@@ -99,6 +99,61 @@ def test_unit_absent_from_player_data_is_warned_and_left_at_defaults(tmp_path):
     assert "enhancement" not in units[1]
 
 
+def test_stored_rank_is_applied_to_the_matching_unit(tmp_path):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": 3}},
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[0]["enhancement"]["rank"] == 3
+
+
+def test_export_without_the_rank_field_defaults_to_five(tmp_path):
+    """ランク導入前に書き出した player-data.json をそのまま読める（取り直させない）。"""
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, PLAYER_DATA))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    # rank 5 は省略時の既定と同値なので `enhancement` へは出ない。
+    assert "rank" not in units[0]["enhancement"]
+
+
+def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
+    yaml_text = CONFIG_YAML.replace(
+        "      position: { column: 0, row: FRONT }",
+        "      position: { column: 0, row: FRONT }\n      rank: 1",
+        1,
+    ).replace(
+        "ally:\n",
+        "ally:\n  academyLevels:\n    unitTypes: { PHYSICAL: 3 }\n",
+        1,
+    )
+    config = load_formation_config(write(tmp_path, "formation.yaml", yaml_text))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "rank": 3}},
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[0]["enhancement"]["rank"] == 1
+
+
 def test_yaml_values_win_over_stored_values(tmp_path):
     yaml_text = CONFIG_YAML.replace(
         "      position: { column: 0, row: FRONT }",

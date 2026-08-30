@@ -3,9 +3,9 @@
 #   uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
 #     --player-data local_storage/player-data.json --out reports/
 #
-# level・gears・academyLevels をあえて書いていないのは、--player-data で
+# level・rank・gears・academyLevels をあえて書いていないのは、--player-data で
 # 実際の育成状態を載せる前提だからである。--player-data なしで実行すると
-# 全員レベル200・ギアなし・強化計算なしの「素の性能」比較になる。
+# 全員レベル200・ランク5(LR+5)・ギアなし・強化計算なしの「素の性能」比較になる。
 #
 # ID は `GET /api/v1/battle-simulation-catalog` が返す値をそのまま書く（不透明な文字列で、
 # 前後の空白は除去されない）。`lab stats` は実行前にカタログと突き合わせ、未知IDと
@@ -48,8 +48,8 @@ enemy:
   unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
   position: { column: 1, row: REAR }
 # 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
-# ally.academyLevels を書くと強化計算が有効になり、ユニット側の level / gears も
-# 指定できるようになる。省略したキーは 1 として送る。
+# ally.academyLevels を書くと強化計算が有効になり、ユニット側の level / rank / gears も
+# 指定できるようになる。省略したキーは学園レベルなら 1、rank なら 5（LR+5）として送る。
 #
 # ally:
 #   academyLevels:
@@ -59,6 +59,7 @@ enemy:
 #     - unitDefinitionId: UNIT_YURIA_WILDCARD
 #       position: { column: 0, row: FRONT }
 #       level: 298
+#       rank: 5
 #       gears:
 #         - { stat: CRITICAL_DAMAGE_BONUS, tier: II, grade: S }
 #         - { stat: ATTACK, tier: III, grade: B }

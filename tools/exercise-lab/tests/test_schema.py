@@ -158,6 +158,23 @@ def test_unit_gears_without_academy_levels_are_rejected(schema):
         validate(schema, value)
 
 
+def test_unit_rank_without_academy_levels_is_rejected(schema):
+    # `models._validate` と同じく、陣営の強化指定なしにユニットの強化は指定できない。
+    value = document()
+    value["ally"]["units"][0]["rank"] = 3
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate(schema, value)
+
+
+def test_unit_rank_with_academy_levels_passes(schema):
+    value = document()
+    value["ally"]["academyLevels"] = {"unitTypes": {"PHYSICAL": 60}, "attributes": {}}
+    value["ally"]["units"][0]["rank"] = 3
+
+    validate(schema, value)
+
+
 def test_unit_level_with_academy_levels_passes(schema):
     value = document()
     value["ally"]["academyLevels"] = {"unitTypes": {"PHYSICAL": 60}, "attributes": {}}

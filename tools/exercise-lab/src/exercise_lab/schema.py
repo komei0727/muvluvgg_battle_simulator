@@ -146,7 +146,7 @@ def _restrict_academy_level_keys(academy_levels: dict[str, Any]) -> None:
 
 
 def _require_academy_levels_for_unit_enhancement(ally: dict[str, Any]) -> None:
-    """`ally.academyLevels` が無いユニットへ `level` / `gears` を書けないようにする。
+    """`ally.academyLevels` が無いユニットへ `level` / `rank` / `gears` を書けないようにする。
 
     陣営の強化指定なしにユニットの強化だけ送るとAPIが422で拒む
     （`10_API設計.md`「FormationUnitRequest」）。`models._validate` が実行時に見ている
@@ -161,7 +161,9 @@ def _require_academy_levels_for_unit_enhancement(ally: dict[str, Any]) -> None:
     ally["then"] = {
         "properties": {
             "units": {
-                "items": {"not": {"anyOf": [_present("level"), _present("gears")]}},
+                "items": {
+                    "not": {"anyOf": [_present("level"), _present("rank"), _present("gears")]}
+                },
             }
         }
     }
