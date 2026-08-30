@@ -92,6 +92,7 @@ describe("playerEnhancementReducer — ユニット強化", () => {
 
     expect(next.units["UNIT_A"]).toStrictEqual({
       level: 220,
+      rank: 5,
       linkExcluded: false,
       gears: Array.from({ length: 9 }, () => undefined),
     });
@@ -123,6 +124,37 @@ describe("playerEnhancementReducer — ユニット強化", () => {
       gearIndex: 2,
     });
     expect(cleared.units["UNIT_A"]?.gears[2]).toBeUndefined();
+  });
+
+  // Issue #638: ユニットランク選択。手持ちデータ単位の任意入力で、レベルと同じ規約。
+  it("starts a unit's enhancement rank from the default LR+5 on the first edit", () => {
+    const state = createInitialPlayerEnhancementState();
+
+    const next = playerEnhancementReducer(state, {
+      type: "unitEnhancementRankChanged",
+      unitDefinitionId: "UNIT_A",
+      value: 3,
+    });
+
+    expect(next.units["UNIT_A"]?.rank).toBe(3);
+    expect(next.units["UNIT_A"]?.level).toBe(200);
+  });
+
+  it("does not affect a different unit's recorded rank", () => {
+    const withA = playerEnhancementReducer(createInitialPlayerEnhancementState(), {
+      type: "unitEnhancementRankChanged",
+      unitDefinitionId: "UNIT_A",
+      value: 2,
+    });
+
+    const withB = playerEnhancementReducer(withA, {
+      type: "unitEnhancementRankChanged",
+      unitDefinitionId: "UNIT_B",
+      value: 4,
+    });
+
+    expect(withB.units["UNIT_A"]?.rank).toBe(2);
+    expect(withB.units["UNIT_B"]?.rank).toBe(4);
   });
 
   it("does not affect a different unit's recorded enhancement", () => {
@@ -160,6 +192,7 @@ describe("playerEnhancementReducer — ユニット強化", () => {
 
     expect(excluded.units["UNIT_A"]).toStrictEqual({
       level: 260,
+      rank: 5,
       linkExcluded: true,
       gears: Array.from({ length: 9 }, () => undefined),
     });

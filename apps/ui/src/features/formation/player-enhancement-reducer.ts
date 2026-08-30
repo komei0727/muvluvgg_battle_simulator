@@ -31,6 +31,11 @@ export type PlayerEnhancementAction =
       readonly value: number | "";
     }
   | {
+      readonly type: "unitEnhancementRankChanged";
+      readonly unitDefinitionId: string;
+      readonly value: number;
+    }
+  | {
       readonly type: "unitEnhancementGearChanged";
       readonly unitDefinitionId: string;
       readonly gearIndex: number;
@@ -100,6 +105,14 @@ export function playerEnhancementReducer(
         units: editUnit(state, action.unitDefinitionId, (enhancement) => ({
           ...enhancement,
           level: action.value,
+        })),
+      };
+    case "unitEnhancementRankChanged":
+      return {
+        ...state,
+        units: editUnit(state, action.unitDefinitionId, (enhancement) => ({
+          ...enhancement,
+          rank: action.value,
         })),
       };
     case "unitEnhancementGearChanged":

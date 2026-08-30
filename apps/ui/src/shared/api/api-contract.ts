@@ -316,6 +316,7 @@ export type FormationStatPreviewApiResult =
 /** docs/ui-design/03_API・データ連携設計.md §5.1 (M11). */
 export interface UnitEnhancementRequest {
   readonly level: number;
+  readonly rank: number;
   readonly gears: readonly GearInput[];
 }
 

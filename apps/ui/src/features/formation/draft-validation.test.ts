@@ -367,7 +367,12 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
         slot.slotKey === slotKey
           ? {
               ...slot,
-              enhancement: { level: 0, linkExcluded: false, gears: Array(9).fill(undefined) },
+              enhancement: {
+                level: 0,
+                rank: 5,
+                linkExcluded: false,
+                gears: Array(9).fill(undefined),
+              },
             }
           : slot,
       ),
@@ -395,7 +400,12 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
         slot.slotKey === slotKey
           ? {
               ...slot,
-              enhancement: { level: 200, linkExcluded: false, gears: Array(10).fill(gear) },
+              enhancement: {
+                level: 200,
+                rank: 5,
+                linkExcluded: false,
+                gears: Array(10).fill(gear),
+              },
             }
           : slot,
       ),
@@ -422,7 +432,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
         ...base,
         allySlots: base.allySlots.map((slot) =>
           slot.slotKey === slotKey
-            ? { ...slot, enhancement: { level: 200, linkExcluded: false, gears } }
+            ? { ...slot, enhancement: { level: 200, rank: 5, linkExcluded: false, gears } }
             : slot,
         ),
       };
@@ -544,6 +554,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
                 ...slot,
                 enhancement: {
                   level: slotLevel,
+                  rank: 5,
                   linkExcluded: false,
                   gears: Array(9).fill(undefined),
                 },
@@ -643,6 +654,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
               ...slot,
               enhancement: {
                 level: 220,
+                rank: 5,
                 linkExcluded: false,
                 gears: Array<undefined>(9).fill(undefined),
               },
@@ -665,6 +677,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
               ...slot,
               enhancement: {
                 level: "",
+                rank: 5,
                 linkExcluded: false,
                 gears: Array<undefined>(9).fill(undefined),
               },

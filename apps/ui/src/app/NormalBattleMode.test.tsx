@@ -671,6 +671,7 @@ describe("BattleSimulatorPage — 強化指定 (M11, UI-AC-023〜026)", () => {
     const [sentRequest] = simulateImpl.mock.calls[0]!;
     expect(sentRequest.allyFormation.units[0]?.enhancement).toEqual({
       level: 220,
+      rank: 5,
       gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
     });
   });

@@ -80,6 +80,11 @@ export type FormationAction =
       readonly slotKey: string;
       readonly value: number | "";
     }
+  | {
+      readonly type: "unitEnhancementRankChanged";
+      readonly slotKey: string;
+      readonly value: number;
+    }
   | { readonly type: "levelLinkToggled"; readonly side: Side; readonly enabled: boolean }
   | { readonly type: "levelLinkLevelChanged"; readonly side: Side; readonly value: number | "" }
   // 「リンクから外す」／「リンクへ戻す」。外した瞬間のシードはreducerが解決する。
@@ -428,6 +433,11 @@ export function formationReducer(state: FormationState, action: FormationAction)
       return editSlotEnhancement(state, action.slotKey, (enhancement) => ({
         ...enhancement,
         level: action.value,
+      }));
+    case "unitEnhancementRankChanged":
+      return editSlotEnhancement(state, action.slotKey, (enhancement) => ({
+        ...enhancement,
+        rank: action.value,
       }));
     case "unitEnhancementGearChanged":
       return editSlotEnhancement(state, action.slotKey, (enhancement) => ({
