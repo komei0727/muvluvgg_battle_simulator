@@ -836,3 +836,197 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     ).toThrow(DomainValidationError);
   });
 });
+
+/**
+ * Issue #649: `TARGET_HAS_EFFECT`（存在判定）の個数版。同じ`categories`/
+ * `continuousDamageKinds`/`statKinds`/`effectActionDefinitionIds`/`grantedBy`の
+ * narrowing規約に、`TARGET_SET_COUNT`と同じ`op`/`value`（非負整数）を組み合わせる。
+ */
+describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
+  it("UT-CAT-COND-052 (Issue #649): maps a bare category+op/value query, defaulting every narrowing filter to absent", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_EFFECT_COUNT",
+        target: { kind: "SELF" },
+        categories: ["BUFF"],
+        op: "GTE",
+        value: 2,
+      },
+      "condition",
+      undefined,
+    );
+
+    expect(result).toEqual({
+      kind: "TARGET_EFFECT_COUNT",
+      target: { kind: "SELF" },
+      categories: ["BUFF"],
+      op: "GTE",
+      value: 2,
+    });
+  });
+
+  it("UT-CAT-COND-053 (Issue #649): maps both narrowing filters (continuousDamageKinds / statKinds)", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_EFFECT_COUNT",
+        target: { kind: "SELF" },
+        categories: ["DEBUFF"],
+        continuousDamageKinds: ["POISON"],
+        statKinds: ["ATTACK"],
+        op: "GTE",
+        value: 1,
+      },
+      "condition",
+      undefined,
+    );
+
+    expect(result).toEqual({
+      kind: "TARGET_EFFECT_COUNT",
+      target: { kind: "SELF" },
+      categories: ["DEBUFF"],
+      continuousDamageKinds: ["POISON"],
+      statKinds: ["ATTACK"],
+      op: "GTE",
+      value: 1,
+    });
+  });
+
+  it("UT-CAT-COND-054 (Issue #649): maps effectActionDefinitionIds and grantedBy: SELF", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_EFFECT_COUNT",
+        target: { kind: "TRIGGER_TARGET" },
+        categories: ["DEBUFF"],
+        effectActionDefinitionIds: ["ACT_LINK_A", "ACT_LINK_B"],
+        grantedBy: "SELF",
+        op: "GTE",
+        value: 1,
+      },
+      "condition",
+      undefined,
+    );
+
+    expect(result).toEqual({
+      kind: "TARGET_EFFECT_COUNT",
+      target: { kind: "TRIGGER_TARGET" },
+      categories: ["DEBUFF"],
+      effectActionDefinitionIds: ["ACT_LINK_A", "ACT_LINK_B"],
+      grantedBy: "SELF",
+      op: "GTE",
+      value: 1,
+    });
+  });
+
+  it("UT-CAT-COND-055 (Issue #649): rejects an empty categories array (a query that can never match)", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "SELF" },
+          categories: [],
+          op: "GTE",
+          value: 1,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-056 (Issue #649): rejects MARKER and SPECIFIC_EFFECT categories, which TARGET_HAS_MARKER and a definition-id match own instead", () => {
+    for (const category of ["MARKER", "SPECIFIC_EFFECT"]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_EFFECT_COUNT",
+            target: { kind: "SELF" },
+            categories: [category],
+            op: "GTE",
+            value: 1,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-COND-057 (Issue #649): rejects a narrowing filter that its categories can never reach", () => {
+    for (const narrowing of [{ continuousDamageKinds: ["POISON"] }, { statKinds: ["ATTACK"] }]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_EFFECT_COUNT",
+            target: { kind: "SELF" },
+            categories: ["SHIELD"],
+            op: "GTE",
+            value: 1,
+            ...narrowing,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-COND-058 (Issue #649): rejects a negative or non-integer value, mirroring TARGET_SET_COUNT's count semantics", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          op: "GTE",
+          value: -1,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          op: "GTE",
+          value: 1.5,
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-059 (Issue #649): rejects a typo'd sibling key and a BINDING target outside the declared scope", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          op: "GTE",
+          value: 1,
+          typoField: 1,
+        } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "BINDING", targetBindingId: "TGT_UNKNOWN" },
+          categories: ["BUFF"],
+          op: "GTE",
+          value: 1,
+        },
+        "condition",
+        new Set(["TGT_BASE"]),
+      ),
+    ).toThrow(DomainValidationError);
+  });
+});

@@ -11,7 +11,26 @@ import type { BattleUnit } from "./battle-unit.js";
 export type TargetHasEffectQuery = Extract<ConditionDefinition, { kind: "TARGET_HAS_EFFECT" }>;
 
 /**
- * 1つの`AppliedEffect`が`TARGET_HAS_EFFECT`の照会条件に一致するか。
+ * Issue #649: `ConditionDefinition`の`TARGET_EFFECT_COUNT`（`TARGET_HAS_EFFECT`の
+ * 個数版）だけを取り出した形。
+ */
+export type TargetEffectCountQuery = Extract<ConditionDefinition, { kind: "TARGET_EFFECT_COUNT" }>;
+
+/**
+ * `matchesQuery`が実際に読むnarrowingフィールドだけを抜き出した形。
+ * `TargetHasEffectQuery`/`TargetEffectCountQuery`はどちらも`kind`以外の
+ * narrowing規約（`categories`/`continuousDamageKinds`/`statKinds`/
+ * `effectActionDefinitionIds`/`grantedBy`）が同一のため、判定ロジックを
+ * 1つの関数へ共有する（Issue #649）。
+ */
+type EffectMatchQuery = Pick<
+  TargetHasEffectQuery,
+  "categories" | "continuousDamageKinds" | "statKinds" | "effectActionDefinitionIds" | "grantedBy"
+>;
+
+/**
+ * 1つの`AppliedEffect`が`TARGET_HAS_EFFECT`/`TARGET_EFFECT_COUNT`の照会条件に
+ * 一致するか。
  *
  * カテゴリ判定は`AppliedEffect.categories`（付与時点に`effect-category-classifier.ts`の
  * `effectCategoriesOf`が確定した分類、R-EFF-02/03の解除・免疫判定と同じ正本）だけを
@@ -21,7 +40,7 @@ export type TargetHasEffectQuery = Extract<ConditionDefinition, { kind: "TARGET_
  */
 function matchesQuery(
   effect: AppliedEffect,
-  query: TargetHasEffectQuery,
+  query: EffectMatchQuery,
   evaluatorUnitId: BattleUnitId | undefined,
 ): boolean {
   if (!query.categories.some((category) => effect.categories.includes(category))) {
@@ -82,6 +101,21 @@ export function holdsMatchingEffect(
   evaluatorUnitId?: BattleUnitId,
 ): boolean {
   return unit.appliedEffects.some((effect) => matchesQuery(effect, query, evaluatorUnitId));
+}
+
+/**
+ * Issue #649: 対象が照会条件に一致する`AppliedEffect`をいくつ保持しているか
+ * （`holdsMatchingEffect`の個数版）。`evaluatorUnitId`の意味は`holdsMatchingEffect`
+ * と同じ。`op`/`value`との比較は呼び出し側（`compareWithOperator`を持つevaluator）
+ * が行う（`TARGET_HAS_EFFECT`/`heldStatusKinds`と同じ役割分担）。
+ */
+export function countMatchingEffects(
+  unit: BattleUnit,
+  query: TargetEffectCountQuery,
+  evaluatorUnitId?: BattleUnitId,
+): number {
+  return unit.appliedEffects.filter((effect) => matchesQuery(effect, query, evaluatorUnitId))
+    .length;
 }
 
 /**

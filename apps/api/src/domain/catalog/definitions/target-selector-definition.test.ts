@@ -486,6 +486,15 @@ describe("TargetSelectorDefinition", () => {
     expect(result.order).toEqual(["HIGHEST_MAX_HP", "FASTEST"]);
   });
 
+  it("UT-CAT-TSEL-041: LOWEST_DEFENSE and HIGHEST_DEFENSE are valid order keys", () => {
+    const result = createTargetSelectorDefinition(
+      { kind: "SELECT", side: "ENEMY", count: 1, order: ["LOWEST_DEFENSE", "HIGHEST_DEFENSE"] },
+      "selector",
+      undefined,
+    );
+    expect(result.order).toEqual(["LOWEST_DEFENSE", "HIGHEST_DEFENSE"]);
+  });
+
   it("UT-CAT-TSEL-037: rejects EXCLUDE_RESOLVED_UNIT referencing an unsupported kind", () => {
     for (const kind of [
       "TRIGGER_SOURCE",

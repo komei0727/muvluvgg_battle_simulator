@@ -13,7 +13,11 @@ import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "./comparison-operator.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
 import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
-import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
+import {
+  countMatchingEffects,
+  heldStatusKinds,
+  holdsMatchingEffect,
+} from "../model/applied-effect-query.js";
 
 /** R-SKL-06: `LastEffectActionResult`を`LAST_RESULT`の`field`が参照できる平坦なrecordへ変換する。 */
 function lastResultRecord(lastResult: LastEffectActionResult): Readonly<Record<string, unknown>> {
@@ -371,6 +375,34 @@ export function evaluateEffectStepCondition(
       throw new DomainValidationError(
         "step.condition",
         'kind "TARGET_HAS_EFFECT" requires an EffectStepTargetContext (CAP_TARGET_EFFECT_QUERY) or a TargetSetResolver (BRANCH step-wide scope)',
+      );
+    }
+    case "TARGET_EFFECT_COUNT": {
+      // `TARGET_HAS_EFFECT`と完全に同じスコープ規約（Issue #649）:
+      // `targetContext`があれば対象ごと、無ければBRANCH step-wideとして
+      // preflightが高々1体を保証する`resolveTargetSet`経由で0〜1体を評価する。
+      // 0体はカウント0として扱う（`TARGET_SET_COUNT`が空集合を0件として扱うのと同じ）。
+      if (targetContext !== undefined) {
+        const candidates = resolveConditionTargets(condition.target, targetContext);
+        return candidates.some((unit) =>
+          compareWithOperator(countMatchingEffects(unit, condition), condition.op, condition.value),
+        );
+      }
+      if (resolveTargetSet !== undefined) {
+        const candidates = resolveTargetSet(condition.target);
+        if (candidates.length > 1) {
+          throw new DomainValidationError(
+            "step.condition",
+            `kind "TARGET_EFFECT_COUNT" resolved ${candidates.length} units for a step-wide (BRANCH) condition, but step-wide quantification over more than one unit is not supported (Catalog preflight should already guarantee at most one unit for this TargetReference)`,
+          );
+        }
+        const unit = candidates[0];
+        const count = unit !== undefined ? countMatchingEffects(unit, condition) : 0;
+        return compareWithOperator(count, condition.op, condition.value);
+      }
+      throw new DomainValidationError(
+        "step.condition",
+        'kind "TARGET_EFFECT_COUNT" requires an EffectStepTargetContext (CAP_TARGET_EFFECT_QUERY) or a TargetSetResolver (BRANCH step-wide scope)',
       );
     }
     case "TARGET_SET_COUNT": {

@@ -13,7 +13,11 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { truncateFraction } from "../model/resource-gauge.js";
-import { heldStatusKinds, holdsMatchingEffect } from "../model/applied-effect-query.js";
+import {
+  countMatchingEffects,
+  heldStatusKinds,
+  holdsMatchingEffect,
+} from "../model/applied-effect-query.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
 import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
@@ -379,6 +383,27 @@ export function evaluateTriggerCondition(
         const target = getUnit(id);
         // DMG-007（Issue #187）: `grantedBy: SELF`が指す「自身」はこのPSの保持者。
         return target !== undefined && holdsMatchingEffect(target, condition, owner?.battleUnitId);
+      });
+    }
+    case "TARGET_EFFECT_COUNT": {
+      // `TARGET_HAS_EFFECT`と完全に同じ隔離方針・同じ解決経路（Issue #649）。
+      if (context?.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "TARGET_EFFECT_COUNT" requires a context with a getUnit lookup (owner + getUnit)',
+        );
+      }
+      const { owner, getUnit } = context;
+      return resolveTargetReferenceIds(condition.target, owner, event).some((id) => {
+        const target = getUnit(id);
+        return (
+          target !== undefined &&
+          compareWithOperator(
+            countMatchingEffects(target, condition, owner?.battleUnitId),
+            condition.op,
+            condition.value,
+          )
+        );
       });
     }
     case "TARGET_HAS_MARKER": {

@@ -519,6 +519,9 @@ selector:
 | `LOWEST_HP_RATIO`        | HP割合が低い順                                       |
 | `HIGHEST_HP_RATIO`       | HP割合が高い順                                       |
 | `HIGHEST_ATTACK`         | 攻撃力が高い順                                       |
+| `LOWEST_ATTACK`          | 攻撃力が低い順                                       |
+| `HIGHEST_DEFENSE`        | 防御力が高い順（Issue #649）                         |
+| `LOWEST_DEFENSE`         | 防御力が低い順（Issue #649）                         |
 | `LOWEST_MAX_HP`          | 最大HPが低い順                                       |
 | `HIGHEST_MAX_HP`         | 最大HPが高い順                                       |
 | `HIGHEST_EX_GAUGE_RATIO` | EXゲージ充填率が高い順                               |
@@ -2296,6 +2299,34 @@ condition:
 | AS/EX `activationCondition`       | ✓    | `SELF`、または高々1体に解決される開始側`BINDING`のみ（`ACTIVATION_CONDITION_UNSUPPORTED_REFERENCE`／`ACTIVATION_CONDITION_UNBOUNDED_REFERENCE`が保証） |
 | PS trigger／`activationCondition` | ✓    | `SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`のみ                                                                                                           |
 | ACTION `stepCondition`            | ✗    | 対象ごとに真偽が変わりうるため、`TARGET_STATE`と同じ理由で除外する                                                                                     |
+
+### TARGET_EFFECT_COUNT
+
+Issue #649。`TARGET_HAS_EFFECT`の個数版——「対象が何らかのバフ／デバフ／状態異常を"いくつ"保持しているか」を、`TARGET_SET_COUNT`と同じ`op`/`value`（非負整数のしきい値比較）で問う。production例: 【自由に煌めくジョーカーカード】ユリア・バーンズの「解除可能なバフを２つ以上所持していない場合、このスキルは発動しない」ガード（`TARGET_HAS_EFFECT`の「1つ以上持っているか」という真偽判定では表せない）。
+
+```yaml
+condition:
+  kind: TARGET_EFFECT_COUNT
+  target: { kind: SELF }
+  categories: [BUFF]
+  op: GTE
+  value: 2
+```
+
+| フィールド                  | 型       | 必須 | 制約                                                              |
+| --------------------------- | -------- | ---- | ----------------------------------------------------------------- |
+| `target`                    | object   | ✓    | `TargetReference`                                                 |
+| `categories`                | string[] | ✓    | 1件以上。`TARGET_HAS_EFFECT`と同じ値集合                          |
+| `continuousDamageKinds`     | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                          |
+| `statKinds`                 | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                          |
+| `effectActionDefinitionIds` | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約（`DMG-007`／Issue #187） |
+| `grantedBy`                 | enum     | —    | `SELF` のみ。`TARGET_HAS_EFFECT`と同じ narrowing 規約             |
+| `op`                        | enum     | ✓    | `TARGET_SET_COUNT`と同じ `ComparisonOperator`                     |
+| `value`                     | integer  | ✓    | 0以上の整数（`TARGET_SET_COUNT.value`と同じ制約）                 |
+
+一致対象の判定（`categories`／`continuousDamageKinds`／`statKinds`／`effectActionDefinitionIds`／`grantedBy`の意味・到達可能性検証）は`TARGET_HAS_EFFECT`と完全に同一（`applied-effect-query.ts`の`matchesQuery`を共有する）。`TARGET_HAS_EFFECT`が「一致する`AppliedEffect`が1件以上あるか」の真偽値を返すのに対し、`TARGET_EFFECT_COUNT`は一致件数を`op`/`value`で比較する。
+
+評価スコープ・カーディナリティ制約（BRANCH／AS/EX `activationCondition`は高々1体に解決される参照のみ、PS trigger／`activationCondition`は複数対象でも存在量化で評価、ACTION `stepCondition`には置けない）は`TARGET_HAS_EFFECT`と完全に同一（上の表にそのまま従う）。BRANCH・ACTIONの`stepCondition`で`TARGET_SET_COUNT`と同じ条件木に混在させることもできない（`MIXED_STEP_TARGET_SET_CONDITION`、`TARGET_HAS_EFFECT`と同じ扱い）。
 
 ### op
 

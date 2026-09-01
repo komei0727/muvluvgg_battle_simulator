@@ -2441,6 +2441,166 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
   });
 
+  it("UT-CAT-IDX-114 (Issue #649): rejects a BRANCH condition mixing TARGET_EFFECT_COUNT with TARGET_SET_COUNT, the same as TARGET_HAS_EFFECT", () => {
+    const defs = baseDefinitions();
+    const branchMixedSkill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_OTHER",
+            selector: {
+              kind: "SELECT",
+              side: "ALLY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "AND",
+              conditions: [
+                {
+                  kind: "TARGET_EFFECT_COUNT",
+                  target: { kind: "SELF" },
+                  categories: ["BUFF"],
+                  op: "GTE",
+                  value: 1,
+                },
+                {
+                  kind: "TARGET_SET_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                  op: "GTE",
+                  value: 1,
+                },
+              ],
+            },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+            elseSteps: [],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      metadata: { displayName: "Branch-condition mixed AS (TARGET_EFFECT_COUNT)" },
+    });
+
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [branchMixedSkill, exSkill("SKL_EX1", 7)],
+      }),
+    ).toThrowError(/MIXED_STEP_TARGET_SET_CONDITION/);
+  });
+
+  it("UT-CAT-IDX-115 (Issue #649): rejects a dangling TARGET_EFFECT_COUNT.effectActionDefinitionIds inside a BRANCH condition", () => {
+    const defs = baseDefinitions();
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS1",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "TARGET_EFFECT_COUNT",
+              target: { kind: "SELF" },
+              categories: ["BUFF"],
+              effectActionDefinitionIds: ["ACT_MISSING"],
+              op: "GTE",
+              value: 1,
+            },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+            elseSteps: [],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      metadata: { displayName: "Dangling TARGET_EFFECT_COUNT reference AS" },
+    });
+
+    try {
+      buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)] });
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "DANGLING_REFERENCE")).toBe(true);
+    }
+  });
+
+  it("UT-CAT-IDX-116 (Issue #649): rejects TARGET_EFFECT_COUNT.grantedBy outside a trigger condition, where no evaluating unit exists", () => {
+    const defs = baseDefinitions();
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS2",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_PRIMARY",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+            targetCondition: {
+              kind: "TARGET_EFFECT_COUNT",
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              categories: ["DEBUFF"],
+              grantedBy: "SELF",
+              op: "GTE",
+              value: 1,
+            },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      metadata: { displayName: "AS" },
+    });
+    const withMisscopedGrantedBy: CatalogDefinitions = {
+      ...defs,
+      skills: [...defs.skills, skill],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+    };
+
+    try {
+      buildCatalogIndex(withMisscopedGrantedBy);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "GRANTED_BY_OUTSIDE_TRIGGER")).toBe(true);
+    }
+  });
+
   describe("BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE（Issue #230）: BRANCHのcondition内のTARGET_STATE/TARGET_HAS_MARKERは高々1体に解決される参照だけを許可する", () => {
     function branchConditionSkill(
       condition: ConditionDefinitionInput,
@@ -2965,6 +3125,54 @@ describe("buildCatalogIndex", () => {
           skills: [skill, exSkill("SKL_EX1", 7)],
         }),
       ).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-117 (Issue #649): accepts a BRANCH condition whose TARGET_EFFECT_COUNT references SELF, the same as TARGET_HAS_EFFECT", () => {
+      const defs = baseDefinitions();
+      const selfSkill = branchConditionSkill({
+        kind: "TARGET_EFFECT_COUNT",
+        target: { kind: "SELF" },
+        categories: ["BUFF"],
+        op: "GTE",
+        value: 2,
+      });
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [selfSkill, exSkill("SKL_EX1", 7)] }),
+      ).not.toThrow();
+    });
+
+    it("UT-CAT-IDX-118 (Issue #649): rejects a BRANCH condition whose TARGET_EFFECT_COUNT references TRIGGER_TARGET (not guaranteed to resolve to at most one unit)", () => {
+      const defs = baseDefinitions();
+      const skill = branchConditionSkill({
+        kind: "TARGET_EFFECT_COUNT",
+        target: { kind: "TRIGGER_TARGET" },
+        categories: ["BUFF"],
+        op: "GTE",
+        value: 2,
+      });
+      expect(() =>
+        buildCatalogIndex({ ...defs, skills: [skill, exSkill("SKL_EX1", 7)] }),
+      ).toThrowError(/BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE/);
+    });
+
+    it("UT-CAT-IDX-119 (Issue #649): rejects an AS activationCondition whose TARGET_EFFECT_COUNT references a BINDING that can resolve to more than one unit", () => {
+      const defs = baseDefinitions();
+      const skill = activationConditionSkill(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+          categories: ["BUFF"],
+          op: "GTE",
+          value: 2,
+        },
+        { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+      );
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [skill, exSkill("SKL_EX1", 7)],
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_UNBOUNDED_REFERENCE/);
     });
   });
 

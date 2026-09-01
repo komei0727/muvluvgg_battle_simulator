@@ -33,6 +33,7 @@ export function collectConditionTargetReferences(
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
       return [condition.target];
@@ -111,11 +112,12 @@ export function conditionContainsDamageMaxHpRatio(condition: ConditionDefinition
 }
 
 /**
- * `condition`のどこかに`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`が
- * 含まれるか。参照先の`TargetReference`は問わない —
+ * `condition`のどこかに`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`/
+ * `TARGET_EFFECT_COUNT`（Issue #649、`TARGET_HAS_EFFECT`の個数版）が含まれるか。
+ * 参照先の`TargetReference`は問わない —
  * `effect-step-condition-evaluator.ts`の`evaluateEffectStepCondition`は
  * `TARGET_SET_COUNT`単独経路（`targetContext: undefined`）で呼ばれると、参照先が
- * `step.target`と一致するかどうかに関わらずこの3 kindへ到達した時点で例外を投げる
+ * `step.target`と一致するかどうかに関わらずこの4 kindへ到達した時点で例外を投げる
  * （`EffectStepTargetContext`が無ければ評価できないため）。一致する参照だけを
  * 対象にするとpreflightと実行時が食い違う。
  */
@@ -124,6 +126,7 @@ export function conditionContainsTargetStateOrMarker(condition: ConditionDefinit
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
       return true;
     case "AND":
     case "OR":
@@ -135,7 +138,7 @@ export function conditionContainsTargetStateOrMarker(condition: ConditionDefinit
   }
 }
 
-/** 対象ごとに真偽が変わる3 kind（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`）の参照をpath付きで集める。 */
+/** 対象ごとに真偽が変わる4 kind（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`/`TARGET_EFFECT_COUNT`）の参照をpath付きで集める。 */
 export function collectTargetStateOrMarkerReferences(
   condition: ConditionDefinition,
   path: string,
@@ -144,6 +147,7 @@ export function collectTargetStateOrMarkerReferences(
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
       return [{ reference: condition.target, path }];
     case "AND":
     case "OR":
@@ -171,6 +175,7 @@ export function collectConditionTargetReferencePaths(
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
       return [{ reference: condition.target, path }];
@@ -194,6 +199,7 @@ export function collectConditionTargetReferencePaths(
 export function conditionUsesGrantedBy(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
       return condition.grantedBy !== undefined;
     case "AND":
     case "OR":
@@ -216,6 +222,7 @@ export function collectConditionEffectActionReferences(
 ): readonly EffectActionDefinitionId[] {
   switch (condition.kind) {
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
       return condition.effectActionDefinitionIds ?? [];
     case "AND":
     case "OR":

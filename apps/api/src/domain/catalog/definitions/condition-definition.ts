@@ -98,6 +98,7 @@ export const CONDITION_KINDS = [
   "RESOLUTION_PHASE",
   "TARGET_SET_COUNT",
   "TARGET_HAS_EFFECT",
+  "TARGET_EFFECT_COUNT",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -163,12 +164,16 @@ function reachableCategoriesOf(
  * 対象ごとに真偽が変わりうる（`targetCondition`専用のscope）ため、参照先を
  * 問わず常にここから除外する — Issue #227までの「参照先が異なれば
  * stepワイド扱い」という動的な分岐をやめ、フィールドの型自体でscopeを
- * 固定する（DoD「型レベルで両スコープを区別する」）。
+ * 固定する（DoD「型レベルで両スコープを区別する」）。`TARGET_HAS_EFFECT`と
+ * その個数版`TARGET_EFFECT_COUNT`（Issue #649）も同じ理由で除外する。
  */
 export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
   CONDITION_KINDS.filter(
     (kind) =>
-      kind !== "TARGET_STATE" && kind !== "TARGET_HAS_MARKER" && kind !== "TARGET_HAS_EFFECT",
+      kind !== "TARGET_STATE" &&
+      kind !== "TARGET_HAS_MARKER" &&
+      kind !== "TARGET_HAS_EFFECT" &&
+      kind !== "TARGET_EFFECT_COUNT",
   ),
 );
 
@@ -192,6 +197,7 @@ export const TARGET_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set([
   "TARGET_STATE",
   "TARGET_HAS_MARKER",
   "TARGET_HAS_EFFECT",
+  "TARGET_EFFECT_COUNT",
   "EVENT_PAYLOAD",
 ]);
 
@@ -243,6 +249,7 @@ export function assertTargetConditionReferencesOwnTarget(
     case "TARGET_STATE":
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
+    case "TARGET_EFFECT_COUNT":
       if (!targetReferenceEquals(condition.target, expectedTarget)) {
         throw new DomainValidationError(
           `${path}.target`,
@@ -293,6 +300,19 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
     // DMG-007（Issue #187）: 特定定義由来か・自身が付与したかの絞り込み。
     "effectActionDefinitionIds",
     "grantedBy",
+  ],
+  // Issue #649: `TARGET_HAS_EFFECT`の個数版。narrowing系フィールドは同一で、
+  // `TARGET_SET_COUNT`と同じ`op`/`value`（非負整数のしきい値比較）を加える。
+  TARGET_EFFECT_COUNT: [
+    "kind",
+    "target",
+    "categories",
+    "continuousDamageKinds",
+    "statKinds",
+    "effectActionDefinitionIds",
+    "grantedBy",
+    "op",
+    "value",
   ],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
@@ -431,6 +451,23 @@ export type ConditionDefinition =
        * 一致だけでは他者が付与したリンクも拾ってしまう）。
        */
       readonly grantedBy?: "SELF";
+    }
+  | {
+      /**
+       * Issue #649: `TARGET_HAS_EFFECT`の個数版。同じnarrowing規約
+       * （`categories`/`continuousDamageKinds`/`statKinds`/
+       * `effectActionDefinitionIds`/`grantedBy`）に一致する`AppliedEffect`の
+       * 件数を、`TARGET_SET_COUNT`と同じ`op`/`value`（非負整数）で比較する。
+       */
+      readonly kind: "TARGET_EFFECT_COUNT";
+      readonly target: TargetReference;
+      readonly categories: readonly TargetHasEffectCategory[];
+      readonly continuousDamageKinds?: readonly ContinuousDamageKind[];
+      readonly statKinds?: readonly StatKind[];
+      readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
+      readonly grantedBy?: "SELF";
+      readonly op: ComparisonOperator;
+      readonly value: number;
     };
 
 export interface ConditionDefinitionInput {
@@ -741,6 +778,38 @@ export function createConditionDefinition(
         ...createNarrowing(input, "statKinds", STAT_KINDS, typedCategories, path),
         ...createEffectActionDefinitionIdsNarrowing(input, path),
         ...createGrantedByNarrowing(input, path),
+      };
+    }
+    case "TARGET_EFFECT_COUNT": {
+      const target = requireField(input, "target", path);
+      const categories = requireField(input, "categories", path);
+      assertNonEmptyArray(categories, `${path}.categories`);
+      categories.forEach((category, i) =>
+        assertEnumValue(category, TARGET_HAS_EFFECT_CATEGORIES, `${path}.categories[${i}]`),
+      );
+      const typedCategories = categories as readonly TargetHasEffectCategory[];
+      const op = createOperator(input, path);
+      const value = requireField(input, "value", path);
+      if (typeof value !== "number") {
+        throw new DomainValidationError(`${path}.value`, `must be a number, got ${typeof value}`);
+      }
+      assertInteger(value, `${path}.value`, { min: 0 });
+      return {
+        kind: "TARGET_EFFECT_COUNT",
+        target: createTargetReference(target, `${path}.target`, scope),
+        categories: typedCategories,
+        ...createNarrowing(
+          input,
+          "continuousDamageKinds",
+          CONTINUOUS_DAMAGE_KINDS,
+          typedCategories,
+          path,
+        ),
+        ...createNarrowing(input, "statKinds", STAT_KINDS, typedCategories, path),
+        ...createEffectActionDefinitionIdsNarrowing(input, path),
+        ...createGrantedByNarrowing(input, path),
+        op,
+        value,
       };
     }
   }
