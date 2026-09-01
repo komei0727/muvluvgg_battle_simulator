@@ -1167,6 +1167,53 @@ describe("evaluateEffectStepCondition", () => {
     it("UT-R-SKL-06-075 (Issue #649): without either an EffectStepTargetContext or a TargetSetResolver throws instead of silently returning false", () => {
       expect(() => evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS)).toThrow(DomainValidationError);
     });
+
+    /**
+     * Issue #650レビュー: `REMOVE_EFFECTS`は`dispellable: false`を常に除外する
+     * （`effect-removal-service.ts`）。`dispellable`を指定しないガードは、実際には
+     * 解除できない同カテゴリの効果まで数えてしまう（production例:
+     * `SKL_YURIA_JOKER_PS2`の「解除可能なバフを２つ以上所持していない場合、
+     * このスキルは発動しない」）。
+     */
+    it("UT-R-SKL-06-076 (Issue #650レビュー): dispellable:true narrows the count to effects REMOVE_EFFECTS would actually remove, excluding dispellable:false holders", () => {
+      const removableCondition: ConditionDefinition = {
+        kind: "TARGET_EFFECT_COUNT",
+        target: STEP_TARGET,
+        categories: ["BUFF"],
+        dispellable: true,
+        op: "GTE",
+        value: 2,
+      };
+      const nonDispellable = (id: string): AppliedEffect => ({
+        ...effect(id, ["BUFF"], 0.2),
+        duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+      });
+
+      const twoRemovable = unit("t1", "UNIT_A", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2), effect("e2", ["BUFF"], 0.1)],
+      });
+      const twoNonRemovable = unit("t2", "UNIT_A", {
+        appliedEffects: [nonDispellable("e3"), nonDispellable("e4")],
+      });
+      const oneOfEach = unit("t3", "UNIT_A", {
+        appliedEffects: [effect("e5", ["BUFF"], 0.2), nonDispellable("e6")],
+      });
+
+      expect(
+        evaluateEffectStepCondition(removableCondition, undefined, contextFor(twoRemovable)),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(removableCondition, undefined, contextFor(twoNonRemovable)),
+      ).toBe(false);
+      expect(
+        evaluateEffectStepCondition(removableCondition, undefined, contextFor(oneOfEach)),
+      ).toBe(false);
+      // 絞り込みを指定しない従来のガードは、解除不可バフも数えてしまう
+      // （このPRが直した実際の食い違い）。
+      expect(
+        evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, contextFor(twoNonRemovable)),
+      ).toBe(true);
+    });
   });
 
   /**

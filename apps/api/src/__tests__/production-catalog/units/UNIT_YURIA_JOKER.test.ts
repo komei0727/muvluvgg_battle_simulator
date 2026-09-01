@@ -35,7 +35,16 @@ import {
 
 const UNIT_DEFINITION_ID = "UNIT_YURIA_JOKER";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * PS2の「解除不可なバフでは発動しない」行が、`ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP`
+ * （`dispellable: false`、`linkedEffectGroup`等の付帯条件を持たない単純な
+ * `APPLY_STAT_MOD`）を前提アクションとして参照するため併読する。既定盤面
+ * （`ally:*`/`enemy:*`）はスタンドイン定義のままで、他の行には影響しない。
+ */
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_CHIYURU_NEWYEAR",
+]);
 
 const RESONANCE = "MARKER_YURIA_JOKER_RESONANCE";
 
@@ -115,6 +124,16 @@ const TWO_SELF_BUFFS: readonly PrecedingAction[] = [
 /** 自身に「解除可能なバフ」を1つだけ持たせる前提アクション（発動ガードの不成立用）。 */
 const ONE_SELF_BUFF: readonly PrecedingAction[] = [
   { effectActionDefinitionId: "ACT_YURIA_JOKER_PS1_ATK_UP", target: "SELF" },
+];
+
+/**
+ * 自身に「解除不可（dispellable:false）なバフ」を2つ持たせる前提アクション
+ * （発動ガードの不成立用）。`REMOVE_EFFECTS`はdispellable:falseを常に除外するため、
+ * この2つは`ACT_YURIA_JOKER_PS2_REMOVE_BUFFS`の解除対象になりえない。
+ */
+const TWO_NON_DISPELLABLE_SELF_BUFFS: readonly PrecedingAction[] = [
+  { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP", target: "SELF" },
+  { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_PS1_MAX_HP_UP", target: "SELF" },
 ];
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
@@ -396,6 +415,18 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       trigger: CUMULATIVE_THRESHOLD_HIT,
     },
     precedingActions: ONE_SELF_BUFF,
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_YURIA_JOKER_PS2",
+    intent:
+      "(不成立): 解除不可（dispellable:false）なバフを2つ持つだけでは発動しない（「解除可能なバフ」に限る、REMOVE_EFFECTSはdispellable:falseを常に除外する）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_YURIA_JOKER_PS2",
+      trigger: CUMULATIVE_THRESHOLD_HIT,
+    },
+    precedingActions: TWO_NON_DISPELLABLE_SELF_BUFFS,
     expected: { activated: false },
   },
 ];

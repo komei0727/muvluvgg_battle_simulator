@@ -20,12 +20,17 @@ export type TargetEffectCountQuery = Extract<ConditionDefinition, { kind: "TARGE
  * `matchesQuery`が実際に読むnarrowingフィールドだけを抜き出した形。
  * `TargetHasEffectQuery`/`TargetEffectCountQuery`はどちらも`kind`以外の
  * narrowing規約（`categories`/`continuousDamageKinds`/`statKinds`/
- * `effectActionDefinitionIds`/`grantedBy`）が同一のため、判定ロジックを
- * 1つの関数へ共有する（Issue #649）。
+ * `effectActionDefinitionIds`/`grantedBy`/`dispellable`）が同一のため、判定ロジックを
+ * 1つの関数へ共有する（Issue #649、`dispellable`はIssue #650レビュー）。
  */
 type EffectMatchQuery = Pick<
   TargetHasEffectQuery,
-  "categories" | "continuousDamageKinds" | "statKinds" | "effectActionDefinitionIds" | "grantedBy"
+  | "categories"
+  | "continuousDamageKinds"
+  | "statKinds"
+  | "effectActionDefinitionIds"
+  | "grantedBy"
+  | "dispellable"
 >;
 
 /**
@@ -76,6 +81,16 @@ function matchesQuery(
   if (
     query.statKinds !== undefined &&
     !query.statKinds.some((stat) => effect.statModStat === stat)
+  ) {
+    return false;
+  }
+  // Issue #650レビュー: `REMOVE_EFFECTS`は`dispellable: false`を常に除外する
+  // （`effect-removal-service.ts`）。`dispellable`を指定した照会はこの除外と同じ軸で
+  // 絞り込む——「解除可能な分だけ数える／持っているか問う」ガードが、実際には
+  // 解除できない同カテゴリの効果まで数えてしまう食い違いを防ぐ。
+  if (
+    query.dispellable !== undefined &&
+    effect.duration.definition.dispellable !== query.dispellable
   ) {
     return false;
   }

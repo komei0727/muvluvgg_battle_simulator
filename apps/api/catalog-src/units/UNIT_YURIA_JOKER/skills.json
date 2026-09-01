@@ -214,6 +214,7 @@
       "kind": "TARGET_EFFECT_COUNT",
       "target": { "kind": "SELF" },
       "categories": ["BUFF"],
+      "dispellable": true,
       "op": "GTE",
       "value": 2
     },

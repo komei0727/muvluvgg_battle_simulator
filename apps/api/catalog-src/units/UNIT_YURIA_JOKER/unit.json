@@ -23,7 +23,7 @@
     "hp": 428,
     "attack": 324,
     "defense": 175,
-    "criticalRate": 0
+    "criticalRate": 0.01
   },
   "extraGaugeMaximum": 7,
   "activeSkillDefinitionIds": ["SKL_YURIA_JOKER_AS1", "SKL_YURIA_JOKER_AS2"],

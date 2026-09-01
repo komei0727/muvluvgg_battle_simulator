@@ -2256,8 +2256,11 @@ condition:
 | `statKinds`                 | string[] | —    | 1件以上。`StatKind`。`categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる           |
 | `effectActionDefinitionIds` | string[] | —    | 1件以上。一致対象を特定のEffectAction定義由来の付与へ絞る（`DMG-007`／Issue #187）        |
 | `grantedBy`                 | enum     | —    | `SELF` のみ。一致対象を「この条件を評価しているユニット自身が付与した」インスタンスへ絞る |
+| `dispellable`               | boolean  | —    | 指定時、一致対象を`duration.definition.dispellable`のこの値へ絞る（Issue #650レビュー）   |
 
-判定は「`categories`のいずれかに一致する`AppliedEffect`を対象が1つ以上保持している」ことであり、絞り込み（`continuousDamageKinds`／`statKinds`）はその一致へANDで重ねる。到達できない組み合わせ（例: `categories: [SHIELD]`に`statKinds`）はCatalogロード時点で拒否する — `EFFECT_IMMUNITY.statusKinds`と同じく「schemaは通るが実行時に一切一致しない定義」を作らせないためである。
+判定は「`categories`のいずれかに一致する`AppliedEffect`を対象が1つ以上保持している」ことであり、絞り込み（`continuousDamageKinds`／`statKinds`／`dispellable`）はその一致へANDで重ねる。到達できない組み合わせ（例: `categories: [SHIELD]`に`statKinds`）はCatalogロード時点で拒否する — `EFFECT_IMMUNITY.statusKinds`と同じく「schemaは通るが実行時に一切一致しない定義」を作らせないためである。
+
+`dispellable`は`REMOVE_EFFECTS`が`dispellable: false`を常に除外する（`effect-removal-service.ts`、R-EFF-01/R-EFF-02）のと同じ軸で絞り込む。「`REMOVE_EFFECTS`が実際に解除できる分だけを問う」ガード（`TARGET_EFFECT_COUNT`の節を参照）で、絞り込みを指定しない場合は解除不可な同カテゴリの効果まで一致してしまう。
 
 `continuousDamageKinds`の到達可能性は**フィールド単位ではなく値単位**で判定する。`APPLY_CONTINUOUS_DAMAGE`は常に`DEBUFF`だが、`STATUS`になるのは`R-STS-01`が状態異常として定義する炎上・毒だけであり、固定継続ダメージ（`FIXED`）は名前付きの状態異常ではないためである。
 
@@ -2303,13 +2306,14 @@ condition:
 
 ### TARGET_EFFECT_COUNT
 
-Issue #649。`TARGET_HAS_EFFECT`の個数版——「対象が何らかのバフ／デバフ／状態異常を"いくつ"保持しているか」を、`TARGET_SET_COUNT`と同じ形の`op`/`value`（非負整数のしきい値比較）で問う。production例: 【自由に煌めくジョーカーカード】ユリア・バーンズの「解除可能なバフを２つ以上所持していない場合、このスキルは発動しない」ガード（`TARGET_HAS_EFFECT`の「1つ以上持っているか」という真偽判定では表せない）。
+Issue #649。`TARGET_HAS_EFFECT`の個数版——「対象が何らかのバフ／デバフ／状態異常を"いくつ"保持しているか」を、`TARGET_SET_COUNT`と同じ形の`op`/`value`（非負整数のしきい値比較）で問う。production例: 【自由に煌めくジョーカーカード】ユリア・バーンズの「解除可能なバフを２つ以上所持していない場合、このスキルは発動しない」ガード（`TARGET_HAS_EFFECT`の「1つ以上持っているか」という真偽判定では表せない）。この用途では`dispellable: true`を必ず添える——`REMOVE_EFFECTS`が`dispellable: false`を除外するため、指定しないと実際には解除できない同カテゴリの効果まで数えてしまう（Issue #650レビュー、`SKL_YURIA_JOKER_PS2`が実例）。
 
 ```yaml
 condition:
   kind: TARGET_EFFECT_COUNT
   target: { kind: SELF }
   categories: [BUFF]
+  dispellable: true
   op: GTE
   value: 2
 ```
@@ -2322,10 +2326,11 @@ condition:
 | `statKinds`                 | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                                 |
 | `effectActionDefinitionIds` | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約（`DMG-007`／Issue #187）        |
 | `grantedBy`                 | enum     | —    | `SELF` のみ。`TARGET_HAS_EFFECT`と同じ narrowing 規約                    |
+| `dispellable`               | boolean  | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約（Issue #650レビュー）           |
 | `op`                        | enum     | ✓    | `GT` / `GTE` / `LT` / `LTE` / `EQ` / `NEQ` の数値比較6種のみ（下記参照） |
 | `value`                     | integer  | ✓    | 0以上の整数（`TARGET_SET_COUNT.value`と同じ制約）                        |
 
-一致対象の判定（`categories`／`continuousDamageKinds`／`statKinds`／`effectActionDefinitionIds`／`grantedBy`の意味・到達可能性検証）は`TARGET_HAS_EFFECT`と完全に同一（`applied-effect-query.ts`の`matchesQuery`を共有する）。`TARGET_HAS_EFFECT`が「一致する`AppliedEffect`が1件以上あるか」の真偽値を返すのに対し、`TARGET_EFFECT_COUNT`は一致件数を`op`/`value`で比較する。
+一致対象の判定（`categories`／`continuousDamageKinds`／`statKinds`／`effectActionDefinitionIds`／`grantedBy`／`dispellable`の意味・到達可能性検証）は`TARGET_HAS_EFFECT`と完全に同一（`applied-effect-query.ts`の`matchesQuery`を共有する）。`TARGET_HAS_EFFECT`が「一致する`AppliedEffect`が1件以上あるか」の真偽値を返すのに対し、`TARGET_EFFECT_COUNT`は一致件数を`op`/`value`で比較する。
 
 `op`は`TARGET_SET_COUNT`と異なり`IN`/`CONTAINS`を受理しない——`value`は常に単一の非負整数であり、`compareWithOperator`（`comparison-operator.ts`）は`IN`に配列の`expected`、`CONTAINS`に配列の`actual`を要求するため、どちらもスキーマ上は通っても実行時に必ず不成立になる（`target-selector-definition.ts`の`MARKER_COUNT_CONDITION`と同じ理由）。したがって数値比較6種（`GT`/`GTE`/`LT`/`LTE`/`EQ`/`NEQ`）だけをCatalogロード時点で許可する（`NUMERIC_COMPARISON_OPERATORS`）。
 
