@@ -1971,6 +1971,7 @@ condition:
 | `POSITION_RELATION`   | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
 | `RESOLUTION_PHASE`    | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
 | `TARGET_SET_COUNT`    | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
+| `TARGET_EFFECT_COUNT` | `target`, `categories`, `op`, `value`  | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                             |
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
 
@@ -2302,7 +2303,7 @@ condition:
 
 ### TARGET_EFFECT_COUNT
 
-Issue #649。`TARGET_HAS_EFFECT`の個数版——「対象が何らかのバフ／デバフ／状態異常を"いくつ"保持しているか」を、`TARGET_SET_COUNT`と同じ`op`/`value`（非負整数のしきい値比較）で問う。production例: 【自由に煌めくジョーカーカード】ユリア・バーンズの「解除可能なバフを２つ以上所持していない場合、このスキルは発動しない」ガード（`TARGET_HAS_EFFECT`の「1つ以上持っているか」という真偽判定では表せない）。
+Issue #649。`TARGET_HAS_EFFECT`の個数版——「対象が何らかのバフ／デバフ／状態異常を"いくつ"保持しているか」を、`TARGET_SET_COUNT`と同じ形の`op`/`value`（非負整数のしきい値比較）で問う。production例: 【自由に煌めくジョーカーカード】ユリア・バーンズの「解除可能なバフを２つ以上所持していない場合、このスキルは発動しない」ガード（`TARGET_HAS_EFFECT`の「1つ以上持っているか」という真偽判定では表せない）。
 
 ```yaml
 condition:
@@ -2313,18 +2314,20 @@ condition:
   value: 2
 ```
 
-| フィールド                  | 型       | 必須 | 制約                                                              |
-| --------------------------- | -------- | ---- | ----------------------------------------------------------------- |
-| `target`                    | object   | ✓    | `TargetReference`                                                 |
-| `categories`                | string[] | ✓    | 1件以上。`TARGET_HAS_EFFECT`と同じ値集合                          |
-| `continuousDamageKinds`     | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                          |
-| `statKinds`                 | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                          |
-| `effectActionDefinitionIds` | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約（`DMG-007`／Issue #187） |
-| `grantedBy`                 | enum     | —    | `SELF` のみ。`TARGET_HAS_EFFECT`と同じ narrowing 規約             |
-| `op`                        | enum     | ✓    | `TARGET_SET_COUNT`と同じ `ComparisonOperator`                     |
-| `value`                     | integer  | ✓    | 0以上の整数（`TARGET_SET_COUNT.value`と同じ制約）                 |
+| フィールド                  | 型       | 必須 | 制約                                                                     |
+| --------------------------- | -------- | ---- | ------------------------------------------------------------------------ |
+| `target`                    | object   | ✓    | `TargetReference`                                                        |
+| `categories`                | string[] | ✓    | 1件以上。`TARGET_HAS_EFFECT`と同じ値集合                                 |
+| `continuousDamageKinds`     | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                                 |
+| `statKinds`                 | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約                                 |
+| `effectActionDefinitionIds` | string[] | —    | `TARGET_HAS_EFFECT`と同じ narrowing 規約（`DMG-007`／Issue #187）        |
+| `grantedBy`                 | enum     | —    | `SELF` のみ。`TARGET_HAS_EFFECT`と同じ narrowing 規約                    |
+| `op`                        | enum     | ✓    | `GT` / `GTE` / `LT` / `LTE` / `EQ` / `NEQ` の数値比較6種のみ（下記参照） |
+| `value`                     | integer  | ✓    | 0以上の整数（`TARGET_SET_COUNT.value`と同じ制約）                        |
 
 一致対象の判定（`categories`／`continuousDamageKinds`／`statKinds`／`effectActionDefinitionIds`／`grantedBy`の意味・到達可能性検証）は`TARGET_HAS_EFFECT`と完全に同一（`applied-effect-query.ts`の`matchesQuery`を共有する）。`TARGET_HAS_EFFECT`が「一致する`AppliedEffect`が1件以上あるか」の真偽値を返すのに対し、`TARGET_EFFECT_COUNT`は一致件数を`op`/`value`で比較する。
+
+`op`は`TARGET_SET_COUNT`と異なり`IN`/`CONTAINS`を受理しない——`value`は常に単一の非負整数であり、`compareWithOperator`（`comparison-operator.ts`）は`IN`に配列の`expected`、`CONTAINS`に配列の`actual`を要求するため、どちらもスキーマ上は通っても実行時に必ず不成立になる（`target-selector-definition.ts`の`MARKER_COUNT_CONDITION`と同じ理由）。したがって数値比較6種（`GT`/`GTE`/`LT`/`LTE`/`EQ`/`NEQ`）だけをCatalogロード時点で許可する（`NUMERIC_COMPARISON_OPERATORS`）。
 
 評価スコープ・カーディナリティ制約（BRANCH／AS/EX `activationCondition`は高々1体に解決される参照のみ、PS trigger／`activationCondition`は複数対象でも存在量化で評価、ACTION `stepCondition`には置けない）は`TARGET_HAS_EFFECT`と完全に同一（上の表にそのまま従う）。BRANCH・ACTIONの`stepCondition`で`TARGET_SET_COUNT`と同じ条件木に混在させることもできない（`MIXED_STEP_TARGET_SET_CONDITION`、`TARGET_HAS_EFFECT`と同じ扱い）。
 
