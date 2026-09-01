@@ -140,6 +140,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_MAO_SUMMER_TEX",
         // 夏バリアント（既存キャラクターの新衣装。characterId再利用）
         "UNIT_LYDIA_SUMMER",
+        // Issue #650: UNIT_YURIA_WILDCARD/UNIT_YURIA_YUKATAの3バリアント目
+        "UNIT_YURIA_JOKER",
       ].sort(),
     );
   });

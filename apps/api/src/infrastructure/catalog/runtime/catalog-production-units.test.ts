@@ -536,7 +536,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // フィールドの追加であり、既定ランク（`LR+5`）ではリクエスト結果が変わらない
     // （R-ENH-07。`levelGrowth`と同じ性格、`2026-08-11.1`参照）。Unit・Skill・
     // Memoryの構成は変えておらず、差分は`units.json`の数値だけである。
-    expect(catalog.catalogRevision).toBe("2026-08-30.1");
+    // `2026-09-01.1` は `UNIT_YURIA_JOKER`（【自由に煌めくジョーカーカード】
+    // ユリア・バーンズ、Issue #650）の新規投入。`LOWEST_DEFENSE`ターゲット順序・
+    // `TARGET_EFFECT_COUNT`条件種別（いずれも#649で追加）のproduction初使用。
+    expect(catalog.catalogRevision).toBe("2026-09-01.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

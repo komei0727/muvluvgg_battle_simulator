@@ -1,0 +1,272 @@
+[
+  {
+    "skillDefinitionId": "SKL_YURIA_JOKER_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_EX_DEF_DOWN" },
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_EX_DAMAGE" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "自由な未来へ！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_JOKER_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "activationCondition": {
+      "kind": "NOT",
+      "condition": {
+        "kind": "TARGET_HAS_MARKER",
+        "target": { "kind": "SELF" },
+        "markerId": "MARKER_YURIA_JOKER_RESONANCE",
+        "countCondition": { "op": "GTE", "value": 10 }
+      }
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_YURIA_JOKER_RESONANCE",
+                "direction": "ASC"
+              },
+              "DEFAULT"
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_AS1_DEF_DOWN" },
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_AS1_DAMAGE" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_JOKER_AS1_MARKER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_JOKER_AS1_MARKER" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "ネクサスエッジオーバーロード", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_JOKER_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_YURIA_JOKER_RESONANCE",
+                "direction": "ASC"
+              },
+              "DEFAULT"
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_AS2_DEF_DOWN" },
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_AS2_DAMAGE" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "トリプルカオスキャノン", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_JOKER_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_DEFENSE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["LOWEST_DEFENSE"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_DEFENSE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_INCOMING_DMG_UP" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_YURIA_JOKER_RESONANCE",
+            "countCondition": { "op": "GTE", "value": 10 }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_AP_UP" },
+                { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_ATK_UP" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "アブセンストリガー", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "RUNTIME_COUNTER",
+              "counter": "SKL_YURIA_JOKER_PS1_TRIGGER_COUNT",
+              "op": "GTE",
+              "value": 1,
+              "modulo": 3
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_YURIA_JOKER_PS1_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "SkillUseCompleted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_YURIA_JOKER_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_EFFECT_COUNT",
+      "target": { "kind": "SELF" },
+      "categories": ["BUFF"],
+      "op": "GTE",
+      "value": 2
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS2_REMOVE_BUFFS" },
+            { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS2_ATK_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "ジョーカーカード", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "RuntimeCounterChanged",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_YURIA_JOKER_PS2_THRESHOLD_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_YURIA_JOKER_PS2_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.1
+      }
+    ]
+  }
+]

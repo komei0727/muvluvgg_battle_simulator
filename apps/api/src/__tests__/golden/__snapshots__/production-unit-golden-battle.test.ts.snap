@@ -3663,6 +3663,52 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YUI_HEIR completes a 
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YURIA_JOKER completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 1,
+  "completionReason": "ENEMY_DEFEATED",
+  "eventCount": 122,
+  "eventSequenceHash": "sha256:b36b28f6eb8a57a1",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 3,
+    "ACTION_COMPLETING": 3,
+    "ACTION_QUEUE_CREATED": 2,
+    "ACTION_RESERVATION_REMOVED": 1,
+    "ACTION_STARTED": 3,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "COMBAT_STAT_CHANGED": 3,
+    "CRITICAL_CHECK_RESOLVED": 3,
+    "DAMAGE_APPLIED": 3,
+    "DAMAGE_CALCULATED": 3,
+    "DAMAGE_WILL_BE_APPLIED": 3,
+    "EFFECT_ACTION_COMPLETED": 12,
+    "EFFECT_ACTION_STARTING": 12,
+    "EFFECT_APPLIED": 3,
+    "EFFECT_DURATION_REDUCED": 2,
+    "EFFECT_EXPIRED": 2,
+    "EFFECT_STEP_COMPLETED": 9,
+    "EFFECT_STEP_STARTING": 9,
+    "HIT_CONFIRMED": 3,
+    "HIT_POINT_REDUCED": 3,
+    "MARKER_APPLIED": 2,
+    "MARKER_UPDATED": 3,
+    "RESOURCES_RECOVERED": 1,
+    "RESOURCE_CHANGED": 10,
+    "RUNTIME_COUNTER_CHANGED": 5,
+    "SKILL_USE_COMPLETED": 3,
+    "SKILL_USE_STARTED": 3,
+    "SKILL_USE_STARTING": 3,
+    "TARGETS_SELECTED": 3,
+    "TURN_STARTED": 1,
+    "UNIT_BEING_ATTACKED": 3,
+    "UNIT_DEFEATED": 1,
+  },
+  "outcome": "ALLY_WIN",
+  "unitDefinitionId": "UNIT_YURIA_JOKER",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YURIA_WILDCARD completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,
