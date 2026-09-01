@@ -621,9 +621,19 @@
                   ]
                 }
               },
+              "effectActionDefinitionIds": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "grantedBy": {
+                "enum": ["SELF"]
+              },
               "op": {
                 "type": "string",
-                "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"]
+                "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"]
               },
               "value": {
                 "type": "number"
@@ -10437,18 +10447,19 @@
                                                 ]
                                               }
                                             },
+                                            "effectActionDefinitionIds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "grantedBy": {
+                                              "enum": ["SELF"]
+                                            },
                                             "op": {
                                               "type": "string",
-                                              "enum": [
-                                                "GT",
-                                                "GTE",
-                                                "LT",
-                                                "LTE",
-                                                "EQ",
-                                                "NEQ",
-                                                "IN",
-                                                "CONTAINS"
-                                              ]
+                                              "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"]
                                             },
                                             "value": {
                                               "type": "number"
@@ -23309,18 +23320,19 @@
                                                 ]
                                               }
                                             },
+                                            "effectActionDefinitionIds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "grantedBy": {
+                                              "enum": ["SELF"]
+                                            },
                                             "op": {
                                               "type": "string",
-                                              "enum": [
-                                                "GT",
-                                                "GTE",
-                                                "LT",
-                                                "LTE",
-                                                "EQ",
-                                                "NEQ",
-                                                "IN",
-                                                "CONTAINS"
-                                              ]
+                                              "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"]
                                             },
                                             "value": {
                                               "type": "number"

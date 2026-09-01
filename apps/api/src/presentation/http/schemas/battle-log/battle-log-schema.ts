@@ -1667,6 +1667,9 @@ const CONSUMPTION_KIND_ENUM = [
 ] as const;
 
 const COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
+// Issue #649: `TARGET_EFFECT_COUNT.op`はDomain側（`condition-definition.ts`の
+// `NUMERIC_COMPARISON_OPERATORS`）が数値比較6種のみを受理するため、公開契約も揃える。
+const NUMERIC_COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"] as const;
 const jsonPrimitiveSchema = { type: ["string", "number", "boolean"] } as const;
 /**
  * `references.ts`の`createTargetReference`と1:1対応する制約: `BINDING`は`targetBindingId`必須、それ以外のkindは同fieldを禁止する
@@ -1976,7 +1979,14 @@ export const conditionDefinitionDetailsSchema = {
           minItems: 1,
           items: { type: "string", enum: STAT_KIND_ENUM },
         },
-        op: { type: "string", enum: COMPARISON_OPERATOR_ENUM },
+        // DMG-007（Issue #187）: `TARGET_HAS_EFFECT`と同じnarrowing規約。
+        effectActionDefinitionIds: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string" },
+        },
+        grantedBy: { const: "SELF" },
+        op: { type: "string", enum: NUMERIC_COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
       },
     },

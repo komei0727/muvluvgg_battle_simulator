@@ -917,7 +917,8 @@ export interface paths {
                         | "POSITION_RELATION"
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
-                        | "TARGET_HAS_EFFECT";
+                        | "TARGET_HAS_EFFECT"
+                        | "TARGET_EFFECT_COUNT";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -958,7 +959,8 @@ export interface paths {
                         | "POSITION_RELATION"
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
-                        | "TARGET_HAS_EFFECT";
+                        | "TARGET_HAS_EFFECT"
+                        | "TARGET_EFFECT_COUNT";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -2861,6 +2863,49 @@ export interface paths {
                               | "ACTION_SPEED"
                             )[];
                           }
+                        | {
+                            /** @enum {unknown} */
+                            kind: "TARGET_EFFECT_COUNT";
+                            target:
+                              | {
+                                  /** @enum {unknown} */
+                                  kind: "BINDING";
+                                  targetBindingId: string;
+                                }
+                              | {
+                                  /** @enum {string} */
+                                  kind:
+                                    | "SELF"
+                                    | "TRIGGER_SOURCE"
+                                    | "TRIGGER_TARGET"
+                                    | "LAST_ACTION_TARGETS"
+                                    | "LAST_DAMAGED_TARGETS";
+                                };
+                            categories: (
+                              | "BUFF"
+                              | "DEBUFF"
+                              | "STATUS"
+                              | "DAMAGE_MOD"
+                              | "SHIELD"
+                              | "SUBUNIT"
+                            )[];
+                            continuousDamageKinds?: ("FIXED" | "BURN" | "POISON")[];
+                            statKinds?: (
+                              | "MAXIMUM_HP"
+                              | "ATTACK"
+                              | "DEFENSE"
+                              | "CRITICAL_RATE"
+                              | "CRITICAL_DAMAGE_BONUS"
+                              | "AFFINITY_BONUS"
+                              | "ACTION_SPEED"
+                            )[];
+                            effectActionDefinitionIds?: string[];
+                            /** @enum {unknown} */
+                            grantedBy?: "SELF";
+                            /** @enum {string} */
+                            op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ";
+                            value: number;
+                          }
                       )[];
                       linkedEffectGroupId: string | null;
                       grantedActionId?: string;
@@ -4680,7 +4725,8 @@ export interface paths {
                         | "POSITION_RELATION"
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
-                        | "TARGET_HAS_EFFECT";
+                        | "TARGET_HAS_EFFECT"
+                        | "TARGET_EFFECT_COUNT";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -4721,7 +4767,8 @@ export interface paths {
                         | "POSITION_RELATION"
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
-                        | "TARGET_HAS_EFFECT";
+                        | "TARGET_HAS_EFFECT"
+                        | "TARGET_EFFECT_COUNT";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -6619,6 +6666,49 @@ export interface paths {
                               | "AFFINITY_BONUS"
                               | "ACTION_SPEED"
                             )[];
+                          }
+                        | {
+                            /** @enum {unknown} */
+                            kind: "TARGET_EFFECT_COUNT";
+                            target:
+                              | {
+                                  /** @enum {unknown} */
+                                  kind: "BINDING";
+                                  targetBindingId: string;
+                                }
+                              | {
+                                  /** @enum {string} */
+                                  kind:
+                                    | "SELF"
+                                    | "TRIGGER_SOURCE"
+                                    | "TRIGGER_TARGET"
+                                    | "LAST_ACTION_TARGETS"
+                                    | "LAST_DAMAGED_TARGETS";
+                                };
+                            categories: (
+                              | "BUFF"
+                              | "DEBUFF"
+                              | "STATUS"
+                              | "DAMAGE_MOD"
+                              | "SHIELD"
+                              | "SUBUNIT"
+                            )[];
+                            continuousDamageKinds?: ("FIXED" | "BURN" | "POISON")[];
+                            statKinds?: (
+                              | "MAXIMUM_HP"
+                              | "ATTACK"
+                              | "DEFENSE"
+                              | "CRITICAL_RATE"
+                              | "CRITICAL_DAMAGE_BONUS"
+                              | "AFFINITY_BONUS"
+                              | "ACTION_SPEED"
+                            )[];
+                            effectActionDefinitionIds?: string[];
+                            /** @enum {unknown} */
+                            grantedBy?: "SELF";
+                            /** @enum {string} */
+                            op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ";
+                            value: number;
                           }
                       )[];
                       linkedEffectGroupId: string | null;
@@ -9185,6 +9275,42 @@ export interface components {
             | "AFFINITY_BONUS"
             | "ACTION_SPEED"
           )[];
+        }
+      | {
+          /** @enum {unknown} */
+          kind: "TARGET_EFFECT_COUNT";
+          target:
+            | {
+                /** @enum {unknown} */
+                kind: "BINDING";
+                targetBindingId: string;
+              }
+            | {
+                /** @enum {string} */
+                kind:
+                  | "SELF"
+                  | "TRIGGER_SOURCE"
+                  | "TRIGGER_TARGET"
+                  | "LAST_ACTION_TARGETS"
+                  | "LAST_DAMAGED_TARGETS";
+              };
+          categories: ("BUFF" | "DEBUFF" | "STATUS" | "DAMAGE_MOD" | "SHIELD" | "SUBUNIT")[];
+          continuousDamageKinds?: ("FIXED" | "BURN" | "POISON")[];
+          statKinds?: (
+            | "MAXIMUM_HP"
+            | "ATTACK"
+            | "DEFENSE"
+            | "CRITICAL_RATE"
+            | "CRITICAL_DAMAGE_BONUS"
+            | "AFFINITY_BONUS"
+            | "ACTION_SPEED"
+          )[];
+          effectActionDefinitionIds?: string[];
+          /** @enum {unknown} */
+          grantedBy?: "SELF";
+          /** @enum {string} */
+          op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ";
+          value: number;
         };
   };
   responses: never;

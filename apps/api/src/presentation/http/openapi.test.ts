@@ -783,6 +783,70 @@ describe("OpenAPI document", () => {
     expect(validate(invalidCondition)).toBe(false);
   });
 
+  it("UT-R-EFF-01-067 (Issue #649, review fix): TARGET_EFFECT_COUNT accepts its full DMG-007 narrowing set (effectActionDefinitionIds/grantedBy) and rejects a non-numeric op", () => {
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(battleLogEventResponseDocSchema);
+
+    const base = {
+      sequence: 1,
+      type: "EFFECT_APPLIED",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      rootSequence: 1,
+      targetUnitIds: ["unit-1"],
+      stateVersionBefore: 0,
+      stateVersionAfter: 1,
+    };
+    const basePayload = {
+      effectInstanceId: "battle-1:effect:1",
+      effectActionDefinitionId: "ACT_1",
+      sourceUnitId: "unit-1",
+      targetUnitId: "unit-1",
+      duplicate: true,
+      kindKey: "ACT_1",
+      effectKind: "APPLY_STAT_MOD",
+      categories: ["BUFF"],
+      magnitude: 10,
+      linkedEffectGroupId: null,
+    };
+    const withNarrowing = {
+      ...base,
+      details: {
+        ...basePayload,
+        expirationConditions: [
+          {
+            kind: "TARGET_EFFECT_COUNT",
+            target: { kind: "SELF" },
+            categories: ["DEBUFF"],
+            effectActionDefinitionIds: ["ACT_LINK"],
+            grantedBy: "SELF",
+            op: "GTE",
+            value: 2,
+          },
+        ],
+      },
+    };
+    expect(validate(withNarrowing), JSON.stringify(validate.errors)).toBe(true);
+
+    const withNonNumericOp = {
+      ...base,
+      details: {
+        ...basePayload,
+        expirationConditions: [
+          {
+            kind: "TARGET_EFFECT_COUNT",
+            target: { kind: "SELF" },
+            categories: ["DEBUFF"],
+            op: "IN",
+            value: 2,
+          },
+        ],
+      },
+    };
+    expect(validate(withNonNumericOp)).toBe(false);
+  });
+
   it("UT-R-EFF-01-031 (references.ts createTargetReference): rejects a BINDING TargetReference missing targetBindingId and a non-BINDING TargetReference that sets it, matching the domain constraint exactly", () => {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(battleLogEventResponseDocSchema);

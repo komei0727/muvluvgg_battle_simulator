@@ -48,6 +48,13 @@ export const COMPARISON_OPERATORS = [
   "CONTAINS",
 ] as const;
 
+// Issue #649: `TARGET_EFFECT_COUNT.op`は常に数値比較のため、`compareWithOperator`
+// （comparison-operator.ts）が`IN`/`CONTAINS`へ与える`expected`/`actual`はどちらも
+// 配列になり得ず必ず不成立になる（`target-selector-definition.ts`の
+// `MARKER_COUNT_CONDITION`と同じ理由・同じ形）。schemaは通るが実行時に一切一致しない
+// 定義を作らせないため、数値比較6種だけをCatalogロード時点で許可する。
+const NUMERIC_COMPARISON_OPERATORS = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"] as const;
+
 const TARGET_STATE_FIELDS = [
   "IS_ALIVE",
   "HP_RATIO",
@@ -522,6 +529,13 @@ function createOperator(input: ConditionDefinitionInput, path: string): Comparis
   return op;
 }
 
+/** Issue #649: `TARGET_EFFECT_COUNT.op`用。`NUMERIC_COMPARISON_OPERATORS`の理由を参照。 */
+function createNumericOperator(input: ConditionDefinitionInput, path: string): ComparisonOperator {
+  const op = requireField(input, "op", path);
+  assertEnumValue(op, NUMERIC_COMPARISON_OPERATORS, `${path}.op`);
+  return op;
+}
+
 /**
  * DMG-007（Issue #187）: `TARGET_HAS_EFFECT.effectActionDefinitionIds`を検証して、
  * 指定がある場合だけ持つ部分オブジェクトを返す。`REMOVE_EFFECTS`/`EFFECT_IMMUNITY`の
@@ -788,7 +802,7 @@ export function createConditionDefinition(
         assertEnumValue(category, TARGET_HAS_EFFECT_CATEGORIES, `${path}.categories[${i}]`),
       );
       const typedCategories = categories as readonly TargetHasEffectCategory[];
-      const op = createOperator(input, path);
+      const op = createNumericOperator(input, path);
       const value = requireField(input, "value", path);
       if (typeof value !== "number") {
         throw new DomainValidationError(`${path}.value`, `must be a number, got ${typeof value}`);

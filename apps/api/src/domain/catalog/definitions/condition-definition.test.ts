@@ -1029,4 +1029,22 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-060 (Issue #649, review fix): rejects IN/CONTAINS on TARGET_EFFECT_COUNT.op — compareWithOperator needs an array on the side value never provides, so both would silently never match", () => {
+    for (const op of ["IN", "CONTAINS"]) {
+      expect(() =>
+        createConditionDefinition(
+          {
+            kind: "TARGET_EFFECT_COUNT",
+            target: { kind: "SELF" },
+            categories: ["BUFF"],
+            op,
+            value: 1,
+          },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
 });
