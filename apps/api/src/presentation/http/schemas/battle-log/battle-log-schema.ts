@@ -261,6 +261,7 @@ export const CONDITION_KIND_ENUM = [
   "RESOLUTION_PHASE",
   "TARGET_SET_COUNT",
   "TARGET_HAS_EFFECT",
+  "TARGET_EFFECT_COUNT",
 ] as const;
 /**
  * `EffectActionStarting.kind`／`EffectApplied.effectKind`。値集合の正本はDomainの
@@ -1666,6 +1667,9 @@ const CONSUMPTION_KIND_ENUM = [
 ] as const;
 
 const COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ", "IN", "CONTAINS"] as const;
+// Issue #649: `TARGET_EFFECT_COUNT.op`はDomain側（`condition-definition.ts`の
+// `NUMERIC_COMPARISON_OPERATORS`）が数値比較6種のみを受理するため、公開契約も揃える。
+const NUMERIC_COMPARISON_OPERATOR_ENUM = ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"] as const;
 const jsonPrimitiveSchema = { type: ["string", "number", "boolean"] } as const;
 /**
  * `references.ts`の`createTargetReference`と1:1対応する制約: `BINDING`は`targetBindingId`必須、それ以外のkindは同fieldを禁止する
@@ -1946,6 +1950,44 @@ export const conditionDefinitionDetailsSchema = {
           minItems: 1,
           items: { type: "string", enum: STAT_KIND_ENUM },
         },
+      },
+    },
+    // Issue #649: `TARGET_HAS_EFFECT`の個数版。narrowing系フィールドは同一で、
+    // `op`/`value`（非負整数のしきい値比較）を加える。
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target", "categories", "op", "value"],
+      properties: {
+        kind: { const: "TARGET_EFFECT_COUNT" },
+        target: targetReferenceDetailsSchema,
+        categories: {
+          type: "array",
+          minItems: 1,
+          items: {
+            type: "string",
+            enum: ["BUFF", "DEBUFF", "STATUS", "DAMAGE_MOD", "SHIELD", "SUBUNIT"],
+          },
+        },
+        continuousDamageKinds: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string", enum: ["FIXED", "BURN", "POISON"] },
+        },
+        statKinds: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string", enum: STAT_KIND_ENUM },
+        },
+        // DMG-007（Issue #187）: `TARGET_HAS_EFFECT`と同じnarrowing規約。
+        effectActionDefinitionIds: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string" },
+        },
+        grantedBy: { const: "SELF" },
+        op: { type: "string", enum: NUMERIC_COMPARISON_OPERATOR_ENUM },
+        value: { type: "number" },
       },
     },
   ],

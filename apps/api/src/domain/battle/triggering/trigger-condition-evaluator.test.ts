@@ -972,6 +972,70 @@ describe("evaluateTriggerCondition", () => {
     });
   });
 
+  /**
+   * Issue #649: `TARGET_HAS_EFFECT`の個数版。PS trigger／`activationCondition`は
+   * `resolveTargetReferenceIds`が解決した`BattleUnitId`集合へ存在量化するため、
+   * 複数対象でも評価できる（`TARGET_HAS_EFFECT`と同じ、`TARGET_STATE`と同じ隔離方針）。
+   */
+  describe("TARGET_EFFECT_COUNT (Issue #649, the count sibling of TARGET_HAS_EFFECT)", () => {
+    const atLeastTwoBuffs: ConditionDefinition = {
+      kind: "TARGET_EFFECT_COUNT",
+      target: { kind: "SELF" },
+      categories: ["BUFF"],
+      op: "GTE",
+      value: 2,
+    };
+
+    it("UT-R-PS-01-144 (Issue #649): matches when the resolved owner's matching-effect count satisfies op/value", () => {
+      const two = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2), effect("e2", ["BUFF"], 0.1)],
+      });
+      const one = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2)],
+      });
+      const check = (owner: BattleUnit): boolean =>
+        evaluateTriggerCondition(
+          atLeastTwoBuffs,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        );
+
+      expect(check(two)).toBe(true);
+      expect(check(one)).toBe(false);
+    });
+
+    it("UT-R-PS-01-145 (Issue #649): resolving to no unit does not match, and no getUnit lookup throws (same isolation as TARGET_HAS_EFFECT)", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const noTarget: ConditionDefinition = {
+        ...atLeastTwoBuffs,
+        target: { kind: "TRIGGER_TARGET" },
+      };
+      expect(
+        evaluateTriggerCondition(
+          noTarget,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+        ),
+      ).toBe(false);
+      expect(() => evaluateTriggerCondition(noTarget, { payload: {} })).toThrow(
+        DomainValidationError,
+      );
+    });
+
+    it("UT-R-PS-01-146 (Issue #649): only effects matching the queried categories are counted, mirroring TARGET_HAS_EFFECT's classification", () => {
+      const oneBuffOneDebuff = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2), effect("e2", ["DEBUFF"])],
+      });
+      expect(
+        evaluateTriggerCondition(
+          atLeastTwoBuffs,
+          { payload: {} },
+          { owner: oneBuffOneDebuff, skillDefinitionId: SKILL_ID, getUnit: () => oneBuffOneDebuff },
+        ),
+      ).toBe(false);
+    });
+  });
+
   describe("TARGET_HAS_MARKER (RES-004, Issue #171: CAP_PASSIVE_ACTIVATION_CONDITION)", () => {
     it("UT-R-PS-01-039: matches when the resolved target has any stack of the marker", () => {
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {

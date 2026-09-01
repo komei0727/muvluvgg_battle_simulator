@@ -61,9 +61,10 @@ const ACTIVATION_CONDITION_REFERENCE_KINDS: Readonly<
  *    `evaluateTriggerCondition`が解決済み`BattleUnitId`集合へ存在量化するため
  *    複数対象でも評価でき、この制約の対象外とする。
  *
- * 対象数の制約は対象ごとに真偽が変わる3 kind（`TARGET_STATE`/`TARGET_HAS_MARKER`/
- * `TARGET_HAS_EFFECT`）にだけ課す — `TARGET_SET_COUNT`は集合全体を1回だけ数える
- * kindであり、複数対象のbindingを参照するのが本来の用途である
+ * 対象数の制約は対象ごとに真偽が変わる4 kind（`TARGET_STATE`/`TARGET_HAS_MARKER`/
+ * `TARGET_HAS_EFFECT`/`TARGET_EFFECT_COUNT`。最後はIssue #649が追加した
+ * `TARGET_HAS_EFFECT`の個数版）にだけ課す — `TARGET_SET_COUNT`は集合全体を1回だけ
+ * 数えるkindであり、複数対象のbindingを参照するのが本来の用途である
  * （production例: `SKL_LYDIA_GENIUS_AS1`/`SKL_ELENA_MOODMAKER_AS1`）。
  */
 function validateActivationConditionReferences(
@@ -109,7 +110,7 @@ function validateActivationConditionReferences(
       violations.push({
         targetId: skill.skillDefinitionId,
         rule: "ACTIVATION_CONDITION_UNBOUNDED_REFERENCE",
-        message: `${path}: an AS/EX activationCondition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, or a charge-start BINDING whose selector has kind SELECT and count 1, are supported — action-selection evaluation has no per-target context to quantify over multiple units, Issue #248)`,
+        message: `${path}: an AS/EX activationCondition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT/TARGET_EFFECT_COUNT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, or a charge-start BINDING whose selector has kind SELECT and count 1, are supported — action-selection evaluation has no per-target context to quantify over multiple units, Issue #248, TARGET_EFFECT_COUNT added by Issue #649)`,
       });
     }
   }

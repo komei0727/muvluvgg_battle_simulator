@@ -1099,6 +1099,76 @@ describe("evaluateEffectStepCondition", () => {
     });
   });
 
+  describe("TARGET_EFFECT_COUNT (Issue #649, the count sibling of TARGET_HAS_EFFECT)", () => {
+    function contextFor(current: BattleUnit): EffectStepTargetContext {
+      return {
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: () => [],
+        unitDefinitions: new Map(),
+      };
+    }
+
+    const AT_LEAST_TWO_BUFFS: ConditionDefinition = {
+      kind: "TARGET_EFFECT_COUNT",
+      target: STEP_TARGET,
+      categories: ["BUFF"],
+      op: "GTE",
+      value: 2,
+    };
+
+    it("UT-R-SKL-06-072 (Issue #649): counts matching AppliedEffects and compares against op/value, per target", () => {
+      const zero = unit("t1", "UNIT_A");
+      const one = unit("t2", "UNIT_A", { appliedEffects: [effect("e1", ["BUFF"], 0.2)] });
+      const two = unit("t3", "UNIT_A", {
+        appliedEffects: [effect("e2", ["BUFF"], 0.2), effect("e3", ["BUFF"], 0.1)],
+      });
+
+      expect(evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, contextFor(zero))).toBe(
+        false,
+      );
+      expect(evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, contextFor(one))).toBe(
+        false,
+      );
+      expect(evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, contextFor(two))).toBe(
+        true,
+      );
+    });
+
+    it("UT-R-SKL-06-073 (Issue #649): only effects matching the queried categories are counted, mirroring TARGET_HAS_EFFECT's classification", () => {
+      const oneBuffOneDebuff = unit("t1", "UNIT_A", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2), effect("e2", ["DEBUFF"])],
+      });
+      expect(
+        evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, contextFor(oneBuffOneDebuff)),
+      ).toBe(false);
+    });
+
+    it("UT-R-SKL-06-074 (Issue #649): in step-wide (BRANCH) scope resolves 0..1 units via the TargetSetResolver, treating 0 units as a count of 0, and throws beyond one", () => {
+      const two = unit("t1", "UNIT_A", {
+        appliedEffects: [effect("e1", ["BUFF"], 0.2), effect("e2", ["BUFF"], 0.1)],
+      });
+      const zero = unit("t2", "UNIT_A");
+
+      expect(evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, undefined, () => [])).toBe(
+        false,
+      );
+      expect(
+        evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, undefined, () => [two]),
+      ).toBe(true);
+      expect(
+        evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, undefined, () => [zero]),
+      ).toBe(false);
+      expect(() =>
+        evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS, undefined, undefined, () => [two, zero]),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-R-SKL-06-075 (Issue #649): without either an EffectStepTargetContext or a TargetSetResolver throws instead of silently returning false", () => {
+      expect(() => evaluateEffectStepCondition(AT_LEAST_TWO_BUFFS)).toThrow(DomainValidationError);
+    });
+  });
+
   /**
    * M7-001E（Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）: `TARGET_STATE`の
    * `HAS_STATUS`（`UNIT_MERU_FLATSPIN`/`UNIT_NANAE_COMMANDER`のBRANCH条件）と

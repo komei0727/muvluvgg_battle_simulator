@@ -859,6 +859,60 @@ describe("EffectSequence", () => {
       ).toThrow(DomainValidationError);
     });
 
+    it("UT-CAT-SEQ-044 (Issue #649): accepts an ACTION step's own-target targetCondition containing TARGET_EFFECT_COUNT, the count sibling of TARGET_HAS_EFFECT", () => {
+      const result = createEffectSequence(
+        {
+          targetBindings,
+          steps: [
+            {
+              kind: "ACTION",
+              targetCondition: {
+                kind: "TARGET_EFFECT_COUNT",
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                categories: ["BUFF"],
+                op: "GTE",
+                value: 2,
+              },
+              target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        "resolution",
+      );
+
+      const step = result.steps[0];
+      if (step?.kind !== "ACTION") {
+        throw new Error("expected an ACTION step");
+      }
+      expect(step.targetCondition.kind).toBe("TARGET_EFFECT_COUNT");
+    });
+
+    it("UT-CAT-SEQ-045 (Issue #649): rejects an ACTION step's stepCondition containing TARGET_EFFECT_COUNT — like TARGET_HAS_EFFECT, that kind belongs to targetCondition's scope only", () => {
+      expect(() =>
+        createEffectSequence(
+          {
+            targetBindings,
+            steps: [
+              {
+                kind: "ACTION",
+                stepCondition: {
+                  kind: "TARGET_EFFECT_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                  categories: ["BUFF"],
+                  op: "GTE",
+                  value: 2,
+                },
+                target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+                actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+              },
+            ],
+          },
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
     it("UT-CAT-SEQ-039: rejects an ACTION step still using the retired unified condition field — Issue #230 is a breaking schema migration with no dual-field compatibility shim", () => {
       expect(() =>
         createEffectSequence(

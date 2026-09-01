@@ -76,7 +76,7 @@ export function validateMixedStepTargetSetCondition(
     violations.push({
       targetId: ownerId,
       rule: "MIXED_STEP_TARGET_SET_CONDITION",
-      message: `${path} combines TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT (regardless of which TargetReference it references) — per-target and step-wide condition scopes cannot be mixed in the same condition tree (RES-004集合条件, Issue #227)`,
+      message: `${path} combines TARGET_SET_COUNT with a TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT/TARGET_EFFECT_COUNT (regardless of which TargetReference it references) — per-target and step-wide condition scopes cannot be mixed in the same condition tree (RES-004集合条件, Issue #227, TARGET_EFFECT_COUNT added by Issue #649)`,
     });
   }
 }
@@ -94,7 +94,7 @@ export function validateBranchTargetStateUnboundedReference(
     violations.push({
       targetId: ownerId,
       rule: "BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE",
-      message: `${path}: BRANCH's condition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, TRIGGER_SOURCE, or a BINDING whose selector has kind SELECT and count 1 are supported — BRANCH has no per-target evaluation context to quantify over multiple units, Issue #230)`,
+      message: `${path}: BRANCH's condition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT/TARGET_EFFECT_COUNT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, TRIGGER_SOURCE, or a BINDING whose selector has kind SELECT and count 1 are supported — BRANCH has no per-target evaluation context to quantify over multiple units, Issue #230, TARGET_EFFECT_COUNT added by Issue #649)`,
     });
   }
 }

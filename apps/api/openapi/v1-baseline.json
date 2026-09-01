@@ -546,6 +546,99 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "target", "categories", "op", "value"],
+            "properties": {
+              "kind": {
+                "enum": ["TARGET_EFFECT_COUNT"]
+              },
+              "target": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "targetBindingId"],
+                    "properties": {
+                      "kind": {
+                        "enum": ["BINDING"]
+                      },
+                      "targetBindingId": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind"],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "SELF",
+                          "TRIGGER_SOURCE",
+                          "TRIGGER_TARGET",
+                          "LAST_ACTION_TARGETS",
+                          "LAST_DAMAGED_TARGETS"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "categories": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "enum": ["BUFF", "DEBUFF", "STATUS", "DAMAGE_MOD", "SHIELD", "SUBUNIT"]
+                }
+              },
+              "continuousDamageKinds": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "enum": ["FIXED", "BURN", "POISON"]
+                }
+              },
+              "statKinds": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "MAXIMUM_HP",
+                    "ATTACK",
+                    "DEFENSE",
+                    "CRITICAL_RATE",
+                    "CRITICAL_DAMAGE_BONUS",
+                    "AFFINITY_BONUS",
+                    "ACTION_SPEED"
+                  ]
+                }
+              },
+              "effectActionDefinitionIds": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "grantedBy": {
+                "enum": ["SELF"]
+              },
+              "op": {
+                "type": "string",
+                "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"]
+              },
+              "value": {
+                "type": "number"
+              }
+            }
           }
         ],
         "title": "https://muvluvgg-battle-simulator/schemas/ConditionDefinition"
@@ -3453,7 +3546,8 @@
                                       "POSITION_RELATION",
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
-                                      "TARGET_HAS_EFFECT"
+                                      "TARGET_HAS_EFFECT",
+                                      "TARGET_EFFECT_COUNT"
                                     ]
                                   }
                                 }
@@ -3562,7 +3656,8 @@
                                       "POSITION_RELATION",
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
-                                      "TARGET_HAS_EFFECT"
+                                      "TARGET_HAS_EFFECT",
+                                      "TARGET_EFFECT_COUNT"
                                     ]
                                   },
                                   "result": {
@@ -10264,6 +10359,112 @@
                                               }
                                             }
                                           }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "kind",
+                                            "target",
+                                            "categories",
+                                            "op",
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["TARGET_EFFECT_COUNT"]
+                                            },
+                                            "target": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind", "targetBindingId"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "enum": ["BINDING"]
+                                                    },
+                                                    "targetBindingId": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "SELF",
+                                                        "TRIGGER_SOURCE",
+                                                        "TRIGGER_TARGET",
+                                                        "LAST_ACTION_TARGETS",
+                                                        "LAST_DAMAGED_TARGETS"
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            },
+                                            "categories": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "BUFF",
+                                                  "DEBUFF",
+                                                  "STATUS",
+                                                  "DAMAGE_MOD",
+                                                  "SHIELD",
+                                                  "SUBUNIT"
+                                                ]
+                                              }
+                                            },
+                                            "continuousDamageKinds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string",
+                                                "enum": ["FIXED", "BURN", "POISON"]
+                                              }
+                                            },
+                                            "statKinds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "MAXIMUM_HP",
+                                                  "ATTACK",
+                                                  "DEFENSE",
+                                                  "CRITICAL_RATE",
+                                                  "CRITICAL_DAMAGE_BONUS",
+                                                  "AFFINITY_BONUS",
+                                                  "ACTION_SPEED"
+                                                ]
+                                              }
+                                            },
+                                            "effectActionDefinitionIds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "grantedBy": {
+                                              "enum": ["SELF"]
+                                            },
+                                            "op": {
+                                              "type": "string",
+                                              "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"]
+                                            },
+                                            "value": {
+                                              "type": "number"
+                                            }
+                                          }
                                         }
                                       ]
                                     }
@@ -16214,7 +16415,8 @@
                                       "POSITION_RELATION",
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
-                                      "TARGET_HAS_EFFECT"
+                                      "TARGET_HAS_EFFECT",
+                                      "TARGET_EFFECT_COUNT"
                                     ]
                                   }
                                 }
@@ -16323,7 +16525,8 @@
                                       "POSITION_RELATION",
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
-                                      "TARGET_HAS_EFFECT"
+                                      "TARGET_HAS_EFFECT",
+                                      "TARGET_EFFECT_COUNT"
                                     ]
                                   },
                                   "result": {
@@ -23027,6 +23230,112 @@
                                                   "ACTION_SPEED"
                                                 ]
                                               }
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "kind",
+                                            "target",
+                                            "categories",
+                                            "op",
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["TARGET_EFFECT_COUNT"]
+                                            },
+                                            "target": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind", "targetBindingId"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "enum": ["BINDING"]
+                                                    },
+                                                    "targetBindingId": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "SELF",
+                                                        "TRIGGER_SOURCE",
+                                                        "TRIGGER_TARGET",
+                                                        "LAST_ACTION_TARGETS",
+                                                        "LAST_DAMAGED_TARGETS"
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            },
+                                            "categories": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "BUFF",
+                                                  "DEBUFF",
+                                                  "STATUS",
+                                                  "DAMAGE_MOD",
+                                                  "SHIELD",
+                                                  "SUBUNIT"
+                                                ]
+                                              }
+                                            },
+                                            "continuousDamageKinds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string",
+                                                "enum": ["FIXED", "BURN", "POISON"]
+                                              }
+                                            },
+                                            "statKinds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "MAXIMUM_HP",
+                                                  "ATTACK",
+                                                  "DEFENSE",
+                                                  "CRITICAL_RATE",
+                                                  "CRITICAL_DAMAGE_BONUS",
+                                                  "AFFINITY_BONUS",
+                                                  "ACTION_SPEED"
+                                                ]
+                                              }
+                                            },
+                                            "effectActionDefinitionIds": {
+                                              "type": "array",
+                                              "minItems": 1,
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "grantedBy": {
+                                              "enum": ["SELF"]
+                                            },
+                                            "op": {
+                                              "type": "string",
+                                              "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NEQ"]
+                                            },
+                                            "value": {
+                                              "type": "number"
                                             }
                                           }
                                         }

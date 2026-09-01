@@ -1532,6 +1532,60 @@ describe("resolveTargets", () => {
       ]);
     });
 
+    it("UT-TGT-002-026: HIGHEST_DEFENSE orders by combatStats.defense descending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const fragile = unit(
+        "FRAGILE",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, defense: 5 } },
+      );
+      const sturdy = unit(
+        "STURDY",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, defense: 50 } },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_DEFENSE"] }),
+        actor,
+        [actor, fragile, sturdy],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("STURDY"),
+        createBattleUnitId("FRAGILE"),
+      ]);
+    });
+
+    it("UT-TGT-002-027: LOWEST_DEFENSE orders by combatStats.defense ascending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const fragile = unit(
+        "FRAGILE",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, defense: 5 } },
+      );
+      const sturdy = unit(
+        "STURDY",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, defense: 50 } },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["LOWEST_DEFENSE"] }),
+        actor,
+        [actor, fragile, sturdy],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("FRAGILE"),
+        createBattleUnitId("STURDY"),
+      ]);
+    });
+
     it("UT-TGT-002-014: LOWEST_MAX_HP/HIGHEST_MAX_HP order by combatStats.maximumHp", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const small = unit(
