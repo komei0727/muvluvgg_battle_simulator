@@ -6,6 +6,7 @@ import type {
 import { DomainValidationError } from "../../shared/errors.js";
 import { assertEnumValue } from "../../shared/validate.js";
 import type { AcademyLevels } from "./academy-level-policy.js";
+import type { ModuleOverride } from "./enhanced-base-stats-calculator.js";
 import type { GearSpecification } from "./gear-customization-policy.js";
 
 const MIN_SLOTS = 1;
@@ -27,6 +28,7 @@ export interface SlotEnhancement {
   readonly level?: number;
   readonly rank?: number;
   readonly gears?: readonly GearSpecification[];
+  readonly module?: ModuleOverride;
 }
 
 /**

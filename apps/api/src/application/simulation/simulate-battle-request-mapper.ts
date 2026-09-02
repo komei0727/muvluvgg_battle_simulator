@@ -55,6 +55,7 @@ function toUnitEnhancementInput(
     ...(enhancement.gears === undefined
       ? {}
       : { gears: enhancement.gears.map((gear) => gear as GearInput) }),
+    ...(enhancement.module === undefined ? {} : { module: enhancement.module }),
   };
 }
 

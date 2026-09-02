@@ -455,6 +455,65 @@ describe("POST /api/v1/battle-simulations", () => {
     expect(response.json<ErrorResponseBody>().error.code).toBe("INVALID_COMMAND");
   });
 
+  it("API-CONTRACT-036 [R-ENH-08] (10_API設計.md「ModuleOverrideRequest」): accepts a request carrying a unit-level module override", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/battle-simulations",
+      payload: validRequestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "UNIT_001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: {
+                module: {
+                  hp: { fixed: 5000, ratio: 0.1 },
+                  attack: { fixed: -3000 },
+                  defense: { ratio: 0.2 },
+                },
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("API-CONTRACT-037 [R-ENH-08]: returns 400 MALFORMED_REQUEST for a structurally invalid module override (unknown stat/field, wrong type)", async () => {
+    const payloads = [
+      { module: { hp: { fixed: "5000" } } },
+      { module: { hp: { unknownField: 1 } } },
+      { module: { unknownStat: { fixed: 1 } } },
+    ];
+
+    for (const module of payloads) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/battle-simulations",
+        payload: validRequestBody({
+          allyFormation: {
+            units: [
+              {
+                unitDefinitionId: "UNIT_001",
+                position: { column: 0, row: "FRONT" },
+                enhancement: module,
+              },
+            ],
+            memoryDefinitionIds: [],
+            enhancement: {},
+          },
+        }),
+      });
+
+      expect(response.statusCode, JSON.stringify(module)).toBe(400);
+      expect(response.json<ErrorResponseBody>().error.code).toBe("MALFORMED_REQUEST");
+    }
+  });
+
   it("API-CONTRACT-034 [R-ENH-07] (10_API設計.md「UnitEnhancementRequest」): accepts a request carrying a unit-level rank", async () => {
     const response = await app.inject({
       method: "POST",

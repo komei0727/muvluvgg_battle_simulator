@@ -454,6 +454,67 @@ describe("validateCommandShape", () => {
     );
   });
 
+  it("UT-CMD-030 [R-ENH-08]: accepts a module override with finite fixed and ratio values on each stat", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [
+            {
+              ...slot(0),
+              enhancement: {
+                module: {
+                  hp: { fixed: 5000, ratio: 0.1 },
+                  attack: { fixed: -3000 },
+                  defense: { ratio: -0.05 },
+                },
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("UT-CMD-031 [R-ENH-08]: rejects a non-finite module fixed/ratio value, naming the exact stat and field", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        enemyFormation: {
+          slots: [
+            {
+              ...slot(1),
+              enhancement: { module: { hp: { fixed: Infinity }, attack: { ratio: -Infinity } } },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "enemyFormation.slots[0].enhancement.module.hp.fixed" }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "enemyFormation.slots[0].enhancement.module.attack.ratio" }),
+    );
+  });
+
+  it("UT-CMD-032 [R-ENH-08] (R-ENH-01 #3): rejects a module-only slot enhancement when its own side has no formation enhancement", () => {
+    const violations = validateCommandShape(
+      validCommand({
+        allyFormation: {
+          slots: [{ ...slot(0), enhancement: { module: { hp: { fixed: 5000 } } } }],
+          memoryDefinitionIds: [],
+        },
+      }),
+    );
+    expect(violations).toContainEqual(
+      expect.objectContaining({ path: "allyFormation.slots[0].enhancement" }),
+    );
+  });
+
   it("UT-CMD-021 [R-ENH-01] (R-ENH-01 #6): the two sides' enhancement specifications are independent", () => {
     const violations = validateCommandShape(
       validCommand({

@@ -125,6 +125,34 @@ describe("toSimulateBattleCommand", () => {
     expect(command.allyFormation.slots[0]?.enhancement).toEqual({ rank: 0 });
   });
 
+  it("API-SIM-011 [R-ENH-08]: maps a unit-level module override alongside level and gears", () => {
+    const command = toSimulateBattleCommand(
+      requestBody({
+        allyFormation: {
+          units: [
+            {
+              unitDefinitionId: "unit-001",
+              position: { column: 0, row: "FRONT" },
+              enhancement: {
+                level: 220,
+                gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+                module: { hp: { fixed: 5000, ratio: 0.1 }, attack: { fixed: -3000 } },
+              },
+            },
+          ],
+          memoryDefinitionIds: [],
+          enhancement: {},
+        },
+      }),
+    );
+
+    expect(command.allyFormation.slots[0]?.enhancement).toEqual({
+      level: 220,
+      gears: [{ stat: "ATTACK", tier: "III", grade: "S" }],
+      module: { hp: { fixed: 5000, ratio: 0.1 }, attack: { fixed: -3000 } },
+    });
+  });
+
   it("API-SIM-008: leaves enhancement undefined on both levels when the request omits it (backward compatibility)", () => {
     const command = toSimulateBattleCommand(requestBody());
 

@@ -81,8 +81,9 @@ describe("Rule coverage ledger", () => {
     // （`testCaseIds: []`・`kinds: []`）で登録する。Issue #634が
     // `enhanced-base-stats-calculator.ts`のドメイン実装を完了し、`kinds`を
     // `R-ENH-05`と同じ4種（POSITIVE/BOUNDARY/NEGATIVE/PROPERTY）で埋めた（総数は変わらない）。
+    // Issue #655でモジュール補正のリクエスト上書き（R-ENH-08）を新設し142→143。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(142);
+    expect(RULE_COVERAGE).toHaveLength(143);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {
