@@ -77,10 +77,17 @@ export interface ComputeCombatStatsResult {
  * （`resource: HP`）由来のインスタンスも合成対象になる — HPゲージの上限は
  * この戦闘中ステータスそのものであり、AP/PP/EXのように`BattleUnit`が独立した
  * 上限フィールドを持たないため。
+ *
+ * R-TEX-04: `exercise`が渡され、かつ対象が`ENEMY`のとき、戦闘中割合補正の増減量は
+ * `unit.baseCombatStats`（ブレイク強化のたびに書き換わる）ではなく
+ * `exercise.originalEnemyBaseCombatStats`（戦闘開始時＝Break0の原基準値）を基準に
+ * 算出する。未ブレイクなら両者は等しいため通常の結果と一致し、味方ユニットや
+ * `exercise`未指定（NORMALモード）では従来どおり`unit.baseCombatStats`を使う。
  */
 export function computeCombatStats(
   unit: BattleUnit,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  exercise?: ExerciseRuntime,
 ): ComputeCombatStatsResult {
   const byStat = new Map<StatKind, { ratio: StatEffect[]; fixed: StatEffect[] }>();
 
@@ -114,6 +121,10 @@ export function computeCombatStats(
     // （例: 編成補正で 40347.6 → さらに +20% は 48417.12 = trunc 48417 が正、
     // 開始時に 40347 へ丸めてから ×1.2 すると 48416 になり1ずれる）。
     // ゲージ最大値としての整数化はゲージへ渡す境界で行う。
+    const ratioEffectBaseValue =
+      exercise !== undefined && unit.side === "ENEMY"
+        ? exercise.originalEnemyBaseCombatStats[field]
+        : undefined;
     const corrected = calculateCombatStat({
       stat,
       baseValue: unit.baseCombatStats[field],
@@ -121,6 +132,7 @@ export function computeCombatStats(
       aptitudePenalty: ZERO_PERCENTAGE,
       ratioEffects: bucket?.ratio ?? [],
       fixedCorrection: combineEffects(bucket?.fixed ?? []),
+      ...(ratioEffectBaseValue !== undefined ? { ratioEffectBaseValue } : {}),
     });
     // G-09（M7-002A／Issue #255）: `MODIFY_RESOURCE_CAPACITY(resource: HP)`は
     // HPゲージの上限＝`MAXIMUM_HP` CombatStatそのものを変える。AP/PP/EXのように
@@ -277,7 +289,7 @@ export function* recalculateCombatStatsSteps(
     lastEventId = event.eventId;
   }
 
-  const { combatStats, changedStats } = computeCombatStats(target, effectActions);
+  const { combatStats, changedStats } = computeCombatStats(target, effectActions, context.exercise);
   let nextUnits =
     changedStats.length > 0
       ? units.map((unit) => (unit.battleUnitId === targetUnitId ? { ...unit, combatStats } : unit))

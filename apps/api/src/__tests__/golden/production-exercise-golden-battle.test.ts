@@ -30,6 +30,13 @@ import { summarizeEventSequence } from "../../testing/scenario/event-sequence-fi
  * 保留窓のオーバーキル計上（同 #4.1）が増える分と差し引きになる。したがってスコアが
  * **下がる**こと自体は退行ではない。ここが動いたときは、まずこの2つの向きのどちらが
  * 効いたのかを確認する。
+ *
+ * Issue #653: R-STA-01の例外（R-TEX-04）追加により4件すべてのsnapshotが動いた。
+ * ブレイク強化後の敵ユニットに乗る戦闘中割合補正（バフ・デバフの％効果）の基準値を、
+ * 強化後の基礎値（`baseCombatStats`）から戦闘開始時の原基準値（Break0）へ変更した
+ * ことで、1回以上ブレイクした後に割合効果を受ける（自身の被デバフ・敵自身のバフを
+ * 問わない）局面のあるマッチアップは全て攻撃力・防御力等の実効値が変わり、ダメージ量・
+ * ブレイクの発生ターン・累計スコアへ連鎖する。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const PARTY_SIZE = 5;

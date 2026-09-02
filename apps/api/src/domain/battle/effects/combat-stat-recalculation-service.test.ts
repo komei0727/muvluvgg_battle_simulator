@@ -18,6 +18,7 @@ import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import { effectKindKeyFromDefinitionId } from "../model/applied-effect.js";
 import type { EffectInstanceId } from "../../shared/event-ids.js";
 import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
 
 const BASE_COMBAT_STATS: CombatStats = {
   maximumHp: 1000,
@@ -413,6 +414,81 @@ describe("computeCombatStats — R-STA-02〜04の動的再計算", () => {
 
     expect(result.combatStats).toEqual(BASE_COMBAT_STATS);
     expect(result.changedStats).toEqual([]);
+  });
+});
+
+describe("computeCombatStats — 戦術演習ブレイク強化後の割合バフ・デバフ基準値 (R-TEX-04)", () => {
+  it("UT-R-STA-04-022 [R-TEX-04]: a RATIO buff on a break-enhanced enemy scales the exercise's original base, not the enhanced baseCombatStats", () => {
+    const exercise = new ExerciseRuntime(BASE_COMBAT_STATS);
+    const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
+    // 1ブレイク後を模した基礎値: 攻撃力100→120（R-TEX-04 #2の+20%相当）。
+    const enhancedBase: CombatStats = { ...BASE_COMBAT_STATS, attack: 120 };
+    const target = unit({
+      side: "ENEMY",
+      combatStats: enhancedBase,
+      baseCombatStats: enhancedBase,
+      appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.15)],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([[def.effectActionDefinitionId, def]]),
+      exercise,
+    );
+
+    // 120 + 100 × 0.15 = 135。強化後基礎値(120)の15%を足した138ではない。
+    expect(result.combatStats.attack).toBeCloseTo(135);
+  });
+
+  it("UT-R-STA-04-023: without an exercise context the same enemy unit falls back to the enhanced baseCombatStats (pre-existing NORMAL-mode formula)", () => {
+    const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
+    const enhancedBase: CombatStats = { ...BASE_COMBAT_STATS, attack: 120 };
+    const target = unit({
+      side: "ENEMY",
+      combatStats: enhancedBase,
+      baseCombatStats: enhancedBase,
+      appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.15)],
+    });
+
+    const result = computeCombatStats(target, new Map([[def.effectActionDefinitionId, def]]));
+
+    // exercise未指定なら従来どおり: 120 × 1.15 = 138。
+    expect(result.combatStats.attack).toBeCloseTo(138);
+  });
+
+  it("UT-R-STA-04-024: an ally unit ignores the exercise's original base even when exercise is passed (R-TEX-04 scales the enemy only)", () => {
+    const exercise = new ExerciseRuntime({ ...BASE_COMBAT_STATS, attack: 9999 });
+    const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
+    const target = unit({
+      side: "ALLY",
+      appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.15)],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([[def.effectActionDefinitionId, def]]),
+      exercise,
+    );
+
+    // 味方の基礎値(100)を基準に 100 × 1.15 = 115。exerciseの原基準値(9999)は無視される。
+    expect(result.combatStats.attack).toBeCloseTo(115);
+  });
+
+  it("UT-R-STA-04-025: before any break the exercise's original base equals baseCombatStats, so the result matches the pre-existing formula exactly", () => {
+    const exercise = new ExerciseRuntime(BASE_COMBAT_STATS);
+    const def = statModDefinition("ACT_ATK_UP", "ATTACK", "RATIO");
+    const target = unit({
+      side: "ENEMY",
+      appliedEffects: [statMod(def.effectActionDefinitionId, true, 0.15)],
+    });
+
+    const result = computeCombatStats(
+      target,
+      new Map([[def.effectActionDefinitionId, def]]),
+      exercise,
+    );
+
+    expect(result.combatStats.attack).toBeCloseTo(115);
   });
 });
 

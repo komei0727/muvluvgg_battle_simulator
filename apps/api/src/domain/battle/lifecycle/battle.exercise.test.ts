@@ -914,9 +914,11 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
         (type) => type === "UnitBroken" || type === "EffectRemoved" || type === "UnitRevived",
       );
     expect(order).toEqual(["UnitBroken", "EffectRemoved", "UnitRevived"]);
-    // 残った効果（メモリー由来+50%）は強化後の基礎値12へ合成される（R-TEX-04 #4）。
+    // 基礎値は1ブレイク目の強化で10→12（R-TEX-04 #4）。残った割合効果
+    // （メモリー由来+50%）は強化後の基礎値ではなく原基準値10を基準に増減量を
+    // 算出する（R-STA-01の例外・R-TEX-04）ため 12 + 10×0.5 = 17（12×1.5=18ではない）。
     expect(enemy.baseCombatStats.attack).toBe(12);
-    expect(enemy.combatStats.attack).toBe(18);
+    expect(enemy.combatStats.attack).toBe(17);
 
     expectStateRestoration(initialState, recorder, afterTurn);
   });
