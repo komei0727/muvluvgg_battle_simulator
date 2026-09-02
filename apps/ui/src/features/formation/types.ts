@@ -15,6 +15,7 @@ import type {
   GearStat,
   GearTier,
   LevelLinkInput,
+  ModuleOverrideInput,
   Side,
   SideEnhancementInput,
   UiColumn,
@@ -167,12 +168,32 @@ export function createInitialExerciseExecution(): ExerciseExecutionInput {
   return { mode: "SINGLE", runCount: DEFAULT_EXERCISE_RUN_COUNT, seed: "" };
 }
 
+/** R-ENH-08で上書きできるモジュールの対象ステータス。表示順もこの並びに揃える。 */
+export const MODULE_STATS = ["hp", "attack", "defense"] as const;
+
+/** モジュール補正欄のラベル。`GEAR_STAT_LABELS`と違いモジュールは3ステータス限定。 */
+export const MODULE_STAT_LABELS: Readonly<Record<(typeof MODULE_STATS)[number], string>> = {
+  hp: "HP",
+  attack: "攻撃力",
+  defense: "防御力",
+};
+
+/** 全項目`""`（上書きしない）から始める。 */
+export function createInitialModuleOverride(): ModuleOverrideInput {
+  return {
+    hp: { fixed: "", ratio: "" },
+    attack: { fixed: "", ratio: "" },
+    defense: { fixed: "", ratio: "" },
+  };
+}
+
 /** UI-AC-025: レベル既定200・ランク既定LR+5・ギア9枠すべて空。リンクからは外さない。 */
 export function createInitialUnitEnhancement(): UnitEnhancementInput {
   return {
     level: DEFAULT_UNIT_LEVEL,
     rank: DEFAULT_UNIT_RANK,
     linkExcluded: false,
+    module: createInitialModuleOverride(),
     gears: Array.from({ length: GEAR_SLOT_COUNT }, () => undefined),
   };
 }

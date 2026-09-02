@@ -99,6 +99,13 @@ export type FormationAction =
       readonly gearIndex: number;
       readonly gear?: GearInput;
     }
+  | {
+      readonly type: "unitEnhancementModuleChanged";
+      readonly slotKey: string;
+      readonly stat: "hp" | "attack" | "defense";
+      readonly field: "fixed" | "ratio";
+      readonly value: number | "";
+    }
   | { readonly type: "unitMoved"; readonly fromSlotKey: string; readonly toSlotKey: string }
   // 「編成をクリア」。味方の学園レベル・レベルリンク・ユニット強化は別sliceが
   // 持つため、ここでは触れない（REF-058 / Issue #603）。
@@ -445,6 +452,14 @@ export function formationReducer(state: FormationState, action: FormationAction)
         gears: enhancement.gears.map((gear, index) =>
           index === action.gearIndex ? action.gear : gear,
         ),
+      }));
+    case "unitEnhancementModuleChanged":
+      return editSlotEnhancement(state, action.slotKey, (enhancement) => ({
+        ...enhancement,
+        module: {
+          ...enhancement.module,
+          [action.stat]: { ...enhancement.module[action.stat], [action.field]: action.value },
+        },
       }));
     case "unitMoved": {
       const from = findSlot(state.draft, action.fromSlotKey);

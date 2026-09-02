@@ -318,6 +318,38 @@ describe("formationReducer — 強化入力 (M11)", () => {
     ).toBe(initial);
   });
 
+  // R-ENH-08: モジュール補正上書き。学園レベル・ランク・ギアと同じくスロット単位の任意入力で、
+  // 触った項目だけが変わり他の項目は既定（未上書き）のまま残る。
+  it("starts a slot's module override from all-empty on the first edit and touches only that stat/field", () => {
+    const slotKey = slotKeyOf("ally", "FRONT", 0);
+    const state = formationReducer(createInitialFormationState(), {
+      type: "unitEnhancementModuleChanged",
+      slotKey,
+      stat: "attack",
+      field: "fixed",
+      value: 5000,
+    });
+
+    const slot = state.draft.allySlots.find((s) => s.slotKey === slotKey);
+    expect(slot?.enhancement?.module.attack).toEqual({ fixed: 5000, ratio: "" });
+    expect(slot?.enhancement?.module.hp).toEqual({ fixed: "", ratio: "" });
+    expect(slot?.enhancement?.module.defense).toEqual({ fixed: "", ratio: "" });
+  });
+
+  it("ignores a module edit addressed to an unknown slotKey", () => {
+    const initial = createInitialFormationState();
+
+    expect(
+      formationReducer(initial, {
+        type: "unitEnhancementModuleChanged",
+        slotKey: "ally:FRONT:9",
+        stat: "hp",
+        field: "ratio",
+        value: 10,
+      }),
+    ).toBe(initial);
+  });
+
   it("sets and clears a single gear slot, leaving the others empty", () => {
     const slotKey = slotKeyOf("enemy", "REAR", 2);
     let state = formationReducer(createInitialFormationState(), {

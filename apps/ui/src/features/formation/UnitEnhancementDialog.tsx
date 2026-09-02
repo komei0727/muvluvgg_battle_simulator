@@ -5,6 +5,7 @@ import type {
   GearInput,
   GearStat,
   GearTier,
+  ModuleOverrideInput,
   SideEnhancementInput,
   UnitEnhancementInput,
 } from "../../entities/battle-draft.js";
@@ -16,6 +17,8 @@ import {
   GEAR_STATS,
   GEAR_TIERS,
   MAX_GEARS_PER_STAT,
+  MODULE_STATS,
+  MODULE_STAT_LABELS,
   UNIT_RANKS,
   UNIT_RANK_LABELS,
   gearStatCounts,
@@ -44,6 +47,12 @@ export interface UnitEnhancementDialogProps {
   readonly onLevelChange: (value: number | "") => void;
   readonly onRankChange: (value: number) => void;
   readonly onGearChange: (gearIndex: number, gear?: GearInput) => void;
+  /** R-ENH-08: モジュール補正の1項目（stat×field）を上書きする。 */
+  readonly onModuleChange: (
+    stat: keyof ModuleOverrideInput,
+    field: "fixed" | "ratio",
+    value: number | "",
+  ) => void;
   readonly onLinkExclusionChange: (excluded: boolean) => void;
   readonly onClose: () => void;
 }
@@ -78,6 +87,30 @@ function rankMessages(violations: readonly UiViolation[], slotKey: string): read
             violation.slotKey === slotKey &&
             violation.severity === "error" &&
             violation.path.endsWith("/enhancement/rank"),
+        )
+        .map((violation) => violation.message),
+    ),
+  );
+}
+
+/**
+ * `levelMessages`/`rankMessages`と同じ規約。パスのsuffix照合で
+ * `enhancement/module/{stat}/{field}`の違反だけを拾う（R-ENH-08）。
+ */
+function moduleMessages(
+  violations: readonly UiViolation[],
+  slotKey: string,
+  stat: (typeof MODULE_STATS)[number],
+  field: "fixed" | "ratio",
+): readonly string[] {
+  return Array.from(
+    new Set(
+      violations
+        .filter(
+          (violation) =>
+            violation.slotKey === slotKey &&
+            violation.severity === "error" &&
+            violation.path.endsWith(`/enhancement/module/${stat}/${field}`),
         )
         .map((violation) => violation.message),
     ),
@@ -313,6 +346,73 @@ function GearSlotFields({
   );
 }
 
+interface ModuleStatRowProps {
+  readonly stat: (typeof MODULE_STATS)[number];
+  readonly fixed: number | "";
+  readonly ratio: number | "";
+  readonly fixedInvalid: boolean;
+  readonly ratioInvalid: boolean;
+  readonly fixedDescribedBy: string | undefined;
+  readonly ratioDescribedBy: string | undefined;
+  readonly onChange: (field: "fixed" | "ratio", value: number | "") => void;
+}
+
+/**
+ * R-ENH-08: モジュール補正1ステータス分（固定加算・割合）の入力欄。`type="number"`は
+ * `min`を付けない——`level`と違い負値を許容する仕様のため。`type="number"`の
+ * `input.value`は妥当な数値を表さない途中入力（`-`だけ等）では常に空文字列を返す
+ * （HTML仕様）ため、`level`欄と同じ`raw === "" ? "" : Number(raw)`の変換だけでよい。
+ */
+function ModuleStatRow({
+  stat,
+  fixed,
+  ratio,
+  fixedInvalid,
+  ratioInvalid,
+  fixedDescribedBy,
+  ratioDescribedBy,
+  onChange,
+}: ModuleStatRowProps) {
+  const fixedId = useId();
+  const ratioId = useId();
+  const label = MODULE_STAT_LABELS[stat];
+  return (
+    <div className={styles["moduleStatRow"]}>
+      <p className={styles["gearLabel"]}>{label}</p>
+      <div className={styles["moduleFields"]}>
+        <div className={styles["field"]}>
+          <label htmlFor={fixedId}>{`${label} 固定加算`}</label>
+          <input
+            id={fixedId}
+            type="number"
+            aria-invalid={fixedInvalid}
+            aria-describedby={fixedDescribedBy}
+            value={fixed}
+            onChange={(event) => {
+              const raw = event.target.value;
+              onChange("fixed", raw === "" ? "" : Number(raw));
+            }}
+          />
+        </div>
+        <div className={styles["field"]}>
+          <label htmlFor={ratioId}>{`${label} 割合(%)`}</label>
+          <input
+            id={ratioId}
+            type="number"
+            aria-invalid={ratioInvalid}
+            aria-describedby={ratioDescribedBy}
+            value={ratio}
+            onChange={(event) => {
+              const raw = event.target.value;
+              onChange("ratio", raw === "" ? "" : Number(raw));
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * docs/ui-design/01_UI要求・画面設計.md §5.7: 選択済みユニット枠から開く
  * ユニット強化ダイアログ。陣営の強化トグルOFF時はそもそも開かない
@@ -330,6 +430,7 @@ export function UnitEnhancementDialog({
   onLevelChange,
   onRankChange,
   onGearChange,
+  onModuleChange,
   onLinkExclusionChange,
   onClose,
 }: UnitEnhancementDialogProps) {
@@ -343,6 +444,7 @@ export function UnitEnhancementDialog({
   const rankWayOutId = useId();
   const linkExclusionId = useId();
   const gearErrorIdPrefix = useId();
+  const moduleErrorIdPrefix = useId();
   const levelErrors = levelMessages(violations, slotKey);
   const rankErrors = rankMessages(violations, slotKey);
   // 上限（`MAX_GEARS_PER_STAT`）の判定はユニット単位のため、9枠を1度だけ数えて配る。
@@ -443,6 +545,47 @@ export function UnitEnhancementDialog({
               ランク上昇量を持たないユニットはLR+5だけを受け付けます。ランクをLR+5に戻してください。
             </p>
           ) : null}
+        </div>
+
+        <div className={styles["moduleSection"]}>
+          <p className={styles["gearNotation"]}>
+            モジュール補正の上書き（既定値:
+            固定+3628/+2721/+1515、割合9%）。空欄は既定値のまま使います。
+          </p>
+          <div className={styles["moduleStats"]}>
+            {MODULE_STATS.map((stat) => {
+              const fixedErrors = moduleMessages(violations, slotKey, stat, "fixed");
+              const ratioErrors = moduleMessages(violations, slotKey, stat, "ratio");
+              const fixedErrorId = `${moduleErrorIdPrefix}-${stat}-fixed`;
+              const ratioErrorId = `${moduleErrorIdPrefix}-${stat}-ratio`;
+              return (
+                <div key={stat}>
+                  <ModuleStatRow
+                    stat={stat}
+                    fixed={enhancement.module[stat].fixed}
+                    ratio={enhancement.module[stat].ratio}
+                    fixedInvalid={fixedErrors.length > 0}
+                    ratioInvalid={ratioErrors.length > 0}
+                    fixedDescribedBy={fixedErrors.length > 0 ? fixedErrorId : undefined}
+                    ratioDescribedBy={ratioErrors.length > 0 ? ratioErrorId : undefined}
+                    onChange={(field, value) => {
+                      onModuleChange(stat, field, value);
+                    }}
+                  />
+                  {fixedErrors.length > 0 ? (
+                    <p id={fixedErrorId} className={styles["fieldError"]}>
+                      {fixedErrors.join(" ")}
+                    </p>
+                  ) : null}
+                  {ratioErrors.length > 0 ? (
+                    <p id={ratioErrorId} className={styles["fieldError"]}>
+                      {ratioErrors.join(" ")}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {levelLink.enabled ? (

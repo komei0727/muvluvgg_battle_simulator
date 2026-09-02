@@ -172,6 +172,19 @@ export function SelectionDialogs({
             ...(gear === undefined ? {} : { gear }),
           });
         }}
+        onModuleChange={(stat, field, value) => {
+          if (side === "ally") {
+            playerEnhancementDispatch({
+              type: "unitEnhancementModuleChanged",
+              unitDefinitionId,
+              stat,
+              field,
+              value,
+            });
+            return;
+          }
+          dispatch({ type: "unitEnhancementModuleChanged", slotKey, stat, field, value });
+        }}
         onLinkExclusionChange={(excluded) => {
           if (side === "ally") {
             const sideEnhancement = enhancementForSide(draft, side);

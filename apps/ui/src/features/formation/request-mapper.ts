@@ -4,6 +4,7 @@ import { resolveSlotLevel } from "./level-link.js";
 import {
   DEFAULT_UNIT_LEVEL,
   DEFAULT_UNIT_RANK,
+  MODULE_STATS,
   enhancementForSide,
   memorySlotKeyOf,
 } from "./types.js";
@@ -11,6 +12,8 @@ import type {
   BattleDraft,
   FormationSlotInput,
   GearInput,
+  ModuleOverrideInput,
+  ModuleStatOverrideInput,
   Side,
   SideEnhancementInput,
   UiRow,
@@ -21,6 +24,8 @@ import type {
   FormationRequest,
   FormationStatPreviewMode,
   FormationStatPreviewRequest,
+  ModuleOverrideRequest,
+  ModuleStatOverrideRequest,
   UnitEnhancementRequest,
 } from "../../shared/api/api-contract.js";
 
@@ -101,9 +106,38 @@ interface BuiltUnitEnhancement {
 }
 
 /**
+ * R-ENH-08: `""`（未上書き）の項目はキーごと省略する。`ratio`はUI表示のパーセント
+ * 単位（例: `10`）からAPIの内部表現の小数（`0.1`）へここで変換する——境界は
+ * この1か所に閉じ、UI状態・reducerはパーセント値のまま保持する。
+ */
+function buildModuleStatOverride(
+  override: ModuleStatOverrideInput,
+): ModuleStatOverrideRequest | undefined {
+  const fixed = override.fixed === "" ? undefined : override.fixed;
+  const ratio = override.ratio === "" ? undefined : override.ratio / 100;
+  if (fixed === undefined && ratio === undefined) {
+    return undefined;
+  }
+  return { ...(fixed === undefined ? {} : { fixed }), ...(ratio === undefined ? {} : { ratio }) };
+}
+
+/** R-ENH-08: 1項目も上書きしていなければ`module`キー自体を出力しない。 */
+function buildModuleOverride(module: ModuleOverrideInput): ModuleOverrideRequest | undefined {
+  const built: Record<string, ModuleStatOverrideRequest> = {};
+  for (const stat of MODULE_STATS) {
+    const statOverride = buildModuleStatOverride(module[stat]);
+    if (statOverride !== undefined) {
+      built[stat] = statOverride;
+    }
+  }
+  return Object.keys(built).length === 0 ? undefined : built;
+}
+
+/**
  * UI-API-018: 空枠を除外した0〜9件のギア配列を枠順のまま出力する。
- * レベル200・ランクLR+5（5）・ギア0件は省略時の既定と同値のため`enhancement`自体を
- * 出力しない。
+ * レベル200・ランクLR+5（5）・ギア0件・モジュール上書きなしは省略時の既定と
+ * 同値のため`enhancement`自体を出力しない（R-ENH-08: モジュール上書きが1件でも
+ * あれば、他が既定のままでも`enhancement`を出力する）。
  *
  * UI-API-023/024: 送信するのは解決済みレベル（`level-link.ts`）であり、
  * `levelLink`・`linkExcluded`は出力しない。強化入力を一度も開いていない枠
@@ -122,11 +156,23 @@ function buildUnitEnhancement(
   const filledGears = (slot.enhancement?.gears ?? [])
     .map((gear, index) => ({ gear, index }))
     .filter((entry): entry is { gear: GearInput; index: number } => entry.gear !== undefined);
-  if (level === DEFAULT_UNIT_LEVEL && rank === DEFAULT_UNIT_RANK && filledGears.length === 0) {
+  const module =
+    slot.enhancement === undefined ? undefined : buildModuleOverride(slot.enhancement.module);
+  if (
+    level === DEFAULT_UNIT_LEVEL &&
+    rank === DEFAULT_UNIT_RANK &&
+    filledGears.length === 0 &&
+    module === undefined
+  ) {
     return { gearSlotIndices: [] };
   }
   return {
-    enhancement: { level, rank, gears: filledGears.map((entry) => entry.gear) },
+    enhancement: {
+      level,
+      rank,
+      gears: filledGears.map((entry) => entry.gear),
+      ...(module === undefined ? {} : { module }),
+    },
     gearSlotIndices: filledGears.map((entry) => entry.index),
   };
 }

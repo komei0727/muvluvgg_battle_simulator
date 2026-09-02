@@ -5,6 +5,7 @@ import {
 } from "./player-enhancement-reducer.js";
 import { createEmptyPlayerData } from "./persistence.js";
 import type { StoredPlayerData } from "./persistence.js";
+import { createInitialModuleOverride } from "./types.js";
 
 describe("createInitialPlayerEnhancementState", () => {
   it("starts empty when no stored data is given", () => {
@@ -94,6 +95,7 @@ describe("playerEnhancementReducer — ユニット強化", () => {
       level: 220,
       rank: 5,
       linkExcluded: false,
+      module: createInitialModuleOverride(),
       gears: Array.from({ length: 9 }, () => undefined),
     });
   });
@@ -138,6 +140,43 @@ describe("playerEnhancementReducer — ユニット強化", () => {
 
     expect(next.units["UNIT_A"]?.rank).toBe(3);
     expect(next.units["UNIT_A"]?.level).toBe(200);
+  });
+
+  // R-ENH-08: モジュール補正上書き。手持ちデータ単位の任意入力で、ランクと同じ規約。
+  it("starts a unit's module override from all-empty on the first edit and touches only that stat/field", () => {
+    const state = createInitialPlayerEnhancementState();
+
+    const next = playerEnhancementReducer(state, {
+      type: "unitEnhancementModuleChanged",
+      unitDefinitionId: "UNIT_A",
+      stat: "hp",
+      field: "ratio",
+      value: 10,
+    });
+
+    expect(next.units["UNIT_A"]?.module.hp).toEqual({ fixed: "", ratio: 10 });
+    expect(next.units["UNIT_A"]?.module.attack).toEqual({ fixed: "", ratio: "" });
+  });
+
+  it("does not affect a different unit's recorded module override", () => {
+    const withA = playerEnhancementReducer(createInitialPlayerEnhancementState(), {
+      type: "unitEnhancementModuleChanged",
+      unitDefinitionId: "UNIT_A",
+      stat: "defense",
+      field: "fixed",
+      value: 2000,
+    });
+
+    const withB = playerEnhancementReducer(withA, {
+      type: "unitEnhancementModuleChanged",
+      unitDefinitionId: "UNIT_B",
+      stat: "defense",
+      field: "fixed",
+      value: 4000,
+    });
+
+    expect(withB.units["UNIT_A"]?.module.defense).toEqual({ fixed: 2000, ratio: "" });
+    expect(withB.units["UNIT_B"]?.module.defense).toEqual({ fixed: 4000, ratio: "" });
   });
 
   it("does not affect a different unit's recorded rank", () => {
@@ -194,6 +233,7 @@ describe("playerEnhancementReducer — ユニット強化", () => {
       level: 260,
       rank: 5,
       linkExcluded: true,
+      module: createInitialModuleOverride(),
       gears: Array.from({ length: 9 }, () => undefined),
     });
   });

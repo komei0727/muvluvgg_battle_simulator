@@ -7,6 +7,7 @@ import type { BattleDraft, GearInput, UnitEnhancementInput } from "../../entitie
 import {
   DEFAULT_UNIT_RANK,
   createInitialDraft,
+  createInitialModuleOverride,
   enhancementForSide,
   memorySlotKeyOf,
   slotKeyOf,
@@ -261,7 +262,7 @@ function unitEnhancement(
   linkExcluded = false,
   rank = DEFAULT_UNIT_RANK,
 ): UnitEnhancementInput {
-  return { level, rank, linkExcluded, gears };
+  return { level, rank, linkExcluded, module: createInitialModuleOverride(), gears };
 }
 
 /** 陣営強化トグルONに加えてレベルリンクをONにする。 */
@@ -290,6 +291,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
       level: 220,
       rank: 5,
       linkExcluded: false,
+      module: createInitialModuleOverride(),
       gears: [{ stat: "ATTACK", tier: "III", grade: "S" }, ...Array<undefined>(8).fill(undefined)],
     });
     draft = {
@@ -336,6 +338,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
       level: 220,
       rank: 5,
       linkExcluded: false,
+      module: createInitialModuleOverride(),
       gears: [
         undefined,
         { stat: "ATTACK", tier: "III", grade: "S" },
@@ -371,6 +374,7 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
       level: 200,
       rank: 5,
       linkExcluded: false,
+      module: createInitialModuleOverride(),
       gears: Array(9).fill(undefined),
     });
 
@@ -381,6 +385,58 @@ describe("buildBattleSimulationRequest — 強化指定 (UI-API-017/018)", () =>
     expect(result.request.allyFormation.units[0]).not.toHaveProperty("enhancement");
     expect(result.request.allyFormation).toHaveProperty("enhancement");
     expect(result.allyGearSlotIndices).toEqual([[]]);
+  });
+
+  it("R-ENH-08: sends only the touched module fields, converting the ratio from percent to the internal decimal", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
+      level: 200,
+      rank: 5,
+      linkExcluded: false,
+      module: {
+        hp: { fixed: 5000, ratio: 10 },
+        attack: { fixed: "", ratio: "" },
+        defense: { fixed: "", ratio: -5 },
+      },
+      gears: Array(9).fill(undefined),
+    });
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
+      level: 200,
+      rank: 5,
+      gears: [],
+      module: { hp: { fixed: 5000, ratio: 0.1 }, defense: { ratio: -0.05 } },
+    });
+  });
+
+  it("R-ENH-08: a module override alone (default level/rank/no gears) is enough to emit the unit enhancement", () => {
+    let draft = enabledSide(baseDraft(), "ally");
+    draft = withSlotEnhancement(draft, "ally", "FRONT", 0, {
+      level: 200,
+      rank: 5,
+      linkExcluded: false,
+      module: {
+        hp: { fixed: "", ratio: "" },
+        attack: { fixed: 3000, ratio: "" },
+        defense: { fixed: "", ratio: "" },
+      },
+      gears: Array(9).fill(undefined),
+    });
+
+    const result = buildBattleSimulationRequest(draft);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.allyFormation.units[0]?.enhancement).toEqual({
+      level: 200,
+      rank: 5,
+      gears: [],
+      module: { attack: { fixed: 3000 } },
+    });
   });
 
   it("refuses to build while an enabled side has a blank academy level or unit level", () => {
