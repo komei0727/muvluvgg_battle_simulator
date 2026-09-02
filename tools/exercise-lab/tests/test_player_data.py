@@ -204,6 +204,28 @@ def test_stored_module_is_applied_and_the_ratio_is_converted_from_percent_to_the
     }
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param(float("inf"), id="inf"),
+        pytest.param(float("-inf"), id="neg-inf"),
+        pytest.param(float("nan"), id="nan"),
+    ],
+)
+def test_stored_module_with_a_non_finite_value_is_rejected(tmp_path, value):
+    # R-ENH-08は有限の実数だけを許可する。Pythonの`json`は`Infinity`/`NaN`を非標準
+    # 拡張として読めてしまうため、pydantic側で明示的に弾く必要がある。
+    player_data = {
+        **PLAYER_DATA,
+        "units": {
+            "UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "module": {"hp": {"fixed": value}}},
+        },
+    }
+
+    with pytest.raises(PlayerDataError, match="finite"):
+        load_player_data(write_json(tmp_path, player_data))
+
+
 def test_stored_module_with_every_field_blank_is_omitted(tmp_path):
     config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
     player_data = {

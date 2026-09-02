@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, ValidationError
 
 Row = Literal["FRONT", "REAR"]
 Column = Annotated[int, Field(ge=0, le=2)]
@@ -75,10 +75,14 @@ class AcademyLevels(_Spec):
 
 class ModuleStatOverride(_Spec):
     """R-ENH-08: モジュール補正1ステータス分の上書き。値は`10_API設計.md`
-    「ModuleStatOverrideRequest」と同じ単位（`ratio`は内部表現の小数）で書く。"""
+    「ModuleStatOverrideRequest」と同じ単位（`ratio`は内部表現の小数）で書く。
 
-    fixed: float | None = None
-    ratio: float | None = None
+    `FiniteFloat`: R-ENH-08は有限の実数だけを許可する。YAMLの`.inf`/`.nan`は
+    PyYAMLがそのまま`float('inf')`等へ読むため、`float`のままでは通ってしまう。
+    """
+
+    fixed: FiniteFloat | None = None
+    ratio: FiniteFloat | None = None
 
 
 class ModuleOverride(_Spec):

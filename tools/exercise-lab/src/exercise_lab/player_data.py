@@ -16,7 +16,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import Field, StrictInt, ValidationError
+from pydantic import Field, FiniteFloat, StrictInt, ValidationError
 
 from .models import (
     DEFAULT_UNIT_LEVEL,
@@ -57,10 +57,14 @@ class StoredModuleStatOverride(_Spec):
     未上書きを`""`で表す（キー省略ではない）。`ratio`はUI表示のパーセント単位
     （例: `10` = 10%）で保存され、APIの内部表現の小数への変換は
     `resolved_module` が行う（`request-mapper.ts` の `buildModuleStatOverride` と同じ）。
+
+    `FiniteFloat`: R-ENH-08は有限の実数だけを許可する。`json`は`Infinity`/`NaN`を
+    非標準拡張として読めてしまうため、`float`のままでは通ってしまう（`models.ModuleStatOverride`
+    と同じ理由）。
     """
 
-    fixed: float | Literal[""] = ""
-    ratio: float | Literal[""] = ""
+    fixed: FiniteFloat | Literal[""] = ""
+    ratio: FiniteFloat | Literal[""] = ""
 
 
 class StoredModuleOverride(_Spec):

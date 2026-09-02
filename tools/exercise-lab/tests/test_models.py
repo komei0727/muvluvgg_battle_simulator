@@ -274,6 +274,37 @@ enemy:
     }
 
 
+@pytest.mark.parametrize(
+    "literal",
+    [
+        pytest.param(".inf", id="inf"),
+        pytest.param("-.inf", id="neg-inf"),
+        pytest.param(".nan", id="nan"),
+    ],
+)
+def test_unit_module_with_a_non_finite_value_is_rejected(tmp_path, literal):
+    # R-ENH-08は有限の実数だけを許可する。YAMLの`.inf`/`-.inf`/`.nan`はPyYAMLが
+    # 素直にfloat('inf')等へ読むため、pydantic側で明示的に弾く必要がある。
+    yaml_text = f"""
+ally:
+  academyLevels:
+    unitTypes: {{ PHYSICAL: 60 }}
+    attributes: {{ AGGRESSIVE: 40 }}
+  units:
+    - unitDefinitionId: UNIT_A
+      position: {{ column: 0, row: FRONT }}
+      module:
+        hp: {{ fixed: {literal} }}
+  memoryDefinitionIds: []
+enemy:
+  unitDefinitionId: UNIT_ENEMY
+  position: {{ column: 1, row: FRONT }}
+"""
+
+    with pytest.raises(ConfigError, match="finite"):
+        load_formation_config(write(tmp_path, yaml_text))
+
+
 def test_unit_module_without_academy_levels_is_rejected(tmp_path):
     yaml_text = MINIMAL_YAML.replace(
         "      position: { column: 0, row: FRONT }",
