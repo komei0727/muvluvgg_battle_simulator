@@ -208,4 +208,36 @@ describe("calculateCombatStat — R-STA-01 パーセントポイント加算ス�
       expect(result).toBeCloseTo(187.5);
     },
   );
+
+  it("UT-R-STA-01-036: with ratioEffectBaseValue omitted, the ratio multiplier still applies to baseValue (unchanged formula)", () => {
+    const result = calculateCombatStat({
+      stat: "ATTACK",
+      baseValue: 120,
+      formationBonus: ZERO,
+      aptitudePenalty: ZERO,
+      ratioEffects: [{ stacking: "STACKABLE", value: 0.15 }],
+      fixedCorrection: 0,
+    });
+
+    // 120 × (1 + 0.15) = 138
+    expect(result).toBeCloseTo(138);
+  });
+
+  it("UT-R-STA-01-037 [R-TEX-04]: ratioEffectBaseValue, when given, is the amount the ratio effects scale — not baseValue — so a break-enhanced base only gains the buff's absolute share of the original stat", () => {
+    // 敵ユニットが1回ブレイクし、原基準値100の攻撃力が強化後120（+20%）になった状態で
+    // 「攻撃力+15%」の割合バフが乗る想定。増分は原基準値(100)の15%=15であり、
+    // 強化後の基礎値(120)の15%=18ではない。
+    const result = calculateCombatStat({
+      stat: "ATTACK",
+      baseValue: 120,
+      ratioEffectBaseValue: 100,
+      formationBonus: ZERO,
+      aptitudePenalty: ZERO,
+      ratioEffects: [{ stacking: "STACKABLE", value: 0.15 }],
+      fixedCorrection: 0,
+    });
+
+    // 120 + 100 × 0.15 = 135（120 × 1.15 = 138 ではない）。
+    expect(result).toBeCloseTo(135);
+  });
 });

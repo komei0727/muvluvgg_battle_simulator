@@ -460,6 +460,35 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
     expect(exercise.breakCount).toBe(2);
   });
 
+  it("UT-R-TEX-04-021 [R-STA-01, R-STA-04]: a RATIO buff surviving across breaks keeps scaling the original (Break0) base, not the break-enhanced baseCombatStats", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
+    const enemyId = createBattleUnitId("enemy-1");
+    // メモリー由来（`sourceSide`のみ）の攻撃力+20%は解除不可（R-MEM-04）なので
+    // 2回のブレイクをまたいで残存する。
+    const enemy = unit("enemy-1", "ENEMY", {
+      appliedEffects: [
+        effect("eff-memory", enemyId, ATTACK_BUFF.effectActionDefinitionId, {}, "ENEMY"),
+      ],
+    });
+    let units: readonly BattleUnit[] = [enemy];
+
+    for (let round = 0; round < 2; round += 1) {
+      const { ctx, rootEventId } = context(exercise);
+      units = units.map((candidate) =>
+        candidate.battleUnitId === enemyId
+          ? { ...candidate, currentHp: createHitPoint(0, 1000) }
+          : candidate,
+      );
+      units = resolveBreak(ctx, units, enemyId, EFFECT_ACTIONS, rootEventId).units;
+    }
+
+    // 2ブレイク後の基礎攻撃力は100×1.40=140（R-TEX-04、複利にしない）。
+    // 残存する+20%バフは原基準値(100)の20%=20を足すため 140+20=160。
+    // 強化後基礎値(140)に対して掛けた 140×1.2=168 ではない。
+    expect(units[0]!.baseCombatStats.attack).toBe(140);
+    expect(units[0]!.combatStats.attack).toBeCloseTo(160);
+  });
+
   it("UT-R-TEX-06-001: keeps AP/PP/EX gauges, cooldowns, charge and runtime counters across the break", () => {
     const exercise = new ExerciseRuntime(ENEMY_BASE_STATS);
     const enemy = unit("enemy-1", "ENEMY", {

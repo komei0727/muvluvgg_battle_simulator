@@ -14,6 +14,13 @@ export interface CombatStatInput {
   readonly ratioEffects: readonly StatEffect[];
   /** 固定値補正の合計 (`APPLY_STAT_MOD` の `valueType: FIXED` 由来)。 */
   readonly fixedCorrection: number;
+  /**
+   * 戦闘中割合補正（`ratioEffects`）が乗算される基準値。省略時は`baseValue`を使う
+   * （既存の全呼び出し元と数学的に同一）。R-TEX-04でブレイク強化を受けた戦術演習の
+   * 敵ユニットだけが、書き換え後の`baseValue`とは別にこれを渡し、戦闘中割合補正の
+   * 増減量を戦闘開始時の原基準値（Break0）基準に固定する。
+   */
+  readonly ratioEffectBaseValue?: number;
 }
 
 /**
@@ -35,8 +42,17 @@ export function calculateCombatStat(input: CombatStatInput): number {
     // 切り上げはR-CRT-01が行い、ここでは負値のまま返す。
     return input.baseValue + input.formationBonus + combinedEffects + input.fixedCorrection;
   }
+  if (input.ratioEffectBaseValue === undefined) {
+    return (
+      input.baseValue * (1 + input.formationBonus - input.aptitudePenalty) * (1 + combinedEffects) +
+      input.fixedCorrection
+    );
+  }
+  // R-TEX-04: `ratioEffectBaseValue`が渡されたときは、戦闘中割合補正の増減量を
+  // `baseValue`（ブレイク強化で書き換わり得る）ではなくこちらへ乗算する。
   return (
-    input.baseValue * (1 + input.formationBonus - input.aptitudePenalty) * (1 + combinedEffects) +
+    input.baseValue * (1 + input.formationBonus - input.aptitudePenalty) +
+    input.ratioEffectBaseValue * combinedEffects +
     input.fixedCorrection
   );
 }
