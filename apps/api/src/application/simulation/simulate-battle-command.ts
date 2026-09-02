@@ -32,11 +32,25 @@ export interface FormationPositionInput {
  */
 export type GearInput = GearSpecification;
 
+/** `10_API設計.md`「ModuleStatOverrideRequest」に対応するCommand入力（R-ENH-08）。 */
+export interface ModuleStatOverrideInput {
+  readonly fixed?: number;
+  readonly ratio?: number;
+}
+
+/** `10_API設計.md`「ModuleOverrideRequest」に対応するCommand入力（R-ENH-08）。 */
+export interface ModuleOverrideInput {
+  readonly hp?: ModuleStatOverrideInput;
+  readonly attack?: ModuleStatOverrideInput;
+  readonly defense?: ModuleStatOverrideInput;
+}
+
 /** `10_API設計.md`「UnitEnhancementRequest」に対応するCommand入力（R-ENH-01 #1）。 */
 export interface UnitEnhancementInput {
   readonly level?: number;
   readonly rank?: number;
   readonly gears?: readonly GearInput[];
+  readonly module?: ModuleOverrideInput;
 }
 
 /**
@@ -151,6 +165,48 @@ function validateAcademyLevels(
   }
 }
 
+const MODULE_STATS = ["hp", "attack", "defense"] as const;
+
+/**
+ * R-ENH-08 #3: `fixed`/`ratio`は指定時、有限の実数であればよい。符号やレンジは
+ * 制限しない——最終値はR-ENH-06のクランプ（HP下限1、攻撃力・防御力下限0）で
+ * 必ず非負になるため、途中式の符号を制限する必要がない。JSON上`NaN`は現れないが、
+ * `1e400`のようなオーバーフローはパース後`Infinity`になり得るため`Number.isFinite`
+ * で拒否する。
+ */
+function validateModuleStatOverride(
+  override: ModuleStatOverrideInput,
+  path: string,
+  violations: Violation[],
+): void {
+  if (override.fixed !== undefined && !Number.isFinite(override.fixed)) {
+    violations.push({
+      path: `${path}.fixed`,
+      reason: `must be a finite number, got ${JSON.stringify(override.fixed)}`,
+    });
+  }
+  if (override.ratio !== undefined && !Number.isFinite(override.ratio)) {
+    violations.push({
+      path: `${path}.ratio`,
+      reason: `must be a finite number, got ${JSON.stringify(override.ratio)}`,
+    });
+  }
+}
+
+/** R-ENH-08: HP・攻撃力・防御力それぞれ独立に上書きできる。 */
+function validateModuleOverride(
+  module: ModuleOverrideInput,
+  path: string,
+  violations: Violation[],
+): void {
+  for (const stat of MODULE_STATS) {
+    const override = module[stat];
+    if (override !== undefined) {
+      validateModuleStatOverride(override, `${path}.${stat}`, violations);
+    }
+  }
+}
+
 /** R-ENH-04 #2: 対象ステータス・種別・ランクは定義済みの列挙値だけを受け付ける。 */
 function validateGear(gear: GearInput, path: string, violations: Violation[]): void {
   if (!STAT_KINDS.includes(gear.stat)) {
@@ -194,6 +250,9 @@ function validateSlotEnhancement(
   }
   if (enhancement.rank !== undefined) {
     validateEnhancementRank(enhancement.rank, `${path}.rank`, violations);
+  }
+  if (enhancement.module !== undefined) {
+    validateModuleOverride(enhancement.module, `${path}.module`, violations);
   }
   const gears = enhancement.gears;
   if (gears !== undefined) {

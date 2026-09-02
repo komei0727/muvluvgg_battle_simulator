@@ -75,6 +75,27 @@ const gearRequestSchema = {
   },
 } as const;
 
+/** `10_API設計.md`「ModuleStatOverrideRequest」（R-ENH-08）。値域は422側が担当する。 */
+const moduleStatOverrideRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    fixed: { type: "number" },
+    ratio: { type: "number" },
+  },
+} as const;
+
+/** `10_API設計.md`「ModuleOverrideRequest」（R-ENH-08）。 */
+const moduleOverrideRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    hp: moduleStatOverrideRequestSchema,
+    attack: moduleStatOverrideRequestSchema,
+    defense: moduleStatOverrideRequestSchema,
+  },
+} as const;
+
 const unitEnhancementRequestSchema = {
   type: "object",
   additionalProperties: false,
@@ -82,6 +103,7 @@ const unitEnhancementRequestSchema = {
     level: { type: "integer" },
     rank: { type: "integer" },
     gears: { type: "array", items: gearRequestSchema },
+    module: moduleOverrideRequestSchema,
   },
 } as const;
 

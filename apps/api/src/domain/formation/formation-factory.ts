@@ -100,6 +100,7 @@ export function createBattleParty(
       level: slot.enhancement?.level,
       rank: slot.enhancement?.rank,
       gears: slot.enhancement?.gears,
+      module: slot.enhancement?.module,
     });
   }
 

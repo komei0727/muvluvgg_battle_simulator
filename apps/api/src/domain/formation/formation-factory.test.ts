@@ -366,6 +366,29 @@ describe("createBattleParty — FormationFactory", () => {
     }
   });
 
+  it("UT-R-ENH-08-005 [R-ENH-08]: a slot's module override reaches calculateEnhancedBaseStats and only affects the overridden stat", () => {
+    const formation: FormationInput = {
+      slots: [
+        {
+          unitDefinitionId: createUnitDefinitionId("UNIT_001"),
+          position: { column: "LEFT", row: "FRONT" },
+          enhancement: { module: { attack: { fixed: 5000, ratio: 0.5 } } },
+        },
+      ],
+      memoryDefinitionIds: [],
+      enhancement: {},
+    };
+    const battleUnitIds = [createBattleUnitId("BU_1")];
+    const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
+
+    const party = createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES);
+
+    // (10 + 16020 + 5000) × 1.5 = 31545 — overridden attack module.
+    expect(party.members[0]!.combatStats.attack).toBeCloseTo(31545, 4);
+    // 防御力はmodule上書きの対象外なので既定値のまま: (10 + 8920 + 1515) × 1.09。
+    expect(party.members[0]!.combatStats.defense).toBeCloseTo(11385.05, 4);
+  });
+
   it("UT-R-ENH-01-003 (backward compatibility): a formation without an enhancement keeps using the Unit definition's baseStats", () => {
     const formation: FormationInput = {
       slots: [

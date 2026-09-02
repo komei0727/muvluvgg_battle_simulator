@@ -8,14 +8,32 @@ import { calculateGearRatios, type GearSpecification } from "./gear-customizatio
  */
 const TYPE_EQUIPMENT_ADDITION = { hp: 21600, attack: 16020, defense: 8920 } as const;
 
-/** R-ENH-03 #2: モジュールの固定加算。 */
+/** R-ENH-03 #2/R-ENH-08 #1: モジュールの固定加算の既定値。 */
 const MODULE_FIXED_ADDITION = { hp: 3628, attack: 2721, defense: 1515 } as const;
 
 /**
- * R-ENH-03 #2: モジュールの割合補正。パーセント値9%を内部表現（R-NUM-01）へ
- * 変換した値で、HP・攻撃力・防御力にだけ掛かる。
+ * R-ENH-03 #2/R-ENH-08 #1: モジュールの割合補正の既定値。パーセント値9%を内部表現
+ * （R-NUM-01）へ変換した値で、HP・攻撃力・防御力にだけ掛かる。
  */
 const MODULE_RATIO = 0.09;
+
+/**
+ * R-ENH-08: モジュールの固定加算・割合補正のユニット単位の上書き。片方だけの
+ * 指定も許す——省略した項目は既定値（`MODULE_FIXED_ADDITION`/`MODULE_RATIO`）を
+ * 使う。値域は有限の実数であればよく、符号やレンジは制限しない
+ * （最終値はR-ENH-06のクランプで非負になるため）。
+ */
+export interface ModuleStatOverride {
+  readonly fixed?: number;
+  readonly ratio?: number;
+}
+
+/** R-ENH-08: HP・攻撃力・防御力それぞれ独立に上書きできる。 */
+export interface ModuleOverride {
+  readonly hp?: ModuleStatOverride;
+  readonly attack?: ModuleStatOverride;
+  readonly defense?: ModuleStatOverride;
+}
 
 /** R-ENH-05 #1: `baseStats`が表すレベル。指定が無いユニットはこのレベルとして扱う。 */
 export const DEFAULT_UNIT_LEVEL = 200;
@@ -33,6 +51,7 @@ export interface UnitEnhancement {
   readonly level?: number | undefined;
   readonly rank?: number | undefined;
   readonly gears?: readonly GearSpecification[] | undefined;
+  readonly module?: ModuleOverride | undefined;
 }
 
 /** 強化計算が参照するユニット定義の部分集合。 */
@@ -77,6 +96,22 @@ export function calculateEnhancedBaseStats(
   const rankGrowth = definition.rankGrowth;
 
   /**
+   * R-ENH-08: モジュールの固定加算・割合補正は、リクエストの`module`が上書きした
+   * 項目だけ差し替え、指定が無い項目は既定値（`MODULE_FIXED_ADDITION`/
+   * `MODULE_RATIO`）のまま使う。
+   */
+  const moduleFixed = {
+    hp: enhancement.module?.hp?.fixed ?? MODULE_FIXED_ADDITION.hp,
+    attack: enhancement.module?.attack?.fixed ?? MODULE_FIXED_ADDITION.attack,
+    defense: enhancement.module?.defense?.fixed ?? MODULE_FIXED_ADDITION.defense,
+  };
+  const moduleRatio = {
+    hp: enhancement.module?.hp?.ratio ?? MODULE_RATIO,
+    attack: enhancement.module?.attack?.ratio ?? MODULE_RATIO,
+    defense: enhancement.module?.defense?.ratio ?? MODULE_RATIO,
+  };
+
+  /**
    * R-ENH-06: HP・攻撃力・防御力の共通式。固定加算をすべて足したあとに
    * モジュールの割合補正とギア合計割合を掛ける。
    */
@@ -85,6 +120,7 @@ export function calculateEnhancedBaseStats(
     readonly academyAddition: number;
     readonly typeEquipment: number;
     readonly moduleFixed: number;
+    readonly moduleRatio: number;
     readonly growthPerLevel: number;
     readonly growthPerRank: number;
     readonly gearRatio: number;
@@ -96,7 +132,7 @@ export function calculateEnhancedBaseStats(
       parts.moduleFixed +
       levelDelta * parts.growthPerLevel +
       rankDelta * parts.growthPerRank;
-    return additive * (1 + MODULE_RATIO + parts.gearRatio);
+    return additive * (1 + parts.moduleRatio + parts.gearRatio);
   }
 
   return {
@@ -105,7 +141,8 @@ export function calculateEnhancedBaseStats(
         baseValue: baseStats.maximumHp,
         academyAddition: academy.hp,
         typeEquipment: TYPE_EQUIPMENT_ADDITION.hp,
-        moduleFixed: MODULE_FIXED_ADDITION.hp,
+        moduleFixed: moduleFixed.hp,
+        moduleRatio: moduleRatio.hp,
         growthPerLevel: growth?.hp ?? 0,
         growthPerRank: rankGrowth?.hp ?? 0,
         gearRatio: gearRatios.MAXIMUM_HP,
@@ -117,7 +154,8 @@ export function calculateEnhancedBaseStats(
         baseValue: baseStats.attack,
         academyAddition: academy.attack,
         typeEquipment: TYPE_EQUIPMENT_ADDITION.attack,
-        moduleFixed: MODULE_FIXED_ADDITION.attack,
+        moduleFixed: moduleFixed.attack,
+        moduleRatio: moduleRatio.attack,
         growthPerLevel: growth?.attack ?? 0,
         growthPerRank: rankGrowth?.attack ?? 0,
         gearRatio: gearRatios.ATTACK,
@@ -129,7 +167,8 @@ export function calculateEnhancedBaseStats(
         baseValue: baseStats.defense,
         academyAddition: academy.defense,
         typeEquipment: TYPE_EQUIPMENT_ADDITION.defense,
-        moduleFixed: MODULE_FIXED_ADDITION.defense,
+        moduleFixed: moduleFixed.defense,
+        moduleRatio: moduleRatio.defense,
         growthPerLevel: growth?.defense ?? 0,
         growthPerRank: rankGrowth?.defense ?? 0,
         gearRatio: gearRatios.DEFENSE,

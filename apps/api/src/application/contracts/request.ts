@@ -22,11 +22,25 @@ export interface GearRequestBody {
   readonly grade: string;
 }
 
-/** `10_API設計.md`「UnitEnhancementRequest」（M11）。 */
+/** `10_API設計.md`「ModuleStatOverrideRequest」（R-ENH-08）。 */
+export interface ModuleStatOverrideRequestBody {
+  readonly fixed?: number;
+  readonly ratio?: number;
+}
+
+/** `10_API設計.md`「ModuleOverrideRequest」（R-ENH-08）。 */
+export interface ModuleOverrideRequestBody {
+  readonly hp?: ModuleStatOverrideRequestBody;
+  readonly attack?: ModuleStatOverrideRequestBody;
+  readonly defense?: ModuleStatOverrideRequestBody;
+}
+
+/** `10_API設計.md`「UnitEnhancementRequest」（M11、R-ENH-08で`module`を追加）。 */
 export interface UnitEnhancementRequestBody {
   readonly level?: number;
   readonly rank?: number;
   readonly gears?: readonly GearRequestBody[];
+  readonly module?: ModuleOverrideRequestBody;
 }
 
 /**

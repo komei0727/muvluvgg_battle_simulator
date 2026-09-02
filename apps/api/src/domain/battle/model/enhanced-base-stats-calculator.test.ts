@@ -62,6 +62,55 @@ describe("calculateEnhancedBaseStats — R-ENH-03 タイプ装備・モジュー
     expect(stats.criticalDamageBonus).toBe(0.5);
     expect(stats.affinityBonus).toBe(0.25);
   });
+
+  it("UT-R-ENH-03-003 [R-ENH-08]: overriding only module.hp.fixed leaves attack/defense at the default module values", () => {
+    const stats = calculateEnhancedBaseStats(target(), { module: { hp: { fixed: 5000 } } });
+    // (28375 + 21600 + 5000) × 1.09 = 59922.75
+    expect(stats.maximumHp).toBeCloseTo(59922.75, 6);
+    expect(stats.attack).toBeCloseTo(45738.58, 6);
+    expect(stats.defense).toBeCloseTo(24215.44, 6);
+  });
+
+  it("UT-R-ENH-03-004 [R-ENH-08]: overriding only module.attack.ratio leaves hp/defense at the default module values", () => {
+    const stats = calculateEnhancedBaseStats(target(), { module: { attack: { ratio: 0.05 } } });
+    // (23221 + 16020 + 2721) × 1.05 = 44060.1 — module.attack.fixed stays at the default (2721).
+    expect(stats.attack).toBeCloseTo(44060.1, 6);
+    expect(stats.maximumHp).toBeCloseTo(58427.27, 6);
+    expect(stats.defense).toBeCloseTo(24215.44, 6);
+  });
+});
+
+describe("calculateEnhancedBaseStats — R-ENH-08 モジュール補正のリクエスト上書き", () => {
+  it("UT-R-ENH-08-001: overriding fixed and ratio independently for HP/attack/defense reaches all three with the given values", () => {
+    const stats = calculateEnhancedBaseStats(target(), {
+      module: {
+        hp: { fixed: 5000, ratio: 0.1 },
+        attack: { fixed: 3000, ratio: 0.05 },
+        defense: { fixed: 2000, ratio: 0.2 },
+      },
+    });
+    // (28375 + 21600 + 5000) × 1.10 = 60472.5
+    expect(stats.maximumHp).toBeCloseTo(60472.5, 6);
+    // (23221 + 16020 + 3000) × 1.05 = 44353.05
+    expect(stats.attack).toBeCloseTo(44353.05, 6);
+    // (11781 + 8920 + 2000) × 1.20 = 27241.2
+    expect(stats.defense).toBeCloseTo(27241.2, 6);
+  });
+
+  it("UT-R-ENH-08-002: omitting module, or passing an empty module object, matches the pre-existing default values exactly — no regression", () => {
+    const withoutModule = calculateEnhancedBaseStats(target(), {});
+    const withEmptyModule = calculateEnhancedBaseStats(target(), { module: {} });
+    expect(withoutModule.maximumHp).toBeCloseTo(58427.27, 6);
+    expect(withoutModule.attack).toBeCloseTo(45738.58, 6);
+    expect(withoutModule.defense).toBeCloseTo(24215.44, 6);
+    expect(withEmptyModule).toEqual(withoutModule);
+  });
+
+  it("UT-R-ENH-08-003 (boundary): overriding only the ratio to 0 keeps the default fixed addition but drops the multiplier to 1", () => {
+    const stats = calculateEnhancedBaseStats(target(), { module: { hp: { ratio: 0 } } });
+    // (28375 + 21600 + 3628) × (1 + 0) = 53603 — module.hp.fixed stays at the default (3628).
+    expect(stats.maximumHp).toBeCloseTo(53603, 6);
+  });
 });
 
 describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
