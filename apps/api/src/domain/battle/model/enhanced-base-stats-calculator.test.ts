@@ -111,6 +111,22 @@ describe("calculateEnhancedBaseStats — R-ENH-08 モジュール補正のリク
     // (28375 + 21600 + 3628) × (1 + 0) = 53603 — module.hp.fixed stays at the default (3628).
     expect(stats.maximumHp).toBeCloseTo(53603, 6);
   });
+
+  it("UT-R-ENH-08-004 (boundary): a large negative module fixed/ratio override still clamps to R-ENH-06's floor (maximum HP 1, attack/defense 0)", () => {
+    // R-ENH-08はfixed/ratioの符号を制限しない設計であり、この安全弁（R-ENH-06の
+    // クランプ）が実際に負値の経路でも効くことを直接検証する——validateModuleStatOverride
+    // が符号を拒否しない根拠がこのクランプであるため。
+    const stats = calculateEnhancedBaseStats(target(), {
+      module: {
+        hp: { fixed: -1_000_000 },
+        attack: { fixed: -1_000_000 },
+        defense: { ratio: -100 },
+      },
+    });
+    expect(stats.maximumHp).toBe(1);
+    expect(stats.attack).toBe(0);
+    expect(stats.defense).toBe(0);
+  });
 });
 
 describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
