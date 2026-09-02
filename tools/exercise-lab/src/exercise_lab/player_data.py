@@ -14,7 +14,7 @@ import copy
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, StrictInt, ValidationError
 
@@ -26,6 +26,8 @@ from .models import (
     AllyUnitSpec,
     FormationConfig,
     Gear,
+    ModuleOverride,
+    ModuleStatOverride,
     _Spec,
 )
 
@@ -48,6 +50,27 @@ class StoredLevelLink(_Spec):
     level: int
 
 
+class StoredModuleStatOverride(_Spec):
+    """R-ENH-08: モジュール補正1ステータス分の手持ちデータ表現。
+
+    `persistence.ts` の `ModuleStatOverrideInput` と同じ形——`fixed`/`ratio`は
+    未上書きを`""`で表す（キー省略ではない）。`ratio`はUI表示のパーセント単位
+    （例: `10` = 10%）で保存され、APIの内部表現の小数への変換は
+    `resolved_module` が行う（`request-mapper.ts` の `buildModuleStatOverride` と同じ）。
+    """
+
+    fixed: float | Literal[""] = ""
+    ratio: float | Literal[""] = ""
+
+
+class StoredModuleOverride(_Spec):
+    # `module`導入前のエクスポートには無いため、`link_excluded`/`rank`と同じく
+    # 全項目`""`（上書きなし）を既定にする。
+    hp: StoredModuleStatOverride = Field(default_factory=StoredModuleStatOverride)
+    attack: StoredModuleStatOverride = Field(default_factory=StoredModuleStatOverride)
+    defense: StoredModuleStatOverride = Field(default_factory=StoredModuleStatOverride)
+
+
 class StoredUnitEnhancement(_Spec):
     level: int
     # 陣営のレベルリンクから外した枠。リンク導入前のエクスポートには無い。
@@ -60,6 +83,8 @@ class StoredUnitEnhancement(_Spec):
     rank: StrictInt = Field(default=DEFAULT_UNIT_RANK, ge=0, le=5)
     # 枠は9固定で、空枠はJSON上 `null` として並ぶ。
     gears: list[Gear | None]
+    # module導入前のエクスポートを取り直させないため既定値付き（`rank`と同じ扱い）。
+    module: StoredModuleOverride = Field(default_factory=StoredModuleOverride)
 
 
 class PlayerData(_Spec):
@@ -95,6 +120,31 @@ def resolved_level(stored: StoredUnitEnhancement | None, data: PlayerData) -> in
 def resolved_rank(stored: StoredUnitEnhancement | None) -> int:
     """実効ランク。レベルと違いリンクの仕組みを持たないため、手持ちの値をそのまま使う。"""
     return DEFAULT_UNIT_RANK if stored is None else stored.rank
+
+
+def _resolved_module_stat(stat: StoredModuleStatOverride) -> ModuleStatOverride | None:
+    fixed = None if stat.fixed == "" else stat.fixed
+    ratio = None if stat.ratio == "" else stat.ratio / 100
+    if fixed is None and ratio is None:
+        return None
+    return ModuleStatOverride(fixed=fixed, ratio=ratio)
+
+
+def resolved_module(stored: StoredUnitEnhancement | None) -> ModuleOverride | None:
+    """R-ENH-08: 手持ちのモジュール補正上書きをAPI形式（`ratio`は内部表現の小数）へ変換する。
+
+    1項目も上書きしていなければ`None`を返す——YAMLで`module`を書かなかったのと
+    同じ扱いにし、呼び出し側（`_apply_unit`）が「YAMLに書かなかった項目だけ埋める」
+    規約をそのまま適用できるようにする。
+    """
+    if stored is None:
+        return None
+    hp = _resolved_module_stat(stored.module.hp)
+    attack = _resolved_module_stat(stored.module.attack)
+    defense = _resolved_module_stat(stored.module.defense)
+    if hp is None and attack is None and defense is None:
+        return None
+    return ModuleOverride(hp=hp, attack=attack, defense=defense)
 
 
 def read_player_data_document(path: Path) -> dict[str, Any]:
@@ -219,4 +269,8 @@ def _apply_unit(unit: AllyUnitSpec, data: PlayerData, warnings: list[str]) -> Al
     if unit.gears is None and stored is not None:
         # 空枠を除いた枠順のまま送る（`request-mapper.ts` の `buildUnitEnhancement` と同じ）。
         update["gears"] = [gear for gear in stored.gears if gear is not None]
+    if unit.module is None:
+        module = resolved_module(stored)
+        if module is not None:
+            update["module"] = module
     return unit.model_copy(update=update) if update else unit

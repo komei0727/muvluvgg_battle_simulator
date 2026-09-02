@@ -122,6 +122,26 @@ enemy:
   position: { column: 1, row: FRONT }
 """
 
+# R-ENH-08: モジュール補正のリクエスト上書き。
+MODULE_YAML = """
+ally:
+  academyLevels:
+    unitTypes: { PHYSICAL: 60 }
+    attributes: { AGGRESSIVE: 40 }
+  units:
+    - unitDefinitionId: UNIT_A
+      position: { column: 0, row: FRONT }
+      module:
+        hp: { fixed: 5000, ratio: 0.1 }
+        attack: { fixed: 3000 }
+    - unitDefinitionId: UNIT_B
+      position: { column: 1, row: REAR }
+  memoryDefinitionIds: []
+enemy:
+  unitDefinitionId: UNIT_ENEMY
+  position: { column: 1, row: FRONT }
+"""
+
 
 def test_academy_levels_emit_all_nine_keys_defaulting_to_one(tmp_path):
     config = load_formation_config(write(tmp_path, ENHANCED_YAML))
@@ -203,6 +223,61 @@ def test_unit_rank_without_academy_levels_is_rejected(tmp_path):
     yaml_text = MINIMAL_YAML.replace(
         "      position: { column: 0, row: FRONT }",
         "      position: { column: 0, row: FRONT }\n      rank: 3",
+    )
+
+    with pytest.raises(ConfigError, match="academyLevels"):
+        load_formation_config(write(tmp_path, yaml_text))
+
+
+def test_unit_module_is_sent_when_present_and_only_the_written_fields_appear(tmp_path):
+    config = load_formation_config(write(tmp_path, MODULE_YAML))
+
+    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+
+    assert units[0]["enhancement"]["module"] == {
+        "hp": {"fixed": 5000, "ratio": 0.1},
+        "attack": {"fixed": 3000},
+    }
+    # モジュール上書きが無いユニットはlevel・rank・gearsが既定のままなので`enhancement`が無い。
+    assert "enhancement" not in units[1]
+
+
+def test_unit_module_alone_still_emits_enhancement_even_at_default_level_rank_gears(tmp_path):
+    """R-ENH-08: モジュール上書きが1件でもあれば、他が既定のままでも`enhancement`を出す。"""
+    yaml_text = """
+ally:
+  academyLevels:
+    unitTypes: { PHYSICAL: 60 }
+    attributes: { AGGRESSIVE: 40 }
+  units:
+    - unitDefinitionId: UNIT_A
+      position: { column: 0, row: FRONT }
+      module:
+        defense: { ratio: -0.05 }
+  memoryDefinitionIds: []
+enemy:
+  unitDefinitionId: UNIT_ENEMY
+  position: { column: 1, row: FRONT }
+"""
+    config = load_formation_config(write(tmp_path, yaml_text))
+
+    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+
+    assert units[0]["enhancement"] == {
+        "level": 200,
+        "gears": [],
+        "module": {"defense": {"ratio": -0.05}},
+    }
+
+
+def test_unit_module_without_academy_levels_is_rejected(tmp_path):
+    yaml_text = MINIMAL_YAML.replace(
+        "      position: { column: 0, row: FRONT }",
+        "      position: { column: 0, row: FRONT }\n      module: { hp: { fixed: 5000 } }",
     )
 
     with pytest.raises(ConfigError, match="academyLevels"):

@@ -172,6 +172,103 @@ def test_stored_rank_that_is_not_a_strict_integer_is_rejected(tmp_path, rank):
         load_player_data(write_json(tmp_path, player_data))
 
 
+# R-ENH-08: モジュール補正のリクエスト上書き。手持ちデータの `ratio` はUI表示の
+# パーセント単位（`persistence.ts` の `ModuleStatOverrideInput`）で保存されている。
+def test_stored_module_is_applied_and_the_ratio_is_converted_from_percent_to_the_internal_decimal(
+    tmp_path,
+):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {
+            "UNIT_A": {
+                **PLAYER_DATA["units"]["UNIT_A"],
+                "module": {
+                    "hp": {"fixed": 5000, "ratio": 10},
+                    "attack": {"fixed": "", "ratio": ""},
+                    "defense": {"fixed": "", "ratio": -5},
+                },
+            }
+        },
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[0]["enhancement"]["module"] == {
+        "hp": {"fixed": 5000, "ratio": 0.1},
+        "defense": {"ratio": -0.05},
+    }
+
+
+def test_stored_module_with_every_field_blank_is_omitted(tmp_path):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {
+            "UNIT_A": {
+                **PLAYER_DATA["units"]["UNIT_A"],
+                "module": {
+                    "hp": {"fixed": "", "ratio": ""},
+                    "attack": {"fixed": "", "ratio": ""},
+                    "defense": {"fixed": "", "ratio": ""},
+                },
+            }
+        },
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert "module" not in units[0]["enhancement"]
+
+
+def test_export_without_the_module_field_defaults_to_no_override(tmp_path):
+    """`module` 導入前に書き出した player-data.json をそのまま読める（取り直させない）。"""
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    data = load_player_data(write_json(tmp_path, PLAYER_DATA))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert "module" not in units[0]["enhancement"]
+
+
+def test_yaml_module_wins_over_the_stored_module(tmp_path):
+    yaml_text = CONFIG_YAML.replace(
+        "      position: { column: 0, row: FRONT }",
+        "      position: { column: 0, row: FRONT }\n      module: { hp: { fixed: 1 } }",
+        1,
+    ).replace(
+        "ally:\n",
+        "ally:\n  academyLevels:\n    unitTypes: { PHYSICAL: 3 }\n",
+        1,
+    )
+    config = load_formation_config(write(tmp_path, "formation.yaml", yaml_text))
+    player_data = {
+        **PLAYER_DATA,
+        "units": {
+            "UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], "module": {"hp": {"fixed": 9999}}},
+        },
+    }
+    data = load_player_data(write_json(tmp_path, player_data))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
+        "allyFormation"
+    ]["units"]
+    assert units[0]["enhancement"]["module"] == {"hp": {"fixed": 1}}
+
+
 def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
     yaml_text = CONFIG_YAML.replace(
         "      position: { column: 0, row: FRONT }",
