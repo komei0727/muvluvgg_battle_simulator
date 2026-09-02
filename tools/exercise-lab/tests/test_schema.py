@@ -183,6 +183,23 @@ def test_unit_level_with_academy_levels_passes(schema):
     validate(schema, value)
 
 
+def test_unit_module_without_academy_levels_is_rejected(schema):
+    # R-ENH-08: `models._validate` と同じく、陣営の強化指定なしにユニットの強化は指定できない。
+    value = document()
+    value["ally"]["units"][0]["module"] = {"hp": {"fixed": 5000}}
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate(schema, value)
+
+
+def test_unit_module_with_academy_levels_passes(schema):
+    value = document()
+    value["ally"]["academyLevels"] = {"unitTypes": {"PHYSICAL": 60}, "attributes": {}}
+    value["ally"]["units"][0]["module"] = {"hp": {"fixed": 5000, "ratio": 0.1}}
+
+    validate(schema, value)
+
+
 def test_duplicate_ally_positions_are_a_documented_gap(schema):
     """Schemaで表現できない制約はここに列挙し、差異を明示的に固定する。
 

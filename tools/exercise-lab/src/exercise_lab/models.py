@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, ValidationError
 
 Row = Literal["FRONT", "REAR"]
 Column = Annotated[int, Field(ge=0, le=2)]
@@ -73,12 +73,33 @@ class AcademyLevels(_Spec):
     attributes: dict[str, int] = Field(default_factory=dict)
 
 
+class ModuleStatOverride(_Spec):
+    """R-ENH-08: モジュール補正1ステータス分の上書き。値は`10_API設計.md`
+    「ModuleStatOverrideRequest」と同じ単位（`ratio`は内部表現の小数）で書く。
+
+    `FiniteFloat`: R-ENH-08は有限の実数だけを許可する。YAMLの`.inf`/`.nan`は
+    PyYAMLがそのまま`float('inf')`等へ読むため、`float`のままでは通ってしまう。
+    """
+
+    fixed: FiniteFloat | None = None
+    ratio: FiniteFloat | None = None
+
+
+class ModuleOverride(_Spec):
+    """R-ENH-08: HP・攻撃力・防御力それぞれ独立に上書きできる。"""
+
+    hp: ModuleStatOverride | None = None
+    attack: ModuleStatOverride | None = None
+    defense: ModuleStatOverride | None = None
+
+
 class AllyUnitSpec(_Spec):
     unit_definition_id: str = Field(alias="unitDefinitionId", min_length=1)
     position: Position
     level: int | None = Field(default=None, ge=1)
     rank: int | None = Field(default=None, ge=0, le=5)
     gears: list[Gear] | None = Field(default=None, max_length=MAX_GEARS)
+    module: ModuleOverride | None = Field(default=None)
 
 
 class AllySpec(_Spec):
@@ -138,9 +159,15 @@ def _validate(config: FormationConfig, path: Path) -> None:
         _reject_unknown_academy_keys(config.ally.academy_levels, path)
         return
     for unit in config.ally.units:
-        if unit.level is not None or unit.rank is not None or unit.gears is not None:
+        if (
+            unit.level is not None
+            or unit.rank is not None
+            or unit.gears is not None
+            or unit.module is not None
+        ):
             raise ConfigError(
-                f"{path}: ally.academyLevels が無いユニットへ level / rank / gears は指定できない"
+                f"{path}: ally.academyLevels が無いユニットへ"
+                f" level / rank / gears / module は指定できない"
                 f"（{unit.unit_definition_id}）。強化を使うなら ally.academyLevels を書く"
             )
 
@@ -199,15 +226,47 @@ def _ally_unit(unit: AllyUnitSpec, enhancement_enabled: bool) -> dict[str, Any]:
     level = DEFAULT_UNIT_LEVEL if unit.level is None else unit.level
     rank = DEFAULT_UNIT_RANK if unit.rank is None else unit.rank
     gears = [] if unit.gears is None else [gear.model_dump() for gear in unit.gears]
+    module = _module_override(unit.module)
     # 既定と同値の強化はキーごと落とす。APIの省略時既定と同じ意味であり、
-    # 出力すると送信JSONがUIの生成物と無用に食い違う。
-    if level == DEFAULT_UNIT_LEVEL and rank == DEFAULT_UNIT_RANK and not gears:
+    # 出力すると送信JSONがUIの生成物と無用に食い違う。R-ENH-08: モジュール上書きが
+    # 1件でもあれば、他が既定のままでも`enhancement`を出す。
+    if level == DEFAULT_UNIT_LEVEL and rank == DEFAULT_UNIT_RANK and not gears and module is None:
         return built
     enhancement: dict[str, Any] = {"level": level, "gears": gears}
     if rank != DEFAULT_UNIT_RANK:
         enhancement["rank"] = rank
+    if module is not None:
+        enhancement["module"] = module
     built["enhancement"] = enhancement
     return built
+
+
+def _module_stat_override(stat: ModuleStatOverride | None) -> dict[str, float] | None:
+    if stat is None:
+        return None
+    built: dict[str, float] = {}
+    if stat.fixed is not None:
+        built["fixed"] = stat.fixed
+    if stat.ratio is not None:
+        built["ratio"] = stat.ratio
+    return built or None
+
+
+def _module_override(module: ModuleOverride | None) -> dict[str, dict[str, float]] | None:
+    """R-ENH-08: 上書きが無いステータス・項目はキーごと省略する
+    （`request-mapper.ts` の `buildModuleOverride`/`buildModuleStatOverride` と同じ規則）。"""
+    if module is None:
+        return None
+    built: dict[str, dict[str, float]] = {}
+    for stat_name, stat in (
+        ("hp", module.hp),
+        ("attack", module.attack),
+        ("defense", module.defense),
+    ):
+        stat_built = _module_stat_override(stat)
+        if stat_built is not None:
+            built[stat_name] = stat_built
+    return built or None
 
 
 def _academy_levels(levels: AcademyLevels) -> dict[str, dict[str, int]]:

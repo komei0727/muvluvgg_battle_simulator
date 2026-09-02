@@ -9,13 +9,13 @@ import { calculateGearRatios, type GearSpecification } from "./gear-customizatio
 const TYPE_EQUIPMENT_ADDITION = { hp: 21600, attack: 16020, defense: 8920 } as const;
 
 /** R-ENH-03 #2/R-ENH-08 #1: モジュールの固定加算の既定値。 */
-const MODULE_FIXED_ADDITION = { hp: 3628, attack: 2721, defense: 1515 } as const;
+const MODULE_FIXED_ADDITION = { hp: 4288, attack: 3216, defense: 1790 } as const;
 
 /**
- * R-ENH-03 #2/R-ENH-08 #1: モジュールの割合補正の既定値。パーセント値9%を内部表現
+ * R-ENH-03 #2/R-ENH-08 #1: モジュールの割合補正の既定値。パーセント値10%を内部表現
  * （R-NUM-01）へ変換した値で、HP・攻撃力・防御力にだけ掛かる。
  */
-const MODULE_RATIO = 0.09;
+const MODULE_RATIO = 0.1;
 
 /**
  * R-ENH-08: モジュールの固定加算・割合補正のユニット単位の上書き。片方だけの

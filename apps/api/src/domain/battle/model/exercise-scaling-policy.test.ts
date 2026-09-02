@@ -213,8 +213,8 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
   });
 
   it("UT-R-TEX-04-016: a large enhanced base keeps its meaningful fraction truncated, with no significant digits rounded away first", () => {
-    // 加算前基準値9,000,198,031 = 9,000,179,290 + タイプ装備16,020 + モジュール固定2,721。
-    // ギアII・Sの攻撃は+2.49pp。編成+10%・適性−5%で原基準値は10536036823.999995 相当。
+    // 加算前基準値9,000,198,526 = 9,000,179,290 + タイプ装備16,020 + モジュール固定3,216。
+    // ギアII・Sの攻撃は+2.49pp。編成+10%・適性−5%で原基準値は10630539487.99227 相当。
     const enhancedBase = calculateEnhancedBaseStats(
       {
         attribute: "AGGRESSIVE",
@@ -245,8 +245,8 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       },
     });
 
-    // 有効桁で丸め直す実装は、切り捨てる前にこの端数を消して10536036824を返していた。
-    expect(applyExerciseScaling(original, 0).attack).toBe(10_536_036_823);
+    // 有効桁で丸め直す実装は、切り捨てる前にこの端数を消して10630539488を返していた。
+    expect(applyExerciseScaling(original, 0).attack).toBe(10_630_539_487);
   });
 
   it("UT-R-TEX-04-013: a meaningful fraction produced by the enhanced-base-stats path is truncated, not rounded up (R-NUM-02)", () => {
@@ -257,7 +257,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       {
         attribute: "AGGRESSIVE",
         unitType: "PHYSICAL",
-        // 加算前基準値57283 = 38542 + タイプ装備16020 + モジュール固定2721。
+        // 加算前基準値57778 = 38542 + タイプ装備16020 + モジュール固定3216。
         baseStats: {
           maximumHp: 1,
           attack: 38_542,
@@ -284,9 +284,9 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       },
     });
 
-    // 57283 × (1 + 9% + 1.18%) × (1 + 10% − 5%) × 385% = 255139.9999995。
-    // 端数0.9999995は誤差ではなく実際の値であり、R-NUM-02の切り捨てで255139になる。
-    expect(applyExerciseScaling(original, 12).attack).toBe(255_139);
+    // 57778 × (1 + 10% + 1.18%) × (1 + 10% − 5%) × 385% = 259680.418767。
+    // この端数は誤差ではなく実際の値であり、R-NUM-02の切り捨てで259680になる。
+    expect(applyExerciseScaling(original, 12).attack).toBe(259_680);
   });
 
   it("UT-R-TEX-04-014: a meaningful fraction is truncated at a large magnitude too, where a relative (ULP-scaled) tolerance would have swallowed it", () => {
@@ -297,7 +297,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       {
         attribute: "AGGRESSIVE",
         unitType: "PHYSICAL",
-        // 加算前基準値200,057,283 = 200,038,542 + タイプ装備16,020 + モジュール固定2,721。
+        // 加算前基準値200,057,778 = 200,038,542 + タイプ装備16,020 + モジュール固定3,216。
         baseStats: {
           maximumHp: 1,
           attack: 200_038_542,
@@ -324,8 +324,8 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       },
     });
 
-    // 200,057,283 × 110.18% × 105% × 385% = 891060439.9999995。
-    expect(applyExerciseScaling(original, 12).attack).toBe(891_060_439);
+    // 200,057,778 × 111.18% × 105% × 385% = 899149980.418767。
+    expect(applyExerciseScaling(original, 12).attack).toBe(899_149_980);
   });
 
   it("UT-R-TEX-04-012: every aptitude-penalised base and break count in a dense grid matches the exact truncation of the stored value, so a one-off drift cannot slip through", () => {

@@ -673,7 +673,7 @@ uv run lab schema           # 既定の出力先ディレクトリは .schema/
 味方枠と敵枠には別々の enum が入るので、`R-TEX-11` #1（味方は `PLAYABLE`、敵は
 `EXERCISE_ENEMY`）は実行前にエディタ上で分かる。補完候補には日本語表示名・role・
 適性も添えてある（表示はエディタの実装次第）。学園レベルのキー9種と、
-「`ally.academyLevels` なしにユニットの `level` / `rank` / `gears` は書けない」もSchemaで表す。
+「`ally.academyLevels` なしにユニットの `level` / `rank` / `gears` / `module` は書けない」もSchemaで表す。
 
 探索設定は実IDを書く場所が多い——`unitPool` / `memoryPool` / `enemy` /
 `constraints.fixedPlacements` / `constraints.requiredUnits` /
@@ -708,10 +708,17 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 - ユニットとメモリーは**書いた順のまま**リクエストへ載る。UI と同じ並びで送るなら
   FRONT → REAR、各列は `column` 昇順に並べる。
 - `ally.academyLevels` を書くと強化計算が有効になる。書かない場合、ユニット側の
-  `level` / `rank` / `gears` は指定できない（陣営の強化指定なしにユニットの強化だけ送ると API が 422 で拒む）。
-- レベル 200・ランク 5（`LR+5`）・ギア 0 件のユニットは、それぞれ API の省略時既定と同値のため
-  送らない（すべて既定と同値なら `enhancement` 自体を送らない。`rank` は既定と同値のときだけ
-  キー単体で省略する）。
+  `level` / `rank` / `gears` / `module` は指定できない（陣営の強化指定なしにユニットの強化だけ送ると API が 422 で拒む）。
+- レベル 200・ランク 5（`LR+5`）・ギア 0 件・モジュール上書きなしのユニットは、それぞれ API の
+  省略時既定と同値のため送らない（すべて既定と同値なら `enhancement` 自体を送らない。`rank` は
+  既定と同値のときだけキー単体で省略する。`module` は1項目でも上書きがあれば送る、R-ENH-08）。
+- `module`（R-ENH-08）はモジュール補正のHP・攻撃力・防御力それぞれの固定加算・割合を上書きする。
+  値の単位はAPIと同じ（`ratio` は内部表現の小数、例 `0.1` = 10%）。
+  ```yaml
+  module:
+    hp: { fixed: 5000, ratio: 0.1 }
+    attack: { fixed: 3000 }
+  ```
 - 敵はちょうど 1 体・メモリーなし・強化なし。**配置は結果に影響する**（前後列優先の対象順や
   配置条件が参照するため）。
 
@@ -777,6 +784,10 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 - `rank` はランク導入前のエクスポートには無い。無い場合は既定 5 として読む
   （`linkExcluded` と同じ扱い）。レベルと違い一括リンクの仕組みは持たず、ユニットごとの
   `rank` をそのまま使う。
+- `module`（R-ENH-08）はモジュール導入前のエクスポートには無い。無い場合は上書きなしとして読む
+  （`rank` と同じ扱い）。手持ちデータの `ratio` は UI 表示のパーセント単位（例 `10` = 10%）で
+  保存されているため、API へ渡す内部表現の小数（`0.1`）へここで変換する。1項目も上書きして
+  いなければ `module` キー自体を送らない。
 
 レベル（`levelLink` / `linkExcluded`）の解決規則:
 
