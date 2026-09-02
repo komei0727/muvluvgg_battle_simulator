@@ -1728,15 +1728,15 @@ describe("battle scenarios (harness)", () => {
       });
 
       const ally = result.initialState.units[createBattleUnitId("ally:1")]!;
-      // HP     (100 + 2040 + 4080 + 21600 + 3628 + 10×255) × 1.09
-      // 攻撃力 (10 + 1440 + 2880 + 16020 + 2721 + 10×209) × 1.09
-      expect(ally.combatStats.maximumHp).toBeCloseTo(37057.82, 4);
-      expect(ally.combatStats.attack).toBeCloseTo(27425.49, 4);
+      // HP     (100 + 2040 + 4080 + 21600 + 4288 + 10×255) × 1.10
+      // 攻撃力 (10 + 1440 + 2880 + 16020 + 3216 + 10×209) × 1.10
+      expect(ally.combatStats.maximumHp).toBeCloseTo(38123.8, 4);
+      expect(ally.combatStats.attack).toBeCloseTo(28221.6, 4);
       // 会心率はギア合計割合の単純加算、行動速度はレベル増加のみ（R-ENH-06）。
       expect(ally.combatStats.criticalRate).toBeCloseTo(0.1525, 12);
       expect(ally.combatStats.actionSpeed).toBeCloseTo(30, 6);
       // R-NUM-02: HPゲージの現在値は整数へ切り捨てる。
-      expect(ally.hp).toBe(37057);
+      expect(ally.hp).toBe(38123);
 
       // R-ENH-01 #6: 敵陣営は強化指定を持たないため従来どおり。
       const enemy = result.initialState.units[createBattleUnitId("enemy:1")]!;
@@ -1772,7 +1772,7 @@ describe("battle scenarios (harness)", () => {
       });
       expect(
         enhanced.initialState.units[createBattleUnitId("ally:1")]!.combatStats.attack,
-      ).toBeCloseTo(20438.59, 4);
+      ).toBeCloseTo(21170.6, 4);
     });
   });
   describe("M10 tactical exercise (TEX-006)", () => {
