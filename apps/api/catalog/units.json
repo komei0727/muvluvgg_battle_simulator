@@ -2244,6 +2244,35 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_YURIA_JOKER",
+    "attribute": "CLEVER",
+    "unitType": "ENERGY",
+    "role": "EN_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28900,
+      "attack": 21830,
+      "defense": 11791,
+      "criticalRate": 0.2,
+      "actionSpeed": 784,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 265, "attack": 200, "defense": 106, "actionSpeed": 2 },
+    "rankGrowth": { "hp": 428, "attack": 324, "defense": 175, "criticalRate": 0.01 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_YURIA_JOKER_AS1", "SKL_YURIA_JOKER_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_YURIA_JOKER_PS1", "SKL_YURIA_JOKER_PS2"],
+    "extraSkillDefinitionId": "SKL_YURIA_JOKER_EX",
+    "metadata": {
+      "affiliations": ["AFF_CHAOS_MAIDEN"],
+      "tags": [],
+      "displayName": "【自由に煌めくジョーカーカード】ユリア・バーンズ",
+      "characterName": "ユリア・バーンズ",
+      "characterId": "CHAR_YURIA_BURNES"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_YURIA_WILDCARD",
     "attribute": "SMART",
     "unitType": "PHYSICAL",

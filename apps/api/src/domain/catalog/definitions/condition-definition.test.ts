@@ -688,6 +688,40 @@ describe("createConditionDefinition (TARGET_HAS_EFFECT)", () => {
     }
   });
 
+  it("UT-CAT-COND-061 (Issue #650レビュー): maps dispellable: true/false, and rejects a non-boolean value", () => {
+    for (const dispellable of [true, false]) {
+      const result = createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          dispellable,
+        },
+        "condition",
+        undefined,
+      );
+      expect(result).toEqual({
+        kind: "TARGET_HAS_EFFECT",
+        target: { kind: "SELF" },
+        categories: ["BUFF"],
+        dispellable,
+      });
+    }
+
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_EFFECT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          dispellable: "true",
+        } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-COND-044 (RES-004-STATUS-CONDITION, Issue #224): accepts continuousDamageKinds under categories STATUS", () => {
     // 炎上・毒は`STATUS`にも分類されるようになった（`effect-category-classifier.ts`）
     // ため、「状態異常のうち毒だけ」という照会は実行時に到達可能であり、
@@ -1046,5 +1080,45 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
         ),
       ).toThrow(DomainValidationError);
     }
+  });
+
+  it("UT-CAT-COND-062 (Issue #650レビュー): maps dispellable: true/false, and rejects a non-boolean value (production example: SKL_YURIA_JOKER_PS2's removable-buff guard)", () => {
+    for (const dispellable of [true, false]) {
+      const result = createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          dispellable,
+          op: "GTE",
+          value: 2,
+        },
+        "condition",
+        undefined,
+      );
+      expect(result).toEqual({
+        kind: "TARGET_EFFECT_COUNT",
+        target: { kind: "SELF" },
+        categories: ["BUFF"],
+        dispellable,
+        op: "GTE",
+        value: 2,
+      });
+    }
+
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_EFFECT_COUNT",
+          target: { kind: "SELF" },
+          categories: ["BUFF"],
+          dispellable: "true",
+          op: "GTE",
+          value: 2,
+        } as never,
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
   });
 });

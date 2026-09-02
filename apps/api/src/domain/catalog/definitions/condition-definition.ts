@@ -307,6 +307,8 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
     // DMG-007（Issue #187）: 特定定義由来か・自身が付与したかの絞り込み。
     "effectActionDefinitionIds",
     "grantedBy",
+    // Issue #650レビュー: `REMOVE_EFFECTS`が除外する`dispellable: false`との絞り込み。
+    "dispellable",
   ],
   // Issue #649: `TARGET_HAS_EFFECT`の個数版。narrowing系フィールドは同一で、
   // `TARGET_SET_COUNT`と同じ`op`/`value`（非負整数のしきい値比較）を加える。
@@ -318,6 +320,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
     "statKinds",
     "effectActionDefinitionIds",
     "grantedBy",
+    "dispellable",
     "op",
     "value",
   ],
@@ -458,13 +461,24 @@ export type ConditionDefinition =
        * 一致だけでは他者が付与したリンクも拾ってしまう）。
        */
       readonly grantedBy?: "SELF";
+      /**
+       * Issue #650レビュー: 指定時、一致対象を`duration.definition.dispellable`の
+       * この値へ絞る。`REMOVE_EFFECTS`は`dispellable: false`を常に除外する
+       * （`effect-removal-service.ts`）ため、「`REMOVE_EFFECTS`が解除できる分だけ
+       * 数える／持っているか問う」ガード（production例:
+       * `SKL_YURIA_JOKER_PS2`「解除可能なバフを２つ以上所持していない場合、
+       * このスキルは発動しない」）はこのnarrowingが無いと、解除不可な同カテゴリの
+       * 効果まで数えてしまい、実際には0〜1件しか解除しないのにガードを通過できる。
+       */
+      readonly dispellable?: boolean;
     }
   | {
       /**
        * Issue #649: `TARGET_HAS_EFFECT`の個数版。同じnarrowing規約
        * （`categories`/`continuousDamageKinds`/`statKinds`/
-       * `effectActionDefinitionIds`/`grantedBy`）に一致する`AppliedEffect`の
-       * 件数を、`TARGET_SET_COUNT`と同じ`op`/`value`（非負整数）で比較する。
+       * `effectActionDefinitionIds`/`grantedBy`/`dispellable`）に一致する
+       * `AppliedEffect`の件数を、`TARGET_SET_COUNT`と同じ`op`/`value`
+       * （非負整数）で比較する。
        */
       readonly kind: "TARGET_EFFECT_COUNT";
       readonly target: TargetReference;
@@ -473,6 +487,8 @@ export type ConditionDefinition =
       readonly statKinds?: readonly StatKind[];
       readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
       readonly grantedBy?: "SELF";
+      /** Issue #650レビュー: `TARGET_HAS_EFFECT.dispellable`と同じnarrowing。 */
+      readonly dispellable?: boolean;
       readonly op: ComparisonOperator;
       readonly value: number;
     };
@@ -500,6 +516,7 @@ export interface ConditionDefinitionInput {
   readonly categories?: readonly string[];
   readonly continuousDamageKinds?: readonly string[];
   readonly statKinds?: readonly string[];
+  readonly dispellable?: boolean;
 }
 
 function requireField<K extends keyof ConditionDefinitionInput>(
@@ -573,6 +590,23 @@ function createGrantedByNarrowing(
   }
   assertEnumValue(value, ["SELF"] as const, `${path}.grantedBy`);
   return { grantedBy: value };
+}
+
+/**
+ * Issue #650レビュー: `TARGET_HAS_EFFECT`/`TARGET_EFFECT_COUNT.dispellable`を検証する。
+ * `AppliedEffect.duration.definition.dispellable`との一致で絞り込む（`REMOVE_EFFECTS`が
+ * `dispellable: false`を常に除外するのと同じ軸）。
+ */
+function createDispellableNarrowing(
+  input: ConditionDefinitionInput,
+  path: string,
+): { readonly dispellable?: boolean } {
+  const value = input.dispellable;
+  if (value === undefined) {
+    return {};
+  }
+  assertBoolean(value, `${path}.dispellable`);
+  return { dispellable: value };
 }
 
 /**
@@ -792,6 +826,7 @@ export function createConditionDefinition(
         ...createNarrowing(input, "statKinds", STAT_KINDS, typedCategories, path),
         ...createEffectActionDefinitionIdsNarrowing(input, path),
         ...createGrantedByNarrowing(input, path),
+        ...createDispellableNarrowing(input, path),
       };
     }
     case "TARGET_EFFECT_COUNT": {
@@ -822,6 +857,7 @@ export function createConditionDefinition(
         ...createNarrowing(input, "statKinds", STAT_KINDS, typedCategories, path),
         ...createEffectActionDefinitionIdsNarrowing(input, path),
         ...createGrantedByNarrowing(input, path),
+        ...createDispellableNarrowing(input, path),
         op,
         value,
       };
