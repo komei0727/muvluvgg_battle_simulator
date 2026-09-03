@@ -16,10 +16,12 @@ import {
   GEAR_SLOT_COUNT,
   GEAR_STATS,
   GEAR_TIERS,
+  MODULE_STATS,
   UNIT_RANKS,
   createInitialDraft,
   createInitialExerciseExecution,
   createInitialLevelLink,
+  createInitialModuleOverride,
 } from "./types.js";
 import type {
   BattleDraft,
@@ -29,6 +31,8 @@ import type {
   GearInput,
   LevelLinkInput,
   LogLevel,
+  ModuleOverrideInput,
+  ModuleStatOverrideInput,
   SideEnhancementInput,
   UnitEnhancementInput,
 } from "../../entities/battle-draft.js";
@@ -195,6 +199,35 @@ function levelLinkOf(value: unknown): LevelLinkInput {
   return { enabled: value["enabled"], level: levelOf(value["level"]) };
 }
 
+/**
+ * R-ENH-08: モジュール補正の1ステータス分。`fixed`/`ratio`は`level`と同じ値域
+ * （`""`または有限の実数、符号は制限しない）。新項目のため欠落を許す。
+ */
+function moduleStatOverrideOf(value: unknown): ModuleStatOverrideInput {
+  if (value === undefined) {
+    return { fixed: "", ratio: "" };
+  }
+  if (!isRecord(value)) {
+    return fail();
+  }
+  return { fixed: levelOf(value["fixed"]), ratio: levelOf(value["ratio"]) };
+}
+
+/** 新項目のため欠落を許す（既定は全項目`""`＝上書きしない）。 */
+function moduleOverrideOf(value: unknown): ModuleOverrideInput {
+  if (value === undefined) {
+    return createInitialModuleOverride();
+  }
+  if (!isRecord(value)) {
+    return fail();
+  }
+  return {
+    hp: moduleStatOverrideOf(value["hp"]),
+    attack: moduleStatOverrideOf(value["attack"]),
+    defense: moduleStatOverrideOf(value["defense"]),
+  };
+}
+
 function unitEnhancementOf(value: unknown): UnitEnhancementInput {
   if (!isRecord(value)) {
     return fail();
@@ -210,6 +243,7 @@ function unitEnhancementOf(value: unknown): UnitEnhancementInput {
     rank: rankOf(value["rank"]),
     // 新項目のため欠落を許す。旧データの枠はどれもリンクから外れていない。
     linkExcluded: value["linkExcluded"] === true,
+    module: moduleOverrideOf(value["module"]),
     gears: gears.map((gear) => gearOf(gear)),
   };
 }
@@ -387,12 +421,19 @@ function isSameAcademyLevels(a: AcademyLevels, b: AcademyLevels): boolean {
   );
 }
 
+function isSameModuleOverride(a: ModuleOverrideInput, b: ModuleOverrideInput): boolean {
+  return MODULE_STATS.every(
+    (stat) => a[stat].fixed === b[stat].fixed && a[stat].ratio === b[stat].ratio,
+  );
+}
+
 function isSameEnhancement(a: UnitEnhancementInput, b: UnitEnhancementInput): boolean {
   return (
     a.level === b.level &&
     a.rank === b.rank &&
     // 「リンクから外す」だけを切り替えた編集も保存されなければならない。
     a.linkExcluded === b.linkExcluded &&
+    isSameModuleOverride(a.module, b.module) &&
     a.gears.length === b.gears.length &&
     a.gears.every((gear, index) => {
       const other = b.gears[index];

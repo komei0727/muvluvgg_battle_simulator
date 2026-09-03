@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UnitEnhancementDialog } from "./UnitEnhancementDialog.js";
@@ -20,6 +20,11 @@ function renderDialog(
     readonly onLevelChange?: (value: number | "") => void;
     readonly onRankChange?: (value: number) => void;
     readonly onGearChange?: (gearIndex: number, gear?: GearInput) => void;
+    readonly onModuleChange?: (
+      stat: "hp" | "attack" | "defense",
+      field: "fixed" | "ratio",
+      value: number | "",
+    ) => void;
     readonly onLinkExclusionChange?: (excluded: boolean) => void;
     readonly onClose?: () => void;
   } = {},
@@ -27,6 +32,7 @@ function renderDialog(
   const onLevelChange = overrides.onLevelChange ?? vi.fn();
   const onRankChange = overrides.onRankChange ?? vi.fn();
   const onGearChange = overrides.onGearChange ?? vi.fn();
+  const onModuleChange = overrides.onModuleChange ?? vi.fn();
   const onLinkExclusionChange = overrides.onLinkExclusionChange ?? vi.fn();
   const onClose = overrides.onClose ?? vi.fn();
   render(
@@ -44,11 +50,19 @@ function renderDialog(
       onLevelChange={onLevelChange}
       onRankChange={onRankChange}
       onGearChange={onGearChange}
+      onModuleChange={onModuleChange}
       onLinkExclusionChange={onLinkExclusionChange}
       onClose={onClose}
     />,
   );
-  return { onLevelChange, onRankChange, onGearChange, onLinkExclusionChange, onClose };
+  return {
+    onLevelChange,
+    onRankChange,
+    onGearChange,
+    onModuleChange,
+    onLinkExclusionChange,
+    onClose,
+  };
 }
 
 /** APIが公開する効果表（R-ENH-04 #3）のうち、このテストが使う2ステータス分。 */
@@ -146,6 +160,91 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     renderDialog();
 
     expect(screen.queryByText(/ランクをLR\+5に戻してください/)).not.toBeInTheDocument();
+  });
+
+  // R-ENH-08: この説明文はAPI側の既定値（enhanced-base-stats-calculator.ts の
+  // MODULE_FIXED_ADDITION/MODULE_RATIO）を手で転記した表示専用の文言であり、
+  // APIとUIを跨いで自動的には同期しない。既定値が変わったのにこの文言だけ
+  // 取り残される回帰（#658レビュー指摘）を、値を固定して直接検知する。
+  it("UI-CT-148: shows the module override hint with the current API defaults", () => {
+    renderDialog();
+
+    expect(
+      screen.getByText(
+        "モジュール補正の上書き（既定値: 固定+4288/+3216/+1790、割合10%）。空欄は既定値のまま使います。",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("UI-CT-143: opens with all six module override fields empty", () => {
+    renderDialog();
+
+    for (const label of [
+      "HP 固定加算",
+      "HP 割合(%)",
+      "攻撃力 固定加算",
+      "攻撃力 割合(%)",
+      "防御力 固定加算",
+      "防御力 割合(%)",
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveValue(null);
+    }
+  });
+
+  it("UI-CT-144: reports an edited module fixed value for the stat it belongs to", () => {
+    const { onModuleChange } = renderDialog();
+
+    // 空欄の`type="number"`入力へ複数桁を一度で設定する（`user.type`のキー入力
+    // 逐次シミュレーションは、値が親stateへ反映されない controlled input では
+    // 各キー入力ごとに空欄へ巻き戻る——`fireEvent.change`で1回の変更として扱う）。
+    fireEvent.change(screen.getByLabelText("攻撃力 固定加算"), { target: { value: "5000" } });
+
+    expect(onModuleChange).toHaveBeenLastCalledWith("attack", "fixed", 5000);
+  });
+
+  it("UI-CT-145: reports an edited module ratio value for the stat it belongs to", () => {
+    const { onModuleChange } = renderDialog();
+
+    fireEvent.change(screen.getByLabelText("HP 割合(%)"), { target: { value: "10" } });
+
+    expect(onModuleChange).toHaveBeenLastCalledWith("hp", "ratio", 10);
+  });
+
+  it("UI-CT-146: reports clearing a module field back to no override", async () => {
+    const user = userEvent.setup();
+    const { onModuleChange } = renderDialog({
+      enhancement: {
+        module: {
+          hp: { fixed: "", ratio: "" },
+          attack: { fixed: 5000, ratio: "" },
+          defense: { fixed: "", ratio: "" },
+        },
+      },
+    });
+
+    await user.clear(screen.getByLabelText("攻撃力 固定加算"));
+
+    expect(onModuleChange).toHaveBeenLastCalledWith("attack", "fixed", "");
+  });
+
+  it("UI-CT-147: shows a server module violation on the field it names", () => {
+    renderDialog({
+      violations: [
+        {
+          path: "/allyFormation/units/0/enhancement/module/defense/ratio",
+          slotKey: "ally:FRONT:0",
+          code: "SERVER_VIOLATION",
+          message: "must be a finite number, got Infinity",
+          severity: "error",
+        },
+      ],
+    });
+
+    const defenseRatio = screen.getByLabelText("防御力 割合(%)");
+    expect(defenseRatio).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(/must be a finite number/)).toBeInTheDocument();
+    // 他のモジュール欄は無関係のまま。
+    expect(screen.getByLabelText("HP 固定加算")).toHaveAttribute("aria-invalid", "false");
   });
 
   it("UI-CT-122: completes a gear slot only once stat, tier and grade are all chosen", async () => {

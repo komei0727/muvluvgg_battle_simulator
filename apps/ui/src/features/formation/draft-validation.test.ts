@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BattleDraft, FormationSlotInput, GearInput } from "../../entities/battle-draft.js";
 import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contract.js";
 import { selectCanSubmit, validateDraft } from "./draft-validation.js";
-import { createInitialDraft, slotKeyOf } from "./types.js";
+import { createInitialDraft, createInitialModuleOverride, slotKeyOf } from "./types.js";
 
 function catalogWith(
   units: BattleSimulationCatalogResponse["units"] = [],
@@ -371,6 +371,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
                 level: 0,
                 rank: 5,
                 linkExcluded: false,
+                module: createInitialModuleOverride(),
                 gears: Array(9).fill(undefined),
               },
             }
@@ -404,6 +405,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
                 level: 200,
                 rank: 5,
                 linkExcluded: false,
+                module: createInitialModuleOverride(),
                 gears: Array(10).fill(gear),
               },
             }
@@ -432,7 +434,16 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
         ...base,
         allySlots: base.allySlots.map((slot) =>
           slot.slotKey === slotKey
-            ? { ...slot, enhancement: { level: 200, rank: 5, linkExcluded: false, gears } }
+            ? {
+                ...slot,
+                enhancement: {
+                  level: 200,
+                  rank: 5,
+                  linkExcluded: false,
+                  module: createInitialModuleOverride(),
+                  gears,
+                },
+              }
             : slot,
         ),
       };
@@ -556,6 +567,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
                   level: slotLevel,
                   rank: 5,
                   linkExcluded: false,
+                  module: createInitialModuleOverride(),
                   gears: Array(9).fill(undefined),
                 },
               }
@@ -656,6 +668,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
                 level: 220,
                 rank: 5,
                 linkExcluded: false,
+                module: createInitialModuleOverride(),
                 gears: Array<undefined>(9).fill(undefined),
               },
             }
@@ -679,6 +692,7 @@ describe("validateDraft — 強化入力 (M11, UI-AC-024)", () => {
                 level: "",
                 rank: 5,
                 linkExcluded: false,
+                module: createInitialModuleOverride(),
                 gears: Array<undefined>(9).fill(undefined),
               },
             }

@@ -313,11 +313,25 @@ export type FormationStatPreviewApiResult =
 // featureに残るが、送信本文の形そのものは`shared/api/api-client.ts`が直接送る
 // wire型であり、レスポンス型と同じくここが正本（REF-055）。
 
-/** docs/ui-design/03_API・データ連携設計.md §5.1 (M11). */
+/** docs/ddd/10_API設計.md「ModuleStatOverrideRequest」(R-ENH-08). */
+export interface ModuleStatOverrideRequest {
+  readonly fixed?: number;
+  readonly ratio?: number;
+}
+
+/** docs/ddd/10_API設計.md「ModuleOverrideRequest」(R-ENH-08). */
+export interface ModuleOverrideRequest {
+  readonly hp?: ModuleStatOverrideRequest;
+  readonly attack?: ModuleStatOverrideRequest;
+  readonly defense?: ModuleStatOverrideRequest;
+}
+
+/** docs/ui-design/03_API・データ連携設計.md §5.1 (M11)。`module`はR-ENH-08で追加。 */
 export interface UnitEnhancementRequest {
   readonly level: number;
   readonly rank: number;
   readonly gears: readonly GearInput[];
+  readonly module?: ModuleOverrideRequest;
 }
 
 export interface FormationEnhancementRequest {

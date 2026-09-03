@@ -42,6 +42,13 @@ export type PlayerEnhancementAction =
       readonly gear?: GearInput;
     }
   | {
+      readonly type: "unitEnhancementModuleChanged";
+      readonly unitDefinitionId: string;
+      readonly stat: "hp" | "attack" | "defense";
+      readonly field: "fixed" | "ratio";
+      readonly value: number | "";
+    }
+  | {
       readonly type: "unitLinkExclusionChanged";
       readonly unitDefinitionId: string;
       readonly excluded: boolean;
@@ -123,6 +130,17 @@ export function playerEnhancementReducer(
           gears: enhancement.gears.map((gear, index) =>
             index === action.gearIndex ? action.gear : gear,
           ),
+        })),
+      };
+    case "unitEnhancementModuleChanged":
+      return {
+        ...state,
+        units: editUnit(state, action.unitDefinitionId, (enhancement) => ({
+          ...enhancement,
+          module: {
+            ...enhancement.module,
+            [action.stat]: { ...enhancement.module[action.stat], [action.field]: action.value },
+          },
         })),
       };
     case "unitLinkExclusionChanged":

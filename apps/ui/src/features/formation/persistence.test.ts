@@ -12,7 +12,12 @@ import {
   toStoredPlayerData,
 } from "./persistence.js";
 import type { StoredPlayerData } from "./persistence.js";
-import { createInitialDraft, createInitialUnitEnhancement, slotKeyOf } from "./types.js";
+import {
+  createInitialDraft,
+  createInitialModuleOverride,
+  createInitialUnitEnhancement,
+  slotKeyOf,
+} from "./types.js";
 import type { BattleDraft, GearInput, UnitEnhancementInput } from "../../entities/battle-draft.js";
 import type { UiViolation } from "../../entities/violation.js";
 
@@ -466,6 +471,7 @@ describe("レベルリンクの保存 (UI-UT-PST-011/012)", () => {
       level: 240,
       rank: 5,
       linkExcluded: false,
+      module: createInitialModuleOverride(),
       gears: emptyGears(),
     });
   });
@@ -594,6 +600,7 @@ describe("ユニットランクの保存 (UI-UT-PST-014〜016)", () => {
       level: 240,
       rank: 5,
       linkExcluded: false,
+      module: createInitialModuleOverride(),
       gears: emptyGears(),
     });
   });
@@ -673,6 +680,84 @@ describe("ユニットランクの保存 (UI-UT-PST-014〜016)", () => {
     expect(
       restored?.allySlots.find((slot) => slot.slotKey === firstSlotKey)?.enhancement?.rank,
     ).toBe(rank);
+  });
+});
+
+// R-ENH-08（Issue #656）。新項目のため版を上げずに足す。欠落は「上書きしない」
+// （全項目`""`）として読む。
+describe("モジュール補正上書きの保存 (R-ENH-08)", () => {
+  const firstSlotKey = slotKeyOf("ally", "FRONT", 0);
+
+  it("restores a v1 draft that predates module with no override", () => {
+    const base = createInitialDraft();
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: {
+        ...base,
+        allySlots: base.allySlots.map((slot) =>
+          slot.slotKey === firstSlotKey
+            ? {
+                ...slot,
+                unitDefinitionId: "UNIT_A",
+                enhancement: { level: 240, rank: 5, linkExcluded: false, gears: emptyGears() },
+              }
+            : slot,
+        ),
+      },
+    };
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown);
+
+    expect(
+      restored?.allySlots.find((slot) => slot.slotKey === firstSlotKey)?.enhancement?.module,
+    ).toEqual({
+      hp: { fixed: "", ratio: "" },
+      attack: { fixed: "", ratio: "" },
+      defense: { fixed: "", ratio: "" },
+    });
+  });
+
+  it("round-trips a non-default module override", () => {
+    const base = createInitialDraft();
+    const draft: BattleDraft = withAllySlot(base, firstSlotKey, "UNIT_A", {
+      ...createInitialUnitEnhancement(),
+      module: {
+        hp: { fixed: 5000, ratio: 10 },
+        attack: { fixed: -3000, ratio: "" },
+        defense: { fixed: "", ratio: -5 },
+      },
+    });
+
+    const restored = parseStoredDraft(JSON.parse(JSON.stringify(toStoredDraft(draft))) as unknown);
+
+    expect(restored).toStrictEqual(draft);
+  });
+
+  it("discards the whole draft when a slot's stored module is not an object", () => {
+    const base = createInitialDraft();
+    const stored = {
+      schemaVersion: PERSISTENCE_SCHEMA_VERSION,
+      draft: {
+        ...base,
+        allySlots: base.allySlots.map((slot) =>
+          slot.slotKey === firstSlotKey
+            ? {
+                ...slot,
+                unitDefinitionId: "UNIT_A",
+                enhancement: {
+                  level: 200,
+                  rank: 5,
+                  linkExcluded: false,
+                  gears: emptyGears(),
+                  module: "not-an-object",
+                },
+              }
+            : slot,
+        ),
+      },
+    };
+
+    expect(parseStoredDraft(JSON.parse(JSON.stringify(stored)) as unknown)).toBeUndefined();
   });
 });
 

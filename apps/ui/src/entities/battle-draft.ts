@@ -60,6 +60,23 @@ export interface GearInput {
   readonly grade: GearGrade;
 }
 
+/**
+ * R-ENH-08: モジュールの固定加算・割合補正のユニット単位の上書き。`""`は
+ * 「その項目は上書きしない（エンジン既定値を使う）」を表す——`level`と同じく
+ * 未入力状態を持つが、`level`と違い`""`のままでも送信できる有効な終端値である。
+ */
+export interface ModuleStatOverrideInput {
+  readonly fixed: number | "";
+  /** UI表示はパーセント単位（例: `9`）。APIへ送る内部表現の小数への変換は`request-mapper.ts`が行う。 */
+  readonly ratio: number | "";
+}
+
+export interface ModuleOverrideInput {
+  readonly hp: ModuleStatOverrideInput;
+  readonly attack: ModuleStatOverrideInput;
+  readonly defense: ModuleStatOverrideInput;
+}
+
 export interface UnitEnhancementInput {
   readonly level: number | "";
   /**
@@ -72,6 +89,8 @@ export interface UnitEnhancementInput {
    * （`level-link.ts`）で、外れていない枠の`level`はリンク中だけ読まれない。
    */
   readonly linkExcluded: boolean;
+  /** R-ENH-08: モジュール補正の上書き。全項目`""`ならリクエストへ出力しない。 */
+  readonly module: ModuleOverrideInput;
   /** 常に9枠。空枠（`undefined`）を許容する（UI-AC-025）。 */
   readonly gears: readonly (GearInput | undefined)[];
 }
