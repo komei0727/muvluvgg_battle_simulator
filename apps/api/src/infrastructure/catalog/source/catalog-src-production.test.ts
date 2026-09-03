@@ -146,6 +146,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_SHIRANA_LUCKY_TEX",
         // 新衣装バリアント（既存キャラクターcharacterId再利用）: 【蠱惑のキャンペーンガール】ロージー・ヒューズ
         "UNIT_ROSIE_CAMPAIGN",
+        // 新衣装バリアント（既存キャラクターcharacterId再利用）: 【商売上手のエンジェルナース】レイラ・ジェンキンス
+        "UNIT_LAYLA_NURSE",
       ].sort(),
     );
   });

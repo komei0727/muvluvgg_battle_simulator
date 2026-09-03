@@ -1469,6 +1469,61 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LAYLA_ENTREPRENEUR co
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LAYLA_NURSE completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 2,
+  "completionReason": "ALLY_DEFEATED",
+  "eventCount": 489,
+  "eventSequenceHash": "sha256:09649a158254c4de",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 12,
+    "ACTION_COMPLETING": 12,
+    "ACTION_QUEUE_CREATED": 6,
+    "ACTION_STARTED": 12,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "COMBAT_STAT_CHANGED": 8,
+    "COOLDOWN_COMPLETED": 3,
+    "COOLDOWN_REDUCED": 7,
+    "COOLDOWN_STARTED": 6,
+    "CRITICAL_CHECK_RESOLVED": 15,
+    "DAMAGE_APPLIED": 15,
+    "DAMAGE_CALCULATED": 15,
+    "DAMAGE_WILL_BE_APPLIED": 15,
+    "EFFECT_ACTION_COMPLETED": 36,
+    "EFFECT_ACTION_STARTING": 36,
+    "EFFECT_APPLIED": 12,
+    "EFFECT_DURATION_REDUCED": 10,
+    "EFFECT_EXPIRED": 10,
+    "EFFECT_STEP_COMPLETED": 32,
+    "EFFECT_STEP_STARTING": 32,
+    "EXTRA_GAUGE_INCREASED": 7,
+    "EXTRA_GAUGE_OVERFLOW_DISCARDED": 2,
+    "HIT_CONFIRMED": 15,
+    "HIT_POINT_REDUCED": 15,
+    "MARKER_APPLIED": 4,
+    "MARKER_REMOVED": 4,
+    "MARKER_UPDATED": 5,
+    "PASSIVE_ACTIVATED": 8,
+    "PASSIVE_POINT_CONSUMED": 8,
+    "PASSIVE_RESOLVED": 8,
+    "RESOURCES_RECOVERED": 2,
+    "RESOURCE_CHANGED": 48,
+    "SKILL_USE_COMPLETED": 12,
+    "SKILL_USE_STARTED": 12,
+    "SKILL_USE_STARTING": 12,
+    "TARGETS_SELECTED": 12,
+    "TURN_COMPLETED": 1,
+    "TURN_COMPLETING": 1,
+    "TURN_STARTED": 2,
+    "UNIT_BEING_ATTACKED": 14,
+    "UNIT_DEFEATED": 1,
+  },
+  "outcome": "ALLY_LOSE",
+  "unitDefinitionId": "UNIT_LAYLA_NURSE",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LILY_HERO completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,

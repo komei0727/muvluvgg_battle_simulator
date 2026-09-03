@@ -1,0 +1,243 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_EX_DAMAGE_COLUMN",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.78
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_EX_DAMAGE_ROW",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 0.53
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.272
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_AS1_DAMAGE_PIERCE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.272
+      },
+      "piercing": {
+        "defenseIgnoreRate": 0.3,
+        "shieldIgnoreRate": 0,
+        "damageReductionIgnoreRate": 0
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS1_KANSATSU_MARK",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_LAYLA_NURSE_KANSATSU",
+      "stack": {
+        "policy": "REPLACE",
+        "max": 1
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
+        },
+        "removeOnSourceDefeated": true,
+        "linkedEffectGroupId": "LAYLA_NURSE_PS1_KANSATSU_LINK",
+        "linkedEffectGroupRole": "PARENT"
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS1_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.2
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
+        },
+        "linkedEffectGroupId": "LAYLA_NURSE_PS1_KANSATSU_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS1_HEALING_LINK",
+    "kind": "APPLY_HEALING_LINK",
+    "payload": {
+      "transferTo": {
+        "kind": "SELF"
+      },
+      "transferRate": 1,
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "ACTION",
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
+        },
+        "linkedEffectGroupId": "LAYLA_NURSE_PS1_KANSATSU_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": {
+        "kind": "SKILL_POWER",
+        "power": 1.1044
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS2_EX_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS2_PP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -1
+      },
+      "bounds": {
+        "min": 0,
+        "max": "CURRENT_MAX"
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS3_STEALTH",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "STEALTH",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "TURN",
+          "count": 1
+        }
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS3_THRESHOLD_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": {
+        "kind": "CONSTANT",
+        "value": -0.65
+      },
+      "damageThreshold": {
+        "op": "GT",
+        "formula": {
+          "kind": "CURRENT_HP_RATIO",
+          "source": {
+            "kind": "TARGET"
+          },
+          "ratio": 0.2
+        }
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": {
+          "unit": "TURN",
+          "count": 1
+        }
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  }
+]

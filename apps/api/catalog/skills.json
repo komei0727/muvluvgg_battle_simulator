@@ -7386,6 +7386,214 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_LAYLA_NURSE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_NURSE_EX_DAMAGE_COLUMN" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_NURSE_EX_DAMAGE_ROW" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "チクッとするよ〜？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_NURSE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_LAYLA_NURSE_KANSATSU",
+                "direction": "DESC"
+              },
+              "DEFAULT"
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "markerId": "MARKER_LAYLA_NURSE_KANSATSU"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_NURSE_AS1_DAMAGE_PIERCE" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_LAYLA_NURSE_AS1_DAMAGE" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "トリアージ・スラスト", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_NURSE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS1_KANSATSU_MARK" },
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS1_ATK_DOWN" },
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS1_HEALING_LINK" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "アナライズ・フォーカス", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_NURSE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS2_EX_DOWN" },
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS2_PP_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "コーリングナース", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseCompleted",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_HAS_MARKER",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "markerId": "MARKER_LAYLA_NURSE_KANSATSU"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LAYLA_NURSE_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS3_STEALTH" },
+            { "effectActionDefinitionId": "ACT_LAYLA_NURSE_PS3_THRESHOLD_DMG_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "バイタルチェック", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_LILY_HERO_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },

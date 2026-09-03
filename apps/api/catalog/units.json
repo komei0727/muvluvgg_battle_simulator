@@ -911,6 +911,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_LAYLA_NURSE",
+    "attribute": "CUTE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 30205,
+      "attack": 22040,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 695,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 283, "attack": 206, "defense": 100, "actionSpeed": 2 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_LAYLA_NURSE_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_LAYLA_NURSE_PS1",
+      "SKL_LAYLA_NURSE_PS2",
+      "SKL_LAYLA_NURSE_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_LAYLA_NURSE_EX",
+    "metadata": {
+      "affiliations": ["AFF_TREBLE_QUINTET"],
+      "tags": [],
+      "displayName": "【商売上手のエンジェルナース】レイラ・ジェンキンス",
+      "characterName": "レイラ・ジェンキンス",
+      "characterId": "CHAR_LAYLA_JENKINS"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_LILY_HERO",
     "attribute": "SMART",
     "unitType": "PHYSICAL",
