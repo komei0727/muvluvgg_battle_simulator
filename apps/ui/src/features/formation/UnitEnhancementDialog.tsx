@@ -550,7 +550,7 @@ export function UnitEnhancementDialog({
         <div className={styles["moduleSection"]}>
           <p className={styles["gearNotation"]}>
             モジュール補正の上書き（既定値:
-            固定+3628/+2721/+1515、割合9%）。空欄は既定値のまま使います。
+            固定+4288/+3216/+1790、割合10%）。空欄は既定値のまま使います。
           </p>
           <div className={styles["moduleStats"]}>
             {MODULE_STATS.map((stat) => {
