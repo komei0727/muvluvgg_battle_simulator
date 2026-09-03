@@ -142,6 +142,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_LYDIA_SUMMER",
         // Issue #650: UNIT_YURIA_WILDCARD/UNIT_YURIA_YUKATAの3バリアント目
         "UNIT_YURIA_JOKER",
+        // 戦術演習敵ユニット追加（アクティブ入替）: 【純白のラッキーガール】一条白奈
+        "UNIT_SHIRANA_LUCKY_TEX",
       ].sort(),
     );
   });

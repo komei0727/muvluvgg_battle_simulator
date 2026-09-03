@@ -14176,6 +14176,197 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_SHIRANA_LUCKY_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["BACK_ROW", "DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_EX_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "薄暮の宵火", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SHIRANA_LUCKY_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["BACK_ROW", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_AS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_AS1_OUTGOING_DOWN" },
+            { "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_AS1_INCOMING_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "クールスラッシュ・トリプル", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SHIRANA_LUCKY_TEX_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["BACK_ROW", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_AS2_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "バックエイムファイア+", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_SHIRANA_LUCKY_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_SMART_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "ATTRIBUTE", "attribute": "SMART" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_SMART_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_PS1_DAMAGE_DOWN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "metadata": { "displayName": "スマートバリア+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "SELF" },
+          "field": "HP_RATIO",
+          "op": "LTE",
+          "value": 0.5
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_SHIRANA_LUCKY_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FARTHEST_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FARTHEST"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_PS2_GUARD" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_TEX_PS2_BURN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "TURN", "count": 99 },
+    "traits": {},
+    "metadata": { "displayName": "セカンドライン・セーブ+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_SHIRANA_SORA_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 6 },

@@ -36,7 +36,7 @@
   {
     "unitDefinitionId": "UNIT_ANIS_SWEETDEVIL_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "SHY",
     "unitType": "ENERGY",
     "role": "SUPPORT",
@@ -153,7 +153,7 @@
   {
     "unitDefinitionId": "UNIT_AOI_GUARDIAN_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "CUTE",
     "unitType": "PHYSICAL",
     "role": "TANK",
@@ -1237,7 +1237,7 @@
   {
     "unitDefinitionId": "UNIT_MAO_SUMMER_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "AGGRESSIVE",
     "unitType": "ENERGY",
     "role": "EN_ATTACKER",
@@ -1822,6 +1822,35 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_SHIRANA_LUCKY_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "TANK",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 405346,
+      "attack": 8791,
+      "defense": 7513,
+      "criticalRate": 0.13,
+      "actionSpeed": 578,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_TEX_AS1", "SKL_SHIRANA_LUCKY_TEX_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_SHIRANA_LUCKY_TEX_PS1", "SKL_SHIRANA_LUCKY_TEX_PS2"],
+    "extraSkillDefinitionId": "SKL_SHIRANA_LUCKY_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
+      "tags": [],
+      "displayName": "【純白のラッキーガール】一条白奈",
+      "characterName": "一条白奈",
+      "characterId": "CHAR_SHIRANA_ICHIJO"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_SHIRANA_SORA",
     "attribute": "SHY",
     "unitType": "ENERGY",
@@ -1882,7 +1911,7 @@
   {
     "unitDefinitionId": "UNIT_SHOUKA_BEACH_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "SMART",
     "unitType": "ENERGY",
     "role": "TANK",

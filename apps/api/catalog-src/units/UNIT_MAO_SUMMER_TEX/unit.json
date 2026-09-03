@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_MAO_SUMMER_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "AGGRESSIVE",
   "unitType": "ENERGY",
   "role": "EN_ATTACKER",
