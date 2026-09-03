@@ -38,10 +38,12 @@ test("UI-E2E-017: mouse-wheel scrolling the enhancement dialog body reaches the 
 
   const dialog = page.getByRole("dialog", { name: "アライアルファの強化" });
   await expect(dialog).toBeVisible();
+  const header = page.getByRole("heading", { name: "アライアルファの強化" });
 
   const lastGearStat = page.getByLabel("ギア9 の対象ステータス");
   const panelBoxBefore = (await dialog.boundingBox())!;
   const gearBoxBefore = (await lastGearStat.boundingBox())!;
+  const headerBoxBefore = (await header.boundingBox())!;
 
   // Sanity check: at this viewport height the last gear slot genuinely
   // overflows the dialog's visible frame before any scrolling. Without this,
@@ -70,6 +72,18 @@ test("UI-E2E-017: mouse-wheel scrolling the enhancement dialog body reaches the 
   );
 
   // The header (title, close button) stays visible throughout — only the
-  // body scrolls, never the whole panel.
-  await expect(page.getByRole("heading", { name: "アライアルファの強化" })).toBeVisible();
+  // body scrolls, never the whole panel. `toBeVisible()` alone would not
+  // catch a regression where `.panel` itself became the scroll container
+  // (e.g. reverting to a single scrollable panel instead of a fixed header
+  // + scrollable body): the header would still satisfy Playwright's
+  // "visible" definition (non-zero box, not display:none/visibility:hidden)
+  // even while scrolled outside the panel's clipped frame or off-viewport.
+  // Assert its position explicitly instead: unmoved by the wheel input, and
+  // still inside the panel's bounds.
+  const headerBoxAfter = (await header.boundingBox())!;
+  expect(headerBoxAfter.y).toBeCloseTo(headerBoxBefore.y, 0);
+  expect(headerBoxAfter.y).toBeGreaterThanOrEqual(panelBoxAfter.y);
+  expect(headerBoxAfter.y + headerBoxAfter.height).toBeLessThanOrEqual(
+    panelBoxAfter.y + panelBoxAfter.height,
+  );
 });
