@@ -49,7 +49,11 @@ const EX_SHIELD = "ACT_SHIRANA_LUCKY_TEX_EX_SHIELD";
 const SMART_SUBJECT_AND_ALLY = {
   subject: { attribute: "SMART" as const },
   allies: [
-    { id: "ally:front", position: { column: "LEFT" as const, row: "FRONT" as const }, attribute: "SMART" as const },
+    {
+      id: "ally:front",
+      position: { column: "LEFT" as const, row: "FRONT" as const },
+      attribute: "SMART" as const,
+    },
     { id: "ally:back", position: { column: "CENTER" as const, row: "BACK" as const } },
   ],
 };
