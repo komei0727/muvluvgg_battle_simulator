@@ -35,6 +35,12 @@
   background: var(--color-surface-raised);
 }
 
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .title {
   margin: 0;
   font-size: 14px;
