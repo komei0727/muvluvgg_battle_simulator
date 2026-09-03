@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_AOI_GUARDIAN_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "CUTE",
   "unitType": "PHYSICAL",
   "role": "TANK",

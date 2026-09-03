@@ -539,7 +539,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-09-01.1` は `UNIT_YURIA_JOKER`（【自由に煌めくジョーカーカード】
     // ユリア・バーンズ、Issue #650）の新規投入。`LOWEST_DEFENSE`ターゲット順序・
     // `TARGET_EFFECT_COUNT`条件種別（いずれも#649で追加）のproduction初使用。
-    expect(catalog.catalogRevision).toBe("2026-09-01.1");
+    // `2026-09-03.1` は戦術演習敵ユニットのアクティブ入替。`UNIT_SHIRANA_LUCKY_TEX`
+    // （【純白のラッキーガール】一条白奈・戦術演習版）を新規投入し、既存の
+    // `UNIT_ANIS_SWEETDEVIL_TEX`・`UNIT_AOI_GUARDIAN_TEX`・`UNIT_MAO_SUMMER_TEX`・
+    // `UNIT_SHOUKA_BEACH_TEX`の`exerciseActive`を`false`へ変更した（R-TEX-11 #4、
+    // 表示専用フラグでシミュレーションの受理条件には影響しない）。新ユニットは
+    // 既存の`UNIT_SHIRANA_LUCKY`（プレイアブル版）と威力・消費値が完全一致する
+    // 「+」版で、エンジン拡張は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-09-03.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

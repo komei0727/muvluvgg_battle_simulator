@@ -52,6 +52,7 @@ describe("catalog-src/ inventory", () => {
       "UNIT_ANIS_SWEETDEVIL_TEX",
       "UNIT_AOI_GUARDIAN_TEX",
       "UNIT_MAO_SUMMER_TEX",
+      "UNIT_SHIRANA_LUCKY_TEX",
       "UNIT_SHOUKA_BEACH_TEX",
     ]);
   });

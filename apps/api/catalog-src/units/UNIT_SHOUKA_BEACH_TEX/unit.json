@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_SHOUKA_BEACH_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "SMART",
   "unitType": "ENERGY",
   "role": "TANK",

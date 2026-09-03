@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_ANIS_SWEETDEVIL_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "SHY",
   "unitType": "ENERGY",
   "role": "SUPPORT",
