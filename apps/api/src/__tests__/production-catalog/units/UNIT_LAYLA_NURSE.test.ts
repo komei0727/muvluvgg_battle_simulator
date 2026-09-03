@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import { applyHealAction } from "../../../domain/battle/resolution/heal-application-service.js";
+import { loadProductionSnapshot, seedRecorder, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  SUBJECT_ID,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -15,6 +23,7 @@ import {
   realDamage,
   skillUseCompleted,
   turnStarted,
+  unitDefeated,
 } from "../../../testing/production-unit/trigger-events.js";
 
 /**
@@ -315,5 +324,126 @@ describe("production Catalog UNIT_LAYLA_NURSE (【商売上手のエンジェル
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  // -004〜-005: PS1の回復リンク（R-HEAL-04）とLinked Effect Group連動失効
+  // （R-EFF-09、R-EFF-10）は、「付与」と「以後の別の出来事（回復の転送／付与者の
+  // 戦闘不能）」が別の時点で起こるため、単発のEffectAction観測（`-001`表）には
+  // 現れない。PS1自身が実際に配る3つのproduction EffectAction
+  // （KANSATSU_MARK/ATK_DOWN/HEALING_LINK）を`applyPrecedingActions`で敵へ実際に
+  // 保持させたうえで、別経路の回復・`UnitDefeated`を通して確認する。
+
+  const ATK_DOWN_ID = "ACT_LAYLA_NURSE_PS1_ATK_DOWN";
+  const HEALING_LINK_ID = "ACT_LAYLA_NURSE_PS1_HEALING_LINK";
+  const KANSATSU_MARK_ID = "ACT_LAYLA_NURSE_PS1_KANSATSU_MARK";
+
+  /** PS1が実際に付与する3つの効果を、実productionEffectActionでenemy:frontへ持たせた盤面。 */
+  function boardWithKansatsuGranted() {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: KANSATSU_MARK_ID, target: "ENEMY" },
+      { effectActionDefinitionId: ATK_DOWN_ID, target: "ENEMY" },
+      { effectActionDefinitionId: HEALING_LINK_ID, target: "ENEMY" },
+    ]);
+    return { board, units };
+  }
+
+  it("IT-UNIT-LAYLA-NURSE-004 [R-HEAL-04]: ACT_LAYLA_NURSE_PS1_HEALING_LINK resolves transferTo: SELF to ally:subject (Layla) at grant time, and a real heal landing on the holder transfers 100% to Layla instead of applying to the holder", () => {
+    const { board, units } = boardWithKansatsuGranted();
+    const enemyAfterGrant = units.find((unit) => unit.battleUnitId === "enemy:front")!;
+    const link = enemyAfterGrant.appliedEffects.find(
+      (effect) => effect.effectActionDefinitionId === HEALING_LINK_ID,
+    );
+    // 付与時点でtransferToはレイラ（付与者=SKILL_SOURCE）へ解決済みでなければならない。
+    expect(link?.healingLink).toEqual({ transferToUnitId: SUBJECT_ID, transferRate: 1 });
+
+    const healAction: Extract<EffectActionDefinition, { kind: "HEAL" }> = {
+      kind: "HEAL",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEST_LAYLA_NURSE_HEAL_PROBE"),
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: 100 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      },
+    };
+    const enemy = units.find((unit) => unit.battleUnitId === "enemy:front")!;
+    const subjectBefore = units.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
+    const { recorder, rootEventId } = seedRecorder("B_LAYLA_NURSE_PS1_HEAL_PROBE");
+
+    const healed = applyHealAction(
+      [
+        {
+          targetUnitId: enemy.battleUnitId,
+          effectActionDefinitionId: healAction.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ],
+      enemy,
+      healAction,
+      units,
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: enemy.battleUnitId,
+        effectActions: board.definitions.effectActions,
+      },
+    );
+
+    // 保持者(enemy:front)自身のHPは動かない — 全量がレイラへ転送される。
+    const enemyAfterHeal = healed.units.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(enemyAfterHeal.currentHp).toBe(enemy.currentHp);
+    const subjectAfterHeal = healed.units.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
+    expect(subjectAfterHeal.currentHp).toBe(subjectBefore.currentHp + 100);
+
+    const transferred = recorder
+      .getEvents()
+      .find(
+        (event): event is Extract<BattleDomainEvent, { eventType: "HealingTransferred" }> =>
+          event.eventType === "HealingTransferred",
+      );
+    // `effectActionDefinitionId`は転送を発生させたHEAL自身ではなく、転送元の
+    // 回復リンクを指す（PS1が付与したACT_LAYLA_NURSE_PS1_HEALING_LINK）。
+    expect(transferred?.payload).toMatchObject({
+      effectActionDefinitionId: HEALING_LINK_ID,
+      fromUnitId: enemy.battleUnitId,
+      toUnitId: SUBJECT_ID,
+      transferRate: 1,
+      transferredAmount: 100,
+      appliedAmount: 100,
+    });
+  });
+
+  it("IT-UNIT-LAYLA-NURSE-005 [R-EFF-09, R-EFF-10]: the ATK debuff and healing link are removed together with the KANSATSU marker when Layla (the grantor) is defeated", () => {
+    const { board, units } = boardWithKansatsuGranted();
+    const enemyBefore = units.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(enemyBefore.markerStates.map((marker) => marker.markerId)).toEqual([KANSATSU]);
+    expect(
+      [...enemyBefore.appliedEffects.map((effect) => effect.effectActionDefinitionId)].sort(),
+    ).toEqual([ATK_DOWN_ID, HEALING_LINK_ID].sort());
+
+    const chain = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: SUBJECT_ID,
+      battleId: "B_LAYLA_NURSE_PS1_DEFEAT",
+    });
+    const afterDefeat = chain.fire(
+      unitDefeated({ unit: SUBJECT_ID, defeatedBy: "enemy:front" }),
+      units.map((unit) =>
+        unit.battleUnitId === SUBJECT_ID ? { ...unit, currentHp: 0, isAlive: false } : unit,
+      ),
+    );
+
+    const enemyAfter = afterDefeat.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(enemyAfter.markerStates).toEqual([]);
+    const remainingActionIds = enemyAfter.appliedEffects.map(
+      (effect) => effect.effectActionDefinitionId,
+    );
+    expect(remainingActionIds).not.toContain(ATK_DOWN_ID);
+    expect(remainingActionIds).not.toContain(HEALING_LINK_ID);
   });
 });
