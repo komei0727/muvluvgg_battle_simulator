@@ -162,6 +162,20 @@ describe("UnitEnhancementDialog (UI-CMP-015)", () => {
     expect(screen.queryByText(/ランクをLR\+5に戻してください/)).not.toBeInTheDocument();
   });
 
+  // R-ENH-08: この説明文はAPI側の既定値（enhanced-base-stats-calculator.ts の
+  // MODULE_FIXED_ADDITION/MODULE_RATIO）を手で転記した表示専用の文言であり、
+  // APIとUIを跨いで自動的には同期しない。既定値が変わったのにこの文言だけ
+  // 取り残される回帰（#658レビュー指摘）を、値を固定して直接検知する。
+  it("UI-CT-148: shows the module override hint with the current API defaults", () => {
+    renderDialog();
+
+    expect(
+      screen.getByText(
+        "モジュール補正の上書き（既定値: 固定+4288/+3216/+1790、割合10%）。空欄は既定値のまま使います。",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("UI-CT-143: opens with all six module override fields empty", () => {
     renderDialog();
 
