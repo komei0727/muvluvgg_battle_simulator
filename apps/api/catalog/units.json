@@ -911,6 +911,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_LAYLA_NURSE",
+    "attribute": "CUTE",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 30205,
+      "attack": 22040,
+      "defense": 11218,
+      "criticalRate": 0.2,
+      "actionSpeed": 695,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 283, "attack": 206, "defense": 100, "actionSpeed": 2 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_LAYLA_NURSE_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_LAYLA_NURSE_PS1",
+      "SKL_LAYLA_NURSE_PS2",
+      "SKL_LAYLA_NURSE_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_LAYLA_NURSE_EX",
+    "metadata": {
+      "affiliations": ["AFF_TREBLE_QUINTET"],
+      "tags": [],
+      "displayName": "【商売上手のエンジェルナース】レイラ・ジェンキンス",
+      "characterName": "レイラ・ジェンキンス",
+      "characterId": "CHAR_LAYLA_JENKINS"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_LILY_HERO",
     "attribute": "SMART",
     "unitType": "PHYSICAL",
@@ -1677,6 +1709,38 @@
       "affiliations": ["AFF_TREBLE_QUINTET"],
       "tags": [],
       "displayName": "【空想造形アーティスト】ロージー・ヒューズ",
+      "characterName": "ロージー・ヒューズ",
+      "characterId": "CHAR_ROSIE_HUGHES"
+    }
+  },
+  {
+    "unitDefinitionId": "UNIT_ROSIE_CAMPAIGN",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "SUPPORT",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 28694,
+      "attack": 22891,
+      "defense": 11114,
+      "criticalRate": 0.15,
+      "actionSpeed": 750,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 265, "attack": 212, "defense": 100, "actionSpeed": 2 },
+    "extraGaugeMaximum": 6,
+    "activeSkillDefinitionIds": ["SKL_ROSIE_CAMPAIGN_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_ROSIE_CAMPAIGN_PS1",
+      "SKL_ROSIE_CAMPAIGN_PS2",
+      "SKL_ROSIE_CAMPAIGN_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_ROSIE_CAMPAIGN_EX",
+    "metadata": {
+      "affiliations": ["AFF_TREBLE_QUINTET"],
+      "tags": [],
+      "displayName": "【蠱惑のキャンペーンガール】ロージー・ヒューズ",
       "characterName": "ロージー・ヒューズ",
       "characterId": "CHAR_ROSIE_HUGHES"
     }

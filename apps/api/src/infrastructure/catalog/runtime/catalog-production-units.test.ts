@@ -546,7 +546,19 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 表示専用フラグでシミュレーションの受理条件には影響しない）。新ユニットは
     // 既存の`UNIT_SHIRANA_LUCKY`（プレイアブル版）と威力・消費値が完全一致する
     // 「+」版で、エンジン拡張は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-09-03.1");
+    // `2026-09-03.2` は `UNIT_ROSIE_CAMPAIGN`（【蠱惑のキャンペーンガール】
+    // ロージー・ヒューズ）の新規投入。既存キャラクター`CHAR_ROSIE_HUGHES`
+    // （既存バリアント`UNIT_ROSIE_ARTIST`）の新衣装違いで、既存effect action
+    // kind・trigger・conditionのみで表現でき、エンジン拡張は伴わない。
+    // `2026-09-03.3` は `UNIT_LAYLA_NURSE`（【商売上手のエンジェルナース】
+    // レイラ・ジェンキンス）の新規投入。既存キャラクター`CHAR_LAYLA_JENKINS`
+    // （既存バリアント`UNIT_LAYLA_ENTREPRENEUR`）の新衣装違い。Linked Effect
+    // Group（`linkedEffectGroupRole`）・`timeLimit.owner: EFFECT_SOURCE`・
+    // `APPLY_HEALING_LINK`・`removeOnSourceDefeated`・`damageThreshold`付き
+    // `APPLY_DAMAGE_MOD`のこのユニットでの初使用を含むが、いずれも既存
+    // effect action kind・trigger・conditionの組み合わせで表現でき、エンジン
+    // 拡張は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-09-03.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -144,6 +144,10 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_YURIA_JOKER",
         // 戦術演習敵ユニット追加（アクティブ入替）: 【純白のラッキーガール】一条白奈
         "UNIT_SHIRANA_LUCKY_TEX",
+        // 新衣装バリアント（既存キャラクターcharacterId再利用）: 【蠱惑のキャンペーンガール】ロージー・ヒューズ
+        "UNIT_ROSIE_CAMPAIGN",
+        // 新衣装バリアント（既存キャラクターcharacterId再利用）: 【商売上手のエンジェルナース】レイラ・ジェンキンス
+        "UNIT_LAYLA_NURSE",
       ].sort(),
     );
   });
