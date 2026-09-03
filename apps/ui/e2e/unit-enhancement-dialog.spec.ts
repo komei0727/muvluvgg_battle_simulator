@@ -30,10 +30,7 @@ test("UI-E2E-017: mouse-wheel scrolling the enhancement dialog body reaches the 
   await openBattleMode(page);
   await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
 
-  await page
-    .getByRole("checkbox", { name: "強化を有効にする" })
-    .first()
-    .click();
+  await page.getByRole("checkbox", { name: "強化を有効にする" }).first().click();
   await page.getByRole("button", { name: "前衛1: アライアルファの強化を編集" }).click();
 
   const dialog = page.getByRole("dialog", { name: "アライアルファの強化" });
