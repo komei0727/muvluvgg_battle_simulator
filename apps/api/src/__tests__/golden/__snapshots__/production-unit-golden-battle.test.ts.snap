@@ -2717,6 +2717,58 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ROSIE_ARTIST complete
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ROSIE_CAMPAIGN completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 5,
+  "completionReason": "TURN_LIMIT_REACHED",
+  "eventCount": 2363,
+  "eventSequenceHash": "sha256:b68b952aee458aba",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 50,
+    "ACTION_COMPLETING": 50,
+    "ACTION_QUEUE_CREATED": 25,
+    "ACTION_STARTED": 50,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "CRITICAL_CHECK_RESOLVED": 74,
+    "DAMAGE_APPLIED": 74,
+    "DAMAGE_CALCULATED": 74,
+    "DAMAGE_WILL_BE_APPLIED": 74,
+    "EFFECT_ACTION_COMPLETED": 202,
+    "EFFECT_ACTION_STARTING": 202,
+    "EFFECT_APPLIED": 20,
+    "EFFECT_EXPIRED": 18,
+    "EFFECT_STEP_COMPLETED": 282,
+    "EFFECT_STEP_STARTING": 282,
+    "EXTRA_GAUGE_INCREASED": 22,
+    "EXTRA_GAUGE_OVERFLOW_DISCARDED": 2,
+    "HEAL_APPLIED": 64,
+    "HIT_CONFIRMED": 74,
+    "HIT_POINT_REDUCED": 74,
+    "MARKER_APPLIED": 10,
+    "MARKER_REMOVED": 8,
+    "MARKER_UPDATED": 34,
+    "PASSIVE_ACTIVATED": 24,
+    "PASSIVE_POINT_CONSUMED": 24,
+    "PASSIVE_RESOLVED": 24,
+    "RESOURCES_RECOVERED": 5,
+    "RESOURCE_CHANGED": 182,
+    "RUNTIME_COUNTER_CHANGED": 42,
+    "SHIELD_CONSUMED": 40,
+    "SKILL_USE_COMPLETED": 50,
+    "SKILL_USE_STARTED": 50,
+    "SKILL_USE_STARTING": 50,
+    "TARGETS_SELECTED": 50,
+    "TURN_COMPLETED": 5,
+    "TURN_COMPLETING": 5,
+    "TURN_STARTED": 5,
+    "UNIT_BEING_ATTACKED": 40,
+  },
+  "outcome": "ALLY_LOSE",
+  "unitDefinitionId": "UNIT_ROSIE_CAMPAIGN",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SAYA_BUNNY completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 2,
