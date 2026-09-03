@@ -97,7 +97,9 @@ export function Dialog({ titleId, title, onClose, children }: DialogProps) {
             ×
           </button>
         </div>
-        <div ref={contentRef}>{children}</div>
+        <div ref={contentRef} className={styles["body"]}>
+          {children}
+        </div>
       </div>
     </div>
   );
