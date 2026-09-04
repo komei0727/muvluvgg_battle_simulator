@@ -1,0 +1,124 @@
+.section {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  margin: 0;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.selection {
+  margin: 0;
+  padding: var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.legendLabel {
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.hint {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.selectionList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.selectionItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+}
+
+/* 05_非機能・アクセシビリティ設計.md §4: 横スクロールはこの内部に限定する。 */
+.scrollArea {
+  overflow-x: auto;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  min-width: 560px;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 60px 60px minmax(140px, max-content) 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list li:last-child .row {
+  border-bottom: 0;
+}
+
+.sequence {
+  color: var(--color-text-muted);
+}
+
+.skill {
+  color: var(--color-ally);
+  font-weight: 700;
+}
+
+.outcome {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.expanded {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.expandedLabel {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.empty {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+}
