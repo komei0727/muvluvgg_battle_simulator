@@ -37,11 +37,7 @@ export interface SkillTimelineView {
   readonly skillDefinitionIds: readonly string[];
 }
 
-const COMPLETION_EVENT_TYPES = new Set([
-  "SKILL_USE_COMPLETED",
-  "PASSIVE_RESOLVED",
-  "MEMORY_RESOLVED",
-]);
+const COMPLETION_EVENT_TYPES = new Set(["SKILL_USE_COMPLETED", "PASSIVE_RESOLVED"]);
 const INTERRUPTION_EVENT_TYPES = new Set(["SKILL_USE_INTERRUPTED", "PASSIVE_INTERRUPTED"]);
 
 function detailsOf(event: BattleLogEventResponse): Record<string, unknown> {
@@ -61,11 +57,10 @@ function cycleNumberOf(event: BattleLogEventResponse): number {
   return numberOf(event["cycleNumber"]) ?? 0;
 }
 
-/** グループをsequence昇順に走査し、最初に見つかった`skillDefinitionId`（無ければ`memoryDefinitionId`）を返す。 */
+/** グループをsequence昇順に走査し、最初に見つかった`skillDefinitionId`を返す。 */
 function skillDefinitionIdOf(events: readonly BattleLogEventResponse[]): string | undefined {
   for (const event of events) {
-    const details = detailsOf(event);
-    const found = stringOf(details["skillDefinitionId"]) ?? stringOf(details["memoryDefinitionId"]);
+    const found = stringOf(detailsOf(event)["skillDefinitionId"]);
     if (found !== undefined) {
       return found;
     }
