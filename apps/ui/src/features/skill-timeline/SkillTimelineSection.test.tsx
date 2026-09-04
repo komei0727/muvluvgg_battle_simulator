@@ -156,4 +156,31 @@ describe("SkillTimelineSection", () => {
     expect(restoredCheckbox).toBeInTheDocument();
     expect(restoredCheckbox).toBeChecked();
   });
+
+  // 再実行中もBattleDetailsSectionは前回結果を表示し続け、SkillTimelineSectionを
+  // unmountせず`events`だけを差し替える。絞り込み・展開状態が前回の発動群のIDを
+  // 引きずったままだと、新しい発動群のIDと一致せず全行が消えてしまう。
+  it("resets unit/skill filters to full selection when the events prop is replaced by a new battle result", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<SkillTimelineSection events={EVENTS} roster={roster} />);
+
+    // 前回結果でアタッカーを非表示にしておく(選択状態にstaleなIDが残ることを模す)。
+    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
+    expect(screen.queryByRole("button", { name: /SKL_ATTACK/ })).not.toBeInTheDocument();
+
+    const RERUN_EVENTS: readonly BattleLogEventResponse[] = [
+      event({
+        sequence: 1,
+        type: "TARGETS_SELECTED",
+        skillUseId: "su-rerun",
+        sourceUnitId: ATTACKER,
+        details: { skillDefinitionId: "SKL_RERUN", bindings: [] },
+      }),
+    ];
+
+    rerender(<SkillTimelineSection events={RERUN_EVENTS} roster={roster} />);
+
+    expect(screen.getByRole("button", { name: /SKL_RERUN/ })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /アタッカー/ })).toBeChecked();
+  });
 });

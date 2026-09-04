@@ -81,6 +81,20 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
   );
   const [expandedSkillUseIds, setExpandedSkillUseIds] = useState<ReadonlySet<string>>(new Set());
 
+  // 再実行中、`BattleDetailsSection`はこのcomponentをunmountせず`events`だけを差し替える
+  // （前回の成功結果を表示し続けたまま）。フィルタ・展開状態が前回の発動群のIDを保持したままだと、
+  // 新しい発動群のIDと一致せず全行が「選択したユニット・スキルの発動はありません」になる。
+  // `events`が変わった実際のrenderで検出し、次の描画が起きる前に全選択へ戻す
+  // （Reactの「レンダー中に前回のpropsと比較してstateを調整する」パターン。key remountより
+  // 影響範囲がこのcomponent内に閉じる）。
+  const [previousEvents, setPreviousEvents] = useState(events);
+  if (events !== previousEvents) {
+    setPreviousEvents(events);
+    setSelectedUnitKeys(new Set(timeline.actorUnitIds));
+    setSelectedSkillDefinitionIds(new Set(timeline.skillDefinitionIds));
+    setExpandedSkillUseIds(new Set());
+  }
+
   const visibleSkillDefinitionIds = useMemo(
     () => skillDefinitionIdsOwnedBy(timeline.instances, selectedUnitKeys),
     [timeline, selectedUnitKeys],
