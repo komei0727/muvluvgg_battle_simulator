@@ -562,7 +562,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // ジェンキンス、Issue #665）の新規投入。`UNIT_LAYLA_NURSE`と同キャラクター・
     // 同スキル構成で、威力・閾値の数値も変更なし。差分はLv200固定のステータス
     // （`category: EXERCISE_ENEMY`）のみ。エンジン拡張は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-09-04.1");
+    // `2026-09-04.2` は戦術演習敵ユニット `UNIT_ROSIE_CAMPAIGN_TEX`（破壊：
+    // ロージー・ヒューズ、Issue #667）の新規投入。`UNIT_ROSIE_CAMPAIGN`と同
+    // キャラクター・同スキル構成だが、`UNIT_LAYLA_NURSE_TEX`と異なりHP割合系の
+    // 効果値（シールド・回復・累計ダメージ閾値）がプレイアブル版の約1/20に縮小
+    // されている（威力・ライフスティール率・ステータス上昇率・被ダメ減少率は
+    // 据え置き）。差分はLv200固定のステータス（`category: EXERCISE_ENEMY`）と
+    // この数値縮小のみ。エンジン拡張は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-09-04.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
