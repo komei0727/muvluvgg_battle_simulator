@@ -569,7 +569,14 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // されている（威力・ライフスティール率・ステータス上昇率・被ダメ減少率は
     // 据え置き）。差分はLv200固定のステータス（`category: EXERCISE_ENEMY`）と
     // この数値縮小のみ。エンジン拡張は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-09-04.2");
+    // `2026-09-05.1` は戦術演習敵ユニット `UNIT_LYDIA_SUMMER_TEX`（破壊：
+    // リディア・エルドリッジ）の新規投入。`UNIT_LYDIA_SUMMER`と同キャラクター・
+    // 同スキル構成で、威力・閾値の数値も変更なし（`UNIT_LAYLA_NURSE_TEX`と同じ
+    // パターン）。ただしPS2「いっしょにがんばる+」はプレイアブル版が持つ1戦闘1回
+    // 制限（`RUNTIME_COUNTER`）を演習版では撤廃し、毎ターン開始時に発動する
+    // （ユーザー確認済み）。差分はLv200固定のステータス（`category:
+    // EXERCISE_ENEMY`）とこのPS2の回数制限撤廃のみ。エンジン拡張は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-09-05.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

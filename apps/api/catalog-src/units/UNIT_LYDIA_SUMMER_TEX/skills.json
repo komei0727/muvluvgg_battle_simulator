@@ -1,0 +1,214 @@
+[
+  {
+    "skillDefinitionId": "SKL_LYDIA_SUMMER_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "リディアのおしろだいさくせん", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_SUMMER_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["HIGHEST_MAX_HP"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJACENT",
+          "optional": true,
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "targetCondition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "BACK"
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_AS1_BACKROW_BONUS" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+          "targetCondition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "BACK"
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_AS1_BACKROW_BONUS" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "にげちゃ、めっ……だよ？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_SUMMER_TEX_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BACK_CENTER",
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "filters": [{ "kind": "POSITION_SLOT", "row": "BACK", "column": "CENTER" }]
+          }
+        },
+        {
+          "targetBindingId": "TGT_OTHERS",
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [
+              {
+                "kind": "EXCLUDE_RESOLVED_UNIT",
+                "reference": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER" }
+              }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_AS2_DAMAGE_CENTER" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHERS" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_AS2_DAMAGE_OTHERS" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "いっぱいおしおき", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_SUMMER_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS1_REMOVE_DEBUFF" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS1_SUBUNIT" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "おたすけもとむ", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "EffectApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "categories", "op": "CONTAINS", "value": "DEBUFF" },
+            { "kind": "RESOLUTION_PHASE", "phase": "BATTLE_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_START", "negate": true },
+            { "kind": "RESOLUTION_PHASE", "phase": "TURN_END", "negate": true }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_LYDIA_SUMMER_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ALLY",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "いっしょにがんばる+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]
