@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_ROSIE_CAMPAIGN_TEX",
+  "category": "EXERCISE_ENEMY",
+  "exerciseActive": true,
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "SUPPORT",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 352891,
+    "attack": 11334,
+    "defense": 5422,
+    "criticalRate": 0.13,
+    "actionSpeed": 608,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_ROSIE_CAMPAIGN_TEX_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_ROSIE_CAMPAIGN_TEX_PS1",
+    "SKL_ROSIE_CAMPAIGN_TEX_PS2",
+    "SKL_ROSIE_CAMPAIGN_TEX_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_ROSIE_CAMPAIGN_TEX_EX",
+  "metadata": {
+    "affiliations": ["AFF_TREBLE_QUINTET"],
+    "tags": [],
+    "displayName": "【蠱惑のキャンペーンガール】ロージー・ヒューズ",
+    "characterName": "ロージー・ヒューズ",
+    "characterId": "CHAR_ROSIE_HUGHES"
+  }
+}

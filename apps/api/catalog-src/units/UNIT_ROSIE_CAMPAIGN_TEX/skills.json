@@ -1,0 +1,433 @@
+[
+  {
+    "skillDefinitionId": "SKL_ROSIE_CAMPAIGN_TEX_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 6
+    },
+    "activationCondition": {
+      "kind": "NOT",
+      "condition": {
+        "kind": "TARGET_HAS_MARKER",
+        "target": {
+          "kind": "SELF"
+        },
+        "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
+      }
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_EX_SHIELD_CONSUMED"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_EX_SHIELD_MAXHP"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_EX_IDEA_MARK"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_EX_HP_COST"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "特別サービス♪",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_CAMPAIGN_TEX_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "SELF"
+            },
+            "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_AS1_CREATION_HEAL"
+                }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_PRIMARY"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_AS1_DAMAGE"
+                }
+              ]
+            },
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_HAS_MARKER",
+                "target": {
+                  "kind": "SELF"
+                },
+                "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_IDEA"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": {
+                    "kind": "BINDING",
+                    "targetBindingId": "TGT_PRIMARY"
+                  },
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_AS1_DAMAGE_IDEA"
+                    }
+                  ]
+                }
+              ],
+              "elseSteps": []
+            },
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "SELF"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_AS1_LIFESTEAL"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "プロモーション・バースト",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_CAMPAIGN_TEX_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "activationCondition": {
+      "kind": "NOT",
+      "condition": {
+        "kind": "TARGET_HAS_MARKER",
+        "target": {
+          "kind": "SELF"
+        },
+        "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
+      }
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_HP_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 2,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_LOWEST_HP_ALLIES"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS1_HEAL"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS1_PP_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "スマイル・ファンサービス",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "RuntimeCounterChanged",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_ROSIE_CAMPAIGN_TEX_PS1_THRESHOLD_COUNT"
+            },
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "valueChanged",
+              "op": "EQ",
+              "value": true
+            }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_ROSIE_CAMPAIGN_TEX_PS1_THRESHOLD_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "SELF"
+        },
+        "maxHpRatio": 0.0075
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_CAMPAIGN_TEX_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "NOT",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": {
+              "kind": "SELF"
+            },
+            "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
+          }
+        },
+        {
+          "kind": "ALIVE_UNIT_COUNT",
+          "side": "ALLY",
+          "excludeSelf": true,
+          "op": "GT",
+          "value": 0
+        }
+      ]
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS2_DEATH_SURVIVAL"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS2_ATK_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS2_DEF_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS2_CREATION_MARK"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "ボルテージ・マックス+",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TARGET_STATE",
+          "target": {
+            "kind": "SELF"
+          },
+          "field": "HP_RATIO",
+          "op": "LT",
+          "value": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_ROSIE_CAMPAIGN_TEX_PS3",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_HAS_MARKER",
+          "target": {
+            "kind": "SELF"
+          },
+          "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
+        },
+        {
+          "kind": "ALIVE_UNIT_COUNT",
+          "side": "ALLY",
+          "excludeSelf": true,
+          "op": "GT",
+          "value": 0
+        }
+      ]
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ROSIE_CAMPAIGN_TEX_PS3_DMG_DOWN"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "スペシャル・アピール+",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]
