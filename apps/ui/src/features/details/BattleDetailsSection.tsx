@@ -7,6 +7,7 @@ import { RawJsonView } from "./RawJsonView.js";
 import { StateTransitionTable } from "./StateTransitionTable.js";
 import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import { EffectTraceSection } from "../effect-trace/EffectTraceSection.js";
+import { SkillTimelineSection } from "../skill-timeline/SkillTimelineSection.js";
 import type { LogLevel } from "../../entities/battle-draft.js";
 import { selectRoster } from "../../entities/roster.js";
 import type {
@@ -28,11 +29,13 @@ type DetailsTab =
   | "json"
   | "actionState"
   | "causalityTree"
-  | "effectTrace";
+  | "effectTrace"
+  | "skillTimeline";
 
 // causalityTreeを"events"と"transitions"の間へ挿入すると、
 // 既存e2e/keyboard.spec.tsが検証する「時系列イベント --ArrowRight--> 状態遷移」
 // のtab隣接関係が崩れる。既存tabの相対順序を変更せず、末尾に追加する。
+// skillTimeline（Issue #669）も同じ理由でeffectTraceの後、末尾に追加する。
 const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] = [
   { id: "events", label: "時系列イベント" },
   { id: "transitions", label: "状態遷移" },
@@ -40,6 +43,7 @@ const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] 
   { id: "actionState", label: "ユニット状態" },
   { id: "causalityTree", label: "因果ツリー" },
   { id: "effectTrace", label: "効果トレース" },
+  { id: "skillTimeline", label: "スキル時系列" },
 ];
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -76,7 +80,7 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
     return (
       <div className={styles["panel"]}>
         <p className={styles["notice"]}>
-          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・効果トレース・レスポンスJSONを閲覧できます。
+          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・効果トレース・スキル時系列・レスポンスJSONを閲覧できます。
         </p>
       </div>
     );
@@ -133,6 +137,11 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
       {activeTab === "effectTrace" ? (
         <div role="tabpanel" id="tabpanel-effectTrace" aria-labelledby="tab-effectTrace">
           <EffectTraceSection response={response} roster={roster} />
+        </div>
+      ) : null}
+      {activeTab === "skillTimeline" ? (
+        <div role="tabpanel" id="tabpanel-skillTimeline" aria-labelledby="tab-skillTimeline">
+          <SkillTimelineSection events={response.events} roster={roster} />
         </div>
       ) : null}
     </div>

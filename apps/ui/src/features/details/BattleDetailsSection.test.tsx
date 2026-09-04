@@ -58,6 +58,9 @@ describe("BattleDetailsSection", () => {
 
     await user.click(screen.getByRole("tab", { name: "効果トレース" }));
     expect(screen.getByRole("heading", { name: /効果トレース/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "スキル時系列" }));
+    expect(screen.getByRole("heading", { name: /スキル時系列/ })).toBeInTheDocument();
   });
 
   it("jumps from an event's state transition link to the transitions tab", async () => {
@@ -206,6 +209,7 @@ describe("BattleDetailsSection", () => {
       "ユニット状態",
       "因果ツリー",
       "効果トレース",
+      "スキル時系列",
     ]);
   });
 });
