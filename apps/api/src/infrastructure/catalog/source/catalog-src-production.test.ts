@@ -148,6 +148,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_ROSIE_CAMPAIGN",
         // 新衣装バリアント（既存キャラクターcharacterId再利用）: 【商売上手のエンジェルナース】レイラ・ジェンキンス
         "UNIT_LAYLA_NURSE",
+        // Issue #665: 戦術演習敵ユニット追加: 破壊：レイラ・ジェンキンス
+        "UNIT_LAYLA_NURSE_TEX",
       ].sort(),
     );
   });

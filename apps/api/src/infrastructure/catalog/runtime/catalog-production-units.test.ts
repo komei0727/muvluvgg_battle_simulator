@@ -558,7 +558,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `APPLY_DAMAGE_MOD`のこのユニットでの初使用を含むが、いずれも既存
     // effect action kind・trigger・conditionの組み合わせで表現でき、エンジン
     // 拡張は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-09-03.3");
+    // `2026-09-04.1` は戦術演習敵ユニット `UNIT_LAYLA_NURSE_TEX`（破壊：レイラ・
+    // ジェンキンス、Issue #665）の新規投入。`UNIT_LAYLA_NURSE`と同キャラクター・
+    // 同スキル構成で、威力・閾値の数値も変更なし。差分はLv200固定のステータス
+    // （`category: EXERCISE_ENEMY`）のみ。エンジン拡張は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-09-04.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
