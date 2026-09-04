@@ -1,12 +1,15 @@
 // docs/ui-design/01_UI要求・画面設計.md §8.8（`UI-AC-053`）/ 04_コンポーネント・状態管理設計.md
-// `UI-CMP-036`: 1回のスキル発動（AS・PS・EX・チャージ解決・Memory発動）を、全イベント列から
-// 取り出す純関数。componentはこの投影だけを描画する（`UI-CMP-005`）。
+// `UI-CMP-036`: 1回のスキル発動（AS・PS・EX・チャージ解決）を、全イベント列から取り出す純関数。
+// componentはこの投影だけを描画する（`UI-CMP-005`）。
 //
 // この投影は**総称的**である。起点イベントのtypeで分岐せず、同じskillUseIdを持つイベント群を
 // sequence昇順に走査して最初に見つかった値を採用する（`effect-trace-projector.ts`と同じ方針）。
 // PASSIVE_POINT_CONSUMEDとPASSIVE_ACTIVATEDのように、コスト消費の有無でグループ内の
 // イベント順序が入れ替わり得る経路があるため、「起点イベントのtypeで分岐する」設計は
 // 順序変化に弱く採用しない。
+//
+// Memory発動（`MEMORY_TRIGGERED`）は特定ユニットのスキルではなく、`actorUnitId`を求められない
+// （R-MEM-04: 発生源がユニットでない経路）ため、このタイムラインからは除外する。
 import { isRecord, numberOf, stringOf } from "../../lib/unknown-narrowing.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
@@ -14,10 +17,7 @@ export type SkillActivationOutcome = "COMPLETED" | "INTERRUPTED" | "IN_PROGRESS"
 
 export interface SkillActivationInstance {
   readonly skillUseId: string;
-  /** Memory由来（R-MEM-04相当）の発動は特定ユニットに属さないため持たない。 */
-  readonly actorUnitId?: string;
-  /** `actorUnitId`が無い発動の発生陣営。`effect-trace-projector.ts`の`originSide`と同じ規約。 */
-  readonly actorSide?: string;
+  readonly actorUnitId: string;
   readonly skillDefinitionId: string;
   readonly startSequence: number;
   readonly turnNumber: number;
@@ -33,8 +33,6 @@ export interface SkillTimelineView {
   readonly instances: readonly SkillActivationInstance[];
   /** フィルタ「ユニット」用一覧（初出順・重複なし）。 */
   readonly actorUnitIds: readonly string[];
-  /** actorUnitIdを持たない発動の発生陣営一覧（Memory由来がある場合のみ非空）。 */
-  readonly actorSides: readonly string[];
   /** フィルタ「スキル」用一覧（昇順・重複なし）。 */
   readonly skillDefinitionIds: readonly string[];
 }
@@ -86,17 +84,6 @@ function actorUnitIdOf(events: readonly BattleLogEventResponse[]): string | unde
   return undefined;
 }
 
-/** `actorUnitId`が求まらない発動（Memory由来）だけが使う、発生陣営の解決。 */
-function actorSideOf(events: readonly BattleLogEventResponse[]): string | undefined {
-  for (const event of events) {
-    const found = stringOf(event["sourceSide"]) ?? stringOf(detailsOf(event)["sourceSide"]);
-    if (found !== undefined) {
-      return found;
-    }
-  }
-  return undefined;
-}
-
 function outcomeOf(events: readonly BattleLogEventResponse[]): {
   readonly outcome: SkillActivationOutcome;
   readonly endedSequence?: number;
@@ -133,18 +120,16 @@ export function projectSkillTimeline(events: readonly BattleLogEventResponse[]):
   const instances: SkillActivationInstance[] = [];
   for (const [skillUseId, groupEvents] of eventsBySkillUseId) {
     const skillDefinitionId = skillDefinitionIdOf(groupEvents);
-    if (skillDefinitionId === undefined) {
+    const actorUnitId = actorUnitIdOf(groupEvents);
+    if (skillDefinitionId === undefined || actorUnitId === undefined) {
       continue;
     }
-    const actorUnitId = actorUnitIdOf(groupEvents);
-    const actorSide = actorUnitId === undefined ? actorSideOf(groupEvents) : undefined;
     const startEvent = groupEvents[0]!;
     const { outcome, endedSequence } = outcomeOf(groupEvents);
 
     instances.push({
       skillUseId,
-      ...(actorUnitId !== undefined ? { actorUnitId } : {}),
-      ...(actorSide !== undefined ? { actorSide } : {}),
+      actorUnitId,
       skillDefinitionId,
       startSequence: sequenceOf(startEvent),
       turnNumber: turnNumberOf(startEvent),
@@ -159,21 +144,16 @@ export function projectSkillTimeline(events: readonly BattleLogEventResponse[]):
 
   const actorUnitIds: string[] = [];
   const seenActorUnitIds = new Set<string>();
-  const actorSides = new Set<string>();
   for (const instance of instances) {
-    if (instance.actorUnitId !== undefined && !seenActorUnitIds.has(instance.actorUnitId)) {
+    if (!seenActorUnitIds.has(instance.actorUnitId)) {
       seenActorUnitIds.add(instance.actorUnitId);
       actorUnitIds.push(instance.actorUnitId);
-    }
-    if (instance.actorSide !== undefined) {
-      actorSides.add(instance.actorSide);
     }
   }
 
   return {
     instances,
     actorUnitIds,
-    actorSides: [...actorSides].sort(),
     skillDefinitionIds: [
       ...new Set(instances.map((instance) => instance.skillDefinitionId)),
     ].sort(),

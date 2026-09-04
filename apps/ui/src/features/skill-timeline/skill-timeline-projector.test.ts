@@ -184,7 +184,7 @@ describe("projectSkillTimeline", () => {
     });
   });
 
-  it("UI-UT-SKT-006: a Memory activation has no actorUnitId, only actorSide", () => {
+  it("UI-UT-SKT-006: excludes a Memory activation entirely, since it is not attributable to any unit's skill", () => {
     const events = [
       event({
         sequence: 1,
@@ -198,16 +198,20 @@ describe("projectSkillTimeline", () => {
           triggerEventId: "evt-1",
         },
       }),
+      event({
+        sequence: 2,
+        type: "TARGETS_SELECTED",
+        skillUseId: "su-attack",
+        sourceUnitId: ATTACKER,
+        details: { skillDefinitionId: "SKL_ATTACK", bindings: [] },
+      }),
     ];
 
     const view = projectSkillTimeline(events);
 
-    expect(view.instances[0]).toMatchObject({
-      skillDefinitionId: "MEM_X",
-      actorSide: "ALLY",
-    });
-    expect(view.instances[0]!.actorUnitId).toBeUndefined();
-    expect(view.actorSides).toEqual(["ALLY"]);
+    expect(view.instances).toHaveLength(1);
+    expect(view.instances[0]!.skillUseId).toBe("su-attack");
+    expect(view.skillDefinitionIds).toEqual(["SKL_ATTACK"]);
   });
 
   it("UI-UT-SKT-007: outcome is INTERRUPTED when the group ends with SKILL_USE_INTERRUPTED", () => {

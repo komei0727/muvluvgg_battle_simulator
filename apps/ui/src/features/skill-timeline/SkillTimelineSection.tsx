@@ -15,9 +15,6 @@ export interface SkillTimelineSectionProps {
   readonly roster: RosterIndex;
 }
 
-/** `effect-trace/EffectTraceSection.tsx`の`MEMORY_ORIGIN_SUFFIX`と表記を揃える。 */
-const MEMORY_ORIGIN_SUFFIX = "陣営（メモリー）";
-
 const OUTCOME_LABELS: Readonly<Record<SkillActivationOutcome, string>> = {
   COMPLETED: "完了",
   INTERRUPTED: "中断",
@@ -27,17 +24,6 @@ const OUTCOME_LABELS: Readonly<Record<SkillActivationOutcome, string>> = {
 const UNIT_SELECTION_HINT = "ログに現れたユニットから表示対象を選ぶ。";
 const SKILL_SELECTION_HINT = "ログに現れたスキルから表示対象を選ぶ。";
 
-function unitKeyOf(instance: SkillActivationInstance): string {
-  return instance.actorUnitId ?? `side-${instance.actorSide ?? ""}`;
-}
-
-function actorLabelOf(instance: SkillActivationInstance, roster: RosterIndex): string {
-  if (instance.actorUnitId !== undefined) {
-    return resolveDisplayName(roster, instance.actorUnitId);
-  }
-  return instance.actorSide !== undefined ? `${instance.actorSide}${MEMORY_ORIGIN_SUFFIX}` : "-";
-}
-
 interface UnitOption {
   readonly key: string;
   readonly label: string;
@@ -45,20 +31,37 @@ interface UnitOption {
 
 function unitOptionsOf(
   actorUnitIds: readonly string[],
-  actorSides: readonly string[],
   roster: RosterIndex,
 ): readonly UnitOption[] {
-  return [
-    ...actorUnitIds.map((id) => ({ key: id, label: resolveDisplayName(roster, id) })),
-    ...actorSides.map((side) => ({ key: `side-${side}`, label: `${side}${MEMORY_ORIGIN_SUFFIX}` })),
-  ];
+  return actorUnitIds.map((id) => ({ key: id, label: resolveDisplayName(roster, id) }));
+}
+
+/**
+ * ユニットの絞り込みに連動して「スキル」欄をも絞る（カスケード）。選択中のユニットが
+ * 誰も持たないスキルは一覧から消し、その選択状態(`selectedSkillDefinitionIds`)には触れない
+ * ——ユニットを再選択したときに以前の選択が復元されるようにするため。
+ */
+function skillDefinitionIdsOwnedBy(
+  instances: readonly SkillActivationInstance[],
+  selectedUnitKeys: ReadonlySet<string>,
+): readonly string[] {
+  const owned = new Set<string>();
+  for (const instance of instances) {
+    if (selectedUnitKeys.has(instance.actorUnitId)) {
+      owned.add(instance.skillDefinitionId);
+    }
+  }
+  return [...owned].sort();
 }
 
 // docs/ui-design/01_UI要求・画面設計.md §8.8（`UI-AC-053`）/ 04_コンポーネント・状態管理設計.md
-// `UI-CMP-036`: スキル発動（AS・PS・EX・チャージ解決・Memory発動）の発生順を一覧し、ユニット・
-// スキルの2系統フィルタ（AND条件）で絞り込む。行を展開すると、そのスキル解決に属する
-// イベント集合だけを渡した既存の`EventCausalityTree`（`UI-CMP-006`）をそのまま埋め込み、
-// 因果ツリー表示のロジックを複製しない。
+// `UI-CMP-036`: スキル発動（AS・PS・EX・チャージ解決）の発生順を一覧し、ユニット・スキルの
+// 2系統フィルタ（AND条件）で絞り込む。ユニットを外すと、そのユニット専有のスキルは
+// 「スキル」欄からも消える（カスケード）——2つの欄を無関係な独立フィルタのままにすると、
+// 既に非表示のユニットのスキルがチェック可能なまま残り、選んでも何も起きない項目が並んで
+// 紛らわしいため。行を展開すると、そのスキル解決に属するイベント集合だけを渡した既存の
+// `EventCausalityTree`（`UI-CMP-006`）をそのまま埋め込み、因果ツリー表示のロジックを
+// 複製しない。
 export function SkillTimelineSection({ events, roster }: SkillTimelineSectionProps) {
   const headingId = useId();
   const unitHintId = useId();
@@ -66,21 +69,26 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
 
   const timeline = useMemo(() => projectSkillTimeline(events), [events]);
   const unitOptions = useMemo(
-    () => unitOptionsOf(timeline.actorUnitIds, timeline.actorSides, roster),
+    () => unitOptionsOf(timeline.actorUnitIds, roster),
     [timeline, roster],
   );
 
   const [selectedUnitKeys, setSelectedUnitKeys] = useState<ReadonlySet<string>>(
-    () => new Set(unitOptions.map((option) => option.key)),
+    () => new Set(timeline.actorUnitIds),
   );
   const [selectedSkillDefinitionIds, setSelectedSkillDefinitionIds] = useState<ReadonlySet<string>>(
     () => new Set(timeline.skillDefinitionIds),
   );
   const [expandedSkillUseIds, setExpandedSkillUseIds] = useState<ReadonlySet<string>>(new Set());
 
+  const visibleSkillDefinitionIds = useMemo(
+    () => skillDefinitionIdsOwnedBy(timeline.instances, selectedUnitKeys),
+    [timeline, selectedUnitKeys],
+  );
+
   const visible = timeline.instances.filter(
     (instance) =>
-      selectedUnitKeys.has(unitKeyOf(instance)) &&
+      selectedUnitKeys.has(instance.actorUnitId) &&
       selectedSkillDefinitionIds.has(instance.skillDefinitionId),
   );
 
@@ -157,7 +165,7 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
               {SKILL_SELECTION_HINT}
             </p>
             <ul className={styles["selectionList"]}>
-              {timeline.skillDefinitionIds.map((skillDefinitionId) => (
+              {visibleSkillDefinitionIds.map((skillDefinitionId) => (
                 <li key={skillDefinitionId}>
                   <label className={styles["selectionItem"]}>
                     <input
@@ -195,7 +203,7 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
                         </span>
                         <span>T{instance.turnNumber}</span>
                         <span className={styles["skill"]}>{instance.skillDefinitionId}</span>
-                        <span>{actorLabelOf(instance, roster)}</span>
+                        <span>{resolveDisplayName(roster, instance.actorUnitId)}</span>
                         <span className={styles["outcome"]}>
                           {OUTCOME_LABELS[instance.outcome]}
                         </span>

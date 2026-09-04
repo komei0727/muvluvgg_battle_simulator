@@ -128,14 +128,32 @@ describe("SkillTimelineSection", () => {
     expect(within(row).queryByRole("button", { name: /TARGETS_SELECTED/ })).not.toBeInTheDocument();
   });
 
-  it("lists a Memory-origin activation as a togglable pseudo unit entry", async () => {
+  it("excludes a Memory-origin activation entirely: no row and no checkbox in either fieldset", () => {
+    render(<SkillTimelineSection events={EVENTS} roster={roster} />);
+
+    expect(screen.queryByRole("button", { name: /MEM_X/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /MEM_X/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /メモリー/ })).not.toBeInTheDocument();
+  });
+
+  // UI-AC-053: ユニットを外すと、そのユニット専用のスキルはスキル一覧からも消える
+  // （他ユニットとも共有されるスキルなら、そのユニットが残っている限り一覧に残る）。
+  it("removes a unit's exclusive skill from the skill fieldset when that unit is unchecked", async () => {
     const user = userEvent.setup();
     render(<SkillTimelineSection events={EVENTS} roster={roster} />);
 
-    expect(screen.getByRole("button", { name: /MEM_X/ })).toBeInTheDocument();
-    const memoryCheckbox = screen.getByRole("checkbox", { name: /ALLY.*メモリー/ });
+    expect(screen.getByRole("checkbox", { name: "SKL_ATTACK" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "SKL_CAST" })).toBeInTheDocument();
 
-    await user.click(memoryCheckbox);
-    expect(screen.queryByRole("button", { name: /MEM_X/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
+
+    expect(screen.queryByRole("checkbox", { name: "SKL_ATTACK" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "SKL_CAST" })).toBeInTheDocument();
+
+    // 再度チェックすると一覧へ戻り、以前の選択状態(選択済み)も保たれている。
+    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
+    const restoredCheckbox = screen.getByRole("checkbox", { name: "SKL_ATTACK" });
+    expect(restoredCheckbox).toBeInTheDocument();
+    expect(restoredCheckbox).toBeChecked();
   });
 });
