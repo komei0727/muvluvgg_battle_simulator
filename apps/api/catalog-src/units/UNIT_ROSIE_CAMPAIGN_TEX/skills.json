@@ -295,26 +295,14 @@
       "amount": 1
     },
     "activationCondition": {
-      "kind": "AND",
-      "conditions": [
-        {
-          "kind": "NOT",
-          "condition": {
-            "kind": "TARGET_HAS_MARKER",
-            "target": {
-              "kind": "SELF"
-            },
-            "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
-          }
+      "kind": "NOT",
+      "condition": {
+        "kind": "TARGET_HAS_MARKER",
+        "target": {
+          "kind": "SELF"
         },
-        {
-          "kind": "ALIVE_UNIT_COUNT",
-          "side": "ALLY",
-          "excludeSelf": true,
-          "op": "GT",
-          "value": 0
-        }
-      ]
+        "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
+      }
     },
     "resolution": {
       "kind": "IMMEDIATE",
@@ -377,23 +365,11 @@
       "amount": 1
     },
     "activationCondition": {
-      "kind": "AND",
-      "conditions": [
-        {
-          "kind": "TARGET_HAS_MARKER",
-          "target": {
-            "kind": "SELF"
-          },
-          "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
-        },
-        {
-          "kind": "ALIVE_UNIT_COUNT",
-          "side": "ALLY",
-          "excludeSelf": true,
-          "op": "GT",
-          "value": 0
-        }
-      ]
+      "kind": "TARGET_HAS_MARKER",
+      "target": {
+        "kind": "SELF"
+      },
+      "markerId": "MARKER_ROSIE_CAMPAIGN_TEX_CREATION"
     },
     "resolution": {
       "kind": "IMMEDIATE",

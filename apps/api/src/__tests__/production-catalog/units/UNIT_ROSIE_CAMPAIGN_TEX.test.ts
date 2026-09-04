@@ -286,14 +286,58 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_ROSIE_CAMPAIGN_TEX_PS2",
-    intent: "(不成立): 生存している味方が自身のみの場合、このスキルは発動しない",
+    intent:
+      "生存している味方が自身のみ（演習は敵ユニット1体で行われるため常にこの状態）でも発動する。演習敵の「味方」は自身を含むものとして変換し、プレイアブル版が自身を除いていた集計対象は演習版では外す(Q-TEX-01, Q-TEX-12)",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_ROSIE_CAMPAIGN_TEX_PS2",
       trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:subject" }),
     },
     board: { subject: { state: { currentHp: 1000 } }, allies: [] },
-    expected: { activated: false },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_DEATH_SURVIVAL",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_ATK_UP",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_DEF_UP",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_CREATION_MARK",
+          targets: ["ally:subject"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_DEATH_SURVIVAL",
+          magnitude: 0,
+          timeLimit: { unit: "BATTLE", count: 1 },
+          consumption: { kind: "LETHAL_DAMAGE", maxCount: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_ATK_UP",
+          magnitude: 0.06,
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS2_DEF_UP",
+          magnitude: 0.06,
+        },
+      ],
+      markers: [{ unitId: "ally:subject", markerId: CREATION, stackCount: 1 }],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
   },
   {
     skillDefinitionId: "SKL_ROSIE_CAMPAIGN_TEX_PS3",
@@ -338,14 +382,34 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_ROSIE_CAMPAIGN_TEX_PS3",
-    intent: "(不成立): 生存している味方が自身のみの場合、このスキルは発動しない",
+    intent:
+      "生存している味方が自身のみ（演習は敵ユニット1体で行われるため常にこの状態）でも発動する。演習敵の「味方」は自身を含むものとして変換し、プレイアブル版が自身を除いていた集計対象は演習版では外す(Q-TEX-01, Q-TEX-12)",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_ROSIE_CAMPAIGN_TEX_PS3",
       trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:subject" }),
     },
     board: { subject: { markers: [{ markerId: CREATION }] }, allies: [] },
-    expected: { activated: false },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS3_DMG_DOWN",
+          targets: ["ally:subject"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_TEX_PS3_DMG_DOWN",
+          magnitude: -0.75,
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
   },
 ];
 
