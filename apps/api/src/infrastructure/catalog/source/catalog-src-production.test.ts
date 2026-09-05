@@ -152,6 +152,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_LAYLA_NURSE_TEX",
         // Issue #667: 戦術演習敵ユニット追加: 破壊：ロージー・ヒューズ
         "UNIT_ROSIE_CAMPAIGN_TEX",
+        // 戦術演習敵ユニット追加: 破壊：リディア・エルドリッジ
+        "UNIT_LYDIA_SUMMER_TEX",
       ].sort(),
     );
   });

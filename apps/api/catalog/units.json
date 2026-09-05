@@ -1181,6 +1181,35 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_LYDIA_SUMMER_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SHY",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 433424,
+      "attack": 13633,
+      "defense": 6912,
+      "criticalRate": 0.18,
+      "actionSpeed": 696,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_LYDIA_SUMMER_TEX_AS1", "SKL_LYDIA_SUMMER_TEX_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_LYDIA_SUMMER_TEX_PS1", "SKL_LYDIA_SUMMER_TEX_PS2"],
+    "extraSkillDefinitionId": "SKL_LYDIA_SUMMER_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_TRINITY_JEWEL"],
+      "tags": [],
+      "displayName": "【おたすけさんぽ・イン・サマー】リディア・エルドリッジ",
+      "characterName": "リディア・エルドリッジ",
+      "characterId": "CHAR_LYDIA_ELDRIDGE"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MAIA_LAZY",
     "attribute": "SMART",
     "unitType": "ENERGY",
