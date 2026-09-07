@@ -137,16 +137,17 @@ export interface DurationDefinition {
   readonly reapply?: DurationReapply;
   /**
    * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: 付与者
-   * （`MarkerState.sourceUnitId`）が戦闘不能になった時点でこのMarkerを解除する。
-   * `SKL_AOI_ELEGANT_AS1`（百花繚乱）のraw原文「「高揚」は付与者が倒れると同時に
-   * 解除される」を表す。
+   * （`MarkerState.sourceUnitId`／`AppliedEffect.sourceUnitId`）が戦闘不能になった
+   * 時点でこの効果を解除する。`SKL_AOI_ELEGANT_AS1`（百花繚乱）のraw原文
+   * 「「高揚」は付与者が倒れると同時に解除される」を表す。
    *
    * `expiration.conditions`（R-EFF-08）ではなく専用フィールドにしたのは、Marker
    * 側のexpiration機構自体が未実装（`catalog-integrity.ts`の
    * `UNSUPPORTED_MARKER_DURATION`）であり、Condition表現を導入すると同機構ごと
-   * 実装する必要があるため。`APPLY_MARKER`以外の`DurationDefinition`へ宣言しても
-   * 評価する経路が無い（`AppliedEffect`は`sourceUnitId`の戦闘不能を見る失効機構を
-   * 持たない）ので、`catalog-integrity.ts`が
+   * 実装する必要があるため。当初`APPLY_MARKER`専用だったが、`APPLY_SHIELD`
+   * （`MARKER_REMOVAL_ON_SOURCE_DEATH`と同じ形の解除経路を`expireEffects`
+   * 経由で持つ、Issue #660）へも拡張した。それ以外の`DurationDefinition`へ
+   * 宣言しても評価する経路が無いため、`catalog-integrity.ts`が
    * `UNSUPPORTED_SOURCE_DEFEATED_REMOVAL`としてCatalogロード時点で拒否する。
    */
   readonly removeOnSourceDefeated?: boolean;

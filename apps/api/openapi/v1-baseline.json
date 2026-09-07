@@ -11608,6 +11608,7 @@
                                       "EXPIRATION_CONDITION",
                                       "SHIELD_DEPLETED",
                                       "SUBUNIT_DEPLETED",
+                                      "SOURCE_DEFEATED",
                                       "LINKED_GROUP_CASCADE"
                                     ]
                                   },
@@ -24494,6 +24495,7 @@
                                       "EXPIRATION_CONDITION",
                                       "SHIELD_DEPLETED",
                                       "SUBUNIT_DEPLETED",
+                                      "SOURCE_DEFEATED",
                                       "LINKED_GROUP_CASCADE"
                                     ]
                                   },

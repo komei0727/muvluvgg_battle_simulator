@@ -273,16 +273,24 @@ export function validateEffectAction(
     }
   }
   // R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: 付与者の
-  // 戦闘不能による解除は`marker-source-defeat-service.ts`が`MarkerState.sourceUnitId`
-  // （直近の付与者）を見て判定する。`AppliedEffect`側には同じ判定を行う失効機構が
-  // 無いため（`expiration.conditions`にもユニットの戦闘不能を判定するkindが
-  // 存在しない）、`APPLY_MARKER`以外へ宣言すると「付与自体は成功するのに付与者が
-  // 倒れても何も起きない」silent partial implementationになる。
-  if (duration?.removeOnSourceDefeated === true && effectAction.kind !== "APPLY_MARKER") {
+  // 戦闘不能による解除は、`APPLY_MARKER`なら`marker-source-defeat-service.ts`の
+  // `findMarkersRemovedOnSourceDefeat`が`MarkerState.sourceUnitId`（直近の付与者）を
+  // 見て判定する。`APPLY_SHIELD`（Issue #660）は同じファイルの
+  // `findEffectsRemovedOnSourceDefeat`が`AppliedEffect.sourceUnitId`を見て判定し、
+  // `expireEffects`（R-EFF-08と同じ`EffectExpired`経路）へ合流する。それ以外の
+  // kindには同じ判定を行う失効機構が無いため（`expiration.conditions`にも
+  // ユニットの戦闘不能を判定するkindが存在しない）、この2kind以外へ宣言すると
+  // 「付与自体は成功するのに付与者が倒れても何も起きない」silent partial
+  // implementationになる。
+  if (
+    duration?.removeOnSourceDefeated === true &&
+    effectAction.kind !== "APPLY_MARKER" &&
+    effectAction.kind !== "APPLY_SHIELD"
+  ) {
     violations.push({
       targetId: effectAction.effectActionDefinitionId,
       rule: "UNSUPPORTED_SOURCE_DEFEATED_REMOVAL",
-      message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER (R-EFF-10, M7-020): AppliedEffect has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
+      message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER and APPLY_SHIELD (R-EFF-10, M7-020, Issue #660): this kind has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
     });
   }
   // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的

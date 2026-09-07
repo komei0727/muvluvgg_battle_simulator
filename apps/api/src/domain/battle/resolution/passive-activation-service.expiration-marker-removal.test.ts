@@ -696,3 +696,242 @@ describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-02
     ).toHaveLength(0);
   });
 });
+
+describe("R-EFF-10 removeOnSourceDefeated for APPLY_SHIELD AppliedEffect (Issue #660)", () => {
+  const SHIELD_ID = createEffectActionDefinitionId("ACT_SHIELD_SOURCE_DEFEAT");
+  const CHILD_ID = createEffectActionDefinitionId("ACT_SHIELD_SOURCE_DEFEAT_CHILD");
+  const SHIELD_LINK = "SHIELD_LINK";
+
+  /** シールド由来の`AppliedEffect`（`PARENT`・付与者戦闘不能で解除）。 */
+  const shieldDuration: DurationDefinition = {
+    dispellable: false,
+    linkedEffectGroupId: SHIELD_LINK,
+    linkedEffectGroupRole: "PARENT",
+    timeLimit: { unit: "BATTLE", count: 1 },
+    removeOnSourceDefeated: true,
+  };
+
+  /** シールドに連動する子効果（`CHILD`・`dispellable: false`）。 */
+  const childDuration: DurationDefinition = {
+    dispellable: false,
+    linkedEffectGroupId: SHIELD_LINK,
+    linkedEffectGroupRole: "CHILD",
+    timeLimit: { unit: "BATTLE", count: 1 },
+  };
+
+  function childDefinition(): EffectActionDefinition {
+    return {
+      effectActionDefinitionId: CHILD_ID,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "CRITICAL_RATE",
+        valueType: "RATIO",
+        formula: { kind: "CONSTANT", value: -0.25 },
+        stacking: { mode: "STACKABLE", max: null },
+        duration: childDuration,
+      },
+      metadata: { tags: [] },
+    };
+  }
+
+  function shieldEffect(
+    granterId: ReturnType<typeof createBattleUnitId>,
+    holderId: ReturnType<typeof createBattleUnitId>,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId("effect-shield"),
+      effectActionDefinitionId: SHIELD_ID,
+      kindKey: effectKindKeyFromDefinitionId(SHIELD_ID),
+      duplicate: true,
+      sourceUnitId: granterId,
+      targetUnitId: holderId,
+      magnitude: 100,
+      categories: ["SHIELD"],
+      duration: { definition: shieldDuration },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  function childEffect(
+    granterId: ReturnType<typeof createBattleUnitId>,
+    holderId: ReturnType<typeof createBattleUnitId>,
+  ): AppliedEffect {
+    return {
+      effectInstanceId: createEffectInstanceId("effect-shield-child"),
+      effectActionDefinitionId: CHILD_ID,
+      kindKey: effectKindKeyFromDefinitionId(CHILD_ID),
+      duplicate: true,
+      sourceUnitId: granterId,
+      targetUnitId: holderId,
+      magnitude: -0.25,
+      categories: ["DEBUFF"],
+      duration: { definition: childDuration },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  const holderUnitDefinitionId = createUnitDefinitionId("UNIT_SHIELD_HOLDER");
+
+  function definitionsWith(
+    ...owners: readonly (readonly [UnitDefinitionId, readonly SkillDefinitionId[]])[]
+  ) {
+    return new Map(owners.map(([id, passives]) => [id, unitDefinitionOf(id, passives)] as const));
+  }
+
+  function recordUnitDefeated(
+    recorder: EventRecorder,
+    turnStarted: BattleDomainEvent,
+    defeatedId: ReturnType<typeof createBattleUnitId>,
+  ): BattleDomainEvent {
+    return recorder.record({
+      eventType: "UnitDefeated",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: turnStarted.resolutionScopeId,
+      parentEventId: turnStarted.eventId,
+      rootEventId: turnStarted.eventId,
+      targetUnitIds: [defeatedId],
+      payload: { unitId: defeatedId, causeEventId: turnStarted.eventId },
+    });
+  }
+
+  it("UT-R-EFF-10-047 [R-EFF-09, R-EFF-10] (R-EFF-10/R-EFF-09 APPLY_SHIELD拡張、Issue #660): a UnitDefeated for the granter removes the declaring Shield (reason SOURCE_DEFEATED) and cascades its CHILD AppliedEffect", () => {
+    const granter = unit("GRANTER", "ALLY", { currentHp: 0 });
+    const holder = unit("HOLDER", "ENEMY", {
+      attack: 10,
+      unitDefinitionId: holderUnitDefinitionId,
+    });
+    const holderWithShield: BattleUnit = {
+      ...holder,
+      combatStats: { ...holder.combatStats, criticalRate: -0.25 },
+      appliedEffects: [
+        shieldEffect(granter.battleUnitId, holder.battleUnitId),
+        childEffect(granter.battleUnitId, holder.battleUnitId),
+      ],
+    };
+    const definitions = definitionsOf(
+      definitionsWith([holderUnitDefinitionId, []]),
+      new Map(),
+      new Map([[CHILD_ID, childDefinition()]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const unitDefeated = recordUnitDefeated(recorder, turnStarted, granter.battleUnitId);
+    const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+      granter,
+      holderWithShield,
+    ]);
+
+    const updatedUnits = runtime.onFactEvent(unitDefeated, [granter, holderWithShield]).units;
+
+    const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+    expect(updatedHolder.appliedEffects).toHaveLength(0);
+    expect(updatedHolder.combatStats.criticalRate).toBe(0);
+
+    const events = recorder.getEvents();
+    const expiredEvents = events.filter((e) => e.eventType === "EffectExpired");
+    expect(expiredEvents).toHaveLength(2);
+    expect(expiredEvents[0]!.payload).toMatchObject({
+      effectInstanceId: "effect-shield-child",
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(expiredEvents[1]!.payload).toMatchObject({
+      effectInstanceId: "effect-shield",
+      reason: "SOURCE_DEFEATED",
+      cascaded: false,
+      linkedEffectGroupId: SHIELD_LINK,
+    });
+  });
+
+  it("UT-R-EFF-10-048 (R-EFF-10 APPLY_SHIELD拡張 PS連鎖内部イベント、Issue #660): a UnitDefeated caused by a PS's own EffectSequence (chain-internal, never routed through onFactEvent) still removes the Shield the defeated unit had granted", () => {
+    const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_SHIELD_ATTACKER");
+    const victimUnitDefinitionId = createUnitDefinitionId("UNIT_SHIELD_VICTIM");
+    const attackDamage = damageEffectAction("ACT_SHIELD_ATTACK_DAMAGE");
+    const enemyBindingId = createTargetBindingId("TGT_SHIELD_ENEMY");
+    const attackSkill = passiveSkillOf("SKL_PS_SHIELD_ATTACK", {
+      ppCost: 1,
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: enemyBindingId,
+            selector: {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: "ALL",
+              filters: [],
+              order: ["DEFAULT"],
+              includeDefeated: false,
+            },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: enemyBindingId },
+            actions: [{ effectActionDefinitionId: attackDamage.effectActionDefinitionId }],
+          },
+        ],
+      },
+    });
+    const attacker = unit("ATTACKER", "ALLY", {
+      unitDefinitionId: attackerUnitDefinitionId,
+      currentPp: 3,
+      attack: 100,
+    });
+    // 付与者は敵側。PSの一撃で確実に戦闘不能になるHPにする。
+    const granter = unit("GRANTER", "ENEMY", {
+      unitDefinitionId: victimUnitDefinitionId,
+      maximumHp: 1,
+      currentHp: 1,
+    });
+    // シールド保持者は味方側 — PSの`side: ENEMY`選択に巻き込まれないようにする。
+    const holder = unit("HOLDER", "ALLY", { unitDefinitionId: holderUnitDefinitionId });
+    const holderWithShield: BattleUnit = {
+      ...holder,
+      appliedEffects: [shieldEffect(granter.battleUnitId, holder.battleUnitId)],
+    };
+    const definitions = definitionsOf(
+      definitionsWith(
+        [attackerUnitDefinitionId, [attackSkill.skillDefinitionId]],
+        [victimUnitDefinitionId, []],
+        [holderUnitDefinitionId, []],
+      ),
+      new Map([[attackSkill.skillDefinitionId, attackSkill]]),
+      new Map([
+        [CHILD_ID, childDefinition()],
+        [attackDamage.effectActionDefinitionId, attackDamage],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [attacker, granter, holderWithShield],
+    );
+
+    const updatedUnits = runtime.onFactEvent(turnStarted, [
+      attacker,
+      granter,
+      holderWithShield,
+    ]).units;
+
+    const events = recorder.getEvents();
+    // 前提: `UnitDefeated`はPS連鎖の内部で発行され、`onFactEvent`のトップレベル
+    // 経路には現れない（この前提が崩れると本テストは配線を検証しなくなる）。
+    expect(events.some((e) => e.eventType === "UnitDefeated")).toBe(true);
+
+    const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+    expect(updatedHolder.appliedEffects).toHaveLength(0);
+    const effectExpired = events.find((e) => e.eventType === "EffectExpired")!;
+    expect(effectExpired.payload).toMatchObject({
+      effectInstanceId: "effect-shield",
+      reason: "SOURCE_DEFEATED",
+      cascaded: false,
+    });
+  });
+});

@@ -188,6 +188,94 @@ describe("expireEffects", () => {
     });
   });
 
+  it("UT-R-EFF-10-045 (R-EFF-10 APPLY_SHIELD拡張、Issue #660): accepts a SOURCE_DEFEATED seed and emits EffectExpired with that reason", () => {
+    const def = statModDefinition("ACT_SHIELD");
+    const target = unit("target-1");
+    const e = effect("effect-1", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+    });
+    const withEffect = { ...target, appliedEffects: [e] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = expireEffects(
+      context(recorder, rootEventId),
+      [withEffect],
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: e.effectInstanceId,
+          reason: "SOURCE_DEFEATED",
+        },
+      ],
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(0);
+    const expired = recorder.getEvents().find((ev) => ev.eventType === "EffectExpired")!;
+    expect(expired.payload).toMatchObject({
+      effectInstanceId: e.effectInstanceId,
+      reason: "SOURCE_DEFEATED",
+      cascaded: false,
+    });
+  });
+
+  it("UT-R-EFF-10-046 [R-EFF-09, R-EFF-10] (R-EFF-09との整合、Issue #660): a SOURCE_DEFEATED seed on a PARENT-role Shield cascades to its CHILD-role sibling", () => {
+    const def = statModDefinition("ACT_SHIELD_LINK");
+    const target = unit("target-1");
+    const shield = effect("shield", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: false,
+          linkedEffectGroupId: "GROUP_SHIELD",
+          linkedEffectGroupRole: "PARENT",
+        },
+      },
+    });
+    const child = effect("child", target.battleUnitId, def.effectActionDefinitionId, {
+      duration: {
+        definition: {
+          dispellable: false,
+          linkedEffectGroupId: "GROUP_SHIELD",
+          linkedEffectGroupRole: "CHILD",
+        },
+      },
+    });
+    const withEffects = { ...target, appliedEffects: [shield, child] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = expireEffects(
+      context(recorder, rootEventId),
+      [withEffects],
+      [
+        {
+          battleUnitId: target.battleUnitId,
+          effectInstanceId: shield.effectInstanceId,
+          reason: "SOURCE_DEFEATED",
+        },
+      ],
+      new Map([[def.effectActionDefinitionId, def]]),
+      rootEventId,
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(0);
+
+    const expiredEvents = recorder.getEvents().filter((ev) => ev.eventType === "EffectExpired");
+    expect(expiredEvents).toHaveLength(2);
+    expect(expiredEvents[0]!.payload).toMatchObject({
+      effectInstanceId: child.effectInstanceId,
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+    expect(expiredEvents[1]!.payload).toMatchObject({
+      effectInstanceId: shield.effectInstanceId,
+      reason: "SOURCE_DEFEATED",
+      cascaded: false,
+    });
+  });
+
   it("UT-R-EFF-09-005 (R-EFF-09): cascades to a same-group sibling, emitting the child's EffectExpired before the parent's", () => {
     const def = statModDefinition("ACT_LINK");
     const target = unit("target-1");

@@ -2242,6 +2242,9 @@ const EFFECT_EXPIRATION_REASON_ENUM = [
   // 追加漏れだった`SHIELD_DEPLETED`もここで揃える）。
   "SHIELD_DEPLETED",
   "SUBUNIT_DEPLETED",
+  // R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: 当初`MarkerRemoved`専用だった
+  // 付与者戦闘不能による解除契機を`AppliedEffect`（Shield等）へ拡張したもの。
+  "SOURCE_DEFEATED",
   "LINKED_GROUP_CASCADE",
 ] as const;
 
@@ -2361,8 +2364,10 @@ const markerUpdatedDetailsSchema = {
 } as const;
 
 /**
- * `SOURCE_DEFEATED`はMarker固有の解除契機（`duration.removeOnSourceDefeated`、
- * R-EFF-10／M7-020／Issue #279）で、`EFFECT_EXPIRATION_REASON_ENUM`には現れない。
+ * `SOURCE_DEFEATED`は`duration.removeOnSourceDefeated`による解除契機
+ * （R-EFF-10／M7-020／Issue #279）。当初`MarkerRemoved`専用だったが、
+ * `APPLY_SHIELD`拡張（Issue #660）により`EFFECT_EXPIRATION_REASON_ENUM`にも
+ * 含む（`EffectExpired`が運ぶ）。
  */
 const MARKER_REMOVAL_REASON_ENUM = [
   "REMOVED",

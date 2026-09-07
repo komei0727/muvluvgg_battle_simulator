@@ -234,6 +234,17 @@ export interface PassiveChainDependencies {
     resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
   ) => PassiveChainLimitViolationReason | undefined;
   /**
+   * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `applyMarkerSourceDefeatRemovals`と
+   * 同じ契機（`duration.removeOnSourceDefeated`を宣言した付与者の戦闘不能）を
+   * `AppliedEffect`（Shield等）へ適用する。`MarkerState`と独立した別の機構だが、
+   * PS連鎖内部イベントへも同じ理由で届ける必要がある点・`resolveChild`形を取る点は
+   * 同じ。未指定、または該当なしの場合は`undefined`を返す契約とする。
+   */
+  readonly applyEffectSourceDefeatRemovals?: (
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ) => PassiveChainLimitViolationReason | undefined;
+  /**
    * `R-EFF-11`（`AppliedEffect`スコープ、EFF-005/Issue #162）の
    * `counterUpdates`更新も、`applyExpirationConditions`と同じ理由で
    * トップレベルの`event`だけでなくPS連鎖内部の各イベント（PS自身がyieldする
@@ -443,6 +454,17 @@ function maintainState(
   // （`deps.applyMarkerSourceDefeatRemovals`のコメント参照）。
   if (deps.applyMarkerSourceDefeatRemovals !== undefined) {
     const violation = deps.applyMarkerSourceDefeatRemovals(event, (child) =>
+      handleCausedEvent(child),
+    );
+    if (violation !== undefined) {
+      return violation;
+    }
+  }
+
+  // Issue #660: R-EFF-10の付与者戦闘不能によるAppliedEffect（Shield等）解除。
+  // Marker版と独立した機構だが同じ順序（Marker版の直後）で呼ぶ。
+  if (deps.applyEffectSourceDefeatRemovals !== undefined) {
+    const violation = deps.applyEffectSourceDefeatRemovals(event, (child) =>
       handleCausedEvent(child),
     );
     if (violation !== undefined) {

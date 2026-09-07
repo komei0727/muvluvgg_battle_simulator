@@ -2334,6 +2334,35 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-R-EFF-10-044 (R-EFF-10 APPLY_SHIELD拡張、Issue #660): accepts duration.removeOnSourceDefeated on APPLY_SHIELD", () => {
+    const shieldWithSourceDefeatRemoval = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SHIELD_SOURCE_DEFEAT",
+        kind: "APPLY_SHIELD",
+        payload: {
+          formula: { kind: "CONSTANT", value: 100 },
+          duration: {
+            dispellable: false,
+            linkedEffectGroupId: null,
+            timeLimit: { unit: "BATTLE", count: 1 },
+            removeOnSourceDefeated: true,
+          },
+        },
+      },
+      "effectAction",
+    );
+
+    const defs = baseDefinitions();
+    const index = buildCatalogIndex({
+      ...defs,
+      skills: [...defs.skills, asSkill("SKL_AS2", "ACT_SHIELD_SOURCE_DEFEAT")],
+      units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      effectActions: [...defs.effectActions, shieldWithSourceDefeatRemoval],
+    });
+
+    expect(index.effectActions.get("ACT_SHIELD_SOURCE_DEFEAT" as never)).toBeDefined();
+  });
+
   /**
    * Issue #227: `TargetReference`の走査は従来ACTIONの
    * `step.target`だけを見ており、`condition`（`TARGET_SET_COUNT`等）に埋め込まれた
