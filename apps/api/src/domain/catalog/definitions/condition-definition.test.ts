@@ -254,6 +254,25 @@ describe("ConditionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  // SELF_MEMORY_EQUIPPED（Issue #674）: 自身の編成に特定メモリーが装備されているか。
+  it("UT-CAT-COND-063: maps SELF_MEMORY_EQUIPPED with a memoryDefinitionId", () => {
+    const result = createConditionDefinition(
+      { kind: "SELF_MEMORY_EQUIPPED", memoryDefinitionId: "MEM_FATHERS_AND_MY_WISH" },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "SELF_MEMORY_EQUIPPED",
+      memoryDefinitionId: "MEM_FATHERS_AND_MY_WISH",
+    });
+  });
+
+  it("UT-CAT-COND-064: rejects SELF_MEMORY_EQUIPPED without a memoryDefinitionId", () => {
+    expect(() =>
+      createConditionDefinition({ kind: "SELF_MEMORY_EQUIPPED" }, "condition", undefined),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-COND-017: maps a RUNTIME_COUNTER condition with modulo (Issue #143)", () => {
     const result = createConditionDefinition(
       {

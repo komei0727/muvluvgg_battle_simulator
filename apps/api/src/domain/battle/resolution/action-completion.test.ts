@@ -6,12 +6,18 @@ import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  createMarkerInstanceId,
+} from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
   createUnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
@@ -127,6 +133,27 @@ function actionEffect(
       ...(grantedActionId !== undefined ? { grantedActionId } : {}),
     },
     appliedTurnNumber: 1,
+  };
+}
+
+const FIGHTING_SPIRIT_MARKER_ID = createMarkerId("MARKER_FIGHTING_SPIRIT");
+
+/** MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decay`宣言付きのMarkerState。 */
+function decayingMarker(
+  targetUnitId: ReturnType<typeof createBattleUnitId>,
+  stackCount: number,
+  decayingStackCount: number,
+): MarkerState {
+  return {
+    markerInstanceId: createMarkerInstanceId("marker-fighting-spirit"),
+    markerId: FIGHTING_SPIRIT_MARKER_ID,
+    sourceUnitId: targetUnitId,
+    targetUnitId,
+    stackCount,
+    stackMax: null,
+    duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+    decayingStackCount,
+    decay: { unit: "ACTION", amount: 1 },
   };
 }
 
@@ -501,5 +528,88 @@ describe("shield decay ordering at COMPLETING (DMG-004, Issue #194)", () => {
     expect(result.units[0]!.appliedEffects.map((effect) => effect.effectInstanceId)).toEqual([
       createEffectInstanceId("SHIELD_EN"),
     ]);
+  });
+
+  // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decayActionMarkerStacks`の
+  // 呼び出し配線そのもの（`decrementActionMarkerDurations`と同じCOMPLETINGタイミング）
+  // を`recordActionCompletion`経由で確認する。
+  it("UT-ACT-COMPLETION-003 (Issue #674): decays only the decayingStackCount portion at action completion, emitting MarkerUpdated", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const actor = plainUnit("U1");
+    const actorWithMarker = {
+      ...actor,
+      markerStates: [decayingMarker(actor.battleUnitId, 2, 1)],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorUnitId: actor.battleUnitId,
+        effectActions: new Map(),
+      },
+      "AS",
+      seed.eventId,
+      [actorWithMarker],
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.markerStates).toHaveLength(1);
+    expect(updated.markerStates[0]).toMatchObject({ stackCount: 1, decayingStackCount: 0 });
+    const markerUpdated = recorder
+      .getEvents()
+      .filter((event) => event.eventType === "MarkerUpdated");
+    expect(markerUpdated).toHaveLength(1);
+    expect(markerUpdated[0]!.payload).toMatchObject({ stackBefore: 2, stackAfter: 1 });
+  });
+
+  it("UT-ACT-COMPLETION-004 (Issue #674): removes the MarkerState with reason STACK_DECAY once the decaying portion reaches 0", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const actor = plainUnit("U1");
+    const actorWithMarker = {
+      ...actor,
+      markerStates: [decayingMarker(actor.battleUnitId, 1, 1)],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorUnitId: actor.battleUnitId,
+        effectActions: new Map(),
+      },
+      "AS",
+      seed.eventId,
+      [actorWithMarker],
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.markerStates).toHaveLength(0);
+    const removed = recorder.getEvents().find((event) => event.eventType === "MarkerRemoved");
+    expect(removed?.payload).toMatchObject({ reason: "STACK_DECAY" });
   });
 });

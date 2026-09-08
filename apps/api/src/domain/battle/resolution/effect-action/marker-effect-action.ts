@@ -43,6 +43,7 @@ export const resolveApplyMarker: EffectActionHandler<"APPLY_MARKER"> = (
         stackPolicy: effectAction.payload.stack.policy,
         stackMax: effectAction.payload.stack.max,
         durationDefinition: effectAction.payload.duration,
+        ...(effectAction.payload.decay !== undefined ? { decay: effectAction.payload.decay } : {}),
       },
       startingEventId,
     ),

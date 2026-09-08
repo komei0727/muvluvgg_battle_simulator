@@ -637,6 +637,9 @@ export class PassiveActivationRuntime {
       units: this.units,
       unitDefinitions: this.context.definitions.unitDefinitions,
       skillDefinitions: this.context.definitions.skillDefinitions,
+      ...(this.context.definitions.memoriesBySide !== undefined
+        ? { memoriesBySide: this.context.definitions.memoriesBySide }
+        : {}),
     });
     for (const entry of matched) {
       const result = applyMatchedRuntimeCounterUpdate(entry, this.units, triggerEvent);

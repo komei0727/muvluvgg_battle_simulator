@@ -367,6 +367,7 @@ describe("expireEffects", () => {
       targetUnitId: target.battleUnitId,
       stackCount: 2,
       stackMax: null,
+      decayingStackCount: 0,
       duration: {
         definition: {
           dispellable: true,

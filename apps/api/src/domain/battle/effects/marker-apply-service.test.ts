@@ -119,6 +119,74 @@ describe("applyMarker", () => {
     expect(events[events.length - 1]!.eventType).toBe("MarkerUpdated");
   });
 
+  // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decay`宣言付きのADDだけが
+  // `decayingStackCount`を積み増す。非逓減のADDが同じMarkerへ積み増しても
+  // `decayingStackCount`は変化しない（逓減しないスタックを巻き込まない）。
+  it("UT-R-EFF-10-038: ADD with decay initializes decayingStackCount on a new MarkerState", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const result = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+        decay: { unit: "ACTION", amount: 1 },
+      },
+      rootEventId,
+    );
+
+    expect(result.markerState.stackCount).toBe(1);
+    expect(result.markerState.decayingStackCount).toBe(1);
+    expect(result.markerState.decay).toEqual({ unit: "ACTION", amount: 1 });
+  });
+
+  it("UT-R-EFF-10-039: a non-decaying ADD onto an existing decaying MarkerState leaves decayingStackCount unchanged", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const decaying = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+        decay: { unit: "ACTION", amount: 1 },
+      },
+      rootEventId,
+    );
+
+    const nonDecaying = applyMarker(
+      context,
+      decaying.units,
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      decaying.lastEventId,
+    );
+
+    expect(nonDecaying.markerState.stackCount).toBe(2);
+    expect(nonDecaying.markerState.decayingStackCount).toBe(1);
+  });
+
   it("UT-R-EFF-10-003: ADD clamps at stack.max", () => {
     const source = unit("source-1");
     const target = unit("target-1");

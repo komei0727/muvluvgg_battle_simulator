@@ -1566,6 +1566,11 @@ export type MarkerRemovalReason =
   | "EXPIRATION_CONDITION"
   | "SOURCE_DEFEATED"
   /**
+   * `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: `APPLY_MARKER.decay`宣言により
+   * 行動ごとのスタック逓減で0になった除去（`TIME_LIMIT`のスタック版）。
+   */
+  | "STACK_DECAY"
+  /**
    * `SOURCE_DEFEATED`と対になるAppliedEffect固有の契機（DMG-004、Issue #194、
    * R-SHD-01）。`MarkerState`はシールド残量を持たないため`MarkerRemoved`が
    * この理由を直接運ぶことはなく、シールド失効に連動して解除されるMarkerは

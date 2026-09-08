@@ -60,6 +60,7 @@ function marker(unit: BattleUnit, markerIdValue: string, stackCount: number): Ma
     targetUnitId: unit.battleUnitId,
     stackCount,
     stackMax: null,
+    decayingStackCount: 0,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
   };
 }

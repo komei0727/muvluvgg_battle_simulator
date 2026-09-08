@@ -104,6 +104,76 @@ export function decrementTurnMarkerDurations(
 }
 
 /**
+ * `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: `resolveDecayOwnerUnitId`
+ * （`shield-policy.ts`）と同じ規則を`MarkerState.decay`へ適用する。`decay`未宣言の
+ * Markerは呼び出し前に除外されるため、ここでは`decay`が存在する前提で読む。
+ */
+function resolveMarkerStackDecayOwnerUnitId(marker: MarkerState): BattleUnitId | "BATTLE" {
+  const owner = marker.decay?.owner ?? "EFFECT_TARGET";
+  if (owner === "BATTLE") {
+    return "BATTLE";
+  }
+  return owner === "EFFECT_SOURCE" ? (marker.sourceUnitId ?? "BATTLE") : marker.targetUnitId;
+}
+
+export interface MarkerStackDecayChange {
+  readonly battleUnitId: BattleUnitId;
+  readonly markerInstanceId: MarkerInstanceId;
+  readonly stackBefore: number;
+  readonly stackAfter: number;
+}
+
+export interface DecayMarkerStacksResult {
+  readonly units: readonly BattleUnit[];
+  readonly changes: readonly MarkerStackDecayChange[];
+}
+
+/**
+ * `SHIELD_DECAY_OVER_TIME`の`decayActionShields`（`shield-policy.ts`）と同じ
+ * COMPLETING契機のMarker版。`decay`を宣言したMarkerのうち、`decayingStackCount`
+ * （`decay`宣言付きの付与で積まれた分だけ）を上限に`stackCount`を減らす —
+ * 同じMarkerへ`decay`未宣言の付与（例: スキル側の非逓減スタック）が積み増した
+ * 分は`decayingStackCount`に含まれないため巻き込まない。
+ *
+ * `decrementDurations`と同じく、0になったインスタンスをこの関数自身は除去しない
+ * （呼び出し側が`removeMarkers`へ`reason: "STACK_DECAY"`のseedとして渡す）。
+ */
+export function decayActionMarkerStacks(
+  units: readonly BattleUnit[],
+  actingUnitId: BattleUnitId,
+): DecayMarkerStacksResult {
+  const changes: MarkerStackDecayChange[] = [];
+  const nextUnits = units.map((battleUnit) => {
+    let changedInUnit = false;
+    const nextMarkers = battleUnit.markerStates.map((marker) => {
+      if (marker.decay === undefined || marker.decayingStackCount <= 0) {
+        return marker;
+      }
+      const owner = resolveMarkerStackDecayOwnerUnitId(marker);
+      if (owner !== "BATTLE" && owner !== actingUnitId) {
+        return marker;
+      }
+      const step = Math.min(marker.decay.amount, marker.decayingStackCount);
+      const stackAfter = Math.max(0, marker.stackCount - step);
+      changes.push({
+        battleUnitId: battleUnit.battleUnitId,
+        markerInstanceId: marker.markerInstanceId,
+        stackBefore: marker.stackCount,
+        stackAfter,
+      });
+      changedInUnit = true;
+      return {
+        ...marker,
+        stackCount: stackAfter,
+        decayingStackCount: marker.decayingStackCount - step,
+      };
+    });
+    return changedInUnit ? { ...battleUnit, markerStates: nextMarkers } : battleUnit;
+  });
+  return { units: nextUnits, changes };
+}
+
+/**
  * R-EFF-07相当の消費条件、および特殊失効条件（R-EFF-08相当）は、`DurationDefinition`
  * が型として許容していても現状のproduction Catalogに`APPLY_MARKER`が
  * `consumption`/`expiration`を指定する行が存在しないため、この関数群では扱わない

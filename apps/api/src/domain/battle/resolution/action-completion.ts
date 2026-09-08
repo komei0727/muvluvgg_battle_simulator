@@ -11,7 +11,10 @@ import {
   shieldDecayHolders,
   shieldDecayPools,
 } from "../combat/shield-policy.js";
-import { decrementActionMarkerDurations } from "../model/marker-duration.js";
+import {
+  decayActionMarkerStacks,
+  decrementActionMarkerDurations,
+} from "../model/marker-duration.js";
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
@@ -19,6 +22,7 @@ import {
 } from "../effects/duration-expiry-service.js";
 import {
   emitMarkerDurationChangedEvents,
+  emitMarkerStackDecayedEvents,
   removeMarkers,
   type MarkerRemovalSeed,
 } from "../effects/marker-removal-service.js";
@@ -363,6 +367,63 @@ export function recordActionCompletion(
       );
       working = markerRemoval.units;
       lastEventId = markerRemoval.lastEventId;
+    }
+  }
+
+  // `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: 同じCOMPLETINGタイミングで、
+  // `APPLY_MARKER.decay`を宣言した付与で積まれたスタック（`decayingStackCount`）を
+  // 段階的に減らす。`SHIELD_DECAY_OVER_TIME`と同じく、変化そのものは`MarkerUpdated`
+  // （既存の`policy`なし統合に第3のケースとして相乗り）で表し、0になった
+  // インスタンスは`TIME_LIMIT`と同じ経路（`removeMarkers`、`reason: STACK_DECAY`）で
+  // 除去する。
+  const markerStackDecay = decayActionMarkerStacks(working, context.actorUnitId);
+  if (markerStackDecay.changes.length > 0) {
+    working = markerStackDecay.units;
+    const stackDecayEventsStart = recorder.getEvents().length;
+    lastEventId = emitMarkerStackDecayedEvents(
+      {
+        recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        resolutionScopeId: context.resolutionScopeId,
+        rootEventId: context.rootEventId,
+      },
+      working,
+      markerStackDecay.changes,
+      lastEventId,
+    );
+    for (const event of recorder.getEvents().slice(stackDecayEventsStart)) {
+      notify(event);
+    }
+
+    const stackDecaySeeds: MarkerRemovalSeed[] = markerStackDecay.changes
+      .filter((change) => change.stackAfter === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        markerInstanceId: change.markerInstanceId,
+        reason: "STACK_DECAY",
+      }));
+    if (stackDecaySeeds.length > 0) {
+      const stackDecayRemoval = removeMarkers(
+        {
+          recorder,
+          turnNumber: context.turnNumber,
+          cycleNumber: context.cycleNumber,
+          actionId: context.actionId,
+          resolutionScopeId: context.resolutionScopeId,
+          rootEventId: context.rootEventId,
+          ...(context.onFactEventForPassiveChain !== undefined
+            ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+            : {}),
+        },
+        working,
+        stackDecaySeeds,
+        context.effectActions,
+        lastEventId,
+      );
+      working = stackDecayRemoval.units;
+      lastEventId = stackDecayRemoval.lastEventId;
     }
   }
 

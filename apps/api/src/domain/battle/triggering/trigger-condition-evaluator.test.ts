@@ -10,6 +10,7 @@ import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/eve
 import {
   createEffectActionDefinitionId,
   createMarkerId,
+  createMemoryDefinitionId,
   createRuntimeCounterId,
   createSkillDefinitionId,
   createUnitDefinitionId,
@@ -22,11 +23,20 @@ import type {
   PositionRow,
 } from "../../catalog/definitions/catalog-enums.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
+import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
 
 const SKILL_ID = createSkillDefinitionId("SKL_PS1");
 const COUNTER_ID = createRuntimeCounterId("RUNTIME_COUNTER_CRIT");
+
+function memoryDefinition(id: string): MemoryDefinition {
+  return {
+    memoryDefinitionId: createMemoryDefinitionId(id, "memoryDefinitionId"),
+    triggeredEffects: [],
+    metadata: { displayName: id, tags: [] },
+  };
+}
 
 function ownerWithCounter(value?: number): BattleUnit {
   const member: BattlePartyMember = {
@@ -119,6 +129,7 @@ function marker(unit: BattleUnit, markerIdValue: string, stackCount: number): Ma
     targetUnitId: unit.battleUnitId,
     stackCount,
     stackMax: null,
+    decayingStackCount: 0,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
   };
 }
@@ -1268,6 +1279,75 @@ describe("evaluateTriggerCondition", () => {
         excludeSelf: false,
         op: "GT",
         value: 0,
+      };
+      expect(() =>
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID },
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
+
+  describe("SELF_MEMORY_EQUIPPED (Issue #674)", () => {
+    it("UT-R-PS-01-147: matches when the owner's side has the memoryDefinitionId equipped (owner.side)", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "SELF_MEMORY_EQUIPPED",
+        memoryDefinitionId: createMemoryDefinitionId("MEM_FATHERS_AND_MY_WISH", "condition"),
+      };
+      const memoriesBySide = {
+        ALLY: [memoryDefinition("MEM_FATHERS_AND_MY_WISH")],
+        ENEMY: [],
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, memoriesBySide },
+        ),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-148: does not match when the owner's side lacks the memoryDefinitionId", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "SELF_MEMORY_EQUIPPED",
+        memoryDefinitionId: createMemoryDefinitionId("MEM_FATHERS_AND_MY_WISH", "condition"),
+      };
+      const memoriesBySide = {
+        ALLY: [memoryDefinition("MEM_OTHER")],
+        ENEMY: [],
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, memoriesBySide },
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-PS-01-149: falls back to ownerSide when there is no owner (Memory evaluation context)", () => {
+      const condition: ConditionDefinition = {
+        kind: "SELF_MEMORY_EQUIPPED",
+        memoryDefinitionId: createMemoryDefinitionId("MEM_FATHERS_AND_MY_WISH", "condition"),
+      };
+      const memoriesBySide = {
+        ALLY: [memoryDefinition("MEM_FATHERS_AND_MY_WISH")],
+        ENEMY: [],
+      };
+      expect(
+        evaluateTriggerCondition(condition, { payload: {} }, { ownerSide: "ALLY", memoriesBySide }),
+      ).toBe(true);
+    });
+
+    it("UT-R-PS-01-150: throws when no context with memoriesBySide and an owner (or ownerSide) is supplied", () => {
+      const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const condition: ConditionDefinition = {
+        kind: "SELF_MEMORY_EQUIPPED",
+        memoryDefinitionId: createMemoryDefinitionId("MEM_FATHERS_AND_MY_WISH", "condition"),
       };
       expect(() =>
         evaluateTriggerCondition(

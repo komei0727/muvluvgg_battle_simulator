@@ -257,6 +257,7 @@ describe("calculateDamage", () => {
           targetUnitId: createBattleUnitId("U_ATTACKER"),
           stackCount: 3,
           stackMax: null,
+          decayingStackCount: 0,
           duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
         },
       ],

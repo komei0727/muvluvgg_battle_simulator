@@ -13,9 +13,11 @@ import type {
 import {
   createEffectActionDefinitionId,
   createMarkerId,
+  createMemoryDefinitionId,
   createRuntimeCounterId,
   type EffectActionDefinitionId,
   type MarkerId,
+  type MemoryDefinitionId,
   type RuntimeCounterId,
 } from "./catalog-ids.js";
 import {
@@ -106,6 +108,7 @@ export const CONDITION_KINDS = [
   "TARGET_SET_COUNT",
   "TARGET_HAS_EFFECT",
   "TARGET_EFFECT_COUNT",
+  "SELF_MEMORY_EQUIPPED",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -295,6 +298,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   RUNTIME_COUNTER: ["kind", "counter", "op", "value", "modulo"],
   TURN_NUMBER: ["kind", "op", "value", "modulo"],
   ALIVE_UNIT_COUNT: ["kind", "side", "excludeSelf", "op", "value"],
+  SELF_MEMORY_EQUIPPED: ["kind", "memoryDefinitionId"],
   POSITION_RELATION: ["kind", "target", "relation"],
   RESOLUTION_PHASE: ["kind", "phase", "negate"],
   TARGET_SET_COUNT: ["kind", "target", "countOf", "op", "value"],
@@ -410,6 +414,16 @@ export type ConditionDefinition =
       readonly op: ComparisonOperator;
       readonly value: number;
     }
+  /**
+   * `SELF_MEMORY_EQUIPPED`（Issue #674）: 自身（`owner`）を含む陣営の編成に
+   * 指定`memoryDefinitionId`のメモリーが装備されているかを判定する。`owner`が
+   * 無いMemory評価文脈では`ownerSide`を基準にする（`ALIVE_UNIT_COUNT`と同じ
+   * owner/ownerSide解決規則、`trigger-condition-evaluator.ts`）。
+   */
+  | {
+      readonly kind: "SELF_MEMORY_EQUIPPED";
+      readonly memoryDefinitionId: MemoryDefinitionId;
+    }
   | {
       readonly kind: "POSITION_RELATION";
       readonly target: TargetReference;
@@ -502,6 +516,7 @@ export interface ConditionDefinitionInput {
   readonly op?: string;
   readonly value?: JsonPrimitive;
   readonly markerId?: string;
+  readonly memoryDefinitionId?: string;
   readonly effectActionDefinitionIds?: readonly string[];
   readonly grantedBy?: string;
   readonly countCondition?: { readonly op: string; readonly value: number };
@@ -760,6 +775,13 @@ export function createConditionDefinition(
         op: createOperator(input, path),
         value,
       };
+    }
+    case "SELF_MEMORY_EQUIPPED": {
+      const memoryDefinitionId = createMemoryDefinitionId(
+        requireField(input, "memoryDefinitionId", path),
+        `${path}.memoryDefinitionId`,
+      );
+      return { kind: "SELF_MEMORY_EQUIPPED", memoryDefinitionId };
     }
     case "POSITION_RELATION": {
       const target = requireField(input, "target", path);

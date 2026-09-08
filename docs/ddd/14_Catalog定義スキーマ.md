@@ -524,6 +524,7 @@ selector:
 | `LOWEST_DEFENSE`         | 防御力が低い順（Issue #649）                         |
 | `LOWEST_MAX_HP`          | 最大HPが低い順                                       |
 | `HIGHEST_MAX_HP`         | 最大HPが高い順                                       |
+| `LOWEST_CURRENT_HP`      | 現在HP（絶対値）が低い順（Issue #674）               |
 | `HIGHEST_EX_GAUGE_RATIO` | EXゲージ充填率が高い順                               |
 | `FASTEST`                | 行動速度が高い順                                     |
 | `FRONT_ROW`              | 前列優先                                             |
@@ -537,6 +538,8 @@ selector:
 | `UNIT_TYPE_PRIORITY`     | `unitType`                              | 指定unitTypeの対象を優先    |
 
 `LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`の「HP割合」は、`HP_RATIO`フィルタ・`TARGET_STATE.field`・DamageModifierの`HP_RATIO_COMPARISON`と同じ基準（R-NUM-02）で、現在HP÷切り捨て後の最大HPとする。分母を切り捨て前の`combatStats.maximumHp`のまま使うと、満タンのHP割合がユニットごとに異なる値になり、同率判定が成立しない（Issue #585）。
+
+`LOWEST_CURRENT_HP`は`LOWEST_HP_RATIO`と異なり、最大HPで正規化しない現在HPの絶対値で比較する。「最もHPが低い敵単体」のように割合ではなく残量そのものを基準にする原文向け（Issue #674）。
 
 ### TargetFilterDefinition
 
@@ -558,6 +561,7 @@ filters:
 | `ATTRIBUTE`             | `attribute`                   | Attribute一致                                                                                                                                                                                                                                                               |
 | `AFFILIATION`           | `affiliationId`               | 所属一致                                                                                                                                                                                                                                                                    |
 | `CHARACTER`             | `characterId`                 | キャラクター一致                                                                                                                                                                                                                                                            |
+| `UNIT_DEFINITION`       | `unitDefinitionId`            | 衣装/バージョン単位（`unitDefinitionId`）の一致。`CHARACTER`と異なり同一キャラクターの別バリアントを区別する（Issue #674）                                                                                                                                                  |
 | `HAS_MARKER`            | `markerId`, `countCondition?` | Marker所持（`countCondition`（`op`/`value`）で所持数のしきい値も指定できる）                                                                                                                                                                                                |
 | `HP_RATIO`              | `op`, `value`                 | HP割合比較                                                                                                                                                                                                                                                                  |
 | `EXCLUDE_RESOLVED_UNIT` | `reference`                   | `reference`（`SELF`/`BINDING`）が指す解決済みユニットを除外する                                                                                                                                                                                                             |
@@ -1754,6 +1758,33 @@ payload:
 | `markerId`     | string       | `MARKER_` prefix                                |
 | `stack.policy` | enum         | `ADD` / `KEEP_EXISTING` / `REFRESH` / `REPLACE` |
 | `stack.max`    | integer/null | null = 上限なし                                 |
+| `decay`        | object       | 省略可。`MARKER_STACK_DECAY_OVER_TIME`（下記）  |
+
+#### MARKER_STACK_DECAY_OVER_TIME（Issue #674）
+
+`APPLY_SHIELD.decay`（`SHIELD_DECAY_OVER_TIME`）と同じCOMPLETINGタイミングで、Markerのスタック数を行動ごとに一定数減らす宣言。
+
+```yaml
+kind: APPLY_MARKER
+payload:
+  markerId: MARKER_FIGHTING_SPIRIT
+  stack:
+    policy: ADD
+    max: 8
+  duration:
+    dispellable: false
+  decay:
+    unit: ACTION
+    amount: 1
+```
+
+| フィールド | 型     | 必須 | 制約                                            |
+| ---------- | ------ | ---- | ----------------------------------------------- |
+| `unit`     | enum   | ✓    | `ACTION`のみ                                    |
+| `amount`   | number | ✓    | 1以上の整数（1回あたりに減らすスタック数）      |
+| `owner`    | enum   | —    | `DurationTimeLimit.owner`と同じ値集合・同じ既定 |
+
+`MarkerState`は同じ`markerId`のインスタンスを対象ごとに1つしか持たない（R-EFF-10）ため、`decay`を宣言しない`APPLY_MARKER`（例: スキル側が付与する非逓減スタック）が同じMarkerへ積み増しても、逓減対象は`MarkerState.decayingStackCount`（`decay`宣言付きの付与で積まれた分だけ）で別管理し、非逓減分を巻き込まない。0になったインスタンスは`MarkerRemoved`（`reason: STACK_DECAY`）として除去する。
 
 ### COOLDOWN_MANIPULATION
 
@@ -1954,24 +1985,27 @@ condition:
 
 ### kind 一覧
 
-| kind                  | 追加フィールド                         | 意味                                                                                               |
-| --------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `TRUE`                | なし                                   | 常に成立                                                                                           |
-| `AND`                 | `conditions[]`                         | 全条件                                                                                             |
-| `OR`                  | `conditions[]`                         | いずれか                                                                                           |
-| `NOT`                 | `condition`                            | 否定                                                                                               |
-| `TARGET_STATE`        | `target`, `field`, `op`, `value`       | 対象状態比較                                                                                       |
-| `TARGET_HAS_MARKER`   | `target`, `markerId`, `countCondition` | Marker所持                                                                                         |
-| `EVENT_PAYLOAD`       | `field`, `op`, `value`                 | trigger payload比較                                                                                |
-| `DAMAGE_MAX_HP_RATIO` | `field`, `op`, `value`                 | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
-| `LAST_RESULT`         | `field`, `op`, `value`                 | 直前結果比較                                                                                       |
-| `RUNTIME_COUNTER`     | `counter`, `op`, `value`, `modulo`     | SkillRuntime等のcounter比較                                                                        |
-| `TURN_NUMBER`         | `op`, `value`, `modulo`                | ターン番号条件                                                                                     |
-| `ALIVE_UNIT_COUNT`    | `side`, `excludeSelf`, `op`, `value`   | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
-| `POSITION_RELATION`   | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
-| `RESOLUTION_PHASE`    | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
-| `TARGET_SET_COUNT`    | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
-| `TARGET_EFFECT_COUNT` | `target`, `categories`, `op`, `value`  | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                             |
+| kind                   | 追加フィールド                         | 意味                                                                                               |
+| ---------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `TRUE`                 | なし                                   | 常に成立                                                                                           |
+| `AND`                  | `conditions[]`                         | 全条件                                                                                             |
+| `OR`                   | `conditions[]`                         | いずれか                                                                                           |
+| `NOT`                  | `condition`                            | 否定                                                                                               |
+| `TARGET_STATE`         | `target`, `field`, `op`, `value`       | 対象状態比較                                                                                       |
+| `TARGET_HAS_MARKER`    | `target`, `markerId`, `countCondition` | Marker所持                                                                                         |
+| `EVENT_PAYLOAD`        | `field`, `op`, `value`                 | trigger payload比較                                                                                |
+| `DAMAGE_MAX_HP_RATIO`  | `field`, `op`, `value`                 | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
+| `LAST_RESULT`          | `field`, `op`, `value`                 | 直前結果比較                                                                                       |
+| `RUNTIME_COUNTER`      | `counter`, `op`, `value`, `modulo`     | SkillRuntime等のcounter比較                                                                        |
+| `TURN_NUMBER`          | `op`, `value`, `modulo`                | ターン番号条件                                                                                     |
+| `ALIVE_UNIT_COUNT`     | `side`, `excludeSelf`, `op`, `value`   | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
+| `POSITION_RELATION`    | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
+| `RESOLUTION_PHASE`     | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
+| `TARGET_SET_COUNT`     | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
+| `TARGET_EFFECT_COUNT`  | `target`, `categories`, `op`, `value`  | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                             |
+| `SELF_MEMORY_EQUIPPED` | `memoryDefinitionId`                   | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                      |
+
+`SELF_MEMORY_EQUIPPED`は`ALIVE_UNIT_COUNT`と同じ`owner.side`/`ownerSide`解決規則を使う（`owner`が無いMemory評価文脈では`ownerSide`が基準）。`BattleDefinitions.memoriesBySide`（陣営ごとの装備メモリー射影）を参照するため、この文脈を配線していない評価経路（PS本体のactivation trigger等）では明確な`DomainValidationError`で隔離される — 現状は`RuntimeCounterUpdateDefinition`（`counterUpdates`）のtrigger.conditionからの利用のみ配線済み。
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
 

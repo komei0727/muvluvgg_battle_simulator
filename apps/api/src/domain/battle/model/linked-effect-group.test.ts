@@ -93,6 +93,7 @@ function marker(
     targetUnitId: target.battleUnitId,
     stackCount: 1,
     stackMax: null,
+    decayingStackCount: 0,
     duration: { definition: durationDefinition(linkedEffectGroupId, linkedEffectGroupRole) },
   };
 }

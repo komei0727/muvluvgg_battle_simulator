@@ -664,6 +664,7 @@ describe("applyDamageAction", () => {
       targetUnitId: parentId,
       stackCount: 1,
       stackMax: null,
+      decayingStackCount: 0,
       duration: {
         definition: {
           dispellable: true,

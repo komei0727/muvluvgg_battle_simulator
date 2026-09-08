@@ -801,6 +801,68 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `APPLY_SHIELD.decay`と同じ
+  // COMPLETING契機で、Markerのスタック数を行動ごとに一定数減らす宣言。
+  it("UT-CAT-ACT-131: maps APPLY_MARKER decay, defaulting to no decay", () => {
+    const decaying = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_FIGHTING_SPIRIT",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_FIGHTING_SPIRIT",
+          stack: { policy: "ADD", max: 8 },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
+          decay: { unit: "ACTION", amount: 1 },
+        },
+      },
+      "effectAction",
+    );
+    expect(decaying.kind).toBe("APPLY_MARKER");
+    if (decaying.kind === "APPLY_MARKER") {
+      expect(decaying.payload.decay).toEqual({ unit: "ACTION", amount: 1 });
+    }
+
+    const nonDecaying = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_CURSE",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_CURSE",
+          stack: { policy: "ADD", max: 4 },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+        },
+      },
+      "effectAction",
+    );
+    if (nonDecaying.kind === "APPLY_MARKER") {
+      expect(nonDecaying.payload.decay).toBeUndefined();
+    }
+  });
+
+  it("UT-CAT-ACT-132: rejects APPLY_MARKER decay with an unsupported unit or a non-positive amount", () => {
+    for (const decay of [
+      { unit: "TURN", amount: 1 },
+      { unit: "ACTION", amount: 0 },
+      { unit: "ACTION", amount: 1.5 },
+    ]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_MARKER_1",
+            kind: "APPLY_MARKER",
+            payload: {
+              markerId: "MARKER_1",
+              stack: { policy: "ADD", max: 4 },
+              duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+              decay,
+            },
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
   it("UT-CAT-ACT-030: rejects APPLY_MARKER with an unknown stack policy", () => {
     expect(() =>
       createEffectActionDefinition(
