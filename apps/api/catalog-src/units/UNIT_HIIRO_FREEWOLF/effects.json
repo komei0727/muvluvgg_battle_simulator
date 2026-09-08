@@ -62,7 +62,7 @@
         "perStack": 0.04,
         "max": 0.32
       },
-      "stacking": { "mode": "NON_STACKABLE" },
+      "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true }
     },
     "metadata": { "tags": [] }
@@ -80,7 +80,7 @@
         "perStack": 0.03,
         "max": 0.24
       },
-      "stacking": { "mode": "NON_STACKABLE" },
+      "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true }
     },
     "metadata": { "tags": [] }

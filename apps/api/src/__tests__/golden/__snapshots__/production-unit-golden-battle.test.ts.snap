@@ -968,8 +968,8 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_HIIRO_FREEWOLF comple
 {
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
-  "eventCount": 183,
-  "eventSequenceHash": "sha256:2bc1b540b4450db0",
+  "eventCount": 179,
+  "eventSequenceHash": "sha256:77a1889c710ab092",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 2,
     "ACTION_COMPLETING": 2,
@@ -983,7 +983,6 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_HIIRO_FREEWOLF comple
     "DAMAGE_APPLIED": 5,
     "DAMAGE_CALCULATED": 5,
     "DAMAGE_WILL_BE_APPLIED": 5,
-    "EFFECTIVE_EFFECT_CHANGED": 4,
     "EFFECT_ACTION_COMPLETED": 21,
     "EFFECT_ACTION_STARTING": 21,
     "EFFECT_APPLIED": 10,
