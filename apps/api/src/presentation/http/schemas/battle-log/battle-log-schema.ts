@@ -262,6 +262,7 @@ export const CONDITION_KIND_ENUM = [
   "TARGET_SET_COUNT",
   "TARGET_HAS_EFFECT",
   "TARGET_EFFECT_COUNT",
+  "SELF_MEMORY_EQUIPPED",
 ] as const;
 /**
  * `EffectActionStarting.kind`／`EffectApplied.effectKind`。値集合の正本はDomainの
@@ -2372,6 +2373,7 @@ const MARKER_REMOVAL_REASON_ENUM = [
   "SHIELD_DEPLETED",
   "SUBUNIT_DEPLETED",
   "LINKED_GROUP_CASCADE",
+  "STACK_DECAY",
 ] as const;
 
 /** `MarkerRemoved`（R-EFF-10/R-EFF-09）。`MarkerState`を除去した直後に発行する。`EffectExpired`と同じcascade表現。 */

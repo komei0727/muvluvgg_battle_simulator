@@ -319,6 +319,7 @@ describe("removeFreezeEffect (R-STS-03/R-EFF-09)", () => {
       targetUnitId,
       stackCount: 1,
       stackMax: null,
+      decayingStackCount: 0,
       duration: {
         definition: {
           dispellable: true,

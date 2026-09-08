@@ -78,6 +78,7 @@ function markerOn(unit: BattleUnit, markerIdValue: string, stackCount = 1): Mark
     targetUnitId: unit.battleUnitId,
     stackCount,
     stackMax: null,
+    decayingStackCount: 0,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
   };
 }

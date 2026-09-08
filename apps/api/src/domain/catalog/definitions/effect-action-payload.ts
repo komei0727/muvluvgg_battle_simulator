@@ -527,10 +527,32 @@ export interface RemoveEffectsPayload {
   readonly maxRemovals?: number;
 }
 
+/**
+ * `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: Markerのスタック数が行動経過で
+ * 段階的に減る宣言。`ShieldDecayDefinition`と同じCOMPLETINGタイミング・同じ
+ * `owner`既定（`EFFECT_TARGET`）を共有するが、Shieldの`ratio`（付与時最大値に
+ * 対する割合）と異なり、raw原文が「1つずつ」と整数個で減る量を明示するため
+ * `amount`（1回あたりの減少スタック数、整数）で表す。
+ *
+ * `MarkerState`は同じ`markerId`のインスタンスを対象ごとに1つしか持たない
+ * （R-EFF-10）ため、`decay`を宣言しない`APPLY_MARKER`（例:
+ * スキル側が付与する非逓減スタック）が同じMarkerへ積み増しても、逓減対象は
+ * `MarkerState.decayingStackCount`で別管理し、非逓減分を巻き込まない
+ * （`marker-apply-service.ts`のADD分岐参照）。
+ */
+export interface MarkerStackDecayDefinition {
+  readonly unit: "ACTION";
+  /** 1回あたりに減らすスタック数（1以上の整数）。 */
+  readonly amount: number;
+  readonly owner?: DurationOwner;
+}
+
 export interface ApplyMarkerPayload {
   readonly markerId: MarkerId;
   readonly stack: { readonly policy: MarkerStackPolicy; readonly max: number | null };
   readonly duration: DurationDefinition;
+  /** 省略時は逓減しない。 */
+  readonly decay?: MarkerStackDecayDefinition;
 }
 
 export interface RemoveMarkerPayload {

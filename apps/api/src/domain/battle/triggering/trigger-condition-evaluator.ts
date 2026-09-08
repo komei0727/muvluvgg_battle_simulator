@@ -1,5 +1,6 @@
 import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
+import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import type {
   ConditionDefinition,
   JsonPrimitive,
@@ -109,6 +110,12 @@ export interface RuntimeCounterLookupContext {
    * — 黙ってfalseにすると「trigger条件が常に不成立のPS」を作ってしまう。
    */
   readonly unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
+  /**
+   * `SELF_MEMORY_EQUIPPED`（Issue #674）が読む、陣営ごとの装備メモリー射影
+   * （`BattleDefinitions.memoriesBySide`をそのまま渡す）。相対陣営は
+   * `ALIVE_UNIT_COUNT`と同じ`owner.side`/`ownerSide`解決規則を使う。
+   */
+  readonly memoriesBySide?: Readonly<Record<Side, readonly MemoryDefinition[]>>;
 }
 
 /**
@@ -458,6 +465,18 @@ export function evaluateTriggerCondition(
           !(condition.excludeSelf && unit.battleUnitId === owner?.battleUnitId),
       ).length;
       return compareWithOperator(count, condition.op, condition.value);
+    }
+    case "SELF_MEMORY_EQUIPPED": {
+      const relativeSide = context?.owner?.side ?? context?.ownerSide;
+      if (context?.memoriesBySide === undefined || relativeSide === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "SELF_MEMORY_EQUIPPED" requires a RuntimeCounterLookupContext with memoriesBySide and an owner (or ownerSide)',
+        );
+      }
+      return (context.memoriesBySide[relativeSide] ?? []).some(
+        (memory) => memory.memoryDefinitionId === condition.memoryDefinitionId,
+      );
     }
     case "TURN_NUMBER": {
       if (context?.turnNumber === undefined) {

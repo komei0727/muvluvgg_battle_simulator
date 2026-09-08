@@ -11,7 +11,7 @@ import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, MarkerRemovalReason } from "../events/domain-event.js";
-import type { MarkerDurationChange } from "../model/marker-duration.js";
+import type { MarkerDurationChange, MarkerStackDecayChange } from "../model/marker-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId, MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type {
@@ -94,6 +94,65 @@ export function emitMarkerDurationChangedEvents(
                   ...toMarkerSnapshot(marker),
                   duration: { unit: change.unit, remaining: change.before },
                 },
+                after: toMarkerSnapshot(marker),
+              },
+            },
+          },
+        },
+      },
+    });
+    lastEventId = updated.eventId;
+  }
+  return lastEventId;
+}
+
+/**
+ * `emitMarkerDurationChangedEvents`と同じ`MarkerUpdated`統合（`domain-event.ts`の
+ * コメント参照）だが、`stackBefore`/`stackAfter`が実際に異なる第3のケース
+ * （`MARKER_STACK_DECAY_OVER_TIME`、Issue #674）用。`policy`は持たず、
+ * Duration残り回数（`remainingBefore`/`remainingAfter`）も運ばない
+ * （逓減はDurationではなくスタック数そのものの変化のため）。
+ */
+export function emitMarkerStackDecayedEvents(
+  context: RemoveMarkersContext,
+  units: readonly BattleUnit[],
+  changes: readonly MarkerStackDecayChange[],
+  parentEventId: DomainEventId,
+): DomainEventId {
+  let lastEventId = parentEventId;
+  for (const change of changes) {
+    const holder = requireUnit(units, change.battleUnitId);
+    const marker = holder.markerStates.find(
+      (candidate) => candidate.markerInstanceId === change.markerInstanceId,
+    )!;
+    const updated = context.recorder.record({
+      eventType: "MarkerUpdated",
+      category: "FACT",
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+      resolutionScopeId: context.resolutionScopeId,
+      parentEventId: lastEventId,
+      rootEventId: context.rootEventId,
+      sourceUnitId: change.battleUnitId,
+      targetUnitIds: [change.battleUnitId],
+      payload: {
+        markerInstanceId: change.markerInstanceId,
+        markerId: marker.markerId,
+        targetUnitId: marker.targetUnitId,
+        ...(marker.sourceUnitId !== undefined ? { sourceUnitId: marker.sourceUnitId } : {}),
+        ...(marker.sourceSide !== undefined ? { sourceSide: marker.sourceSide } : {}),
+        stackBefore: change.stackBefore,
+        stackAfter: change.stackAfter,
+        linkedEffectGroupId: marker.duration.definition.linkedEffectGroupId,
+      },
+      stateDelta: {
+        units: {
+          [change.battleUnitId]: {
+            markers: {
+              [change.markerInstanceId]: {
+                before: { ...toMarkerSnapshot(marker), stackCount: change.stackBefore },
                 after: toMarkerSnapshot(marker),
               },
             },

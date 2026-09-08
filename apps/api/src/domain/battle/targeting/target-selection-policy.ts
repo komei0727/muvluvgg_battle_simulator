@@ -235,6 +235,8 @@ function matchesFilter(
         lookupUnitDefinition(candidate, ctx.unitDefinitions).metadata.characterId ===
         filter.characterId
       );
+    case "UNIT_DEFINITION":
+      return candidate.unitDefinitionId === filter.unitDefinitionId;
     case "HAS_MARKER": {
       const marker = candidate.markerStates.find((state) => state.markerId === filter.markerId);
       if (marker === undefined) {
@@ -377,6 +379,11 @@ function compareHighestMaxHp(a: BattleUnit, b: BattleUnit): number {
   return b.combatStats.maximumHp - a.combatStats.maximumHp;
 }
 
+/** `LOWEST_HP_RATIO`と異なり現在HPの絶対値で比較する（Issue #674）。 */
+function compareLowestCurrentHp(a: BattleUnit, b: BattleUnit): number {
+  return a.currentHp - b.currentHp;
+}
+
 function compareHighestExGaugeRatio(a: BattleUnit, b: BattleUnit): number {
   return exGaugeRatio(b) - exGaugeRatio(a);
 }
@@ -413,6 +420,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   LOWEST_DEFENSE: () => compareLowestDefense,
   LOWEST_MAX_HP: () => compareLowestMaxHp,
   HIGHEST_MAX_HP: () => compareHighestMaxHp,
+  LOWEST_CURRENT_HP: () => compareLowestCurrentHp,
   HIGHEST_EX_GAUGE_RATIO: () => compareHighestExGaugeRatio,
   FASTEST: () => compareFastest,
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,

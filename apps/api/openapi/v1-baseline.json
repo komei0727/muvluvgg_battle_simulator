@@ -3547,7 +3547,8 @@
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
-                                      "TARGET_EFFECT_COUNT"
+                                      "TARGET_EFFECT_COUNT",
+                                      "SELF_MEMORY_EQUIPPED"
                                     ]
                                   }
                                 }
@@ -3657,7 +3658,8 @@
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
-                                      "TARGET_EFFECT_COUNT"
+                                      "TARGET_EFFECT_COUNT",
+                                      "SELF_MEMORY_EQUIPPED"
                                     ]
                                   },
                                   "result": {
@@ -12132,7 +12134,8 @@
                                       "SOURCE_DEFEATED",
                                       "SHIELD_DEPLETED",
                                       "SUBUNIT_DEPLETED",
-                                      "LINKED_GROUP_CASCADE"
+                                      "LINKED_GROUP_CASCADE",
+                                      "STACK_DECAY"
                                     ]
                                   },
                                   "linkedEffectGroupId": {
@@ -16416,7 +16419,8 @@
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
-                                      "TARGET_EFFECT_COUNT"
+                                      "TARGET_EFFECT_COUNT",
+                                      "SELF_MEMORY_EQUIPPED"
                                     ]
                                   }
                                 }
@@ -16526,7 +16530,8 @@
                                       "RESOLUTION_PHASE",
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
-                                      "TARGET_EFFECT_COUNT"
+                                      "TARGET_EFFECT_COUNT",
+                                      "SELF_MEMORY_EQUIPPED"
                                     ]
                                   },
                                   "result": {
@@ -25015,7 +25020,8 @@
                                       "SOURCE_DEFEATED",
                                       "SHIELD_DEPLETED",
                                       "SUBUNIT_DEPLETED",
-                                      "LINKED_GROUP_CASCADE"
+                                      "LINKED_GROUP_CASCADE",
+                                      "STACK_DECAY"
                                     ]
                                   },
                                   "linkedEffectGroupId": {

@@ -5,6 +5,7 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { MarkerStackDecayDefinition } from "../../catalog/definitions/effect-action-payload.js";
 
 /**
  * `05_ドメインモデル.md`「MarkerState」/R-EFF-10: ユニットへ付与された固有状態
@@ -35,6 +36,17 @@ export interface MarkerState {
   readonly stackCount: number;
   readonly stackMax: number | null;
   readonly duration: EffectDurationState;
+  /**
+   * `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: `decay`宣言付きの`APPLY_MARKER`で
+   * 積まれたスタックのうち、まだ逓減されていない数。同じ`markerId`へ`decay`未宣言の
+   * `APPLY_MARKER`（例: スキル側が付与する非逓減スタック）が積み増しても
+   * `stackCount`だけが増え、この値は変化しない — 逓減対象を`stackCount`全体ではなく
+   * この値までに限定する（`decayActionMarkerStacks`、`marker-duration.ts`）。
+   * `stackCount`を超えることはない（クランプは`marker-apply-service.ts`が担う）。
+   */
+  readonly decayingStackCount: number;
+  /** 逓減対象になった直近の宣言。`decayingStackCount`が0なら未参照。 */
+  readonly decay?: MarkerStackDecayDefinition;
 }
 
 /**
@@ -70,6 +82,7 @@ export function buildInitialMarkerState(
   stackMax: number | null,
   durationDefinition: DurationDefinition,
   context: { readonly actionId?: ActionId; readonly turnNumber: number },
+  decay?: MarkerStackDecayDefinition,
 ): MarkerState {
   return {
     markerInstanceId,
@@ -79,6 +92,8 @@ export function buildInitialMarkerState(
     stackCount: 1,
     stackMax,
     duration: buildInitialDurationState(durationDefinition, context),
+    decayingStackCount: decay !== undefined ? 1 : 0,
+    ...(decay !== undefined ? { decay } : {}),
   };
 }
 

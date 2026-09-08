@@ -1990,6 +1990,7 @@ describe("applyEffectActionGroups", () => {
                     targetUnitId: u.battleUnitId,
                     stackCount: 1,
                     stackMax: null,
+                    decayingStackCount: 0,
                     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
                   },
                 ],
@@ -2025,6 +2026,7 @@ describe("applyEffectActionGroups", () => {
         targetUnitId: owner.battleUnitId,
         stackCount: 1,
         stackMax: null,
+        decayingStackCount: 0,
         duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
       });
       const enemyABase = unit("ENEMY_A", "ENEMY");

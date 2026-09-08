@@ -49,6 +49,7 @@ const TARGET_ORDER_KEYS = [
   "LOWEST_DEFENSE",
   "LOWEST_MAX_HP",
   "HIGHEST_MAX_HP",
+  "LOWEST_CURRENT_HP",
   "HIGHEST_EX_GAUGE_RATIO",
   "FASTEST",
   "FRONT_ROW",
@@ -119,6 +120,7 @@ const TARGET_FILTER_KINDS = [
   "ATTRIBUTE",
   "AFFILIATION",
   "CHARACTER",
+  "UNIT_DEFINITION",
   "HAS_MARKER",
   "HP_RATIO",
   "EXCLUDE_RESOLVED_UNIT",
@@ -137,6 +139,12 @@ export type TargetFilterDefinition =
   | { readonly kind: "ATTRIBUTE"; readonly attribute: Attribute }
   | { readonly kind: "AFFILIATION"; readonly affiliationId: string }
   | { readonly kind: "CHARACTER"; readonly characterId: string }
+  /**
+   * `CHARACTER`と異なり衣装/バージョン単位（`unitDefinitionId`）で一致判定する。
+   * 同一`characterId`を持つ複数バリアントを区別する必要がある場合に使う
+   * （例: メモリーが特定バリアントのみを対象にする、Issue #674）。
+   */
+  | { readonly kind: "UNIT_DEFINITION"; readonly unitDefinitionId: string }
   | {
       readonly kind: "HAS_MARKER";
       readonly markerId: MarkerId;
@@ -168,6 +176,7 @@ const TARGET_FILTER_ALLOWED_KEYS: Record<(typeof TARGET_FILTER_KINDS)[number], r
     ATTRIBUTE: ["kind", "attribute"],
     AFFILIATION: ["kind", "affiliationId"],
     CHARACTER: ["kind", "characterId"],
+    UNIT_DEFINITION: ["kind", "unitDefinitionId"],
     HAS_MARKER: ["kind", "markerId", "countCondition"],
     HP_RATIO: ["kind", "op", "value"],
     EXCLUDE_RESOLVED_UNIT: ["kind", "reference"],
@@ -186,6 +195,7 @@ export interface TargetFilterDefinitionInput {
   readonly attribute?: string;
   readonly affiliationId?: string;
   readonly characterId?: string;
+  readonly unitDefinitionId?: string;
   readonly markerId?: string;
   readonly countCondition?: { readonly op?: string; readonly value?: number };
   readonly op?: string;
@@ -252,6 +262,11 @@ export function createTargetFilterDefinition(
       return {
         kind: "CHARACTER",
         characterId: requireStringField(input.characterId, `${path}.characterId`),
+      };
+    case "UNIT_DEFINITION":
+      return {
+        kind: "UNIT_DEFINITION",
+        unitDefinitionId: requireStringField(input.unitDefinitionId, `${path}.unitDefinitionId`),
       };
     case "HAS_MARKER": {
       const markerId = createMarkerId(

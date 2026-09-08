@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { applyMarker } from "./marker-apply-service.js";
 import {
   emitMarkerDurationChangedEvents,
+  emitMarkerStackDecayedEvents,
   reduceMarkerStack,
   reduceMarkerStackSteps,
   removeMarkers,
   type MarkerRemovalSeed,
 } from "./marker-removal-service.js";
-import { decrementActionMarkerDurations } from "../model/marker-duration.js";
+import {
+  decayActionMarkerStacks,
+  decrementActionMarkerDurations,
+} from "../model/marker-duration.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -893,5 +897,107 @@ describe("action-boundary Marker duration decrement + removal", () => {
     expect(events.some((e) => e.eventType === "MarkerUpdated")).toBe(true);
     const removedEvent = events.find((e) => e.eventType === "MarkerRemoved")!;
     expect(removedEvent.payload).toMatchObject({ reason: "TIME_LIMIT" });
+  });
+
+  // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decay`宣言付きのADDで積んだ
+  // スタックだけが行動ごとに減る。非逓減のADDで積み増した分は巻き込まれない。
+  it("UT-R-EFF-10-040: decayActionMarkerStacks reduces only up to decayingStackCount, leaving non-decaying stacks untouched", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_FIGHTING_SPIRIT");
+
+    const decaying = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: { dispellable: false, linkedEffectGroupId: null },
+        decay: { unit: "ACTION", amount: 1 },
+      },
+      rootEventId,
+    );
+    const skillGranted = applyMarker(
+      context,
+      decaying.units,
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: { dispellable: false, linkedEffectGroupId: null },
+      },
+      decaying.lastEventId,
+    );
+    expect(skillGranted.markerState.stackCount).toBe(2);
+    expect(skillGranted.markerState.decayingStackCount).toBe(1);
+
+    const decay = decayActionMarkerStacks(skillGranted.units, target.battleUnitId);
+
+    expect(decay.changes).toHaveLength(1);
+    expect(decay.changes[0]).toMatchObject({ stackBefore: 2, stackAfter: 1 });
+    const nextTarget = decay.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    const nextMarker = nextTarget.markerStates.find((m) => m.markerId === markerId)!;
+    expect(nextMarker.stackCount).toBe(1);
+    expect(nextMarker.decayingStackCount).toBe(0);
+
+    // 逓減対象が尽きた後は、非逓減の残りスタックへ触れない（再度呼んでも無変化）。
+    const secondDecay = decayActionMarkerStacks(decay.units, target.battleUnitId);
+    expect(secondDecay.changes).toHaveLength(0);
+  });
+
+  it("UT-R-EFF-10-041: a MarkerState reaching 0 stacks via decay is removed with reason STACK_DECAY", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_FIGHTING_SPIRIT");
+
+    const granted = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: { dispellable: false, linkedEffectGroupId: null },
+        decay: { unit: "ACTION", amount: 1 },
+      },
+      rootEventId,
+    );
+
+    const decay = decayActionMarkerStacks(granted.units, target.battleUnitId);
+    expect(decay.changes).toHaveLength(1);
+    expect(decay.changes[0]!.stackAfter).toBe(0);
+
+    const afterEmit = emitMarkerStackDecayedEvents(
+      context,
+      decay.units,
+      decay.changes,
+      granted.lastEventId,
+    );
+    const seeds: readonly MarkerRemovalSeed[] = decay.changes
+      .filter((change) => change.stackAfter === 0)
+      .map((change) => ({
+        battleUnitId: change.battleUnitId,
+        markerInstanceId: change.markerInstanceId,
+        reason: "STACK_DECAY",
+      }));
+    const result = removeMarkers(context, decay.units, seeds, NO_EFFECT_ACTIONS, afterEmit);
+
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    expect(nextTarget.markerStates).toHaveLength(0);
+    const events = recorder.getEvents();
+    expect(events.some((e) => e.eventType === "MarkerUpdated")).toBe(true);
+    const removedEvent = events.find((e) => e.eventType === "MarkerRemoved")!;
+    expect(removedEvent.payload).toMatchObject({ reason: "STACK_DECAY" });
   });
 });

@@ -351,6 +351,7 @@ describe("removeEffects (R-EFF-02)", () => {
       targetUnitId: target.battleUnitId,
       stackCount: 1,
       stackMax: null,
+      decayingStackCount: 0,
       duration: {
         definition: {
           dispellable: true,
@@ -414,6 +415,7 @@ describe("removeEffects (R-EFF-02)", () => {
       targetUnitId: target.battleUnitId,
       stackCount: 1,
       stackMax: null,
+      decayingStackCount: 0,
       duration: {
         definition: {
           dispellable: true,

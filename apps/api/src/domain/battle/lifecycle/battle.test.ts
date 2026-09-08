@@ -1018,6 +1018,7 @@ describe("advanceBattle", () => {
       targetUnitId: ally.battleUnitId,
       stackCount: 1,
       stackMax: null,
+      decayingStackCount: 0,
       duration: {
         definition: {
           timeLimit: { unit: "TURN", count: 1 },

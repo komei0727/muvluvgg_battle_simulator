@@ -3,11 +3,13 @@ import type {
   SkillDefinitionId,
   UnitDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import type { RuntimeCounterUpdateDefinition } from "../../catalog/definitions/runtime-counter-update-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import {
   applyCumulativeDamageThreshold,
@@ -45,6 +47,8 @@ export interface RuntimeCounterMatchInput {
   readonly units: readonly BattleUnit[];
   readonly unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   readonly skillDefinitions: ReadonlyMap<SkillDefinitionId, SkillDefinition>;
+  /** `SELF_MEMORY_EQUIPPED`（Issue #674）がtrigger条件で読む陣営ごとの装備メモリー射影。 */
+  readonly memoriesBySide?: Readonly<Record<Side, readonly MemoryDefinition[]>>;
 }
 
 function matchesUpdateTrigger(
@@ -53,6 +57,7 @@ function matchesUpdateTrigger(
   skillDefinitionId: SkillDefinitionId,
   event: TriggerCandidateEvent,
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
+  memoriesBySide: Readonly<Record<Side, readonly MemoryDefinition[]>> | undefined,
 ): boolean {
   const trigger = update.trigger;
   return (
@@ -68,6 +73,7 @@ function matchesUpdateTrigger(
       owner,
       skillDefinitionId,
       getUnit: (id) => unitsById.get(id),
+      ...(memoriesBySide !== undefined ? { memoriesBySide } : {}),
     })
   );
 }
@@ -162,7 +168,7 @@ export interface MatchedRuntimeCounterUpdate {
 export function matchRuntimeCounterUpdates(
   input: RuntimeCounterMatchInput,
 ): readonly MatchedRuntimeCounterUpdate[] {
-  const { event, unitDefinitions, skillDefinitions } = input;
+  const { event, unitDefinitions, skillDefinitions, memoriesBySide } = input;
   const unitsById = new Map(input.units.map((u) => [u.battleUnitId, u] as const));
   const matched: MatchedRuntimeCounterUpdate[] = [];
 
@@ -192,7 +198,7 @@ export function matchRuntimeCounterUpdates(
             `scope "${update.scope}" is not supported yet (Issue #143 only implements SKILL_RUNTIME scope)`,
           );
         }
-        if (!matchesUpdateTrigger(update, owner, skillId, event, unitsById)) {
+        if (!matchesUpdateTrigger(update, owner, skillId, event, unitsById, memoriesBySide)) {
           continue;
         }
         matched.push({ ownerUnitId: owner.battleUnitId, skillDefinitionId: skillId, update });

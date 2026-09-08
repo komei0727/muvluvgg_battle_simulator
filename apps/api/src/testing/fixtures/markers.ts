@@ -27,5 +27,6 @@ export function testMarker(
     stackCount: overrides.stackCount ?? 1,
     stackMax: null,
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    decayingStackCount: 0,
   };
 }

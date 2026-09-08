@@ -119,6 +119,118 @@ describe("applyMarker", () => {
     expect(events[events.length - 1]!.eventType).toBe("MarkerUpdated");
   });
 
+  // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decay`宣言付きのADDだけが
+  // `decayingStackCount`を積み増す。非逓減のADDが同じMarkerへ積み増しても
+  // `decayingStackCount`は変化しない（逓減しないスタックを巻き込まない）。
+  it("UT-R-EFF-10-038: ADD with decay initializes decayingStackCount on a new MarkerState", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const result = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+        decay: { unit: "ACTION", amount: 1 },
+      },
+      rootEventId,
+    );
+
+    expect(result.markerState.stackCount).toBe(1);
+    expect(result.markerState.decayingStackCount).toBe(1);
+    expect(result.markerState.decay).toEqual({ unit: "ACTION", amount: 1 });
+  });
+
+  it("UT-R-EFF-10-039: a non-decaying ADD onto an existing decaying MarkerState leaves decayingStackCount unchanged", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+
+    const decaying = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+        decay: { unit: "ACTION", amount: 1 },
+      },
+      rootEventId,
+    );
+
+    const nonDecaying = applyMarker(
+      context,
+      decaying.units,
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: BATTLE_DURATION,
+      },
+      decaying.lastEventId,
+    );
+
+    expect(nonDecaying.markerState.stackCount).toBe(2);
+    expect(nonDecaying.markerState.decayingStackCount).toBe(1);
+  });
+
+  // レビュー指摘（PR #675, P1）: stackMaxで頭打ちのADDは`stackCount`が実際には
+  // 増えないため、`decayingStackCount`も増やしてはならない。増やすと、次の
+  // 逓減で本来残るべき非逓減スタックまで消えてしまう。
+  it("UT-R-EFF-10-042: a decaying ADD clamped at stack.max does not increment decayingStackCount beyond the actual stack increase", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const decayingRequest = {
+      markerId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
+      stackPolicy: "ADD" as const,
+      stackMax: 2,
+      durationDefinition: BATTLE_DURATION,
+      decay: { unit: "ACTION" as const, amount: 1 },
+    };
+    const nonDecayingRequest = {
+      markerId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
+      stackPolicy: "ADD" as const,
+      stackMax: 2,
+      durationDefinition: BATTLE_DURATION,
+    };
+
+    // 非逓減1 + 逓減1 = 上限2まで積む。
+    const nonDecaying = applyMarker(context, [source, target], nonDecayingRequest, rootEventId);
+    const decaying = applyMarker(
+      context,
+      nonDecaying.units,
+      decayingRequest,
+      nonDecaying.lastEventId,
+    );
+    expect(decaying.markerState.stackCount).toBe(2);
+    expect(decaying.markerState.decayingStackCount).toBe(1);
+
+    // 上限に達した状態でさらに逓減ADDを適用しても、stackCountは増えないため
+    // decayingStackCountも増えない（非逓減スタックを巻き込まない）。
+    const clamped = applyMarker(context, decaying.units, decayingRequest, decaying.lastEventId);
+    expect(clamped.markerState.stackCount).toBe(2);
+    expect(clamped.markerState.decayingStackCount).toBe(1);
+  });
+
   it("UT-R-EFF-10-003: ADD clamps at stack.max", () => {
     const source = unit("source-1");
     const target = unit("target-1");

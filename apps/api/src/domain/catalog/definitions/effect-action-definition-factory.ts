@@ -44,6 +44,7 @@ import {
   type DamageModConditionDefinition,
   type DamageThreshold,
   type DamageToHealDefinition,
+  type MarkerStackDecayDefinition,
   type ShieldDecayDefinition,
   type StatModStackingMode,
 } from "./effect-action-payload.js";
@@ -159,7 +160,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "duration",
     "maxBlocks",
   ],
-  APPLY_MARKER: ["markerId", "stack", "duration"],
+  APPLY_MARKER: ["markerId", "stack", "duration", "decay"],
   REMOVE_MARKER: ["markerId", "count"],
   APPLY_DEATH_SURVIVAL: ["trigger", "survivalHp", "healAfterSurvival", "duration"],
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
@@ -307,6 +308,30 @@ function createShieldDecay(input: unknown, path: string): ShieldDecayDefinition 
     assertEnumValue(owner, SHIELD_DECAY_OWNERS, `${path}.owner`);
   }
   return { unit, ratio, ...(owner !== undefined ? { owner } : {}) };
+}
+
+const MARKER_STACK_DECAY_ALLOWED_KEYS = ["unit", "amount", "owner"] as const;
+const MARKER_STACK_DECAY_UNITS = ["ACTION"] as const;
+
+/**
+ * `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: `APPLY_MARKER.decay`を検証して
+ * `MarkerStackDecayDefinition`へ写す。`createShieldDecay`と同じ構造だが、
+ * `ratio`（付与時最大値に対する割合）ではなくraw原文どおりの整数個
+ * （`amount`、1以上の整数）で1回あたりの減少量を表す。`owner`は
+ * `ShieldDecayDefinition`と同じ値集合・同じ既定（`EFFECT_TARGET`）を共有する。
+ */
+function createMarkerStackDecay(input: unknown, path: string): MarkerStackDecayDefinition {
+  const raw = requireField(input as Record<string, unknown> | undefined, path);
+  assertKnownKeys(raw, MARKER_STACK_DECAY_ALLOWED_KEYS, path);
+  const unit = requireField(raw["unit"] as string | undefined, `${path}.unit`);
+  assertEnumValue(unit, MARKER_STACK_DECAY_UNITS, `${path}.unit`);
+  const amount = requireField(raw["amount"] as number | undefined, `${path}.amount`);
+  assertInteger(amount, `${path}.amount`, { min: 1 });
+  const owner = raw["owner"] as string | undefined;
+  if (owner !== undefined) {
+    assertEnumValue(owner, SHIELD_DECAY_OWNERS, `${path}.owner`);
+  }
+  return { unit, amount, ...(owner !== undefined ? { owner } : {}) };
 }
 
 /**
@@ -1120,6 +1145,9 @@ function createPayload(
           markerId,
           stack: { policy, max: stackInput.max ?? null },
           duration: createDurationField(payload, path),
+          ...(payload["decay"] !== undefined
+            ? { decay: createMarkerStackDecay(payload["decay"], `${path}.decay`) }
+            : {}),
         },
       };
     }

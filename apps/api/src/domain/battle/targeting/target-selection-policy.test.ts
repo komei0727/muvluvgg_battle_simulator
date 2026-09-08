@@ -1405,6 +1405,31 @@ describe("resolveTargets", () => {
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("EN_UNIT")]);
     });
 
+    it("UT-TGT-002-029: UNIT_DEFINITION filter matches by unitDefinitionId, distinguishing same-character variants", () => {
+      const variantDefId = createUnitDefinitionId("UNIT_HIIRO_FREEWOLF");
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const variant = unit(
+        "VARIANT",
+        "ALLY",
+        { column: "LEFT", row: "FRONT" },
+        { unitDefinitionId: variantDefId },
+      );
+      // 同じcharacterIdを持つ別バリアント（unitDefinitionIdは既定のUNIT_001のまま）。
+      const otherVariant = unit("OTHER_VARIANT", "ALLY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        selector({
+          side: "ALLY",
+          count: "ALL",
+          filters: [{ kind: "UNIT_DEFINITION", unitDefinitionId: "UNIT_HIIRO_FREEWOLF" }],
+        }),
+        actor,
+        [actor, variant, otherVariant],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("VARIANT")]);
+    });
+
     it("UT-TGT-002-011: UNIT_TYPE filter throws when the actual unitDefinitionId is absent from unitDefinitions", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const enemy = unit("ENEMY", "ENEMY", { column: "LEFT", row: "FRONT" });
@@ -1583,6 +1608,34 @@ describe("resolveTargets", () => {
       expect(targets.map((t) => t.battleUnitId)).toEqual([
         createBattleUnitId("FRAGILE"),
         createBattleUnitId("STURDY"),
+      ]);
+    });
+
+    it("UT-TGT-002-028: LOWEST_CURRENT_HP orders by currentHp ascending (not HP ratio)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      // ratio的にはLOWがHIGHより高い(50/100=0.5 > 30/500=0.06)が、絶対値ではLOWの方が低い。
+      const low = unit(
+        "LOW",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 100 }, currentHp: 50 },
+      );
+      const high = unit(
+        "HIGH",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 500 }, currentHp: 300 },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["LOWEST_CURRENT_HP"] }),
+        actor,
+        [actor, low, high],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("LOW"),
+        createBattleUnitId("HIGH"),
       ]);
     });
 

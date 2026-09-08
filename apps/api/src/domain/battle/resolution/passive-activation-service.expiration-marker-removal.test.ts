@@ -291,6 +291,7 @@ describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-02
       targetUnitId: holderId,
       stackCount: 1,
       stackMax: null,
+      decayingStackCount: 0,
       duration: { definition: markerDuration },
     };
   }

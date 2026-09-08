@@ -20,6 +20,7 @@ import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { MarkerStackPolicy } from "../../catalog/definitions/catalog-enums.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
+import type { MarkerStackDecayDefinition } from "../../catalog/definitions/effect-action-payload.js";
 
 export interface ApplyMarkerContext {
   readonly recorder: EventRecorder;
@@ -43,6 +44,8 @@ export type ApplyMarkerRequest = MarkerSource & {
   readonly stackPolicy: MarkerStackPolicy;
   readonly stackMax: number | null;
   readonly durationDefinition: DurationDefinition;
+  /** `MARKER_STACK_DECAY_OVER_TIME`（Issue #674）: 省略時はこの付与が逓減対象を増やさない。 */
+  readonly decay?: MarkerStackDecayDefinition;
 };
 
 export interface ApplyMarkerResult {
@@ -108,6 +111,7 @@ export function applyMarker(
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
       },
+      request.decay,
     );
     const nextUnits = units.map((unit) =>
       unit.battleUnitId === request.targetUnitId
@@ -186,13 +190,31 @@ export function applyMarker(
     ...withoutSource
   } = existing;
   const carried = { ...withoutSource, ...markerSourceFields(request) };
+  // REPLACEは`decay`宣言も新しい付与の内容へ丸ごと置き換える。`carried`経由の古い
+  // 宣言を残さないよう、undefinedプロパティも明示的に落とす
+  // （exactOptionalPropertyTypesのため`{ decay: undefined }`は代入できない）。
+  const { decay: _previousDecay, ...carriedWithoutDecay } = carried;
 
   let nextMarker: MarkerState;
   if (request.stackPolicy === "ADD") {
+    // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: この付与が`decay`を宣言した場合だけ
+    // `decayingStackCount`を増やす。宣言が無い付与（例: スキル側の非逓減スタック）は
+    // `stackCount`だけを増やし、既存の逓減対象数・逓減宣言はそのまま引き継ぐ
+    // （Durationを変更しないADDの既存規約と同じ「積み増しは上書きしない」方針）。
+    // `stackCount`は`stack.max`で頭打ちになり得るため、`decayingStackCount`は
+    // 常に+1ではなく実際に増えた分（`stackAfter - existing.stackCount`、0か1）
+    // だけ増やす — さもないと上限到達後の逓減ADDが、実在しないスタックを
+    // 逓減対象に数え、後続の逓減で本来残るべき非逓減スタックまで消してしまう
+    // （PR #675レビュー指摘）。
+    const stackAfter = clampMarkerStack(existing.stackCount + 1, request.stackMax);
+    const stackIncrease = stackAfter - existing.stackCount;
     nextMarker = {
       ...carried,
-      stackCount: clampMarkerStack(existing.stackCount + 1, request.stackMax),
+      stackCount: stackAfter,
       stackMax: request.stackMax,
+      ...(request.decay !== undefined
+        ? { decayingStackCount: existing.decayingStackCount + stackIncrease, decay: request.decay }
+        : {}),
     };
   } else if (request.stackPolicy === "REFRESH") {
     nextMarker = {
@@ -203,15 +225,18 @@ export function applyMarker(
       }),
     };
   } else {
-    // REPLACE: 既存Markerを新しい定義内容で丸ごと置き換える。
+    // REPLACE: 既存Markerを新しい定義内容で丸ごと置き換える（逓減対象数・宣言も
+    // 新しい付与の内容へリセットする）。
     nextMarker = {
-      ...carried,
+      ...carriedWithoutDecay,
       stackCount: clampMarkerStack(1, request.stackMax),
       stackMax: request.stackMax,
       duration: buildInitialDurationState(request.durationDefinition, {
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
       }),
+      decayingStackCount: request.decay !== undefined ? 1 : 0,
+      ...(request.decay !== undefined ? { decay: request.decay } : {}),
     };
   }
 

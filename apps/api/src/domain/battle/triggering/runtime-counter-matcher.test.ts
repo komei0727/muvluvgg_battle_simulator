@@ -270,6 +270,90 @@ describe("detectRuntimeCounterUpdates", () => {
     ).toEqual({ value: 0, carry: 0 });
   });
 
+  // MARKER_STACK_DECAY_OVER_TIME/SELF_MEMORY_EQUIPPED（Issue #674）: RESETの
+  // trigger.conditionが読む`memoriesBySide`が`RuntimeCounterMatchInput`から
+  // `evaluateTriggerCondition`まで実際に配線されていることを確認する。
+  it("UT-RCOUNTER-M-019 (Issue #674, SELF_MEMORY_EQUIPPED): a RESET trigger gated by SELF_MEMORY_EQUIPPED only matches when the owner's side has that memory equipped", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+        },
+        amount: 1,
+      },
+      {
+        kind: "RESET",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "PassiveActivated",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "SELF_MEMORY_EQUIPPED",
+            memoryDefinitionId: "MEM_FATHERS_AND_MY_WISH",
+          },
+        },
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const incremented = detectRuntimeCounterUpdates({
+      event: critEvent(owner.battleUnitId),
+      units: [owner],
+      unitDefinitions,
+      skillDefinitions,
+    });
+
+    const withoutMemory = detectRuntimeCounterUpdates({
+      event: passiveActivatedEvent(owner.battleUnitId, skill.skillDefinitionId),
+      units: incremented.units,
+      unitDefinitions,
+      skillDefinitions,
+      memoriesBySide: { ALLY: [], ENEMY: [] },
+    });
+    expect(withoutMemory.changes).toEqual([]);
+
+    const withMemory = detectRuntimeCounterUpdates({
+      event: passiveActivatedEvent(owner.battleUnitId, skill.skillDefinitionId),
+      units: incremented.units,
+      unitDefinitions,
+      skillDefinitions,
+      memoriesBySide: {
+        ALLY: [
+          {
+            memoryDefinitionId: "MEM_FATHERS_AND_MY_WISH" as never,
+            triggeredEffects: [],
+            metadata: { displayName: "父さんの、そして私の願い", tags: [] },
+          },
+        ],
+        ENEMY: [],
+      },
+    });
+    expect(withMemory.changes).toEqual([
+      {
+        ownerUnitId: owner.battleUnitId,
+        skillDefinitionId: skill.skillDefinitionId,
+        counter: "RUNTIME_COUNTER_CRIT",
+        before: 1,
+        after: 0,
+        carry: 0,
+        carryBefore: 0,
+        valueChanged: true,
+      },
+    ]);
+  });
+
   it("UT-RCOUNTER-M-017 [R-EFF-11] (Issue #553, RESET): a counter that holds no value yet is left untouched — no change is reported and no key is created (a key born without a stateDelta would diverge from the independent Reducer)", () => {
     const skill = passiveSkillOf("SKL_PS1", [
       {
