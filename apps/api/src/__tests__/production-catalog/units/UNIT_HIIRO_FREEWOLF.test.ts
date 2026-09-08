@@ -130,7 +130,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_HIIRO_FREEWOLF_AS1",
     intent:
-      "敵単体に威力195で攻撃する（回避不可）。さらに自身の横一列味方に付与されているデバフを3つ解除し、「闘志」を1つ付与する（最大8つ、1つにつき攻撃力4%・会心ダメージ3%増加、重複可）。さらに自身に1行動デバフ無効と次に受ける攻撃のダメージ15%減少を付与する（重複可）",
+      "敵単体に威力195で攻撃する（回避不可）。さらに自身の横一列味方に付与されているデバフを3つ解除し、自身含む横一列の味方に「闘志」を1つ付与する（最大8つ、1つにつき攻撃力4%・会心ダメージ3%増加、重複可）。さらに自身に1行動デバフ無効と次に受ける攻撃のダメージ15%減少を付与する（重複可）",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_HIIRO_FREEWOLF_AS1" },
     board: ONE_FRONT_ROW_ALLY,
     precedingActions: ALLY_STUNNED,
@@ -141,11 +141,23 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF",
           targets: ["ally:front"],
         },
-        { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_MARKER", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_MARKER",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP",
+          targets: ["ally:subject"],
+        },
         {
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
           targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_MARKER", targets: ["ally:front"] },
+        { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", targets: ["ally:front"] },
+        {
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
+          targets: ["ally:front"],
         },
         {
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_DEBUFF_IMMUNITY",
@@ -162,7 +174,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP",
-          // 闘志は付与直後の1個。0.04×1=0.04。
+          // 闘志は付与直後の1個。0.04×1=0.04（対象自身の保有数を読む）。
           magnitude: 0.04,
         },
         {
@@ -182,6 +194,16 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           magnitude: -0.15,
           consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP",
+          magnitude: 0.04,
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
+          magnitude: 0.03,
+        },
       ],
       effectsRemoved: [
         {
@@ -192,7 +214,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           statusKind: "STUN",
         },
       ],
-      markers: [{ unitId: "ally:subject", markerId: FIGHTING_SPIRIT, stackCount: 1 }],
+      markers: [
+        { unitId: "ally:subject", markerId: FIGHTING_SPIRIT, stackCount: 1 },
+        { unitId: "ally:front", markerId: FIGHTING_SPIRIT, stackCount: 1 },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -2 },
         // R-ACT-03: ASのEXゲージ増加は消費APと同量（AP2消費→EX_GAUGE+2）。

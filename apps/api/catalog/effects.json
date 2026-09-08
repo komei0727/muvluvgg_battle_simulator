@@ -2809,7 +2809,7 @@
       "valueType": "RATIO",
       "formula": {
         "kind": "MARKER_COUNT_SCALE",
-        "target": { "kind": "SKILL_SOURCE" },
+        "target": { "kind": "TARGET" },
         "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
         "perStack": 0.04,
         "max": 0.32
@@ -2827,7 +2827,7 @@
       "valueType": "FIXED",
       "formula": {
         "kind": "MARKER_COUNT_SCALE",
-        "target": { "kind": "SKILL_SOURCE" },
+        "target": { "kind": "TARGET" },
         "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
         "perStack": 0.03,
         "max": 0.24

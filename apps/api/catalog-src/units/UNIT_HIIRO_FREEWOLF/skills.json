@@ -65,6 +65,15 @@
             "base": { "kind": "SELF" },
             "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false }
           }
+        },
+        {
+          "targetBindingId": "TGT_ROW_WITH_SELF",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ALLY",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
         }
       ],
       "steps": [
@@ -80,11 +89,17 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_WITH_SELF" },
           "actions": [
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_MARKER" },
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_ATK_UP" },
-            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DEBUFF_IMMUNITY" },
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DMG_REDUCE" }
           ]
