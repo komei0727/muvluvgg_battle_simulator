@@ -315,6 +315,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       }),
     },
     board: SUBJECT_WITH_ONE_FIGHTING_SPIRIT,
+    // 「闘志」1個につきATK/会心ダメージバフ1組が連動する設計（レビュー対応）を
+    // 検証するため、AS1が付与するのと同じバフ1組を前提として持たせる。
+    precedingActions: [
+      { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", target: "SELF" },
+      { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP", target: "SELF" },
+    ],
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_HEAL", targets: ["ally:subject"] },
@@ -323,14 +329,35 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:subject"],
         },
         {
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_REMOVE_ATK_UP",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_REMOVE_CRIT_DMG_UP",
+          targets: ["ally:subject"],
+        },
+        {
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_COUNTER_DAMAGE",
           targets: ["enemy:front"],
         },
       ],
-      // 契機の被弾(1000-500)×3=1500は基準線へ繰り込み済み。回復は自身の攻撃力1000×0.25=250、
-      // 反撃は(1000-500)×1.014=507。
-      hpDeltas: { "ally:subject": 250, "enemy:front": -507 },
+      // 契機の被弾(1000-500)×3=1500は基準線へ繰り込み済み。前提のATK+4%込みの
+      // 攻撃力1040×0.25=260で回復、反撃は(1000-500)×1.014=507。
+      hpDeltas: { "ally:subject": 260, "enemy:front": -507 },
       markersRemoved: [{ unitId: "ally:subject", markerId: FIGHTING_SPIRIT, stackCount: 1 }],
+      // 「闘志」を1個消費すると、連動するバフ1組(ATK+4%/会心ダメージ+3%)も1個ずつ解除される。
+      effectsRemoved: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP",
+          magnitude: 0.04,
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
+          magnitude: 0.03,
+        },
+      ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         // R-ACT-03: PSのEXゲージ増加は消費PPと同量。

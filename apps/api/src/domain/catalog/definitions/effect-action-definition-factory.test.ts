@@ -863,6 +863,74 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  // linkedEffects（Issue #673レビュー対応）: 「Markerのスタック1個につき固定量の
+  // AppliedEffectを1個重複付与する」設計のための、逓減連動先ID宣言。除去側
+  // （`effect-removal-service.ts`の`matchesCriteria`）がkindKey単位で一致判定する
+  // ため、ここで名指しした1つのIDが、同じ`kindKey`を共有する他の
+  // `EffectActionDefinition`（ユニット自身のスキル付与分・Memory付与分など）由来の
+  // インスタンスも解除対象に含める。
+  it("UT-CAT-ACT-133: maps APPLY_MARKER decay.linkedEffects, defaulting to no linkedEffects", () => {
+    const withLinked = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_FIGHTING_SPIRIT",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_FIGHTING_SPIRIT",
+          stack: { policy: "ADD", max: 8 },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
+          decay: {
+            unit: "ACTION",
+            amount: 1,
+            linkedEffects: ["ACT_ATK_UP", "ACT_CRIT_DMG_UP"],
+          },
+        },
+      },
+      "effectAction",
+    );
+    if (withLinked.kind === "APPLY_MARKER") {
+      expect(withLinked.payload.decay).toEqual({
+        unit: "ACTION",
+        amount: 1,
+        linkedEffects: ["ACT_ATK_UP", "ACT_CRIT_DMG_UP"],
+      });
+    }
+
+    const withoutLinked = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_CURSE",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_CURSE",
+          stack: { policy: "ADD", max: 4 },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+          decay: { unit: "ACTION", amount: 1 },
+        },
+      },
+      "effectAction",
+    );
+    if (withoutLinked.kind === "APPLY_MARKER") {
+      expect(withoutLinked.payload.decay).toEqual({ unit: "ACTION", amount: 1 });
+    }
+  });
+
+  it("UT-CAT-ACT-134: rejects APPLY_MARKER decay.linkedEffects when it is an empty array", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_MARKER_FIGHTING_SPIRIT",
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId: "MARKER_FIGHTING_SPIRIT",
+            stack: { policy: "ADD", max: 8 },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 } },
+            decay: { unit: "ACTION", amount: 1, linkedEffects: [] },
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-030: rejects APPLY_MARKER with an unknown stack policy", () => {
     expect(() =>
       createEffectActionDefinition(

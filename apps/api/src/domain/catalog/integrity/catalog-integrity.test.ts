@@ -1261,6 +1261,37 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-CAT-IDX-120 (Issue #673レビュー対応): rejects an APPLY_MARKER payload.decay.linkedEffects referencing a missing EffectActionDefinition", () => {
+    const defs = baseDefinitions();
+    const withDangling: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_MARKER_DANGLING",
+            kind: "APPLY_MARKER",
+            payload: {
+              markerId: "MARKER_TEST",
+              stack: { policy: "ADD", max: 8 },
+              duration: { dispellable: false, linkedEffectGroupId: null },
+              decay: { unit: "ACTION", amount: 1, linkedEffects: ["ACT_MISSING"] },
+            },
+          },
+          "effectAction",
+        ),
+      ],
+    };
+    try {
+      buildCatalogIndex(withDangling);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations[0]?.rule).toBe("DANGLING_REFERENCE");
+      expect(err.violations[0]?.targetId).toBe("ACT_MARKER_DANGLING");
+    }
+  });
+
   it("UT-CAT-IDX-072 (M7-001, Issue #181): accepts a REMOVE_EFFECTS with the SHIELD category that declares both CAP_REMOVE_EFFECTS and CAP_SHIELD, even though CAP_SHIELD itself is PLANNED (Catalog build only checks declaration, not implementation status)", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {

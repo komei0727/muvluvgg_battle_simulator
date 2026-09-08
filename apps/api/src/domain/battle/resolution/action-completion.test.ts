@@ -612,4 +612,98 @@ describe("shield decay ordering at COMPLETING (DMG-004, Issue #194)", () => {
     const removed = recorder.getEvents().find((event) => event.eventType === "MarkerRemoved");
     expect(removed?.payload).toMatchObject({ reason: "STACK_DECAY" });
   });
+
+  // MARKER_STACK_DECAY_OVER_TIME.linkedEffects（Issue #673レビュー対応）:
+  // 「Markerのスタック1個につき固定量のAppliedEffectを1個重複付与する」設計で、
+  // 逓減が失ったスタック数と同じ数だけ宣言されたEffectActionDefinitionIdの
+  // インスタンスも解除されることを`recordActionCompletion`経由で確認する。
+  it("UT-ACT-COMPLETION-005 (Issue #673): decaying 1 stack also removes exactly 1 instance of each declared linkedEffects id, leaving the rest untouched", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const actor = plainUnit("U1");
+    const marker: MarkerState = {
+      ...decayingMarker(actor.battleUnitId, 2, 2),
+      decay: { unit: "ACTION", amount: 1, linkedEffects: [STAT_MOD_DEFINITION_ID] },
+    };
+    const actorWithMarkerAndEffects = {
+      ...actor,
+      markerStates: [marker],
+      appliedEffects: [
+        actionEffect("STAT_MOD_1", actor.battleUnitId, actor.battleUnitId, 5),
+        actionEffect("STAT_MOD_2", actor.battleUnitId, actor.battleUnitId, 5),
+      ],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorUnitId: actor.battleUnitId,
+        effectActions: new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+      },
+      "AS",
+      seed.eventId,
+      [actorWithMarkerAndEffects],
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.markerStates[0]).toMatchObject({ stackCount: 1, decayingStackCount: 1 });
+    // 2個保持していたうち、逓減した1スタック分だけ1個解除され、1個は残る。
+    expect(updated.appliedEffects).toHaveLength(1);
+    expect(updated.appliedEffects[0]!.effectInstanceId).toEqual(
+      createEffectInstanceId("STAT_MOD_2"),
+    );
+    const removed = recorder.getEvents().filter((event) => event.eventType === "EffectRemoved");
+    expect(removed).toHaveLength(1);
+    expect(removed[0]!.payload).toMatchObject({ reason: "REMOVED" });
+  });
+
+  it("UT-ACT-COMPLETION-006 (Issue #673): decaying a marker with no linkedEffects declaration does not touch any AppliedEffect", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const actor = plainUnit("U1");
+    const actorWithMarkerAndEffects = {
+      ...actor,
+      markerStates: [decayingMarker(actor.battleUnitId, 2, 2)],
+      appliedEffects: [actionEffect("STAT_MOD_1", actor.battleUnitId, actor.battleUnitId, 5)],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorUnitId: actor.battleUnitId,
+        effectActions: new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+      },
+      "AS",
+      seed.eventId,
+      [actorWithMarkerAndEffects],
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(updated.appliedEffects).toHaveLength(1);
+    expect(recorder.getEvents().some((event) => event.eventType === "EffectRemoved")).toBe(false);
+  });
 });

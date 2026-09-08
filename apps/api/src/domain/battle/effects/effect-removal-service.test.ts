@@ -10,6 +10,7 @@ import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createEffectKindKey,
   createMarkerId,
   createUnitDefinitionId,
   type EffectActionDefinitionId,
@@ -206,6 +207,94 @@ describe("removeEffects (R-EFF-02)", () => {
       createEffectInstanceId("effect-3"),
       createEffectInstanceId("effect-4"),
     ]);
+  });
+
+  // Issue #673レビュー対応: SPECIFIC_EFFECTが名指ししたIDと同じkindKeyを共有する
+  // 「別の」EffectActionDefinition由来のインスタンスも解除対象に含める
+  // （`UNIT_HIIRO_FREEWOLF`の「闘志」— ユニット自身のスキル付与分とMemory付与分を
+  // catalog-src生成の自己完結制約で別定義に分けざるを得ない場合に使う）。
+  it("UT-R-EFF-02-017 (Issue #673レビュー対応): SPECIFIC_EFFECT naming one ID also matches instances of a different definition that shares its kindKey", () => {
+    const sharedKindKey = createEffectKindKey("KIND_SHARED_ATK_UP");
+    const definitionA: EffectActionDefinition = {
+      ...statModDefinition("ACT_UNIT_ATK_UP"),
+      kindKey: sharedKindKey,
+    };
+    const definitionB: EffectActionDefinition = {
+      ...statModDefinition("ACT_MEM_ATK_UP"),
+      kindKey: sharedKindKey,
+    };
+    const target = unit("target-1");
+    const fromUnit = effect(
+      "effect-unit",
+      target.battleUnitId,
+      definitionA.effectActionDefinitionId,
+      {
+        magnitude: 0.04,
+      },
+    );
+    const fromMemory = effect(
+      "effect-memory",
+      target.battleUnitId,
+      definitionB.effectActionDefinitionId,
+      { magnitude: 0.04 },
+    );
+    const withEffects = { ...target, appliedEffects: [fromUnit, fromMemory] };
+    const { recorder, rootEventId } = createRoot();
+
+    // 除去側は`definitionA`のIDだけを名指しするが、`definitionB`由来のインスタンスも
+    // 同じkindKeyを共有するため一致し、先頭（付与順の古い方=fromUnit）から1件解除する。
+    const result = removeEffects(
+      context(recorder, rootEventId),
+      [withEffects],
+      target.battleUnitId,
+      {
+        categories: ["SPECIFIC_EFFECT"],
+        effectActionDefinitionIds: [definitionA.effectActionDefinitionId],
+        maxRemovals: 1,
+      },
+      new Map([
+        [definitionA.effectActionDefinitionId, definitionA],
+        [definitionB.effectActionDefinitionId, definitionB],
+      ]),
+      rootEventId,
+    );
+
+    expect(result.removedCount).toBe(1);
+    const remaining = result.units[0]!.appliedEffects.map((e) => e.effectInstanceId);
+    expect(remaining).toEqual([createEffectInstanceId("effect-memory")]);
+  });
+
+  it("UT-R-EFF-02-018 (Issue #673レビュー対応): SPECIFIC_EFFECT does not match a definition with no explicit kindKey unless the ID itself matches (kindKey defaults to the definition's own ID)", () => {
+    const definitionA = statModDefinition("ACT_UNIT_ATK_UP");
+    const definitionUnrelated = statModDefinition("ACT_UNRELATED_ATK_UP");
+    const target = unit("target-1");
+    const unrelated = effect(
+      "effect-unrelated",
+      target.battleUnitId,
+      definitionUnrelated.effectActionDefinitionId,
+      { magnitude: 0.04 },
+    );
+    const withEffects = { ...target, appliedEffects: [unrelated] };
+    const { recorder, rootEventId } = createRoot();
+
+    const result = removeEffects(
+      context(recorder, rootEventId),
+      [withEffects],
+      target.battleUnitId,
+      {
+        categories: ["SPECIFIC_EFFECT"],
+        effectActionDefinitionIds: [definitionA.effectActionDefinitionId],
+        maxRemovals: 1,
+      },
+      new Map([
+        [definitionA.effectActionDefinitionId, definitionA],
+        [definitionUnrelated.effectActionDefinitionId, definitionUnrelated],
+      ]),
+      rootEventId,
+    );
+
+    expect(result.removedCount).toBe(0);
+    expect(result.units[0]!.appliedEffects).toHaveLength(1);
   });
 
   it("UT-R-EFF-02-013 [R-EFF-02, R-STS-01] (R-STS-01): DEBUFF removal also clears 状態異常 statuses (STUN)", () => {

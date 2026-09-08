@@ -2803,36 +2803,26 @@
   },
   {
     "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_ATK_UP",
+    "kindKey": "KIND_HIIRO_FREEWOLF_FIGHTING_SPIRIT_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "ATTACK",
       "valueType": "RATIO",
-      "formula": {
-        "kind": "MARKER_COUNT_SCALE",
-        "target": { "kind": "TARGET" },
-        "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
-        "perStack": 0.04,
-        "max": 0.32
-      },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": { "kind": "CONSTANT", "value": 0.04 },
+      "stacking": { "mode": "STACKABLE", "max": 8 },
       "duration": { "dispellable": true }
     },
     "metadata": { "tags": [] }
   },
   {
     "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
+    "kindKey": "KIND_HIIRO_FREEWOLF_FIGHTING_SPIRIT_CRIT_DMG_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
       "valueType": "FIXED",
-      "formula": {
-        "kind": "MARKER_COUNT_SCALE",
-        "target": { "kind": "TARGET" },
-        "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
-        "perStack": 0.03,
-        "max": 0.24
-      },
-      "stacking": { "mode": "STACKABLE" },
+      "formula": { "kind": "CONSTANT", "value": 0.03 },
+      "stacking": { "mode": "STACKABLE", "max": 8 },
       "duration": { "dispellable": true }
     },
     "metadata": { "tags": [] }
@@ -2890,6 +2880,26 @@
     "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT", "count": 1 },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_ATK_UP",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["SPECIFIC_EFFECT"],
+      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_AS1_ATK_UP"],
+      "maxRemovals": 1
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_CRIT_DMG_UP",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["SPECIFIC_EFFECT"],
+      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP"],
+      "maxRemovals": 1
+    },
     "metadata": { "tags": [] }
   },
   {
@@ -12064,7 +12074,14 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
       "stack": { "policy": "ADD", "max": 8 },
-      "decay": { "unit": "ACTION", "amount": 1 },
+      "decay": {
+        "unit": "ACTION",
+        "amount": 1,
+        "linkedEffects": [
+          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP"
+        ]
+      },
       "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -12075,8 +12092,41 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
       "stack": { "policy": "ADD", "max": 8 },
-      "decay": { "unit": "ACTION", "amount": 1 },
+      "decay": {
+        "unit": "ACTION",
+        "amount": 1,
+        "linkedEffects": [
+          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP"
+        ]
+      },
       "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+    "kindKey": "KIND_HIIRO_FREEWOLF_FIGHTING_SPIRIT_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.04 },
+      "stacking": { "mode": "STACKABLE", "max": 8 },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP",
+    "kindKey": "KIND_HIIRO_FREEWOLF_FIGHTING_SPIRIT_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 0.03 },
+      "stacking": { "mode": "STACKABLE", "max": 8 },
+      "duration": { "dispellable": true }
     },
     "metadata": { "tags": [] }
   },

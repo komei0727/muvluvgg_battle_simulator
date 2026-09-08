@@ -9,7 +9,7 @@ import {
 } from "./linked-group-cascade.js";
 import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
-import type { AppliedEffect } from "../model/applied-effect.js";
+import { effectKindKeyOf, type AppliedEffect } from "../model/applied-effect.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
@@ -64,19 +64,44 @@ export interface RemoveEffectsResult {
 /**
  * R-EFF-02 #2「バフ、デバフ、状態異常、シールドなど一致する効果を抽出する」:
  * ある`AppliedEffect`が解除条件`criteria`に一致するかを判定する。`SPECIFIC_EFFECT`は
- * `effectActionDefinitionId`の直接一致で、その他のカテゴリは
- * `effectCategoriesOf`が返す固有カテゴリとの積集合で判定する。
+ * `effectActionDefinitionId`の直接一致だけでなく、参照先IDと`kindKey`
+ * （`effectKindKeyOf`、R-EFF-05/R-STA-03）を共有する**他の**`EffectActionDefinition`
+ * 由来のインスタンスも一致とする（`14_Catalog定義スキーマ.md`「kindKey」）。
+ * `kindKey`未宣言の定義は`effectActionDefinitionId`自身が鍵になる（`DUPLICATE_ID`で
+ * 一意）ため、この拡張は既存の全`REMOVE_EFFECTS`宣言と挙動を変えない — 挙動が
+ * 変わるのは、`kindKey`を明示的に共有する定義群を`effectActionDefinitionIds`で
+ * 指した場合だけである。Issue #673レビュー対応: `UNIT_HIIRO_FREEWOLF`の「闘志」1
+ * スタックにつき固定量バフ1組を紐づける設計で、catalog-src生成が要求する
+ * ディレクトリ内自己完結のためユニット自身の付与分とMemory付与分を別
+ * `EffectActionDefinition`へ分けざるを得ず、除去側はどちらの由来かを問わず
+ * 1個だけ解除する必要がある。
+ *
+ * その他のカテゴリは`effectCategoriesOf`が返す固有カテゴリとの積集合で判定する。
  */
 function matchesCriteria(
   effect: AppliedEffect,
   definition: EffectActionDefinition,
   criteria: EffectRemovalCriteria,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
 ): boolean {
   if (
     criteria.categories.includes("SPECIFIC_EFFECT") &&
-    criteria.effectActionDefinitionIds?.includes(effect.effectActionDefinitionId)
+    criteria.effectActionDefinitionIds !== undefined
   ) {
-    return true;
+    const candidateKindKey = effectKindKeyOf(definition);
+    const matchesSpecificEffect = criteria.effectActionDefinitionIds.some((referencedId) => {
+      if (referencedId === effect.effectActionDefinitionId) {
+        return true;
+      }
+      const referencedDefinition = effectActions.get(referencedId);
+      return (
+        referencedDefinition !== undefined &&
+        effectKindKeyOf(referencedDefinition) === candidateKindKey
+      );
+    });
+    if (matchesSpecificEffect) {
+      return true;
+    }
   }
   const intrinsic = effectCategoriesOf(effect, definition);
   return criteria.categories.some(
@@ -179,7 +204,7 @@ function planRemovalBatch(
       return false;
     }
     const definition = effectActions.get(effect.effectActionDefinitionId);
-    return definition !== undefined && matchesCriteria(effect, definition, criteria);
+    return definition !== undefined && matchesCriteria(effect, definition, criteria, effectActions);
   });
   const capped =
     criteria.maxRemovals !== undefined ? matched.slice(0, criteria.maxRemovals) : matched;

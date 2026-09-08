@@ -179,7 +179,9 @@
           "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_HEAL" },
-            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER" }
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_CRIT_DMG_UP" }
           ]
         },
         {

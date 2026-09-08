@@ -903,7 +903,9 @@
                   },
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_HIIRO_FREEWOLF" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_HIIRO_MARKER" }
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_HIIRO_MARKER" },
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP" },
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP" }
                   ]
                 }
               ]
@@ -922,7 +924,9 @@
                   },
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ALLY_MARKER" }
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ALLY_MARKER" },
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP" },
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP" }
                   ]
                 }
               ]

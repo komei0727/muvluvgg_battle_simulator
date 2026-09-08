@@ -310,7 +310,7 @@ function createShieldDecay(input: unknown, path: string): ShieldDecayDefinition 
   return { unit, ratio, ...(owner !== undefined ? { owner } : {}) };
 }
 
-const MARKER_STACK_DECAY_ALLOWED_KEYS = ["unit", "amount", "owner"] as const;
+const MARKER_STACK_DECAY_ALLOWED_KEYS = ["unit", "amount", "owner", "linkedEffects"] as const;
 const MARKER_STACK_DECAY_UNITS = ["ACTION"] as const;
 
 /**
@@ -319,6 +319,10 @@ const MARKER_STACK_DECAY_UNITS = ["ACTION"] as const;
  * `ratio`（付与時最大値に対する割合）ではなくraw原文どおりの整数個
  * （`amount`、1以上の整数）で1回あたりの減少量を表す。`owner`は
  * `ShieldDecayDefinition`と同じ値集合・同じ既定（`EFFECT_TARGET`）を共有する。
+ *
+ * `linkedEffects`（Issue #673レビュー対応）: `REMOVE_EFFECTS`の
+ * `effectActionDefinitionIds`と同じID配列。参照先の実在チェックは1件だけでは
+ * 完結しないため`effect-action-integrity.ts`（`DANGLING_REFERENCE`）が担う。
  */
 function createMarkerStackDecay(input: unknown, path: string): MarkerStackDecayDefinition {
   const raw = requireField(input as Record<string, unknown> | undefined, path);
@@ -331,7 +335,20 @@ function createMarkerStackDecay(input: unknown, path: string): MarkerStackDecayD
   if (owner !== undefined) {
     assertEnumValue(owner, SHIELD_DECAY_OWNERS, `${path}.owner`);
   }
-  return { unit, amount, ...(owner !== undefined ? { owner } : {}) };
+  const linkedEffectIds = raw["linkedEffects"] as readonly string[] | undefined;
+  let linkedEffects: readonly EffectActionDefinitionId[] | undefined;
+  if (linkedEffectIds !== undefined) {
+    assertNonEmptyArray(linkedEffectIds, `${path}.linkedEffects`);
+    linkedEffects = linkedEffectIds.map((id, i) =>
+      createEffectActionDefinitionId(id, `${path}.linkedEffects[${i}]`),
+    );
+  }
+  return {
+    unit,
+    amount,
+    ...(owner !== undefined ? { owner } : {}),
+    ...(linkedEffects !== undefined ? { linkedEffects } : {}),
+  };
 }
 
 /**

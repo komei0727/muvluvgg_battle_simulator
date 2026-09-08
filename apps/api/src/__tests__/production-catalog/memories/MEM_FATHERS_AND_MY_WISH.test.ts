@@ -39,11 +39,16 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", HIIRO_ON_BOARD);
     expect(observed.triggeredOrder).toEqual([`${MEMORY_DEFINITION_ID}#0`]);
     // REPEAT4(ヒイロへ付与) → REPEAT2(他の味方へ付与)の定義順で実行される。
+    // 各REPEATの1回目の反復で「闘志」マーカーと固定量ATK/会心ダメージバフ1組を
+    // 同じstepの`actions`定義順で付与する（Issue #673レビュー対応、AS1と同じ
+    // 「マーカー1スタックにつきバフ1組」設計）。
     expect(observed.actionOrder).toEqual([
       {
         triggeredEffectIndex: 0,
         actionIds: [
           "ACT_MEM_FATHERS_AND_MY_WISH_HIIRO_MARKER",
+          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP",
           "ACT_MEM_FATHERS_AND_MY_WISH_ALLY_MARKER",
         ],
       },

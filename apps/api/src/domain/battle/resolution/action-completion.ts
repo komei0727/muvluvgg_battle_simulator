@@ -26,6 +26,7 @@ import {
   removeMarkers,
   type MarkerRemovalSeed,
 } from "../effects/marker-removal-service.js";
+import { removeEffects } from "../effects/effect-removal-service.js";
 import type {
   ActionId,
   DomainEventId,
@@ -395,6 +396,52 @@ export function recordActionCompletion(
     );
     for (const event of recorder.getEvents().slice(stackDecayEventsStart)) {
       notify(event);
+    }
+
+    // `MARKER_STACK_DECAY_OVER_TIME.linkedEffects`（Issue #673レビュー対応）:
+    // 「Markerのスタック1個につき固定量のAppliedEffectを1個重複付与する」設計
+    // （`UNIT_HIIRO_FREEWOLF`の「闘志」）のため、逓減で失ったスタック数と同じ数だけ
+    // 宣言された各`EffectActionDefinitionId`についてもインスタンスを解除する
+    // （IDごとに独立、`REMOVE_EFFECTS`の`SPECIFIC_EFFECT`と同じ「付与順の先頭から
+    // `maxRemovals`件」規則。`matchesCriteria`がkindKey単位で一致判定するため、
+    // ここで名指ししたIDと同じ`kindKey`を共有する他の定義由来のインスタンスも
+    // 対象に含む）。`linkedEffectGroupId`（R-EFF-09）はMarker全体を丸ごと連動
+    // させる仕組みでスタック単位の部分連動を表せないため、この専用経路で扱う。
+    for (const change of markerStackDecay.changes) {
+      const decayedAmount = change.stackBefore - change.stackAfter;
+      if (decayedAmount <= 0) {
+        continue;
+      }
+      const holder = requireUnit(working, change.battleUnitId);
+      const marker = holder.markerStates.find(
+        (candidate) => candidate.markerInstanceId === change.markerInstanceId,
+      );
+      for (const effectActionDefinitionId of marker?.decay?.linkedEffects ?? []) {
+        const linkedRemoval = removeEffects(
+          {
+            recorder,
+            turnNumber: context.turnNumber,
+            cycleNumber: context.cycleNumber,
+            actionId: context.actionId,
+            resolutionScopeId: context.resolutionScopeId,
+            rootEventId: context.rootEventId,
+            ...(context.onFactEventForPassiveChain !== undefined
+              ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+              : {}),
+          },
+          working,
+          change.battleUnitId,
+          {
+            categories: ["SPECIFIC_EFFECT"],
+            effectActionDefinitionIds: [effectActionDefinitionId],
+            maxRemovals: decayedAmount,
+          },
+          context.effectActions,
+          lastEventId,
+        );
+        working = linkedRemoval.units;
+        lastEventId = linkedRemoval.lastEventId;
+      }
     }
 
     const stackDecaySeeds: MarkerRemovalSeed[] = markerStackDecay.changes
