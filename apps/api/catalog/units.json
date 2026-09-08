@@ -617,6 +617,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_HIIRO_FREEWOLF",
+    "attribute": "AGGRESSIVE",
+    "unitType": "AGILE",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 32136,
+      "attack": 21719,
+      "defense": 13035,
+      "criticalRate": 0.2,
+      "actionSpeed": 872,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 359, "attack": 200, "defense": 123, "actionSpeed": 3 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_HIIRO_FREEWOLF_AS1", "SKL_HIIRO_FREEWOLF_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_HIIRO_FREEWOLF_PS1", "SKL_HIIRO_FREEWOLF_PS2"],
+    "extraSkillDefinitionId": "SKL_HIIRO_FREEWOLF_EX",
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【疾走する自由の狐狼】榊野ヒイロ",
+      "characterName": "榊野ヒイロ",
+      "characterId": "CHAR_HIIRO_SAKAKINO"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_HIIRO_LONEWOLF",
     "attribute": "CLEVER",
     "unitType": "AGILE",

@@ -1,0 +1,30 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_HIIRO_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+      "stack": { "policy": "ADD", "max": 8 },
+      "decay": { "unit": "ACTION", "amount": 1 },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ALLY_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+      "stack": { "policy": "ADD", "max": 8 },
+      "decay": { "unit": "ACTION", "amount": 1 },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  }
+]

@@ -1,0 +1,205 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 2.008 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_EX_AOE_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.1044 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.95 },
+      "accuracy": { "mode": "GUARANTEED" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF",
+    "kind": "REMOVE_EFFECTS",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "maxRemovals": 3
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+      "stack": { "policy": "ADD", "max": 8 },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": {
+        "kind": "MARKER_COUNT_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+        "perStack": 0.04,
+        "max": 0.32
+      },
+      "stacking": { "mode": "NON_STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "FIXED",
+      "formula": {
+        "kind": "MARKER_COUNT_SCALE",
+        "target": { "kind": "SKILL_SOURCE" },
+        "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+        "perStack": 0.03,
+        "max": 0.24
+      },
+      "stacking": { "mode": "NON_STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DEBUFF_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      },
+      "maxBlocks": null
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DMG_REDUCE",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.092 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS2_BONUS_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.468 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS2_FRONT_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.546 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "SKILL_POWER", "power": 0.25 },
+      "overheal": "DISCARD"
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER",
+    "kind": "REMOVE_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+      "count": 1
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_COUNTER_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.014 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.59 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_MARKER_BRAND",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_BRAND",
+      "stack": { "policy": "ADD", "max": 1 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "DAMAGE_DEALT_RATIO",
+        "sourceResult": "SUM_DAMAGE_DEALT",
+        "ratio": 0.3
+      },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  }
+]

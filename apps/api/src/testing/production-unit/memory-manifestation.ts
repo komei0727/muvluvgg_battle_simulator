@@ -116,8 +116,8 @@ export function memoryUnitId(side: Side, slotKey: string): string {
   return `${side === "ALLY" ? "ally" : "enemy"}:${slotKey}`;
 }
 
-function slotUnitDefinitionId(slot: MemorySlot): string {
-  return `UNIT_TEST_MEMORY_${slot.key}`;
+function slotUnitDefinitionId(slot: MemorySlot, overrides: MemoryBoardOverrides): string {
+  return overrides.unitDefinitionIdsBySlot?.[slot.key] ?? `UNIT_TEST_MEMORY_${slot.key}`;
 }
 
 /**
@@ -146,6 +146,14 @@ export interface MemoryBoardOverrides {
    * 一致しないため、所属と同じくMemoryごとに「どのスロットが名乗るか」を宣言する。
    */
   readonly charactersBySlot?: Readonly<Record<string, string>>;
+  /**
+   * スロットキー → そのスロットが名乗る`unitDefinitionId`。`UNIT_DEFINITION`
+   * TargetFilter（Issue #674）は`BattleUnit.unitDefinitionId`を直接比較するため
+   * （`lookupUnitDefinition`を経由しない、`target-selection-policy.ts`）、他の
+   * オーバーライドと異なり静的Catalogデータを介さない。既定のスタンドインID
+   * （`UNIT_TEST_MEMORY_<slot>`）を丸ごと差し替える。
+   */
+  readonly unitDefinitionIdsBySlot?: Readonly<Record<string, string>>;
 }
 
 function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): UnitDefinition {
@@ -155,7 +163,7 @@ function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): 
     ...(affiliations === undefined ? {} : { affiliations }),
     ...(characterId === undefined ? {} : { characterId }),
   };
-  return testUnitDefinition(slotUnitDefinitionId(slot), {
+  return testUnitDefinition(slotUnitDefinitionId(slot, overrides), {
     role: slot.role,
     unitType: slot.unitType,
     positionAptitudes: ["FRONT", "BACK"],
@@ -167,7 +175,7 @@ function slotBattleUnit(slot: MemorySlot, side: Side, overrides: MemoryBoardOver
   const attribute = overrides.attributesBySlot?.[slot.key];
   return testBattleUnit({
     battleUnitId: memoryUnitId(side, slot.key),
-    unitDefinitionId: slotUnitDefinitionId(slot),
+    unitDefinitionId: slotUnitDefinitionId(slot, overrides),
     side,
     position: slot.position,
     combatStats: MEMORY_COMBAT_STATS,

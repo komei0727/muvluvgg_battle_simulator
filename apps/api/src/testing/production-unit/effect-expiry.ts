@@ -70,6 +70,12 @@ export interface ObservedExpiryStep {
    * `remaining` には現れず、枯渇して失効した瞬間にキーごと落ちる。
    */
   readonly shields?: Readonly<Record<string, number>>;
+  /**
+   * `watchMarkers` を渡したときだけ現れる、Markerのスタック数（`<unitId>/<markerId>`）。
+   * `APPLY_MARKER.decay`（`MARKER_STACK_DECAY_OVER_TIME`、Issue #674）の漸減も
+   * `shields` と同じく `duration` を一切動かさないため `remaining` には現れない。
+   */
+  readonly markers?: Readonly<Record<string, number>>;
 }
 
 export interface EffectExpiryOptions {
@@ -83,6 +89,8 @@ export interface EffectExpiryOptions {
   readonly watch?: readonly { readonly unitId: string; readonly stat: keyof CombatStats }[];
   /** シールド残量を step ごとに観測するユニット。省略すると `shields` は現れない。 */
   readonly watchShields?: readonly string[];
+  /** Markerのスタック数を step ごとに観測するユニット。省略すると `markers` は現れない。 */
+  readonly watchMarkers?: readonly string[];
   readonly battleId?: string;
 }
 
@@ -131,6 +139,24 @@ function shieldsOf(
     }
   }
   return shields;
+}
+
+/** 指定ユニットが保持するMarkerのスタック数を `<unitId>/<markerId>` の表にする。 */
+function markersOf(
+  units: readonly BattleUnit[],
+  watchMarkers: EffectExpiryOptions["watchMarkers"],
+): Record<string, number> {
+  const markers: Record<string, number> = {};
+  for (const unitId of watchMarkers ?? []) {
+    const unit = units.find((candidate) => candidate.battleUnitId === unitId);
+    if (unit === undefined) {
+      throw new Error(`no unit "${unitId}" on the board`);
+    }
+    for (const marker of unit.markerStates) {
+      markers[`${unitId}/${marker.markerId}`] = marker.stackCount;
+    }
+  }
+  return markers;
 }
 
 function statsOf(
@@ -284,6 +310,9 @@ export function observeEffectExpiry(options: EffectExpiryOptions): EffectExpiryO
       ...(options.watchShields === undefined
         ? {}
         : { shields: shieldsOf(units, options.watchShields) }),
+      ...(options.watchMarkers === undefined
+        ? {}
+        : { markers: markersOf(units, options.watchMarkers) }),
     });
   }
 

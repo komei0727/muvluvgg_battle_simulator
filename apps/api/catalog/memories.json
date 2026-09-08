@@ -850,6 +850,90 @@
     "metadata": { "displayName": "空想造形師ロージー", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_FATHERS_AND_MY_WISH",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_HIIRO_FREEWOLF",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": 1,
+                "filters": [
+                  { "kind": "UNIT_DEFINITION", "unitDefinitionId": "UNIT_HIIRO_FREEWOLF" }
+                ]
+              }
+            },
+            {
+              "targetBindingId": "TGT_OTHER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  {
+                    "kind": "EXCLUDE_RESOLVED_UNIT",
+                    "reference": { "kind": "BINDING", "targetBindingId": "TGT_HIIRO_FREEWOLF" }
+                  }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "REPEAT",
+              "count": 4,
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "stepCondition": {
+                    "kind": "TARGET_SET_COUNT",
+                    "target": { "kind": "BINDING", "targetBindingId": "TGT_HIIRO_FREEWOLF" },
+                    "op": "GTE",
+                    "value": 1
+                  },
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_HIIRO_FREEWOLF" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_HIIRO_MARKER" }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "REPEAT",
+              "count": 2,
+              "steps": [
+                {
+                  "kind": "ACTION",
+                  "stepCondition": {
+                    "kind": "TARGET_SET_COUNT",
+                    "target": { "kind": "BINDING", "targetBindingId": "TGT_HIIRO_FREEWOLF" },
+                    "op": "GTE",
+                    "value": 1
+                  },
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ALLY_MARKER" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "父さんの、そして私の願い", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_FUUKI_IINKAI",
     "triggeredEffects": [
       {

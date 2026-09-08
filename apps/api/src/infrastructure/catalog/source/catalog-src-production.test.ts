@@ -154,6 +154,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_ROSIE_CAMPAIGN_TEX",
         // 戦術演習敵ユニット追加: 破壊：リディア・エルドリッジ
         "UNIT_LYDIA_SUMMER_TEX",
+        // Issue #673: 榊野ヒイロの2バリアント目（#674 エンジン拡張依存）
+        "UNIT_HIIRO_FREEWOLF",
       ].sort(),
     );
   });
