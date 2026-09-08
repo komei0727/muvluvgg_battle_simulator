@@ -198,15 +198,22 @@ export function applyMarker(
   let nextMarker: MarkerState;
   if (request.stackPolicy === "ADD") {
     // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: この付与が`decay`を宣言した場合だけ
-    // `decayingStackCount`を1増やす。宣言が無い付与（例: スキル側の非逓減スタック）は
+    // `decayingStackCount`を増やす。宣言が無い付与（例: スキル側の非逓減スタック）は
     // `stackCount`だけを増やし、既存の逓減対象数・逓減宣言はそのまま引き継ぐ
     // （Durationを変更しないADDの既存規約と同じ「積み増しは上書きしない」方針）。
+    // `stackCount`は`stack.max`で頭打ちになり得るため、`decayingStackCount`は
+    // 常に+1ではなく実際に増えた分（`stackAfter - existing.stackCount`、0か1）
+    // だけ増やす — さもないと上限到達後の逓減ADDが、実在しないスタックを
+    // 逓減対象に数え、後続の逓減で本来残るべき非逓減スタックまで消してしまう
+    // （PR #675レビュー指摘）。
+    const stackAfter = clampMarkerStack(existing.stackCount + 1, request.stackMax);
+    const stackIncrease = stackAfter - existing.stackCount;
     nextMarker = {
       ...carried,
-      stackCount: clampMarkerStack(existing.stackCount + 1, request.stackMax),
+      stackCount: stackAfter,
       stackMax: request.stackMax,
       ...(request.decay !== undefined
-        ? { decayingStackCount: existing.decayingStackCount + 1, decay: request.decay }
+        ? { decayingStackCount: existing.decayingStackCount + stackIncrease, decay: request.decay }
         : {}),
     };
   } else if (request.stackPolicy === "REFRESH") {

@@ -918,7 +918,8 @@ export interface paths {
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
-                        | "TARGET_EFFECT_COUNT";
+                        | "TARGET_EFFECT_COUNT"
+                        | "SELF_MEMORY_EQUIPPED";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -960,7 +961,8 @@ export interface paths {
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
-                        | "TARGET_EFFECT_COUNT";
+                        | "TARGET_EFFECT_COUNT"
+                        | "SELF_MEMORY_EQUIPPED";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -3383,7 +3385,8 @@ export interface paths {
                         | "SOURCE_DEFEATED"
                         | "SHIELD_DEPLETED"
                         | "SUBUNIT_DEPLETED"
-                        | "LINKED_GROUP_CASCADE";
+                        | "LINKED_GROUP_CASCADE"
+                        | "STACK_DECAY";
                       linkedEffectGroupId: string | null;
                       cascaded: boolean;
                     };
@@ -4726,7 +4729,8 @@ export interface paths {
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
-                        | "TARGET_EFFECT_COUNT";
+                        | "TARGET_EFFECT_COUNT"
+                        | "SELF_MEMORY_EQUIPPED";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -4768,7 +4772,8 @@ export interface paths {
                         | "RESOLUTION_PHASE"
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
-                        | "TARGET_EFFECT_COUNT";
+                        | "TARGET_EFFECT_COUNT"
+                        | "SELF_MEMORY_EQUIPPED";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -7195,7 +7200,8 @@ export interface paths {
                         | "SOURCE_DEFEATED"
                         | "SHIELD_DEPLETED"
                         | "SUBUNIT_DEPLETED"
-                        | "LINKED_GROUP_CASCADE";
+                        | "LINKED_GROUP_CASCADE"
+                        | "STACK_DECAY";
                       linkedEffectGroupId: string | null;
                       cascaded: boolean;
                     };
