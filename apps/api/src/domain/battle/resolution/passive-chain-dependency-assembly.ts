@@ -41,6 +41,10 @@ export interface PassiveChainDependencySource {
     event: TriggerCandidateEvent,
     resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
   ): PassiveChainLimitViolationReason | undefined;
+  applyEffectSourceDefeatRemovalsForChain(
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ): PassiveChainLimitViolationReason | undefined;
   applyEffectRuntimeCounterUpdates(
     event: TriggerCandidateEvent,
     resolveChild: (recorded: BattleDomainEvent) => PassiveChainLimitViolationReason | undefined,
@@ -117,6 +121,11 @@ export function buildPassiveChainDependencies(
     // （R-EFF-09の逐次通知契約を満たすため）。
     applyMarkerSourceDefeatRemovals: (event, resolveChild) =>
       source.applyMarkerSourceDefeatRemovalsForChain(event, resolveChild),
+    // R-EFF-10（APPLY_SHIELD拡張、Issue #660）: Marker版と同じ理由・同じ
+    // resolveChild形。`resolveEvent`側では`applyMarkerSourceDefeatRemovals`の
+    // 直後に呼ばれる。
+    applyEffectSourceDefeatRemovals: (event, resolveChild) =>
+      source.applyEffectSourceDefeatRemovalsForChain(event, resolveChild),
     applyEffectRuntimeCounterUpdates: (event, resolveChild) =>
       source.applyEffectRuntimeCounterUpdates(event, (recorded) =>
         resolveChild(source.toTriggerEvent(recorded)),

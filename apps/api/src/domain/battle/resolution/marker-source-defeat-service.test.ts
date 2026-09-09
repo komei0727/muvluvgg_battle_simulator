@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { findMarkersRemovedOnSourceDefeat } from "./marker-source-defeat-service.js";
+import {
+  findEffectsRemovedOnSourceDefeat,
+  findMarkersRemovedOnSourceDefeat,
+} from "./marker-source-defeat-service.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, type DomainEventId } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import { createMarkerId, createUnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createMarkerId,
+  createUnitDefinitionId,
+} from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
@@ -284,6 +292,177 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
       {
         battleUnitId: self.battleUnitId,
         markerInstanceId: granted.markerInstanceId,
+        reason: "SOURCE_DEFEATED",
+      },
+    ]);
+  });
+});
+
+const SHIELD_ACTION_ID = createEffectActionDefinitionId("ACT_TEST_SHIELD");
+
+/** `APPLY_SHIELD`が付与する`AppliedEffect`。`sourceUnitId`／`durationDefinition`だけを差し替える。 */
+function shieldEffect(options: {
+  readonly instanceId: string;
+  readonly sourceUnitId?: string;
+  readonly sourceSide?: "ALLY" | "ENEMY";
+  readonly targetUnitId: string;
+  readonly durationDefinition: DurationDefinition;
+}): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(options.instanceId),
+    effectActionDefinitionId: SHIELD_ACTION_ID,
+    kindKey: effectKindKeyFromDefinitionId(SHIELD_ACTION_ID),
+    duplicate: true,
+    ...(options.sourceUnitId !== undefined
+      ? { sourceUnitId: createBattleUnitId(options.sourceUnitId) }
+      : { sourceSide: options.sourceSide! }),
+    targetUnitId: createBattleUnitId(options.targetUnitId),
+    magnitude: 100,
+    categories: ["SHIELD"],
+    duration: { definition: options.durationDefinition },
+    appliedTurnNumber: 1,
+  };
+}
+
+describe("findEffectsRemovedOnSourceDefeat", () => {
+  it("UT-R-EFF-10-049 (R-EFF-10 APPLY_SHIELD拡張、Issue #660): seeds a SOURCE_DEFEATED removal for a Shield AppliedEffect whose granter is the defeated unit", () => {
+    const source = unit("source-1");
+    const target: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceUnitId: "source-1",
+          targetUnitId: "target-1",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+
+    const seeds = findEffectsRemovedOnSourceDefeat([source, target], defeatedEvent("source-1"));
+
+    expect(seeds).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: target.appliedEffects[0]!.effectInstanceId,
+        reason: "SOURCE_DEFEATED",
+      },
+    ]);
+  });
+
+  it("UT-R-EFF-10-050 (R-EFF-10 APPLY_SHIELD拡張): does not seed a Shield that omits removeOnSourceDefeated even when its granter is defeated", () => {
+    const source = unit("source-1");
+    const target: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceUnitId: "source-1",
+          targetUnitId: "target-1",
+          durationDefinition: PLAIN_DURATION,
+        }),
+      ],
+    };
+
+    expect(findEffectsRemovedOnSourceDefeat([source, target], defeatedEvent("source-1"))).toEqual(
+      [],
+    );
+  });
+
+  it("UT-R-EFF-10-051 (R-EFF-10 APPLY_SHIELD拡張): does not seed a declaring Shield when a unit other than its granter is defeated", () => {
+    const source = unit("source-1");
+    const bystander = unit("bystander-1");
+    const target: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceUnitId: "source-1",
+          targetUnitId: "target-1",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+
+    expect(
+      findEffectsRemovedOnSourceDefeat([source, target, bystander], defeatedEvent("bystander-1")),
+    ).toEqual([]);
+  });
+
+  it("UT-R-EFF-10-052 (R-EFF-10 APPLY_SHIELD拡張): ignores events other than UnitDefeated", () => {
+    const source = unit("source-1");
+    const target: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceUnitId: "source-1",
+          targetUnitId: "target-1",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+
+    expect(
+      findEffectsRemovedOnSourceDefeat([source, target], {
+        eventType: "HitPointReduced",
+        payload: { unitId: createBattleUnitId("source-1") },
+      }),
+    ).toEqual([]);
+  });
+
+  it("UT-R-EFF-10-053 (R-EFF-10 APPLY_SHIELD拡張、R-MEM-04): a Memory-granted Shield has no granter unit (sourceSide only) and is never seeded", () => {
+    const target: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceSide: "ALLY",
+          targetUnitId: "target-1",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+
+    expect(findEffectsRemovedOnSourceDefeat([target], defeatedEvent("target-1"))).toEqual([]);
+  });
+
+  it("UT-R-EFF-10-043 (R-EFF-10 APPLY_SHIELD拡張): seeds every holder when the same granter applied the Shield to several targets", () => {
+    const source = unit("source-1");
+    const first: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceUnitId: "source-1",
+          targetUnitId: "target-1",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+    const second: BattleUnit = {
+      ...unit("target-2"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-2",
+          sourceUnitId: "source-1",
+          targetUnitId: "target-2",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+
+    expect(
+      findEffectsRemovedOnSourceDefeat([source, first, second], defeatedEvent("source-1")),
+    ).toEqual([
+      {
+        battleUnitId: first.battleUnitId,
+        effectInstanceId: first.appliedEffects[0]!.effectInstanceId,
+        reason: "SOURCE_DEFEATED",
+      },
+      {
+        battleUnitId: second.battleUnitId,
+        effectInstanceId: second.appliedEffects[0]!.effectInstanceId,
         reason: "SOURCE_DEFEATED",
       },
     ]);

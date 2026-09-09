@@ -1505,7 +1505,7 @@ export type CombatStatChangeReason =
 export type ResourceCapacityChangeReason = CombatStatChangeReason;
 
 /**
- * `07_戦闘ルール詳細.md` R-EFF-04/06/07/08/09: 効果インスタンスが失効した理由。
+ * `07_戦闘ルール詳細.md` R-EFF-04/06/07/08/09/10: 効果インスタンスが失効した理由。
  * `LINKED_GROUP_CASCADE`は、自身は時間制限・消費・特殊失効のいずれにも達して
  * いないが、`linkedEffectGroupId`を共有する親効果の失効・解除に連動して失効
  * した子効果自身の理由（`EffectExpired.cascaded`も併せて`true`にする）。
@@ -1525,6 +1525,14 @@ export type EffectExpirationReason =
    * 個別消滅条件。`SHIELD_DEPLETED`と同じ位置づけで、サブユニット固有の失効契機。
    */
   | "SUBUNIT_DEPLETED"
+  /**
+   * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `duration.removeOnSourceDefeated`
+   * を宣言した`AppliedEffect`の付与者（`AppliedEffect.sourceUnitId`）が戦闘不能に
+   * なったことによる解除。当初`MarkerState`専用だった契機（M7-020、Issue #279）を
+   * `APPLY_SHIELD`へ拡張したもので、`MarkerRemovalReason`の`SOURCE_DEFEATED`と
+   * 同じ意味を持つ。
+   */
+  | "SOURCE_DEFEATED"
   | "LINKED_GROUP_CASCADE";
 
 /** `ShieldConsumed.reason`: シールド残量が減った契機（DMG-004、Issue #194）。 */
@@ -1553,9 +1561,9 @@ export type DamageRedirectReason = "TARGET_REDIRECT" | "COVER";
  * 明示的な`REMOVE_MARKER`によるスタック全解除（現行スキーマでは唯一の
  * スタック即時ゼロ化経路）。`SOURCE_DEFEATED`は`duration.removeOnSourceDefeated`
  * を宣言したMarkerの付与者（`MarkerState.sourceUnitId`）が戦闘不能になったことによる
- * 解除（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）で、`MarkerState`
- * だけが持つ解除契機である（`AppliedEffect`は付与者の戦闘不能を見る失効機構を
- * 持たないため`EffectExpirationReason`には含めない）。残りは
+ * 解除（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）。当初`MarkerState`
+ * 専用の解除契機だったが、`APPLY_SHIELD`（Issue #660）が同じ契機を
+ * `EffectExpirationReason`側の`SOURCE_DEFEATED`として共有するようになった。残りは
  * `EffectExpirationReason`と同じ意味（時間制限・消費・特殊失効・
  * `linkedEffectGroupId`カスケード）を持つ。
  */
@@ -1571,12 +1579,11 @@ export type MarkerRemovalReason =
    */
   | "STACK_DECAY"
   /**
-   * `SOURCE_DEFEATED`と対になるAppliedEffect固有の契機（DMG-004、Issue #194、
-   * R-SHD-01）。`MarkerState`はシールド残量を持たないため`MarkerRemoved`が
-   * この理由を直接運ぶことはなく、シールド失効に連動して解除されるMarkerは
-   * R-EFF-09どおり`LINKED_GROUP_CASCADE`を運ぶ。この型が
-   * `EffectExpirationReason`・`EffectRemovalReason`・Marker固有理由の和である
-   * という契約（`linked-group-cascade.ts`の`LinkedGroupRemoval.reason`）を
+   * `AppliedEffect`固有の契機（DMG-004、Issue #194、R-SHD-01）。`MarkerState`は
+   * シールド残量を持たないため`MarkerRemoved`がこの理由を直接運ぶことはなく、
+   * シールド失効に連動して解除されるMarkerはR-EFF-09どおり`LINKED_GROUP_CASCADE`を
+   * 運ぶ。この型が`EffectExpirationReason`・`EffectRemovalReason`・Marker固有理由の
+   * 和であるという契約（`linked-group-cascade.ts`の`LinkedGroupRemoval.reason`）を
    * 保つために列挙する。
    */
   | "SHIELD_DEPLETED"

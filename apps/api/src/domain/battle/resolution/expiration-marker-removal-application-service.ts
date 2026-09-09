@@ -1,6 +1,13 @@
 import { findEffectsMatchingExpirationCondition } from "./effect-expiration-condition-service.js";
-import { findMarkersRemovedOnSourceDefeat } from "./marker-source-defeat-service.js";
-import { expireEffects, type ExpirationSeed } from "../effects/duration-expiry-service.js";
+import {
+  findEffectsRemovedOnSourceDefeat,
+  findMarkersRemovedOnSourceDefeat,
+} from "./marker-source-defeat-service.js";
+import {
+  expireEffects,
+  expireEffectsSteps,
+  type ExpirationSeed,
+} from "../effects/duration-expiry-service.js";
 import { removeMarkers, removeMarkersSteps } from "../effects/marker-removal-service.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
@@ -148,6 +155,50 @@ export function applyMarkerSourceDefeatRemovals(
   return removal.units;
 }
 
+/**
+ * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `applyMarkerSourceDefeatRemovals`の
+ * `AppliedEffect`版（トップレベルの`onFactEvent`専用、同じ形・同じ制約）。`event`が
+ * `UnitDefeated`のとき、`duration.removeOnSourceDefeated`を宣言し付与者がその
+ * 戦闘不能ユニットであるShield等の`AppliedEffect`を即時に失効させる。
+ *
+ * `MarkerState`と異なり`AppliedEffect`はR-EFF-08の特殊失効条件と同じ
+ * `EffectExpired`経路を共有するため、専用の除去関数を作らず`expireEffects`
+ * （`duration-expiry-service.ts`）へそのまま流し込む。同じ`linkedEffectGroupId`を
+ * 持つ子効果はR-EFF-09のカスケードが自動で巻き込む。`depth`は
+ * `applyMarkerSourceDefeatRemovals`と同じ自己再誘発カウンタを共有する
+ * （呼び出し元が`nextDepth`をそのまま渡す）。
+ */
+export function applyEffectSourceDefeatRemovals(
+  context: ExpirationMarkerRemovalContext,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  units: readonly BattleUnit[],
+  event: BattleDomainEvent,
+  depth: number,
+  maxEffectRuntimeCounterDepth: number,
+  onFactEventForPassiveChain: (
+    event: BattleDomainEvent,
+    units: readonly BattleUnit[],
+  ) => readonly BattleUnit[],
+): readonly BattleUnit[] {
+  const seeds = findEffectsRemovedOnSourceDefeat(units, event);
+  if (seeds.length === 0) {
+    return units;
+  }
+  if (depth > maxEffectRuntimeCounterDepth) {
+    throw new ExecutionGuardExceededError(
+      `removeOnSourceDefeated self-triggering recursion exceeded ${maxEffectRuntimeCounterDepth} rounds; an AppliedEffect removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
+    );
+  }
+  const expiry = expireEffects(
+    toExpireEffectsContext(context, onFactEventForPassiveChain),
+    units,
+    seeds,
+    effectActions,
+    event.eventId,
+  );
+  return expiry.units;
+}
+
 export interface ChainExpirationConditionsResult {
   readonly units: readonly BattleUnit[];
   readonly events: readonly TriggerCandidateEvent[];
@@ -282,6 +333,68 @@ export function applyMarkerSourceDefeatRemovalsForChain(
         }
       }
       // 候補解決が`this.units`を書き換えた分を次のステップの起点へ注入する。
+      step = steps.next(getUnits());
+    }
+    setUnits(step.value.units);
+    return undefined;
+  } finally {
+    chainDepth.depth -= 1;
+  }
+}
+
+/**
+ * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `applyEffectSourceDefeatRemovals`の
+ * PS連鎖内部版。`applyMarkerSourceDefeatRemovalsForChain`と同じ理由・同じ形で
+ * 必要になる — PSのEffectSequenceが与えたダメージによる`UnitDefeated`は
+ * `onFactEvent`を経由しないため、トップレベル側の配線だけでは「PSがとどめを
+ * 刺した付与者のShieldが解除されない」取りこぼしになる。
+ *
+ * `expireEffectsSteps`を1メンバーずつ駆動し、各ステップのイベントを
+ * `resolveChild`で完全に解決してから次のメンバーへ進む（R-EFF-09の逐次通知契約、
+ * `applyMarkerSourceDefeatRemovalsForChain`と同じ制約）。`chainDepth`は
+ * `applyMarkerSourceDefeatRemovalsForChain`／`applyExpirationConditionsForChain`と
+ * 同じ自己再誘発カウンタを共有する（呼び出し元が同じ`ChainExpirationDepthState`を
+ * 渡す）。
+ */
+export function applyEffectSourceDefeatRemovalsForChain(
+  context: ExpirationMarkerRemovalContext,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  chainDepth: ChainExpirationDepthState,
+  maxEffectRuntimeCounterDepth: number,
+  getUnits: () => readonly BattleUnit[],
+  setUnits: (units: readonly BattleUnit[]) => void,
+  toTriggerEvent: (event: BattleDomainEvent) => TriggerCandidateEvent,
+  event: TriggerCandidateEvent,
+  eventId: DomainEventId,
+  resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+): PassiveChainLimitViolationReason | undefined {
+  const seeds = findEffectsRemovedOnSourceDefeat(getUnits(), event);
+  if (seeds.length === 0) {
+    return undefined;
+  }
+  chainDepth.depth += 1;
+  try {
+    if (chainDepth.depth > maxEffectRuntimeCounterDepth) {
+      throw new ExecutionGuardExceededError(
+        `removeOnSourceDefeated self-triggering recursion exceeded ${maxEffectRuntimeCounterDepth} rounds; an AppliedEffect removal likely re-triggers a UnitDefeated observation (infinite regeneration)`,
+      );
+    }
+    const steps = expireEffectsSteps(
+      toExpireEffectsContext(context),
+      getUnits(),
+      seeds,
+      effectActions,
+      eventId,
+    );
+    let step = steps.next();
+    while (!step.done) {
+      setUnits(step.value.units);
+      for (const recorded of step.value.events) {
+        const violation = resolveChild(toTriggerEvent(recorded));
+        if (violation !== undefined) {
+          return violation;
+        }
+      }
       step = steps.next(getUnits());
     }
     setUnits(step.value.units);

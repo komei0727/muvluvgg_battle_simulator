@@ -1,5 +1,6 @@
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { MarkerRemovalSeed } from "../effects/marker-removal-service.js";
+import type { ExpirationSeed } from "../effects/duration-expiry-service.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 /**
@@ -53,6 +54,53 @@ export function findMarkersRemovedOnSourceDefeat(
         seeds.push({
           battleUnitId: unit.battleUnitId,
           markerInstanceId: marker.markerInstanceId,
+          reason: "SOURCE_DEFEATED",
+        });
+      }
+    }
+  }
+  return seeds;
+}
+
+/**
+ * R-EFF-10（APPLY_SHIELD拡張、Issue #660）: `findMarkersRemovedOnSourceDefeat`の
+ * `AppliedEffect`版。`UnitDefeated`に対して、`duration.removeOnSourceDefeated`を
+ * 宣言し、かつ付与者（`AppliedEffect.sourceUnitId`＝直近の付与者）が戦闘不能に
+ * なったユニットである`AppliedEffect`を除去対象として列挙する。`SKL_NANAE_
+ * COMMANDER_AS2`（パーフェクトオーダー）の非攻勢分岐が付与するシールドの原文
+ * 「シールドは付与者が倒れると解除される」を表す。
+ *
+ * 返した`seeds`は`ExpirationSeed`としてそのまま`expireEffects`
+ * （`duration-expiry-service.ts`）へ渡す — `MarkerState`と異なり`AppliedEffect`の
+ * 除去はR-EFF-08の特殊失効条件（`expiration.conditions`）と同じ`EffectExpired`
+ * 経路を共有するため、専用の除去関数は持たない。同じ`linkedEffectGroupId`を持つ
+ * 子効果はR-EFF-09のcross-typeカスケードを`expireEffects`が自動で巻き込む。
+ *
+ * R-MEM-04: `findMarkersRemovedOnSourceDefeat`と同じ理由で、Memoryの
+ * `triggeredEffects`由来の付与（`sourceUnitId`が`undefined`、`sourceSide`のみ）は
+ * この解除契機が成立しない。
+ */
+export function findEffectsRemovedOnSourceDefeat(
+  units: readonly BattleUnit[],
+  event: DefeatEventSource,
+): readonly ExpirationSeed[] {
+  if (event.eventType !== "UnitDefeated") {
+    return [];
+  }
+  const defeatedUnitId = event.payload.unitId as BattleUnitId | undefined;
+  if (defeatedUnitId === undefined) {
+    return [];
+  }
+  const seeds: ExpirationSeed[] = [];
+  for (const unit of units) {
+    for (const effect of unit.appliedEffects) {
+      if (
+        effect.duration.definition.removeOnSourceDefeated === true &&
+        effect.sourceUnitId === defeatedUnitId
+      ) {
+        seeds.push({
+          battleUnitId: unit.battleUnitId,
+          effectInstanceId: effect.effectInstanceId,
           reason: "SOURCE_DEFEATED",
         });
       }

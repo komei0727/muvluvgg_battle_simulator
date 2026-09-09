@@ -3233,6 +3233,7 @@ export interface paths {
                         | "EXPIRATION_CONDITION"
                         | "SHIELD_DEPLETED"
                         | "SUBUNIT_DEPLETED"
+                        | "SOURCE_DEFEATED"
                         | "LINKED_GROUP_CASCADE";
                       linkedEffectGroupId: string | null;
                       cascaded: boolean;
@@ -7048,6 +7049,7 @@ export interface paths {
                         | "EXPIRATION_CONDITION"
                         | "SHIELD_DEPLETED"
                         | "SUBUNIT_DEPLETED"
+                        | "SOURCE_DEFEATED"
                         | "LINKED_GROUP_CASCADE";
                       linkedEffectGroupId: string | null;
                       cascaded: boolean;

@@ -62,6 +62,8 @@ import {
   type RuntimeCounterUpdateContext,
 } from "./runtime-counter-update-service.js";
 import {
+  applyEffectSourceDefeatRemovals as applyEffectSourceDefeatRemovalsService,
+  applyEffectSourceDefeatRemovalsForChain as applyEffectSourceDefeatRemovalsForChainService,
   applyExpirationConditions as applyExpirationConditionsService,
   applyExpirationConditionsForChain as applyExpirationConditionsForChainService,
   applyMarkerSourceDefeatRemovals as applyMarkerSourceDefeatRemovalsService,
@@ -592,6 +594,8 @@ export class PassiveActivationRuntime {
       applyExpirationConditionsForChain: (event) => this.applyExpirationConditionsForChain(event),
       applyMarkerSourceDefeatRemovalsForChain: (event, resolveChild) =>
         this.applyMarkerSourceDefeatRemovalsForChain(event, resolveChild),
+      applyEffectSourceDefeatRemovalsForChain: (event, resolveChild) =>
+        this.applyEffectSourceDefeatRemovalsForChain(event, resolveChild),
       applyEffectRuntimeCounterUpdates: (event, resolveChild) =>
         this.applyEffectRuntimeCounterUpdates(event, resolveChild),
       applyEffectSequenceRuntimeCounterUpdates: (event, resolveChild) =>
@@ -932,6 +936,10 @@ export class PassiveActivationRuntime {
     // 後続側の評価前に`onFactEvent`へ再帰して完全に解決される）。
     this.units = this.applyMarkerSourceDefeatRemovals(event, nextDepth);
 
+    // R-EFF-10（APPLY_SHIELD拡張、Issue #660）: 同じ契機のAppliedEffect版。
+    // Marker版と独立した機構だが同じ評価タイミング・同じ深さカウンタを共有する。
+    this.units = this.applyEffectSourceDefeatRemovals(event, nextDepth);
+
     // 上記はトップレベルの`event`しかカバーせず、
     // PS連鎖の内部（`activatePassiveCandidate`が直接yieldする`PassiveActivated`・
     // `EffectActionStarting`等）は`onFactEvent`を経由しないため見落とされていた。
@@ -1027,6 +1035,27 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `event`が`UnitDefeated`のとき、
+   * `duration.removeOnSourceDefeated`を宣言し付与者がその戦闘不能ユニットである
+   * Shield等の`AppliedEffect`を即時に失効させる。実装・詳細な理由は
+   * `./expiration-marker-removal-application-service.js`へ抽出した。
+   */
+  private applyEffectSourceDefeatRemovals(
+    event: BattleDomainEvent,
+    depth: number,
+  ): readonly BattleUnit[] {
+    return applyEffectSourceDefeatRemovalsService(
+      this.expirationMarkerRemovalContext(),
+      this.context.definitions.effectActions,
+      this.units,
+      event,
+      depth,
+      this.limits.maxEffectRuntimeCounterDepth,
+      (newEvent, unitsForChain) => this.onFactEvent(newEvent, unitsForChain, depth).units,
+    );
+  }
+
+  /**
    * R-EFF-08: `applyExpirationConditions`のPS連鎖内部版。実装・詳細な理由は
    * `./expiration-marker-removal-application-service.js`（REF-063 #2）へ抽出した。
    */
@@ -1057,6 +1086,31 @@ export class PassiveActivationRuntime {
     resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
   ): PassiveChainLimitViolationReason | undefined {
     return applyMarkerSourceDefeatRemovalsForChainService(
+      this.expirationMarkerRemovalContext(),
+      this.context.definitions.effectActions,
+      this.chainExpirationDepth,
+      this.limits.maxEffectRuntimeCounterDepth,
+      () => this.units,
+      (units) => {
+        this.units = units;
+      },
+      (recorded) => this.toTriggerEvent(recorded),
+      event,
+      this.eventIdOf(event),
+      resolveChild,
+    );
+  }
+
+  /**
+   * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `applyEffectSourceDefeatRemovals`の
+   * PS連鎖内部版。実装・詳細な理由は`./expiration-marker-removal-application-service.js`
+   * へ抽出した。
+   */
+  private applyEffectSourceDefeatRemovalsForChain(
+    event: TriggerCandidateEvent,
+    resolveChild: (child: TriggerCandidateEvent) => PassiveChainLimitViolationReason | undefined,
+  ): PassiveChainLimitViolationReason | undefined {
+    return applyEffectSourceDefeatRemovalsForChainService(
       this.expirationMarkerRemovalContext(),
       this.context.definitions.effectActions,
       this.chainExpirationDepth,
