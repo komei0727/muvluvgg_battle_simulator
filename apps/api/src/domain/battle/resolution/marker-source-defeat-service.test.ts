@@ -325,7 +325,7 @@ function shieldEffect(options: {
 }
 
 describe("findEffectsRemovedOnSourceDefeat", () => {
-  it("UT-R-EFF-10-038 (R-EFF-10 APPLY_SHIELD拡張、Issue #660): seeds a SOURCE_DEFEATED removal for a Shield AppliedEffect whose granter is the defeated unit", () => {
+  it("UT-R-EFF-10-049 (R-EFF-10 APPLY_SHIELD拡張、Issue #660): seeds a SOURCE_DEFEATED removal for a Shield AppliedEffect whose granter is the defeated unit", () => {
     const source = unit("source-1");
     const target: BattleUnit = {
       ...unit("target-1"),
@@ -350,7 +350,7 @@ describe("findEffectsRemovedOnSourceDefeat", () => {
     ]);
   });
 
-  it("UT-R-EFF-10-039 (R-EFF-10 APPLY_SHIELD拡張): does not seed a Shield that omits removeOnSourceDefeated even when its granter is defeated", () => {
+  it("UT-R-EFF-10-050 (R-EFF-10 APPLY_SHIELD拡張): does not seed a Shield that omits removeOnSourceDefeated even when its granter is defeated", () => {
     const source = unit("source-1");
     const target: BattleUnit = {
       ...unit("target-1"),
@@ -369,7 +369,7 @@ describe("findEffectsRemovedOnSourceDefeat", () => {
     );
   });
 
-  it("UT-R-EFF-10-040 (R-EFF-10 APPLY_SHIELD拡張): does not seed a declaring Shield when a unit other than its granter is defeated", () => {
+  it("UT-R-EFF-10-051 (R-EFF-10 APPLY_SHIELD拡張): does not seed a declaring Shield when a unit other than its granter is defeated", () => {
     const source = unit("source-1");
     const bystander = unit("bystander-1");
     const target: BattleUnit = {
@@ -389,7 +389,7 @@ describe("findEffectsRemovedOnSourceDefeat", () => {
     ).toEqual([]);
   });
 
-  it("UT-R-EFF-10-041 (R-EFF-10 APPLY_SHIELD拡張): ignores events other than UnitDefeated", () => {
+  it("UT-R-EFF-10-052 (R-EFF-10 APPLY_SHIELD拡張): ignores events other than UnitDefeated", () => {
     const source = unit("source-1");
     const target: BattleUnit = {
       ...unit("target-1"),
@@ -411,7 +411,7 @@ describe("findEffectsRemovedOnSourceDefeat", () => {
     ).toEqual([]);
   });
 
-  it("UT-R-EFF-10-042 (R-EFF-10 APPLY_SHIELD拡張、R-MEM-04): a Memory-granted Shield has no granter unit (sourceSide only) and is never seeded", () => {
+  it("UT-R-EFF-10-053 (R-EFF-10 APPLY_SHIELD拡張、R-MEM-04): a Memory-granted Shield has no granter unit (sourceSide only) and is never seeded", () => {
     const target: BattleUnit = {
       ...unit("target-1"),
       appliedEffects: [
