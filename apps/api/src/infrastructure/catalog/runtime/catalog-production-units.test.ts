@@ -579,7 +579,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 毎ターン開始時に発動する（ユーザー確認済み）。差分はLv200固定のステータス
     // （`category: EXERCISE_ENEMY`）、このサブユニット耐久HP縮小、PS2の回数制限
     // 撤廃の3点。エンジン拡張は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-09-05.1");
+    // `2026-09-08.1` は新ユニット `UNIT_HIIRO_FREEWOLF`（【疾走する自由の狐狼】
+    // 榊野ヒイロ、既存`CHAR_HIIRO_SAKAKINO`の2バリアント目）とメモリー
+    // `MEM_FATHERS_AND_MY_WISH`（父さんの、そして私の願い）の新規投入（Issue
+    // #673）。#674で追加した`LOWEST_CURRENT_HP`/`UNIT_DEFINITION`フィルタ/
+    // `APPLY_MARKER.decay`/`SELF_MEMORY_EQUIPPED`を初めて production Catalog で
+    // 使用する。
+    expect(catalog.catalogRevision).toBe("2026-09-08.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

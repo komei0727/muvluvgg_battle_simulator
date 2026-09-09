@@ -1778,13 +1778,18 @@ payload:
     amount: 1
 ```
 
-| フィールド | 型     | 必須 | 制約                                            |
-| ---------- | ------ | ---- | ----------------------------------------------- |
-| `unit`     | enum   | ✓    | `ACTION`のみ                                    |
-| `amount`   | number | ✓    | 1以上の整数（1回あたりに減らすスタック数）      |
-| `owner`    | enum   | —    | `DurationTimeLimit.owner`と同じ値集合・同じ既定 |
+| フィールド      | 型     | 必須 | 制約                                            |
+| --------------- | ------ | ---- | ----------------------------------------------- |
+| `unit`          | enum   | ✓    | `ACTION`のみ                                    |
+| `amount`        | number | ✓    | 1以上の整数（1回あたりに減らすスタック数）      |
+| `owner`         | enum   | —    | `DurationTimeLimit.owner`と同じ値集合・同じ既定 |
+| `linkedEffects` | array  | —    | 省略可。`EffectActionDefinitionId`の配列        |
 
 `MarkerState`は同じ`markerId`のインスタンスを対象ごとに1つしか持たない（R-EFF-10）ため、`decay`を宣言しない`APPLY_MARKER`（例: スキル側が付与する非逓減スタック）が同じMarkerへ積み増しても、逓減対象は`MarkerState.decayingStackCount`（`decay`宣言付きの付与で積まれた分だけ）で別管理し、非逓減分を巻き込まない。0になったインスタンスは`MarkerRemoved`（`reason: STACK_DECAY`）として除去する。
+
+**`linkedEffects`（Issue #673レビュー対応）**: 「Markerのスタック1個につき固定量の`APPLY_STAT_MOD`を1個重複付与する」設計（`UNIT_HIIRO_FREEWOLF`の「闘志」— 1個につきATK+4%・会心ダメージ+3%）で、このMarkerが逓減で1スタック失うたびに、宣言した各`EffectActionDefinitionId`についても保持している中から1インスタンスだけを`EffectRemoved`（`reason: REMOVED`）で解除する（`REMOVE_EFFECTS`の`SPECIFIC_EFFECT`と同じ「付与順の先頭から件数指定」規則）。`linkedEffectGroupId`（R-EFF-09）はMarker全体を親子として丸ごと連動させる仕組みでスタック単位の部分連動を表せないため、この専用フィールドを別に持つ。
+
+除去側の一致判定（`effect-removal-service.ts`の`matchesCriteria`）は、`SPECIFIC_EFFECT`が名指しした`effectActionDefinitionId`自身だけでなく、同じ`kindKey`（R-EFF-05/R-STA-03）を共有する**他の**`EffectActionDefinition`由来のインスタンスも一致とする。これにより、同じ「1スタック分のバフ」をユニット自身のスキル付与分とMemory付与分など複数の`EffectActionDefinition`（catalog-src生成が要求するディレクトリ内自己完結のため定義を分けざるを得ない場合）へ分散付与していても、`decay.linkedEffects`や`REMOVE_EFFECTS`はどちらの由来かを問わず正しく1個ずつ数える。`kindKey`未宣言の定義は`effectActionDefinitionId`自身が鍵になる（`DUPLICATE_ID`で一意）ため、この拡張は`kindKey`を明示的に共有しない既存の全`REMOVE_EFFECTS`宣言の挙動を変えない。
 
 ### COOLDOWN_MANIPULATION
 

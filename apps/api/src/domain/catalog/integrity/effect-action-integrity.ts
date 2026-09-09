@@ -73,6 +73,20 @@ export function validateEffectAction(
       }
     }
   }
+  // `MARKER_STACK_DECAY_OVER_TIME.linkedEffects`（Issue #673レビュー対応）: 参照先が
+  // 存在しない定義はロード時点で拒否する。EFFECT_IMMUNITY/REMOVE_EFFECTSの
+  // `effectActionDefinitionIds`と同じ`DANGLING_REFERENCE`。
+  if (effectAction.kind === "APPLY_MARKER") {
+    for (const referencedId of effectAction.payload.decay?.linkedEffects ?? []) {
+      if (!effectActions.has(referencedId)) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "DANGLING_REFERENCE",
+          message: `APPLY_MARKER payload.decay.linkedEffects references undefined EffectActionDefinition "${referencedId}"`,
+        });
+      }
+    }
+  }
   // R-SUB-02第3項（DMG-005、Issue #190、`SUBUNIT_ADDITIONAL_DAMAGE_DEBUFF`）:
   // 追加デバフは別のEffectActionDefinitionへの参照として書く。参照先が存在しない
   // 定義はロード時点で拒否し（`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`の

@@ -26,7 +26,7 @@ function apiPackageRootPath(...segments: string[]): string {
 }
 
 describe("catalog-src/ inventory", () => {
-  it("IT-CAT-INV-001: catalog-src/ has exactly 77 converted units, excluding synthetic INTERNAL fixtures and EXERCISE_ENEMY units", () => {
+  it("IT-CAT-INV-001: catalog-src/ has exactly 78 converted units, excluding synthetic INTERNAL fixtures and EXERCISE_ENEMY units", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     const converted = source.units.filter(
       (unit) =>
@@ -34,12 +34,12 @@ describe("catalog-src/ inventory", () => {
           "INTERNAL",
         ) && (unit as { category?: string }).category !== "EXERCISE_ENEMY",
     );
-    expect(converted).toHaveLength(77);
+    expect(converted).toHaveLength(78);
   });
 
-  it("IT-CAT-INV-002: catalog-src/ has exactly 37 converted memories", () => {
+  it("IT-CAT-INV-002: catalog-src/ has exactly 38 converted memories", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
-    expect(source.memories.length).toBe(37);
+    expect(source.memories.length).toBe(38);
   });
 
   it("IT-CAT-INV-003 [R-TEX-11]: catalog-src/ has exactly the expected EXERCISE_ENEMY units", () => {

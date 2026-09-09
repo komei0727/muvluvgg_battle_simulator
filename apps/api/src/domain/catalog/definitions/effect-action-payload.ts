@@ -539,12 +539,30 @@ export interface RemoveEffectsPayload {
  * スキル側が付与する非逓減スタック）が同じMarkerへ積み増しても、逓減対象は
  * `MarkerState.decayingStackCount`で別管理し、非逓減分を巻き込まない
  * （`marker-apply-service.ts`のADD分岐参照）。
+ *
+ * `linkedEffects`（Issue #673レビュー対応）: 「Markerのスタック1個につき固定量の
+ * `APPLY_STAT_MOD`を1個重複付与する」設計（`UNIT_HIIRO_FREEWOLF`の「闘志」）で、
+ * このMarkerが逓減で1スタック失うたびに、宣言した各`EffectActionDefinitionId`に
+ * ついても保持している中から1インスタンスだけを解除する（`REMOVE_EFFECTS`の
+ * `SPECIFIC_EFFECT`と同じ「複数インスタンスの先頭から`maxRemovals`件」規則を
+ * IDごとに独立して適用する）。除去側の`REMOVE_EFFECTS`/`decay.linkedEffects`は
+ * ここで名指ししたID自身だけでなく、同じ`kindKey`を共有する**他の**
+ * `EffectActionDefinition`（`effect-removal-service.ts`の`matchesCriteria`が
+ * kindKey単位で一致判定するため）も対象に含む。これにより、同じ「1スタック分の
+ * バフ」をユニット自身のスキル付与分・Memory付与分など複数の`EffectActionDefinition`
+ * （catalog-src生成が要求するディレクトリ内自己完結のため定義を分けざるを得ない
+ * 場合）へ分散付与していても、除去はどちらの由来かを問わず正しく1個ずつ数える
+ * （`14_Catalog定義スキーマ.md`「kindKey」）。`linkedEffectGroupId`（R-EFF-09）は
+ * Marker全体を親子として丸ごと連動させる仕組みで、スタック単位の部分連動を
+ * 表せないため、この専用フィールドを別に持つ。
  */
 export interface MarkerStackDecayDefinition {
   readonly unit: "ACTION";
   /** 1回あたりに減らすスタック数（1以上の整数）。 */
   readonly amount: number;
   readonly owner?: DurationOwner;
+  /** 省略時はスタック逓減に連動する`AppliedEffect`を持たない。 */
+  readonly linkedEffects?: readonly EffectActionDefinitionId[];
 }
 
 export interface ApplyMarkerPayload {

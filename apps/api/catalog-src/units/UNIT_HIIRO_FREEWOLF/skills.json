@@ -1,0 +1,318 @@
+[
+  {
+    "skillDefinitionId": "SKL_HIIRO_FREEWOLF_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_EX_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_SET_COUNT",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+            "countOf": "DEFEATED",
+            "op": "GTE",
+            "value": 1
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_EX_AOE_DAMAGE" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "・・・・・私のこと、気になる？", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_HIIRO_FREEWOLF_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW_ALLIES",
+          "optional": true,
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ALLY",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false }
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW_WITH_SELF",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ALLY",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_WITH_SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_MARKER" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DEBUFF_IMMUNITY" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_DMG_REDUCE" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "ブレイブバレット", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_HIIRO_FREEWOLF_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ENEMY_FRONT",
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": "ALL",
+            "filters": [{ "kind": "POSITION_ROW", "row": "FRONT" }]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+            "countCondition": { "op": "GTE", "value": 4 }
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS2_BONUS_DAMAGE" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY_FRONT" },
+              "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS2_FRONT_DAMAGE" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "オーバーバースト", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_HIIRO_FREEWOLF_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_HEAL" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_ATK_UP" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_CRIT_DMG_UP" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_COUNTER_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "エマージェンシーエイド", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "DAMAGE_MAX_HP_RATIO",
+              "field": "hitPointDamage",
+              "op": "GTE",
+              "value": 0.15
+            },
+            {
+              "kind": "TARGET_HAS_MARKER",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_HIIRO_FREEWOLF_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_CURRENT_HP",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_CURRENT_HP"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_CURRENT_HP" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_MARKER_BRAND" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_SHIELD" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "priorityAttack": true },
+    "metadata": { "displayName": "ファーストブランド", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_HIIRO_FREEWOLF_PS2_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_HIIRO_FREEWOLF_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_HIIRO_FREEWOLF_PS2"
+          }
+        },
+        "amount": 1
+      },
+      {
+        "kind": "RESET",
+        "counter": "SKL_HIIRO_FREEWOLF_PS2_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "UnitDefeated",
+          "category": "FACT",
+          "sourceSelector": "ANY",
+          "targetSelector": "ENEMY",
+          "condition": {
+            "kind": "AND",
+            "conditions": [
+              {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "TRIGGER_TARGET" },
+                "markerId": "MARKER_HIIRO_FREEWOLF_BRAND"
+              },
+              {
+                "kind": "SELF_MEMORY_EQUIPPED",
+                "memoryDefinitionId": "MEM_FATHERS_AND_MY_WISH"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]

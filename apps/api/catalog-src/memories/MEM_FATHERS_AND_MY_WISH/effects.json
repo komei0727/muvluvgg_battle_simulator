@@ -1,0 +1,70 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_HIIRO_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+      "stack": { "policy": "ADD", "max": 8 },
+      "decay": {
+        "unit": "ACTION",
+        "amount": 1,
+        "linkedEffects": [
+          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP"
+        ]
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ALLY_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
+      "stack": { "policy": "ADD", "max": 8 },
+      "decay": {
+        "unit": "ACTION",
+        "amount": 1,
+        "linkedEffects": [
+          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP"
+        ]
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+    "kindKey": "KIND_HIIRO_FREEWOLF_FIGHTING_SPIRIT_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.04 },
+      "stacking": { "mode": "STACKABLE", "max": 8 },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP",
+    "kindKey": "KIND_HIIRO_FREEWOLF_FIGHTING_SPIRIT_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 0.03 },
+      "stacking": { "mode": "STACKABLE", "max": 8 },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  }
+]
