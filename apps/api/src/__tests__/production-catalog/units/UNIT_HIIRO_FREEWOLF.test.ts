@@ -5,9 +5,13 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
+  BOARD_COMBAT_STATS,
   PRODUCTION_CATALOG_DIR,
+  SUBJECT_ID,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type BoardUnitSpec,
@@ -56,6 +60,18 @@ const ONE_FRONT_ROW_ALLY: BoardOverrides = {
 /** 前列の味方へ「気絶」（DEBUFF分類）を1つ持たせる前提アクション。 */
 const ALLY_STUNNED: readonly PrecedingAction[] = [
   { effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_EX_STUN", target: "ALLY" },
+];
+
+/**
+ * AS1が自身へ実際に付与する「闘志」1スタック＋バフ1組（ATK+4%・会心ダメージ+3%）を
+ * そのまま前提アクションとして撃つ。連続使用時の累積が過剰計上（レビュー対応前は
+ * `MARKER_COUNT_SCALE`のスナップショットが毎回加算され、N回使用でN(N+1)/2倍相当に
+ * 膨らんでいた）にならず、常に「使用回数×4%/3%」に一致することをこの単位で固定する。
+ */
+const ONE_AS1_SELF_GRANT: readonly PrecedingAction[] = [
+  { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_MARKER", target: "SELF" },
+  { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", target: "SELF" },
+  { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP", target: "SELF" },
 ];
 
 /** AS2の「闘志4つ以上」分岐を成立させる盤面。 */
@@ -496,5 +512,52 @@ describe("production Catalog UNIT_HIIRO_FREEWOLF (【疾走する自由の狐狼
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-HIIRO-FREEWOLF-004 (レビュー対応): repeated AS1 self-grants scale the ATK/CRITICAL_DAMAGE_BONUS total linearly with the current Fighting Spirit stack count, capping at 8 stacks instead of compounding past use count", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+
+    // 2回分の自己付与: 闘志2個 → ATK+8%・会心ダメージ+6%（4%/3%の固定バフが2個分
+    // 積み上がるだけで、旧`MARKER_COUNT_SCALE`実装のような+12%/+9%への過剰計上はない）。
+    const afterTwo = applyPrecedingActions(board, [...ONE_AS1_SELF_GRANT, ...ONE_AS1_SELF_GRANT]);
+    const subjectAfterTwo = afterTwo.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
+    expect(
+      subjectAfterTwo.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)
+        ?.stackCount,
+    ).toBe(2);
+    expect(subjectAfterTwo.combatStats.attack).toBe(BOARD_COMBAT_STATS.attack * 1.08);
+    expect(subjectAfterTwo.combatStats.criticalDamageBonus).toBeCloseTo(
+      BOARD_COMBAT_STATS.criticalDamageBonus + 2 * 0.03,
+      10,
+    );
+
+    // 8回分（闘志の上限）: ATK+32%・会心ダメージ+24%で頭打ちになる。
+    const eightGrants = Array.from({ length: 8 }, () => ONE_AS1_SELF_GRANT).flat();
+    const afterEight = applyPrecedingActions(board, eightGrants);
+    const subjectAfterEight = afterEight.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
+    expect(
+      subjectAfterEight.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)
+        ?.stackCount,
+    ).toBe(8);
+    expect(subjectAfterEight.combatStats.attack).toBe(BOARD_COMBAT_STATS.attack * 1.32);
+    expect(subjectAfterEight.combatStats.criticalDamageBonus).toBeCloseTo(
+      BOARD_COMBAT_STATS.criticalDamageBonus + 8 * 0.03,
+      10,
+    );
+
+    // 9回目以降は闘志・バフの双方が8で頭打ちのまま変化しない（マーカーの
+    // `stack.max`とバフの`stacking.max`が同じ上限を共有しているため同期する）。
+    const nineGrants = Array.from({ length: 9 }, () => ONE_AS1_SELF_GRANT).flat();
+    const afterNine = applyPrecedingActions(board, nineGrants);
+    const subjectAfterNine = afterNine.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
+    expect(
+      subjectAfterNine.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)
+        ?.stackCount,
+    ).toBe(8);
+    expect(subjectAfterNine.combatStats.attack).toBe(subjectAfterEight.combatStats.attack);
+    expect(subjectAfterNine.combatStats.criticalDamageBonus).toBeCloseTo(
+      subjectAfterEight.combatStats.criticalDamageBonus,
+      10,
+    );
   });
 });

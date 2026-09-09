@@ -123,7 +123,7 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
     ).toEqual([]);
   });
 
-  it("IT-MEM-FATHERS-AND-MY-WISH-005 [R-EFF-10 MARKER_STACK_DECAY_OVER_TIME]: both grants decay by exactly 1 stack per action taken by their holder", () => {
+  it("IT-MEM-FATHERS-AND-MY-WISH-005 [R-EFF-10 MARKER_STACK_DECAY_OVER_TIME]: both grants decay by exactly 1 stack per action taken by their holder, and decay.linkedEffects removes exactly one instance of each buff (ATK/CRITICAL_DAMAGE_BONUS) per decayed stack (レビュー対応: マーカーだけでなくバフ組の実効値も結合検証する)", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", HIIRO_ON_BOARD);
     const units = [...observed.started.allyUnits, ...observed.started.enemyUnits];
 
@@ -136,9 +136,20 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
         { kind: "ACTION_END", actor: "ally:FRONT_CENTER" },
       ],
       watchMarkers: ["ally:FRONT_LEFT", "ally:FRONT_CENTER"],
+      watch: [
+        { unitId: "ally:FRONT_LEFT", stat: "attack" },
+        { unitId: "ally:FRONT_LEFT", stat: "criticalDamageBonus" },
+        { unitId: "ally:FRONT_CENTER", stat: "attack" },
+        { unitId: "ally:FRONT_CENTER", stat: "criticalDamageBonus" },
+      ],
       battleId: "B_FATHERS_AND_MY_WISH_DECAY",
     });
 
+    // 開始直後: ヒイロ(闘志4)はATK 1000×1.16=1160・会心ダメージ0.5+4×0.03=0.62、
+    // 他の味方(闘志2)はATK 1000×1.08=1080・会心ダメージ0.5+2×0.03=0.56
+    // （`IT-MEM-FATHERS-AND-MY-WISH-001`で確認済みのスタック数と対応）。
+    // 各行動終了で闘志が1つ減るたび、`decay.linkedEffects`がATK・会心ダメージの
+    // バフインスタンスも1個ずつ解除し、CombatStatが連動して下がる。
     expect(decay.steps).toEqual([
       {
         step: "ACTION_END(ally:FRONT_LEFT)",
@@ -147,6 +158,11 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
           "ally:FRONT_LEFT/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 3,
           "ally:FRONT_CENTER/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
         },
+        // 闘志4→3: ATK 1160→1120、会心ダメージ0.62→0.59。
+        stats: {
+          "ally:FRONT_LEFT/attack": 1120,
+          "ally:FRONT_LEFT/criticalDamageBonus": 0.59,
+        },
       },
       {
         step: "ACTION_END(ally:FRONT_LEFT)",
@@ -155,6 +171,11 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
           "ally:FRONT_LEFT/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
           "ally:FRONT_CENTER/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
         },
+        // 闘志3→2: ATK 1120→1080、会心ダメージ0.59→0.56。
+        stats: {
+          "ally:FRONT_LEFT/attack": 1080,
+          "ally:FRONT_LEFT/criticalDamageBonus": 0.56,
+        },
       },
       {
         step: "ACTION_END(ally:FRONT_CENTER)",
@@ -162,6 +183,12 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
         markers: {
           "ally:FRONT_LEFT/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
           "ally:FRONT_CENTER/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 1,
+        },
+        // 闘志2→1: ATK 1080→1040、会心ダメージ0.56→0.53。ヒイロ側は今回の
+        // 行動者ではないため変化なし（stats差分に現れない）。
+        stats: {
+          "ally:FRONT_CENTER/attack": 1040,
+          "ally:FRONT_CENTER/criticalDamageBonus": 0.53,
         },
       },
     ]);
