@@ -665,6 +665,13 @@ export class PassiveActivationRuntime {
         parentEventId: causingEvent.eventId,
         rootEventId: this.context.rootEventId,
         sourceUnitId: change.ownerUnitId,
+        // Q-CAT-EFF-21: 原因イベント（`CUMULATIVE_DAMAGE_THRESHOLD`なら
+        // 被弾したOTHER_ALLY等）が実際の対象を持つ場合はそのまま引き継ぐ。
+        // これにより`TRIGGER_TARGET`がこのcounter更新自身を契機とするPSの
+        // 解決stepからも解決可能になる（`payload`はownerUnitIdのみのまま据え置く）。
+        ...(causingEvent.targetUnitIds !== undefined
+          ? { targetUnitIds: causingEvent.targetUnitIds }
+          : {}),
         payload: {
           ownerUnitId: change.ownerUnitId,
           scope: "SKILL_RUNTIME",

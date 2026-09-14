@@ -14,11 +14,25 @@ const REFERENCE_ALLOWED_KEYS = ["kind", "targetBindingId"] as const;
  */
 export type TargetBindingScope = ReadonlySet<string>;
 
+/**
+ * `TRIGGER_TARGET_SINGLE`（Issue #661、Q-CAT-EFF-24）: `TRIGGER_TARGET`と同じ
+ * `triggerContext.triggerTargetUnitIds`を参照するが、実行時にちょうど1件で
+ * あることを要求する（0件・2件以上は`DomainValidationError`）。BRANCHの
+ * `condition`／`activationCondition`のような対象ごとの評価コンテキストを
+ * 持たない位置は、量化規則を発明しないため`TARGET_STATE`等の`target`に
+ * 高々1体しか解決されないTargetReferenceしか許可しない
+ * （`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`、Issue #230）。`TRIGGER_TARGET`
+ * 自体は複数体になりうる契機（AS/EXの範囲攻撃等）があるため一律には許可できないが、
+ * 呼び出し側がCatalog定義そのもの（`counterUpdates`の`trigger.eventType`が
+ * 単一対象しか持たない`DamageApplied`等）から「常に1件」であることを保証できる
+ * 場合に限り、この種別を使って`targetReferenceIsSingleUnit`を満たす。
+ */
 const TARGET_REFERENCE_KINDS = [
   "BINDING",
   "SELF",
   "TRIGGER_SOURCE",
   "TRIGGER_TARGET",
+  "TRIGGER_TARGET_SINGLE",
   "LAST_ACTION_TARGETS",
   "LAST_DAMAGED_TARGETS",
 ] as const;

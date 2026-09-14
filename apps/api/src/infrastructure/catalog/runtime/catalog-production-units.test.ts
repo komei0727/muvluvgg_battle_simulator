@@ -585,7 +585,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // #673）。#674で追加した`LOWEST_CURRENT_HP`/`UNIT_DEFINITION`フィルタ/
     // `APPLY_MARKER.decay`/`SELF_MEMORY_EQUIPPED`を初めて production Catalog で
     // 使用する。
-    expect(catalog.catalogRevision).toBe("2026-09-08.1");
+    // `2026-09-14.1` は新ユニット `UNIT_NANAE_SOVEREIGN`（【穹を統べる虹色の号令】
+    // 鳴滝七彩、既存`CHAR_NANAE_NARUTAKI`の2バリアント目）の新規投入（Issue
+    // #661）。PS3「リベンジスタンス」が新しいTargetReference kind
+    // `TRIGGER_TARGET_SINGLE`（Issue #661/Q-CAT-EFF-24）を初めて production Catalog
+    // で使用する — `CUMULATIVE_DAMAGE_THRESHOLD`が発行する`RuntimeCounterChanged`
+    // から、その閾値を跨がせた被弾ユニット1体を直接読む。
+    expect(catalog.catalogRevision).toBe("2026-09-14.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

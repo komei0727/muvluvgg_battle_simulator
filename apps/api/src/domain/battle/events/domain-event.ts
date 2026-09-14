@@ -1119,7 +1119,11 @@ export interface BattleDomainEventPayloadMap {
    * （`before !== after`、閾値を実際に跨いだかどうか）をCatalog側の閾値到達PS
    * 向けの絞り込み条件として持つ。`skillDefinitionId`/`effectInstanceId`は
    * `scope`に応じて排他的に存在する — `SKILL_RUNTIME`は`skillDefinitionId`のみ、
-   * `APPLIED_EFFECT`は`effectInstanceId`のみを持つ。
+   * `APPLIED_EFFECT`は`effectInstanceId`のみを持つ。`payload`自体は被弾ユニット
+   * を持たない（Q-CAT-EFF-21）が、`SKILL_RUNTIME`スコープ（Issue #661）は
+   * エンベロープの`targetUnitIds`に原因イベント（`DamageApplied`等）の
+   * `targetUnitIds`をそのまま引き継ぐため、`TRIGGER_TARGET`はこのイベントを
+   * 契機とするPSの解決stepからも解決できる。
    */
   readonly RuntimeCounterChanged: {
     readonly ownerUnitId: BattleUnitId;
