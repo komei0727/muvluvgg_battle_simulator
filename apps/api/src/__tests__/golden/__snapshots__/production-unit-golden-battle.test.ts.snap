@@ -2527,6 +2527,51 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NANAE_COMMANDER compl
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NANAE_SOVEREIGN completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 3,
+  "completionReason": "ENEMY_DEFEATED",
+  "eventCount": 512,
+  "eventSequenceHash": "sha256:6ea9bffcf1ca2e73",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 23,
+    "ACTION_COMPLETING": 23,
+    "ACTION_QUEUE_CREATED": 12,
+    "ACTION_RESERVATION_REMOVED": 1,
+    "ACTION_STARTED": 23,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "CRITICAL_CHECK_RESOLVED": 9,
+    "DAMAGE_APPLIED": 9,
+    "DAMAGE_CALCULATED": 9,
+    "DAMAGE_WILL_BE_APPLIED": 9,
+    "EFFECT_ACTION_COMPLETED": 29,
+    "EFFECT_ACTION_STARTING": 29,
+    "EFFECT_APPLIED": 16,
+    "EFFECT_DURATION_REDUCED": 12,
+    "EFFECT_EXPIRED": 12,
+    "EFFECT_STEP_COMPLETED": 48,
+    "EFFECT_STEP_STARTING": 48,
+    "HIT_CONFIRMED": 9,
+    "HIT_POINT_REDUCED": 9,
+    "MARKER_APPLIED": 2,
+    "RESOURCES_RECOVERED": 3,
+    "RESOURCE_CHANGED": 52,
+    "SKILL_USE_COMPLETED": 23,
+    "SKILL_USE_STARTED": 23,
+    "SKILL_USE_STARTING": 23,
+    "TARGETS_SELECTED": 23,
+    "TURN_COMPLETED": 2,
+    "TURN_COMPLETING": 2,
+    "TURN_STARTED": 3,
+    "UNIT_BEING_ATTACKED": 23,
+    "UNIT_DEFEATED": 1,
+  },
+  "outcome": "ALLY_WIN",
+  "unitDefinitionId": "UNIT_NANAE_SOVEREIGN",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NOEL_RUMBLE completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,

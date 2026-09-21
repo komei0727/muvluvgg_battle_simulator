@@ -198,6 +198,35 @@ export function resolveReference(
     });
     return { units, includeDefeated: false };
   }
+  if (reference.kind === "TRIGGER_TARGET_SINGLE") {
+    // Issue #661/Q-CAT-EFF-24: `TRIGGER_TARGET`と同じ`triggerTargetUnitIds`を
+    // 読むが、Catalog側（BRANCHの`condition`等）が「高々1体」の保証を得るため
+    // ちょうど1件であることをここで検証する。呼び出し側（`counterUpdates`の
+    // `trigger.eventType`が単一対象しか持たない`DamageApplied`等から
+    // `RuntimeCounterChanged`を発行するskillの`triggers`）だけがこの種別を
+    // 安全に使える — 複数体になりうる契機で使うとここで必ず例外になる。
+    if (triggerContext?.triggerTargetUnitIds === undefined) {
+      throw new DomainValidationError(
+        "target.kind",
+        'kind "TRIGGER_TARGET_SINGLE" requires a triggerContext.triggerTargetUnitIds (only available when a trigger event caused this resolution, RES-005/CAP_TRIGGER_CONTEXT)',
+      );
+    }
+    if (triggerContext.triggerTargetUnitIds.length !== 1) {
+      throw new DomainValidationError(
+        "target.kind",
+        `kind "TRIGGER_TARGET_SINGLE" requires exactly one triggerTargetUnitIds entry, got ${triggerContext.triggerTargetUnitIds.length} (Catalog-authoring error: this reference must only be used where the causing event structurally carries a single target)`,
+      );
+    }
+    const [id] = triggerContext.triggerTargetUnitIds;
+    const unit = findUnitById(allUnits, id!);
+    if (unit === undefined) {
+      throw new DomainValidationError(
+        "target.kind",
+        `kind "TRIGGER_TARGET_SINGLE" referenced battleUnitId "${id}" that is not present in allUnits`,
+      );
+    }
+    return { units: [unit], includeDefeated: false };
+  }
   if (reference.kind === "BINDING") {
     const resolved = resolvedBindings.get(reference.targetBindingId as TargetBindingId);
     if (resolved === undefined) {
@@ -232,10 +261,10 @@ export function resolveReference(
     return { units, includeDefeated: false };
   }
   // R-TGT-09/CAP_TRIGGER_CONTEXT: every `TargetReferenceKind` is now handled
-  // above (SELF/TRIGGER_SOURCE/TRIGGER_TARGET/BINDING/LAST_ACTION_TARGETS/
-  // LAST_DAMAGED_TARGETS); the `never` assignment below makes the compiler
-  // itself reject a silently-unhandled kind if `TargetReferenceKind` ever
-  // grows a new member.
+  // above (SELF/TRIGGER_SOURCE/TRIGGER_TARGET/TRIGGER_TARGET_SINGLE/BINDING/
+  // LAST_ACTION_TARGETS/LAST_DAMAGED_TARGETS); the `never` assignment below
+  // makes the compiler itself reject a silently-unhandled kind if
+  // `TargetReferenceKind` ever grows a new member.
   const exhaustive: never = reference.kind;
   throw new DomainValidationError("target.kind", `unreachable kind "${String(exhaustive)}"`);
 }

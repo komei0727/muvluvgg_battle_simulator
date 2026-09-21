@@ -33,9 +33,12 @@ export function buildBindingSelectors(
 /**
  * `SELF`/`TRIGGER_SOURCE`は常に1体、`BINDING`は宣言元の`selector`が高々1体しか
  * 解決しないことを`selectorGuaranteesAtMostOneUnit`で保証する場合だけ許可する。
+ * `TRIGGER_TARGET_SINGLE`（Issue #661、Q-CAT-EFF-24）も1体扱いとする —
+ * `resolveReference`が実行時にちょうど1件であることを検証するため、静的には
+ * `SELF`/`TRIGGER_SOURCE`と同じ「高々1体」の保証を与えられる。素の
  * `TRIGGER_TARGET`（`triggerTargetUnitIds`は複数ありうる）と
  * `LAST_ACTION_TARGETS`/`LAST_DAMAGED_TARGETS`（AOEの直前結果を含みうる）は
- * 保証できない。
+ * 引き続き保証できない。
  */
 export function targetReferenceIsSingleUnit(
   reference: TargetReference,
@@ -44,6 +47,7 @@ export function targetReferenceIsSingleUnit(
   switch (reference.kind) {
     case "SELF":
     case "TRIGGER_SOURCE":
+    case "TRIGGER_TARGET_SINGLE":
       return true;
     case "TRIGGER_TARGET":
     case "LAST_ACTION_TARGETS":

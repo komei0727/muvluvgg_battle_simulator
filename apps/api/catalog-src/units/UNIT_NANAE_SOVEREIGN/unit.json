@@ -1,0 +1,37 @@
+{
+  "unitDefinitionId": "UNIT_NANAE_SOVEREIGN",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "TANK",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 32613,
+    "attack": 21058,
+    "defense": 12088,
+    "criticalRate": 0.15,
+    "actionSpeed": 681,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 277,
+    "attack": 171,
+    "defense": 100,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_NANAE_SOVEREIGN_AS1"],
+  "passiveSkillDefinitionIds": [
+    "SKL_NANAE_SOVEREIGN_PS1",
+    "SKL_NANAE_SOVEREIGN_PS2",
+    "SKL_NANAE_SOVEREIGN_PS3"
+  ],
+  "extraSkillDefinitionId": "SKL_NANAE_SOVEREIGN_EX",
+  "metadata": {
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
+    "tags": [],
+    "displayName": "【穹を統べる虹色の号令】鳴滝七彩",
+    "characterName": "鳴滝七彩",
+    "characterId": "CHAR_NANAE_NARUTAKI"
+  }
+}

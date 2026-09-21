@@ -2481,6 +2481,160 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
+  it("UT-R-EFF-11-029 (Q-CAT-EFF-21 resolved): a CUMULATIVE_DAMAGE_THRESHOLD crossing caused by DamageApplied against OTHER_ALLY carries that ally's battleUnitId as the RuntimeCounterChanged event's targetUnitIds, so a PS triggered by it can resolve TARGET_STATE{TRIGGER_TARGET_SINGLE} to read the specific damaged ally's UNIT_TYPE", () => {
+    const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_REVENGE_OWNER");
+    const allyUnitDefinitionId = createUnitDefinitionId("UNIT_PS_REVENGE_ALLY");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_PS_REVENGE_ENEMY");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_REVENGE");
+    const critUpAction: EffectActionDefinition = {
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_PS_REVENGE_CRIT_UP"),
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "CRITICAL_RATE",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 0.025 },
+        stacking: { mode: "STACKABLE", max: null },
+        duration: { dispellable: true, linkedEffectGroupId: null },
+      },
+      metadata: { tags: [] },
+    };
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_REVENGE"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "AND",
+            conditions: [
+              { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+              { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+            ],
+          },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "DamageApplied",
+            category: "FACT",
+            sourceSelector: "ENEMY",
+            targetSelector: "OTHER_ALLY",
+            condition: { kind: "TRUE" },
+          },
+          maxHpRatio: 0.2,
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "TARGET_STATE",
+              target: { kind: "TRIGGER_TARGET_SINGLE" },
+              field: "UNIT_TYPE",
+              op: "EQ",
+              value: "AGILE",
+            },
+            thenSteps: [
+              {
+                kind: "ACTION",
+                stepCondition: { kind: "TRUE" },
+                targetCondition: { kind: "TRUE" },
+                target: { kind: "SELF" },
+                actions: [{ effectActionDefinitionId: critUpAction.effectActionDefinitionId }],
+              },
+            ],
+            elseSteps: [],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "SKL_PS_REVENGE", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId: ownerUnitDefinitionId,
+      maximumHp: 100,
+      currentPp: 3,
+    });
+    const ally = unit("ALLY", "ALLY", { unitDefinitionId: allyUnitDefinitionId, maximumHp: 100 });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [ownerUnitDefinitionId, unitDefinitionOf(ownerUnitDefinitionId, [skill.skillDefinitionId])],
+        [
+          allyUnitDefinitionId,
+          { ...unitDefinitionOf(allyUnitDefinitionId, []), unitType: "AGILE" },
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+      new Map([[critUpAction.effectActionDefinitionId, critUpAction]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner, ally, enemy],
+    );
+
+    const damageApplied = recorder.record({
+      eventType: "DamageApplied",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: turnStarted.resolutionScopeId,
+      parentEventId: turnStarted.eventId,
+      rootEventId: turnStarted.eventId,
+      sourceUnitId: enemy.battleUnitId,
+      targetUnitIds: [ally.battleUnitId],
+      payload: {
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_PS_REVENGE_HIT"),
+        hitIndex: 1,
+        targetUnitId: ally.battleUnitId,
+        calculatedDamage: 30,
+        hpDirectDamage: 0,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        discardedDamage: 0,
+        hitPointDamage: 30,
+        hpBefore: ally.currentHp,
+        hpAfter: ally.currentHp - 30,
+        defeated: false,
+      },
+    });
+    runtime.onFactEvent(damageApplied, [owner, ally, enemy]);
+
+    const events = recorder.getEvents();
+    const runtimeCounterChanged = events.find((e) => e.eventType === "RuntimeCounterChanged")!;
+    expect(runtimeCounterChanged.targetUnitIds).toEqual([ally.battleUnitId]);
+
+    const updatedOwner = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(
+      updatedOwner.appliedEffects.some(
+        (e) => e.effectActionDefinitionId === critUpAction.effectActionDefinitionId,
+      ),
+    ).toBe(true);
+  });
+
   it("review fix: PassiveResolved now reaches PS candidate detection, so another PS reacting to 'an ally's PS resolved' activates in the same resolution scope", () => {
     const unitDefinitionId = createUnitDefinitionId("UNIT_PS_RESOLVED_REACT_OWNER");
     const skillA = passiveSkillOf("SKL_PS_RESOLVED_A", { ppCost: 1 });

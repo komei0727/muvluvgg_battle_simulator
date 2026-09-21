@@ -113,6 +113,7 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_SHOUKA_SCHEMER",
         // Issue #58 Batch E（支援/制御/イベント色の強いUnit8件）
         "UNIT_NANAE_COMMANDER",
+        "UNIT_NANAE_SOVEREIGN",
         "UNIT_SENKA_CHRISTMAS",
         "UNIT_SENKA_SCHEMER",
         "UNIT_KOKORO_SPORTSDAY",

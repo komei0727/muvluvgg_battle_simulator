@@ -12843,6 +12843,308 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_NANAE_SOVEREIGN_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 6 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_NANAE_SOVEREIGN_KOUSEI"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_ATK_UP" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_DAMAGE" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_REMOVE_KOUSEI" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_CLEANSE" }]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_KOUSEI_MARKER" },
+                { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_KOUSEI_IMMUNITY" },
+                { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_EX_KOUSEI_DMG_REDUCE" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "新しき一歩を", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_NANAE_SOVEREIGN_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_2_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 2, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW_WITH_SELF",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ALLY",
+            "base": { "kind": "SELF" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "SELF" },
+            "markerId": "MARKER_NANAE_SOVEREIGN_KOUSEI"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_2_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_AS1_DAMAGE" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_WITH_SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_AS1_SHIELD" }]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "パーフェクトオーダー", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_NANAE_SOVEREIGN_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "SELF" },
+      "field": "HP_RATIO",
+      "op": "GTE",
+      "value": 0.5
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS1_REDIRECT" },
+            { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS1_COVER" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "ランパートシャッター", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "OTHER_ALLY",
+        "condition": { "kind": "TRUE" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_NANAE_SOVEREIGN_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "SELF" },
+          "field": "HP_RATIO",
+          "op": "GTE",
+          "value": 0.5
+        },
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "SELF" },
+          "field": "RESOURCE_EX_GAUGE",
+          "op": "GTE",
+          "value": 1
+        }
+      ]
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS2_EX_DOWN" },
+            { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS2_HEAL" },
+            { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS2_PP_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "セントリフレイン", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "PassiveResolved",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_NANAE_SOVEREIGN_PS3",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "SELF" },
+      "field": "HP_RATIO",
+      "op": "LT",
+      "value": 0.5
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "TRIGGER_TARGET_SINGLE" },
+            "field": "UNIT_TYPE",
+            "op": "EQ",
+            "value": "PHYSICAL"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS3_PHYSICAL_DMG_DOWN" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "TRIGGER_TARGET_SINGLE" },
+                "field": "UNIT_TYPE",
+                "op": "EQ",
+                "value": "AGILE"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS3_AGILE_CRIT_UP" }
+                  ]
+                }
+              ],
+              "elseSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "SELF" },
+                  "actions": [{ "effectActionDefinitionId": "ACT_NANAE_SOVEREIGN_PS3_EN_HEAL" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "リベンジスタンス", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "RuntimeCounterChanged",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "ANY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            {
+              "kind": "EVENT_PAYLOAD",
+              "field": "counter",
+              "op": "EQ",
+              "value": "SKL_NANAE_SOVEREIGN_PS3_REVENGE_COUNT"
+            },
+            { "kind": "EVENT_PAYLOAD", "field": "valueChanged", "op": "EQ", "value": true }
+          ]
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "CUMULATIVE_DAMAGE_THRESHOLD",
+        "counter": "SKL_NANAE_SOVEREIGN_PS3_REVENGE_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "DamageApplied",
+          "category": "FACT",
+          "sourceSelector": "ENEMY",
+          "targetSelector": "OTHER_ALLY",
+          "condition": { "kind": "TRUE" }
+        },
+        "maxHpRatio": 0.2
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_NOEL_RUMBLE_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 8 },
