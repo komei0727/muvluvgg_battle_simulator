@@ -2481,7 +2481,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
     });
   });
 
-  it("UT-R-EFF-11-029 (Q-CAT-EFF-21 resolved): a CUMULATIVE_DAMAGE_THRESHOLD crossing caused by DamageApplied against OTHER_ALLY carries that ally's battleUnitId as the RuntimeCounterChanged event's targetUnitIds, so a PS triggered by it can resolve TARGET_STATE{TRIGGER_TARGET} to read the specific damaged ally's UNIT_TYPE", () => {
+  it("UT-R-EFF-11-029 (Q-CAT-EFF-21 resolved): a CUMULATIVE_DAMAGE_THRESHOLD crossing caused by DamageApplied against OTHER_ALLY carries that ally's battleUnitId as the RuntimeCounterChanged event's targetUnitIds, so a PS triggered by it can resolve TARGET_STATE{TRIGGER_TARGET_SINGLE} to read the specific damaged ally's UNIT_TYPE", () => {
     const ownerUnitDefinitionId = createUnitDefinitionId("UNIT_PS_REVENGE_OWNER");
     const allyUnitDefinitionId = createUnitDefinitionId("UNIT_PS_REVENGE_ALLY");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_PS_REVENGE_ENEMY");
@@ -2541,7 +2541,7 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
             kind: "BRANCH",
             condition: {
               kind: "TARGET_STATE",
-              target: { kind: "TRIGGER_TARGET" },
+              target: { kind: "TRIGGER_TARGET_SINGLE" },
               field: "UNIT_TYPE",
               op: "EQ",
               value: "AGILE",

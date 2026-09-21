@@ -1122,8 +1122,11 @@ export interface BattleDomainEventPayloadMap {
    * `APPLIED_EFFECT`は`effectInstanceId`のみを持つ。`payload`自体は被弾ユニット
    * を持たない（Q-CAT-EFF-21）が、`SKILL_RUNTIME`スコープ（Issue #661）は
    * エンベロープの`targetUnitIds`に原因イベント（`DamageApplied`等）の
-   * `targetUnitIds`をそのまま引き継ぐため、`TRIGGER_TARGET`はこのイベントを
-   * 契機とするPSの解決stepからも解決できる。
+   * `targetUnitIds`をそのまま引き継ぐ。ACTION stepの`target`のように複数体を
+   * 許容する位置では素の`TRIGGER_TARGET`で解決できるが、BRANCHの`condition`
+   * のように高々1体しか許さない位置（`BRANCH_TARGET_STATE_UNBOUNDED_REFERENCE`、
+   * Issue #230）では、ちょうど1件であることを実行時に検証する
+   * `TRIGGER_TARGET_SINGLE`（Q-CAT-EFF-24）を使う必要がある。
    */
   readonly RuntimeCounterChanged: {
     readonly ownerUnitId: BattleUnitId;

@@ -803,11 +803,15 @@ describe("resolveSkillOrder", () => {
       ]);
     });
 
-    it("UT-CAP-TRIGGER-CONTEXT-003: an ACTION step targeting TRIGGER_TARGET/TRIGGER_SOURCE throws without a matching triggerContext", () => {
+    it("UT-CAP-TRIGGER-CONTEXT-003: an ACTION step targeting TRIGGER_TARGET/TRIGGER_SOURCE/TRIGGER_TARGET_SINGLE throws without a matching triggerContext", () => {
       const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
       const attack = damageAction("ACT_ATTACK");
       const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
-      for (const targetKind of ["TRIGGER_TARGET", "TRIGGER_SOURCE"] as const) {
+      for (const targetKind of [
+        "TRIGGER_TARGET",
+        "TRIGGER_SOURCE",
+        "TRIGGER_TARGET_SINGLE",
+      ] as const) {
         const skill = skillOf({
           kind: "IMMEDIATE",
           targetBindings: [],
@@ -826,6 +830,74 @@ describe("resolveSkillOrder", () => {
           DomainValidationError,
         );
       }
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-010 (Issue #661/Q-CAT-EFF-24): an ACTION step targeting TRIGGER_TARGET_SINGLE resolves to the triggerContext's single target unit", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const triggerTarget = unit("TRIGGER_TARGET_UNIT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "TRIGGER_TARGET_SINGLE" },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      const plan = resolveSkillOrder(skill, actor, [actor, triggerTarget], effectActions, {
+        triggerTargetUnitIds: [triggerTarget.battleUnitId],
+      });
+
+      expect(flattenEffectSequencePlan(plan)).toEqual([
+        {
+          targetUnitId: triggerTarget.battleUnitId,
+          effectActionDefinitionId: attack.effectActionDefinitionId,
+          hitIndex: 1,
+        },
+      ]);
+    });
+
+    it("UT-CAP-TRIGGER-CONTEXT-011 (Issue #661/Q-CAT-EFF-24): an ACTION step targeting TRIGGER_TARGET_SINGLE throws when triggerTargetUnitIds does not have exactly one entry", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+      const first = unit("TRIGGER_TARGET_ONE", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const second = unit("TRIGGER_TARGET_TWO", "ENEMY", { column: "RIGHT", row: "FRONT" });
+      const attack = damageAction("ACT_ATTACK");
+      const effectActions = new Map([[attack.effectActionDefinitionId, attack]]);
+      const skill = skillOf({
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "TRIGGER_TARGET_SINGLE" },
+            actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          },
+        ],
+      });
+
+      // 0件（発行元イベントがtargetUnitIdsを持たない契機から`RuntimeCounterChanged`が
+      // 発行された場合など）。
+      expect(() =>
+        resolveSkillOrder(skill, actor, [actor, first, second], effectActions, {
+          triggerTargetUnitIds: [],
+        }),
+      ).toThrow(DomainValidationError);
+
+      // 2件以上（AS/EXの範囲攻撃のように複数対象になりうる契機を誤って使った場合）。
+      expect(() =>
+        resolveSkillOrder(skill, actor, [actor, first, second], effectActions, {
+          triggerTargetUnitIds: [first.battleUnitId, second.battleUnitId],
+        }),
+      ).toThrow(DomainValidationError);
     });
   });
 });
