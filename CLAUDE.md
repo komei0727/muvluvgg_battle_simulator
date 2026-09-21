@@ -44,7 +44,7 @@ pnpm install
 | `mise run ui:typecheck`              | apps/ui の TypeScript 型検査                                                                                                                                         |
 | `mise run ui:lint`                   | apps/ui の ESLint                                                                                                                                                    |
 | `mise run ui:check:circular`         | apps/ui の循環依存検査 (`madge --circular ...`、REF-056)                                                                                                             |
-| `mise run ui:assets:sync`            | `raw/images/{units,memories}/` の原本から `apps/ui/src/assets/{units,memories}/*.webp` を一括生成（gitignore対象・ローカル専用、CI非対象）                          |
+| `mise run ui:assets:sync`            | `raw/images/{units,memories}/` の原本から `apps/ui/src/assets/{units,memories}/*.webp` を一括生成（gitignore対象・ローカル専用、CI非対象）                           |
 | `mise run ui:test`                   | apps/ui の unit / component テスト (Vitest)                                                                                                                          |
 | `mise run ui:test:coverage`          | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                                                                                                                  |
 | `mise run ui:build`                  | apps/ui の production ビルド (Vite)                                                                                                                                  |
