@@ -1,12 +1,13 @@
-// Converts local unit/memory character art into optimized WebP thumbnails
-// keyed by definitionId, for DefinitionImage's imageMap (see
+// Converts unit/memory character art into optimized WebP thumbnails keyed by
+// definitionId, for DefinitionImage's imageMap (see
 // apps/ui/src/features/catalog-selection/definition-image-map.ts).
 //
-// Source images live outside the repo (personal Documents folder) and the
-// output directories are gitignored — this script is a local dev tool, not
-// part of the build or CI. Run it manually whenever character art changes:
+// Source images live in raw/images/{units,memories}/ (same gitignored,
+// local-only convention as raw/units/ and raw/memories/). The output
+// directories are gitignored too — this script is a local dev tool, not part
+// of the build or CI. Run it manually whenever character art changes:
 //
-//   mise exec -- pnpm --filter @muvluvgg/ui run assets:sync
+//   mise run ui:assets:sync
 //
 // Override source directories with UNIT_IMAGE_SRC_DIR / MEMORY_IMAGE_SRC_DIR
 // env vars if they differ from the defaults below.
@@ -22,9 +23,9 @@ const uiRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(uiRoot, "..", "..");
 
 const UNIT_IMAGE_SRC_DIR =
-  process.env["UNIT_IMAGE_SRC_DIR"] ?? "/Users/komei/Documents/ユニット画像";
+  process.env["UNIT_IMAGE_SRC_DIR"] ?? path.join(repoRoot, "raw/images/units");
 const MEMORY_IMAGE_SRC_DIR =
-  process.env["MEMORY_IMAGE_SRC_DIR"] ?? "/Users/komei/Documents/メモリー画像";
+  process.env["MEMORY_IMAGE_SRC_DIR"] ?? path.join(repoRoot, "raw/images/memories");
 
 const UNIT_OUT_DIR = path.join(uiRoot, "src/assets/units");
 const MEMORY_OUT_DIR = path.join(uiRoot, "src/assets/memories");
