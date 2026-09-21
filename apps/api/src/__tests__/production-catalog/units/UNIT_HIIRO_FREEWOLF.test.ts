@@ -25,7 +25,7 @@ import {
 } from "../../../domain/catalog/definitions/catalog-ids.js";
 
 /**
- * `UNIT_HIIRO_FREEWOLF`（【疾走する自由の狐狼】榊野ヒイロ）のユニット単位
+ * `UNIT_HIIRO_FREEWOLF`（【疾走する自由の孤狼】榊野ヒイロ）のユニット単位
  * production結合テスト（`12_テスト戦略.md`「ユニット効果軸」）。
  *
  * `CHAR_HIIRO_SAKAKINO`の2バリアント目（`UNIT_HIIRO_LONEWOLF`「緋色の一匹狼」と
@@ -465,7 +465,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
 ];
 
-describe("production Catalog UNIT_HIIRO_FREEWOLF (【疾走する自由の狐狼】榊野ヒイロ)", () => {
+describe("production Catalog UNIT_HIIRO_FREEWOLF (【疾走する自由の孤狼】榊野ヒイロ)", () => {
   it.each(BEHAVIOURS)(
     "IT-UNIT-HIIRO-FREEWOLF-001: $skillDefinitionId — $intent",
     ({ use, board, precedingActions, random, expected }) => {

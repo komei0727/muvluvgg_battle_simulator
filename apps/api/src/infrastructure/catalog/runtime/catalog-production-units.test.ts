@@ -579,7 +579,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 毎ターン開始時に発動する（ユーザー確認済み）。差分はLv200固定のステータス
     // （`category: EXERCISE_ENEMY`）、このサブユニット耐久HP縮小、PS2の回数制限
     // 撤廃の3点。エンジン拡張は伴わない。
-    // `2026-09-08.1` は新ユニット `UNIT_HIIRO_FREEWOLF`（【疾走する自由の狐狼】
+    // `2026-09-08.1` は新ユニット `UNIT_HIIRO_FREEWOLF`（【疾走する自由の孤狼】
     // 榊野ヒイロ、既存`CHAR_HIIRO_SAKAKINO`の2バリアント目）とメモリー
     // `MEM_FATHERS_AND_MY_WISH`（父さんの、そして私の願い）の新規投入（Issue
     // #673）。#674で追加した`LOWEST_CURRENT_HP`/`UNIT_DEFINITION`フィルタ/
@@ -591,7 +591,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `TRIGGER_TARGET_SINGLE`（Issue #661/Q-CAT-EFF-24）を初めて production Catalog
     // で使用する — `CUMULATIVE_DAMAGE_THRESHOLD`が発行する`RuntimeCounterChanged`
     // から、その閾値を跨がせた被弾ユニット1体を直接読む。
-    expect(catalog.catalogRevision).toBe("2026-09-14.1");
+    // `2026-09-21.1` は `UNIT_HIIRO_FREEWOLF` の displayName 誤字修正（【疾走する
+    // 自由の狐狼】→【疾走する自由の孤狼】。「孤狼（一匹狼）」が正しい表記）。
+    // データの typo 修正のみで、エンジン拡張・新規ユニット投入は伴わない。
+    expect(catalog.catalogRevision).toBe("2026-09-21.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -15,7 +15,7 @@ import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
  * `MEM_FATHERS_AND_MY_WISH`（父さんの、そして私の願い）のユニット単位production
  * 結合テスト（`12_テスト戦略.md`「ユニット効果軸」）。
  *
- * 効果1（`BattleStarted`）: 【疾走する自由の狐狼】榊野ヒイロ(`UNIT_HIIRO_FREEWOLF`)に
+ * 効果1（`BattleStarted`）: 【疾走する自由の孤狼】榊野ヒイロ(`UNIT_HIIRO_FREEWOLF`)に
  * 「闘志」を4つ、他の味方全体に2つ付与する。どちらも1行動ごとに1つずつ消滅する
  * （`APPLY_MARKER.decay`、Issue #674で追加した`MARKER_STACK_DECAY_OVER_TIME`の
  * production初使用）。ヒイロが編成されていない場合はどちらも発動しない。

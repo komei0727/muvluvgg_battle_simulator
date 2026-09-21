@@ -44,6 +44,7 @@ pnpm install
 | `mise run ui:typecheck`              | apps/ui の TypeScript 型検査                                                                                                                                         |
 | `mise run ui:lint`                   | apps/ui の ESLint                                                                                                                                                    |
 | `mise run ui:check:circular`         | apps/ui の循環依存検査 (`madge --circular ...`、REF-056)                                                                                                             |
+| `mise run ui:assets:sync`            | `raw/images/{units,memories}/` の原本から `apps/ui/src/assets/{units,memories}/*.webp` を一括生成（gitignore対象・ローカル専用、CI非対象）                          |
 | `mise run ui:test`                   | apps/ui の unit / component テスト (Vitest)                                                                                                                          |
 | `mise run ui:test:coverage`          | 同上 + カバレッジ計測・80% 下限検証（PR CI と同等）                                                                                                                  |
 | `mise run ui:build`                  | apps/ui の production ビルド (Vite)                                                                                                                                  |
@@ -106,7 +107,7 @@ pnpm workspaceで `apps/api`（backend）・`apps/ui`（frontend）を独立し�
 workspace以外の主なディレクトリ:
 
 - `deploy/` — GCP デプロイ定義（`artifact-registry/` `cloud-build/` `cloud-run/`）
-- `raw/` — wiki 由来のユニット・メモリー原文マークダウン（`units/` `memories/`。Catalog 生成の入力。gitignore 対象のローカル専用ディレクトリで、CI checkout には存在しない）
+- `raw/` — wiki 由来のユニット・メモリー原文マークダウン（`units/` `memories/`。Catalog 生成の入力）とキャラクター画像原本（`images/units/` `images/memories/`。`ui:assets:sync` の入力）。gitignore 対象のローカル専用ディレクトリで、CI checkout には存在しない
 - `docs/` — DDD 設計書（`docs/ddd/`）・UI 設計書ほか
 - `scripts/` — 品質ゲート正本 (`run-quality-gates.sh`)・CI 変更判定 (`ci/`)・コンテナ smoke test
 
