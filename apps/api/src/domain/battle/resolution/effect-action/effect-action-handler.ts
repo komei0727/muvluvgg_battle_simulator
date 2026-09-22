@@ -273,6 +273,7 @@ export function grantFormulaScope(input: EffectActionApplicationInput): FormulaE
     ...(context.sourceSide !== undefined ? { sourceSide: context.sourceSide } : {}),
     target: requireUnit(box.units, application.targetUnitId),
     allUnits: box.units,
+    ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
     ...(actor !== undefined
       ? {
           lastResults: damageResultsFor(

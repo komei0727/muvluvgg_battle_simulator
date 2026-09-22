@@ -143,6 +143,7 @@ export function* applyConfirmedDamageSteps(
                   skillSource: targetAfterAbsorption,
                   target: targetAfterAbsorption,
                   allUnits: Array.from(working.values()),
+                  ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
                 },
                 "deathSurvival.survivalHp",
               ),

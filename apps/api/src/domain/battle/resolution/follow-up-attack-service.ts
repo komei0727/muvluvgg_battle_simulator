@@ -75,6 +75,7 @@ function* grantFollowUpOnHitEffectSteps(
     skillSource: attacker,
     target,
     allUnits: units,
+    ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
     lastResults: damageResultsFor(context.damageResults, attackerUnitId, context.skillUseId),
   });
   const blockingImmunity = findBlockingImmunity(

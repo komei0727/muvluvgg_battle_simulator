@@ -15,6 +15,7 @@ import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit
 import { truncateFraction } from "../model/resource-gauge.js";
 import type { Side } from "../../shared/side.js";
 import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
+import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 
 /**
  * R-NUM-04のFormulaEvaluatorが数値を導出するために参照する実行時状態。
@@ -59,6 +60,17 @@ export interface FormulaEvaluationContext {
    * 付与者とは別のユニットになり得るため、両者を混同しないよう別fieldにする。
    */
   readonly subUnitProviderAttack?: number;
+  /**
+   * R-TEX-04（一般化）: 戦闘モードが`TACTICAL_EXERCISE`のときだけ呼び出し側が渡す、
+   * Battleが所有する演習状態。`STAT_RATIO`/`MAX_HP_RATIO`の`source`が`side: "ENEMY"`の
+   * ユニットを指すとき、ブレイク強化後の`combatStats`ではなく`
+   * originalEnemyBaseCombatStats`（戦闘開始時＝Break0の原基準値）を基準に評価する
+   * （`combat-stat-recalculation-service.ts`の`ratioEffectBaseValue`と同じ原則を
+   * Formula評価全体へ一般化したもの）。`CURRENT_HP_RATIO`・`MISSING_HP_RATIO`・
+   * `LOST_HP_RATIO`・`HP_RATIO_SCALE`・`SUBUNIT_ADDITIONAL_DAMAGE`は現在値の参照が
+   * 定義上明示されているため対象外。
+   */
+  readonly exercise?: ExerciseRuntime;
 }
 
 function resolveSourceUnit(
@@ -107,22 +119,36 @@ function resolveSourceUnit(
   }
 }
 
-function statValue(unit: BattleUnit, stat: StatRatioStat): number {
+/**
+ * R-TEX-04（一般化）: 対象が演習の敵ユニットなら、ブレイク強化後の`combatStats`では
+ * なく`exercise.originalEnemyBaseCombatStats`（Break0の原基準値）を基準にする。
+ * 味方ユニットや`exercise`未指定（NORMALモード）、未ブレイク（両者が等しい）では
+ * 結果は変わらない。
+ */
+function statValue(
+  unit: BattleUnit,
+  stat: StatRatioStat,
+  context: FormulaEvaluationContext,
+): number {
+  const stats =
+    unit.side === "ENEMY" && context.exercise !== undefined
+      ? context.exercise.originalEnemyBaseCombatStats
+      : unit.combatStats;
   switch (stat) {
     case "MAXIMUM_HP":
-      return unit.combatStats.maximumHp;
+      return stats.maximumHp;
     case "ATTACK":
-      return unit.combatStats.attack;
+      return stats.attack;
     case "DEFENSE":
-      return unit.combatStats.defense;
+      return stats.defense;
     case "CRITICAL_RATE":
-      return unit.combatStats.criticalRate;
+      return stats.criticalRate;
     case "CRITICAL_DAMAGE_BONUS":
-      return unit.combatStats.criticalDamageBonus;
+      return stats.criticalDamageBonus;
     case "AFFINITY_BONUS":
-      return unit.combatStats.affinityBonus;
+      return stats.affinityBonus;
     case "ACTION_SPEED":
-      return unit.combatStats.actionSpeed;
+      return stats.actionSpeed;
   }
 }
 
@@ -355,11 +381,11 @@ export function evaluateFormula(
     }
     case "STAT_RATIO": {
       const source = resolveSourceUnit(formula.source, context, `${path}.source`);
-      return statValue(source, formula.stat) * formula.ratio;
+      return statValue(source, formula.stat, context) * formula.ratio;
     }
     case "MAX_HP_RATIO": {
       const source = resolveSourceUnit(formula.source, context, `${path}.source`);
-      return source.combatStats.maximumHp * formula.ratio;
+      return statValue(source, "MAXIMUM_HP", context) * formula.ratio;
     }
     case "CURRENT_HP_RATIO": {
       const source = resolveSourceUnit(formula.source, context, `${path}.source`);

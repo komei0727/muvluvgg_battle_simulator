@@ -126,6 +126,7 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
     skillSource: owner,
     target,
     allUnits: units,
+    ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
     lastResults: damageResultsFor(context.damageResults, ownerUnitId, context.skillUseId),
   });
   const blockingImmunity = findBlockingImmunity(

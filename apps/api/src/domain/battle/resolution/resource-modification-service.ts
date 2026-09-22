@@ -203,6 +203,7 @@ export function* applyModifyResourceActionSteps(
               skillSource: actor,
               target,
               allUnits: Array.from(working.values()),
+              ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
               // G-10／RES-003A（Issue #257）: `context.skillUseId`がこの
               // `MODIFY_RESOURCE`が属するEffectSequence解決を識別し、
               // `SUM_DAMAGE_*`の集計スコープになる。

@@ -118,6 +118,7 @@ export function* applyOneAdditionalAttackHitSteps(
     skillSource: findUnit(working, spec.skillSourceUnitId, "skillSource.battleUnitId"),
     target,
     allUnits: Array.from(working.values()),
+    ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
     lastResults: damageResultsFor(context.damageResults, attackerUnitId, context.skillUseId),
   };
   const damageModifierMultipliers = composeDamageModifiers({

@@ -16,6 +16,7 @@ import {
   seedRecorder,
   singleActionStep,
 } from "../../../testing/fixtures/effect-sequence-plan.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
 
 describe("zero-amount shield sweep (DMG-004, Issue #194)", () => {
   function shieldAction(
@@ -304,5 +305,99 @@ describe("zero-amount shield sweep on interruption (DMG-004)", () => {
     expect(result.units.find((u) => u.battleUnitId === ally.battleUnitId)!.appliedEffects).toEqual(
       [],
     );
+  });
+});
+
+describe("APPLY_SHIELD/APPLY_SUBUNIT STAT_RATIO/MAX_HP_RATIO基準値 (R-TEX-04一般化)", () => {
+  it("UT-R-TEX-04-026: a break-enhanced exercise enemy granting a shield to itself via STAT_RATIO(SKILL_SOURCE, ATTACK) sizes it against the Break0 original attack, not the current one", () => {
+    // ブレイク強化後を模した現在攻撃力200。演習の原基準値は攻撃力100。
+    const actor = unit("ACTOR", "ENEMY", {
+      combatStats: { ...unit("ACTOR", "ENEMY").combatStats, attack: 200 },
+    });
+    const shield: EffectActionDefinition = {
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SHIELD_ATK_RATIO"),
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "STAT_RATIO", source: { kind: "SKILL_SOURCE" }, stat: "ATTACK", ratio: 1 },
+        duration: {
+          timeLimit: { unit: "TURN", count: 5 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[shield.effectActionDefinitionId, shield]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const exercise = new ExerciseRuntime({ ...actor.combatStats, attack: 100 });
+    const context = { ...contextFor(actor, effectActions, recorder, rootEventId), exercise };
+
+    const result = applyEffectActionGroups(
+      {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, shield.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      },
+      [actor],
+      context,
+    );
+
+    const target = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    // 原基準値の攻撃力100 × 1 = 100。現在攻撃力200基準の200ではない。
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]!.magnitude).toBe(100);
+  });
+
+  it("UT-R-TEX-04-027: a break-enhanced exercise enemy granting a sub-unit to itself via MAX_HP_RATIO sizes its durability against the Break0 original maximumHp, not the current one", () => {
+    // ブレイク強化後を模した現在最大HP2000。演習の原基準値は最大HP1000。
+    const actor = unit("ACTOR", "ENEMY", {
+      combatStats: { ...unit("ACTOR", "ENEMY").combatStats, maximumHp: 2000 },
+    });
+    const subUnit: EffectActionDefinition = {
+      kind: "APPLY_SUBUNIT",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SUBUNIT_MAXHP_RATIO"),
+      metadata: { tags: [] },
+      payload: {
+        durability: {
+          formula: { kind: "MAX_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: 0.025 },
+        },
+        additionalDamage: {
+          formula: {
+            kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+            ownerAttack: "CURRENT_ATTACK",
+            providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+            skillMultiplier: 0.25,
+            targetDefense: "TARGET_CURRENT_DEFENSE",
+          },
+        },
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const effectActions = new Map([[subUnit.effectActionDefinitionId, subUnit]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const exercise = new ExerciseRuntime({ ...actor.combatStats, maximumHp: 1000 });
+    const context = { ...contextFor(actor, effectActions, recorder, rootEventId), exercise };
+
+    const result = applyEffectActionGroups(
+      {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, subUnit.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      },
+      [actor],
+      context,
+    );
+
+    const target = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    // 原基準値の最大HP1000 × 0.025 = 25。現在最大HP2000基準の50ではない。
+    expect(target.appliedEffects).toHaveLength(1);
+    expect(target.appliedEffects[0]!.magnitude).toBe(25);
+    expect(target.appliedEffects[0]!.subUnit?.durability).toBe(25);
   });
 });

@@ -191,6 +191,7 @@ export function* applyReflectedDamageSteps(
         skillSource: reflectingUnit,
         target: destination,
         allUnits: Array.from(working.values()),
+        ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
         lastResults: {
           ...damageResultsFor(context.damageResults, reflectedByUnitId, context.skillUseId),
           // R-INT-03: 反射が参照する「受けたダメージ」はこの元ダメージそのものである。
