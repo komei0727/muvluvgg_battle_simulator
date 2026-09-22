@@ -12,6 +12,7 @@ import {
 } from "../../catalog/definitions/formula-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import { ExerciseRuntime } from "../model/exercise-runtime.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import { createMarkerInstanceId, createSkillUseId } from "../../shared/event-ids.js";
@@ -120,6 +121,102 @@ describe("evaluateFormula", () => {
       ratio: 0.3,
     };
     expect(evaluateFormula(formula, context())).toBeCloseTo(30);
+  });
+
+  it("UT-R-NUM-04-043 [R-TEX-04]: STAT_RATIO on a break-enhanced exercise enemy scales the Break0 original base, not the current combatStats", () => {
+    const exercise = new ExerciseRuntime({
+      maximumHp: 1000,
+      attack: 100,
+      defense: 80,
+      criticalRate: 0.1,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
+    });
+    // ブレイク強化後を模した現在値: 攻撃力100→150。
+    const brokenEnemy = unitAt("U_TARGET", "ENEMY", {
+      combatStats: { ...unitAt("U_TARGET", "ENEMY").combatStats, attack: 150 },
+    });
+    const formula: FormulaDefinition = {
+      kind: "STAT_RATIO",
+      source: { kind: "TARGET" },
+      stat: "ATTACK",
+      ratio: 0.5,
+    };
+    const ctx = context({ target: brokenEnemy, exercise });
+    // 原基準値(100) × 0.5 = 50。現在値(150)の50%である75ではない。
+    expect(evaluateFormula(formula, ctx)).toBe(50);
+  });
+
+  it("UT-R-NUM-04-044 [R-TEX-04]: MAX_HP_RATIO on a break-enhanced exercise enemy scales the Break0 original base, not the current combatStats", () => {
+    const exercise = new ExerciseRuntime({
+      maximumHp: 1000,
+      attack: 100,
+      defense: 80,
+      criticalRate: 0.1,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
+    });
+    // ブレイク強化後を模した現在値: 最大HP1000→1500。
+    const brokenEnemy = unitAt("U_TARGET", "ENEMY", {
+      combatStats: { ...unitAt("U_TARGET", "ENEMY").combatStats, maximumHp: 1500 },
+    });
+    const formula: FormulaDefinition = {
+      kind: "MAX_HP_RATIO",
+      source: { kind: "TARGET" },
+      ratio: 0.025,
+    };
+    const ctx = context({ target: brokenEnemy, exercise });
+    // 原基準値(1000) × 0.025 = 25。現在値(1500)基準の37.5ではない。
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(25);
+  });
+
+  it("UT-R-NUM-04-045: without an exercise context an exercise-shaped enemy falls back to the current combatStats (pre-existing NORMAL-mode formula)", () => {
+    const brokenEnemy = unitAt("U_TARGET", "ENEMY", {
+      combatStats: { ...unitAt("U_TARGET", "ENEMY").combatStats, maximumHp: 1500 },
+    });
+    const formula: FormulaDefinition = {
+      kind: "MAX_HP_RATIO",
+      source: { kind: "TARGET" },
+      ratio: 0.025,
+    };
+    // exercise未指定なら従来どおり: 1500 × 0.025 = 37.5。
+    expect(evaluateFormula(formula, context({ target: brokenEnemy }))).toBeCloseTo(37.5);
+  });
+
+  it("UT-R-NUM-04-046: an ALLY source ignores the exercise's original base even when exercise is passed (R-TEX-04 scales the enemy only)", () => {
+    const exercise = new ExerciseRuntime({
+      maximumHp: 9999,
+      attack: 9999,
+      defense: 9999,
+      criticalRate: 0.1,
+      actionSpeed: 10,
+      criticalDamageBonus: 0.5,
+      affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
+    });
+    const formula: FormulaDefinition = {
+      kind: "STAT_RATIO",
+      source: { kind: "SKILL_SOURCE" },
+      stat: "ATTACK",
+      ratio: 1,
+    };
+    // skillSourceはALLY(combatStats.attack = 50)。exerciseの原基準値(9999)は無視される。
+    expect(evaluateFormula(formula, context({ exercise }))).toBe(50);
+  });
+
+  it("UT-R-NUM-04-047: before any break the exercise's original base equals the current combatStats, so the result is unchanged", () => {
+    const target = unitAt("U_TARGET", "ENEMY");
+    const exercise = new ExerciseRuntime(target.combatStats);
+    const formula: FormulaDefinition = {
+      kind: "MAX_HP_RATIO",
+      source: { kind: "TARGET" },
+      ratio: 0.3,
+    };
+    expect(evaluateFormula(formula, context({ target, exercise }))).toBeCloseTo(30);
   });
 
   it("UT-R-NUM-04-006: CURRENT_HP_RATIO multiplies current HP by ratio", () => {

@@ -191,6 +191,26 @@ describe("heal in a tactical exercise (R-TEX-02 #5 敵回復の減算)", () => {
     expect(exercise.totalScore).toBe(100);
   });
 
+  it("UT-R-TEX-04-028: MAX_HP_RATIO(TARGET) heals a break-enhanced exercise enemy against the Break0 original maximumHp, not the current one", () => {
+    const exercise = new ExerciseRuntime(ENEMY_BASE_STATS); // 原基準値のmaximumHpは100
+    const healer = unit("HEALER", "ENEMY", { currentHp: 100, maximumHp: 100 });
+    // ブレイク強化後を模した現在最大HP200。
+    const enemy = unit("ENEMY_1", "ENEMY", { currentHp: 40, maximumHp: 200 });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyHealAction(
+      [hit("ENEMY_1")],
+      healer,
+      healAction(0.3),
+      [healer, enemy],
+      context(recorder, rootEventId, exercise),
+    );
+
+    // 原基準値の最大HP100 × 0.3 = 30。現在最大HP200基準の60ではない。
+    const healed = result.units.find((u) => u.battleUnitId === createBattleUnitId("ENEMY_1"))!;
+    expect(healed.currentHp).toBe(70);
+  });
+
   it("UT-R-TEX-02-031: a normal battle (no exercise state) emits no ExerciseScoreDeducted at all", () => {
     const healer = unit("HEALER", "ENEMY", { currentHp: 100, maximumHp: 100 });
     const enemy = unit("ENEMY_1", "ENEMY", { currentHp: 40, maximumHp: 100 });

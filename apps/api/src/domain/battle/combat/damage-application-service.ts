@@ -285,6 +285,7 @@ export function* applyDamageActionSteps(
       skillSource: attackerBeforeDamage,
       target: targetBeforeDamage,
       allUnits: Array.from(working.values()),
+      ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
       lastResults: damageResultsFor(
         context.damageResults,
         attackerBeforeDamage.battleUnitId,

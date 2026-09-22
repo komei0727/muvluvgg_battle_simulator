@@ -12,6 +12,7 @@ import {
 import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { deferOrResolveBreakSteps } from "../effects/break-resolution-service.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import {
@@ -705,5 +706,45 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
     expect(events.some((e) => e.eventType === "DamageConvertedToHeal")).toBe(true);
     expect(events.filter((e) => e.eventType === "ExerciseScoreDeducted")).toEqual([]);
     expect(exercise.totalScore).toBe(100);
+  });
+});
+
+describe("DAMAGE formula STAT_RATIO/MAX_HP_RATIO基準値 (R-TEX-04一般化)", () => {
+  it("UT-R-TEX-04-029: a DAMAGE STAT_RATIO(SKILL_SOURCE, ATTACK) formula on a break-enhanced exercise enemy attacker scales the Break0 original attack, not the current one", () => {
+    // ブレイク強化後を模した現在攻撃力200。演習の原基準値は攻撃力100
+    // （`UNIT_LYDIA_SUMMER_TEX`のAS1「バックロウボーナス」等が使う形と同じ、
+    // STAT_RATIOをDAMAGEの基礎ダメージへ直接使うケース）。
+    const exercise = new ExerciseRuntime({
+      ...unit("ATTACKER", "ENEMY").baseCombatStats,
+      attack: 100,
+    });
+    const attacker = unit("ATTACKER", "ENEMY", { attack: 200 });
+    const target = unit("TARGET", "ALLY", { defense: 0, maximumHp: 500 });
+    const ratioDamage: Extract<EffectActionDefinition, { kind: "DAMAGE" }> = {
+      ...damageAction("PREVENTED"),
+      payload: {
+        ...damageAction("PREVENTED").payload,
+        formula: {
+          kind: "STAT_RATIO",
+          source: { kind: "SKILL_SOURCE" },
+          stat: "ATTACK",
+          ratio: 0.5,
+        },
+      },
+    };
+    const context = damageEventContext({ exercise });
+
+    applyDamageAction(
+      attacker,
+      [hit(target.battleUnitId, 1)],
+      ratioDamage,
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    // 原基準値の攻撃力100 × 0.5 = 50。現在攻撃力200基準の100ではない。
+    expect(applied.payload).toMatchObject({ hitPointDamage: 50 });
   });
 });

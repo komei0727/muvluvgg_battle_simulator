@@ -378,6 +378,7 @@ export function* applyOneHealSteps(
     skillSource: healer,
     target,
     allUnits: units,
+    ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
     // G-10／RES-003A（Issue #257）: `context.skillUseId`はこのHEALが属する
     // EffectSequence解決を識別し、`SUM_DAMAGE_DEALT`の集計スコープになる。
     // 継続回復（`continuous-heal-service.ts`）はEffectSequenceの外で発火するため
