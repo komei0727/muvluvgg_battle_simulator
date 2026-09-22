@@ -1,0 +1,34 @@
+{
+  "unitDefinitionId": "UNIT_OLGA_NADYA_BOND",
+  "attribute": "CUTE",
+  "subAttribute": "AGGRESSIVE",
+  "unitType": "ENERGY",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 38579,
+    "attack": 16299,
+    "defense": 12262,
+    "criticalRate": 0.2,
+    "actionSpeed": 763,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 342,
+    "attack": 123,
+    "defense": 112,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_OLGA_NADYA_BOND_AS1", "SKL_OLGA_NADYA_BOND_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_OLGA_NADYA_BOND_PS1", "SKL_OLGA_NADYA_BOND_PS2"],
+  "extraSkillDefinitionId": "SKL_OLGA_NADYA_BOND_EX",
+  "metadata": {
+    "affiliations": ["AFF_KURASUNA"],
+    "tags": [],
+    "displayName": "【繋がり合う母娘の絆】オルガ＆ナージャ",
+    "characterName": "オルガ＆ナージャ・ヴォルコワ",
+    "characterId": "CHAR_OLGA_NADYA_VOLKOVA"
+  }
+}

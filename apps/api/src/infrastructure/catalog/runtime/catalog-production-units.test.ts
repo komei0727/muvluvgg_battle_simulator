@@ -594,7 +594,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-09-21.1` は `UNIT_HIIRO_FREEWOLF` の displayName 誤字修正（【疾走する
     // 自由の狐狼】→【疾走する自由の孤狼】。「孤狼（一匹狼）」が正しい表記）。
     // データの typo 修正のみで、エンジン拡張・新規ユニット投入は伴わない。
-    expect(catalog.catalogRevision).toBe("2026-09-21.1");
+    // `2026-09-22.1` は新ユニット `UNIT_OLGA_NADYA_BOND`（【繋がり合う母娘の絆】
+    // オルガ＆ナージャ、既存`UNIT_OLGA_VETERAN`/`UNIT_NADYA_SUCCESSOR`2キャラクター
+    // の合体ユニット、Issue #683）の新規投入。EXスキルが#682で追加した
+    // `HIGHEST_CURRENT_HP`ターゲットセレクタを初めて production Catalog で使用する。
+    expect(catalog.catalogRevision).toBe("2026-09-22.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

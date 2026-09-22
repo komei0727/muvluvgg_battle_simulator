@@ -157,6 +157,9 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_LYDIA_SUMMER_TEX",
         // Issue #673: 榊野ヒイロの2バリアント目（#674 エンジン拡張依存）
         "UNIT_HIIRO_FREEWOLF",
+        // Issue #683: 【繋がり合う母娘の絆】オルガ＆ナージャ（UNIT_OLGA_VETERAN/
+        // UNIT_NADYA_SUCCESSORの合体ユニット、#682 エンジン拡張依存）
+        "UNIT_OLGA_NADYA_BOND",
       ].sort(),
     );
   });
