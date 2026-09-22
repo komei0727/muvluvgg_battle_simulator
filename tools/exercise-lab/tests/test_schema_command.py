@@ -44,17 +44,43 @@ def mock_catalog():
 
 
 @respx.mock
-def test_both_schemas_are_written(tmp_path):
+def test_all_schemas_are_written(tmp_path):
     mock_catalog()
     out = tmp_path / ".schema"
 
-    result = runner.invoke(app, ["schema", "--out", str(out)])
+    result = runner.invoke(
+        app, ["schema", "--out", str(out), "--formations-dir", str(tmp_path / "formations")]
+    )
 
     assert result.exit_code == 0, result.output
     assert sorted(path.name for path in out.iterdir()) == [
+        "formation-seed.schema.json",
         "formation.schema.json",
         "search.schema.json",
     ]
+
+
+@respx.mock
+def test_the_search_schema_carries_the_formation_library_enum(tmp_path):
+    mock_catalog()
+    out = tmp_path / ".schema"
+    formations_dir = tmp_path / "formations"
+    formations_dir.mkdir()
+    (formations_dir / "seed-a.yaml").write_text(
+        "units:\n"
+        "  - unitDefinitionId: UNIT_A\n"
+        "    position: {column: 0, row: FRONT}\n"
+        "memoryDefinitionIds: []\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app, ["schema", "--out", str(out), "--formations-dir", str(formations_dir)]
+    )
+
+    assert result.exit_code == 0, result.output
+    schema = json.loads((out / "search.schema.json").read_text(encoding="utf-8"))
+    assert schema["properties"]["knownFormations"]["items"]["enum"] == ["seed-a"]
 
 
 @respx.mock

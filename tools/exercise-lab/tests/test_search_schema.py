@@ -52,6 +52,11 @@ CATALOG = Catalog.model_validate(
 )
 
 
+# 編成ライブラリ（configs/formations/）に登録済みという体で使うID。ファイルの実在は
+# 見ない——Schemaは Catalog と同様にローカルの列挙をそのままenumへ焼くだけである。
+FORMATION_IDS = ["formation-a", "formation-b"]
+
+
 def document(**overrides):
     base = {
         "enemy": {"unitDefinitionId": "UNIT_ENEMY", "position": {"column": 1, "row": "REAR"}},
@@ -64,7 +69,7 @@ def document(**overrides):
 
 @pytest.fixture
 def schema():
-    return build_search_json_schema(CATALOG)
+    return build_search_json_schema(CATALOG, FORMATION_IDS)
 
 
 def validate(schema, doc):
@@ -108,26 +113,7 @@ def test_a_playable_unit_is_rejected_as_the_enemy(schema):
                 ]
             }
         },
-        {
-            "knownFormations": [
-                {
-                    "units": [
-                        {"unitDefinitionId": "UNIT_GONE", "position": {"column": 0, "row": "FRONT"}}
-                    ],
-                    "memoryDefinitionIds": [],
-                }
-            ]
-        },
-        {
-            "knownFormations": [
-                {
-                    "units": [
-                        {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}}
-                    ],
-                    "memoryDefinitionIds": ["MEM_GONE"],
-                }
-            ]
-        },
+        {"knownFormations": ["formation-gone"]},
     ],
 )
 def test_unknown_ids_are_rejected_everywhere_they_can_be_written(schema, overrides):
@@ -146,14 +132,7 @@ def test_known_ids_pass_everywhere_they_can_be_written(schema):
                     {"unitDefinitionId": "UNIT_B", "position": {"column": 0, "row": "FRONT"}}
                 ],
             },
-            knownFormations=[
-                {
-                    "units": [
-                        {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}}
-                    ],
-                    "memoryDefinitionIds": ["MEM_B"],
-                }
-            ],
+            knownFormations=FORMATION_IDS,
         ),
     )
 
@@ -181,7 +160,13 @@ def test_the_catalog_revision_is_recorded(schema):
 
 
 def test_generation_is_deterministic():
-    assert build_search_json_schema(CATALOG) == build_search_json_schema(CATALOG)
+    assert build_search_json_schema(CATALOG, FORMATION_IDS) == build_search_json_schema(
+        CATALOG, FORMATION_IDS
+    )
+
+
+def test_known_formation_ids_are_offered_for_completion(schema):
+    assert schema["properties"]["knownFormations"]["items"]["enum"] == sorted(FORMATION_IDS)
 
 
 def test_unknown_academy_level_keys_are_rejected(schema):
@@ -206,6 +191,11 @@ def test_the_internal_enhancement_field_is_not_offered_as_a_yaml_key(schema):
     育成状態の正本を2か所へ置かないためYAMLからは書けず、補完候補にも出さない。
     """
     assert "unit_enhancements" not in schema["properties"]
+
+
+def test_the_internal_known_formation_specs_field_is_not_offered_as_a_yaml_key(schema):
+    """`known_formation_specs` は `knownFormations`（ID）を解決した中身を持つ内部の枠。"""
+    assert "known_formation_specs" not in schema["properties"]
 
 
 def test_the_loader_rejects_the_internal_enhancement_field(tmp_path):
@@ -248,4 +238,4 @@ def test_the_bundled_example_matches_the_schema():
         }
     )
 
-    jsonschema.validate(document, build_search_json_schema(catalog))
+    jsonschema.validate(document, build_search_json_schema(catalog, document["knownFormations"]))

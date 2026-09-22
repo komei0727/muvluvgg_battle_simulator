@@ -28,11 +28,12 @@ enum を入れることで型として表現する——実行してAPIの422を
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from .api import EXERCISE_ENEMY, PLAYABLE, Catalog, CatalogUnit
 from .models import ATTRIBUTES, UNIT_TYPES, FormationConfig
-from .optimize.search_config import INTERNAL_FIELDS, SearchConfig
+from .optimize.search_config import INTERNAL_FIELDS, SearchConfig, SeedFormationSpec
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
@@ -50,12 +51,17 @@ def build_formation_json_schema(catalog: Catalog) -> dict[str, Any]:
     return _finish(schema, catalog, title="exercise-lab formation")
 
 
-def build_search_json_schema(catalog: Catalog) -> dict[str, Any]:
+def build_search_json_schema(catalog: Catalog, formation_ids: Sequence[str]) -> dict[str, Any]:
     """探索設定YAML用のSchema。
 
     実IDを書く場所は編成YAMLより多い——候補プール2つ、敵、固定・必須の指定、既知の
-    良編成。どれか1か所でも打ち間違えると、そのIDは黙って探索から外れる（プール外の
-    IDは矯正で落とされる）ため、書いている場所で候補が出ることの効きが大きい。
+    良編成（編成ライブラリのID）。どれか1か所でも打ち間違えると、そのIDは黙って
+    探索から外れる（プール外のIDは矯正で落とされる、未知の編成IDは読み込み時に落ちる）
+    ため、書いている場所で候補が出ることの効きが大きい。
+
+    `formation_ids` は `configs/formations/` に登録済みの編成ID一覧
+    （`optimize.search_config.list_formation_ids`）。Catalogと違いローカルのファイル
+    一覧なので、呼び出し側（`lab schema`）が都度スキャンして渡す。
     """
     schema: dict[str, Any] = SearchConfig.model_json_schema(by_alias=True)
     definitions = schema["$defs"]
@@ -66,17 +72,29 @@ def build_search_json_schema(catalog: Catalog) -> dict[str, Any]:
 
     properties["unitPool"]["items"] = playable
     properties["memoryPool"]["items"] = memory
+    properties["knownFormations"]["items"] = _formation_enum(formation_ids)
     definitions["EnemySpec"]["properties"]["unitDefinitionId"] = _unit_enum(catalog, EXERCISE_ENEMY)
     definitions["FixedPlacementSpec"]["properties"]["unitDefinitionId"] = playable
     definitions["ConstraintsSpec"]["properties"]["requiredUnits"]["items"] = playable
     definitions["ConstraintsSpec"]["properties"]["requiredMemories"]["items"] = memory
-    definitions["SeedFormationSpec"]["properties"]["memoryDefinitionIds"]["items"] = memory
-    # 既知の良編成のユニットは編成YAMLと同じ `AllyUnitSpec` を使う。
-    definitions["AllyUnitSpec"]["properties"]["unitDefinitionId"] = playable
     _restrict_academy_level_keys(definitions["AcademyLevels"])
     _drop_internal_fields(schema)
 
     return _finish(schema, catalog, title="exercise-lab search")
+
+
+def build_formation_seed_json_schema(catalog: Catalog) -> dict[str, Any]:
+    """編成ライブラリ（`configs/formations/<id>.yaml`）1ファイル用のSchema。
+
+    中身は探索設定YAMLの `knownFormations` が指す先そのもの（`SeedFormationSpec`）。
+    """
+    schema: dict[str, Any] = SeedFormationSpec.model_json_schema(by_alias=True)
+    definitions = schema["$defs"]
+
+    definitions["AllyUnitSpec"]["properties"]["unitDefinitionId"] = _unit_enum(catalog, PLAYABLE)
+    schema["properties"]["memoryDefinitionIds"]["items"] = _memory_enum(catalog)
+
+    return _finish(schema, catalog, title="exercise-lab formation library entry")
 
 
 def _finish(schema: dict[str, Any], catalog: Catalog, *, title: str) -> dict[str, Any]:
@@ -128,6 +146,14 @@ def _memory_enum(catalog: Catalog) -> dict[str, Any]:
         "description": "Catalog のメモリー。",
         "enum": [memory.memory_definition_id for memory in memories],
         "markdownEnumDescriptions": [memory.display_name for memory in memories],
+    }
+
+
+def _formation_enum(formation_ids: Sequence[str]) -> dict[str, Any]:
+    return {
+        "type": "string",
+        "description": "configs/formations/ に登録済みの編成ID（`lab formations` で一覧できる）。",
+        "enum": sorted(formation_ids),
     }
 
 
