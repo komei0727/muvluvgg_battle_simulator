@@ -527,6 +527,7 @@ selector:
 | `LOWEST_MAX_HP`          | 最大HPが低い順                                       |
 | `HIGHEST_MAX_HP`         | 最大HPが高い順                                       |
 | `LOWEST_CURRENT_HP`      | 現在HP（絶対値）が低い順（Issue #674）               |
+| `HIGHEST_CURRENT_HP`     | 現在HP（絶対値）が高い順（Issue #682）               |
 | `HIGHEST_EX_GAUGE_RATIO` | EXゲージ充填率が高い順                               |
 | `FASTEST`                | 行動速度が高い順                                     |
 | `FRONT_ROW`              | 前列優先                                             |
@@ -541,7 +542,7 @@ selector:
 
 `LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`の「HP割合」は、`HP_RATIO`フィルタ・`TARGET_STATE.field`・DamageModifierの`HP_RATIO_COMPARISON`と同じ基準（R-NUM-02）で、現在HP÷切り捨て後の最大HPとする。分母を切り捨て前の`combatStats.maximumHp`のまま使うと、満タンのHP割合がユニットごとに異なる値になり、同率判定が成立しない（Issue #585）。
 
-`LOWEST_CURRENT_HP`は`LOWEST_HP_RATIO`と異なり、最大HPで正規化しない現在HPの絶対値で比較する。「最もHPが低い敵単体」のように割合ではなく残量そのものを基準にする原文向け（Issue #674）。
+`LOWEST_CURRENT_HP`は`LOWEST_HP_RATIO`と異なり、最大HPで正規化しない現在HPの絶対値で比較する。「最もHPが低い敵単体」のように割合ではなく残量そのものを基準にする原文向け（Issue #674）。`HIGHEST_CURRENT_HP`はその降順版で、「最もHPの多い敵」のように現在HPの絶対値が最大の対象を優先する原文向け（Issue #682）。
 
 ### TargetFilterDefinition
 

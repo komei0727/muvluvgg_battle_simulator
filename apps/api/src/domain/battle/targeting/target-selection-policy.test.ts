@@ -1641,6 +1641,35 @@ describe("resolveTargets", () => {
       ]);
     });
 
+    it("UT-TGT-002-030 (Issue #682): HIGHEST_CURRENT_HP orders by currentHp descending (not HP ratio)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      // UT-TGT-002-028と同じ組み合わせ（HPゲージの絶対値はLOW(50)<HIGH(300)）の
+      // HIGHEST版。降順なのでHIGHが先頭に来る。
+      const low = unit(
+        "LOW",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 100 }, currentHp: 50 },
+      );
+      const high = unit(
+        "HIGH",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, maximumHp: 500 }, currentHp: 300 },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_CURRENT_HP"] }),
+        actor,
+        [actor, low, high],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("HIGH"),
+        createBattleUnitId("LOW"),
+      ]);
+    });
+
     it("UT-TGT-002-014: LOWEST_MAX_HP/HIGHEST_MAX_HP order by combatStats.maximumHp", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const small = unit(
