@@ -28,6 +28,20 @@ def write_yaml(tmp_path: Path, document: dict[str, Any], name: str = "search.yam
     return path
 
 
+def write_formation(
+    tmp_path: Path, formation_id: str, document: dict[str, Any], *, dir_name: str = "formations"
+) -> Path:
+    """編成ライブラリの1件を `tmp_path/<dir_name>/<formation_id>.yaml` へ書く。
+
+    探索設定YAML（`write_yaml`）を同じ `tmp_path` へ置けば、`formations_dir_for` が解決する
+    `<config親ディレクトリ>/formations/` と一致し、`knownFormations` からIDで参照できる。
+    """
+    path = tmp_path / dir_name / f"{formation_id}.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+    return path
+
+
 # --- 人工の評価対象 ---------------------------------------------------------
 #
 # 最適解が分かっている目的関数へノイズを載せる。探索アルゴリズムが「ノイズの中から

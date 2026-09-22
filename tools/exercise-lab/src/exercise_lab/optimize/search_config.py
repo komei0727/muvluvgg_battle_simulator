@@ -25,6 +25,7 @@ from ..models import (
     EnemySpec,
     FormationConfig,
     Position,
+    _FlowMapping,
     _Spec,
     build_ally_formation,
     build_enemy_formation,
@@ -63,12 +64,26 @@ MAX_SEED_SHARE = 0.25
 
 # `SearchConfig` の項目のうち、YAMLの入力ではなく実行時に埋める枠。
 # 生成するJSON Schemaからも外す（補完候補に出さない）。
-INTERNAL_FIELDS = frozenset({"unit_enhancements"})
+INTERNAL_FIELDS = frozenset({"unit_enhancements", "known_formation_specs"})
+
+# 編成ライブラリ（`knownFormations` がIDで指す先）のディレクトリ名。探索設定YAMLの
+# 親ディレクトリからの相対で解決する（`.schema/` が `configs/` から相対参照される
+# 既存の慣習と同じ）。
+FORMATIONS_DIR_NAME = "formations"
 
 
 class SeedFormationSpec(_Spec):
-    """既知の良編成。`formation.yaml` の `ally` と同じ形にして写せるようにする。"""
+    """既知の良編成。`formation.yaml` の `ally` と同じ形にして写せるようにする。
 
+    編成ライブラリ（`configs/formations/<id>.yaml`）1ファイルの中身でもある。
+    `knownFormations` はこの形を直接埋め込まず、ファイル名（ID）だけを書く。
+    """
+
+    # 任意の自由記述。この編成を組んだ意図・狙いを残す場所（例:「属性デバフ特化」）。
+    # 探索には一切使わない——`lab formations` が一覧に出すだけの記録用の項目。
+    note: str | None = Field(
+        default=None, description="この編成を組んだ意図・狙い（任意、自由記述）。"
+    )
     units: list[AllyUnitSpec] = Field(min_length=1, max_length=MAX_UNITS)
     memory_definition_ids: list[str] = Field(
         default_factory=list, alias="memoryDefinitionIds", max_length=MAX_MEMORIES
@@ -172,7 +187,9 @@ class SearchConfig(_Spec):
     memory_pool: list[str] = Field(default_factory=list, alias="memoryPool")
     academy_levels: AcademyLevels | None = Field(default=None, alias="academyLevels")
     constraint_spec: ConstraintsSpec = Field(default_factory=ConstraintsSpec, alias="constraints")
-    known_formations: list[SeedFormationSpec] = Field(default_factory=list, alias="knownFormations")
+    # 編成ライブラリ（`configs/formations/<id>.yaml`）のID。中身は `load_search_config` が
+    # 解決して `known_formation_specs` へ積む——YAMLへ編成そのものを埋め込む経路は無い。
+    known_formations: list[str] = Field(default_factory=list, alias="knownFormations")
     objective_spec: ObjectiveSpec = Field(default_factory=ObjectiveSpec, alias="objective")
     schedule: ScheduleSpec = Field(default_factory=ScheduleSpec)
     operator_weights: OperatorWeightsSpec = Field(
@@ -182,6 +199,11 @@ class SearchConfig(_Spec):
     # YAMLからは書けない（`INTERNAL_FIELDS` で入口を塞いでいる）。育成状態の正本を
     # 2か所へ置くと、どちらで評価したのか後から分からなくなる。
     unit_enhancements: dict[str, AllyUnitSpec] = Field(default_factory=dict, exclude=True)
+    # `known_formations`（ID）を編成ライブラリから解決した中身。`load_search_config` が
+    # 埋める枠であり、YAMLからは書けない（`INTERNAL_FIELDS`）。
+    known_formation_specs: tuple[SeedFormationSpec, ...] = Field(
+        default_factory=tuple, exclude=True
+    )
 
     @property
     def objective(self) -> Objective:
@@ -217,7 +239,7 @@ class SearchConfig(_Spec):
         constraints = self.constraints
         seeds: list[Candidate] = []
         seen: set[str] = set()
-        for formation in self.known_formations:
+        for formation in self.known_formation_specs:
             candidate = repair(
                 Candidate(
                     placements=tuple(
@@ -291,8 +313,75 @@ def load_search_config(path: Path) -> SearchConfig:
         config = SearchConfig.model_validate(raw)
     except ValidationError as error:
         raise ConfigError(f"{path}: {error}") from error
+    formations_dir = formations_dir_for(path)
+    specs = tuple(
+        load_formation_library_entry(formations_dir, formation_id)
+        for formation_id in config.known_formations
+    )
+    config = config.model_copy(update={"known_formation_specs": specs})
     _validate(config, path)
     return config
+
+
+def formations_dir_for(config_path: Path) -> Path:
+    """探索設定YAMLから見た編成ライブラリのディレクトリ。
+
+    親ディレクトリの `formations/` を見る。既存configはすべて `configs/` 直下にあるため、
+    実質 `configs/formations/` に揃う——`.schema/` が `configs/` から相対参照される
+    既存の慣習と同じ考え方で、専用のCLIオプションを要らなくしている。
+    """
+    return config_path.parent / FORMATIONS_DIR_NAME
+
+
+def list_formation_ids(formations_dir: Path) -> list[str]:
+    """編成ライブラリに登録済みのIDを列挙する（`lab formations` / `lab schema` が使う）。"""
+    if not formations_dir.is_dir():
+        return []
+    return sorted(entry.stem for entry in formations_dir.glob("*.yaml"))
+
+
+def load_formation_library_entry(formations_dir: Path, formation_id: str) -> SeedFormationSpec:
+    """編成ライブラリの1件を読む。`knownFormations` のID解決と `lab formations` が使う。"""
+    path = formations_dir / f"{formation_id}.yaml"
+    if not path.is_file():
+        raise ConfigError(
+            f"knownFormations が指す編成 '{formation_id}' が {path} に無い"
+            "（`lab formations` で登録済みのIDを確認する）"
+        )
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path}: トップレベルはマッピングでなければならない")
+    try:
+        return SeedFormationSpec.model_validate(raw)
+    except ValidationError as error:
+        raise ConfigError(f"{path}: {error}") from error
+
+
+def dump_seed_formation_spec(spec: SeedFormationSpec) -> str:
+    """編成ライブラリ1ファイルぶんのYAMLを書き出す（`lab import-draft --library` が使う）。
+
+    `models.dump_formation_config` と同じ規則（flow-styleの`position`、既定順のまま）を
+    敵抜きの形へ写す。編成ライブラリのファイルは元々敵を持たない。`note` はドラフト側に
+    無い項目なので、既に付いている場合だけ引き継ぐ（無ければキー自体を出さない）。
+    """
+    document: dict[str, Any] = {}
+    if spec.note is not None:
+        document["note"] = spec.note
+    document["units"] = [
+        {
+            "unitDefinitionId": unit.unit_definition_id,
+            "position": _FlowMapping(column=unit.position.column, row=unit.position.row),
+        }
+        for unit in spec.units
+    ]
+    document["memoryDefinitionIds"] = list(spec.memory_definition_ids)
+    return yaml.dump(
+        document,
+        Dumper=yaml.SafeDumper,
+        sort_keys=False,
+        allow_unicode=True,
+        default_flow_style=False,
+    )
 
 
 def _reject_internal_fields(raw: dict[str, Any], path: Path) -> None:
@@ -330,20 +419,30 @@ def _validate(config: SearchConfig, path: Path) -> None:
             f"finalStageRuns を増やすか objective.bestOf を下げる"
         )
 
-    unknown_memories = sorted(set(_seed_memory_ids(config)) - set(config.memory_pool))
-    if unknown_memories:
+    unknown_refs = sorted(
+        (formation_id, memory_id)
+        for formation_id, memory_id in _seed_memory_ids(config)
+        if memory_id not in set(config.memory_pool)
+    )
+    if unknown_refs:
         # 種は矯正して取り込むが、プールに無いIDは「書いたのに探索されない」ので
-        # 打ち間違いと区別できるよう明示的に落とす。
+        # 打ち間違いと区別できるよう明示的に落とす。編成ライブラリは複数configから
+        # 参照され得るため、どのIDが原因かまで出す。
+        detail = ", ".join(
+            f"{formation_id} → {memory_id}" for formation_id, memory_id in unknown_refs
+        )
         raise ConfigError(
-            f"{path}: knownFormations が候補プールに無いメモリーを指している: "
-            f"{', '.join(unknown_memories)}"
+            f"{path}: knownFormations が候補プールに無いメモリーを指している: {detail}"
         )
 
 
-def _seed_memory_ids(config: SearchConfig) -> list[str]:
+def _seed_memory_ids(config: SearchConfig) -> list[tuple[str, str]]:
+    """種の (編成ID, メモリーID) の組。`_validate` が未知メモリーの出所を示すのに使う。"""
     return [
-        memory_id
-        for formation in config.known_formations
+        (formation_id, memory_id)
+        for formation_id, formation in zip(
+            config.known_formations, config.known_formation_specs, strict=True
+        )
         for memory_id in formation.memory_definition_ids
     ]
 

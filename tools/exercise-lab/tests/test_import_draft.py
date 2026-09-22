@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from exercise_lab.cli import app
 from exercise_lab.models import build_evaluation_request, load_formation_config
+from exercise_lab.optimize.search_config import load_formation_library_entry
 from test_draft import draft_json
 
 runner = CliRunner()
@@ -61,6 +62,73 @@ def test_unusable_draft_is_reported_without_writing_a_file(tmp_path):
     assert result.exit_code == 1
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert not out.exists()
+
+
+def test_library_yaml_round_trips_through_the_formation_library_loader(tmp_path):
+    source = write_draft(tmp_path)
+    formations_dir = tmp_path / "formations"
+    out = formations_dir / "seed-a-c-d.yaml"
+
+    result = runner.invoke(app, ["import-draft", str(source), "--library", "-o", str(out)])
+
+    assert result.exit_code == 0, result.output
+    spec = load_formation_library_entry(formations_dir, "seed-a-c-d")
+    assert [unit.unit_definition_id for unit in spec.units] == ["UNIT_A", "UNIT_C", "UNIT_D"]
+    assert spec.memory_definition_ids == ["MEM_Z", "MEM_A"]
+    assert spec.note is None
+
+
+def test_library_yaml_carries_no_enemy_or_enhancement(tmp_path):
+    source = write_draft(tmp_path)
+    out = tmp_path / "formations" / "seed-a-c-d.yaml"
+
+    runner.invoke(app, ["import-draft", str(source), "--library", "-o", str(out)])
+
+    text = out.read_text(encoding="utf-8")
+    assert "enemy" not in text
+    assert "academyLevels:" not in text
+    assert "gears:" not in text
+    assert "level:" not in text
+
+
+def test_library_note_option_is_carried_into_the_spec(tmp_path):
+    source = write_draft(tmp_path)
+    formations_dir = tmp_path / "formations"
+    out = formations_dir / "seed-a-c-d.yaml"
+
+    result = runner.invoke(
+        app,
+        ["import-draft", str(source), "--library", "--note", "属性デバフ特化", "-o", str(out)],
+    )
+
+    assert result.exit_code == 0, result.output
+    spec = load_formation_library_entry(formations_dir, "seed-a-c-d")
+    assert spec.note == "属性デバフ特化"
+
+
+def test_note_without_library_is_rejected(tmp_path):
+    source = write_draft(tmp_path)
+    out = tmp_path / "formation.yaml"
+
+    result = runner.invoke(
+        app, ["import-draft", str(source), "--note", "属性デバフ特化", "-o", str(out)]
+    )
+
+    assert result.exit_code == 1
+    assert not out.exists()
+
+
+def test_library_schema_directive_points_two_levels_up(tmp_path):
+    """編成ライブラリは `configs/` の1つ下（`configs/formations/`）にあるため、
+    他の2つのSchemaディレクティブ（`../.schema/...`）と違い `../../` になる。"""
+    source = write_draft(tmp_path)
+    out = tmp_path / "formations" / "seed-a-c-d.yaml"
+
+    runner.invoke(app, ["import-draft", str(source), "--library", "-o", str(out)])
+
+    lines = out.read_text(encoding="utf-8").splitlines()
+    assert not any(line.startswith("# yaml-language-server:") for line in lines)
+    assert "## yaml-language-server: $schema=../../.schema/formation-seed.schema.json" in lines
 
 
 def write_draft(tmp_path):

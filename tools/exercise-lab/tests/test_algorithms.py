@@ -23,6 +23,7 @@ from helpers import (
     IDEAL_UNITS,
     ArenaClient,
     search_config_document,
+    write_formation,
     write_yaml,
 )
 
@@ -31,17 +32,20 @@ SMALL_FINAL = {"finalStageRuns": [50]}
 
 
 def make_config(tmp_path, **schedule):
+    write_formation(
+        tmp_path,
+        "seed-a-g",
+        {
+            "units": [
+                {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
+                {"unitDefinitionId": "UNIT_G", "position": {"column": 1, "row": "REAR"}},
+            ],
+            "memoryDefinitionIds": ["MEM_1", "MEM_5"],
+        },
+    )
     document = search_config_document(
         schedule={**SMALL_SCHEDULE, **SMALL_FINAL, **schedule},
-        knownFormations=[
-            {
-                "units": [
-                    {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
-                    {"unitDefinitionId": "UNIT_G", "position": {"column": 1, "row": "REAR"}},
-                ],
-                "memoryDefinitionIds": ["MEM_1", "MEM_5"],
-            }
-        ],
+        knownFormations=["seed-a-g"],
     )
     return load_search_config(write_yaml(tmp_path, document))
 

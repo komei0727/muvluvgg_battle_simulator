@@ -13,6 +13,7 @@ from exercise_lab.optimize.search_config import (
     resolve_unit_enhancements,
 )
 from exercise_lab.player_data import load_player_data
+from helpers import write_formation
 
 MINIMAL = {
     "enemy": {"unitDefinitionId": "UNIT_ENEMY", "position": {"column": 1, "row": "REAR"}},
@@ -84,20 +85,20 @@ def test_a_fixed_unit_outside_the_pool_is_rejected_at_load(tmp_path):
 
 
 def test_known_formations_become_repaired_seed_candidates(tmp_path):
-    config = load(
+    write_formation(
         tmp_path,
-        knownFormations=[
-            {
-                "units": [
-                    {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
-                    # 同じマス・プール外は種の側で壊れていても矯正して取り込む
-                    {"unitDefinitionId": "UNIT_B", "position": {"column": 0, "row": "FRONT"}},
-                    {"unitDefinitionId": "UNIT_UNKNOWN", "position": {"column": 2, "row": "REAR"}},
-                ],
-                "memoryDefinitionIds": ["MEM_1", "MEM_2"],
-            }
-        ],
+        "broken-seed",
+        {
+            "units": [
+                {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
+                # 同じマス・プール外は種の側で壊れていても矯正して取り込む
+                {"unitDefinitionId": "UNIT_B", "position": {"column": 0, "row": "FRONT"}},
+                {"unitDefinitionId": "UNIT_UNKNOWN", "position": {"column": 2, "row": "REAR"}},
+            ],
+            "memoryDefinitionIds": ["MEM_1", "MEM_2"],
+        },
     )
+    config = load(tmp_path, knownFormations=["broken-seed"])
 
     (seed,) = config.seed_candidates()
     assert seed.unit_definition_ids == ("UNIT_A", "UNIT_B")
@@ -106,13 +107,54 @@ def test_known_formations_become_repaired_seed_candidates(tmp_path):
 
 
 def test_duplicate_known_formations_are_collapsed(tmp_path):
-    formation = {
-        "units": [{"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}}],
-        "memoryDefinitionIds": ["MEM_1"],
-    }
-    config = load(tmp_path, knownFormations=[formation, formation])
+    write_formation(
+        tmp_path,
+        "seed-a",
+        {
+            "units": [{"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}}],
+            "memoryDefinitionIds": ["MEM_1"],
+        },
+    )
+    config = load(tmp_path, knownFormations=["seed-a", "seed-a"])
 
     assert len(config.seed_candidates()) == 1
+
+
+def test_a_formation_note_is_read_but_does_not_affect_the_seed(tmp_path):
+    """`note` は意図を書き残すためだけの項目で、探索の結果には一切効かない。"""
+    write_formation(
+        tmp_path,
+        "noted-seed",
+        {
+            "note": "属性デバフ特化",
+            "units": [{"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}}],
+            "memoryDefinitionIds": ["MEM_1"],
+        },
+    )
+    config = load(tmp_path, knownFormations=["noted-seed"])
+
+    assert config.known_formation_specs[0].note == "属性デバフ特化"
+    (seed,) = config.seed_candidates()
+    assert seed.unit_definition_ids == ("UNIT_A",)
+
+
+def test_an_unknown_formation_id_is_rejected_at_load(tmp_path):
+    with pytest.raises(ConfigError, match="lab formations"):
+        load(tmp_path, knownFormations=["does-not-exist"])
+
+
+def test_a_malformed_formation_library_entry_is_rejected(tmp_path):
+    path = tmp_path / "formations" / "bad-seed.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("- not-a-mapping\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="マッピング"):
+        load(tmp_path, knownFormations=["bad-seed"])
+
+
+def test_known_formation_specs_cannot_be_written_directly(tmp_path):
+    with pytest.raises(ConfigError, match="known_formation_specs"):
+        load(tmp_path, known_formation_specs=[])
 
 
 def test_schedule_stage_runs_must_increase(tmp_path):

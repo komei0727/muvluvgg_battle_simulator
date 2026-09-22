@@ -39,6 +39,9 @@ tools/exercise-lab/reports/
 # experimenting in place never turns into an accidental commit.
 tools/exercise-lab/configs/*.yaml
 !tools/exercise-lab/configs/*.example.yaml
+# Personal formation library (knownFormations targets). Same reasoning as above;
+# search.example.yaml's knownFormations entries won't resolve on a fresh clone.
+tools/exercise-lab/configs/formations/
 # `lab schema` の生成物と、UIから書き出した演習ドラフト。どちらも Catalog / 手元の
 # 編成に紐づく生成物なので追跡しない。
 tools/exercise-lab/.schema/

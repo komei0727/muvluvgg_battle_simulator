@@ -115,6 +115,10 @@ from .optimize.report import (
 )
 from .optimize.search_config import (
     SearchConfig,
+    SeedFormationSpec,
+    dump_seed_formation_spec,
+    list_formation_ids,
+    load_formation_library_entry,
     load_search_config,
     resolve_unit_enhancements,
 )
@@ -129,7 +133,11 @@ from .player_data import (
     resolved_level,
 )
 from .runner import ChunkPlan, EvaluationRun, plan_chunks, run_evaluation
-from .schema import build_formation_json_schema, build_search_json_schema
+from .schema import (
+    build_formation_json_schema,
+    build_formation_seed_json_schema,
+    build_search_json_schema,
+)
 from .stats import build_summary, write_break_count_chart, write_runs_csv, write_score_histogram
 
 # サーバー既定の `EVALUATION_MAX_TOTAL_RUNS`。候補1件なので総試行数の上限がそのまま
@@ -188,6 +196,10 @@ DEFAULT_PLAN_BUDGET_RUNS = 60000
 DEFAULT_SCHEMA_DIR = Path(".schema")
 FORMATION_SCHEMA_JSON = "formation.schema.json"
 SEARCH_SCHEMA_JSON = "search.schema.json"
+FORMATION_SEED_SCHEMA_JSON = "formation-seed.schema.json"
+
+# 編成ライブラリ（`knownFormations` がIDで指す先）の既定ディレクトリ。
+DEFAULT_FORMATIONS_DIR = Path("configs/formations")
 
 app = typer.Typer(add_completion=False, help="戦術演習の統計サマリーを出すローカルツール")
 console = Console()
@@ -213,19 +225,51 @@ def import_draft(
     out: Annotated[
         Path | None, typer.Option("--out", "-o", help="出力先。省略時は標準出力")
     ] = None,
+    library: Annotated[
+        bool,
+        typer.Option("--library", help="編成ライブラリ形式（configs/formations/<id>.yaml）で出す"),
+    ] = False,
+    note: Annotated[
+        str | None,
+        typer.Option("--note", help="編成ライブラリの note（この編成を組んだ意図・狙い）"),
+    ] = None,
 ) -> None:
-    """UIで組んだ演習編成を編成定義YAMLへ変換する。IDの転記を不要にする入口。"""
+    """UIで組んだ演習編成を編成定義YAMLへ変換する。IDの転記を不要にする入口。
+
+    `--library` を付けると、敵を含まない編成ライブラリ1件分（`units` +
+    `memoryDefinitionIds`）を出す。`configs/formations/<id>.yaml` として保存すれば、
+    探索設定YAMLの `knownFormations` からファイル名（ID）で参照できる。
+    """
+    if note is not None and not library:
+        _abort("--note には --library が要る（note は編成ライブラリだけが持つ項目）")
     try:
         config = load_exercise_draft(draft_path)
     except DraftError as error:
         _abort(str(error))
-    document = _IMPORTED_HEADER.format(source=draft_path.name) + dump_formation_config(config)
+    if library:
+        spec = SeedFormationSpec(
+            note=note,
+            units=config.ally.units,
+            memory_definition_ids=config.ally.memory_definition_ids,
+        )
+        document = _IMPORTED_LIBRARY_HEADER.format(
+            source=draft_path.name
+        ) + dump_seed_formation_spec(spec)
+    else:
+        document = _IMPORTED_HEADER.format(source=draft_path.name) + dump_formation_config(config)
     if out is None:
         # 標準出力へはヘッダーごと出す。リダイレクトしてもそのまま使える。
         print(document, end="")
         return
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(document, encoding="utf-8")
+    if library:
+        console.print(
+            f"[bold]{out}[/] を書き出した（味方{len(config.ally.units)}体 /"
+            f" メモリー{len(config.ally.memory_definition_ids)}件）。"
+            f" configs/formations/ 配下へ置けば `knownFormations` からIDで参照できる"
+        )
+        return
     console.print(
         f"[bold]{out}[/] を書き出した（味方{len(config.ally.units)}体 /"
         f" メモリー{len(config.ally.memory_definition_ids)}件 /"
@@ -247,6 +291,19 @@ _IMPORTED_HEADER = """\
 # `# yaml-language-server:` はコメントではなく有効なディレクティブなので、
 # 最初から効かせておくと、まだ生成していないSchemaを指してエディタが赤くなる。
 ## yaml-language-server: $schema=../.schema/formation.schema.json
+
+"""
+
+_IMPORTED_LIBRARY_HEADER = """\
+# {source} から `lab import-draft --library` で生成した編成ライブラリの1件。
+#
+# `configs/formations/<id>.yaml` として保存する（ファイル名がそのままID）。
+# 敵・育成状態（レベル・ギア・学園レベル）は含まない——探索設定YAMLの
+# `knownFormations` からIDで参照される、敵に依らない編成の中身だけを持つ。
+#
+# エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の
+# 先頭の `#` を1つ削る（`configs/formations/` 以外へ保存するならパスも相対で合わせる）。
+## yaml-language-server: $schema=../../.schema/formation-seed.schema.json
 
 """
 
@@ -305,27 +362,75 @@ def memories(
 
 
 @app.command()
+def formations(
+    grep: Annotated[str | None, typer.Option("--grep", help="IDの部分一致")] = None,
+    formations_dir: Annotated[
+        Path, typer.Option("--formations-dir", help="編成ライブラリのディレクトリ")
+    ] = DEFAULT_FORMATIONS_DIR,
+) -> None:
+    """編成ライブラリ（`configs/formations/`）に登録済みの編成IDを一覧する。
+
+    探索設定YAMLの `knownFormations` へ書けるIDそのもの。Catalogへは問い合わせない
+    （ローカルのファイル一覧だけで完結する）。
+    """
+    ids = list_formation_ids(formations_dir)
+    if grep:
+        ids = [formation_id for formation_id in ids if grep in formation_id]
+    _reject_no_match(ids, grep)
+    table = Table(title=f"formations ({len(ids)}) / {formations_dir}")
+    _add_id_column(table, "id", ids)
+    table.add_column("units", justify="right")
+    table.add_column("memories", justify="right")
+    table.add_column("note")
+    for formation_id in ids:
+        spec = load_formation_library_entry(formations_dir, formation_id)
+        table.add_row(
+            formation_id,
+            str(len(spec.units)),
+            str(len(spec.memory_definition_ids)),
+            spec.note or "-",
+        )
+    console.print(table)
+
+
+@app.command()
 def schema(
     out: Annotated[Path, typer.Option("--out", "-o", help="出力ディレクトリ")] = DEFAULT_SCHEMA_DIR,
+    formations_dir: Annotated[
+        Path, typer.Option("--formations-dir", help="編成ライブラリのディレクトリ")
+    ] = DEFAULT_FORMATIONS_DIR,
     base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
 ) -> None:
     """YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。
 
-    編成定義（`lab stats`）と探索設定（`lab optimize`）で書式が違うため、
-    Schemaも2つ出す。どちらも実IDを enum に焼くので、Catalog を更新したら作り直す。
+    編成定義（`lab stats`）・探索設定（`lab optimize`）・編成ライブラリ1件
+    （`configs/formations/<id>.yaml`）で書式が違うため、Schemaも3つ出す。
+    実IDを enum に焼くので、Catalog を更新したら作り直す。探索設定の
+    `knownFormations` は編成ライブラリのIDを enum に焼くため、`--formations-dir` の
+    中身が増減したらこちらも作り直す。
 
     ギア分析（`lab gear-sensitivity` / `lab gear-plan`）が読むのは編成定義YAMLであり、
     設定はCLIオプションで渡す。専用のSchemaは無い。
     """
     catalog = _fetch_catalog(base_url)
     out.mkdir(parents=True, exist_ok=True)
+    formation_ids = list_formation_ids(formations_dir)
     written = [
         (
             out / FORMATION_SCHEMA_JSON,
             build_formation_json_schema(catalog),
             "編成定義YAML（stats・ギア分析）",
         ),
-        (out / SEARCH_SCHEMA_JSON, build_search_json_schema(catalog), "探索設定YAML"),
+        (
+            out / SEARCH_SCHEMA_JSON,
+            build_search_json_schema(catalog, formation_ids),
+            "探索設定YAML",
+        ),
+        (
+            out / FORMATION_SEED_SCHEMA_JSON,
+            build_formation_seed_json_schema(catalog),
+            "編成ライブラリYAML（configs/formations/）",
+        ),
     ]
     for path, document, _ in written:
         path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

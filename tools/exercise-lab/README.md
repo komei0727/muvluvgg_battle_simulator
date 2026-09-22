@@ -51,17 +51,18 @@ WORKER_MAX_THREADS=8 WORKER_MAX_QUEUE=200 EVALUATION_MAX_TOTAL_RUNS=300 mise run
 
 ## コマンド
 
-| コマンド               | 用途                                                 |
-| ---------------------- | ---------------------------------------------------- |
-| `lab stats`            | 同一編成を大量試行して統計サマリーを出す             |
-| `lab optimize`         | 候補プールから上位編成を探す                         |
-| `lab compare`          | 探索アルゴリズムを同一予算で比較する                 |
-| `lab gear-sensitivity` | ギア1手の限界効用を基点編成に対して実測する          |
-| `lab gear-plan`        | レジームを跨いでギア配分の理論値を探す               |
-| `lab import-draft`     | UIで組んだ演習編成を編成定義YAMLへ変換する           |
-| `lab schema`           | エディタ補完用の JSON Schema を Catalog から生成する |
-| `lab units`            | Catalog のユニットを検索してIDを引く                 |
-| `lab memories`         | Catalog のメモリーを検索してIDを引く                 |
+| コマンド               | 用途                                                  |
+| ---------------------- | ----------------------------------------------------- |
+| `lab stats`            | 同一編成を大量試行して統計サマリーを出す              |
+| `lab optimize`         | 候補プールから上位編成を探す                          |
+| `lab compare`          | 探索アルゴリズムを同一予算で比較する                  |
+| `lab gear-sensitivity` | ギア1手の限界効用を基点編成に対して実測する           |
+| `lab gear-plan`        | レジームを跨いでギア配分の理論値を探す                |
+| `lab import-draft`     | UIで組んだ演習編成を編成定義YAMLへ変換する            |
+| `lab schema`           | エディタ補完用の JSON Schema を Catalog から生成する  |
+| `lab units`            | Catalog のユニットを検索してIDを引く                  |
+| `lab memories`         | Catalog のメモリーを検索してIDを引く                  |
+| `lab formations`       | 編成ライブラリ（`configs/formations/`）のIDを一覧する |
 
 `stats` / `optimize` / `compare` / `gear-sensitivity` / `gear-plan` 以外は編成を用意するための補助である
 （「編成をIDで書かずに用意する」参照）。
@@ -613,7 +614,7 @@ Phase D の対象と単価表、最終選抜の順位、到達手順を出す。
 
 ## 編成をIDで書かずに用意する
 
-`unitDefinitionId` / `memoryDefinitionIds` を手で書き写す必要はない。用途が2つに分かれる。
+`unitDefinitionId` / `memoryDefinitionIds` を手で書き写す必要はない。用途が3つに分かれる。
 
 ### 初回に編成を起こす — UIのドラフトを取り込む
 
@@ -644,19 +645,75 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
 ——通常戦闘の敵は `PLAYABLE` なので、演習の敵プール（`EXERCISE_ENEMY`）に合わず R-TEX-11 #1
 で弾かれる。
 
+`--library` を付けると、敵を含まない編成ライブラリ形式（`units` + `memoryDefinitionIds`）で
+出す。次の「編成を使い回す」で `configs/formations/<id>.yaml` として保存する入力になる。
+`--note` でこの編成を組んだ意図・狙いも一緒に書ける（`--library` 専用、単体では使えない）。
+
+```bash
+uv run lab import-draft local_storage/draft/kotoha-anis.json --library \
+  --note "属性デバフ特化" \
+  -o configs/formations/kotoha-anis.yaml
+```
+
+### 編成を使い回す — 編成ライブラリ
+
+探索設定YAML（`lab optimize` / `lab compare`）の `knownFormations`（初期母集団の種）は、
+編成の中身を直接書かず、`configs/formations/<id>.yaml` に保存した編成をファイル名（ID）で
+参照する。良い編成を複数の探索設定から使い回すための仕組みで、編成の中身をコピー&ペースト
+する必要がない。
+
+```yaml
+# configs/formations/olga-junka-saya.yaml
+note: 属性デバフ特化。オルガ＆ナージャの弱体を前提にした構成
+units:
+  - unitDefinitionId: UNIT_OLGA_NADYA_BOND
+    position: { column: 0, row: FRONT }
+  # ...
+memoryDefinitionIds:
+  - MEM_GIDDY_CIRCUMSTANCES
+  # ...
+```
+
+`note` は任意の自由記述で、探索には使わない——この編成を組んだ意図・狙いを残すためだけの
+項目である。`lab formations` の一覧にも出る。
+
+```yaml
+# 探索設定YAML側
+knownFormations:
+  - olga-junka-saya
+```
+
+ディレクトリは各探索設定YAMLの親ディレクトリの `formations/` サブディレクトリ
+（既存configはすべて `configs/` 直下にあるため、実質 `configs/formations/` になる）。
+中身は `lab import-draft --library` の出力そのままか、既存の `formation.yaml` の `ally` から
+`unitDefinitionId` / `position` / `memoryDefinitionIds` だけを写しても作れる。
+
+登録済みのIDは一覧できる。
+
+```bash
+uv run lab formations              # 全件
+uv run lab formations --grep olga  # 部分一致
+```
+
+未知のIDを `knownFormations` へ書くと、`lab optimize` / `lab compare` の実行前に
+`lab formations` を案内するエラーで落ちる。プール外のユニット・メモリーを含む編成
+（壊れた種）は矯正して取り込む——`configs/formations/` は複数の探索設定から共有されるため、
+参照先の `unitPool` / `memoryPool` に無い項目を持っていても構わない。
+
 ### 反復編集する — エディタ補完を効かせる
 
-Catalog から実IDを enum に焼いた JSON Schema を生成できる。編成定義YAMLと探索設定YAMLで
-書式が違うため、Schemaも2つ出る。
+Catalog から実IDを enum に焼いた JSON Schema を生成できる。編成定義YAML・探索設定YAML・
+編成ライブラリ1件で書式が違うため、Schemaも3つ出る。
 
 ```bash
 uv run lab schema           # 既定の出力先ディレクトリは .schema/
 ```
 
-| 生成物                          | 対象YAML                   |
-| ------------------------------- | -------------------------- |
-| `.schema/formation.schema.json` | 編成定義（`lab stats`）    |
-| `.schema/search.schema.json`    | 探索設定（`lab optimize`） |
+| 生成物                               | 対象YAML                                   |
+| ------------------------------------ | ------------------------------------------ |
+| `.schema/formation.schema.json`      | 編成定義（`lab stats`）                    |
+| `.schema/search.schema.json`         | 探索設定（`lab optimize`）                 |
+| `.schema/formation-seed.schema.json` | 編成ライブラリ1件（`configs/formations/`） |
 
 対象のYAMLの先頭へ対応する1行を置くと、YAML Language Server（VSCode の
 `redhat.vscode-yaml` など）が `unitDefinitionId:` や `memoryDefinitionIds:` でIDを補完し、
@@ -670,16 +727,22 @@ uv run lab schema           # 既定の出力先ディレクトリは .schema/
 # yaml-language-server: $schema=../.schema/search.schema.json
 ```
 
+```yaml
+# configs/formations/<id>.yaml はconfigsの1つ下の階層なので、他の2つと違い `../../` になる。
+# yaml-language-server: $schema=../../.schema/formation-seed.schema.json
+```
+
 味方枠と敵枠には別々の enum が入るので、`R-TEX-11` #1（味方は `PLAYABLE`、敵は
 `EXERCISE_ENEMY`）は実行前にエディタ上で分かる。補完候補には日本語表示名・role・
 適性も添えてある（表示はエディタの実装次第）。学園レベルのキー9種と、
 「`ally.academyLevels` なしにユニットの `level` / `rank` / `gears` / `module` は書けない」もSchemaで表す。
 
 探索設定は実IDを書く場所が多い——`unitPool` / `memoryPool` / `enemy` /
-`constraints.fixedPlacements` / `constraints.requiredUnits` /
-`constraints.requiredMemories` / `knownFormations` のすべてで補完が効く。
-プール外のIDは矯正で黙って落とされる（打ち間違えたユニットが探索されないまま終わる）ので、
-書いた時点で分かることの効きが大きい。
+`constraints.fixedPlacements` / `constraints.requiredUnits` / `constraints.requiredMemories` /
+`knownFormations`（編成ライブラリのID）のすべてで補完が効く。プール外のIDは矯正で黙って
+落とされる（打ち間違えたユニットが探索されないまま終わる）ので、書いた時点で分かることの
+効きが大きい。`knownFormations` のenumは `--formations-dir`（既定 `configs/formations`）の
+中身から作るため、編成ライブラリを増減したら `lab schema` を実行し直す。
 
 **Schema は受理条件をすべては表さない。** 味方の配置重複は、要素の一部（`position`）に
 ついての一意性であり JSON Schema では表せないため、エディタは通し実行時にエラーになる。
@@ -727,17 +790,17 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 `lab optimize` / `lab compare` の入力。`configs/search.example.yaml` を写して使う。
 編成定義 YAML（`lab stats` の入力）とは別物で、確定した編成ではなく**探す範囲**を書く。
 
-| キー              | 必須 | 内容                                                       |
-| ----------------- | ---- | ---------------------------------------------------------- |
-| `enemy`           | 必須 | 演習の敵1体と配置。`EXERCISE_ENEMY` のみ（R-TEX-11 #1）。  |
-| `unitPool`        | 必須 | 探索するユニットのID。`PLAYABLE` のみ。                    |
-| `memoryPool`      | 任意 | 探索するメモリーのID。                                     |
-| `knownFormations` | 任意 | 既知の良編成。初期母集団の種になる。                       |
-| `constraints`     | 任意 | 重複可否・固定スロット・必須ユニット・必須メモリー。       |
-| `objective`       | 任意 | `bestOf`・`lambda`・`guardQuantile`。                      |
-| `schedule`        | 任意 | 母集団サイズ・評価段の試行数・最終選抜の設定・`patience`。 |
-| `operatorWeights` | 任意 | 近傍生成の重み。                                           |
-| `academyLevels`   | 任意 | 学園レベル。`--player-data` を使うなら書かなくてよい。     |
+| キー              | 必須 | 内容                                                                                             |
+| ----------------- | ---- | ------------------------------------------------------------------------------------------------ |
+| `enemy`           | 必須 | 演習の敵1体と配置。`EXERCISE_ENEMY` のみ（R-TEX-11 #1）。                                        |
+| `unitPool`        | 必須 | 探索するユニットのID。`PLAYABLE` のみ。                                                          |
+| `memoryPool`      | 任意 | 探索するメモリーのID。                                                                           |
+| `knownFormations` | 任意 | 既知の良編成のID（`configs/formations/`、`lab formations` で一覧できる）。初期母集団の種になる。 |
+| `constraints`     | 任意 | 重複可否・固定スロット・必須ユニット・必須メモリー。                                             |
+| `objective`       | 任意 | `bestOf`・`lambda`・`guardQuantile`。                                                            |
+| `schedule`        | 任意 | 母集団サイズ・評価段の試行数・最終選抜の設定・`patience`。                                       |
+| `operatorWeights` | 任意 | 近傍生成の重み。                                                                                 |
+| `academyLevels`   | 任意 | 学園レベル。`--player-data` を使うなら書かなくてよい。                                           |
 
 `knownFormations` は初期母集団の**25%まで**しか入らない。種で埋め尽くすと集団が似通って
 未知の組み合わせへ届かなくなるため、残りは種の変異体・ヒューリスティック種・ランダムで埋める。
