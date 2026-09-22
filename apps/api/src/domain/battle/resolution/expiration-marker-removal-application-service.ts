@@ -114,9 +114,14 @@ export function applyExpirationConditions(
 
 /**
  * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020）: `event`が
- * `UnitDefeated`のとき、`duration.removeOnSourceDefeated`を宣言し付与者が
- * その戦闘不能ユニットであるMarkerを即時に解除する（トップレベルの
- * `onFactEvent`専用、`applyExpirationConditions`と同じ形・同じ制約）。
+ * `UnitDefeated`（通常戦闘の戦闘不能）または`UnitBroken`（戦術演習のブレイク、
+ * R-TEX-07 #3、Issue #694）のとき、`duration.removeOnSourceDefeated`を宣言し
+ * 付与者がその戦闘不能／ブレイクしたユニットであるMarkerを即時に解除する
+ * （トップレベルの`onFactEvent`専用、`applyExpirationConditions`と同じ形・同じ
+ * 制約）。`UnitBroken`は`break-resolution-service.ts`の`resolveBreak`が
+ * 発行後に既存の`onFactEventForPassiveChain`配線でここへ渡すため、
+ * 呼び出し元の変更は不要（`findMarkersRemovedOnSourceDefeat`側のイベント種別
+ * 判定だけで両方に対応する）。
  *
  * 解除は`removeMarkers`へ流し込むため、同じ`linkedEffectGroupId`を持つ子効果は
  * R-EFF-09のcross-typeカスケードが自動で巻き込む（`ACT_AOI_ELEGANT_AS1_KOUYOU_
@@ -158,8 +163,9 @@ export function applyMarkerSourceDefeatRemovals(
 /**
  * R-EFF-10（`APPLY_SHIELD`拡張、Issue #660）: `applyMarkerSourceDefeatRemovals`の
  * `AppliedEffect`版（トップレベルの`onFactEvent`専用、同じ形・同じ制約）。`event`が
- * `UnitDefeated`のとき、`duration.removeOnSourceDefeated`を宣言し付与者がその
- * 戦闘不能ユニットであるShield等の`AppliedEffect`を即時に失効させる。
+ * `UnitDefeated`または`UnitBroken`（戦術演習のブレイク、R-TEX-07 #3、Issue #694）
+ * のとき、`duration.removeOnSourceDefeated`を宣言し付与者がその戦闘不能／
+ * ブレイクしたユニットであるShield等の`AppliedEffect`を即時に失効させる。
  *
  * `MarkerState`と異なり`AppliedEffect`はR-EFF-08の特殊失効条件と同じ
  * `EffectExpired`経路を共有するため、専用の除去関数を作らず`expireEffects`

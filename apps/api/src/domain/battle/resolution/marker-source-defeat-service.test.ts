@@ -250,7 +250,7 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
     ]);
   });
 
-  it("UT-R-TEX-07-002: a UnitBroken does not seed the source-defeat removal, so Markers the broken enemy granted to allies survive the break", () => {
+  it("UT-R-TEX-07-002 (R-TEX-07 #3): a UnitBroken seeds the source-defeat removal too, so a removeOnSourceDefeated Marker the broken enemy granted to an ally (e.g. UNIT_LAYLA_NURSE_TEXの「観察」) is cleared on break", () => {
     const ally = unit("ally-1");
     const { recorder, rootEventId } = seedRecorder();
     const granted = grantMarker({
@@ -262,19 +262,41 @@ describe("findMarkersRemovedOnSourceDefeat", () => {
       rootEventId,
     });
 
-    // R-TEX-07 #2: 発生源の戦闘不能を契機とする既存の解除規則はブレイクでは作動しない。
-    // ブレイクは`UnitDefeated`を発行しないため、この抽出器はそもそも成立しない
-    // （撃破トリガーの照合だけが`UnitBroken`を撃破として扱う、R-TEX-03 #2）。
+    // R-TEX-07 #3: removeOnSourceDefeatedを宣言したMarkerは、原文「付与者が倒れると
+    // 解除される」の「倒れる」を戦術演習ではブレイクと解釈し、UnitDefeatedと同じ
+    // 契機(R-EFF-10)として解除する。保持者が味方でも対象になる。
+    expect(
+      findMarkersRemovedOnSourceDefeat(granted.units, {
+        eventType: "UnitBroken",
+        payload: { unitId: createBattleUnitId("enemy-1"), breakNumber: 1 },
+      }),
+    ).toEqual([
+      {
+        battleUnitId: ally.battleUnitId,
+        markerInstanceId: granted.markerInstanceId,
+        reason: "SOURCE_DEFEATED",
+      },
+    ]);
+  });
+
+  it("UT-R-TEX-07-004 (R-TEX-07 #1, unaffected by #3): a UnitBroken does not seed a Marker that omits removeOnSourceDefeated, so the general 'enemy-granted ally effects survive break' rule still holds", () => {
+    const ally = unit("ally-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const granted = grantMarker({
+      sourceUnitId: "enemy-1",
+      targetUnitId: "ally-1",
+      durationDefinition: PLAIN_DURATION,
+      units: [ally],
+      recorder,
+      rootEventId,
+    });
+
     expect(
       findMarkersRemovedOnSourceDefeat(granted.units, {
         eventType: "UnitBroken",
         payload: { unitId: createBattleUnitId("enemy-1"), breakNumber: 1 },
       }),
     ).toEqual([]);
-    // 同じ状態で`UnitDefeated`なら従来どおり解除対象になる（対比）。
-    expect(findMarkersRemovedOnSourceDefeat(granted.units, defeatedEvent("enemy-1"))).toHaveLength(
-      1,
-    );
   });
 
   it("UT-R-EFF-10-029 (R-EFF-10 M7-020 Issue #279): a self-applied Marker is seeded when its holder is the defeated granter", () => {
@@ -464,6 +486,33 @@ describe("findEffectsRemovedOnSourceDefeat", () => {
       {
         battleUnitId: second.battleUnitId,
         effectInstanceId: second.appliedEffects[0]!.effectInstanceId,
+        reason: "SOURCE_DEFEATED",
+      },
+    ]);
+  });
+
+  it("UT-R-TEX-07-003 (R-TEX-07 #3): a UnitBroken seeds the source-defeat removal too, so a removeOnSourceDefeated Shield the broken enemy granted to an ally is cleared on break", () => {
+    const target: BattleUnit = {
+      ...unit("target-1"),
+      appliedEffects: [
+        shieldEffect({
+          instanceId: "effect-1",
+          sourceUnitId: "enemy-1",
+          targetUnitId: "target-1",
+          durationDefinition: REMOVE_ON_SOURCE_DEFEATED,
+        }),
+      ],
+    };
+
+    expect(
+      findEffectsRemovedOnSourceDefeat([target], {
+        eventType: "UnitBroken",
+        payload: { unitId: createBattleUnitId("enemy-1"), breakNumber: 1 },
+      }),
+    ).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: target.appliedEffects[0]!.effectInstanceId,
         reason: "SOURCE_DEFEATED",
       },
     ]);

@@ -16,17 +16,22 @@ export interface DefeatEventSource {
 
 /**
  * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: `UnitDefeated`
- * に対して、`duration.removeOnSourceDefeated`を宣言し、かつ付与者
- * （`MarkerState.sourceUnitId`＝直近の付与者）が戦闘不能になったユニットである
- * `MarkerState`を除去対象として列挙する。`SKL_AOI_ELEGANT_AS1`（百花繚乱）の
- * raw原文「「高揚」は付与者が倒れると同時に解除される」を表す。
+ * （通常戦闘の戦闘不能）または`UnitBroken`（戦術演習のブレイク、R-TEX-07 #3、
+ * Issue #694）に対して、`duration.removeOnSourceDefeated`を宣言し、かつ付与者
+ * （`MarkerState.sourceUnitId`＝直近の付与者）が戦闘不能／ブレイクしたユニットで
+ * ある`MarkerState`を除去対象として列挙する。`SKL_AOI_ELEGANT_AS1`（百花繚乱）の
+ * raw原文「「高揚」は付与者が倒れると同時に解除される」、`SKL_LAYLA_NURSE_TEX_PS1`
+ * （アナライザ・フォーカス）の「「観察」は付与者が倒れると解除される」を表す。
+ * 両イベントとも`payload.unitId`に発生源ユニットIDを持つため同じ形で扱える。
  *
  * 返した`seeds`はそのまま`removeMarkers`へ渡す — 同じ`linkedEffectGroupId`を持つ
- * 子効果（`ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN`／`..._DOT`）はR-EFF-09の
+ * 子効果（`ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN`／`..._DOT`、
+ * `ACT_LAYLA_NURSE_TEX_PS1_ATK_DOWN`／`..._HEALING_LINK`）はR-EFF-09の
  * cross-typeカスケードが自動で巻き込むため、本モジュールはMarker自身の抽出だけを
  * 担う。評価タイミングはR-EFF-08（`expiration.conditions`）と同じ「関連する
  * ドメインイベント発行後、PS/Memory候補の抽出前」で、配線は
- * `passive-activation-service.ts`が持つ。
+ * `passive-activation-service.ts`が持つ（`UnitBroken`も`onFactEvent`を経由する
+ * ため、`break-resolution-service.ts`側の変更は不要）。
  *
  * R-MEM-04: Memoryの`triggeredEffects`由来の付与は具体的な付与者ユニットを持たず
  * `sourceUnitId`が`undefined`（代わりに`sourceSide`を持つ）ため、この解除契機は
@@ -37,7 +42,7 @@ export function findMarkersRemovedOnSourceDefeat(
   units: readonly BattleUnit[],
   event: DefeatEventSource,
 ): readonly MarkerRemovalSeed[] {
-  if (event.eventType !== "UnitDefeated") {
+  if (event.eventType !== "UnitDefeated" && event.eventType !== "UnitBroken") {
     return [];
   }
   const defeatedUnitId = event.payload.unitId as BattleUnitId | undefined;
@@ -64,11 +69,13 @@ export function findMarkersRemovedOnSourceDefeat(
 
 /**
  * R-EFF-10（APPLY_SHIELD拡張、Issue #660）: `findMarkersRemovedOnSourceDefeat`の
- * `AppliedEffect`版。`UnitDefeated`に対して、`duration.removeOnSourceDefeated`を
- * 宣言し、かつ付与者（`AppliedEffect.sourceUnitId`＝直近の付与者）が戦闘不能に
- * なったユニットである`AppliedEffect`を除去対象として列挙する。`SKL_NANAE_
- * COMMANDER_AS2`（パーフェクトオーダー）の非攻勢分岐が付与するシールドの原文
- * 「シールドは付与者が倒れると解除される」を表す。
+ * `AppliedEffect`版。`UnitDefeated`（通常戦闘の戦闘不能）または`UnitBroken`
+ * （戦術演習のブレイク、R-TEX-07 #3、Issue #694）に対して、
+ * `duration.removeOnSourceDefeated`を宣言し、かつ付与者
+ * （`AppliedEffect.sourceUnitId`＝直近の付与者）が戦闘不能／ブレイクしたユニット
+ * である`AppliedEffect`を除去対象として列挙する。`SKL_NANAE_COMMANDER_AS2`
+ * （パーフェクトオーダー）の非攻勢分岐が付与するシールドの原文「シールドは付与者が
+ * 倒れると解除される」を表す。
  *
  * 返した`seeds`は`ExpirationSeed`としてそのまま`expireEffects`
  * （`duration-expiry-service.ts`）へ渡す — `MarkerState`と異なり`AppliedEffect`の
@@ -84,7 +91,7 @@ export function findEffectsRemovedOnSourceDefeat(
   units: readonly BattleUnit[],
   event: DefeatEventSource,
 ): readonly ExpirationSeed[] {
-  if (event.eventType !== "UnitDefeated") {
+  if (event.eventType !== "UnitDefeated" && event.eventType !== "UnitBroken") {
     return [];
   }
   const defeatedUnitId = event.payload.unitId as BattleUnitId | undefined;

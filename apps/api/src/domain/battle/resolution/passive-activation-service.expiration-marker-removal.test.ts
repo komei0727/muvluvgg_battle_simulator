@@ -473,6 +473,84 @@ describe("R-EFF-10 removeOnSourceDefeated (MARKER_REMOVAL_ON_SOURCE_DEATH, M7-02
     expect(recorder.getEvents().some((e) => e.eventType === "MarkerRemoved")).toBe(false);
   });
 
+  function recordUnitBroken(
+    recorder: EventRecorder,
+    turnStarted: BattleDomainEvent,
+    brokenId: ReturnType<typeof createBattleUnitId>,
+  ): BattleDomainEvent {
+    return recorder.record({
+      eventType: "UnitBroken",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: turnStarted.resolutionScopeId,
+      parentEventId: turnStarted.eventId,
+      rootEventId: turnStarted.eventId,
+      targetUnitIds: [brokenId],
+      payload: {
+        unitId: brokenId,
+        breakNumber: 1,
+        turnNumber: 1,
+        totalScore: 0,
+        causeEventId: turnStarted.eventId,
+      },
+    });
+  }
+
+  it("UT-R-TEX-07-005 [R-TEX-07 #3, R-EFF-09] (Issue #694, UNIT_LAYLA_NURSE_TEXの「観察」と同型): a UnitBroken for the granter removes the declaring Marker (reason SOURCE_DEFEATED) and cascades its CHILD AppliedEffect, through the same onFactEvent path production break resolution uses", () => {
+    // ライラ(TEX敵、granter)が味方(holder)へ「観察」＋連動デバフを付与した状態を模す。
+    // ブレイクは戦闘不能にしない（R-TEX-03 #1）ため、granterは生存扱いのまま
+    // `matchRuntimeCounterUpdates`がUnitDefinitionを要求する。
+    const granterUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_GRANTER_TEX");
+    const granter = unit("GRANTER", "ENEMY", { unitDefinitionId: granterUnitDefinitionId });
+    const holder = unit("HOLDER", "ALLY", {
+      attack: 10,
+      unitDefinitionId: holderUnitDefinitionId,
+    });
+    const holderWithKouyou: BattleUnit = {
+      ...holder,
+      combatStats: { ...holder.combatStats, criticalRate: -0.25 },
+      markerStates: [kouyouMarker(granter.battleUnitId, holder.battleUnitId)],
+      appliedEffects: [critDownEffect(granter.battleUnitId, holder.battleUnitId)],
+    };
+    const definitions = definitionsOf(
+      definitionsWith([granterUnitDefinitionId, []], [holderUnitDefinitionId, []]),
+      new Map(),
+      new Map([[CRIT_DOWN_ID, critDownDefinition()]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    // 実際の`resolveBreakSteps`が発行する`UnitBroken`と同じ形（`payload.unitId`が
+    // 発生源）。ブレイクは`UnitDefeated`にしない（R-TEX-03 #1）が、この`onFactEvent`
+    // 経路はproductionの`resolveBreak`が`context.onFactEventForPassiveChain`経由で
+    // 実際に呼ぶのと同じものであるため、合成イベントでも実配線の証拠になる。
+    const unitBroken = recordUnitBroken(recorder, turnStarted, granter.battleUnitId);
+    const runtime = new PassiveActivationRuntime(contextOf(recorder, definitions, turnStarted), [
+      granter,
+      holderWithKouyou,
+    ]);
+
+    const updatedUnits = runtime.onFactEvent(unitBroken, [granter, holderWithKouyou]).units;
+
+    const updatedHolder = updatedUnits.find((u) => u.battleUnitId === holder.battleUnitId)!;
+    expect(updatedHolder.markerStates).toHaveLength(0);
+    expect(updatedHolder.appliedEffects).toHaveLength(0);
+    expect(updatedHolder.combatStats.criticalRate).toBe(0);
+
+    const events = recorder.getEvents();
+    const markerRemoved = events.find((e) => e.eventType === "MarkerRemoved")!;
+    expect(markerRemoved.payload).toMatchObject({
+      reason: "SOURCE_DEFEATED",
+      cascaded: false,
+      linkedEffectGroupId: KOUYOU_LINK,
+    });
+    const effectExpired = events.find((e) => e.eventType === "EffectExpired")!;
+    expect(effectExpired.payload).toMatchObject({
+      reason: "LINKED_GROUP_CASCADE",
+      cascaded: true,
+    });
+  });
+
   it("UT-R-EFF-10-033 (R-EFF-10 M7-020 PS連鎖内部イベント): a UnitDefeated caused by a PS's own EffectSequence (chain-internal, never routed through onFactEvent) still removes the Marker the defeated unit had granted", () => {
     const attackerUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_ATTACKER");
     const victimUnitDefinitionId = createUnitDefinitionId("UNIT_KOUYOU_VICTIM");
