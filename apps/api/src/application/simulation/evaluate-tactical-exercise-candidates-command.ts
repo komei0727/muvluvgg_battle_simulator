@@ -31,9 +31,10 @@ export interface EvaluationLimits {
 
 /**
  * `maxTotalRuns`の既定値は実測から決めた: 5対1の演習1回が50〜70ms（production
- * Catalogの演習敵4体で計測）であり、`SIMULATION_TIMEOUT_MS`（30秒）の7割に最も遅い
- * 敵で約300回収まる。これを超える要求は期限到達で部分結果になるだけなので、
- * 上限は「返せる見込みのある量」に置く。
+ * Catalogの演習敵4体で計測）であり、本番Cloud Runが明示する`SIMULATION_TIMEOUT_MS=30秒`
+ * （`deploy/cloud-run/service.json`。コードの既定値50秒はローカル開発専用で、この計算の
+ * 基準ではない）の7割に最も遅い敵で約300回収まる。これを超える要求は期限到達で部分結果に
+ * なるだけなので、上限は「返せる見込みのある量」に置く。
  */
 export const DEFAULT_EVALUATION_LIMITS: EvaluationLimits = {
   maxCandidates: 32,

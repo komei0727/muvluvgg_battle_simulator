@@ -31,8 +31,9 @@ EXERCISE_PATH = "/api/v1/tactical-exercises"
 DETAILED_LOG_LEVEL = "DETAILED"
 
 DEFAULT_BASE_URL = "http://localhost:3000"
-# 1チャンクはサーバー側の `SIMULATION_TIMEOUT_MS`（既定30秒）まで掛かり得る。
-# クライアント側の待ちをそれより短くすると、完了した部分結果まで捨ててしまう。
+# 1チャンクはサーバー側の `SIMULATION_TIMEOUT_MS`（コード既定50秒。本番Cloud Runは
+# `deploy/cloud-run/service.json`で30秒を明示する）まで掛かり得る。クライアント側の
+# 待ちをそれより短くすると、完了した部分結果まで捨ててしまう。
 DEFAULT_TIMEOUT_SECONDS = 120.0
 
 # `R-TEX-11` #1: 味方は `PLAYABLE`、敵は `EXERCISE_ENEMY` からしか選べない。

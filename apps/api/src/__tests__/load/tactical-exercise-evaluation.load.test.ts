@@ -15,9 +15,11 @@ import {
 /**
  * 一括評価の baseline（`12_テスト戦略.md`「負荷・耐久テスト」）。
  *
- * `EVALUATION_MAX_TOTAL_RUNS`の既定値は「`SIMULATION_TIMEOUT_MS`（30秒）の7割に
- * 収まる試行数」として実測から決めた。その前提が崩れれば上限が実態と合わなくなる
- * ——上限まで要求したリクエストが常に部分結果になる——ため、上限いっぱいのリクエストが
+ * `EVALUATION_MAX_TOTAL_RUNS`の既定値は「`SIMULATION_TIMEOUT_MS`の7割に収まる試行数」
+ * として実測から決めた。基準は本番Cloud Runが明示する30秒（`deploy/cloud-run/service.json`）
+ * であり、`SIMULATION_TIMEOUT_MS`のコード既定値（ローカル開発専用、現在50秒）ではない
+ * ——このテストは意図的に本番値を固定して使う。その前提が崩れれば上限が実態と合わなく
+ * なる——上限まで要求したリクエストが常に部分結果になる——ため、上限いっぱいのリクエストが
  * 期限内に完走することをここで固定する。
  *
  * 判定は**全演習敵のうち最も遅いもの**で行う。演習敵ごとに1試行あたり50〜70msの幅が
@@ -25,6 +27,8 @@ import {
  * たときも自動的に測定対象へ入る。
  */
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
+// 本番Cloud Runの明示値（`deploy/cloud-run/service.json`）を意図的に固定する。
+// コードの既定値（`bootstrap/config.ts`、ローカル開発専用）とは独立。
 const SIMULATION_TIMEOUT_MS = 30_000;
 const DEADLINE_BUDGET_RATIO = 0.7;
 const PARTY_SIZE = 5;
