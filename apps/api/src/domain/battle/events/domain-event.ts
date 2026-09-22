@@ -395,6 +395,13 @@ export interface BattleDomainEventPayloadMap {
     readonly attackerAttribute?: Attribute;
     readonly defenderAttribute?: Attribute;
     readonly isFavorableAttribute?: boolean;
+    /**
+     * R-ATR-03（DMG-012）: メイン属性が有利でなく、攻撃側のサブ属性（サブ属性付き
+     * ユニットのみ）が代わりに有利判定になった場合だけ`true`。`isFavorableAttribute`
+     * と同時に`true`にはならない。属性相性の項を持たないヒット（R-SUB-02）では
+     * `isFavorableAttribute`と同じ理由で欄自体を持たない。
+     */
+    readonly isSubAttributeFavorable?: boolean;
     readonly attackerAffinityBonus?: number;
     readonly criticalMultiplier: number;
     /**

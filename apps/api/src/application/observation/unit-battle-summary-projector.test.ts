@@ -26,6 +26,7 @@ const COMBAT_STATS = {
   actionSpeed: 10,
   criticalDamageBonus: 0,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 function rosterEntry(

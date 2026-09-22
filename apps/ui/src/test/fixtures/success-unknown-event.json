@@ -619,6 +619,7 @@
         "attackerAttribute": "AGGRESSIVE",
         "defenderAttribute": "AGGRESSIVE",
         "isFavorableAttribute": false,
+        "isSubAttributeFavorable": false,
         "attackerAffinityBonus": 0.25,
         "criticalMultiplier": 1,
         "outgoingDamageMultiplier": 1,

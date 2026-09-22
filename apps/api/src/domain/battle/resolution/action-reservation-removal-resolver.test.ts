@@ -37,6 +37,7 @@ const UNIT_TEST_DEFINITION: UnitDefinition = {
     criticalRate: 0,
     criticalDamageBonus: 0.5,
     affinityBonus: 0,
+    subAffinityBonus: 0,
     actionSpeed: 10,
     maximumAp: 1,
     maximumPp: 3,
@@ -105,6 +106,7 @@ function unit(
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const limits = {

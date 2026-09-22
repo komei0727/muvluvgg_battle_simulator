@@ -173,6 +173,7 @@ describe("applyEffectActionGroups", () => {
         actionSpeed: 10,
         criticalDamageBonus: 0.5,
         affinityBonus: 0,
+        subAffinityBonus: 0,
       },
     });
     const attack = damageAction("ACT_ATTACK");

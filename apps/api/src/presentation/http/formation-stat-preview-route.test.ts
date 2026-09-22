@@ -50,6 +50,7 @@ const RESULT: FormationStatPreviewResult = {
         criticalRate: 0.125,
         actionSpeed: 12,
         affinityBonus: 0.25,
+        subAffinityBonus: 0.15,
         criticalDamageBonus: 0.5,
       },
       // 編成補正・適性補正の適用前。`combatStats`とは別の値にして取り違えを検知する。
@@ -60,6 +61,7 @@ const RESULT: FormationStatPreviewResult = {
         criticalRate: 0.1,
         criticalDamageBonus: 0.5,
         affinityBonus: 0.25,
+        subAffinityBonus: 0.15,
         actionSpeed: 12,
         maximumAp: 3,
         maximumPp: 4,

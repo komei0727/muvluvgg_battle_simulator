@@ -5030,6 +5030,9 @@
                                   "isFavorableAttribute": {
                                     "type": "boolean"
                                   },
+                                  "isSubAttributeFavorable": {
+                                    "type": "boolean"
+                                  },
                                   "attackerAffinityBonus": {
                                     "type": "number"
                                   },
@@ -17903,6 +17906,9 @@
                                   "isFavorableAttribute": {
                                     "type": "boolean"
                                   },
+                                  "isSubAttributeFavorable": {
+                                    "type": "boolean"
+                                  },
                                   "attackerAffinityBonus": {
                                     "type": "number"
                                   },
@@ -25484,6 +25490,9 @@
                                         "type": "number"
                                       },
                                       "affinityBonus": {
+                                        "type": "number"
+                                      },
+                                      "subAffinityBonus": {
                                         "type": "number"
                                       }
                                     }

@@ -56,6 +56,7 @@ const ORIGINAL: CombatStats = {
   actionSpeed: 200,
   criticalDamageBonus: 0.5,
   affinityBonus: 0.25,
+  subAffinityBonus: 0.15,
 };
 
 describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)", () => {
@@ -123,6 +124,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       actionSpeed: 240,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     });
     // 非複利: 4回目の結果を入力に3回目を求めても、原基準値から求めた3回目と一致する。
     const compounded = applyExerciseScaling(applyExerciseScaling(ORIGINAL, 4), 3);
@@ -187,6 +189,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
         actionSpeed: 136,
         criticalDamageBonus: 0.5,
         affinityBonus: 0,
+        subAffinityBonus: 0,
         maximumAp: 3,
         maximumPp: 3,
       },
@@ -227,6 +230,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           actionSpeed: 0,
           criticalDamageBonus: 0,
           affinityBonus: 0,
+          subAffinityBonus: 0,
           maximumAp: 3,
           maximumPp: 3,
         },
@@ -266,6 +270,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           actionSpeed: 0,
           criticalDamageBonus: 0,
           affinityBonus: 0,
+          subAffinityBonus: 0,
           maximumAp: 3,
           maximumPp: 3,
         },
@@ -306,6 +311,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           actionSpeed: 0,
           criticalDamageBonus: 0,
           affinityBonus: 0,
+          subAffinityBonus: 0,
           maximumAp: 3,
           maximumPp: 3,
         },

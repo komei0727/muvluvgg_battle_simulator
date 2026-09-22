@@ -11,6 +11,10 @@ export interface DamageCalculationInput {
   readonly attackerAttack: number;
   readonly attackerAttribute: Attribute;
   readonly attackerAffinityBonus: number;
+  /** R-ATR-03: サブ属性付きユニットのみ持つ。 */
+  readonly attackerSubAttribute?: Attribute;
+  /** R-ATR-03: `attackerSubAttribute`が有利判定になった場合に使う属性ダメージボーナス。 */
+  readonly attackerSubAffinityBonus: number;
   readonly defenderDefense: number;
   readonly defenderAttribute: Attribute;
   /** R-DMG-01の実効防御力に使う。0なら通常処理、1なら防御力を全量無視する。 */
@@ -72,6 +76,12 @@ export interface DamageCalculationResult {
    * 「有利だが属性相性ボーナスが0」の2通りあり、この欄だけが両者を分ける。
    */
   readonly isFavorableAttribute: boolean;
+  /**
+   * R-ATR-03（DMG-012）: メイン属性が有利でなく、代わりに攻撃側のサブ属性が
+   * 有利判定になった場合だけ`true`。`isFavorableAttribute`と同時に`true`になることは
+   * ない（メインが有利ならサブ属性は判定しない）。
+   */
+  readonly isSubAttributeFavorable: boolean;
   /** R-DMG-04の与ダメージ倍率（監査用に入力をそのまま返す）。 */
   readonly outgoingDamageMultiplier: number;
   /** R-DMG-04の被ダメージ倍率（R-DMG-03の`damageReductionIgnoreRate`適用済み）。 */
@@ -161,10 +171,16 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     input.confusion,
   );
   const favorable = isFavorableAttribute(input.attackerAttribute, input.defenderAttribute);
+  const subFavorable =
+    !favorable &&
+    input.attackerSubAttribute !== undefined &&
+    isFavorableAttribute(input.attackerSubAttribute, input.defenderAttribute);
   const attributeMultiplier = resolveAttributeMultiplier(
     input.attackerAttribute,
     input.defenderAttribute,
     createPercentage(input.attackerAffinityBonus),
+    input.attackerSubAttribute,
+    createPercentage(input.attackerSubAffinityBonus),
   );
   const actionDamageMultiplier = resolveActionDamageMultiplier(
     input.damageModifiers,
@@ -198,6 +214,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     skillPowerFormulaKind: input.skillPowerFormula.kind,
     attributeMultiplier,
     isFavorableAttribute: favorable,
+    isSubAttributeFavorable: subFavorable,
     outgoingDamageMultiplier,
     incomingDamageMultiplier,
     actionDamageMultiplier,

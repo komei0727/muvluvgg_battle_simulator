@@ -86,6 +86,7 @@ describe("buildBattleObservation", () => {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     };
     const initialState = {
       status: "READY" as const,

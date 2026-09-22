@@ -40,6 +40,7 @@ const COMBAT_STATS = {
   actionSpeed: 10,
   criticalDamageBonus: 0,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 /** ロースター項目に対応する、可変状態を動かさない静止スナップショット。 */
@@ -76,6 +77,7 @@ function rosterEntry(
       actionSpeed: 10,
       criticalDamageBonus: 0,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
     maximumAp: 3,
     maximumPp: 3,
@@ -365,6 +367,7 @@ describe("assembleTacticalExerciseResult break enhancement restoration (R-TEX-04
     actionSpeed: 10,
     criticalDamageBonus: 0.5,
     affinityBonus: 0,
+    subAffinityBonus: 0,
   };
   const ENHANCED_STATS = { ...BASE_STATS, maximumHp: 120, attack: 12 };
 

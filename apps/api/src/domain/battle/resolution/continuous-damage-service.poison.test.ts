@@ -41,6 +41,7 @@ function unit(id: string, currentHp?: number): BattleUnit {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const built = createBattleUnit(member, "ALLY", LIMITS);

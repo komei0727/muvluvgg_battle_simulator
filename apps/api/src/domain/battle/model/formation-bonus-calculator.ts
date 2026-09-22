@@ -8,6 +8,12 @@ export interface FormationBonus {
   readonly criticalRateBonus: Percentage;
 }
 
+/** R-ATR-03/R-BON-04: 編成ボーナス判定に使うユニット1体分のメイン・サブ属性。 */
+export interface UnitAttributePair {
+  readonly main: Attribute;
+  readonly sub?: Attribute;
+}
+
 interface HandBonus {
   readonly attack: number;
   readonly hp: number;
@@ -53,46 +59,77 @@ function rankHand(counts: ReadonlyMap<Attribute, number>): HandBonus {
 /** R-BON-02: attributes Comical can be assigned as, excluding Comical and Clever themselves. */
 const NORMAL_ATTRIBUTES: readonly Attribute[] = ["AGGRESSIVE", "SHY", "CUTE", "SMART"];
 
-/**
- * R-BON-02: evaluates every candidate assignment of the remaining Comical
- * members to a normal attribute and returns the highest-ranked resulting hand.
- */
-function evaluateComicalCandidates(
+function incrementCount(
   counts: ReadonlyMap<Attribute, number>,
-  comicalCount: number,
+  attribute: Attribute,
+): ReadonlyMap<Attribute, number> {
+  const next = new Map(counts);
+  next.set(attribute, (next.get(attribute) ?? 0) + 1);
+  return next;
+}
+
+/**
+ * R-BON-04: a member's candidate attributes for hand-ranking purposes — its
+ * main attribute plus its sub attribute (if present and distinct), excluding
+ * Clever from either (Clever never joins the hand pool, R-BON-03).
+ */
+function handCandidates(unit: UnitAttributePair): readonly Attribute[] {
+  const candidates: Attribute[] = [];
+  if (unit.main !== "CLEVER") {
+    candidates.push(unit.main);
+  }
+  if (unit.sub !== undefined && unit.sub !== "CLEVER" && unit.sub !== unit.main) {
+    candidates.push(unit.sub);
+  }
+  return candidates;
+}
+
+/**
+ * R-BON-02/R-BON-04: evaluates every candidate assignment — each member
+ * contributes its main attribute, its sub attribute, or (if either resolves
+ * to Comical) any of the four normal attributes as a wildcard — and returns
+ * the highest-ranked resulting hand. A member with no hand-eligible candidate
+ * (Clever on both main and sub) is skipped, same as the original Clever
+ * exclusion.
+ */
+function evaluateUnitCandidates(
+  units: readonly UnitAttributePair[],
+  index: number,
+  counts: ReadonlyMap<Attribute, number>,
 ): HandBonus {
-  if (comicalCount === 0) {
+  if (index === units.length) {
     return rankHand(counts);
   }
+  const candidates = handCandidates(units[index]!);
+  if (candidates.length === 0) {
+    return evaluateUnitCandidates(units, index + 1, counts);
+  }
   let best = NO_HAND;
-  for (const attribute of NORMAL_ATTRIBUTES) {
-    const candidateCounts = new Map(counts);
-    candidateCounts.set(attribute, (candidateCounts.get(attribute) ?? 0) + 1);
-    best = betterHand(best, evaluateComicalCandidates(candidateCounts, comicalCount - 1));
+  for (const candidate of candidates) {
+    if (candidate === "COMICAL") {
+      for (const normalAttribute of NORMAL_ATTRIBUTES) {
+        const nextCounts = incrementCount(counts, normalAttribute);
+        best = betterHand(best, evaluateUnitCandidates(units, index + 1, nextCounts));
+      }
+    } else {
+      const nextCounts = incrementCount(counts, candidate);
+      best = betterHand(best, evaluateUnitCandidates(units, index + 1, nextCounts));
+    }
   }
   return best;
 }
 
 /**
- * R-BON-01/02: only judged when the formation has exactly 5 members; Clever
- * members are excluded from the pool, and Comical members are wildcards
- * evaluated across every possible normal-attribute assignment.
+ * R-BON-01/02/R-BON-04: only judged when the formation has exactly 5
+ * members. Each member's main and sub attribute both enter the candidate
+ * search (`evaluateUnitCandidates`), and the highest-ranked hand across every
+ * combination is adopted.
  */
-function calculateNormalAttributeHand(attributes: readonly Attribute[]): HandBonus {
-  if (attributes.length !== 5) {
+function calculateNormalAttributeHand(units: readonly UnitAttributePair[]): HandBonus {
+  if (units.length !== 5) {
     return NO_HAND;
   }
-  const counts = new Map<Attribute, number>();
-  let comicalCount = 0;
-  for (const attribute of attributes) {
-    if (attribute === "CLEVER") continue;
-    if (attribute === "COMICAL") {
-      comicalCount += 1;
-      continue;
-    }
-    counts.set(attribute, (counts.get(attribute) ?? 0) + 1);
-  }
-  return evaluateComicalCandidates(counts, comicalCount);
+  return evaluateUnitCandidates(units, 0, new Map());
 }
 
 interface CleverStage {
@@ -119,8 +156,11 @@ interface CleverBonus {
   readonly criticalRate: number;
 }
 
-function calculateCleverBonus(attributes: readonly Attribute[]): CleverBonus {
-  const cleverCount = attributes.filter((attribute) => attribute === "CLEVER").length;
+/** R-BON-03/R-BON-04: a member counts toward Clever if either its main or sub attribute is Clever. */
+function calculateCleverBonus(units: readonly UnitAttributePair[]): CleverBonus {
+  const cleverCount = units.filter(
+    (unit) => unit.main === "CLEVER" || unit.sub === "CLEVER",
+  ).length;
   const reached = CLEVER_STAGES.filter((stage) => cleverCount >= stage.threshold);
   return reached.reduce<CleverBonus>(
     (acc, stage) => ({
@@ -133,9 +173,9 @@ function calculateCleverBonus(attributes: readonly Attribute[]): CleverBonus {
   );
 }
 
-export function calculateFormationBonus(attributes: readonly Attribute[]): FormationBonus {
-  const hand = calculateNormalAttributeHand(attributes);
-  const clever = calculateCleverBonus(attributes);
+export function calculateFormationBonus(units: readonly UnitAttributePair[]): FormationBonus {
+  const hand = calculateNormalAttributeHand(units);
+  const clever = calculateCleverBonus(units);
   return {
     attackBonus: createPercentage(hand.attack + clever.attack),
     hpBonus: createPercentage(hand.hp + clever.hp),

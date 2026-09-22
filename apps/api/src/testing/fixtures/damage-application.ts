@@ -63,7 +63,9 @@ export function unit(
     criticalRate?: number;
     criticalDamageBonus?: number;
     affinityBonus?: number;
+    subAffinityBonus?: number;
     attribute?: Attribute;
+    subAttribute?: Attribute;
   } = {},
 ): BattleUnit {
   const position: FormationPosition = { column: "LEFT", row: "FRONT" };
@@ -72,6 +74,7 @@ export function unit(
     battleUnitId: createBattleUnitId(id),
     unitDefinitionId: createUnitDefinitionId("UNIT_001"),
     attribute: overrides.attribute ?? "AGGRESSIVE",
+    ...(overrides.subAttribute === undefined ? {} : { subAttribute: overrides.subAttribute }),
     position,
     globalCoordinate: toGlobalCoordinate(side, position),
     combatStats: {
@@ -82,6 +85,7 @@ export function unit(
       actionSpeed: 10,
       criticalDamageBonus: overrides.criticalDamageBonus ?? 0.5,
       affinityBonus: overrides.affinityBonus ?? 0,
+      subAffinityBonus: overrides.subAffinityBonus ?? 0,
     },
   };
   return createBattleUnit(member, side, LIMITS);

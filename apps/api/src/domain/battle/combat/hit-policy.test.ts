@@ -45,6 +45,7 @@ function unit(id: string): BattleUnit {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   return createBattleUnit(member, "ENEMY", LIMITS);

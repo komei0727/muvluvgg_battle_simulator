@@ -60,6 +60,7 @@ function unit(id: string, side: Side, unitDefinitionId = "UNIT_001"): BattleUnit
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   return createBattleUnit(member, side, LIMITS);
@@ -818,6 +819,7 @@ describe("break and revival pipeline (R-TEX-03／05〜08)", () => {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     });
     // R-TEX-05 #3: 強化後の最大HPまで全回復する。
     expect(enemy.currentHp).toBe(120);

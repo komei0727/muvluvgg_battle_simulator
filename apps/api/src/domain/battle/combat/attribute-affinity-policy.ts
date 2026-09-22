@@ -27,14 +27,24 @@ export function isFavorableAttribute(attacker: Attribute, defender: Attribute): 
  * ユニットステータスだからである（R-ENH-06のギア加算・R-STA-01の戦闘中補正もこの値へ
  * パーセントポイントで足し込む）。R-ATR-02が挙げる「125%」は既定値込みの結果であり、
  * ここで別途125%を足すと既定値が二重に乗る。
+ *
+ * R-ATR-03: 攻撃側のメイン属性が有利にならない場合だけ、攻撃側のサブ属性
+ * （サブ属性付きユニットのみ）で同じ有利判定を再チェックする。有利ならメインより
+ * 低い`subAffinityBonus`（既定15%）を加算する。メインが有利な場合はサブ属性を
+ * 無視する（二重加算しない）。
  */
 export function resolveAttributeMultiplier(
   attacker: Attribute,
   defender: Attribute,
   affinityBonus: Percentage,
+  subAttacker: Attribute | undefined,
+  subAffinityBonus: Percentage,
 ): number {
-  if (!isFavorableAttribute(attacker, defender)) {
-    return 1;
+  if (isFavorableAttribute(attacker, defender)) {
+    return 1 + affinityBonus;
   }
-  return 1 + affinityBonus;
+  if (subAttacker !== undefined && isFavorableAttribute(subAttacker, defender)) {
+    return 1 + subAffinityBonus;
+  }
+  return 1;
 }

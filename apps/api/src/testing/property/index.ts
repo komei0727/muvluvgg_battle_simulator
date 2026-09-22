@@ -63,6 +63,7 @@ export function battleUnitFromPlacement(placement: UnitPlacement): BattleUnit {
       actionSpeed: placement.actionSpeed,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     },
   };
   return createBattleUnit(member, placement.side, RESOURCE_LIMITS);

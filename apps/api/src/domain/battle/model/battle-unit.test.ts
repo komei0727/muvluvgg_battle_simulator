@@ -41,6 +41,7 @@ function member(overrides: Partial<BattlePartyMember> = {}): BattlePartyMember {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     },
     ...overrides,
   };
@@ -187,6 +188,7 @@ function unitDefinition(id: string, maximumAp: number, maximumPp: number): UnitD
       criticalRate: 0.1,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
       actionSpeed: 10,
       maximumAp,
       maximumPp,

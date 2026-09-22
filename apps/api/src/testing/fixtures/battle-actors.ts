@@ -27,6 +27,7 @@ const DEFAULT_COMBAT_STATS: CombatStats = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 /**
@@ -42,6 +43,7 @@ export const UNUSED_ENHANCED_BASE_STATS: BaseStats = {
   criticalRate: 0,
   criticalDamageBonus: 0,
   affinityBonus: 0,
+  subAffinityBonus: 0,
   actionSpeed: 0,
   maximumAp: 0,
   maximumPp: 0,

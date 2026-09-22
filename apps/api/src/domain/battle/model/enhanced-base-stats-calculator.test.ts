@@ -24,6 +24,7 @@ const BASE_STATS: BaseStats = {
   criticalRate: 0.25,
   criticalDamageBonus: 0.5,
   affinityBonus: 0.25,
+  subAffinityBonus: 0.15,
   actionSpeed: 780,
   maximumAp: 4,
   maximumPp: 4,
@@ -280,6 +281,7 @@ describe("calculateEnhancedBaseStats — R-ENH-06 強化後基本ステータス
         criticalRate: BASE_STATS.criticalRate * 2,
         criticalDamageBonus: BASE_STATS.criticalDamageBonus * 2,
         affinityBonus: BASE_STATS.affinityBonus * 2,
+        subAffinityBonus: 0,
       };
       const delta = (baseStats: BaseStats): number =>
         calculateEnhancedBaseStats(target({ baseStats }), { gears })[field] -

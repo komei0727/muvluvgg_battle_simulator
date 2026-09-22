@@ -159,5 +159,7 @@ export function applyExerciseScaling(original: CombatStats, breakCount: number):
     actionSpeed: scaleByPoints(original.actionSpeed, points.actionSpeed),
     criticalDamageBonus: original.criticalDamageBonus,
     affinityBonus: original.affinityBonus,
+    // R-ATR-03: サブ属性ボーナスもR-TEX-04の強化対象外のため原基準値のまま写す。
+    subAffinityBonus: original.subAffinityBonus,
   };
 }

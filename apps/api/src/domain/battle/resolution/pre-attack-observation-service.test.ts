@@ -35,6 +35,7 @@ function unit(id: string, appliedEffects: readonly AppliedEffect[] = []): Battle
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const built = createBattleUnit(member, "ALLY", {

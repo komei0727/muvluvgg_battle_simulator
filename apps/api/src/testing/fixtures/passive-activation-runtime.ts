@@ -60,6 +60,7 @@ export function unit(
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const limits = {
@@ -94,6 +95,7 @@ export function unitDefinitionOf(
       criticalRate: 0,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
       actionSpeed: 10,
       maximumAp: 3,
       maximumPp: 3,
