@@ -45,7 +45,7 @@ WORKER_MAX_THREADS=8 WORKER_MAX_QUEUE=200 EVALUATION_MAX_TOTAL_RUNS=300 mise run
 | `EVALUATION_ENDPOINT_ENABLED` | `true`（`dev` 経由） | 一括評価の公開。`false` だと `404 ENDPOINT_DISABLED`。   |
 | `EVALUATION_MAX_TOTAL_RUNS`   | `300`                | 1リクエストの総試行数上限。`--chunk-size` の上限になる。 |
 | `EVALUATION_MAX_CANDIDATES`   | `32`                 | 1リクエストの候補数上限（このツールは常に1候補）。       |
-| `SIMULATION_TIMEOUT_MS`       | `30000`              | リクエスト全体の期限。超えた分は部分結果として返る。     |
+| `SIMULATION_TIMEOUT_MS`       | `50000`              | リクエスト全体の期限。超えた分は部分結果として返る。     |
 | `WORKER_MAX_THREADS`          | CPU依存              | Worker スレッド数。                                      |
 | `WORKER_MAX_QUEUE`            | `100`                | Worker 待機キュー上限。                                  |
 
@@ -821,7 +821,8 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 不足は `summary.json` の `requestedRuns` と `completedRuns` の差として残り、コンソールにも
 警告を出す。統計量は実際に完了した試行だけで算出する。
 
-チャンクが頻繁に欠けるなら `--chunk-size` を下げるか、dev サーバーの `WORKER_MAX_THREADS` を上げる。
+チャンクが頻繁に欠けるなら `--chunk-size` を下げるか、dev サーバーの `WORKER_MAX_THREADS` か
+`SIMULATION_TIMEOUT_MS` を上げる。
 
 `lab gear-plan` も同じ扱いである。不足は `gear-plan.json` の `requestedRuns` と `consumedRuns` の
 差として残り、コンソールへ警告を出す。部分結果でも空のレポートは書かず、実際に完了した試行だけで

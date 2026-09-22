@@ -531,8 +531,8 @@ type FormationStatPreviewApiResult =
 
 ### タイムアウトとキャンセル
 
-- サーバー既定期限は30秒である。
-- UIは35秒を既定のクライアント待機上限とし、API側が構造化504を返す余地を残す。
+- サーバー既定期限は50秒である（本番Cloud Runは`deploy/cloud-run/service.json`で30秒を明示する）。
+- UIは55秒を既定のクライアント待機上限とし、API側が構造化504を返す余地を残す。
 - `AbortController`を1実行につき1つ作る。
 - 利用者キャンセル、page unload、UI待機上限でabortする。
 - Abort後に到着した結果でstateを更新しない。実行ごとの `executionId` を照合する。

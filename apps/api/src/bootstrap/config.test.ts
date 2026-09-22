@@ -13,7 +13,7 @@ describe("loadConfig", () => {
       port: 3000,
       host: "0.0.0.0",
       catalogDir: "catalog",
-      simulationTimeoutMs: 30_000,
+      simulationTimeoutMs: 50_000,
       workerMaxQueue: 100,
       shutdownGraceMs: 30_000,
       logLevel: "info",

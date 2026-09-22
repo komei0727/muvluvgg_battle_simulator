@@ -28,14 +28,15 @@ const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
 // 設け、戦闘実行用AbortControllerと共有しない」。
 const DEFAULT_TIMEOUT_MS = 10_000;
 const SIMULATION_PATH = "/api/v1/battle-simulations";
-// docs/ui-design/03_API・データ連携設計.md §7: 「UIは35秒を既定のクライアント
-// 待機上限とし、API側が構造化504を返す余地を残す」。
-const SIMULATION_DEFAULT_TIMEOUT_MS = 35_000;
+// docs/ui-design/03_API・データ連携設計.md §7: 「UIは55秒を既定のクライアント
+// 待機上限とし、API側が構造化504を返す余地を残す」。サーバー既定期限50秒
+// （`bootstrap/config.ts`）より5秒長く保つ。
+const SIMULATION_DEFAULT_TIMEOUT_MS = 55_000;
 const TACTICAL_EXERCISE_PATH = "/api/v1/tactical-exercises";
 const TACTICAL_EXERCISE_EVALUATION_PATH = "/api/v1/tactical-exercise-evaluations";
 const PREVIEW_PATH = "/api/v1/formation-stat-previews";
 // docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは戦闘を実行せず
-// 同期的に返るため、戦闘POSTの35秒ではなく一覧GETと同じ待機上限で十分。
+// 同期的に返るため、戦闘POSTの55秒ではなく一覧GETと同じ待機上限で十分。
 const PREVIEW_DEFAULT_TIMEOUT_MS = 10_000;
 
 function isAbortError(error: unknown): boolean {

@@ -523,7 +523,7 @@ export function useExerciseStatisticsRun(
     // 遷移させない。中断の結果は「完了済みチャンクまでの集約」であり、それを確定できるのは
     // チャンクを積んでいる実行ループだけである。ループはabortで解決した応答（CANCELLED）と
     // チャンクの切れ目の`signal.aborted`の両方で確定へ入り、待ち時間は`api-client`の
-    // 待機上限（35秒）で頭打ちになる。
+    // 待機上限（55秒）で頭打ちになる。
     asyncRequest.abort();
   }, [asyncRequest]);
 

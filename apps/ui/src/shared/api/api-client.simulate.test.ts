@@ -235,7 +235,7 @@ describe("simulate", () => {
     }
   });
 
-  it("returns TIMEOUT when the internal 35s wait limit elapses before the caller aborts", async () => {
+  it("returns TIMEOUT when the internal 55s wait limit elapses before the caller aborts", async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(
       (_input: RequestInfo | URL, init?: RequestInit) =>
@@ -251,7 +251,7 @@ describe("simulate", () => {
       signal: new AbortController().signal,
       fetchImpl: fetchMock,
     });
-    await vi.advanceTimersByTimeAsync(35_000);
+    await vi.advanceTimersByTimeAsync(55_000);
     const result = await resultPromise;
 
     expect(result.ok).toBe(false);
@@ -261,7 +261,7 @@ describe("simulate", () => {
   });
 
   // The headers resolve as soon as fetch() settles, but the body may still be
-  // streaming. The 35s wait limit must keep covering response.json(), not just
+  // streaming. The 55s wait limit must keep covering response.json(), not just
   // the initial fetch() call.
   it("returns TIMEOUT when the wait limit elapses while the response body is still being read", async () => {
     vi.useFakeTimers();
@@ -286,7 +286,7 @@ describe("simulate", () => {
       signal: new AbortController().signal,
       fetchImpl: fetchMock,
     });
-    await vi.advanceTimersByTimeAsync(35_000);
+    await vi.advanceTimersByTimeAsync(55_000);
     const result = await resultPromise;
 
     expect(result.ok).toBe(false);
