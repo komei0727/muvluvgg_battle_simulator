@@ -13552,7 +13552,7 @@
     "metadata": { "displayName": "ストレラ", "tags": [] },
     "triggers": [
       {
-        "eventType": "SkillUseCompleted",
+        "eventType": "DamageApplied",
         "category": "FACT",
         "sourceSelector": "OTHER_ALLY",
         "targetSelector": "ENEMY",

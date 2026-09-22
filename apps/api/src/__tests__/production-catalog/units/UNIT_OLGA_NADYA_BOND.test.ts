@@ -13,6 +13,7 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import {
+  realDamage,
   skillUseCompleted,
   unitBeingAttacked,
 } from "../../../testing/production-unit/trigger-events.js";
@@ -270,15 +271,16 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      trigger: skillUseCompleted({
-        actor: "ally:front",
-        targets: ["enemy:front"],
-        skillType: "AS",
-      }),
-      triggeredBy: "ally:front",
+      // PR #685レビュー[P1]: `SkillUseCompleted`はスキルが実際にDAMAGEを与えたかを
+      // 保持しないため、敵を対象にしたが命中しなかった／攻撃自体を含まないASでも
+      // 発動してしまっていた。契機を実際の命中（`DamageApplied`）へ差し替えたため、
+      // テストも実ダメージパイプラインを通す`realDamage`で契機を作る
+      // （synthetic eventでは`DamageApplied`が発行されず発動しない）。
+      trigger: realDamage({ from: "ally:front", to: "enemy:front", skillType: "AS" }),
     },
     // `ally:front` は盤面既定でAGGRESSIVE属性（`productionBoard`の既定値）のため
-    // 明示的な属性上書きなしで条件が成立する。
+    // 明示的な属性上書きなしで条件が成立する。契機自身が与えたダメージは観測の
+    // 基準線へ繰り込まれるため、hpDeltasにはPS1自身の追撃分だけが現れる。
     expected: {
       // (攻撃力1000×1.35 − 防御力500) × 0.78 = 850×0.78 = 663。
       // PPは +1（復元）− 1（発動コスト）で正味0のため resources に現れない。
@@ -296,33 +298,21 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
     intent:
-      "(回帰): 契機となった味方のASが自己バフ+敵攻撃の混合対象(targetUnitIds)を持っていても、追撃は敵側だけに向く（味方への誤爆防止）",
+      "(回帰・PR #685レビュー[P1]): 敵を対象にしたAS使用であっても、実際にダメージを与えていなければ発動しない",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      // `SkillUseCompleted.targetUnitIds`は契機スキルの全stepの対象を集約するため
-      // （自己バフstep + 敵攻撃stepを持つASなら両方を含む）、`TRIGGER_TARGET`を
-      // side フィルタ無しで使うと味方(ally:back)にも追撃してしまうバグが実際に
-      // 本番相当のフルバトルで発生した。targetsへ味方を含めてこれを再現する。
+      // `SkillUseCompleted`（スキル使用の完了）はDAMAGEステップを持たない
+      // ASでも発行される。現在のtriggerは`DamageApplied`のみを見るため、
+      // このイベントは型自体が一致せず発動しない。
       trigger: skillUseCompleted({
         actor: "ally:front",
-        targets: ["ally:front", "enemy:front"],
+        targets: ["enemy:front"],
         skillType: "AS",
       }),
       triggeredBy: "ally:front",
     },
-    expected: {
-      // (攻撃力1000×1.35 − 防御力500) × 0.78 = 663。誤爆していれば
-      // ACT_OLGA_NADYA_BOND_PS1_DAMAGEが"ally:front"にも実行され、hpDeltasに
-      // ally:frontへの負のダメージが現れてしまう。
-      actions: [
-        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_PP_UP", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_ATK_UP", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_DAMAGE", targets: ["enemy:front"] },
-      ],
-      hpDeltas: { "enemy:front": -663 },
-      resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 }],
-    },
+    expected: { activated: false },
   },
   {
     skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
@@ -331,12 +321,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      trigger: skillUseCompleted({
-        actor: "ally:front",
-        targets: ["enemy:front"],
-        skillType: "AS",
-      }),
-      triggeredBy: "ally:front",
+      trigger: realDamage({ from: "ally:front", to: "enemy:front", skillType: "AS" }),
     },
     board: NON_MATCHING_ALLY,
     expected: {
@@ -357,12 +342,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      trigger: skillUseCompleted({
-        actor: "ally:front",
-        targets: ["enemy:front"],
-        skillType: "AS",
-      }),
-      triggeredBy: "ally:front",
+      trigger: realDamage({ from: "ally:front", to: "enemy:front", skillType: "AS" }),
     },
     precedingActions: [{ effectActionDefinitionId: "ACT_FEE_ACTOR_EX_BURN", target: "SELF" }],
     expected: {
@@ -389,12 +369,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      trigger: skillUseCompleted({
-        actor: "ally:front",
-        targets: ["enemy:front"],
-        skillType: "AS",
-      }),
-      triggeredBy: "ally:front",
+      trigger: realDamage({ from: "ally:front", to: "enemy:front", skillType: "AS" }),
     },
     board: { subject: { state: { currentAp: 1 } } },
     expected: { activated: false },
@@ -405,12 +380,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      trigger: skillUseCompleted({
-        actor: "ally:front",
-        targets: ["enemy:front"],
-        skillType: "AS",
-      }),
-      triggeredBy: "ally:front",
+      trigger: realDamage({ from: "ally:front", to: "enemy:front", skillType: "AS" }),
     },
     board: { subject: { state: { currentHp: 3000 } } },
     expected: { activated: false },
@@ -421,7 +391,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
-      trigger: skillUseCompleted({ actor: "enemy:front", targets: ["ally:back"], skillType: "AS" }),
+      trigger: realDamage({ from: "enemy:front", to: "ally:back", skillType: "AS" }),
     },
     expected: { activated: false },
   },
