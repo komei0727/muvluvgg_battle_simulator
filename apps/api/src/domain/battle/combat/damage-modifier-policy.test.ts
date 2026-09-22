@@ -210,6 +210,30 @@ describe("composeDamageModifiers (R-DMG-04, R-DMG-03)", () => {
     expect(compose(attacker, wounded).incomingMultiplier).toBe(1);
   });
 
+  it("UT-R-DMG-04-017 [R-DMG-04, R-ATR-04] (Issue #687): a UNIT_STATE ATTRIBUTE condition is existentially quantified over the referenced unit's main attribute and subAttribute", () => {
+    const defender = unitAt("U_DEF", "ENEMY");
+    const modifier: DamageModifierState = {
+      direction: "INCOMING",
+      damageType: null,
+      condition: {
+        kind: "UNIT_STATE",
+        unit: "OPPONENT",
+        field: "ATTRIBUTE",
+        op: "EQ",
+        value: "AGGRESSIVE",
+      },
+    };
+    const withMod = holding(defender, damageMod(defender, -0.3, modifier));
+    const subAttributeAttacker = {
+      ...unitAt("U_ATK", "ALLY"),
+      attribute: "SHY",
+      subAttribute: "AGGRESSIVE",
+    } as const;
+    const nonMatchingAttacker = { ...unitAt("U_ATK", "ALLY"), attribute: "SHY" } as const;
+    expect(compose(subAttributeAttacker, withMod).incomingMultiplier).toBeCloseTo(0.7);
+    expect(compose(nonMatchingAttacker, withMod).incomingMultiplier).toBe(1);
+  });
+
   it("UT-R-DMG-04-007: a UNIT_HAS_MARKER condition on OPPONENT gates the modifier by the attacker's markers", () => {
     const defender = unitAt("U_DEF", "ENEMY");
     const modifier: DamageModifierState = {

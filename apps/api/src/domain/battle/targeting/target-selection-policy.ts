@@ -1,4 +1,9 @@
-import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import {
+  heldAttributes,
+  hitPointRatio,
+  isDefeated,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -225,7 +230,8 @@ function matchesFilter(
     case "ROLE":
       return lookupUnitDefinition(candidate, ctx.unitDefinitions).role === filter.role;
     case "ATTRIBUTE":
-      return candidate.attribute === filter.attribute;
+      // R-ATR-04（Issue #687）: メイン属性・サブ属性いずれかへの存在量化。
+      return heldAttributes(candidate).includes(filter.attribute);
     case "AFFILIATION":
       return lookupUnitDefinition(candidate, ctx.unitDefinitions).metadata.affiliations.includes(
         filter.affiliationId,

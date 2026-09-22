@@ -148,4 +148,27 @@ describe("production Catalog MEM_GIDDY_CIRCUMSTANCES (浮かれた事情)", () =
       expect(unit.appliedEffects).toHaveLength(0);
     }
   });
+
+  it("IT-MEM-GIDDY-CIRCUMSTANCES-006 (Issue #687, R-ATR-04): an ally whose subAttribute is AGGRESSIVE is also targeted by the aggressive-only effect, even though its main attribute is CUTE", () => {
+    const [firstTurn] = observeMemoryTurnStarts(MEMORY_DEFINITION_ID, "ALLY", 1, {
+      ...BOARD,
+      subAttributesBySlot: { BACK_RIGHT: "AGGRESSIVE" },
+    }).turnStarts;
+    expect(firstTurn?.grants).toEqual([
+      {
+        effectActionDefinitionId: "ACT_MEM_GIDDY_CIRCUMSTANCES_AGGRESSIVE_ATK_UP",
+        unitIds: [...AGGRESSIVE_ALLY_SLOTS, "ally:BACK_RIGHT"],
+        magnitude: 1500,
+        statMod: { stat: "ATTACK", valueType: "FIXED" },
+        sourceSide: "ALLY",
+      },
+      {
+        effectActionDefinitionId: "ACT_MEM_GIDDY_CIRCUMSTANCES_SMART_ATK_UP",
+        unitIds: ["ally:FRONT_CENTER"],
+        magnitude: 1500,
+        statMod: { stat: "ATTACK", valueType: "FIXED" },
+        sourceSide: "ALLY",
+      },
+    ]);
+  });
 });

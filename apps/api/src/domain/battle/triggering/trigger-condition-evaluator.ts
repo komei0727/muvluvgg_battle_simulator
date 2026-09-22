@@ -12,7 +12,12 @@ import type { TargetReference } from "../../catalog/definitions/references.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
-import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import {
+  heldAttributes,
+  hitPointRatio,
+  isDefeated,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 import { truncateFraction } from "../model/resource-gauge.js";
 import {
   countMatchingEffects,
@@ -172,8 +177,9 @@ function matchesPositionRelation(
  * `TARGET_STATE.field`（EFF-003）を1つの値へ解決する。
  * `UNIT_TYPE`/`ROLE`はCatalogの`UnitDefinition`参照が必要なため、呼び出し側が
  * `context.unitDefinitions`で渡した参照表を引く（M7-001E、Issue #248）。
- * `HAS_STATUS`だけは対象が複数の状態を同時に保持しうる存在量化であり単一値へ
- * 解決できないため、`matchesTargetState`が別途判定する。
+ * `HAS_STATUS`／`ATTRIBUTE`（R-ATR-04、Issue #687）は対象がメイン属性・サブ属性や
+ * 複数の状態を同時に保持しうる存在量化であり単一値へ解決できないため、
+ * `matchesTargetState`が別途判定する。
  *
  * `skill/effect-step-condition-evaluator.ts`の同名関数と同じ方針・意図的な重複
  * （`domain/battle/triggering`と`domain/battle/skill`は互いに依存できない）。
@@ -188,8 +194,6 @@ function resolveTargetStateField(
       return !isDefeated(target);
     case "HP_RATIO":
       return hitPointRatio(target);
-    case "ATTRIBUTE":
-      return target.attribute;
     case "POSITION_ROW":
       return target.position.row;
     case "POSITION_COLUMN":
@@ -211,10 +215,11 @@ function resolveTargetStateField(
       }
       return field === "UNIT_TYPE" ? unitDefinition.unitType : unitDefinition.role;
     }
+    case "ATTRIBUTE":
     case "HAS_STATUS":
       throw new DomainValidationError(
         "condition.field",
-        'TARGET_STATE field "HAS_STATUS" is existentially quantified over the target\'s held statuses and must be evaluated by matchesTargetState, not resolved to a single value',
+        `TARGET_STATE field "${field}" is existentially quantified over the target's held values and must be evaluated by matchesTargetState, not resolved to a single value`,
       );
   }
 }
@@ -222,8 +227,9 @@ function resolveTargetStateField(
 /**
  * M7-001E（Issue #248）: 1体に対する`TARGET_STATE`を判定する。`HAS_STATUS`は
  * 「対象が保持している`APPLY_STATUS`由来の状態種別のいずれかが`op`/`value`へ
- * 一致するか」の存在量化として扱う（`skill/effect-step-condition-evaluator.ts`の
- * `matchesTargetState`と同じ契約）。
+ * 一致するか」の存在量化として扱う。`ATTRIBUTE`（R-ATR-04、Issue #687）も同じ形で
+ * 「対象のメイン属性・サブ属性のいずれかが`op`/`value`へ一致するか」を判定する
+ * （`skill/effect-step-condition-evaluator.ts`の`matchesTargetState`と同じ契約）。
  */
 function matchesTargetState(
   target: BattleUnit,
@@ -233,6 +239,11 @@ function matchesTargetState(
   if (condition.field === "HAS_STATUS") {
     return heldStatusKinds(target).some((statusKind) =>
       compareWithOperator(statusKind, condition.op, condition.value),
+    );
+  }
+  if (condition.field === "ATTRIBUTE") {
+    return heldAttributes(target).some((attribute) =>
+      compareWithOperator(attribute, condition.op, condition.value),
     );
   }
   return compareWithOperator(

@@ -561,7 +561,7 @@ filters:
 | `POSITION_SLOT`         | `row`, `column`               | 具体位置                                                                                                                                                                                                                                                                    |
 | `UNIT_TYPE`             | `unitType`                    | UnitType一致                                                                                                                                                                                                                                                                |
 | `ROLE`                  | `role`                        | Role一致                                                                                                                                                                                                                                                                    |
-| `ATTRIBUTE`             | `attribute`                   | Attribute一致                                                                                                                                                                                                                                                               |
+| `ATTRIBUTE`             | `attribute`                   | Attribute一致。対象のメイン属性・サブ属性いずれかへの存在量化（R-ATR-04）                                                                                                                                                                                                   |
 | `AFFILIATION`           | `affiliationId`               | 所属一致                                                                                                                                                                                                                                                                    |
 | `CHARACTER`             | `characterId`                 | キャラクター一致                                                                                                                                                                                                                                                            |
 | `UNIT_DEFINITION`       | `unitDefinitionId`            | 衣装/バージョン単位（`unitDefinitionId`）の一致。`CHARACTER`と異なり同一キャラクターの別バリアントを区別する（Issue #674）                                                                                                                                                  |
@@ -1074,7 +1074,7 @@ payload:
 | `UNIT_HAS_MARKER`     | `unit`, `markerId`, `countCondition?` | 指定ユニットのMarker所持（`countCondition`省略で1つ以上） |
 | `HP_RATIO_COMPARISON` | `left`, `op`, `right`                 | 2体のHP割合同士の比較                                     |
 
-`UNIT_STATE.field` は `TARGET_STATE.field` の部分集合（`IS_ALIVE` / `HP_RATIO` / `ATTRIBUTE` / `POSITION_ROW` / `POSITION_COLUMN` / `RESOURCE_AP` / `RESOURCE_PP` / `RESOURCE_EX_GAUGE`）とする。ダメージ解決時点（`domain/battle/combat`）ではCatalogの `unitDefinitions` を引けないため、`UNIT_TYPE` / `ROLE` と、状態異常追跡を要する `HAS_STATUS` は受理しない（受理しても評価できない「効かない定義」を作らないため）。
+`UNIT_STATE.field` は `TARGET_STATE.field` の部分集合（`IS_ALIVE` / `HP_RATIO` / `ATTRIBUTE` / `POSITION_ROW` / `POSITION_COLUMN` / `RESOURCE_AP` / `RESOURCE_PP` / `RESOURCE_EX_GAUGE`）とする。ダメージ解決時点（`domain/battle/combat`）ではCatalogの `unitDefinitions` を引けないため、`UNIT_TYPE` / `ROLE` と、状態異常追跡を要する `HAS_STATUS` は受理しない（受理しても評価できない「効かない定義」を作らないため）。`ATTRIBUTE`は`TARGET_STATE.field`と同じくメイン属性・サブ属性への存在量化として評価する（R-ATR-04、Issue #687）。
 
 ```yaml
 kind: APPLY_DAMAGE_MOD
@@ -2280,6 +2280,8 @@ resolution:
 `UNIT_TYPE` / `ROLE` はCatalogの`UnitDefinition`を参照して解決する（M7-001E、Issue #248、`CAP_TARGET_STATE_EXTENDED_FIELD`）。ACTION step条件・BRANCH条件では`EffectStepTargetContext.unitDefinitions`が、PSのtrigger／`activationCondition`では`RuntimeCounterLookupContext.unitDefinitions`（`passive-trigger-matcher.ts`が候補検出へ、`reconfirm-passive-candidate.ts`が発動直前再確認へ、同じ参照表を渡す）が正本になる。参照表を渡さない呼び出しでこれらの`field`へ到達した場合は、黙って不成立にせず`DomainValidationError`で隔離する。
 
 `HAS_STATUS` は「対象が保持している`APPLY_STATUS`由来の状態種別のいずれかが`op`/`value`に一致するか」という**存在量化**として評価する — 対象は気絶と暗闇を同時に保持しうるため、他の`field`のように単一値へは解決しない。
+
+`ATTRIBUTE`も同じ形の存在量化とする（R-ATR-04、Issue #687）— 対象のメイン属性・サブ属性の集合`{attribute, subAttribute}`のいずれかが`op`/`value`に一致すれば真。サブ属性を持たない対象はメイン属性1件だけの集合として扱うため、既存の単一属性ユニットの挙動は変わらない。
 
 `HAS_STATUS`が担うのは**個別の状態異常種別**（「対象が気絶している場合」等、R-EFF-02の照会粒度#2）だけである。「対象が状態異常にある場合」という**総称**を`op: EQ`のORで書いてはならない（`RES-004-STATUS-CONDITION`／Issue #224）— `APPLY_STATUS`由来の種別しか見ないため、同じく状態異常である炎上・毒（`APPLY_CONTINUOUS_DAMAGE`）を必ず取りこぼす。総称は`TARGET_HAS_EFFECT`の`categories: ["STATUS"]`で表す。M7-001Eがこの形で書いた4定義（`SKL_MERU_FLATSPIN_AS1`〜`AS3`・`SKL_NANAE_COMMANDER_PS1`）はIssue #224が移設済みで、`HAS_STATUS`の現行production利用は0件である。
 

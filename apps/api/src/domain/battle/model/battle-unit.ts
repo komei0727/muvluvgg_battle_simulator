@@ -206,6 +206,19 @@ export function hitPointRatio(unit: BattleUnit): number {
   return maximum > 0 ? unit.currentHp / maximum : 0;
 }
 
+/**
+ * R-ATR-04: `field: "ATTRIBUTE"`／`TargetFilterDefinition.kind: "ATTRIBUTE"`が
+ * 参照する属性の集合（メイン属性＋サブ属性、Issue #687）。メイン属性しか見ない
+ * 単一値比較ではサブ属性を持つユニットが取りこぼされるため、`HAS_STATUS`
+ * （`applied-effect-query.ts`の`heldStatusKinds`）と同じ「対象が保持する値への
+ * 存在量化」として、呼び出し側が`.some()`で判定する。
+ * `targeting`/`skill`/`triggering`/`combat` いずれからも依存できる層は
+ * `domain/battle/model` だけであり、ここに一本化する。
+ */
+export function heldAttributes(unit: BattleUnit): readonly Attribute[] {
+  return unit.subAttribute === undefined ? [unit.attribute] : [unit.attribute, unit.subAttribute];
+}
+
 /** R-TEX-03 #5: HP0到達時にブレイクの解決を保留したことを表す印を立てる。 */
 export function markBreakPending(unit: BattleUnit): BattleUnit {
   return { ...unit, breakPending: true };

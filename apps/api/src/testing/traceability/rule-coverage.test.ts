@@ -84,8 +84,12 @@ describe("Rule coverage ledger", () => {
     // Issue #655でモジュール補正のリクエスト上書き（R-ENH-08）を新設し142→143。
     // サブ属性付きユニット導入でR-ATR-03（サブ属性の属性倍率）・R-BON-04
     // （編成ボーナスのサブ属性対応）を新設し143→145。
+    // Issue #687でATTRIBUTE参照全般をメイン属性・サブ属性への存在量化として
+    // 評価するR-ATR-04を新設し145→146 — R-ATR-03はダメージ計算の有利属性判定に
+    // 限定したフォールバックであり、条件・フィルタ全般でのサブ属性無視は
+    // 別の欠陥だった。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(145);
+    expect(RULE_COVERAGE).toHaveLength(146);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

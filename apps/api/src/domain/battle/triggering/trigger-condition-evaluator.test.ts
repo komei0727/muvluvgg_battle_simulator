@@ -761,6 +761,24 @@ describe("evaluateTriggerCondition", () => {
       expect(check("RESOURCE_EX_GAUGE", 40)).toBe(true);
     });
 
+    it("UT-R-PS-01-151 [R-PS-01, R-ATR-04] (Issue #687): ATTRIBUTE is existentially quantified over the target's main attribute and subAttribute", () => {
+      const owner = unitAt("OWNER", "ALLY", "BACK", "RIGHT", {
+        attribute: "SHY",
+        subAttribute: "AGGRESSIVE",
+      });
+      const context = { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner };
+      const check = (value: string): boolean =>
+        evaluateTriggerCondition(
+          { kind: "TARGET_STATE", target: { kind: "SELF" }, field: "ATTRIBUTE", op: "EQ", value },
+          { payload: {} },
+          context,
+        );
+
+      expect(check("SHY")).toBe(true);
+      expect(check("AGGRESSIVE")).toBe(true);
+      expect(check("CUTE")).toBe(false);
+    });
+
     it("UT-R-PS-01-032: throws when no context with getUnit is supplied", () => {
       const condition: ConditionDefinition = {
         kind: "TARGET_STATE",
