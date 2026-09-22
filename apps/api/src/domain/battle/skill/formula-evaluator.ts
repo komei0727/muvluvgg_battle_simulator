@@ -389,12 +389,25 @@ export function evaluateFormula(
       // `min`〜`max`を線形補間する。`LOWER_HP_IS_MAX`はHPが少ないほど`max`へ、
       // `HIGHER_HP_IS_MAX`はHPが多いほど`max`へ近づく。ここでは丸めない
       // （このEvaluator全体の契約 — 整数化は適用側の責務、R-NUM-02）。
+      //
+      // Issue #680: `lowerBoundRatio`/`upperBoundRatio`（省略時0/1）は補間の定義域を
+      // HP割合の一部区間へ絞り込む。区間外のHP割合は区間の近い側の端へクランプしてから
+      // 区間内で0〜1へ正規化する — 区間の外側は「まだ/もう区間に到達していない」ので
+      // 端の値（min側またはmax側）をそのまま返す。
       const target = resolveSourceUnit(formula.target, context, `${path}.target`);
       // R-NUM-02: 分母は切り捨て後の最大HPで揃える（`hitPointRatio`）。最大HPが
       // 0以下（理論上のみ）ならHP割合を0とみなす — 0除算でNaNを伝播させると、
       // 以降のダメージ計算全体が静かに壊れるため（Issue #586）。
       const hpRatio = Math.min(1, Math.max(0, hitPointRatio(target)));
-      const towardMax = formula.direction === "HIGHER_HP_IS_MAX" ? hpRatio : 1 - hpRatio;
+      const clampedHpRatio = Math.min(
+        formula.upperBoundRatio,
+        Math.max(formula.lowerBoundRatio, hpRatio),
+      );
+      const normalizedHpRatio =
+        (clampedHpRatio - formula.lowerBoundRatio) /
+        (formula.upperBoundRatio - formula.lowerBoundRatio);
+      const towardMax =
+        formula.direction === "HIGHER_HP_IS_MAX" ? normalizedHpRatio : 1 - normalizedHpRatio;
       return formula.min + (formula.max - formula.min) * towardMax;
     }
     case "ALIVE_UNIT_COUNT_SCALE": {

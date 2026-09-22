@@ -183,7 +183,7 @@ describe("FormulaDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-FORM-016 (DMG-002, Issue #192): maps HP_RATIO_SCALE with a target reference and a direction", () => {
+  it("UT-CAT-FORM-016 (DMG-002, Issue #192): maps HP_RATIO_SCALE with a target reference and a direction, defaulting the interpolation bounds to the full [0,1] range", () => {
     expect(
       createFormulaDefinition(
         {
@@ -202,6 +202,8 @@ describe("FormulaDefinition", () => {
       min: 0,
       max: 2,
       direction: "LOWER_HP_IS_MAX",
+      lowerBoundRatio: 0,
+      upperBoundRatio: 1,
     });
   });
 
@@ -225,6 +227,103 @@ describe("FormulaDefinition", () => {
     expect(() =>
       createFormulaDefinition(
         { kind: "HP_RATIO_SCALE", min: 0, max: 1.5, direction: "LOWER_HP_IS_MAX" },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-FORM-019 (Issue #680): maps HP_RATIO_SCALE with explicit lowerBoundRatio/upperBoundRatio narrowing the interpolation range", () => {
+    expect(
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "SKILL_SOURCE" },
+          min: 0,
+          max: 0.2,
+          direction: "HIGHER_HP_IS_MAX",
+          lowerBoundRatio: 0.1,
+          upperBoundRatio: 0.4,
+        },
+        "formula",
+        undefined,
+      ),
+    ).toEqual({
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "SKILL_SOURCE" },
+      min: 0,
+      max: 0.2,
+      direction: "HIGHER_HP_IS_MAX",
+      lowerBoundRatio: 0.1,
+      upperBoundRatio: 0.4,
+    });
+  });
+
+  it("UT-CAT-FORM-020 (Issue #680): rejects a lowerBoundRatio outside [0,1]", () => {
+    expect(() =>
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "SKILL_SOURCE" },
+          min: 0,
+          max: 0.2,
+          direction: "HIGHER_HP_IS_MAX",
+          lowerBoundRatio: -0.1,
+          upperBoundRatio: 0.4,
+        },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-FORM-021 (Issue #680): rejects an upperBoundRatio outside [0,1]", () => {
+    expect(() =>
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "SKILL_SOURCE" },
+          min: 0,
+          max: 0.2,
+          direction: "HIGHER_HP_IS_MAX",
+          lowerBoundRatio: 0.1,
+          upperBoundRatio: 1.1,
+        },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-FORM-022 (Issue #680): rejects lowerBoundRatio >= upperBoundRatio when both are explicit", () => {
+    expect(() =>
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "SKILL_SOURCE" },
+          min: 0,
+          max: 0.2,
+          direction: "HIGHER_HP_IS_MAX",
+          lowerBoundRatio: 0.4,
+          upperBoundRatio: 0.4,
+        },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-FORM-023 (Issue #680): rejects lowerBoundRatio >= upperBoundRatio when only lowerBoundRatio is explicit and collides with the default upperBoundRatio (1)", () => {
+    expect(() =>
+      createFormulaDefinition(
+        {
+          kind: "HP_RATIO_SCALE",
+          target: { kind: "SKILL_SOURCE" },
+          min: 0,
+          max: 0.2,
+          direction: "HIGHER_HP_IS_MAX",
+          lowerBoundRatio: 1,
+        },
         "formula",
         undefined,
       ),

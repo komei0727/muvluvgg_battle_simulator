@@ -14,6 +14,7 @@ import {
   assertFinite,
   assertKnownKeys,
   assertNonEmptyArray,
+  assertRange,
 } from "../../shared/validate.js";
 
 /**
@@ -67,6 +68,11 @@ const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
  * `SKL_MEIYA_FATED_PS2`「攻撃対象のHPが多いほど高い効果を発揮する」）の2方向だけである。
  * 値は`max`側がどちらのHP端に対応するかを名前で示す（`14_Catalog定義スキーマ.md`
  * 「HP_RATIO_SCALE」）。
+ *
+ * `lowerBoundRatio`/`upperBoundRatio`（Issue #680）: 補間の定義域をHP割合の一部区間へ
+ * 絞り込む任意フィールド。省略時は`0`/`1`（従来通りHP割合の全域）。raw表現が
+ * 「HP10%〜40%の範囲でのみ連続的に変化する」のように0%/100%以外を起点・終点とする
+ * 場合に使う。両方とも`[0,1]`の範囲で`lowerBoundRatio < upperBoundRatio`を要求する。
  */
 export const HP_RATIO_SCALE_DIRECTIONS = ["LOWER_HP_IS_MAX", "HIGHER_HP_IS_MAX"] as const;
 export type HpRatioScaleDirection = (typeof HP_RATIO_SCALE_DIRECTIONS)[number];
@@ -90,7 +96,15 @@ const FORMULA_ALLOWED_KEYS: Record<FormulaKind, readonly string[]> = {
   DAMAGE_RECEIVED_RATIO: ["kind", "sourceResult", "ratio"],
   MARKER_COUNT_SCALE: ["kind", "target", "markerId", "perStack", "max"],
   ALIVE_UNIT_COUNT_SCALE: ["kind", "side", "perUnit", "max"],
-  HP_RATIO_SCALE: ["kind", "target", "min", "max", "direction"],
+  HP_RATIO_SCALE: [
+    "kind",
+    "target",
+    "min",
+    "max",
+    "direction",
+    "lowerBoundRatio",
+    "upperBoundRatio",
+  ],
   SUM: ["kind", "formulas"],
   PRODUCT: ["kind", "formulas"],
   MIN: ["kind", "formulas"],
@@ -143,6 +157,8 @@ export type FormulaDefinition =
       readonly min: number;
       readonly max: number;
       readonly direction: HpRatioScaleDirection;
+      readonly lowerBoundRatio: number;
+      readonly upperBoundRatio: number;
     }
   | {
       readonly kind: "SUM" | "PRODUCT" | "MIN" | "MAX";
@@ -205,6 +221,8 @@ export interface FormulaDefinitionInput {
   readonly side?: string;
   readonly perUnit?: number;
   readonly direction?: string;
+  readonly lowerBoundRatio?: number;
+  readonly upperBoundRatio?: number;
   readonly formulas?: readonly FormulaDefinitionInput[];
   readonly formula?: FormulaDefinitionInput;
   readonly min?: number;
@@ -317,12 +335,28 @@ export function createFormulaDefinition(
       }
       const direction = requireString(input.direction, `${path}.direction`);
       assertEnumValue(direction, HP_RATIO_SCALE_DIRECTIONS, `${path}.direction`);
+      if (input.lowerBoundRatio !== undefined) {
+        assertRange(input.lowerBoundRatio, `${path}.lowerBoundRatio`, { min: 0, max: 1 });
+      }
+      if (input.upperBoundRatio !== undefined) {
+        assertRange(input.upperBoundRatio, `${path}.upperBoundRatio`, { min: 0, max: 1 });
+      }
+      const lowerBoundRatio = input.lowerBoundRatio ?? 0;
+      const upperBoundRatio = input.upperBoundRatio ?? 1;
+      if (lowerBoundRatio >= upperBoundRatio) {
+        throw new DomainValidationError(
+          `${path}.upperBoundRatio`,
+          `must be greater than lowerBoundRatio (${lowerBoundRatio}), got ${upperBoundRatio}`,
+        );
+      }
       return {
         kind: "HP_RATIO_SCALE",
         target: createFormulaSourceReference(input.target, `${path}.target`, scope),
         min: requireNumber(input.min, `${path}.min`),
         max: requireNumber(input.max, `${path}.max`),
         direction,
+        lowerBoundRatio,
+        upperBoundRatio,
       };
     }
     case "SUM":
