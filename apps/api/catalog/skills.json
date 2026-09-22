@@ -13484,7 +13484,12 @@
     },
     "resolution": {
       "kind": "IMMEDIATE",
-      "targetBindings": [],
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TRIGGER_ENEMY",
+          "selector": { "kind": "TRIGGER_TARGET", "side": "ENEMY" }
+        }
+      ],
       "steps": [
         {
           "kind": "BRANCH",
@@ -13537,7 +13542,7 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_TRIGGER_ENEMY" },
           "actions": [{ "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_PS1_DAMAGE" }]
         }
       ]

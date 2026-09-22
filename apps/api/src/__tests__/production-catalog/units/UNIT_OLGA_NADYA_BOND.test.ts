@@ -296,6 +296,37 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
     intent:
+      "(回帰): 契機となった味方のASが自己バフ+敵攻撃の混合対象(targetUnitIds)を持っていても、追撃は敵側だけに向く（味方への誤爆防止）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
+      // `SkillUseCompleted.targetUnitIds`は契機スキルの全stepの対象を集約するため
+      // （自己バフstep + 敵攻撃stepを持つASなら両方を含む）、`TRIGGER_TARGET`を
+      // side フィルタ無しで使うと味方(ally:back)にも追撃してしまうバグが実際に
+      // 本番相当のフルバトルで発生した。targetsへ味方を含めてこれを再現する。
+      trigger: skillUseCompleted({
+        actor: "ally:front",
+        targets: ["ally:front", "enemy:front"],
+        skillType: "AS",
+      }),
+      triggeredBy: "ally:front",
+    },
+    expected: {
+      // (攻撃力1000×1.35 − 防御力500) × 0.78 = 663。誤爆していれば
+      // ACT_OLGA_NADYA_BOND_PS1_DAMAGEが"ally:front"にも実行され、hpDeltasに
+      // ally:frontへの負のダメージが現れてしまう。
+      actions: [
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_PP_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_DAMAGE", targets: ["enemy:front"] },
+      ],
+      hpDeltas: { "enemy:front": -663 },
+      resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 }],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
+    intent:
       "(分岐): 攻撃した味方がキュート属性でもアグレッシブ属性でもない場合、PP回復・攻撃力上昇は付かない",
     use: {
       kind: "PASSIVE",
