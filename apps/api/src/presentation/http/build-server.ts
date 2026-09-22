@@ -196,7 +196,9 @@ function withResponseDoc(
   );
 }
 // `11_インフラストラクチャ設計.md`「設定項目」`SIMULATION_TIMEOUT_MS`のデフォルト値。
-const DEFAULT_SIMULATION_TIMEOUT_MS = 30_000;
+// `bootstrap/config.ts`の既定値と揃える（本番は`deploy/cloud-run/service.json`が
+// 明示的に上書きするため、ここを変えても本番へは影響しない）。
+const DEFAULT_SIMULATION_TIMEOUT_MS = 50_000;
 
 export interface BuildServerOptions {
   readonly bodyLimit?: number;
