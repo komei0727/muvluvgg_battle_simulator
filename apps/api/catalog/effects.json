@@ -7837,7 +7837,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
     "metadata": { "tags": [] }
@@ -7852,7 +7852,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
     "metadata": { "tags": [] }
@@ -7883,7 +7883,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
       }
     },
     "metadata": { "tags": [] }

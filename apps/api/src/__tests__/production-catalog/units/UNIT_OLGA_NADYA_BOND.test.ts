@@ -235,20 +235,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_AS2_DAMAGE", targets: ["enemy:front"] },
       ],
       hpDeltas: { "enemy:front": -1402 },
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_AS2_ATK_UP",
-          magnitude: 0.2,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
-        },
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_AS2_DMG_UP",
-          magnitude: 0.05,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
-        },
-      ],
+      // ATK_UP/DMG_UPはNEXT_OUTGOING_ATTACK消費のため、直後のDAMAGEステップ自身で
+      // 消費・失効し、この観測窓の終了時点では既に保持していない
+      // （= 効果が「このスキル中のみ」で終わっている証跡。observeSkillUseは最終状態の
+      // appliedEffectsしか見ないため、生成と失効が同一観測内で完結する効果は
+      // effectsAppliedに現れない）。
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -297,14 +288,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_DAMAGE", targets: ["enemy:front"] },
       ],
       hpDeltas: { "enemy:front": -663 },
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_ATK_UP",
-          magnitude: 0.35,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
-        },
-      ],
+      // ATK_UPはNEXT_OUTGOING_ATTACK消費のため、直後のDAMAGEステップ自身で消費・
+      // 失効し、この観測窓の終了時点では既に保持していない。
       resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 }],
     },
   },
@@ -359,14 +344,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_DAMAGE", targets: ["enemy:front"] },
       ],
       hpDeltas: { "enemy:front": -663 },
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_ATK_UP",
-          magnitude: 0.35,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
-        },
-      ],
+      // ATK_UPはNEXT_OUTGOING_ATTACK消費のため、直後のDAMAGEステップ自身で消費・
+      // 失効し、この観測窓の終了時点では既に保持していない。
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
