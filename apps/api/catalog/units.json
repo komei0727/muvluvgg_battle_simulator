@@ -1699,7 +1699,7 @@
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 342, "attack": 123, "defense": 112, "actionSpeed": 2 },
-    "extraGaugeMaximum": 7,
+    "extraGaugeMaximum": 10,
     "activeSkillDefinitionIds": ["SKL_OLGA_NADYA_BOND_AS1", "SKL_OLGA_NADYA_BOND_AS2"],
     "passiveSkillDefinitionIds": ["SKL_OLGA_NADYA_BOND_PS1", "SKL_OLGA_NADYA_BOND_PS2"],
     "extraSkillDefinitionId": "SKL_OLGA_NADYA_BOND_EX",

@@ -134,7 +134,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           stackCount: 1,
         },
       ],
-      // EXゲージは既定0から始まり消費コスト7を賄えないため、実際のリソース増減は
+      // EXゲージは既定0から始まり消費コスト10を賄えないため、実際のリソース増減は
       // 発生しない（EXスキル自体の使用はAP/PP消費起因のEXゲージ加算対象外）。
     },
   },

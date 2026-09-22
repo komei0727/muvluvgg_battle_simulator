@@ -13335,7 +13335,7 @@
   {
     "skillDefinitionId": "SKL_OLGA_NADYA_BOND_EX",
     "skillType": "EX",
-    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "cost": { "resource": "EX_GAUGE", "amount": 10 },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
