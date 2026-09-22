@@ -6,7 +6,10 @@ import {
   type DamageResultRegistry,
   type FormulaEvaluationContext,
 } from "./formula-evaluator.js";
-import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
+import {
+  createFormulaDefinition,
+  type FormulaDefinition,
+} from "../../catalog/definitions/formula-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -521,6 +524,8 @@ describe("evaluateFormula", () => {
               min: 0,
               max: 0.5,
               direction: "LOWER_HP_IS_MAX",
+              lowerBoundRatio: 0,
+              upperBoundRatio: 1,
             },
           ],
         },
@@ -539,6 +544,8 @@ describe("evaluateFormula", () => {
       min: 0,
       max: 2,
       direction: "LOWER_HP_IS_MAX",
+      lowerBoundRatio: 0,
+      upperBoundRatio: 1,
     };
     // hpRatio = 25/100 = 0.25 -> 0 + (2 - 0) * (1 - 0.25) = 1.5
     expect(evaluateFormula(formula, ctx)).toBeCloseTo(1.5);
@@ -553,6 +560,8 @@ describe("evaluateFormula", () => {
       min: 0,
       max: 0.5,
       direction: "HIGHER_HP_IS_MAX",
+      lowerBoundRatio: 0,
+      upperBoundRatio: 1,
     };
     // hpRatio = 80/100 = 0.8 -> 0 + (0.5 - 0) * 0.8 = 0.4
     expect(evaluateFormula(formula, ctx)).toBeCloseTo(0.4);
@@ -567,6 +576,8 @@ describe("evaluateFormula", () => {
       min: 0.1,
       max: 1.6,
       direction: "LOWER_HP_IS_MAX",
+      lowerBoundRatio: 0,
+      upperBoundRatio: 1,
     } as const;
     const higher = { ...lower, direction: "HIGHER_HP_IS_MAX" } as const;
 
@@ -588,8 +599,93 @@ describe("evaluateFormula", () => {
       min: 0.1,
       max: 1.6,
       direction: "HIGHER_HP_IS_MAX",
+      lowerBoundRatio: 0,
+      upperBoundRatio: 1,
     };
     expect(evaluateFormula(formula, context({ target, allUnits: [target] }))).toBe(1.6);
+  });
+
+  it("UT-R-NUM-04-038 (Issue #680): HP_RATIO_SCALE with HIGHER_HP_IS_MAX interpolates only within [lowerBoundRatio, upperBoundRatio]", () => {
+    // hpRatio 0.25 is the midpoint of [0.1, 0.4] -> normalized 0.5 -> 0 + (0.2 - 0) * 0.5 = 0.1
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 25);
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0,
+      max: 0.2,
+      direction: "HIGHER_HP_IS_MAX",
+      lowerBoundRatio: 0.1,
+      upperBoundRatio: 0.4,
+    };
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(0.1);
+  });
+
+  it("UT-R-NUM-04-039 (Issue #680): HP_RATIO_SCALE with LOWER_HP_IS_MAX interpolates only within [lowerBoundRatio, upperBoundRatio]", () => {
+    // hpRatio 0.25 is the midpoint of [0.1, 0.4] -> normalized 0.5 -> towardMax = 1 - 0.5 = 0.5
+    // -> 0 + (0.3 - 0) * 0.5 = 0.15
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 25);
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0,
+      max: 0.3,
+      direction: "LOWER_HP_IS_MAX",
+      lowerBoundRatio: 0.1,
+      upperBoundRatio: 0.4,
+    };
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(0.15);
+  });
+
+  it("UT-R-NUM-04-040 (Issue #680): HP_RATIO_SCALE clamps a target HP ratio below lowerBoundRatio to the lower-bound end", () => {
+    // hpRatio 0.05 < lowerBoundRatio 0.1 -> clamped to 0.1 -> normalized 0 -> returns min
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 5);
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0,
+      max: 0.2,
+      direction: "HIGHER_HP_IS_MAX",
+      lowerBoundRatio: 0.1,
+      upperBoundRatio: 0.4,
+    };
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(0);
+  });
+
+  it("UT-R-NUM-04-041 (Issue #680): HP_RATIO_SCALE clamps a target HP ratio above upperBoundRatio to the upper-bound end", () => {
+    // hpRatio 0.6 > upperBoundRatio 0.4 -> clamped to 0.4 -> normalized 1 -> returns max
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 60);
+    const ctx = context({ target, allUnits: [target] });
+    const formula: FormulaDefinition = {
+      kind: "HP_RATIO_SCALE",
+      target: { kind: "TARGET" },
+      min: 0,
+      max: 0.2,
+      direction: "HIGHER_HP_IS_MAX",
+      lowerBoundRatio: 0.1,
+      upperBoundRatio: 0.4,
+    };
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(0.2);
+  });
+
+  it("UT-R-NUM-04-042 (Issue #680): HP_RATIO_SCALE built via createFormulaDefinition without lowerBoundRatio/upperBoundRatio evaluates identically to the pre-#680 full-range behavior", () => {
+    const target = withCurrentHp(unitAt("U_TARGET", "ENEMY"), 25);
+    const ctx = context({ target, allUnits: [target] });
+    const formula = createFormulaDefinition(
+      {
+        kind: "HP_RATIO_SCALE",
+        target: { kind: "TARGET" },
+        min: 0,
+        max: 2,
+        direction: "LOWER_HP_IS_MAX",
+      },
+      "formula",
+      undefined,
+    );
+    // Same expectation as UT-R-NUM-04-028: hpRatio 0.25 -> 0 + (2 - 0) * (1 - 0.25) = 1.5
+    expect(evaluateFormula(formula, ctx)).toBeCloseTo(1.5);
   });
 });
 

@@ -1836,26 +1836,26 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 
 ### kind 一覧
 
-| kind                        | 追加フィールド                                                      | 意味                                                     |
-| --------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
-| `CONSTANT`                  | `value`                                                             | 固定値                                                   |
-| `SKILL_POWER`               | `power`                                                             | 攻撃力を基礎にしたスキル威力倍率                         |
-| `SUBUNIT_ADDITIONAL_DAMAGE` | `ownerAttack`, `providerAttack`, `skillMultiplier`, `targetDefense` | サブユニット追加ダメージ                                 |
-| `STAT_RATIO`                | `source`, `stat`, `ratio`                                           | 指定対象のstat×ratio                                     |
-| `MAX_HP_RATIO`              | `source`, `ratio`                                                   | 最大HP×ratio                                             |
-| `CURRENT_HP_RATIO`          | `source`, `ratio`                                                   | 現在HP×ratio                                             |
-| `MISSING_HP_RATIO`          | `source`, `ratio`                                                   | 不足HP×ratio                                             |
-| `LOST_HP_RATIO`             | `source`, `ratio`                                                   | 失ったHP×ratio                                           |
-| `DAMAGE_DEALT_RATIO`        | `sourceResult`, `ratio`                                             | 与えたダメージ×ratio（`sourceResult` で直前/合計を選択） |
-| `DAMAGE_RECEIVED_RATIO`     | `sourceResult`, `ratio`                                             | 受けたダメージ×ratio（`sourceResult` で直前/合計を選択） |
-| `MARKER_COUNT_SCALE`        | `target`, `markerId`, `perStack`, `max`                             | marker数×perStack                                        |
-| `ALIVE_UNIT_COUNT_SCALE`    | `side`, `perUnit`, `max`                                            | 生存数×perUnit                                           |
-| `HP_RATIO_SCALE`            | `target`, `min`, `max`, `direction`                                 | HP割合でmin〜maxを線形補間                               |
-| `SUM`                       | `formulas[]`                                                        | 合計                                                     |
-| `PRODUCT`                   | `formulas[]`                                                        | 総乗（`DMG-002`／Issue #192で追加）                      |
-| `MIN`                       | `formulas[]`                                                        | 最小                                                     |
-| `MAX`                       | `formulas[]`                                                        | 最大                                                     |
-| `CLAMP`                     | `formula`, `min`, `max`                                             | 範囲制限                                                 |
+| kind                        | 追加フィールド                                                              | 意味                                                     |
+| --------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `CONSTANT`                  | `value`                                                                     | 固定値                                                   |
+| `SKILL_POWER`               | `power`                                                                     | 攻撃力を基礎にしたスキル威力倍率                         |
+| `SUBUNIT_ADDITIONAL_DAMAGE` | `ownerAttack`, `providerAttack`, `skillMultiplier`, `targetDefense`         | サブユニット追加ダメージ                                 |
+| `STAT_RATIO`                | `source`, `stat`, `ratio`                                                   | 指定対象のstat×ratio                                     |
+| `MAX_HP_RATIO`              | `source`, `ratio`                                                           | 最大HP×ratio                                             |
+| `CURRENT_HP_RATIO`          | `source`, `ratio`                                                           | 現在HP×ratio                                             |
+| `MISSING_HP_RATIO`          | `source`, `ratio`                                                           | 不足HP×ratio                                             |
+| `LOST_HP_RATIO`             | `source`, `ratio`                                                           | 失ったHP×ratio                                           |
+| `DAMAGE_DEALT_RATIO`        | `sourceResult`, `ratio`                                                     | 与えたダメージ×ratio（`sourceResult` で直前/合計を選択） |
+| `DAMAGE_RECEIVED_RATIO`     | `sourceResult`, `ratio`                                                     | 受けたダメージ×ratio（`sourceResult` で直前/合計を選択） |
+| `MARKER_COUNT_SCALE`        | `target`, `markerId`, `perStack`, `max`                                     | marker数×perStack                                        |
+| `ALIVE_UNIT_COUNT_SCALE`    | `side`, `perUnit`, `max`                                                    | 生存数×perUnit                                           |
+| `HP_RATIO_SCALE`            | `target`, `min`, `max`, `direction`, `lowerBoundRatio?`, `upperBoundRatio?` | HP割合でmin〜maxを線形補間                               |
+| `SUM`                       | `formulas[]`                                                                | 合計                                                     |
+| `PRODUCT`                   | `formulas[]`                                                                | 総乗（`DMG-002`／Issue #192で追加）                      |
+| `MIN`                       | `formulas[]`                                                                | 最小                                                     |
+| `MAX`                       | `formulas[]`                                                                | 最大                                                     |
+| `CLAMP`                     | `formula`, `min`, `max`                                                     | 範囲制限                                                 |
 
 ### source
 
@@ -1867,7 +1867,7 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 | `TRIGGER_TARGET` | trigger target        |
 | `BINDING`        | targetBindingIdで指定 |
 
-### HP_RATIO_SCALE（`DMG-002`／Issue #192）
+### HP_RATIO_SCALE（`DMG-002`／Issue #192、区間補間は Issue #680）
 
 参照対象のHP割合で `min`〜`max` を線形補間する。raw原文の「HPが多い/少ないほど高い効果を発揮する（上限X）」をそのまま表す。
 
@@ -1879,20 +1879,26 @@ max: 2
 direction: LOWER_HP_IS_MAX
 ```
 
-| フィールド  | 型         | 制約                                     |
-| ----------- | ---------- | ---------------------------------------- |
-| `target`    | source参照 | 上の「source」表と同じ（`TARGET` など）  |
-| `min`       | number     | HP割合が `max` 側の反対端にあるときの値  |
-| `max`       | number     | `direction` が示すHP端に到達したときの値 |
-| `direction` | enum       | `LOWER_HP_IS_MAX` / `HIGHER_HP_IS_MAX`   |
+| フィールド         | 型         | 制約                                                                            |
+| ------------------ | ---------- | ------------------------------------------------------------------------------- |
+| `target`           | source参照 | 上の「source」表と同じ（`TARGET` など）                                         |
+| `min`              | number     | HP割合が `max` 側の反対端にあるときの値                                         |
+| `max`              | number     | `direction` が示すHP端に到達したときの値                                        |
+| `direction`        | enum       | `LOWER_HP_IS_MAX` / `HIGHER_HP_IS_MAX`                                          |
+| `lowerBoundRatio?` | number     | `[0,1]`。補間区間の下端（Issue #680）。省略時 `0`                               |
+| `upperBoundRatio?` | number     | `[0,1]`。補間区間の上端（Issue #680）。省略時 `1`、`lowerBoundRatio` 超過が必須 |
 
 ```text
 hpRatio = clamp(対象の現在HP / 対象の最大HP, 0, 1)
-LOWER_HP_IS_MAX  → min + (max - min) × (1 - hpRatio)
-HIGHER_HP_IS_MAX → min + (max - min) × hpRatio
+normalizedHpRatio = (clamp(hpRatio, lowerBoundRatio, upperBoundRatio) - lowerBoundRatio)
+                    / (upperBoundRatio - lowerBoundRatio)
+LOWER_HP_IS_MAX  → min + (max - min) × (1 - normalizedHpRatio)
+HIGHER_HP_IS_MAX → min + (max - min) × normalizedHpRatio
 ```
 
 `min`/`max` の大小関係は問わない（`max` は「`direction` が示すHP端の値」であって上限値ではない）。被ダメージ減少のような負の補正は `min: 0`, `max: -0.5` のように書く。他のFormulaと同じく評価結果を丸めない（R-NUM-02の整数化は適用側の責務）。
+
+`lowerBoundRatio`/`upperBoundRatio`（Issue #680）を省略すると `0`/`1` となり、従来通りHP割合の全域（0%〜100%）で補間する。raw表現が「HP10%〜40%の範囲でのみ連続的に変化する」のように0%/100%以外を起点・終点とする場合に指定する。区間外のHP割合は区間の近い側の端（`hpRatio`が`lowerBoundRatio`未満なら下端、`upperBoundRatio`超過なら上端）にクランプしてから区間内で0〜1へ正規化するため、区間外では常に`min`または`max`のどちらかの値になる。
 
 production例:
 
