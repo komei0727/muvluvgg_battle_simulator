@@ -384,6 +384,11 @@ function compareLowestCurrentHp(a: BattleUnit, b: BattleUnit): number {
   return a.currentHp - b.currentHp;
 }
 
+/** `compareLowestCurrentHp`と対（Issue #682）。「最もHPの多い敵」のような原文向け。 */
+function compareHighestCurrentHp(a: BattleUnit, b: BattleUnit): number {
+  return b.currentHp - a.currentHp;
+}
+
 function compareHighestExGaugeRatio(a: BattleUnit, b: BattleUnit): number {
   return exGaugeRatio(b) - exGaugeRatio(a);
 }
@@ -421,6 +426,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   LOWEST_MAX_HP: () => compareLowestMaxHp,
   HIGHEST_MAX_HP: () => compareHighestMaxHp,
   LOWEST_CURRENT_HP: () => compareLowestCurrentHp,
+  HIGHEST_CURRENT_HP: () => compareHighestCurrentHp,
   HIGHEST_EX_GAUGE_RATIO: () => compareHighestExGaugeRatio,
   FASTEST: () => compareFastest,
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
