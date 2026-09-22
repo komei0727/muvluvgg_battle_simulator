@@ -550,6 +550,25 @@ describe("evaluateEffectStepCondition", () => {
       ).toBe(true);
     });
 
+    it("UT-R-SKL-06-077 [R-SKL-06, R-ATR-04] (Issue #687): TARGET_STATE ATTRIBUTE is existentially quantified over the target's main attribute and subAttribute", () => {
+      const target = unit("enemy", "UNIT_PHYSICAL", {
+        attribute: "SHY",
+        subAttribute: "AGGRESSIVE",
+      });
+      const check = (value: string): boolean =>
+        evaluateEffectStepCondition(
+          { kind: "TARGET_STATE", target: STEP_TARGET, field: "ATTRIBUTE", op: "EQ", value },
+          undefined,
+          undefined,
+          () => [target],
+          unitDefinitions,
+        );
+
+      expect(check("SHY")).toBe(true);
+      expect(check("AGGRESSIVE")).toBe(true);
+      expect(check("CUTE")).toBe(false);
+    });
+
     it("UT-R-SKL-06-047: TARGET_HAS_MARKER evaluates the single unit resolveTargetSet resolves, including countCondition, when no EffectStepTargetContext is given (BRANCH scope)", () => {
       const markerId = createMarkerId("MARKER_CURSE");
       const marked = unit("enemy", "UNIT_PHYSICAL", {

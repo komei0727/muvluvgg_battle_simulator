@@ -8,7 +8,12 @@ import type { JsonPrimitive } from "../../catalog/definitions/condition-definiti
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
-import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import {
+  heldAttributes,
+  hitPointRatio,
+  isDefeated,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 
 /** R-DMG-04の集計文脈。1ヒットの攻撃側・防御側と、そのヒットのダメージタイプ。 */
 export interface DamageModifierCompositionInput {
@@ -34,7 +39,9 @@ export interface DamageModifierComposition {
  * evaluator.ts`・`triggering/trigger-condition-evaluator.ts`の`resolveTargetStateField`
  * と同じ方針の意図的な重複 — `domain/battle/combat`はどちらへも依存できない、
  * module境界）。`UNIT_TYPE`/`ROLE`/`HAS_STATUS`は`DamageModStateField`自体が
- * 持たないため、ここで到達し得ない。
+ * 持たないため、ここで到達し得ない。`ATTRIBUTE`（R-ATR-04、Issue #687）はメイン属性・
+ * サブ属性への存在量化でありスカラー1値へ解決できないため、この関数ではなく
+ * `evaluateDamageModCondition`のUNIT_STATE分岐が別途判定する。
  */
 function stateFieldValue(unit: BattleUnit, field: DamageModStateField): JsonPrimitive {
   switch (field) {
@@ -42,8 +49,6 @@ function stateFieldValue(unit: BattleUnit, field: DamageModStateField): JsonPrim
       return !isDefeated(unit);
     case "HP_RATIO":
       return hitPointRatio(unit);
-    case "ATTRIBUTE":
-      return unit.attribute;
     case "POSITION_ROW":
       return unit.position.row;
     case "POSITION_COLUMN":
@@ -54,6 +59,11 @@ function stateFieldValue(unit: BattleUnit, field: DamageModStateField): JsonPrim
       return unit.currentPp;
     case "RESOURCE_EX_GAUGE":
       return unit.currentExtraGauge;
+    case "ATTRIBUTE":
+      throw new DomainValidationError(
+        "condition.field",
+        'DamageModStateField "ATTRIBUTE" is existentially quantified over the unit\'s held attributes and must be evaluated by evaluateDamageModCondition, not resolved to a single value',
+      );
   }
 }
 
@@ -95,6 +105,11 @@ export function evaluateDamageModCondition(
       return !evaluateDamageModCondition(condition.condition, owner, opponent);
     case "UNIT_STATE": {
       const unit = referencedUnit(condition.unit, owner, opponent);
+      if (condition.field === "ATTRIBUTE") {
+        return heldAttributes(unit).some((attribute) =>
+          compareWithOperator(attribute, condition.op, condition.value),
+        );
+      }
       return compareWithOperator(
         stateFieldValue(unit, condition.field),
         condition.op,

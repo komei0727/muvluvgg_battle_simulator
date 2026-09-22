@@ -141,6 +141,13 @@ export interface MemoryBoardOverrides {
    */
   readonly attributesBySlot?: Readonly<Record<string, Attribute>>;
   /**
+   * スロットキー → そのスロットの戦闘ユニットが持つサブ属性（R-ATR-04、Issue #687）。
+   * `ATTRIBUTE` TargetFilterがメイン属性・サブ属性への存在量化として一致するかを
+   * 検証したいMemoryだけがopt-inする。`attributesBySlot`と独立に指定できる
+   * （メイン属性は不一致のまま、サブ属性だけを一致させたい検証のため）。
+   */
+  readonly subAttributesBySlot?: Readonly<Record<string, Attribute>>;
+  /**
    * スロットキー → そのスロットのUnitDefinitionが名乗るキャラクターID。`CHARACTER`
    * TargetFilterは`UnitDefinition.metadata.characterId`を引くが、既定は
    * `testUnitDefinition`が付ける`CHAR_UNIT_TEST_MEMORY_<slot>`で実キャラクターIDと
@@ -174,6 +181,7 @@ function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): 
 
 function slotBattleUnit(slot: MemorySlot, side: Side, overrides: MemoryBoardOverrides): BattleUnit {
   const attribute = overrides.attributesBySlot?.[slot.key];
+  const subAttribute = overrides.subAttributesBySlot?.[slot.key];
   return testBattleUnit({
     battleUnitId: memoryUnitId(side, slot.key),
     unitDefinitionId: slotUnitDefinitionId(slot, overrides),
@@ -182,6 +190,7 @@ function slotBattleUnit(slot: MemorySlot, side: Side, overrides: MemoryBoardOver
     combatStats: MEMORY_COMBAT_STATS,
     limits: MEMORY_LIMITS,
     ...(attribute === undefined ? {} : { attribute }),
+    ...(subAttribute === undefined ? {} : { overrides: { subAttribute } }),
   });
 }
 

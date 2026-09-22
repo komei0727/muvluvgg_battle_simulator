@@ -1376,6 +1376,34 @@ describe("resolveTargets", () => {
       expect(targets).toEqual([]);
     });
 
+    it("UT-TGT-002-031 [R-ATR-04] (Issue #687): ATTRIBUTE filter matches a candidate whose subAttribute equals it, even when the main attribute does not", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" }, { attribute: "SHY" });
+      const subAttributeMatch = unit(
+        "SUB_MATCH",
+        "ALLY",
+        { column: "LEFT", row: "FRONT" },
+        { attribute: "CUTE", subAttribute: "AGGRESSIVE" },
+      );
+      const neitherMatch = unit(
+        "NEITHER",
+        "ALLY",
+        { column: "RIGHT", row: "FRONT" },
+        { attribute: "CUTE", subAttribute: "SHY" },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ALLY",
+          count: "ALL",
+          filters: [{ kind: "ATTRIBUTE", attribute: "AGGRESSIVE" }],
+        }),
+        actor,
+        [actor, subAttributeMatch, neitherMatch],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("SUB_MATCH")]);
+    });
+
     it("UT-TGT-002-010: UNIT_TYPE/ROLE/AFFILIATION/CHARACTER filters resolve via the unitDefinitions map", () => {
       const enDefId = createUnitDefinitionId("UNIT_EN");
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });

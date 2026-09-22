@@ -12,7 +12,12 @@ import {
 import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "./comparison-operator.js";
 import type { LastEffectActionResult } from "./last-effect-action-result.js";
-import { hitPointRatio, isDefeated, type BattleUnit } from "../model/battle-unit.js";
+import {
+  heldAttributes,
+  hitPointRatio,
+  isDefeated,
+  type BattleUnit,
+} from "../model/battle-unit.js";
 import {
   countMatchingEffects,
   heldStatusKinds,
@@ -75,8 +80,9 @@ export function conditionReferencesTargetSetCount(condition: ConditionDefinition
  * `TARGET_STATE.field`を`BattleUnit`から解決する。`UNIT_TYPE`/`ROLE`はCatalogの
  * `UnitDefinition`参照が必要なため`unitDefinitions`を引く（M7-001E、Issue #248で
  * `ROLE`も解決できるようにした。production定義は現状`UNIT_TYPE`だけが使う）。
- * `HAS_STATUS`だけはスカラー1値へ解決できない（対象は複数の状態を同時に保持しうる）
- * ため、この関数ではなく`matchesTargetState`が存在量化で判定する。
+ * `HAS_STATUS`／`ATTRIBUTE`（R-ATR-04、Issue #687）だけはスカラー1値へ解決できない
+ * （対象は複数の状態やメイン属性＋サブ属性を同時に保持しうる）ため、この関数では
+ * なく`matchesTargetState`が存在量化で判定する。
  *
  * `triggering/trigger-condition-evaluator.ts`の`resolveTargetStateField`と同じ
  * 方針・意図的な重複 — `domain/battle/skill`は`domain/battle/triggering`へ
@@ -92,8 +98,6 @@ function resolveTargetStateField(
       return !isDefeated(target);
     case "HP_RATIO":
       return hitPointRatio(target);
-    case "ATTRIBUTE":
-      return target.attribute;
     case "POSITION_ROW":
       return target.position.row;
     case "POSITION_COLUMN":
@@ -124,10 +128,11 @@ function resolveTargetStateField(
       }
       return unitDefinition.role;
     }
+    case "ATTRIBUTE":
     case "HAS_STATUS":
       throw new DomainValidationError(
         "condition.field",
-        'TARGET_STATE field "HAS_STATUS" is existentially quantified over the target\'s held statuses and must be evaluated by matchesTargetState, not resolved to a single value',
+        `TARGET_STATE field "${field}" is existentially quantified over the target's held values and must be evaluated by matchesTargetState, not resolved to a single value`,
       );
   }
 }
@@ -138,6 +143,9 @@ function resolveTargetStateField(
  * いずれかが`op`/`value`に一致するか」という存在量化であり、他のfieldのように単一値へ
  * 解決できない（対象は気絶と暗闇を同時に保持しうる）。production定義
  * （`UNIT_MERU_FLATSPIN`/`UNIT_NANAE_COMMANDER`）はこれを`op: EQ`のORで使う。
+ * `ATTRIBUTE`（R-ATR-04、Issue #687）も同じ形で「対象のメイン属性・サブ属性の
+ * いずれかが`op`/`value`に一致するか」を判定する（`UNIT_OLGA_NADYA_BOND`のPS1/PS2が
+ * `TRIGGER_SOURCE`の属性判定にこの経路を使う）。
  */
 function matchesTargetState(
   unit: BattleUnit,
@@ -147,6 +155,11 @@ function matchesTargetState(
   if (condition.field === "HAS_STATUS") {
     return heldStatusKinds(unit).some((statusKind) =>
       compareWithOperator(statusKind, condition.op, condition.value),
+    );
+  }
+  if (condition.field === "ATTRIBUTE") {
+    return heldAttributes(unit).some((attribute) =>
+      compareWithOperator(attribute, condition.op, condition.value),
     );
   }
   return compareWithOperator(

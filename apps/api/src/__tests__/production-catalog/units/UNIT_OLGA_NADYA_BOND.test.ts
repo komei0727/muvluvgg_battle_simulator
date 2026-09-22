@@ -68,6 +68,36 @@ const SHY_ATTACKER: BoardOverrides = {
   enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" }, attribute: "SHY" }],
 };
 
+/**
+ * Issue #687（R-ATR-04）: PS1の分岐が読む攻撃した味方の`ATTRIBUTE`を、メイン属性は
+ * 不成立側（SHY）のまま、サブ属性だけAGGRESSIVEへ一致させる盤面。
+ */
+const SUB_ATTRIBUTE_MATCHING_ALLY: BoardOverrides = {
+  allies: [
+    {
+      id: "ally:front",
+      position: { column: "LEFT", row: "FRONT" },
+      attribute: "SHY",
+      state: { subAttribute: "AGGRESSIVE" },
+    },
+    { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+  ],
+};
+
+/**
+ * Issue #687（R-ATR-04）: PS2の分岐が読む攻撃してくる敵の`ATTRIBUTE`を、メイン属性は
+ * 不成立側（AGGRESSIVE）のまま、サブ属性だけSHYへ一致させる盤面。
+ */
+const SUB_ATTRIBUTE_MATCHING_ATTACKER: BoardOverrides = {
+  enemies: [
+    {
+      id: "enemy:front",
+      position: { column: "CENTER", row: "FRONT" },
+      state: { subAttribute: "SHY" },
+    },
+  ],
+};
+
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
@@ -338,6 +368,27 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
+    intent:
+      "(Issue #687, R-ATR-04回帰): 攻撃した味方のメイン属性が不一致でも、サブ属性がキュート属性またはアグレッシブ属性と一致すれば成立する",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
+      trigger: realDamage({ from: "ally:front", to: "enemy:front", skillType: "AS" }),
+    },
+    board: SUB_ATTRIBUTE_MATCHING_ALLY,
+    expected: {
+      // (攻撃力1000×1.35 − 防御力500) × 0.78 = 850×0.78 = 663。
+      actions: [
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_PP_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_ATK_UP", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS1_DAMAGE", targets: ["enemy:front"] },
+      ],
+      hpDeltas: { "enemy:front": -663 },
+      resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 }],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS1",
     intent: "ただし自身が状態異常の場合、回復したPPは削除される",
     use: {
       kind: "PASSIVE",
@@ -442,6 +493,41 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       }),
     },
     board: SHY_ATTACKER,
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS2_GUARD_75", targets: ["ally:subject"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS2_GUARD_75",
+          magnitude: -0.75,
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS2", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS2",
+    intent:
+      "(Issue #687, R-ATR-04回帰): 攻撃してくる敵のメイン属性が不一致でも、サブ属性がシャイ属性またはスマート属性と一致すればガード率は75%になる",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_OLGA_NADYA_BOND_PS2",
+      trigger: unitBeingAttacked({
+        source: "enemy:front",
+        target: "ally:subject",
+        skillType: "AS",
+      }),
+    },
+    board: SUB_ATTRIBUTE_MATCHING_ATTACKER,
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS2_GUARD_75", targets: ["ally:subject"] },
