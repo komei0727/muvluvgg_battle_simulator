@@ -1368,6 +1368,7 @@ export interface paths {
                         | "COMICAL"
                         | "CLEVER";
                       isFavorableAttribute?: boolean;
+                      isSubAttributeFavorable?: boolean;
                       attackerAffinityBonus?: number;
                       criticalMultiplier: number;
                       outgoingDamageMultiplier: number;
@@ -5180,6 +5181,7 @@ export interface paths {
                         | "COMICAL"
                         | "CLEVER";
                       isFavorableAttribute?: boolean;
+                      isSubAttributeFavorable?: boolean;
                       attackerAffinityBonus?: number;
                       criticalMultiplier: number;
                       outgoingDamageMultiplier: number;
@@ -7321,6 +7323,7 @@ export interface paths {
                         actionSpeed: number;
                         criticalDamageBonus: number;
                         affinityBonus: number;
+                        subAffinityBonus?: number;
                       };
                     };
                     stateVersionBefore: number;
