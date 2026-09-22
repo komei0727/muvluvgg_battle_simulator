@@ -17,6 +17,7 @@ const COMBAT_STATS = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 function unitSnapshot(overrides: Record<string, unknown> = {}) {

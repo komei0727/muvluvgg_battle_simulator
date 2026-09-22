@@ -37,6 +37,7 @@ const ENEMY_BASE_STATS: CombatStats = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0.25,
+  subAffinityBonus: 0.15,
 };
 
 function unit(id: string, side: Side, overrides: Partial<BattleUnit> = {}): BattleUnit {
@@ -419,6 +420,7 @@ describe("resolveBreak (R-TEX-03／05／06)", () => {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     });
     expect(revived.currentHp).toBe(1200);
 

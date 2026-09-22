@@ -206,40 +206,42 @@ metadata:
 
 ### フィールド詳細
 
-| フィールド                      | 型       | 必須 | 制約                                                                           |
-| ------------------------------- | -------- | ---- | ------------------------------------------------------------------------------ |
-| `unitDefinitionId`              | string   | ✓    | 一意                                                                           |
-| `category`                      | enum     |      | `PLAYABLE` / `EXERCISE_ENEMY`。省略時 `PLAYABLE`（R-TEX-11 #1）                |
-| `exerciseActive`                | boolean  |      | `EXERCISE_ENEMY` のときのみ許可かつ必須。表示専用の開催中フラグ（R-TEX-11 #4） |
-| `attribute`                     | enum     | ✓    | `AGGRESSIVE` / `SHY` / `CUTE` / `SMART` / `COMICAL` / `CLEVER`                 |
-| `unitType`                      | enum     | ✓    | `PHYSICAL` / `ENERGY` / `AGILE`                                                |
-| `role`                          | enum     | ✓    | `PHYSICAL_ATTACKER` / `EN_ATTACKER` / `TANK` / `SUPPORT` / `CONTROL`           |
-| `positionAptitudes`             | enum[]   | ✓    | `FRONT` / `BACK` の1件以上                                                     |
-| `baseStats`                     | object   | ✓    | 下表                                                                           |
-| `baseStats.maximumHp`           | integer  | ✓    | >= 1                                                                           |
-| `baseStats.attack`              | integer  | ✓    | >= 0                                                                           |
-| `baseStats.defense`             | integer  | ✓    | >= 0                                                                           |
-| `baseStats.criticalRate`        | number   | ✓    | raw の%を割合へ変換                                                            |
-| `baseStats.criticalDamageBonus` | number   | ✓    | Catalog作成時は既定値 `0.5`。Unitごとに上書き可                                |
-| `baseStats.affinityBonus`       | number   | ✓    | Catalog作成時は既定値 `0.25`。Unitごとに上書き可                               |
-| `baseStats.actionSpeed`         | integer  | ✓    | >= 0                                                                           |
-| `baseStats.maximumAp`           | integer  | ✓    | >= 1                                                                           |
-| `baseStats.maximumPp`           | integer  | ✓    | >= 1                                                                           |
-| `levelGrowth`                   | object   |      | 任意。レベル1あたりの成長値（R-ENH-05）。下4行はobject内で必須                 |
-| `levelGrowth.hp`                | integer  | ✓    | >= 0                                                                           |
-| `levelGrowth.attack`            | integer  | ✓    | >= 0                                                                           |
-| `levelGrowth.defense`           | integer  | ✓    | >= 0                                                                           |
-| `levelGrowth.actionSpeed`       | integer  | ✓    | >= 0                                                                           |
-| `rankGrowth`                    | object   |      | 任意。ユニットランク1段あたりの上昇量（R-ENH-07）。下4行はobject内で必須       |
-| `rankGrowth.hp`                 | integer  | ✓    | >= 0                                                                           |
-| `rankGrowth.attack`             | integer  | ✓    | >= 0                                                                           |
-| `rankGrowth.defense`            | integer  | ✓    | >= 0                                                                           |
-| `rankGrowth.criticalRate`       | number   | ✓    | >= 0。内部表現の小数（`baseStats.criticalRate` と同じ単位）                    |
-| `extraGaugeMaximum`             | integer  | ✓    | >= 1。Catalog作成時はEXスキル `cost.amount` と同値で生成                       |
-| `activeSkillDefinitionIds`      | string[] | ✓    | AS選択優先順                                                                   |
-| `passiveSkillDefinitionIds`     | string[] | ✓    | 0件可。PSタイブレーカー順                                                      |
-| `extraSkillDefinitionId`        | string   | ✓    | EXスキル1件                                                                    |
-| `metadata`                      | object   | ✓    | 表示、所属、タグ                                                               |
+| フィールド                      | 型       | 必須 | 制約                                                                                        |
+| ------------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------- |
+| `unitDefinitionId`              | string   | ✓    | 一意                                                                                        |
+| `category`                      | enum     |      | `PLAYABLE` / `EXERCISE_ENEMY`。省略時 `PLAYABLE`（R-TEX-11 #1）                             |
+| `exerciseActive`                | boolean  |      | `EXERCISE_ENEMY` のときのみ許可かつ必須。表示専用の開催中フラグ（R-TEX-11 #4）              |
+| `attribute`                     | enum     | ✓    | `AGGRESSIVE` / `SHY` / `CUTE` / `SMART` / `COMICAL` / `CLEVER`                              |
+| `subAttribute`                  | enum     |      | サブ属性付きユニットのみ。`attribute` と同じ6値、`attribute` と異なる値（R-ATR-03）         |
+| `unitType`                      | enum     | ✓    | `PHYSICAL` / `ENERGY` / `AGILE`                                                             |
+| `role`                          | enum     | ✓    | `PHYSICAL_ATTACKER` / `EN_ATTACKER` / `TANK` / `SUPPORT` / `CONTROL`                        |
+| `positionAptitudes`             | enum[]   | ✓    | `FRONT` / `BACK` の1件以上                                                                  |
+| `baseStats`                     | object   | ✓    | 下表                                                                                        |
+| `baseStats.maximumHp`           | integer  | ✓    | >= 1                                                                                        |
+| `baseStats.attack`              | integer  | ✓    | >= 0                                                                                        |
+| `baseStats.defense`             | integer  | ✓    | >= 0                                                                                        |
+| `baseStats.criticalRate`        | number   | ✓    | raw の%を割合へ変換                                                                         |
+| `baseStats.criticalDamageBonus` | number   | ✓    | Catalog作成時は既定値 `0.5`。Unitごとに上書き可                                             |
+| `baseStats.affinityBonus`       | number   | ✓    | Catalog作成時は既定値 `0.25`。Unitごとに上書き可                                            |
+| `baseStats.subAffinityBonus`    | number   | ✓    | Catalog作成時は既定値 `0.15`。Unitごとに上書き可（R-ATR-03、`subAttribute` 未設定なら無効） |
+| `baseStats.actionSpeed`         | integer  | ✓    | >= 0                                                                                        |
+| `baseStats.maximumAp`           | integer  | ✓    | >= 1                                                                                        |
+| `baseStats.maximumPp`           | integer  | ✓    | >= 1                                                                                        |
+| `levelGrowth`                   | object   |      | 任意。レベル1あたりの成長値（R-ENH-05）。下4行はobject内で必須                              |
+| `levelGrowth.hp`                | integer  | ✓    | >= 0                                                                                        |
+| `levelGrowth.attack`            | integer  | ✓    | >= 0                                                                                        |
+| `levelGrowth.defense`           | integer  | ✓    | >= 0                                                                                        |
+| `levelGrowth.actionSpeed`       | integer  | ✓    | >= 0                                                                                        |
+| `rankGrowth`                    | object   |      | 任意。ユニットランク1段あたりの上昇量（R-ENH-07）。下4行はobject内で必須                    |
+| `rankGrowth.hp`                 | integer  | ✓    | >= 0                                                                                        |
+| `rankGrowth.attack`             | integer  | ✓    | >= 0                                                                                        |
+| `rankGrowth.defense`            | integer  | ✓    | >= 0                                                                                        |
+| `rankGrowth.criticalRate`       | number   | ✓    | >= 0。内部表現の小数（`baseStats.criticalRate` と同じ単位）                                 |
+| `extraGaugeMaximum`             | integer  | ✓    | >= 1。Catalog作成時はEXスキル `cost.amount` と同値で生成                                    |
+| `activeSkillDefinitionIds`      | string[] | ✓    | AS選択優先順                                                                                |
+| `passiveSkillDefinitionIds`     | string[] | ✓    | 0件可。PSタイブレーカー順                                                                   |
+| `extraSkillDefinitionId`        | string   | ✓    | EXスキル1件                                                                                 |
+| `metadata`                      | object   | ✓    | 表示、所属、タグ                                                                            |
 
 ### v2でUnitに保持する/削除するフィールド
 

@@ -12,6 +12,7 @@ const ENEMY_BASE_STATS: CombatStats = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 describe("ExerciseRuntime (R-TEX-02 スコア定義)", () => {

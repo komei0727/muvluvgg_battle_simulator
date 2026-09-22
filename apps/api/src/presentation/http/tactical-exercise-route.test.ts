@@ -62,6 +62,7 @@ const COMBAT_STATS = {
   actionSpeed: 100,
   criticalDamageBonus: 0.5,
   affinityBonus: 0.25,
+  subAffinityBonus: 0.15,
 };
 
 function unitSnapshot(hp: number) {

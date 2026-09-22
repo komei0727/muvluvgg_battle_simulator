@@ -37,6 +37,7 @@ function attacker(effects: readonly AppliedEffect[] = []): BattleUnit {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const unit = createBattleUnit(member, side, {

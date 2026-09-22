@@ -31,6 +31,8 @@ export interface BattleUnit {
   readonly battleUnitId: BattleUnitId;
   readonly unitDefinitionId: UnitDefinitionId;
   readonly attribute: Attribute;
+  /** R-ATR-03: サブ属性付きユニットのみ持つ。 */
+  readonly subAttribute?: Attribute;
   readonly side: Side;
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
@@ -124,6 +126,7 @@ export function createBattleUnit(
     battleUnitId: member.battleUnitId,
     unitDefinitionId: member.unitDefinitionId,
     attribute: member.attribute,
+    ...(member.subAttribute === undefined ? {} : { subAttribute: member.subAttribute }),
     side,
     position: member.position,
     globalCoordinate: member.globalCoordinate,

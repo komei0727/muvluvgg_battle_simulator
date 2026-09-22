@@ -55,6 +55,7 @@ export function unit(id: string, side: Side, overrides: Partial<BattleUnit> = {}
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   return { ...createBattleUnit(member, side, LIMITS), ...overrides };

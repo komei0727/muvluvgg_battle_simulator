@@ -50,6 +50,7 @@ function unitDefinition(id: string): UnitDefinition {
       criticalRate: 0.1,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
       actionSpeed: 10,
       maximumAp: 3,
       maximumPp: 3,

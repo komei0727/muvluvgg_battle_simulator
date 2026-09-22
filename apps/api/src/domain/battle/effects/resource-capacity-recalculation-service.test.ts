@@ -34,6 +34,7 @@ const BASE_COMBAT_STATS: CombatStats = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0.25,
+  subAffinityBonus: 0.15,
 };
 
 function unit(overrides: Partial<BattleUnit> = {}): BattleUnit {

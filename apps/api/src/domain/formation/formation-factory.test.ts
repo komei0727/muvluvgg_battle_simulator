@@ -36,6 +36,7 @@ function unitDefinition(
       criticalRate: 0.1,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
       actionSpeed: 10,
       maximumAp: 3,
       maximumPp: 3,
@@ -98,6 +99,7 @@ describe("createBattleParty — FormationFactory", () => {
         actionSpeed: 10,
         criticalDamageBonus: 0.5,
         affinityBonus: 0.25,
+        subAffinityBonus: 0.15,
       },
       enhancedBaseStats: {
         maximumHp: 100,
@@ -106,6 +108,7 @@ describe("createBattleParty — FormationFactory", () => {
         criticalRate: 0.1,
         criticalDamageBonus: 0.5,
         affinityBonus: 0.25,
+        subAffinityBonus: 0.15,
         actionSpeed: 10,
         maximumAp: 3,
         maximumPp: 3,

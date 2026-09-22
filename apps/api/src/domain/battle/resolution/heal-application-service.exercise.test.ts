@@ -30,6 +30,7 @@ const ENEMY_BASE_STATS: CombatStats = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 function unit(
@@ -53,6 +54,7 @@ function unit(
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const built = createBattleUnit(member, side, {

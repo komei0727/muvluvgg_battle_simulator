@@ -107,7 +107,13 @@ describe("既定ボーナスと倍率基準の整合 (Issue #476)", () => {
   it("IT-AUDIT-BONUS-002 [R-ATR-02] (R-ATR-02 / Q-CAT-05): a unit carrying only the default affinityBonus hits a favorable defender for exactly 125%", () => {
     expect(COMBAT_STATS.affinityBonus).toBeCloseTo(0.25);
     expect(
-      resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(COMBAT_STATS.affinityBonus)),
+      resolveAttributeMultiplier(
+        "AGGRESSIVE",
+        "SHY",
+        createPercentage(COMBAT_STATS.affinityBonus),
+        undefined,
+        createPercentage(COMBAT_STATS.subAffinityBonus),
+      ),
     ).toBeCloseTo(1.25);
   });
 
@@ -120,6 +126,7 @@ describe("既定ボーナスと倍率基準の整合 (Issue #476)", () => {
       attackerAttack: COMBAT_STATS.attack,
       attackerAttribute: "AGGRESSIVE",
       attackerAffinityBonus: COMBAT_STATS.affinityBonus,
+      attackerSubAffinityBonus: COMBAT_STATS.subAffinityBonus,
       defenderDefense: COMBAT_STATS.defense,
       defenderAttribute: "SHY",
       defenseIgnoreRate: 0,

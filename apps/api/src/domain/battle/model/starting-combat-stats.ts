@@ -20,6 +20,11 @@ export interface CombatStats {
    * `AFFINITY_BONUS`を持たないため補正対象にならず、Unit定義の値をそのまま写す。
    */
   readonly affinityBonus: number;
+  /**
+   * R-ATR-03: サブ属性が有利判定になった場合の属性ダメージボーナス。`affinityBonus`
+   * と同じく編成補正・戦闘中補正の対象にならず、Unit定義の値をそのまま写す。
+   */
+  readonly subAffinityBonus: number;
 }
 
 const ZERO = createPercentage(0);
@@ -84,5 +89,6 @@ export function calculateStartingCombatStats(input: StartingCombatStatsInput): C
     actionSpeed: stat("ACTION_SPEED", input.baseStats.actionSpeed),
     criticalDamageBonus: stat("CRITICAL_DAMAGE_BONUS", input.baseStats.criticalDamageBonus),
     affinityBonus: input.baseStats.affinityBonus,
+    subAffinityBonus: input.baseStats.subAffinityBonus,
   };
 }

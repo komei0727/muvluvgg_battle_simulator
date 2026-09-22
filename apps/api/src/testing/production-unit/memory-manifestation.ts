@@ -107,6 +107,7 @@ export const MEMORY_COMBAT_STATS: CombatStats = {
   actionSpeed: 100,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 const MEMORY_LIMITS = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };

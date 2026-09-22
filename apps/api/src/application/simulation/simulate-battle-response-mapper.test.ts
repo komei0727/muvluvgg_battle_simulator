@@ -48,6 +48,7 @@ const ALLY_COMBAT_STATS = {
   actionSpeed: 10,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 const ENEMY_COMBAT_STATS = {
   maximumHp: 100,
@@ -57,6 +58,7 @@ const ENEMY_COMBAT_STATS = {
   actionSpeed: 8,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 function baseResult(overrides: Partial<SimulateBattleResult> = {}): SimulateBattleResult {
@@ -273,6 +275,7 @@ describe("toBattleSimulationResponseBody", () => {
       actionSpeed: 67,
       criticalRate: 0.1,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
       criticalDamageBonus: 0.5,
     };
     const withDistinctRatios = baseResult({

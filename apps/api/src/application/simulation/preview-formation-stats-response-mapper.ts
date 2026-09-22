@@ -55,6 +55,7 @@ function toEnhancedBaseStatsResponseBody(
       actionSpeed: baseStats.actionSpeed,
       criticalDamageBonus: baseStats.criticalDamageBonus,
       affinityBonus: baseStats.affinityBonus,
+      subAffinityBonus: baseStats.subAffinityBonus,
     }),
   };
 }

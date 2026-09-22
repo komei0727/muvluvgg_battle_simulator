@@ -44,6 +44,7 @@ export interface UnitDefinitionOverrides {
   readonly category?: UnitDefinition["category"];
   readonly exerciseActive?: UnitDefinition["exerciseActive"];
   readonly attribute?: UnitDefinition["attribute"];
+  readonly subAttribute?: UnitDefinition["subAttribute"];
   readonly unitType?: UnitDefinition["unitType"];
   readonly role?: UnitDefinition["role"];
   readonly positionAptitudes?: UnitDefinition["positionAptitudes"];
@@ -68,6 +69,7 @@ export function unitDefinition(
     category: overrides.category ?? "PLAYABLE",
     ...(overrides.exerciseActive === undefined ? {} : { exerciseActive: overrides.exerciseActive }),
     attribute: overrides.attribute ?? "AGGRESSIVE",
+    ...(overrides.subAttribute === undefined ? {} : { subAttribute: overrides.subAttribute }),
     unitType: overrides.unitType ?? "PHYSICAL",
     role: overrides.role ?? "PHYSICAL_ATTACKER",
     positionAptitudes: overrides.positionAptitudes ?? ["FRONT", "BACK"],
@@ -78,6 +80,7 @@ export function unitDefinition(
       criticalRate: 0.1,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
       actionSpeed: 10,
       maximumAp: 3,
       maximumPp: 3,

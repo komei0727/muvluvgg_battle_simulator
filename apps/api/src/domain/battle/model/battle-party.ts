@@ -17,6 +17,8 @@ export interface BattlePartyMember {
   readonly unitDefinitionId: UnitDefinitionId;
   /** R-ATR-02: `UnitDefinition.attribute` をそのまま写す。戦闘中は変化しない。 */
   readonly attribute: Attribute;
+  /** R-ATR-03: `UnitDefinition.subAttribute` をそのまま写す。サブ属性付きユニットのみ持つ。 */
+  readonly subAttribute?: Attribute;
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
   /** R-STA-01: 配置適性・編成補正・Memory補正を含む開始時の戦闘中ステータス。 */

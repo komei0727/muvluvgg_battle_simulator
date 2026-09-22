@@ -100,6 +100,7 @@ export const BOARD_COMBAT_STATS: CombatStats = {
   actionSpeed: 100,
   criticalDamageBonus: 0.5,
   affinityBonus: 0,
+  subAffinityBonus: 0,
 };
 
 export const BOARD_LIMITS = { maximumAp: 4, maximumPp: 4, maximumExtraGauge: 10 };

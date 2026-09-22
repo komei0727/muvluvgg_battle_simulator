@@ -1,4 +1,3 @@
-import type { Attribute } from "../catalog/definitions/catalog-enums.js";
 import type { MemoryDefinitionId, UnitDefinitionId } from "../catalog/definitions/catalog-ids.js";
 import type { MemoryDefinition } from "../catalog/definitions/memory-definition.js";
 import type { BaseStats, UnitDefinition } from "../catalog/definitions/unit-definition.js";
@@ -9,6 +8,7 @@ import type { BattleParty, BattlePartyMember } from "../battle/model/battle-part
 import {
   calculateFormationBonus,
   type FormationBonus,
+  type UnitAttributePair,
 } from "../battle/model/formation-bonus-calculator.js";
 import type { FormationInput } from "../battle/model/formation-input.js";
 import { toGlobalCoordinate } from "../battle/model/global-coordinate.js";
@@ -78,8 +78,11 @@ export function createBattleParty(
     return { slot, unitDefinition };
   });
 
-  const attributes: Attribute[] = slotUnits.map(({ unitDefinition }) => unitDefinition.attribute);
-  const formationBonus: FormationBonus = calculateFormationBonus(attributes);
+  const unitAttributes: UnitAttributePair[] = slotUnits.map(({ unitDefinition }) => ({
+    main: unitDefinition.attribute,
+    ...(unitDefinition.subAttribute === undefined ? {} : { sub: unitDefinition.subAttribute }),
+  }));
+  const formationBonus: FormationBonus = calculateFormationBonus(unitAttributes);
 
   /**
    * R-ENH-01 #2/R-ENH-06: 陣営の強化指定があるときだけ、R-STA-01の基本値を
@@ -113,6 +116,9 @@ export function createBattleParty(
       battleUnitId: battleUnitIds[index]!,
       unitDefinitionId: slot.unitDefinitionId,
       attribute: unitDefinition.attribute,
+      ...(unitDefinition.subAttribute === undefined
+        ? {}
+        : { subAttribute: unitDefinition.subAttribute }),
       position: slot.position,
       globalCoordinate: toGlobalCoordinate(side, slot.position),
       combatStats: calculateStartingCombatStats({

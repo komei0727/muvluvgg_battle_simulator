@@ -53,6 +53,7 @@ export const unitDefinitionSchema = {
     category: { enum: ["PLAYABLE", "EXERCISE_ENEMY"] },
     exerciseActive: { type: "boolean" },
     attribute: { enum: ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] },
+    subAttribute: { enum: ["AGGRESSIVE", "SHY", "CUTE", "SMART", "COMICAL", "CLEVER"] },
     unitType: { enum: ["PHYSICAL", "ENERGY", "AGILE"] },
     role: { enum: ["PHYSICAL_ATTACKER", "EN_ATTACKER", "TANK", "SUPPORT", "CONTROL"] },
     positionAptitudes: {
@@ -79,6 +80,7 @@ export const unitDefinitionSchema = {
         criticalRate: { type: "number" },
         criticalDamageBonus: { type: "number" },
         affinityBonus: { type: "number" },
+        subAffinityBonus: { type: "number" },
         actionSpeed: { type: "integer", minimum: 0 },
         maximumAp: { type: "integer", minimum: 1 },
         maximumPp: { type: "integer", minimum: 1 },

@@ -40,6 +40,7 @@ function unitAt(id: string, side: Side, overrides: Partial<BattleUnit> = {}): Ba
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     },
   };
   return {
@@ -334,6 +335,7 @@ describe("evaluateFormula", () => {
         actionSpeed: 10,
         criticalDamageBonus: 0.5,
         affinityBonus: 0.25,
+        subAffinityBonus: 0.15,
       },
     });
     const ctx = context({ triggerSource });

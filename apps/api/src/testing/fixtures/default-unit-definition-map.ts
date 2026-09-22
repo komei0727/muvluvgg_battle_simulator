@@ -27,6 +27,7 @@ function defaultUnitDefinition(unitDefinitionId: UnitDefinitionId): UnitDefiniti
       criticalRate: 0,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
       actionSpeed: 10,
       maximumAp: 3,
       maximumPp: 3,

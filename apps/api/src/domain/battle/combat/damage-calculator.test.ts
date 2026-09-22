@@ -28,6 +28,7 @@ function unitAt(id: string, side: Side, overrides: Partial<BattleUnit> = {}): Ba
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     },
   };
   return {
@@ -43,6 +44,7 @@ function input(overrides: Partial<DamageCalculationInput> = {}): DamageCalculati
     attackerAttack: 50,
     attackerAttribute: "AGGRESSIVE",
     attackerAffinityBonus: 0,
+    attackerSubAffinityBonus: 0,
     defenderDefense: 20,
     defenderAttribute: "AGGRESSIVE",
     defenseIgnoreRate: 0,

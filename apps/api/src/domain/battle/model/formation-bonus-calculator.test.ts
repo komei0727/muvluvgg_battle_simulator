@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { calculateFormationBonus } from "./formation-bonus-calculator.js";
+import { calculateFormationBonus, type UnitAttributePair } from "./formation-bonus-calculator.js";
 import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
 
-function attrs(...values: Attribute[]): readonly Attribute[] {
-  return values;
+/** Builds main-attribute-only members (no sub attribute), matching pre-R-ATR-03 units. */
+function attrs(...values: Attribute[]): readonly UnitAttributePair[] {
+  return values.map((main) => ({ main }));
+}
+
+/** Builds a single member with both a main and a sub attribute. */
+function pair(main: Attribute, sub: Attribute): UnitAttributePair {
+  return { main, sub };
 }
 
 describe("calculateFormationBonus — R-BON-01 通常属性の役判定", () => {
@@ -145,6 +151,74 @@ describe("calculateFormationBonus — R-BON-02 コミカル", () => {
     const forward = calculateFormationBonus(attrs("COMICAL", "SHY", "SHY", "SHY", "CUTE"));
     const reversed = calculateFormationBonus(attrs("CUTE", "SHY", "SHY", "SHY", "COMICAL"));
     expect(reversed).toEqual(forward);
+  });
+});
+
+describe("calculateFormationBonus — R-ATR-03/R-BON-04 サブ属性", () => {
+  it("UT-R-BON-04-001: a sub attribute joins the hand pool when the main attribute cannot (Clever main)", () => {
+    // main=CLEVER alone would exclude this member from the hand pool (R-BON-01);
+    // its SHY sub attribute lets it complete a five-card with the other four SHY.
+    const bonus = calculateFormationBonus([
+      pair("CLEVER", "SHY"),
+      ...attrs("SHY", "SHY", "SHY", "SHY"),
+    ]);
+    expect(bonus.attackBonus).toBeCloseTo(0.25);
+    expect(bonus.hpBonus).toBeCloseTo(0.25);
+  });
+
+  it("UT-R-BON-04-002: the highest hand across every main/sub candidate is adopted, not just the main attribute", () => {
+    // Main attributes alone (AGGRESSIVE x1, SHY x4) already give a four-card;
+    // but SHY's sub CUTE doesn't beat it, and the search must still find the
+    // best combination — here, four-card from SHY mains stays the winner.
+    const bonus = calculateFormationBonus([
+      attrs("AGGRESSIVE")[0]!,
+      pair("SHY", "CUTE"),
+      pair("SHY", "CUTE"),
+      pair("SHY", "CUTE"),
+      pair("SHY", "CUTE"),
+    ]);
+    expect(bonus.attackBonus).toBeCloseTo(0.15);
+    expect(bonus.hpBonus).toBeCloseTo(0.2);
+  });
+
+  it("UT-R-BON-04-003: a Comical sub attribute is wildcarded just like a Comical main attribute", () => {
+    const bonus = calculateFormationBonus([
+      pair("CLEVER", "COMICAL"),
+      ...attrs("SHY", "SHY", "SHY", "SHY"),
+    ]);
+    expect(bonus.attackBonus).toBeCloseTo(0.25);
+    expect(bonus.hpBonus).toBeCloseTo(0.25);
+  });
+
+  it("UT-R-BON-04-004: Clever count includes members whose sub (not main) attribute is Clever", () => {
+    const bonus = calculateFormationBonus([
+      pair("SHY", "CLEVER"),
+      ...attrs("CUTE", "SMART", "AGGRESSIVE", "SHY"),
+    ]);
+    expect(bonus.defenseBonus).toBeCloseTo(0.3);
+  });
+
+  it("UT-R-BON-04-005: a member with a Clever sub counts toward both the hand pool (via main) and the Clever count — not a choice between the two", () => {
+    // main=SHY joins the other three SHY mains for a four-card AND its Clever
+    // sub simultaneously grants the 1-Clever defense bonus.
+    const bonus = calculateFormationBonus([
+      pair("SHY", "CLEVER"),
+      ...attrs("SHY", "SHY", "SHY", "CUTE"),
+    ]);
+    expect(bonus.attackBonus).toBeCloseTo(0.15);
+    expect(bonus.hpBonus).toBeCloseTo(0.2);
+    expect(bonus.defenseBonus).toBeCloseTo(0.3);
+  });
+
+  it("UT-R-BON-04-006: a sub attribute identical to the main attribute contributes no extra candidate", () => {
+    const withRedundantSub = calculateFormationBonus([
+      pair("AGGRESSIVE", "AGGRESSIVE"),
+      ...attrs("AGGRESSIVE", "AGGRESSIVE", "AGGRESSIVE", "AGGRESSIVE"),
+    ]);
+    const withoutSub = calculateFormationBonus(
+      attrs("AGGRESSIVE", "AGGRESSIVE", "AGGRESSIVE", "AGGRESSIVE", "AGGRESSIVE"),
+    );
+    expect(withRedundantSub).toEqual(withoutSub);
   });
 });
 

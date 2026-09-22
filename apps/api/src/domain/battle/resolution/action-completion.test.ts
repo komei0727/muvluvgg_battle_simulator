@@ -40,6 +40,7 @@ function actorWithExpiringCooldown(): BattleUnit {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const built = createBattleUnit(member, "ALLY", {
@@ -79,6 +80,7 @@ function plainUnit(id: string): BattleUnit {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   return createBattleUnit(member, "ALLY", { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 10 });

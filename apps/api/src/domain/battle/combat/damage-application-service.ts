@@ -324,6 +324,10 @@ export function* applyDamageActionSteps(
       attackerAttack: attackerBeforeDamage.combatStats.attack,
       attackerAttribute: attackerBeforeDamage.attribute,
       attackerAffinityBonus: attackerBeforeDamage.combatStats.affinityBonus,
+      ...(attackerBeforeDamage.subAttribute === undefined
+        ? {}
+        : { attackerSubAttribute: attackerBeforeDamage.subAttribute }),
+      attackerSubAffinityBonus: attackerBeforeDamage.combatStats.subAffinityBonus,
       defenderDefense: targetBeforeDamage.combatStats.defense,
       defenderAttribute: targetBeforeDamage.attribute,
       defenseIgnoreRate,
@@ -431,6 +435,7 @@ export function* applyDamageActionSteps(
         attackerAttribute: attackerBeforeDamage.attribute,
         defenderAttribute: targetBeforeDamage.attribute,
         isFavorableAttribute: damageResult.isFavorableAttribute,
+        isSubAttributeFavorable: damageResult.isSubAttributeFavorable,
         attackerAffinityBonus: attackerBeforeDamage.combatStats.affinityBonus,
         criticalMultiplier: critical.multiplier,
         outgoingDamageMultiplier: damageResult.outgoingDamageMultiplier,

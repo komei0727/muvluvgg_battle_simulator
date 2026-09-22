@@ -196,6 +196,9 @@ export function calculateEnhancedBaseStats(
       0,
     ),
     affinityBonus: clampAtLeast(baseStats.affinityBonus + gearRatios.AFFINITY_BONUS, 0),
+    // R-ATR-03: サブ属性用の別ギア対応表は無く、`AFFINITY_BONUS`ギアの合計割合を
+    // `affinityBonus`と同時にそのまま加算する（実ゲームの属性ダメージギアは1種類）。
+    subAffinityBonus: clampAtLeast(baseStats.subAffinityBonus + gearRatios.AFFINITY_BONUS, 0),
     // R-ENH-01 #5: AP・PP・EXゲージ最大値は強化対象外。
     maximumAp: baseStats.maximumAp,
     maximumPp: baseStats.maximumPp,

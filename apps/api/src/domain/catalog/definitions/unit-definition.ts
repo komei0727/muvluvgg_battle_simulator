@@ -35,6 +35,12 @@ export interface BaseStats {
   readonly criticalRate: number;
   readonly criticalDamageBonus: number;
   readonly affinityBonus: number;
+  /**
+   * R-ATR-03: サブ属性が防御側属性に対して有利になる場合の属性ダメージボーナス。
+   * `affinityBonus`と同じくギア(`AFFINITY_BONUS`)の加算対象だが、編成補正・
+   * 戦闘中補正・演習ブレイク強化(R-TEX-04)は対象外（Q-STA-04）。
+   */
+  readonly subAffinityBonus: number;
   readonly actionSpeed: number;
   readonly maximumAp: number;
   readonly maximumPp: number;
@@ -81,6 +87,8 @@ export interface UnitDefinition {
    */
   readonly exerciseActive?: boolean;
   readonly attribute: Attribute;
+  /** R-ATR-03: サブ属性付きユニットのみ持つ。未指定ならサブ属性のダメージボーナスは働かない。 */
+  readonly subAttribute?: Attribute;
   readonly unitType: UnitType;
   readonly role: Role;
   readonly positionAptitudes: readonly PositionRow[];
@@ -103,6 +111,7 @@ export interface BaseStatsInput {
   readonly criticalRate: number;
   readonly criticalDamageBonus?: number;
   readonly affinityBonus?: number;
+  readonly subAffinityBonus?: number;
   readonly actionSpeed: number;
   readonly maximumAp: number;
   readonly maximumPp: number;
@@ -121,6 +130,7 @@ export interface UnitDefinitionInput {
   readonly category?: string;
   readonly exerciseActive?: boolean;
   readonly attribute: string;
+  readonly subAttribute?: string;
   readonly unitType: string;
   readonly role: string;
   readonly positionAptitudes: readonly string[];
@@ -149,6 +159,8 @@ function createBaseStats(input: BaseStatsInput, path: string): BaseStats {
   assertFinite(criticalDamageBonus, `${path}.criticalDamageBonus`);
   const affinityBonus = input.affinityBonus ?? 0.25;
   assertFinite(affinityBonus, `${path}.affinityBonus`);
+  const subAffinityBonus = input.subAffinityBonus ?? 0.15;
+  assertFinite(subAffinityBonus, `${path}.subAffinityBonus`);
   assertInteger(input.actionSpeed, `${path}.actionSpeed`, { min: 0 });
   assertInteger(input.maximumAp, `${path}.maximumAp`, { min: 1 });
   assertInteger(input.maximumPp, `${path}.maximumPp`, { min: 1 });
@@ -160,6 +172,7 @@ function createBaseStats(input: BaseStatsInput, path: string): BaseStats {
     criticalRate: input.criticalRate,
     criticalDamageBonus,
     affinityBonus,
+    subAffinityBonus,
     actionSpeed: input.actionSpeed,
     maximumAp: input.maximumAp,
     maximumPp: input.maximumPp,
@@ -217,6 +230,15 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     );
   }
   assertEnumValue(input.attribute, ATTRIBUTES, `${path}.attribute`);
+  if (input.subAttribute !== undefined) {
+    assertEnumValue(input.subAttribute, ATTRIBUTES, `${path}.subAttribute`);
+    if (input.subAttribute === input.attribute) {
+      throw new DomainValidationError(
+        `${path}.subAttribute`,
+        `must differ from attribute, got "${input.subAttribute}"`,
+      );
+    }
+  }
   assertEnumValue(input.unitType, UNIT_TYPES, `${path}.unitType`);
   assertEnumValue(input.role, ROLES, `${path}.role`);
 
@@ -244,6 +266,7 @@ export function createUnitDefinition(input: UnitDefinitionInput, path = "unit"):
     category,
     ...(input.exerciseActive === undefined ? {} : { exerciseActive: input.exerciseActive }),
     attribute: input.attribute,
+    ...(input.subAttribute === undefined ? {} : { subAttribute: input.subAttribute }),
     unitType: input.unitType,
     role: input.role,
     positionAptitudes: input.positionAptitudes as readonly PositionRow[],

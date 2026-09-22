@@ -74,22 +74,94 @@ describe("resolveAttributeMultiplier — R-ATR-02 属性倍率", () => {
   // R-ATR-02の「125%」はその既定値込みの結果である。倍率式が125%を別途足すと
   // 既定値が二重に乗るため、既定値そのものを入力にした倍率をここで固定する。
   it("UT-R-ATR-02-001: the default 25% affinity bonus yields exactly the 125% favorable multiplier", () => {
-    const result = resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(0.25));
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "SHY",
+      createPercentage(0.25),
+      undefined,
+      createPercentage(0.15),
+    );
     expect(result).toBeCloseTo(1.25);
   });
 
   it("UT-R-ATR-02-002: a non-favorable matchup always multiplies by exactly 100%, ignoring the affinity bonus", () => {
-    const result = resolveAttributeMultiplier("AGGRESSIVE", "CUTE", createPercentage(0.25));
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "CUTE",
+      createPercentage(0.25),
+      undefined,
+      createPercentage(0.15),
+    );
     expect(result).toBeCloseTo(1);
   });
 
   it("UT-R-ATR-02-003: a raised affinity bonus adds the same percentage points to the favorable multiplier", () => {
-    const result = resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(0.35));
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "SHY",
+      createPercentage(0.35),
+      undefined,
+      createPercentage(0.15),
+    );
     expect(result).toBeCloseTo(1.35);
   });
 
   it("UT-R-ATR-02-006: a zero affinity bonus leaves a favorable matchup at 100%", () => {
-    const result = resolveAttributeMultiplier("AGGRESSIVE", "SHY", createPercentage(0));
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "SHY",
+      createPercentage(0),
+      undefined,
+      createPercentage(0.15),
+    );
+    expect(result).toBeCloseTo(1);
+  });
+});
+
+describe("resolveAttributeMultiplier — R-ATR-03 サブ属性の属性倍率", () => {
+  it("UT-R-ATR-03-001: main not favorable, sub favorable — applies the sub affinity bonus (15%)", () => {
+    // AGGRESSIVE main is not favorable against CUTE; SHY sub is favorable against CUTE
+    // (SHY -> CUTE, R-ATR-01) — falls through to the sub bonus, not the main one.
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "CUTE",
+      createPercentage(0.25),
+      "SHY",
+      createPercentage(0.15),
+    );
+    expect(result).toBeCloseTo(1.15);
+  });
+
+  it("UT-R-ATR-03-002: main favorable — ignores the sub attribute and applies the main bonus (25%)", () => {
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "SHY",
+      createPercentage(0.25),
+      "CLEVER",
+      createPercentage(0.15),
+    );
+    expect(result).toBeCloseTo(1.25);
+  });
+
+  it("UT-R-ATR-03-003: neither main nor sub favorable — multiplies by exactly 100%", () => {
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "CUTE",
+      createPercentage(0.25),
+      "SMART",
+      createPercentage(0.15),
+    );
+    expect(result).toBeCloseTo(1);
+  });
+
+  it("UT-R-ATR-03-004: no sub attribute — behaves exactly like a unit without one", () => {
+    const result = resolveAttributeMultiplier(
+      "AGGRESSIVE",
+      "CUTE",
+      createPercentage(0.25),
+      undefined,
+      createPercentage(0.15),
+    );
     expect(result).toBeCloseTo(1);
   });
 });

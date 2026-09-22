@@ -37,6 +37,7 @@ function unit(id: string, targetSkillId: ReturnType<typeof createSkillDefinition
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0,
+      subAffinityBonus: 0,
     },
   };
   const built = createBattleUnit(member, "ALLY", LIMITS);

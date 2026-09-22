@@ -18,6 +18,7 @@ const BASE_STATS: BaseStats = {
   criticalRate: 0.1,
   criticalDamageBonus: 0.5,
   affinityBonus: 0.25,
+  subAffinityBonus: 0.15,
   actionSpeed: 50,
   maximumAp: 3,
   maximumPp: 3,
@@ -40,6 +41,7 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
       actionSpeed: 50,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     });
   });
 

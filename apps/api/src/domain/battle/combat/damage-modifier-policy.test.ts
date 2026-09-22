@@ -34,6 +34,7 @@ function unitAt(id: string, side: Side): BattleUnit {
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     },
   };
   return createBattleUnit(member, side, { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 });

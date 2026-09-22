@@ -41,6 +41,7 @@ function member(id: string, overrides: Partial<BattlePartyMember> = {}): BattleP
       actionSpeed: 10,
       criticalDamageBonus: 0.5,
       affinityBonus: 0.25,
+      subAffinityBonus: 0.15,
     },
     ...overrides,
   };
