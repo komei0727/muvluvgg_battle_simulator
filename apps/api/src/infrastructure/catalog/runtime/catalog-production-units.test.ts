@@ -598,7 +598,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // オルガ＆ナージャ、既存`UNIT_OLGA_VETERAN`/`UNIT_NADYA_SUCCESSOR`2キャラクター
     // の合体ユニット、Issue #683）の新規投入。EXスキルが#682で追加した
     // `HIGHEST_CURRENT_HP`ターゲットセレクタを初めて production Catalog で使用する。
-    expect(catalog.catalogRevision).toBe("2026-09-22.1");
+    // `2026-09-25.1` は新規Memory 1件（`MEM_GREATEST_FORTUNE`、最大の幸運は）の追加。
+    // Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-09-25.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
