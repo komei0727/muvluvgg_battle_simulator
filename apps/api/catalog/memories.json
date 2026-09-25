@@ -1065,6 +1065,70 @@
     "metadata": { "displayName": "浮かれた事情", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_GREATEST_FORTUNE",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_SHY_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ATTRIBUTE", "attribute": "SHY" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_SHY_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_GREATEST_FORTUNE_SHY_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "TurnStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CUTE_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "ATTRIBUTE", "attribute": "CUTE" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CUTE_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_GREATEST_FORTUNE_CUTE_ATK_UP" }]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "最大の幸運は", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_HARD_WARMUP",
     "triggeredEffects": [
       {

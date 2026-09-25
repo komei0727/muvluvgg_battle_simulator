@@ -19,7 +19,8 @@ import { loadProductionSnapshot } from "../../../testing/fixtures/index.js";
  * 結合テスト（`12_テスト戦略.md`「ユニット効果軸」）。
  *
  * キュート属性へ与ダメージ+2.5%、スマート属性へ攻撃力+1250。`ATTRIBUTE`
- * TargetFilterを使う定義（ほかに `MEM_LIKE_FRIENDS`・`MEM_GIDDY_CIRCUMSTANCES`）。
+ * TargetFilterを使う定義（ほかに `MEM_LIKE_FRIENDS`・`MEM_GIDDY_CIRCUMSTANCES`・
+ * `MEM_GREATEST_FORTUNE`）。
  *
  * `ATTRIBUTE`は`UnitDefinition`ではなく編成時に決まる`BattleUnit.attribute`を読むため、
  * 盤面の2スロットだけへ対象属性を持たせ、残る4スロット（既定の`AGGRESSIVE`）が
