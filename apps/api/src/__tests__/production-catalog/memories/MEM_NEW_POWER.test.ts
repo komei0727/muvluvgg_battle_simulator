@@ -10,6 +10,7 @@ import {
   mirroredForEnemyDeclaration,
   observeCoDeclaredMemories,
   observeMemory,
+  observeMemoryEffectRemoval,
   observeMemoryGrants,
 } from "../../../testing/production-unit/memory-manifestation.js";
 import { PRODUCTION_CATALOG_DIR } from "../../../testing/production-unit/skill-behaviour.js";
@@ -157,5 +158,17 @@ describe("production Catalog MEM_NEW_POWER (新たなる力)", () => {
     // 独立Reducer復元: 開始前スナップショットへStateDeltaだけを当てると開始後状態になる。
     expect(observed.stateFromDeltas).toEqual(observed.stateAfter);
     expect(observed.stateBefore).not.toEqual(observed.stateAfter);
+  });
+  it("IT-MEM-NEW-POWER-006: no memory-granted effect is removed by an unlimited BUFF/DEBUFF REMOVE_EFFECTS because every one is declared undispellable", () => {
+    // メモリー由来の付与は解除不可（Issue #693）。付与が戦闘開始時＝最古のため、
+    // 解除可能だと`maxRemovals`付きの解除に優先的に剥がされる。
+    const observed = observeMemoryEffectRemoval(MEMORY_DEFINITION_ID, "ALLY", BOARD);
+    expect(observed.heldBefore).toEqual([
+      "ACT_MEM_NEW_POWER_CENTER_EN_DMG_UP",
+      "ACT_MEM_NEW_POWER_OLGA_NADYA_ATK_UP",
+      "ACT_MEM_NEW_POWER_OLGA_NADYA_DEF_UP",
+    ]);
+    expect(observed.removed).toEqual([]);
+    expect(observed.heldAfter).toEqual(observed.heldBefore);
   });
 });
