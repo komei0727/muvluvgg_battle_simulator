@@ -1,0 +1,69 @@
+{
+  "memoryDefinitionId": "MEM_FIRST_FEELINGS",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CHAR_YURIA_BURNES_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_YURIA_BURNES" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_YURIA_BURNES_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_FIRST_FEELINGS_YURIA_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FRONT_CENTER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                { "kind": "POSITION_ROW", "row": "FRONT" },
+                { "kind": "POSITION_COLUMN", "column": "CENTER" }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_FRONT_CENTER_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_FIRST_FEELINGS_FRONT_CENTER_EN_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "はじめてのきもち", "tags": [] }
+}
