@@ -25,6 +25,7 @@ import {
   type BattleStateSnapshot,
 } from "../../domain/battle/lifecycle/battle-state-snapshot.js";
 import { reduceStateDeltas } from "../../domain/battle/events/state-delta-reducer.js";
+import { removeEffects } from "../../domain/battle/effects/effect-removal-service.js";
 import {
   definitionsWith,
   effectActionFrom,
@@ -648,6 +649,79 @@ export function observeMemory(
     created,
     started,
     recorder,
+  };
+}
+
+/** 戦闘開始直後の全ユニットへ、上限なしのバフ・デバフ解除を当てた結果。 */
+export interface MemoryRemovalObservation {
+  /** 解除前に保持されていたMemory由来効果（EffectAction ID順、重複なし）。 */
+  readonly heldBefore: readonly string[];
+  /** 解除後も保持されているMemory由来効果（EffectAction ID順、重複なし）。 */
+  readonly heldAfter: readonly string[];
+  /** `EffectRemoved`を発行したEffectAction ID（発行順）。 */
+  readonly removed: readonly string[];
+}
+
+function heldEffectIds(units: readonly BattleUnit[]): readonly string[] {
+  return [
+    ...new Set(
+      units.flatMap((unit) => unit.appliedEffects.map((e) => e.effectActionDefinitionId as string)),
+    ),
+  ].sort();
+}
+
+/**
+ * メモリー由来の付与は解除不可（`dispellable: false`）でなければならない。Catalogの
+ * 宣言値を読むだけでは「エンジンが実際に除外するか」を確かめられないため、実
+ * `startBattle`後の盤面へ実`removeEffects`（`categories: ["BUFF", "DEBUFF"]`、
+ * `maxRemovals`なし）を全ユニット分当て、何も剥がれないことを観測する。
+ */
+export function observeMemoryEffectRemoval(
+  memoryDefinitionId: string,
+  side: Side,
+  overrides: MemoryBoardOverrides = {},
+): MemoryRemovalObservation {
+  const { created, recorder, snapshot } = createMemoryBattle(
+    memoryDefinitionId,
+    side,
+    overrides,
+    1,
+  );
+  const started = startBattle(created, new SequenceRandomSource([]), recorder);
+  let units: readonly BattleUnit[] = [...started.allyUnits, ...started.enemyUnits];
+  const heldBefore = heldEffectIds(units);
+  const eventsBefore = recorder.getEvents().length;
+  const rootEventId = recorder.getEvents().at(-1)!.eventId;
+  let lastEventId = rootEventId;
+  for (const targetUnitId of units.map((unit) => unit.battleUnitId)) {
+    const result = removeEffects(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      units,
+      targetUnitId,
+      { categories: ["BUFF", "DEBUFF"] },
+      snapshot.effectActions,
+      lastEventId,
+    );
+    units = result.units;
+    lastEventId = result.lastEventId;
+  }
+  return {
+    heldBefore,
+    heldAfter: heldEffectIds(units),
+    removed: recorder
+      .getEvents()
+      .slice(eventsBefore)
+      .flatMap((event) =>
+        event.eventType === "EffectRemoved"
+          ? [event.payload.effectActionDefinitionId as string]
+          : [],
+      ),
   };
 }
 

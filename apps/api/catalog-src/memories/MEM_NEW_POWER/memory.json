@@ -1,0 +1,67 @@
+{
+  "memoryDefinitionId": "MEM_NEW_POWER",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_OLGA_NADYA_BOND_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "UNIT_DEFINITION", "unitDefinitionId": "UNIT_OLGA_NADYA_BOND" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_OLGA_NADYA_BOND_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_NEW_POWER_OLGA_NADYA_ATK_UP" },
+              { "effectActionDefinitionId": "ACT_MEM_NEW_POWER_OLGA_NADYA_DEF_UP" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CENTER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "POSITION_COLUMN", "column": "CENTER" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CENTER_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_NEW_POWER_CENTER_EN_DMG_UP" }]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "新たなる力", "tags": [] }
+}

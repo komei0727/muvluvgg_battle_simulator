@@ -12539,6 +12539,30 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_MEM_FIRST_FEELINGS_YURIA_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1000 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_FIRST_FEELINGS_FRONT_CENTER_EN_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": "EN",
+      "formula": { "kind": "CONSTANT", "value": 0.084 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_MEM_FUUKI_IINKAI_AFFILIATION_ATK_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
@@ -12775,6 +12799,42 @@
       "formula": { "kind": "CONSTANT", "value": 1000 },
       "stacking": { "mode": "STACKABLE" },
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_NEW_POWER_OLGA_NADYA_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 1000 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_NEW_POWER_OLGA_NADYA_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 750 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_NEW_POWER_CENTER_EN_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": "EN",
+      "formula": { "kind": "CONSTANT", "value": 0.042 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
