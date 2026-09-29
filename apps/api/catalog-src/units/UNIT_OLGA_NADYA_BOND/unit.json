@@ -6,8 +6,8 @@
   "role": "CONTROL",
   "positionAptitudes": ["FRONT", "BACK"],
   "baseStats": {
-    "maximumHp": 38579,
-    "attack": 16299,
+    "maximumHp": 38689,
+    "attack": 16389,
     "defense": 12262,
     "criticalRate": 0.2,
     "actionSpeed": 763,
@@ -15,8 +15,8 @@
     "maximumPp": 4
   },
   "levelGrowth": {
-    "hp": 342,
-    "attack": 123,
+    "hp": 371,
+    "attack": 141,
     "defense": 112,
     "actionSpeed": 2
   },
