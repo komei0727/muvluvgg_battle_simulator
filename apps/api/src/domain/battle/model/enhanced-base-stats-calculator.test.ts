@@ -50,10 +50,10 @@ const ACADEMY_LEVEL_50: UnitEnhancement = {
 describe("calculateEnhancedBaseStats — R-ENH-03 タイプ装備・モジュール", () => {
   it("UT-R-ENH-03-001: applies type equipment and module to a unit with no other enhancement", () => {
     const stats = calculateEnhancedBaseStats(target(), {});
-    // (28375 + 21600 + 4288) × 1.10 など、固定加算のあとに10%の割合補正が掛かる。
-    expect(stats.maximumHp).toBeCloseTo(59689.3, 6);
-    expect(stats.attack).toBeCloseTo(46702.7, 6);
-    expect(stats.defense).toBeCloseTo(24740.1, 6);
+    // (28375 + 23310 + 4288) × 1.10 など、固定加算のあとに10%の割合補正が掛かる。
+    expect(stats.maximumHp).toBeCloseTo(61570.3, 6);
+    expect(stats.attack).toBeCloseTo(48088.7, 6);
+    expect(stats.defense).toBeCloseTo(25515.6, 6);
   });
 
   it("UT-R-ENH-03-002: the 10% module ratio never reaches action speed or the three bonus stats", () => {
@@ -66,18 +66,18 @@ describe("calculateEnhancedBaseStats — R-ENH-03 タイプ装備・モジュー
 
   it("UT-R-ENH-03-003 [R-ENH-08]: overriding only module.hp.fixed leaves attack/defense at the default module values", () => {
     const stats = calculateEnhancedBaseStats(target(), { module: { hp: { fixed: 5000 } } });
-    // (28375 + 21600 + 5000) × 1.10 = 60472.5
-    expect(stats.maximumHp).toBeCloseTo(60472.5, 6);
-    expect(stats.attack).toBeCloseTo(46702.7, 6);
-    expect(stats.defense).toBeCloseTo(24740.1, 6);
+    // (28375 + 23310 + 5000) × 1.10 = 62353.5
+    expect(stats.maximumHp).toBeCloseTo(62353.5, 6);
+    expect(stats.attack).toBeCloseTo(48088.7, 6);
+    expect(stats.defense).toBeCloseTo(25515.6, 6);
   });
 
   it("UT-R-ENH-03-004 [R-ENH-08]: overriding only module.attack.ratio leaves hp/defense at the default module values", () => {
     const stats = calculateEnhancedBaseStats(target(), { module: { attack: { ratio: 0.05 } } });
-    // (23221 + 16020 + 3216) × 1.05 = 44579.85 — module.attack.fixed stays at the default (3216).
-    expect(stats.attack).toBeCloseTo(44579.85, 6);
-    expect(stats.maximumHp).toBeCloseTo(59689.3, 6);
-    expect(stats.defense).toBeCloseTo(24740.1, 6);
+    // (23221 + 17280 + 3216) × 1.05 = 45902.85 — module.attack.fixed stays at the default (3216).
+    expect(stats.attack).toBeCloseTo(45902.85, 6);
+    expect(stats.maximumHp).toBeCloseTo(61570.3, 6);
+    expect(stats.defense).toBeCloseTo(25515.6, 6);
   });
 });
 
@@ -90,27 +90,27 @@ describe("calculateEnhancedBaseStats — R-ENH-08 モジュール補正のリク
         defense: { fixed: 2000, ratio: 0.2 },
       },
     });
-    // (28375 + 21600 + 5000) × 1.10 = 60472.5
-    expect(stats.maximumHp).toBeCloseTo(60472.5, 6);
-    // (23221 + 16020 + 3000) × 1.05 = 44353.05
-    expect(stats.attack).toBeCloseTo(44353.05, 6);
-    // (11781 + 8920 + 2000) × 1.20 = 27241.2
-    expect(stats.defense).toBeCloseTo(27241.2, 6);
+    // (28375 + 23310 + 5000) × 1.10 = 62353.5
+    expect(stats.maximumHp).toBeCloseTo(62353.5, 6);
+    // (23221 + 17280 + 3000) × 1.05 = 45676.05
+    expect(stats.attack).toBeCloseTo(45676.05, 6);
+    // (11781 + 9625 + 2000) × 1.20 = 28087.2
+    expect(stats.defense).toBeCloseTo(28087.2, 6);
   });
 
   it("UT-R-ENH-08-002: omitting module, or passing an empty module object, matches the pre-existing default values exactly — no regression", () => {
     const withoutModule = calculateEnhancedBaseStats(target(), {});
     const withEmptyModule = calculateEnhancedBaseStats(target(), { module: {} });
-    expect(withoutModule.maximumHp).toBeCloseTo(59689.3, 6);
-    expect(withoutModule.attack).toBeCloseTo(46702.7, 6);
-    expect(withoutModule.defense).toBeCloseTo(24740.1, 6);
+    expect(withoutModule.maximumHp).toBeCloseTo(61570.3, 6);
+    expect(withoutModule.attack).toBeCloseTo(48088.7, 6);
+    expect(withoutModule.defense).toBeCloseTo(25515.6, 6);
     expect(withEmptyModule).toEqual(withoutModule);
   });
 
   it("UT-R-ENH-08-003 (boundary): overriding only the ratio to 0 keeps the default fixed addition but drops the multiplier to 1", () => {
     const stats = calculateEnhancedBaseStats(target(), { module: { hp: { ratio: 0 } } });
-    // (28375 + 21600 + 4288) × (1 + 0) = 54263 — module.hp.fixed stays at the default (4288).
-    expect(stats.maximumHp).toBeCloseTo(54263, 6);
+    // (28375 + 23310 + 4288) × (1 + 0) = 55973 — module.hp.fixed stays at the default (4288).
+    expect(stats.maximumHp).toBeCloseTo(55973, 6);
   });
 
   it("UT-R-ENH-08-004 (boundary): a large negative module fixed/ratio override still clamps to R-ENH-06's floor (maximum HP 1, attack/defense 0)", () => {
@@ -133,15 +133,15 @@ describe("calculateEnhancedBaseStats — R-ENH-08 モジュール補正のリク
 describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
   it("UT-R-ENH-05-001: level 300 adds 100 × levelGrowth to HP/attack/defense/action speed", () => {
     const stats = calculateEnhancedBaseStats(target({ levelGrowth: LEVEL_GROWTH }), { level: 300 });
-    expect(stats.maximumHp).toBeCloseTo(87739.3, 6);
-    expect(stats.attack).toBeCloseTo(69692.7, 6);
-    expect(stats.defense).toBeCloseTo(36400.1, 6);
+    expect(stats.maximumHp).toBeCloseTo(89620.3, 6);
+    expect(stats.attack).toBeCloseTo(71078.7, 6);
+    expect(stats.defense).toBeCloseTo(37175.6, 6);
     expect(stats.actionSpeed).toBe(980);
   });
 
   it("UT-R-ENH-05-002: level 100 subtracts with the same formula (negative direction)", () => {
     const stats = calculateEnhancedBaseStats(target({ levelGrowth: LEVEL_GROWTH }), { level: 100 });
-    expect(stats.maximumHp).toBeCloseTo(31639.3, 6);
+    expect(stats.maximumHp).toBeCloseTo(33520.3, 6);
     expect(stats.actionSpeed).toBe(580);
   });
 
@@ -158,10 +158,10 @@ describe("calculateEnhancedBaseStats — R-ENH-05 レベル増加", () => {
 describe("calculateEnhancedBaseStats — R-ENH-07 ユニットランク", () => {
   it("UT-R-ENH-07-001: rank 0 (LR) subtracts 5 × rankGrowth from HP/attack/defense/critical rate", () => {
     const stats = calculateEnhancedBaseStats(target({ rankGrowth: RANK_GROWTH }), { rank: 0 });
-    // (28375 + 21600 + 4288 − 5×1200) × 1.10 など、ランク減算は固定加算の内側に入る。
-    expect(stats.maximumHp).toBeCloseTo(53089.3, 6);
-    expect(stats.attack).toBeCloseTo(41752.7, 6);
-    expect(stats.defense).toBeCloseTo(21990.1, 6);
+    // (28375 + 23310 + 4288 − 5×1200) × 1.10 など、ランク減算は固定加算の内側に入る。
+    expect(stats.maximumHp).toBeCloseTo(54970.3, 6);
+    expect(stats.attack).toBeCloseTo(43138.7, 6);
+    expect(stats.defense).toBeCloseTo(22765.6, 6);
     expect(stats.criticalRate).toBeCloseTo(0.2, 12);
   });
 
@@ -210,9 +210,9 @@ describe("calculateEnhancedBaseStats — R-ENH-07 ユニットランク", () => 
 describe("calculateEnhancedBaseStats — R-ENH-06 強化後基本ステータスの算出", () => {
   it("UT-R-ENH-06-001: composes academy levels, type equipment and module for HP/attack/defense", () => {
     const stats = calculateEnhancedBaseStats(target(), ACADEMY_LEVEL_50);
-    expect(stats.maximumHp).toBeCloseTo(66421.3, 6);
-    expect(stats.attack).toBeCloseTo(51454.7, 6);
-    expect(stats.defense).toBeCloseTo(27380.1, 6);
+    expect(stats.maximumHp).toBeCloseTo(68302.3, 6);
+    expect(stats.attack).toBeCloseTo(52840.7, 6);
+    expect(stats.defense).toBeCloseTo(28155.6, 6);
   });
 
   it("UT-R-ENH-06-002: gear ratios join the module ratio for HP/attack/defense", () => {
@@ -222,7 +222,7 @@ describe("calculateEnhancedBaseStats — R-ENH-06 強化後基本ステータス
         { stat: "MAXIMUM_HP", tier: "III", grade: "S" },
       ],
     });
-    expect(stats.maximumHp).toBeCloseTo(54263 * (1 + 0.1 + 0.0666), 6);
+    expect(stats.maximumHp).toBeCloseTo(55973 * (1 + 0.1 + 0.0666), 6);
   });
 
   it("UT-R-ENH-06-003: action speed takes gear ratios without the module ratio", () => {
