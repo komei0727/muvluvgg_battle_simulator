@@ -397,6 +397,8 @@ export interface BattleUnitSnapshot {
   readonly effectSequenceCounterCarry?: Readonly<
     Record<SkillUseId, Readonly<Record<RuntimeCounterId, number>>>
   >;
+  /** Issue #700: `BattleUnit.cumulativeDamageDealt`。一度も与ダメージが無いユニットはキー自体を持たない。 */
+  readonly cumulativeDamageDealt?: number;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
   readonly effects?: readonly EffectSnapshot[];
   /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10)。1件も無いユニットへは`[]`ではなくキー自体を持たない。 */
@@ -432,6 +434,12 @@ export interface UnitStateDelta {
   readonly maximumAp?: ValueChange<number>;
   readonly maximumPp?: ValueChange<number>;
   readonly maximumExtraGauge?: ValueChange<number>;
+  /**
+   * Issue #700: 付与者の累計与ダメージ（`BattleUnit.cumulativeDamageDealt`）。同じヒットのHP差分を
+   * 持つ`HitPointReduced`／`ContinuousDamageApplied`が一緒に運ぶ。`before: 0`は未設定（キー無し）を表す。
+   * 内部専用であり、公開レスポンスのUnitStateDeltaResponseへは写さない。
+   */
+  readonly cumulativeDamageDealt?: ValueChange<number>;
   /**
    * R-SKL-04: SkillDefinitionIdをキーとする、変更されたクールタイムだけを持つ。
    * `unit`(ACTION/TURN)はスキル使用開始時から不変だが、ReducerはCatalogを

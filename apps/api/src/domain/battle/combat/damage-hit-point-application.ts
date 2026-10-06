@@ -13,6 +13,7 @@ import {
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
 import { absorbBeforeHitPointsSteps } from "./damage-absorption.js";
+import { accumulateDamageDealt, withDamageDealtDelta } from "./damage-dealt-accumulation.js";
 import type { HitObservationProfile } from "./damage-hit-observation.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -183,6 +184,15 @@ export function* applyConfirmedDamageSteps(
       ? targetAfterHitPoints
       : markBreakPendingIfDeferred(context.exercise, targetAfterHitPoints);
   working.set(targetUnitId, updatedTarget);
+  // Issue #700: 対象のHP反映後に読むため、自傷（付与者＝対象）でも更新後の対象へ加算される。
+  const attackerBeforeAccumulation = working.get(attackerUnitId);
+  const damageDealt =
+    attackerBeforeAccumulation === undefined
+      ? undefined
+      : accumulateDamageDealt(attackerBeforeAccumulation, hitPointDamage);
+  if (damageDealt !== undefined) {
+    working.set(attackerUnitId, damageDealt.unit);
+  }
   // R-SKL-08＋G-10／RES-003A: 確定した結果を直前結果と`SUM_DAMAGE_*`の累計へ記録する。
   // `BattleUnit`の永続フィールドではないため、StateDelta・独立Reducer復元の対象にはならない。
   recordDamageResult(
@@ -217,7 +227,13 @@ export function* applyConfirmedDamageSteps(
       hpBefore,
       hpAfter,
     },
-    stateDelta: { units: { [targetUnitId]: { hp: { before: hpBefore, after: hpAfter } } } },
+    stateDelta: {
+      units: withDamageDealtDelta(
+        { [targetUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+        attackerUnitId,
+        damageDealt?.change,
+      ),
+    },
   });
 
   const damageApplied = context.recorder.record({

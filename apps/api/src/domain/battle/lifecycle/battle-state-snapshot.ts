@@ -111,6 +111,9 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
       ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
       ...(effectSequenceSkillUseIds.length > 0 ? { effectSequenceCounters } : {}),
       ...(Object.keys(effectSequenceCounterCarry).length > 0 ? { effectSequenceCounterCarry } : {}),
+      ...(unit.cumulativeDamageDealt !== undefined
+        ? { cumulativeDamageDealt: unit.cumulativeDamageDealt }
+        : {}),
       ...(unit.appliedEffects.length > 0
         ? {
             effects: unit.appliedEffects.map((effect) =>

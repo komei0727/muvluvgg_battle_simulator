@@ -30,6 +30,10 @@ import type { ContinuousDamageKind } from "../../catalog/definitions/effect-acti
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import {
+  accumulateDamageDealt,
+  withDamageDealtDelta,
+} from "../combat/damage-dealt-accumulation.js";
 import type {
   ActionId,
   DomainEventId,
@@ -458,6 +462,19 @@ export function applyOneContinuousDamage(
   working = working.map((unit) =>
     unit.battleUnitId === holder.battleUnitId ? updatedTarget : unit,
   );
+  // Issue #700: R-MEM-04のMemory由来（付与者ユニットなし）は与ダメージへ帰属させない。
+  // 付与者が戦闘不能でも、戦闘結果の`damageDealt`と同じく加算する。
+  const damageSource =
+    effect.sourceUnitId === undefined
+      ? undefined
+      : working.find((unit) => unit.battleUnitId === effect.sourceUnitId);
+  const damageDealt =
+    damageSource === undefined ? undefined : accumulateDamageDealt(damageSource, hitPointDamage);
+  if (damageSource !== undefined && damageDealt !== undefined) {
+    working = working.map((unit) =>
+      unit.battleUnitId === damageSource.battleUnitId ? damageDealt.unit : unit,
+    );
+  }
 
   const factEventsStart = context.recorder.getEvents().length;
   const applied = context.recorder.record({
@@ -495,7 +512,11 @@ export function applyOneContinuousDamage(
       defeated: isDefeated(updatedTarget),
     },
     stateDelta: {
-      units: { [holder.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+      units: withDamageDealtDelta(
+        { [holder.battleUnitId]: { hp: { before: hpBefore, after: hpAfter } } },
+        damageSource?.battleUnitId,
+        damageDealt?.change,
+      ),
     },
   });
   // R-TEX-02 #3: 継続ダメージのうちHPへ向かった量（オーバーキル分を含む）を計上する。

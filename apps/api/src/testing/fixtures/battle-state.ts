@@ -39,6 +39,10 @@ export function initialSnapshotFor(
           maximumExtraGauge: unit.maximumExtraGauge,
           combatStats: unit.combatStats,
           baseCombatStats: unit.baseCombatStats,
+          // HPと同じくダメージのたびに必ず差分が出るため、`include`で選ばせず常に射影する。
+          ...(unit.cumulativeDamageDealt !== undefined
+            ? { cumulativeDamageDealt: unit.cumulativeDamageDealt }
+            : {}),
           ...(include.has("cooldowns") && Object.keys(unit.cooldowns).length > 0
             ? { cooldowns: unit.cooldowns }
             : {}),

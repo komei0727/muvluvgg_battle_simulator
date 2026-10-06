@@ -1698,6 +1698,70 @@ describe("resolveTargets", () => {
       ]);
     });
 
+    it("UT-TGT-002-032 (Issue #700): HIGHEST_CUMULATIVE_DAMAGE_DEALT orders by cumulativeDamageDealt descending, treating absence as 0", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const never = unit("NEVER", "ALLY", { column: "LEFT", row: "FRONT" });
+      const low = unit(
+        "LOW",
+        "ALLY",
+        { column: "RIGHT", row: "FRONT" },
+        { cumulativeDamageDealt: 100 },
+      );
+      const high = unit(
+        "HIGH",
+        "ALLY",
+        { column: "LEFT", row: "BACK" },
+        { cumulativeDamageDealt: 900 },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ALLY",
+          count: "ALL",
+          filters: [{ kind: "EXCLUDE_RESOLVED_UNIT", reference: { kind: "SELF" } }],
+          order: ["HIGHEST_CUMULATIVE_DAMAGE_DEALT"],
+        }),
+        actor,
+        [actor, never, low, high],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("HIGH"),
+        createBattleUnitId("LOW"),
+        createBattleUnitId("NEVER"),
+      ]);
+    });
+
+    it("UT-TGT-002-033 (Issue #700): SELF_LOWEST_PRIORITY before HIGHEST_CUMULATIVE_DAMAGE_DEALT prefers another ally over a higher-dealing actor, and falls back to the actor when alone", () => {
+      const actor = unit(
+        "ACTOR",
+        "ALLY",
+        { column: "CENTER", row: "FRONT" },
+        { cumulativeDamageDealt: 5000 },
+      );
+      const other = unit(
+        "OTHER",
+        "ALLY",
+        { column: "LEFT", row: "FRONT" },
+        { cumulativeDamageDealt: 10 },
+      );
+      const order: TargetSelectorDefinition["order"] = [
+        "SELF_LOWEST_PRIORITY",
+        "HIGHEST_CUMULATIVE_DAMAGE_DEALT",
+      ];
+
+      expect(
+        resolveTargets(selector({ side: "ALLY", count: 1, order }), actor, [actor, other]).map(
+          (t) => t.battleUnitId,
+        ),
+      ).toEqual([createBattleUnitId("OTHER")]);
+      expect(
+        resolveTargets(selector({ side: "ALLY", count: 1, order }), actor, [actor]).map(
+          (t) => t.battleUnitId,
+        ),
+      ).toEqual([createBattleUnitId("ACTOR")]);
+    });
+
     it("UT-TGT-002-014: LOWEST_MAX_HP/HIGHEST_MAX_HP order by combatStats.maximumHp", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const small = unit(

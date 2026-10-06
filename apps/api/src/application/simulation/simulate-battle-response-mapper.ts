@@ -639,6 +639,17 @@ function toUnitStateDeltaResponseBody(delta: UnitStateDelta): UnitStateDeltaResp
   };
 }
 
+/**
+ * 公開レスポンスへ写さない内部専用の`UnitStateDelta`キー（Issue #700）。これだけを持つユニット差分は
+ * 写すと`{}`になり、状態が変わっていないユニットを変化ありとして見せてしまうため、ユニットごと省く。
+ * `skillCounters`等の既存の内部キーは従来どおりの出力を変えないよう対象に含めない。
+ */
+const INTERNAL_ONLY_UNIT_DELTA_KEYS: ReadonlySet<string> = new Set(["cumulativeDamageDealt"]);
+
+function carriesPublicUnitDelta(delta: UnitStateDelta): boolean {
+  return Object.keys(delta).some((key) => !INTERNAL_ONLY_UNIT_DELTA_KEYS.has(key));
+}
+
 function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResponseBody {
   const battle =
     delta.battleStatus !== undefined || delta.turnNumber !== undefined
@@ -647,7 +658,9 @@ function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResp
           ...(delta.turnNumber !== undefined ? { turnNumber: delta.turnNumber } : {}),
         }
       : undefined;
-  const unitEntries = Object.entries(delta.units ?? {}) as [BattleUnitId, UnitStateDelta][];
+  const unitEntries = (
+    Object.entries(delta.units ?? {}) as [BattleUnitId, UnitStateDelta][]
+  ).filter(([, unitDelta]) => carriesPublicUnitDelta(unitDelta));
   const units =
     unitEntries.length > 0
       ? Object.fromEntries(

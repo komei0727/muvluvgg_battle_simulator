@@ -508,6 +508,14 @@ function applyUnitDelta(
       delta.maximumExtraGauge,
     );
   }
+  if (delta.cumulativeDamageDealt !== undefined) {
+    assertBeforeMatches(
+      `${path}.cumulativeDamageDealt`,
+      unit.cumulativeDamageDealt ?? 0,
+      delta.cumulativeDamageDealt,
+    );
+  }
+  const cumulativeDamageDealt = delta.cumulativeDamageDealt?.after ?? unit.cumulativeDamageDealt;
   const cooldowns = applyCooldownDeltas(`${path}.cooldowns`, unit.cooldowns, delta.cooldowns);
   if (delta.charge !== undefined) {
     assertChargeBeforeMatches(`${path}.charge`, unit.charge, delta.charge);
@@ -575,6 +583,7 @@ function applyUnitDelta(
     ...(skillCounterCarry !== undefined ? { skillCounterCarry } : {}),
     ...(effectSequenceCounters !== undefined ? { effectSequenceCounters } : {}),
     ...(effectSequenceCounterCarry !== undefined ? { effectSequenceCounterCarry } : {}),
+    ...(cumulativeDamageDealt !== undefined ? { cumulativeDamageDealt } : {}),
     ...(effects !== undefined && effects.length > 0 ? { effects } : {}),
     ...(markers !== undefined && markers.length > 0 ? { markers } : {}),
   };

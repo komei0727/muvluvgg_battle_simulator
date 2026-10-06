@@ -99,9 +99,45 @@ describe("applyDamageAction", () => {
       hpAfter: 80,
     });
     expect(hitPointReduced.stateDelta).toEqual({
-      units: { [createBattleUnitId("TARGET")]: { hp: { before: 100, after: 80 } } },
+      units: {
+        [createBattleUnitId("TARGET")]: { hp: { before: 100, after: 80 } },
+        [createBattleUnitId("ATTACKER")]: { cumulativeDamageDealt: { before: 0, after: 20 } },
+      },
     });
     expect(damageApplied.stateDelta).toBeUndefined();
+  });
+
+  it("UT-DAMAGE-APPLICATION-022 (Issue #700): the attacker's cumulativeDamageDealt grows by hitPointDamage + discardedDamage (overkill included), matching unitSummaries[].damageDealt", () => {
+    const attacker = unit("ATTACKER", "ALLY", { attack: 999 });
+    const target = unit("TARGET", "ENEMY", { defense: 0, maximumHp: 50 });
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      { ...attacker, cumulativeDamageDealt: 7 },
+      [hit("TARGET", 1)],
+      damageAction("PREVENTED"),
+      [{ ...attacker, cumulativeDamageDealt: 7 }, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    const damageApplied = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "DamageApplied")!;
+    const payload = damageApplied.payload as { hitPointDamage: number; discardedDamage: number };
+    expect(payload.discardedDamage).toBeGreaterThan(0);
+    const updatedAttacker = result.units.find(
+      (u) => u.battleUnitId === createBattleUnitId("ATTACKER"),
+    )!;
+    expect(updatedAttacker.cumulativeDamageDealt).toBe(
+      7 + payload.hitPointDamage + payload.discardedDamage,
+    );
+    const hitPointReduced = context.recorder
+      .getEvents()
+      .find((e) => e.eventType === "HitPointReduced")!;
+    expect(hitPointReduced.stateDelta?.units?.[createBattleUnitId("ATTACKER")]).toEqual({
+      cumulativeDamageDealt: { before: 7, after: 7 + 999 },
+    });
   });
 
   it("UT-DAMAGE-APPLICATION-002: overkill damage clamps HP at 0 and defeats the target", () => {
