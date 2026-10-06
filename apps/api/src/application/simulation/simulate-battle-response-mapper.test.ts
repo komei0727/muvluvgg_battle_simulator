@@ -919,6 +919,30 @@ describe("toBattleSimulationResponseBody", () => {
     });
   });
 
+  it("API-RESP-026 (Issue #700): keeps the internal cumulativeDamageDealt delta out of the public response, omitting a unit whose delta carries nothing else instead of publishing it as {}", () => {
+    const body = toBattleSimulationResponseBody(
+      baseResult({
+        stateTransitions: [
+          {
+            causedBySequence: 2,
+            stateVersionBefore: 0,
+            stateVersionAfter: 1,
+            stateDelta: {
+              units: {
+                [ENEMY_ID]: { hp: { before: 100, after: 80 } },
+                [ALLY_ID]: { cumulativeDamageDealt: { before: 0, after: 20 } },
+              },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(body.stateTransitions[0]!.delta).toEqual({
+      units: { "enemy:1": { hp: { before: 100, after: 80 } } },
+    });
+  });
+
   it("API-RESP-010 (P1 fix): maps a unit's real cooldowns (10_API設計.md CooldownStateResponse, filtering out any zero-remaining entries) and charge instead of discarding them", () => {
     const body = toBattleSimulationResponseBody(
       baseResult({

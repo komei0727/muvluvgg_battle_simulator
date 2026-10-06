@@ -104,6 +104,14 @@ export interface BattleUnit {
    * R-TEX-06 #7）。
    */
   readonly breakPending?: true;
+  /**
+   * 戦闘開始からこのユニットが与えたダメージの累計（Issue #700、順位キー
+   * `HIGHEST_CUMULATIVE_DAMAGE_DEALT`が参照する）。`DamageApplied`／`ContinuousDamageApplied`の
+   * `hitPointDamage + discardedDamage`を付与者へ加算する — 戦闘結果の`unitSummaries[].damageDealt`と
+   * 同じ定義にしないと、表示上の与ダメージと選ばれた対象が食い違う。一度も与ダメージが無い
+   * ユニットはキー自体を持たない（`cumulativeDamageDealtOf`で0として読む）。
+   */
+  readonly cumulativeDamageDealt?: number;
   /** `05_ドメインモデル.md`「AppliedEffect」(R-EFF-01): 個別管理される全効果インスタンス。付与順を保持する。 */
   readonly appliedEffects: readonly AppliedEffect[];
   /** `05_ドメインモデル.md`「MarkerState」(R-EFF-10): 同じmarkerIdにつき対象ごとに1インスタンス。付与順を保持する。 */
@@ -204,6 +212,11 @@ export function isDefeated(unit: BattleUnit): boolean {
 export function hitPointRatio(unit: BattleUnit): number {
   const maximum = truncateFraction(unit.combatStats.maximumHp);
   return maximum > 0 ? unit.currentHp / maximum : 0;
+}
+
+/** `BattleUnit.cumulativeDamageDealt`の未設定を0として読む。 */
+export function cumulativeDamageDealtOf(unit: BattleUnit): number {
+  return unit.cumulativeDamageDealt ?? 0;
 }
 
 /**

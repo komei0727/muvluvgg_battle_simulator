@@ -513,27 +513,28 @@ selector:
 
 `order`の各要素は、パラメータを持たない文字列（`TargetOrderKey`）か、`markerId`/`unitType`などパラメータを持つオブジェクト形式（`TargetOrderEntry`のうち`MARKER_COUNT`/`UNIT_TYPE_PRIORITY`）のいずれかで、同じ配列内に混在できる（例: `["FRONT_ROW", "NEAREST", "LEFT_TO_RIGHT"]`、`[{ kind: MARKER_COUNT, markerId: ..., direction: ASC }, "SELF_LOWEST_PRIORITY"]`）。
 
-| 値                       | 意味                                                 |
-| ------------------------ | ---------------------------------------------------- |
-| `DEFAULT`                | 距離昇順、前列、左列                                 |
-| `NEAREST`                | 距離昇順                                             |
-| `FARTHEST`               | 距離降順                                             |
-| `LOWEST_HP_RATIO`        | HP割合が低い順                                       |
-| `HIGHEST_HP_RATIO`       | HP割合が高い順                                       |
-| `HIGHEST_ATTACK`         | 攻撃力が高い順                                       |
-| `LOWEST_ATTACK`          | 攻撃力が低い順                                       |
-| `HIGHEST_DEFENSE`        | 防御力が高い順（Issue #649）                         |
-| `LOWEST_DEFENSE`         | 防御力が低い順（Issue #649）                         |
-| `LOWEST_MAX_HP`          | 最大HPが低い順                                       |
-| `HIGHEST_MAX_HP`         | 最大HPが高い順                                       |
-| `LOWEST_CURRENT_HP`      | 現在HP（絶対値）が低い順（Issue #674）               |
-| `HIGHEST_CURRENT_HP`     | 現在HP（絶対値）が高い順（Issue #682）               |
-| `HIGHEST_EX_GAUGE_RATIO` | EXゲージ充填率が高い順                               |
-| `FASTEST`                | 行動速度が高い順                                     |
-| `FRONT_ROW`              | 前列優先                                             |
-| `BACK_ROW`               | 後列優先                                             |
-| `LEFT_TO_RIGHT`          | 絶対左から右                                         |
-| `SELF_LOWEST_PRIORITY`   | 自身を末尾へ回す（hard excludeではなく自身以外優先） |
+| 値                                | 意味                                                 |
+| --------------------------------- | ---------------------------------------------------- |
+| `DEFAULT`                         | 距離昇順、前列、左列                                 |
+| `NEAREST`                         | 距離昇順                                             |
+| `FARTHEST`                        | 距離降順                                             |
+| `LOWEST_HP_RATIO`                 | HP割合が低い順                                       |
+| `HIGHEST_HP_RATIO`                | HP割合が高い順                                       |
+| `HIGHEST_ATTACK`                  | 攻撃力が高い順                                       |
+| `LOWEST_ATTACK`                   | 攻撃力が低い順                                       |
+| `HIGHEST_DEFENSE`                 | 防御力が高い順（Issue #649）                         |
+| `LOWEST_DEFENSE`                  | 防御力が低い順（Issue #649）                         |
+| `LOWEST_MAX_HP`                   | 最大HPが低い順                                       |
+| `HIGHEST_MAX_HP`                  | 最大HPが高い順                                       |
+| `LOWEST_CURRENT_HP`               | 現在HP（絶対値）が低い順（Issue #674）               |
+| `HIGHEST_CURRENT_HP`              | 現在HP（絶対値）が高い順（Issue #682）               |
+| `HIGHEST_CUMULATIVE_DAMAGE_DEALT` | 戦闘開始からの累計与ダメージが多い順（Issue #700）   |
+| `HIGHEST_EX_GAUGE_RATIO`          | EXゲージ充填率が高い順                               |
+| `FASTEST`                         | 行動速度が高い順                                     |
+| `FRONT_ROW`                       | 前列優先                                             |
+| `BACK_ROW`                        | 後列優先                                             |
+| `LEFT_TO_RIGHT`                   | 絶対左から右                                         |
+| `SELF_LOWEST_PRIORITY`            | 自身を末尾へ回す（hard excludeではなく自身以外優先） |
 
 | kind（オブジェクト形式） | 追加フィールド                          | 意味                        |
 | ------------------------ | --------------------------------------- | --------------------------- |
@@ -543,6 +544,8 @@ selector:
 `LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`の「HP割合」は、`HP_RATIO`フィルタ・`TARGET_STATE.field`・DamageModifierの`HP_RATIO_COMPARISON`と同じ基準（R-NUM-02）で、現在HP÷切り捨て後の最大HPとする。分母を切り捨て前の`combatStats.maximumHp`のまま使うと、満タンのHP割合がユニットごとに異なる値になり、同率判定が成立しない（Issue #585）。
 
 `LOWEST_CURRENT_HP`は`LOWEST_HP_RATIO`と異なり、最大HPで正規化しない現在HPの絶対値で比較する。「最もHPが低い敵単体」のように割合ではなく残量そのものを基準にする原文向け（Issue #674）。`HIGHEST_CURRENT_HP`はその降順版で、「最もHPの多い敵」のように現在HPの絶対値が最大の対象を優先する原文向け（Issue #682）。
+
+`HIGHEST_CUMULATIVE_DAMAGE_DEALT`は「最も累計ダメージの多い味方」のように、戦闘開始からそのユニットが与えたダメージの累計（`BattleUnit.cumulativeDamageDealt`）が最大の対象を優先する（Issue #700）。累計は`DamageApplied`／`ContinuousDamageApplied`の`hitPointDamage + discardedDamage`を付与者へ加算した値で、シールド・サブユニットに吸収された分を含まずオーバーキル分を含む。戦闘結果の`unitSummaries[].damageDealt`と同じ定義であり、表示上の与ダメージと選ばれる対象が食い違わないよう両者を揃える（`IT-AUDIT-DMGDEALT-001`が全production戦闘で一致を検証する）。Memory由来の継続ダメージ（付与者ユニットを持たない、R-MEM-04）はどのユニットにも計上しない。一度も与ダメージが無いユニットは0として並ぶ。「自身以外を優先」と併用する場合は`["SELF_LOWEST_PRIORITY", "HIGHEST_CUMULATIVE_DAMAGE_DEALT"]`の順に書く。
 
 ### TargetFilterDefinition
 

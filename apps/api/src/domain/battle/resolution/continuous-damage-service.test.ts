@@ -490,6 +490,37 @@ describe("continuous damage (R-DOT-01〜04, DMG-008 Issue #189)", () => {
     expect(result.units.find((u) => u.battleUnitId === holder.battleUnitId)!.currentHp).toBe(0);
   });
 
+  it("UT-R-DOT-01-007 (Issue #700): a continuous damage adds hitPointDamage + discardedDamage to the source unit's cumulativeDamageDealt, carried on the same StateDelta as the holder's HP", () => {
+    const definition = dotDefinition("ACT_DOT", "FIXED", { kind: "CONSTANT", value: 100 });
+    const effect = dotEffect(definition.effectActionDefinitionId, "FIXED", 100, 100);
+    const holder = unit("ally:1", { currentHp: 30, effects: [effect] });
+    const source = { ...unit("enemy:1"), cumulativeDamageDealt: 5 };
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyOneContinuousDamage(
+      effect,
+      definition,
+      holder,
+      undefined,
+      [holder, source],
+      contextOf(
+        recorder,
+        rootEventId,
+        new Map([[definition.effectActionDefinitionId, definition]]),
+      ),
+      rootEventId,
+    );
+
+    const applied = recorder.getEvents().find((e) => e.eventType === "ContinuousDamageApplied")!;
+    // hitPointDamage 30 + discardedDamage 70（オーバーキル分も与ダメージに数える）。
+    expect(applied.stateDelta?.units?.[source.battleUnitId]).toEqual({
+      cumulativeDamageDealt: { before: 5, after: 105 },
+    });
+    expect(
+      result.units.find((u) => u.battleUnitId === source.battleUnitId)!.cumulativeDamageDealt,
+    ).toBe(105);
+  });
+
   // DMG-010: `FIXED`継続ダメージはR-SUB-01第1項どおり
   // サブユニットへも吸収されるが、`ContinuousDamageApplied`がその量を公開して
   // いなかったため、`08_ドメインイベント.md`の保存則

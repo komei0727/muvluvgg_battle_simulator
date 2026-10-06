@@ -108,6 +108,25 @@ describe("applyStateDelta", () => {
     });
   });
 
+  it("UT-STATE-REDUCER-035 (Issue #700): applies a cumulativeDamageDealt delta, treating an absent value as 0 and validating before", () => {
+    const first = applyStateDelta(initialState(), {
+      units: { [UNIT_A]: { cumulativeDamageDealt: { before: 0, after: 40 } } },
+    });
+    expect(first.units[UNIT_A]!.cumulativeDamageDealt).toBe(40);
+    expect(first.units[UNIT_B]).toEqual(initialState().units[UNIT_B]);
+
+    const second = applyStateDelta(first, {
+      units: { [UNIT_A]: { cumulativeDamageDealt: { before: 40, after: 55 } } },
+    });
+    expect(second.units[UNIT_A]!.cumulativeDamageDealt).toBe(55);
+
+    expect(() =>
+      applyStateDelta(first, {
+        units: { [UNIT_A]: { cumulativeDamageDealt: { before: 0, after: 15 } } },
+      }),
+    ).toThrow();
+  });
+
   it("UT-STATE-REDUCER-004: an empty delta returns an equivalent state unchanged", () => {
     const next = applyStateDelta(initialState(), {});
 

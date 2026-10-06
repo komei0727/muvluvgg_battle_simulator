@@ -1,4 +1,5 @@
 import {
+  cumulativeDamageDealtOf,
   heldAttributes,
   hitPointRatio,
   isDefeated,
@@ -395,6 +396,11 @@ function compareHighestCurrentHp(a: BattleUnit, b: BattleUnit): number {
   return b.currentHp - a.currentHp;
 }
 
+/** 「最も累計ダメージの多い味方」向け（Issue #700）。一度も与ダメージが無いユニットは0として並ぶ。 */
+function compareHighestCumulativeDamageDealt(a: BattleUnit, b: BattleUnit): number {
+  return cumulativeDamageDealtOf(b) - cumulativeDamageDealtOf(a);
+}
+
 function compareHighestExGaugeRatio(a: BattleUnit, b: BattleUnit): number {
   return exGaugeRatio(b) - exGaugeRatio(a);
 }
@@ -433,6 +439,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   HIGHEST_MAX_HP: () => compareHighestMaxHp,
   LOWEST_CURRENT_HP: () => compareLowestCurrentHp,
   HIGHEST_CURRENT_HP: () => compareHighestCurrentHp,
+  HIGHEST_CUMULATIVE_DAMAGE_DEALT: () => compareHighestCumulativeDamageDealt,
   HIGHEST_EX_GAUGE_RATIO: () => compareHighestExGaugeRatio,
   FASTEST: () => compareFastest,
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
