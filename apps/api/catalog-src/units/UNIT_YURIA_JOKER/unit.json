@@ -5,7 +5,7 @@
   "role": "EN_ATTACKER",
   "positionAptitudes": ["FRONT", "BACK"],
   "baseStats": {
-    "maximumHp": 28900,
+    "maximumHp": 28810,
     "attack": 21830,
     "defense": 11791,
     "criticalRate": 0.2,
@@ -21,7 +21,7 @@
   },
   "rankGrowth": {
     "hp": 428,
-    "attack": 324,
+    "attack": 325,
     "defense": 175,
     "criticalRate": 0.01
   },

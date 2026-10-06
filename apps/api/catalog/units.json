@@ -2527,7 +2527,7 @@
     "role": "EN_ATTACKER",
     "positionAptitudes": ["FRONT", "BACK"],
     "baseStats": {
-      "maximumHp": 28900,
+      "maximumHp": 28810,
       "attack": 21830,
       "defense": 11791,
       "criticalRate": 0.2,
@@ -2536,7 +2536,7 @@
       "maximumPp": 4
     },
     "levelGrowth": { "hp": 265, "attack": 200, "defense": 106, "actionSpeed": 2 },
-    "rankGrowth": { "hp": 428, "attack": 324, "defense": 175, "criticalRate": 0.01 },
+    "rankGrowth": { "hp": 428, "attack": 325, "defense": 175, "criticalRate": 0.01 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_YURIA_JOKER_AS1", "SKL_YURIA_JOKER_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YURIA_JOKER_PS1", "SKL_YURIA_JOKER_PS2"],

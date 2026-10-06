@@ -216,7 +216,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
   });
 
   it("UT-R-TEX-04-016: a large enhanced base keeps its meaningful fraction truncated, with no significant digits rounded away first", () => {
-    // 加算前基準値9,000,198,526 = 9,000,179,290 + タイプ装備16,020 + モジュール固定3,216。
+    // 加算前基準値9,000,198,526 = 9,000,178,030 + タイプ装備17,280 + モジュール固定3,216。
     // ギアII・Sの攻撃は+2.49pp。編成+10%・適性−5%で原基準値は10630539487.99227 相当。
     const enhancedBase = calculateEnhancedBaseStats(
       {
@@ -224,7 +224,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
         unitType: "PHYSICAL",
         baseStats: {
           maximumHp: 1,
-          attack: 9_000_179_290,
+          attack: 9_000_178_030,
           defense: 0,
           criticalRate: 0,
           actionSpeed: 0,
@@ -261,10 +261,10 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       {
         attribute: "AGGRESSIVE",
         unitType: "PHYSICAL",
-        // 加算前基準値57778 = 38542 + タイプ装備16020 + モジュール固定3216。
+        // 加算前基準値57778 = 37282 + タイプ装備17280 + モジュール固定3216。
         baseStats: {
           maximumHp: 1,
-          attack: 38_542,
+          attack: 37_282,
           defense: 0,
           criticalRate: 0,
           actionSpeed: 0,
@@ -302,10 +302,10 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
       {
         attribute: "AGGRESSIVE",
         unitType: "PHYSICAL",
-        // 加算前基準値200,057,778 = 200,038,542 + タイプ装備16,020 + モジュール固定3,216。
+        // 加算前基準値200,057,778 = 200,037,282 + タイプ装備17,280 + モジュール固定3,216。
         baseStats: {
           maximumHp: 1,
-          attack: 200_038_542,
+          attack: 200_037_282,
           defense: 0,
           criticalRate: 0,
           actionSpeed: 0,

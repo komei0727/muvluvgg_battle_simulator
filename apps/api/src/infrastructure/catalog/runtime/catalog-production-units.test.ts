@@ -605,7 +605,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-09-26.2` は `UNIT_OLGA_NADYA_BOND` の基礎ステータス調整（HP・攻撃力の
     // baseStats と levelGrowth）。Skill・Effect・Memory は変えておらず、差分は
     // `units.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-09-26.2");
+    // `2026-09-29.3` は `UNIT_YURIA_JOKER` のステータス調整（baseStats の HP と
+    // rankGrowth の攻撃力）。Skill・Effect・Memory は変えておらず、差分は
+    // `units.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-09-29.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
