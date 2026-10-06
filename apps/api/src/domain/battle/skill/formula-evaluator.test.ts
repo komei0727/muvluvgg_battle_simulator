@@ -490,31 +490,62 @@ describe("evaluateFormula", () => {
     expect(() => evaluateFormula(formula, context())).toThrow(DomainValidationError);
   });
 
-  it("UT-R-SUB-02-001: SUBUNIT_ADDITIONAL_DAMAGE is ownerAttack + providerSnapshotAttack * skillMultiplier - targetDefense", () => {
-    const formula: FormulaDefinition = {
-      kind: "SUBUNIT_ADDITIONAL_DAMAGE",
-      ownerAttack: "CURRENT_ATTACK",
-      providerAttack: "SOURCE_SNAPSHOT_ATTACK",
-      skillMultiplier: 0.5,
-      targetDefense: "TARGET_CURRENT_DEFENSE",
-    };
-    // 所持者の現在攻撃力50 + 付与者の付与時攻撃力200 × 0.5 - 対象の現在防御力20 = 130
-    expect(evaluateFormula(formula, context({ subUnitProviderAttack: 200 }))).toBe(130);
+  const SUBUNIT_FORMULA = (skillMultiplier: number): FormulaDefinition => ({
+    kind: "SUBUNIT_ADDITIONAL_DAMAGE",
+    ownerAttack: "CURRENT_ATTACK",
+    providerAttack: "SOURCE_SNAPSHOT_ATTACK",
+    skillMultiplier,
+    targetDefense: "TARGET_CURRENT_DEFENSE",
+  });
+
+  /** 所持者（skillSource）の現在攻撃力50を固定し、対象の現在防御力だけを動かす。 */
+  function targetWithDefense(defense: number): BattleUnit {
+    const target = unitAt("U_TARGET", "ENEMY");
+    return { ...target, combatStats: { ...target.combatStats, defense } };
+  }
+
+  it("UT-R-SUB-02-001 (Issue #704): when the holder's attack exceeds the target's defense, SUBUNIT_ADDITIONAL_DAMAGE is providerSnapshotAttack * skillMultiplier, with no defense reduction", () => {
+    // 所持者の攻撃力50 > 対象の防御力20 → 付与者の付与時攻撃力200 × 0.5 = 100
+    expect(evaluateFormula(SUBUNIT_FORMULA(0.5), context({ subUnitProviderAttack: 200 }))).toBe(
+      100,
+    );
   });
 
   it("UT-R-SUB-02-002: SUBUNIT_ADDITIONAL_DAMAGE keeps fractional results (R-NUM-02 rounding belongs to the applier)", () => {
-    const formula: FormulaDefinition = {
-      kind: "SUBUNIT_ADDITIONAL_DAMAGE",
-      ownerAttack: "CURRENT_ATTACK",
-      providerAttack: "SOURCE_SNAPSHOT_ATTACK",
-      skillMultiplier: 0.312,
-      targetDefense: "TARGET_CURRENT_DEFENSE",
-    };
-    // 50 + 101 × 0.312 - 20 = 61.512
-    expect(evaluateFormula(formula, context({ subUnitProviderAttack: 101 }))).toBeCloseTo(
-      61.512,
-      10,
-    );
+    // 50 > 20 → 101 × 0.312 = 31.512
+    expect(
+      evaluateFormula(SUBUNIT_FORMULA(0.312), context({ subUnitProviderAttack: 101 })),
+    ).toBeCloseTo(31.512, 10);
+  });
+
+  it("UT-R-SUB-02-017 (Issue #704): when the holder's attack is below the target's defense, the special reduction ownerAttack + providerSnapshotAttack * skillMultiplier - targetDefense applies", () => {
+    // 所持者の攻撃力50 < 対象の防御力80 → 50 + 200 × 0.5 − 80 = 70
+    expect(
+      evaluateFormula(
+        SUBUNIT_FORMULA(0.5),
+        context({ subUnitProviderAttack: 200, target: targetWithDefense(80) }),
+      ),
+    ).toBe(70);
+  });
+
+  it("UT-R-SUB-02-018 (Issue #704): the two branches agree when the holder's attack equals the target's defense", () => {
+    // 50 = 50 → 200 × 0.5 = 100（特殊減衰式でも 50 + 100 − 50 = 100）
+    expect(
+      evaluateFormula(
+        SUBUNIT_FORMULA(0.5),
+        context({ subUnitProviderAttack: 200, target: targetWithDefense(50) }),
+      ),
+    ).toBe(100);
+  });
+
+  it("UT-R-SUB-02-019 (Issue #704): the special reduction may go to zero or below; the minimum of 1 belongs to the applier", () => {
+    // 50 + 20 × 0.5 − 100 = −40
+    expect(
+      evaluateFormula(
+        SUBUNIT_FORMULA(0.5),
+        context({ subUnitProviderAttack: 20, target: targetWithDefense(100) }),
+      ),
+    ).toBe(-40);
   });
 
   it("UT-R-NUM-04-022: SUM composes child Formula results without any intermediate rounding", () => {

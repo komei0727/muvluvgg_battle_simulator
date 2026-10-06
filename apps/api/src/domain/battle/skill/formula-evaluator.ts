@@ -355,11 +355,12 @@ export function evaluateFormula(
     case "SKILL_POWER":
       return formula.power;
     case "SUBUNIT_ADDITIONAL_DAMAGE": {
-      // R-SUB-02: `追加ダメージ = サブユニット所持者の攻撃力 + 付与者の攻撃力 ×
-      // スキル倍率 - 対象の防御力`。「追加ダメージでは通常の防御力減衰を行わない」
-      // （R-SUB-02末尾）ため、この式は`damage-calculator.ts`の防御力減衰
-      // （`defenseIgnoreRate`込みの実効防御）を経由せず、対象の現在防御力を
-      // そのまま差し引く。最終切り捨てと最低1ダメージは適用側の責務である
+      // R-SUB-02（Issue #704）: 追加ダメージは防御力による減衰を受けず
+      // `付与者の付与時攻撃力 × スキル倍率` になる。ただし所持者の攻撃力が対象の防御力を
+      // 下回る場合だけ、特殊減衰式 `所持者の攻撃力 + 付与者の付与時攻撃力 × スキル倍率 -
+      // 対象の防御力`（Q-EFF-04）を使う。両式は攻撃力＝防御力で一致する。この式は
+      // `damage-calculator.ts`の防御力減衰（`defenseIgnoreRate`込みの実効防御）を経由せず
+      // 対象の現在防御力をそのまま比べる。最終切り捨てと最低1ダメージは適用側の責務である
       // （このファイルはどこでも丸めない）。
       if (context.skillSource === undefined) {
         throw new DomainValidationError(
@@ -373,11 +374,12 @@ export function evaluateFormula(
           'kind "SUBUNIT_ADDITIONAL_DAMAGE" requires subUnitProviderAttack in the evaluation context (providerAttack: SOURCE_SNAPSHOT_ATTACK)',
         );
       }
-      return (
-        context.skillSource.combatStats.attack +
-        context.subUnitProviderAttack * formula.skillMultiplier -
-        context.target.combatStats.defense
-      );
+      const ownerAttack = context.skillSource.combatStats.attack;
+      const targetDefense = context.target.combatStats.defense;
+      const providerDamage = context.subUnitProviderAttack * formula.skillMultiplier;
+      return ownerAttack >= targetDefense
+        ? providerDamage
+        : ownerAttack + providerDamage - targetDefense;
     }
     case "STAT_RATIO": {
       const source = resolveSourceUnit(formula.source, context, `${path}.source`);

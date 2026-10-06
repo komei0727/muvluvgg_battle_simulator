@@ -158,7 +158,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // EX本体742（威力148.4%）とPS2の攻撃の合計。R-ATM-01でPS2がEXの効果処理の
       // 後になったため、PS2の攻撃はEXが先に付与した「研鑽」とサブユニット
       // （攻撃時追加ダメージ、R-SUB-02）が乗った状態で解決する。
-      hpDeltas: { "enemy:back": -1866 },
+      hpDeltas: { "enemy:back": -1366 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -594,12 +594,12 @@ describe("production Catalog UNIT_NADYA_SUCCESSOR (【輝ける次代の娘】�
       );
 
     // 契機の一撃（攻撃力1000 - 防御力500 = 500）に続いて、保持順に4件の追加ヒット。
-    // 各追加ダメージ = 所持者の攻撃力1000 + 付与者の付与時攻撃力1000 × 倍率
-    //                - 対象の防御力500（防御力減衰を経由しない）。
+    // 各追加ダメージ = 付与者の付与時攻撃力1000 × 倍率（所持者の攻撃力1000 ≥ 対象の
+    // 防御力500 のため防御による減衰なし、R-SUB-02）。
     const additional = SUBUNIT_MULTIPLIERS.map(({ effectActionDefinitionId, skillMultiplier }) => ({
       effectActionDefinitionId,
-      skillPower: 1000 + 1000 * skillMultiplier - 500,
-      finalDamage: Math.floor(1000 + 1000 * skillMultiplier - 500),
+      skillPower: 1000 * skillMultiplier,
+      finalDamage: Math.floor(1000 * skillMultiplier),
     }));
     expect(strike("PHYSICAL")).toEqual([
       {

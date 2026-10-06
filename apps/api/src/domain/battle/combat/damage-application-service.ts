@@ -678,8 +678,8 @@ export function* applyDamageActionSteps(
 
   // R-FUP-01: 追撃の発生可否（1発でも命中したか）と会心継承（1発でも会心になったか）は
   // スキル使用内の全DAMAGE EffectActionを合算する。サブユニット追加ヒット（R-SUB-02）は
-  // `outcomes`に含まれないため集計対象にならない — 会心PREVENTED固定の追加ヒットが
-  // 継承判定を汚すことも、追撃が追撃を誘発することもない。
+  // `outcomes`に含まれないため集計対象にならない — 元の攻撃の会心を写しただけの追加ヒットが
+  // 継承判定へ二重に数えられることも、追撃が追撃を誘発することもない。
   if (context.followUpAttackCapture !== undefined) {
     const capture = context.followUpAttackCapture;
     for (const outcome of outcomes) {

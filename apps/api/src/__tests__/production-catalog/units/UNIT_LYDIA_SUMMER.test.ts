@@ -239,8 +239,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       actions: [
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS2_DAMAGE_CENTER", targets: ["enemy:back"] },
       ],
-      // 通常攻撃848に、保持者の攻撃力1000＋付与時攻撃力1000×25%－対象防御力500＝750が乗る。
-      hpDeltas: { "enemy:back": -(848 + 750) },
+      // 通常攻撃848に、付与時攻撃力1000×25%＝250が乗る（保持者の攻撃力1000 ≥ 対象防御力500
+      // のため防御による減衰なし、R-SUB-02）。
+      hpDeltas: { "enemy:back": -(848 + 250) },
       effectsApplied: [
         {
           unitId: "enemy:back",
@@ -268,8 +269,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       actions: [
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS2_DAMAGE_CENTER", targets: ["enemy:back"] },
       ],
-      // 通常攻撃848に、保持者の攻撃力1000＋付与時攻撃力1000×8.5%－対象防御力500＝585が乗る。
-      hpDeltas: { "enemy:back": -(848 + 585) },
+      // 通常攻撃848に、付与時攻撃力1000×8.5%＝85が乗る（保持者の攻撃力1000 ≥ 対象防御力500
+      // のため防御による減衰なし、R-SUB-02）。
+      hpDeltas: { "enemy:back": -(848 + 85) },
       effectsApplied: [
         {
           unitId: "enemy:back",
