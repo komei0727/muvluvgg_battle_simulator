@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_MERU_BESIDE",
+  "attribute": "SHY",
+  "unitType": "ENERGY",
+  "role": "SUPPORT",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 26731,
+    "attack": 22040,
+    "defense": 11806,
+    "criticalRate": 0.2,
+    "actionSpeed": 648,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 230,
+    "attack": 200,
+    "defense": 94,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_MERU_BESIDE_AS1", "SKL_MERU_BESIDE_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_MERU_BESIDE_PS1", "SKL_MERU_BESIDE_PS2"],
+  "extraSkillDefinitionId": "SKL_MERU_BESIDE_EX",
+  "metadata": {
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
+    "tags": [],
+    "displayName": "【隣歩む想い】桃園める",
+    "characterName": "桃園める",
+    "characterId": "CHAR_MERU_MOMOZONO"
+  }
+}

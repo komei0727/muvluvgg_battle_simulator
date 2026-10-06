@@ -11242,6 +11242,385 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_MERU_BESIDE_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_HP_ENEMY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_LOWEST_HP_ALLY",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+        },
+        {
+          "targetBindingId": "TGT_OTHER_ALLIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }]
+          },
+          "optional": true
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_EX_SHIELD" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_OTHER_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_EX_SUBUNIT" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "FRONT"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_MARKER" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_DMG_DOWN" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_MARKER" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "大好きをこめて", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_BESIDE_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST_HP_ALLY_UNDER_HALF",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "HP_RATIO", "op": "LT", "value": 0.5 }],
+            "order": ["LOWEST_HP_RATIO"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY_UNDER_HALF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_AS1_SHIELD" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY_UNDER_HALF" },
+                "markerId": "MARKER_MERU_BESIDE_MAGOKORO"
+              },
+              {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY_UNDER_HALF" },
+                "markerId": "MARKER_MERU_BESIDE_MAGOKORO_TIMED"
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_HP_ALLY_UNDER_HALF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_AS1_EX_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "大切な仲間のために", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_BESIDE_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TOP_DAMAGE_ALLY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["SELF_LOWEST_PRIORITY", "HIGHEST_CUMULATIVE_DAMAGE_DEALT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_AS2_SELF_ATK_DOWN" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_TOP_DAMAGE_ALLY" },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "FRONT"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TOP_DAMAGE_ALLY" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_MARKER" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_DMG_DOWN" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_TOP_DAMAGE_ALLY" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_MARKER" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "献身的な愛", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_BESIDE_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "TRIGGER_SOURCE" },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "FRONT"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_DMG_DOWN" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION" }
+              ]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_CRIT_DMG_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_DMG_UP" },
+                { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_GUARANTEED_HIT" }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_PS1_ATK_UP" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "TRIGGER_SOURCE" },
+            "field": "ATTRIBUTE",
+            "op": "EQ",
+            "value": "SHY"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_PS1_EX_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "心から尽くして", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "OTHER_ALLY",
+        "targetSelector": "ENEMY",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_MERU_BESIDE_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["HIGHEST_ATTACK"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_PS2_EX_UP" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+                "markerId": "MARKER_MERU_BESIDE_MAGOKORO"
+              },
+              {
+                "kind": "TARGET_HAS_MARKER",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+                "markerId": "MARKER_MERU_BESIDE_MAGOKORO_TIMED"
+              }
+            ]
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MERU_BESIDE_PS2_SHIELD" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "BRANCH",
+              "condition": {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+                "field": "POSITION_ROW",
+                "op": "EQ",
+                "value": "FRONT"
+              },
+              "thenSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_MARKER" },
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP" },
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_DMG_DOWN" },
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION" }
+                  ]
+                }
+              ],
+              "elseSteps": [
+                {
+                  "kind": "ACTION",
+                  "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATTACK_ALLY" },
+                  "actions": [
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_MARKER" },
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP" },
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP" },
+                    { "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "募る想い", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_MERU_FLATSPIN_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 8 },

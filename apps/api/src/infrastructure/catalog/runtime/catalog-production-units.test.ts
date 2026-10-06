@@ -608,7 +608,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-09-29.3` は `UNIT_YURIA_JOKER` のステータス調整（baseStats の HP と
     // rankGrowth の攻撃力）。Skill・Effect・Memory は変えておらず、差分は
     // `units.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-09-29.3");
+    // `2026-10-06.1` は新ユニット `UNIT_MERU_BESIDE`（【隣歩む想い】桃園める、Issue #701）の
+    // 新規投入。AS2が#700で追加した`HIGHEST_CUMULATIVE_DAMAGE_DEALT`ターゲットセレクタと、
+    // `GUARANTEED_HIT`の`OUTGOING_HIT`消費を初めて production Catalog で使用する。
+    expect(catalog.catalogRevision).toBe("2026-10-06.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
