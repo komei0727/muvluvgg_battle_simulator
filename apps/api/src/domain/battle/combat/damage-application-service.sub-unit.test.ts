@@ -460,6 +460,110 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
     });
   });
 
+  it.each([
+    {
+      label:
+        "cover lasting the whole action, which also redirects the additional hit (production shape, e.g. SKL_NANAE_SOVEREIGN_PS1)",
+      consumedByFirstHit: false,
+    },
+    {
+      label:
+        "cover consumed by the original hit, so only the recorded outcome target can steer the additional hit to the coverer",
+      consumedByFirstHit: true,
+    },
+  ])(
+    "UT-R-SUB-02-023 [R-INT-02] (Issue #704): when cover moves the original critical hit to the coverer, the additional hit lands on the coverer and inherits that critical without drawing random numbers — $label",
+    ({ consumedByFirstHit }) => {
+      const recorderContext = damageEventContext();
+      const context: DamageEventContext = consumedByFirstHit
+        ? {
+            ...recorderContext,
+            consumeEffectDuration: testConsumeEffectDuration(
+              recorderContext.recorder,
+              new Map<EffectActionDefinitionId, EffectActionDefinition>(),
+            ),
+          }
+        : recorderContext;
+      const coverDefinitionId = createEffectActionDefinitionId("ACT_COVER");
+      // 肩代わり（R-INT-02）は攻撃側が保持する防御介入として表す。
+      const cover: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("COVER"),
+        effectActionDefinitionId: coverDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(coverDefinitionId),
+        duplicate: true,
+        sourceUnitId: createBattleUnitId("ATTACKER"),
+        targetUnitId: createBattleUnitId("ATTACKER"),
+        magnitude: 0,
+        categories: ["DEBUFF"],
+        cover: {
+          covererUnitId: createBattleUnitId("COVERER"),
+          damageShareRate: 1,
+          guardRate: 0,
+          actionKinds: ["DAMAGE"],
+        },
+        duration: consumedByFirstHit
+          ? {
+              definition: {
+                dispellable: true,
+                linkedEffectGroupId: null,
+                consumption: { kind: "OUTGOING_HIT", maxCount: 1 },
+              },
+              consumptionRemaining: 1,
+            }
+          : { definition: { dispellable: true, linkedEffectGroupId: null } },
+        appliedTurnNumber: 1,
+      };
+      const attacker = unit("ATTACKER", "ALLY", { attack: 30, criticalRate: 0.5 });
+      const holder: BattleUnit = {
+        ...attacker,
+        appliedEffects: [subUnitEffect("SUB_1", "ATTACKER", 50, { providerAttack: 100 }), cover],
+      };
+      const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+      const coverer = unit("COVERER", "ENEMY", { defense: 10, maximumHp: 1000 });
+
+      const result = applyDamageAction(
+        holder,
+        [hit("TARGET", 1)],
+        damageAction("NORMAL"),
+        [holder, target, coverer],
+        // 元の一撃の会心抽選（0.1 < 0.5 で会心）だけを用意する。追加ヒットが乱数を引けば
+        // ここで列が尽きて失敗する。
+        new SequenceRandomSource([0.1]),
+        context,
+      );
+
+      const redirects = context.recorder
+        .getEvents()
+        .filter((event) => event.eventType === "DamageRedirected")
+        .map((event) => {
+          const payload = event.payload as {
+            reason: string;
+            originalTargetUnitId: string;
+            newTargetUnitId: string;
+          };
+          return [payload.reason, payload.originalTargetUnitId, payload.newTargetUnitId];
+        });
+      // 差し替えは元の一撃の1件だけ。追加ヒットは元の攻撃が最終的にダメージを与えた
+      // 肩代わり役（R-INT-02第2項、`outcomes`の対象）を直接狙うため、肩代わりが続いていても
+      // 肩代わり役自身への一撃として差し替えを起こさない。元の対象を狙っていれば2件目の
+      // 差し替え（または肩代わり消費後は元の対象への命中）が現れる。
+      expect(redirects).toEqual([["COVER", target.battleUnitId, coverer.battleUnitId]]);
+
+      // 追加ヒットは肩代わり役だけに1回、その一撃の会心を引き継いで加わる:
+      // 付与者100 × 0.5 = 50 に会心×1.5 = 75。
+      const calculations = additionalCalculations(context);
+      expect([...calculations.keys()]).toEqual([coverer.battleUnitId]);
+      expect(calculations.get(coverer.battleUnitId)).toMatchObject({
+        criticalMultiplier: 1.5,
+        finalDamage: 75,
+      });
+      // 元の対象は元の一撃も追加ヒットも受けない。
+      expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(
+        1000,
+      );
+    },
+  );
+
   it("UT-R-SUB-02-008 (R-SUB-02第3項): applies the accompanying debuff through the injected hook, once per additional-damage hit", () => {
     const granted: { targetUnitId: string; debuffId: string; ownerUnitId: string }[] = [];
     const context: DamageEventContext = {
