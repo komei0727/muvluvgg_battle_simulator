@@ -4,6 +4,8 @@ import {
   type SubUnitAdditionalDamageSource,
 } from "./sub-unit-policy.js";
 import { guardedDamage } from "./defensive-intervention-policy.js";
+import { isFavorableAttribute, resolveAttributeMultiplier } from "./attribute-affinity-policy.js";
+import { createPercentage } from "../../shared/percentage.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
 import { resolveThresholdDamageReduction } from "./threshold-damage-reduction-policy.js";
@@ -47,12 +49,13 @@ export interface SubUnitAdditionalDamageResult {
  *   1回にまとまる
  * - 所持者が同じサブユニットを複数保持していればその数だけ加える
  *   （production例: `SKL_OLGA_VETERAN_PS1`「サブユニット『カムラッドⅡ』を3つ付与する」）
- * - 「追加ダメージでは通常の防御力減衰を行わない」: `damage-calculator.ts`を
- *   経由せず、`SUBUNIT_ADDITIONAL_DAMAGE` Formula（対象の現在防御力をそのまま
- *   差し引く）の結果へ、通常のダメージ規則どおりの最終切り捨てと最低1ダメージ
- *   （R-DMG-02）だけを適用する。会心判定・命中判定・属性相性・与被ダメージ補正は
- *   いずれも行わない — R-SUB-02はそれらを一切規定せず、追加ダメージは所持者の
- *   スキルではなくサブユニットが持つ固定の効果だからである
+ * - 「追加ダメージでは通常の防御力減衰を行わない」: 基礎値は`damage-calculator.ts`を
+ *   経由せず`SUBUNIT_ADDITIONAL_DAMAGE` Formulaの結果そのもの（所持者の攻撃力が対象の
+ *   防御力を下回る場合だけ特殊減衰式になる）。その外側の属性相性・会心・与被ダメージ補正は
+ *   通常ヒットと同じく掛け、最終切り捨てと最低1ダメージ（R-DMG-02）を適用する
+ *   （`applyOneSubUnitAdditionalDamageSteps`）
+ * - 会心は抽選せず、元の攻撃のうち**その対象への**ヒットが1つでも会心なら会心にする
+ *   （攻撃全体ではなく対象ごと、Issue #704）
  * - 使用者が途中で戦闘不能になり残りのヒットを中断した場合（R-SKL-01/R-SKL-03）は
  *   追加ダメージも行わない。既に戦闘不能になった対象も飛ばす（R-ACTN-01 #2）
  *
@@ -94,6 +97,11 @@ export function* applySubUnitAdditionalDamageSteps(
   // `isDefeated`判定が除く（R-ACTN-01 #2）。使用者の戦闘不能による中断
   // （`interrupted`）はこの関数の冒頭で既に打ち切っている。
   const targetUnitIds = [...new Set(outcomes.map((outcome) => outcome.targetUnitId))];
+  // R-SUB-02（Issue #704）: 追加ヒットの会心は抽選せず、元の攻撃のうち**その対象への**
+  // ヒットが1つでも会心だったかで決まる（攻撃全体ではなく対象ごと）。
+  const criticallyHitTargetUnitIds = new Set(
+    outcomes.filter((outcome) => outcome.isCritical).map((outcome) => outcome.targetUnitId),
+  );
 
   // 追加ダメージのヒット番号は、この攻撃の追加ダメージ列の中で0から通し番号にする
   // （元のDAMAGE EffectActionのヒット番号とは別系列であり、`effectActionDefinitionId`
@@ -136,8 +144,7 @@ export function* applySubUnitAdditionalDamageSteps(
           damageType: source.additionalDamage.damageType ?? damageAction.payload.damageType,
           // 命中特性は契機になった攻撃から引き継ぐ（`damageType`の既定と同じ規約）。
           accuracyMode: damageAction.payload.accuracy.mode,
-          // R-SUB-02の計算式に会心の項が無く、Catalogにも会心モードの宣言が無い。
-          criticalMode: "PREVENTED",
+          criticalMode: criticallyHitTargetUnitIds.has(targetUnitId) ? "GUARANTEED" : "PREVENTED",
           // R-SUB-02にもCatalogスキーマにも追加ダメージの貫通を表す項が無い。
           piercing: {
             defenseIgnoreRate: 0,
@@ -169,12 +176,12 @@ export function* applySubUnitAdditionalDamageSteps(
  *
  * 通常ヒットと異なるのは**ダメージ計算だけ**で、R-SUB-02が定める次の3点に限られる。
  *
- * - `SUBUNIT_ADDITIONAL_DAMAGE` Formulaの結果をそのまま丸めて最終ダメージにする
- *   （`damage-calculator.ts`の防御力減衰・属性相性・与被ダメージ補正を経由しない、
- *   「追加ダメージでは通常の防御力減衰を行わない」）
- * - 会心は`PREVENTED`固定にする。R-SUB-02の計算式に会心の項が無く、サブユニットは
- *   会心モードを宣言するCatalog fieldも持たないためである（`CriticalCheckResolved`
- *   自体は他のヒットと同じく発行し、乱数も消費しない）
+ * - 基礎値は`SUBUNIT_ADDITIONAL_DAMAGE` Formulaの結果そのもの（`damage-calculator.ts`の
+ *   防御力減衰を経由しない、「追加ダメージでは通常の防御力減衰を行わない」）。属性相性
+ *   （所持者の属性で判定）・会心倍率・与被ダメージ補正は通常ヒットと同じく掛ける
+ * - 会心は抽選しない。呼び出し側が元の攻撃のその対象への会心有無から`GUARANTEED`／
+ *   `PREVENTED`を渡す（`CriticalCheckResolved`自体は他のヒットと同じく発行し、乱数は
+ *   消費しない、Issue #704）
  * - 貫通（`piercing`）を持たない。R-SUB-02にもCatalogスキーマにも対応する項が無い
  *
  * `accuracy`は契機になった攻撃のものを引き継ぐ（`damageType`の既定と同じ規約）—
@@ -246,17 +253,32 @@ function* applyOneSubUnitAdditionalDamageSteps(
     damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
   });
   // Q-DMG-01「ダメージ計算の途中では丸めず、最終結果で小数部分を切り捨てる」＋
-  // R-DMG-02 #1/#3「最低1ダメージ」。属性相性（`attributeMultiplier`）と会心倍率が
-  // 1のままなのは、R-SUB-02の計算式がそれらの項を持たないためである（`calculateDamage`の
-  // 基本ダメージ式自体を経由しない）。
+  // R-DMG-02 #1/#3「最低1ダメージ」。基礎値はFormulaの結果そのもので、`calculateDamage`の
+  // 防御力減衰（基本ダメージ式）は経由しない。その外側の倍率は通常ヒットと同じく掛ける —
+  // 属性相性は**所持者の属性**で通常ヒットと同じ有利判定をし（R-ATR-02／R-ATR-03）、
+  // 会心倍率は`observeHitSteps`が対象ごとに決めた会心（元の攻撃のその対象への会心有無）
+  // から得る（R-SUB-02、Issue #704）。
   // R-INT-02第2項（DMG-006）: 肩代わりの軽減率も通常ヒットと同じ位置
   // （最終切り捨ての前）で掛ける。
-  const preTruncationDamage = guardedDamage(
-    formulaResult *
-      damageModifierMultipliers.outgoingMultiplier *
-      damageModifierMultipliers.incomingMultiplier,
-    intervention.guardRate,
+  const favorable = isFavorableAttribute(owner.attribute, target.attribute);
+  const subFavorable =
+    !favorable &&
+    owner.subAttribute !== undefined &&
+    isFavorableAttribute(owner.subAttribute, target.attribute);
+  const attributeMultiplier = resolveAttributeMultiplier(
+    owner.attribute,
+    target.attribute,
+    createPercentage(owner.combatStats.affinityBonus),
+    owner.subAttribute,
+    createPercentage(owner.combatStats.subAffinityBonus),
   );
+  const rawPreTruncationDamage =
+    formulaResult *
+    attributeMultiplier *
+    observation.critical.multiplier *
+    damageModifierMultipliers.outgoingMultiplier *
+    damageModifierMultipliers.incomingMultiplier;
+  const preTruncationDamage = guardedDamage(rawPreTruncationDamage, intervention.guardRate);
   const truncatedDamage = Math.max(1, Math.floor(preTruncationDamage));
   // R-DMG-07: R-DMG-04と同じく追加ヒットにも閾値付き被ダメージ軽減が乗る（R-SUB-02が
   // 除外するのは防御力減衰だけ）。判定素材・再切り捨て・消費の扱いは通常ヒットと同じ。
@@ -304,13 +326,17 @@ function* applyOneSubUnitAdditionalDamageSteps(
       shieldIgnoreRate: profile.piercing.shieldIgnoreRate,
       damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
       // `DamageCalculated.skillPower`はFormula評価結果そのもの（補正適用前）。
-      // DMG-012の`baseDamage`と属性相性4欄は持たない — R-SUB-02の計算式が基礎ダメージ
-      // （防御力減衰）の項も属性相性の項も持たないためである。属性を書いた上で
-      // `isFavorableAttribute: false`と断定すると、実際には有利な組み合わせの追加ヒットで
-      // 監査ログが偽を述べることになる。
+      // DMG-012の`baseDamage`は持たない — R-SUB-02の基礎値は防御力減衰を経ないFormula値で
+      // あり、基礎ダメージ（攻撃力−実効防御力）という概念を持たないためである。属性相性
+      // 4欄は所持者の属性で判定した通常ヒットと同じ内容を持つ（Issue #704）。
       skillPower: formulaResult,
       skillPowerFormulaKind: source.additionalDamage.formula.kind,
-      attributeMultiplier: 1,
+      attributeMultiplier,
+      attackerAttribute: owner.attribute,
+      defenderAttribute: target.attribute,
+      isFavorableAttribute: favorable,
+      isSubAttributeFavorable: subFavorable,
+      attackerAffinityBonus: owner.combatStats.affinityBonus,
       criticalMultiplier: observation.critical.multiplier,
       outgoingDamageMultiplier: damageModifierMultipliers.outgoingMultiplier,
       incomingDamageMultiplier: damageModifierMultipliers.incomingMultiplier,
@@ -318,10 +344,7 @@ function* applyOneSubUnitAdditionalDamageSteps(
       // R-CFS-02（DMG-009）: サブユニットの追加ダメージは混乱の対象外
       // （「ASの`DAMAGE` EffectActionだけに適用する」）ため常に1。
       confusionDamageMultiplier: 1,
-      rawPreTruncationDamage:
-        formulaResult *
-        damageModifierMultipliers.outgoingMultiplier *
-        damageModifierMultipliers.incomingMultiplier,
+      rawPreTruncationDamage,
       preTruncationDamage,
       // R-SUB-02: 凍結解除増幅（R-STS-03）は追加ヒットで行わない（「同じ攻撃の中で
       // 二重に数えない」）ため、この経路では常に中立値になる。

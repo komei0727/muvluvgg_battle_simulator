@@ -387,10 +387,8 @@ export interface BattleDomainEventPayloadMap {
      * 両者を分ける。`attackerAffinityBonus`は攻撃側の戦闘中`affinityBonus`
      * （既定値25%＝Q-CAT-05を含む、R-ATR-02）そのものである。
      *
-     * R-SUB-02のサブユニット追加ヒットは計算式に属性相性の項を持たない
-     * （`attributeMultiplier`が規則により常に1）ため、4欄とも持たない。属性を書いた上で
-     * `isFavorableAttribute: false`と断定すると、実際には有利な組み合わせのヒットに
-     * 対して監査ログが偽を述べることになる。
+     * R-SUB-02のサブユニット追加ヒットも、所持者の属性で同じ有利判定をして4欄を持つ
+     * （Issue #704）。
      */
     readonly attackerAttribute?: Attribute;
     readonly defenderAttribute?: Attribute;
@@ -398,8 +396,7 @@ export interface BattleDomainEventPayloadMap {
     /**
      * R-ATR-03（DMG-012）: メイン属性が有利でなく、攻撃側のサブ属性（サブ属性付き
      * ユニットのみ）が代わりに有利判定になった場合だけ`true`。`isFavorableAttribute`
-     * と同時に`true`にはならない。属性相性の項を持たないヒット（R-SUB-02）では
-     * `isFavorableAttribute`と同じ理由で欄自体を持たない。
+     * と同時に`true`にはならない。
      */
     readonly isSubAttributeFavorable?: boolean;
     readonly attackerAffinityBonus?: number;

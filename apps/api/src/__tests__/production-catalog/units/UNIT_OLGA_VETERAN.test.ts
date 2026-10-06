@@ -709,12 +709,12 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
           finalDamage: event.payload.finalDamage,
         }));
 
-    // 追加ダメージ = 所持者の攻撃力1000 + 付与者の付与時攻撃力1000 × 5.46%
-    //              - 対象の防御力500 = 554.6 → 切り捨てて554（R-DMG-02）。
+    // 追加ダメージ = 付与者の付与時攻撃力1000 × 5.46% = 54.6 → 切り捨てて54（R-DMG-02）。
+    // 所持者の攻撃力1000 ≥ 対象の防御力500 のため防御による減衰はない（R-SUB-02）。
     const additional = {
       effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_SUBUNIT",
       damageType: "EN",
-      finalDamage: 554,
+      finalDamage: 54,
     };
     // 契機の一撃（攻撃力1000 - 防御力500 = 500）だけの対照。
     expect(damageTypes(strike([], "B_OLGA_SUBUNIT_NONE").recorder)).toEqual([
@@ -735,7 +735,7 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
       additional,
       additional,
     ]);
-    expect(armed.hpDeltas).toEqual({ "enemy:front": -(500 + 554 * 3) });
+    expect(armed.hpDeltas).toEqual({ "enemy:front": -(500 + 54 * 3) });
 
     // 期間を書くカムラッドⅡ3件と、書かないカムラッドⅠ3件を同じ保持者へ並べる。
     const both = applyPrecedingActions(board, [

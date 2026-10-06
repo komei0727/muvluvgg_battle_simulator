@@ -289,8 +289,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:front"],
         },
       ],
-      // 5ヒットのPS1（525）に、各ヒットへ相乗りした子機Ⅰの追加ENダメージが加わる。
-      hpDeltas: { "enemy:front": -1337 },
+      // 5ヒットのPS1（525）に、対象1体につき1ヒット相乗りした子機Ⅰの追加ENダメージ
+      // 312（付与時攻撃力1000×31.2%、R-SUB-02）が加わる。
+      hpDeltas: { "enemy:front": -837 },
       effectsApplied: [
         {
           unitId: "enemy:front",
@@ -581,8 +582,8 @@ describe("production Catalog UNIT_SHIRANA_SORA (【期待応える輝きの穹�
       battleId: "B_SHIRANA_SUBUNIT_ADDITIONAL",
     });
 
-    // 追加ダメージ = 所持者の攻撃力1000 + 付与者の付与時攻撃力1000 × 31.2%
-    //              - 対象の防御力500 = 812（防御力減衰を経由しない）。
+    // 追加ダメージ = 付与者の付与時攻撃力1000 × 31.2% = 312（所持者の攻撃力1000 ≥ 対象の
+    // 防御力500 のため防御による減衰なし、R-SUB-02）。
     expect(damageCalculationsOf(observed.recorder)).toEqual([
       {
         effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
@@ -593,17 +594,17 @@ describe("production Catalog UNIT_SHIRANA_SORA (【期待応える輝きの穹�
       {
         effectActionDefinitionId: AS1_SUBUNIT,
         damageType: "EN",
-        skillPower: 812,
-        finalDamage: 812,
+        skillPower: 312,
+        finalDamage: 312,
       },
       {
         effectActionDefinitionId: AS1_SUBUNIT,
         damageType: "EN",
-        skillPower: 812,
-        finalDamage: 812,
+        skillPower: 312,
+        finalDamage: 312,
       },
     ]);
-    expect(observed.hpDeltas).toEqual({ "enemy:front": -(500 + 812 + 812) });
+    expect(observed.hpDeltas).toEqual({ "enemy:front": -(500 + 312 + 312) });
 
     // 付随デバフはEffectAction群の解決器ではなく付与フックから直接適用されるため、
     // `STACKABLE` なら保持数ぶんのインスタンスが並ぶ。

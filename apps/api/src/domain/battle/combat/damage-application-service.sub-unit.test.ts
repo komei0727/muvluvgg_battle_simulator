@@ -244,8 +244,8 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
       );
     // 3ヒットの単体攻撃でも追加ダメージは1回だけ。
     expect(additional).toHaveLength(1);
-    // R-SUB-02: 所持者の現在攻撃力30 + 付与者の付与時攻撃力100 × 0.5 - 対象の防御力10 = 70。
-    expect(additional[0]!.payload).toMatchObject({ calculatedDamage: 70, hitPointDamage: 70 });
+    // R-SUB-02: 所持者の現在攻撃力30 ≥ 対象の防御力10 のため、付与者の付与時攻撃力100 × 0.5 = 50。
+    expect(additional[0]!.payload).toMatchObject({ calculatedDamage: 50, hitPointDamage: 50 });
   });
 
   it("UT-R-SUB-02-006 (R-SUB-02第2項): adds one additional-damage hit to each target of a multi-target attack, once per held subunit", () => {
@@ -330,6 +330,239 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
       finalDamage: 1,
     });
   });
+
+  /** 追加ヒット（`ACT_SUBUNIT_*`）の`DamageCalculated` payloadを対象IDごとに引く。 */
+  function additionalCalculations(
+    context: ReturnType<typeof damageEventContext>,
+  ): ReadonlyMap<string, Record<string, unknown>> {
+    return new Map(
+      context.recorder
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === "DamageCalculated" &&
+            String(
+              (event.payload as { effectActionDefinitionId: string }).effectActionDefinitionId,
+            ).startsWith("ACT_SUBUNIT_"),
+        )
+        .map((event) => {
+          const payload = event.payload as Record<string, unknown>;
+          return [String(payload["targetUnitId"]), payload];
+        }),
+    );
+  }
+
+  it.each([
+    {
+      label: "main attribute favorable",
+      attacker: { attribute: "AGGRESSIVE" },
+      multiplier: 1.25,
+      damage: 62,
+    },
+    {
+      label: "only the sub attribute favorable",
+      attacker: { attribute: "CUTE", subAttribute: "AGGRESSIVE" },
+      multiplier: 1.15,
+      damage: 57,
+    },
+    { label: "not favorable", attacker: { attribute: "CUTE" }, multiplier: 1, damage: 50 },
+  ] as const)(
+    "UT-R-SUB-02-020 [R-ATR-02, R-ATR-03] (Issue #704): the additional damage applies the holder's attribute affinity against the target ($label)",
+    ({ attacker: attributes, multiplier, damage }) => {
+      const context = damageEventContext();
+      const attacker = unit("ATTACKER", "ALLY", {
+        attack: 30,
+        affinityBonus: 0.25,
+        subAffinityBonus: 0.15,
+        ...attributes,
+      });
+      const holder: BattleUnit = {
+        ...attacker,
+        appliedEffects: [subUnitEffect("SUB_1", "ATTACKER", 50, { providerAttack: 100 })],
+      };
+      const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000, attribute: "SHY" });
+
+      applyDamageAction(
+        holder,
+        [hit("TARGET", 1)],
+        damageAction("PREVENTED"),
+        [holder, target],
+        new SequenceRandomSource([]),
+        context,
+      );
+
+      // 基礎値は 付与者100 × 0.5 = 50（所持者の攻撃力30 ≥ 防御力10）。
+      expect(additionalCalculations(context).get(createBattleUnitId("TARGET"))).toMatchObject({
+        attributeMultiplier: multiplier,
+        criticalMultiplier: 1,
+        finalDamage: damage,
+      });
+    },
+  );
+
+  it("UT-R-SUB-02-021 [R-CRT-01] (Issue #704): each target's additional hit is critical exactly when the original attack landed a critical hit on that target, without drawing random numbers", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", {
+      attack: 30,
+      criticalRate: 0.5,
+      criticalDamageBonus: 0.5,
+    });
+    const holder: BattleUnit = {
+      ...attacker,
+      appliedEffects: [subUnitEffect("SUB_1", "ATTACKER", 50, { providerAttack: 100 })],
+    };
+    const targetA = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+    const targetB = unit("TARGET_2", "ENEMY", { defense: 10, maximumHp: 1000 });
+
+    applyDamageAction(
+      holder,
+      [hit("TARGET", 1), hit("TARGET_2", 2)],
+      damageAction("NORMAL"),
+      [holder, targetA, targetB],
+      // 元の攻撃の会心抽選だけを用意する（A: 0.1 < 0.5 で会心、B: 0.9 で非会心）。
+      // 追加ヒットが乱数を引けば、ここで列が尽きて失敗する。
+      new SequenceRandomSource([0.1, 0.9]),
+      context,
+    );
+
+    const calculations = additionalCalculations(context);
+    expect(calculations.get(createBattleUnitId("TARGET"))).toMatchObject({
+      criticalMultiplier: 1.5,
+      finalDamage: 75,
+    });
+    expect(calculations.get(createBattleUnitId("TARGET_2"))).toMatchObject({
+      criticalMultiplier: 1,
+      finalDamage: 50,
+    });
+  });
+
+  it("UT-R-SUB-02-022 [R-CRT-01] (Issue #704): a multi-hit attack with a single critical hit on the target makes that target's additional hit critical", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 30, criticalRate: 0.5 });
+    const holder: BattleUnit = {
+      ...attacker,
+      appliedEffects: [subUnitEffect("SUB_1", "ATTACKER", 50, { providerAttack: 100 })],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+
+    applyDamageAction(
+      holder,
+      [hit("TARGET", 1), hit("TARGET", 2), hit("TARGET", 3)],
+      damageAction("NORMAL"),
+      [holder, target],
+      new SequenceRandomSource([0.9, 0.1, 0.9]),
+      context,
+    );
+
+    expect(additionalCalculations(context).get(createBattleUnitId("TARGET"))).toMatchObject({
+      criticalMultiplier: 1.5,
+      finalDamage: 75,
+    });
+  });
+
+  it.each([
+    {
+      label:
+        "cover lasting the whole action, which also redirects the additional hit (production shape, e.g. SKL_NANAE_SOVEREIGN_PS1)",
+      consumedByFirstHit: false,
+    },
+    {
+      label:
+        "cover consumed by the original hit, so only the recorded outcome target can steer the additional hit to the coverer",
+      consumedByFirstHit: true,
+    },
+  ])(
+    "UT-R-SUB-02-023 [R-INT-02] (Issue #704): when cover moves the original critical hit to the coverer, the additional hit lands on the coverer and inherits that critical without drawing random numbers — $label",
+    ({ consumedByFirstHit }) => {
+      const recorderContext = damageEventContext();
+      const context: DamageEventContext = consumedByFirstHit
+        ? {
+            ...recorderContext,
+            consumeEffectDuration: testConsumeEffectDuration(
+              recorderContext.recorder,
+              new Map<EffectActionDefinitionId, EffectActionDefinition>(),
+            ),
+          }
+        : recorderContext;
+      const coverDefinitionId = createEffectActionDefinitionId("ACT_COVER");
+      // 肩代わり（R-INT-02）は攻撃側が保持する防御介入として表す。
+      const cover: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("COVER"),
+        effectActionDefinitionId: coverDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(coverDefinitionId),
+        duplicate: true,
+        sourceUnitId: createBattleUnitId("ATTACKER"),
+        targetUnitId: createBattleUnitId("ATTACKER"),
+        magnitude: 0,
+        categories: ["DEBUFF"],
+        cover: {
+          covererUnitId: createBattleUnitId("COVERER"),
+          damageShareRate: 1,
+          guardRate: 0,
+          actionKinds: ["DAMAGE"],
+        },
+        duration: consumedByFirstHit
+          ? {
+              definition: {
+                dispellable: true,
+                linkedEffectGroupId: null,
+                consumption: { kind: "OUTGOING_HIT", maxCount: 1 },
+              },
+              consumptionRemaining: 1,
+            }
+          : { definition: { dispellable: true, linkedEffectGroupId: null } },
+        appliedTurnNumber: 1,
+      };
+      const attacker = unit("ATTACKER", "ALLY", { attack: 30, criticalRate: 0.5 });
+      const holder: BattleUnit = {
+        ...attacker,
+        appliedEffects: [subUnitEffect("SUB_1", "ATTACKER", 50, { providerAttack: 100 }), cover],
+      };
+      const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 1000 });
+      const coverer = unit("COVERER", "ENEMY", { defense: 10, maximumHp: 1000 });
+
+      const result = applyDamageAction(
+        holder,
+        [hit("TARGET", 1)],
+        damageAction("NORMAL"),
+        [holder, target, coverer],
+        // 元の一撃の会心抽選（0.1 < 0.5 で会心）だけを用意する。追加ヒットが乱数を引けば
+        // ここで列が尽きて失敗する。
+        new SequenceRandomSource([0.1]),
+        context,
+      );
+
+      const redirects = context.recorder
+        .getEvents()
+        .filter((event) => event.eventType === "DamageRedirected")
+        .map((event) => {
+          const payload = event.payload as {
+            reason: string;
+            originalTargetUnitId: string;
+            newTargetUnitId: string;
+          };
+          return [payload.reason, payload.originalTargetUnitId, payload.newTargetUnitId];
+        });
+      // 差し替えは元の一撃の1件だけ。追加ヒットは元の攻撃が最終的にダメージを与えた
+      // 肩代わり役（R-INT-02第2項、`outcomes`の対象）を直接狙うため、肩代わりが続いていても
+      // 肩代わり役自身への一撃として差し替えを起こさない。元の対象を狙っていれば2件目の
+      // 差し替え（または肩代わり消費後は元の対象への命中）が現れる。
+      expect(redirects).toEqual([["COVER", target.battleUnitId, coverer.battleUnitId]]);
+
+      // 追加ヒットは肩代わり役だけに1回、その一撃の会心を引き継いで加わる:
+      // 付与者100 × 0.5 = 50 に会心×1.5 = 75。
+      const calculations = additionalCalculations(context);
+      expect([...calculations.keys()]).toEqual([coverer.battleUnitId]);
+      expect(calculations.get(coverer.battleUnitId)).toMatchObject({
+        criticalMultiplier: 1.5,
+        finalDamage: 75,
+      });
+      // 元の対象は元の一撃も追加ヒットも受けない。
+      expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)!.currentHp).toBe(
+        1000,
+      );
+    },
+  );
 
   it("UT-R-SUB-02-008 (R-SUB-02第3項): applies the accompanying debuff through the injected hook, once per additional-damage hit", () => {
     const granted: { targetUnitId: string; debuffId: string; ownerUnitId: string }[] = [];
@@ -654,13 +887,13 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
             SUBUNIT_DEFINITION_ID,
       );
     expect(additionalCalculated).toHaveLength(1);
-    // 所持者30 + 付与者100×0.5 - 防御10 = 70、被ダメージ-50%で 35。
+    // 所持者30 ≥ 防御10 のため 付与者100×0.5 = 50、被ダメージ-50%で 25。
     expect(additionalCalculated[0]!.payload).toMatchObject({
-      skillPower: 70,
+      skillPower: 50,
       incomingDamageMultiplier: 0.5,
       outgoingDamageMultiplier: 1,
-      preTruncationDamage: 35,
-      finalDamage: 35,
+      preTruncationDamage: 25,
+      finalDamage: 25,
     });
 
     // 公開イベントの整合: `DamageWillBeApplied`のsnapshotと確定値が一致する。
@@ -702,7 +935,7 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
         damageType: null,
         damageThreshold: {
           op: "GT",
-          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.05 },
+          formula: { kind: "CURRENT_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.04 },
         },
       },
       duration: {
@@ -726,7 +959,7 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
       context,
     );
 
-    // 追加ダメージ 70（30 + 100×0.5 - 防御10）。閾値 = 現在HP1000×5% = 50 < 70 -> 35 へ軽減。
+    // 追加ダメージ 50（所持者30 ≥ 防御10 のため 付与者100×0.5）。閾値 = 現在HP1000×4% = 40 < 50 -> 25 へ軽減。
     // R-DMG-04の合成には参加しない（incomingDamageMultiplierは1のまま）。
     const additionalCalculated = context.recorder
       .getEvents()
@@ -738,13 +971,13 @@ describe("sub-unit additional damage is a real hit (R-SUB-02 / R-SKL-03)", () =>
       );
     expect(additionalCalculated).toHaveLength(1);
     expect(additionalCalculated[0]!.payload).toMatchObject({
-      skillPower: 70,
+      skillPower: 50,
       incomingDamageMultiplier: 1,
       outgoingDamageMultiplier: 1,
-      finalDamage: 35,
+      finalDamage: 25,
     });
 
-    // 消費は軽減を適用した追加ヒットでだけ起きる（通常ヒット10は閾値50以下で素通し）。
+    // 消費は軽減を適用した追加ヒットでだけ起きる（通常ヒット20は閾値40以下で素通し）。
     const consumption = context.recorder
       .getEvents()
       .filter((event) => event.eventType === "EffectConsumptionChanged");
