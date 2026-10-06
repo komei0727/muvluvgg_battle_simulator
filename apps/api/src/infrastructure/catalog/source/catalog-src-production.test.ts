@@ -160,6 +160,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         // Issue #683: 【繋がり合う母娘の絆】オルガ＆ナージャ（UNIT_OLGA_VETERAN/
         // UNIT_NADYA_SUCCESSORの合体ユニット、#682 エンジン拡張依存）
         "UNIT_OLGA_NADYA_BOND",
+        // Issue #701: 桃園めるの3バリアント目（#700 エンジン拡張依存）
+        "UNIT_MERU_BESIDE",
       ].sort(),
     );
   });

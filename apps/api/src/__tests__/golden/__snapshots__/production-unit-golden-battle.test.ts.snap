@@ -2187,6 +2187,57 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MEIYA_FATED completes
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MERU_BESIDE completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 5,
+  "completionReason": "TURN_LIMIT_REACHED",
+  "eventCount": 2064,
+  "eventSequenceHash": "sha256:da71ae4097da4d4b",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 48,
+    "ACTION_COMPLETING": 48,
+    "ACTION_QUEUE_CREATED": 24,
+    "ACTION_STARTED": 48,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "COMBAT_STAT_CHANGED": 78,
+    "CRITICAL_CHECK_RESOLVED": 8,
+    "DAMAGE_APPLIED": 8,
+    "DAMAGE_CALCULATED": 8,
+    "DAMAGE_WILL_BE_APPLIED": 8,
+    "EFFECT_ACTION_COMPLETED": 274,
+    "EFFECT_ACTION_STARTING": 274,
+    "EFFECT_APPLIED": 206,
+    "EFFECT_DURATION_REDUCED": 86,
+    "EFFECT_EXPIRED": 88,
+    "EFFECT_STEP_COMPLETED": 192,
+    "EFFECT_STEP_STARTING": 192,
+    "EXTRA_GAUGE_INCREASED": 10,
+    "EXTRA_GAUGE_OVERFLOW_DISCARDED": 2,
+    "HIT_CONFIRMED": 8,
+    "HIT_POINT_REDUCED": 8,
+    "MARKER_APPLIED": 2,
+    "MARKER_UPDATED": 48,
+    "PASSIVE_ACTIVATED": 10,
+    "PASSIVE_POINT_CONSUMED": 10,
+    "PASSIVE_RESOLVED": 10,
+    "RESOURCES_RECOVERED": 5,
+    "RESOURCE_CHANGED": 136,
+    "SHIELD_CONSUMED": 8,
+    "SKILL_USE_COMPLETED": 48,
+    "SKILL_USE_STARTED": 48,
+    "SKILL_USE_STARTING": 48,
+    "TARGETS_SELECTED": 48,
+    "TURN_COMPLETED": 5,
+    "TURN_COMPLETING": 5,
+    "TURN_STARTED": 5,
+    "UNIT_BEING_ATTACKED": 8,
+  },
+  "outcome": "ALLY_LOSE",
+  "unitDefinitionId": "UNIT_MERU_BESIDE",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MERU_FLATSPIN completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,
