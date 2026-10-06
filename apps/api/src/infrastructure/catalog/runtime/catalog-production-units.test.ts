@@ -611,7 +611,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-06.1` は新ユニット `UNIT_MERU_BESIDE`（【隣歩む想い】桃園める、Issue #701）の
     // 新規投入。AS2が#700で追加した`HIGHEST_CUMULATIVE_DAMAGE_DEALT`ターゲットセレクタと、
     // `GUARANTEED_HIT`の`OUTGOING_HIT`消費を初めて production Catalog で使用する。
-    expect(catalog.catalogRevision).toBe("2026-10-06.1");
+    // `2026-10-07.1` は `UNIT_MERU_BESIDE` の後列「真心」の会心ダメージ上昇を重複不可へ修正
+    // （`NON_STACKABLE`、永続版と2行動版で `kindKey` を共有）。差分は `effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-10-07.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

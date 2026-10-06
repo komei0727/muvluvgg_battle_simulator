@@ -302,6 +302,7 @@
   },
   {
     "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP",
+    "kindKey": "KIND_MERU_BESIDE_MAGOKORO_CRIT_DMG_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
@@ -311,7 +312,7 @@
         "value": 0.0625
       },
       "stacking": {
-        "mode": "STACKABLE"
+        "mode": "NON_STACKABLE"
       },
       "duration": {
         "dispellable": false,
@@ -461,6 +462,7 @@
   },
   {
     "effectActionDefinitionId": "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_CRIT_DMG_UP",
+    "kindKey": "KIND_MERU_BESIDE_MAGOKORO_CRIT_DMG_UP",
     "kind": "APPLY_STAT_MOD",
     "payload": {
       "stat": "CRITICAL_DAMAGE_BONUS",
@@ -470,7 +472,7 @@
         "value": 0.0625
       },
       "stacking": {
-        "mode": "STACKABLE"
+        "mode": "NON_STACKABLE"
       },
       "duration": {
         "dispellable": false,

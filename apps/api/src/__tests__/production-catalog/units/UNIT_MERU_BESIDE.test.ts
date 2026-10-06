@@ -17,6 +17,12 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { realDamage, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
+import {
+  applyPrecedingActions,
+  productionBoard,
+} from "../../../testing/production-unit/skill-behaviour.js";
+import { computeCombatStats } from "../../../domain/battle/effects/combat-stat-recalculation-service.js";
 
 /**
  * `UNIT_MERU_BESIDE`（【隣歩む想い】桃園める）のユニット単位production結合テスト
@@ -839,5 +845,43 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
         { unitId: "ally:subject", skillDefinitionId: "SKL_MERU_BESIDE_PS1", remaining: 1 },
       ],
     });
+  });
+
+  it.each([
+    "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP",
+    "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_CRIT_DMG_UP",
+  ])(
+    "IT-UNIT-MERU-BESIDE-007: the back-row 「真心」 critical damage buff (%s) does not stack — a second grant keeps its instance but the effective bonus stays at +0.0625",
+    (effectActionDefinitionId) => {
+      const { instanceCount, baseValue, effectiveValue } = repeatedStatModGrant({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        effectActionDefinitionId,
+        target: "SELF",
+        stat: "criticalDamageBonus",
+      });
+      expect(instanceCount).toBe(2);
+      expect(effectiveValue).toBeCloseTo(baseValue + 0.0625, 10);
+    },
+  );
+
+  it("IT-UNIT-MERU-BESIDE-008: the battle-long and the PS1 (2-action) critical damage buffs form one non-stacking group, so holding both still gives +6.25%", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_CRIT_DMG_UP",
+        target: "SELF",
+      },
+    ]);
+    const holder = units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+
+    expect(holder.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP",
+      "ACT_MERU_BESIDE_MAGOKORO_TIMED_BACK_CRIT_DMG_UP",
+    ]);
+    expect(
+      computeCombatStats(holder, board.definitions.effectActions).combatStats.criticalDamageBonus,
+    ).toBeCloseTo(holder.baseCombatStats.criticalDamageBonus + 0.0625, 10);
   });
 });
