@@ -17,6 +17,13 @@ import {
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { realDamage, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
+import {
+  applyPrecedingActions,
+  productionBoard,
+} from "../../../testing/production-unit/skill-behaviour.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
 /**
  * `UNIT_MERU_BESIDE`（【隣歩む想い】桃園める）のユニット単位production結合テスト
@@ -32,7 +39,17 @@ const UNIT_DEFINITION_ID = "UNIT_MERU_BESIDE";
 const MAGOKORO = "MARKER_MERU_BESIDE_MAGOKORO";
 const MAGOKORO_TIMED = "MARKER_MERU_BESIDE_MAGOKORO_TIMED";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * 「真心」が解除スキルで消えないことは、実 production の解除定義
+ * （`ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF`、BUFFを上限なしで解除）を借りて実解除経路で確かめる。
+ */
+const BUFF_REMOVAL_SOURCE_UNIT_ID = "UNIT_NOEL_RUMBLE";
+const BUFF_REMOVAL = "ACT_NOEL_RUMBLE_PS2_REMOVE_BUFF";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  BUFF_REMOVAL_SOURCE_UNIT_ID,
+]);
 
 /** 前列（自身・ally:front）に付く「真心」の効果。evasionは1行動・被ヒット2回。 */
 function frontMagokoroEffects(unitId: string) {
@@ -839,5 +856,204 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
         { unitId: "ally:subject", skillDefinitionId: "SKL_MERU_BESIDE_PS1", remaining: 1 },
       ],
     });
+  });
+
+  it("IT-UNIT-MERU-BESIDE-007 [R-HIT-02, R-HIT-04]: the front-row 「真心」 evasion evades at 50% per hit, is consumed only by the hits it actually evades, and expires after evading two", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const holding = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION", target: "SELF" },
+    ]);
+    const attacked = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: holding,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      hitCount: 4,
+      accuracy: "NORMAL",
+      // 回避は `next() < 0.5` で成立する。1ヒット目成立、2ヒット目不成立、3ヒット目成立、
+      // 4ヒット目は回避効果が失効済みのため抽選自体が起きない。
+      random: new SequenceRandomSource([0.1, 0.9, 0.1]),
+      battleId: "B_MERU_EVASION",
+    });
+
+    expect(attacked.hits).toEqual([
+      { hitIndex: 1, result: "EVADED", evadedBy: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION" },
+      { hitIndex: 2, result: "CONFIRMED" },
+      { hitIndex: 3, result: "EVADED", evadedBy: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION" },
+      { hitIndex: 4, result: "CONFIRMED" },
+    ]);
+    expect(attacked.consumptions).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION",
+        kind: "INCOMING_HIT",
+        before: 2,
+        after: 1,
+      },
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION",
+        kind: "INCOMING_HIT",
+        before: 1,
+        after: 0,
+      },
+    ]);
+    expect(attacked.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION",
+        reason: "CONSUMPTION",
+        cascaded: false,
+      },
+    ]);
+  });
+
+  it("IT-UNIT-MERU-BESIDE-008 [R-HIT-05, R-EFF-07]: the back-row 「真心」 guaranteed hit makes the holder's first two confirmed hits ignore evasion, is consumed per outgoing hit, and the third hit can be evaded again", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const holding = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT", target: "SELF" },
+      // 攻撃される側に回避を持たせ、必中が実際に回避を止めたことを観測できるようにする。
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION", target: "ENEMY" },
+    ]);
+    const attacked = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: holding,
+      attackerUnitId: "ally:subject",
+      targetUnitId: "enemy:front",
+      hitCount: 3,
+      accuracy: "NORMAL",
+      // 必中中の2ヒットは回避抽選自体が起きない。3ヒット目だけが抽選し、0.1で回避が成立する。
+      random: new SequenceRandomSource([0.1]),
+      battleId: "B_MERU_GUARANTEED_HIT",
+    });
+
+    expect(attacked.hits).toEqual([
+      { hitIndex: 1, result: "CONFIRMED" },
+      { hitIndex: 2, result: "CONFIRMED" },
+      { hitIndex: 3, result: "EVADED", evadedBy: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION" },
+    ]);
+    expect(attacked.consumptions).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT",
+        kind: "OUTGOING_HIT",
+        before: 2,
+        after: 1,
+      },
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT",
+        kind: "OUTGOING_HIT",
+        before: 1,
+        after: 0,
+      },
+      {
+        unitId: "enemy:front",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION",
+        kind: "INCOMING_HIT",
+        before: 2,
+        after: 1,
+      },
+    ]);
+    expect(attacked.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT",
+        reason: "CONSUMPTION",
+        cascaded: false,
+      },
+    ]);
+  });
+
+  it("IT-UNIT-MERU-BESIDE-009 [R-EFF-04, R-EFF-10]: the PS1 「真心」 and its buffs expire at the end of the holder's second action, the front-row evasion after the first, while the battle-long 「真心」 stays", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const holding = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_DMG_DOWN", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP", target: "SELF" },
+    ]);
+    const observation = observeEffectExpiry({
+      definitions: board.definitions,
+      units: holding,
+      steps: [
+        { kind: "ACTION_END", actor: "ally:subject" },
+        { kind: "ACTION_END", actor: "ally:subject" },
+      ],
+      watchMarkers: ["ally:subject"],
+      battleId: "B_MERU_TIMED_EXPIRY",
+    });
+
+    const timedExpiry = (effectActionDefinitionId: string) => ({
+      unitId: "ally:subject",
+      effectActionDefinitionId,
+      reason: "TIME_LIMIT",
+      cascaded: false,
+    });
+    expect(observation.steps).toEqual([
+      {
+        step: "ACTION_END(ally:subject)",
+        // 回避は「1行動の間」。2行動版のバフは残り1。
+        expired: [timedExpiry("ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION")],
+        remaining: {
+          "ally:subject/ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP": 1,
+          "ally:subject/ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_DMG_DOWN": 1,
+        },
+        markers: {
+          [`ally:subject/${MAGOKORO}`]: 1,
+          [`ally:subject/${MAGOKORO_TIMED}`]: 1,
+        },
+      },
+      {
+        step: "ACTION_END(ally:subject)",
+        expired: [
+          timedExpiry("ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP"),
+          timedExpiry("ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_DMG_DOWN"),
+        ],
+        remaining: {},
+        // 2行動版のMarkerは2行動で消え、戦闘終了まで版のMarker（と期間を持たないバフ）は残る。
+        markers: { [`ally:subject/${MAGOKORO}`]: 1 },
+      },
+    ]);
+    expect(
+      observation.units
+        .find((unit) => unit.battleUnitId === "ally:subject")!
+        .appliedEffects.map((effect) => effect.effectActionDefinitionId),
+    ).toEqual(["ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP"]);
+  });
+
+  it("IT-UNIT-MERU-BESIDE-010 [R-EFF-02]: a real buff removal (REMOVE_EFFECTS BUFF) strips an ordinary buff but leaves every 「真心」 Marker and buff in place", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const holding = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION", target: "SELF" },
+      // 解除が実際に走ったことの対照: 解除可能な通常のバフ。
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_PS1_ATK_UP", target: "SELF" },
+    ]);
+    const removed = applyPrecedingActions({ ...board, units: holding }, [
+      { effectActionDefinitionId: BUFF_REMOVAL, target: "SELF" },
+    ]);
+    const before = holding.find((unit) => unit.battleUnitId === "ally:subject")!;
+    const after = removed.find((unit) => unit.battleUnitId === "ally:subject")!;
+
+    expect(after.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual(
+      before.appliedEffects
+        .map((effect) => effect.effectActionDefinitionId)
+        .filter((id) => id !== "ACT_MERU_BESIDE_PS1_ATK_UP"),
+    );
+    expect(before.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toContain(
+      "ACT_MERU_BESIDE_PS1_ATK_UP",
+    );
+    expect(after.markerStates.map((marker) => [marker.markerId, marker.stackCount])).toEqual([
+      [MAGOKORO, 1],
+      [MAGOKORO_TIMED, 1],
+    ]);
   });
 });
