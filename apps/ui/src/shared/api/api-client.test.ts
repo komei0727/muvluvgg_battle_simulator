@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
-import { getCatalog } from "./api-client.js";
+import {
+  evaluateTacticalExercise,
+  getCatalog,
+  previewFormationStats,
+  simulate,
+  simulateTacticalExercise,
+} from "./api-client.js";
+import type {
+  BattleSimulationRequest,
+  FormationStatPreviewRequest,
+  TacticalExerciseEvaluationRequest,
+  TacticalExerciseRequest,
+} from "./api-contract.js";
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -291,4 +303,63 @@ describe("getCatalog", () => {
 
     vi.unstubAllGlobals();
   });
+});
+
+// docs/ui-design/03_API・データ連携設計.md §2.4: アクセスキーは保存されている場合だけ
+// `Authorization: Bearer`で送り、未保存なら従来どおり送らない。
+describe("access key header", () => {
+  type Call = (options: {
+    readonly baseUrl: string;
+    readonly signal: AbortSignal;
+    readonly fetchImpl: typeof fetch;
+    readonly accessKey?: string;
+  }) => Promise<unknown>;
+
+  // 本文の中身は検査しない。ヘッダーの付与だけを全エンドポイントで確かめる。
+  const calls: readonly (readonly [string, Call])[] = [
+    ["getCatalog", (options) => getCatalog(options)],
+    ["simulate", (options) => simulate({} as BattleSimulationRequest, options)],
+    [
+      "simulateTacticalExercise",
+      (options) => simulateTacticalExercise({} as TacticalExerciseRequest, options),
+    ],
+    [
+      "evaluateTacticalExercise",
+      (options) => evaluateTacticalExercise({} as TacticalExerciseEvaluationRequest, options),
+    ],
+    [
+      "previewFormationStats",
+      (options) => previewFormationStats({} as FormationStatPreviewRequest, options),
+    ],
+  ];
+
+  async function sentHeaders(call: Call, accessKey: string | undefined): Promise<Headers> {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(500, {}));
+    await call({
+      baseUrl: "https://api.example.com",
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock,
+      ...(accessKey !== undefined ? { accessKey } : {}),
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    return new Headers(init.headers);
+  }
+
+  it.each(calls)(
+    "UI-API-036: %s sends Authorization: Bearer <key> when an access key is given",
+    async (_name, call) => {
+      const headers = await sentHeaders(call, "k".repeat(40));
+
+      expect(headers.get("Authorization")).toBe(`Bearer ${"k".repeat(40)}`);
+    },
+  );
+
+  it.each(calls)(
+    "UI-API-037: %s sends no Authorization header without an access key",
+    async (_name, call) => {
+      const headers = await sentHeaders(call, undefined);
+
+      expect(headers.has("Authorization")).toBe(false);
+    },
+  );
 });

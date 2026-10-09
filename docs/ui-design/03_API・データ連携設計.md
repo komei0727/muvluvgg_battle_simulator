@@ -99,6 +99,7 @@ X-Request-Id: ui-<UUID>
 - `Content-Type`と`Accept`を明示する。
 - UIでUUIDを生成できる場合は `X-Request-Id` を付ける。生成失敗時は省略し、サーバー生成に任せる。
 - CookieやHTTP credentialを送らない。`fetch`の `credentials` は `omit` とする。
+- アクセスキーを保存している場合だけ、全エンドポイントへ `Authorization: Bearer <key>` を付ける（`10_API設計.md`「認証」）。キーはGitHub Pagesのbundleへ埋め込まず、利用者が入力したものを `mlgg:access-key` にだけ保存する。API呼び出しを持つfeature hookは `shared/api/access-key.ts` の `ApiAccessContext` からキーと401の通知先を受け取る。一覧APIはProviderより上（Page）で取得するため、`useCatalogLoader` には引数で渡す。キーを設定し直すたびに進む世代番号も配り、各要求は送信時の世代を401の通知へ添える。世代が変われば一覧を取得し直す。
 - 一覧GETはHTTP cache/ETagを利用し、戦闘POSTは `cache: "no-store"` とする。
 - 自動retryしない。戦闘は冪等ではなく、同じ条件でも別結果になり得る。
 - 一覧GETの失敗にも自動無限retryを行わず、利用者の手動再読込を提供する。
@@ -466,6 +467,7 @@ interface SimulationApiClient {
     readonly signal: AbortSignal;
     readonly requestId?: string;
     readonly etag?: string;
+    readonly accessKey?: string;
   }): Promise<CatalogApiResult>;
 
   simulate(
@@ -751,21 +753,23 @@ type UiApiErrorKind =
   | "SERVER"
   | "NETWORK"
   | "CORS_OR_NETWORK"
-  | "RESPONSE_CONTRACT_MISMATCH";
+  | "RESPONSE_CONTRACT_MISMATCH"
+  | "UNAUTHORIZED";
 ```
 
-| HTTP / code                | UI kind                   | 表示と操作                                     |
-| -------------------------- | ------------------------- | ---------------------------------------------- |
-| 400 `MALFORMED_REQUEST`    | `SERVER`                  | UI生成リクエストの不具合。再試行より報告を促す |
-| 406 / 415                  | `SERVER`                  | UI/API設定不整合                               |
-| 422 `INVALID_COMMAND`      | `VALIDATION`              | JSON Pointerに対応する入力を強調               |
-| 422 `DEFINITION_NOT_FOUND` | `VALIDATION`              | Catalog版差異を示し再読込を案内                |
-| 429                        | `RATE_LIMIT`              | `Retry-After`を表示し手動再試行                |
-| 503 `CAPACITY_EXCEEDED`    | `CAPACITY`                | 一時的混雑。手動再試行                         |
-| 503 cancel/limit           | `CANCELLED`または`SERVER` | code別表示                                     |
-| 504                        | `TIMEOUT`                 | 条件変更または再試行を案内                     |
-| 500                        | `SERVER`                  | diagnosticIdとrequestIdを表示                  |
-| fetch失敗                  | `CORS_OR_NETWORK`         | API到達不可。CORSかnetworkかを断定しない       |
+| HTTP / code                | UI kind                   | 表示と操作                                                |
+| -------------------------- | ------------------------- | --------------------------------------------------------- |
+| 400 `MALFORMED_REQUEST`    | `SERVER`                  | UI生成リクエストの不具合。再試行より報告を促す            |
+| 401 `UNAUTHORIZED`         | `UNAUTHORIZED`            | アクセスキー入力欄を出す（`01_UI要求・画面設計.md` §6.1） |
+| 406 / 415                  | `SERVER`                  | UI/API設定不整合                                          |
+| 422 `INVALID_COMMAND`      | `VALIDATION`              | JSON Pointerに対応する入力を強調                          |
+| 422 `DEFINITION_NOT_FOUND` | `VALIDATION`              | Catalog版差異を示し再読込を案内                           |
+| 429                        | `RATE_LIMIT`              | `Retry-After`を表示し手動再試行                           |
+| 503 `CAPACITY_EXCEEDED`    | `CAPACITY`                | 一時的混雑。手動再試行                                    |
+| 503 cancel/limit           | `CANCELLED`または`SERVER` | code別表示                                                |
+| 504                        | `TIMEOUT`                 | 条件変更または再試行を案内                                |
+| 500                        | `SERVER`                  | diagnosticIdとrequestIdを表示                             |
+| fetch失敗                  | `CORS_OR_NETWORK`         | API到達不可。CORSかnetworkかを断定しない                  |
 
 ### JSON Pointerとの対応
 
@@ -788,14 +792,14 @@ GitHub Pagesから `application/json` のPOSTを行うため、browser preflight
 
 API側のproduction推奨設定：
 
-| 項目           | 値                                                        |
-| -------------- | --------------------------------------------------------- |
-| Allow origin   | `https://komei0727.github.io` を完全一致で許可            |
-| Allow methods  | `GET`, `POST`, `OPTIONS`                                  |
-| Allow headers  | `Content-Type`, `Accept`, `X-Request-Id`, `If-None-Match` |
-| Expose headers | `X-Request-Id`, `Retry-After`, `ETag`                     |
-| Credentials    | `false`                                                   |
-| Max age        | 配備方針で決定。長期固定しすぎない                        |
+| 項目           | 値                                                                         |
+| -------------- | -------------------------------------------------------------------------- |
+| Allow origin   | `https://komei0727.github.io` を完全一致で許可                             |
+| Allow methods  | `GET`, `POST`, `OPTIONS`                                                   |
+| Allow headers  | `Content-Type`, `Accept`, `X-Request-Id`, `If-None-Match`, `Authorization` |
+| Expose headers | `X-Request-Id`, `Retry-After`, `ETag`                                      |
+| Credentials    | `false`                                                                    |
+| Max age        | 配備方針で決定。長期固定しすぎない                                         |
 
 開発環境では明示したlocalhost originだけ追加する。productionで `Access-Control-Allow-Origin: *` を既定にしない。
 
@@ -838,3 +842,13 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-033`: 強化トグルONの陣営で、各ユニットの`enhancement.rank`へ入力値（省略時5）を出力する。
 - `UI-API-034`: レベル200・ランク5・ギア0件のときだけ`enhancement`を出力しない。いずれか一つでも既定から外れていれば出力する（規則4の拡張）。
 - `UI-API-035`: `enhancement`配下の422 JSON Pointerのうち`rank`違反を該当入力へ対応づける（`UI-API-019`の拡張）。
+- `UI-API-036`: アクセスキーを渡した全エンドポイント（一覧・戦闘・演習・統計実行・プレビュー）で`Authorization: Bearer <key>`を送る。
+- `UI-API-037`: アクセスキーを渡さない場合は`Authorization`を送らない（認証が無効な配備の互換）。
+- `UI-API-038`: 401を`UNAUTHORIZED`種別へ正規化する（エラーenvelopeの有無に依らない）。
+- `UI-API-039`: アクセスキーを`mlgg:access-key`へ保存・読み出し・削除できる。
+- `UI-API-040`: 保存値が文字列でない・空・空白だけの場合は「キーなし」として扱う。
+- `UI-API-041`: 戦闘・演習の単一実行がcontextのキーを送り、401を通知する。
+- `UI-API-042`: ステータスプレビューがcontextのキーを送り、401を通知する。
+- `UI-API-043`: 統計実行がcontextのキーを送り、401を通知する。
+- `UI-API-044`: 一覧APIが引数のキーを送り、401を世代番号付きで通知し、世代の変化（同じキーの再入力を含む）で取得し直す。
+- `UI-API-045`: 401の通知には、その要求を送ったときの世代番号を添える（応答待ちの間に同じキーが入れ直されても、送信時の世代を報告する）。

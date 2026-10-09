@@ -159,7 +159,8 @@ export function NormalBattleMode({
       <div role="tabpanel" id="tabpanel-battle" aria-labelledby="tab-battle">
         <Panel step="01" title="戦闘パラメータ" meta="FORMATION / MEMORY / EXECUTION">
           {catalog.status === "loading" ? <p>Catalogを読込中…</p> : null}
-          {catalog.status === "failed" ? (
+          {/* 401はPageのアクセスキー入力欄が引き受けるため、ここでは出さない。 */}
+          {catalog.status === "failed" && catalog.error.kind !== "UNAUTHORIZED" ? (
             <div role="alert">
               <p>{catalog.error.message}</p>
               <button type="button" onClick={onReloadCatalog}>

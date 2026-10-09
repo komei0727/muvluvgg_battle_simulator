@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { CATALOG_REVISION } from "../fixtures/catalog.js";
 import {
+  API_BASE_URL,
   CATALOG_URL,
   SIMULATION_URL,
   TACTICAL_EXERCISE_EVALUATION_URL,
@@ -137,6 +138,39 @@ export async function mockTacticalExerciseEvaluation(
             ),
           },
         ],
+      }),
+    });
+  });
+}
+
+/**
+ * `API_ACCESS_KEYS`を設定した配備を再現する。`/api/v1/*`のうち`Authorization:
+ * Bearer <accessKey>`を持たない要求へ401を返し、持つ要求は先に登録した
+ * mock（`mockCatalog`等）へ委ねる。Playwrightは後から登録したrouteを先に評価する
+ * ため、他のmockを登録し終えてから呼ぶこと。受け取ったヘッダーは`received`へ記録する。
+ */
+export async function requireAccessKey(
+  page: Page,
+  accessKey: string,
+  received: (string | null)[],
+): Promise<void> {
+  await page.route(`${API_BASE_URL}/api/v1/**`, async (route) => {
+    const authorization = route.request().headers()["authorization"] ?? null;
+    received.push(authorization);
+    if (authorization === `Bearer ${accessKey}`) {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      headers: {
+        "Access-Control-Expose-Headers": EXPOSED_HEADERS,
+        "WWW-Authenticate": "Bearer",
+      },
+      body: JSON.stringify({
+        schemaVersion: 1,
+        error: { code: "UNAUTHORIZED", message: "A valid access key is required.", violations: [] },
       }),
     });
   });

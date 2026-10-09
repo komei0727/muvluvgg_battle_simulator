@@ -9,6 +9,7 @@ import type {
 
 import { previewFormationStats as defaultPreviewFormationStats } from "../../shared/api/api-client.js";
 import { useTokenedRequest } from "../../shared/async/abortable-request.js";
+import { useApiAccess } from "../../shared/api/access-key.js";
 
 // docs/ui-design/04_コンポーネント・状態管理設計.md §4「ステータスプレビュー状態」.
 export type FormationStatPreviewState =
@@ -89,6 +90,7 @@ export function useFormationStatPreview(
   const enabled = options.enabled ?? true;
   const [state, setState] = useState<FormationStatPreviewState>({ status: "unavailable" });
   const asyncRequest = useTokenedRequest();
+  const { accessKey, generation, onUnauthorized } = useApiAccess();
 
   // 送る内容（リクエストと枠の対応表）そのものをeffectの依存にする。オブジェクト
   // 参照は毎レンダー変わり、レンダー中にrefへ写す方式は並行レンダリング下で
@@ -121,11 +123,18 @@ export function useFormationStatPreview(
     const { signal, token } = asyncRequest.start();
     setState({ status: "loading" });
 
-    void previewImpl(payload.request, { baseUrl, signal }).then((result) => {
+    void previewImpl(payload.request, {
+      baseUrl,
+      signal,
+      ...(accessKey !== undefined ? { accessKey } : {}),
+    }).then((result) => {
       if (!asyncRequest.isCurrent(token)) {
         return;
       }
       if (!result.ok) {
+        if (result.error.kind === "UNAUTHORIZED") {
+          onUnauthorized(generation);
+        }
         setState({ status: "failed" });
         return;
       }
@@ -138,7 +147,7 @@ export function useFormationStatPreview(
     return () => {
       asyncRequest.abort();
     };
-  }, [payloadKey, baseUrl, previewImpl, asyncRequest]);
+  }, [payloadKey, baseUrl, previewImpl, asyncRequest, accessKey, generation, onUnauthorized]);
 
   return state;
 }

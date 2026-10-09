@@ -91,7 +91,8 @@ export type UiApiErrorKind =
   | "SERVER"
   | "NETWORK"
   | "CORS_OR_NETWORK"
-  | "RESPONSE_CONTRACT_MISMATCH";
+  | "RESPONSE_CONTRACT_MISMATCH"
+  | "UNAUTHORIZED";
 
 export interface UiApiError {
   readonly kind: UiApiErrorKind;

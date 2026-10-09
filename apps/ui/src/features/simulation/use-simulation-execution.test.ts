@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { ApiAccessContext } from "../../shared/api/access-key.js";
 import { describe, expect, it, vi } from "vitest";
 import { useSimulationExecution } from "./use-simulation-execution.js";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
@@ -240,5 +242,90 @@ describe("useSimulationExecution — stale response guard (UI-CMP-002)", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(result.current.state.status).toBe("succeeded");
+  });
+});
+
+function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void) {
+  return function Wrapper({ children }: { readonly children: ReactNode }) {
+    return createElement(
+      ApiAccessContext.Provider,
+      { value: { accessKey, generation: 7, onUnauthorized } },
+      children,
+    );
+  };
+}
+
+describe("useSimulationExecution — access key", () => {
+  it("UI-API-041: sends the context's access key and reports a 401 so the page can ask for a key", async () => {
+    const onUnauthorized = vi.fn();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        error: {
+          kind: "UNAUTHORIZED",
+          message: "A valid access key is required.",
+          status: 401,
+          code: "UNAUTHORIZED",
+        },
+      }),
+    );
+    const { result } = renderHook(
+      () => useSimulationExecution("https://api.example.com", { simulateImpl }),
+      { wrapper: accessWrapper("k".repeat(40), onUnauthorized) },
+    );
+
+    act(() => {
+      result.current.submit(submitInput());
+    });
+
+    expect(simulateImpl.mock.calls[0]?.[1].accessKey).toBe("k".repeat(40));
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith(7);
+  });
+});
+
+describe("useSimulationExecution — access key replaced mid-flight", () => {
+  it("UI-API-045: reports the key generation the request was sent under, even when the same key was re-entered before the 401 arrived", async () => {
+    const onUnauthorized = vi.fn();
+    const pending = deferred<SimulationApiResult>();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => pending.promise);
+    const accessKey = "k".repeat(40);
+    let generation = 1;
+    const { result, rerender } = renderHook(
+      () => useSimulationExecution("https://api.example.com", { simulateImpl }),
+      {
+        wrapper: ({ children }: { readonly children: ReactNode }) =>
+          createElement(
+            ApiAccessContext.Provider,
+            { value: { accessKey, generation, onUnauthorized } },
+            children,
+          ),
+      },
+    );
+
+    act(() => {
+      result.current.submit(submitInput());
+    });
+    // 同じキーの再入力でも世代は進む。キー文字列では古い要求と区別できない。
+    generation = 2;
+    rerender();
+    pending.resolve({
+      ok: false,
+      status: 401,
+      error: { kind: "UNAUTHORIZED", message: "A valid access key is required.", status: 401 },
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(onUnauthorized).toHaveBeenCalledWith(1);
   });
 });

@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { ApiAccessContext } from "../../shared/api/access-key.js";
 import { describe, expect, it, vi } from "vitest";
 import { useFormationStatPreview } from "./use-formation-stat-preview.js";
 import { createInitialDraft, slotKeyOf } from "./types.js";
@@ -279,5 +281,44 @@ describe("useFormationStatPreview — 古い応答の破棄と枠の突き合わ
     await waitFor(() => {
       expect(result.current.status).toBe("failed");
     });
+  });
+});
+
+function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void) {
+  return function Wrapper({ children }: { readonly children: ReactNode }) {
+    return createElement(
+      ApiAccessContext.Provider,
+      { value: { accessKey, generation: 7, onUnauthorized } },
+      children,
+    );
+  };
+}
+
+describe("useFormationStatPreview — access key", () => {
+  it("UI-API-042: sends the context's access key and reports a 401 so the page can ask for a key", async () => {
+    const onUnauthorized = vi.fn();
+    const previewImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      error: {
+        kind: "UNAUTHORIZED",
+        message: "A valid access key is required.",
+        status: 401,
+        code: "UNAUTHORIZED",
+      },
+    });
+    const { result } = renderHook(
+      () => useFormationStatPreview("https://api.example", baseDraft(), { previewImpl }),
+      { wrapper: accessWrapper("k".repeat(40), onUnauthorized) },
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("failed");
+    });
+    expect((previewImpl.mock.calls[0] as [unknown, { accessKey?: string }])[1].accessKey).toBe(
+      "k".repeat(40),
+    );
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith(7);
   });
 });
