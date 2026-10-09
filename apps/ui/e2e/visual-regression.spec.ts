@@ -16,7 +16,7 @@ import {
 // docs/ui-design/06_UIテスト戦略.md §7 (Visual regression): 1440×900と
 // 390×844を最低baselineとし、動的時刻・Battle ID・画像取得を固定して撮影する。
 // This fixture set has no rendered wall-clock timestamp and no imageMap (so
-// every DefinitionImage renders its deterministic initials fallback, never a
+// every DefinitionImage renders its deterministic full-name fallback, never a
 // network image), so no additional masking is required beyond disabling CSS
 // animations.
 //

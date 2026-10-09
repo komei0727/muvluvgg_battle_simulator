@@ -59,6 +59,12 @@
   white-space: nowrap;
 }
 
+/* 01_UI要求・画面設計.md §9: 画像がないときは代わりの表示が全文を出すため、
+   名前帯は全文を覆い名前も二重になる。画像があるときだけ帯を出す。 */
+.slot:has([data-fallback]) .label {
+  display: none;
+}
+
 /* docs/ui-design/05_非機能・アクセシビリティ設計.md §4: 3列×2段へ折り返して
    もslot indexを判別できるよう常設する。 */
 .index {

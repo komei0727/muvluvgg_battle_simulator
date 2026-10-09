@@ -33,16 +33,52 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
+  /* 文字の大きさを枠の幅に合わせるため、cqi単位の基準にする。 */
+  container-type: inline-size;
+  padding: 4px;
+  text-align: center;
   background: var(--color-surface-strong);
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
 }
 
-.initials {
-  font-size: 14px;
+/* 01_UI要求・画面設計.md §9: 画像がなくても見分けられるよう表示名の全文を出す。
+   長い名前でも枠からはみ出さないよう、各段を2行で打ち切る。 */
+.nameBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.epithet,
+.name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.epithet {
+  font-size: clamp(7px, 7cqi, 11px);
+  color: var(--color-text-muted);
+}
+
+.name {
+  font-size: clamp(8px, 9cqi, 14px);
   font-weight: 700;
-  letter-spacing: 0.02em;
   color: var(--color-text);
+}
+
+/* 結果サマリ表(64px)など狭い枠では二つ名まで出すと読めないため、名前だけにする。 */
+@container (max-width: 80px) {
+  .epithet {
+    display: none;
+  }
 }
 
 .typeLabel {

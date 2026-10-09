@@ -38,12 +38,12 @@ describe("UnitSelectionDialog — search/filter/select/remove (UI-CT-005)", () =
       />,
     );
 
-    expect(screen.getByText("アルファ")).toBeInTheDocument();
-    expect(screen.getByText("ベータ")).toBeInTheDocument();
+    expect(screen.getAllByText("アルファ")).not.toHaveLength(0);
+    expect(screen.getAllByText("ベータ")).not.toHaveLength(0);
 
     await user.type(screen.getByLabelText("ユニットを検索"), "アルファ");
 
-    expect(screen.getByText("アルファ")).toBeInTheDocument();
+    expect(screen.getAllByText("アルファ")).not.toHaveLength(0);
     expect(screen.queryByText("ベータ")).not.toBeInTheDocument();
   });
 
