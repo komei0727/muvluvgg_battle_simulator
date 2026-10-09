@@ -18,6 +18,7 @@ const SERVER_LOG_CORRELATION_STATUS = 500;
  */
 export const HTTP_ERROR_CODES = [
   "MALFORMED_REQUEST",
+  "UNAUTHORIZED",
   "NOT_ACCEPTABLE",
   "REQUEST_TOO_LARGE",
   "UNSUPPORTED_MEDIA_TYPE",
@@ -37,6 +38,8 @@ export type HttpErrorCode = (typeof HTTP_ERROR_CODES)[number];
 
 const STATUS_BY_CODE: Record<HttpErrorCode, number> = {
   MALFORMED_REQUEST: 400,
+  // `/api/v1/*`のアクセスキー欠落・不一致。routing前に確定する。
+  UNAUTHORIZED: 401,
   NOT_ACCEPTABLE: 406,
   REQUEST_TOO_LARGE: 413,
   UNSUPPORTED_MEDIA_TYPE: 415,
@@ -59,6 +62,7 @@ const STATUS_BY_CODE: Record<HttpErrorCode, number> = {
 
 const DEFAULT_MESSAGE_BY_CODE: Record<HttpErrorCode, string> = {
   MALFORMED_REQUEST: "The request body is not valid JSON or does not match the expected structure.",
+  UNAUTHORIZED: "A valid access key is required.",
   NOT_ACCEPTABLE: "The requested representation is not available.",
   REQUEST_TOO_LARGE: "The request body exceeds the allowed size.",
   UNSUPPORTED_MEDIA_TYPE: "The request Content-Type is not supported.",

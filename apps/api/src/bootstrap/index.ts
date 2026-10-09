@@ -47,6 +47,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     logLevel,
     docsEnabled,
     corsAllowedOrigins,
+    apiAccessKeys,
     executionLimits,
     workerMinThreads,
     workerMaxThreads,
@@ -111,6 +112,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     ...(evaluationEndpointEnabled ? { evaluationUseCase: pool } : {}),
     docsEnabled,
     corsAllowedOrigins,
+    apiAccessKeys,
   });
   const disposeShutdownSignalHandlers = installShutdownSignalHandlers({ app, pool, shutdownState });
   // `process.once`のSIGTERM/SIGINTリスナーは、シグナルが一度も
@@ -135,8 +137,15 @@ export async function bootstrap(): Promise<FastifyInstance> {
     throw error;
   }
   // `11_インフラストラクチャ設計.md`「ログイベント」サーバー起動行の最小field。
+  // `accessKeyLabels`は認証が有効な配備かを起動ログだけで確かめるため（空なら無効）。
+  // キー本体は載せない。
   app.log.info(
-    { catalogRevision: manifest.catalogRevision, workerMaxQueue, simulationTimeoutMs },
+    {
+      catalogRevision: manifest.catalogRevision,
+      workerMaxQueue,
+      simulationTimeoutMs,
+      accessKeyLabels: apiAccessKeys.map(({ label }) => label),
+    },
     "muvluvgg-battle-simulator started",
   );
   return app;

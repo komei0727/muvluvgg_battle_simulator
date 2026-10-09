@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fastifyCors from "@fastify/cors";
 
 // `10_API設計.md`「CORS」「許可methodはGET、POST、OPTIONS」「許可request headerは
-// Content-Type、Accept、X-Request-Id、If-None-Match」「公開response headerは
+// Content-Type、Accept、X-Request-Id、If-None-Match、Authorization」「公開response headerは
 // X-Request-Id、Retry-After、ETag」。
 export const CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"];
 export const CORS_ALLOWED_REQUEST_HEADERS = [
@@ -10,6 +10,7 @@ export const CORS_ALLOWED_REQUEST_HEADERS = [
   "Accept",
   "X-Request-Id",
   "If-None-Match",
+  "Authorization",
 ];
 export const CORS_EXPOSED_HEADERS = ["X-Request-Id", "Retry-After", "ETag"];
 // `11_インフラストラクチャ設計.md`「設定管理」`CORS_ALLOWED_ORIGINS`未設定時の
@@ -41,7 +42,7 @@ export const CORS_PREFLIGHT_RESPONSE_HEADERS_DOC = {
   "Access-Control-Allow-Methods": { type: "string", description: "GET, POST, OPTIONS." },
   "Access-Control-Allow-Headers": {
     type: "string",
-    description: "Content-Type, Accept, X-Request-Id, If-None-Match.",
+    description: "Content-Type, Accept, X-Request-Id, If-None-Match, Authorization.",
   },
 } as const;
 

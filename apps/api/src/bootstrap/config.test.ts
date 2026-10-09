@@ -279,4 +279,51 @@ describe("loadConfig — evaluation endpoint", () => {
   it("CFG-042: a zero evaluation limit throws instead of producing an endpoint that can never run", () => {
     expect(() => loadConfig(envWith({ EVALUATION_MAX_TOTAL_RUNS: "0" }))).toThrow(ConfigError);
   });
+
+  const KEY_A = "a".repeat(32);
+  const KEY_B = "b".repeat(44);
+
+  it("CFG-043: an unset API_ACCESS_KEYS yields no keys, leaving access-key authentication disabled", () => {
+    expect(loadConfig(envWith({})).apiAccessKeys).toEqual([]);
+  });
+
+  it("CFG-044: parses comma-separated label:key pairs, trimming each entry", () => {
+    expect(
+      loadConfig(envWith({ API_ACCESS_KEYS: ` alice:${KEY_A} , bob-2_x:${KEY_B} ` })).apiAccessKeys,
+    ).toEqual([
+      { label: "alice", key: KEY_A },
+      { label: "bob-2_x", key: KEY_B },
+    ]);
+  });
+
+  it.each([
+    ["an empty value", ""],
+    ["a whitespace-only value", "   "],
+    ["an empty entry", `alice:${KEY_A},,bob:${KEY_B}`],
+    ["an entry without a label separator", KEY_A],
+    ["an empty label", `:${KEY_A}`],
+    ["a label outside [a-z0-9_-]", `Alice:${KEY_A}`],
+    ["a label longer than 32 characters", `${"l".repeat(33)}:${KEY_A}`],
+    ["a key shorter than 32 characters", `alice:${"a".repeat(31)}`],
+    ["a key containing whitespace", `alice:${"a".repeat(16)} ${"a".repeat(16)}`],
+    ["a duplicated label", `alice:${KEY_A},alice:${KEY_B}`],
+    ["a duplicated key", `alice:${KEY_A},bob:${KEY_A}`],
+  ])(
+    "CFG-045: API_ACCESS_KEYS with %s throws ConfigError instead of silently weakening access control",
+    (_case, raw) => {
+      expect(() => loadConfig(envWith({ API_ACCESS_KEYS: raw }))).toThrow(ConfigError);
+    },
+  );
+
+  it("CFG-046: ConfigError messages never echo the API_ACCESS_KEYS secret material", () => {
+    const secret = "s".repeat(31);
+    let message = "";
+    try {
+      loadConfig(envWith({ API_ACCESS_KEYS: `alice:${secret}` }));
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("API_ACCESS_KEYS");
+    expect(message).not.toContain(secret);
+  });
 });

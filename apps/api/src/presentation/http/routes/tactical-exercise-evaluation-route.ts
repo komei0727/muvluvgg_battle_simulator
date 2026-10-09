@@ -31,6 +31,7 @@ export interface EvaluateTacticalExerciseCandidatesUseCasePort {
  */
 const ERROR_RESPONSES = {
   400: errorResponseSchema,
+  401: errorResponseSchema,
   404: errorResponseSchema,
   406: errorResponseSchema,
   413: errorResponseSchema,
