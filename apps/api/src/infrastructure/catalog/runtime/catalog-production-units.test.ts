@@ -614,7 +614,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-09.1` は `UNIT_MERU_BESIDE` のステータス調整（positionAptitudes へ BACK を
     // 追加、baseStats の HP・防御力と levelGrowth の HP・攻撃力・防御力）。Skill・Effect・
     // Memory は変えておらず、差分は `units.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-10-09.1");
+    // `2026-10-10.1` は新しい戦術演習敵 `UNIT_HIIRO_FREEWOLF_TEX`（破壊：榊野ヒイロ、
+    // Issue #719）の新規投入と、開催中を表す `exerciseActive` の付け替え（従来 true
+    // だった4件を false へ倒し、新ユニットだけを true にする）。
+    expect(catalog.catalogRevision).toBe("2026-10-10.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
