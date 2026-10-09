@@ -23,7 +23,7 @@ describe("useAccessKeyGate", () => {
     const { result } = renderHook(() => useAccessKeyGate());
 
     act(() => {
-      result.current.reportUnauthorized(undefined);
+      result.current.reportUnauthorized(result.current.generation);
     });
     expect(result.current.status).toBe("required");
 
@@ -34,7 +34,7 @@ describe("useAccessKeyGate", () => {
     expect(readStoredAccessKey()).toBe(KEY);
 
     act(() => {
-      result.current.reportUnauthorized(KEY);
+      result.current.reportUnauthorized(result.current.generation);
     });
     expect(result.current.status).toBe("rejected");
     // 再読込で同じ無効キーを送り続けないよう保存からは消す。画面上の状態は保ち、
@@ -59,26 +59,43 @@ describe("useAccessKeyGate", () => {
     expect(readStoredAccessKey()).toBeUndefined();
   });
 
-  it("UI-CT-160: a 401 for a key that is no longer current (a request started before the key was replaced) neither rejects nor forgets the new key", () => {
+  it("UI-CT-160: a 401 from a request sent under an older key generation (before the key was replaced) neither rejects nor forgets the new key", () => {
     const OLD_KEY = "o".repeat(40);
     writeStoredAccessKey(OLD_KEY);
     const { result } = renderHook(() => useAccessKeyGate());
+    const oldGeneration = result.current.generation;
 
     act(() => {
       result.current.submit(KEY);
     });
     act(() => {
-      result.current.reportUnauthorized(OLD_KEY);
+      result.current.reportUnauthorized(oldGeneration);
     });
     expect(result.current.status).toBe("unknown");
     expect(readStoredAccessKey()).toBe(KEY);
+  });
 
-    // キーなしで始まった古い要求の401も、キー保存後には無視する。
+  it("UI-CT-163: re-entering the same key starts a new generation, so a 401 from a request sent before the re-entry neither rejects nor forgets it", () => {
+    const { result } = renderHook(() => useAccessKeyGate());
     act(() => {
-      result.current.reportUnauthorized(undefined);
+      result.current.submit(KEY);
+    });
+    const firstGeneration = result.current.generation;
+    act(() => {
+      result.current.reportUnauthorized(firstGeneration);
+    });
+    expect(result.current.status).toBe("rejected");
+
+    act(() => {
+      result.current.submit(KEY);
+    });
+    expect(result.current.generation).not.toBe(firstGeneration);
+    act(() => {
+      result.current.reportUnauthorized(firstGeneration);
     });
     expect(result.current.status).toBe("unknown");
     expect(readStoredAccessKey()).toBe(KEY);
+    expect(result.current.keySaved).toBe(true);
   });
 
   it("UI-CT-161: keySaved is true only while the current key is stored, so a rejected key no longer counts as saved", () => {
@@ -91,7 +108,7 @@ describe("useAccessKeyGate", () => {
     expect(result.current.keySaved).toBe(true);
 
     act(() => {
-      result.current.reportUnauthorized(KEY);
+      result.current.reportUnauthorized(result.current.generation);
     });
     expect(result.current.keySaved).toBe(false);
   });

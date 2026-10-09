@@ -919,7 +919,7 @@ function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void
   return function Wrapper({ children }: { readonly children: ReactNode }) {
     return createElement(
       ApiAccessContext.Provider,
-      { value: { accessKey, onUnauthorized } },
+      { value: { accessKey, generation: 7, onUnauthorized } },
       children,
     );
   };
@@ -954,6 +954,6 @@ describe("useExerciseStatisticsRun — access key", () => {
     });
     expect(evaluateImpl.mock.calls[0]?.[1].accessKey).toBe("k".repeat(40));
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
-    expect(onUnauthorized).toHaveBeenCalledWith("k".repeat(40));
+    expect(onUnauthorized).toHaveBeenCalledWith(7);
   });
 });

@@ -53,8 +53,10 @@ export interface UseCatalogLoaderOptions {
    * Providerより上（Page）で行うため、contextではなく引数で受け取る。
    */
   readonly accessKey?: string;
-  /** 401を受けたときに、その要求で送ったキーを添えて呼ぶ。キー入力画面への誘導はPageが担う。 */
-  readonly onUnauthorized?: (sentAccessKey: string | undefined) => void;
+  /** キー設定の世代番号。変わると（同じキーの再入力を含む）取得し直す。既定は0。 */
+  readonly accessKeyGeneration?: number;
+  /** 401を受けたときに、その要求を送ったときの世代番号を添えて呼ぶ。 */
+  readonly onUnauthorized?: (sentGeneration: number) => void;
 }
 
 export interface UseCatalogLoaderResult {
@@ -69,7 +71,7 @@ export function useCatalogLoader(
   options: UseCatalogLoaderOptions = {},
 ): UseCatalogLoaderResult {
   const getCatalogImpl = options.getCatalogImpl ?? defaultGetCatalog;
-  const { accessKey, onUnauthorized } = options;
+  const { accessKey, accessKeyGeneration = 0, onUnauthorized } = options;
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
   const asyncRequest = useTokenedRequest();
 
@@ -94,7 +96,7 @@ export function useCatalogLoader(
 
         if (!result.ok) {
           if (result.error.kind === "UNAUTHORIZED") {
-            onUnauthorized?.(accessKey);
+            onUnauthorized?.(accessKeyGeneration);
           }
           dispatch({
             type: "failed",
@@ -124,7 +126,7 @@ export function useCatalogLoader(
         });
       });
     },
-    [baseUrl, getCatalogImpl, asyncRequest, accessKey, onUnauthorized],
+    [baseUrl, getCatalogImpl, asyncRequest, accessKey, accessKeyGeneration, onUnauthorized],
   );
 
   useEffect(() => {

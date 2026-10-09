@@ -288,7 +288,7 @@ function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void
   return function Wrapper({ children }: { readonly children: ReactNode }) {
     return createElement(
       ApiAccessContext.Provider,
-      { value: { accessKey, onUnauthorized } },
+      { value: { accessKey, generation: 7, onUnauthorized } },
       children,
     );
   };
@@ -319,6 +319,6 @@ describe("useFormationStatPreview — access key", () => {
       "k".repeat(40),
     );
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
-    expect(onUnauthorized).toHaveBeenCalledWith("k".repeat(40));
+    expect(onUnauthorized).toHaveBeenCalledWith(7);
   });
 });

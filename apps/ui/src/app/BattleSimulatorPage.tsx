@@ -57,28 +57,16 @@ export function BattleSimulatorPage({
   const catalogLoader = useCatalogLoader(apiBaseUrl, {
     ...(getCatalogImpl !== undefined ? { getCatalogImpl } : {}),
     ...(accessKeyGate.accessKey !== undefined ? { accessKey: accessKeyGate.accessKey } : {}),
+    accessKeyGeneration: accessKeyGate.generation,
     onUnauthorized: accessKeyGate.reportUnauthorized,
   });
   const apiAccess = useMemo<ApiAccess>(
     () => ({
       accessKey: accessKeyGate.accessKey,
+      generation: accessKeyGate.generation,
       onUnauthorized: accessKeyGate.reportUnauthorized,
     }),
-    [accessKeyGate.accessKey, accessKeyGate.reportUnauthorized],
-  );
-  const { submit: submitAccessKey } = accessKeyGate;
-  const { reload: reloadCatalog } = catalogLoader;
-  // キーが変わればCatalog取得は依存の変化で走り直す。同じキーの再送信（誤入力を
-  // そのまま入れ直した等）は依存が変わらないため、明示的に取得し直す。
-  const handleAccessKeySubmit = useCallback(
-    (key: string) => {
-      const unchanged = key.trim() === accessKeyGate.accessKey;
-      submitAccessKey(key);
-      if (unchanged) {
-        reloadCatalog();
-      }
-    },
-    [accessKeyGate.accessKey, submitAccessKey, reloadCatalog],
+    [accessKeyGate.accessKey, accessKeyGate.generation, accessKeyGate.reportUnauthorized],
   );
   // UI-AC-018: 戦術演習を既定モードにする。
   const [mode, setMode] = useState<BattleMode>("exercise");
@@ -113,7 +101,7 @@ export function BattleSimulatorPage({
     >
       {accessKeyGate.status !== "unknown" ? (
         <Panel step="00" title="API接続" meta="ACCESS KEY">
-          <AccessKeyForm status={accessKeyGate.status} onSubmit={handleAccessKeySubmit} />
+          <AccessKeyForm status={accessKeyGate.status} onSubmit={accessKeyGate.submit} />
         </Panel>
       ) : null}
       <ApiAccessContext.Provider value={apiAccess}>

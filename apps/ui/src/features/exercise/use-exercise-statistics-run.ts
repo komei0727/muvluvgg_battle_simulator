@@ -344,7 +344,7 @@ export function useExerciseStatisticsRun(
   const { evaluateImpl = defaultEvaluate, timeoutMs, chunkSize = EVALUATION_CHUNK_SIZE } = options;
   const [state, dispatch] = useReducer(statisticsRunReducer, undefined, createInitialState);
   const asyncRequest = useAbortableRequest<string>();
-  const { accessKey, onUnauthorized } = useApiAccess();
+  const { accessKey, generation, onUnauthorized } = useApiAccess();
 
   const start = useCallback(
     (input: StatisticsRunInput) => {
@@ -466,7 +466,7 @@ export function useExerciseStatisticsRun(
               return;
             }
             if (result.error.kind === "UNAUTHORIZED") {
-              onUnauthorized(accessKey);
+              onUnauthorized(generation);
             }
             dispatch({ type: "runFailed", runId, error: classifyFailure(result) });
             return;
@@ -521,7 +521,16 @@ export function useExerciseStatisticsRun(
         finish(results, false);
       })();
     },
-    [baseUrl, evaluateImpl, timeoutMs, chunkSize, asyncRequest, accessKey, onUnauthorized],
+    [
+      baseUrl,
+      evaluateImpl,
+      timeoutMs,
+      chunkSize,
+      asyncRequest,
+      accessKey,
+      generation,
+      onUnauthorized,
+    ],
   );
 
   const cancel = useCallback(() => {

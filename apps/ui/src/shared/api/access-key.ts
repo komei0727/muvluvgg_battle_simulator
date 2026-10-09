@@ -28,15 +28,18 @@ export function removeStoredAccessKey(): void {
  */
 export interface ApiAccess {
   readonly accessKey: string | undefined;
+  /** キー設定の世代番号。要求を送るときに控え、401の通知へそのまま添える。 */
+  readonly generation: number;
   /**
-   * 401を受けたhookが、その要求で送ったキー（送らなかったなら`undefined`）を添えて呼ぶ。
-   * 応答を待つ間にキーが差し替わっていれば、Page側でその401を無視する。
+   * 401を受けたhookが、その要求を送ったときの`generation`を添えて呼ぶ。応答を待つ間に
+   * キーが設定し直されていれば（同じキーの再入力を含む）、Page側でその401を無視する。
    */
-  readonly onUnauthorized: (sentAccessKey: string | undefined) => void;
+  readonly onUnauthorized: (sentGeneration: number) => void;
 }
 
 const NO_ACCESS_KEY: ApiAccess = {
   accessKey: undefined,
+  generation: 0,
   onUnauthorized: () => {},
 };
 

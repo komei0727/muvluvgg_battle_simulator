@@ -259,7 +259,7 @@ describe("useCatalogLoader", () => {
 });
 
 describe("useCatalogLoader — access key", () => {
-  it("UI-API-044: sends the given access key, reports a 401, and refetches when the key changes", async () => {
+  it("UI-API-044: sends the given access key, reports a 401 with its generation, and refetches when the generation changes (including a re-entered identical key)", async () => {
     const onUnauthorized = vi.fn();
     const getCatalogImpl = vi.fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>(
       (options) =>
@@ -280,28 +280,36 @@ describe("useCatalogLoader — access key", () => {
     );
 
     const { result, rerender } = renderHook(
-      ({ accessKey }: { accessKey: string | undefined }) =>
+      ({ accessKey, generation }: { accessKey: string | undefined; generation: number }) =>
         useCatalogLoader("https://api.example.com", {
           getCatalogImpl,
           ...(accessKey !== undefined ? { accessKey } : {}),
+          accessKeyGeneration: generation,
           onUnauthorized,
         }),
-      { initialProps: { accessKey: undefined as string | undefined } },
+      { initialProps: { accessKey: undefined as string | undefined, generation: 0 } },
     );
 
     await waitFor(() => {
       expect(result.current.state.status).toBe("failed");
     });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
-    expect(onUnauthorized).toHaveBeenCalledWith(undefined);
+    expect(onUnauthorized).toHaveBeenCalledWith(0);
     expect(getCatalogImpl.mock.calls[0]?.[0].accessKey).toBeUndefined();
 
-    rerender({ accessKey: "good-key" });
+    rerender({ accessKey: "good-key", generation: 1 });
 
     await waitFor(() => {
       expect(result.current.state.status).toBe("ready");
     });
     expect(getCatalogImpl.mock.calls.at(-1)?.[0].accessKey).toBe("good-key");
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+
+    // 同じキーでも世代が進めば取得し直す。
+    const callsBefore = getCatalogImpl.mock.calls.length;
+    rerender({ accessKey: "good-key", generation: 2 });
+    await waitFor(() => {
+      expect(getCatalogImpl.mock.calls.length).toBe(callsBefore + 1);
+    });
   });
 });

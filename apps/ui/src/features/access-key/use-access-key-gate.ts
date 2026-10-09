@@ -14,17 +14,23 @@ export type AccessKeyStatus = "unknown" | "required" | "rejected";
 
 export interface AccessKeyGate {
   readonly accessKey: string | undefined;
+  /**
+   * キーを保存・再設定するたびに進む世代番号。同じキーを入れ直しても進むため、
+   * 要求がどのキー設定の下で送られたかをキー文字列より厳密に区別できる。
+   */
+  readonly generation: number;
   readonly status: AccessKeyStatus;
   /** 現在のキーが保存されているか。拒否されたキーは保存から消えるため含まない。 */
   readonly keySaved: boolean;
   readonly submit: (key: string) => void;
   readonly reset: () => void;
-  /** 401を受けた要求で送ったキー（送らなかったなら`undefined`）を渡す。 */
-  readonly reportUnauthorized: (sentAccessKey: string | undefined) => void;
+  /** 401を受けた要求が送信時に持っていた世代番号を渡す。 */
+  readonly reportUnauthorized: (sentGeneration: number) => void;
 }
 
 interface GateState {
   readonly accessKey: string | undefined;
+  readonly generation: number;
   readonly status: AccessKeyStatus;
 }
 
@@ -36,40 +42,50 @@ interface GateState {
 export function useAccessKeyGate(): AccessKeyGate {
   const [state, setState] = useState<GateState>(() => ({
     accessKey: readStoredAccessKey(),
+    generation: 0,
     status: "unknown",
   }));
 
   const submit = useCallback((key: string) => {
     const trimmed = key.trim();
     writeStoredAccessKey(trimmed);
-    setState({ accessKey: trimmed, status: "unknown" });
+    setState((current) => ({
+      accessKey: trimmed,
+      generation: current.generation + 1,
+      status: "unknown",
+    }));
   }, []);
 
   const reset = useCallback(() => {
     removeStoredAccessKey();
-    setState({ accessKey: undefined, status: "unknown" });
+    setState((current) => ({
+      accessKey: undefined,
+      generation: current.generation + 1,
+      status: "unknown",
+    }));
   }, []);
 
   // 無効なキーは保存から消すが、画面上の`accessKey`は保つ。ここで`undefined`へ
   // 戻すとキーに依存する取得が走り直し、同じ401をもう一度受けるだけになる。
   //
-  // 戦闘・統計実行はキーの差し替えで中断されないため、差し替え前のキーで始めた要求の
-  // 401が後から届き得る。送ったキーが現在のキーと異なる401は、新しいキーについて何も
-  // 示さないので無視する（新しいキーを消さない）。
-  const reportUnauthorized = useCallback((sentAccessKey: string | undefined) => {
+  // 戦闘・統計実行はキーの差し替えで中断されないため、差し替え前に始めた要求の401が
+  // 後から届き得る。同じキーを入れ直した場合も含め、送信時の世代が現在と異なる401は
+  // 今のキー設定について何も示さないので無視する（保存値も消さない）。
+  const reportUnauthorized = useCallback((sentGeneration: number) => {
     setState((current) => {
-      if (sentAccessKey !== current.accessKey) {
+      if (sentGeneration !== current.generation) {
         return current;
       }
+      // 世代の照合には最新のstateが要るため、保存値の削除もupdater内で行う。削除は
+      // 冪等なので、StrictModeでupdaterが2回呼ばれても結果は変わらない。
+      if (current.accessKey !== undefined) {
+        removeStoredAccessKey();
+      }
       return {
-        accessKey: current.accessKey,
+        ...current,
         status: current.accessKey === undefined ? "required" : "rejected",
       };
     });
-    // 保存値も、送ったキーそのものが残っている場合だけ消す。
-    if (sentAccessKey !== undefined && readStoredAccessKey() === sentAccessKey) {
-      removeStoredAccessKey();
-    }
   }, []);
 
   const keySaved = state.accessKey !== undefined && state.status !== "rejected";

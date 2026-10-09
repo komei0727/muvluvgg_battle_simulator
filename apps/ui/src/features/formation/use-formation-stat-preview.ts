@@ -90,7 +90,7 @@ export function useFormationStatPreview(
   const enabled = options.enabled ?? true;
   const [state, setState] = useState<FormationStatPreviewState>({ status: "unavailable" });
   const asyncRequest = useTokenedRequest();
-  const { accessKey, onUnauthorized } = useApiAccess();
+  const { accessKey, generation, onUnauthorized } = useApiAccess();
 
   // 送る内容（リクエストと枠の対応表）そのものをeffectの依存にする。オブジェクト
   // 参照は毎レンダー変わり、レンダー中にrefへ写す方式は並行レンダリング下で
@@ -133,7 +133,7 @@ export function useFormationStatPreview(
       }
       if (!result.ok) {
         if (result.error.kind === "UNAUTHORIZED") {
-          onUnauthorized(accessKey);
+          onUnauthorized(generation);
         }
         setState({ status: "failed" });
         return;
@@ -147,7 +147,7 @@ export function useFormationStatPreview(
     return () => {
       asyncRequest.abort();
     };
-  }, [payloadKey, baseUrl, previewImpl, asyncRequest, accessKey, onUnauthorized]);
+  }, [payloadKey, baseUrl, previewImpl, asyncRequest, accessKey, generation, onUnauthorized]);
 
   return state;
 }

@@ -99,7 +99,7 @@ X-Request-Id: ui-<UUID>
 - `Content-Type`と`Accept`を明示する。
 - UIでUUIDを生成できる場合は `X-Request-Id` を付ける。生成失敗時は省略し、サーバー生成に任せる。
 - CookieやHTTP credentialを送らない。`fetch`の `credentials` は `omit` とする。
-- アクセスキーを保存している場合だけ、全エンドポイントへ `Authorization: Bearer <key>` を付ける（`10_API設計.md`「認証」）。キーはGitHub Pagesのbundleへ埋め込まず、利用者が入力したものを `mlgg:access-key` にだけ保存する。API呼び出しを持つfeature hookは `shared/api/access-key.ts` の `ApiAccessContext` からキーと401の通知先を受け取る。一覧APIはProviderより上（Page）で取得するため、`useCatalogLoader` には引数で渡す。キーが変われば一覧を取得し直す。
+- アクセスキーを保存している場合だけ、全エンドポイントへ `Authorization: Bearer <key>` を付ける（`10_API設計.md`「認証」）。キーはGitHub Pagesのbundleへ埋め込まず、利用者が入力したものを `mlgg:access-key` にだけ保存する。API呼び出しを持つfeature hookは `shared/api/access-key.ts` の `ApiAccessContext` からキーと401の通知先を受け取る。一覧APIはProviderより上（Page）で取得するため、`useCatalogLoader` には引数で渡す。キーを設定し直すたびに進む世代番号も配り、各要求は送信時の世代を401の通知へ添える。世代が変われば一覧を取得し直す。
 - 一覧GETはHTTP cache/ETagを利用し、戦闘POSTは `cache: "no-store"` とする。
 - 自動retryしない。戦闘は冪等ではなく、同じ条件でも別結果になり得る。
 - 一覧GETの失敗にも自動無限retryを行わず、利用者の手動再読込を提供する。
@@ -850,5 +850,5 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-041`: 戦闘・演習の単一実行がcontextのキーを送り、401を通知する。
 - `UI-API-042`: ステータスプレビューがcontextのキーを送り、401を通知する。
 - `UI-API-043`: 統計実行がcontextのキーを送り、401を通知する。
-- `UI-API-044`: 一覧APIが引数のキーを送り、401を通知し、キーの変化で取得し直す。
-- `UI-API-045`: 401の通知には、その要求で送ったキーを添える（応答待ちの間にキーが差し替わっても、送信時のキーを報告する）。
+- `UI-API-044`: 一覧APIが引数のキーを送り、401を世代番号付きで通知し、世代の変化（同じキーの再入力を含む）で取得し直す。
+- `UI-API-045`: 401の通知には、その要求を送ったときの世代番号を添える（応答待ちの間に同じキーが入れ直されても、送信時の世代を報告する）。

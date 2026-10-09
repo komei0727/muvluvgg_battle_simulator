@@ -86,7 +86,7 @@ export function useSimulationExecution<
     createInitialExecutionState<TRequest, TResponse>,
   );
   const asyncRequest = useAbortableRequest<string>();
-  const { accessKey, onUnauthorized } = useApiAccess();
+  const { accessKey, generation, onUnauthorized } = useApiAccess();
 
   const submit = useCallback(
     (input: SubmitInput<TRequest>) => {
@@ -130,7 +130,7 @@ export function useSimulationExecution<
           return;
         }
         if (result.error.kind === "UNAUTHORIZED") {
-          onUnauthorized(accessKey);
+          onUnauthorized(generation);
         }
         dispatch({
           type: "submissionFailed",
@@ -140,7 +140,7 @@ export function useSimulationExecution<
         });
       });
     },
-    [baseUrl, simulateImpl, options.timeoutMs, asyncRequest, accessKey, onUnauthorized],
+    [baseUrl, simulateImpl, options.timeoutMs, asyncRequest, accessKey, generation, onUnauthorized],
   );
 
   const cancel = useCallback(() => {

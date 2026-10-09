@@ -249,7 +249,7 @@ function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void
   return function Wrapper({ children }: { readonly children: ReactNode }) {
     return createElement(
       ApiAccessContext.Provider,
-      { value: { accessKey, onUnauthorized } },
+      { value: { accessKey, generation: 7, onUnauthorized } },
       children,
     );
   };
@@ -286,25 +286,26 @@ describe("useSimulationExecution — access key", () => {
       expect(result.current.state.status).toBe("failed");
     });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
-    expect(onUnauthorized).toHaveBeenCalledWith("k".repeat(40));
+    expect(onUnauthorized).toHaveBeenCalledWith(7);
   });
 });
 
 describe("useSimulationExecution — access key replaced mid-flight", () => {
-  it("UI-API-045: reports the key the request was sent with, not the key current when the 401 arrives", async () => {
+  it("UI-API-045: reports the key generation the request was sent under, even when the same key was re-entered before the 401 arrived", async () => {
     const onUnauthorized = vi.fn();
     const pending = deferred<SimulationApiResult>();
     const simulateImpl = vi.fn<
       (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
     >(() => pending.promise);
-    let accessKey = "o".repeat(40);
+    const accessKey = "k".repeat(40);
+    let generation = 1;
     const { result, rerender } = renderHook(
       () => useSimulationExecution("https://api.example.com", { simulateImpl }),
       {
         wrapper: ({ children }: { readonly children: ReactNode }) =>
           createElement(
             ApiAccessContext.Provider,
-            { value: { accessKey, onUnauthorized } },
+            { value: { accessKey, generation, onUnauthorized } },
             children,
           ),
       },
@@ -313,7 +314,8 @@ describe("useSimulationExecution — access key replaced mid-flight", () => {
     act(() => {
       result.current.submit(submitInput());
     });
-    accessKey = "n".repeat(40);
+    // 同じキーの再入力でも世代は進む。キー文字列では古い要求と区別できない。
+    generation = 2;
     rerender();
     pending.resolve({
       ok: false,
@@ -324,6 +326,6 @@ describe("useSimulationExecution — access key replaced mid-flight", () => {
     await waitFor(() => {
       expect(result.current.state.status).toBe("failed");
     });
-    expect(onUnauthorized).toHaveBeenCalledWith("o".repeat(40));
+    expect(onUnauthorized).toHaveBeenCalledWith(1);
   });
 });
