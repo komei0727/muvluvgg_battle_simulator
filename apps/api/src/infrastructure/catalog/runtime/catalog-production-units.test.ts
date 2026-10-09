@@ -617,7 +617,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-10.1` は新しい戦術演習敵 `UNIT_HIIRO_FREEWOLF_TEX`（破壊：榊野ヒイロ、
     // Issue #719）の新規投入と、開催中を表す `exerciseActive` の付け替え（従来 true
     // だった4件を false へ倒し、新ユニットだけを true にする）。
-    expect(catalog.catalogRevision).toBe("2026-10-10.1");
+    // `2026-10-10.2` は新しい戦術演習敵 `UNIT_OLGA_NADYA_BOND_TEX`（破壊：オルガ＆
+    // ナージャ、Issue #721）の新規投入と、`exerciseActive` の付け替え
+    // （`UNIT_HIIRO_FREEWOLF_TEX` を false へ倒し、新ユニットだけを true にする）。
+    expect(catalog.catalogRevision).toBe("2026-10-10.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
