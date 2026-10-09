@@ -16,7 +16,14 @@ CURRENT_SERVICE_JSON="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-current-servi
 DESCRIBE_STDERR="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-describe-stderr.XXXXXX")"
 trap 'rm -f "$RENDERED_MANIFEST" "$CURRENT_SERVICE_JSON" "$DESCRIBE_STDERR"' EXIT
 
-REVISION_SUFFIX="${REVISION_SUFFIX:-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)}"
+DEFAULT_REVISION_SUFFIX="$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)"
+# 同じcommitの再実行でも新しいrevisionを作る。名前が同じだとCloud Runは既存の
+# （起動に失敗したものを含む）revisionを返すだけで、修正したsecretを読み直さない。
+# 最後に作られたrevisionは削除もできないため、名前を変えないと復旧できない。
+if [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then
+  DEFAULT_REVISION_SUFFIX="${DEFAULT_REVISION_SUFFIX}-a${GITHUB_RUN_ATTEMPT}"
+fi
+REVISION_SUFFIX="${REVISION_SUFFIX:-$DEFAULT_REVISION_SUFFIX}"
 REVISION_NAME="${SERVICE}-${REVISION_SUFFIX}"
 TRAFFIC_TAG="${TRAFFIC_TAG:-candidate}"
 
