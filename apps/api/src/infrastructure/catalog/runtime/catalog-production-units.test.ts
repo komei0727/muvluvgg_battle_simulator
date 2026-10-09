@@ -620,7 +620,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-10.2` は新しい戦術演習敵 `UNIT_OLGA_NADYA_BOND_TEX`（破壊：オルガ＆
     // ナージャ、Issue #721）の新規投入と、`exerciseActive` の付け替え
     // （`UNIT_HIIRO_FREEWOLF_TEX` を false へ倒し、新ユニットだけを true にする）。
-    expect(catalog.catalogRevision).toBe("2026-10-10.2");
+    // `2026-10-10.3` は新しい戦術演習敵 `UNIT_NANAE_SOVEREIGN_TEX`（破壊：鳴滝七彩、
+    // Issue #725）の新規投入と、`exerciseActive` の付け替え
+    // （`UNIT_OLGA_NADYA_BOND_TEX` を false へ倒し、新ユニットだけを true にする）。
+    expect(catalog.catalogRevision).toBe("2026-10-10.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

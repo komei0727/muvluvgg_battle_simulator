@@ -166,6 +166,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_HIIRO_FREEWOLF_TEX",
         // Issue #721: 戦術演習敵ユニット追加: 破壊：オルガ＆ナージャ
         "UNIT_OLGA_NADYA_BOND_TEX",
+        // Issue #725: 戦術演習敵ユニット追加: 破壊：鳴滝七彩
+        "UNIT_NANAE_SOVEREIGN_TEX",
       ].sort(),
     );
   });
