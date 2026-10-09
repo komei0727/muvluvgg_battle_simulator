@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_LAYLA_NURSE_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "CUTE",
   "unitType": "AGILE",
   "role": "CONTROL",

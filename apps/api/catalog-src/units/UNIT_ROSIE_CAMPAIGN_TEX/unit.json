@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_ROSIE_CAMPAIGN_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "AGGRESSIVE",
   "unitType": "AGILE",
   "role": "SUPPORT",

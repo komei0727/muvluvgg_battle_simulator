@@ -1,0 +1,29 @@
+{
+  "unitDefinitionId": "UNIT_HIIRO_FREEWOLF_TEX",
+  "category": "EXERCISE_ENEMY",
+  "exerciseActive": true,
+  "attribute": "AGGRESSIVE",
+  "unitType": "AGILE",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 371172,
+    "attack": 9991,
+    "defense": 6058,
+    "criticalRate": 0.18,
+    "actionSpeed": 707,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_HIIRO_FREEWOLF_TEX_AS1", "SKL_HIIRO_FREEWOLF_TEX_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_HIIRO_FREEWOLF_TEX_PS1", "SKL_HIIRO_FREEWOLF_TEX_PS2"],
+  "extraSkillDefinitionId": "SKL_HIIRO_FREEWOLF_TEX_EX",
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【疾走する自由の孤狼】榊野ヒイロ",
+    "characterName": "榊野ヒイロ",
+    "characterId": "CHAR_HIIRO_SAKAKINO"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_SHIRANA_LUCKY_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "SMART",
   "unitType": "PHYSICAL",
   "role": "TANK",
