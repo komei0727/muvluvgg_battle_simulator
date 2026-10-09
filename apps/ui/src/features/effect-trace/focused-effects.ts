@@ -10,7 +10,13 @@
 // - `ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH`（【心色見つめるムードメーカー】エレーナ・
 //   パステルコワ EX）は`HIGHEST_ATTACK`で味方を選ぶため、高火力キャラへ乗ったかで
 //   スコアが変わる。
+// - `ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW`（同 EX）は`LOWEST_ATTACK`で味方を選ぶため、
+//   どの味方へ乗ったかでスコアが変わる。
+// - `ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP`（【隣歩む想い】桃園める、与ダメージ+10%）は
+//   累計与ダメージ1位または攻撃力1位の味方へ付与されるため、誰へ乗ったかでスコアが変わる。
 export const FOCUSED_EFFECT_ACTION_DEFINITION_IDS: readonly string[] = [
   "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
   "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH",
+  "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW",
+  "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP",
 ];
