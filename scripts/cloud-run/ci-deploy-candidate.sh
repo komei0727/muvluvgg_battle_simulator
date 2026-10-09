@@ -16,15 +16,12 @@ CURRENT_SERVICE_JSON="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-current-servi
 DESCRIBE_STDERR="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cloud-run-describe-stderr.XXXXXX")"
 trap 'rm -f "$RENDERED_MANIFEST" "$CURRENT_SERVICE_JSON" "$DESCRIBE_STDERR"' EXIT
 
-DEFAULT_REVISION_SUFFIX="$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)"
-# 同じcommitの再実行でも新しいrevisionを作る。名前が同じだとCloud Runは既存の
-# （起動に失敗したものを含む）revisionを返すだけで、修正したsecretを読み直さない。
-# 最後に作られたrevisionは削除もできないため、名前を変えないと復旧できない。
-if [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then
-  DEFAULT_REVISION_SUFFIX="${DEFAULT_REVISION_SUFFIX}-a${GITHUB_RUN_ATTEMPT}"
-fi
-REVISION_SUFFIX="${REVISION_SUFFIX:-$DEFAULT_REVISION_SUFFIX}"
-REVISION_NAME="${SERVICE}-${REVISION_SUFFIX}"
+# 再実行（-a<回数>）と手動再deploy（DEPLOY_TRIGGER=redeploy、-r<実行番号>）では
+# 必ず別の名前にする。名前が同じだとCloud Runは既存の（起動に失敗したものを
+# 含む）revisionを返すだけで、更新したsecretを読み直さない（revision-name.ts）。
+REVISION_NAME="$(COMMIT_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)" SERVICE="$SERVICE" \
+  mise exec -- pnpm --filter api exec tsx \
+  "$REPO_ROOT/apps/api/src/infrastructure/deploy/resolve-revision-name-cli.ts")"
 TRAFFIC_TAG="${TRAFFIC_TAG:-candidate}"
 
 print_deploy_context
