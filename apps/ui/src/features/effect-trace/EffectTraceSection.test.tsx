@@ -12,6 +12,8 @@ import type {
 
 const SUIRAN_DEBUFF = "ACT_SUIRAN_CHAOS_AS1_DEBUFF";
 const ELENA_BUFF = "ACT_ELENA_MOODMAKER_EX_ATK_UP_HIGH";
+const ELENA_LOW_BUFF = "ACT_ELENA_MOODMAKER_EX_ATK_UP_LOW";
+const MERU_BUFF = "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP";
 const OTHER_EFFECT = "ACT_OTHER_MINOR_BUFF";
 
 const roster = buildRosterIndex([
@@ -207,22 +209,46 @@ function detailRows(): readonly HTMLElement[] {
 }
 
 describe("EffectTraceSection", () => {
-  // UI-AC-045: 注目効果2件が初期選択であり、プリセット外はログにあっても最初は出ない。
-  it("UI-CT-095: opens with the two focused effects selected and the rest available but unselected", () => {
-    render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
+  // UI-AC-045: 注目効果プリセットが初期選択であり、プリセット外はログにあっても最初は出ない。
+  it("UI-CT-095: opens with the focused effects selected and the rest available but unselected", () => {
+    const events = [
+      ...EVENTS.slice(0, 4),
+      grant(
+        14,
+        1,
+        {
+          effectInstanceId: "ei-elena-low",
+          effectActionDefinitionId: ELENA_LOW_BUFF,
+          targetUnitId: "bu-ally-3",
+        },
+        { sourceUnitId: "bu-ally-2" },
+      ),
+      grant(
+        15,
+        1,
+        {
+          effectInstanceId: "ei-meru",
+          effectActionDefinitionId: MERU_BUFF,
+          targetUnitId: "bu-ally-1",
+        },
+        { sourceUnitId: "bu-ally-2" },
+      ),
+      ...EVENTS.slice(4),
+    ];
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
 
-    const suiran = screen.getByRole("checkbox", { name: SUIRAN_DEBUFF });
-    const elena = screen.getByRole("checkbox", { name: ELENA_BUFF });
-    const other = screen.getByRole("checkbox", { name: OTHER_EFFECT });
-    expect(suiran).toBeChecked();
-    expect(elena).toBeChecked();
-    expect(other).not.toBeChecked();
+    for (const focused of [SUIRAN_DEBUFF, ELENA_BUFF, ELENA_LOW_BUFF, MERU_BUFF]) {
+      expect(screen.getByRole("checkbox", { name: focused })).toBeChecked();
+    }
+    expect(screen.getByRole("checkbox", { name: OTHER_EFFECT })).not.toBeChecked();
 
     const rows = detailRows();
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(4);
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining(SUIRAN_DEBUFF),
       expect.stringContaining(ELENA_BUFF),
+      expect.stringContaining(ELENA_LOW_BUFF),
+      expect.stringContaining(MERU_BUFF),
     ]);
   });
 
