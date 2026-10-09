@@ -9,7 +9,10 @@ import { describe, expect, it } from "vitest";
 
 interface EnvVar {
   readonly name: string;
-  readonly value: string;
+  readonly value?: string;
+  readonly valueFrom?: {
+    readonly secretKeyRef?: { readonly name: string; readonly key: string };
+  };
 }
 
 interface HttpProbe {
@@ -225,5 +228,18 @@ describe("Cloud Run service manifest", () => {
     // ローカルの分析ツール向けの実行系であり、公開インスタンスでは開かない。
     // 既定値はコード側でも false だが、意図を manifest 側にも残して固定する。
     expect(envValue(loadManifest(), "EVALUATION_ENDPOINT_ENABLED")).toBe("false");
+  });
+
+  it("IT-INFRA-CLOUDRUN-020 (10_API設計.md「認証」): injects API_ACCESS_KEYS from the Secret Manager secret instead of a plain value, so production never starts with access-key authentication disabled and the keys never live in the repository", () => {
+    const manifest = loadManifest();
+    const entries = manifest.spec.template.spec.containers[0]?.env.filter(
+      (entry) => entry.name === "API_ACCESS_KEYS",
+    );
+    expect(entries).toEqual([
+      {
+        name: "API_ACCESS_KEYS",
+        valueFrom: { secretKeyRef: { name: "api-access-keys", key: "latest" } },
+      },
+    ]);
   });
 });

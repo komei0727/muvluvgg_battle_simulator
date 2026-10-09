@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { liveAuthorizationHeaders, seedLiveAccessKey } from "./support/access-key.js";
 import { LIVE_CATALOG_URL } from "./support/constants.js";
 import { fillMinimalLiveFormation } from "./support/formation.js";
 
@@ -13,13 +14,19 @@ import { fillMinimalLiveFormation } from "./support/formation.js";
 test("runs a minimal live battle and shows a Catalog-revision-consistent, traceable result", async ({
   page,
 }) => {
+  await seedLiveAccessKey(page);
   await page.goto("./");
 
-  const catalogRevision = await page.evaluate(async (url) => {
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    const body = (await response.json()) as { catalogRevision: string };
-    return body.catalogRevision;
-  }, LIVE_CATALOG_URL);
+  const catalogRevision = await page.evaluate(
+    async ({ url, authorization }) => {
+      const response = await fetch(url, {
+        headers: { Accept: "application/json", ...authorization },
+      });
+      const body = (await response.json()) as { catalogRevision: string };
+      return body.catalogRevision;
+    },
+    { url: LIVE_CATALOG_URL, authorization: liveAuthorizationHeaders() },
+  );
   expect(catalogRevision.length).toBeGreaterThan(0);
 
   await fillMinimalLiveFormation(page);

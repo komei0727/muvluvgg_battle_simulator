@@ -1467,8 +1467,8 @@ APIを特定の利用者だけに使わせるため、利用者ごとに発行�
 - クライアントは `Authorization: Bearer <key>` を送る。auth-schemeの大文字小文字は区別しない。
 - 欠落・不一致・`Bearer` 以外のschemeは `401 UNAUTHORIZED` とし、`WWW-Authenticate: Bearer` を付ける（OpenAPIでも401のresponse headerとして文書化する）。認証は `Accept` 判定（406）より先に行い、未認証requestへは `Accept` に関わらず401を返す。存在しないpathもroutingより前に401とし、エンドポイントの有無を明かさない。
 - 401は共通の `ErrorResponse` で返し、許可originならCORS headerを付ける（UIがキー入力へ誘導できるようにする）。
-- 有効なキーの集合は配備設定 `API_ACCESS_KEYS`（`11_インフラストラクチャ設計.md`「設定項目」）が持つ。未設定の配備では認証を行わない。
-- キーにはラベルを付け、認証に通ったrequestのログへラベルを載せる。キー本体はログ・エラー本文のどちらにも出さない。
+- 有効なキーの集合は配備設定 `API_ACCESS_KEYS`（`11_インフラストラクチャ設計.md`「設定項目」）が持つ。未設定の配備では認証を行わない。productionはSecret Managerから注入する（同「アクセスキーの保管」）。
+- キーにはラベルを付け、認証に通ったrequestのログへラベルと一致したroute pattern（`url`）を載せる。キー本体はログ・エラー本文のどちらにも出さない。
 - OpenAPIでは `accessKey`（HTTP bearer）security schemeとして全 `/api/v1/*` operationへ宣言する。認証が無効な配備でも公開文書の形は変えない。
 
 ### CORS

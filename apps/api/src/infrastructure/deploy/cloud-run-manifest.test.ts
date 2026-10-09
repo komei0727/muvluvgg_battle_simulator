@@ -83,6 +83,25 @@ describe("renderCloudRunManifest", () => {
     );
   });
 
+  it("IT-INFRA-CICD-023: keeps a secret-backed env entry (valueFrom.secretKeyRef) intact, so CI deploys still inject API_ACCESS_KEYS", () => {
+    const template = minimalTemplate();
+    const secretEnv = {
+      name: "API_ACCESS_KEYS",
+      valueFrom: { secretKeyRef: { name: "api-access-keys", key: "latest" } },
+    };
+    template.spec.template.spec.containers[0] = { image: "placeholder:latest", env: [secretEnv] };
+
+    const rendered = renderCloudRunManifest({
+      template,
+      image: "img:tag",
+      revisionName: "muvluvgg-battle-simulator-api-abc123",
+      traffic: [{ revisionName: "muvluvgg-battle-simulator-api-abc123", percent: 100 }],
+      serviceAccountName: "battle-sim-api-runtime@p.iam.gserviceaccount.com",
+    });
+
+    expect(rendered.spec.template.spec.containers[0]?.["env"]).toEqual([secretEnv]);
+  });
+
   it("IT-INFRA-CICD-004: does not mutate the input template", () => {
     const template = minimalTemplate();
     const snapshot = JSON.parse(JSON.stringify(template)) as KnativeServiceManifest;

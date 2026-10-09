@@ -72,6 +72,7 @@ jobs:
         env:
           LIVE_PAGES_URL: https://komei0727.github.io/muvluvgg_battle_simulator/
           LIVE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          LIVE_API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
           LIVE_SMOKE_RETRIES: "0"
 
       # `apps/api/src/bootstrap/index.ts`が`listen()`直後に1回だけ出す

@@ -5,22 +5,23 @@
 configuration described in
 [`docs/ddd/11_インフラストラクチャ設計.md`](../../docs/ddd/11_インフラストラクチャ設計.md#m45-cloud-run初期設定)。
 
-| フィールド                                              | 値                                                    | 対応する設計値                                             |
-| ------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------- |
-| `metadata.name`                                         | `muvluvgg-battle-simulator-api`                       | Service name                                               |
-| `metadata.annotations["run.googleapis.com/ingress"]`    | `all`                                                 | Ingress                                                    |
-| `spec.template.metadata.annotations[...minScale]`       | `0`                                                   | Minimum instances                                          |
-| `spec.template.metadata.annotations[...maxScale]`       | `1`                                                   | Maximum instances                                          |
-| `spec.template.metadata.annotations[...cpu-throttling]` | `true`                                                | Billing: request-based                                     |
-| `spec.template.spec.containerConcurrency`               | `2`                                                   | Container concurrency                                      |
-| `spec.template.spec.timeoutSeconds`                     | `40`                                                  | Request timeout                                            |
-| `containers[0].resources.limits.cpu`/`memory`           | `1`/`1Gi`                                             | CPU／Memory                                                |
-| `containers[0].env[WORKER_MAX_QUEUE]`                   | `1`                                                   | `WORKER_MAX_QUEUE`                                         |
-| `containers[0].env[SHUTDOWN_GRACE_MS]`                  | `8000`                                                | `SHUTDOWN_GRACE_MS`                                        |
-| `containers[0].env[CORS_ALLOWED_ORIGINS]`               | `https://komei0727.github.io`                         | CORS allowed origin                                        |
-| `containers[0].startupProbe`                            | `GET /health/live:8080`（1s間隔・失敗60回まで）       | Catalog検証／Worker warm-up完了までtraffic受付を開始しない |
-| `containers[0].livenessProbe`                           | `GET /health/live:8080`（10s間隔・失敗3回で再起動）   | プロセスが応答不能になった場合だけ再起動する               |
-| `containers[0].readinessProbe`                          | `GET /health/ready:8080`（5s間隔・失敗2回で受付停止） | 一時的にtrafficを受けられない状態を再起動なしで反映する    |
+| フィールド                                              | 値                                                    | 対応する設計値                                                 |
+| ------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
+| `metadata.name`                                         | `muvluvgg-battle-simulator-api`                       | Service name                                                   |
+| `metadata.annotations["run.googleapis.com/ingress"]`    | `all`                                                 | Ingress                                                        |
+| `spec.template.metadata.annotations[...minScale]`       | `0`                                                   | Minimum instances                                              |
+| `spec.template.metadata.annotations[...maxScale]`       | `1`                                                   | Maximum instances                                              |
+| `spec.template.metadata.annotations[...cpu-throttling]` | `true`                                                | Billing: request-based                                         |
+| `spec.template.spec.containerConcurrency`               | `2`                                                   | Container concurrency                                          |
+| `spec.template.spec.timeoutSeconds`                     | `40`                                                  | Request timeout                                                |
+| `containers[0].resources.limits.cpu`/`memory`           | `1`/`1Gi`                                             | CPU／Memory                                                    |
+| `containers[0].env[WORKER_MAX_QUEUE]`                   | `1`                                                   | `WORKER_MAX_QUEUE`                                             |
+| `containers[0].env[SHUTDOWN_GRACE_MS]`                  | `8000`                                                | `SHUTDOWN_GRACE_MS`                                            |
+| `containers[0].env[CORS_ALLOWED_ORIGINS]`               | `https://komei0727.github.io`                         | CORS allowed origin                                            |
+| `containers[0].env[API_ACCESS_KEYS]`                    | Secret Manager `api-access-keys`（`latest`）          | アクセスキーの集合（`secretKeyRef`。値はrepositoryに置かない） |
+| `containers[0].startupProbe`                            | `GET /health/live:8080`（1s間隔・失敗60回まで）       | Catalog検証／Worker warm-up完了までtraffic受付を開始しない     |
+| `containers[0].livenessProbe`                           | `GET /health/live:8080`（10s間隔・失敗3回で再起動）   | プロセスが応答不能になった場合だけ再起動する                   |
+| `containers[0].readinessProbe`                          | `GET /health/ready:8080`（5s間隔・失敗2回で受付停止） | 一時的にtrafficを受けられない状態を再起動なしで反映する        |
 
 Cloud Runは[Knative v1 manifest互換の`startupProbe`・`livenessProbe`・
 `readinessProbe`をサポートする](https://docs.cloud.google.com/run/docs/configuring/healthchecks#readiness-probes)。

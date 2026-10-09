@@ -57,14 +57,17 @@ jobs:
       # 選択可能なUnitが無い場合はここでjobを失敗させる——simulation smoke
       # testを黙ってskipしない。
       - name: Build minimal simulation smoke test request
+        env:
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
         run: |
-          curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
+          curl -sS -H "Authorization: Bearer $API_ACCESS_KEY" "$SERVICE_URL/api/v1/battle-simulation-catalog" \
             | mise exec -- pnpm --filter api exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
             > /tmp/muvluvgg-rollback-smoke-simulation-request.json
 
       - name: Smoke test the rolled-back service
         env:
           SMOKE_SIMULATION_BODY_FILE: /tmp/muvluvgg-rollback-smoke-simulation-request.json
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
         run: scripts/cloud-run/04-smoke-test.sh
 
       - name: Record rollback summary
