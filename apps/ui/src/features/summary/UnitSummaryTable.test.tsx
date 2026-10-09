@@ -51,7 +51,7 @@ describe("UnitSummaryTable", () => {
       />,
     );
 
-    expect(screen.getAllByText("エーユニット")).toHaveLength(2);
+    expect(screen.getAllByRole("img", { name: "エーユニット" })).toHaveLength(2);
     expect(screen.getByText("100")).toBeInTheDocument();
     expect(screen.getByText("200")).toBeInTheDocument();
   });

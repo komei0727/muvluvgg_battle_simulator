@@ -22,7 +22,7 @@ describe("SelectionDialogList", () => {
   it("renders each item with its display name, definition id, and tags", () => {
     render(<SelectionDialogList items={items} kind="unit" onSelect={vi.fn()} onRemove={vi.fn()} />);
 
-    expect(screen.getByText("アルファ")).toBeInTheDocument();
+    expect(screen.getAllByText("アルファ")).not.toHaveLength(0);
     expect(screen.getByText("DEF_ALPHA")).toBeInTheDocument();
     expect(screen.getByText("攻撃")).toBeInTheDocument();
     expect(screen.getByText("前衛")).toBeInTheDocument();

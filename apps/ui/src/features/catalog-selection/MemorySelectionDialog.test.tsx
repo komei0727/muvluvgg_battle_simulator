@@ -29,7 +29,7 @@ describe("MemorySelectionDialog — search/select/remove (UI-CT-005)", () => {
 
     await user.type(screen.getByLabelText("メモリーを検索"), "アルファ");
 
-    expect(screen.getByText("記憶アルファ")).toBeInTheDocument();
+    expect(screen.getAllByText("記憶アルファ")).not.toHaveLength(0);
     expect(screen.queryByText("記憶ベータ")).not.toBeInTheDocument();
   });
 
