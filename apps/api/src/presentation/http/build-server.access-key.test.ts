@@ -261,4 +261,27 @@ describe("access-key guard", () => {
     expect(response.statusCode).toBe(401);
     expect(response.headers["x-request-id"]).toBe("req-auth-014");
   });
+
+  it.each([
+    [`${CATALOG_PATH}?ignored=1`, CATALOG_PATH],
+    ["/api/v1/no-such-endpoint", "UNMATCHED"],
+  ])(
+    "API-AUTH-015: an accepted request's completion log carries the matched route pattern as url (%s -> %s), never the raw path or query, so per-endpoint usage stays aggregable",
+    async (requestUrl, expectedUrl) => {
+      const logs = collectLogOutput();
+      const server = await serverWith([ALICE], logs.stream);
+
+      await server.inject({
+        method: "GET",
+        url: requestUrl,
+        headers: { authorization: `Bearer ${ALICE.key}` },
+      });
+
+      const completed = logLines(logs.text()).find(
+        (line) => line["message"] === "request completed",
+      );
+      expect(completed?.["accessKeyLabel"]).toBe("alice");
+      expect(completed?.["url"]).toBe(expectedUrl);
+    },
+  );
 });

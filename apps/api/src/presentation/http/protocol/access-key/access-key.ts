@@ -15,6 +15,8 @@ export interface ApiAccessKey {
 /** 保護対象。`/health/*`・`/openapi.json`・`/docs`はCloud Runのprobeや運用のため公開のままにする。 */
 const PROTECTED_PATH_PREFIX = "/api/v1/";
 const BEARER_PREFIX = "bearer ";
+/** route表に一致しなかった要求のログ上の`url`。未知pathをそのまま記録しない。 */
+const UNMATCHED_ROUTE = "UNMATCHED";
 
 function digest(value: string): Buffer {
   return createHash("sha256").update(value, "utf8").digest();
@@ -77,8 +79,13 @@ export function registerAccessKeyGuard(app: FastifyInstance, keys: readonly ApiA
       return;
     }
     // Fastifyの`request completed`ログは`reply.log`へ書かれるため、両方を差し替えて
-    // 以後このrequestで出る全ログへラベルを載せる。
-    const childLogger = request.log.child({ accessKeyLabel: label });
+    // 以後このrequestで出る全ログへラベルを載せる。`url`はキー別・エンドポイント別の
+    // ログベース指標（`deploy/logging/api-requests-by-access-key.yaml`）のラベルになる。
+    // 生のpathではなくroute patternを使い、queryや未知pathで値の種類が増え続けないようにする。
+    const childLogger = request.log.child({
+      accessKeyLabel: label,
+      url: request.routeOptions.url ?? UNMATCHED_ROUTE,
+    });
     request.log = childLogger;
     reply.log = childLogger;
     done();
