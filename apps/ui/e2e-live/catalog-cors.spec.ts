@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { liveAuthorizationHeaders, seedLiveAccessKey } from "./support/access-key.js";
 import { LIVE_CATALOG_URL } from "./support/constants.js";
 
 interface CatalogFetchResult {
@@ -10,8 +11,8 @@ interface CatalogFetchResult {
 
 async function fetchCatalog(page: Page, ifNoneMatch?: string): Promise<CatalogFetchResult> {
   return page.evaluate(
-    async ({ url, etag }) => {
-      const headers: Record<string, string> = { Accept: "application/json" };
+    async ({ url, etag, authorization }) => {
+      const headers: Record<string, string> = { Accept: "application/json", ...authorization };
       if (etag) {
         headers["If-None-Match"] = etag;
       }
@@ -23,9 +24,13 @@ async function fetchCatalog(page: Page, ifNoneMatch?: string): Promise<CatalogFe
       const body = (await response.json()) as { catalogRevision: string };
       return { status: response.status, etag: responseEtag, catalogRevision: body.catalogRevision };
     },
-    { url: LIVE_CATALOG_URL, etag: ifNoneMatch },
+    { url: LIVE_CATALOG_URL, etag: ifNoneMatch, authorization: liveAuthorizationHeaders() },
   );
 }
+
+test.beforeEach(async ({ page }) => {
+  await seedLiveAccessKey(page);
+});
 
 // UI-E2E-LIVE-001: Pages相当originからOPTIONS preflightが成功する。
 // UI-E2E-LIVE-005: 一覧APIのETag/304と選択可否を確認する。
@@ -48,4 +53,20 @@ test("fetches the Catalog from the deployed origin and revalidates it with ETag/
 
   const second = await fetchCatalog(page, first.etag as string);
   expect(second.status).toBe(304);
+});
+
+// UI-E2E-LIVE-006: アクセスキーを要求する配備で、キーなしの一覧取得がPages originから
+// 401として読める（CORS headerが付き、UIがキー入力へ誘導できる）。
+test("rejects a Catalog fetch without the access key with a CORS-readable 401", async ({
+  page,
+}) => {
+  test.skip(!liveAuthorizationHeaders()["Authorization"], "access key is not configured");
+  await page.goto("./");
+
+  const status = await page.evaluate(async (url) => {
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    return response.status;
+  }, LIVE_CATALOG_URL);
+
+  expect(status).toBe(401);
 });

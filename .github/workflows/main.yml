@@ -117,8 +117,11 @@ jobs:
       - name: Build minimal simulation smoke test request
         env:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
+          # `/api/v1/*`はアクセスキーを要求する（10_API設計.md「認証」）。step単位で渡し、
+          # 他stepや第三者actionへsecretを見せない。
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
         run: |
-          curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
+          curl -sS -H "Authorization: Bearer $API_ACCESS_KEY" "$SERVICE_URL/api/v1/battle-simulation-catalog" \
             | mise exec -- pnpm --filter api exec tsx src/infrastructure/deploy/build-simulation-smoke-request-cli.ts \
             > /tmp/muvluvgg-smoke-simulation-request.json
 
@@ -128,6 +131,9 @@ jobs:
         env:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
           SMOKE_SIMULATION_BODY_FILE: /tmp/muvluvgg-smoke-simulation-request.json
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
+          # secret未登録のまま「キーなしでも通る」smokeにしない。
+          REQUIRE_API_ACCESS_KEY: "true"
         run: scripts/cloud-run/04-smoke-test.sh
 
       - name: Promote candidate revision to 100% traffic
@@ -139,8 +145,9 @@ jobs:
         id: catalog_revision
         env:
           SERVICE_URL: ${{ steps.deploy_candidate.outputs.candidate_url }}
+          API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
         run: |
-          CATALOG_REVISION="$(curl -sS "$SERVICE_URL/api/v1/battle-simulation-catalog" \
+          CATALOG_REVISION="$(curl -sS -H "Authorization: Bearer $API_ACCESS_KEY" "$SERVICE_URL/api/v1/battle-simulation-catalog" \
             | mise exec -- node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{process.stdout.write(JSON.parse(d).catalogRevision)})')"
           echo "catalog_revision=$CATALOG_REVISION" >> "$GITHUB_OUTPUT"
 
@@ -295,6 +302,7 @@ jobs:
         env:
           LIVE_PAGES_URL: ${{ needs.pages-deploy.outputs.page_url }}
           LIVE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          LIVE_API_ACCESS_KEY: ${{ secrets.API_ACCESS_KEY }}
 
       - name: Upload Playwright report
         if: failure()

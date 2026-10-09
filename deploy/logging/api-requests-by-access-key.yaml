@@ -1,0 +1,24 @@
+# Cloud Logging log-based metric: アクセスキーのラベル別・ステータス別のAPI要求数。
+# `scripts/cloud-run/07-configure-access-keys.sh`が作成・更新する（docs/運用手順.md「アクセスキー」）。
+# 認証に通ったrequestの`request completed`行だけが`accessKeyLabel`を持つ
+# （apps/api/src/presentation/http/protocol/access-key/access-key.ts）。キー本体はログに出ない。
+description: API requests per access key label (10_API設計.md「認証」)
+filter: >-
+  resource.type="cloud_run_revision"
+  AND resource.labels.service_name="muvluvgg-battle-simulator-api"
+  AND jsonPayload.message="request completed"
+  AND jsonPayload.accessKeyLabel:*
+metricDescriptor:
+  metricKind: DELTA
+  valueType: INT64
+  unit: "1"
+  labels:
+    - key: accessKeyLabel
+      valueType: STRING
+      description: Label of the access key that authenticated the request
+    - key: statusCode
+      valueType: STRING
+      description: HTTP status code of the response
+labelExtractors:
+  accessKeyLabel: EXTRACT(jsonPayload.accessKeyLabel)
+  statusCode: EXTRACT(jsonPayload.res.statusCode)

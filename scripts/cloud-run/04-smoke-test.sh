@@ -17,12 +17,24 @@ if [ -z "$SERVICE_URL" ]; then
   exit 1
 fi
 
+# `/api/v1/*`はアクセスキーを要求する（10_API設計.md「認証」）。CIは
+# REQUIRE_API_ACCESS_KEY=trueを渡し、secret未登録のまま「キーなしで401」を
+# 素通りさせない。手動実行で認証有効化前のrevisionを見る場合は未設定のまま使える。
+if [ "${REQUIRE_API_ACCESS_KEY:-false}" = "true" ] && [ -z "${API_ACCESS_KEY:-}" ]; then
+  echo "ERROR: API_ACCESS_KEY is required (REQUIRE_API_ACCESS_KEY=true) but is empty" >&2
+  exit 1
+fi
+API_AUTH_ARGS=()
+if [ -n "${API_ACCESS_KEY:-}" ]; then
+  API_AUTH_ARGS=(-H "Authorization: Bearer ${API_ACCESS_KEY}")
+fi
+
 expect_status() {
   local label="$1"
   local url="$2"
   local expected="$3"
   local actual
-  actual="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+  actual="$(curl -sS -o /dev/null -w '%{http_code}' ${API_AUTH_ARGS[@]+"${API_AUTH_ARGS[@]}"} "$url")"
   if [ "$actual" != "$expected" ]; then
     echo "ERROR: $label expected HTTP $expected, got $actual ($url)" >&2
     exit 1
@@ -38,6 +50,19 @@ expect_status "GET Catalog" "$SERVICE_URL/api/v1/battle-simulation-catalog" 200
 expect_status "GET OpenAPI" "$SERVICE_URL/openapi.json" 200
 expect_status "Swagger UI is disabled" "$SERVICE_URL/docs" 404
 
+if [ -n "${API_ACCESS_KEY:-}" ]; then
+  echo "== access key smoke test =="
+  # キーを付けたrequestの成功だけでは、認証が無効なrevision（secret未注入）でも
+  # 通ってしまう。キーなしで401になることを直接確かめる。
+  UNAUTHENTICATED_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' \
+    "$SERVICE_URL/api/v1/battle-simulation-catalog")"
+  if [ "$UNAUTHENTICATED_STATUS" != "401" ]; then
+    echo "ERROR: GET Catalog without an access key expected HTTP 401, got $UNAUTHENTICATED_STATUS" >&2
+    exit 1
+  fi
+  echo "OK: GET Catalog without an access key -> HTTP 401"
+fi
+
 echo "== CORS preflight smoke test =="
 CORS_PREFLIGHT_HEADERS="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cors-preflight-headers.XXXXXX")"
 CORS_GET_HEADERS="$(mktemp "${TMPDIR:-/tmp}/muvluvgg-cors-get-headers.XXXXXX")"
@@ -46,7 +71,7 @@ curl -sS -o /dev/null -D "$CORS_PREFLIGHT_HEADERS" -X OPTIONS \
   "$SERVICE_URL/api/v1/battle-simulations" \
   -H 'Origin: https://komei0727.github.io' \
   -H 'Access-Control-Request-Method: POST' \
-  -H 'Access-Control-Request-Headers: Content-Type'
+  -H 'Access-Control-Request-Headers: Content-Type, Authorization'
 
 if ! grep -Eiq '^access-control-allow-origin:[[:space:]]*https://komei0727\.github\.io[[:space:]]*$' "$CORS_PREFLIGHT_HEADERS"; then
   echo "ERROR: expected GitHub Pages Access-Control-Allow-Origin header on preflight" >&2
@@ -57,7 +82,7 @@ echo "OK: CORS preflight (OPTIONS) allows https://komei0727.github.io"
 
 # preflightだけでなく、実際のcross-origin GETでもAccess-Control-Allow-Origin
 # が付くことを確認する（preflightはbrowserが送るrequestそのものではない）。
-curl -sS -o /dev/null -D "$CORS_GET_HEADERS" \
+curl -sS -o /dev/null -D "$CORS_GET_HEADERS" ${API_AUTH_ARGS[@]+"${API_AUTH_ARGS[@]}"} \
   "$SERVICE_URL/api/v1/battle-simulation-catalog" \
   -H 'Origin: https://komei0727.github.io'
 
@@ -78,6 +103,7 @@ if [ -n "${SMOKE_SIMULATION_BODY_FILE:-}" ]; then
   trap 'rm -f "$CORS_PREFLIGHT_HEADERS" "$CORS_GET_HEADERS" "$CORS_POST_HEADERS"' EXIT
   SIMULATION_STATUS="$(curl -sS -o /tmp/muvluvgg-cloud-run-simulation.json -D "$CORS_POST_HEADERS" -w '%{http_code}' \
     -X POST "$SERVICE_URL/api/v1/battle-simulations" \
+    ${API_AUTH_ARGS[@]+"${API_AUTH_ARGS[@]}"} \
     -H 'Content-Type: application/json' \
     -H 'Origin: https://komei0727.github.io' \
     --data-binary "@$SMOKE_SIMULATION_BODY_FILE")"
