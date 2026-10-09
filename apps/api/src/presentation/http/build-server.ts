@@ -166,6 +166,14 @@ const RETRY_AFTER_RESPONSE_HEADER_DOC = {
   },
 } as const;
 
+/** `10_API設計.md`「認証」。アクセスキー認証の401だけが送る。 */
+const WWW_AUTHENTICATE_RESPONSE_HEADER_DOC = {
+  "WWW-Authenticate": {
+    type: "string",
+    description: 'Always "Bearer": send the access key as Authorization: Bearer <key>.',
+  },
+} as const;
+
 /**
  * OpenAPI公開文書のresponse群へ、実際に返るheaderとステータスごとのエラー`code`
  * enumを与える。実行時の`route.schema.response`は変更しない
@@ -192,6 +200,7 @@ function withResponseDoc(
             ...PROTOCOL_RESPONSE_HEADERS_DOC,
             ...(etagStatuses.has(statusCode) ? ETAG_RESPONSE_HEADER_DOC : {}),
             ...(status === 429 || status === 503 ? RETRY_AFTER_RESPONSE_HEADER_DOC : {}),
+            ...(status === 401 ? WWW_AUTHENTICATE_RESPONSE_HEADER_DOC : {}),
           },
         },
       ];
@@ -501,7 +510,15 @@ export async function buildServer(
 
   app.addHook("onRequest", (request, reply, done) => {
     trackRequestExecution(request, reply);
+    done();
+  });
 
+  // CORSとrequest trackingより後に置き、401にもCORS headerと`X-Request-Id`を付ける。
+  // `Accept`判定より前に置くのは、未認証requestへは`Accept`に関わらず401を返し、
+  // 拒否をログへ残すため（`10_API設計.md`「認証」）。
+  registerAccessKeyGuard(app, options.apiAccessKeys ?? []);
+
+  app.addHook("onRequest", (request, reply, done) => {
     if (!acceptsJson(request.headers.accept)) {
       const body = toErrorResponseBody("NOT_ACCEPTABLE", []);
       void reply.code(406).send(body);
@@ -509,9 +526,6 @@ export async function buildServer(
     }
     done();
   });
-
-  // CORS（route登録前の`onRequest`）より後に置き、401にもCORS headerを付ける。
-  registerAccessKeyGuard(app, options.apiAccessKeys ?? []);
 
   app.addHook("onSend", (request, reply, payload, done) => {
     // `10_API設計.md`「Cache-Control」: Catalog一覧GETの200/304応答だけ

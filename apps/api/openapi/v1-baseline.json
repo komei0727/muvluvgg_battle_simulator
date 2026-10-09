@@ -12834,6 +12834,12 @@
                   "type": "string"
                 },
                 "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
               }
             },
             "content": {
@@ -26399,6 +26405,12 @@
                   "type": "string"
                 },
                 "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
               }
             },
             "content": {
@@ -27808,6 +27820,12 @@
                   "type": "string"
                 },
                 "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
               }
             },
             "content": {
@@ -29314,6 +29332,12 @@
                   "type": "string"
                 },
                 "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
               }
             },
             "content": {
@@ -30111,6 +30135,12 @@
                   "type": "string"
                 },
                 "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
               }
             },
             "content": {

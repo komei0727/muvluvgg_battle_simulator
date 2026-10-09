@@ -221,4 +221,44 @@ describe("access-key guard", () => {
 
     expect(response.headers["cache-control"]).toBe("private, max-age=300");
   });
+
+  it("API-AUTH-012: an unauthenticated request with an unsupported Accept still gets 401 and is logged as rejected, since authentication precedes content negotiation", async () => {
+    const logs = collectLogOutput();
+    const server = await serverWith([ALICE], logs.stream);
+
+    const response = await server.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { accept: "text/plain" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: { code: "UNAUTHORIZED" } });
+    expect(logLines(logs.text()).some((line) => line["accessKeyRejected"] === true)).toBe(true);
+  });
+
+  it("API-AUTH-013: an authenticated request with an unsupported Accept still gets 406, so the guard only reorders and does not bypass content negotiation", async () => {
+    const server = await serverWith([ALICE]);
+
+    const response = await server.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { accept: "text/plain", authorization: `Bearer ${ALICE.key}` },
+    });
+
+    expect(response.statusCode).toBe(406);
+  });
+
+  it("API-AUTH-014: a 401 carries the X-Request-Id of the request, since request tracking runs before the guard", async () => {
+    const server = await serverWith([ALICE]);
+
+    const response = await server.inject({
+      method: "GET",
+      url: CATALOG_PATH,
+      headers: { "x-request-id": "req-auth-014" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.headers["x-request-id"]).toBe("req-auth-014");
+  });
 });

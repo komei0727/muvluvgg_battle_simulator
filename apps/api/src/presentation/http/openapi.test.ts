@@ -1719,6 +1719,16 @@ describe("OpenAPI document", () => {
     for (const { id, operation } of apiOperations) {
       expect(operation.security, id).toEqual([{ accessKey: [] }]);
       expect(publishedErrorCodeEnum(operation.responses?.["401"]), id).toEqual(["UNAUTHORIZED"]);
+      expect(operation.responses?.["401"]?.headers?.["WWW-Authenticate"], id).toEqual({
+        schema: { type: "string" },
+        description: expect.any(String) as string,
+      });
+      // 401以外のステータスは`WWW-Authenticate`を送らない。
+      for (const [status, response] of Object.entries(operation.responses ?? {})) {
+        if (status !== "401") {
+          expect(response.headers?.["WWW-Authenticate"], `${id} ${status}`).toBeUndefined();
+        }
+      }
     }
 
     for (const [path, operations] of Object.entries(document.paths)) {

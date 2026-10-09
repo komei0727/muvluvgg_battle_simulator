@@ -3607,6 +3607,8 @@ export interface paths {
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
             [name: string]: unknown;
           };
           content: {
@@ -7612,6 +7614,8 @@ export interface paths {
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
             [name: string]: unknown;
           };
           content: {
@@ -8143,6 +8147,8 @@ export interface paths {
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
             [name: string]: unknown;
           };
           content: {
@@ -8716,6 +8722,8 @@ export interface paths {
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
             [name: string]: unknown;
           };
           content: {
@@ -9040,6 +9048,8 @@ export interface paths {
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
             [name: string]: unknown;
           };
           content: {
