@@ -120,7 +120,7 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     expect(units[1]).toMatchObject({ category: "EXERCISE_ENEMY", exerciseActive: true });
   });
 
-  it("HTTP-CATALOG-002 (10_API設計.md「HTTPヘッダー」「ETag」): 200 sets a representationRevision-derived ETag and Cache-Control: public, max-age=300", async () => {
+  it("HTTP-CATALOG-002 (10_API設計.md「HTTPヘッダー」「ETag」): 200 sets a representationRevision-derived ETag and Cache-Control: private, max-age=300", async () => {
     const result = fakeCatalogResult({ catalogRevision: "rev-42" });
     app = await buildServer(UNUSED_BATTLE_USE_CASE, { catalogUseCase: fakeCatalogUseCase(result) });
 
@@ -128,7 +128,7 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers["etag"]).toBe(`"${result.representationRevision}"`);
-    expect(response.headers["cache-control"]).toBe("public, max-age=300");
+    expect(response.headers["cache-control"]).toBe("private, max-age=300");
     expect(response.headers["content-type"]).toBe("application/json; charset=utf-8");
   });
 
@@ -174,7 +174,7 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     });
 
     const catalogResponse = await app.inject({ method: "GET", url: CATALOG_PATH });
-    expect(catalogResponse.headers["cache-control"]).toBe("public, max-age=300");
+    expect(catalogResponse.headers["cache-control"]).toBe("private, max-age=300");
 
     const healthResponse = await app.inject({ method: "GET", url: "/health/live" });
     expect(healthResponse.headers["cache-control"]).toBe("no-store");
@@ -276,7 +276,7 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
 
     const firstResponse = await app.inject({ method: "GET", url: CATALOG_PATH });
     expect(firstResponse.statusCode).toBe(200);
-    expect(firstResponse.headers["cache-control"]).toBe("public, max-age=300");
+    expect(firstResponse.headers["cache-control"]).toBe("private, max-age=300");
     const etag = firstResponse.headers["etag"];
     expect(typeof etag).toBe("string");
     // RFC 9110 §8.8.3 opaque-tag = DQUOTE *etagc DQUOTE, etagc = %x21 / %x23-7E

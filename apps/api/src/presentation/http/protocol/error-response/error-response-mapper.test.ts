@@ -11,6 +11,7 @@ describe("httpStatusForErrorCode", () => {
   // `10_API設計.md`「ステータスコード対応」の正本テーブル。
   it.each([
     ["MALFORMED_REQUEST", 400],
+    ["UNAUTHORIZED", 401],
     ["NOT_ACCEPTABLE", 406],
     ["REQUEST_TOO_LARGE", 413],
     ["UNSUPPORTED_MEDIA_TYPE", 415],

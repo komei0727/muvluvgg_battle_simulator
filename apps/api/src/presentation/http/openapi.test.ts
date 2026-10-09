@@ -107,7 +107,7 @@ describe("OpenAPI document", () => {
     // `10_API設計.md`「ステータスコード対応」の全ステータス。429/503/504は
     // 実際のトリガー（#12/#13/#18）が未実装でも、外部契約として文書化する。
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "400", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+      ["200", "400", "401", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
   });
 
@@ -152,7 +152,7 @@ describe("OpenAPI document", () => {
     expect(operation?.requestBody).toBeDefined();
     // 戦闘POSTと同じWorker Poolを通るため、返り得るステータスも同じ。
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "400", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+      ["200", "400", "401", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
 
     const result =
@@ -271,7 +271,7 @@ describe("OpenAPI document", () => {
     }
   });
 
-  it("API-OPENAPI-006 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」/10_API設計.md「GETの200／304」): documents GET /api/v1/battle-simulation-catalog with 200, 304, 406, and 500", () => {
+  it("API-OPENAPI-006 (12_テスト戦略.md「全ルートと全ステータスにSchemaがある」/10_API設計.md「GETの200／304」): documents GET /api/v1/battle-simulation-catalog with 200, 304, 401, 406, and 500", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
         Record<
@@ -290,7 +290,7 @@ describe("OpenAPI document", () => {
     const operation = document.paths?.["/api/v1/battle-simulation-catalog"]?.get;
     expect(operation).toBeDefined();
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "304", "406", "500"].sort(),
+      ["200", "304", "401", "406", "500"].sort(),
     );
   });
 
@@ -1590,7 +1590,7 @@ describe("OpenAPI document", () => {
     });
     const catalog = await app.inject({ method: "GET", url: BATTLE_SIMULATION_CATALOG_PATH });
     expect(battle.headers["cache-control"]).toBe("no-store");
-    expect(catalog.headers["cache-control"]).toBe("public, max-age=300");
+    expect(catalog.headers["cache-control"]).toBe("private, max-age=300");
     expect(battle.headers["x-request-id"]).toBeDefined();
     expect(catalog.headers["x-request-id"]).toBeDefined();
   });
@@ -1670,7 +1670,7 @@ describe("OpenAPI document", () => {
 
     // 戦闘を実行しないため、Worker Pool容量・実行保護・期限の429/503/504は持たない。
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "400", "406", "413", "415", "422", "500"].sort(),
+      ["200", "400", "401", "406", "413", "415", "422", "500"].sort(),
     );
 
     const bodySchema = operation?.requestBody?.content?.["application/json"]?.schema;
@@ -1690,5 +1690,53 @@ describe("OpenAPI document", () => {
       ];
     expect(positionSchema?.properties?.["column"]?.enum).toEqual([0, 1, 2]);
     expect(positionSchema?.properties?.["row"]?.enum).toEqual(["FRONT", "REAR"]);
+  });
+
+  it("API-OPENAPI-042 (10_API設計.md「認証」): every /api/v1 operation documents the bearer access key requirement and a 401 whose code is only UNAUTHORIZED, while health and preflight operations stay unauthenticated", () => {
+    interface OperationForTest {
+      readonly security?: readonly Readonly<Record<string, readonly string[]>>[];
+      readonly responses?: Readonly<Record<string, OpenApiResponseForTest>>;
+    }
+    const document = app.swagger() as unknown as {
+      readonly paths: Readonly<Record<string, Readonly<Record<string, OperationForTest>>>>;
+      readonly components?: { readonly securitySchemes?: Readonly<Record<string, unknown>> };
+    };
+
+    expect(document.components?.securitySchemes?.["accessKey"]).toEqual({
+      type: "http",
+      scheme: "bearer",
+      description: expect.any(String) as string,
+    });
+
+    const apiOperations = Object.entries(document.paths)
+      .filter(([path]) => path.startsWith("/api/v1/"))
+      .flatMap(([path, operations]) =>
+        Object.entries(operations)
+          .filter(([method]) => method !== "options")
+          .map(([method, operation]) => ({ id: `${method} ${path}`, operation })),
+      );
+    expect(apiOperations.length).toBeGreaterThan(0);
+    for (const { id, operation } of apiOperations) {
+      expect(operation.security, id).toEqual([{ accessKey: [] }]);
+      expect(publishedErrorCodeEnum(operation.responses?.["401"]), id).toEqual(["UNAUTHORIZED"]);
+      expect(operation.responses?.["401"]?.headers?.["WWW-Authenticate"], id).toEqual({
+        schema: { type: "string" },
+        description: expect.any(String) as string,
+      });
+      // 401以外のステータスは`WWW-Authenticate`を送らない。
+      for (const [status, response] of Object.entries(operation.responses ?? {})) {
+        if (status !== "401") {
+          expect(response.headers?.["WWW-Authenticate"], `${id} ${status}`).toBeUndefined();
+        }
+      }
+    }
+
+    for (const [path, operations] of Object.entries(document.paths)) {
+      for (const [method, operation] of Object.entries(operations)) {
+        if (!path.startsWith("/api/v1/") || method === "options") {
+          expect(operation.security, `${method} ${path}`).toBeUndefined();
+        }
+      }
+    }
   });
 });

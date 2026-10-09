@@ -47,15 +47,15 @@ POST /api/v1/battle-simulations
 
 指定された両陣営の編成で戦闘を最後まで実行し、完了結果を返す。
 
-| 項目                   | 値                                                     |
-| ---------------------- | ------------------------------------------------------ |
-| 認証                   | M4.5ではなし。public Cloud Run serviceとして公開する。 |
-| リクエストContent-Type | `application/json`                                     |
-| レスポンスContent-Type | `application/json; charset=utf-8`                      |
-| 成功ステータス         | `200 OK`                                               |
-| 永続化                 | しない                                                 |
-| 冪等性                 | 保証しない                                             |
-| 既定ログレベル         | `SUMMARY`                                              |
+| 項目                   | 値                                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 認証                   | アクセスキー（`Authorization: Bearer`）。`API_ACCESS_KEYS`を設定した配備だけで要求し、欠落・不一致は `401 UNAUTHORIZED`（下記「認証」）。 |
+| リクエストContent-Type | `application/json`                                                                                                                        |
+| レスポンスContent-Type | `application/json; charset=utf-8`                                                                                                         |
+| 成功ステータス         | `200 OK`                                                                                                                                  |
+| 永続化                 | しない                                                                                                                                    |
+| 冪等性                 | 保証しない                                                                                                                                |
+| 既定ログレベル         | `SUMMARY`                                                                                                                                 |
 
 新しい永続リソースを作成しないため `201 Created` は使用しない。途中処理を非同期ジョブとして受け付けるAPIではないため `202 Accepted` も使用しない。
 
@@ -67,15 +67,15 @@ POST /api/v1/tactical-exercises
 
 味方編成と敵ユニット1体で戦術演習（UC-03）を最後まで実行し、スコアとブレイク履歴を含む演習結果を返す。
 
-| 項目                   | 値                                               |
-| ---------------------- | ------------------------------------------------ |
-| 認証                   | なし。戦闘シミュレーションと同じ公開条件とする。 |
-| リクエストContent-Type | `application/json`                               |
-| レスポンスContent-Type | `application/json; charset=utf-8`                |
-| 成功ステータス         | `200 OK`                                         |
-| 永続化                 | しない                                           |
-| 冪等性                 | 保証しない                                       |
-| 既定ログレベル         | `SUMMARY`                                        |
+| 項目                   | 値                                           |
+| ---------------------- | -------------------------------------------- |
+| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。 |
+| リクエストContent-Type | `application/json`                           |
+| レスポンスContent-Type | `application/json; charset=utf-8`            |
+| 成功ステータス         | `200 OK`                                     |
+| 永続化                 | しない                                       |
+| 冪等性                 | 保証しない                                   |
+| 既定ログレベル         | `SUMMARY`                                    |
 
 既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
 
@@ -87,15 +87,15 @@ POST /api/v1/tactical-exercise-evaluations
 
 共通の敵1体に対する味方編成候補K件を、それぞれn回の演習で評価し（UC-04、Q-TEX-16）、試行ごとの生値を返す。統計量はサーバーで算出しない。
 
-| 項目                   | 値                                                                                  |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| 認証                   | なし。ただし配備ごとに提供可否を切り替える（Q-TEX-19）。                            |
-| リクエストContent-Type | `application/json`                                                                  |
-| レスポンスContent-Type | `application/json; charset=utf-8`                                                   |
-| 成功ステータス         | `200 OK`                                                                            |
-| 永続化                 | しない                                                                              |
-| 冪等性                 | `seed` を明示した同一リクエストは同一結果を返す（Q-TEX-17）                         |
-| 公開制御               | `EVALUATION_ENDPOINT_ENABLED`（既定 `false`）。無効な配備は `404 ENDPOINT_DISABLED` |
+| 項目                   | 値                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。提供可否は別途配備ごとに切り替える（Q-TEX-19）。 |
+| リクエストContent-Type | `application/json`                                                                           |
+| レスポンスContent-Type | `application/json; charset=utf-8`                                                            |
+| 成功ステータス         | `200 OK`                                                                                     |
+| 永続化                 | しない                                                                                       |
+| 冪等性                 | `seed` を明示した同一リクエストは同一結果を返す（Q-TEX-17）                                  |
+| 公開制御               | `EVALUATION_ENDPOINT_ENABLED`（既定 `false`）。無効な配備は `404 ENDPOINT_DISABLED`          |
 
 ローカルの分析ツール（スコア期待値の統計・最適編成探索）向けの実行系である。無効な配備でもルート登録自体は行うため、公開されるOpenAPI文書の形は配備設定によらず同じである。
 
@@ -111,7 +111,7 @@ POST /api/v1/formation-stat-previews
 
 | 項目                   | 値                                                   |
 | ---------------------- | ---------------------------------------------------- |
-| 認証                   | なし。戦闘シミュレーションと同じ公開条件とする。     |
+| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。         |
 | リクエストContent-Type | `application/json`                                   |
 | レスポンスContent-Type | `application/json; charset=utf-8`                    |
 | 成功ステータス         | `200 OK`                                             |
@@ -130,14 +130,14 @@ GET /api/v1/battle-simulation-catalog
 
 UIなどのクライアントが戦闘条件を構成するために必要なUnit・Memoryの一覧、表示用属性、現在の選択可否を返す。
 
-| 項目                   | 値                                                     |
-| ---------------------- | ------------------------------------------------------ |
-| 認証                   | M4.5ではなし。public Cloud Run serviceとして公開する。 |
-| リクエストContent-Type | 本文を持たないため不要。                               |
-| レスポンスContent-Type | `application/json; charset=utf-8`                      |
-| 成功ステータス         | `200 OK`、条件付きGETで未変更なら `304 Not Modified`   |
-| 永続化                 | しない。起動時検証済みの不変read modelを返す。         |
-| pagination             | 初期スコープでは使用しない。                           |
+| 項目                   | 値                                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 認証                   | アクセスキー（`Authorization: Bearer`）。`API_ACCESS_KEYS`を設定した配備だけで要求し、欠落・不一致は `401 UNAUTHORIZED`（下記「認証」）。 |
+| リクエストContent-Type | 本文を持たないため不要。                                                                                                                  |
+| レスポンスContent-Type | `application/json; charset=utf-8`                                                                                                         |
+| 成功ステータス         | `200 OK`、条件付きGETで未変更なら `304 Not Modified`                                                                                      |
+| 永続化                 | しない。起動時検証済みの不変read modelを返す。                                                                                            |
+| pagination             | 初期スコープでは使用しない。                                                                                                              |
 
 検索・属性filter・Role filterは初期件数ではクライアント側で行う。APIへquery parameterを追加せず、同一Catalog revisionのUnit・Memoryを1回のresponseで取得する。
 
@@ -154,6 +154,7 @@ GET /health/ready
 
 - `live` はプロセスが応答可能かだけを確認する。
 - `ready` はCatalogの読み込みと構造検証が完了し、新規シミュレーションを受け付けられるかを確認する。
+- アクセスキー認証（下記「認証」）の対象外とする。Cloud Runのprobeはキーを持たないため。
 - 戦闘ルールやCatalog内容をレスポンスへ公開しない。
 
 ヘルスチェックはBattle Simulation Contextのユースケースではなく、インフラストラクチャ上のエンドポイントとする。
@@ -162,13 +163,14 @@ GET /health/ready
 
 ### リクエスト
 
-| ヘッダー          | 必須 | 説明                                                                                 |
-| ----------------- | ---- | ------------------------------------------------------------------------------------ |
-| `Content-Type`    | 条件 | 本文を持つ戦闘POSTでは必須。`application/json` を指定する。Catalog GETでは送らない。 |
-| `Accept`          | 任意 | 省略時は `application/json` とみなす。                                               |
-| `X-Request-Id`    | 任意 | 呼び出し側の追跡ID。許容形式を満たさない場合はサーバー側で再生成する。               |
-| `Accept-Encoding` | 任意 | 大きなレスポンス向けに圧縮方式を指定できる。                                         |
-| `If-None-Match`   | 任意 | Catalog一覧GETで直前のETagを指定する。                                               |
+| ヘッダー          | 必須 | 説明                                                                                     |
+| ----------------- | ---- | ---------------------------------------------------------------------------------------- |
+| `Content-Type`    | 条件 | 本文を持つ戦闘POSTでは必須。`application/json` を指定する。Catalog GETでは送らない。     |
+| `Accept`          | 任意 | 省略時は `application/json` とみなす。                                                   |
+| `X-Request-Id`    | 任意 | 呼び出し側の追跡ID。許容形式を満たさない場合はサーバー側で再生成する。                   |
+| `Accept-Encoding` | 任意 | 大きなレスポンス向けに圧縮方式を指定できる。                                             |
+| `If-None-Match`   | 任意 | Catalog一覧GETで直前のETagを指定する。                                                   |
+| `Authorization`   | 条件 | アクセスキーを要求する配備では `/api/v1/*` に必須。`Bearer <key>` 形式（下記「認証」）。 |
 
 `X-Request-Id` は戦闘結果や乱数へ影響させない。個人情報、認証情報、任意の長文を入れない。
 
@@ -181,10 +183,11 @@ GET /health/ready
 | `Cache-Control`    | エンドポイント別。戦闘POSTは `no-store`。Catalog一覧GETは下記cache規則。        |
 | `Content-Encoding` | 圧縮した場合に設定する。                                                        |
 | `ETag`             | Catalog一覧GETの200応答で設定する。                                             |
+| `WWW-Authenticate` | アクセスキー認証の `401` でだけ `Bearer` を設定する（下記「認証」）。           |
 
 戦闘には乱数が含まれ、同一リクエストの同一結果を保証しないため、共有キャッシュへ保存させない。
 
-`Cache-Control: no-store`は戦闘シミュレーションPOSTとエラーレスポンスへ適用する。Catalog一覧GETの200応答は不変のrepresentation版をETagとして使い、`Cache-Control: public, max-age=300` を返す。`If-None-Match`が現在のETagと一致する場合は本文なしの304を返す。Catalog更新は新しいapplication deploymentであり、同一revisionの内容を稼働中に変更しない。
+`Cache-Control: no-store`は戦闘シミュレーションPOSTとエラーレスポンスへ適用する。Catalog一覧GETの200応答は不変のrepresentation版をETagとして使い、`Cache-Control: private, max-age=300` を返す。`public` にしないのは、`Authorization` 付きrequestへの応答を共有キャッシュへ保存させないためである（RFC 9111 §3.5は `public` が付くと共有キャッシュでの保存を許す）。browser自身のcacheとETag再検証は `private` でも従来どおり働く。`If-None-Match`が現在のETagと一致する場合は本文なしの304を返す。Catalog更新は新しいapplication deploymentであり、同一revisionの内容を稼働中に変更しない。
 
 ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfingerprintの両方から導出する。効果表はCatalog定義ファイルではなくコード定数であり `catalogRevision` に紐づかないため、`catalogRevision` だけを導出元にすると、効果表だけを変更したデプロイでETagが変わらず、クライアントが古い表を304で保持し続ける。ETagは不透明な文字列であり、導出元を増やしてもクライアント契約（比較して一致するかだけを見る）は変わらない。
 
@@ -1297,23 +1300,24 @@ reconstructedFinalState = apply(
 
 ### ステータスコード対応
 
-| HTTP                         | code                           | 使用条件                                 |
-| ---------------------------- | ------------------------------ | ---------------------------------------- |
-| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。   |
-| `404 Not Found`              | `ENDPOINT_DISABLED`            | この配備では提供しない操作（Q-TEX-19）。 |
-| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                   |
-| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                 |
-| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                 |
-| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。        |
-| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。           |
-| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。   |
-| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。  |
-| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。               |
-| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。        |
-| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。     |
-| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。       |
+| HTTP                         | code                           | 使用条件                                     |
+| ---------------------------- | ------------------------------ | -------------------------------------------- |
+| `400 Bad Request`            | `MALFORMED_REQUEST`            | JSON構文不正、必須構造の欠落、型不正。       |
+| `401 Unauthorized`           | `UNAUTHORIZED`                 | アクセスキーの欠落・不一致（下記「認証」）。 |
+| `404 Not Found`              | `ENDPOINT_DISABLED`            | この配備では提供しない操作（Q-TEX-19）。     |
+| `406 Not Acceptable`         | `NOT_ACCEPTABLE`               | 対応しないAccept指定。                       |
+| `413 Content Too Large`      | `REQUEST_TOO_LARGE`            | リクエスト本文上限超過。                     |
+| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE`       | JSON以外のContent-Type。                     |
+| `422 Unprocessable Content`  | `INVALID_COMMAND`              | 人数、配置、値域などCommand違反。            |
+| `422 Unprocessable Content`  | `DEFINITION_NOT_FOUND`         | 指定された定義IDが存在しない。               |
+| `429 Too Many Requests`      | `RATE_LIMIT_EXCEEDED`          | 配備環境の要求数または同時実行数上限。       |
+| `500 Internal Server Error`  | `INVALID_DEFINITION`           | サーバーが保持するCatalog定義の不整合。      |
+| `500 Internal Server Error`  | `INTERNAL_INVARIANT_VIOLATION` | 集約や状態復元の内部矛盾。                   |
+| `503 Service Unavailable`    | `CAPACITY_EXCEEDED`            | Worker Poolの待機キュー上限超過。            |
+| `503 Service Unavailable`    | `EXECUTION_LIMIT_EXCEEDED`     | イベント数やPS深度など安全上限超過。         |
+| `504 Gateway Timeout`        | `EXECUTION_TIMEOUT`            | サーバー期限までに完了しなかった。           |
 
-`POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`406`・`413`・`415`・`422`・`500` だけを返す。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
+`POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`401`・`406`・`413`・`415`・`422`・`500` だけを返す（`401` はアクセスキーを要求する配備のみ）。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
 
 `404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations` だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。この操作は期限超過時に `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。
 
@@ -1453,6 +1457,19 @@ Battle実行期限を最も短くし、HTTP接続が強制終了される前に�
 - 最大の公開レベルである `DETAILED` のレスポンスにも内部例外や秘密情報を含めない。
 - M4.5はCloud Runのunauthenticated invocationを許可し、TLS終端はCloud Runに委ねる。
 - CORSはbrowser origin制御であり認証ではない。public APIへの直接requestは本文上限、timeout、bounded queue、maximum instancesで保護する。
+- 利用者の限定はアプリケーション層のアクセスキー（下記「認証」）で行う。Cloud Run IAMはbrowserの一般利用者がtokenを得られないため使わない。
+
+### 認証
+
+APIを特定の利用者だけに使わせるため、利用者ごとに発行したアクセスキーを要求できる。
+
+- 対象は `/api/v1/*` の全operation（Catalog一覧GETを含む）。`/health/*`・`/openapi.json`・CORS preflight（`OPTIONS`）は対象外とする。
+- クライアントは `Authorization: Bearer <key>` を送る。auth-schemeの大文字小文字は区別しない。
+- 欠落・不一致・`Bearer` 以外のschemeは `401 UNAUTHORIZED` とし、`WWW-Authenticate: Bearer` を付ける（OpenAPIでも401のresponse headerとして文書化する）。認証は `Accept` 判定（406）より先に行い、未認証requestへは `Accept` に関わらず401を返す。存在しないpathもroutingより前に401とし、エンドポイントの有無を明かさない。
+- 401は共通の `ErrorResponse` で返し、許可originならCORS headerを付ける（UIがキー入力へ誘導できるようにする）。
+- 有効なキーの集合は配備設定 `API_ACCESS_KEYS`（`11_インフラストラクチャ設計.md`「設定項目」）が持つ。未設定の配備では認証を行わない。
+- キーにはラベルを付け、認証に通ったrequestのログへラベルを載せる。キー本体はログ・エラー本文のどちらにも出さない。
+- OpenAPIでは `accessKey`（HTTP bearer）security schemeとして全 `/api/v1/*` operationへ宣言する。認証が無効な配備でも公開文書の形は変えない。
 
 ### CORS
 
@@ -1461,7 +1478,7 @@ GitHub Pages UIから別originのAPIを呼ぶため、M4.5でCORSをAPI契約へ
 - productionの許可originは `https://komei0727.github.io` を完全一致で設定する。
 - 開発originは環境設定で明示し、production許可値と混在させない。
 - 許可methodは `GET`、`POST`、`OPTIONS`。
-- 許可request headerは `Content-Type`、`Accept`、`X-Request-Id`、`If-None-Match`。
+- 許可request headerは `Content-Type`、`Accept`、`X-Request-Id`、`If-None-Match`、`Authorization`。
 - 公開response headerは `X-Request-Id`、`Retry-After`、`ETag`。
 - credentialsは許可しない。
 - productionの既定を `*` にしない。

@@ -22,10 +22,11 @@ export interface GetBattleSimulationCatalogUseCasePort {
 /**
  * `GET /api/v1/battle-simulation-catalog`にはbody検証がなく、事前検証由来の
  * エラー（400/413/415/422/429/503/504）が起こり得ない。共通`onRequest`フックの
- * `Accept`判定（406）と、共通エラーハンドラーの予期しない例外（500）だけを
- * 文書化する。
+ * アクセスキー判定（401）と`Accept`判定（406）、共通エラーハンドラーの予期しない
+ * 例外（500）だけを文書化する。
  */
 const CATALOG_ERROR_RESPONSES = {
+  401: errorResponseSchema,
   406: errorResponseSchema,
   500: errorResponseSchema,
 } as const;

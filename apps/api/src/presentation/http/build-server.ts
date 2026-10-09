@@ -63,6 +63,7 @@ import {
   getRequestExecutionState,
 } from "./protocol/request-id/request-id.js";
 import { acceptsJson } from "./protocol/content-negotiation/content-negotiation.js";
+import { registerAccessKeyGuard, type ApiAccessKey } from "./protocol/access-key/access-key.js";
 
 export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simulation-route.js";
 export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
@@ -127,6 +128,8 @@ const NO_EVALUATION: EvaluateTacticalExerciseCandidatesUseCasePort = {
     ),
 };
 
+const ACCESS_KEY_SECURITY_SCHEME = "accessKey";
+
 const DEFAULT_BODY_LIMIT_BYTES = 1_048_576; // 1 MiB。`10_API設計.md`「編成入力自体は小さい」ための暫定上限。
 
 /**
@@ -137,7 +140,7 @@ const PROTOCOL_RESPONSE_HEADERS_DOC = {
   "Cache-Control": {
     type: "string",
     description:
-      "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」).",
+      "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」).",
   },
   "X-Request-Id": {
     type: "string",
@@ -160,6 +163,14 @@ const RETRY_AFTER_RESPONSE_HEADER_DOC = {
   "Retry-After": {
     type: "string",
     description: "Seconds to wait before retrying, when the server can estimate it.",
+  },
+} as const;
+
+/** `10_API設計.md`「認証」。アクセスキー認証の401だけが送る。 */
+const WWW_AUTHENTICATE_RESPONSE_HEADER_DOC = {
+  "WWW-Authenticate": {
+    type: "string",
+    description: 'Always "Bearer": send the access key as Authorization: Bearer <key>.',
   },
 } as const;
 
@@ -189,6 +200,7 @@ function withResponseDoc(
             ...PROTOCOL_RESPONSE_HEADERS_DOC,
             ...(etagStatuses.has(statusCode) ? ETAG_RESPONSE_HEADER_DOC : {}),
             ...(status === 429 || status === 503 ? RETRY_AFTER_RESPONSE_HEADER_DOC : {}),
+            ...(status === 401 ? WWW_AUTHENTICATE_RESPONSE_HEADER_DOC : {}),
           },
         },
       ];
@@ -221,6 +233,11 @@ export interface BuildServerOptions {
    * `CORS_ALLOWED_ORIGINS`から検証済みの値を渡す。
    */
   readonly corsAllowedOrigins?: readonly string[];
+  /**
+   * `10_API設計.md`「認証」。`/api/v1/*`へ要求するアクセスキー。既定は空配列（認証無効）
+   * ——`bootstrap/index.ts`が`API_ACCESS_KEYS`から検証済みの値を渡す。
+   */
+  readonly apiAccessKeys?: readonly ApiAccessKey[];
   /**
    * `11_インフラストラクチャ設計.md`「OpenAPI」「productionではSwagger UIを
    * 既定で公開しない。開発・検証環境だけUIを有効化できる」（#85）。既定は
@@ -307,6 +324,16 @@ export async function buildServer(
       openapi: "3.0.3",
       info: { title: "muvluvgg-battle-simulator API", version: "1" },
       paths: {},
+      components: {
+        securitySchemes: {
+          [ACCESS_KEY_SECURITY_SCHEME]: {
+            type: "http",
+            scheme: "bearer",
+            description:
+              "Access key issued per user (10_API設計.md「認証」). Required on /api/v1/* only when the deployment configures API_ACCESS_KEYS.",
+          },
+        },
+      },
     },
     // `10_API設計.md`はOpenAPIへ値域・列挙値の自動検証を要求するが、
     // `column`/`row`/`logLevel`/`turnLimit`などの値域違反は「422
@@ -317,7 +344,13 @@ export async function buildServer(
     // 構造は`battleSimulationResponseDocSchema`で公開文書だけ書き足す
     // （実データがそのまま流れる出力を厳格化して壊さないよう、実行時
     // serializationは`battleSimulationResponseSchema`のまま変更しない）。
-    transform: ({ schema, url, route }) => {
+    transform: ({ schema: routeSchema, url, route }) => {
+      // `/api/v1/*`の実operationだけが認証の対象（preflight・healthは対象外）。配備設定で
+      // 認証が無効でも、公開文書の形は変えない（`ENDPOINT_DISABLED`と同じ方針）。
+      const schema =
+        url.startsWith("/api/v1/") && route.method !== "OPTIONS"
+          ? { ...routeSchema, security: [{ [ACCESS_KEY_SECURITY_SCHEME]: [] }] }
+          : routeSchema;
       // `registerCorsPreflightDocRoutes`が登録する
       // 文書専用のOPTIONSルートへ、preflight向けのCORS response headerを
       // 差し込む。このurlは他分岐（Catalog GET・戦闘POST）とも重なるため、
@@ -477,7 +510,15 @@ export async function buildServer(
 
   app.addHook("onRequest", (request, reply, done) => {
     trackRequestExecution(request, reply);
+    done();
+  });
 
+  // CORSとrequest trackingより後に置き、401にもCORS headerと`X-Request-Id`を付ける。
+  // `Accept`判定より前に置くのは、未認証requestへは`Accept`に関わらず401を返し、
+  // 拒否をログへ残すため（`10_API設計.md`「認証」）。
+  registerAccessKeyGuard(app, options.apiAccessKeys ?? []);
+
+  app.addHook("onRequest", (request, reply, done) => {
     if (!acceptsJson(request.headers.accept)) {
       const body = toErrorResponseBody("NOT_ACCEPTABLE", []);
       void reply.code(406).send(body);
@@ -488,13 +529,14 @@ export async function buildServer(
 
   app.addHook("onSend", (request, reply, payload, done) => {
     // `10_API設計.md`「Cache-Control」: Catalog一覧GETの200/304応答だけ
-    // `public, max-age=300`を返し、それ以外（戦闘POST・全エラー応答、
+    // `private, max-age=300`を返し（`Authorization`付きrequestへの応答を共有キャッシュへ
+    // 保存させない）、それ以外（戦闘POST・全エラー応答、
     // Catalog GET自身の406/500含む）は`no-store`のままにする
     // （`Catalog一覧の200/304と戦闘POSTのcache header差異`を混同しない）。
     const isCatalogRoute = request.url.split("?")[0] === BATTLE_SIMULATION_CATALOG_PATH;
     const isCacheableCatalogResponse =
       isCatalogRoute && (reply.statusCode === 200 || reply.statusCode === 304);
-    reply.header("Cache-Control", isCacheableCatalogResponse ? "public, max-age=300" : "no-store");
+    reply.header("Cache-Control", isCacheableCatalogResponse ? "private, max-age=300" : "no-store");
     reply.header("X-Request-Id", getRequestExecutionState(request)?.requestId ?? request.id);
     done(null, payload);
   });

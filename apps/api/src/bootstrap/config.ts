@@ -1,4 +1,5 @@
 import { resolveDocsEnabled } from "./docs-enabled.js";
+import type { ApiAccessKey } from "../presentation/http/protocol/access-key/access-key.js";
 import {
   DEFAULT_EVALUATION_LIMITS,
   type EvaluationLimits,
@@ -40,6 +41,11 @@ export interface ApplicationConfig {
   readonly logLevel: string;
   readonly docsEnabled: boolean;
   readonly corsAllowedOrigins: readonly string[];
+  /**
+   * `/api/v1/*`へ要求するアクセスキー。空配列は認証無効を意味する——ローカル開発・
+   * container smoke・UI fixture生成はキーなしで動かす。
+   */
+  readonly apiAccessKeys: readonly ApiAccessKey[];
   /**
    * `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」「上限値は設定から
    * 受け取る」。Worker側のBattle実行へ`workerData`経由で配る。
@@ -214,6 +220,70 @@ function parseCorsAllowedOrigins(raw: string | undefined, violations: string[]):
   return origins;
 }
 
+const ACCESS_KEY_LABEL_PATTERN = /^[a-z0-9_-]{1,32}$/;
+const ACCESS_KEY_MIN_LENGTH = 32;
+const ACCESS_KEY_PATTERN = /^\S+$/;
+
+/**
+ * `11_インフラストラクチャ設計.md`「設定項目」`API_ACCESS_KEYS`は`ラベル:キー`の
+ * comma区切り。綴り違いを黙って受理すると、意図より弱い（あるいは誰も通れない）
+ * 認証のまま起動してしまうため、曖昧な入力はすべて起動エラーにする。
+ *
+ * violationへはキー本体を含めない——起動失敗のログへ秘密値が残るため
+ * （`11_インフラストラクチャ設計.md`「秘密値をログへ出さない」）。位置で示す。
+ */
+function parseApiAccessKeys(
+  raw: string | undefined,
+  violations: string[],
+): readonly ApiAccessKey[] {
+  if (raw === undefined) {
+    return [];
+  }
+  if (raw.trim() === "") {
+    violations.push("API_ACCESS_KEYS must not be empty or whitespace-only");
+    return [];
+  }
+
+  const keys: ApiAccessKey[] = [];
+  const seenLabels = new Set<string>();
+  const seenKeys = new Set<string>();
+  raw.split(",").forEach((rawEntry, index) => {
+    const entryName = `API_ACCESS_KEYS entry #${index + 1}`;
+    const entry = rawEntry.trim();
+    const separator = entry.indexOf(":");
+    if (separator < 0) {
+      violations.push(`${entryName} must have the form "label:key"`);
+      return;
+    }
+    const label = entry.slice(0, separator);
+    const key = entry.slice(separator + 1);
+    if (!ACCESS_KEY_LABEL_PATTERN.test(label)) {
+      violations.push(`${entryName} label must match ${ACCESS_KEY_LABEL_PATTERN.source}`);
+      return;
+    }
+    if (key.length < ACCESS_KEY_MIN_LENGTH || !ACCESS_KEY_PATTERN.test(key)) {
+      violations.push(
+        `${entryName} (label ${JSON.stringify(label)}) key must be at least ${ACCESS_KEY_MIN_LENGTH} non-whitespace characters`,
+      );
+      return;
+    }
+    if (seenLabels.has(label)) {
+      violations.push(`${entryName} duplicates label ${JSON.stringify(label)}`);
+      return;
+    }
+    if (seenKeys.has(key)) {
+      violations.push(
+        `${entryName} (label ${JSON.stringify(label)}) duplicates another entry's key`,
+      );
+      return;
+    }
+    seenLabels.add(label);
+    seenKeys.add(key);
+    keys.push({ label, key });
+  });
+  return keys;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
   const violations: string[] = [];
 
@@ -251,6 +321,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
   );
 
   const corsAllowedOrigins = parseCorsAllowedOrigins(env["CORS_ALLOWED_ORIGINS"], violations);
+  const apiAccessKeys = parseApiAccessKeys(env["API_ACCESS_KEYS"], violations);
 
   // 実行保護の上限はいずれも`min: 1`。0は「1件目で必ず超過する」設定であり、
   // 暴走を止めるガードではなく全戦闘を止めるスイッチになるため受理しない。
@@ -358,6 +429,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     logLevel: env["LOG_LEVEL"] ?? "info",
     docsEnabled: resolveDocsEnabled(env["NODE_ENV"]),
     corsAllowedOrigins,
+    apiAccessKeys,
     executionLimits,
     workerMinThreads,
     workerMaxThreads,

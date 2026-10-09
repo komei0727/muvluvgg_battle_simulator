@@ -172,7 +172,7 @@ export async function getCatalog(options: GetCatalogOptions): Promise<CatalogApi
       headers: requestHeaders(options),
       // docs/ui-design/03_API・データ連携設計.md §2.3: 一覧GETはHTTP
       // cache/ETagを利用する(no-storeは戦闘POST専用)。Catalog 200/304は
-      // Cache-Control: public, max-age=300を返すため、cacheを指定せず
+      // Cache-Control: private, max-age=300を返すため、cacheを指定せず
       // 既定のcache modeでブラウザキャッシュを再利用させる。
       signal: options.signal,
       timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,

@@ -225,7 +225,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3572,7 +3572,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3597,13 +3597,46 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         406: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3634,7 +3667,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3665,7 +3698,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3696,7 +3729,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3727,7 +3760,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3760,7 +3793,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3794,7 +3827,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3827,7 +3860,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -3879,7 +3912,7 @@ export interface paths {
             "Access-Control-Expose-Headers"?: string;
             /** @description GET, POST, OPTIONS. */
             "Access-Control-Allow-Methods"?: string;
-            /** @description Content-Type, Accept, X-Request-Id, If-None-Match. */
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
             "Access-Control-Allow-Headers"?: string;
             [name: string]: unknown;
           };
@@ -4036,7 +4069,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7546,7 +7579,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7571,13 +7604,46 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         406: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7608,7 +7674,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7639,7 +7705,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7670,7 +7736,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7701,7 +7767,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7734,7 +7800,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7768,7 +7834,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7801,7 +7867,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -7853,7 +7919,7 @@ export interface paths {
             "Access-Control-Expose-Headers"?: string;
             /** @description GET, POST, OPTIONS. */
             "Access-Control-Allow-Methods"?: string;
-            /** @description Content-Type, Accept, X-Request-Id, If-None-Match. */
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
             "Access-Control-Allow-Headers"?: string;
             [name: string]: unknown;
           };
@@ -8011,7 +8077,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8046,7 +8112,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8071,13 +8137,46 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         404: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8108,7 +8207,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8139,7 +8238,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8170,7 +8269,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8201,7 +8300,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8232,7 +8331,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8265,7 +8364,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8299,7 +8398,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8332,7 +8431,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8384,7 +8483,7 @@ export interface paths {
             "Access-Control-Expose-Headers"?: string;
             /** @description GET, POST, OPTIONS. */
             "Access-Control-Allow-Methods"?: string;
-            /** @description Content-Type, Accept, X-Request-Id, If-None-Match. */
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
             "Access-Control-Allow-Headers"?: string;
             [name: string]: unknown;
           };
@@ -8539,7 +8638,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8588,7 +8687,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8613,13 +8712,46 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         406: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8650,7 +8782,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8681,7 +8813,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8712,7 +8844,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8743,7 +8875,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8798,7 +8930,7 @@ export interface paths {
             "Access-Control-Expose-Headers"?: string;
             /** @description GET, POST, OPTIONS. */
             "Access-Control-Allow-Methods"?: string;
-            /** @description Content-Type, Accept, X-Request-Id, If-None-Match. */
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
             "Access-Control-Allow-Headers"?: string;
             [name: string]: unknown;
           };
@@ -8846,7 +8978,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8893,7 +9025,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8906,13 +9038,46 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         406: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -8943,7 +9108,7 @@ export interface paths {
             "Access-Control-Allow-Origin"?: string;
             /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
             "Access-Control-Expose-Headers"?: string;
-            /** @description no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
             "Cache-Control"?: string;
             /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
             "X-Request-Id"?: string;
@@ -9000,7 +9165,7 @@ export interface paths {
             "Access-Control-Expose-Headers"?: string;
             /** @description GET, POST, OPTIONS. */
             "Access-Control-Allow-Methods"?: string;
-            /** @description Content-Type, Accept, X-Request-Id, If-None-Match. */
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
             "Access-Control-Allow-Headers"?: string;
             [name: string]: unknown;
           };

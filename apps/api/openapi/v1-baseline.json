@@ -5,6 +5,13 @@
     "version": "1"
   },
   "components": {
+    "securitySchemes": {
+      "accessKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Access key issued per user (10_API設計.md「認証」). Required on /api/v1/* only when the deployment configures API_ACCESS_KEYS."
+      }
+    },
     "schemas": {
       "def-0": {
         "oneOf": [
@@ -1053,6 +1060,11 @@
             }
           }
         },
+        "security": [
+          {
+            "accessKey": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -1073,7 +1085,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -12733,7 +12745,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -12796,6 +12808,94 @@
               }
             }
           },
+          "401": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["UNAUTHORIZED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "406": {
             "description": "Default Response",
             "headers": {
@@ -12815,7 +12915,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -12897,7 +12997,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -12979,7 +13079,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -13061,7 +13161,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -13143,7 +13243,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -13231,7 +13331,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -13317,7 +13417,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -13409,7 +13509,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -13530,7 +13630,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Content-Type, Accept, X-Request-Id, If-None-Match."
+                "description": "Content-Type, Accept, X-Request-Id, If-None-Match, Authorization."
               }
             }
           },
@@ -13898,6 +13998,11 @@
             }
           }
         },
+        "security": [
+          {
+            "accessKey": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -13918,7 +14023,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26211,7 +26316,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26274,6 +26379,94 @@
               }
             }
           },
+          "401": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["UNAUTHORIZED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "406": {
             "description": "Default Response",
             "headers": {
@@ -26293,7 +26486,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26375,7 +26568,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26457,7 +26650,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26539,7 +26732,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26621,7 +26814,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26709,7 +26902,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26795,7 +26988,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -26887,7 +27080,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27008,7 +27201,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Content-Type, Accept, X-Request-Id, If-None-Match."
+                "description": "Content-Type, Accept, X-Request-Id, If-None-Match, Authorization."
               }
             }
           },
@@ -27386,6 +27579,11 @@
             }
           }
         },
+        "security": [
+          {
+            "accessKey": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -27406,7 +27604,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27533,7 +27731,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27596,6 +27794,94 @@
               }
             }
           },
+          "401": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["UNAUTHORIZED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Default Response",
             "headers": {
@@ -27615,7 +27901,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27697,7 +27983,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27779,7 +28065,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27861,7 +28147,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -27943,7 +28229,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -28025,7 +28311,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -28113,7 +28399,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -28199,7 +28485,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -28291,7 +28577,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -28412,7 +28698,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Content-Type, Accept, X-Request-Id, If-None-Match."
+                "description": "Content-Type, Accept, X-Request-Id, If-None-Match, Authorization."
               }
             }
           },
@@ -28774,6 +29060,11 @@
             }
           }
         },
+        "security": [
+          {
+            "accessKey": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -28794,7 +29085,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -28952,7 +29243,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29015,6 +29306,94 @@
               }
             }
           },
+          "401": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["UNAUTHORIZED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "406": {
             "description": "Default Response",
             "headers": {
@@ -29034,7 +29413,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29116,7 +29495,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29198,7 +29577,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29280,7 +29659,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29362,7 +29741,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29487,7 +29866,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Content-Type, Accept, X-Request-Id, If-None-Match."
+                "description": "Content-Type, Accept, X-Request-Id, If-None-Match, Authorization."
               }
             }
           },
@@ -29521,6 +29900,11 @@
     },
     "/api/v1/battle-simulation-catalog": {
       "get": {
+        "security": [
+          {
+            "accessKey": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -29541,7 +29925,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29702,7 +30086,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29721,6 +30105,94 @@
               "application/json": {
                 "schema": {
                   "description": "Not Modified — If-None-Match matched the current catalogRevision ETag; no body."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Always \"Bearer\": send the access key as Authorization: Bearer <key>."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["UNAUTHORIZED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -29744,7 +30216,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29826,7 +30298,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "no-store for battle POSTs and every error response; public, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
               },
               "X-Request-Id": {
                 "schema": {
@@ -29951,7 +30423,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Content-Type, Accept, X-Request-Id, If-None-Match."
+                "description": "Content-Type, Accept, X-Request-Id, If-None-Match, Authorization."
               }
             }
           },
