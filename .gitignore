@@ -52,3 +52,7 @@ tools/exercise-lab/local_storage/*
 # un-ignore these to publish once that's settled.
 apps/ui/src/assets/units/
 apps/ui/src/assets/memories/
+
+# scripts/cloud-run/07-configure-access-keys.sh へ渡すアクセスキーのファイル
+# (ACCESS_KEYS_FILE)。秘密値なので、repository内に置いても追跡しない。
+api-access-key*.txt
