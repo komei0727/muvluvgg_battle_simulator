@@ -185,4 +185,17 @@ describe("BattleSimulatorPage — アクセスキー", () => {
     expect(previewFormationStatsImpl.mock.calls[0]?.[1].accessKey).toBe(GOOD_KEY);
     expect(readStoredAccessKey()).toBeUndefined();
   });
+
+  it("UI-CT-162: hides the reset action once the key is rejected, since the rejected key is no longer stored", async () => {
+    writeStoredAccessKey(BAD_KEY);
+    render(
+      <BattleSimulatorPage
+        apiBaseUrl="https://api.example.com"
+        getCatalogImpl={keyCheckingGetCatalogImpl()}
+      />,
+    );
+
+    expect(await screen.findByText(/アクセスキーが正しくないか/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "アクセスキーを再設定" })).toBeNull();
+  });
 });

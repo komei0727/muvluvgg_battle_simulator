@@ -954,5 +954,6 @@ describe("useExerciseStatisticsRun — access key", () => {
     });
     expect(evaluateImpl.mock.calls[0]?.[1].accessKey).toBe("k".repeat(40));
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith("k".repeat(40));
   });
 });

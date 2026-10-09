@@ -23,7 +23,7 @@ describe("useAccessKeyGate", () => {
     const { result } = renderHook(() => useAccessKeyGate());
 
     act(() => {
-      result.current.reportUnauthorized();
+      result.current.reportUnauthorized(undefined);
     });
     expect(result.current.status).toBe("required");
 
@@ -34,7 +34,7 @@ describe("useAccessKeyGate", () => {
     expect(readStoredAccessKey()).toBe(KEY);
 
     act(() => {
-      result.current.reportUnauthorized();
+      result.current.reportUnauthorized(KEY);
     });
     expect(result.current.status).toBe("rejected");
     // 再読込で同じ無効キーを送り続けないよう保存からは消す。画面上の状態は保ち、
@@ -57,5 +57,42 @@ describe("useAccessKeyGate", () => {
     expect(result.current.accessKey).toBeUndefined();
     expect(result.current.status).toBe("unknown");
     expect(readStoredAccessKey()).toBeUndefined();
+  });
+
+  it("UI-CT-160: a 401 for a key that is no longer current (a request started before the key was replaced) neither rejects nor forgets the new key", () => {
+    const OLD_KEY = "o".repeat(40);
+    writeStoredAccessKey(OLD_KEY);
+    const { result } = renderHook(() => useAccessKeyGate());
+
+    act(() => {
+      result.current.submit(KEY);
+    });
+    act(() => {
+      result.current.reportUnauthorized(OLD_KEY);
+    });
+    expect(result.current.status).toBe("unknown");
+    expect(readStoredAccessKey()).toBe(KEY);
+
+    // キーなしで始まった古い要求の401も、キー保存後には無視する。
+    act(() => {
+      result.current.reportUnauthorized(undefined);
+    });
+    expect(result.current.status).toBe("unknown");
+    expect(readStoredAccessKey()).toBe(KEY);
+  });
+
+  it("UI-CT-161: keySaved is true only while the current key is stored, so a rejected key no longer counts as saved", () => {
+    const { result } = renderHook(() => useAccessKeyGate());
+    expect(result.current.keySaved).toBe(false);
+
+    act(() => {
+      result.current.submit(KEY);
+    });
+    expect(result.current.keySaved).toBe(true);
+
+    act(() => {
+      result.current.reportUnauthorized(KEY);
+    });
+    expect(result.current.keySaved).toBe(false);
   });
 });

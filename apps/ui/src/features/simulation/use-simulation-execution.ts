@@ -130,7 +130,7 @@ export function useSimulationExecution<
           return;
         }
         if (result.error.kind === "UNAUTHORIZED") {
-          onUnauthorized();
+          onUnauthorized(accessKey);
         }
         dispatch({
           type: "submissionFailed",

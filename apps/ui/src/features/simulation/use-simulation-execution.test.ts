@@ -286,5 +286,44 @@ describe("useSimulationExecution — access key", () => {
       expect(result.current.state.status).toBe("failed");
     });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith("k".repeat(40));
+  });
+});
+
+describe("useSimulationExecution — access key replaced mid-flight", () => {
+  it("UI-API-045: reports the key the request was sent with, not the key current when the 401 arrives", async () => {
+    const onUnauthorized = vi.fn();
+    const pending = deferred<SimulationApiResult>();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() => pending.promise);
+    let accessKey = "o".repeat(40);
+    const { result, rerender } = renderHook(
+      () => useSimulationExecution("https://api.example.com", { simulateImpl }),
+      {
+        wrapper: ({ children }: { readonly children: ReactNode }) =>
+          createElement(
+            ApiAccessContext.Provider,
+            { value: { accessKey, onUnauthorized } },
+            children,
+          ),
+      },
+    );
+
+    act(() => {
+      result.current.submit(submitInput());
+    });
+    accessKey = "n".repeat(40);
+    rerender();
+    pending.resolve({
+      ok: false,
+      status: 401,
+      error: { kind: "UNAUTHORIZED", message: "A valid access key is required.", status: 401 },
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(onUnauthorized).toHaveBeenCalledWith("o".repeat(40));
   });
 });

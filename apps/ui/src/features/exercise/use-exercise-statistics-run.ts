@@ -466,7 +466,7 @@ export function useExerciseStatisticsRun(
               return;
             }
             if (result.error.kind === "UNAUTHORIZED") {
-              onUnauthorized();
+              onUnauthorized(accessKey);
             }
             dispatch({ type: "runFailed", runId, error: classifyFailure(result) });
             return;

@@ -101,7 +101,7 @@ export function BattleSimulatorPage({
   return (
     <AppShell
       {...(buildRevision !== undefined ? { buildRevision } : {})}
-      {...(accessKeyGate.accessKey !== undefined
+      {...(accessKeyGate.keySaved
         ? {
             systemStatus: (
               <Button variant="ghost" onClick={accessKeyGate.reset}>

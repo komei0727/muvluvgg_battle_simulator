@@ -53,8 +53,8 @@ export interface UseCatalogLoaderOptions {
    * Providerより上（Page）で行うため、contextではなく引数で受け取る。
    */
   readonly accessKey?: string;
-  /** 401を受けたときに呼ぶ。キー入力画面への誘導はPageが担う。 */
-  readonly onUnauthorized?: () => void;
+  /** 401を受けたときに、その要求で送ったキーを添えて呼ぶ。キー入力画面への誘導はPageが担う。 */
+  readonly onUnauthorized?: (sentAccessKey: string | undefined) => void;
 }
 
 export interface UseCatalogLoaderResult {
@@ -94,7 +94,7 @@ export function useCatalogLoader(
 
         if (!result.ok) {
           if (result.error.kind === "UNAUTHORIZED") {
-            onUnauthorized?.();
+            onUnauthorized?.(accessKey);
           }
           dispatch({
             type: "failed",

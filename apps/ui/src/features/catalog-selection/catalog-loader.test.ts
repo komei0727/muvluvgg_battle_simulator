@@ -293,6 +293,7 @@ describe("useCatalogLoader — access key", () => {
       expect(result.current.state.status).toBe("failed");
     });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith(undefined);
     expect(getCatalogImpl.mock.calls[0]?.[0].accessKey).toBeUndefined();
 
     rerender({ accessKey: "good-key" });

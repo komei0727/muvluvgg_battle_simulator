@@ -133,7 +133,7 @@ export function useFormationStatPreview(
       }
       if (!result.ok) {
         if (result.error.kind === "UNAUTHORIZED") {
-          onUnauthorized();
+          onUnauthorized(accessKey);
         }
         setState({ status: "failed" });
         return;

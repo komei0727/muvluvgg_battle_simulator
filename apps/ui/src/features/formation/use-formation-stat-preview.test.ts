@@ -319,5 +319,6 @@ describe("useFormationStatPreview — access key", () => {
       "k".repeat(40),
     );
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith("k".repeat(40));
   });
 });
