@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { ApiAccessContext } from "../../shared/api/access-key.js";
 import { describe, expect, it, vi } from "vitest";
 import { useSimulationExecution } from "./use-simulation-execution.js";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
@@ -240,5 +242,49 @@ describe("useSimulationExecution — stale response guard (UI-CMP-002)", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(result.current.state.status).toBe("succeeded");
+  });
+});
+
+function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void) {
+  return function Wrapper({ children }: { readonly children: ReactNode }) {
+    return createElement(
+      ApiAccessContext.Provider,
+      { value: { accessKey, onUnauthorized } },
+      children,
+    );
+  };
+}
+
+describe("useSimulationExecution — access key", () => {
+  it("UI-API-041: sends the context's access key and reports a 401 so the page can ask for a key", async () => {
+    const onUnauthorized = vi.fn();
+    const simulateImpl = vi.fn<
+      (req: BattleSimulationRequest, options: SimulateOptions) => Promise<SimulationApiResult>
+    >(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        error: {
+          kind: "UNAUTHORIZED",
+          message: "A valid access key is required.",
+          status: 401,
+          code: "UNAUTHORIZED",
+        },
+      }),
+    );
+    const { result } = renderHook(
+      () => useSimulationExecution("https://api.example.com", { simulateImpl }),
+      { wrapper: accessWrapper("k".repeat(40), onUnauthorized) },
+    );
+
+    act(() => {
+      result.current.submit(submitInput());
+    });
+
+    expect(simulateImpl.mock.calls[0]?.[1].accessKey).toBe("k".repeat(40));
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 });

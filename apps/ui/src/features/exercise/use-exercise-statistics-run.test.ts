@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { ApiAccessContext } from "../../shared/api/access-key.js";
 import { describe, expect, it, vi } from "vitest";
 import {
   describeStatisticsRunError,
@@ -910,5 +912,47 @@ describe("selectStatisticsAggregate", () => {
       expect(failedResult.current.state.status).toBe("failed");
     });
     expect(selectStatisticsAggregate(failedResult.current.state)).toBeUndefined();
+  });
+});
+
+function accessWrapper(accessKey: string | undefined, onUnauthorized: () => void) {
+  return function Wrapper({ children }: { readonly children: ReactNode }) {
+    return createElement(
+      ApiAccessContext.Provider,
+      { value: { accessKey, onUnauthorized } },
+      children,
+    );
+  };
+}
+
+describe("useExerciseStatisticsRun — access key", () => {
+  it("UI-API-043: sends the context's access key and reports a 401 so the page can ask for a key", async () => {
+    const onUnauthorized = vi.fn();
+    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        error: {
+          kind: "UNAUTHORIZED",
+          message: "A valid access key is required.",
+          status: 401,
+          code: "UNAUTHORIZED",
+        },
+      }),
+    );
+    const { result } = renderHook(
+      () => useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
+      { wrapper: accessWrapper("k".repeat(40), onUnauthorized) },
+    );
+
+    act(() => {
+      result.current.start(startInput({ runCount: 2, seed: "s" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(evaluateImpl.mock.calls[0]?.[1].accessKey).toBe("k".repeat(40));
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 });

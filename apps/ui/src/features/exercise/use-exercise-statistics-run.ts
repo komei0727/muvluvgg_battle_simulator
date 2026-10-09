@@ -5,6 +5,7 @@ import {
 } from "./exercise-request-mapper.js";
 import { useAbortableRequest } from "../../shared/async/abortable-request.js";
 import { useAbortOnUnload } from "../../shared/async/abort-on-unload.js";
+import { useApiAccess } from "../../shared/api/access-key.js";
 import type { BattleDraft } from "../../entities/battle-draft.js";
 import type {
   TacticalExerciseEvaluationApiResult,
@@ -343,6 +344,7 @@ export function useExerciseStatisticsRun(
   const { evaluateImpl = defaultEvaluate, timeoutMs, chunkSize = EVALUATION_CHUNK_SIZE } = options;
   const [state, dispatch] = useReducer(statisticsRunReducer, undefined, createInitialState);
   const asyncRequest = useAbortableRequest<string>();
+  const { accessKey, onUnauthorized } = useApiAccess();
 
   const start = useCallback(
     (input: StatisticsRunInput) => {
@@ -450,6 +452,7 @@ export function useExerciseStatisticsRun(
             {
               baseUrl,
               signal,
+              ...(accessKey !== undefined ? { accessKey } : {}),
               ...(requestId !== undefined ? { requestId } : {}),
               ...(timeoutMs !== undefined ? { timeoutMs } : {}),
             },
@@ -461,6 +464,9 @@ export function useExerciseStatisticsRun(
             if (result.error.kind === "CANCELLED") {
               finish(results, true);
               return;
+            }
+            if (result.error.kind === "UNAUTHORIZED") {
+              onUnauthorized();
             }
             dispatch({ type: "runFailed", runId, error: classifyFailure(result) });
             return;
@@ -515,7 +521,7 @@ export function useExerciseStatisticsRun(
         finish(results, false);
       })();
     },
-    [baseUrl, evaluateImpl, timeoutMs, chunkSize, asyncRequest],
+    [baseUrl, evaluateImpl, timeoutMs, chunkSize, asyncRequest, accessKey, onUnauthorized],
   );
 
   const cancel = useCallback(() => {

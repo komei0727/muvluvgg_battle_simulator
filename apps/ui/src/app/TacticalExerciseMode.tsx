@@ -318,7 +318,8 @@ export function TacticalExerciseMode({
       <div role="tabpanel" id="tabpanel-exercise" aria-labelledby="tab-exercise">
         <Panel step="01" title="演習パラメータ" meta="FORMATION / MEMORY / EXERCISE">
           {catalog.status === "loading" ? <p>Catalogを読込中…</p> : null}
-          {catalog.status === "failed" ? (
+          {/* 401はPageのアクセスキー入力欄が引き受けるため、ここでは出さない。 */}
+          {catalog.status === "failed" && catalog.error.kind !== "UNAUTHORIZED" ? (
             <div role="alert">
               <p>{catalog.error.message}</p>
               <button type="button" onClick={onReloadCatalog}>

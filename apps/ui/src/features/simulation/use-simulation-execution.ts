@@ -10,6 +10,7 @@ import { createInitialExecutionState, executionReducer } from "./execution-reduc
 import type { ExecutionResponseLike, ExecutionState } from "./execution-reducer.js";
 import { useAbortableRequest } from "../../shared/async/abortable-request.js";
 import { useAbortOnUnload } from "../../shared/async/abort-on-unload.js";
+import { useApiAccess } from "../../shared/api/access-key.js";
 
 // docs/ui-design/03_API・データ連携設計.md §7 「タイムアウトとキャンセル」:
 // AbortControllerを1実行につき1つ作り、利用者キャンセル・page unload・UI待機
@@ -85,6 +86,7 @@ export function useSimulationExecution<
     createInitialExecutionState<TRequest, TResponse>,
   );
   const asyncRequest = useAbortableRequest<string>();
+  const { accessKey, onUnauthorized } = useApiAccess();
 
   const submit = useCallback(
     (input: SubmitInput<TRequest>) => {
@@ -109,6 +111,7 @@ export function useSimulationExecution<
       void simulateImpl(input.request, {
         baseUrl,
         signal,
+        ...(accessKey !== undefined ? { accessKey } : {}),
         ...(requestId !== undefined ? { requestId } : {}),
         ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       }).then((result) => {
@@ -126,6 +129,9 @@ export function useSimulationExecution<
           dispatch({ type: "submissionCancelled", executionId });
           return;
         }
+        if (result.error.kind === "UNAUTHORIZED") {
+          onUnauthorized();
+        }
         dispatch({
           type: "submissionFailed",
           executionId,
@@ -134,7 +140,7 @@ export function useSimulationExecution<
         });
       });
     },
-    [baseUrl, simulateImpl, options.timeoutMs, asyncRequest],
+    [baseUrl, simulateImpl, options.timeoutMs, asyncRequest, accessKey, onUnauthorized],
   );
 
   const cancel = useCallback(() => {

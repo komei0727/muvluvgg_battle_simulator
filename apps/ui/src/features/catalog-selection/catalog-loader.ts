@@ -48,6 +48,13 @@ function reducer(_state: CatalogLoadState, action: Action): CatalogLoadState {
 
 export interface UseCatalogLoaderOptions {
   readonly getCatalogImpl?: GetCatalogFn;
+  /**
+   * 保存済みのアクセスキー。変わると取得し直す。Catalog取得はアクセスキーの
+   * Providerより上（Page）で行うため、contextではなく引数で受け取る。
+   */
+  readonly accessKey?: string;
+  /** 401を受けたときに呼ぶ。キー入力画面への誘導はPageが担う。 */
+  readonly onUnauthorized?: () => void;
 }
 
 export interface UseCatalogLoaderResult {
@@ -62,6 +69,7 @@ export function useCatalogLoader(
   options: UseCatalogLoaderOptions = {},
 ): UseCatalogLoaderResult {
   const getCatalogImpl = options.getCatalogImpl ?? defaultGetCatalog;
+  const { accessKey, onUnauthorized } = options;
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
   const asyncRequest = useTokenedRequest();
 
@@ -77,6 +85,7 @@ export function useCatalogLoader(
       void getCatalogImpl({
         baseUrl,
         signal,
+        ...(accessKey !== undefined ? { accessKey } : {}),
         ...(priorReady?.etag !== undefined ? { etag: priorReady.etag } : {}),
       }).then((result) => {
         if (!asyncRequest.isCurrent(token)) {
@@ -84,6 +93,9 @@ export function useCatalogLoader(
         }
 
         if (!result.ok) {
+          if (result.error.kind === "UNAUTHORIZED") {
+            onUnauthorized?.();
+          }
           dispatch({
             type: "failed",
             error: result.error,
@@ -112,7 +124,7 @@ export function useCatalogLoader(
         });
       });
     },
-    [baseUrl, getCatalogImpl, asyncRequest],
+    [baseUrl, getCatalogImpl, asyncRequest, accessKey, onUnauthorized],
   );
 
   useEffect(() => {

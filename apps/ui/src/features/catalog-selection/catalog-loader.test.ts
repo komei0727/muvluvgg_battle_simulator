@@ -257,3 +257,50 @@ describe("useCatalogLoader", () => {
     });
   });
 });
+
+describe("useCatalogLoader — access key", () => {
+  it("UI-API-044: sends the given access key, reports a 401, and refetches when the key changes", async () => {
+    const onUnauthorized = vi.fn();
+    const getCatalogImpl = vi.fn<(options: GetCatalogOptions) => Promise<CatalogApiResult>>(
+      (options) =>
+        Promise.resolve(
+          options.accessKey === "good-key"
+            ? { ok: true, response: catalogResponse("rev-1") }
+            : {
+                ok: false,
+                status: 401,
+                error: {
+                  kind: "UNAUTHORIZED",
+                  message: "A valid access key is required.",
+                  status: 401,
+                  code: "UNAUTHORIZED",
+                },
+              },
+        ),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ accessKey }: { accessKey: string | undefined }) =>
+        useCatalogLoader("https://api.example.com", {
+          getCatalogImpl,
+          ...(accessKey !== undefined ? { accessKey } : {}),
+          onUnauthorized,
+        }),
+      { initialProps: { accessKey: undefined as string | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("failed");
+    });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(getCatalogImpl.mock.calls[0]?.[0].accessKey).toBeUndefined();
+
+    rerender({ accessKey: "good-key" });
+
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("ready");
+    });
+    expect(getCatalogImpl.mock.calls.at(-1)?.[0].accessKey).toBe("good-key");
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+});

@@ -252,3 +252,20 @@ describe("normalizeHttpErrorResponse", () => {
     expect(result.violations).toEqual([{ message: "x" }]);
   });
 });
+
+describe("normalizeHttpErrorResponse — access key", () => {
+  it("UI-API-038: maps 401 UNAUTHORIZED to the UNAUTHORIZED kind, with or without a valid envelope", () => {
+    const withEnvelope = normalizeHttpErrorResponse({
+      status: 401,
+      body: {
+        schemaVersion: 1,
+        error: { code: "UNAUTHORIZED", message: "A valid access key is required.", violations: [] },
+      },
+    });
+    const withoutEnvelope = normalizeHttpErrorResponse({ status: 401, body: null });
+
+    expect(withEnvelope.kind).toBe("UNAUTHORIZED");
+    expect(withEnvelope.code).toBe("UNAUTHORIZED");
+    expect(withoutEnvelope.kind).toBe("UNAUTHORIZED");
+  });
+});

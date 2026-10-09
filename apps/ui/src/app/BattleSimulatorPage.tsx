@@ -1,5 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AppShell } from "../components/AppShell.js";
+import { Button } from "../components/Button.js";
+import { Panel } from "../components/Panel.js";
+import { AccessKeyForm } from "../features/access-key/AccessKeyForm.js";
+import { useAccessKeyGate } from "../features/access-key/use-access-key-gate.js";
+import { ApiAccessContext, type ApiAccess } from "../shared/api/access-key.js";
 import type { BattleMode } from "../entities/battle-mode.js";
 import type {
   TacticalExerciseRequest,
@@ -48,9 +53,32 @@ export function BattleSimulatorPage({
   previewFormationStatsImpl,
   evaluateTacticalExerciseImpl,
 }: BattleSimulatorPageProps) {
-  const catalogLoader = useCatalogLoader(
-    apiBaseUrl,
-    getCatalogImpl !== undefined ? { getCatalogImpl } : {},
+  const accessKeyGate = useAccessKeyGate();
+  const catalogLoader = useCatalogLoader(apiBaseUrl, {
+    ...(getCatalogImpl !== undefined ? { getCatalogImpl } : {}),
+    ...(accessKeyGate.accessKey !== undefined ? { accessKey: accessKeyGate.accessKey } : {}),
+    onUnauthorized: accessKeyGate.reportUnauthorized,
+  });
+  const apiAccess = useMemo<ApiAccess>(
+    () => ({
+      accessKey: accessKeyGate.accessKey,
+      onUnauthorized: accessKeyGate.reportUnauthorized,
+    }),
+    [accessKeyGate.accessKey, accessKeyGate.reportUnauthorized],
+  );
+  const { submit: submitAccessKey } = accessKeyGate;
+  const { reload: reloadCatalog } = catalogLoader;
+  // キーが変わればCatalog取得は依存の変化で走り直す。同じキーの再送信（誤入力を
+  // そのまま入れ直した等）は依存が変わらないため、明示的に取得し直す。
+  const handleAccessKeySubmit = useCallback(
+    (key: string) => {
+      const unchanged = key.trim() === accessKeyGate.accessKey;
+      submitAccessKey(key);
+      if (unchanged) {
+        reloadCatalog();
+      }
+    },
+    [accessKeyGate.accessKey, submitAccessKey, reloadCatalog],
   );
   // UI-AC-018: 戦術演習を既定モードにする。
   const [mode, setMode] = useState<BattleMode>("exercise");
@@ -71,44 +99,62 @@ export function BattleSimulatorPage({
   const playerEnhancement = usePlayerEnhancementPersistence(catalog);
 
   return (
-    <AppShell {...(buildRevision !== undefined ? { buildRevision } : {})}>
-      <ModeTabs
-        mode={mode}
-        onChange={(nextMode) => {
-          setMode(nextMode);
-          closeSelectionDialog();
-        }}
-      />
+    <AppShell
+      {...(buildRevision !== undefined ? { buildRevision } : {})}
+      {...(accessKeyGate.accessKey !== undefined
+        ? {
+            systemStatus: (
+              <Button variant="ghost" onClick={accessKeyGate.reset}>
+                アクセスキーを再設定
+              </Button>
+            ),
+          }
+        : {})}
+    >
+      {accessKeyGate.status !== "unknown" ? (
+        <Panel step="00" title="API接続" meta="ACCESS KEY">
+          <AccessKeyForm status={accessKeyGate.status} onSubmit={handleAccessKeySubmit} />
+        </Panel>
+      ) : null}
+      <ApiAccessContext.Provider value={apiAccess}>
+        <ModeTabs
+          mode={mode}
+          onChange={(nextMode) => {
+            setMode(nextMode);
+            closeSelectionDialog();
+          }}
+        />
 
-      <NormalBattleMode
-        active={mode === "battle"}
-        apiBaseUrl={apiBaseUrl}
-        catalog={catalog}
-        onReloadCatalog={catalogLoader.reload}
-        showBaseStats={showBaseStats}
-        onShowBaseStatsChange={setShowBaseStats}
-        playerEnhancement={playerEnhancement}
-        selectionDialog={selectionDialog}
-        onRequestSelectionDialog={setSelectionDialog}
-        onCloseSelectionDialog={closeSelectionDialog}
-        {...(simulateImpl !== undefined ? { simulateImpl } : {})}
-        {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
-      />
-      <TacticalExerciseMode
-        active={mode === "exercise"}
-        apiBaseUrl={apiBaseUrl}
-        catalog={catalog}
-        onReloadCatalog={catalogLoader.reload}
-        showBaseStats={showBaseStats}
-        onShowBaseStatsChange={setShowBaseStats}
-        playerEnhancement={playerEnhancement}
-        selectionDialog={selectionDialog}
-        onRequestSelectionDialog={setSelectionDialog}
-        onCloseSelectionDialog={closeSelectionDialog}
-        {...(simulateTacticalExerciseImpl !== undefined ? { simulateTacticalExerciseImpl } : {})}
-        {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
-        {...(evaluateTacticalExerciseImpl !== undefined ? { evaluateTacticalExerciseImpl } : {})}
-      />
+        <NormalBattleMode
+          active={mode === "battle"}
+          apiBaseUrl={apiBaseUrl}
+          catalog={catalog}
+          onReloadCatalog={catalogLoader.reload}
+          showBaseStats={showBaseStats}
+          onShowBaseStatsChange={setShowBaseStats}
+          playerEnhancement={playerEnhancement}
+          selectionDialog={selectionDialog}
+          onRequestSelectionDialog={setSelectionDialog}
+          onCloseSelectionDialog={closeSelectionDialog}
+          {...(simulateImpl !== undefined ? { simulateImpl } : {})}
+          {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
+        />
+        <TacticalExerciseMode
+          active={mode === "exercise"}
+          apiBaseUrl={apiBaseUrl}
+          catalog={catalog}
+          onReloadCatalog={catalogLoader.reload}
+          showBaseStats={showBaseStats}
+          onShowBaseStatsChange={setShowBaseStats}
+          playerEnhancement={playerEnhancement}
+          selectionDialog={selectionDialog}
+          onRequestSelectionDialog={setSelectionDialog}
+          onCloseSelectionDialog={closeSelectionDialog}
+          {...(simulateTacticalExerciseImpl !== undefined ? { simulateTacticalExerciseImpl } : {})}
+          {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
+          {...(evaluateTacticalExerciseImpl !== undefined ? { evaluateTacticalExerciseImpl } : {})}
+        />
+      </ApiAccessContext.Provider>
     </AppShell>
   );
 }

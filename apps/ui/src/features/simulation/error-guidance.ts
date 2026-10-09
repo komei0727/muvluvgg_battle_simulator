@@ -18,4 +18,5 @@ export const ERROR_KIND_GUIDANCE: Readonly<Record<UiApiErrorKind, string>> = {
   NETWORK: "APIに到達できませんでした。",
   CORS_OR_NETWORK: "APIに到達できませんでした。ネットワークまたはCORSの問題の可能性があります。",
   RESPONSE_CONTRACT_MISMATCH: "レスポンスの形式が想定と異なります。",
+  UNAUTHORIZED: "アクセスキーが無効です。画面上部の入力欄から有効なキーを入力してください。",
 };

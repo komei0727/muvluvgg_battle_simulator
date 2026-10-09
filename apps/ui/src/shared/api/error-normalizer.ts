@@ -10,6 +10,7 @@ import type {
 
 const KIND_BY_CODE: Readonly<Record<string, UiApiErrorKind>> = {
   MALFORMED_REQUEST: "SERVER",
+  UNAUTHORIZED: "UNAUTHORIZED",
   NOT_ACCEPTABLE: "SERVER",
   REQUEST_TOO_LARGE: "SERVER",
   UNSUPPORTED_MEDIA_TYPE: "SERVER",
@@ -26,6 +27,9 @@ const KIND_BY_CODE: Readonly<Record<string, UiApiErrorKind>> = {
 };
 
 function kindByStatus(status: number): UiApiErrorKind {
+  if (status === 401) {
+    return "UNAUTHORIZED";
+  }
   if (status === 429) {
     return "RATE_LIMIT";
   }

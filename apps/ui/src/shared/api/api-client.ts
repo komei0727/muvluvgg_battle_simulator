@@ -151,10 +151,21 @@ export interface GetCatalogOptions {
   readonly requestId?: string;
   readonly timeoutMs?: number;
   readonly fetchImpl?: typeof fetch;
+  /** 保存済みのアクセスキー。未指定なら`Authorization`を送らない。 */
+  readonly accessKey?: string;
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.4: アクセスキーを要求する配備に限り
+// `Authorization: Bearer`で送る（API側の`10_API設計.md`「認証」）。
+function setAccessKey(headers: Headers, accessKey: string | undefined): void {
+  if (accessKey !== undefined) {
+    headers.set("Authorization", `Bearer ${accessKey}`);
+  }
 }
 
 function requestHeaders(options: GetCatalogOptions): Headers {
   const headers = new Headers({ Accept: "application/json" });
+  setAccessKey(headers, options.accessKey);
   if (options.requestId !== undefined) {
     headers.set("X-Request-Id", options.requestId);
   }
@@ -232,10 +243,13 @@ export interface SimulateOptions {
   readonly requestId?: string;
   readonly timeoutMs?: number;
   readonly fetchImpl?: typeof fetch;
+  /** 保存済みのアクセスキー。未指定なら`Authorization`を送らない。 */
+  readonly accessKey?: string;
 }
 
 function simulationRequestHeaders(options: SimulateOptions): Headers {
   const headers = new Headers({ "Content-Type": "application/json", Accept: "application/json" });
+  setAccessKey(headers, options.accessKey);
   if (options.requestId !== undefined) {
     headers.set("X-Request-Id", options.requestId);
   }
