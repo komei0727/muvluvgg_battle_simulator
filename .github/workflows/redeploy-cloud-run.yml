@@ -1,0 +1,28 @@
+name: Redeploy Cloud Run
+
+# mainの最新commitを、push時と同じ手順（0% traffic → smoke test → 昇格）で配置し直す。
+# 環境変数へ注入したsecret（API_ACCESS_KEYS）の`latest`はinstance起動時にしか
+# 読まれないため、キーの追加・失効を全instanceへ揃えて反映するには新revisionが要る
+# （docs/運用手順.md「アクセスキー」）。失敗したmain deployの復旧にも使える。
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "再deployの理由（例: アクセスキー更新）"
+        required: true
+        type: string
+
+jobs:
+  redeploy:
+    name: Redeploy to Cloud Run
+    # 本番はmainの最新を正とする。他のbranchの内容を本番へ出さない。
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/reusable-deploy-api.yml
+    with:
+      trigger: redeploy
+      reuse-image: true
+      reason: ${{ inputs.reason }}
+    secrets: inherit

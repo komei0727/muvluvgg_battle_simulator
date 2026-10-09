@@ -11,9 +11,9 @@
 #    （project IAM roleは持たせない方針を保つ。common.sh「RUNTIME_SERVICE_ACCOUNT」）
 # 4. キー別利用量のログベース指標を作成・更新する
 #
-# Cloud Runは環境変数へ注入したsecretの`latest`をrevision作成時に解決する。
-# キーの変更を反映するには、このscriptの後にCloud Runを再deployする
-# （mainへのpush、またはscripts/cloud-run/03-deploy-service.sh）。
+# Cloud Runは環境変数へ注入したsecretの`latest`をinstance起動時に読む。起動済みの
+# instanceは古いキーのまま残るため、このscriptの後に手動再deploy
+# （.github/workflows/redeploy-cloud-run.yml）で新revisionを作り、全instanceを揃えて切り替える。
 set -euo pipefail
 
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
@@ -74,6 +74,8 @@ else
 fi
 
 echo
-echo "NEXT: Cloud Runを再deployして新しいsecret versionを反映し、起動ログの"
-echo "      accessKeyLabels（docs/運用手順.md「アクセスキー」）で登録したラベルを確認してください。"
+echo "NEXT: 手動再deployで新しいsecret versionを反映してください（ciのキーを変えた場合は先に"
+echo "      GitHubのAPI_ACCESS_KEYを更新する）:"
+echo "        gh workflow run redeploy-cloud-run.yml --ref main -f reason=\"アクセスキー更新\""
+echo "      反映後、起動ログのaccessKeyLabels（docs/運用手順.md「アクセスキー」）で登録したラベルを確認してください。"
 echo "      ACCESS_KEYS_FILEは不要になったら削除してください: rm -P \"$ACCESS_KEYS_FILE\""

@@ -13,6 +13,11 @@ jobs:
     name: Roll back production traffic
     runs-on: ubuntu-latest
     environment: production
+    # deploy（reusable-deploy-api.yml）と同じgroup。rollbackとdeployが並んで
+    # trafficを書き換えないようにする。
+    concurrency:
+      group: cloud-run-production
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
